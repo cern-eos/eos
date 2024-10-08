@@ -3465,16 +3465,23 @@ FsView::GetFsToBalance(const std::string& group_name, double threshold) const
       double fs_filled = fs->GetDouble(metric.c_str());
 
       if (fs_filled < average) {
-        if (average - fs_filled > threshold) {
-          fs_prio.mPrioLow.emplace(*it_fs, node_port);
-        } else {
-          fs_prio.mLow.emplace(*it_fs, node_port);
+        // Make sure this file system allows writes
+        if (fs->GetConfigStatus() >= eos::common::ConfigStatus::kWO) {
+          if (average - fs_filled > threshold) {
+            fs_prio.mPrioLow.emplace(*it_fs, node_port);
+          } else {
+            fs_prio.mLow.emplace(*it_fs, node_port);
+          }
         }
       } else {
-        if (fs_filled - average > threshold) {
-          fs_prio.mPrioHigh.emplace(*it_fs, node_port);
-        } else {
-          fs_prio.mHigh.emplace(*it_fs, node_port);
+        // Make sure this file systems allows reads
+        if ((fs->GetConfigStatus() == eos::common::ConfigStatus::kRW) ||
+            (fs->GetConfigStatus() == eos::common::ConfigStatus::kRO)) {
+          if (fs_filled - average > threshold) {
+            fs_prio.mPrioHigh.emplace(*it_fs, node_port);
+          } else {
+            fs_prio.mHigh.emplace(*it_fs, node_port);
+          }
         }
       }
     }
