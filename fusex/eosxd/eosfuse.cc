@@ -3281,7 +3281,7 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
         }
       }
       md->convert(e, pcap->lifetime());
-    } else if (md->deleted() || (*md)()->err() == ENOENT) {
+    } else if (md->deleted() || (*md)()->err() == ENOENT || (*md)()->err() == 0) {
       // negative cache entry
       e.ino = 0;
 
