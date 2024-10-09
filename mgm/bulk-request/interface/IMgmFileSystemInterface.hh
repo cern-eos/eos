@@ -45,6 +45,7 @@ public:
   virtual void addStats(const char* tag, uid_t uid, gid_t gid,
                         unsigned long val) = 0;
   virtual bool isTapeEnabled() = 0;
+  virtual int getReqIdMaxCount() = 0;
   virtual int Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode,
                    const char* op, const char* target = "") = 0;
   virtual int _exists(const char* path, XrdSfsFileExistence& file_exists,

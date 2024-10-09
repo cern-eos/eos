@@ -102,6 +102,7 @@ mgmofs.qdbpassword_file /etc/eos.keytab
 
 #mgmofs.tapeenabled false
 #mgmofs.prepare.dest.space default
+#mgmofs.prepare.reqid.max 64
 
 #-------------------------------------------------------------------------------
 # Configuration for the tape aware garbage collector
