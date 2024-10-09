@@ -368,7 +368,6 @@ EosFuse::run(int argc, char* argv[], void* userdata)
   eos_static_debug("");
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
   env->PutInt("RunForkHandler", 1);
-  env->PutInt("ParallelEvtLoop", 3);
   env->PutInt("WorkerThreads", 10);
   struct fuse_args args = FUSE_ARGS_INIT(argc, argv);
   fuse_opt_parse(&args, NULL, NULL, NULL);
