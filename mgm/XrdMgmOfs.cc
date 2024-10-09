@@ -300,7 +300,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   HostName(0), HostPref(0), mNamespaceState(NamespaceState::kDown),
   mFileInitTime(0), mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)),
   Shutdown(false), mBootFileId(0), mBootContainerId(0), IsRedirect(true),
-  IsStall(true), mAuthorize(false), mAuthLib(""), mTapeEnabled(false),
+  IsStall(true), mAuthorize(false), mAuthLib(""), mTapeEnabled(false), mReqIdMax(64),
   MgmRedirector(false), mErrLogEnabled(true), eosDirectoryService(0),
   eosFileService(0), eosView(0), eosFsView(0), eosContainerAccounting(0),
   eosSyncTimeAccounting(0), mFrontendPort(0), mNumAuthThreads(0),

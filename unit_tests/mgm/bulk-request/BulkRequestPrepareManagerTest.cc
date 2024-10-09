@@ -63,6 +63,8 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, addStats).Times(2);
   //isTapeEnabled should not be called as we are in the case where everything is fine
   EXPECT_CALL(mgmOfs, isTapeEnabled).Times(0);
+  // Set default value for getReqIdMaxCount
+  EXPECT_CALL(mgmOfs, getReqIdMaxCount()).Times(nbFiles).WillRepeatedly(Return(64));
   //As everything is fine, no Emsg should be called
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   //Everything is fine, all the files exist
@@ -74,7 +76,7 @@ TEST_F(BulkRequestPrepareManagerTest, stagePrepareFilesWorkflow)
   .WillByDefault(Invoke(
                    MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
                  ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(2 * nbFiles);
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   EXPECT_CALL(mgmOfs, _access).Times(nbFiles);
   EXPECT_CALL(mgmOfs, FSctl).Times(nbFiles);
@@ -204,6 +206,8 @@ TEST_F(BulkRequestPrepareManagerTest,
   NiceMock<MockPrepareMgmFSInterface>& mgmOfs = *mgmOfsPtr;
   //isTapeEnabled should not be called
   EXPECT_CALL(mgmOfs, isTapeEnabled).Times(0);
+  // Set default value for getReqIdMaxCount
+  EXPECT_CALL(mgmOfs, getReqIdMaxCount()).Times(nbFiles - 1).WillRepeatedly(Return(64));
   //One file does not exist, Emsg should be called once
   EXPECT_CALL(mgmOfs, Emsg).Times(1);
   //Exist will first return true for the existing file, then return false,
@@ -215,7 +219,7 @@ TEST_F(BulkRequestPrepareManagerTest,
               Invoke(MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA)
             );
   //Attr ls should work for the files that exist
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles - 1)
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(2 * (nbFiles - 1))
   .WillRepeatedly(Invoke(
                     MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA
                   ));
@@ -300,6 +304,8 @@ TEST_F(BulkRequestPrepareManagerTest, abortPrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, addStats).Times(2);
   //isTapeEnabled should not be called as we are in the case where everything is fine
   EXPECT_CALL(mgmOfs, isTapeEnabled).Times(0);
+  // Set default value for getReqIdMaxCount
+  EXPECT_CALL(mgmOfs, getReqIdMaxCount()).Times(0);
   //As everything is fine, no Emsg should be called
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   //Everything is fine, all the files exist
@@ -345,6 +351,8 @@ TEST_F(BulkRequestPrepareManagerTest, abortPrepareOnFileExistsOtherDoNotExist)
   NiceMock<MockPrepareMgmFSInterface>& mgmOfs = *mgmOfsPtr;
   //isTapeEnabled should not be called
   EXPECT_CALL(mgmOfs, isTapeEnabled).Times(0);
+  // Set default value for getReqIdMaxCount
+  EXPECT_CALL(mgmOfs, getReqIdMaxCount()).Times(0);
   //One file does not exist, but as we are idempotent, no error should be returned
   EXPECT_CALL(mgmOfs, Emsg).Times(nbFiles - 1);
   //Exist will first return true for the existing file, then return false
@@ -383,6 +391,8 @@ TEST_F(BulkRequestPrepareManagerTest, evictPrepareFilesWorkflow)
   EXPECT_CALL(mgmOfs, addStats).Times(2);
   //isTapeEnabled should not be called as we are in the case where everything is fine
   EXPECT_CALL(mgmOfs, isTapeEnabled).Times(0);
+  // Set default value for getReqIdMaxCount
+  EXPECT_CALL(mgmOfs, getReqIdMaxCount()).Times(0);
   //As everything is fine, no Emsg should be called
   EXPECT_CALL(mgmOfs, Emsg).Times(0);
   //Everything is fine, all the files exist
@@ -433,6 +443,8 @@ TEST_F(BulkRequestPrepareManagerTest, evictPrepareOneFileExistsOtherDoNotExist)
   NiceMock<MockPrepareMgmFSInterface>& mgmOfs = *mgmOfsPtr;
   //isTapeEnabled should not be called
   EXPECT_CALL(mgmOfs, isTapeEnabled).Times(0);
+  // Set default value for getReqIdMaxCount
+  EXPECT_CALL(mgmOfs, getReqIdMaxCount()).Times(0);
   //One file does not exist, Emsg should not be called as we are idempotent
   EXPECT_CALL(mgmOfs, Emsg).Times(nbFiles - 1);
   //Exist will first return true for the existing file, then return false
