@@ -1298,8 +1298,13 @@ NewfindCmd::ProcessRequest() noexcept
 
       if (findResult.expansionFilteredOut) {
         // Returns a meaningful error message. Mirrors the checks in shouldExpandContainer
-        if (!AccessChecker::checkContainer(findResult.toContainerMD().get(),
-                                           findResult.attrs, R_OK | X_OK, mVid)) {
+        if (findResult.path.find(EOS_COMMON_PATH_VERSION_PREFIX) !=
+                   std::string::npos) {
+          eos_static_debug("msg=\"entry filtered out\" path=\"%s\"",
+                          findResult.path.c_str());
+          continue;
+        } else if (!AccessChecker::checkContainer(findResult.toContainerMD().get(),
+                                                  findResult.attrs, R_OK | X_OK, mVid)) {
           mOfsErrStream << "error(" << EACCES << "): no permissions to read directory ";
           mOfsErrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);
@@ -1310,11 +1315,6 @@ NewfindCmd::ProcessRequest() noexcept
                         "): public access level restriction on directory ";
           mOfsErrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);
-          continue;
-        } else if (findResult.path.find(EOS_COMMON_PATH_VERSION_PREFIX) !=
-                   std::string::npos) {
-          eos_static_debug("msg=\"entry filtered out\" path=\"%s\"",
-                          findResult.path.c_str());
           continue;
         } else {
           // @note Empty branch, will be cut out from the compiler anyway.
