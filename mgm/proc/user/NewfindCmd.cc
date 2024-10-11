@@ -1298,8 +1298,8 @@ NewfindCmd::ProcessRequest() noexcept
 
       if (findResult.expansionFilteredOut) {
         // Returns a meaningful error message. Mirrors the checks in shouldExpandContainer
-        if (findResult.path.find(EOS_COMMON_PATH_VERSION_PREFIX) !=
-                   std::string::npos) {
+        if (findRequest.skipversiondirs() &&
+            (findResult.path.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)) {
           eos_static_debug("msg=\"entry filtered out\" path=\"%s\"",
                           findResult.path.c_str());
           continue;
