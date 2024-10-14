@@ -315,11 +315,7 @@ int ConcurrentMount::runFdServer() {
     if (s2<0) {
       continue;
     }
-    if (do_sendmsg(s2, saddr_->sun_path, fuseFd_)<0) {
-      close(s2);
-      close(usock);
-      return -1;
-    }
+    (void)do_sendmsg(s2, saddr_->sun_path, fuseFd_);
     close(s2);
   }
 
