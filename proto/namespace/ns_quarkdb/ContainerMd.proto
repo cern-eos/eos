@@ -17,6 +17,8 @@ message ContainerMdProto {
   bytes mtime = 10; // modification time
   bytes stime = 11; // sync time
   map<string, bytes> xattrs = 12;
+  uint64 tree_containers = 13;
+  uint64 tree_files = 14;
 
   uint64 cloneid = 256;     // transient
   bytes clonefst = 257;    // transient
