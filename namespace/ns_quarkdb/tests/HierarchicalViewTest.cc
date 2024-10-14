@@ -940,8 +940,12 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
       }
       auto dmd = view()->getContainer(dirName);
       ASSERT_EQ(10 * 10000, dmd->getTreeSize());
+      ASSERT_EQ(10,dmd->getTreeFiles());
+      ASSERT_EQ(0,dmd->getTreeContainers());
     }
   }
+  ASSERT_EQ(10 * 100 + 1,view()->getContainer("/test/")->getTreeFiles());
+  ASSERT_EQ(100,view()->getContainer("/test/")->getTreeContainers());
   {
     for(int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
@@ -978,6 +982,8 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
   }
   // 100 directories * 10 files * 10000 bytes + test.txt (10000)
   ASSERT_EQ(100 * 10 * 10000 + 10000, view()->getContainer("/test/")->getTreeSize());
+  ASSERT_EQ(100, view()->getContainer("/test/")->getTreeContainers());
+  ASSERT_EQ(1001, view()->getContainer("/test/")->getTreeFiles());
 }
 
 TEST_F(HierarchicalViewF, fileMDLockedClone)

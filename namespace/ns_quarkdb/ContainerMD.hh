@@ -293,6 +293,52 @@ public:
   uint64_t updateTreeSize(int64_t delta) override;
 
   //----------------------------------------------------------------------------
+  //! Update tree containers
+  //----------------------------------------------------------------------------
+  uint64_t updateTreeContainers(int64_t delta) override;
+
+  //----------------------------------------------------------------------------
+  //! Update tree files
+  //----------------------------------------------------------------------------
+  uint64_t updateTreeFiles(int64_t delta) override;
+
+  //----------------------------------------------------------------------------
+  //! Set tree containers
+  //----------------------------------------------------------------------------
+  inline void setTreeContainers(uint64_t treeContainers) override {
+    runWriteOp([this,treeContainers](){
+      mCont.set_tree_containers(treeContainers);
+    });
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get tree containers
+  //----------------------------------------------------------------------------
+  inline uint64_t getTreeContainers() const override {
+    return runReadOp([this](){
+      return mCont.tree_containers();
+    });
+  }
+
+  //----------------------------------------------------------------------------
+  //! Set file containers
+  //----------------------------------------------------------------------------
+  inline void setTreeFiles(uint64_t treeFiles) override {
+    runWriteOp([this,treeFiles](){
+      mCont.set_tree_files(treeFiles);
+    });
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get file containers
+  //----------------------------------------------------------------------------
+  inline uint64_t getTreeFiles() const override {
+    return runReadOp([this](){
+      return mCont.tree_files();
+    });
+  }
+
+  //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------
   inline const std::string&

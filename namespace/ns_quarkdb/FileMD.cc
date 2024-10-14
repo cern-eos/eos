@@ -363,7 +363,7 @@ QuarkFileMD::setSize(uint64_t size)
     mFile.set_size(size & 0x0000ffffffffffff);
   });
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0,
-                                 sizeChange);
+                                 {sizeChange,0,0});
   pFileMDSvc->notifyListeners(&e);
 }
 

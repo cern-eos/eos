@@ -40,6 +40,26 @@ EOSNSNAMESPACE_BEGIN
 class IContainerMDSvc;
 class IQuotaStats;
 
+struct TreeInfos {
+  int64_t dsize; //Tree size to update (delta)
+  int64_t dtreefiles; //Tree files to update (delta)
+  int64_t dtreecontainers; //Tree containers to update (delta)
+
+  TreeInfos():dsize(0),dtreefiles(0),dtreecontainers(0) {}
+  TreeInfos(int64_t dtreeSize, int64_t dtreeFiles, int64_t dtreeContainers):dsize(dtreeSize),dtreefiles(dtreeFiles),dtreecontainers(dtreeContainers){}
+
+  TreeInfos operator-() const {
+    return {-dsize,-dtreefiles,-dtreecontainers};
+  }
+
+  TreeInfos & operator+=(const TreeInfos & treeInfos) {
+    dsize += treeInfos.dsize;
+    dtreefiles += treeInfos.dtreefiles;
+    dtreecontainers += treeInfos.dtreecontainers;
+    return *this;
+  }
+};
+
 //------------------------------------------------------------------------------
 //! Interface for a listener that is notified about all of the
 //! actions performed in a IFileMDSvc
@@ -63,15 +83,15 @@ public:
   struct Event {
     Event(IFileMD* _file, Action _action,
           IFileMD::location_t _location = 0,
-          int64_t _changed_size = 0):
+          TreeInfos _changed_tree = {0,0,0}):
       file(_file),
       action(_action),
-      sizeChange(_changed_size),
+      treeChange(_changed_tree),
       location(_location) {}
 
     IFileMD*             file;
     Action               action;
-    int64_t              sizeChange;
+    TreeInfos            treeChange;
     IFileMD::location_t  location;
 
   };
@@ -80,8 +100,8 @@ public:
   virtual void fileMDChanged(Event* event) = 0;
   virtual void fileMDRead(IFileMD* obj) = 0;
   virtual bool fileMDCheck(IFileMD* obj) = 0;
-  virtual void AddTree(IContainerMD* obj , int64_t dsize) = 0;
-  virtual void RemoveTree(IContainerMD* obj , int64_t dsize) = 0;
+  virtual void AddTree(IContainerMD* obj , TreeInfos treeInfos) = 0;
+  virtual void RemoveTree(IContainerMD* obj , TreeInfos treeInfos) = 0;
 };
 
 //------------------------------------------------------------------------------

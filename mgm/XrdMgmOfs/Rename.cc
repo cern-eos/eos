@@ -734,7 +734,9 @@ XrdMgmOfs::_rename(const char* old_name,
             bulkContainerLocker.add(newdir);
             auto containerLocks = bulkContainerLocker.lockAll();
             COMMONTIMING("rename::move_dir_all_dirs_write_lock", &tm);
-            unsigned long long tree_size = rdir->getTreeSize();
+            int64_t tree_size = static_cast<int64_t>(rdir->getTreeSize());
+            int64_t tree_files = static_cast<int64_t>(rdir->getTreeFiles());
+            int64_t tree_cont = static_cast<int64_t>(rdir->getTreeContainers());
             {
               // update the source directory - remove the directory
               dir->removeContainer(oPath.GetName());
@@ -742,7 +744,7 @@ XrdMgmOfs::_rename(const char* old_name,
               dir->notifyMTimeChange(gOFS->eosDirectoryService);
 
               if (gOFS->eosContainerAccounting) {
-                gOFS->eosContainerAccounting->RemoveTree(dir.get(), tree_size);
+                gOFS->eosContainerAccounting->RemoveTree(dir.get(), {tree_size,tree_files,tree_cont});
               }
 
               eosView->updateContainerStore(dir.get());
@@ -776,7 +778,7 @@ XrdMgmOfs::_rename(const char* old_name,
               newdir->setMTimeNow();
 
               if (gOFS->eosContainerAccounting) {
-                gOFS->eosContainerAccounting->AddTree(newdir.get(), tree_size);
+                gOFS->eosContainerAccounting->AddTree(newdir.get(), {tree_size,tree_files,tree_cont});
               }
 
               const eos::ContainerIdentifier rdid = rdir->getIdentifier();

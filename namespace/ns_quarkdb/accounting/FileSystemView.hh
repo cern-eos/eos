@@ -336,12 +336,12 @@ public:
   //----------------------------------------------------------------------------
   //! Add tree - no-op for this type of view
   //----------------------------------------------------------------------------
-  void AddTree(IContainerMD* obj, int64_t dsize) override {};
+  void AddTree(IContainerMD* obj, TreeInfos treeInfos) override {};
 
   //----------------------------------------------------------------------------
   //! Remove tree - no-op for this type of view
   //----------------------------------------------------------------------------
-  void RemoveTree(IContainerMD* obj, int64_t dsize) override {};
+  void RemoveTree(IContainerMD* obj, TreeInfos treeInfos) override {};
 
 private:
 

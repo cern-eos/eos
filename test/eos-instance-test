@@ -482,6 +482,10 @@ eos_squash() {
    echo eos-squash-test $1 ; eval eos-squash-test $1 ${EOS_TEST_FULL_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
+eos_accounting() {
+  echo eos-accounting-test $1 $EOS_TEST_REDIRECTOR; eval eos-accounting-test $1 $EOS_TEST_REDIRECTOR >> $EOSCERTLOG 2>&1
+}
+
 shell() {
     echo $* >& $EOSLASTLOG; eval $* >> $EOSCERTLOG 2>&1
 }
@@ -2315,6 +2319,14 @@ runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/ins
 categorie="grpc"
 # ------------------------------------------------------------------------------
 runtest "### eos-grpc  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/grpc.dir/"
+
+################################################################################
+# Accounting tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="accounting"
+# ------------------------------------------------------------------------------
+runtest "### eos-accounting" unix 0 "" eos_accounting "/eos/$EOS_TEST_INSTANCE/test/instancetest/accounting_test"
 
 ################################################################################
 # Token tests

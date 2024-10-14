@@ -2,6 +2,7 @@ usr/sbin/eos-fuse-test
 usr/sbin/eos-fusex-certify
 usr/sbin/eos-instance-test
 usr/sbin/eos-instance-test-ci
+usr/sbin/eos-accounting-test
 usr/sbin/eos-io-test
 usr/sbin/eos-io-tool
 usr/sbin/eos-oc-test

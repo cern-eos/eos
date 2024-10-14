@@ -1523,8 +1523,9 @@ Server::OpSetDirectory(const std::string& id,
         // If the destination exists, we have to remove it if it's empty
         std::shared_ptr<eos::IContainerMD> exist_target_cmd = pcmd->findContainer(
               md.name());
-        unsigned long long tree_size = cmd->getTreeSize();
-
+        int64_t tree_size = static_cast<int64_t>(cmd->getTreeSize());
+        int64_t tree_cont = static_cast<int64_t>(cmd->getTreeContainers());
+        int64_t tree_files = static_cast<int64_t>(cmd->getTreeFiles());
         if (exist_target_cmd) {
           if (exist_target_cmd->getNumFiles() + exist_target_cmd->getNumContainers()) {
             // Fatal error we have to fail that rename
@@ -1552,7 +1553,7 @@ Server::OpSetDirectory(const std::string& id,
         cpcmd->removeContainer(cmd->getName());
 
         if (gOFS->eosContainerAccounting) {
-          gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), tree_size);
+          gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), {tree_size,tree_files,tree_cont});
         }
 
         gOFS->eosView->updateContainerStore(cpcmd.get());
@@ -1560,7 +1561,7 @@ Server::OpSetDirectory(const std::string& id,
         pcmd->addContainer(cmd.get());
 
         if (gOFS->eosContainerAccounting) {
-          gOFS->eosContainerAccounting->AddTree(pcmd.get(), tree_size);
+          gOFS->eosContainerAccounting->AddTree(pcmd.get(), {tree_size,tree_files,tree_cont});
         }
 
         gOFS->eosView->updateContainerStore(pcmd.get());

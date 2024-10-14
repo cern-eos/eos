@@ -93,10 +93,10 @@ public:
   //----------------------------------------------------------------------------
   //! Add tree
   //!
-  //! @param obj container where the tree should be added
-  //! @param dsize size of the subtree to be added
+  //! @param obj container where the tree information should be added
+  //! @param treeAccounting tree accounting information to be updated
   //----------------------------------------------------------------------------
-  void AddTree(IContainerMD* obj, int64_t dsize);
+  void AddTree(IContainerMD* obj, TreeInfos treeAccounting);
 
   //----------------------------------------------------------------------------
   //! Remove tree
@@ -104,7 +104,7 @@ public:
   //! @param obj container where the tree should be removed from
   //! @param dsize size of the subtree to be removed
   //----------------------------------------------------------------------------
-  void RemoveTree(IContainerMD* obj, int64_t dsize);
+  void RemoveTree(IContainerMD* obj, TreeInfos treeAccounting);
 
   //----------------------------------------------------------------------------
   //! Queue info for update
@@ -112,7 +112,7 @@ public:
   //! @param pid container id
   //! @param dsize size change
   //----------------------------------------------------------------------------
-  void QueueForUpdate(IContainerMD::id_t pid, int64_t dsize);
+  void QueueForUpdate(IContainerMD::id_t pid, TreeInfos treeInfos);
 
   //----------------------------------------------------------------------------
   //! Propagate updates in the hierarchical structure
@@ -152,7 +152,7 @@ private:
   //! optimise the number of updates to the backend by computing the final
   //! size deltas from a number of individual updates.
   struct UpdateT {
-    std::unordered_map<IContainerMD::id_t, int64_t> mMap; ///< Map updates
+    std::unordered_map<IContainerMD::id_t, TreeInfos> mMap; ///< Map updates
   };
 
   //! Vector of two elements containing the batch which is currently being
@@ -166,7 +166,7 @@ private:
   AssistedThread mQueueForUpdateThread; ///< Thread update queueing thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< container MD service
-  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, int64_t>>  mIdSizeToUpdateQueue; ///< Queue containing containerIds and their corresponding size to update
+  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, TreeInfos>>  mIdTreeInfosToUpdateQueue; ///< Queue containing containerIds and their corresponding infos to update
 };
 
 EOSNSNAMESPACE_END

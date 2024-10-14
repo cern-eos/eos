@@ -94,4 +94,14 @@ TEST(ParseUtils, GetFileHexSha1)
   (void) unlink(fn.c_str());
 }
 
+TEST(ParseUtils, ComputeSize) {
+  uint64_t size = 0;
+  ComputeSize(size,0);
+  ASSERT_EQ(0,size);
+  ComputeSize(size,5);
+  ASSERT_EQ(5,size);
+  ComputeSize(size,-10);
+  ASSERT_EQ(0,size);
+}
+
 EOSCOMMONTESTING_END

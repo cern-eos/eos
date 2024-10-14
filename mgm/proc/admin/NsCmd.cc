@@ -972,6 +972,8 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
   std::shared_ptr<eos::IFileMD> tmp_fmd {nullptr};
   std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
   uint64_t tree_size = 0u;
+  uint64_t tree_containers = 0u;
+  uint64_t tree_files = 0u;
 
   for (auto fit = FileMapIterator(cont); fit.valid(); fit.next()) {
     try {
@@ -982,6 +984,7 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
     }
 
     tree_size += tmp_fmd->getSize();
+    tree_files += 1;
   }
 
   for (auto cit = ContainerMapIterator(cont); cit.valid(); cit.next()) {
@@ -993,9 +996,13 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
     }
 
     tree_size += tmp_cont->getTreeSize();
+    tree_containers += tmp_cont->getTreeContainers() + 1; //Count the current cont' children + the subChildren (getDirCount())
+    tree_files += tmp_cont->getTreeFiles();
   }
 
   cont->setTreeSize(tree_size);
+  cont->setTreeFiles(tree_files);
+  cont->setTreeContainers(tree_containers);
   gOFS->eosDirectoryService->updateStore(cont.get());
   gOFS->FuseXCastRefresh(cont->getIdentifier(), cont->getParentIdentifier());
 }

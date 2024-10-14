@@ -741,6 +741,8 @@ ProcCommand::DirInfo(const char* path)
       size_t num_containers = dmd->getNumContainers();
       size_t num_files = dmd->getNumFiles();
       size_t tree_size = dmd->getTreeSize();
+      uint64_t tree_containers = dmd->getTreeContainers();
+      uint64_t tree_files = dmd->getTreeFiles();
       std::shared_ptr<eos::IContainerMD> dmd_copy(dmd->clone());
       dmd.reset();
       viewReadLock.Release();
@@ -804,7 +806,9 @@ ProcCommand::DirInfo(const char* path)
 
         if (!Monitoring) {
           out << "  Directory: '" << spath << "'"
-              << "  Treesize: " << tree_size << std::endl;
+              << "  Treesize: " << tree_size
+              << "  Treecontainers: " << tree_containers
+              << "  Treefiles: "  << tree_files << std::endl;
           out << "  Container: " << num_containers
               << "  Files: " << num_files
               << "  Flags: " << StringConversion::IntToOctal(dmd_copy->getMode(), 4);
@@ -839,6 +843,8 @@ ProcCommand::DirInfo(const char* path)
           out << "keylength.file=" << spath.length()
               << " file=" << spath
               << " treesize=" << tree_size
+              << " treecontainers=" << tree_containers
+              << " treefiles=" << tree_files
               << " container=" << num_containers
               << " files=" << num_files
               << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
@@ -1110,6 +1116,8 @@ ProcCommand::DirJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["btime"] = (Json::Value::UInt64) btime.tv_sec;
     json["btime_ns"] = (Json::Value::UInt64) btime.tv_nsec;
     json["treesize"] = (Json::Value::UInt64) cmd->getTreeSize();
+    json["treecontainers"] = (Json::Value::UInt64) cmd->getTreeContainers();
+    json["treefiles"] = (Json::Value::UInt64) cmd->getTreeFiles();
     json["uid"] = cmd->getCUid();
     json["gid"] = cmd->getCGid();
     json["flags"] = cmd->getFlags();

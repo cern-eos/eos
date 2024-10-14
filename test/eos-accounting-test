@@ -1,0 +1,129 @@
+#!/bin/bash
+
+prefix=$1
+host=${2-"localhost"}
+url=root://$host
+EOS_ACCOUNTING_DIR=$prefix
+
+cleanup() {
+  eos rm -rF --no-confirmation $EOS_ACCOUNTING_DIR/
+}
+
+# Convenient function to test the accounting variables
+test_accounting() {
+  path=$1
+  expected_treecont=$2
+  expected_treefiles=$3
+  expected_treesize=$4
+  fileinfoRes=`eos fileinfo $path -m`
+  treecont=`echo $fileinfoRes | grep -o 'treecontainers=[^ ]\+' | cut -d= -f2`
+  treefiles=`echo $fileinfoRes | grep -o 'treefiles=[^ ]\+' | cut -d= -f2`
+  treesize=`echo $fileinfoRes | grep -o 'treesize=[^ ]\+' | cut -d= -f2`
+  error=0
+  if [[ $treecont -ne $expected_treecont ]];
+  then
+    echo "path: "$path " expected $expected_treecont treecontainers, got $treecont"
+    error=1
+  fi
+  if [[ $treefiles -ne $expected_treefiles ]];
+  then
+    error=1
+    echo "path: "$path " expected $expected_treefiles treefiles, got $treefiles"
+  fi
+  if [[ $treesize -ne $expected_treesize ]];
+  then
+    error=1
+    echo "path: "$path " expected $expected_treesize treesize, got $treesize"
+  fi
+  if [[ $error -eq 1 ]];
+  then
+    exit 1
+  fi
+}
+
+cleanup
+
+eos mkdir -p $EOS_ACCOUNTING_DIR/
+
+test_accounting $EOS_ACCOUNTING_DIR 0 0 0
+
+eos mkdir -p $EOS_ACCOUNTING_DIR/source
+eos mkdir -p $EOS_ACCOUNTING_DIR/destination
+
+nDirs=100
+nFiles=10
+
+# create nDirs directories in each we will create another directory containing a 0-size file (touch)
+# then copy /etc/passwd to the nDirs directories
+for (( i=0; i<$nDirs; i++ ));
+do
+  eos mkdir -p $EOS_ACCOUNTING_DIR/source/$i &
+done
+wait
+for (( i=0; i<$nDirs; i++ ));
+do
+  for (( j=0; j<$nFiles; j++));
+  do
+    eos mkdir -p $EOS_ACCOUNTING_DIR/source/$i/dir$j && eos touch $EOS_ACCOUNTING_DIR/source/$i/dir$j/touch$j &
+    eos cp /etc/passwd $url/$EOS_ACCOUNTING_DIR/source/$i/passwd$j &
+  done
+  wait
+done
+
+# Wait that the accounting thread does its job
+sleep 10
+
+totalNbFiles=$((2*nFiles*nDirs))
+passwdFileSize=`stat -c%s /etc/passwd`
+# Only size of passwd files (not the touched files!)
+totalTreeSize=$(($nDirs*$nFiles*passwdFileSize))
+
+# Directory located in EOS_ACCOUNTING_DIR should have source+destination+all sources sub directories created above,
+# all the files and a tree size of all passwd files
+test_accounting $EOS_ACCOUNTING_DIR $((nDirs+(nFiles*nDirs)+2)) $totalNbFiles $totalTreeSize
+# Source directory should have all directories created in the for loop above, all the files
+# and all the tree size of all passwd files
+test_accounting $EOS_ACCOUNTING_DIR/source $((nDirs+(nFiles*nDirs))) $totalNbFiles $totalTreeSize
+# Destination has nothing in it
+test_accounting $EOS_ACCOUNTING_DIR/destination 0 0 0
+
+# Perform a parallel directory move from source to destination
+echo "Will perform directory move from $EOS_ACCOUNTING_DIR/source/\$i to $EOS_ACCOUNTING_DIR/destination/\$i ..."
+for (( i=0; i<$nDirs; i++ ));
+do
+  eos mv $EOS_ACCOUNTING_DIR/source/$i $EOS_ACCOUNTING_DIR/destination/$i &
+done
+wait
+echo "done move from $EOS_ACCOUNTING_DIR/source/$i to $EOS_ACCOUNTING_DIR/destination/$i"
+
+# Wait that the accounting thread does its job
+sleep 10
+
+# EOS_ACCOUNTING_DIR's accounting should be the same as previously
+test_accounting $EOS_ACCOUNTING_DIR $((nDirs+(nFiles*nDirs)+2)) $totalNbFiles $totalTreeSize
+
+# Source should have all counters updated to 0
+test_accounting $EOS_ACCOUNTING_DIR/source 0 0 0
+# Destination should have the same accounting as the source one previously
+test_accounting $EOS_ACCOUNTING_DIR/destination $((nDirs+(nFiles*nDirs))) $totalNbFiles $totalTreeSize
+
+# Perform the deletion of half of the directories created in the destination
+echo "Performing the deletion of half of the directories created in the destination"
+for (( i=0; i<$nDirs; i+=2 ));
+do
+  echo "eos rm -rF --no-confirmation $EOS_ACCOUNTING_DIR/destination/$i"
+  eos rm -rF --no-confirmation $EOS_ACCOUNTING_DIR/destination/$i &
+done
+wait
+
+# Then move the destination directory
+eos mv $EOS_ACCOUNTING_DIR/destination/ $EOS_ACCOUNTING_DIR/source
+
+# Check the recompute_tree_size (we did not give the time for the accounting thread to do its job)
+eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/
+
+# Source directory has now the destination directory + all directories under it that got divided by two by the previous deletion
+test_accounting $EOS_ACCOUNTING_DIR/source $(((nDirs+(nFiles*nDirs))/2+1)) $((totalNbFiles/2)) $((totalTreeSize/2))
+
+cleanup
+exit 0

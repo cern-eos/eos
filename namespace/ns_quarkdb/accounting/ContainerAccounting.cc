@@ -44,7 +44,7 @@ QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc, int32_t
 QuarkContainerAccounting::~QuarkContainerAccounting()
 {
   // Stop the AsyncQueueUpdate thread by queuing containerID = 0
-  mIdSizeToUpdateQueue.emplace(0,0);
+  mIdTreeInfosToUpdateQueue.emplace(0,TreeInfos{0,0,0});
   if (mUpdateIntervalSec) {
     mThread.join();
     mQueueForUpdateThread.join();
@@ -60,13 +60,14 @@ QuarkContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
   switch (e->action) {
   // We are only interested in SizeChange events
   case IFileMDChangeListener::SizeChange:
-    if (e->file->getContainerId() == 0) {
+    // e->file can be nullptr here
+    if ((e->file && e->file->getContainerId() == 0) || !e->file) {
       // NOTE: This is an ugly hack. The file object has not reference to the
       // container id, therefore we hijack the "location" member of the Event
       // class to pass in the container id.
-      QueueForUpdate(e->location, e->sizeChange);
+      QueueForUpdate(e->location, e->treeChange);
     } else {
-      QueueForUpdate(e->file->getContainerId(), e->sizeChange);
+      QueueForUpdate(e->file->getContainerId(), e->treeChange);
     }
 
     break;
@@ -80,31 +81,31 @@ QuarkContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
 // Add tree
 //------------------------------------------------------------------------------
 void
-QuarkContainerAccounting::AddTree(IContainerMD* obj, int64_t dsize)
+QuarkContainerAccounting::AddTree(IContainerMD* obj, TreeInfos treeAccounting)
 {
-  QueueForUpdate(obj->getId(), dsize);
+  QueueForUpdate(obj->getId(), treeAccounting);
 }
 
 //-------------------------------------------------------------------------------
 // Remove tree
 //-------------------------------------------------------------------------------
 void
-QuarkContainerAccounting::RemoveTree(IContainerMD* obj, int64_t dsize)
+QuarkContainerAccounting::RemoveTree(IContainerMD* obj, TreeInfos treeAccounting)
 {
-  QueueForUpdate(obj->getId(), -dsize);
+  QueueForUpdate(obj->getId(), -treeAccounting);
 }
 
 //------------------------------------------------------------------------------
 // Queue file info for update
 //------------------------------------------------------------------------------
 void
-QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, int64_t dsize)
+QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, TreeInfos treeAccounting)
 {
   if(id) {
     // The condition to stop the queueing thread is that the id = 0. The minimum container id is 1 and
     // corresponds to "/"
     // We therefore prevent users to queue the container id = 0 for update (which should not happen!)
-    mIdSizeToUpdateQueue.emplace(id,dsize);
+    mIdTreeInfosToUpdateQueue.emplace(id,treeAccounting);
   }
 }
 
@@ -149,7 +150,9 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
         try {
           auto contLock = mContainerMDSvc->getContainerMDWriteLocked(elem.first);
           auto cont = contLock->getUnderlyingPtr();
-          cont->updateTreeSize(elem.second);
+          cont->updateTreeSize(elem.second.dsize);
+          cont->updateTreeFiles(elem.second.dtreefiles);
+          cont->updateTreeContainers(elem.second.dtreecontainers);
           mContainerMDSvc->updateStore(cont.get());
         } catch (const MDException& e) {
           // TODO: (esindril) error message using default logging
@@ -179,21 +182,20 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
 //------------------------------------------------------------------------------
 void QuarkContainerAccounting::AsyncQueueForUpdate(ThreadAssistant* assistant)
 {
-  std::pair<eos::IContainerMD::id_t,int64_t> contIdSize;
+  std::pair<eos::IContainerMD::id_t,TreeInfos> contIdTreeInfos;
   std::vector<IContainerMD::id_t> idsToUpdate;
 
   while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
     uint16_t deepness = 0;
 
-    mIdSizeToUpdateQueue.wait_pop(contIdSize);
-    if(!contIdSize.first) {
+    mIdTreeInfosToUpdateQueue.wait_pop(contIdTreeInfos);
+    if(!contIdTreeInfos.first) {
       // Container ID = 0 (see ~QuarkContainerAccounting()), we
       // stop this thread
       break;
     }
 
-    IContainerMD::id_t id = contIdSize.first;
-    int64_t dsize = contIdSize.second;
+    IContainerMD::id_t id = contIdTreeInfos.first;
     // Go up the tree and give the ids to update to the batch that will
     // be taken by the PropagateUpdate thread
     while ((id > 1) && (deepness < 255)) {
@@ -216,9 +218,9 @@ void QuarkContainerAccounting::AsyncQueueForUpdate(ThreadAssistant* assistant)
       auto it_map = batch.mMap.find(idToUpdate);
 
       if (it_map != batch.mMap.end()) {
-        it_map->second += dsize;
+        it_map->second += contIdTreeInfos.second;
       } else {
-        batch.mMap.emplace(idToUpdate, dsize);
+        batch.mMap.emplace(idToUpdate, contIdTreeInfos.second);
       }
     }
 

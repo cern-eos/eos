@@ -183,4 +183,13 @@ GetFileHexSha1(std::string& hex_sha1, const std::string& fn)
   return true;
 }
 
+void ComputeSize(uint64_t & size, int64_t delta) {
+  // Avoid negative size
+  if ((delta < 0) && (static_cast<uint64_t>(std::llabs(delta)) > size)) {
+    size = 0;
+  } else {
+    size += delta;
+  }
+}
+
 EOSCOMMONNAMESPACE_END

@@ -874,6 +874,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-mq-tests
 %{_sbindir}/eos-instance-test
 %{_sbindir}/eos-instance-test-ci
+%{_sbindir}/eos-accounting-test
 %{_sbindir}/eos-rain-test
 %{_sbindir}/eos-drain-test
 %{_sbindir}/eos-balance-test

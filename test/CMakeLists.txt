@@ -177,7 +177,7 @@ install(TARGETS eos-mq-feeder eos-mq-dumper eos-shared-hash-test
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
-  fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test
+  fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test eos-accounting-test
   eos-oc-test eos-drain-test eos-groupdrain-test eos-mq-tests
   eos-http-upload-test eos-https-functional-test eos-token-test
   eos-fst-close-test eos-rename-test eos-grpc-test eos-fsck-test

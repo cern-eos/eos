@@ -122,3 +122,29 @@ TEST_F(FileMDSvcF, getFileLocked) {
     ASSERT_EQ(fileWriteLocked->getUnderlyingPtr().get(),fileWriteLocked2->getUnderlyingPtr().get());
   }
 }
+
+TEST_F(FileMDSvcF,TreeInfos) {
+  eos::TreeInfos basicInfo;
+  ASSERT_EQ(0,basicInfo.dsize);
+  ASSERT_EQ(0,basicInfo.dtreefiles);
+  ASSERT_EQ(0,basicInfo.dtreecontainers);
+  eos::TreeInfos infos;
+  infos = -basicInfo;
+  ASSERT_EQ(0,infos.dsize);
+  ASSERT_EQ(0,infos.dtreefiles);
+  ASSERT_EQ(0,infos.dtreecontainers);
+  basicInfo.dsize = 1;
+  basicInfo.dtreefiles = -1;
+  basicInfo.dtreecontainers = 1;
+  infos = -basicInfo;
+  ASSERT_EQ(-1,infos.dsize);
+  ASSERT_EQ(1,infos.dtreefiles);
+  ASSERT_EQ(-1,infos.dtreecontainers);
+  basicInfo.dsize = 0;
+  basicInfo.dtreefiles = 0;
+  basicInfo.dtreecontainers = 0;
+  basicInfo += {1,1,1};
+  ASSERT_EQ(1,basicInfo.dsize);
+  ASSERT_EQ(1,basicInfo.dtreefiles);
+  ASSERT_EQ(1,basicInfo.dtreecontainers);
+}
