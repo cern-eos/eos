@@ -129,14 +129,19 @@ HttpServer::Handler(void* cls,
     }
 
     // Authenticate the client
-    eos::common::VirtualIdentity* vid = Authenticate(headers);
+    std::unique_ptr<eos::common::VirtualIdentity> vid = Authenticate(headers);
+    if (!vid) {
+      eos_static_info("msg=\"could not build VirtualIdentity based on headers\" "
+                      "method=%s", method);
+      return MHD_NO;
+    }
     eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.tident=%s\n",
                     method, headers["client-real-ip"].c_str(), headers["client-real-host"].c_str(),
                     vid->uid_string.c_str(), vid->gid_string.c_str(), vid->host.c_str(),
                     vid->tident.c_str());
     eos::common::ProtocolHandler* handler;
     ProtocolHandlerFactory factory = ProtocolHandlerFactory();
-    handler = factory.CreateProtocolHandler(method, headers, vid);
+    handler = factory.CreateProtocolHandler(method, headers, vid.release());
 
     if (!handler) {
       eos_static_err("msg=\"no matching protocol for request method %s\"",
@@ -359,7 +364,7 @@ HttpServer::XrdHttpHandler(std::string& method,
   }
 
   std::string query; //@todo(esindril) decide if this is needed
-  VirtualIdentity* vid = new VirtualIdentity();
+  std::unique_ptr<VirtualIdentity> vid;
 
   // Native XrdHttp access
   if (headers.find("x-forwarded-for") == headers.end() && !s3_access) {
@@ -385,6 +390,7 @@ HttpServer::XrdHttpHandler(std::string& method,
     Access_Operation acc_op = MapHttpVerbToAOP(method);
     const std::string env = ptr;
     query = env;
+    vid = std::make_unique<VirtualIdentity>();
     EXEC_TIMING_BEGIN("IdMap");
     Mapping::IdMap(&client, env.c_str(), client.tident, *vid,
                    authz_obj, acc_op, path);
@@ -399,6 +405,11 @@ HttpServer::XrdHttpHandler(std::string& method,
     }
 
     vid = Authenticate(headers);
+    if (!vid) {
+      eos_static_info("msg=\"could not build VirtualIdentity based on headers\" "
+                      "method=%s", method.c_str());
+      return nullptr;
+    }
   }
 
   // Update the vid.name as the mapping might have changed the vid.uid and it
@@ -415,7 +426,7 @@ HttpServer::XrdHttpHandler(std::string& method,
                   vid->host.c_str(), vid->dn.c_str(), vid->tident.c_str());
   ProtocolHandlerFactory factory = ProtocolHandlerFactory();
   std::unique_ptr<eos::common::ProtocolHandler> handler
-  {factory.CreateProtocolHandler(method, headers, vid)};
+  {factory.CreateProtocolHandler(method, headers, vid.release())};
 
   if (!handler) {
     eos_static_err("msg=\"no matching protocol for request method %s\"",
@@ -552,10 +563,10 @@ HttpServer::ProcessClientDN(const std::string& cdn) const
 }
 
 /*----------------------------------------------------------------------------*/
-eos::common::VirtualIdentity*
+std::unique_ptr<eos::common::VirtualIdentity>
 HttpServer::Authenticate(std::map<std::string, std::string>& headers)
 {
-  eos::common::VirtualIdentity* vid = 0;
+  std::unique_ptr<eos::common::VirtualIdentity> vid;
   std::string clientDN = headers["ssl_client_s_dn"];
   std::string remoteUser = headers["remote-user"];
   std::string dn;
@@ -712,7 +723,7 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
   client.tident = const_cast<char*>(tident.c_str());
   {
     // Make a virtual identity object
-    vid = new eos::common::VirtualIdentity();
+    vid = std::make_unique<eos::common::VirtualIdentity>();
     EXEC_TIMING_BEGIN("IdMap");
     eos::common::Mapping::IdMap(&client, "eos.app=http", client.tident, *vid);
     EXEC_TIMING_END("IdMap");
