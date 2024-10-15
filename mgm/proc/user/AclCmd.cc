@@ -25,6 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "common/StringTokenizer.hh"
 #include "common/ErrnoToString.hh"
+#include "common/Path.hh"
 #include "namespace/Prefetcher.hh"
 #include <unistd.h>
 #include <functional>
@@ -144,7 +145,10 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 
     // Save all the directories in the current subtree
     for (const auto& elem : dirs) {
-      paths.push_back(elem.first);
+      // skip version directories
+      if (elem.first.find(EOS_COMMON_PATH_VERSION_PREFIX) == std::string::npos) {
+	paths.push_back(elem.first);
+      }
     }
   } else {
     paths.push_back(acl.path());
