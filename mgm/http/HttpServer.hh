@@ -106,7 +106,7 @@ public:
    *
    * @return an appropriately filled virtual identity
    */
-  eos::common::VirtualIdentity*
+  std::unique_ptr<eos::common::VirtualIdentity>
   Authenticate(std::map<std::string, std::string>& headers);
 
   //----------------------------------------------------------------------------
