@@ -355,7 +355,7 @@ Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: eos-libmicrohttpd >= 0.9.38
 Requires: acl
 Requires: gdb
-Requires: jemalloc
+Requires: jemalloc, jemalloc-devel
 Requires: jsoncpp
 Requires: psmisc
 Requires: libcurl
@@ -594,7 +594,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
-Requires: jemalloc
+Requires: jemalloc, jemalloc-devel
 Requires: attr
 Requires: zeromq
 
@@ -680,7 +680,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse3
-Requires: jemalloc
+Requires: jemalloc, jemalloc-devel
 Requires: autofs
 
 %description -n eos-cfsd
@@ -709,7 +709,7 @@ Summary: EOS QuarkDB package
 Group: Applications/File
 
 Obsoletes: quarkdb <= 0.4.2
-Requires: lz4-devel, lz4, elfutils-devel, jemalloc
+Requires: lz4-devel, lz4, elfutils-devel, jemalloc, jemalloc-devel
 
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
