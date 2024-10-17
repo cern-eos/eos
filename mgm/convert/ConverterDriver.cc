@@ -82,7 +82,6 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 
   while (!assistant.terminationRequested()) {
     while (!mPendingJobs.try_pop(info) && !assistant.terminationRequested()) {
-      HandleRunningJobs();
       assistant.wait_for(std::chrono::seconds(5));
     }
 
@@ -99,7 +98,8 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
     if (conversion_info != nullptr) {
       auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
       mThreadPool.PushTask<void>([ = ]() {
-        return job->DoIt();
+        job->DoIt();
+        HandlePostJobRun(job);
       });
       eos::common::RWMutexWriteLock wlock(mJobsMutex);
       mJobsRunning.push_back(job);
@@ -109,8 +109,6 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
       mQdbHelper.RemovePendingJob(fid);
       gOFS->mFidTracker.RemoveEntry(fid);
     }
-
-    HandleRunningJobs();
   }
 
   JoinAllConversionJobs();
@@ -119,27 +117,23 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 }
 
 //------------------------------------------------------------------------------
-// Observer job called when a conversion is done
+// To be called after the conversion job has run
+//
+// Removes the job from the pending list in QuarkDB and
+// and removes the conversion file from /proc/conversion
 //------------------------------------------------------------------------------
 void
-ConverterDriver::CleanupObserver(ConverterDriver::JobStatusT status,
-                                 std::string tag)
+ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
 {
-  if (status != ConverterDriver::JobStatusT::DONE &&
-      status != ConverterDriver::JobStatusT::FAILED) {
-    eos_static_warning("msg=\"skip cleanup for job not completed\" tag=\"%s\"",
-                       tag.c_str());
-    return;
+  auto fid = job->GetFid();
+
+  if (!mQdbHelper.RemovePendingJob()) {
+    eos_static_err("msg=\"Failed to remove conversion job from QuarkDB\" "
+                   "fid=%llu", fid);
   }
 
-  auto info = ConversionInfo::parseConversionString(tag);
-
-  if (!info) {
-    eos_static_crit("msg=\"failed conversion info parsing\" tag=\"%s\"",
-                    tag.c_str());
-    return;
-  }
-
+  // cleanup the conversion file
+  auto info = job->GetConversionInfo();
   auto rootvid = eos::common::VirtualIdentity::Root();
   auto converter_path = info->ConversionPath();
   XrdOucErrInfo error;
@@ -185,44 +179,12 @@ ConverterDriver::SubmitQdbPending(ThreadAssistant& assistant)
 }
 
 //------------------------------------------------------------------------------
-// Handle jobs based on status
-//------------------------------------------------------------------------------
-void
-ConverterDriver::HandleRunningJobs()
-{
-  eos::common::RWMutexWriteLock wlock(mJobsMutex);
-
-  for (auto it = mJobsRunning.begin(); it != mJobsRunning.end(); /**/) {
-    if (auto job_status = (*it)->GetStatus();
-        (job_status == ConversionJob::Status::DONE) ||
-        (job_status == ConversionJob::Status::FAILED)) {
-      auto fid = (*it)->GetFid();
-
-      if (!mQdbHelper.RemovePendingJob(fid)) {
-        eos_static_err("msg=\"Failed to remove conversion job from QuarkDB\" "
-                       "fid=%llu", fid);
-      }
-
-      if (job_status == ConversionJob::Status::FAILED) {
-        mQdbHelper.AddFailedJob(*it);
-      }
-
-      mObserverMgr->notifyChange(job_status, (*it)->GetConversionString());
-      it = mJobsRunning.erase(it);
-    } else {
-      ++it;
-    }
-  }
-}
-
-//------------------------------------------------------------------------------
 // Signal all conversion jobs to stop
 //------------------------------------------------------------------------------
 void
 ConverterDriver::JoinAllConversionJobs()
 {
   eos_notice("%s", "msg=\"stopping all running conversion jobs\"");
-  HandleRunningJobs();
   {
     eos::common::RWMutexReadLock rlock(mJobsMutex);
 
