@@ -141,8 +141,7 @@ ConverterDriver::CleanupObserver(ConverterDriver::JobStatusT status,
   }
 
   auto rootvid = eos::common::VirtualIdentity::Root();
-  auto converter_path = SSTR(gOFS->MgmProcConversionPath << "/"
-                             << info->ToString());
+  auto converter_path = info->ConversionPath();
   XrdOucErrInfo error;
   gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0);
   gOFS->mFidTracker.RemoveEntry(info->mFid);

@@ -29,6 +29,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+constexpr int CONVERTION_SHARD_MOD = 256;
+
 //------------------------------------------------------------------------------
 //! @brief Structure holding conversion details
 //------------------------------------------------------------------------------
@@ -58,6 +60,11 @@ struct ConversionInfo {
   {
     return mConversionString;
   }
+
+  //----------------------------------------------------------------------------
+  //! Fullpath of the conversion file
+  //----------------------------------------------------------------------------
+  std::string ConversionPath() const;
 
   //----------------------------------------------------------------------------
   //! Parse a conversion string representation into a conversion info object.

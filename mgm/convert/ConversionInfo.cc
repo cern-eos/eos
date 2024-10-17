@@ -23,6 +23,7 @@
 
 #include "mgm/convert/ConversionInfo.hh"
 #include "common/Logging.hh"
+#include "mgm/XrdMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -177,6 +178,17 @@ std::shared_ptr<ConversionInfo> ConversionInfo::parseConversionString(
 
   return std::make_shared<ConversionInfo>(fid, lid, location, policy,
                                           update_ctime, app_tag);
+}
+
+//----------------------------------------------------------------------------
+// Returns the full path of the conversion file
+//----------------------------------------------------------------------------
+std::string ConversionInfo::ConversionPath() const
+{
+  char shard[8];
+  snprintf(shard, std::size(shard), "%02llx", mFid % CONVERTION_SHARD_MOD);
+  return SSTR(gOFS->MgmProcConversionPath << "/" << shard << "/" <<
+              mConversionString);
 }
 
 EOSMGMNAMESPACE_END

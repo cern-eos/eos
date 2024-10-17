@@ -125,8 +125,7 @@ ConversionJob::ConversionJob(const eos::IFileMD::id_t fid,
                              const ConversionInfo& conversion_info) :
   mFid(fid), mConversionInfo(conversion_info), mStatus(Status::PENDING)
 {
-  mConversionPath =
-    SSTR(gOFS->MgmProcConversionPath << "/" << mConversionInfo.ToString());
+  mConversionPath = conversion_info.ConversionPath();
 }
 
 //------------------------------------------------------------------------------
