@@ -16,6 +16,19 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.2.28 Diopside``
+====================
+
+2024-10-17
+
+Bug
+----
+
+* [EOS-6065] - MGM memory increase/leak (EOSHOMEs)
+* [EOS-6217] - eosxd looping in async open during write recovery
+
+
 ``v5.2.27 Diopside``
 ====================
 
