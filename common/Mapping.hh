@@ -411,8 +411,10 @@ public:
   //! @param client XrdSecEntity object
   //! @parma vid virtual identity
   //! @note needs to be called with the gMapMutex locked
+  //!
+  //! @return true a match was found otherwise false
   //----------------------------------------------------------------------------
-  static void HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid);
+  static bool HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid);
 };
 
 EOSCOMMONNAMESPACE_END

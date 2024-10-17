@@ -106,8 +106,7 @@ HttpServer::Handler(void* cls,
         stident += headers["client-real-host"];
         eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
 
-        if (!vid_tmp->isGateway() ||
-            ((vid_tmp->prot != "https") && (vid_tmp->prot != "http"))) {
+        if (!vid_tmp->isGateway()) {
           headers.erase("x-forwarded-for");
           headers.erase("x-real-ip");
         }
@@ -334,8 +333,7 @@ HttpServer::XrdHttpHandler(std::string& method,
       stident += std::string(client.host);
       eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
 
-      if (!vid_tmp->isGateway() ||
-          ((vid_tmp->prot != "https") && (vid_tmp->prot != "http"))) {
+      if (!vid_tmp->isGateway()) {
         headers.erase("x-forwarded-for");
         headers.erase("x-real-ip");
       }
@@ -367,7 +365,7 @@ HttpServer::XrdHttpHandler(std::string& method,
   std::unique_ptr<VirtualIdentity> vid;
 
   // Native XrdHttp access
-  if (headers.find("x-forwarded-for") == headers.end() && !s3_access) {
+  if ((headers.find("x-forwarded-for") == headers.end()) && !s3_access) {
     std::string path;
     std::unique_ptr<XrdOucEnv> env_opaque;
 

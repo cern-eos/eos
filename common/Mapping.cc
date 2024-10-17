@@ -280,7 +280,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     HandleUidGidMapping(client_username.c_str(), vid,
                         g_https_uid_key, g_https_gid_key);
     HandleVOMS(client, vid);
-    HandleKEYS(client, vid);
+    if (HandleKEYS(client, vid)) {
+      return;
+    }
   }
 
   // ZTN mapping
@@ -468,7 +470,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.gid = DAEMONGID;
         vid.allowed_gids.insert(DAEMONGID);
       } else {
-        eos_static_debug("tident uid mapping prot=%s name=%s",
+        eos_static_debug("msg=\"tident uid mapping\" prot=%s name=%s",
                          vid.prot.c_str(), vid.name.c_str());
         vid.allowed_uids.clear();
 
@@ -508,7 +510,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.allowed_gids.insert(DAEMONGID);
         vid.gid = DAEMONGID;
       } else {
-        eos_static_debug("%s", "msg=\"tident gid mapping\"");
+        eos_static_debug("msg=\"tident gid mapping\" uid=%d", vid.uid);
         uid_t uid = vid.uid;
 
         if (((vid.prot == "unix") && (vid.name == "root")) ||
@@ -1079,14 +1081,16 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
 //------------------------------------------------------------------------------
 // Handle HTTPS authz keys mapping
 //------------------------------------------------------------------------------
-void
+bool
 Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
 {
+  bool match = false;
   // No VOMS info available
   if (vid.key.empty()) {
-    return;
+    return match;
   }
 
+  eos_static_debug("msg=\"handle keys\" key=\"%s\"", vid.key.c_str());
   std::string uidkey = "https:\"";
   uidkey += "key:";
   uidkey += vid.key;
@@ -1099,6 +1103,14 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
     vid.uid = gVirtualUidMap[uidkey.c_str()];
     vid.allowed_uids.insert(vid.uid);
     vid.gateway = true;
+
+    if (gSudoerMap.count(vid.uid)) {
+      vid.sudoer = true;
+    }
+
+    match = true;
+    eos_static_debug("msg=\"handle keys match found\" key=\"%s\" uid=%d",
+                     vid.key.c_str(), vid.uid);
   }
 
   std::string gidkey = "https:\"";
@@ -1113,7 +1125,12 @@ Mapping::HandleKEYS(const XrdSecEntity* client, VirtualIdentity& vid)
     vid.gid = gVirtualGidMap[gidkey.c_str()];
     vid.allowed_gids.insert(vid.gid);
     vid.gateway = true;
+    match = true;
+    eos_static_debug("msg=\"handle keys match found\" key=\"%s\" gid=%d",
+                     vid.key.c_str(), vid.gid);
   }
+
+  return match;
 }
 
 //------------------------------------------------------------------------------
