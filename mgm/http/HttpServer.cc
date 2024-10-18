@@ -655,15 +655,15 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
           username = "";
         }
       }
-    } else {
-      if (remoteUser.length()) {
-        // extract kerberos username
-        pos = remoteUser.find_last_of("@");
-        std::string remoteUserName = remoteUser.substr(0, pos);
-        username = remoteUserName;
-        eos_static_info("msg=\"mapped client remote username successfully\" "
-                        "username=\"%s\"", username.c_str());
-      }
+    }
+
+    if (username.empty() && remoteUser.length()) {
+      // extract kerberos username
+      pos = remoteUser.find_last_of("@");
+      std::string remoteUserName = remoteUser.substr(0, pos);
+      username = remoteUserName;
+      eos_static_info("msg=\"mapped client remote username successfully\" "
+                      "username=\"%s\"", username.c_str());
     }
   }
 
