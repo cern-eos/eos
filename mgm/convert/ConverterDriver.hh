@@ -23,6 +23,7 @@
 
 #pragma once
 
+#include <map>
 #include "common/Logging.hh"
 #include "common/ObserverMgr.hh"
 #include "mgm/Namespace.hh"
@@ -343,7 +344,7 @@ private:
   //! Timestamp of last jobs request
   std::chrono::steady_clock::time_point mTimestamp;
   //! Collection of running conversion jobs
-  std::list<std::shared_ptr<ConversionJob>> mJobsRunning;
+  std::map<eos::IFileMD::id_t, std::shared_ptr<ConversionJob>> mJobsRunning;
   //! RWMutex protecting the jobs collections
   mutable eos::common::RWMutex mJobsMutex;
   ///! Pending jobs in memory
