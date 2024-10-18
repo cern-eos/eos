@@ -81,7 +81,11 @@ ConverterDriver::PopulatePendingJobs()
 void
 ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
 {
-  auto fid = job->GetFid();
+  const auto fid = job->GetFid();
+  {
+    eos::common::RWMutexWriteLock wlock(mJobsMutex);
+    mJobsRunning.erase(fid);
+  }
 
   if (!mQdbHelper.RemovePendingJob(fid)) {
     eos_static_err("msg=\"Failed to remove conversion job from QuarkDB\" "
@@ -140,7 +144,7 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
         HandlePostJobRun(job);
       });
       eos::common::RWMutexWriteLock wlock(mJobsMutex);
-      mJobsRunning.push_back(job);
+      mJobsRunning[job->GetFid()] = job;
     } else {
       eos_static_err("msg=\"invalid conversion scheduled\" fxid=%08llx "
                      "conversion_id=%s", fid, info.second.c_str());
@@ -164,15 +168,15 @@ ConverterDriver::JoinAllConversionJobs()
   {
     eos::common::RWMutexReadLock rlock(mJobsMutex);
 
-    for (auto& job : mJobsRunning) {
-      if (job->GetStatus() == ConversionJob::Status::RUNNING) {
-        job->Cancel();
+    for (const auto& fid_job : mJobsRunning) {
+      if (fid_job.second->GetStatus() == ConversionJob::Status::RUNNING) {
+        fid_job.second->Cancel();
       }
     }
 
-    for (auto& job : mJobsRunning) {
-      while ((job->GetStatus() == ConversionJob::Status::RUNNING) ||
-             (job->GetStatus() == ConversionJob::Status::PENDING)) {
+    for (const auto& fid_job : mJobsRunning) {
+      while ((fid_job.second->GetStatus() == ConversionJob::Status::RUNNING) ||
+             (fid_job.second->GetStatus() == ConversionJob::Status::PENDING)) {
         std::this_thread::sleep_for(std::chrono::milliseconds(10));
       }
     }
