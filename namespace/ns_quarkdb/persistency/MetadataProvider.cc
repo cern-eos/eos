@@ -145,6 +145,8 @@ void MetadataProvider::setContainerMDCacheNum(uint64_t max_num)
 void aggregateStatistics(CacheStatistics &global, const CacheStatistics local) {
   global.occupancy += local.occupancy;
   global.maxNum += local.maxNum;
+  global.numRequests += local.numRequests;
+  global.numHits += local.numHits;
   global.inFlight += local.inFlight;
 }
 

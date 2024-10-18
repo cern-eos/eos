@@ -132,7 +132,7 @@ public:
   //! @return maximum cache num entries
   //----------------------------------------------------------------------------
   inline std::uint64_t
-  get_max_num() const
+  GetMaxNum() const
   {
     std::unique_lock<std::mutex> lock(mMutex);
     return mMaxNum;
@@ -145,7 +145,7 @@ public:
   //!                the current cache
   //----------------------------------------------------------------------------
   inline void
-  set_max_num(const std::uint64_t max_num)
+  SetMaxNum(const std::uint64_t max_num)
   {
     std::unique_lock<std::mutex> lock(mMutex);
 
@@ -158,6 +158,20 @@ public:
     } else {
       mMaxNum = max_num;
     }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get number of requests towards the cache
+  //----------------------------------------------------------------------------
+  inline uint64_t GetRequests() const {
+    return mRequests.load();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get number cache hits
+  //----------------------------------------------------------------------------
+  inline uint64_t GetHits() const {
+    return mHits.load();
   }
 
   //----------------------------------------------------------------------------
@@ -193,11 +207,16 @@ private:
   using MapT = google::dense_hash_map<IdT, decltype(ListIterT),
         Murmur3::MurmurHasher<IdT>>;
   MapT mMap;   ///< Internal map pointing to obj in list
-  ListT mList; ///< Internal list of objects where new/used objects are at the
-  ///< end of the list
+  //! Internal list of objects where new/used objects are at the
+  //! end of the list
+  ListT mList;
   //! Mutext to protect access to the map and list
   mutable std::mutex mMutex;
   std::uint64_t mMaxNum; ///< Maximum number of entries
+  //! Number of hits in the cache
+  std::atomic<uint64_t> mHits {0};
+  //! Number of requests
+  std::atomic<uint64_t> mRequests {0};
   eos::common::ConcurrentQueue< std::shared_ptr<EntryT> > mToDelete;
   AssistedThread mCleanerThread; ///< Thread doing the deallocations
 };
@@ -240,6 +259,7 @@ template <typename IdT, typename EntryT>
 std::shared_ptr<EntryT>
 LRU<IdT, EntryT>::get(IdT id)
 {
+  ++mRequests;
   std::unique_lock<std::mutex> lock(mMutex);
   auto iter_map = mMap.find(id);
 
@@ -251,6 +271,7 @@ LRU<IdT, EntryT>::get(IdT id)
   auto iter_new = mList.insert(mList.end(), *iter_map->second);
   mList.erase(iter_map->second);
   iter_map->second = iter_new;
+  ++mHits;
   return *iter_new;
 }
 

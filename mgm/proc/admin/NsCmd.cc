@@ -342,25 +342,23 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
                            gOFS->MgmStats.GetTotalAvg5("NsLeadW") / wnorm : 0.0;
 
   if (monitoring) {
-    oss << "uid=all gid=all ns.total.files=" << f << std::endl
-        << "uid=all gid=all ns.total.directories=" << d << std::endl
-        << "uid=all gid=all ns.current.fid=" << fid_now << std::endl
-        << "uid=all gid=all ns.current.cid=" << cid_now << std::endl
-        << "uid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId) <<
-        std::endl
-        << "uid=all gid=all ns.generated.cid=" << (int)(cid_now -
-            gOFS->mBootContainerId) << std::endl
-        << "uid=all gid=all ns.contention.read=" << readcontention << std::endl
-        << "uid=all gid=all ns.contention.write=" << writecontention << std::endl
-        << "uid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum <<
-        std::endl
-        << "uid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy <<
-        std::endl
-        << "uid=all gid=all ns.cache.containers.maxsize=" << containerCacheStats.maxNum
-        << std::endl
-        << "uid=all gid=all ns.cache.containers.occupancy=" <<
-        containerCacheStats.occupancy << std::endl
-        << "uid=all gid=all ns.total.files.changelog.size="
+    oss << "uid=all gid=all ns.total.files=" << f
+        << "\nuid=all gid=all ns.total.directories=" << d
+        << "\nuid=all gid=all ns.current.fid=" << fid_now
+        << "\nuid=all gid=all ns.current.cid=" << cid_now
+        << "\nuid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
+        << "\nuid=all gid=all ns.generated.cid=" << (int)(cid_now - gOFS->mBootContainerId)
+        << "\nuid=all gid=all ns.contention.read=" << readcontention
+        << "\nuid=all gid=all ns.contention.write=" << writecontention
+        << "\nuid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum
+        << "\nuid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy
+        << "\nuid=all gid=all ns.cache.files.requests=" << fileCacheStats.numRequests
+        << "\nuid=all gid=all ns.cache.files.hits=" << fileCacheStats.numHits
+        << "\nuid=all gid=all ns.cache.containers.maxsize=" << containerCacheStats.maxNum
+        << "\nuid=all gid=all ns.cache.containers.occupancy=" << containerCacheStats.occupancy
+        << "\nuid=all gid=all ns.cache.containers.requests=" << containerCacheStats.numRequests
+        << "\nuid=all gid=all ns.cache.containers.hits=" << containerCacheStats.numHits
+        << "\nuid=all gid=all ns.total.files.changelog.size="
         << StringConversion::GetSizeString(clfsize, (unsigned long long) statf.st_size)
         << std::endl
         << "uid=all gid=all ns.total.directories.changelog.size="

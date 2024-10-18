@@ -254,7 +254,7 @@ MetadataProviderShard::insertContainerMD(ContainerIdentifier id,
 void MetadataProviderShard::setFileMDCacheNum(uint64_t max_num)
 {
   std::lock_guard<std::mutex> lock(mMutex);
-  mFileCache.set_max_num(max_num);
+  mFileCache.SetMaxNum(max_num);
 }
 
 //------------------------------------------------------------------------------
@@ -263,7 +263,7 @@ void MetadataProviderShard::setFileMDCacheNum(uint64_t max_num)
 void MetadataProviderShard::setContainerMDCacheNum(uint64_t max_num)
 {
   std::lock_guard<std::mutex> lock(mMutex);
-  mContainerCache.set_max_num(max_num);
+  mContainerCache.SetMaxNum(max_num);
 }
 
 //------------------------------------------------------------------------------
@@ -331,7 +331,9 @@ CacheStatistics MetadataProviderShard::getFileMDCacheStats()
   CacheStatistics stats;
   stats.enabled = true;
   stats.occupancy = mFileCache.size();
-  stats.maxNum = mFileCache.get_max_num();
+  stats.maxNum = mFileCache.GetMaxNum();
+  stats.numRequests = mFileCache.GetRequests();
+  stats.numHits = mFileCache.GetHits();
   std::lock_guard<std::mutex> lock(mMutex);
   stats.inFlight = mInFlightFiles.size();
   return stats;
@@ -345,7 +347,9 @@ CacheStatistics MetadataProviderShard::getContainerMDCacheStats()
   CacheStatistics stats;
   stats.enabled = true;
   stats.occupancy = mContainerCache.size();
-  stats.maxNum = mContainerCache.get_max_num();
+  stats.maxNum = mContainerCache.GetMaxNum();
+  stats.numRequests = mContainerCache.GetRequests();
+  stats.numHits = mContainerCache.GetHits();
   std::lock_guard<std::mutex> lock(mMutex);
   stats.inFlight = mInFlightContainers.size();
   return stats;

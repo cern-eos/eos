@@ -34,6 +34,8 @@ struct CacheStatistics {
   uint64_t maxNum = 0;
   uint64_t occupancy = 0;
   uint64_t inFlight = 0;
+  uint64_t numRequests = 0;
+  uint64_t numHits = 0;
 };
 
 EOSNSNAMESPACE_END
