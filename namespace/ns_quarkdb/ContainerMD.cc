@@ -32,6 +32,7 @@
 #include "common/StacktraceHere.hh"
 #include "common/StringConversion.hh"
 #include "common/Logging.hh"
+#include "common/Utils.hh"
 #include <sys/stat.h>
 #include <algorithm>
 #include <chrono>
@@ -702,14 +703,32 @@ QuarkContainerMD::updateTreeSize(int64_t delta)
   return runWriteOp([this, delta]() {
     uint64_t sz = mCont.tree_size();
 
-    // Avoid negative tree size
-    if ((delta < 0) && (static_cast<uint64_t>(std::llabs(delta)) > sz)) {
-      sz = 0;
-    } else {
-      sz += delta;
-    }
+    eos::common::ComputeSize(sz,delta);
 
     mCont.set_tree_size(sz);
+    return sz;
+  });
+}
+
+uint64_t QuarkContainerMD::updateTreeContainers(int64_t delta) {
+  return runWriteOp([this, delta]() {
+    uint64_t sz = mCont.tree_containers();
+
+    eos::common::ComputeSize(sz,delta);
+
+    mCont.set_tree_containers(sz);
+    return sz;
+  });
+}
+
+uint64_t QuarkContainerMD::updateTreeFiles(int64_t delta) {
+  return runWriteOp([this, delta]() {
+    uint64_t sz = mCont.tree_files();
+
+    // Avoid negative tree size
+    eos::common::ComputeSize(sz,delta);
+
+    mCont.set_tree_files(sz);
     return sz;
   });
 }
