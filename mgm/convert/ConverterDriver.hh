@@ -323,20 +323,9 @@ private:
   //----------------------------------------------------------------------------
   void JoinAllConversionJobs();
 
-  //----------------------------------------------------------------------------
-  //! Submit pending jobs from QDB
-  //----------------------------------------------------------------------------
-  void SubmitQdbPending(ThreadAssistant& assistant);
+  void PopulatePendingJobs();
 
-  //----------------------------------------------------------------------------
-  //! Observer job called when a conversion is done taking care of deleting
-  //! the "proc" entry and updating the tracking information
-  //!
-  //! @param status conversion job status
-  //! @para tag conversion tag info
-  //----------------------------------------------------------------------------
-  static void CleanupObserver(ConverterDriver::JobStatusT status,
-                              std::string tag);
+  void HandlePostJobRun(std::shared_ptr<ConversionJob> job);
 
   //! Wait-time between jobs requests constant
   static constexpr unsigned int cDefaultRequestIntervalSec{60};
