@@ -94,4 +94,6 @@ TEST(ParseUtils, GetFileHexSha1)
   (void) unlink(fn.c_str());
 }
 
+TEST()
+
 EOSCOMMONTESTING_END

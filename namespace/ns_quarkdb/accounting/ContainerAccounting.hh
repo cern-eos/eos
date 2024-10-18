@@ -36,6 +36,12 @@
 
 EOSNSNAMESPACE_BEGIN
 
+struct TreeAccounting {
+  int64_t dsize; //Tree size to update
+  int64_t dtreefiles; //Tree files to update
+  int64_t dtreecontainers; //Tree containers to update
+};
+
 //------------------------------------------------------------------------------
 //! Container subtree accounting listener
 //------------------------------------------------------------------------------
@@ -166,7 +172,7 @@ private:
   AssistedThread mQueueForUpdateThread; ///< Thread update queueing thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< container MD service
-  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, int64_t>>  mIdSizeToUpdateQueue; ///< Queue containing containerIds and their corresponding size to update
+  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, TreeAccounting>>  mIdSizeToUpdateQueue; ///< Queue containing containerIds and their corresponding size to update
 };
 
 EOSNSNAMESPACE_END

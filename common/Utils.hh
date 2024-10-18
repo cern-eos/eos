@@ -79,4 +79,7 @@ bool GetFileBinarySha1(std::string& bin_sha1,
 bool GetFileHexSha1(std::string& hex_sha1,
                     const std::string& fn = "/etc/eos.keytab");
 
+
+void ComputeSize(uint64_t & size, int64_t delta);
+
 EOSCOMMONNAMESPACE_END
