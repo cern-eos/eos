@@ -97,7 +97,8 @@ ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
   auto rootvid = eos::common::VirtualIdentity::Root();
   auto converter_path = info.ConversionPath();
   XrdOucErrInfo error;
-  gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0);
+  gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0, false, false,
+             true);
   gOFS->mFidTracker.RemoveEntry(info.mFid);
 }
 
