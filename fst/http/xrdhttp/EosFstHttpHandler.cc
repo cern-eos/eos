@@ -159,7 +159,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   if (req.verb == "GET") {
-    auto pmarkHandle = getPMarkHandle(req,normalized_headers);
+    auto pmarkHandle = getPMarkHandle(req,normalized_headers,req.verb);
     if ((response->GetResponseCode() != response->OK) &&
         (response->GetResponseCode() != response->PARTIAL_CONTENT)) {
       return req.SendSimpleResp(response->GetResponseCode(),
@@ -220,7 +220,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   if (req.verb == "PUT") {
-    auto pmarkHandle = getPMarkHandle(req,normalized_headers);
+    auto pmarkHandle = getPMarkHandle(req,normalized_headers,req.verb);
     bool is_chunked = (normalized_headers.count("transfer-encoding") &&
                        (normalized_headers["transfer-encoding"] == "chunked"));
 
@@ -662,9 +662,11 @@ EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
   return (state == CHUNK_DATA);
 }
 
-std::unique_ptr<XrdNetPMark::Handle> EosFstHttpHandler::getPMarkHandle(XrdHttpExtReq& req,const std::map<std::string, std::string> & normalized_headers) {
+std::unique_ptr<XrdNetPMark::Handle> EosFstHttpHandler::getPMarkHandle(XrdHttpExtReq& req,const std::map<std::string, std::string> & normalized_headers, const std::string & verb) {
   if(req.pmark && normalized_headers.count("scitag")) {
-    std::string scitagOpaque = "scitag.flow=" + std::to_string(req.mSciTag);
+    // With the new scitag specifications, we now have to tell XRootD PMark handler code whether the HTTP transfer is a GET or a PUT
+    // so the different fields populated in the firefly matches the new specifications (i.e: fireflies are emitted on behalf of the data sender part of a transfer)
+    std::string scitagOpaque = "scitag.flow=" + std::to_string(req.mSciTag) + "&pmark.appname=" + verb == "GET" ? "http-get" : "http-put";
     return std::unique_ptr<XrdNetPMark::Handle>(req.pmark->Begin(*(const_cast<XrdSecEntity *>(&req.GetSecEntity())),
                                                                  req.resource.c_str(),
                                                                  scitagOpaque.c_str(),
