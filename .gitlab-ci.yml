@@ -152,7 +152,7 @@ clone_docker:
     paths:
       - ccache/
   artifacts:
-    expire_in: 1 day
+    expire_in: 60 days
     paths:
       - ${BUILD_NAME}_artifacts/
 
@@ -209,7 +209,7 @@ build_el9_arm64:
     - mkdir -p ${CI_JOB_NAME}_artifacts
     - cp -rv build/SRPMS/ ${CI_JOB_NAME}_artifacts
   artifacts:
-    expire_in: 1 day
+    expire_in: 60 days
     paths:
       - ${CI_JOB_NAME}_artifacts
   only:
@@ -249,7 +249,7 @@ rh-9:
     paths:
       - ccache/
   artifacts:
-    expire_in: 1 day
+    expire_in: 60 days
     paths:
       - ${BUILD_NAME}_artifacts/
   allow_failure: true
