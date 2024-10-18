@@ -666,7 +666,7 @@ std::unique_ptr<XrdNetPMark::Handle> EosFstHttpHandler::getPMarkHandle(XrdHttpEx
   if(req.pmark && normalized_headers.count("scitag")) {
     // With the new scitag specifications, we now have to tell XRootD PMark handler code whether the HTTP transfer is a GET or a PUT
     // so the different fields populated in the firefly matches the new specifications (i.e: fireflies are emitted on behalf of the data sender part of a transfer)
-    std::string scitagOpaque = "scitag.flow=" + std::to_string(req.mSciTag) + "&pmark.appname = " + verb == "GET" ? "http-get" : "http-put";
+    std::string scitagOpaque = "scitag.flow=" + std::to_string(req.mSciTag) + "&pmark.appname=" + verb == "GET" ? "http-get" : "http-put";
     return std::unique_ptr<XrdNetPMark::Handle>(req.pmark->Begin(*(const_cast<XrdSecEntity *>(&req.GetSecEntity())),
                                                                  req.resource.c_str(),
                                                                  scitagOpaque.c_str(),
