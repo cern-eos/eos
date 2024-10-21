@@ -136,15 +136,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get number of failed jobs stored in QuarkDB
-  //----------------------------------------------------------------------------
-  inline uint64_t NumQdbFailedJobs()
-  {
-    return mQdbHelper.NumFailedJobs();
-  }
-
-
-  //----------------------------------------------------------------------------
   //! Get max queue size
   //----------------------------------------------------------------------------
   inline uint32_t GetMaxQueueSize() const
@@ -204,14 +195,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Clear list of failed jobs
-  //----------------------------------------------------------------------------
-  void ClearFailedJobs()
-  {
-    return mQdbHelper.ClearFailedJobs();
-  }
-
-  //----------------------------------------------------------------------------
   //! Get Observer Mgr, useful for other threads to register observers
   //----------------------------------------------------------------------------
   auto getObserverMgr()
@@ -229,7 +212,6 @@ private:
       mQcl = std::make_unique<qclient::QClient>(qdb_details.members,
              qdb_details.constructOptions());
       mQHashPending = qclient::QHash(*mQcl, kConversionPendingHashKey);
-      mQHashFailed = qclient::QHash(*mQcl, kConversionFailedHashKey);
     }
 
     //--------------------------------------------------------------------------
@@ -275,14 +257,6 @@ private:
     bool AddPendingJob(const JobInfoT& jobinfo);
 
     //--------------------------------------------------------------------------
-    //! Add conversion job to the queue of failed jobs in QuarkDB.
-    //!
-    //! @param jobinfo the failed conversion job details
-    //! @return true if operation succeeded, false otherwise
-    //--------------------------------------------------------------------------
-    bool AddFailedJob(const std::shared_ptr<ConversionJob>& job);
-
-    //--------------------------------------------------------------------------
     //! Remove conversion job by id from the pending jobs queue in QuarkDB.
     //!
     //! @param id the conversion job id to remove
@@ -290,14 +264,8 @@ private:
     //--------------------------------------------------------------------------
     bool RemovePendingJob(const eos::IFileMD::id_t& id);
 
-    //--------------------------------------------------------------------------
-    //! Returns the number of failed jobs or -1 in case of failed operation
-    //--------------------------------------------------------------------------
-    int64_t NumFailedJobs();
-
     //! QDB conversion hash keys
     const std::string kConversionPendingHashKey = "eos-conversion-jobs-pending";
-    const std::string kConversionFailedHashKey = "eos-conversion-jobs-failed";
     static constexpr unsigned int cBatchSize{1000}; ///< Batch size constant
 
   private:
