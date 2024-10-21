@@ -23,6 +23,7 @@
 
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/IMaster.hh"
+#include "common/Logging.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -97,8 +98,13 @@ ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
   auto rootvid = eos::common::VirtualIdentity::Root();
   auto converter_path = info.ConversionPath();
   XrdOucErrInfo error;
-  gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0, false, false,
-             true);
+
+  if (gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0, false,
+                 false, true)) {
+    eos_static_err("msg=\"failed to delete conversion file\" path=\"%s\" err=\"%s\"",
+                   converter_path.c_str(), error.getErrText());
+  }
+
   gOFS->mFidTracker.RemoveEntry(info.mFid);
 }
 
