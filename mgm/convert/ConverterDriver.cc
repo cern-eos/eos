@@ -261,24 +261,6 @@ ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 }
 
 //------------------------------------------------------------------------------
-// Add conversion job to the queue of failed jobs in QuarkDB
-//------------------------------------------------------------------------------
-bool
-ConverterDriver::QdbHelper::AddFailedJob(
-  const std::shared_ptr<ConversionJob>& job)
-{
-  try {
-    return mQHashFailed.hset(job->GetConversionString(), job->GetErrorMsg());
-  } catch (const std::exception& e) {
-    eos_static_crit("msg=\"Error encountered while trying to add failed "
-                    "conversion job\" emsg=\"%s\" conversion_id=%s",
-                    e.what(), job->GetConversionString().c_str());
-  }
-
-  return false;
-}
-
-//------------------------------------------------------------------------------
 // Get list of pending jobs
 //------------------------------------------------------------------------------
 std::vector<ConverterDriver::JobInfoT>
@@ -328,22 +310,6 @@ ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
   return false;
 }
 
-//--------------------------------------------------------------------------
-// Returns the number of failed jobs or -1 in case of failed operation
-//--------------------------------------------------------------------------
-int64_t
-ConverterDriver::QdbHelper::NumFailedJobs()
-{
-  try {
-    return mQHashFailed.hlen();
-  } catch (const std::exception& e) {
-    eos_static_crit("msg=\"Error encountered while retrieving size of "
-                    "failed conversion jobs set\" emsg=\"%s\"", e.what());
-  }
-
-  return -1;
-}
-
 //------------------------------------------------------------------------------
 // Clear list of pending jobs
 //------------------------------------------------------------------------------
@@ -355,20 +321,6 @@ ConverterDriver::QdbHelper::ClearPendingJobs()
   } catch (const std::exception& e) {
     eos_static_crit("msg=\"Error encountered while clearing the list of "
                     "pending jobs\" emsg=\"%s\"", e.what());
-  }
-}
-
-//------------------------------------------------------------------------------
-// Clear list of failed jobs
-//------------------------------------------------------------------------------
-void
-ConverterDriver::QdbHelper::ClearFailedJobs()
-{
-  try {
-    (void) mQcl->del(kConversionFailedHashKey);
-  } catch (const std::exception& e) {
-    eos_static_crit("msg=\"Error encountered while clearing the list of "
-                    "failed jobs\" emsg=\"%s\"", e.what());
   }
 }
 
