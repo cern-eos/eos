@@ -934,8 +934,10 @@ public:
       return mProxy;
     }
 
-    void disable()
+    void disable(std::shared_ptr<WriteAsyncHandler> self)
     {
+      std::lock_guard<std::mutex> lock(mDisableProxyMutex);
+      if (mProxy) mDisableKeepalive = self;
       mProxy = 0;
     }
 
@@ -959,6 +961,11 @@ public:
     off_t woffset;
     uint16_t mTimeout;
     std::string mId;
+    // the disable members below are used for disable(), where
+    // we have been registered for callback but the associated proxy
+    // wants to disown the us (the handler).
+    std::mutex mDisableProxyMutex;
+    std::shared_ptr<WriteAsyncHandler> mDisableKeepalive;
 
   };
 
@@ -1125,8 +1132,10 @@ public:
       return mEOF;
     }
 
-    void disable()
+    void disable(std::shared_ptr<ReadAsyncHandler> self)
     {
+      std::lock_guard<std::mutex> lock(mDisableProxyMutex);
+      if (mProxy) mDisableKeepalive = self;
       mProxy = 0;
     }
 
@@ -1153,6 +1162,12 @@ public:
     XRootDStatus mStatus;
     XrdSysCondVar mAsyncCond;
     time_t mCreationTime;
+    // the disable members below are used for disable(), where
+    // we have been registered for callback but the associated proxy
+    // wants to disown the us (the handler).
+    std::mutex mDisableProxyMutex;
+    std::shared_ptr<ReadAsyncHandler> mDisableKeepalive;
+
   };
 
 

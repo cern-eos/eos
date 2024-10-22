@@ -927,26 +927,45 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 {
   eos_static_debug("ino=%llx", mProxy->id());
   bool no_chunks_left = true;
+  // for correct destruct order 'myself' must be declared before anything
+  // that uses member variables
   write_handler myself;
+  shared_proxy proxy;
   {
-    {
-      XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-      {
-        if (!status->IsOK()) {
-          mProxy->set_writestate(status);
-          eos_static_crit("write error '%s'", status->ToString().c_str());
-        }
+    std::lock_guard<std::mutex> lock(mDisableProxyMutex);
+    proxy = mProxy;
+    myself = mDisableKeepalive;
+    mDisableKeepalive = 0;
+  }
+  if (!proxy) {
+    delete response;
+    delete status;
+    return;
+  }
 
-        mProxy->WriteCondVar().Signal();
-        delete response;
-        delete status;
+  {
+    XrdSysCondVarHelper lLock(proxy->WriteCondVar());
+    {
+      if (!status->IsOK()) {
+        proxy->set_writestate(status);
+        eos_static_crit("write error '%s'", status->ToString().c_str());
       }
+
+      proxy->WriteCondVar().Signal();
+      delete response;
+      delete status;
+
+      myself = proxy->ChunkMap()[(int64_t)this];
+      proxy->ChunkMap().erase((uint64_t)this);
+
     }
   }
-  {
-    XrdSysCondVarHelper lLock(mProxy->WriteCondVar());
-    myself = mProxy->ChunkMap()[(int64_t)this];
-    mProxy->ChunkMap().erase((uint64_t)this);
+
+  std::lock_guard<std::mutex> lock(mDisableProxyMutex);
+  if (!mProxy) {
+    myself = mDisableKeepalive;
+    mDisableKeepalive = 0;
+    return;
   }
 
   if (no_chunks_left) {
@@ -957,6 +976,7 @@ XrdCl::Proxy::WriteAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
                                    mProxy->close_after_write_timeout());
     }
   }
+  mProxy = 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1107,7 +1127,7 @@ XrdCl::Proxy::WaitWrite()
         eos_err("discarding %d chunks  in-flight for writing", ChunkMap().size());
 
         for (auto it = ChunkMap().begin(); it != ChunkMap().end(); ++it) {
-          it->second->disable();
+          it->second->disable(it->second);
         }
 
         ChunkMap().clear();
@@ -1192,10 +1212,26 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 /* -------------------------------------------------------------------------- */
 {
   eos_static_debug("");
+  // for correct destruct order 'myself' must be declared before anything
+  // that uses member variables
+  read_handler myself;
+  shared_proxy proxy;
+  {
+    std::lock_guard<std::mutex> lock(mDisableProxyMutex);
+    proxy = mProxy;
+    myself = mDisableKeepalive;
+    mDisableKeepalive = 0;
+  }
+  if (!proxy) {
+    delete response;
+    delete status;
+    return;
+  }
+
   {
     XrdSysCondVarHelper lLock(ReadCondVar());
     mStatus = *status;
-    bool fuzzing = proxy()->fuzzing().ReadAsyncResponseFuzz();
+    bool fuzzing = proxy->fuzzing().ReadAsyncResponseFuzz();
 
     if (!fuzzing && status->IsOK()) {
       XrdCl::ChunkInfo* chunk = 0;
@@ -1239,8 +1275,16 @@ XrdCl::Proxy::ReadAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
 
     mDone = true;
     delete status;
+
+    std::lock_guard<std::mutex> lock(mDisableProxyMutex);
+    if (!mProxy) {
+      myself = mDisableKeepalive;
+      mDisableKeepalive = 0;
+      return;
+    }
     mProxy->dec_read_chunks_in_flight();
     ReadCondVar().Signal();
+    mProxy = 0;
   }
 }
 
@@ -1328,7 +1372,7 @@ XrdCl::Proxy::WaitRead(read_handler handler)
       eos_err("discarding %d chunks  in-flight for reading", ChunkMap().size());
 
       for (auto it = ChunkRMap().begin(); it != ChunkRMap().end(); ++it) {
-        it->second->disable();
+        it->second->disable(it->second);
       }
 
       clear_read_chunks_in_flight();
