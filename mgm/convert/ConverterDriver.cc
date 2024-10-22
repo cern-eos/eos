@@ -56,10 +56,6 @@ ConverterDriver::PopulatePendingJobs()
 {
   const auto lst_pending = mQdbHelper.GetPendingJobs();
 
-  if (lst_pending.empty()) {
-    return;
-  }
-
   for (const auto& info : lst_pending) {
     const auto fid = info.first;
 
@@ -71,7 +67,6 @@ ConverterDriver::PopulatePendingJobs()
     mPendingJobs.emplace(info.first, info.second);
   }
 }
-
 
 //------------------------------------------------------------------------------
 // To be called after the conversion job has run
@@ -91,6 +86,10 @@ ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
   if (!mQdbHelper.RemovePendingJob(fid)) {
     eos_static_err("msg=\"Failed to remove conversion job from QuarkDB\" "
                    "fid=%llu", fid);
+  }
+
+  if (job->GetStatus() == ConversionJobStatus::FAILED) {
+    mFailed++;
   }
 
   // cleanup the conversion file
@@ -125,12 +124,10 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
   } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
 
   InitConfig();
+  PopulatePendingJobs();
 
   while (!assistant.terminationRequested()) {
     while (!mPendingJobs.try_pop(info) && !assistant.terminationRequested()) {
-      // No jobs are available in the pending list
-      // Let's check if something is in the DB
-      PopulatePendingJobs();
       assistant.wait_for(std::chrono::seconds(5));
     }
 
@@ -261,37 +258,20 @@ ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 }
 
 //------------------------------------------------------------------------------
-// Get list of pending jobs
+// Get list of all pending jobs
 //------------------------------------------------------------------------------
 std::vector<ConverterDriver::JobInfoT>
 ConverterDriver::QdbHelper::GetPendingJobs()
 {
   std::vector<JobInfoT> pending;
+  const auto all = mQHashPending.hgetall();
+  pending.reserve(all.size() / 2);
 
-  for (auto it = mQHashPending.getIterator(cBatchSize, "0");
-       it.valid(); it.next()) {
-    try {
-      pending.emplace_back(std::stoull(it.getKey()), it.getValue());
-    } catch (...) {}
+  for (int i = 0; i < all.size(); i += 2) {
+    pending.emplace_back(std::stoull(all[i]), all[i + 1]);
   }
 
   return pending;
-}
-
-//------------------------------------------------------------------------------
-// Get list of failed jobs
-//------------------------------------------------------------------------------
-std::vector<ConverterDriver::JobFailedT>
-ConverterDriver::QdbHelper::GetFailedJobs()
-{
-  std::vector<JobFailedT> failed;
-
-  for (auto it = mQHashFailed.getIterator(cBatchSize, "0");
-       it.valid(); it.next()) {
-    failed.emplace_back(it.getKey(), it.getValue());
-  }
-
-  return failed;
 }
 
 //------------------------------------------------------------------------------
