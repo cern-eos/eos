@@ -143,6 +143,7 @@ void ConvertCmd::StatusSubcmd(
     SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize()
          << " maxqueuesize=" << gOFS->mConverterDriver->GetMaxQueueSize());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
+  uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumPendingJobs();
   auto state = gOFS->mConverterDriver->IsRunning() ? "enabled" : "disabled";
 
@@ -153,6 +154,7 @@ void ConvertCmd::StatusSubcmd(
     json["status"] = state;
     json["running"] = (Json::Value::UInt64) running;
     json["pending"] = (Json::Value::UInt64) pending;
+    json["failed"] = (Json::Value::UInt64) failed;
     Json::StreamWriterBuilder builder;
     std::unique_ptr<Json::StreamWriter> jsonwriter(
       builder.newStreamWriter());
@@ -162,7 +164,8 @@ void ConvertCmd::StatusSubcmd(
         << "Config: " << config << std::endl
         << "Threadpool: " << threadpool << std::endl
         << "Running jobs: " << running << std::endl
-        << "Pending jobs: " << pending << std::endl;
+        << "Pending jobs: " << pending << std::endl
+        << "Failed jobs : " << failed << std::endl;
   }
 
   reply.set_std_out(out.str());
@@ -480,45 +483,6 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
         TableRow row;
         row.emplace_back(eos::common::FileId::Fid2Hex(elem.first), "-s");
         row.emplace_back(elem.second, "-s");
-        body.push_back(row);
-      }
-
-      table.AddRows(body);
-      oss << table.GenerateTable();
-    }
-  } else if (list.type() == "failed") {
-    auto failed = gOFS->mConverterDriver->GetFailedJobs();
-
-    if (failed.empty()) {
-      reply.set_std_out("info: no failed conversions");
-      return;
-    }
-
-    if (jsonOutput) {
-      Json::Value json;
-
-      for (const auto& elem : failed) {
-        json[elem.first] = elem.second;
-      }
-
-      Json::StreamWriterBuilder builder;
-      std::unique_ptr<Json::StreamWriter> jsonwriter(
-        builder.newStreamWriter());
-      jsonwriter->write(json, &oss);
-    } else {
-      TableFormatterBase table;
-      TableHeader header;
-      TableData body;
-      header.push_back(std::make_tuple("Conversion string", 0, "-s"));
-      header.push_back(std::make_tuple("Failure", 80, "-s"));
-      table.SetHeader(header);
-
-      for (const auto& elem : failed) {
-        TableRow row;
-        std::string err_msg {elem.second};
-        std::replace(err_msg.begin(), err_msg.end(), '\0', ';');
-        row.emplace_back(elem.first, "-s");
-        row.emplace_back(err_msg, "-s");
         body.push_back(row);
       }
 

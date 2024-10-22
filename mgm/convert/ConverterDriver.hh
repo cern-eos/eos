@@ -136,6 +136,14 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Get number of failed jobs stored in QuarkDB
+  //----------------------------------------------------------------------------
+  inline uint64_t NumFailedJobs()
+  {
+    return mFailed.load();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get max queue size
   //----------------------------------------------------------------------------
   inline uint32_t GetMaxQueueSize() const
@@ -174,16 +182,6 @@ public:
   inline std::vector<JobInfoT> GetPendingJobs()
   {
     return mQdbHelper.GetPendingJobs();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get list of failed jobs
-  //!
-  //! @return list of failed jobs
-  //----------------------------------------------------------------------------
-  inline std::vector<JobFailedT> GetFailedJobs()
-  {
-    return mQdbHelper.GetFailedJobs();
   }
 
   //----------------------------------------------------------------------------
@@ -306,6 +304,7 @@ private:
   AssistedThread mThread; ///< Thread controller object
   QdbHelper mQdbHelper; ///< QuarkDB helper object
   std::atomic<bool> mIsRunning; ///< Mark if converter is running
+  std::atomic<uint64_t> mFailed; ///< Number of failed jobs
   eos::common::ThreadPool mThreadPool; ///< Thread pool for conversion jobs
   std::atomic<unsigned int> mMaxThreadPoolSize; ///< Max threadpool size
   std::atomic<unsigned int> mMaxQueueSize; ///< Max submitted queue size
@@ -319,7 +318,6 @@ private:
   eos::common::ConcurrentQueue<JobInfoT> mPendingJobs;
   std::unique_ptr<ObserverT> mObserverMgr;
   std::unique_ptr<common::ConfigStore> mConfigStore;
-
 };
 
 EOSMGMNAMESPACE_END
