@@ -53,9 +53,7 @@ public:
   //----------------------------------------------------------------------------
   IProcCommand():
     mHasSlot(false), mExecRequest(false), mReqProto(), mDoAsync(false),
-    mForceKill(false), mVid(), mComment(), mRoutingInfo(),
-    stdOut(""), stdErr(""), stdJson(""),
-    retc(0), mTmpResp()
+    mForceKill(false), mVid(), mComment(), mRoutingInfo(), mTmpResp()
   {
     mTimestamp = time(NULL);
   }
@@ -232,10 +230,6 @@ protected:
   //! @param err_msg_prefix error message to be displayed in case of exception
   //! @return retc return code
   //----------------------------------------------------------------------------
-  void GetPathFromFid(XrdOucString& path, unsigned long long fid,
-                      const std::string&
-                      err_msg_prefix); // drop when we drop non-proto commands using it
-
   int GetPathFromFid(std::string& path, unsigned long long fid,
                      std::string& err_msg);
 
@@ -247,10 +241,6 @@ protected:
   //! @param cid container numeric id
   //! @param err_msg_prefix error message to be displayed in case of exception
   //----------------------------------------------------------------------------
-  void GetPathFromCid(XrdOucString& path, unsigned long long cid,
-                      const std::string&
-                      err_msg_prefix); // drop when we drop non-proto commands using it
-
   int GetPathFromCid(std::string& path, unsigned long long cid,
                      std::string& err_msg);
 
@@ -362,10 +352,6 @@ protected:
   time_t mTimestamp; ///< Timestamp of the proc command
   XrdOucString mComment; ///< Comment issued by the user for the proc command
   RoutingInfo mRoutingInfo; ///< Routing information of the proc command
-  XrdOucString stdOut; ///< stdOut returned by proc command
-  XrdOucString stdErr; ///< stdErr returned by proc command
-  XrdOucString stdJson; ///< JSON output returned by proc command
-  int retc; ///< Return code from the proc command
   std::string mTmpResp; ///< String used for streaming the response
   std::ofstream mOfsOutStream;
   std::ofstream mOfsErrStream;

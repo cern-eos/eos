@@ -53,12 +53,12 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
   if (rm.path().empty()) {
     std::string full_path;
-    std::string msg;
+    std::string err_msg;
 
     if (rm.fileid()) {
-      GetPathFromFid(full_path, rm.fileid(), msg);
+      GetPathFromFid(full_path, rm.fileid(), err_msg);
     } else  if (rm.containerid()) {
-      GetPathFromCid(full_path, rm.containerid(), msg);
+      GetPathFromCid(full_path, rm.containerid(), err_msg);
     }
 
     spath = full_path;
@@ -76,11 +76,11 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
         // If -F is given then we try to force remove the file without waiting
         // for the confirmation from the diskservers
         if (gOFS->RemoveDetached((is_dir ? rm.containerid() : rm.fileid()),
-                                 is_dir, force, msg)) {
-          reply.set_std_out(msg);
+                                 is_dir, force, err_msg)) {
+          reply.set_std_out(err_msg);
           reply.set_retc(0);
         } else {
-          reply.set_std_err(msg);
+          reply.set_std_err(err_msg);
           reply.set_retc(errno);
         }
       }

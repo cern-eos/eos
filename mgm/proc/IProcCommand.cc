@@ -123,7 +123,7 @@ IProcCommand::open(const char* path, const char* info,
         (void) google::protobuf::util::MessageToJsonString(mReqProto, &argsJson);
 
         if (!gOFS->mCommentLog->Add(mTimestamp, "", "", argsJson.c_str(),
-                                    mComment.c_str(), stdErr.c_str(), // @note stErr or reply.std_err()?
+                                    mComment.c_str(), reply.std_err().c_str(),
                                     reply.retc())) {
           eos_err("failed to log to comments logbook");
         }
@@ -419,18 +419,6 @@ IProcCommand::ResponseToJsonString(const std::string& out,
 //------------------------------------------------------------------------------
 // Retrieve the file's full path given its numeric id
 //------------------------------------------------------------------------------
-// drop when we drop non-proto commands using it
-void
-IProcCommand::GetPathFromFid(XrdOucString& path, unsigned long long fid,
-                             const std::string& err_msg_prefix)
-{
-  std::string serr;
-  std::string spath(path.c_str());
-  retc = GetPathFromFid(spath, fid, serr);
-  path = spath.c_str();
-  stdErr = serr.c_str();
-}
-
 int
 IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
                              std::string& err_msg)
@@ -462,18 +450,6 @@ IProcCommand::GetPathFromFid(std::string& path, unsigned long long fid,
 //------------------------------------------------------------------------------
 // Retrieve the container's full path given its numeric id
 //------------------------------------------------------------------------------
-// drop when we drop non-proto commands using it
-void
-IProcCommand::GetPathFromCid(XrdOucString& path, unsigned long long cid,
-                             const std::string& err_msg_prefix)
-{
-  std::string serr;
-  std::string spath(path.c_str());
-  retc = GetPathFromCid(spath, cid, serr);
-  path = spath.c_str();
-  stdErr = serr.c_str();
-}
-
 int
 IProcCommand::GetPathFromCid(std::string& path, unsigned long long cid,
                              std::string& err_msg)

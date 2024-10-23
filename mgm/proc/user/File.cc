@@ -62,7 +62,14 @@ ProcCommand::File()
       return SFS_OK;
     }
 
-    GetPathFromFid(spath, fid, "Cannot get fid");
+    std::string err_msg;
+    std::string lpath;
+
+    if (GetPathFromFid(lpath, fid, err_msg)) {
+      stdErr = err_msg.c_str();
+    }
+
+    spath = lpath.c_str();
   } else {
     spath = pOpaque->Get("mgm.path");
   }

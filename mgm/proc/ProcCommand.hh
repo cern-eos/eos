@@ -345,6 +345,10 @@ protected:
   eos::common::VirtualIdentity* pVid; ///< Pointer to virtual identity
 
 private:
+  XrdOucString stdOut; ///< stdOut returned by proc command
+  XrdOucString stdErr; ///< stdErr returned by proc command
+  XrdOucString stdJson; ///< JSON output returned by proc command
+  int retc; ///< Return code from the proc command
   XrdOucString mPath; ///< path argument for the proc command
   XrdOucString mCmd; ///< proc command name
   XrdOucString mSubCmd; ///< proc sub command name

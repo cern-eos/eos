@@ -65,7 +65,14 @@ ProcCommand::Attr()
   if ((spath.beginswith("fid:") || spath.beginswith("fxid:"))) {
     identifier = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
     spath = "";
-    GetPathFromFid(spath, identifier, "error: ");
+    std::string lpath;
+    std::string err_msg;
+
+    if (GetPathFromFid(lpath, identifier, err_msg)) {
+      stdErr = err_msg.c_str();
+    }
+
+    spath = lpath.c_str();
   } else if (spath.beginswith("pid:") || spath.beginswith("pxid:") ||
              spath.beginswith("cid:") || spath.beginswith("cxid:")) {
     if (spath.beginswith("pid:") || spath.beginswith("pxid:")) {
@@ -76,7 +83,14 @@ ProcCommand::Attr()
 
     identifier = Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
     spath = "";
-    GetPathFromCid(spath, identifier, "error: ");
+    std::string lpath;
+    std::string err_msg;
+
+    if (GetPathFromCid(lpath, identifier, err_msg)) {
+      stdErr = err_msg.c_str();
+    }
+
+    spath = lpath.c_str();
   } else {
     spath = eos::common::Path(path).GetPath();
     eos::common::StringConversion::UnsealXrdPath(spath);

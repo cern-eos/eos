@@ -41,11 +41,24 @@ ProcCommand::Rm()
   XrdOucString scontainerid = pOpaque->Get("mgm.container.id");
 
   if (spathid.length()) {
-    GetPathFromFid(spath, std::strtoull(spathid.c_str(), nullptr, 10), "error: ");
+    std::string lpath;
+    std::string err_msg;
+
+    if (GetPathFromFid(lpath, std::strtoull(spathid.c_str(), nullptr, 10), err_msg)) {
+      stdErr = err_msg.c_str();
+    }
+
+    spath = lpath.c_str();
   } else {
     if (scontainerid.length()) {
-      GetPathFromCid(spath, std::strtoull(scontainerid.c_str(), nullptr, 10),
-                     "error: ");
+      std::string lpath;
+      std::string err_msg;
+
+      if (GetPathFromCid(lpath, std::strtoull(scontainerid.c_str(), nullptr, 10), err_msg)) {
+        stdErr = err_msg.c_str();
+      }
+
+      spath.c_str();
     } else {
       spath = pOpaque->Get("mgm.path");
     }
