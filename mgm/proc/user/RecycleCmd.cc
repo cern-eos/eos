@@ -43,14 +43,8 @@ RecycleCmd::ProcessRequest() noexcept
   int rc = 0;
   if (subcmd == RecycleProto::kLs) {
     const eos::console::RecycleProto_LsProto& ls = recycle.ls();
-
-    if (ls.date().empty()) {
-      Recycle::PrintOld(std_out, std_err, mVid, ls.monitorfmt(),
-                        !ls.numericids(), ls.fulldetails());
-    }
-
     rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(),
-                   !ls.numericids(), ls.fulldetails(),
+                        !ls.numericids(), ls.fulldetails(),
 			ls.date(), ls.all(), nullptr, true, ls.maxentries());
 
     if (std_out.length()) {
