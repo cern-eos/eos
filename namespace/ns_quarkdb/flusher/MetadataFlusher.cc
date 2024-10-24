@@ -84,10 +84,13 @@ void MetadataFlusher::queueSizeMonitoring(qclient::ThreadAssistant& assistant)
   while (!assistant.terminationRequested()) {
     if (backgroundFlusher.size()) {
       eos_static_info("id=%s total-pending=%" PRId64 " enqueued=%" PRId64
-                      " acknowledged=%" PRId64,
+                      " acknowledged=%" PRId64 " starting-index=%" PRId64
+                      " ending-index=%" PRId64,
                       id.c_str(), backgroundFlusher.size(),
                       backgroundFlusher.getEnqueuedAndClear(),
-                      backgroundFlusher.getAcknowledgedAndClear());
+                      backgroundFlusher.getAcknowledgedAndClear(),
+                      backgroundFlusher.getStartingIndex(),
+                      backgroundFlusher.getEndingIndex());
     }
 
     assistant.wait_for(std::chrono::seconds(10));
