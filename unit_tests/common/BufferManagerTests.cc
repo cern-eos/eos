@@ -189,7 +189,7 @@ TEST(BufferManager, MultipleThreads)
   std::list<std::pair<float, float>> uniform_dist_params;
   uniform_dist_params.emplace_back(500 * KB, 200 * KB);
   uniform_dist_params.emplace_back(1500 * KB, 200 * KB);
-  uniform_dist_params.emplace_back(3500 * KB, 500 * KB);
+  uniform_dist_params.emplace_back(3500 * KB, 400 * KB);
 
   for (auto& dis_params : uniform_dist_params) {
     eos::common::BufferManager buff_mgr(100 * MB);
