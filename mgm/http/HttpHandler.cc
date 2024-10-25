@@ -551,7 +551,11 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           query += request->GetHeaders()["content-length"];
         }
       } else {
-        query = "eos.bookingsize=0";
+        if (!query.empty()) {
+          query += "&";
+        }
+
+        query += "eos.bookingsize=0";
       }
 
       if (request->GetHeaders().count("x-oc-mtime")) {
