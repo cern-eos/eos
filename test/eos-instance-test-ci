@@ -55,6 +55,7 @@ eos-instance-test
 
 if [[ $? -ne 0 ]]; then
   cat /tmp/eos-instance-test/test-output.log
+  cat /tmp/eos-instance-test/test-result.log
   exit 1
 fi
 
