@@ -61,8 +61,7 @@ public:
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
                 10, 5, 3, "converter"),
     mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
-    mMaxQueueSize(cDefaultMaxQueueSize), mTimestamp(),
-    mFailed(0),
+    mMaxQueueSize(cDefaultMaxQueueSize), mTimestamp(), mFailed(0),
     mObserverMgr(std::make_unique<ObserverT>(4)),
     mConfigStore(std::make_unique<GlobalConfigStore>(&FsView::gFsView))
   {}
@@ -279,8 +278,17 @@ private:
   //----------------------------------------------------------------------------
   void JoinAllConversionJobs();
 
+  //----------------------------------------------------------------------------
+  //! Method to collect and queue pending jobs from the QDB backend
+  //----------------------------------------------------------------------------
   void PopulatePendingJobs();
 
+  //----------------------------------------------------------------------------
+  //! Cleanup handle after a job is run - remove the job from the list of
+  //! pending jobs and clean up the conversion file in /eos/.../proc/conversion
+  //!
+  //! @param job finished job
+  //----------------------------------------------------------------------------
   void HandlePostJobRun(std::shared_ptr<ConversionJob> job);
 
   //! Wait-time between jobs requests constant
@@ -303,9 +311,9 @@ private:
   std::map<eos::IFileMD::id_t, std::shared_ptr<ConversionJob>> mJobsRunning;
   //! RWMutex protecting the jobs collections
   mutable eos::common::RWMutex mJobsMutex;
-  ///! Pending jobs in memory
+  //! Pending jobs in memory
   eos::common::ConcurrentQueue<JobInfoT> mPendingJobs;
-  std::unique_ptr<ObserverT> mObserverMgr;
+  std::unique_ptr<ObserverT> mObserverMgr;  
   std::unique_ptr<common::ConfigStore> mConfigStore;
 };
 

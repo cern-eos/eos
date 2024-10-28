@@ -51,6 +51,9 @@ ConverterDriver::Stop()
   mThread.join();
 }
 
+//------------------------------------------------------------------------------
+// Method to collect and queue pending jobs from the QDB backend
+//------------------------------------------------------------------------------
 void
 ConverterDriver::PopulatePendingJobs()
 {
@@ -69,10 +72,7 @@ ConverterDriver::PopulatePendingJobs()
 }
 
 //------------------------------------------------------------------------------
-// To be called after the conversion job has run
-//
-// Removes the job from the pending list in QuarkDB and
-// and removes the conversion file from /proc/conversion
+// Cleanup handle after a job is run - remove the job from the list of
 //------------------------------------------------------------------------------
 void
 ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
@@ -84,12 +84,12 @@ ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
   }
 
   if (!mQdbHelper.RemovePendingJob(fid)) {
-    eos_static_err("msg=\"Failed to remove conversion job from QuarkDB\" "
-                   "fid=%llu", fid);
+    eos_static_err("msg=\"failed to remove conversion job from QuarkDB\" "
+                   "fxid=%08llx", fid);
   }
 
   if (job->GetStatus() == ConversionJobStatus::FAILED) {
-    mFailed++;
+    ++mFailed;
   }
 
   // cleanup the conversion file
@@ -98,10 +98,10 @@ ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
   auto converter_path = info.ConversionPath();
   XrdOucErrInfo error;
 
-  if (gOFS->_rem(converter_path.c_str(), error, rootvid, (const char*)0, false,
-                 false, true)) {
-    eos_static_err("msg=\"failed to delete conversion file\" path=\"%s\" err=\"%s\"",
-                   converter_path.c_str(), error.getErrText());
+  if (gOFS->_rem(converter_path.c_str(), error, rootvid,
+                 (const char*)0, false, false, true)) {
+    eos_static_err("msg=\"failed to delete conversion file\" path=\"%s\" "
+                   "err=\"%s\"", converter_path.c_str(), error.getErrText());
   }
 
   mObserverMgr->notifyChange(job->GetStatus(), job->GetConversionString());
