@@ -186,36 +186,9 @@ ConvertHelper::ParseCommand(const char* arg)
 
     rule->set_allocated_conversion(conversion);
   } else if (token == "list") {
-    eos::console::ConvertProto_ListProto* list = convert->mutable_list();
-
-    if (!tokenizer.NextToken(token)) {
-      list->set_type("failed");
-    } else {
-      if ((token != "--failed") && (token != "--pending")) {
-        std::cerr << "error: unknown listing option \'" << token << "\'"
-                  << std::endl;
-        return false;
-      } else {
-        token.erase(0, 2);
-        list->set_type(token.c_str());
-      }
-    }
+    convert->mutable_list();
   } else if (token == "clear") {
-    eos::console::ConvertProto_ClearProto* clear = convert->mutable_clear();
-
-    if (!tokenizer.NextToken(token)) {
-      std::cerr << "error: clear subcommand requires an option" << std::endl;
-      return false;
-    } else {
-      if ((token != "--failed") && (token != "--pending")) {
-        std::cerr << "error: unknown clear option \'" << token << "\'"
-                  << std::endl;
-        return false;
-      } else {
-        token.erase(0, 2);
-        clear->set_type(token.c_str());
-      }
-    }
+    convert->mutable_clear();
   } else {
     return false;
   }
@@ -376,16 +349,11 @@ void com_convert_help()
       << "    --maxthreads=<#>   : max threadpool size (default 100)" << std::endl
       << "    --maxqueuesize=<#> : max queue size (default 1000)" << std::endl
       << std::endl
-      << "  convert list [<option>]                          " << std::endl
-      << "    list conversion jobs where <option> is:        " << std::endl
-      << "    --failed : list failed jobs [default]          " << std::endl
-      << "    --pending: list pending jobs                   " << std::endl
+      << "  convert list                                     " << std::endl
+      << "    list conversion jobs                           " << std::endl
       << std::endl
-      << "  convert clear <option>                           " << std::endl
-      << "    clear list of jobs stored in the backend depending on <option> "
-      << std::endl
-      << "    --failed : clear list of failed jobs           " << std::endl
-      << "    --pending: clear list of pending jobs          " << std::endl
+      << "  convert clear                                    " << std::endl
+      << "    clear list of jobs stored in the backend       " << std::endl
       << std::endl
       << "  convert file <identifier> <conversion>           " << std::endl
       << "    schedule a file conversion                     " << std::endl

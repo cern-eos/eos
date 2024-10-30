@@ -451,44 +451,41 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
                        eos::console::ReplyProto& reply, bool jsonOutput)
 {
   std::ostringstream oss;
+  auto pending = gOFS->mConverterDriver->GetPendingJobs();
 
-  if (list.type() == "pending") {
-    auto pending = gOFS->mConverterDriver->GetPendingJobs();
+  if (pending.empty()) {
+    reply.set_std_out("info: no pending conversions");
+    return;
+  }
 
-    if (pending.empty()) {
-      reply.set_std_out("info: no pending conversions");
-      return;
+  if (jsonOutput) {
+    Json::Value json;
+
+    for (const auto& elem : pending) {
+      json[std::to_string(elem.first)] = elem.second;
     }
 
-    if (jsonOutput) {
-      Json::Value json;
+    Json::StreamWriterBuilder builder;
+    std::unique_ptr<Json::StreamWriter> jsonwriter(
+      builder.newStreamWriter());
+    jsonwriter->write(json, &oss);
+  } else {
+    TableFormatterBase table;
+    TableHeader header;
+    TableData body;
+    header.push_back(std::make_tuple("Fxid", 10, "-s"));
+    header.push_back(std::make_tuple("Conversion string", 0, "-s"));
+    table.SetHeader(header);
 
-      for (const auto& elem : pending) {
-        json[std::to_string(elem.first)] = elem.second;
-      }
-
-      Json::StreamWriterBuilder builder;
-      std::unique_ptr<Json::StreamWriter> jsonwriter(
-        builder.newStreamWriter());
-      jsonwriter->write(json, &oss);
-    } else {
-      TableFormatterBase table;
-      TableHeader header;
-      TableData body;
-      header.push_back(std::make_tuple("Fxid", 10, "-s"));
-      header.push_back(std::make_tuple("Conversion string", 0, "-s"));
-      table.SetHeader(header);
-
-      for (const auto& elem : pending) {
-        TableRow row;
-        row.emplace_back(eos::common::FileId::Fid2Hex(elem.first), "-s");
-        row.emplace_back(elem.second, "-s");
-        body.push_back(row);
-      }
-
-      table.AddRows(body);
-      oss << table.GenerateTable();
+    for (const auto& elem : pending) {
+      TableRow row;
+      row.emplace_back(eos::common::FileId::Fid2Hex(elem.first), "-s");
+      row.emplace_back(elem.second, "-s");
+      body.push_back(row);
     }
+
+    table.AddRows(body);
+    oss << table.GenerateTable();
   }
 
   if (!oss.str().empty()) {
@@ -503,10 +500,7 @@ void
 ConvertCmd::ClearSubcmd(const eos::console::ConvertProto_ClearProto& clear,
                         eos::console::ReplyProto& reply)
 {
-  if (clear.type() == "pending") {
-    gOFS->mConverterDriver->ClearPendingJobs();
-  }
-
+  gOFS->mConverterDriver->ClearPendingJobs();
   reply.set_std_out("info: list cleared");
 }
 

@@ -46,11 +46,11 @@ message ConvertProto {
   }
 
   message ListProto {
-    string type = 1;
+
   }
 
   message ClearProto {
-    string type = 1;
+
   }
 
   oneof subcmd {

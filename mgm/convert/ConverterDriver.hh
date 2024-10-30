@@ -230,21 +230,9 @@ private:
     std::vector<ConverterDriver::JobInfoT> GetPendingJobs();
 
     //--------------------------------------------------------------------------
-    //! Get list of failed jobs
-    //!
-    //! @return list of failed jobs
-    //--------------------------------------------------------------------------
-    std::vector<ConverterDriver::JobFailedT> GetFailedJobs();
-
-    //--------------------------------------------------------------------------
     //! Clear list of pending jobs
     //--------------------------------------------------------------------------
     void ClearPendingJobs();
-
-    //--------------------------------------------------------------------------
-    //! Clear list of failed jobs
-    //--------------------------------------------------------------------------
-    void ClearFailedJobs();
 
     //--------------------------------------------------------------------------
     //! Add conversion job to the queue of pending jobs in QuarkDB.
