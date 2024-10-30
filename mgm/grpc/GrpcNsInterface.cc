@@ -2163,7 +2163,6 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
       info.mutable_id()->set_path(item["path"]);
       info.set_key(item["key"]);
       auto new_info = reply->add_recycles();
-      fprintf(stderr, "Adding one\n");
       new_info->CopyFrom(info);
     }
     if (rc) {
