@@ -234,6 +234,9 @@ bool isStreamFile = false; ///< the file is streamed
 bool doStoreRecovery = false; ///< store recoveries if the file is corrupted
 std::string opaqueInfo; ///< opaque info containing the capabilities
 ///< necessary to do a parallel IO open
+//! Preserve creation and modification timestamps (source local file,
+//! destination xrootd file)
+bool preserve = false;
 
 std::string replicationType = "";
 //TODO: deal with the case when both the source and the destination are RAIN files
@@ -338,6 +341,8 @@ usage()
           "       -C           : fail if checksum comparison between source and destination fails (XRootD destination only)\n");
   fprintf(stderr,
           "       -E           : automatically delete the destination file if checksum comparison between source and destination fails (XRootD destination only) \n");
+  fprintf(stderr,
+          "       --preserve   : preserves source file creation date (local file source and xrootd destination only)\n");
   exit(-1);
 }
 
@@ -850,13 +855,15 @@ main(int argc, char* argv[])
   auto stopPostMaster = [&](void*) {
     XrdCl::DefaultEnv::GetPostMaster()->Stop();
   };
-  std::unique_ptr<void, decltype(stopPostMaster)> stopPostMasterDeleter((void *)1, stopPostMaster);
+  std::unique_ptr<void, decltype(stopPostMaster)> stopPostMasterDeleter((void*)1,
+      stopPostMaster);
   XrdCl::DefaultEnv::GetEnv()->PutInt("MetalinkProcessing", 0);
   XrdCl::DefaultEnv::GetEnv()->PutInt("ParallelEvtLoop",
                                       8);  // needed for high performance on 100GE
   // Define long options using struct option
   struct option long_options[] = {
     {"version", no_argument, nullptr, 'I'},
+    {"preserve", no_argument, nullptr, 'F'},
     {nullptr, 0, nullptr, 0} // Required end marker
   };
 
@@ -1135,6 +1142,10 @@ main(int argc, char* argv[])
       displayInformation();
       break;
 
+    case 'F':
+      preserve = true;
+      break;
+
     case 'h':
     default:
       usage();
@@ -1244,6 +1255,14 @@ main(int argc, char* argv[])
     if (cksummismatchdelete && !cksumcomparison) {
       fprintf(stderr,
               "error: source and destination checksum comparison (-C) not enabled, automatic deletion option (-E) cannot be enabled\n");
+      exit(-EINVAL);
+    }
+  }
+
+  if (preserve) {
+    if ((src_location.size() != 1) || (dst_location.size() != 1)) {
+      fprintf(stderr, "error: only one source and one destination can be "
+              "specified when --preserve flag is provided\n");
       exit(-EINVAL);
     }
   }
@@ -1539,6 +1558,14 @@ main(int argc, char* argv[])
 
       fprintf(stdout, "\n");
     }
+  }
+
+  if (preserve &&
+      ((src_type.back() != LOCAL_ACCESS) || (dst_type.back() != XRD_ACCESS))) {
+    fprintf(stderr, "error: When using --preserve, the source file should "
+            "be a local file and the destination file should be an xrootd "
+            "file.\n");
+    exit(-EINVAL);
   }
 
   if (cksumcomparison) {
@@ -2240,17 +2267,25 @@ main(int argc, char* argv[])
       }
 
       location = dst_location[i].first + dst_location[i].second;
+      bool hasOpaque = (location.find("?") != std::string::npos);
+      std::stringstream opaque;
 
       if (getenv("EOS_FUSE_SECRET")) {
-        if ((location.find("?") == std::string::npos)) {
-          location += "?eos.key=";
-        } else {
-          location += "&eos.key=";
-        }
-
-        location += getenv("EOS_FUSE_SECRET");
+        opaque << (hasOpaque ? "&" : "?")
+               << "eos.key=" << getenv("EOS_FUSE_SECRET");
+        hasOpaque = true;
       }
 
+      if (preserve) {
+        opaque << (hasOpaque ? "&" : "?")
+               << "eos.ctime=" << std::to_string(st[i].st_ctim.tv_sec) << "."
+               << std::to_string(st[i].st_ctim.tv_nsec)
+               << "&eos.mtime=" << std::to_string(st[i].st_mtim.tv_sec) << "."
+               << std::to_string(st[i].st_mtim.tv_nsec);
+        hasOpaque = true;
+      }
+
+      location += opaque.str();
       eos::fst::XrdIo* file = new eos::fst::XrdIo(location.c_str());
 
       if (appendmode || nooverwrite) {
