@@ -278,6 +278,20 @@ ConverterDriver::QdbHelper::GetPendingJobs()
 }
 
 //------------------------------------------------------------------------------
+// Clear list of pending jobs
+//------------------------------------------------------------------------------
+void
+ConverterDriver::QdbHelper::ClearPendingJobs()
+{
+  try {
+    (void) mQcl->del(kConversionPendingHashKey);
+  } catch (const std::exception& e) {
+    eos_static_crit("msg=\"Error encountered while clearing the list of "
+                    "pending jobs\" emsg=\"%s\"", e.what());
+  }
+}
+
+//------------------------------------------------------------------------------
 // Remove conversion job by id from the pending jobs queue in QuarkDB
 //------------------------------------------------------------------------------
 bool
