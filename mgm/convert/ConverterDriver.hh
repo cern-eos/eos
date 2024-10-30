@@ -62,6 +62,7 @@ public:
                 10, 5, 3, "converter"),
     mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
     mMaxQueueSize(cDefaultMaxQueueSize), mTimestamp(),
+    mFailed(0),
     mObserverMgr(std::make_unique<ObserverT>(4)),
     mConfigStore(std::make_unique<GlobalConfigStore>(&FsView::gFsView))
   {}
