@@ -264,11 +264,13 @@ std::vector<ConverterDriver::JobInfoT>
 ConverterDriver::QdbHelper::GetPendingJobs()
 {
   std::vector<JobInfoT> pending;
-  const auto all = mQHashPending.hgetall();
-  pending.reserve(all.size() / 2);
+  pending.reserve(mQHashPending.hlen());
 
-  for (int i = 0; i < all.size(); i += 2) {
-    pending.emplace_back(std::stoull(all[i]), all[i + 1]);
+  for (auto it = mQHashPending.getIterator(cBatchSize, "0"); it.valid();
+       it.next()) {
+    try {
+      pending.emplace_back(std::stoull(it.getKey()), it.getValue());
+    } catch (...) {}
   }
 
   return pending;
@@ -288,20 +290,6 @@ ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
   }
 
   return false;
-}
-
-//------------------------------------------------------------------------------
-// Clear list of pending jobs
-//------------------------------------------------------------------------------
-void
-ConverterDriver::QdbHelper::ClearPendingJobs()
-{
-  try {
-    (void) mQcl->del(kConversionPendingHashKey);
-  } catch (const std::exception& e) {
-    eos_static_crit("msg=\"Error encountered while clearing the list of "
-                    "pending jobs\" emsg=\"%s\"", e.what());
-  }
 }
 
 EOSMGMNAMESPACE_END
