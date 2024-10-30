@@ -427,6 +427,11 @@ XrdMgmOfs::_rename(const char* old_name,
           COMMONTIMING("rename::move_file_to_different_container_find_file", &tm);
 
           if (file) {
+            // Get the quota nodes before locking the directories. Indeed, getting the quota node requires the tree
+            // to be browsed from the directory to all its parent until reaching the quota node (taking read locks on each directory), which
+            // could break the locking order (by directory ID)...
+            eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir.get());
+            eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
             // Move to a new directory
             // TODO: deal with conflicts and proper roll-back in case a file
             // with the same name already exists in the destination directory
@@ -466,8 +471,6 @@ XrdMgmOfs::_rename(const char* old_name,
             eosView->updateFileStore(file.get());
             COMMONTIMING("rename::move_file_to_different_container_rename", &tm);
             // Adjust the ns quota
-            eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir.get());
-            eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
 
             if (old_qnode) {
               old_qnode->removeFile(file.get());
