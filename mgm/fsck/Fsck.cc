@@ -135,7 +135,7 @@ Fsck::StoreFsckConfig()
 
   std::ostringstream oss;
   oss << sCollectKey << "=" << mCollectEnabled << " "
-      << sCollectIntervalKey << "=" << collect_interval_min
+      << sCollectIntervalKey << "=" << collect_interval_min << " "
       << sRepairKey << "=" << mRepairEnabled << " "
       << sRepairCategory  << "=" << eos::common::FsckErrToString(mRepairCategory);
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
