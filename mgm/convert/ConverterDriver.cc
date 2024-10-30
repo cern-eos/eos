@@ -104,6 +104,7 @@ ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
                    converter_path.c_str(), error.getErrText());
   }
 
+  mObserverMgr->notifyChange(job->GetStatus(), job->GetConversionString());
   gOFS->mFidTracker.RemoveEntry(info.mFid);
 }
 
