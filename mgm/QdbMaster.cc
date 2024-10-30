@@ -379,7 +379,7 @@ QdbMaster::SlaveToMaster()
   // We are the master and we broadcast every configuration change
   gOFS->ObjectManager.EnableBroadCast(true);
 
-  if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
+  if (!ApplyMasterConfig(std_out, std_err, true)) {
     eos_err("%s", "msg=\"failed to apply master configuration\"");
     std::abort();
   }
@@ -456,7 +456,7 @@ QdbMaster::MasterToSlave()
   if (mOneOff) {
     std::string std_out, std_err;
 
-    if (!ApplyMasterConfig(std_out, std_err, Transition::kSlaveToMaster)) {
+    if (!ApplyMasterConfig(std_out, std_err, false)) {
       eos_err("%s", "msg=\"failed to apply configuration\"");
       std::abort();
     }
@@ -485,7 +485,7 @@ QdbMaster::MasterToSlave()
 //------------------------------------------------------------------------------
 bool
 QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
-                             Transition::Type transitiontype)
+                             bool apply_stall_rdr)
 {
   static std::mutex sequential_mutex;
   std::unique_lock<std::mutex> lock(sequential_mutex);
@@ -502,7 +502,7 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
     XrdOucString stdErr = "";
 
-    if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr, false)) {
+    if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr, apply_stall_rdr)) {
       eos_crit("msg=\"failed config autoload\" config=\"%s\" err=\"%s\"",
                gOFS->MgmConfigAutoLoad.c_str(), stdErr.c_str());
     } else {

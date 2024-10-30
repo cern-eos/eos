@@ -92,12 +92,13 @@ public:
   //!
   //! @param stdOut output string
   //! @param stdErr output error string
-  //! @param transition_type transition type
+  //! @param apply_stall_rdr if true then apply the stall and redirection
+  //!        rules from the configuration
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   virtual bool ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
-                                 Transition::Type transitiontype) = 0;
+                                 bool apply_stall_rdr) = 0;
 
   //----------------------------------------------------------------------------
   //! Check if we are the master host
