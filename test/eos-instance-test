@@ -1322,6 +1322,9 @@ runtest "### Grep      " unix 0 "" eos space status "default | grep policy.nstri
 runtest "### Grep      " unix 0 "" eos space status "default | grep policy.checksum | wc -l | grep -w 0"
 runtest "### Grep      " unix 0 "" eos space status "default | grep policy.blockchecksum | wc -l | grep -w 0"
 runtest "### Grep      " unix 0 "" eos space status "default | grep policy.blocksize | wc -l | grep -w 0"
+runtest "### Policy    " unix 0 "" eos space config default space.policy.iopriority=be:6
+runtest "### Grep      " unix 0 "" eos space status "default | grep policy.iopriority | wc -l | grep -w 1"
+runtest "### Policy    " unix 0 "" eos space config rm default space.policy.iopriority=be:6
 runtest "### Rm        " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/policies
 
 ################################################################################

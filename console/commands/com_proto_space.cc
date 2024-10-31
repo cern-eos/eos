@@ -143,21 +143,21 @@ bool SpaceHelper::ParseCommand(const char* arg)
       } else if (token == "-e") {
         options += "e";
       } else if (token == "-C" || token == "--cost") {
-	options += "C";
+        options += "C";
       } else if (token == "-U" || token == "--usage") {
-	options += "U";
+        options += "U";
       } else if (token == "-L" || token == "--layouts") {
-	options += "L";
+        options += "L";
       } else if (token == "-B" || token == "--birth") {
-	options += "B";
+        options += "B";
       } else if (token == "-A" || token == "--access") {
-	options += "A";
+        options += "A";
       } else if (token == "-a" || token == "--all") {
-	options += "Z";
+        options += "Z";
       } else if (token == "-V" || token == "--vs") {
-	options += "V";
+        options += "V";
       } else if (token == "-M" || token == "--money") {
-	options += "M";
+        options += "M";
       } else {
         return false;
       }
@@ -342,21 +342,33 @@ bool SpaceHelper::ParseCommand(const char* arg)
     }
 
     eos::console::SpaceProto_ConfigProto* config = space->mutable_config();
+
+    if (token == "rm") {
+      config->set_remove(true);
+
+      if (!tokenizer.NextToken(token)) {
+        return false;
+      }
+    }
+
     config->set_mgmspace_name(token);
 
     if (!tokenizer.NextToken(token)) {
       return false;
     }
 
-    std::string::size_type pos = token.find('=');
-
-    // contains 1 and only 1 '='. It expects a token like <key>=<value>
-    if ((pos != std::string::npos) &&
-        (count(token.begin(), token.end(), '=') == 1)) {
-      config->set_mgmspace_key(token.substr(0, pos));
-      config->set_mgmspace_value(token.substr(pos + 1, token.length() - 1));
+    if (config->remove()) {
+      config->set_mgmspace_key(token);
     } else {
-      return false;
+      std::string::size_type pos = token.find('=');
+      // contains 1 and only 1 '='. It expects a token like <key>=<value>
+      if ((pos != std::string::npos) &&
+          (count(token.begin(), token.end(), '=') == 1)) {
+        config->set_mgmspace_key(token.substr(0, pos));
+        config->set_mgmspace_value(token.substr(pos + 1, token.length() - 1));
+      } else {
+        return false;
+      }
     }
   } else if (token == "groupbalancer") {
     // Parsing eos space groupbalancer <subcmd> <space-name> <options>
@@ -545,13 +557,13 @@ void com_space_help()
       << "space config <space-name> space.geo.access.policy.write.exact=on|off  : if 'on' use exact matching geo replica (if available), 'off' uses weighting [ for write case ]\n"
       << "space config <space-name> space.geo.access.policy.read.exact=on|off   : if 'on' use exact matching geo replica (if available), 'off' uses weighting [ for read  case ]\n"
       << "space config <space-name> fs.<key>=<value>                            : configure file system parameters for each filesystem in this space (see help of 'fs config' for details)\n"
-      << "space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|bw|schedule|iopriority]=<value>      \n"
+      << "space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|bw|schedule|iopriority|iotype]=<value>      \n"
       << "                                                                      : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n"
       << std::endl
       << "space config <space-name> space.policy.recycle=on\n"
       << "                                                                      : globally enforce using always a recycle bin\n"
       << std::endl
-      << "REST API specific parameters:\n"
+      << "TAPE REST API specific parameters:\n"
       << "space config default " << eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF <<
       "=on|off                               : enable/disable the tape REST API handler [ default=off ]\n"
       << "space config default " << eos::mgm::rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF
@@ -574,6 +586,8 @@ void com_space_help()
       << "space config <space-name> space." << eos::mgm::tgc::TGC_NAME_TOTAL_BYTES <<
       "=<#>                    : configure the total number of bytes the space should have before the tape-aware GC kicks in [ default="
       << eos::mgm::tgc::TGC_DEFAULT_TOTAL_BYTES << " ] \n"
+      << std::endl
+      << "space config rm <space-name> <key>                   : remove the given key from the space configuration\n"
       << std::endl
       << "space define <space-name> [<groupsize> [<groupmod>]] : define how many filesystems can end up in one scheduling group <groupsize> [ default=0 ]\n"
       << "                                                       => <groupsize>=0 means that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group\n"

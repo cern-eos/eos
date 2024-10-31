@@ -58,6 +58,7 @@ message SpaceProto {
     string mgmspace_name  = 1;
     string mgmspace_key   = 2;
     string mgmspace_value = 3;
+    bool remove = 4;
   }
 
   message QuotaProto {
