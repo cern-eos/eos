@@ -28,6 +28,7 @@
 #include "common/Timing.hh"
 #include "common/Path.hh"
 /*----------------------------------------------------------------------------*/
+#include <absl/log/absl_check.h>
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
 #include <google/protobuf/util/json_util.h>
@@ -91,13 +92,13 @@ std::string GrpcClient::Ping(const std::string& payload)
   // Block until the next result is available in the completion queue "cq".
   // The return value of Next should always be checked. This return value
   // tells us whether there is any kind of event or the cq_ is shutting down.
-  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  ABSL_CHECK(cq.Next(&got_tag, &ok));
   // Verify that the result from "cq" corresponds, by its tag, our previous
   // request.
-  GPR_ASSERT(got_tag == (void*) 1);
+  ABSL_CHECK(got_tag == (void*) 1);
   // ... and that the request was completed successfully. Note that "ok"
   // corresponds solely to the request for updates introduced by Finish().
-  GPR_ASSERT(ok);
+  ABSL_CHECK(ok);
 
   // Act upon the status of the actual RPC.
   if (status.ok()) {
@@ -119,9 +120,9 @@ GrpcClient::ManilaRequest(const eos::rpc::ManilaRequest& request,
   rpc->Finish(&reply, &status, (void*) 1);
   void* got_tag;
   bool ok = false;
-  GPR_ASSERT(cq.Next(&got_tag, &ok));
-  GPR_ASSERT(got_tag == (void*) 1);
-  GPR_ASSERT(ok);
+  ABSL_CHECK(cq.Next(&got_tag, &ok));
+  ABSL_CHECK(got_tag == (void*) 1);
+  ABSL_CHECK(ok);
 
   // Act upon the status of the actual RPC.
   if (status.ok()) {
@@ -460,13 +461,13 @@ GrpcClient::FileInsert(const std::vector<std::string>& paths)
   // Block until the next result is available in the completion queue "cq".
   // The return value of Next should always be checked. This return value
   // tells us whether there is any kind of event or the cq_ is shutting down.
-  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  ABSL_CHECK(cq.Next(&got_tag, &ok));
   // Verify that the result from "cq" corresponds, by its tag, our previous
   // request.
-  GPR_ASSERT(got_tag == (void*) 1);
+  ABSL_CHECK(got_tag == (void*) 1);
   // ... and that the request was completed successfully. Note that "ok"
   // corresponds solely to the request for updates introduced by Finish().
-  GPR_ASSERT(ok);
+  ABSL_CHECK(ok);
   // Act upon the status of the actual RPC.
   int retc = 0;
 
@@ -538,13 +539,13 @@ GrpcClient::ContainerInsert(const std::vector<std::string>& paths)
   // Block until the next result is available in the completion queue "cq".
   // The return value of Next should always be checked. This return value
   // tells us whether there is any kind of event or the cq_ is shutting down.
-  GPR_ASSERT(cq.Next(&got_tag, &ok));
+  ABSL_CHECK(cq.Next(&got_tag, &ok));
   // Verify that the result from "cq" corresponds, by its tag, our previous
   // request.
-  GPR_ASSERT(got_tag == (void*) 1);
+  ABSL_CHECK(got_tag == (void*) 1);
   // ... and that the request was completed successfully. Note that "ok"
   // corresponds solely to the request for updates introduced by Finish().
-  GPR_ASSERT(ok);
+  ABSL_CHECK(ok);
   // Act upon the status of the actual RPC.
   int retc = 0;
 
@@ -627,9 +628,9 @@ GrpcClient::NsStat(const eos::rpc::NsStatRequest& request,
   rpc->Finish(&reply, &status, (void*) 1);
   void* got_tag;
   bool ok = false;
-  GPR_ASSERT(cq.Next(&got_tag, &ok));
-  GPR_ASSERT(got_tag == (void*) 1);
-  GPR_ASSERT(ok);
+  ABSL_CHECK(cq.Next(&got_tag, &ok));
+  ABSL_CHECK(got_tag == (void*) 1);
+  ABSL_CHECK(ok);
 
   // Act upon the status of the actual RPC
   if (status.ok()) {
@@ -651,9 +652,9 @@ GrpcClient::Exec(const eos::rpc::NSRequest& request,
   rpc->Finish(&reply, &status, (void*) 1);
   void* got_tag;
   bool ok = false;
-  GPR_ASSERT(cq.Next(&got_tag, &ok));
-  GPR_ASSERT(got_tag == (void*) 1);
-  GPR_ASSERT(ok);
+  ABSL_CHECK(cq.Next(&got_tag, &ok));
+  ABSL_CHECK(got_tag == (void*) 1);
+  ABSL_CHECK(ok);
 
   // Act upon the status of the actual RPC.
   if (status.ok()) {
