@@ -128,7 +128,7 @@ void ConvertCmd::StatusSubcmd(
     Json::Value json;
 
     if (StringConversion::GetKeyValueMap(skeyvalue.c_str(),
-    map, "=", " "))
+                                         map, "=", " "))
     {
       for (const auto& it : map) {
         json[it.first] = map[it.first];
@@ -143,7 +143,7 @@ void ConvertCmd::StatusSubcmd(
     SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize()
          << " maxqueuesize=" << gOFS->mConverterDriver->GetMaxQueueSize());
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
-  uint64_t failed = gOFS->mConverterDriver->NumQdbFailedJobs();
+  uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumPendingJobs();
   auto state = gOFS->mConverterDriver->IsRunning() ? "enabled" : "disabled";
 
@@ -155,10 +155,9 @@ void ConvertCmd::StatusSubcmd(
     json["running"] = (Json::Value::UInt64) running;
     json["pending"] = (Json::Value::UInt64) pending;
     json["failed"] = (Json::Value::UInt64) failed;
-
     Json::StreamWriterBuilder builder;
     std::unique_ptr<Json::StreamWriter> jsonwriter(
-						   builder.newStreamWriter());
+      builder.newStreamWriter());
     jsonwriter->write(json, &out);
   } else {
     out << "Status: " << state << std::endl
@@ -166,7 +165,7 @@ void ConvertCmd::StatusSubcmd(
         << "Threadpool: " << threadpool << std::endl
         << "Running jobs: " << running << std::endl
         << "Pending jobs: " << pending << std::endl
-        << "Total failed jobs : " << failed << std::endl;
+        << "Failed jobs : " << failed << std::endl;
   }
 
   reply.set_std_out(out.str());
@@ -214,8 +213,8 @@ void ConvertCmd::ConfigSubcmd(
 
     Json::StreamWriterBuilder builder;
     std::unique_ptr<Json::StreamWriter> jsonwriter(
-						   builder.newStreamWriter());
-    jsonwriter->write(json, &out);  
+      builder.newStreamWriter());
+    jsonwriter->write(json, &out);
   } else {
     out << "Config values updated:" << std::endl;
 
@@ -344,7 +343,7 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
     json["checksum"] = LayoutId::GetChecksumString(echecksum);
     Json::StreamWriterBuilder builder;
     std::unique_ptr<Json::StreamWriter> jsonwriter(
-						   builder.newStreamWriter());
+      builder.newStreamWriter());
     jsonwriter->write(json, &out);
   } else {
     out << "Scheduled conversion job: " << conversion_id;
@@ -434,7 +433,7 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
     json["path"] = path;
     Json::StreamWriterBuilder builder;
     std::unique_ptr<Json::StreamWriter> jsonwriter(
-						   builder.newStreamWriter());
+      builder.newStreamWriter());
     jsonwriter->write(json, &out);
   } else {
     out << "Set conversion rule '" << conversion_rule
@@ -452,83 +451,41 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
                        eos::console::ReplyProto& reply, bool jsonOutput)
 {
   std::ostringstream oss;
+  auto pending = gOFS->mConverterDriver->GetPendingJobs();
 
-  if (list.type() == "pending") {
-    auto pending = gOFS->mConverterDriver->GetPendingJobs();
+  if (pending.empty()) {
+    reply.set_std_out("info: no pending conversions");
+    return;
+  }
 
-    if (pending.empty()) {
-      reply.set_std_out("info: no pending conversions");
-      return;
+  if (jsonOutput) {
+    Json::Value json;
+
+    for (const auto& elem : pending) {
+      json[std::to_string(elem.first)] = elem.second;
     }
 
-    if (jsonOutput) {
-      Json::Value json;
+    Json::StreamWriterBuilder builder;
+    std::unique_ptr<Json::StreamWriter> jsonwriter(
+      builder.newStreamWriter());
+    jsonwriter->write(json, &oss);
+  } else {
+    TableFormatterBase table;
+    TableHeader header;
+    TableData body;
+    header.push_back(std::make_tuple("Fxid", 10, "-s"));
+    header.push_back(std::make_tuple("Conversion string", 0, "-s"));
+    table.SetHeader(header);
 
-      for (const auto& elem : pending) {
-        json[std::to_string(elem.first)] = elem.second;
-      }
-
-      Json::StreamWriterBuilder builder;
-      std::unique_ptr<Json::StreamWriter> jsonwriter(
-						     builder.newStreamWriter());
-      jsonwriter->write(json, &oss);    
-    } else {
-      TableFormatterBase table;
-      TableHeader header;
-      TableData body;
-      header.push_back(std::make_tuple("Fxid", 10, "-s"));
-      header.push_back(std::make_tuple("Conversion string", 0, "-s"));
-      table.SetHeader(header);
-
-      for (const auto& elem : pending) {
-        TableRow row;
-        row.emplace_back(eos::common::FileId::Fid2Hex(elem.first), "-s");
-        row.emplace_back(elem.second, "-s");
-        body.push_back(row);
-      }
-
-      table.AddRows(body);
-      oss << table.GenerateTable();
-    }
-  } else if (list.type() == "failed") {
-    auto failed = gOFS->mConverterDriver->GetFailedJobs();
-
-    if (failed.empty()) {
-      reply.set_std_out("info: no failed conversions");
-      return;
+    for (const auto& elem : pending) {
+      TableRow row;
+      row.emplace_back(eos::common::FileId::Fid2Hex(elem.first), "-s");
+      row.emplace_back(elem.second, "-s");
+      body.push_back(row);
     }
 
-    if (jsonOutput) {
-      Json::Value json;
-
-      for (const auto& elem : failed) {
-        json[elem.first] = elem.second;
-      }
-
-      Json::StreamWriterBuilder builder;
-      std::unique_ptr<Json::StreamWriter> jsonwriter(
-						     builder.newStreamWriter());
-      jsonwriter->write(json, &oss);
-    } else {
-      TableFormatterBase table;
-      TableHeader header;
-      TableData body;
-      header.push_back(std::make_tuple("Conversion string", 0, "-s"));
-      header.push_back(std::make_tuple("Failure", 80, "-s"));
-      table.SetHeader(header);
-
-      for (const auto& elem : failed) {
-        TableRow row;
-        std::string err_msg {elem.second};
-        std::replace(err_msg.begin(), err_msg.end(), '\0', ';');
-        row.emplace_back(elem.first, "-s");
-        row.emplace_back(err_msg, "-s");
-        body.push_back(row);
-      }
-
-      table.AddRows(body);
-      oss << table.GenerateTable();
-    }
+    table.AddRows(body);
+    oss << table.GenerateTable();
   }
 
   if (!oss.str().empty()) {
@@ -543,12 +500,7 @@ void
 ConvertCmd::ClearSubcmd(const eos::console::ConvertProto_ClearProto& clear,
                         eos::console::ReplyProto& reply)
 {
-  if (clear.type() == "pending") {
-    gOFS->mConverterDriver->ClearPendingJobs();
-  } else if (clear.type() == "failed") {
-    gOFS->mConverterDriver->ClearFailedJobs();
-  }
-
+  gOFS->mConverterDriver->ClearPendingJobs();
   reply.set_std_out("info: list cleared");
 }
 

@@ -74,7 +74,6 @@ struct ConversionInfo {
   //!
   //!
   //! @param sconversion the conversion string representation
-  //! @param conversion the conversion info object to fill
   //!
   //! @return a shared_ptr holding ConversionInfo on success or nullptr
   //----------------------------------------------------------------------------
