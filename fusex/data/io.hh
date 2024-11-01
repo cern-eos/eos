@@ -113,12 +113,20 @@ public:
 
   XrdCl::shared_proxy xrdioro(fuse_req_t req)
   {
-    return _xrdioro["default"];
+    // avoid creating a null entry if none exists,
+    // as this may be confusing for the caller
+    if (auto it = _xrdioro.find("default"); it != _xrdioro.end())
+      return it->second;
+    return XrdCl::shared_proxy();
   }
 
   XrdCl::shared_proxy xrdiorw(fuse_req_t req)
   {
-    return _xrdiorw["default"];
+    // avoid creating a null entry if none exists,
+    // as this may be confusing for the caller
+    if (auto it = _xrdiorw.find("default"); it != _xrdiorw.end())
+      return it->second;
+    return XrdCl::shared_proxy();
   }
 
   bool has_xrdioro(fuse_req_t req)
@@ -133,12 +141,20 @@ public:
 
   XrdCl::shared_proxy xrdioro(std::string& id)
   {
-    return _xrdioro[id];
+    // avoid creating a null entry if none exists,
+    // as this may be confusing for the caller
+    if (auto it = _xrdioro.find(id); it != _xrdioro.end())
+      return it->second;
+    return XrdCl::shared_proxy();
   }
 
   XrdCl::shared_proxy xrdiorw(std::string& id)
   {
-    return _xrdiorw[id];
+    // avoid creating a null entry if none exists,
+    // as this may be confusing for the caller
+    if (auto it = _xrdiorw.find(id); it != _xrdiorw.end())
+      return it->second;
+    return XrdCl::shared_proxy();
   }
 
   std::map<std::string, XrdCl::shared_proxy>& get_xrdiorw()
