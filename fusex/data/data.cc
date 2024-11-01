@@ -1327,7 +1327,7 @@ data::datax::recover_ropen(fuse_req_t req)
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::try_ropen(fuse_req_t req, XrdCl::shared_proxy proxy,
+data::datax::try_ropen(fuse_req_t req, XrdCl::shared_proxy &proxy,
                        std::string open_url)
 {
   mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='try read-open'"));
@@ -1474,7 +1474,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::shared_proxy proxy,
 /* -------------------------------------------------------------------------- */
 int
 /* -------------------------------------------------------------------------- */
-data::datax::try_wopen(fuse_req_t req, XrdCl::shared_proxy proxy,
+data::datax::try_wopen(fuse_req_t req, XrdCl::shared_proxy &proxy,
                        std::string open_url)
 {
   mRecoveryStack.push_back(eos_log(LOG_SILENT, "hint='try write-open'"));

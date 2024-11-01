@@ -157,8 +157,8 @@ public:
     int TryRecovery(fuse_req_t req, bool is_write);
 
     int recover_ropen(fuse_req_t req);
-    int try_ropen(fuse_req_t req, XrdCl::shared_proxy proxy, std::string open_url);
-    int try_wopen(fuse_req_t req, XrdCl::shared_proxy proxy, std::string open_url);
+    int try_ropen(fuse_req_t req, XrdCl::shared_proxy &proxy, std::string open_url);
+    int try_wopen(fuse_req_t req, XrdCl::shared_proxy &proxy, std::string open_url);
     int recover_read(fuse_req_t req);
     int recover_write(fuse_req_t req);
 
