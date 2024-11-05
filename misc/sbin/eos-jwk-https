@@ -32,6 +32,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):
         wellknown = '{"jwks_uri":"https://';
         wellknown += socket.getfqdn()
+        wellknown += ":4443"
         wellknown += '/jwk"}'
         if self.path == "/.well-known/openid-configuration":
            self.send_response(200)
