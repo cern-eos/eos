@@ -52,7 +52,6 @@ c_scitoken_create(char* token, size_t token_length, time_t expires,
                   const char* claim4)
 {
   errno = 0;
- 
   if (!eos::common::SciToken::sSciToken) {
     std::cerr << "c_sci_token_init was not called" << std::endl;
     errno = EFAULT;

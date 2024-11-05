@@ -58,7 +58,7 @@ TEST(SciToken, Factory)
     int rc = issuer->CreateToken(token, expires, claims);
     ASSERT_EQ(rc, 0);
   }
-  
+
   ::unlink("/tmp/.eosunit.sci.key");
   ::unlink("/tmp/.eosunit.sci.cred");
 }
@@ -74,7 +74,7 @@ TEST(SciToken, CFactory)
 
   void* sci_ctx = c_scitoken_factory_init("/tmp/.eosunit.sci.cred", "/tmp/.eosunit.sci.key", "eos","localhost");
   ASSERT_NE((long long)sci_ctx,0);
-  
+
   std::string token;
   time_t expires = time(NULL) + 3600;
   for ( size_t i = 0 ; i< 10000; i++) {
@@ -86,7 +86,7 @@ TEST(SciToken, CFactory)
     int rc = c_scitoken_create((char*)token.c_str(), token.size(), expires, scope.c_str());
     ASSERT_EQ(rc, 0);
   }
-  
+
   ::unlink("/tmp/.eosunit.sci.key");
   ::unlink("/tmp/.eosunit.sci.cred");
 }

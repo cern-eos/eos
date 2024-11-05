@@ -193,7 +193,7 @@ com_scitoken(char* arg1)
         return (0);
       }
     }
-  
+
     if (expires) {
       auto lifetime = expires - time(NULL);
       if (lifetime < 0) {
