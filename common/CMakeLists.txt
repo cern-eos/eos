@@ -39,6 +39,23 @@ set_target_properties(EosCrc32c-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
+# EosSciToken-Objects library
+#-------------------------------------------------------------------------------
+add_library(EosSciToken-Objects OBJECT
+  token/SciToken.cc)
+
+set_target_properties(EosSciToken-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+add_library(EosSciToken-Static STATIC $<TARGET_OBJECTS:EosSciToken-Objects>
+)
+
+target_link_libraries(EosSciToken-Objects PUBLIC
+  XROOTD::UTILS
+  SCITOKENS::SCITOKENS
+)
+
+#-------------------------------------------------------------------------------
 # EosBlake3-Objects library
 #-------------------------------------------------------------------------------
 set(BLAKE3_PORTABLE_SRCS
@@ -185,6 +202,7 @@ target_link_libraries(EosCommon PUBLIC
   EosCommon-Objects
   EosFstProto-Objects
   EosCliProto-Objects
+  EosSciToken-Objects
   EosNsQuarkdbProto-Objects
   NCURSES::NCURSES
   UUID::UUID
@@ -201,6 +219,7 @@ set(EosCommonLinkLibs
   EosCommon-Objects
   EosFstProto-Objects
   EosCliProto-Objects
+  EosSciToken-Objects
   EosNsQuarkdbProto-Objects
   XROOTD::CL
   UUID::UUID
@@ -291,4 +310,26 @@ if(NOT CLIENT AND Linux)
   target_compile_options(mutextest PRIVATE -Wno-macro-redefined)
   target_link_libraries(mutextest PRIVATE
     EosCommon-Static)
+endif()
+
+#-------------------------------------------------------------------------------
+# Create pthon module eosscitokenmodule
+#-------------------------------------------------------------------------------
+# Define a custom target to build the Python module
+if(PYTHONSITEPKG_FOUND)
+add_custom_target(build_python_module ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "Building Python module..."
+    COMMAND ${Python3_EXECUTABLE} setup.py build
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/common/token/
+)
+
+# Define a custom target to install the Python module
+add_custom_target(install_python_module ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module..."
+    COMMAND ${Python3_EXECUTABLE} setup.py install --prefix=${PYTHONSITEPKG_PATH}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/common/token/
+)
+
+# Make install depend on build, so it builds before installing
+add_dependencies(install_python_module build_python_module)
 endif()
