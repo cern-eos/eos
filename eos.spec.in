@@ -1002,3 +1002,21 @@ The EOS mgm monitoring package creating /var/eos/md/ user specific output
 %{_sbindir}/eos-inspectorstat
 %{_sbindir}/eos-prom-push
 %config(noreplace) %{_sysconfdir}/cron.d/eos-mgm-monitoring
+
+#-------------------------------------------------------------------------------
+# Package eos-python3-scitoken
+#-------------------------------------------------------------------------------
+%package -n eos-python3-scitoken
+
+Summary: The EOS python3 bindigs to use 'import eosscitoken'
+Group: Applications/File
+ExclusiveArch: x86_64 aarch64
+
+BuildRequires: python%{python3_pkgversion}-devel
+BuildRequires: python%{python3_pkgversion}-setuptools
+
+%description -n eos-python3-scitoken
+Contains the 'eosscitoken' pythnon module
+
+%files
+%{python3_sitearch}/eosscitoken*.so
