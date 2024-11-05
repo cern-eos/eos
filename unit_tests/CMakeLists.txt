@@ -133,6 +133,7 @@ set(COMMON_UT_SRCS
   common/concurrency/ThreadEpochCounterTests.cc
   common/concurrency/RCUTests.cc
   common/RandTests.cc
+  common/SciTokensTests.cc
 )
 
 set(FUSEX_UT_SRCS
@@ -175,6 +176,7 @@ add_executable(eos-unit-tests ${UT_SRCS})
 target_link_libraries(eos-unit-tests PRIVATE
   EosConsoleHelpers-Objects
   EosConsoleCommands-Objects
+  EosSciToken-Objects
   EosMgmHttp-Objects
   GTest::Main
   GTest::gmock
