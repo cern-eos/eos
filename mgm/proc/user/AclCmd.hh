@@ -242,8 +242,8 @@ private:
   //! @param is_sys if true return sys.acl, otherwise user.acl
   //! @param take_lock if true take namespace lock, otherwise don't
   //----------------------------------------------------------------------------
-  void GetAcls(const std::string& path, std::string& acls, bool is_sys = false,
-               bool take_lock = true);
+  void GetAcls(const std::string& path, std::string& acls, bool sys = true,
+               bool user = true, bool take_lock = true);
 
   //----------------------------------------------------------------------------
   //! Modify the acls for a path

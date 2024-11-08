@@ -143,7 +143,6 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   static const char* epname = "attr_get";
   EXEC_TIMING_BEGIN("AttrGet");
   gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
-  value.clear();
   errno = 0;
 
   if (!key || (strlen(key) == 0)) {

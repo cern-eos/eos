@@ -79,14 +79,18 @@ AclCmd::ProcessRequest() noexcept
 // Get sys.acl and user.acl for a given path
 //------------------------------------------------------------------------------
 void
-AclCmd::GetAcls(const std::string& path, std::string& acl, bool is_sys,
+AclCmd::GetAcls(const std::string& path, std::string& acl, bool sys, bool user,
                 bool take_lock)
 {
   XrdOucErrInfo error;
-  std::string acl_key = (is_sys ? "sys.acl" : "user.acl");
+  acl.clear();
 
-  if (gOFS->_attr_get(path.c_str(), error, mVid, 0, acl_key.c_str(), acl)) {
-    acl = "";
+  if (user) {
+    gOFS->_attr_get(path.c_str(), error, mVid, 0, "user.acl", acl);
+  }
+
+  if (sys) {
+    gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.acl", acl);
   }
 }
 
@@ -139,7 +143,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
       return EINVAL;
     }
 
-    if(!dirs.size()) {
+    if (!dirs.size()) {
       paths.push_back(acl.path());
     }
 
@@ -147,7 +151,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     for (const auto& elem : dirs) {
       // skip version directories
       if (elem.first.find(EOS_COMMON_PATH_VERSION_PREFIX) == std::string::npos) {
-	paths.push_back(elem.first);
+        paths.push_back(elem.first);
       }
     }
   } else {
@@ -156,8 +160,8 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 
   RuleMap rule_map;
   std::string dir_acls, new_acl_val;
-  
   int ret = 0;
+
   for (const auto& elem : paths) {
     GetAcls(elem, dir_acls, acl.sys_acl(), false);
     GenerateRuleMap(dir_acls, rule_map);
@@ -181,9 +185,11 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
       // The returned errno will correspond to the first errno encountered during the application
       // of the ACL recursively
       ret = errno;
-      if(acl.recursive() && ret == ENOENT) {
+
+      if (acl.recursive() && ret == ENOENT) {
         continue;
       }
+
       return ret;
     }
   }
