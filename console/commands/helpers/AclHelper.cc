@@ -145,7 +145,6 @@ AclHelper::ParseCommand(const char* arg)
   AclProto* acl = mReq.mutable_acl();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
-  bool type_set = false;
 
   // Get opts
   while ((temp = tokenizer.GetToken(false)) != 0) {
@@ -211,13 +210,11 @@ AclHelper::ParseCommand(const char* arg)
 
     if (token == "--sys") {
       acl->set_sys_acl(true);
-      type_set = true;
       continue;
     }
 
     if (token == "--user") {
-      acl->set_sys_acl(false);
-      type_set = true;
+      acl->set_user_acl(true);
       continue;
     }
 
@@ -225,6 +222,7 @@ AclHelper::ParseCommand(const char* arg)
       acl->set_sync_write(true);
       continue;
     }
+
     // If there is unsupported flag
     if (token.at(0) == '-') {
       std::cerr << "error: unrecognized flag " << token << std::endl;
@@ -267,9 +265,13 @@ AclHelper::ParseCommand(const char* arg)
     return false;
   }
 
-  // If proc type not enforced try to deduce it
-  if (!type_set) {
-    return SetDefaultRole();
+  if (!acl->sys_acl() && !acl->user_acl()) {
+    if (acl->op() == AclProto::LIST) {
+      acl->set_sys_acl(true);
+      acl->set_user_acl(true);
+    } else if (acl->op() == AclProto::MODIFY) {
+      return SetDefaultRole();
+    }
   }
 
   return true;
