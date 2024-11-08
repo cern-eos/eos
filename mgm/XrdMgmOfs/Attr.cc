@@ -144,6 +144,7 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
   EXEC_TIMING_BEGIN("AttrGet");
   gOFS->MgmStats.Add("AttrGet", vid.uid, vid.gid, 1);
   errno = 0;
+  value.clear();
 
   if (!key || (strlen(key) == 0)) {
     errno = EINVAL;

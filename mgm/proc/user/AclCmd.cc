@@ -46,7 +46,7 @@ AclCmd::ProcessRequest() noexcept
 
   if (acl.op() == AclProto::LIST) {
     std::string acl_val;
-    GetAcls(acl.path(), acl_val, acl.sys_acl());
+    GetAcls(acl.path(), acl_val, acl.sys_acl(), acl.user_acl());
 
     if (acl_val.empty()) {
       mErr = "error: ";
@@ -83,14 +83,36 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool sys, bool user,
                 bool take_lock)
 {
   XrdOucErrInfo error;
-  acl.clear();
-
-  if (user) {
-    gOFS->_attr_get(path.c_str(), error, mVid, 0, "user.acl", acl);
-  }
+  bool header = sys && user;
 
   if (sys) {
-    gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.acl", acl);
+    std::string sys_acl;
+    gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.acl", sys_acl);
+
+    if (header) {
+      acl += "# sys.acl\n";
+    }
+
+    acl += sys_acl;
+  }
+
+  if (user) {
+    std::string user_acl;
+    gOFS->_attr_get(path.c_str(), error, mVid, 0, "user.acl", user_acl);
+
+    if (header) {
+      std::string eval_acl;
+      gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.eval.useracl", eval_acl);
+      acl += "\n# user.acl";
+
+      if (eval_acl != "1") {
+        acl += " (ignored)";
+      }
+
+      acl += "\n";
+    }
+
+    acl += user_acl;
   }
 }
 
@@ -163,7 +185,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   int ret = 0;
 
   for (const auto& elem : paths) {
-    GetAcls(elem, dir_acls, acl.sys_acl(), false);
+    GetAcls(elem, dir_acls, acl.sys_acl(), acl.user_acl(), false);
     GenerateRuleMap(dir_acls, rule_map);
     // ACL position is 1-indexed as 0 is the default numeric protobuf val
     auto [err, acl_pos] = GetRulePosition(rule_map.size(), acl.position());
