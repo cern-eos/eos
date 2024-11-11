@@ -2294,7 +2294,7 @@ Server::OpSetFile(const std::string& id,
       unsigned long layoutId = 0;
       unsigned long forcedFsId = 0;
       long forcedGroup = 0;
-      XrdOucString space;
+      std::string space;
       eos::listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
       XrdOucEnv env;
       std::string bandwidth;

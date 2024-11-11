@@ -183,7 +183,7 @@ FileRegisterCmd::ProcessRequest() noexcept
       } else {
         // automatically get a layout id for this registration
         unsigned long layoutId;
-        XrdOucString space;
+        std::string space;
         XrdOucEnv env;
         unsigned long forcedfsid = 0;
         long forcedgroup = 0;

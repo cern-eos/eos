@@ -1613,7 +1613,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // vector - for writes it is always 0, for reads it comes out of the
   // FileAccess function
   unsigned long fsIndex = 0;
-  XrdOucString space = "default";
+  std::string space = "default";
   unsigned long new_lid = 0;
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
   std::string targetgeotag;
@@ -1978,8 +1978,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     targetsize = strtoull(openOpaque->Get("eos.targetsize"), 0, 10);
   }
 
-  std::string spacename = space.c_str();
-  auto strategy = gOFS->mFsScheduler->getPlacementStrategy(spacename);
+  //std::string spacename = space.c_str();
+  auto strategy = gOFS->mFsScheduler->getPlacementStrategy(space);
   const char* strategy_cstr;
 
   if ((strategy_cstr = openOpaque->Get("eos.schedulingstrategy"))) {
@@ -2034,7 +2034,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     plctargs.plctpolicy = plctplcy;
     plctargs.exclude_filesystems = &excludefs;
     plctargs.selected_filesystems = &selectedfs;
-    plctargs.spacename = &spacename;
+    plctargs.spacename = &space;
     plctargs.truncate = open_flags & O_TRUNC;
     plctargs.vid = &vid;
 
@@ -2063,7 +2063,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         args.forced_group_index = forced_group;
       }
 
-      auto ret = gOFS->mFsScheduler->schedule(spacename,
+      auto ret = gOFS->mFsScheduler->schedule(space,
                                               args);
       COMMONTIMING("PlctScheduler::FilePlaced", &tm);
 
@@ -2228,8 +2228,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         plctargs.plctpolicy = plctplcy;
         plctargs.exclude_filesystems = &excludefs;
         plctargs.selected_filesystems = &selectedfs;
-        std::string spacename = space.c_str();
-        plctargs.spacename = &spacename;
+        plctargs.spacename = &space;
         plctargs.truncate = open_flags & O_TRUNC;
         plctargs.vid = &vid;
 
@@ -2251,7 +2250,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             args.forced_group_index = forced_group;
           }
 
-          auto ret = gOFS->mFsScheduler->schedule(spacename,
+          auto ret = gOFS->mFsScheduler->schedule(space,
                                                   args);
           COMMONTIMING("PlctScheduler::FilePlaced", &tm);
 
@@ -2926,8 +2925,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       plctargs.plctpolicy = plctplcy;
       plctargs.exclude_filesystems = &excludefs;
       plctargs.selected_filesystems = &pio_replacement_fs;
-      std::string spacename = space.c_str();
-      plctargs.spacename = &spacename;
+      plctargs.spacename = &space;
       plctargs.truncate = false;
       plctargs.vid = &rootvid;
 

@@ -64,7 +64,7 @@ Policy::GetDefaultSizeFactor(std::shared_ptr<eos::IContainerMD> cmd)
   unsigned long forcedfsid;
   long forcedgroup;
   unsigned long layoutid = 0;
-  XrdOucString ret_space;
+  std::string ret_space;
   std::string bandwidth;
   bool schedule = 0;
   std::string iopriority;
@@ -102,7 +102,7 @@ Policy::GetSpacePolicyLayout(const char* space)
   unsigned long forcedfsid;
   long forcedgroup;
   unsigned long layoutid = 0;
-  XrdOucString ret_space;
+  std::string ret_space;
   std::string bandwidth;
   bool schedule = 0;
   std::string iopriority;
@@ -134,7 +134,7 @@ void
 Policy::GetLayoutAndSpace(const char* path,
                           eos::IContainerMD::XAttrMap& attrmap,
                           const eos::common::VirtualIdentity& vid,
-                          unsigned long& layoutId, XrdOucString& space,
+                          unsigned long& layoutId, std::string& space,
                           XrdOucEnv& env,
                           unsigned long& forcedfsid,
                           long& forcedgroup,
@@ -522,7 +522,7 @@ Policy::RedirectLocal(const char* path,
                       eos::IContainerMD::XAttrMap& map,
                       const eos::common::VirtualIdentity& vid,
                       unsigned long& layoutId,
-                      XrdOucString& space,
+                      const std::string& space,
                       XrdOucEnv& env
                      )
 {

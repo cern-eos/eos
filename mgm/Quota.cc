@@ -184,8 +184,8 @@ SpaceQuota::UpdateLogicalSizeFactor()
     XrdOucEnv env;
     unsigned long forcedfsid;
     long forcedgroup;
-    XrdOucString spn = pPath.c_str();
     std::string bandwidth;
+    std::string spn = pPath; // Is this necessary?
     bool schedule = false;
     std::string iopriority;
     std::string iotype;

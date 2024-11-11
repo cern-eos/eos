@@ -51,7 +51,7 @@ public:
                                 eos::IContainerMD::XAttrMap& map,
                                 const eos::common::VirtualIdentity& vid,
                                 unsigned long& layoutId,
-                                XrdOucString& space,
+                                std::string& space,
                                 XrdOucEnv& env,
                                 unsigned long& forcedfsid,
                                 long& forcedgroup,
@@ -74,7 +74,7 @@ public:
                             eos::IContainerMD::XAttrMap& map,
                             const eos::common::VirtualIdentity& vid,
                             unsigned long& layoutId,
-                            XrdOucString& space,
+                            const std::string& space,
                             XrdOucEnv& env
                            );
 

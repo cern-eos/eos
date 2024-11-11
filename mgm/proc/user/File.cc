@@ -1532,7 +1532,7 @@ ProcCommand::File()
             eos::common::FileSystem::fs_snapshot_t snapshot;
             filesystem->SnapShotFileSystem(snapshot, true);
             // Remember the spacename
-            space = snapshot.mSpace.c_str();
+            space = snapshot.mSpace;
 
             if (!refspace.length()) {
               refspace = space;
@@ -1616,8 +1616,7 @@ ProcCommand::File()
           plctargs.plctpolicy = plctplcy;
           plctargs.exclude_filesystems = &excludefs;
           plctargs.selected_filesystems = &selectedfs;
-          std::string spacename = space.c_str();
-          plctargs.spacename = &spacename;
+          plctargs.spacename = &space;
           plctargs.truncate = true;
           plctargs.vid = pVid;
 
