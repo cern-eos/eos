@@ -212,13 +212,12 @@ SpaceQuota::RmQuota(unsigned long tag, unsigned long id)
   eos_debug("rm quota tag=%lu id=%lu", tag, id);
   XrdSysMutexHelper scope_lock(mMutex);
 
-  if (mMapIdQuota.count(Index(tag, id))) {
-    mMapIdQuota.erase(Index(tag, id));
+  bool erased = mMapIdQuota.erase(Index(tag, id));
+  if (erased) {
     mDirtyTarget = true;
-    return true;
   }
 
-  return false;
+  return erased;
 }
 
 //------------------------------------------------------------------------------
