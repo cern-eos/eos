@@ -2017,14 +2017,13 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
     eos_static_debug("quota is disabled for space=%s", args->spacename->c_str());
   }
 
-  if (!FsView::gFsView.mSpaceGroupView.count(*args->spacename)) {
+  bool space_exists = FsView::gFsView.mSpaceGroupView.count(*args->spacename);
+  if (!space_exists) {
     eos_static_err("msg=\"no filesystem in space\" space=\"%s\"",
                    args->spacename->c_str());
     args->selected_filesystems->clear();
     return ENOSPC;
-  }
-
-  if (FsView::gFsView.mSpaceView.count(*args->spacename)) {
+  } else {
     if (!FsView::gFsView.UnderNominalQuota(*args->spacename, args->vid->sudoer)) {
       eos_static_err("msg=\"over physical quota limit (nominal space setting)\" space=\"%s\"",
                      args->spacename->c_str());
