@@ -67,8 +67,9 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                       eos::common::FileSystem::fsid_t fsid_trg ,
                       std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
                       std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
-                      bool drop_src, const std::string & app_tag,
-  bool repair_excluded) {
+                      bool drop_src, const std::string& app_tag,
+                      bool repair_excluded)
+  {
     return std::make_shared<FsckRepairJob>(
              fid, fsid_src, fsid_trg, exclude_srcs, exclude_dsts, drop_src, app_tag,
              false, eos::common::VirtualIdentity::Root(), repair_excluded);
@@ -313,7 +314,7 @@ FsckEntry::RepairMgmXsSzDiff()
       for (auto bad_fsid : bad_fsids) {
         // Trigger an fsck repair job (much like a drain job) doing a TPC
         auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids,
-                                         bad_fsids, true, "fsck", false);
+                                         bad_fsids, true, "eos/fsck", false);
         repair_job->DoIt();
 
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
@@ -827,7 +828,7 @@ FsckEntry::RepairReplicaInconsistencies()
         // similar to adjust replica
         eos::common::FileSystem::fsid_t good_fsid = mMgmFmd.locations(0);
         auto repair_job = mRepairFactory(mFid, good_fsid, 0, {}, to_drop,
-                                         false, "fsck", false);
+                                         false, "eos/fsck", false);
         repair_job->DoIt();
 
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
