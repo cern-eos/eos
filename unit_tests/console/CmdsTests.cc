@@ -28,7 +28,7 @@
 
 GlobalOptions opts;
 
-TEST(AclHelper, RouteFromPathAppeneded)
+TEST(AclHelper, RouteFromPathAppended)
 {
   AclHelper acl(opts);
   acl.ParseCommand("--user u:1001=rwx /eos/devtest/");
