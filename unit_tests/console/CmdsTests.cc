@@ -34,15 +34,15 @@ TEST(AclHelper, RouteFromPathAppended)
   acl.ParseCommand("--user u:1001=rwx /eos/devtest/");
   const std::string proto_msg = (!isatty(STDOUT_FILENO) ||
                                  !isatty(STDERR_FILENO)) ?
-                                "Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0L/gBAQ" :
-                                "Eh0IAioKdToxMDAxPXJ3eDINL2Vvcy9kZXZ0ZXN0Lw";
+                                "Eh8IAiABKgp1OjEwMDE9cnd4Mg0vZW9zL2RldnRlc3Qv+AEB" :
+                                "Eh8IAiABKgp1OjEwMDE9cnd4Mg0vZW9zL2RldnRlc3Qv";
   acl.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg +
-                      "==&eos.route=/eos/devtest/", {"", "", 0});
+                      "&eos.route=/eos/devtest/", {"", "", 0});
   ASSERT_EQ(acl.Execute(true, true), 0);
   // Setting EOSHOME env variable should make no difference
   setenv("EOSHOME", "/eos/home/test/", 1);
   acl.InjectSimulated("//proc/user/?mgm.cmd.proto=" + proto_msg +
-                      "==&eos.route=/eos/devtest/", {"", "", 0});
+                      "&eos.route=/eos/devtest/", {"", "", 0});
   ASSERT_EQ(acl.Execute(true, true), 0);
   unsetenv("EOSHOME");
 }
