@@ -11,7 +11,7 @@ Build-Depends: debhelper (>= 10), cmake (>= 3.3.0), git, libfuse-dev, libfuse3-d
  xrootd-server-plugins (>= _XRD_DEB_VER_),
  libxrootd-dev (>= _XRD_DEB_VER_),
  libxrootd-private-dev (>= _XRD_DEB_VER_),
- libxrootd-clientp-dev (>= _XRD_DEB_VER_),
+ libxrootd-client-dev (>= _XRD_DEB_VER_),
  libxrootd-server-dev (>= _XRD_DEB_VER_),
  libxrdapputils2t64 (>= _XRD_DEB_VER_),
  libxrdcrypto2t64 (>= _XRD_DEB_VER_),
