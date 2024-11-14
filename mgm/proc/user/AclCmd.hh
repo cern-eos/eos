@@ -239,7 +239,8 @@ private:
   //!
   //! @param path path to get the ACLs for
   //! @param acls ACL VALUE
-  //! @param is_sys if true return sys.acl, otherwise user.acl
+  //! @param sys if true return sys.acls
+  //! @param user if true return user.acls
   //! @param take_lock if true take namespace lock, otherwise don't
   //----------------------------------------------------------------------------
   void GetAcls(const std::string& path, std::string& acls, bool sys = true,
