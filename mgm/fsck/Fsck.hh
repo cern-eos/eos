@@ -221,6 +221,8 @@ private:
   static const std::string sRepairKey;
   //! Key used to store the repair category in the config
   static const std::string sRepairCategory;
+  //! Key used to store the best-effort status in the config
+  static const std::string sBestEffort;
 
   std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
   std::atomic<bool> mShowNoReplica; ///< Flag to display no replica files
@@ -230,6 +232,7 @@ private:
   std::atomic<bool> mRepairEnabled; ///< Mark if the repair thread is enabled
   std::atomic<bool> mCollectRunning; ///< Mark if collector is running
   std::atomic<bool> mRepairRunning; ///< Mark if repair is running
+  std::atomic<bool> mDoBestEffort; ///< Mark if best-effort repair enabled
   std::atomic<eos::common::FsckErr>
   mRepairCategory; ///< Mark which cat. should be repaired
   mutable std::string mLog, mTmpLog; ///< In-memory fsck log

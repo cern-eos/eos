@@ -73,7 +73,7 @@ protected:
   {
     mRepairJob = nullptr;
     mFsckEntry = std::unique_ptr<eos::mgm::FsckEntry>
-                 (new eos::mgm::FsckEntry(1234567, {3}, "none", nullptr));
+      (new eos::mgm::FsckEntry(1234567, {3}, "none", false, nullptr));
     PopulateMgmFmd();
 
     for (auto fsid : mFsckEntry->mMgmFmd.locations()) {

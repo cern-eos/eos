@@ -47,6 +47,7 @@ const std::string Fsck::sCollectKey {"toggle-collect"};
 const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
 const std::string Fsck::sRepairKey {"toggle-repair"};
 const std::string Fsck::sRepairCategory {"repair-category"};
+const std::string Fsck::sBestEffort {"toggle-best-effort"};
 
 using eos::common::FsckErr;
 using eos::common::ConvertToFsckErr;
@@ -56,7 +57,8 @@ using eos::common::ConvertToFsckErr;
 Fsck::Fsck():
   mShowOffline(false), mShowNoReplica(false), mShowDarkFiles(false),
   mStartProcessing(false), mCollectEnabled(false), mRepairEnabled(false),
-  mCollectRunning(false), mRepairRunning(false), mRepairCategory(FsckErr::None),
+  mCollectRunning(false), mRepairRunning(false), mDoBestEffort(false),
+  mRepairCategory(FsckErr::None),
   mCollectInterval(std::chrono::seconds(30 * 60)),
   eTimeStamp(0),
   mThreadPool(2, mMaxThreadPoolSize, 10, 6, 5, "fsck")
@@ -103,18 +105,26 @@ Fsck::ApplyFsckConfig()
   std::string msg;
 
   if (kv_map.count(sCollectKey) && kv_map.count(sCollectIntervalKey)) {
-    mCollectEnabled = (kv_map[sCollectKey] == "1");
-    Config(sCollectKey, (mCollectEnabled ? kv_map[sCollectIntervalKey] : "off"),
-           msg);
-
-    if (kv_map.count(sRepairKey)) {
-      mRepairEnabled = (kv_map[sRepairKey] == "1");
-      Config(sRepairKey, kv_map[sRepairKey], msg);
+    bool enable_collect = (kv_map[sCollectKey] == "1");
+    // Make fsck config enforcement idempotent. Note the value in the Config
+    // call is overloaded with the "off" string marking the fact that fsck
+    // collection should be disabled.
+    if (enable_collect != mCollectEnabled) {
+      Config(sCollectKey, (enable_collect ? kv_map[sCollectIntervalKey] : "off"),
+             msg);
     }
+  }
 
-    if (kv_map.count(sRepairCategory)) {
-      Config(sRepairCategory, kv_map[sRepairCategory], msg);
-    }
+  if (kv_map.count(sRepairKey)) {
+    Config(sRepairKey, kv_map[sRepairKey], msg);
+  }
+
+  if (kv_map.count(sBestEffort)) {
+    Config(sBestEffort, kv_map[sBestEffort], msg);
+  }
+
+  if (kv_map.count(sRepairCategory)) {
+    Config(sRepairCategory, kv_map[sRepairCategory], msg);
   }
 }
 
@@ -137,6 +147,7 @@ Fsck::StoreFsckConfig()
   oss << sCollectKey << "=" << mCollectEnabled << " "
       << sCollectIntervalKey << "=" << collect_interval_min << " "
       << sRepairKey << "=" << mRepairEnabled << " "
+      << sBestEffort << "=" << mDoBestEffort << " "
       << sRepairCategory  << "=" << eos::common::FsckErrToString(mRepairCategory);
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
 }
@@ -167,7 +178,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
     if (value == "off") {
       mCollectEnabled = false;
     } else {
-      mCollectEnabled = !mCollectRunning;
+      mCollectEnabled = !mCollectEnabled;
     }
 
     if (mCollectEnabled == false) {
@@ -233,6 +244,14 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
     if (!StoreFsckConfig()) {
       msg = "error: failed to store fsck configuration changes";
       return false;
+    }
+  } else if (key == sBestEffort) {
+    if (value.empty()) {
+      // User triggered best-effort toggle
+      mDoBestEffort = !mDoBestEffort;
+    } else {
+      // Mandatory config coming from the stored configuration
+      mDoBestEffort = (value == "1");
     }
   } else if (key == sRepairCategory) {
     if (value == "all") {
@@ -426,7 +445,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
         }
 
         std::shared_ptr<FsckEntry> job{
-          new FsckEntry(elem.first, elem.second, err_type, mQcl)};
+          new FsckEntry(elem.first, elem.second, err_type, mDoBestEffort, mQcl)};
         mThreadPool.PushTask<void>([job]() {
           return job->Repair();
         });
@@ -505,7 +524,7 @@ Fsck::RepairEntry(eos::IFileMD::id_t fid,
   }
 
   std::shared_ptr<FsckEntry> job {
-    new FsckEntry(fid, fsid_err, err_type, mQcl)};
+    new FsckEntry(fid, fsid_err, err_type, false, mQcl)};
 
   if (async) {
     out_msg = "msg=\"repair job submitted\"";
@@ -542,7 +561,8 @@ Fsck::PrintOut(std::string& out, bool monitor_fmt) const
         << std::endl
         << "repair_category=" <<
         ((mRepairCategory == FsckErr::None) ?
-         "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl;
+         "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl
+        << "best_effort=" << (mDoBestEffort ? "true" : "false") << std::endl;
   } else {
     oss << "Info: collection thread status -> "
         << (mCollectEnabled ? "enabled" : "disabled") << std::endl
@@ -550,7 +570,9 @@ Fsck::PrintOut(std::string& out, bool monitor_fmt) const
         << (mRepairEnabled ? "enabled" : "disabled") << std::endl
         << "Info: repair category          -> "
         << ((mRepairCategory == FsckErr::None) ?
-            "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl;
+            "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl
+        << "Info: best effort              -> "
+        << (mDoBestEffort ? "true" : "false") << std::endl;
   }
 
   {

@@ -44,11 +44,11 @@ EOSMGMNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                      const std::set<eos::common::FileSystem::fsid_t>& fsid_err,
-                     const std::string& expected_err,
+                     const std::string& expected_err, bool best_effort,
                      std::shared_ptr<qclient::QClient> qcl):
   mFid(fid), mFsidErr(fsid_err),
-  mReportedErr(eos::common::ConvertToFsckErr(expected_err)), mRepairFactory(),
-  mQcl(qcl)
+  mReportedErr(eos::common::ConvertToFsckErr(expected_err)),
+  mBestEffort(best_effort), mRepairFactory(), mQcl(qcl)
 {
   using namespace eos::common;
   mMapRepairOps = {
@@ -213,6 +213,126 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
 }
 
 //------------------------------------------------------------------------------
+// Repair entry in best-effort mode
+//------------------------------------------------------------------------------
+bool
+FsckEntry::RepairBestEffort()
+{
+  // If not enabled then it always fails
+  if (!mBestEffort) {
+    return false;
+  }
+  // Best-effort only works for replicas
+  if (LayoutId::IsRain(mMgmFmd.layout_id())) {
+    return false;
+  }
+
+  // Find the best replica candidate that should be considered the reference
+  eos::common::FileSystem::fsid_t ref_fsid = 0ul;
+  uint64_t ref_sz = 0ull;
+  std::string ref_xs;
+
+  for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
+    auto& finfo = it->second;
+
+    if (finfo->mFstErr != FstErr::None) {
+      continue;
+    }
+
+    if (finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
+      eos_info("msg=\"skip best-effort repair due to un-scanned replica\" "
+               "fxid=%08llx", mFid);
+      return false;
+    }
+    // First available replica or the one with more data is the reference
+    if ((ref_fsid == 0) || (ref_sz < finfo->mDiskSize)) {
+      ref_fsid = it->first;
+      ref_sz = finfo->mDiskSize;
+      ref_xs = finfo->mFstFmd.mProtoFmd.diskchecksum();
+    }
+  }
+
+  if (ref_fsid == 0) {
+    eos_err("msg=\"no suitable replica for best-effort repair found\" "
+            "fxid=%08llx", mFid);
+    return false;
+  }
+
+  // Update the MGM info using the size and checksum from the reference replica
+  size_t out_sz;
+  auto xs_binary = StringConversion::Hex2BinDataChar(ref_xs, out_sz,
+                                                     SHA256_DIGEST_LENGTH);
+
+  if (xs_binary == nullptr) {
+    eos_err("msg=\"best-effort repair failed due to disk checksum conversion "
+            "error\" fxid=%08llx ref_xs=\"%s\"", mFid, ref_xs.c_str());
+    return false;
+  }
+
+  eos::Buffer xs_buff;
+  xs_buff.putData(xs_binary.get(), SHA256_DIGEST_LENGTH);
+
+  if (gOFS) {
+    try {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
+      // Grab the file metadata object and update it
+      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+      auto fmd = gOFS->eosFileService->getFileMD(mFid);
+      fmd->setChecksum(xs_buff);
+      fmd->setSize(ref_sz);
+      gOFS->eosView->updateFileStore(fmd.get());
+      // Update also the MGM fmd object
+      mMgmFmd.set_checksum(xs_buff.getDataPtr(), xs_buff.getSize());
+      mMgmFmd.set_size(ref_sz);
+    } catch (const eos::MDException& e) {
+      eos_debug("msg=\"best-effort repair successful, file removed in the "
+                "meantime\" fxid=%08llx", mFid);
+      return true;
+    }
+  } else {
+    // For testing we just update the MGM fmd object
+    mMgmFmd.set_checksum(xs_buff.getDataPtr(), xs_buff.getSize());
+    mMgmFmd.set_size(ref_sz);
+  }
+
+  std::set<eos::common::FileSystem::fsid_t> bad_fsids;
+
+  for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
+    if (it->first != ref_fsid) {
+      bad_fsids.insert(it->first);
+    }
+  }
+
+  // Attempt repair if we don't have enough good replicas
+  size_t num_good_rep = 1;
+  size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1;
+  bool all_repaired = true;
+
+  for (const auto bad_fsid: bad_fsids) {
+    if (num_good_rep >= num_nominal_rep) {
+      break;
+    }
+
+    // Trigger an fsck repair job (much like a drain job) doing a TPC
+    auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids,
+                                     bad_fsids, true, "eos/fsck", false);
+    repair_job->DoIt();
+
+    if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
+      eos_err("msg=\"best-effort repair failed\" fxid=%08llx bad_fsid=%lu",
+              mFid, bad_fsid);
+      all_repaired = false;
+    } else {
+      eos_info("msg=\"best-effort repair successful\" fxid=%08llx bad_fsid=%lu",
+               mFid, bad_fsid);
+      ++num_good_rep;
+    }
+  }
+
+  return all_repaired;
+}
+
+//------------------------------------------------------------------------------
 // Method to repair an mgm checksum difference error
 //------------------------------------------------------------------------------
 bool
@@ -241,6 +361,12 @@ FsckEntry::RepairMgmXsSzDiff()
               mFid, it->first);
       disk_xs_sz_match = false;
       continue;
+    }
+
+    if (finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
+      eos_info("msg=\"skip mgm xs/sz diff repair due to un-scanned replica\" "
+               "fxid=%08llx", mFid);
+      return false;
     }
 
     if (xs_val.empty() && (sz_val == 0ull)) {
@@ -299,7 +425,7 @@ FsckEntry::RepairMgmXsSzDiff()
     if (good_fsids.empty()) {
       eos_err("msg=\"mgm xs/size repair failed, no correct replicas\" "
               "fxid=%08llx", mFid);
-      return false;
+      return RepairBestEffort();
     }
 
     for (const auto bad_fsid : bad_fsids) {
@@ -364,8 +490,9 @@ FsckEntry::RepairMgmXsSzDiff()
         mMgmFmd.set_checksum(xs_buff.getDataPtr(), xs_buff.getSize());
         mMgmFmd.set_size(sz_val);
       } catch (const eos::MDException& e) {
-        eos_err("msg=\"mgm xs/size repair failed - no such filemd\" fxid=%08llx", mFid);
-        return false;
+        eos_err("msg=\"mgm xs/size repair successful, file removed in the "
+                "meantime\" fxid=%08llx", mFid);
+        return true;
       }
     } else {
       // For testing we just update the MGM fmd object
@@ -378,6 +505,7 @@ FsckEntry::RepairMgmXsSzDiff()
   } else {
     eos_err("msg=\"mgm xs/size repair failed - not all disk xs/size match\" "
             "fxid=%08llx", mFid);
+    return RepairBestEffort();
   }
 
   return disk_xs_sz_match;
@@ -451,7 +579,7 @@ FsckEntry::RepairFstXsSzDiff()
     if (good_fsids.empty()) {
       eos_err("msg=\"fst xs/size repair failed - no good replicas\" fxid=%08llx",
               mFid);
-      return false;
+      return RepairBestEffort();
     }
   }
 
@@ -557,9 +685,9 @@ FsckEntry::RepairRainInconsistencies()
           fmd->addLocation(*mFsidErr.begin());
           gOFS->eosView->updateFileStore(fmd.get());
         } catch (const eos::MDException& e) {
-          eos_err("msg=\"unregistered stripe repair failed - no such filemd\" "
-                  "fxid=%08llx", mFid);
-          return false;
+          eos_err("msg=\"unregistered repair successful, file removed "
+                  "in the meantime\" fxid=%08llx", mFid);
+          return true;
         }
       } else {
         // For testing just update the MGM fmd object
@@ -741,9 +869,9 @@ FsckEntry::RepairReplicaInconsistencies()
         eos_info("msg=\"remove missing replica\" fxid=%08llx drop_fsid=%lu",
                  mFid, drop_fsid);
       } catch (const eos::MDException& e) {
-        eos_err("msg=\"replica inconsistency repair failed, no file metadata\" "
-                "fxid=%08llx", mFid);
-        return false;
+        eos_err("msg=\"replica inconsistency repair successful, file removed "
+                "in the meantime\" fxid=%08llx", mFid);
+        return true;
       }
     }
   }
@@ -810,9 +938,9 @@ FsckEntry::RepairReplicaInconsistencies()
             eos_info("msg=\"attached unregistered replica\" fxid=%08llx "
                      "new_fsid=%lu", mFid, new_fsid);
           } catch (const eos::MDException& e) {
-            eos_err("msg=\"unregistered replica repair failed, no file metadata\" "
-                    "fxid=%08llx", mFid);
-            return false;
+            eos_err("msg=\"unregistered replica repair successful, file "
+                    " removed in the meantime\" fxid=%08llx", mFid);
+            return true;
           }
         }
 

@@ -66,6 +66,7 @@ void com_fsck_help()
       << "    toggle-collect       : enable/disable error collection thread, <value> represents\n"
       << "                           the collection interval in minutes [default 30]\n"
       << "    toggle-repair        : enable/disable repair thread, no <value> required\n"
+      << "    toggle-best-effort   : enable/disable best-effort repair mode, no <value> required\n"
       << "    repair-category      : specify error types that the repair thread will handle\n"
       << "                           e.g all, m_cx_diff, m_mem_sz_diff, d_cx_diff, d_mem_sz_diff,\n"
       << "                               unreg_n, rep_diff_n, rep_missing_n, blockxs_err\n"

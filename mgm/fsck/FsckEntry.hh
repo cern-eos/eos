@@ -90,11 +90,12 @@ public:
   //! @param fid file identifier
   //! @param fsid_err file system which reported an error
   //! @param expected_err expected type of error reported by the scanner
+  //! @param best_effort if true tryy best-effort repair
   //! @param qcl QClient object for getting metadata information
   //----------------------------------------------------------------------------
   FsckEntry(eos::IFileMD::id_t fid,
             const std::set<eos::common::FileSystem::fsid_t>& fsid_err,
-            const std::string& expected_err,
+            const std::string& expected_err, bool best_effort,
             std::shared_ptr<qclient::QClient> qcl);
 
   //----------------------------------------------------------------------------
@@ -152,6 +153,16 @@ public:
   bool RepairRainInconsistencies();
 
   //----------------------------------------------------------------------------
+  //! Repair given entry in best-effort mode - this might mean we taken a
+  //! decision to consider one of the replicas as the correct one even though
+  //! there is no consistency between the data on disk and the namespace.
+  //! This is only used for replica-like layouts.
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool RepairBestEffort();
+
+  //----------------------------------------------------------------------------
   //! Collect MGM file metadata information
   //!
   //! @return true if successful, otherwise false
@@ -203,6 +214,7 @@ public:
   //! File system ids with expected errors
   std::set<eos::common::FileSystem::fsid_t> mFsidErr;
   eos::common::FsckErr mReportedErr; ///< Reported error type
+  bool mBestEffort; ///< Mark if best effort is allowed
   eos::ns::FileMdProto mMgmFmd; ///< MGM file metadata protobuf object
   //! Map of file system id to file metadata held at the corresponding fs
   std::map<eos::common::FileSystem::fsid_t,
