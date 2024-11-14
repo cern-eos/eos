@@ -53,6 +53,7 @@ function create_test_files() {
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_REPLICA_DIR}/file_rep_diff_under.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_REPLICA_DIR}/file_rep_diff_over.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_REPLICA_DIR}/file_orphan.dat &&
+                     xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_REPLICA_DIR}/best_effort.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_blockxs_err.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_stripe_diff.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_stripe_sz_err.dat &&
@@ -70,6 +71,7 @@ function create_test_files() {
   FXID_REP_DIFF_UNDER=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/file_rep_diff_under.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_REP_DIFF_OVER=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/file_rep_diff_over.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_ORPHAN=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/file_orphan.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
+  FXID_BEST_EFFORT=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/best_effort.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_RAIN_BLOCKXS=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_blockxs_err.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_RAIN_DIFF=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_stripe_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_RAIN_STRIPE_SZ=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_stripe_sz_err.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
@@ -90,6 +92,7 @@ function create_test_files() {
         -z "${FXID_REP_DIFF_UNDER}"       ||
         -z "${FXID_REP_DIFF_OVER}"        ||
         -z "${FXID_ORPHAN}"               ||
+        -z "${FXID_BEST_EFFORT}"          ||
         -z "${FXID_RAIN_BLOCKXS}"         ||
         -z "${FXID_RAIN_DIFF}"            ||
         -z "${FXID_RAIN_STRIPE_SZ}"       ||
@@ -246,6 +249,22 @@ function corrupt_orphan() {
   exec_cmd eos-mgm1 "eos fs config ${FSID} configstatus=rw"
 }
 
+# Corrupt file that can only be fixed by best-effort
+function corrupt_best_effort() {
+  # Get the physical locations of the replicas
+  local CMD1_OUT=$(exec_cmd eos-cli1 "eos -j fileinfo fxid:${FXID_BEST_EFFORT} | jq -r '.locations | .[] | (.fsid|tostring) + \" \" + .fstpath'" | head -n1)
+  local CMD2_OUT=$(exec_cmd eos-cli1 "eos -j fileinfo fxid:${FXID_BEST_EFFORT} | jq -r '.locations | .[] | (.fsid|tostring) + \" \" + .fstpath'" | tail -n1)
+  count=0
+  set -x
+  for line in "${CMD1_OUT}" "${CMD2_OUT}"; do
+    local FSID=$(echo ${line} | cut -d ' ' -f 1)
+    local LPATH=$(echo ${line} | cut -d ' ' -f 2)
+    exec_cmd "eos-fst${FSID}" "echo ${count} >> ${LPATH}"
+    count=$((count + 10))
+  done
+  set +x
+}
+
 # Corrupt file to generate RAIN stripe size error
 function corrupt_rain_stripe_size() {
   local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_RAIN_STRIPE_SZ} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
@@ -258,7 +277,7 @@ function corrupt_rain_stripe_size() {
 
 # Corrupt stripe to generate RAIN stripe error
 function corrupt_rain_invalid_stripe() {
-  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_RAIN_INVALID_STRIPE} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
+  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_RAIN_INVALID_STRIPE} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -bF '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
   # Extract the fxid and local path, trim the input
   local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
   local LPATH=$(echo "${CMD_OUT}" | tail -n1)
@@ -418,6 +437,7 @@ function check_all_errors_collected() {
     local FOUND_RAIN_DIFF=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_DIFF}")
     local FOUND_RAIN_STRIPE_SZ=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_STRIPE_SZ}")
     local FOUND_ORPHAN=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_ORPHAN}")
+    local FOUND_BEST_EFFORT=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_BEST_EFFORT}")
     local FOUND_RAIN_INVALID_STRIPE=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_INVALID_STRIPE}")
     local FOUND_RAIN_INVALID_STRIPE2=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_INVALID_STRIPE2}")
     local FOUND_RAIN_DIFF_OVER=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_DIFF_OVER}")
@@ -435,6 +455,7 @@ function check_all_errors_collected() {
           -z "${FOUND_RAIN_DIFF}"            ||
           -z "${FOUND_RAIN_STRIPE_SZ}"       ||
           -z "${FOUND_ORPHAN}"               ||
+          -z "${FOUND_BEST_EFFORT}"          ||
           -z "${FOUND_RAIN_INVALID_STRIPE}"  ||
           -z "${FOUND_RAIN_INVALID_STRIPE2}" ||
           -z "${FOUND_RAIN_DIFF_OVER}"       ||
@@ -548,6 +569,7 @@ corrupt_rain_blocxs_err
 corrupt_rain_stripe_diff
 corrupt_rain_stripe_size
 corrupt_orphan
+corrupt_best_effort
 corrupt_rain_invalid_stripe
 corrupt_rain_invalid_stripe2
 corrupt_rain_stripe_diff_over
@@ -559,8 +581,8 @@ configure_fsck
 # Check that we are collecting all the expected errors
 check_all_errors_collected $MAX_DELAY
 
-# Enable the repair thread and allow a delay of 2 minutes to
-# correct all the discovered errors
+# Enable the repair thread
+#exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-best-effort"
 exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-repair"
 
 # Cleanup the orphan entries
