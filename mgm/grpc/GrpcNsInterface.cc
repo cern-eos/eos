@@ -725,10 +725,10 @@ GrpcNsInterface::Stat(eos::common::VirtualIdentity& ivid,
       (ivid.gid != request->role().gid())) {
     if (!ivid.sudoer) {
       return grpc::Status(grpc::StatusCode::PERMISSION_DENIED,
-			  std::string("Ask an admin to map your auth key to a sudo'er account - permission denied"));
+                          std::string("Ask an admin to map your auth key to a sudo'er account - permission denied"));
     } else {
       vid = eos::common::Mapping::Someone(request->role().uid(),
-					  request->role().gid());
+                                          request->role().gid());
       vid.app = request->role().app();
     }
   }
@@ -1337,55 +1337,55 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
 
   switch (request->command_case()) {
   case eos::rpc::NSRequest::kMkdir:
-    return Mkdir(vid, reply->mutable_error() , &(request->mkdir()));
+    return Mkdir(vid, reply->mutable_error(), &(request->mkdir()));
     break;
 
   case eos::rpc::NSRequest::kRmdir:
-    return Rmdir(vid, reply->mutable_error() , &(request->rmdir()));
+    return Rmdir(vid, reply->mutable_error(), &(request->rmdir()));
     break;
 
   case eos::rpc::NSRequest::kTouch:
-    return Touch(vid, reply->mutable_error() , &(request->touch()));
+    return Touch(vid, reply->mutable_error(), &(request->touch()));
     break;
 
   case eos::rpc::NSRequest::kUnlink:
-    return Unlink(vid, reply->mutable_error() , &(request->unlink()));
+    return Unlink(vid, reply->mutable_error(), &(request->unlink()));
     break;
 
   case eos::rpc::NSRequest::kRm:
-    return Rm(vid, reply->mutable_error() , &(request->rm()));
+    return Rm(vid, reply->mutable_error(), &(request->rm()));
     break;
 
   case eos::rpc::NSRequest::kRename:
-    return Rename(vid, reply->mutable_error() , &(request->rename()));
+    return Rename(vid, reply->mutable_error(), &(request->rename()));
     break;
 
   case eos::rpc::NSRequest::kSymlink:
-    return Symlink(vid, reply->mutable_error() , &(request->symlink()));
+    return Symlink(vid, reply->mutable_error(), &(request->symlink()));
     break;
 
   case eos::rpc::NSRequest::kXattr:
-    return SetXAttr(vid, reply->mutable_error() , &(request->xattr()));
+    return SetXAttr(vid, reply->mutable_error(), &(request->xattr()));
     break;
 
   case eos::rpc::NSRequest::kVersion:
-    return Version(vid, reply->mutable_version() , &(request->version()));
+    return Version(vid, reply->mutable_version(), &(request->version()));
     break;
 
   case eos::rpc::NSRequest::kRecycle:
-    return Recycle(vid, reply->mutable_recycle() , &(request->recycle()));
+    return Recycle(vid, reply->mutable_recycle(), &(request->recycle()));
     break;
 
   case eos::rpc::NSRequest::kChown:
-    return Chown(vid, reply->mutable_error() , &(request->chown()));
+    return Chown(vid, reply->mutable_error(), &(request->chown()));
     break;
 
   case eos::rpc::NSRequest::kChmod:
-    return Chmod(vid, reply->mutable_error() , &(request->chmod()));
+    return Chmod(vid, reply->mutable_error(), &(request->chmod()));
     break;
 
   case eos::rpc::NSRequest::kAcl:
-    return Acl(vid, reply->mutable_acl() , &(request->acl()));
+    return Acl(vid, reply->mutable_acl(), &(request->acl()));
     break;
 
   case eos::rpc::NSRequest::kToken:
@@ -1393,7 +1393,7 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
     break;
 
   case eos::rpc::NSRequest::kQuota:
-    return Quota(vid, reply->mutable_quota() , &(request->quota()));
+    return Quota(vid, reply->mutable_quota(), &(request->quota()));
     break;
 
   default:
@@ -2125,26 +2125,26 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
           snprintf(sday, sizeof(sday), "/%02u", request->listflag().day());
           date += sday;
 
-	  if (request->listflag().index()) {
-	    date += "/";
-	    date += std::to_string(request->listflag().index());
-	  }
+          if (request->listflag().index()) {
+            date += "/";
+            date += std::to_string(request->listflag().index());
+          }
         }
       }
     }
 
     int rc = Recycle::Print(std_out,
-			    std_err,
-			    vid,
-			    true,
-			    true,
-			    true,
-			    date,
-			    false,
-			    &rvec,
-			    true,
-			    request->listflag().maxentries());
-    
+                            std_err,
+                            vid,
+                            true,
+                            true,
+                            true,
+                            date,
+                            false,
+                            &rvec,
+                            true,
+                            request->listflag().maxentries());
+
     for (auto item : rvec) {
       eos::rpc::NSResponse::RecycleResponse::RecycleInfo info;
 
@@ -2165,10 +2165,12 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
       auto new_info = reply->add_recycles();
       new_info->CopyFrom(info);
     }
+
     if (rc) {
       reply->set_code(E2BIG);
       reply->set_msg("warning: listing was limited to user maxentries setting");
     }
+
     return grpc::Status::OK;
   } else {
     reply->set_code(EINVAL);
@@ -2388,6 +2390,8 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
 
   if (request->type() == eos::rpc::NSRequest::AclRequest::SYS_ACL) {
     req.mutable_acl()->set_sys_acl(true);
+  } else if (request->type() == eos::rpc::NSRequest::AclRequest::USER_ACL) {
+    req.mutable_acl()->set_user_acl(true);
   }
 
   req.mutable_acl()->set_path(path);
