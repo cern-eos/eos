@@ -86,24 +86,16 @@ public:
     return mEnabled.load();
   }
 
-  bool disable()
+  inline bool disable()
   {
-    if (!enabled()) {
-      return false;
-    } else {
-      mEnabled.store(0, std::memory_order_seq_cst);
-      return true;
-    }
+    bool expected = true;
+    return mEnabled.compare_exchange_strong(expected, false);
   }
 
-  bool enable()
+  inline bool enable()
   {
-    if (enabled()) {
-      return false;
-    } else {
-      mEnabled.store(1, std::memory_order_seq_cst);
-      return true;
-    }
+    bool expected = false;
+    return mEnabled.compare_exchange_strong(expected, true);
   }
 
   const std::string currencies[6] = { "EOS", "CHF", "EUR", "USD", "AUD", "YEN" };
@@ -113,7 +105,7 @@ private:
   void Process(std::shared_ptr<eos::IFileMD> fmd);
 
   AssistedThread mThread; ///< thread id of the creation background tracker
-  std::atomic<int> mEnabled;
+  std::atomic<bool> mEnabled;
   XrdOucErrInfo mError;
   eos::common::VirtualIdentity mVid;
   std::unique_ptr<qclient::QClient> mQcl;
@@ -139,45 +131,45 @@ private:
   std::map<time_t, uint64_t> currentBirthTimeVolume;
 
   //! BirthVsAccess Time Bins
-  std::map<time_t, std::map<time_t,uint64_t>> lastBirthVsAccessTimeFiles;
-  std::map<time_t, std::map<time_t,uint64_t>> lastBirthVsAccessTimeVolume;
-  std::map<time_t, std::map<time_t,uint64_t>> currentBirthVsAccessTimeFiles;
-  std::map<time_t, std::map<time_t,uint64_t>> currentBirthVsAccessTimeVolume;
+  std::map<time_t, std::map<time_t, uint64_t>> lastBirthVsAccessTimeFiles;
+  std::map<time_t, std::map<time_t, uint64_t>> lastBirthVsAccessTimeVolume;
+  std::map<time_t, std::map<time_t, uint64_t>> currentBirthVsAccessTimeFiles;
+  std::map<time_t, std::map<time_t, uint64_t>> currentBirthVsAccessTimeVolume;
 
   //! User Cost Bins
   std::map<uid_t, uint64_t> lastUserCosts[2];
   std::map<uid_t, uint64_t> currentUserCosts[2];
-  std::multimap<uint64_t,uid_t> lastCostsUsers[2];
-  
+  std::multimap<uint64_t, uid_t> lastCostsUsers[2];
+
   //! Group Cost Bins
   std::map<gid_t, uint64_t> lastGroupCosts[2];
   std::map<gid_t, uint64_t> currentGroupCosts[2];
-  std::multimap<uint64_t,gid_t> lastCostsGroups[2];
-  
+  std::multimap<uint64_t, gid_t> lastCostsGroups[2];
+
   double lastUserTotalCosts[2] = {0};
   double lastGroupTotalCosts[2] = {0};
 
   //! User Bytes Bins
   std::map<uid_t, uint64_t> lastUserBytes[2];
   std::map<uid_t, uint64_t> currentUserBytes[2];
-  std::multimap<uint64_t,uid_t> lastBytesUsers[2];
+  std::multimap<uint64_t, uid_t> lastBytesUsers[2];
 
   //! Group Bytes Bins
   std::map<gid_t, uint64_t> lastGroupBytes[2];
   std::map<gid_t, uint64_t> currentGroupBytes[2];
-  std::multimap<uint64_t,gid_t> lastBytesGroups[2];
-  
+  std::multimap<uint64_t, gid_t> lastBytesGroups[2];
+
   double lastUserTotalBytes[2] = {0};
   double lastGroupTotalBytes[2] = {0};
 
   //! Running count of number of time files have been classed faulty
   uint64_t currentNumFaultyFiles = 0;
-  
+
   std::atomic<double> PriceTbPerYearDisk;
   std::atomic<double> PriceTbPerYearTape;
 
   std::string currency;
-  
+
   std::atomic<time_t> timeCurrentScan;
   std::atomic<time_t> timeLastScan;
 
