@@ -89,30 +89,34 @@ AclCmd::GetAcls(const std::string& path, std::string& acl, bool sys, bool user,
     std::string sys_acl;
     gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.acl", sys_acl);
 
-    if (header) {
-      acl += "# sys.acl\n";
-    }
+    if (!sys_acl.empty()) {
+      if (header) {
+        acl += "# sys.acl\n";
+      }
 
-    acl += sys_acl;
+      acl += sys_acl;
+    }
   }
 
   if (user) {
     std::string user_acl;
     gOFS->_attr_get(path.c_str(), error, mVid, 0, "user.acl", user_acl);
 
-    if (header) {
-      std::string eval_acl;
-      gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.eval.useracl", eval_acl);
-      acl += "\n# user.acl";
+    if (!user_acl.empty()) {
+      if (header) {
+        std::string eval_acl;
+        gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.eval.useracl", eval_acl);
+        acl += "\n# user.acl";
 
-      if (eval_acl != "1") {
-        acl += " (ignored)";
+        if (eval_acl != "1") {
+          acl += " (ignored)";
+        }
+
+        acl += "\n";
       }
 
-      acl += "\n";
+      acl += user_acl;
     }
-
-    acl += user_acl;
   }
 }
 
