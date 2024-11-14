@@ -190,6 +190,10 @@ build_el9_arm64:
   extends: .build-template
   tags:
     - k8s-arm
+  only:
+    - schedules
+    - tags
+
 
 #-------------------------------------------------------------------------------
 # EOS client builds for RHEL

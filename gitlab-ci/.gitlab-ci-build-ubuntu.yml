@@ -64,7 +64,6 @@
   only:
     - schedules
     - tags
-    - master
 
 
 ubuntu-jammy:
