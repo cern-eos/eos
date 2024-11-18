@@ -206,12 +206,12 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   }
 
   Status FsckRequest(ServerContext* context, const FsckProto* request,
-                     ReplyProto* reply)
+                     ServerWriter<ReplyProto>* writer)
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
-    return restGwInterface.FsckCall(vid, request, reply);
+    return restGwInterface.FsckCall(vid, request, writer);
   }
 
   Status GeoschedRequest(ServerContext* context, const GeoschedProto* request,

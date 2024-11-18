@@ -19,12 +19,14 @@ import "Debug.proto";
 import "Evict.proto";
 import "File.proto";
 import "Fileinfo.proto";
+import "Find.proto";
 import "Fs.proto";
 import "Fsck.proto";
 import "Geosched.proto";
 import "Group.proto";
 import "Health.proto";
 import "Io.proto";
+import "Ls.proto";
 import "MakeDirectory.proto";
 import "Map.proto";
 import "Member.proto";
@@ -49,7 +51,6 @@ import "Whoami.proto";
 
 option go_package = "eos.rest.gateway.service";
 
-// Echo service responds to incoming echo requests.
 service EosRestGatewayService {
 	// AclRequest method receives a request for an eos acl command
 	// and returns the result of the command
@@ -177,6 +178,15 @@ service EosRestGatewayService {
 		};
 	}
 
+	// FindRequest method receives a request for an eos find command
+	// and returns the result of the command
+	rpc FindRequest(eos.console.FindProto) returns (stream eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/eos/rest/gateway/find_cmd"
+			body: "*"
+		};
+	}
+
 	// FsRequest method receives a request for an eos fs command
 	// and returns the result of the command
 	rpc FsRequest(eos.console.FsProto) returns (eos.console.ReplyProto) {
@@ -188,7 +198,7 @@ service EosRestGatewayService {
 
 	// FsckRequest method receives a request for an eos fsck command
 	// and returns the result of the command
-	rpc FsckRequest(eos.console.FsckProto) returns (eos.console.ReplyProto) {
+	rpc FsckRequest(eos.console.FsckProto) returns (stream eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/fsck_cmd"
 			body: "*"
@@ -227,6 +237,15 @@ service EosRestGatewayService {
 	rpc IoRequest(eos.console.IoProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/io_cmd"
+			body: "*"
+		};
+	}
+
+	// LsRequest method receives a request for an eos ls command
+	// and returns the result of the command
+	rpc LsRequest(eos.console.LsProto) returns (stream eos.console.ReplyProto) {
+		option (google.api.http) = {
+			post: "/v1/eos/rest/gateway/ls_cmd"
 			body: "*"
 		};
 	}

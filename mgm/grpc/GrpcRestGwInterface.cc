@@ -1487,6 +1487,17 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
+grpc::Status GrpcRestGwInterface::FindCall(VirtualIdentity& vid,
+    const FindProto* findRequest, ServerWriter<ReplyProto>* writer)
+{
+  // wrap the AccessProto object into a RequestProto object
+  eos::console::RequestProto req;
+  req.mutable_find()->CopyFrom(*findRequest);
+  eos::mgm::NewfindCmd findcmd(std::move(req), vid);
+  findcmd.ProcessRequest(writer);
+  return grpc::Status::OK;
+}
+
 grpc::Status GrpcRestGwInterface::FsCall(VirtualIdentity& vid,
     const FsProto* fsRequest, ReplyProto* reply)
 {
@@ -1499,13 +1510,13 @@ grpc::Status GrpcRestGwInterface::FsCall(VirtualIdentity& vid,
 }
 
 grpc::Status GrpcRestGwInterface::FsckCall(VirtualIdentity& vid,
-    const FsckProto* fsckRequest, ReplyProto* reply)
+    const FsckProto* fsckRequest, ServerWriter<ReplyProto>* writer)
 {
-  // wrap the AccessProto object into a RequestProto object
+  // wrap the FsckProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fsck()->CopyFrom(*fsckRequest);
   eos::mgm::FsckCmd fsckcmd(std::move(req), vid);
-  *reply = fsckcmd.ProcessRequest();
+  fsckcmd.ProcessRequest(writer);
   return grpc::Status::OK;
 }
 
@@ -1765,6 +1776,201 @@ grpc::Status GrpcRestGwInterface::IoCall(VirtualIdentity& vid,
   req.mutable_io()->CopyFrom(*ioRequest);
   eos::mgm::IoCmd iocmd(std::move(req), vid);
   *reply = iocmd.ProcessRequest();
+  return grpc::Status::OK;
+}
+
+grpc::Status GrpcRestGwInterface::LsCall(VirtualIdentity& vid,
+    const LsProto* lsRequest, ServerWriter<ReplyProto>* writer)
+{
+  // wrap the FsckProto object into a RequestProto object
+  eos::console::RequestProto req;
+  req.mutable_ls()->CopyFrom(*lsRequest);
+
+  std::string path = req.ls().md().path();
+  eos::console::ReplyProto StreamReply;
+  errno = 0;
+
+  if (path.empty()) {
+    if (req.ls().md().type() == eos::console::FILE) {
+      try {
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+        path = gOFS->eosView->getUri(gOFS->eosFileService->getFileMD(
+                                       req.ls().md().id()).get());
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+      }
+    } else {
+      try {
+        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+        path = gOFS->eosView->getUri(gOFS->eosDirectoryService->getContainerMD(
+                                       req.ls().md().id()).get());
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+      }
+    }
+
+    if (errno) {
+      StreamReply.set_std_out("");
+      StreamReply.set_std_err("Error: Path is empty");
+      StreamReply.set_retc(EINVAL);
+      writer->Write(StreamReply);
+      return grpc::Status::OK;
+    }
+  }
+
+  std::string std_out, std_err;
+  ProcCommand cmd;
+  XrdOucErrInfo error;
+  std::string cmd_in = "mgm.cmd=ls&mgm.path=" + path;
+
+  if (req.ls().long_list() || req.ls().tape() ||
+      req.ls().readable_sizes() || req.ls().show_hidden() ||
+      req.ls().inode_info() || req.ls().num_ids() ||
+      req.ls().append_dir_ind() || req.ls().silent() ||
+      req.ls().wnc() || req.ls().noglobbing()) {
+    cmd_in += "&mgm.option=";
+
+    if (req.ls().long_list()) {
+      cmd_in += "l";
+    }
+
+    if (req.ls().tape()) {
+      cmd_in += "y";
+    }
+
+    if (req.ls().readable_sizes()) {
+      cmd_in += "h";
+    }
+
+    if (req.ls().show_hidden() || req.ls().wnc()) {
+      cmd_in += "a";
+    }
+
+    if (req.ls().inode_info()) {
+      cmd_in += "i";
+    }
+
+    if (req.ls().num_ids()) {
+      cmd_in += "n";
+    }
+
+    if (req.ls().append_dir_ind() || req.ls().wnc()) {
+      cmd_in += "F";
+    }
+
+    if (req.ls().silent()) {
+      cmd_in += "s";
+    }
+
+    if (req.ls().noglobbing()) {
+      cmd_in += "N";
+    }
+  }
+
+  cmd.open("/proc/user", cmd_in.c_str(), vid, &error);
+  cmd.AddOutput(std_out, std_err);
+  cmd.close();
+
+  if (cmd.GetRetc() == 0) {
+    std::stringstream list(std_out);
+    std::string entry(""), out("");
+    int counter = 0;
+
+    while (std::getline(list, entry)) {
+      if (req.ls().wnc()) {
+        uint64_t size = 0;
+        eos::IFileMD::ctime_t mtime;
+        eos::IFileMD::XAttrMap xattrs;
+        // Get full path
+        std::string full_path;
+
+        if (entry == "../") {
+          continue;
+        } else if (entry == "./") {
+          full_path = path;
+        } else {
+          full_path = path + entry;
+        }
+
+        // Get the parameters if entry is a file
+        if (entry[entry.size() - 1] != '/') {
+          std::shared_ptr<eos::IFileMD> fmd;
+
+          try {
+            fmd = gOFS->eosView->getFile(full_path.c_str());
+          } catch (eos::MDException& e) {
+            // Maybe this is a symlink pointing outside the EOS namespace
+            try {
+              fmd = gOFS->eosView->getFile(full_path.c_str(), false);
+            } catch (eos::MDException& e) {
+              out += entry + "\t\t\n";
+              continue;
+            }
+          }
+
+          if (fmd) {
+            fmd->getMTime(mtime);
+            xattrs = fmd->getAttributes();
+            size = fmd->getSize();
+          }
+        }
+        // Get the parameters if entry is a directory
+        else {
+          std::shared_ptr<eos::IContainerMD> cmd;
+
+          try {
+            cmd = gOFS->eosView->getContainer(full_path.c_str());
+          } catch (eos::MDException& e) {
+            out += entry + "\t\t\n";
+            continue;
+          }
+
+          if (cmd) {
+            cmd->getMTime(mtime);
+            xattrs = cmd->getAttributes();
+          }
+        }
+
+        // Print the parameters
+        out += entry;
+        out += "\t\tsize=" + std::to_string(size);
+        out += " mtime=" + std::to_string(mtime.tv_sec);
+        out += "." + std::to_string(mtime.tv_nsec);
+
+        if (xattrs.count("sys.eos.btime")) {
+          out += " btime=" + xattrs["sys.eos.btime"];
+        }
+
+        out += "\n";
+      } else {
+        out += entry + "\n";
+      }
+
+      // Write every 100 lines separately to gRPC
+      counter++;
+
+      if (counter >= 100) {
+        StreamReply.set_std_out(out);
+        StreamReply.set_retc(0);
+        writer->Write(StreamReply);
+        counter = 0;
+        out.clear();
+      }
+    }
+
+    // Write last part to gRPC, if exists
+    if (!out.empty()) {
+      StreamReply.set_std_out(out);
+      StreamReply.set_retc(0);
+      writer->Write(StreamReply);
+    }
+  } else {
+    StreamReply.set_std_out(std_out);
+    StreamReply.set_std_err(std_err);
+    StreamReply.set_retc(cmd.GetRetc());
+    writer->Write(StreamReply);
+  }
+
   return grpc::Status::OK;
 }
 
