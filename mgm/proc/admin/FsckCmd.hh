@@ -26,6 +26,10 @@
 #include "proto/Fsck.pb.h"
 #include "mgm/proc/IProcCommand.hh"
 
+#ifdef EOS_GRPC_GATEWAY
+#include "proto/eos_rest_gateway/eos_rest_gateway_service.grpc.pb.h"
+#endif
+
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -54,6 +58,10 @@ public:
   //! Method implementing the specific behaviour of the command executed
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
+
+#ifdef EOS_GRPC_GATEWAY
+  void ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer);
+#endif
 };
 
 EOSMGMNAMESPACE_END
