@@ -5,8 +5,11 @@ import os
 # For example, "scitoken" will refer to "libscitoken.so" on Linux/macOS or "scitoken.dll" on Windows
 library_name = "EosCommon"
 
+destdir = os.environ.get('DESTDIR', '')
+
 # Set the path to the directory containing the shared library, if it's not in a standard location
-library_dir = "/usr/lib64/"  # Update this to the directory with libscitoken.so or scitoken.dll
+library_dir = f"{destdir}/usr/lib64/"
+
 
 module = Extension(
     'eosscitoken',
