@@ -317,14 +317,14 @@ endif()
 #-------------------------------------------------------------------------------
 # Define a custom target to build the Python module
 if(PYTHONSITEPKG_FOUND)
-add_custom_target(build_python_module ALL
+add_custom_target(build_python_module
     COMMAND ${CMAKE_COMMAND} -E echo "Building Python module..."
     COMMAND ${Python3_EXECUTABLE} setup.py build
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/common/token/
 )
 
 # Define a custom target to install the Python module
-add_custom_target(install_python_module ALL
+add_custom_target(install_python_module
     COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module..."
     COMMAND ${Python3_EXECUTABLE} setup.py install --prefix=${PYTHONSITEPKG_PATH}
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/common/token/
@@ -334,4 +334,21 @@ add_custom_target(install_python_module ALL
 add_dependencies(install_python_module build_python_module)
 # Ensure build_python_module is built after EosCommon
 add_dependencies(build_python_module EosCommon)
+
+# Hook the Python module build into the 'install' target
+add_custom_command(
+    TARGET build_python_module
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "Building Python module after install..."
+  )
+add_custom_command(
+    TARGET install_python_module
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module after install..."
+)
+
+# Add the build_python_module as a dependency of the 'install' target
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target build_python_module)")
+install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target install_python_module)")
+
 endif()
