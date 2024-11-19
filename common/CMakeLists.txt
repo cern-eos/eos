@@ -332,4 +332,6 @@ add_custom_target(install_python_module ALL
 
 # Make install depend on build, so it builds before installing
 add_dependencies(install_python_module build_python_module)
+# Ensure build_python_module is built after EosCommon
+add_dependencies(build_python_module EosCommon)
 endif()
