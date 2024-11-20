@@ -289,16 +289,16 @@ cd build
   %endif
 
   %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-    %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
+    %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DDESTDIR=$RPM_BUILD_ROOT -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
   %else
-    %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} %{build_flags}
+    %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=%{build_type} -DDESTDIR=$RPM_BUILD_ROOT %{build_flags}
   %endif
 %else
   %if 0%{?rhel} == 7
     source  /opt/rh/llvm-toolset-7.0/enable
-    env QA_RPATHS=3 CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/lib64/:/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
+    env QA_RPATHS=3 CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/lib64/:/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DXROOTD_ROOT=/opt/eos/xrootd/ -DDESTDIR=$RPM_BUILD_ROOT %{build_flags}
   %else
-    CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}
+    CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DDESTDIR=$RPM_BUILD_ROOT %{build_flags}
   %endif
 %endif
 
@@ -847,6 +847,25 @@ case "$1" in
     # Upgrade - nothing to do
   ;;
 esac
+
+%endif
+
+#-------------------------------------------------------------------------------
+# Package eos-scitokenapi only for >= CC7
+#-------------------------------------------------------------------------------
+%if 0%{?rhel} >= 7
+%package -n eos-scitokenapi
+Summary: The EOS scitokenapi in C,C++ and PYTHON
+Group: Applications/File
+ExclusiveArch: x86_64 aarch64
+
+BuildRequires: python%{python3_pkgversion}-devel
+
+%description -n eos-scitokenapi
+The EOS scitoken API for C,C++ and PYTHON.
+
+%files -n eos-scitokenapi
+%{python3_sitelib}/eosscitoken*
 
 %endif
 

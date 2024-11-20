@@ -325,8 +325,8 @@ add_custom_target(build_python_module
 
 # Define a custom target to install the Python module
 add_custom_target(install_python_module
-    COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module..."
-    COMMAND ${Python3_EXECUTABLE} setup.py install --prefix=$ENV{{DESTDIR}}/${PYTHONSITEPKG_PATH}
+    COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module...$ENV{DESTDIR}"
+    COMMAND ${Python3_EXECUTABLE} setup.py install --root=/ --single-version-externally-managed --prefix=$ENV{DESTDIR}/usr/
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/common/token/
 )
 
