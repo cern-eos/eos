@@ -22,9 +22,11 @@
  ************************************************************************/
 
 #include "mgm/inspector/FileInspectorStats.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#include "common/json/Json.hh"
+#include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
-
 
 template <typename T, size_t N>
 void clone(T(&dst)[N], const T(&src)[N])
@@ -102,10 +104,126 @@ noexcept
   return *this;
 }
 
-
-void FileInspectorStats::Load()
+std::string FileInspectorStatsSerializer::SerializeScanStats()
 {
+  return Marshal(mFileInspectorStats.ScanStats);
 }
 
+std::string FileInspectorStatsSerializer::SerializeFaultyFiles()
+{
+  return Marshal(mFileInspectorStats.FaultyFiles);
+}
+
+std::string FileInspectorStatsSerializer::SerializeAccessTimeFiles()
+{
+  return Marshal(mFileInspectorStats.AccessTimeFiles);
+}
+
+std::string FileInspectorStatsSerializer::SerializeAccessTimeVolume()
+{
+  return Marshal(mFileInspectorStats.AccessTimeVolume);
+}
+
+std::string FileInspectorStatsSerializer::SerializeBirthTimeFiles()
+{
+  return Marshal(mFileInspectorStats.BirthTimeFiles);
+}
+
+std::string FileInspectorStatsSerializer::SerializeBirthTimeVolume()
+{
+  return Marshal(mFileInspectorStats.BirthTimeVolume);
+}
+
+std::string FileInspectorStatsSerializer::SerializeBirthVsAccessTimeFiles()
+{
+  return Marshal(mFileInspectorStats.BirthVsAccessTimeFiles);
+}
+
+std::string FileInspectorStatsSerializer::SerializeBirthVsAccessTimeVolume()
+{
+  return Marshal(mFileInspectorStats.BirthVsAccessTimeVolume);
+}
+
+std::string FileInspectorStatsSerializer::SerializeUserCosts()
+{
+  return Marshal(mFileInspectorStats.UserCosts);
+}
+
+std::string FileInspectorStatsSerializer::SerializeGroupCosts()
+{
+  return Marshal(mFileInspectorStats.GroupCosts);
+}
+
+std::string FileInspectorStatsSerializer::SerializeTotalCosts()
+{
+  return Marshal(mFileInspectorStats.TotalCosts);
+}
+
+std::string FileInspectorStatsSerializer::SerializeUserBytes()
+{
+  return Marshal(mFileInspectorStats.UserBytes);
+}
+
+std::string FileInspectorStatsSerializer::SerializeGroupBytes()
+{
+  return Marshal(mFileInspectorStats.GroupBytes);
+}
+
+std::string FileInspectorStatsSerializer::SerializeTotalBytes()
+{
+  return Marshal(mFileInspectorStats.TotalBytes);
+}
+
+std::string FileInspectorStatsSerializer::SerializeNumFaultyFiles()
+{
+  return Marshal(mFileInspectorStats.NumFaultyFiles);
+}
+
+std::string FileInspectorStatsSerializer::SerializeTimeScan()
+{
+  return Marshal(mFileInspectorStats.TimeScan);
+}
+
+}
+
+std::string FileInspectorStatsSerializer::SerializeUserCosts() const
+{
+  return SerializeToJson(mFileInspectorStats.UserCosts);
+}
+
+std::string FileInspectorStatsSerializer::SerializeGroupCosts() const
+{
+  return SerializeToJson(mFileInspectorStats.GroupCosts);
+}
+
+std::string FileInspectorStatsSerializer::SerializeTotalCosts() const
+{
+  return SerializeToJson(mFileInspectorStats.TotalCosts);
+}
+
+std::string FileInspectorStatsSerializer::SerializeUserBytes() const
+{
+  return SerializeToJson(mFileInspectorStats.UserBytes);
+}
+
+std::string FileInspectorStatsSerializer::SerializeGroupBytes() const
+{
+  return SerializeToJson(mFileInspectorStats.GroupBytes);
+}
+
+std::string FileInspectorStatsSerializer::SerializeTotalBytes() const
+{
+  return SerializeToJson(mFileInspectorStats.TotalBytes);
+}
+
+std::string FileInspectorStatsSerializer::SerializeNumFaultyFiles() const
+{
+  return SerializeToJson(mFileInspectorStats.NumFaultyFiles);
+}
+
+std::string FileInspectorStatsSerializer::SerializeTimeScan() const
+{
+  return SerializeToJson(mFileInspectorStats.TimeScan);
+}
 
 EOSMGMNAMESPACE_END

@@ -1333,4 +1333,26 @@ FileInspector::Dump(std::string& out, std::string_view options,
   out += "# ------------------------------------------------------------------------------------\n";
 }
 
+void FileInspector::QdbHelper::Store(const FileInspectorStats& stats)
+{
+  FileInspectorStatsSerializer s(stats);
+  mQHashStats.hset(SCAN_STATS_KEY, s.SerializeScanStats());
+  mQHashStats.hset(FAULTY_FILES_KEY, s.SerializeFaultyFiles());
+  mQHashStats.hset(ACCESS_TIME_FILES_KEY, s.SerializeAccessTimeFiles());
+  mQHashStats.hset(ACCESS_TIME_VOLUME_KEY, s.SerializeAccessTimeVolume());
+  mQHashStats.hset(BIRTH_TIME_FILES_KEY, s.SerializeBirthTimeFiles());
+  mQHashStats.hset(BIRTH_TIME_VOLUME_KEY, s.SerializeBirthTimeVolume());
+  mQHashStats.hset(BIRTH_VS_ACCESS_TIME_FILES_KEY,
+                   s.SerializeBirthVsAccessTimeFiles());
+  mQHashStats.hset(BIRTH_VS_ACCESS_TIME_VOLUME_KEY,
+                   s.SerializeBirthVsAccessTimeVolume());
+  mQHashStats.hset(USER_COSTS_KEY, s.SerializeUserCosts());
+  mQHashStats.hset(GROUP_COSTS_KEY, s.SerializeGroupCosts());
+  mQHashStats.hset(TOTAL_COSTS_KEY, s.SerializeTotalCosts());
+  mQHashStats.hset(USER_BYTES_KEY, s.SerializeUserBytes());
+  mQHashStats.hset(GROUP_BYTES_KEY, s.SerializeGroupBytes());
+  mQHashStats.hset(TOTAL_BYTES_KEY, s.SerializeTotalBytes());
+  mQHashStats.hset(NUM_FAULTY_FILES_KEY, s.SerializeNumFaultyFiles());
+  mQHashStats.hset(TIME_SCAN_KEY, s.SerializeTimeScan());
+}
 EOSMGMNAMESPACE_END

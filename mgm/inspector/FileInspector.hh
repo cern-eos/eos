@@ -33,11 +33,9 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
-
-namespace qclient
-{
-class QClient;
-}
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 
 
 EOSMGMNAMESPACE_BEGIN
@@ -128,6 +126,30 @@ private:
 
   //! Maximum number of classifications of faulty files to record
   static constexpr uint64_t maxfaulty = 1'000'000;
+
+  struct QdbHelper {
+    QdbHelper(const eos::QdbContactDetails& qdb_details)
+    {
+      mQcl = std::make_unique<qclient::QClient>(qdb_details.members,
+             qdb_details.constructOptions());
+      mQHashStats = qclient::QHash(*mQcl, kFileInspectorStatsKey);
+    }
+
+    void Store(const FileInspectorStats& stats);
+
+    void Load(FileInspectorStats& stats);
+
+    void Clear()
+    {
+      mQcl->del(kFileInspectorStatsKey);
+    }
+
+  private:
+    std::unique_ptr<qclient::QClient> mQcl; ///< Internal QClient object
+    qclient::QHash mQHashStats;
+
+    const std::string kFileInspectorStatsKey = "eos-file-inspector-stats";
+  };
 };
 
 

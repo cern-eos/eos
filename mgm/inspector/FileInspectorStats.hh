@@ -29,8 +29,27 @@
 #include <set>
 #include <atomic>
 #include "mgm/Namespace.hh"
+#include <qclient/QClient.hh>
 
 EOSMGMNAMESPACE_BEGIN
+
+
+#define SCAN_STATS_KEY "scan-stats"
+#define FAULTY_FILES_KEY "faulty-files"
+#define ACCESS_TIME_FILES_KEY "access-time-files"
+#define ACCESS_TIME_VOLUME_KEY "access-time-volume"
+#define BIRTH_TIME_FILES_KEY "birth-time-files"
+#define BIRTH_TIME_VOLUME_KEY "birth-time-volume"
+#define BIRTH_VS_ACCESS_TIME_FILES_KEY "birth-vs-access-time-files"
+#define BIRTH_VS_ACCESS_TIME_VOLUME_KEY "birth-vs-access-volume-files"
+#define USER_COSTS_KEY "user-costs"
+#define GROUP_COSTS_KEY "group-costs"
+#define TOTAL_COSTS_KEY "total-costs"
+#define USER_BYTES_KEY "user-bytes"
+#define GROUP_BYTES_KEY "group-bytes"
+#define TOTAL_BYTES_KEY "total-bytes"
+#define NUM_FAULTY_FILES_KEY "num-faulty-files"
+#define TIME_SCAN_KEY "time-scan"
 
 
 struct FileInspectorStats {
@@ -89,6 +108,36 @@ struct FileInspectorStats {
   uint64_t NumFaultyFiles = 0;
 
   time_t TimeScan;
+
+private:
+  const std::string kFileInspectorStats = "eos-file-inspector-stats";
+};
+
+struct FileInspectorStatsSerializer {
+  friend class FileInspectorStats;
+
+  FileInspectorStatsSerializer(const FileInspectorStats& stats) :
+    mFileInspectorStats(stats) {}
+
+  std::string SerializeScanStats();
+  std::string SerializeFaultyFiles();
+  std::string SerializeAccessTimeFiles();
+  std::string SerializeAccessTimeVolume();
+  std::string SerializeBirthTimeFiles();
+  std::string SerializeBirthTimeVolume();
+  std::string SerializeBirthVsAccessTimeFiles();
+  std::string SerializeBirthVsAccessTimeVolume();
+  std::string SerializeUserCosts();
+  std::string SerializeGroupCosts();
+  std::string SerializeTotalCosts();
+  std::string SerializeUserBytes();
+  std::string SerializeGroupBytes();
+  std::string SerializeTotalBytes();
+  std::string SerializeNumFaultyFiles();
+  std::string SerializeTimeScan();
+
+private:
+  const FileInspectorStats& mFileInspectorStats;
 };
 
 
