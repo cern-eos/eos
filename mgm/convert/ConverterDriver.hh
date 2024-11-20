@@ -261,7 +261,6 @@ private:
   private:
     std::unique_ptr<qclient::QClient> mQcl; ///< Internal QClient object
     qclient::QHash mQHashPending; ///< QDB pending jobs hash object
-    qclient::QHash mQHashFailed; ///< QDB failed jobs hash object
   };
 
   //----------------------------------------------------------------------------
@@ -317,7 +316,7 @@ private:
   mutable eos::common::RWMutex mJobsMutex;
   //! Pending jobs in memory
   eos::common::ConcurrentQueue<JobInfoT> mPendingJobs;
-  std::unique_ptr<ObserverT> mObserverMgr;  
+  std::unique_ptr<ObserverT> mObserverMgr;
   std::unique_ptr<common::ConfigStore> mConfigStore;
 };
 
