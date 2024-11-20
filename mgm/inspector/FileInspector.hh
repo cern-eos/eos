@@ -25,6 +25,7 @@
 
 #include "common/VirtualIdentity.hh"
 #include "common/AssistedThread.hh"
+#include "mgm/inspector/FileInspectorStats.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
@@ -110,68 +111,13 @@ private:
   eos::common::VirtualIdentity mVid;
   std::unique_ptr<qclient::QClient> mQcl;
 
-  // Counters for the last and current scan by layout id
-  std::map<uint64_t, std::map<std::string, uint64_t>> lastScanStats;
-  std::map<uint64_t, std::map<std::string, uint64_t>> currentScanStats;
-  //! Map from types of failures to pairs of fid and layoutid
-  std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>> lastFaultyFiles;
-  //! Map from types of failures to pairs of fid and layoutid
-  std::map<std::string, std::set<std::pair<uint64_t, uint64_t>>>
-  currentFaultyFiles;
-  //! Access Time Bins
-  std::map<time_t, uint64_t> lastAccessTimeFiles;
-  std::map<time_t, uint64_t> lastAccessTimeVolume;
-  std::map<time_t, uint64_t> currentAccessTimeFiles;
-  std::map<time_t, uint64_t> currentAccessTimeVolume;
-
-  //! Birth Time Bins
-  std::map<time_t, uint64_t> lastBirthTimeFiles;
-  std::map<time_t, uint64_t> lastBirthTimeVolume;
-  std::map<time_t, uint64_t> currentBirthTimeFiles;
-  std::map<time_t, uint64_t> currentBirthTimeVolume;
-
-  //! BirthVsAccess Time Bins
-  std::map<time_t, std::map<time_t, uint64_t>> lastBirthVsAccessTimeFiles;
-  std::map<time_t, std::map<time_t, uint64_t>> lastBirthVsAccessTimeVolume;
-  std::map<time_t, std::map<time_t, uint64_t>> currentBirthVsAccessTimeFiles;
-  std::map<time_t, std::map<time_t, uint64_t>> currentBirthVsAccessTimeVolume;
-
-  //! User Cost Bins
-  std::map<uid_t, uint64_t> lastUserCosts[2];
-  std::map<uid_t, uint64_t> currentUserCosts[2];
-  std::multimap<uint64_t, uid_t> lastCostsUsers[2];
-
-  //! Group Cost Bins
-  std::map<gid_t, uint64_t> lastGroupCosts[2];
-  std::map<gid_t, uint64_t> currentGroupCosts[2];
-  std::multimap<uint64_t, gid_t> lastCostsGroups[2];
-
-  double lastUserTotalCosts[2] = {0};
-  double lastGroupTotalCosts[2] = {0};
-
-  //! User Bytes Bins
-  std::map<uid_t, uint64_t> lastUserBytes[2];
-  std::map<uid_t, uint64_t> currentUserBytes[2];
-  std::multimap<uint64_t, uid_t> lastBytesUsers[2];
-
-  //! Group Bytes Bins
-  std::map<gid_t, uint64_t> lastGroupBytes[2];
-  std::map<gid_t, uint64_t> currentGroupBytes[2];
-  std::multimap<uint64_t, gid_t> lastBytesGroups[2];
-
-  double lastUserTotalBytes[2] = {0};
-  double lastGroupTotalBytes[2] = {0};
-
-  //! Running count of number of time files have been classed faulty
-  uint64_t currentNumFaultyFiles = 0;
+  FileInspectorStats mCurrentStats;
+  FileInspectorStats mLastStats;
 
   std::atomic<double> PriceTbPerYearDisk;
   std::atomic<double> PriceTbPerYearTape;
 
   std::string currency;
-
-  std::atomic<time_t> timeCurrentScan;
-  std::atomic<time_t> timeLastScan;
 
   std::atomic<double> scanned_percent;
   std::atomic<uint64_t> nfiles;

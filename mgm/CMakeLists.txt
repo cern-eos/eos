@@ -309,6 +309,7 @@ add_library(
   geotree/SchedulingTreeCommon.cc
   tracker/ReplicationTracker.cc
   inspector/FileInspector.cc
+  inspector/FileInspectorStats.cc
   bulk-request/File.cc
   bulk-request/FileCollection.cc
   bulk-request/prepare/manager/PrepareManager.cc
