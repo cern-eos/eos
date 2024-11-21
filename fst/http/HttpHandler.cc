@@ -123,7 +123,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     if (open_mode == 0) {
       mFileCacheEntry = sFileCache.remove(cachekey);
       if ( (mFile = mFileCacheEntry.getfp()) ) {
-        eos_static_info("path=%s found in open-file cache fp=%p",
+        eos_static_debug("path=%s found in open-file cache fp=%p",
                          openUrl.c_str(), mFile);
         mRc = SFS_OK;
       }
@@ -899,9 +899,9 @@ HttpHandler::DecodeByteRange(std::string rangeheader,
 void
 HttpHandler::FileClose(enum HttpHandler::CanCache cache)
 {
-  if (mFile && mFileCacheEntry.getfp() == mFile && cache == CanCache::YES) {
+  if (mFile && cache == CanCache::YES && mFileCacheEntry.getfp() == mFile) {
     if (sFileCache.insert(mFileCacheEntry)) {
-      eos_static_info("path=%s saved in open-file cache fp=%p",
+      eos_static_debug("path=%s saved in open-file cache fp=%p",
                        mFileCacheEntry.key_.url_.c_str(), mFile);
       // must not refer to mFile again as it could already be
       // in use by another thread

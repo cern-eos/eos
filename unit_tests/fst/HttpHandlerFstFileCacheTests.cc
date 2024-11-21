@@ -27,15 +27,24 @@
 #include <XrdSfs/XrdSfsInterface.hh>
 #include <gtest/gtest.h>
 #include <unistd.h>
+#include <atomic>
 
-int nFakeClose = 0;
-int nFakeDest = 0;
+std::atomic<uint64_t> nFakeClose = 0;
+std::atomic<uint64_t> nFakeDest  = 0;
+std::atomic<uint64_t> nCtr       = 0;
 
 class FakeOfsFile : public eos::fst::XrdFstOfsFile {
 public:
   FakeOfsFile(const char* user, int MonID = 0) : XrdFstOfsFile(user, MonID) { }
   virtual ~FakeOfsFile() { oh = 0; nFakeDest++; }
   int close() override { nFakeClose++; return 0; }
+  int open(const char* fileName, XrdSfsFileOpenMode openMode,
+           mode_t createMode, const XrdSecEntity* client,
+           const char* opaque = 0) override {
+    mFn = fileName; return 0;
+  }
+
+  std::string mFn;
 };
 
 TEST(FstFileCacheTest, StoreFetch)
@@ -263,4 +272,85 @@ TEST(FstFileCacheTest, CacheExpire)
 
   unsetenv("EOS_FST_HTTP_FHCACHE_IDLETIME");
   unsetenv("EOS_FST_HTTP_FHCACHE_IDLERES");
+}
+
+TEST(FstFileCacheTest, ConcurrentCacheUse)
+{
+  constexpr int nth = 10;
+  constexpr int nloop = 5'000;
+
+  eos::fst::HttpHandlerFstFileCache fc;
+  std::vector<std::thread> tv;
+
+  const int cc1 = nFakeClose;
+  const int dc1 = nFakeDest;
+
+  tv.reserve(nth);
+  for(int i=0;i<nth;i++) {
+    tv.emplace_back([&fc]() {
+      for(uint64_t l = 0;l<nloop;++l) {
+        FakeOfsFile *fp = new FakeOfsFile{"clientname"};
+        char fnbuf[256];
+        const uint64_t n = nCtr++;
+        sprintf(fnbuf,"/file%d", n%(nth/3));
+
+        XrdSfsFileOpenMode open_mode = 0;
+
+        eos::fst::HttpHandlerFstFileCache::Key
+          cachekey("clientname", fnbuf, "data=val1", open_mode);
+        eos::fst::HttpHandlerFstFileCache::Entry entry;
+
+        fp->open(fnbuf, open_mode, 0, 0, 0);
+        entry.set(cachekey, fp);
+        bool iret = fc.insert(entry);
+        ASSERT_TRUE(iret);
+
+        entry.clear();
+        fp = nullptr;
+
+        // we should get back an fp for a file with our
+        // filename, but not necessarily the same object
+        // we inserted
+        entry = fc.remove(cachekey);
+        ASSERT_TRUE(entry);
+        fp = (FakeOfsFile*)entry.getfp();
+        ASSERT_TRUE(fp->mFn == fnbuf);
+
+        fp->close();
+        delete fp;
+      }
+    });
+  }
+
+  for(int i=0;i<nth;i++) {
+    tv[i].join();
+  }
+
+  ASSERT_TRUE(nFakeClose == cc1 + nth*nloop);
+  ASSERT_TRUE(nFakeDest == dc1 + nth*nloop);
+
+}
+
+TEST(FstFileCacheTest, CacheDestrTest)
+{
+  const int cc1 = nFakeClose;
+  const int dc1 = nFakeDest;
+  {
+    eos::fst::HttpHandlerFstFileCache fc;
+    FakeOfsFile *fp = new FakeOfsFile{"clientname"};
+    XrdSfsFileOpenMode open_mode = 0;
+
+    eos::fst::HttpHandlerFstFileCache::Key
+      cachekey("clientname", "/file", "data=val1", open_mode);
+    eos::fst::HttpHandlerFstFileCache::Entry entry;
+    entry.set(cachekey, fp);
+    bool iret = fc.insert(entry);
+    ASSERT_TRUE(iret);
+    // we allow the FileCache object to go out of scope while
+    // containing an entry. We expect the etry to be closed
+    // and destroyed.
+  }
+
+  ASSERT_TRUE(nFakeClose == cc1 + 1);
+  ASSERT_TRUE(nFakeDest == dc1 + 1);
 }

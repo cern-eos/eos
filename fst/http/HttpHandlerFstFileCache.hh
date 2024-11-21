@@ -222,8 +222,6 @@ public:
   typedef std::multimap<Key, std::list<EntryGuard>::iterator> KeyMap;
 
 private:
-  static uint64_t tsTo64(const struct timeval &tv);
-
   XrdSysMutex    mCacheLock;
   AssistedThread mThreadId;
   bool           mThreadActive;

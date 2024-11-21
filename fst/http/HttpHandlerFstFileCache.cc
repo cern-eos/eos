@@ -21,15 +21,11 @@
  ************************************************************************/
 
 #include "common/Logging.hh"
+#include "common/Timing.hh"
 #include "fst/http/HttpHandlerFstFileCache.hh"
 #include <algorithm>
 
 EOSFSTNAMESPACE_BEGIN
-
-uint64_t HttpHandlerFstFileCache::tsTo64(const struct timeval &tv) {
-  // converts timeval to integer in milliseconds
-  return tv.tv_sec*1000ull + tv.tv_usec/1000ull;
-}
 
 HttpHandlerFstFileCache::HttpHandlerFstFileCache()
 {
@@ -40,7 +36,7 @@ HttpHandlerFstFileCache::HttpHandlerFstFileCache()
 
   if (getenv("EOS_FST_HTTP_FHCACHE_MAXENTRIES")) {
     try {
-      mMaxEntries = std::stol(getenv("EOS_FST_HTTP_FHCACHE_MAXENTRIES"));
+      mMaxEntries = std::stoull(getenv("EOS_FST_HTTP_FHCACHE_MAXENTRIES"));
     } catch (...) {
       // no change
     }
@@ -48,7 +44,8 @@ HttpHandlerFstFileCache::HttpHandlerFstFileCache()
 
   if (getenv("EOS_FST_HTTP_FHCACHE_IDLETIME")) {
     try {
-      mMaxIdletimeMs = std::stof(getenv("EOS_FST_HTTP_FHCACHE_IDLETIME")) * 1000.0;
+      mMaxIdletimeMs = static_cast<uint64_t>(
+        std::stof(getenv("EOS_FST_HTTP_FHCACHE_IDLETIME")) * 1000.0);
     } catch (...) {
       // no change
     }
@@ -56,7 +53,8 @@ HttpHandlerFstFileCache::HttpHandlerFstFileCache()
 
   if (getenv("EOS_FST_HTTP_FHCACHE_IDLERES")) {
     try {
-      mIdletimeResMs = std::stof(getenv("EOS_FST_HTTP_FHCACHE_IDLERES")) * 1000.0;
+      mIdletimeResMs = static_cast<uint64_t>(
+        std::stof(getenv("EOS_FST_HTTP_FHCACHE_IDLERES")) * 1000.0);
     } catch (...) {
       // no change
     }
@@ -85,9 +83,7 @@ bool HttpHandlerFstFileCache::insert(const HttpHandlerFstFileCache::Entry &ein)
       mThreadActive = true;
     }
 
-    struct timeval now;
-    gettimeofday(&now, NULL);
-    const uint64_t inow = tsTo64(now);
+    const uint64_t inow = eos::common::getEpochInMilliseconds().count();
 
     // new entry into list
     mQueue.emplace_back(ein);
@@ -142,7 +138,7 @@ HttpHandlerFstFileCache::Entry HttpHandlerFstFileCache::remove(const HttpHandler
   XrdSysMutexHelper cLock(mCacheLock);
   auto maprange = mQmap.equal_range(k);
   if (maprange.first == maprange.second) return e;
-  
+
   // we will use the most recently inserted entry with matching Key
   const KeyMap::iterator mapitr = std::prev(maprange.second,1);
   const GuardList::iterator it = mapitr->second;
@@ -161,21 +157,24 @@ HttpHandlerFstFileCache::Entry HttpHandlerFstFileCache::remove(const HttpHandler
 //------------------------------------------------------------------------------
 void HttpHandlerFstFileCache::Run(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("http_fhcache_gc");
+
   while (!assistant.terminationRequested())
   {
     size_t ntot = 0, ndel = 0;
     uint64_t waitms = 1;
-    std::list<EntryGuard> todel;
 
     {
+      std::list<EntryGuard> todel;
       XrdSysMutexHelper cLock(mCacheLock);
       ntot = mQmap.size();
-      struct timeval now;
-      gettimeofday(&now, NULL);
-      const uint64_t inow = tsTo64(now);
+      const uint64_t inow = eos::common::getEpochInMilliseconds().count();
 
-      // check for too old entries at the beginning of mQueue
-      const GuardList::iterator lbound = std::find_if(mQueue.begin(), mQueue.end(), 
+      // check for too old entries at the beginning of mQueue, we want to
+      // remove any with insert time older than limit; i.e.
+      // itime < (inow - mMaxIdletimeMs)
+
+      const GuardList::iterator lbound = std::find_if(mQueue.begin(), mQueue.end(),
         [inow,maxIdletimeMs = mMaxIdletimeMs](const EntryGuard &x) {
           return inow < x->itime_ + maxIdletimeMs + 1;
         });
@@ -186,15 +185,18 @@ void HttpHandlerFstFileCache::Run(ThreadAssistant& assistant) noexcept
       }
       todel.splice(todel.begin(), mQueue, mQueue.begin(), lbound);
 
-      // check for entry insert time in the future at end of queue
-      GuardList::iterator ubound;
-      for(ubound = mQueue.end(); ubound != mQueue.begin(); --ubound) {
-        auto pred = [inow](const EntryGuard &x) {
-          return x->itime_ < inow + 1;
-        };
-        if (pred(*std::prev(ubound,1))) break;
-      }
-      if (ubound == mQueue.begin()) ubound = mQueue.end();
+      // check for entry insert time in the future at end of queue, we want
+      // to remove any with insert time more recent than now; i.e.
+      // itime > inow
+
+      const GuardList::reverse_iterator uboundr =
+        std::find_if(mQueue.rbegin(), mQueue.rend(),
+          [inow](const EntryGuard &x) {
+            return x->itime_ < inow + 1;
+          });
+
+      const GuardList::iterator ubound = uboundr.base();
+      // ubound is a forward itertor refering to the element after uboundr.
       // remove from [ubound, end)
       for(GuardList::iterator it = ubound; it != mQueue.end(); ++it) {
         ndel++;
@@ -214,6 +216,7 @@ void HttpHandlerFstFileCache::Run(ThreadAssistant& assistant) noexcept
         // 'if' below should always be true
         if (oldest+mMaxIdletimeMs >= inow) waitms = oldest+mMaxIdletimeMs+1 - inow;
       }
+      // any close+deletes of fh happen below when we go out of scope of todel
     }
 
     waitms = ((waitms + mIdletimeResMs - 1) / mIdletimeResMs) * mIdletimeResMs;

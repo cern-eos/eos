@@ -95,7 +95,7 @@ public:
   static eos::common::MimeTypes gMime;
   static HttpHandlerFstFileCache sFileCache;
 
-  enum CanCache {
+  enum class CanCache {
     NO,
     YES
   };
