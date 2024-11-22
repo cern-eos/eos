@@ -39,7 +39,7 @@
 EOSFSTNAMESPACE_BEGIN
 
 XrdSysMutex HttpHandler::mOpenMutexMapMutex;
-std::map<unsigned int, XrdSysMutex*> HttpHandler::mOpenMutexMap;
+std::map<unsigned short, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
 HttpHandlerFstFileCache HttpHandler::sFileCache;
 
@@ -139,14 +139,15 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
         Adler lHash;
         lHash.Add(openUrl.c_str(), openUrl.length(), 0);
         lHash.Finalize();
+        const unsigned short cks = lHash.GetAdler() % 65521;
         {
           XrdSysMutexHelper oLock(mOpenMutexMapMutex);
 
-          if (!mOpenMutexMap.count(lHash.GetAdler())) {
+          if (!mOpenMutexMap.count(cks)) {
             hMutex = new XrdSysMutex();
-            mOpenMutexMap[lHash.GetAdler()] = hMutex;
+            mOpenMutexMap[cks] = hMutex;
           } else {
-            hMutex = mOpenMutexMap[lHash.GetAdler()];
+            hMutex = mOpenMutexMap[cks];
           }
         }
       }
