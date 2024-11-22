@@ -140,5 +140,44 @@ private:
   const FileInspectorStats& mFileInspectorStats;
 };
 
+struct FileInspectorStatsDeserializer {
+  friend class FileInspectorStats;
+
+  FileInspectorStatsDeserializer() {}
+
+  void DeserializeScanStats(const std::string& out,
+                            FileInspectorStats& stats) const;
+  void DeserializeFaultyFiles(const std::string& out,
+                              FileInspectorStats& stats) const;
+  void DeserializeAccessTimeFiles(const std::string& out,
+                                  FileInspectorStats& stats) const;
+  void DeserializeAccessTimeVolume(const std::string& out,
+                                   FileInspectorStats& stats) const;
+  void DeserializeBirthTimeFiles(const std::string& out,
+                                 FileInspectorStats& stats) const;
+  void DeserializeBirthTimeVolume(const std::string& out,
+                                  FileInspectorStats& stats) const;
+  void DeserializeBirthVsAccessTimeFiles(const std::string& out,
+                                         FileInspectorStats& stats) const;
+  void DeserializeBirthVsAccessTimeVolume(const std::string& out,
+                                          FileInspectorStats& stats) const;
+  void DeserializeUserCosts(const std::string& out,
+                            FileInspectorStats& stats) const;
+  void DeserializeGroupCosts(const std::string& out,
+                             FileInspectorStats& stats) const;
+  void DeserializeTotalCosts(const std::string& out,
+                             FileInspectorStats& stats) const;
+  void DeserializeUserBytes(const std::string& out,
+                            FileInspectorStats& stats) const;
+  void DeserializeGroupBytes(const std::string& out,
+                             FileInspectorStats& stats) const;
+  void DeserializeTotalBytes(const std::string& out,
+                             FileInspectorStats& stats) const;
+  void DeserializeNumFaultyFiles(const std::string& out,
+                                 FileInspectorStats& stats) const;
+  void DeserializeTimeScan(const std::string& out,
+                           FileInspectorStats& stats) const;
+};
+
 
 EOSMGMNAMESPACE_END

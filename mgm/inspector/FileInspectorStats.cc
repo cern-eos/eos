@@ -184,46 +184,100 @@ std::string FileInspectorStatsSerializer::SerializeTimeScan()
   return Marshal(mFileInspectorStats.TimeScan);
 }
 
+void FileInspectorStatsDeserializer::DeserializeScanStats(
+  const std::string& out, FileInspectorStats& stats) const
+{
+  Unmarshal(out, stats.ScanStats);
 }
 
-std::string FileInspectorStatsSerializer::SerializeUserCosts() const
+void FileInspectorStatsDeserializer::DeserializeFaultyFiles(
+  const std::string& out, FileInspectorStats& stats) const
 {
-  return SerializeToJson(mFileInspectorStats.UserCosts);
+  Unmarshal(out, stats.FaultyFiles);
 }
 
-std::string FileInspectorStatsSerializer::SerializeGroupCosts() const
+void FileInspectorStatsDeserializer::DeserializeAccessTimeFiles(
+  const std::string& out, FileInspectorStats& stats) const
 {
-  return SerializeToJson(mFileInspectorStats.GroupCosts);
+  Unmarshal(out, stats.AccessTimeFiles);
 }
 
-std::string FileInspectorStatsSerializer::SerializeTotalCosts() const
+void FileInspectorStatsDeserializer::DeserializeAccessTimeVolume(
+  const std::string& out, FileInspectorStats& stats) const
 {
-  return SerializeToJson(mFileInspectorStats.TotalCosts);
+  Unmarshal(out, stats.AccessTimeVolume);
 }
 
-std::string FileInspectorStatsSerializer::SerializeUserBytes() const
+void FileInspectorStatsDeserializer::DeserializeBirthTimeFiles(
+  const std::string& out, FileInspectorStats& stats) const
 {
-  return SerializeToJson(mFileInspectorStats.UserBytes);
+  Unmarshal(out, stats.BirthTimeFiles);
 }
 
-std::string FileInspectorStatsSerializer::SerializeGroupBytes() const
+void FileInspectorStatsDeserializer::DeserializeBirthTimeVolume(
+  const std::string& out, FileInspectorStats& stats) const
 {
-  return SerializeToJson(mFileInspectorStats.GroupBytes);
+  Unmarshal(out, stats.BirthTimeVolume);
 }
 
-std::string FileInspectorStatsSerializer::SerializeTotalBytes() const
+void FileInspectorStatsDeserializer::DeserializeBirthVsAccessTimeFiles(
+  const std::string& out, FileInspectorStats& stats) const
 {
-  return SerializeToJson(mFileInspectorStats.TotalBytes);
+  Unmarshal(out, stats.BirthVsAccessTimeFiles);
 }
 
-std::string FileInspectorStatsSerializer::SerializeNumFaultyFiles() const
+void FileInspectorStatsDeserializer::DeserializeBirthVsAccessTimeVolume(
+  const std::string& out, FileInspectorStats& stats) const
 {
-  return SerializeToJson(mFileInspectorStats.NumFaultyFiles);
+  Unmarshal(out, stats.BirthVsAccessTimeVolume);
 }
 
-std::string FileInspectorStatsSerializer::SerializeTimeScan() const
+void FileInspectorStatsDeserializer::DeserializeUserCosts(
+  const std::string& out, FileInspectorStats& stats) const
 {
-  return SerializeToJson(mFileInspectorStats.TimeScan);
+  Unmarshal(out, stats.UserCosts);
+}
+
+void FileInspectorStatsDeserializer::DeserializeGroupCosts(
+  const std::string& out, FileInspectorStats& stats) const
+{
+  Unmarshal(out, stats.GroupCosts);
+}
+
+void FileInspectorStatsDeserializer::DeserializeTotalCosts(
+  const std::string& out, FileInspectorStats& stats) const
+{
+  Unmarshal(out, stats.TotalCosts);
+}
+
+void FileInspectorStatsDeserializer::DeserializeUserBytes(
+  const std::string& out, FileInspectorStats& stats) const
+{
+  Unmarshal(out, stats.UserBytes);
+}
+
+void FileInspectorStatsDeserializer::DeserializeGroupBytes(
+  const std::string& out, FileInspectorStats& stats) const
+{
+  Unmarshal(out, stats.GroupBytes);
+}
+
+void FileInspectorStatsDeserializer::DeserializeTotalBytes(
+  const std::string& out, FileInspectorStats& stats) const
+{
+  Unmarshal(out, stats.TotalBytes);
+}
+
+void FileInspectorStatsDeserializer::DeserializeNumFaultyFiles(
+  const std::string& out, FileInspectorStats& stats) const
+{
+  Unmarshal(out, stats.NumFaultyFiles);
+}
+
+void FileInspectorStatsDeserializer::DeserializeTimeScan(const std::string& out,
+    FileInspectorStats& stats) const
+{
+  Unmarshal(out, stats.TimeScan);
 }
 
 EOSMGMNAMESPACE_END

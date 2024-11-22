@@ -1355,4 +1355,29 @@ void FileInspector::QdbHelper::Store(const FileInspectorStats& stats)
   mQHashStats.hset(NUM_FAULTY_FILES_KEY, s.SerializeNumFaultyFiles());
   mQHashStats.hset(TIME_SCAN_KEY, s.SerializeTimeScan());
 }
+
+void FileInspector::QdbHelper::Load(FileInspectorStats& stats)
+{
+  FileInspectorStatsDeserializer s;
+  s.DeserializeScanStats(mQHashStats.hget(SCAN_STATS_KEY), stats);
+  s.DeserializeFaultyFiles(mQHashStats.hget(FAULTY_FILES_KEY), stats);
+  s.DeserializeAccessTimeFiles(mQHashStats.hget(ACCESS_TIME_FILES_KEY), stats);
+  s.DeserializeAccessTimeVolume(mQHashStats.hget(ACCESS_TIME_VOLUME_KEY), stats);
+  s.DeserializeBirthTimeFiles(mQHashStats.hget(BIRTH_TIME_FILES_KEY), stats);
+  s.DeserializeBirthTimeVolume(mQHashStats.hget(BIRTH_TIME_VOLUME_KEY), stats);
+  s.DeserializeBirthVsAccessTimeFiles(mQHashStats.hget(
+                                        BIRTH_VS_ACCESS_TIME_FILES_KEY), stats);
+  s.DeserializeBirthVsAccessTimeVolume(mQHashStats.hget(
+                                         BIRTH_VS_ACCESS_TIME_VOLUME_KEY), stats);
+  s.DeserializeUserCosts(mQHashStats.hget(USER_COSTS_KEY), stats);
+  s.DeserializeGroupCosts(mQHashStats.hget(GROUP_COSTS_KEY), stats);
+  s.DeserializeTotalCosts(mQHashStats.hget(TOTAL_COSTS_KEY), stats);
+  s.DeserializeUserBytes(mQHashStats.hget(USER_BYTES_KEY), stats);
+  s.DeserializeGroupBytes(mQHashStats.hget(GROUP_BYTES_KEY), stats);
+  s.DeserializeTotalBytes(mQHashStats.hget(TOTAL_BYTES_KEY), stats);
+  s.DeserializeNumFaultyFiles(mQHashStats.hget(NUM_FAULTY_FILES_KEY), stats);
+  s.DeserializeTimeScan(mQHashStats.hget(TIME_SCAN_KEY), stats);
+}
+
+
 EOSMGMNAMESPACE_END
