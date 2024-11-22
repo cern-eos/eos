@@ -91,7 +91,7 @@ public:
   HttpHandlerFstFileCache::Entry mFileCacheEntry;
 
   static XrdSysMutex mOpenMutexMapMutex;
-  static std::map<unsigned int, XrdSysMutex*> mOpenMutexMap;
+  static std::map<unsigned short, XrdSysMutex*> mOpenMutexMap;
   static eos::common::MimeTypes gMime;
   static HttpHandlerFstFileCache sFileCache;
 
