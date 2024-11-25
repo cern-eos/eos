@@ -420,7 +420,7 @@ ProcCommand::File()
               } else {
                 // rain layouts only resync meta data records
                 int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
-                                                (unsigned long) * it, option);
+                                                (unsigned long) * it, option.c_str());
 
                 if (!lretc) {
                   stdOut += "success: sending verify to fsid= ";
@@ -440,7 +440,7 @@ ProcCommand::File()
             // -------------------------------------------------------------------
             if (acceptfsid && (!acceptfound)) {
               int lretc = gOFS->_verifystripe(spath.c_str(), *mError, vid,
-                                              (unsigned long) acceptfsid, option);
+                                              (unsigned long) acceptfsid, option.c_str());
 
               if (!lretc) {
                 stdOut += "success: sending forced verify to fsid= ";

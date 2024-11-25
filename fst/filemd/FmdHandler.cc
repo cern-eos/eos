@@ -371,8 +371,6 @@ FmdHandler::ResyncDisk(const char* path,
     if (!UpdateWithDiskInfo(fsid, fid, disk_size, disk_xs_hex, check_ts_sec,
                             (filexs_err == "1"), (blockxs_err == "1"),
                             flaglayouterror)) {
-      // eos_err("msg=\"failed to update DB\" dbpath=%s fxid=%08llx fsid=%lu",
-      //         eos::common::DbMap::getDbType().c_str(), fid, fsid);
       return false;
     }
   } else {

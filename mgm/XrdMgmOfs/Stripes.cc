@@ -26,93 +26,106 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-/*
- * @brief send a verification message to a file system for a given file
- *
- * @param path file name to verify
- * @param error error object
- * @param vid virtual identity of the client
- * @param fsid filesystem id where to run the verification
- * @param option pass-through string for the verification
- *
- * @return SFS_OK if success otherwise SFS_ERROR
- *
- * The function requires POSIX W_OK & X_OK on the parent directory to succeed.
- */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Send verify stripe request to a certain file system for file path
+//------------------------------------------------------------------------------
 int
 XrdMgmOfs::_verifystripe(const char* path,
                          XrdOucErrInfo& error,
                          eos::common::VirtualIdentity& vid,
                          unsigned long fsid,
-                         XrdOucString option)
+                         const std::string& options)
 {
   static const char* epname = "verifystripe";
-  std::shared_ptr<eos::IContainerMD> dh;
-  std::shared_ptr<eos::IFileMD> fmd;
+  eos::IFileMD::id_t fid = 0ull;
+
+  try {
+    auto fmd_lock = gOFS->eosView->getFileReadLocked(path);
+    auto fmd = fmd_lock->getUnderlyingPtr();
+    fid = fmd->getId();
+  } catch (eos::MDException& e) {
+    int errc = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+    return Emsg(epname, error, errc,
+                "verify stripe - not file metadata", path);
+  }
+
+  return _verifystripe(fid, error, vid, fsid, options, path);
+}
+
+//----------------------------------------------------------------------------
+// Send verify stripe request to a certain file system for file identifier
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
+                         XrdOucErrInfo& error,
+                         eos::common::VirtualIdentity& vid,
+                         unsigned long fsid,
+                         const std::string& options,
+                         const std::string& ns_path)
+{
+  eos_debug("verify");
+  static const char* epname = "verifystripe";
   EXEC_TIMING_BEGIN("VerifyStripe");
-  int errc = 0;
-  unsigned long long fid = 0;
-  unsigned long long cid = 0;
   int lid = 0;
+  int errc = 0;
+  unsigned long long cid = 0;
   eos::IContainerMD::XAttrMap attrmap;
   gOFS->MgmStats.Add("VerifyStripe", vid.uid, vid.gid, 1);
-  eos_debug("verify");
-  eos::common::Path cPath(path);
-  std::string attr_path;
-  {
-    {
-      eos::MDLocking::ContainerReadLockPtr dhLock;
-      try {
-        std::string parentPath = cPath.GetParentPath();
-        dhLock = gOFS->eosView->getContainerReadLocked(parentPath);
-        dh = dhLock->getUnderlyingPtr();
-        // Even if the path contains a symlink, the next calls to _attr_ls()
-        // will succeed as proven by the HierarchicalViewTestF.getMDFollowsSymlinks we can therefore get rid of the following line: attr_path = gOFS->eosView->getUri(dh.get());
-        attr_path = parentPath;
-      } catch (eos::MDException& e) {
-        dh.reset();
-        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-                  e.getMessage().str().c_str());
-      }
 
-      // Check permissions
-      errno = 0;
-      if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
-        if (!errno) {
-          errc = EPERM;
-        }
-      } else {
-        // only root can delete a detached replica
-        if (vid.uid) {
-          errc = EPERM;
-        }
-      }
+  try {
+    eos::MDLocking::FileReadLockPtr fmd_rlock =
+      gOFS->eosView->getFileMDSvc()->getFileMDReadLocked(fid);
+    cid = (*fmd_rlock)->getContainerId();
+    lid = (*fmd_rlock)->getLayoutId();
+  } catch (eos::MDException& e) {
+    errc = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+              e.getMessage().str().c_str());
+    return Emsg(epname, error, errc, "verify stripe - no file metadata fid=",
+                std::to_string(fid).c_str());
+  }
 
-      if (errc) {
-        return Emsg(epname, error, errc, "verify stripe", path);
-      }
+  {  // Check parent existance and permissions
+    eos::MDLocking::ContainerReadLockPtr cmd_rlock;
+    std::shared_ptr<eos::IContainerMD> cmd;
 
-      // Get attributes
-      gOFS->_attr_ls(attr_path.c_str(), error, vid, 0, attrmap);
-    } // Releases dhLock
-    // Get the file
     try {
-      auto fmdLock = gOFS->eosView->getFileReadLocked(path);
-      fmd = fmdLock->getUnderlyingPtr();
-      fid = fmd->getId();
-      lid = fmd->getLayoutId();
-      cid = fmd->getContainerId();
+      cmd_rlock = gOFS->eosView->getContainerMDSvc()->getContainerMDReadLocked(cid);
+      cmd = cmd_rlock->getUnderlyingPtr();
     } catch (eos::MDException& e) {
-      fmd.reset();
-      errc = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
-      return Emsg(epname, error, errc,
-                  "verify stripe - not file metadata", path);
+      cmd.reset();
+      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
+                e.getMessage().str().c_str());
+    }
+
+    // Check permissions
+    errno = 0;
+
+    if (cmd && (!cmd->access(vid.uid, vid.gid, X_OK | W_OK))) {
+      if (!errno) {
+        errc = EPERM;
+      }
+    } else { // Only root can delete a detached replica
+      if (vid.uid) {
+        errc = EPERM;
+      }
+    }
+
+    if (errc) {
+      return Emsg(epname, error, errc, "verify stripe fid=",
+                  std::to_string(fid).c_str());
+    }
+
+    // Get extended attributes if parent container exists
+    if (cmd) {
+      eos::FileOrContainerMD item;
+      item.container = cmd;
+      listAttributes(gOFS->eosView, item, attrmap, true);
     }
   }
+
   int fst_port;
   std::string fst_path, fst_queue, fst_host;
   {
@@ -122,7 +135,8 @@ XrdMgmOfs::_verifystripe(const char* path,
     if (!verify_fs) {
       errc = EINVAL;
       return Emsg(epname, error, ENOENT,
-                  "verify stripe - filesystem does not exist", path);
+                  "verify stripe - filesystem does not exist fid=",
+                  std::to_string(fid).c_str());
     }
 
     // @todo(esindril) only issue verify for booted filesystems
@@ -131,9 +145,9 @@ XrdMgmOfs::_verifystripe(const char* path,
     fst_host = verify_fs->GetHost();
     fst_port = verify_fs->getCoreParams().getLocator().getPort();
   }
-  XrdOucString receiver = fst_queue.c_str();
+
+  // Build the opaquestring contents
   XrdOucString opaquestring = "";
-  // build the opaquestring contents
   opaquestring += "&mgm.localprefix=";
   opaquestring += fst_path.c_str();
   opaquestring += "&mgm.fid=";
@@ -154,14 +168,14 @@ XrdMgmOfs::_verifystripe(const char* path,
   opaquestring += "&mgm.cid=";
   opaquestring += eos::common::StringConversion::GetSizeString(sizestring, cid);
   opaquestring += "&mgm.path=";
-  XrdOucString safepath = path;
+  XrdOucString safepath = ns_path.c_str();
   eos::common::StringConversion::SealXrdPath(safepath);
   opaquestring += safepath;
   opaquestring += "&mgm.lid=";
   opaquestring += lid;
 
-  if (option.length()) {
-    opaquestring += option;
+  if (!options.empty()) {
+    opaquestring += options.c_str();
   }
 
   std::string qreq = "/?fst.pcmd=verify";
@@ -179,10 +193,11 @@ XrdMgmOfs::_verifystripe(const char* path,
   EXEC_TIMING_END("VerifyStripe");
 
   if (errc) {
-    return Emsg(epname, error, errc, "verify stripe", path);
-  } else {
-    return SFS_OK;
+    return Emsg(epname, error, errc, "verify stripe fid=",
+                std::to_string(fid).c_str());
   }
+
+  return SFS_OK;
 }
 
 /*----------------------------------------------------------------------------*/

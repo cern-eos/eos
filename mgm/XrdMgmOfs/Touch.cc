@@ -482,7 +482,7 @@ XrdMgmOfs::_touch(const char* path,
       XrdOucString options;
 
       for (auto loc : locations) {
-        if (gOFS->_verifystripe(fullpath.c_str(), error, vid, loc, options)) {
+        if (gOFS->_verifystripe(fullpath.c_str(), error, vid, loc, options.c_str())) {
           // failed
         }
       }

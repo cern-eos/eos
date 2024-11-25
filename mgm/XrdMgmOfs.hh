@@ -1140,14 +1140,45 @@ public:
                       eos::common::VirtualIdentity& vid,
                       bool forceRemove = false);
 
-  // ---------------------------------------------------------------------------
-  // verify stripe by vid
-  // ---------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+  //! Send verify stripe request to a certain file system for file path
+  //!
+  //! @param path file path
+  //! @param error error object
+  //! @param vid client virtual identity
+  //! @param fsid file system identifier
+  //! @param options opaque options that are appeneded to the request
+  //!
+  //! @return SFS_OK if successful, otherwise SFS_ERROR
+  //!
+  //! @note this method requires POSIX W_OK & X_OK on the parent dir to succeed
+  //----------------------------------------------------------------------------
   int _verifystripe(const char* path,
                     XrdOucErrInfo& error,
                     eos::common::VirtualIdentity& vid,
                     unsigned long fsid,
-                    XrdOucString options);
+                    const std::string& options);
+
+  //----------------------------------------------------------------------------
+  //! Send verify stripe request to a certain file system for file identifier
+  //!
+  //! @param fid file identifier
+  //! @param error error object
+  //! @param vid client virtual identity
+  //! @param fsid file system identifier
+  //! @param options opaque options that are appeneded to the request
+  //! @param ns_path namespace path if known
+  //!
+  //! @return SFS_OK if successful, otherwise SFS_ERROR
+  //!
+  //! @note this method requires POSIX W_OK & X_OK on the parent dir to succeed
+  //----------------------------------------------------------------------------
+  int _verifystripe(const eos::IFileMD::id_t fid,
+                    XrdOucErrInfo& error,
+                    eos::common::VirtualIdentity& vid,
+                    unsigned long fsid,
+                    const std::string& options,
+                    const std::string& ns_path = "unknown");
 
   //----------------------------------------------------------------------------
   //! Move file replica/stripe from source to target file system
