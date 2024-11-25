@@ -848,7 +848,7 @@ FuseServer::Clients::RefreshEntry(uint64_t md_ino,
   }
 
   std::string id = mUUIDView[uuid];
-  eos_static_info("client=%s\n", map()[id].heartbeat().version().c_str());
+  eos_static_debug("client=%s", map()[id].heartbeat().version().c_str());
 
   if (notprot5 &&
       map()[id].heartbeat().protversion() >= map()[id].heartbeat().PROTOCOLV5) {
@@ -867,8 +867,8 @@ FuseServer::Clients::RefreshEntry(uint64_t md_ino,
       gOFS->MgmStats.Add("Eosxd::int::RefreshEntry", 0, 0, 1);
       std::string id = mUUIDView[uuid];
       lLock.Release();
-      eos_static_info("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
-                      uuid.c_str(), clientid.c_str(), md_ino);
+      eos_static_debug("msg=\"asking dentry refresh\" uuid=%s clientid=%s id=%lx",
+                       uuid.c_str(), clientid.c_str(), md_ino);
       gOFS->zMQ->mTask->reply(id, rspstream);
     }
   }
