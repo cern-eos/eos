@@ -218,7 +218,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
 bool
 FsckEntry::RepairBestEffort()
 {
-  // If not enabled then it always fails
+  // If not enabled then always fail
   if (!mBestEffort) {
     return false;
   }
@@ -226,11 +226,14 @@ FsckEntry::RepairBestEffort()
   if (LayoutId::IsRain(mMgmFmd.layout_id())) {
     return false;
   }
-
   // Find the best replica candidate that should be considered the reference
   eos::common::FileSystem::fsid_t ref_fsid = 0ul;
   uint64_t ref_sz = 0ull;
   std::string ref_xs;
+  std::string mgm_xs_val =
+    StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
+                                        SHA256_DIGEST_LENGTH,
+                                        LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
 
   for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
     auto& finfo = it->second;
@@ -240,9 +243,17 @@ FsckEntry::RepairBestEffort()
     }
 
     if (finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
-      eos_info("msg=\"skip best-effort repair due to un-scanned replica\" "
-               "fxid=%08llx", mFid);
+      eos_static_info("msg=\"skip best-effort repair due to un-scanned "
+                      "replica\" fxid=%08llx", mFid);
       return false;
+    }
+    // If there is replica that matches the MGM info then use as reference
+    if ((finfo->mDiskSize == mMgmFmd.size()) &&
+        (finfo->mFstFmd.mProtoFmd.diskchecksum() == mgm_xs_val)) {
+      ref_fsid = it->first;
+      ref_sz = finfo->mDiskSize;
+      ref_xs = finfo->mFstFmd.mProtoFmd.diskchecksum();
+      break;
     }
     // First available replica or the one with more data is the reference
     if ((ref_fsid == 0) || (ref_sz < finfo->mDiskSize)) {
@@ -253,12 +264,11 @@ FsckEntry::RepairBestEffort()
   }
 
   if (ref_fsid == 0) {
-    eos_err("msg=\"no suitable replica for best-effort repair found\" "
-            "fxid=%08llx", mFid);
+    eos_static_err("msg=\"no suitable replica for best-effort repair found\" "
+                   "fxid=%08llx", mFid);
     return false;
   }
 
-  // Update the MGM info using the size and checksum from the reference replica
   size_t out_sz;
   auto xs_binary = StringConversion::Hex2BinDataChar(ref_xs, out_sz,
                                                      SHA256_DIGEST_LENGTH);
@@ -272,22 +282,55 @@ FsckEntry::RepairBestEffort()
   eos::Buffer xs_buff;
   xs_buff.putData(xs_binary.get(), SHA256_DIGEST_LENGTH);
 
+  // Issue a verifystripe command towards the reference replica
   if (gOFS) {
-    try {
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mFid);
-      // Grab the file metadata object and update it
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-      auto fmd = gOFS->eosFileService->getFileMD(mFid);
-      fmd->setChecksum(xs_buff);
-      fmd->setSize(ref_sz);
-      gOFS->eosView->updateFileStore(fmd.get());
-      // Update also the MGM fmd object
-      mMgmFmd.set_checksum(xs_buff.getDataPtr(), xs_buff.getSize());
-      mMgmFmd.set_size(ref_sz);
-    } catch (const eos::MDException& e) {
-      eos_debug("msg=\"best-effort repair successful, file removed in the "
-                "meantime\" fxid=%08llx", mFid);
-      return true;
+    XrdOucErrInfo lerr;
+    auto root = eos::common::VirtualIdentity::Root();
+    std::string options = "&mgm.verify.compute.checksum=1"
+      "&mgm.verify.commit.checksum=1&mgm.verify.commit.size=1";
+
+    if (!gOFS->_verifystripe(mFid, lerr, root, ref_fsid, options)) {
+      eos_err("msg=\"failed verify stripe command\" fxid=%08llx fsid=%lu",
+              mFid, ref_fsid);
+      return false;
+    }
+
+    // Wait until the MGM has received the update from the reference
+    // replica but no more than 5 min.
+    bool match = false;
+    auto now = std::chrono::system_clock::now();
+    auto ts_deadline = now + std::chrono::seconds(300);
+
+    while (now <= ts_deadline) {
+      try {
+        eos::MDLocking::FileReadLockPtr fmd_lock =
+          gOFS->eosFileService->getFileMDReadLocked(mFid);
+        auto fmd = fmd_lock->getUnderlyingPtr();
+
+        if ((fmd->getSize() == ref_sz) &&
+            (strncmp(fmd->getChecksum().getDataPtr(),
+                     xs_buff.getDataPtr(), xs_buff.getSize()) == 0)) {
+          match = true;
+          // Update also the MGM fmd object
+          mMgmFmd.set_checksum(xs_buff.getDataPtr(), xs_buff.getSize());
+          mMgmFmd.set_size(ref_sz);
+          break;
+        }
+      } catch (const eos::MDException& e) {
+        eos_debug("msg=\"best-effort repair successful, file removed in the "
+                  "meantime\" fxid=%08llx", mFid);
+        return true;
+      }
+
+      std::this_thread::sleep_for(std::chrono::seconds(10));
+      now = std::chrono::system_clock::now();
+    }
+
+    if (!match) {
+      eos_static_err("msg=\"best-effort repair failed as namespace info does "
+                     "not match reference replica within 5min deadline\" "
+                     "fxid=%08llx fsid=%lu", mFid, ref_fsid);
+      return false;
     }
   } else {
     // For testing we just update the MGM fmd object

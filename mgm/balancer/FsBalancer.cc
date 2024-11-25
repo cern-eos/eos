@@ -315,9 +315,9 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, random_fid);
 
       try {
-        auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(random_fid);
-        // fmdLock constructor throws an exception if the fmd is nullptr
-        auto fmd = fmdLock->getUnderlyingPtr();
+        auto fmd_lock = gOFS->eosFileService->getFileMDReadLocked(random_fid);
+        // fmd_lock constructor throws an exception if the fmd is nullptr
+        auto fmd = fmd_lock->getUnderlyingPtr();
         auto loc = fmd->getLocations();
         avoid_fsids.insert(loc.cbegin(), loc.cend());
         loc = fmd->getUnlinkedLocations();
