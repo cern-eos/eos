@@ -229,7 +229,13 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   for (const auto& hdr : req.headers) {
     eos_static_debug("msg=\"normalize hdr\" key=\"%s\" value=\"%s\"",
                     hdr.first.c_str(), hdr.second.c_str());
-    normalized_headers[LC_STRING(hdr.first)] = hdr.second;
+    std::string lc_string = LC_STRING(hdr.first);
+    normalized_headers[lc_string] = hdr.second;
+
+    if (lc_string == "authorization") {
+      eos_static_debug("msg=\"normalize hdr\" key=\"%s\" value=\"%s\"",
+                       hdr.first.c_str(), hdr.second.c_str());
+    }
   }
 
   if (IsMacaroonRequest(req)) {
