@@ -851,7 +851,7 @@ FsSpace::FsSpace(const char* name)
     mGroupBalancer = new GroupBalancer(name);
     mGeoBalancer = new GeoBalancer(name);
     mGroupDrainer.reset(new GroupDrainer(name));
-    mFileInspector.reset(new FileInspector(name));
+    mFileInspector.reset(new FileInspector(name, gOFS->mQdbContactDetails));
   }
 
   if (!gDisableDefaults) {
@@ -1303,8 +1303,8 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
       row.emplace_back(sfiles, format_s);
       row.emplace_back(sdirectories, format_s);
       row.emplace_back(sperf, format_s);
-      row.emplace_back(suse , format_s);
-      row.emplace_back(ssizefactor , format_s);
+      row.emplace_back(suse, format_s);
+      row.emplace_back(ssizefactor, format_s);
       row.emplace_back(path, format_s);
       table.AddRows(table_data);
       out += table.GenerateTable(HEADER).c_str();

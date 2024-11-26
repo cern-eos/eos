@@ -63,7 +63,8 @@ public:
   //!
   //! @param space_name corresponding space name
   //----------------------------------------------------------------------------
-  FileInspector(std::string_view space_name);
+  FileInspector(std::string_view space_name,
+                const eos::QdbContactDetails& qdb_details);
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -144,12 +145,18 @@ private:
       mQcl->del(kFileInspectorStatsKey);
     }
 
+    bool HasStats()
+    {
+      return mQcl->exists(kFileInspectorStatsKey);
+    }
+
   private:
     std::unique_ptr<qclient::QClient> mQcl; ///< Internal QClient object
     qclient::QHash mQHashStats;
 
     const std::string kFileInspectorStatsKey = "eos-file-inspector-stats";
   };
+  QdbHelper mQdbHelper; ///< QuarkDB helper object
 };
 
 

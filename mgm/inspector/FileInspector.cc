@@ -45,8 +45,9 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-FileInspector::FileInspector(std::string_view space_name) :
-  nfiles(0), ndirs(0), mSpaceName(space_name)
+FileInspector::FileInspector(std::string_view space_name,
+                             const eos::QdbContactDetails& qdb_details) : mQdbHelper(qdb_details), nfiles(0),
+  ndirs(0), mSpaceName(space_name)
 {
   mVid = eos::common::VirtualIdentity::Root();
   mThread.reset(&FileInspector::backgroundThread, this);
@@ -165,6 +166,10 @@ FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
   assistant.wait_for(std::chrono::seconds(10));
   eos_static_info("msg=\"async thread started\"");
 
+  if (mQdbHelper.HasStats()) {
+    mQdbHelper.Load(mLastStats);
+  }
+
   while (!assistant.terminationRequested()) {
     Options opts = getOptions(LockFsView::On);
 
@@ -275,6 +280,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
   scanned_percent.store(100.0, std::memory_order_seq_cst);
   std::lock_guard<std::mutex> lock(mutexScanStats);
   mLastStats = std::move(mCurrentStats);
+  mQdbHelper.Store(mLastStats);
   mCurrentStats = FileInspectorStats{}; // reset current stats
 }
 
