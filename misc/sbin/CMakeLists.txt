@@ -22,14 +22,14 @@
 # ************************************************************************
 
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/jwker
+    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker
     COMMAND ${CMAKE_COMMAND} -E echo "Creating eos-jwker"
     COMMAND go install github.com/jphastings/jwker/cmd/jwker@latest
     COMMAND cp -vf $ENV{HOME}/go/bin/jwker ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker)
 
 add_custom_target(
     build-eos-jwker ALL
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/jwker)
+    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker)
 
 install(PROGRAMS
   eos-status
@@ -41,7 +41,7 @@ install(PROGRAMS
   eos-inspectorreport
   eos-inspectorstat
   eos-prom-push
-  eos-jwker
+  ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker
   eos-jwk-https
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
