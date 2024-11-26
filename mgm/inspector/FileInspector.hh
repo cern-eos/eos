@@ -23,20 +23,19 @@
 
 #pragma once
 
+#include "mgm/Namespace.hh"
 #include "common/VirtualIdentity.hh"
 #include "common/AssistedThread.hh"
 #include "mgm/inspector/FileInspectorStats.hh"
-#include <XrdOuc/XrdOucErrInfo.hh>
-#include "mgm/Namespace.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 #include "namespace/interface/IFileMD.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <atomic>
 #include <memory>
 #include <mutex>
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
-#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
-
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -62,12 +61,13 @@ public:
   //! Constructor
   //!
   //! @param space_name corresponding space name
+  //! @param qdb_details for connecting to QuarkDB
   //----------------------------------------------------------------------------
   FileInspector(std::string_view space_name,
                 const eos::QdbContactDetails& qdb_details);
 
   //----------------------------------------------------------------------------
-  //! Constructor
+  //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FileInspector();
 

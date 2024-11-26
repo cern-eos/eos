@@ -51,7 +51,9 @@ EOSMGMNAMESPACE_BEGIN
 #define NUM_FAULTY_FILES_KEY "num-faulty-files"
 #define TIME_SCAN_KEY "time-scan"
 
-
+//------------------------------------------------------------------------------
+//! Class holding the stats information
+//------------------------------------------------------------------------------
 struct FileInspectorStats {
 
   FileInspectorStats() : TimeScan(0) {}
@@ -111,72 +113,6 @@ struct FileInspectorStats {
 
 private:
   const std::string kFileInspectorStats = "eos-file-inspector-stats";
-};
-
-struct FileInspectorStatsSerializer {
-  friend class FileInspectorStats;
-
-  FileInspectorStatsSerializer(const FileInspectorStats& stats) :
-    mFileInspectorStats(stats) {}
-
-  std::string SerializeScanStats();
-  std::string SerializeFaultyFiles();
-  std::string SerializeAccessTimeFiles();
-  std::string SerializeAccessTimeVolume();
-  std::string SerializeBirthTimeFiles();
-  std::string SerializeBirthTimeVolume();
-  std::string SerializeBirthVsAccessTimeFiles();
-  std::string SerializeBirthVsAccessTimeVolume();
-  std::string SerializeUserCosts();
-  std::string SerializeGroupCosts();
-  std::string SerializeTotalCosts();
-  std::string SerializeUserBytes();
-  std::string SerializeGroupBytes();
-  std::string SerializeTotalBytes();
-  std::string SerializeNumFaultyFiles();
-  std::string SerializeTimeScan();
-
-private:
-  const FileInspectorStats& mFileInspectorStats;
-};
-
-struct FileInspectorStatsDeserializer {
-  friend class FileInspectorStats;
-
-  FileInspectorStatsDeserializer() {}
-
-  void DeserializeScanStats(const std::string& out,
-                            FileInspectorStats& stats) const;
-  void DeserializeFaultyFiles(const std::string& out,
-                              FileInspectorStats& stats) const;
-  void DeserializeAccessTimeFiles(const std::string& out,
-                                  FileInspectorStats& stats) const;
-  void DeserializeAccessTimeVolume(const std::string& out,
-                                   FileInspectorStats& stats) const;
-  void DeserializeBirthTimeFiles(const std::string& out,
-                                 FileInspectorStats& stats) const;
-  void DeserializeBirthTimeVolume(const std::string& out,
-                                  FileInspectorStats& stats) const;
-  void DeserializeBirthVsAccessTimeFiles(const std::string& out,
-                                         FileInspectorStats& stats) const;
-  void DeserializeBirthVsAccessTimeVolume(const std::string& out,
-                                          FileInspectorStats& stats) const;
-  void DeserializeUserCosts(const std::string& out,
-                            FileInspectorStats& stats) const;
-  void DeserializeGroupCosts(const std::string& out,
-                             FileInspectorStats& stats) const;
-  void DeserializeTotalCosts(const std::string& out,
-                             FileInspectorStats& stats) const;
-  void DeserializeUserBytes(const std::string& out,
-                            FileInspectorStats& stats) const;
-  void DeserializeGroupBytes(const std::string& out,
-                             FileInspectorStats& stats) const;
-  void DeserializeTotalBytes(const std::string& out,
-                             FileInspectorStats& stats) const;
-  void DeserializeNumFaultyFiles(const std::string& out,
-                                 FileInspectorStats& stats) const;
-  void DeserializeTimeScan(const std::string& out,
-                           FileInspectorStats& stats) const;
 };
 
 

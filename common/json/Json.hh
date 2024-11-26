@@ -284,6 +284,14 @@ void ConvertFromJson(const Json::Value& val, std::unordered_map<K, V>& out)
   }
 }
 
+/**
+ * @brief Serializes an object into a JSON string.
+ *
+ * @tparam T The type of the object to serialize.
+ * @param input The object to be serialized.
+ * @param indentation (Optional) Indentation string for pretty-printing. Defaults to no indentation.
+ * @return A string containing the JSON representation of the object.
+ */
 template <typename T>
 std::string Marshal(const T& input, const char* indentation = "")
 {
@@ -293,6 +301,13 @@ std::string Marshal(const T& input, const char* indentation = "")
   return Json::writeString(writer, root);
 }
 
+/**
+ * @brief Deserializes a JSON string into an object.
+ *
+ * @tparam T The type of the object to deserialize into.
+ * @param input The JSON string to deserialize.
+ * @param out The object where the deserialized data will be stored.
+ */
 template <typename T>
 void Unmarshal(const std::string input, T& out)
 {

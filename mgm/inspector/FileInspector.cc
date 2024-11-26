@@ -26,6 +26,7 @@
 #include "common/IntervalStopwatch.hh"
 #include "common/LayoutId.hh"
 #include "common/Timing.hh"
+#include "common/json/Json.hh"
 #include "common/ParseUtils.hh"
 #include "mgm/FsView.hh"
 #include "mgm/inspector/FileInspector.hh"
@@ -137,7 +138,7 @@ FileInspector::Options FileInspector::getOptions(const LockFsView lockfsview)
 
   if (opts.enabled) {
     enable();
-    eos_static_debug("file inspector is enabled - interval = %ld seconds",
+    eos_static_debug("msg=\"file inspector is enabled\"  interval=%lds",
                      opts.interval.count());
   } else {
     disable();
@@ -148,7 +149,7 @@ FileInspector::Options FileInspector::getOptions(const LockFsView lockfsview)
 
 
 //------------------------------------------------------------------------------
-// Background Thread cleaning up left-over atomic uploads
+// Background Thread to compute the stats
 //------------------------------------------------------------------------------
 void
 FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
@@ -164,7 +165,7 @@ FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
   }
 
   assistant.wait_for(std::chrono::seconds(10));
-  eos_static_info("msg=\"async thread started\"");
+  eos_static_info("%s", "msg=\"async thread started\"");
 
   if (mQdbHelper.HasStats()) {
     mQdbHelper.Load(mLastStats);
@@ -180,13 +181,14 @@ FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
       disable();
     }
 
-    common::IntervalStopwatch stopwatch(std::chrono::seconds(60));
+    common::IntervalStopwatch stopwatch(std::chrono::seconds(
+                                          opts.interval.count()));
 
     if (opts.enabled && gOFS->mMaster->IsMaster()) {
-      eos_static_info("msg=\"scan started!\"");
+      eos_static_info("%s", "msg=\"scan started\"");
       mCurrentStats.TimeScan = time(NULL);
       performCycleQDB(assistant);
-      eos_static_info("msg=\"scan finished!\"");
+      eos_static_info("%s", "msg=\"scan finished\"");
     }
 
     assistant.wait_for(stopwatch.timeRemainingInCycle());
@@ -198,7 +200,7 @@ FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
 {
-  eos_static_info("msg=\"start FileInspector scan on QDB\"");
+  eos_static_info("%s", "msg=\"start FileInspector scan on QDB\"");
 
   // Initialize qclient..
   if (!mQcl) {
@@ -271,7 +273,7 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
     }
 
     if (scanner.hasError(err)) {
-      eos_static_err("msg=\"QDB scanner error - interrupting scan\" error=\"%s\"",
+      eos_static_err("msg=\"QDB scanner error, interrupting scan\" error=\"%s\"",
                      err.c_str());
       break;
     }
@@ -1341,48 +1343,68 @@ FileInspector::Dump(std::string& out, std::string_view options,
 
 void FileInspector::QdbHelper::Store(const FileInspectorStats& stats)
 {
-  FileInspectorStatsSerializer s(stats);
-  mQHashStats.hset(SCAN_STATS_KEY, s.SerializeScanStats());
-  mQHashStats.hset(FAULTY_FILES_KEY, s.SerializeFaultyFiles());
-  mQHashStats.hset(ACCESS_TIME_FILES_KEY, s.SerializeAccessTimeFiles());
-  mQHashStats.hset(ACCESS_TIME_VOLUME_KEY, s.SerializeAccessTimeVolume());
-  mQHashStats.hset(BIRTH_TIME_FILES_KEY, s.SerializeBirthTimeFiles());
-  mQHashStats.hset(BIRTH_TIME_VOLUME_KEY, s.SerializeBirthTimeVolume());
-  mQHashStats.hset(BIRTH_VS_ACCESS_TIME_FILES_KEY,
-                   s.SerializeBirthVsAccessTimeFiles());
-  mQHashStats.hset(BIRTH_VS_ACCESS_TIME_VOLUME_KEY,
-                   s.SerializeBirthVsAccessTimeVolume());
-  mQHashStats.hset(USER_COSTS_KEY, s.SerializeUserCosts());
-  mQHashStats.hset(GROUP_COSTS_KEY, s.SerializeGroupCosts());
-  mQHashStats.hset(TOTAL_COSTS_KEY, s.SerializeTotalCosts());
-  mQHashStats.hset(USER_BYTES_KEY, s.SerializeUserBytes());
-  mQHashStats.hset(GROUP_BYTES_KEY, s.SerializeGroupBytes());
-  mQHashStats.hset(TOTAL_BYTES_KEY, s.SerializeTotalBytes());
-  mQHashStats.hset(NUM_FAULTY_FILES_KEY, s.SerializeNumFaultyFiles());
-  mQHashStats.hset(TIME_SCAN_KEY, s.SerializeTimeScan());
+  mQHashStats.hmset({
+    SCAN_STATS_KEY, Marshal(stats.FaultyFiles),
+    FAULTY_FILES_KEY, Marshal(stats.FaultyFiles),
+    ACCESS_TIME_FILES_KEY, Marshal(stats.AccessTimeFiles),
+    ACCESS_TIME_VOLUME_KEY, Marshal(stats.AccessTimeVolume),
+    BIRTH_TIME_FILES_KEY, Marshal(stats.BirthTimeFiles),
+    BIRTH_TIME_VOLUME_KEY, Marshal(stats.BirthTimeVolume),
+    BIRTH_VS_ACCESS_TIME_FILES_KEY, Marshal(stats.BirthVsAccessTimeFiles),
+    BIRTH_VS_ACCESS_TIME_VOLUME_KEY, Marshal(stats.BirthVsAccessTimeVolume),
+    USER_COSTS_KEY, Marshal(stats.UserCosts),
+    GROUP_COSTS_KEY, Marshal(stats.GroupCosts),
+    TOTAL_COSTS_KEY, Marshal(stats.TotalCosts),
+    USER_BYTES_KEY, Marshal(stats.UserBytes),
+    GROUP_BYTES_KEY, Marshal(stats.GroupBytes),
+    TOTAL_BYTES_KEY, Marshal(stats.TotalBytes),
+    NUM_FAULTY_FILES_KEY, Marshal(stats.NumFaultyFiles),
+    TIME_SCAN_KEY, Marshal(stats.TimeScan)
+  });
 }
 
 void FileInspector::QdbHelper::Load(FileInspectorStats& stats)
 {
-  FileInspectorStatsDeserializer s;
-  s.DeserializeScanStats(mQHashStats.hget(SCAN_STATS_KEY), stats);
-  s.DeserializeFaultyFiles(mQHashStats.hget(FAULTY_FILES_KEY), stats);
-  s.DeserializeAccessTimeFiles(mQHashStats.hget(ACCESS_TIME_FILES_KEY), stats);
-  s.DeserializeAccessTimeVolume(mQHashStats.hget(ACCESS_TIME_VOLUME_KEY), stats);
-  s.DeserializeBirthTimeFiles(mQHashStats.hget(BIRTH_TIME_FILES_KEY), stats);
-  s.DeserializeBirthTimeVolume(mQHashStats.hget(BIRTH_TIME_VOLUME_KEY), stats);
-  s.DeserializeBirthVsAccessTimeFiles(mQHashStats.hget(
-                                        BIRTH_VS_ACCESS_TIME_FILES_KEY), stats);
-  s.DeserializeBirthVsAccessTimeVolume(mQHashStats.hget(
-                                         BIRTH_VS_ACCESS_TIME_VOLUME_KEY), stats);
-  s.DeserializeUserCosts(mQHashStats.hget(USER_COSTS_KEY), stats);
-  s.DeserializeGroupCosts(mQHashStats.hget(GROUP_COSTS_KEY), stats);
-  s.DeserializeTotalCosts(mQHashStats.hget(TOTAL_COSTS_KEY), stats);
-  s.DeserializeUserBytes(mQHashStats.hget(USER_BYTES_KEY), stats);
-  s.DeserializeGroupBytes(mQHashStats.hget(GROUP_BYTES_KEY), stats);
-  s.DeserializeTotalBytes(mQHashStats.hget(TOTAL_BYTES_KEY), stats);
-  s.DeserializeNumFaultyFiles(mQHashStats.hget(NUM_FAULTY_FILES_KEY), stats);
-  s.DeserializeTimeScan(mQHashStats.hget(TIME_SCAN_KEY), stats);
+  std::vector<std::string> members = mQHashStats.hgetall();
+
+  for (int i = 0; i < members.size() - 1; i += 2) {
+    std::string key = members[i];
+    std::string value = members[i + 1];
+
+    if (key == SCAN_STATS_KEY) {
+      Unmarshal(value, stats.ScanStats);
+    } else if (key == FAULTY_FILES_KEY) {
+      Unmarshal(value, stats.FaultyFiles);
+    } else if (key == ACCESS_TIME_FILES_KEY) {
+      Unmarshal(value, stats.AccessTimeFiles);
+    } else if (key == ACCESS_TIME_VOLUME_KEY) {
+      Unmarshal(value, stats.AccessTimeVolume);
+    } else if (key == BIRTH_TIME_FILES_KEY) {
+      Unmarshal(value, stats.BirthTimeFiles);
+    } else if (key == BIRTH_TIME_VOLUME_KEY) {
+      Unmarshal(value, stats.BirthTimeVolume);
+    } else if (key == BIRTH_VS_ACCESS_TIME_FILES_KEY) {
+      Unmarshal(value, stats.BirthVsAccessTimeFiles);
+    } else if (key == BIRTH_VS_ACCESS_TIME_VOLUME_KEY) {
+      Unmarshal(value, stats.BirthVsAccessTimeVolume);
+    } else if (key == USER_COSTS_KEY) {
+      Unmarshal(value, stats.UserCosts);
+    } else if (key == GROUP_COSTS_KEY) {
+      Unmarshal(value, stats.GroupCosts);
+    } else if (key == TOTAL_COSTS_KEY) {
+      Unmarshal(value, stats.TotalCosts);
+    } else if (key == USER_BYTES_KEY) {
+      Unmarshal(value, stats.UserBytes);
+    } else if (key == GROUP_BYTES_KEY) {
+      Unmarshal(value, stats.GroupBytes);
+    } else if (key == TOTAL_BYTES_KEY) {
+      Unmarshal(value, stats.TotalBytes);
+    } else if (key == NUM_FAULTY_FILES_KEY) {
+      Unmarshal(value, stats.NumFaultyFiles);
+    } else if (key == TIME_SCAN_KEY) {
+      Unmarshal(value, stats.TimeScan);
+    }
+  }
 }
 
 
