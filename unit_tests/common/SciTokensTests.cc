@@ -22,14 +22,14 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "XrdOuc/XrdOucString.hh"
-
-#include "Namespace.hh"
+#include "unit_tests/common/Namespace.hh"
 #include "common/token/SciToken.hh"
 #include "common/token/scitoken.h"
 #include <memory>
+#include <fstream>
 #include <time.h>
 #include <sys/stat.h>
+
 
 EOSCOMMONTESTING_BEGIN
 

@@ -368,8 +368,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Print JWT token
   // ---------------------------------------------------------------------------
-
-  static std::string PrintJWT(const std::string token, bool dense=true);
+  static std::string PrintJWT(const std::string token, bool dense = true);
 
   // ---------------------------------------------------------------------------
   //! Helper functions to populate vid.uid/gid from the Phyiscal Cache/passwd

@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: SciToken.hh
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,87 +21,85 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   SciToken.hh
- *
- * @brief  Class providing SciToken creation Functions
- *
- */
-
 #pragma once
-
-#include "XrdOuc/XrdOucString.hh"
 #include "common/Namespace.hh"
-#include "common/StringConversion.hh"
-#include <atomic>
-#include <memory>
 #include <mutex>
-#include <scitokens/scitokens.h>
+#include <set>
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+//! @brief  Class providing SciToken creation functions
+//------------------------------------------------------------------------------
 class SciToken {
 public:
-  SciToken() {};
-  virtual ~SciToken() {};
-
-  static void
-  Init()
-  {
-    if (sSciToken) {
-      sSciToken = 0;
-    }
-  }
-  static SciToken*
-  Factory(const std::string cred, const std::string key,
-          const std::string keyid, const std::string issuer)
-  {
-    static std::mutex g_i_mutex;
-    const std::lock_guard<std::mutex> lock(g_i_mutex);
-    if (!sSciToken) {
-      sSciToken = new eos::common::SciToken();
-    } else {
-      return sSciToken;
-    }
-    std::string keydata;
-    std::string creddata;
-
-    eos::common::StringConversion::LoadFileIntoString(key.c_str(), keydata);
-    if (keydata.empty()) {
-      std::cerr << "error: cannot load private key from '" << key.c_str() << "'"
-                << std::endl;
-      return nullptr;
-    }
-
-    eos::common::StringConversion::LoadFileIntoString(cred.c_str(), creddata);
-    if (creddata.empty()) {
-      std::cerr << "error: cannot load public key from '" << cred.c_str() << "'"
-                << std::endl;
-      return nullptr;
-    }
-    sSciToken->SetKeys(creddata, keydata, keyid, issuer);
-    return sSciToken;
-  }
-
-  int CreateToken(std::string& SciToken, time_t expires,
-                  const std::set<std::string>& claims);
   static SciToken* sSciToken;
 
-  void
-  SetKeys(const std::string& creddata, const std::string& keydata,
-          const std::string& keyid, const std::string& issuer)
+  //----------------------------------------------------------------------------
+  //! Method to re-initialize the static sSciToken object
+  //----------------------------------------------------------------------------
+  static void Init()
   {
-    this->keydata = keydata;
-    this->creddata = creddata;
-    this->keyid = keyid;
-    this->issuer = issuer;
+    if (sSciToken) {
+      //! @note there is leak here, but this is on purpose and should be fixed
+      //! by extending the scitokens library!
+      sSciToken = nullptr;
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Factory method to crate SciToken objects
+  //----------------------------------------------------------------------------
+  static SciToken*
+  Factory(std::string_view cred, std::string_view key,
+          std::string_view keyid, std::string_view issuer);
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  SciToken() = default;
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  virtual ~SciToken() = default;
+
+  //----------------------------------------------------------------------------
+  //! Method to create a new token
+  //!
+  //! @param SciToken new token object
+  //! @param expires expiration date
+  //! @param claim set of claims to embed in the token
+  //!
+  //! @return 0 if successful, otherwise -1
+  //----------------------------------------------------------------------------
+  int CreateToken(std::string& SciToken, time_t expires,
+                  const std::set<std::string>& claims);
+
+  //----------------------------------------------------------------------------
+  //! Set parameters like keys, credential data and issuer to be used by the
+  //! current SciToken object.
+  //!
+  //! @param creddata credentials data
+  //! @param keydata key data
+  //! @param keyid key id
+  //! @param issuer issuer embedded in the tokens
+  //----------------------------------------------------------------------------
+  void
+  SetKeys(std::string_view creddata, std::string_view keydata,
+          std::string_view keyid, std::string_view issuer)
+  {
+    mKeyData = keydata;
+    mCredData = creddata;
+    mKeyId = keyid;
+    mIssuer = issuer;
   }
 
 private:
-  std::string creddata;
-  std::string keydata;
-  std::string keyid;
-  std::string issuer;
+  std::string mCredData;
+  std::string mKeyData;
+  std::string mKeyId;
+  std::string mIssuer;
 };
 
 EOSCOMMONNAMESPACE_END

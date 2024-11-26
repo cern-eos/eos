@@ -1,7 +1,7 @@
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 // File: SciToken.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -21,76 +21,122 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   SciToken.cc
- *
- * @brief  Class providing SciToken creation
- *
- */
-
 #ifndef __APPLE__
-#include "SciToken.hh"
-#include <set>
+#include "common/token/SciToken.hh"
+#include "common/StringConversion.hh"
 #include <string>
+#include <scitokens/scitokens.h>
 
 eos::common::SciToken* eos::common::SciToken::sSciToken = nullptr;
 
 extern "C" {
-void*
-c_scitoken_factory_init(const char* cred, const char* key, const char* keyid,
-                        const char* issuer)
-{
-  eos::common::SciToken::Init();
-  auto f =
-      eos::common::SciToken::Factory(std::string(cred), std::string(key),
-                                     std::string(keyid), std::string(issuer));
-  return (void*)(f);
-}
-int
-c_scitoken_create(char* token, size_t token_length, time_t expires,
-                  const char* claim1, const char* claim2, const char* claim3,
-                  const char* claim4)
-{
-  errno = 0;
-  if (!eos::common::SciToken::sSciToken) {
-    std::cerr << "c_sci_token_init was not called" << std::endl;
-    errno = EFAULT;
-    return -1;
+
+  //----------------------------------------------------------------------------
+  // C binding for c_scitoken_factory_init
+  //----------------------------------------------------------------------------
+  void*
+  c_scitoken_factory_init(const char* cred, const char* key, const char* keyid,
+                          const char* issuer)
+  {
+    eos::common::SciToken::Init();
+    auto f = eos::common::SciToken::Factory(cred, key, keyid, issuer);
+    return (void*)(f);
   }
-  std::string stoken;
-  std::set<std::string> claims;
-  if (strlen(claim1)) {
-    claims.insert(std::string(claim1));
-  }
-  if (strlen(claim2)) {
-    claims.insert(std::string(claim2));
-  }
-  if (strlen(claim3)) {
-    claims.insert(std::string(claim3));
-  }
-  if (strlen(claim4)) {
-    claims.insert(std::string(claim4));
-  }
-  int rc = eos::common::SciToken::sSciToken->CreateToken(
-      stoken, expires, claims);
-  if (!rc) {
-    if (token_length > stoken.length()) {
-      memcpy(token, stoken.c_str(), stoken.length());
-      token[stoken.length()] = 0;
-    } else {
-      std::cerr << "error: token too big for return buffer!" << std::endl;
-      errno = EFBIG;
+
+  //----------------------------------------------------------------------------
+  // C binding for c_scitken_create
+  //----------------------------------------------------------------------------
+  int
+  c_scitoken_create(char* token, size_t token_length, time_t expires,
+                    const char* claim1, const char* claim2,
+                    const char* claim3, const char* claim4)
+  {
+    errno = 0;
+
+    if (!eos::common::SciToken::sSciToken) {
+      std::cerr << "c_sci_token_init was not called" << std::endl;
+      errno = EFAULT;
       return -1;
     }
-    return 0;
-  } else {
-    return -1;
+
+    std::string stoken;
+    std::set<std::string> claims;
+
+    if (strlen(claim1)) {
+      claims.insert(std::string(claim1));
+    }
+
+    if (strlen(claim2)) {
+      claims.insert(std::string(claim2));
+    }
+
+    if (strlen(claim3)) {
+      claims.insert(std::string(claim3));
+    }
+
+    if (strlen(claim4)) {
+      claims.insert(std::string(claim4));
+    }
+    int rc = eos::common::SciToken::sSciToken->CreateToken(stoken, expires,
+                                                           claims);
+    if (!rc) {
+      if (token_length > stoken.length()) {
+        memcpy(token, stoken.c_str(), stoken.length());
+        token[stoken.length()] = 0;
+      } else {
+        std::cerr << "error: token too big for return buffer!" << std::endl;
+        errno = EFBIG;
+        return -1;
+      }
+
+      return 0;
+    } else {
+      return -1;
+    }
   }
-}
 }
 
 EOSCOMMONNAMESPACE_BEGIN
 
+//------------------------------------------------------------------------------
+// Factory method to crate SciToken objects
+//------------------------------------------------------------------------------
+SciToken*
+SciToken::Factory(std::string_view cred, std::string_view key,
+                  std::string_view keyid, std::string_view issuer)
+{
+  static std::mutex g_i_mutex;
+  const std::lock_guard<std::mutex> lock(g_i_mutex);
+
+  if (sSciToken) {
+    return sSciToken;
+  }
+
+  std::string keydata;
+  std::string creddata;
+
+  eos::common::StringConversion::LoadFileIntoString(key.data(), keydata);
+  if (keydata.empty()) {
+    std::cerr << "error: cannot load private key from '"
+              << key.data() << "'" << std::endl;
+    return nullptr;
+  }
+
+  eos::common::StringConversion::LoadFileIntoString(cred.data(), creddata);
+  if (creddata.empty()) {
+    std::cerr << "error: cannot load public key from '"
+              << cred.data() << "'" << std::endl;
+    return nullptr;
+  }
+
+  sSciToken = new eos::common::SciToken();
+  sSciToken->SetKeys(creddata, keydata, keyid, issuer);
+  return sSciToken;
+}
+
+//------------------------------------------------------------------------------
+// Method to create a new token
+//------------------------------------------------------------------------------
 int
 eos::common::SciToken::CreateToken(std::string& scitoken,
                                    time_t expires,
@@ -99,9 +145,8 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
   std::string profile = "wlcg";
   char* err_msg = 0;
   errno = 0;
-
-  auto key_raw = scitoken_key_create(keyid.c_str(), "ES256", creddata.c_str(),
-                                     keydata.c_str(), &err_msg);
+  auto key_raw = scitoken_key_create(mKeyId.c_str(), "ES256", mCredData.c_str(),
+                                     mKeyData.c_str(), &err_msg);
 
   std::unique_ptr<void, decltype(&scitoken_key_destroy)> key(
       key_raw, scitoken_key_destroy);
@@ -115,14 +160,15 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
 
   std::unique_ptr<void, decltype(&scitoken_destroy)> token(
       scitoken_create(key_raw), scitoken_destroy);
+
   if (token.get() == nullptr) {
     std::cerr << "error: failed to generate a new token" << std::endl;
     errno = EFAULT;
     return -1;
   }
 
-  int rv =
-      scitoken_set_claim_string(token.get(), "iss", issuer.c_str(), &err_msg);
+  int rv = scitoken_set_claim_string(token.get(), "iss",
+                                     mIssuer.c_str(), &err_msg);
 
   if (rv) {
     std::cerr << "error: failed to set issuer: " << err_msg << std::endl;
@@ -133,6 +179,7 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
 
   for (const auto& claim : claims) {
     auto pos = claim.find("=");
+
     if (pos == std::string::npos) {
       std::cerr << "error: claim must contain a '=' character: "
                 << claim.c_str() << std::endl;
@@ -143,8 +190,8 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
     auto key = claim.substr(0, pos);
     auto val = claim.substr(pos + 1);
 
-    rv = scitoken_set_claim_string(token.get(), key.c_str(), val.c_str(),
-                                   &err_msg);
+    rv = scitoken_set_claim_string(token.get(), key.c_str(),
+                                   val.c_str(), &err_msg);
     if (rv) {
       std::cerr << "error: failed to set claim '" << key << "'='" << val
                 << "' error:" << err_msg << std::endl;
@@ -156,9 +203,11 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
 
   if (expires) {
     auto lifetime = expires - time(NULL);
+
     if (lifetime < 0) {
       lifetime = 0;
     }
+
     scitoken_set_lifetime(token.get(), lifetime);
   }
 
@@ -174,21 +223,25 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
     errno = EINVAL;
     return -1;
   }
+
   SciTokenProfile sprofile = WLCG_1_0;
   scitoken_set_serialize_mode(token.get(), sprofile);
 
   // finalue dump the token
   char* value = 0;
   rv = scitoken_serialize(token.get(), &value, &err_msg);
+
   if (rv) {
-    std::cerr << "error: failed to serialize the token: " << err_msg
-              << std::endl;
+    std::cerr << "error: failed to serialize the token: "
+              << err_msg << std::endl;
     free(err_msg);
     errno = EFAULT;
     return -1;
   }
+
   scitoken = value;
   return 0;
 }
+
 EOSCOMMONNAMESPACE_END
 #endif
