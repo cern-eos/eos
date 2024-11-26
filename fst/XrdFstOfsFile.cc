@@ -3893,7 +3893,12 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     // If static initialization throws an exception, it will be retried next time
     static XrdSsiPbServiceType service(endPoint, resource, config);
     auto sentAt = std::chrono::steady_clock::now();
-    service.Send(request, response);
+    try {
+      service.Send(request, response, false);
+    } catch (std::runtime_error& err) {
+      eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
+      service.Send(request, response, true);
+    }
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
                      (receivedAt - sentAt);

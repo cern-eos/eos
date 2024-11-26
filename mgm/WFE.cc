@@ -2800,7 +2800,12 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   // Send the request
   try {
     const auto sentAt = std::chrono::steady_clock::now();
-    service.Send(request, response);
+    try {
+      service.Send(request, response, false);
+    } catch (std::runtime_error& err) {
+      eos_static_err("msg=\"Could not send SSI protocol buffer request to outside service. Retrying with DNS cache refresh.\"");
+      service.Send(request, response, true);
+    }
     const auto receivedAt = std::chrono::steady_clock::now();
     const auto timeSpentMilliseconds =
       std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);
