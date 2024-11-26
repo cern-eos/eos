@@ -380,7 +380,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eosfstregister
 %{_sbindir}/eosfstinfo
 %{_sbindir}/eosadmin
-%{_sbindir}/eosjwker
+%{_sbindir}/eos-jwker
 %{_sbindir}/eos-iam-mapfile
 %{_sbindir}/eos-check-blockxs
 %{_sbindir}/eos-udp-dumper
@@ -859,6 +859,7 @@ Summary: The EOS scitokenapi in C,C++ and PYTHON
 Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 
+BuildRequires: golang >= 1.19
 BuildRequires: python%{python3_pkgversion}-devel
 
 %description -n eos-scitokenapi

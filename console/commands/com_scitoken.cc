@@ -260,8 +260,8 @@ com_scitoken(char* arg1)
 
   if (subcommand == "create-keys") {
     struct stat buf;
-    if (::stat("/sbin/eosjwker", &buf)) {
-      std::cerr << "error: couldn't find /sbin/eosjwker" << std::endl;
+    if (::stat("/sbin/eos-jwker", &buf)) {
+      std::cerr << "error: couldn't find /sbin/eos-jwker" << std::endl;
       global_retc = EOPNOTSUPP;
     } else {
       do {
@@ -294,7 +294,7 @@ com_scitoken(char* arg1)
     system("cat /tmp/.eossci.ec | openssl ec -pubout > /tmp/.eossci-pkey.pem "
            "2>/dev/null");
     system(
-        "/sbin/eosjwker /tmp/.eossci-pkey.pem | json_pp > /tmp/.eossci.jwk ");
+        "/sbin/eos-jwker /tmp/.eossci-pkey.pem | json_pp > /tmp/.eossci.jwk ");
 
     {
       Json::Value json;

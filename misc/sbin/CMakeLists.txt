@@ -21,22 +21,15 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-string (REGEX MATCH "\\.el[1-9]" os_version_suffix ${CMAKE_SYSTEM})
-message("-- os_version_suffix:      ${os_version_suffix}")
-
 add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/jwker${os_version_suffix}
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating eosjwker"
-    COMMAND yum install -y go
+    OUTPUT ${CMAKE_CURRENT_SOURCE_DIR}/jwker
+    COMMAND ${CMAKE_COMMAND} -E echo "Creating eos-jwker"
     COMMAND go install github.com/jphastings/jwker/cmd/jwker@latest
-    COMMAND cp -vf $ENV{HOME}/go/bin/jwker ${CMAKE_CURRENT_SOURCE_DIR}/jwker${os_version_suffix}
-    COMMAND cp -vf ${CMAKE_CURRENT_SOURCE_DIR}/jwker${os_version_suffix} ${CMAKE_CURRENT_SOURCE_DIR}/eosjwker
-)
+    COMMAND cp -vf $ENV{HOME}/go/bin/jwker ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker)
 
 add_custom_target(
-    build-eosjwker ALL
-    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/jwker${os_version_suffix}
-)
+    build-eos-jwker ALL
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/jwker)
 
 install(PROGRAMS
   eos-status
@@ -48,7 +41,7 @@ install(PROGRAMS
   eos-inspectorreport
   eos-inspectorstat
   eos-prom-push
-  eosjwker
+  eos-jwker
   eos-jwk-https
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
