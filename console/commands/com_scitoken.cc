@@ -49,7 +49,9 @@ com_scitoken(char* arg1)
 #include <unistd.h>
 #include <vector>
 
-/* SciToken factory */
+//------------------------------------------------------------------------------
+// SciToken command
+//------------------------------------------------------------------------------
 int
 com_scitoken(char* arg1)
 {
@@ -82,29 +84,40 @@ com_scitoken(char* arg1)
       if (o && !v) {
         goto com_scitoken_usage;
       }
+
       if (!o && !v) {
         break;
       }
+
       option = o;
       value = v;
 
       if (option == "--pubkey") {
         cred = value;
       }
+
       if (option == "--privkey") {
         key = value;
       }
+
       if (option == "--keyid") {
         keyid = value;
       }
+
       if (option == "--issuer") {
         issuer = value;
       }
+
       if (option == "--claim") {
         claims.insert(value);
       }
+
       if (option == "--expires") {
         expires = atoi(value.c_str());
+      }
+
+      if (option == "--profile") {
+        profile = value;
       }
     } while (option.length());
 
@@ -117,6 +130,7 @@ com_scitoken(char* arg1)
       cred += keyid;
       cred += "-pkey.pem";
     }
+
     if (key.empty()) {
       key = "/etc/xrootd/";
       key += keyid;
@@ -124,6 +138,7 @@ com_scitoken(char* arg1)
     }
 
     eos::common::StringConversion::LoadFileIntoString(key.c_str(), keydata);
+
     if (keydata.empty()) {
       std::cerr << "error: cannot load private key from '" << key.c_str() << "'"
                 << std::endl;
@@ -132,6 +147,7 @@ com_scitoken(char* arg1)
     }
 
     eos::common::StringConversion::LoadFileIntoString(cred.c_str(), creddata);
+
     if (creddata.empty()) {
       std::cerr << "error: cannot load public key from '" << cred.c_str() << "'"
                 << std::endl;
@@ -141,12 +157,10 @@ com_scitoken(char* arg1)
 
     // sci-token code
     char* err_msg = 0;
-
     auto key_raw = scitoken_key_create(keyid.c_str(), "ES256", creddata.c_str(),
                                        keydata.c_str(), &err_msg);
-
     std::unique_ptr<void, decltype(&scitoken_key_destroy)> key(
-        key_raw, scitoken_key_destroy);
+      key_raw, scitoken_key_destroy);
 
     if (key_raw == nullptr) {
       std::cerr << "error: failed to generate a key: " << err_msg << std::endl;
@@ -156,7 +170,8 @@ com_scitoken(char* arg1)
     }
 
     std::unique_ptr<void, decltype(&scitoken_destroy)> token(
-        scitoken_create(key_raw), scitoken_destroy);
+      scitoken_create(key_raw), scitoken_destroy);
+
     if (token.get() == nullptr) {
       std::cerr << "error: failed to generate a new token" << std::endl;
       global_retc = EFAULT;
@@ -164,7 +179,8 @@ com_scitoken(char* arg1)
     }
 
     int rv =
-        scitoken_set_claim_string(token.get(), "iss", issuer.c_str(), &err_msg);
+      scitoken_set_claim_string(token.get(), "iss", issuer.c_str(), &err_msg);
+
     if (rv) {
       std::cerr << "error: failed to set issuer: " << err_msg << std::endl;
       free(err_msg);
@@ -174,6 +190,7 @@ com_scitoken(char* arg1)
 
     for (const auto& claim : claims) {
       auto pos = claim.find("=");
+
       if (pos == std::string::npos) {
         std::cerr << "error: claim must contain a '=' character: "
                   << claim.c_str() << std::endl;
@@ -183,9 +200,9 @@ com_scitoken(char* arg1)
 
       auto key = claim.substr(0, pos);
       auto val = claim.substr(pos + 1);
-
       rv = scitoken_set_claim_string(token.get(), key.c_str(), val.c_str(),
                                      &err_msg);
+
       if (rv) {
         std::cerr << "error: failed to set claim '" << key << "'='" << val
                   << "' error:" << err_msg << std::endl;
@@ -197,9 +214,11 @@ com_scitoken(char* arg1)
 
     if (expires) {
       auto lifetime = expires - time(NULL);
+
       if (lifetime < 0) {
         lifetime = 0;
       }
+
       scitoken_set_lifetime(token.get(), lifetime);
     }
 
@@ -216,12 +235,13 @@ com_scitoken(char* arg1)
       global_retc = EINVAL;
       return (0);
     }
+
     SciTokenProfile sprofile = WLCG_1_0;
     scitoken_set_serialize_mode(token.get(), sprofile);
-
     // finalue dump the token
     char* value = 0;
     rv = scitoken_serialize(token.get(), &value, &err_msg);
+
     if (rv) {
       std::cerr << "error: failed to serialize the token: " << err_msg
                 << std::endl;
@@ -240,27 +260,30 @@ com_scitoken(char* arg1)
     if (!token.length()) {
       goto com_scitoken_usage;
     }
+
     try {
       std::string stoken = token.c_str();
       std::cerr << "# "
-                   "-----------------------------------------------------------"
-                   "-------------------- #"
+                "-----------------------------------------------------------"
+                "-------------------- #"
                 << std::endl;
       std::cerr << eos::common::Mapping::PrintJWT(stoken, false) << std::endl;
       std::cerr << "# "
-                   "-----------------------------------------------------------"
-                   "-------------------- #"
+                "-----------------------------------------------------------"
+                "-------------------- #"
                 << std::endl;
       global_retc = 0;
     } catch (...) {
       std::cerr << "error: failed to print token" << std::endl;
       global_retc = EINVAL;
     }
+
     return (0);
   }
 
   if (subcommand == "create-keys") {
     struct stat buf;
+
     if (::stat("/sbin/eos-jwker", &buf)) {
       std::cerr << "error: couldn't find /sbin/eos-jwker" << std::endl;
       global_retc = EOPNOTSUPP;
@@ -272,9 +295,11 @@ com_scitoken(char* arg1)
         if (o && !v) {
           goto com_scitoken_usage;
         }
+
         if (!o && !v) {
           break;
         }
+
         option = o;
         value = v;
 
@@ -295,8 +320,7 @@ com_scitoken(char* arg1)
     system("cat /tmp/.eossci.ec | openssl ec -pubout > /tmp/.eossci-pkey.pem "
            "2>/dev/null");
     system(
-        "/sbin/eos-jwker /tmp/.eossci-pkey.pem | json_pp > /tmp/.eossci.jwk ");
-
+      "/sbin/eos-jwker /tmp/.eossci-pkey.pem | json_pp > /tmp/.eossci.jwk ");
     {
       Json::Value json;
       Json::Value root;
@@ -304,6 +328,7 @@ com_scitoken(char* arg1)
       Json::CharReaderBuilder reader;
       std::ifstream configfile("/tmp/.eossci.jwk", std::ifstream::binary);
       bool ok = parseFromStream(reader, configfile, &root, &errs);
+
       if (ok) {
         // store the keyid into the JSON document
         root["kid"] = keyid.length() ? keyid : "default";
@@ -311,16 +336,18 @@ com_scitoken(char* arg1)
         global_retc = EIO;
         return (0);
       }
+
       json["keys"].append(root);
       std::cout << SSTR(json) << std::endl;
     }
-
     std::string prefix;
+
     if (keyid.length()) {
       prefix = "/etc/xrootd/";
     } else {
       keyid = "default";
     }
+
     std::string s;
     s = "mv /tmp/.eossci-pkey.pem ";
     s += prefix;
@@ -373,7 +400,6 @@ com_scitoken_usage:
       << "profile wlcg --claim sub=foo --claim scope=storage.read:/eos\n"
       << "    eos scitoken dump eyJhb ...\n"
       << "    eos scitoken create-keys --keyid eos > /etc/xrootrd/eos.json\n";
-
   std::cerr << oss.str().c_str() << std::endl;
   global_retc = EINVAL;
   return 0;

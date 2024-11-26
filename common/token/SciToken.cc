@@ -77,8 +77,10 @@ extern "C" {
     if (strlen(claim4)) {
       claims.insert(std::string(claim4));
     }
+
     int rc = eos::common::SciToken::sSciToken->CreateToken(stoken, expires,
-                                                           claims);
+             claims);
+
     if (!rc) {
       if (token_length > stoken.length()) {
         memcpy(token, stoken.c_str(), stoken.length());
@@ -114,8 +116,8 @@ SciToken::Factory(std::string_view cred, std::string_view key,
 
   std::string keydata;
   std::string creddata;
-
   eos::common::StringConversion::LoadFileIntoString(key.data(), keydata);
+
   if (keydata.empty()) {
     std::cerr << "error: cannot load private key from '"
               << key.data() << "'" << std::endl;
@@ -123,6 +125,7 @@ SciToken::Factory(std::string_view cred, std::string_view key,
   }
 
   eos::common::StringConversion::LoadFileIntoString(cred.data(), creddata);
+
   if (creddata.empty()) {
     std::cerr << "error: cannot load public key from '"
               << cred.data() << "'" << std::endl;
@@ -138,8 +141,7 @@ SciToken::Factory(std::string_view cred, std::string_view key,
 // Method to create a new token
 //------------------------------------------------------------------------------
 int
-eos::common::SciToken::CreateToken(std::string& scitoken,
-                                   time_t expires,
+eos::common::SciToken::CreateToken(std::string& scitoken, time_t expires,
                                    const std::set<std::string>& claims)
 {
   std::string profile = "wlcg";
@@ -147,9 +149,8 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
   errno = 0;
   auto key_raw = scitoken_key_create(mKeyId.c_str(), "ES256", mCredData.c_str(),
                                      mKeyData.c_str(), &err_msg);
-
   std::unique_ptr<void, decltype(&scitoken_key_destroy)> key(
-      key_raw, scitoken_key_destroy);
+    key_raw, scitoken_key_destroy);
 
   if (key_raw == nullptr) {
     std::cerr << "error: failed to generate a key: " << err_msg << std::endl;
@@ -159,7 +160,7 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
   }
 
   std::unique_ptr<void, decltype(&scitoken_destroy)> token(
-      scitoken_create(key_raw), scitoken_destroy);
+    scitoken_create(key_raw), scitoken_destroy);
 
   if (token.get() == nullptr) {
     std::cerr << "error: failed to generate a new token" << std::endl;
@@ -189,9 +190,9 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
 
     auto key = claim.substr(0, pos);
     auto val = claim.substr(pos + 1);
-
     rv = scitoken_set_claim_string(token.get(), key.c_str(),
                                    val.c_str(), &err_msg);
+
     if (rv) {
       std::cerr << "error: failed to set claim '" << key << "'='" << val
                 << "' error:" << err_msg << std::endl;
@@ -226,7 +227,6 @@ eos::common::SciToken::CreateToken(std::string& scitoken,
 
   SciTokenProfile sprofile = WLCG_1_0;
   scitoken_set_serialize_mode(token.get(), sprofile);
-
   // finalue dump the token
   char* value = 0;
   rv = scitoken_serialize(token.get(), &value, &err_msg);

@@ -31,7 +31,8 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 //! @brief  Class providing SciToken creation functions
 //------------------------------------------------------------------------------
-class SciToken {
+class SciToken
+{
 public:
   static SciToken* sSciToken;
 
@@ -85,9 +86,8 @@ public:
   //! @param keyid key id
   //! @param issuer issuer embedded in the tokens
   //----------------------------------------------------------------------------
-  void
-  SetKeys(std::string_view creddata, std::string_view keydata,
-          std::string_view keyid, std::string_view issuer)
+  void SetKeys(std::string_view creddata, std::string_view keydata,
+               std::string_view keyid, std::string_view issuer)
   {
     mKeyData = keydata;
     mCredData = creddata;
