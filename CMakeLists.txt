@@ -95,6 +95,8 @@ endif()
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 include(EosFindLibs)
 
+include(CTest)
+
 #-------------------------------------------------------------------------------
 # Make gtest / gmock available for all downstream CMakeLists.txt that need it
 #-------------------------------------------------------------------------------
