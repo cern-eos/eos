@@ -152,15 +152,6 @@ Then, run:
 Important troubleshooting steps
 --------------------------------
 
-During the last command, you may encounter error such as *Error: No Package found for libmicrohttpd-devel >= 0.9.38*, this can be resolved by:
-
-.. code-block:: bash
-
-    yum install gnutls
-    yum install libmicrohttpd-devel --disablerepo="*" --enablerepo=eos-citrine-dep
-    yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y SRPMS/*
-
-
 If you do not succeed enabling devtoolset-8 it might also be that you are using zsh which is incompatible with `scl-utils <https://stackoverflow.com/questions/62958800/enable-devtoolset-8-for-zsh-on-centos-7>`_.
 
 Make sure you have compatible xrootd version installed (:code:`rpm -qa | grep xroot`), currently the above will install you version 5.0.3 which is not yet compatible with EOS <= 4.8.35 (Dec/Jan 2020). Look at the latest version of xrootd in the [eos-citrine-dep] repository (currently 4.12.6) or ask the developers if in doubt.

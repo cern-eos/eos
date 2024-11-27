@@ -199,10 +199,10 @@ XrdFstOfs::xrdfstofs_stacktrace(int sig)
   // Print out all the frames to stderr
   fprintf(stderr, "error: received signal %d:\n", sig);
   backtrace_symbols_fd(array, size, 2);
-  eos::common::StackTrace::GdbTrace(0 , getpid(), "thread apply all bt");
+  eos::common::StackTrace::GdbTrace(0, getpid(), "thread apply all bt");
 
   if (getenv("EOS_CORE_DUMP")) {
-    eos::common::StackTrace::GdbTrace(0 , getpid(), "generate-core-file");
+    eos::common::StackTrace::GdbTrace(0, getpid(), "generate-core-file");
   }
 
   // Now we put back the initial handler and send the signal again
@@ -942,18 +942,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));
 
   if (mHttpd) {
-    const char* ptr = getenv("EOS_FST_ENABLE_LIBMICROHTTPD");
-
-    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
-      if (!mHttpd->Start()) {
-        eos_static_warning("%s", "msg=\"failed to start libmicrohttpd\"");
-      } else {
-        eos_static_notice("%s", "msg=\"successfully started libmicrohttpd\"");
-      }
-    } else {
-      eos_static_notice("%s", "msg=\"libmicrohttpd is disabled\"");
-    }
-  } else {
     eos_static_crit("%s", "msg=\"failed to allocate HttpServer object\"");
     NoGo = 1;
   }

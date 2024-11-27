@@ -87,24 +87,6 @@ class ZmqFilter:
 
         return False
 
-class MicroHttpdFilter:
-    def __init__(self):
-        self.eliminations = 0
-        self.description = "microhttpd poller"
-
-    def check(self, thread):
-        if thread.getNumberOfFrames() <= 3:
-            return False
-
-        if ("epoll_wait" in thread.getFrame(0) and
-            "MHD_epoll" in thread.getFrame(1) and
-            "MHD_select_thread" in thread.getFrame(2)):
-
-            self.eliminations += 1
-            return True
-
-        return False
-
 class QClientFilter:
     def __init__(self):
         self.eliminations = 0
@@ -685,9 +667,6 @@ def build_filters(args):
     if not args.want_zmq:
         filters += [ZmqFilter()]
 
-    if not args.want_mhd:
-        filters += [MicroHttpdFilter()]
-
     if not args.want_qcl:
         filters += [QClientFilter()]
 
@@ -746,7 +725,6 @@ def getargs():
 
     group = parser.add_argument_group('Built-in filters enabled by default', 'A certain number of filters are enabled by default to greatly reduce the initial noise, pass these flags to disable them. Only sleeping threads will be filtered out - if some poller, for example, is doing work at the time of capturing the stacktrace, it will be shown by default, unless you filter it out manually using a custom filter.')
     group.add_argument('--show-zmq-pollers', dest='want_zmq', action='store_true', help="Show sleeping ZMQ background threads.")
-    group.add_argument('--show-microhttpd-pollers', dest='want_mhd', action='store_true', help="Show sleeping MicroHttpd background threads.")
     group.add_argument('--show-qclient-pollers', dest='want_qcl', action='store_true', help="Show sleeping QClient background threads.")
     group.add_argument('--show-xrd-threads', dest='want_xrd_sleepers', action='store_true', help="Show sleeping XRootD background threads.")
     group.add_argument('--show-background-mgm-threads', dest='want_mgm_sleepers', action='store_true', help="Show sleeping MGM background threads. (Balancer, GroupBalancer, GeoGalancer, Converter, etc)")

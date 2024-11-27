@@ -128,8 +128,6 @@ cd $EOS_PROJECT_ROOT_DIR
 
 sudo yum clean all
 
-echo "Installing eos-libmicrohttpd-devel"
-sudo yum install -y eos-libmicrohttpd-devel || die 'ERROR while installing eos-libmicrohttp packages'
 echo "Running yum-builddep to build the EOS dependencies"
 sudo yum-builddep --nogpgcheck --allowerasing -y ./build/SRPMS/* || die 'ERROR while building the dependencies'
 

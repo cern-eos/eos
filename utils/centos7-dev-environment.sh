@@ -76,10 +76,8 @@ createQuarkDbRepo
 
 sudo yum clean all
 
-echo "Installing eos-libmicrohttpd-devel"
-sudo yum install -y eos-libmicrohttpd-devel --disablerepo="*" --enablerepo=eos-diopside-dep || die 'ERROR while installing eos-libmicrohttp packages'
 echo "Running yum-builddep to build the dependencies of EOS"
-sudo yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*,eos-libmicrohttp*" -y SRPMS/* || die 'ERROR while building the dependencies'
+sudo yum-builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y SRPMS/* || die 'ERROR while building the dependencies'
 
 echo "Installing quarkdb"
 sudo yum install -y quarkdb quarkdb-debuginfo redis || die 'ERROR while installing quarkdb packages'

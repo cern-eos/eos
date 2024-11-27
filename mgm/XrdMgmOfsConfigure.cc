@@ -625,25 +625,25 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        if (!strcmp("qclient_flusher_type",var)) {
+        if (!strcmp("qclient_flusher_type", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument for qclient_flusher_type is invalid");
             NoGo = 1;
           } else {
             mQClientFlusherType = val;
-
-            Eroute.Say("=====> mgmofs.qclient_flusher_type : ", mQClientFlusherType.c_str());
+            Eroute.Say("=====> mgmofs.qclient_flusher_type : ",
+                       mQClientFlusherType.c_str());
           }
         }
 
-        if (!strcmp("qclient_rocksdb_options",var)) {
+        if (!strcmp("qclient_rocksdb_options", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument for qclient_rocksdb_options is invalid");
             NoGo = 1;
           } else {
             mQClientRocksDBOptions = val;
-
-            Eroute.Say("=====> mgmofs.qclient_rocksdb_options : ", mQClientRocksDBOptions.c_str());
+            Eroute.Say("=====> mgmofs.qclient_rocksdb_options : ",
+                       mQClientRocksDBOptions.c_str());
           }
         }
 
@@ -2074,19 +2074,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_static_crit("error starting the shared object change notifier");
   }
 
-  if (mHttpd) {
-    const char* ptr = getenv("EOS_MGM_ENABLE_LIBMICROHTTPD");
-
-    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
-      if (!mHttpd->Start()) {
-        eos_static_warning("%s", "msg=\"failed to start libmicrohttpd\"");
-      } else {
-        eos_static_notice("%s", "msg=\"successfully started libmicrohttpd\"");
-      }
-    } else {
-      eos_static_notice("%s", "msg=\"libmicrohttpd is disabled\"");
-    }
-  } else {
+  if (!mHttpd) {
     eos_static_crit("%s", "msg=\"failed to allocate HttpServer object\"");
     NoGo = 1;
   }

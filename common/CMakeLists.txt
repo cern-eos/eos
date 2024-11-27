@@ -255,8 +255,7 @@ if (Linux)
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
     XROOTD::UTILS
-    PROTOBUF::PROTOBUF
-    LIBMICROHTTPD::LIBMICROHTTPD)
+    PROTOBUF::PROTOBUF)
 
   target_compile_definitions(EosCommonServer-Objects PUBLIC
     -DSQLITE_NO_SYNC=1)

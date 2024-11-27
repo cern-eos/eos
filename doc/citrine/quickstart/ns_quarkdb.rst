@@ -61,7 +61,6 @@ Install the **QuarkDB** and **EOS** packages:
 .. code-block:: bash
 
   yum install -y quarkdb quarkdb-debuginfo redis
-  yum install -y --nogpgcheck --disablerepo="*" --enablerepo="storage*" libmicrohttpd*
   yum install -y --nogpgcheck --disablerepo="cern*" eos-server eos-client eos-rocksdb eos-testkeytab
 
 

@@ -352,7 +352,6 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   RestAnnot-Objects
   EosCommonServer
   EosGrpcGateway::EosGrpcGateway
-  LIBMICROHTTPD::LIBMICROHTTPD
   GOOGLE::SPARSEHASH
   JSONCPP::JSONCPP
   XROOTD::PRIVATE

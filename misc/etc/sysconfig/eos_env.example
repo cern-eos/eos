@@ -216,39 +216,6 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_FST_POSIX_FALLOCATE=1
 
 #-------------------------------------------------------------------------------
-# Libmicrohttpd configuration
-#-------------------------------------------------------------------------------
-# HTTP server ports
-
-# MGM - by default libmicrohttpd is disabled i.e. 0. To enable it one needs
-# to set the following env variable to 1 and a non-zero value for the port.
-# EOS_MGM_ENABLE_LIBMICROHTTPD=0
-
-# MGM - set to 0 to disable libmicrohttpd implementation
-# EOS_MGM_HTTP_PORT=8000
-
-# FST - by default libmicrohttpd is disabled i.e. 0. To enable it one needs
-# to set the following env variable to 1 and a non-zero value for the port.
-# EOS_FST_ENABLE_LIBMICROHTTPD=0
-
-# FST - set to 0 to disable libmicrohttpd implementation
-# EOS_FST_HTTP_PORT=8001
-
-# HTTP uses by default one thread per connection
-# EOS_HTTP_THREADPOOL="threads"
-
-# Use EPOLL and 16 threads
-EOS_HTTP_THREADPOOL="epoll"
-EOS_HTTP_THREADPOOL_SIZE=16
-
-# Memory buffer size per connection
-# EOS_HTTP_CONNECTION_MEMORY_LIMIT=134217728 (default 128M)
-EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
-
-# Timeout after which an idle connection is considered to be closed (default 2 min)
-# EOS_HTTP_CONNECTION_TIMEOUT=120
-
-#-------------------------------------------------------------------------------
 # GRPC Configuration
 #-------------------------------------------------------------------------------
 

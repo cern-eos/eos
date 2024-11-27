@@ -86,8 +86,6 @@ Protocols and Clients
 
 The native protocol is the **xrootd** protocol, which provides additional functionalities like vector reads, third party copy transfers etc.
 
-A second embedded protocol is **http/webdav** currently implemented using `libmicrohttpd`. 
-
 EOS can be used like a filesystem using FUSE clients. There are two implementations available:
 
 * **eosd** - available for BERYL and CITRINE - limited POSIX conformity
