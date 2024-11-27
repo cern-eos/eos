@@ -23,6 +23,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include <cstdint>
 #include <string>
 
 EOSCOMMONNAMESPACE_BEGIN
