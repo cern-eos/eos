@@ -941,7 +941,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   mHttpd.reset(new eos::fst::HttpServer(mHttpdPort));
 
-  if (mHttpd) {
+  if (!mHttpd) {
     eos_static_crit("%s", "msg=\"failed to allocate HttpServer object\"");
     NoGo = 1;
   }
