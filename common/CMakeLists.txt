@@ -319,19 +319,19 @@ if(PYTHONSITEPKG_FOUND)
 
   add_custom_target(build_python_module
     COMMAND ${CMAKE_COMMAND} -E echo "Building Python module..."
-    COMMAND ${Python3_EXECUTABLE} setup.py build
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/common/token/)
+    COMMAND ${CMAKE_COMMAND} -E env BUILD_BASE=${CMAKE_CURRENT_BINARY_DIR} ${Python3_EXECUTABLE} setup.py build
+    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/token/)
 
   # Define a custom target to install the Python module
   add_custom_target(install_python_module
     COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module...in \${DESTDIR}"
-    COMMAND ${Python3_EXECUTABLE} setup.py install --root=/ --single-version-externally-managed --prefix=\${DESTDIR}/usr/
-    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}/common/token/)
+    COMMAND ${CMAKE_COMMAND} -E env SOURCE_BASE=${CMAKE_CURRENT_SOURCE_DIR}/token/ ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/token/setup.py install --root=/ --single-version-externally-managed --prefix=\${DESTDIR}/usr/
+    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-  # Make install depend on build, so it builds before installing
-  add_dependencies(install_python_module build_python_module)
   # Ensure build_python_module is built after EosCommon
   add_dependencies(build_python_module EosCommon)
+  # Make install depend on build, so it builds before installing
+  add_dependencies(install_python_module build_python_module)
 
   # Hook the Python module build into the 'install' target
   add_custom_command(
