@@ -25,6 +25,8 @@
 #include "common/Namespace.hh"
 #include <mutex>
 #include <set>
+#include <string>
+#include <string_view>
 
 EOSCOMMONNAMESPACE_BEGIN
 
