@@ -483,7 +483,11 @@ eos_squash() {
 }
 
 eos_accounting() {
-  echo eos-accounting-test $1 $EOS_TEST_REDIRECTOR; eval eos-accounting-test $1 $EOS_TEST_REDIRECTOR >> $EOSCERTLOG 2>&1
+  echo eos-accounting-test $1 ; eval eos-accounting-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
+}
+
+eos_lru() {
+  echo eos-lru-test $1 ; eval eos-lru-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
 shell() {
@@ -2326,7 +2330,15 @@ runtest "### eos-grpc  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instan
 # ------------------------------------------------------------------------------
 categorie="accounting"
 # ------------------------------------------------------------------------------
-runtest "### eos-accounting" unix 0 "" eos_accounting "/eos/$EOS_TEST_INSTANCE/test/instancetest/accounting_test"
+runtest "### eos-accounting  " unix 0 "" eos_accounting "/eos/$EOS_TEST_INSTANCE/test/instancetest/accounting_test"
+
+################################################################################
+# lru tests
+################################################################################
+# ------------------------------------------------------------------------------
+categorie="lru"
+# ------------------------------------------------------------------------------
+runtest "### eos-lru  " unix 0 "" eos_lru "/eos/$EOS_TEST_INSTANCE/test/instancetest/lru_test"
 
 ################################################################################
 # Token tests

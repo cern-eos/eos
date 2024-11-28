@@ -1,0 +1,81 @@
+#!/bin/bash
+
+prefix=$1
+host=${2-"localhost"}
+url=root://$host
+EOS_LRU_DIR=$prefix
+watermarkLruDir="$EOS_LRU_DIR/watermarkLruDir"
+
+
+cleanup() {
+  eos quota rmnode --really-want "$watermarkLruDir/"
+  eos rm -rF --no-confirmation "$EOS_LRU_DIR/"
+}
+
+# $1 is expected value, $2 is provided value, $3 is the context of the test to print the error message
+assert_eq() {
+  if [[ "$1" != "$2" ]];
+  then
+    echo "error: $3, expected value is $1 but received $2"
+    exit 1
+  fi
+}
+
+cleanup
+
+# Prepare the instance for the tests
+eos convert clear
+eos space config default space.lru=on
+eos space config default space.lru.interval=5
+
+# Test the LRU expire empty directory
+eos mkdir -p "$EOS_LRU_DIR/" && eos touch "$EOS_LRU_DIR/file.touched"
+eos attr set sys.lru.expire.empty=5 "$EOS_LRU_DIR/"
+eos attr ls "$EOS_LRU_DIR/"
+emptyDir="$EOS_LRU_DIR/empty_dir"
+eos mkdir -p "$emptyDir"
+sleep 10
+assert_eq 0 "$(eos ls "$EOS_LRU_DIR" | grep -c 'empty_dir')" "empty_dir test: $emptyDir should be removed"
+
+# Test the deletion of files not accessed since some time
+accessTimeLruDir="$EOS_LRU_DIR/accessTimeLruDir"
+eos mkdir -p "$accessTimeLruDir"
+eos attr set 'sys.lru.expire.match=touched*:5s' "$accessTimeLruDir"
+seq 1 100 | xargs -P 30 -I{} eos touch "$accessTimeLruDir/touched{}"
+eos touch "$accessTimeLruDir/should_not_be_deleted"
+assert_eq 101 "$(eos ls "$accessTimeLruDir" | wc -l)" "access time LRU test: $accessTimeLruDir does not have the correct amount of files"
+sleep 10
+# Only one file should remain: the `should_not_be_deleted` one
+assert_eq 1 "$(eos ls "$accessTimeLruDir" | grep -c 'should_not_be_deleted')" "access time LRU test: $accessTimeLruDir should only contain the should_not_be_deleted file"
+
+# Test the conversion LRU
+convertLruDir="$EOS_LRU_DIR/convertLruDir"
+eos mkdir -p "$convertLruDir"
+oneKBFile="/tmp/1KB"
+threeKBFile="/tmp/3KB"
+head -c 1k < /dev/urandom > "$oneKBFile"
+head -c 3k < /dev/urandom > "$threeKBFile"
+# Raid 4+2 layout just for testing...
+eos attr set 'sys.conversion.*=20640542' "$convertLruDir"
+# All 2KB files should be queued in the converter once LRU will run
+eos attr set 'sys.lru.convert.match=*:4s:>2k' "$convertLruDir"
+seq 1 100 | xargs -I{} -P 30 eos cp $oneKBFile "$url/$convertLruDir/1KB{}"
+seq 1 100 | xargs -I{} -P 30 eos cp $threeKBFile "$url/$convertLruDir/3KB{}"
+sleep 15
+assert_eq 100 "$(eos convert list | grep -c '#')" "convert LRU test: conversion list size mismatch"
+
+# Test the low/high watermark
+watermarkLruDir="$EOS_LRU_DIR/watermarkLruDir"
+eos mkdir -p "$watermarkLruDir"
+eos quota set -p "$watermarkLruDir" -v 11G -i 1M -g 99
+eos quota ls -p "$watermarkLruDir"
+eos attr set 'sys.lru.lowwatermark=1' "$watermarkLruDir"
+eos attr set 'sys.lru.highwatermark=2' "$watermarkLruDir"
+watermarkFileToDelete="/tmp/will-be-deleted"
+head -c 250M < /dev/urandom > "$watermarkFileToDelete"
+eos cp "$watermarkFileToDelete" "$url/$watermarkLruDir/will-be-deleted"
+sleep 10
+assert_eq 0 "$(eos ls -alhrt "$watermarkLruDir" | grep -c 'will-be-deleted')"
+cleanup
+echo "ALL LRU TESTS PASSED"
+exit 0
