@@ -73,12 +73,9 @@ struct PlacementResult {
   }
 
   bool contains(item_id_t item) const {
-    for (int i=0; i< n_replicas; ++i) {
-      if (ids[i] == item) {
-        return true;
-      }
-      return false;
-    }
+    return std::find(ids.cbegin(),
+                     ids.cbegin() + n_replicas,
+                     item) != ids.cbegin() + n_replicas;
   }
 };
 

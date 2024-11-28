@@ -93,7 +93,8 @@ set(MGM_UT_SRCS
   mgm/placement/RRSeedTests.cc
   mgm/placement/SchedulerTests.cc
   mgm/placement/ThreadLocalRRSeedTests.cc
-  mgm/placement/FsSchedulerTests.cc)
+  mgm/placement/FsSchedulerTests.cc
+  mgm/placement/PlacementStrategyTests.cc)
 
 set(COMMON_UT_SRCS
   common/UtilsTests.cc
