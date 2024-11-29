@@ -348,38 +348,47 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
     // Check the directory contents
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, dir);
-    RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
       cmd = gOFS->eosView->getContainer(dir);
-      lock.Release();
+      std::string fullpath;
       std::shared_ptr<eos::IFileMD> fmd;
+      XrdOucString fname;
+      eos::IFileMD::ctime_t fctime;
 
       // Loop through all file names
       for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
+
+        // no need to lock the cmd
         fmd = cmd->findFile(it.key());
-        std::string fullpath = dir;
-        fullpath += fmd->getName();
+        if(fmd == nullptr) {
+          eos_static_err("msg=\"file is null\" fxid=%08llx", it.key().c_str());
+          continue;
+        }
+        {
+          eos::MDLocking::FileReadLock fmdLock(fmd);
+          fname = fmd->getName().c_str();
+          fmd->getCTime(fctime);
+        }
+        fullpath = dir;
+        fullpath += fname.c_str();
         eos_static_debug("check_file=\"%s\"", fullpath.c_str());
 
         // Loop over the match map
         for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++) {
-          XrdOucString fname = fmd->getName().c_str();
           eos_static_debug("check_rule=\"%s\" maches=%d", mit->first.c_str(),
                            fname.matches(mit->first.c_str()));
 
           if (fname.matches(mit->first.c_str())) {
             // Full match check the age policy
-            eos::IFileMD::ctime_t ctime;
-            fmd->getCTime(ctime);
             time_t age = mit->second;
 
-            if ((ctime.tv_sec + age) < now) {
+            if ((fctime.tv_sec + age) < now) {
               // This entry can be deleted
               eos_static_notice("msg=\"delete expired file\" path=\"%s\" "
                                 "ctime=%u policy-age=%u age=%u",
-                                fullpath.c_str(), ctime.tv_sec, age,
-                                now - ctime.tv_sec);
+                                fullpath.c_str(), fctime.tv_sec, age,
+                                now - fctime.tv_sec);
               lDeleteList.push_back(fullpath);
               break;
             }
@@ -637,12 +646,16 @@ LRU::ConvertMatch(const char* dir,
     // Check the directory contents
     std::shared_ptr<eos::IContainerMD> cmd;
     eos::Prefetcher::prefetchContainerMDWithChildrenAndWait(gOFS->eosView, dir);
-    RWMutexReadLock lock(gOFS->eosViewRWMutex);
 
     try {
       cmd = gOFS->eosView->getContainer(dir);
-      lock.Release();
       std::shared_ptr<eos::IFileMD> fmd;
+      std::string fullpath;
+      XrdOucString fname;
+      eos::IFileMD::ctime_t fctime;
+      uint64_t fsize;
+      eos::IFileMD::layoutId_t flayoutId;
+      eos::IFileMD::id_t fid;
 
       for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
         fmd = cmd->findFile(fit.key());
@@ -652,23 +665,29 @@ LRU::ConvertMatch(const char* dir,
           continue;
         }
 
-        std::string fullpath = dir;
-        fullpath += fmd->getName();
+        {
+          eos::MDLocking::FileReadLock fmdLock(fmd);
+          fname = fmd->getName().c_str();
+          fmd->getCTime(fctime);
+          fsize = fmd->getSize();
+          flayoutId = fmd->getLayoutId();
+          fid = fmd->getId();
+        }
+
+        fullpath = dir;
+        fullpath += fname.c_str();
         eos_static_debug("check_file=\"%s\"", fullpath.c_str());
 
         // Loop over the match map
         for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++) {
-          XrdOucString fname = fmd->getName().c_str();
           eos_static_debug("check_rule=\"%s\" matched=%d", mit->first.c_str(),
                            fname.matches(mit->first.c_str()));
 
           if (fname.matches(mit->first.c_str())) {
             // Full match check the age policy
-            eos::IFileMD::ctime_t ctime;
-            fmd->getCTime(ctime);
             time_t age = mit->second;
 
-            if ((ctime.tv_sec + age) < now) {
+            if ((fctime.tv_sec + age) < now) {
               std::string conv_attr = "sys.conversion.";
               conv_attr += mit->first;
               // Check if this file has already the proper layout
@@ -682,53 +701,53 @@ LRU::ConvertMatch(const char* dir,
 
               unsigned long long lid = strtoll(map[conv_attr].c_str(), 0, 16);
 
-              if (fmd->getLayoutId() == lid) {
+              if (flayoutId == lid) {
                 eos_static_debug("msg=\"skipping conversion - file has already "
-                                 "the desired target layout\" fxid=%08llx", fmd->getId());
+                                 "the desired target layout\" fxid=%08llx", fid);
                 continue;
               }
 
               if (lMatchSizeMap.count(mit->first)) {
                 if (lMatchSizeMap[mit->first] < 0) {
                   // check that this file is smaller as the required size
-                  if ((ssize_t)fmd->getSize() >= (-lMatchSizeMap[mit->first])) {
+                  if ((ssize_t)fsize >= (-lMatchSizeMap[mit->first])) {
                     eos_static_debug("msg=\"skipping conversion - file is larger "
-                                     "than required\" fxid=%08llx", fmd->getId());
+                                     "than required\" fxid=%08llx", fid);
                     continue;
                   } else {
                     eos_static_info("msg=\"converting according to age+size specification\" "
                                     "path='%s' fxid=%08llx required-size < %ld size=%ld layout:%08x :=> %08x",
-                                    fullpath.c_str(), fmd->getId(), -lMatchSizeMap[mit->first],
-                                    (ssize_t)fmd->getSize(), lid, fmd->getLayoutId());
+                                    fullpath.c_str(), fid, -lMatchSizeMap[mit->first],
+                                    (ssize_t)fsize, lid, flayoutId);
                   }
                 }
 
                 if (lMatchSizeMap[mit->first] > 0) {
                   // check that this file is larger than the required size
-                  if ((ssize_t)fmd->getSize() <= lMatchSizeMap[mit->first]) {
+                  if ((ssize_t)fsize <= lMatchSizeMap[mit->first]) {
                     eos_static_debug("msg=\"skipping conversion - file is smaller "
-                                     "than required\" fxid=%08llx", fmd->getId());
+                                     "than required\" fxid=%08llx", fid);
                     continue;
                   } else {
                     eos_static_info("msg=\"converting according to age+size specification\" "
                                     "path='%s' fxid=%08llx required-size > %ld size=%ld layout:%08x "
-                                    ":=> %08x", fullpath.c_str(), fmd->getId(), lMatchSizeMap[mit->first],
-                                    (ssize_t)fmd->getSize(), lid, fmd->getLayoutId());
+                                    ":=> %08x", fullpath.c_str(), fid, lMatchSizeMap[mit->first],
+                                    (ssize_t)fsize, lid, flayoutId);
                   }
                 }
               } else {
                 eos_static_info("msg=\"converting according to age specification\" path='%s' "
                                 "fxid=%08llx layout:%08x :=> %08x", fullpath.c_str(),
-                                fmd->getId(), lid, fmd->getLayoutId());
+                                fid, lid, flayoutId);
               }
 
               // This entry can be converted
               eos_static_notice("msg=\"convert expired file\" path=\"%s\" "
                                 "ctime=%u policy-age=%u age=%u fxid=%08llx "
-                                "layout=\"%s\"", fullpath.c_str(), ctime.tv_sec,
-                                age, now - ctime.tv_sec, (unsigned long long) fmd->getId(),
+                                "layout=\"%s\"", fullpath.c_str(), fctime.tv_sec,
+                                age, now - fctime.tv_sec, (unsigned long long) fid,
                                 map[conv_attr].c_str());
-              lConversionList.push_back(std::make_pair(fmd->getId(), map[conv_attr]));
+              lConversionList.push_back(std::make_pair(fid, map[conv_attr]));
               break;
             }
           }
