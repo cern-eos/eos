@@ -40,7 +40,7 @@ export EOS_TEST_REDIRECTOR=localhost
 export EOS_TEST_FULL_REDIRECTOR=$(hostname -f)
 export EOS_TEST_TESTSYS=/tmp/eos-instance-test
 export EOS_TEST_GSMLOCKTIME=3600
-export EOS_TEST_TESTTIMESLICE=1200
+export EOS_TEST_TESTTIMESLICE=1600
 
 export EOS_HTTPS_PORT="$(grep -oP 'XrdHttp:\K(\d+)' /etc/xrd.cf.mgm)"
 firsttest=$1
