@@ -4,6 +4,4 @@ usr/lib/x86_64-linux-gnu/libEosCommon.so.*
 usr/lib/x86_64-linux-gnu/libEosCommon.so
 usr/lib/x86_64-linux-gnu/libEosFstIo.so.*
 usr/lib/x86_64-linux-gnu/libEosFstIo.so
-usr/lib/x86_64-linux-gnu/libXrdMqClient.so*
-usr/lib/x86_64-linux-gnu/libXrdMqClient.so
 
