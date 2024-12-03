@@ -15,7 +15,7 @@
 #include "jwk_generator/libs/json.hpp"
 #include "jwk_generator/errors.hpp"
 #include "jwk_generator/keyspecs/ec_key.hpp"
-#include "jwk_generator/keyspecs/rsa_key.hpp"
+//#include "jwk_generator/keyspecs/rsa_key.hpp"
 
 namespace jwk_generator
 {
@@ -30,7 +30,11 @@ private:
   std::string to_pem(std::function<int(BIO*, EVP_PKEY*)> writeKeyToBIO) const
   {
     using namespace detail;
+#ifdef JWKGEN_OPENSSL_1_0
+    auto pemKeyBIO = std::shared_ptr<BIO>(BIO_new(BIO_s_mem()), BIO_free);
+#else
     auto pemKeyBIO = std::shared_ptr<BIO>(BIO_new(BIO_s_secmem()), BIO_free);
+#endif
 
     if (!pemKeyBIO) {
       throw openssl_error("Unable to retrieve public key: ");

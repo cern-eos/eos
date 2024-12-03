@@ -11,6 +11,8 @@
 #define JWKGEN_OPENSSL_3_0
 #include <openssl/types.h>
 #include <openssl/core_names.h>
+#elif OPENSSL_VERSION_NUMBER < 0x10100000L // 1.1.0
+#define JWKGEN_OPENSSL_1_0
 #endif
 
 namespace jwk_generator
@@ -27,4 +29,3 @@ using RSA = c_resource<::RSA, RSA_free, RSA_new>;
 #endif
 };
 };
-

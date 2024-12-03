@@ -157,21 +157,15 @@ private:
 
   static constexpr size_t bits_to_point_size()
   {
-    switch (shaBits) {
-    case 256: {
+    if (shaBits == 256) {
       return 32;
-    }
-
-    case 512: {
+    } else if (shaBits == 512) {
       return 66;
-    }
-
-    case 384: {
+    } else if (shaBits == 384) {
       return 48;
+    } else {
+      throw std::runtime_error("Unsupported EC algorithm");
     }
-    }
-
-    throw std::runtime_error("Unsupported EC algorithm");
   }
 public:
   static constexpr size_t pointSize = bits_to_point_size();
@@ -294,19 +288,26 @@ public:
     }
 
     auto point = EC_KEY_get0_public_key(ecPtr);
+#ifdef JWKGEN_OPENSSL_1_0
+
+    if (!EC_POINT_get_affine_coordinates_GFp(group, point, xBN, yBN, NULL)) {
+#else
 
     if (!EC_POINT_get_affine_coordinates(group, point, xBN, yBN, NULL)) {
+#endif
       throw openssl_error("Unable to extract coordinates from key: ");
     }
 
 #endif
     std::vector<uint8_t> xBin;
     xBin.resize(pointSize);
-    BN_bn2binpad(xBN, xBin.data(), pointSize);
+    //BN_bn2binpad(xBN, xBin.data(), pointSize);
+    BN_bn2bin(xBN, xBin.data());
     pointX = base64_url_encode(xBin);
     std::vector<uint8_t> yBin;
     yBin.resize(pointSize);
-    BN_bn2binpad(yBN, yBin.data(), pointSize);
+    //BN_bn2binpad(yBN, yBin.data(), pointSize);
+    BN_bn2bin(yBN, yBin.data());
     pointY = base64_url_encode(yBin);
   }
 
