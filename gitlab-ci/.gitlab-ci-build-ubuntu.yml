@@ -64,9 +64,8 @@
   only:
     - schedules
     - tags
-    - master
 
-
+    
 ubuntu-jammy:
   extends: .build-ubuntu
   image: ubuntu:jammy
