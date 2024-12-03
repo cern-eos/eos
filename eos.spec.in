@@ -2,7 +2,7 @@
 # Helper macros and variables
 #-------------------------------------------------------------------------------
 %define _unpackaged_files_terminate_build 0
-%define devtoolset devtoolset-8
+%define devtoolset devtoolset-9
 %define cmake cmake3
 %define debug_package %{nil}
 %global __os_install_post %{nil}
@@ -79,11 +79,6 @@ BuildRoot: %{_tmppath}/%{name}-root
 %if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 BuildRequires: epel-release
 Requires: epel-release
-%endif
-
-# For asan/tsan builds we need devtoolset-9
-%if %{?_with_asan:1}%{!?_with_asan:0} || %{?_with_tsan:1}%{!?_with_tsan:0}
-%define devtoolset devtoolset-9
 %endif
 
 %if %{?_with_asan:1}%{!?_with_asan:0}
