@@ -145,26 +145,31 @@ target_link_libraries(threadpooltest PRIVATE EosCommon)
 #-------------------------------------------------------------------------------
 # MQ test related executables
 #-------------------------------------------------------------------------------
-add_executable(eos-shared-hash-test mq/SharedHashLoadTest.cc)
-add_executable(xrdmqclienttest mq/XrdMqClientTest.cc)
-add_executable(eos-mq-dumper mq/XrdMqQueueDumper.cc)
-add_executable(eos-mq-feeder mq/XrdMqQueueFeeder.cc)
-add_executable(xrdmqinjection mq/XrdMqQueueInjection.cc)
-add_executable(xrdmqclientmaster mq/XrdMqClientMaster.cc)
-add_executable(xrdmqclientworker mq/XrdMqClientWorker.cc)
-add_executable(xrdmqsharedobjectclient mq/XrdMqSharedObjectClient.cc)
-add_executable(xrdmqsharedobjectqueueclient mq/XrdMqSharedObjectQueueClient.cc)
-add_executable(xrdmqsharedobjectbroadcastclient mq/XrdMqSharedObjectBroadCastClient.cc)
-target_link_libraries(eos-shared-hash-test PRIVATE XrdMqClient-Static qclient)
-target_link_libraries(xrdmqclienttest PRIVATE XrdMqClient-Static)
-target_link_libraries(eos-mq-dumper PRIVATE XrdMqClient-Static)
-target_link_libraries(eos-mq-feeder PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqinjection PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqclientmaster PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqclientworker PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqsharedobjectclient PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE XrdMqClient-Static)
-target_link_libraries(xrdmqsharedobjectbroadcastclient PRIVATE XrdMqClient-Static)
+if (NOT CLIENT)
+  add_executable(eos-shared-hash-test mq/SharedHashLoadTest.cc)
+  add_executable(xrdmqclienttest mq/XrdMqClientTest.cc)
+  add_executable(eos-mq-dumper mq/XrdMqQueueDumper.cc)
+  add_executable(eos-mq-feeder mq/XrdMqQueueFeeder.cc)
+  add_executable(xrdmqinjection mq/XrdMqQueueInjection.cc)
+  add_executable(xrdmqclientmaster mq/XrdMqClientMaster.cc)
+  add_executable(xrdmqclientworker mq/XrdMqClientWorker.cc)
+  add_executable(xrdmqsharedobjectclient mq/XrdMqSharedObjectClient.cc)
+  add_executable(xrdmqsharedobjectqueueclient mq/XrdMqSharedObjectQueueClient.cc)
+  add_executable(xrdmqsharedobjectbroadcastclient mq/XrdMqSharedObjectBroadCastClient.cc)
+  target_link_libraries(eos-shared-hash-test PRIVATE XrdMqClient-Static qclient)
+  target_link_libraries(xrdmqclienttest PRIVATE XrdMqClient-Static)
+  target_link_libraries(eos-mq-dumper PRIVATE XrdMqClient-Static)
+  target_link_libraries(eos-mq-feeder PRIVATE XrdMqClient-Static)
+  target_link_libraries(xrdmqinjection PRIVATE XrdMqClient-Static)
+  target_link_libraries(xrdmqclientmaster PRIVATE XrdMqClient-Static)
+  target_link_libraries(xrdmqclientworker PRIVATE XrdMqClient-Static)
+  target_link_libraries(xrdmqsharedobjectclient PRIVATE XrdMqClient-Static)
+  target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE XrdMqClient-Static)
+  target_link_libraries(xrdmqsharedobjectbroadcastclient PRIVATE XrdMqClient-Static)
+
+  install(TARGETS eos-mq-feeder eos-mq-dumper eos-shared-hash-test
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
+endif()
 
 install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   xrdcpextend xrdcpshrink xrdcpappend xrdcpappendoverlap xrdcptruncate
@@ -172,9 +177,6 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   xrdcpposixcache xrdcpslowwriter xrdcpnonstreaming eos-checksum-benchmark
   eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
-
-install(TARGETS eos-mq-feeder eos-mq-dumper eos-shared-hash-test
-  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
   fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test eos-accounting-test
