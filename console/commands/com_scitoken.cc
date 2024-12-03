@@ -31,10 +31,11 @@ com_scitoken(char* arg1)
 }
 
 #else
+#include "console/ConsoleMain.hh"
+#include "console/commands/helpers/jwk_generator/jwk_generator.hpp"
 #include "common/Mapping.hh"
 #include "common/StringTokenizer.hh"
 #include "common/Utils.hh"
-#include "console/ConsoleMain.hh"
 #include <common/Logging.hh>
 #include <cstdio>
 #include <fstream>
@@ -282,91 +283,105 @@ com_scitoken(char* arg1)
   }
 
   if (subcommand == "create-keys") {
-    struct stat buf;
+    do {
+      const char* o = subtokenizer.GetTokenUnquoted();
+      const char* v = subtokenizer.GetTokenUnquoted();
 
-    if (::stat("/sbin/eos-jwker", &buf)) {
-      std::cerr << "error: couldn't find /sbin/eos-jwker" << std::endl;
-      global_retc = EOPNOTSUPP;
-    } else {
-      do {
-        const char* o = subtokenizer.GetTokenUnquoted();
-        const char* v = subtokenizer.GetTokenUnquoted();
-
-        if (o && !v) {
-          goto com_scitoken_usage;
-        }
-
-        if (!o && !v) {
-          break;
-        }
-
-        option = o;
-        value = v;
-
-        if (option == "--keyid") {
-          keyid = value;
-        }
-
-        if (option == "--jwk") {
-          jwk = value;
-        }
-      } while (option.length());
-    }
-
-    system("openssl ecparam -genkey -name prime256v1 > /tmp/.eossci.ec "
-           "2>/dev/null");
-    system("openssl pkcs8 -topk8 -nocrypt -in /tmp/.eossci.ec -out "
-           "/tmp/.eossci-key.pem 2>/dev/null");
-    system("cat /tmp/.eossci.ec | openssl ec -pubout > /tmp/.eossci-pkey.pem "
-           "2>/dev/null");
-    system(
-      "/sbin/eos-jwker /tmp/.eossci-pkey.pem | json_pp > /tmp/.eossci.jwk ");
-    {
-      Json::Value json;
-      Json::Value root;
-      std::string errs;
-      Json::CharReaderBuilder reader;
-      std::ifstream configfile("/tmp/.eossci.jwk", std::ifstream::binary);
-      bool ok = parseFromStream(reader, configfile, &root, &errs);
-
-      if (ok) {
-        // store the keyid into the JSON document
-        root["kid"] = keyid.length() ? keyid : "default";
-      } else {
-        global_retc = EIO;
-        return (0);
+      if (o && !v) {
+        goto com_scitoken_usage;
       }
 
-      json["keys"].append(root);
-      std::cout << SSTR(json) << std::endl;
-    }
+      if (!o && !v) {
+        break;
+      }
+
+      option = o;
+      value = v;
+
+      if (option == "--keyid") {
+        keyid = value;
+      }
+    } while (option.length());
+
     std::string prefix;
 
-    if (keyid.length()) {
+    if (!keyid.empty()) {
       prefix = "/etc/xrootd/";
     } else {
       keyid = "default";
+      const size_t size = 1024;
+      char buffer[size];
+
+      if (getcwd(buffer, size) == nullptr) {
+        std::cerr << "error: can not get CWD" << std::endl;
+        global_retc = errno;
+        return 0;
+      }
+
+      prefix = buffer;
     }
 
-    std::string s;
-    s = "mv /tmp/.eossci-pkey.pem ";
-    s += prefix;
-    s += keyid;
-    s += "-pkey.pem";
-    system(s.c_str());
-    ::unlink("/tmp/.eossci-pkey.pem");
-    s = "mv /tmp/.eossci-key.pem ";
-    s += prefix;
-    s += keyid;
-    s += "-key.pem";
-    system(s.c_str());
-    ::unlink("/tmp/.eossci-key.pem");
-    ::unlink("/tmp/.eossci.ec");
-    std::cerr << "# private key : " << prefix << keyid << "-key.pem"
-              << std::endl;
-    std::cerr << "# public  key : " << prefix << keyid << "-pkey.pem"
-              << std::endl;
-    return (0);
+    if (*prefix.rbegin() != '/') {
+      prefix += '/';
+    }
+
+    // If the public/private key files exist then we use them to generate
+    // the jwk file, otherwise we generate new keys
+    bool store_keys = false;
+    std::string fn_public = SSTR(prefix << keyid << "-pkey.pem").c_str();
+    std::string fn_private = SSTR(prefix << keyid << "-key.pem").c_str();
+    std::string jwk_file;
+    struct stat buf;
+
+    if (::stat(fn_public.c_str(), &buf) ||
+        ::stat(fn_private.c_str(), &buf)) {
+      // We generate new keys
+      fn_public = "";
+      fn_private = "";
+      store_keys = true;
+    }
+
+    using namespace jwk_generator;
+    JwkGenerator<ES256> jwk(keyid, fn_public, fn_private);
+    std::cout << "JWK:\n" << jwk.to_pretty_string()
+              << std::endl << std::endl;
+
+    if (store_keys)  {
+      fn_public = SSTR(prefix << keyid << "-pkey.pem").c_str();
+      fn_private = SSTR(prefix << keyid << "-key.pem").c_str();
+      jwk_file = SSTR(prefix << keyid << "-sci.jwk").c_str();
+
+      for (auto pair : std::list<std::pair<std::string, std::string>> {
+      {fn_public, jwk.public_to_pem()},
+        {fn_private, jwk.private_to_pem()},
+        {jwk_file, jwk.to_pretty_string()}
+      }) {
+        std::ofstream file(pair.first);
+
+        if (!file.is_open()) {
+          std::cerr << "error: failed to open public key file "
+                    << pair.first << std::endl;
+          global_retc = EINVAL;
+          return 0;
+        }
+
+        file << pair.second << std::endl;
+        file.close();
+      }
+    }
+
+    if (!fn_public.empty() && !fn_private.empty()) {
+      std::cerr << (store_keys ? "Wrote" : "Used") << " public key :  "
+                << fn_public << std::endl
+                << (store_keys ? "Wrote" : "Used") << " private key: "
+                << fn_private << std::endl;
+
+      if (!jwk_file.empty()) {
+        std::cerr << "Wrote JWK file   : " << jwk_file << std::endl;
+      }
+    }
+
+    return 0;
   }
 
 com_scitoken_usage:
@@ -399,7 +414,7 @@ com_scitoken_usage:
       << "    eos scitoken create --issuer eos.cern.ch --keyid eos "
       << "profile wlcg --claim sub=foo --claim scope=storage.read:/eos\n"
       << "    eos scitoken dump eyJhb ...\n"
-      << "    eos scitoken create-keys --keyid eos > /etc/xrootrd/eos.json\n";
+      << "    eos scitoken create-keys --keyid eos > /etc/xrootd/eos.jwk\n";
   std::cerr << oss.str().c_str() << std::endl;
   global_retc = EINVAL;
   return 0;

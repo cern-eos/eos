@@ -857,7 +857,6 @@ Summary: The EOS scitokenapi in C,C++ and PYTHON
 Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 
-BuildRequires: golang >= 1.19
 BuildRequires: python%{python3_pkgversion}-devel
 
 %description -n eos-scitokenapi

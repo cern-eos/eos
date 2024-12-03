@@ -21,16 +21,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-add_custom_command(
-    OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker
-    COMMAND ${CMAKE_COMMAND} -E echo "Creating eos-jwker"
-    COMMAND go install github.com/jphastings/jwker/cmd/jwker@latest
-    COMMAND cp -vf $ENV{HOME}/go/bin/jwker ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker)
-
-add_custom_target(
-    build-eos-jwker ALL
-    DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker)
-
 install(PROGRAMS
   eos-status
   eos_start.sh
@@ -41,7 +31,6 @@ install(PROGRAMS
   eos-inspectorreport
   eos-inspectorstat
   eos-prom-push
-  ${CMAKE_CURRENT_BINARY_DIR}/eos-jwker
   eos-jwk-https
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
