@@ -145,6 +145,7 @@ if (GRPC_FOUND)
 endif()
 
 if (NOT CLIENT)
+  add_subdirectory(namespace/ns_quarkdb/qclient)
   add_subdirectory(test)
   add_subdirectory(mq)
   add_subdirectory(mgm)
