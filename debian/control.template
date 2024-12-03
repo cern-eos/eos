@@ -3,7 +3,7 @@ Maintainer: EOS Support <eos-support@cern.ch>
 Section: misc
 Priority: optional
 Standards-Version: 3.9.3
-Build-Depends: debhelper (>= 10), cmake (>= 3.3.0), git, libfuse-dev, libfuse3-dev, libattr1-dev, libmicrohttpd-dev, xfslibs-dev, libcurl4-openssl-dev, libleveldb-dev, libzmq3-dev, libsparsehash-dev, libprotobuf-dev (>=3.0.0), protobuf-compiler (>=3.0.0), libsystemd-dev, libreadline-dev, ncurses-dev, libssl-dev, zlib1g-dev, libkrb5-dev, libevent-dev, libhiredis-dev, libjsoncpp-dev, libjemalloc-dev, libdw-dev, libbz2-dev, binutils-dev, libiberty-dev, libfmt-dev, librocksdb-dev, libzstd-dev, libsnappy-dev, eos-grpc,
+Build-Depends: debhelper (>= 10), cmake (>= 3.3.0), git, libfuse-dev, libfuse3-dev, libattr1-dev, libmicrohttpd-dev, xfslibs-dev, libcurl4-openssl-dev, libleveldb-dev, libzmq3-dev, libsparsehash-dev, libprotobuf-dev (>=3.0.0), protobuf-compiler (>=3.0.0), libsystemd-dev, libreadline-dev, ncurses-dev, libssl-dev, zlib1g-dev, libkrb5-dev, libevent-dev, libhiredis-dev, libjsoncpp-dev, libjemalloc-dev, libdw-dev, libbz2-dev, binutils-dev, libiberty-dev, libfmt-dev, librocksdb-dev, libzstd-dev, libsnappy-dev, eos-grpc, scitokens-cpp, libscitokens-dev,
  xrootd-plugins (>= _XRD_DEB_VER_),
  xrootd-client (>= _XRD_DEB_VER_),
  xrootd-client-plugins (>= _XRD_DEB_VER_),

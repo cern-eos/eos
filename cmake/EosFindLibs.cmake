@@ -65,7 +65,7 @@ if(NOT PACKAGEONLY)
   find_package(davix)
   find_package(procps)
   find_package(libproc2)
-  find_package(Scitokens)
+  find_package(Scitokens REQUIRED)
   find_package(Protobuf3 REQUIRED)
 
   if(NOT (PROCPS_FOUND OR LIBPROC2_FOUND))

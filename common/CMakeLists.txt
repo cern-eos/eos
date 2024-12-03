@@ -47,13 +47,11 @@ add_library(EosSciToken-Objects OBJECT
 set_target_properties(EosSciToken-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_library(EosSciToken-Static STATIC $<TARGET_OBJECTS:EosSciToken-Objects>
-)
+add_library(EosSciToken-Static STATIC $<TARGET_OBJECTS:EosSciToken-Objects>)
 
 target_link_libraries(EosSciToken-Objects PUBLIC
   XROOTD::UTILS
-  SCITOKENS::SCITOKENS
-)
+  SCITOKENS::SCITOKENS)
 
 #-------------------------------------------------------------------------------
 # EosBlake3-Objects library
@@ -241,7 +239,7 @@ install(TARGETS EosCommon
 #-------------------------------------------------------------------------------
 # EosCommonServer and EosCommonServer-Static libraries
 #-------------------------------------------------------------------------------
-if (Linux)
+if (NOT CLIENT AND Linux)
   add_library(EosCommonServer-Objects OBJECT
     ShellExecutor.cc
     ShellCmd.cc
