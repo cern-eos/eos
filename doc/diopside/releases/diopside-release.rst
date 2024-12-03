@@ -16,6 +16,108 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.0 Diopside``
+====================
+
+2024-12-03
+
+Bug
+----
+
+* [EOS-4297] - mkdir in CLI does not throw EEXIST
+* [EOS-5012] - "recycle config –lifetime" only accepts value in seconds
+* [EOS-5266] - Wrong password file sends eos-ns-inspect into an endless error loop
+* [EOS-5307] - recycle bin purging cannot delete files with '->' in the name
+* [EOS-5748] - TPC job timeout can corrupt the RAIN stripes it should recover
+* [EOS-5847] - FST bootfailures (due to race condition?)
+* [EOS-5909] - high rate of CRIT: "Attempted to add file with name..while a different file exists already there."
+* [EOS-5936] - quarkdb-validate-checkpoint aborts when opening "too many" .sst files
+* [EOS-5940] - MGM lockup for several minutes (but recovered)
+* [EOS-5950] - Undrainable "cannot retrieve file meta data"-files
+* [EOS-6014] - WIP: Inconsistencies between old and new find
+* [EOS-6031] - several eosViewRWMutex "locked" episodes after MGM restart
+* [EOS-6042] - QDB stuck in publishing
+* [EOS-6118] - "eos fs mv" between FSTs should keep existing "group"
+* [EOS-6126] - Recovery OpenAsync cannot open file anymore in eosxd
+* [EOS-6128] - Files written with UTF8 characteres when not allowed
+* [EOS-6144] - Filenames with a special word break the EOS CLI
+* [EOS-6146] - undrainable ".sys.a" files (wrong checksum), possibly after "atomic" upload from CERNBox
+* [EOS-6152] - Find for path that contains symlink fails
+* [EOS-6153] - fs boot command remove the default disk sync flag
+* [EOS-6155] - Touch should NOT require 10737418240 bytes as booking size
+* [EOS-6158] - Drain race condition leaving files in the tracker
+* [EOS-6173] - Corrupted file entries after namespace failover
+* [EOS-6178] - Misleading error message "Invalid argument" for command eos cp
+* [EOS-6179] - Cannot remove gid membership via eos vid rm membership
+* [EOS-6181] - eos -j JSON format changed
+* [EOS-6187] - Some 0-length files are not reported as being on disk
+* [EOS-6189] - [Acl] Recursive setting of ACL stops if at least one _attr_set() failure happens on a directory
+* [EOS-6191] - Silent fail when removing file with weird characters
+* [EOS-6192] - eos ls can not display files containing ampersand characters
+* [EOS-6195] - [FST] Write recovery - Avoid deleting a file that successfully got written during the write recovery transfer
+* [EOS-6198] - MGM - Globbing does not properly work
+* [EOS-6202] - eos file tag not working with fid:/fxid:
+* [EOS-6204] - SIGUSR1 stacktraces (/var/eos/md/stacktrace.TIME) should not be world-writeable
+* [EOS-6205] - FUSEX: timing-related access issue (initial "No such file or directory" (Kerberos, ACRON)
+* [EOS-6211] - fst segfault or hang, async close triggered during XrdFstOfsFile destructor
+* [EOS-6217] - eosxd looping in async open during write recovery
+* [EOS-6220] - Balancing should take into consideration the FileSystem configstatus
+* [EOS-6233] - MGM stuck on EOSHOME-I00 for 8min
+* [EOS-6234] - Persist redirect access configuration
+* [EOS-6235] - [MGM] Potential deadlock on rename during quota nodes fetch
+
+New Feature
+------------
+
+* [EOS-5648] - FSCK: Contemplates files (and containers!?) that are detached from the namespace tree
+* [EOS-6165] - Limit number of staging requests allowed on EOSCTA
+* [EOS-6201] - [MGM] Tape REST API - Implement "default" targeted metadata handling
+* [EOS-6256] - MGM/FST: Adding retry mechanism for failed CTA Frontend DNS resolution
+
+Task
+-----
+
+* [EOS-6132] - HTTP - Return 424 "Failed dependency" for files stored on tape with no disk copy
+* [EOS-6170] - Push EL9 docker images to registry
+* [EOS-6180] - [eoscp] Preserve file' creation timestamp with --preserve option
+* [EOS-6200] - MGM - HTTP Take into account OpenWriteCreate limit
+* [EOS-6228] - [FST] HTTP - Add pmark.appname to adapt with the new scitags specifications
+
+Improvement
+------------
+
+* [EOS-3064] - QuarkDB: use common logging format, incl human-readable timestamps
+* [EOS-3319] - Drop usage of rand() throughout eos
+* [EOS-3538] - Add detection of files in "deletion limbo" to eos-ns-inspect
+* [EOS-3601] - Remove stdOut, stdErr and retc variables from IProcCommand interface
+* [EOS-4584] - RFE: "eos acl --list" to return both 'user' and 'sys' ACLs by default, allow specifying both
+* [EOS-4640] - eos-ns-inspect force exit when crosstalk errors happen
+* [EOS-5078] - eos member command argument check
+* [EOS-5310] - Shard conversion files in the top level `/eos/.../proc/conversion/` directory
+* [EOS-5311] - Reduce ConverterDriver dependency on QDB and improve performance
+* [EOS-5639] - Add file metadata to file deletion requests in eosreport
+* [EOS-5726] - "vid gateway add/remove" and "vid ls" output format(s)
+* [EOS-5828] - Propagte number of files/dirs (treeCount)
+* [EOS-5846] - "rename" (between directories) should honour "!d policy" (others?)
+* [EOS-5994] - faster shutdown of "recycler server"
+* [EOS-5997] - faster shutdown after "finalizing namespace views": gOFS->namespaceGroup.reset()
+* [EOS-6000] - Add 'paranoid' repair option to FSCK
+* [EOS-6093] - Add ns command to display the list of tracked files
+* [EOS-6123] - RFE: do not "recycle", "drain", "balance" atomic files - just delete, avoid creating them
+* [EOS-6127] - FSCK repair besteffort for MGM checksum 0 and only one replica
+* [EOS-6130] - RFE: metric for NS caches "hit rate"
+* [EOS-6137] - FST slow boot: heavy stat() from eos::fst::FmdAttrHandler::ResetDiskInformation ?
+* [EOS-6188] - NS Locking opt - Refactor ContainerAccounting's queue for update to avoid deadlocks
+* [EOS-6196] - RFE: allow to turn off "globbing"
+* [EOS-6206] - eos archive should handle retries for various CTA failures
+* [EOS-6215] - RFE: do no require "sudoer" role for internal components+already-privileged accounts
+* [EOS-6231] - Remove old Recycle implementation
+* [EOS-6236] - Add eos space config rm command
+* [EOS-6249] - high-rate logs: FuseServer::Clients::RefreshEntry
+* [EOS-6250] - high-rate logs: ::ProcessReq msg="normalize hdr"
+* [EOS-6258] - high-rate logs: HttpHandler::HandleRequest() header logging
+* [EOS-5985] - Improve eos rmdir error message
+
 
 ``v5.2.28 Diopside``
 ====================
