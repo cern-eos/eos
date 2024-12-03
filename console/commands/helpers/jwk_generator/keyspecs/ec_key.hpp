@@ -275,7 +275,7 @@ public:
     }
 
     // release it now as ownership transfers to the key pair
-    EC_KEY* e cPtr = ec.release();
+    EC_KEY* ecPtr = ec.release();
 
     if (!EVP_PKEY_assign_EC_KEY(keyPair, ecPtr)) {
       throw openssl_error("Unable to generate ec key: ");
