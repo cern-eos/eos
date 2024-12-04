@@ -41,14 +41,18 @@ for RELEASE in "jammy" "noble"; do
   if [ -d ./ubuntu-${RELEASE} ]; then
     EXPORT_REPO="${STCI_ROOT_PATH}/eos/${EOS_CODENAME}"
     mkdir -p ${EXPORT_REPO} || true
-    echo "info: Checkinf if packages don't exist already"
+    echo "info: Check if packages exist already"
     found=false
 
     for DEB_PKG in ./ubuntu-${RELEASE}/*.deb; do
       if [ -f ${DEB_PKG} ]; then
-        echo "notice: file already exists ${DEB_PKG}"
-        found=true
-        break
+        FN=$(basename ${DEB_PKG})
+        # Check that find output is not empty  
+        if [[ -n "$(find ${EXPORT_REPO} -name ${FN} -type f)" ]]; then  
+          echo "notice: file already exists ${DEB_PKG}"
+          found=true
+          break
+        fi
       fi
     done
 
