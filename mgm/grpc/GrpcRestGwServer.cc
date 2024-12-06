@@ -32,6 +32,7 @@ using eos::console::DebugProto;
 using eos::console::EvictProto;
 using eos::console::FileProto;
 using eos::console::FileinfoProto;
+using eos::console::FindProto;
 using eos::console::FsProto;
 using eos::console::FsckProto;
 using eos::console::GeoschedProto;
@@ -40,6 +41,7 @@ using eos::console::HealthProto;
 using eos::console::MapProto;
 using eos::console::MemberProto;
 using eos::console::IoProto;
+using eos::console::LsProto;
 using eos::console::MkdirProto;
 using eos::console::MoveProto;
 using eos::console::NodeProto;
@@ -196,6 +198,15 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.FileinfoCall(vid, request, reply);
   }
 
+  Status FindRequest(ServerContext* context, const FindProto* request,
+                     ServerWriter<ReplyProto>* writer)
+  {
+    eos::common::VirtualIdentity vid;
+    GrpcRestGwServer::Vid(context, vid);
+    GrpcRestGwInterface restGwInterface;
+    return restGwInterface.FindCall(vid, request, writer);
+  }
+
   Status FsRequest(ServerContext* context, const FsProto* request,
                    ReplyProto* reply)
   {
@@ -248,6 +259,15 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.IoCall(vid, request, reply);
+  }
+
+    Status LsRequest(ServerContext* context, const LsProto* request,
+                     ServerWriter<ReplyProto>* writer)
+  {
+    eos::common::VirtualIdentity vid;
+    GrpcRestGwServer::Vid(context, vid);
+    GrpcRestGwInterface restGwInterface;
+    return restGwInterface.LsCall(vid, request, writer);
   }
 
   Status MapRequest(ServerContext* context, const MapProto* request,
