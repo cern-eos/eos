@@ -1490,7 +1490,7 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::FindCall(VirtualIdentity& vid,
     const FindProto* findRequest, ServerWriter<ReplyProto>* writer)
 {
-  // wrap the AccessProto object into a RequestProto object
+  // wrap the FindProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_find()->CopyFrom(*findRequest);
   eos::mgm::NewfindCmd findcmd(std::move(req), vid);
@@ -1782,7 +1782,7 @@ grpc::Status GrpcRestGwInterface::IoCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::LsCall(VirtualIdentity& vid,
     const LsProto* lsRequest, ServerWriter<ReplyProto>* writer)
 {
-  // wrap the FsckProto object into a RequestProto object
+  // wrap the LsProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_ls()->CopyFrom(*lsRequest);
 

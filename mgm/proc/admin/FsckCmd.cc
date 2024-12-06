@@ -162,6 +162,10 @@ FsckCmd::ProcessRequest() noexcept
   return reply;
 }
 
+//------------------------------------------------------------------------------
+// Method implementing the specific behaviour of the command executed and
+// streaming the response via the grpc::ServerWriter
+//------------------------------------------------------------------------------
 void
 FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 {
@@ -184,7 +188,6 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     gOFS->mFsckEngine->PrintOut(output, monitor_fmt);
     StreamReply.set_std_out(std::move(output));
     writer->Write(StreamReply);
-
   } else if (subcmd == eos::console::FsckProto::kConfig) {
     const eos::console::FsckProto::ConfigProto& config = fsck.config();
     std::string msg;
@@ -194,15 +197,15 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
 
       if (msg.empty()) {
         StreamReply.set_std_err(SSTR("error: failed to set " << config.key()
-                               << "=" << config.value()).c_str());
+                                     << "=" << config.value()).c_str());
       } else {
         StreamReply.set_std_err(msg);
       }
     } else {
       StreamReply.set_std_out("info: configuration applied successfully");
     }
-    writer->Write(StreamReply);
 
+    writer->Write(StreamReply);
   } else if (subcmd == eos::console::FsckProto::kReport) {
     const eos::console::FsckProto::ReportProto& report = fsck.report();
     std::set<std::string> tags;
@@ -213,6 +216,7 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     }
 
     std::string out;
+
     if (gOFS->mFsckEngine->Report(out, tags, report.display_per_fs(),
                                   report.display_fxid(), report.display_lfn(),
                                   report.display_json())) {
@@ -223,7 +227,6 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       StreamReply.set_std_err(out);
       writer->Write(StreamReply);
     }
-
   } else if (subcmd == eos::console::FsckProto::kRepair) {
     std::string out;
     const eos::console::FsckProto::RepairProto& repair = fsck.repair();
@@ -237,8 +240,8 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
       StreamReply.set_std_err(out);
       StreamReply.set_retc(EINVAL);
     }
-    writer->Write(StreamReply);
 
+    writer->Write(StreamReply);
   } else if (subcmd == eos::console::FsckProto::kCleanOrphans) {
     const eos::console::FsckProto::CleanOrphansProto& clean = fsck.clean_orphans();
     eos::common::FileSystem::fsid_t fsid = clean.fsid();
@@ -298,8 +301,8 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     } else {
       StreamReply.set_std_out("info: orphans successfully cleaned");
     }
-    writer->Write(StreamReply);
 
+    writer->Write(StreamReply);
   } else {
     StreamReply.set_retc(EINVAL);
     StreamReply.set_std_err("error: not supported");

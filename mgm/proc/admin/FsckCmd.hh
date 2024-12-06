@@ -56,10 +56,18 @@ public:
 
   //----------------------------------------------------------------------------
   //! Method implementing the specific behaviour of the command executed
+  //!
+  //! @return ReplyProto object which contains the full response
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
 
 #ifdef EOS_GRPC_GATEWAY
+  //----------------------------------------------------------------------------
+  //! Method implementing the specific behaviour of the command executed and
+  //! streaming the response via the grpc::ServerWriter
+  //!
+  //! @writer object used for streaming back the response
+  //----------------------------------------------------------------------------
   void ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer);
 #endif
 };
