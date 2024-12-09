@@ -17,6 +17,17 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.29 Diopside``
+====================
+
+2024-12-09
+
+Bug
+----
+
+* AUTH: Fix bug in authentication daemons so that they can communicate with the MGM.
+
+
 ``v5.2.28 Diopside``
 ====================
 
