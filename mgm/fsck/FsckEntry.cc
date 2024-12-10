@@ -64,12 +64,11 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
   };
   mRepairFactory = [](eos::common::FileId::fileid_t fid,
                       eos::common::FileSystem::fsid_t fsid_src,
-                      eos::common::FileSystem::fsid_t fsid_trg ,
+                      eos::common::FileSystem::fsid_t fsid_trg,
                       std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
                       std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
-                      bool drop_src, const std::string& app_tag,
-                      bool repair_excluded)
-  {
+                      bool drop_src, const std::string & app_tag,
+  bool repair_excluded) {
     return std::make_shared<FsckRepairJob>(
              fid, fsid_src, fsid_trg, exclude_srcs, exclude_dsts, drop_src, app_tag,
              false, eos::common::VirtualIdentity::Root(), repair_excluded);
@@ -222,10 +221,12 @@ FsckEntry::RepairBestEffort()
   if (!mBestEffort) {
     return false;
   }
+
   // Best-effort only works for replicas
   if (LayoutId::IsRain(mMgmFmd.layout_id())) {
     return false;
   }
+
   // Find the best replica candidate that should be considered the reference
   eos::common::FileSystem::fsid_t ref_fsid = 0ul;
   uint64_t ref_sz = 0ull;
@@ -247,6 +248,7 @@ FsckEntry::RepairBestEffort()
                       "replica\" fxid=%08llx", mFid);
       return false;
     }
+
     // If there is replica that matches the MGM info then use as reference
     if ((finfo->mDiskSize == mMgmFmd.size()) &&
         (finfo->mFstFmd.mProtoFmd.diskchecksum() == mgm_xs_val)) {
@@ -255,6 +257,7 @@ FsckEntry::RepairBestEffort()
       ref_xs = finfo->mFstFmd.mProtoFmd.diskchecksum();
       break;
     }
+
     // First available replica or the one with more data is the reference
     if ((ref_fsid == 0) || (ref_sz < finfo->mDiskSize)) {
       ref_fsid = it->first;
@@ -271,7 +274,7 @@ FsckEntry::RepairBestEffort()
 
   size_t out_sz;
   auto xs_binary = StringConversion::Hex2BinDataChar(ref_xs, out_sz,
-                                                     SHA256_DIGEST_LENGTH);
+                   SHA256_DIGEST_LENGTH);
 
   if (xs_binary == nullptr) {
     eos_err("msg=\"best-effort repair failed due to disk checksum conversion "
@@ -287,7 +290,7 @@ FsckEntry::RepairBestEffort()
     XrdOucErrInfo lerr;
     auto root = eos::common::VirtualIdentity::Root();
     std::string options = "&mgm.verify.compute.checksum=1"
-      "&mgm.verify.commit.checksum=1&mgm.verify.commit.size=1";
+                          "&mgm.verify.commit.checksum=1&mgm.verify.commit.size=1";
 
     if (!gOFS->_verifystripe(mFid, lerr, root, ref_fsid, options)) {
       eos_err("msg=\"failed verify stripe command\" fxid=%08llx fsid=%lu",
@@ -351,7 +354,7 @@ FsckEntry::RepairBestEffort()
   size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1;
   bool all_repaired = true;
 
-  for (const auto bad_fsid: bad_fsids) {
+  for (const auto bad_fsid : bad_fsids) {
     if (num_good_rep >= num_nominal_rep) {
       break;
     }
@@ -755,6 +758,25 @@ FsckEntry::RepairRainInconsistencies()
   if (mReportedErr == FsckErr::MissRepl) {
     src_fsid = *mFsidErr.begin();
     drop_src_fsid = true;
+    bool found = false;
+
+    for (const auto loc : mMgmFmd.locations()) {
+      if (src_fsid == loc) {
+        found = true;
+      }
+    }
+
+    // If reported missing stripe is not among the registred stripes and we
+    // already have the nominal number of stripes then we consider this fixed
+    if (!found) {
+      size_t num_nominal_rep = LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1;
+
+      if (num_nominal_rep == mMgmFmd.locations().size()) {
+        eos_info("msg=\"missing stripe repair successful\" fxid=%08llx "
+                 "src_fsid=%lu", mFid, src_fsid);
+        return true;
+      }
+    }
   } else if (mReportedErr == FsckErr::DiffRepl) {
     // For rep_diff_n errors the source file systems is not to be dropped
     // or skipped during the scheduling process as it's a valid stripe
