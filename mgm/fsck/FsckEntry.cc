@@ -611,6 +611,8 @@ FsckEntry::RepairFstXsSzDiff()
 
           if (!hex_xs_val.empty()) {
             bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
+          } else {
+            good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
           }
         }
       }
