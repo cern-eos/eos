@@ -486,7 +486,7 @@ FsckEntry::RepairMgmXsSzDiff()
       for (auto bad_fsid : bad_fsids) {
         // Trigger an fsck repair job (much like a drain job) doing a TPC
         auto repair_job = mRepairFactory(mFid, bad_fsid, 0, bad_fsids,
-                                         bad_fsids, true, "eos/fsck", false);
+                                         bad_fsids, true, "fsck", false);
         repair_job->DoIt();
 
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
@@ -1023,7 +1023,7 @@ FsckEntry::RepairReplicaInconsistencies()
         // similar to adjust replica
         eos::common::FileSystem::fsid_t good_fsid = mMgmFmd.locations(0);
         auto repair_job = mRepairFactory(mFid, good_fsid, 0, {}, to_drop,
-                                         false, "eos/fsck", false);
+                                         false, "fsck", false);
         repair_job->DoIt();
 
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
