@@ -98,19 +98,19 @@ set_target_properties(EosAuthProto-Objects
 #-------------------------------------------------------------------------------
 # EosAuthOfs library
 #-------------------------------------------------------------------------------
-add_library(EosAuthOfs MODULE
+add_library(EosAuthOfs-${XRDPLUGIN_SOVERSION} MODULE
   EosAuthOfs.cc  EosAuthOfs.hh
   EosAuthOfsFile.cc EosAuthOfsFile.hh
   EosAuthOfsDirectory.cc EosAuthOfsDirectory.hh)
 
 target_link_libraries(
-  EosAuthOfs PRIVATE
+  EosAuthOfs-${XRDPLUGIN_SOVERSION} PRIVATE
   EosAuthProto-Objects
   EosCommon
   ZMQ::ZMQ
   XROOTD::PRIVATE)  
 
-install(TARGETS EosAuthOfs
+install(TARGETS EosAuthOfs-${XRDPLUGIN_SOVERSION}
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
