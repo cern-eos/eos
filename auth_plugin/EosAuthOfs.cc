@@ -47,6 +47,7 @@ eos::auth::EosAuthOfs* eos::auth::gOFS;
 
 extern XrdSysError OfsEroute;
 extern XrdOfs* XrdOfsFS;
+XrdVERSIONINFO(XrdSfsGetFileSystem, AuthOfs);
 XrdVERSIONINFO(XrdSfsGetFileSystem2, AuthOfs);
 
 //------------------------------------------------------------------------------
@@ -54,13 +55,30 @@ XrdVERSIONINFO(XrdSfsGetFileSystem2, AuthOfs);
 //------------------------------------------------------------------------------
 extern "C"
 {
+  //------------------------------------------------------------------------------
+  //! Filesystem Plugin factory function
+  //!
+  //! @description FileSystem2 version, to allow passing configuration info back
+  //!              to XRootD. Configure with: xrootd.fslib -2 libXrdEosMgm.so
+  //!
+  //! @param native_fs (not used)
+  //! @param lp the logger object
+  //! @param configfn the configuration file name
+  //! @param envP pass configuration information back to XrdXrootd
+  //!
+  //! @returns configures and returns our MgmOfs object
+  //------------------------------------------------------------------------------
   XrdSfsFileSystem* XrdSfsGetFileSystem2(XrdSfsFileSystem* native_fs,
                                          XrdSysLogger* lp,
                                          const char* configfn,
                                          XrdOucEnv* envP)
   {
+    if (eos::auth::gOFS) {
+      // File system object already initialized
+      return eos::auth::gOFS;
+    }
+
     // Do the herald thing
-    //
     OfsEroute.SetPrefix("AuthOfs_");
     OfsEroute.logger(lp);
     XrdOucString version = "AuthOfs (Object Storage File System) ";
@@ -76,6 +94,28 @@ extern "C"
 
     XrdOfsFS = eos::auth::gOFS;
     return eos::auth::gOFS;
+  }
+
+  //------------------------------------------------------------------------------
+  //! Filesystem Plugin factory function
+  //!
+  //! @param native_fs (not used)
+  //! @param lp the logger object
+  //! @param configfn the configuration file name
+  //!
+  //! @returns configures and returns our MgmOfs object
+  //------------------------------------------------------------------------------
+  XrdSfsFileSystem*
+  XrdSfsGetFileSystem(XrdSfsFileSystem* native_fs,
+                      XrdSysLogger* lp,
+                      const char* configfn)
+  {
+    if (eos::auth::gOFS) {
+      // File system object already initialized
+      return eos::auth::gOFS;
+    }
+
+    return XrdSfsGetFileSystem2(native_fs, lp, configfn, nullptr);
   }
 }
 
