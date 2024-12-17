@@ -17,6 +17,18 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.2.30 Diopside``
+====================
+
+2024-12-17
+
+Bug
+----
+
+* AUTH: Expose also the XrdSfsFileSystem XRootD API that is needed for the EOS HTTP plugin
+* MGM: Make sure the FsBalancer runs only on the current MGM master
+
+
 ``v5.2.29 Diopside``
 ====================
 
