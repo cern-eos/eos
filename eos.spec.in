@@ -403,7 +403,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libEosNsCommon.so.%{version}
 %{_libdir}/libEosNsCommon.so.%{major_version}
 %{_libdir}/libEosNsCommon.so
-%{_libdir}/libEosAuthOfs.so
+%{_libdir}/libEosAuthOfs-*.so
 %{_libdir}/libEosFstOss.so
 %{_libdir}/libEosFstHttp.so
 %{_libdir}/libXrdEosFst-*.so
