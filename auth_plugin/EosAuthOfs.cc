@@ -43,7 +43,7 @@
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 
 // The global OFS handle
-eos::auth::EosAuthOfs* eos::auth::gOFS;
+eos::auth::EosAuthOfs* eos::auth::gOFS = nullptr;
 
 extern XrdSysError OfsEroute;
 extern XrdOfs* XrdOfsFS;
@@ -68,10 +68,11 @@ extern "C"
   //!
   //! @returns configures and returns our MgmOfs object
   //------------------------------------------------------------------------------
-  XrdSfsFileSystem* XrdSfsGetFileSystem2(XrdSfsFileSystem* native_fs,
-                                         XrdSysLogger* lp,
-                                         const char* configfn,
-                                         XrdOucEnv* envP)
+  XrdSfsFileSystem*
+  XrdSfsGetFileSystem2(XrdSfsFileSystem* native_fs,
+                       XrdSysLogger* lp,
+                       const char* configfn,
+                       XrdOucEnv* envP)
   {
     if (eos::auth::gOFS) {
       // File system object already initialized
@@ -112,12 +113,15 @@ extern "C"
   {
     if (eos::auth::gOFS) {
       // File system object already initialized
+      OfsEroute.SetPrefix("AuthOfs_");
+      OfsEroute.logger(lp);
+      OfsEroute.Say("info=\"return already loaded AUTH OFS pointer\"");
       return eos::auth::gOFS;
     }
 
     return XrdSfsGetFileSystem2(native_fs, lp, configfn, nullptr);
   }
-}
+} // extern "C"
 
 EOSAUTHNAMESPACE_BEGIN
 
