@@ -514,7 +514,7 @@ EosMgmHttpHandler::GetOfsLibPath(const std::string& cfg_line)
   auto tokens = StringTokenizer::split<std::vector<std::string>>(cfg_line, ' ');
 
   if (tokens.size() < 2) {
-    eos_err("msg=\"failed parsing xrootd.ofslib directive\" line=\"%s\"",
+    eos_err("msg=\"failed parsing xrootd.fslib directive\" line=\"%s\"",
             cfg_line.c_str());
     return lib_path;
   }
@@ -525,7 +525,7 @@ EosMgmHttpHandler::GetOfsLibPath(const std::string& cfg_line)
   // Account for different specifications of the OFS plugin
   if (lib_path == "-2")  {
     if (tokens.size() < 3) {
-      eos_err("msg=\"failed parsing xrootd.ofslib directive\" line=\"%s\"",
+      eos_err("msg=\"failed parsing xrootd.fslib directive\" line=\"%s\"",
               cfg_line.c_str());
       lib_path.clear();
       return lib_path;
@@ -613,6 +613,13 @@ EosMgmHttpHandler::GetOfsPlugin(XrdSysError* eDest, const std::string& lib_path,
   XrdSysPlugin ofs_plugin(eDest, resolve_path, "mgmofs", &compiledVer, 1);
   void* ofs_addr = ofs_plugin.getPlugin(ofs_symbol.c_str(), 0, 0);
   ofs_plugin.Persist();
+
+  if (ofs_addr == nullptr) {
+    eDest->Emsg("Config", "Failed to get the OFS plugin address from ",
+                lib_path.c_str());
+    return mgm_ofs_handler;
+  }
+
   ep = (XrdSfsFileSystem * (*)(XrdSfsFileSystem*, XrdSysLogger*, const char*))
        (ofs_addr);
   XrdSfsFileSystem* sfs_fs {nullptr};
