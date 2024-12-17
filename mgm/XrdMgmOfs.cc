@@ -232,8 +232,6 @@ extern "C" {
     // Disable XRootd log rotation
     lp->setRotate(0);
     gOFS = &myFS;
-    // Did we pass the "-2" option to the plugin in the config file?
-    gOFS->IsFileSystem2 = false;
     // By default enable stalling and redirection
     gOFS->IsStall = true;
     gOFS->IsRedirect = true;
@@ -275,7 +273,6 @@ extern "C" {
   {
     // Initialise gOFS
     XrdSfsGetFileSystem(native_fs, lp, configfn);
-    gOFS->IsFileSystem2 = true;
 
     // Tell XRootD that MgmOfs implements the Prepare plugin
     if (envP != nullptr) {

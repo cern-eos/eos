@@ -1790,7 +1790,6 @@ public:
   std::atomic<uint64_t> mBootFileId;
   ///< Next free container id after namespace boot
   std::atomic<uint64_t> mBootContainerId;
-  bool IsFileSystem2; // true if plugin was loaded with "xrootd.fslib -2 libXrdEosMgm.so"
   bool IsRedirect; ///< true if the Redirect function should be called to redirect
   bool IsStall; ///< true if the Stall function should be called to send a wait
   bool mAuthorize; ///< Determine if the authorization should be applied or not
