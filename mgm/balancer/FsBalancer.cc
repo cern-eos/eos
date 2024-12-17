@@ -197,6 +197,12 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
       continue;
     }
 
+    if (gOFS && !gOFS->mMaster->IsMaster()) {
+      assistant.wait_for(std::chrono::seconds(10));
+      eos_static_debug("%s", "msg=\"fs balancer disabled for slave\"");
+      continue;
+    }
+
     if (mBalanceStats.NeedsUpdate(mUpdInterval)) {
       eos_static_info("msg=\"update balancer stats\" threshold=%0.2f",
                       mThreshold);
@@ -236,7 +242,8 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
           assistant.wait_for(std::chrono::seconds(1));
         }
 
-        if (assistant.terminationRequested()) {
+        if (assistant.terminationRequested() ||
+            (gOFS && !gOFS->mMaster->IsMaster())) {
           break;
         }
 
