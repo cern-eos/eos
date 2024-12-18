@@ -104,12 +104,11 @@ bool
 FsBalancerStats::NeedsUpdate(std::chrono::seconds upd_interval)
 {
   using namespace std::chrono;
-  static time_point<system_clock> last_ts = system_clock::now();
 
   // Trigger update if interval elapsed
-  if (duration_cast<seconds>(system_clock::now() - last_ts).count()
+  if (duration_cast<seconds>(system_clock::now() - mLastTs).count()
       >= upd_interval.count()) {
-    last_ts = system_clock::now();
+    mLastTs = system_clock::now();
     return true;
   }
 

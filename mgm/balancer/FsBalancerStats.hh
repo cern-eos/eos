@@ -46,7 +46,8 @@ public:
   //----------------------------------------------------------------------------
   FsBalancerStats(const std::string& space_name):
     eos::common::LogId(),
-    mSpaceName(space_name)
+    mSpaceName(space_name),
+    mLastTs(std::chrono::system_clock::now())
   {}
 
   //----------------------------------------------------------------------------
@@ -128,6 +129,8 @@ private:
   std::map<std::string, FsPrioritySets> mGrpToPrioritySets;
   //! Map node FQDN to number of ongoing transfers
   std::map<std::string, unsigned int> mNodeNumTx;
+  //! Last timestamp when an update was done
+  std::chrono::time_point<std::chrono::system_clock> mLastTs;
   mutable std::mutex mMutex;
 };
 
