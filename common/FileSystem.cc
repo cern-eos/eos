@@ -832,6 +832,7 @@ bool FileSystem::applyCoreParams(const FileSystemCoreParams& params)
   batch.setStringDurable("schedgroup", params.getGroupLocator().getGroup());
   batch.setStringDurable("configstatus",
                          GetConfigStatusAsString(params.getConfigStatus()));
+  batch.setStringDurable("sharedfs", params.getSharedFs());
   batch.setId(params.getId());
   return applyBatch(batch);
 }
