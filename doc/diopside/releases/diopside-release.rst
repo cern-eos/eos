@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.2.31 Diopside``
+====================
+
+2024-12-18
+
+Bug
+---
+
+* MGM: Track the last update timestamp of the balancer statistics per space to
+  avoid interference when we have several spaces balancing at the same time
+  which can lead to starvation of some spaces.
+
 
 ``v5.2.30 Diopside``
 ====================
