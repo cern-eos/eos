@@ -44,6 +44,7 @@ using namespace eos::common;
 ReplicationTracker::ReplicationTracker(const char* path) : mPath(path)
 {
   mVid = eos::common::VirtualIdentity::Root();
+  mConversionEnabled.store(0, std::memory_order_seq_cst);
   mThread.reset(&ReplicationTracker::backgroundThread, this);
 }
 
