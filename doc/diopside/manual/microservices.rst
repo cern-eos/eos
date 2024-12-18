@@ -1658,8 +1658,8 @@ When the cache reaches the high watermark it cleans the oldest files untile low-
    # define 90 as low and 95 as high watermark
    eos attr set sys.lru.watermark=90:95  /eos/instance/cache/
 
-   # track atime with a time resolution of 5 minutes
-   eos attr set sys.force.atime=300 /eos/dev/instance/cache/
+   # track atime with a time resolution of 5 minutes (space configuration parameter)
+   eos space config default space.atime=300
 
 .. index::  
    pair: LRU; Clean Empty Directories
@@ -1755,8 +1755,8 @@ file creation time. A *placement policy* can also be specified.
 
 .. code-block:: bash
 
-     # track atime with a time resolution of one week
-     eos attr set sys.force.atime=1w /eos/dev/instance/convert/
+     # track atime with a time resolution of one week ( space configuration parameter )
+     eos space config default space.atime=604800
 
      # convert all files older than a month to the layout defined next
      eos attr set sys.lru.convert.match="*:6mo" /eos/dev/instance/convert/
