@@ -1293,9 +1293,10 @@ Automatic policy conversion policies allow to trigger a conversion job
 under two conditions:
 
 *   a new file is created with a complete layout (all required
-    replicas/stripes are created) (use case IO optimization)
+    replicas/stripes are created) (use case TIERING/IO optimization)
 *   an existing file is injected with a complete layout (all required
     replicas/stripes are created) (use case TAPE recall)
+*   an existing file is accessed  (use case TIERING)
 
 Automatic conversion policy hooks are triggered by the
 ReplicationTracker. You find conversions triggerd in the
@@ -1352,6 +1353,10 @@ specific space you configure:
 
 .. warning:: You cannot change the file checksum during a conversion job! Make sure source and target layout have the same checksum type!
 
+You can define a policy when a file has been accessed (optional with certain size constraints) in a given space:
+
+   # whenever a file is accessed in the space **ec** a conversion is triggered into the space **ssd** using a **replica:2** layout.
+   eos space config ssd space.policy.conversion.injection=replica:2@ssd
 
 You can define a minimum or maximum size criteria to apply automatic
 policy conversion depending on the file size.
@@ -1370,8 +1375,15 @@ policy conversion depending on the file size.
    # convert files on injection only if they are smaller than 1M
    eos space config ssd space.policy.conversion.injection.size=<1000000
 
+   # convert files on access only if they are bigger than 1G
+   eos space config ec space.policy.conversion.access.size=>1000000000
+
+   # convert files on access only if they are smaller than 1M
+   eos space config ec space.policy.conversion.access.size=<1000000
+
 .. index::
    pair: Shared Filesystem; Redirection
+
 
 Shared Filesystem Redirection
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
