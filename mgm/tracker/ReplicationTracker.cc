@@ -21,18 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "mgm/tracker/ReplicationTracker.hh"
 #include "common/Constants.hh"
-#include "common/Path.hh"
 #include "common/FileId.hh"
 #include "common/IntervalStopwatch.hh"
 #include "common/LayoutId.hh"
+#include "common/Path.hh"
 #include "mgm/FsView.hh"
-#include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/proc/ProcCommand.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/Resolver.hh"
+#include "mgm/proc/ProcCommand.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/Resolver.hh"
+#include "namespace/interface/IView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -51,10 +51,7 @@ ReplicationTracker::ReplicationTracker(const char* path) : mPath(path)
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-ReplicationTracker::~ReplicationTracker()
-{
-  mThread.join();
-}
+ReplicationTracker::~ReplicationTracker() { mThread.join(); }
 
 //------------------------------------------------------------------------------
 // Create a new file
@@ -90,30 +87,112 @@ ReplicationTracker::Create(std::shared_ptr<eos::IFileMD> fmd)
   return;
 }
 
-std::string
-ReplicationTracker::ConversionPolicy(bool injection, int fsid)
+//------------------------------------------------------------------------------
+// Access an existing file
+//------------------------------------------------------------------------------
+void
+ReplicationTracker::Access(std::shared_ptr<eos::IFileMD> fmd)
 {
-  std::string space = FsView::gFsView.mIdView.lookupSpaceByID(fsid);
-  eos_static_debug("%s %d", space.c_str(), fsid);
+  if (conversion_enabled()) {
+    // determine the space from the first filesystem ID stored
+    int fsid = fmd->getLocations()[0];
 
-  if (space.length()) {
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    auto it = FsView::gFsView.mSpaceView.find(space);
+    if (fsid == TAPE_FS_ID) {
+      if (fmd->getNumLocation() > 1) {
+        fsid = fmd->getLocations()[1];
+      }
+    }
 
-    if (it != FsView::gFsView.mSpaceView.end()) {
-      if (injection) {
-        return it->second->GetConfigMember("policy.conversion.injection");
-      } else {
-        return it->second->GetConfigMember("policy.conversion.creation");
+    {
+      std::string policy = ConversionPolicy(OperationMode::eAccess, fsid);
+
+      if (policy.length()) {
+        size_t cutoff_size = 0;
+        bool do_conversion = true;
+        std::string size_policy =
+            ConversionSizePolicy(OperationMode::eAccess, fsid);
+
+        if (size_policy.length()) {
+          switch ((size_policy.at(0))) {
+          case '<':
+            // max size policy
+            cutoff_size = std::stol(size_policy.substr(1));
+
+            if (fmd->getSize() >= cutoff_size) {
+              if (EOS_LOGS_DEBUG) {
+                eos_static_debug(
+                    "suppressing conversion because of minimum size "
+                    "policy '%s' fxid:%08llx",
+                    policy.c_str(), fmd->getId());
+              }
+
+              do_conversion = false;
+            }
+
+            break;
+
+          case '>':
+            // min size policy
+            cutoff_size = std::stol(size_policy.substr(1));
+
+            if (fmd->getSize() <= cutoff_size) {
+              if (EOS_LOGS_DEBUG) {
+                eos_static_debug(
+                    "suppressing conversion because of maximum size "
+                    "policy '%s' fxid:%08llx",
+                    policy.c_str(), fmd->getId());
+              }
+
+              do_conversion = false;
+            }
+
+          default:
+            eos_static_warning(
+                "illegal space conversion policy size: should be "
+                "empty '', <size '<1000', >size '>1000");
+            break;
+          }
+        }
+
+        if (do_conversion) {
+          // create a conversion job for this file according to the policy
+          // definition
+          eos_static_info("triggering conversion policy '%s' for fxid:%08llx",
+                          policy.c_str(), fmd->getId());
+          std::string layout;
+          std::string space;
+
+          if (eos::common::StringConversion::SplitKeyValue(policy, layout,
+                                                           space, "@")) {
+            std::string info =
+                "mgm.cmd=file&mgm.subcmd=convert&mgm.convert.layout=";
+            info += layout;
+            info += "&mgm.convert.space=";
+            info += space;
+            info += "&mgm.file.id=";
+            info += std::to_string(fmd->getId());
+            XrdOucErrInfo error;
+            eos::common::VirtualIdentity rootvid =
+                eos::common::VirtualIdentity::Root();
+            ProcCommand cmd;
+            cmd.open("/proc/user", info.c_str(), rootvid, &error);
+            cmd.close();
+            int rc = cmd.GetRetc();
+
+            if (rc) {
+              eos_static_err(
+                  "converions-hook failed with rc=%d for fxid:%08llx", rc,
+                  fmd->getId());
+            }
+          }
+        }
       }
     }
   }
-
-  return "";
 }
 
 std::string
-ReplicationTracker::ConversionSizePolicy(bool injection, int fsid)
+ReplicationTracker::ConversionPolicy(OperationMode mode, int fsid)
 {
   std::string space = FsView::gFsView.mIdView.lookupSpaceByID(fsid);
   eos_static_debug("%s %d", space.c_str(), fsid);
@@ -123,15 +202,43 @@ ReplicationTracker::ConversionSizePolicy(bool injection, int fsid)
     auto it = FsView::gFsView.mSpaceView.find(space);
 
     if (it != FsView::gFsView.mSpaceView.end()) {
-      if (injection) {
-        return it->second->GetConfigMember("policy.conversion.injection.size");
-      } else {
-        return it->second->GetConfigMember("policy.conversion.creation.size");
+      switch (mode) {
+      case OperationMode::eInjection:
+        return it->second->GetConfigMember("policy.conversion.injection");
+      case OperationMode::eCreation:
+        return it->second->GetConfigMember("policy.conversion.creation");
+      case OperationMode::eAccess:
+        return it->second->GetConfigMember("policy.conversion.access");
       }
     }
-  }
 
-  return "";
+    return "";
+  }
+}
+
+std::string
+ReplicationTracker::ConversionSizePolicy(OperationMode mode, int fsid)
+{
+  std::string space = FsView::gFsView.mIdView.lookupSpaceByID(fsid);
+  eos_static_debug("%s %d", space.c_str(), fsid);
+
+  if (space.length()) {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    auto it = FsView::gFsView.mSpaceView.find(space);
+
+    if (it != FsView::gFsView.mSpaceView.end()) {
+      switch (mode) {
+      case OperationMode::eInjection:
+        return it->second->GetConfigMember("policy.conversion.injection.size");
+      case OperationMode::eCreation:
+        return it->second->GetConfigMember("policy.conversion.creation.size");
+      case OperationMode::eAccess:
+        return it->second->GetConfigMember("policy.conversion.access.size");
+      }
+    }
+
+    return "";
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -141,8 +248,7 @@ void
 ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
 {
   // check if this is still a 'temporary' name
-  if (fmd->getName().substr(0,
-                            strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
+  if (fmd->getName().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
       EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
     // check if this is still a 'temporary' name
     return;
@@ -152,7 +258,7 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
 
   // check replica count
   if ((fmd->getNumLocation() - tapecopy) ==
-      (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1))  {
+      (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1)) {
     if (conversion_enabled()) {
       // determine the space from the first filesystem ID stored
       int fsid = fmd->getLocations()[0];
@@ -164,12 +270,16 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
       }
 
       {
-        std::string policy = ConversionPolicy(tapecopy, fsid);
+        std::string policy = ConversionPolicy(
+            tapecopy ? OperationMode::eInjection : OperationMode::eCreation,
+            fsid);
 
         if (policy.length()) {
           size_t cutoff_size = 0;
           bool do_conversion = true;
-          std::string size_policy = ConversionSizePolicy(tapecopy, fsid);
+          std::string size_policy = ConversionSizePolicy(
+              tapecopy ? OperationMode::eInjection : OperationMode::eCreation,
+              fsid);
 
           if (size_policy.length()) {
             switch ((size_policy.at(0))) {
@@ -179,7 +289,8 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
 
               if (fmd->getSize() >= cutoff_size) {
                 if (EOS_LOGS_DEBUG) {
-                  eos_static_debug("suppressing conversion because of minimum size policy '%s' fxid:%08llx",
+                  eos_static_debug("suppressing conversion because of minimum "
+                                   "size policy '%s' fxid:%08llx",
                                    policy.c_str(), fmd->getId());
                 }
 
@@ -194,7 +305,8 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
 
               if (fmd->getSize() <= cutoff_size) {
                 if (EOS_LOGS_DEBUG) {
-                  eos_static_debug("suppressing conversion because of maximum size policy '%s' fxid:%08llx",
+                  eos_static_debug("suppressing conversion because of maximum "
+                                   "size policy '%s' fxid:%08llx",
                                    policy.c_str(), fmd->getId());
                 }
 
@@ -202,38 +314,42 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
               }
 
             default:
-              eos_static_warning("illegal space conversion policy size: should be empty '', <size '<1000', >size '>1000");
+              eos_static_warning(
+                  "illegal space conversion policy size: should be "
+                  "empty '', <size '<1000', >size '>1000");
               break;
             }
           }
 
           if (do_conversion) {
-            // create a conversion job for this file according to the policy definition
+            // create a conversion job for this file according to the
+            // policy definition
             eos_static_info("triggering conversion policy '%s' for fxid:%08llx",
                             policy.c_str(), fmd->getId());
             std::string layout;
             std::string space;
 
-            if (eos::common::StringConversion::SplitKeyValue(policy,
-                layout,
-                space,
-                "@")) {
-              std::string info = "mgm.cmd=file&mgm.subcmd=convert&mgm.convert.layout=";
+            if (eos::common::StringConversion::SplitKeyValue(policy, layout,
+                                                             space, "@")) {
+              std::string info = "mgm.cmd=file&mgm.subcmd=convert&"
+                                 "mgm.convert.layout=";
               info += layout;
               info += "&mgm.convert.space=";
               info += space;
               info += "&mgm.file.id=";
               info += std::to_string(fmd->getId());
               XrdOucErrInfo error;
-              eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+              eos::common::VirtualIdentity rootvid =
+                  eos::common::VirtualIdentity::Root();
               ProcCommand cmd;
               cmd.open("/proc/user", info.c_str(), rootvid, &error);
               cmd.close();
               int rc = cmd.GetRetc();
 
               if (rc) {
-                eos_static_err("converions-hook failed with rc=%d for fxid:%08llx", rc,
-                               fmd->getId());
+                eos_static_err("converions-hook failed with rc=%d "
+                               "for fxid:%08llx",
+                               rc, fmd->getId());
               }
             }
           }
@@ -256,8 +372,8 @@ ReplicationTracker::Commit(std::shared_ptr<eos::IFileMD> fmd)
       gOFS->eosView->unlinkFile(entry_fmd.get());
     } catch (const MDException& e) {
       if (e.getErrno() != ENOENT) {
-        eos_static_crit("failed to remove tag file='%s' error='%s'", tag.c_str(),
-                        e.what());
+        eos_static_crit("failed to remove tag file='%s' error='%s'",
+                        tag.c_str(), e.what());
       }
 
       return;
@@ -290,9 +406,7 @@ ReplicationTracker::Prefix(std::shared_ptr<eos::IFileMD> fmd)
   struct tm nowtm;
   localtime_r(&now, &nowtm);
   snprintf(strackerfile, sizeof(strackerfile), "%s/%04u/%02u/%02u/",
-           mPath.c_str(),
-           1900 + nowtm.tm_year,
-           nowtm.tm_mon + 1,
+           mPath.c_str(), 1900 + nowtm.tm_year, nowtm.tm_mon + 1,
            nowtm.tm_mday);
   return strackerfile;
 }
@@ -300,7 +414,8 @@ ReplicationTracker::Prefix(std::shared_ptr<eos::IFileMD> fmd)
 //------------------------------------------------------------------------------
 // Retrieve current LRU configuration options
 //------------------------------------------------------------------------------
-ReplicationTracker::Options ReplicationTracker::getOptions()
+ReplicationTracker::Options
+ReplicationTracker::getOptions()
 {
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
   ReplicationTracker::Options opts;
@@ -309,7 +424,8 @@ ReplicationTracker::Options ReplicationTracker::getOptions()
   opts.interval = std::chrono::minutes(60);
 
   if (FsView::gFsView.mSpaceView.count("default") &&
-      (FsView::gFsView.mSpaceView["default"]->GetConfigMember("tracker") == "on")) {
+      (FsView::gFsView.mSpaceView["default"]->GetConfigMember("tracker") ==
+       "on")) {
     opts.enabled = true;
   }
 
@@ -320,11 +436,11 @@ ReplicationTracker::Options ReplicationTracker::getOptions()
     disable();
   }
 
-  // this is hardcoded to 2 days, it could be 'dangerous' to make this really configurable
+  // this is hardcoded to 2 days, it could be 'dangerous' to make this
+  // really configurable
   opts.atomic_cleanup_age = 2 * 86400;
   return opts;
 }
-
 
 //------------------------------------------------------------------------------
 // Background Thread cleaning up left-over atomic uploads
@@ -356,8 +472,8 @@ ReplicationTracker::backgroundThread(ThreadAssistant& assistant) noexcept
       disable();
     }
 
-    common::IntervalStopwatch stopwatch(enabled() ? opts.interval :
-                                        std::chrono::seconds(10));
+    common::IntervalStopwatch stopwatch(enabled() ? opts.interval
+                                                  : std::chrono::seconds(10));
 
     if (gOFS->mMaster->IsMaster()) {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -388,7 +504,6 @@ ReplicationTracker::backgroundThread(ThreadAssistant& assistant) noexcept
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Scan entries in creation tracker - opt cleanup or output
 //------------------------------------------------------------------------------
@@ -397,23 +512,16 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
 {
   eos::common::RWMutexReadLock viewReadLock;
   time_t now = time(NULL);
-  std::map<std::string, std::set<std::string> > found;
+  std::map<std::string, std::set<std::string>> found;
   XrdOucString stdErr;
 
   if (!enabled()) {
-    *out += "# tracker is disabled - use 'eos space config default space.tracker=on'\n";
+    *out += "# tracker is disabled - use 'eos space config default "
+            "space.tracker=on'\n";
   }
 
-  if (!gOFS->_find(mPath.c_str(),
-                   mError,
-                   stdErr,
-                   mVid,
-                   found,
-                   0,
-                   0,
-                   false,
-                   10)
-     ) {
+  if (!gOFS->_find(mPath.c_str(), mError, stdErr, mVid, found, 0, 0, false,
+                   10)) {
     for (auto rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
       if (!rfoundit->second.size()) {
         std::string creationpath = mPath + "/";
@@ -433,19 +541,19 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
           dmd->getCTime(ctime);
           uint64_t age = now - ctime.tv_sec;
 
-          if (age > atomic_age &&
-              !dmd->getNumFiles() &&
+          if (age > atomic_age && !dmd->getNumFiles() &&
               !dmd->getNumContainers()) {
             gOFS->eosView->removeContainer(rfoundit->first);
           }
         } catch (const MDException& e) {
-          eos_static_crit("failed to remove directory='%s'", rfoundit->first.c_str());
+          eos_static_crit("failed to remove directory='%s'",
+                          rfoundit->first.c_str());
         }
 
         viewWriteLock.Release();
       } else {
-        for (auto fileit = rfoundit->second.begin(); fileit != rfoundit->second.end();
-             fileit++) {
+        for (auto fileit = rfoundit->second.begin();
+             fileit != rfoundit->second.end(); fileit++) {
           std::string fspath = rfoundit->first;
           std::string entry = *fileit;
           std::string entry_path = fspath + "/" + entry;
@@ -459,8 +567,8 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
           std::shared_ptr<eos::IFileMD> entry_fmd;
           size_t n_rep = 0;
           size_t n_layout_rep = 0;
-          unsigned long long fid = Resolver::retrieveFileIdentifier(
-                                     fxid).getUnderlyingUInt64();
+          unsigned long long fid =
+              Resolver::retrieveFileIdentifier(fxid).getUnderlyingUInt64();
           eos::IFileMD::ctime_t ctime;
           // reference by fxid
           eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
@@ -471,14 +579,16 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
             fmd->getCTime(ctime);
             fullpath = gOFS->eosView->getUri(fmd.get());
 
-            if (fmd->getName().substr(0,
-                                      strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
+            if (fmd->getName().substr(
+                    0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
                 EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
               is_atomic = true;
             }
 
             n_rep = fmd->getNumLocation();
-            n_layout_rep = (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+            n_layout_rep =
+                (eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) +
+                 1);
 
             if (n_rep < n_layout_rep) {
               reason = "REPLOW";
@@ -500,7 +610,7 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
           viewReadLock.Release();
           uint64_t age = now - ctime.tv_sec;
 
-          if (is_atomic && (age >  atomic_age)) {
+          if (is_atomic && (age > atomic_age)) {
             flag_deletion = true;
             reason = "ATOMIC";
           }
@@ -513,19 +623,14 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
 
             char outline[16384];
             snprintf(outline, sizeof(outline),
-                     "key=%s age=%lu (s) delete=%d rep=%lu/%lu atomic=%d reason=%s uri='%s'\n",
-                     entry.c_str(),
-                     age,
-                     flag_deletion,
-                     n_rep,
-                     n_layout_rep,
-                     is_atomic,
-                     reason.c_str(),
-                     fullpath.c_str());
+                     "key=%s age=%lu (s) delete=%d rep=%lu/%lu "
+                     "atomic=%d reason=%s uri='%s'\n",
+                     entry.c_str(), age, flag_deletion, n_rep, n_layout_rep,
+                     is_atomic, reason.c_str(), fullpath.c_str());
             *out += outline;
 
             if (out->size() > (128 * 1024 * 1024)) {
-              * out += "# ... list has been truncated\n";
+              *out += "# ... list has been truncated\n";
               return;
             }
           } else {
@@ -534,15 +639,11 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
               flag_deletion = 1;
             }
 
-            eos_static_info("key=%s age=%lu (s) delete=%d rep=%lu/%lu atomic=%d reason=%s uri='%s'",
-                            entry.c_str(),
-                            age,
-                            flag_deletion,
-                            n_rep,
-                            n_layout_rep,
-                            is_atomic,
-                            reason.c_str(),
-                            fullpath.c_str());
+            eos_static_info(
+                "key=%s age=%lu (s) delete=%d rep=%lu/%lu atomic=%d "
+                "reason=%s uri='%s'",
+                entry.c_str(), age, flag_deletion, n_rep, n_layout_rep,
+                is_atomic, reason.c_str(), fullpath.c_str());
           }
 
           if (cleanup && flag_deletion) {
@@ -553,7 +654,8 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
               entry_fmd = gOFS->eosView->getFile(entry_path);
               gOFS->eosView->unlinkFile(entry_fmd.get());
             } catch (const MDException& e) {
-              eos_static_crit("failed to remove tag file='%s'", entry_path.c_str());
+              eos_static_crit("failed to remove tag file='%s'",
+                              entry_path.c_str());
             }
 
             if (reason == "ATOMIC") {
@@ -562,7 +664,8 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
                 fmd = gOFS->eosFileService->getFileMD(fid);
                 gOFS->eosView->unlinkFile(fmd.get());
               } catch (const MDException& e) {
-                eos_static_crit("failed to cleanup atomic target file='%s'", fullpath.c_str());
+                eos_static_crit("failed to cleanup atomic target file='%s'",
+                                fullpath.c_str());
               }
             }
 
@@ -572,11 +675,9 @@ ReplicationTracker::Scan(uint64_t atomic_age, bool cleanup, std::string* out)
       }
     }
   } else {
-    eos_static_err("find failed in path='%s' errmsg='%s'",
-                   mPath.c_str(),
+    eos_static_err("find failed in path='%s' errmsg='%s'", mPath.c_str(),
                    stdErr.c_str());
   }
 }
 
 EOSMGMNAMESPACE_END
-

@@ -1534,6 +1534,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     } else {
       gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
     }
+
+    // possibly apply an access conversion policy
+    gOFS->mReplicationTracker->Access(fmd);
   }
 
   // ---------------------------------------------------------------------------

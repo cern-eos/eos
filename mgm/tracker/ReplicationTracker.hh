@@ -23,11 +23,11 @@
 
 #pragma once
 
-#include "common/VirtualIdentity.hh"
 #include "common/AssistedThread.hh"
-#include <XrdOuc/XrdOucErrInfo.hh>
+#include "common/VirtualIdentity.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
+#include <XrdOuc/XrdOucErrInfo.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <atomic>
 #include <memory>
@@ -40,37 +40,87 @@ EOSMGMNAMESPACE_BEGIN
 
 class ReplicationTracker {
 public:
+  // Define the enum class
+  enum class OperationMode { eInjection, eCreation, eAccess };
 
   struct Options {
-    bool enabled;                  //< Is CreationTracking even enabled?
-    uint64_t atomic_cleanup_age;   //< Age when atomic files will be auto-cleaned
-    std::chrono::seconds interval; //< Run CreationTracking cleanup every this many seconds
+    bool enabled;                //< Is CreationTracking even enabled?
+    uint64_t atomic_cleanup_age; //< Age when atomic files will be auto-cleaned
+    std::chrono::seconds
+        interval; //< Run CreationTracking cleanup every this many seconds
   };
 
   ReplicationTracker(const char* path);
   virtual ~ReplicationTracker();
 
   void Create(std::shared_ptr<eos::IFileMD> fmd);
-  std::string ConversionPolicy(bool injection, int fsid);
-  std::string ConversionSizePolicy(bool injection, int fsid);
+  void Access(std::shared_ptr<eos::IFileMD> fmd);
+  std::string ConversionPolicy(OperationMode mode, int fsid);
+  std::string ConversionSizePolicy(OperationMode mode, int fsid);
   void Commit(std::shared_ptr<eos::IFileMD> fmd);
   void Validate(std::shared_ptr<eos::IFileMD> fmd);
 
-  void Scan(uint64_t atomic_age, bool cleanup, std::string* out=0);
+  void Scan(uint64_t atomic_age, bool cleanup, std::string* out = 0);
 
   std::string Prefix(std::shared_ptr<eos::IFileMD> fmd);
 
-  static ReplicationTracker* Create(const char* path) {
+  static ReplicationTracker*
+  Create(const char* path)
+  {
     return new ReplicationTracker(path);
   }
 
-  bool enabled() { return (mEnabled.load())?true:false; }
-  bool disable() { if (!enabled()) {return false;} else {mEnabled.store(0, std::memory_order_seq_cst); return true;}}
-  bool enable()  { if  (enabled()) {return false;} else {mEnabled.store(1, std::memory_order_seq_cst); return true;}}
+  bool
+  enabled()
+  {
+    return (mEnabled.load()) ? true : false;
+  }
+  bool
+  disable()
+  {
+    if (!enabled()) {
+      return false;
+    } else {
+      mEnabled.store(0, std::memory_order_seq_cst);
+      return true;
+    }
+  }
+  bool
+  enable()
+  {
+    if (enabled()) {
+      return false;
+    } else {
+      mEnabled.store(1, std::memory_order_seq_cst);
+      return true;
+    }
+  }
 
-  bool conversion_enabled() { return (mConversionEnabled.load())?true:false; }
-  bool conversion_disable() { if (!conversion_enabled()) {return false;} else {mConversionEnabled.store(0, std::memory_order_seq_cst); return true;}}
-  bool conversion_enable()  { if  (conversion_enabled()) {return false;} else {mConversionEnabled.store(1, std::memory_order_seq_cst); return true;}}
+  bool
+  conversion_enabled()
+  {
+    return (mConversionEnabled.load()) ? true : false;
+  }
+  bool
+  conversion_disable()
+  {
+    if (!conversion_enabled()) {
+      return false;
+    } else {
+      mConversionEnabled.store(0, std::memory_order_seq_cst);
+      return true;
+    }
+  }
+  bool
+  conversion_enable()
+  {
+    if (conversion_enabled()) {
+      return false;
+    } else {
+      mConversionEnabled.store(1, std::memory_order_seq_cst);
+      return true;
+    }
+  }
 
   Options getOptions();
 
@@ -85,6 +135,5 @@ private:
   eos::common::VirtualIdentity mVid;
   std::string mPath;
 };
-
 
 EOSMGMNAMESPACE_END
