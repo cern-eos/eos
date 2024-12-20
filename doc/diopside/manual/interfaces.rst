@@ -1392,14 +1392,13 @@ When all FSTs in a space store data into a shared filesystem and clients
 might have access to all the data for reading, one can enable the
 redirection to a local filesystem:
 
-.. code-block::
-     
+.. code-block:: bash
+
    # define the local redirection policy in the given space called 'nfs'
    eos space config nfs space.policy.localredirect=1
 
    # define local redirection on a per directory basis
    eos attr set sys.forced.localredirect.nfs=1
-
 
 Please note: a space defined policy overwrites any directory policy.
 
@@ -1411,7 +1410,7 @@ sees the shared filesystem but cannot read it, the client will fail.
 
 One can manually select/disable local redirection using a CGI tag:
 
-.. code-block:: 
+.. code-block:: bash
 
    # enable local redirection via CGI
    root://localhost//eos/shared/file?eos.localredirect=1
@@ -1419,11 +1418,10 @@ One can manually select/disable local redirection using a CGI tag:
    # disable local redirection via CGI
    root://localhost//eos/shared/file?eos.localredirect=0
 
-
 Redirections are accounted in the *eos ns stat* accounting as failed and
 successful redirection on open:
 
-.. code-block:: 
+.. code-block:: bash
 
    eos ns stat | grep RedirectLocal
    all OpenFailedRedirectLocal             0     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA- 
