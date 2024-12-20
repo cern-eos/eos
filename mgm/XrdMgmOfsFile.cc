@@ -1632,8 +1632,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                             ioprio, iotype, isRW, true, &atimeage);
   COMMONTIMING("Policy::end", &tm);
 
-  // do a local redirect here if there is only one replica attached
-  if (!isRW && !isPio && (fmd->getNumLocation() == 1) &&
+  // do a local redirect here if there is only one replica attached and this is not an HTTPS request
+  if (vid.prot != "https" && !isRW && !isFuse && !isPio && (fmd->getNumLocation() == 1) &&
       Policy::RedirectLocal(path, attrmap, vid, layoutId, space, *openOpaque)) {
     XrdCl::URL url(std::string("root://localhost//") + std::string(
                      path ? path : "/dummy/") + std::string("?") + std::string(
