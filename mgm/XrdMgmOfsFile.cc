@@ -1632,9 +1632,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                             ioprio, iotype, isRW, true, &atimeage);
   COMMONTIMING("Policy::end", &tm);
 
+  Policy::RedirectStatus rs;
   // do a local redirect here if there is only one replica attached and this is not an HTTPS request
   if (vid.prot != "https" && !isRW && !isFuse && !isPio && (fmd->getNumLocation() == 1) &&
-      Policy::RedirectLocal(path, attrmap, vid, layoutId, space, *openOpaque)) {
+      (rs = Policy::RedirectLocal(path, attrmap, vid, layoutId, space, *openOpaque))!=Policy::eNever) {
     XrdCl::URL url(std::string("root://localhost//") + std::string(
                      path ? path : "/dummy/") + std::string("?") + std::string(
                      ininfo ? ininfo : ""));
@@ -1651,26 +1652,40 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
         local_fs->SnapShotFileSystem(local_snapshot);
-      }
-      // compute the local path
-      std::string local_path = eos::common::FileId::FidPrefix2FullPath(
-                                 eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
-                                 local_snapshot.mPath.c_str());
-      eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"",
-               local_path.c_str(), path, ininfo);
-      redirectionhost = "file://localhost";
-      redirectionhost += local_path.c_str();
-      ecode = -1;
-
-      if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-        eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-        return SFS_ERROR;
+	eos_info("sharedfs='%s'", local_fs->getSharedFs().c_str());
       }
 
-      rcode = SFS_REDIRECT;
-      gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
-      eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
-      return rcode;
+      std::string anchor = "#";
+      std::string appanchor=app_name;
+      auto hpos = app_name.find("#");
+      if (hpos != std::string::npos) {
+	appanchor = app_name.substr(hpos);
+      }
+      anchor += local_snapshot.mSharedFs;
+
+      eos_debug("app-anchor='%s' anchor='%s' redirect-policy=%d", appanchor.c_str(), anchor.c_str(), rs);
+      if ( (rs == Policy::eAlways) ||
+	   ((rs == Policy::eOptional) && (appanchor == anchor)) ) {
+	// compute the local path
+	std::string local_path = eos::common::FileId::FidPrefix2FullPath(
+									 eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
+									 local_snapshot.mPath.c_str());
+	eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"",
+		 local_path.c_str(), path, ininfo);
+	redirectionhost = "file://localhost";
+	redirectionhost += local_path.c_str();
+	ecode = -1;
+
+	if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+	  eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+	  return SFS_ERROR;
+	}
+
+	rcode = SFS_REDIRECT;
+	gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
+	eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
+	return rcode;
+      }
     }
   }
 

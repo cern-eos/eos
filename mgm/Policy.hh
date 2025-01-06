@@ -69,8 +69,13 @@ public:
                             XrdOucEnv& env,
                             eos::mgm::Scheduler::tPlctPolicy& plctpo,
                             std::string& targetgeotag);
+  enum RedirectStatus {
+    eNever,
+    eAlways,
+    eOptional
+  };
 
-  static bool RedirectLocal(const char* path,
+  static RedirectStatus RedirectLocal(const char* path,
                             eos::IContainerMD::XAttrMap& map,
                             const eos::common::VirtualIdentity& vid,
                             unsigned long& layoutId,

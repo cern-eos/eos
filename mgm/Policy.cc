@@ -517,7 +517,7 @@ Policy::GetPlctPolicy(const char* path,
 
 
 /*----------------------------------------------------------------------------*/
-bool
+Policy::RedirectStatus
 Policy::RedirectLocal(const char* path,
                       eos::IContainerMD::XAttrMap& map,
                       const eos::common::VirtualIdentity& vid,
@@ -528,24 +528,37 @@ Policy::RedirectLocal(const char* path,
 {
   std::string rkey = "sys.forced.localredirect";
 
-  if (map.count(rkey) && ((map[rkey] == "true")  || (map[rkey] == "1")) &&
+  if (map.count(rkey) && ((map[rkey] == "true")  || (map[rkey] == "1") || (map[rkey] == "always")) &&
       ((eos::common::LayoutId::GetLayoutType(layoutId) ==
         eos::common::LayoutId::kReplica) ||
        (eos::common::LayoutId::GetLayoutType(layoutId) ==
         eos::common::LayoutId::kPlain))) {
     if (env.Get("eos.localredirect") &&
         (std::string(env.Get("eos.localredirect")) == "0")) {
-      return false;
+      return eNever;
     } else {
-      return true;
+      return eAlways;
+    }
+  }
+
+  if (map.count(rkey) && ((map[rkey] == "optional")  || (map[rkey] == "2")) &&
+      ((eos::common::LayoutId::GetLayoutType(layoutId) ==
+        eos::common::LayoutId::kReplica) ||
+       (eos::common::LayoutId::GetLayoutType(layoutId) ==
+        eos::common::LayoutId::kPlain))) {
+    if (env.Get("eos.localredirect") &&
+        (std::string(env.Get("eos.localredirect")) == "0")) {
+      return eNever;
+    } else {
+      return eOptional;
     }
   }
 
   if (env.Get("eos.localredirect") &&
       (std::string(env.Get("eos.localredirect")) == "1")) {
-    return true;
+    return eAlways;
   } else {
-    return false;
+    return eNever;
   }
 }
 
