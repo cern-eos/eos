@@ -2126,3 +2126,36 @@ One can overwrite the port used for a collapsing redirection using:
 
 .. NOTE:: This feature is useful if you want to run several front-ends on the same back-end node.
 
+
+
+QClient Configuration
+---------------------
+
+5.3.0 release of EOS introduces features to potentially speed up metadata using
+increased parallelism. Currently we don't recommend setting these features on
+your production clusters and only for your testing needs, especially if parallel file creation/deletion
+is a bottleneck encountered in your clusters.
+
+.. code-block:: bash
+
+		#-------------------------------------------------------------------------------
+		# Configuration for Qclient settings
+		#-------------------------------------------------------------------------------
+		# flusher type controls the temporary backend storage for qclient, which can
+		# be utilized in case of # crashes where the not acknowledged QuarkDB messages
+		# are replayed  for purely developer clusters options like MEMORY &
+		# MEMORY_MULTI provide faster interfaces which can help debug performance
+		# problems and aid in future development; (also TESTING_NULL_UNSAFE_IN_PROD
+		# completely eliminates journalling for pure interface adherence tests)
+    # In multithreaded scenarios, we currently track the highest acknowledged message
+    # this behaviour can be controlled by setting ROCKSDB_MULIT:LOW or HIGH respectively
+
+		mgmofs.qclient_flusher_type ROCKSDB # choose between ROCKSDB & ROCKSDB_MULIT
+
+    # For tuning ROCKSDB itself, we provide the following option, please exercise caution
+    # eg: "write_buffer_size=1073741824;max_write_buffer_number=5;min_write_buffer_number_to_merge=2"
+    mgmofs.qclient_rocksdb_options  # NOT CONFIGURED by default
+
+    # Path where the persistent storage lives; Only needed when you really need to drop and recreate rocksdb
+    # which is almost never
+    mgmofs.queue_path /var/eos/ns-queue
