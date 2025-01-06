@@ -1188,6 +1188,7 @@ FileSystem::SnapShotFileSystem(FileSystem::fs_snapshot_t& fs, bool dolock)
   fs.mProxyGroup = hash.get("proxygroup");
   fs.mS3Credentials = hash.get("s3credentials");
   fs.mFileStickyProxyDepth = -1;
+  fs.mSharedFs = hash.get("sharedfs");
 
   if (hash.get("filestickyproxydepth").size()) {
     fs.mFileStickyProxyDepth = hash.getLongLong("filestickyproxydepth");
