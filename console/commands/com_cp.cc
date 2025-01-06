@@ -1701,3 +1701,11 @@ int parse_debug_level(XrdOucString option)
 
   return level - 1;
 }
+
+/* eos cat command - just eos cp with '-' destination*/
+int com_cat(char* argin)
+{
+  std::string catarg=(const char*)argin;
+  catarg += " -";
+  return com_cp((char*)catarg.c_str());
+}

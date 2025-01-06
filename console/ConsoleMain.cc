@@ -59,6 +59,7 @@ extern int com_acl(char*);
 extern int com_archive(char*);
 extern int com_attr(char*);
 extern int com_backup(char*);
+extern int com_cat(char*);
 extern int com_cd(char*);
 extern int com_chmod(char*);
 extern int com_chown(char*);
@@ -147,6 +148,7 @@ COMMAND commands[] = {
   { (char*) "attr", com_attr, (char*) "Attribute Interface"},
   { (char*) "backup", com_backup, (char*) "Backup Interface"},
   { (char*) "clear", com_clear, (char*) "Clear the terminal"},
+  { (char*) "cat", com_cat, (char*) "Cat a file"},
   { (char*) "cd", com_cd, (char*) "Change directory"},
   { (char*) "chmod", com_chmod, (char*) "Mode Interface"},
   { (char*) "chown", com_chown, (char*) "Chown Interface"},
