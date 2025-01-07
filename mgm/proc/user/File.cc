@@ -30,6 +30,7 @@
 #include "mgm/Policy.hh"
 #include "mgm/Stat.hh"
 #include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConversionTag.hh"
 #include "mgm/XattrLock.hh"
 #include "common/Utils.hh"
 #include "common/Path.hh"
@@ -1137,7 +1138,7 @@ ProcCommand::File()
                 stdErr += spath.c_str();
                 retc = errno;
               } else {
-                char conversiontagfile[1024];
+                std::string conversiontag;
 
                 if (option == "rewrite") {
                   if (layout.length() == 0) {
@@ -1177,14 +1178,8 @@ ProcCommand::File()
                 }
 
                 if (eos::common::StringConversion::IsHexNumber(layout.c_str(), "%08x")) {
-                  // we hand over as an conversion layout ID
-                  snprintf(conversiontagfile,
-                           sizeof(conversiontagfile) - 1,
-                           "%s/%016llx:%s#%s",
-                           gOFS->MgmProcConversionPath.c_str(),
-                           fileid,
-                           space.c_str(),
-                           layout.c_str());
+
+                  conversiontag = ConversionTag::Get(fileid, space.c_str(), layout.c_str(), std::string(""), false);
                   stdOut += "info: conversion based on hexadecimal layout id\n";
                 } else {
                   unsigned long layout_type = 0;
@@ -1228,34 +1223,18 @@ ProcCommand::File()
                                                    eos::common::LayoutId::k4M,
                                                    eos::common::LayoutId::kCRC32C,
                                                    eos::common::LayoutId::GetRedundancyStripeNumber(layoutid));
-                    snprintf(conversiontagfile,
-                             sizeof(conversiontagfile) - 1,
-                             "%s/%016llx:%s#%08lx%s",
-                             gOFS->MgmProcConversionPath.c_str(),
-                             fileid,
-                             space.c_str(),
-                             (unsigned long) layoutid,
-                             plctplcy.c_str());
+                    conversiontag = ConversionTag::Get(fileid, space.c_str(), layoutid, plctplcy.c_str(), false);
+
                     stdOut += "info: conversion based layout+stripe arguments\n";
                   } else {
                     // assume this is the name of an attribute
-                    snprintf(conversiontagfile,
-                             sizeof(conversiontagfile) - 1,
-                             "%s/%016llx:%s#%s%s",
-                             gOFS->MgmProcConversionPath.c_str(),
-                             fileid,
-                             space.c_str(),
-                             layout.c_str(),
-                             plctplcy.c_str());
+                    conversiontag = ConversionTag::Get(fileid, space.c_str(), layout.c_str(), plctplcy.c_str(), false);
                     stdOut += "info: conversion based conversion attribute name\n";
                   }
                 }
 
                 eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
                 // Push conversion job to QuarkDB
-                std::string conversiontag = conversiontagfile;
-                conversiontag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
-
                 if (gOFS->mConverterDriver->ScheduleJob(fmd->getId(), conversiontag)) {
                   stdOut += "success: pushed conversion job '";
                   stdOut += conversiontag.c_str();

@@ -33,6 +33,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConversionTag.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include "namespace/Prefetcher.hh"
@@ -775,15 +776,7 @@ LRU::ConvertMatch(const char* dir,
       space = cenv.Get("eos.space");
     }
 
-    snprintf(conversiontagfile, sizeof(conversiontagfile) - 1,
-             "%s/%016llx:%s#%s%s",
-             gOFS->MgmProcConversionPath.c_str(), it->first, space.c_str(),
-             conversion.c_str(), plctplcy.c_str());
-    std::string conv_tag = conversiontagfile;
-    conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
-    // For the new converted we need to tell it explicitly that we want the
-    // ctime to be updated since this doesn't happen by default
-    conv_tag += eos::mgm::ConversionInfo::UPDATE_CTIME;
+    std::string conv_tag = ConversionTag::Get(it->first, space.c_str(), conversion, plctplcy);
 
     if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
       eos_static_info("msg=\"LRU scheduled conversion job\" tag=\"%s\"",
