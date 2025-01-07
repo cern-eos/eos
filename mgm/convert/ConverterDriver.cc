@@ -60,14 +60,14 @@ ConverterDriver::PopulatePendingJobs()
   const auto lst_pending = mQdbHelper.GetPendingJobs();
 
   for (const auto& info : lst_pending) {
-    const auto fid = info.first;
+    const auto fid = std::get<0>(info);
 
     if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Convert)) {
       eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx", fid);
       continue;
     }
 
-    mPendingJobs.emplace(info.first, info.second);
+    mPendingJobs.emplace(std::get<0>(info), std::get<1>(info), nullptr);
   }
 }
 
@@ -139,8 +139,8 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
       assistant.wait_for(std::chrono::seconds(5));
     }
 
-    auto fid = info.first;
-    auto conversion_info = ConversionInfo::parseConversionString(info.second);
+    auto fid = std::get<0>(info);
+    auto conversion_info = ConversionInfo::parseConversionString(std::get<1>(info));
 
     if (conversion_info != nullptr) {
       auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
@@ -152,7 +152,7 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
       mJobsRunning[job->GetFid()] = job;
     } else {
       eos_static_err("msg=\"invalid conversion scheduled\" fxid=%08llx "
-                     "conversion_id=%s", fid, info.second.c_str());
+                     "conversion_id=%s", fid, std::get<1>(info).c_str());
       mQdbHelper.RemovePendingJob(fid);
       gOFS->mFidTracker.RemoveEntry(fid);
     }
@@ -195,7 +195,8 @@ ConverterDriver::JoinAllConversionJobs()
 //------------------------------------------------------------------------------
 bool
 ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
-                             const std::string& conversion_info)
+                             const std::string& conversion_info,
+                             std::shared_ptr<XrdOucCallBack> callback)
 {
   if (!mIsRunning) {
     return false;
@@ -218,7 +219,7 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
     return false;
   }
 
-  JobInfoT info = std::make_pair(id, conversion_info);
+  JobInfoT info = std::make_tuple(id, conversion_info, callback);
   mPendingJobs.push(info);
   return mQdbHelper.AddPendingJob(info);
 }
@@ -248,11 +249,11 @@ bool
 ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 {
   try {
-    return mQHashPending.hset(std::to_string(jobinfo.first), jobinfo.second);
+    return mQHashPending.hset(std::to_string(std::get<0>(jobinfo)), std::get<1>(jobinfo));
   } catch (const std::exception& e) {
     eos_static_crit("msg=\"Error encountered while trying to add pending "
                     "conversion job\" emsg=\"%s\" conversion_id=%s",
-                    e.what(), jobinfo.second.c_str());
+                    e.what(), std::get<1>(jobinfo).c_str());
   }
 
   return false;
@@ -270,7 +271,7 @@ ConverterDriver::QdbHelper::GetPendingJobs()
   for (auto it = mQHashPending.getIterator(cBatchSize, "0"); it.valid();
        it.next()) {
     try {
-      pending.emplace_back(std::stoull(it.getKey()), it.getValue());
+      pending.emplace_back(std::stoull(it.getKey()), it.getValue(), nullptr);
     } catch (...) {}
   }
 

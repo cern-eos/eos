@@ -35,6 +35,8 @@
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 
+#include <XrdOuc/XrdOucCallBack.hh>
+
 EOSMGMNAMESPACE_BEGIN
 
 //! Forward declaration
@@ -48,7 +50,7 @@ static const std::string kConverterMaxQueueSize {"converter-max-queuesize"};
 class ConverterDriver : public eos::common::LogId
 {
 public:
-  using JobInfoT = std::pair<eos::IFileMD::id_t, std::string>;
+  using JobInfoT = std::tuple<eos::IFileMD::id_t, std::string, std::shared_ptr<XrdOucCallBack>>;
   using JobFailedT = std::pair<std::string, std::string>;
   using JobStatusT = ConversionJobStatus;
   using ObserverT = eos::common::ObserverMgr<JobStatusT, std::string>;
@@ -89,10 +91,12 @@ public:
   //!
   //! @param id the job id
   //! @param conversion_info the conversion info string
+  //! @param callback shared pointer to a callback object - default is nullptr
   //! @return true if scheduling succeeded, false otherwise
   //----------------------------------------------------------------------------
   bool ScheduleJob(const eos::IFileMD::id_t& id,
-                   const std::string& conversion_info);
+                   const std::string& conversion_info,
+                   std::shared_ptr<XrdOucCallBack> callback = nullptr);
 
   //----------------------------------------------------------------------------
   //! Get running state info

@@ -122,8 +122,9 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 ConversionJob::ConversionJob(const eos::IFileMD::id_t fid,
-                             const ConversionInfo& conversion_info) :
-  mFid(fid), mConversionInfo(conversion_info), mStatus(Status::PENDING)
+                             const ConversionInfo& conversion_info,
+                             std::shared_ptr<XrdOucCallBack> callback) :
+  mFid(fid), mConversionInfo(conversion_info), mCallback(callback), mStatus(Status::PENDING)
 {
   mConversionPath = conversion_info.ConversionPath();
 }

@@ -462,7 +462,7 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
     Json::Value json;
 
     for (const auto& elem : pending) {
-      json[std::to_string(elem.first)] = elem.second;
+      json[std::to_string(std::get<0>(elem))] = std::get<1>(elem);
     }
 
     Json::StreamWriterBuilder builder;
@@ -479,8 +479,8 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
 
     for (const auto& elem : pending) {
       TableRow row;
-      row.emplace_back(eos::common::FileId::Fid2Hex(elem.first), "-s");
-      row.emplace_back(elem.second, "-s");
+      row.emplace_back(eos::common::FileId::Fid2Hex(std::get<0>(elem)), "-s");
+      row.emplace_back(std::get<1>(elem), "-s");
       body.push_back(row);
     }
 

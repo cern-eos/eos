@@ -30,7 +30,7 @@
 #include "common/FileSystem.hh"
 #include "namespace/interface/IFileMD.hh"
 #include <XrdCl/XrdClCopyProcess.hh>
-
+#include <XrdOuc/XrdOucCallBack.hh>
 EOSMGMNAMESPACE_BEGIN
 
 //! Forward declaration
@@ -124,7 +124,8 @@ public:
   //! @param fid the file id to convert
   //----------------------------------------------------------------------------
   ConversionJob(const eos::IFileMD::id_t fid,
-                const ConversionInfo& conversion_info);
+                const ConversionInfo& conversion_info,
+                std::shared_ptr<XrdOucCallBack> callback = nullptr);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -215,6 +216,7 @@ private:
   const ConversionInfo mConversionInfo; ///< Conversion details
   std::string mSourcePath; ///< Path of file to be converted
   std::string mConversionPath; ///< Path of newly converted file
+  std::shared_ptr<XrdOucCallBack> mCallback; ///< callback function when the job goes terminal
   std::atomic<Status> mStatus; ///< Conversion job status
   std::string mErrorString; ///< Error message
   ConversionProgressHandler mProgressHandler; ///< Conversion progress handler
