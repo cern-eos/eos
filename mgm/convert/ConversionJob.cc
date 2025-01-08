@@ -366,6 +366,10 @@ void ConversionJob::DoIt() noexcept
     }
   }
 
+  if (mCallback) {
+    eos_static_info("[tpc]: notifying callback with 'cancel' after successfull tpc jobs");
+    mCallback->Cancel();
+  }
   return;
 }
 
@@ -389,6 +393,12 @@ void ConversionJob::HandleError(const std::string& emsg,
   }
 
   mStatus.store(Status::FAILED, std::memory_order_relaxed);
+
+  if (mCallback) {
+    eos_static_info("[tpc]: notifying callback with 'cancel' after error='%s' details-'%s'",
+    emsg.c_str(), details.c_str());
+    mCallback->Cancel();
+  }
 }
 
 //------------------------------------------------------------------------------

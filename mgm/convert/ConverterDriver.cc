@@ -143,7 +143,7 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
     auto conversion_info = ConversionInfo::parseConversionString(std::get<1>(info));
 
     if (conversion_info != nullptr) {
-      auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get());
+      auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get(),std::get<2>(info));
       mThreadPool.PushTask<void>([ = ]() {
         job->DoIt();
         HandlePostJobRun(job);
@@ -249,7 +249,9 @@ bool
 ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 {
   try {
-    return mQHashPending.hset(std::to_string(std::get<0>(jobinfo)), std::get<1>(jobinfo));
+    bool hset = mQHashPending.hset(std::to_string(std::get<0>(jobinfo)), std::get<1>(jobinfo));
+    std::cerr << "hset: " << hset << std::endl;
+    return hset;
   } catch (const std::exception& e) {
     eos_static_crit("msg=\"Error encountered while trying to add pending "
                     "conversion job\" emsg=\"%s\" conversion_id=%s",
