@@ -1277,7 +1277,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (vid.prot != "https" && !isInjection && !isTpc && !isRepair && fmd) {
       // we need to get the space by looking at the first location
-      if (fmdfs0) {
+      if (fmdfs0 && (fmdfs0 != EOS_TAPE_FSID)) {
         eos::common::FileSystem::fs_snapshot_t local_snapshot;
         {
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -1598,7 +1598,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (vid.prot != "https" && !isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
       // we need to get the space by looking at the first location
-      if (fmdfs0) {
+      if (fmdfs0 && (fmdfs0 != EOS_TAPE_FSID)) {
         eos::common::FileSystem::fs_snapshot_t local_snapshot;
         {
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
