@@ -1275,7 +1275,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     std::string target_space;
     unsigned long target_layout;
 
-    if (!isInjection && !isTpc && !isRepair && fmd) {
+    if (vid.prot != "https" && !isInjection && !isTpc && !isRepair && fmd) {
       // we need to get the space by looking at the first location
       if (fmdfs0) {
         eos::common::FileSystem::fs_snapshot_t local_snapshot;
@@ -1596,7 +1596,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     std::string target_space;
     unsigned long target_layout;
 
-    if (!isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
+    if (vid.prot != "https" && !isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
       // we need to get the space by looking at the first location
       if (fmdfs0) {
         eos::common::FileSystem::fs_snapshot_t local_snapshot;
