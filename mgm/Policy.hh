@@ -25,13 +25,13 @@
 #define __EOSMGM_POLICY__HH__
 
 /*----------------------------------------------------------------------------*/
+#include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/Scheduler.hh"
-#include "common/Mapping.hh"
 #include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
-#include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
 /*----------------------------------------------------------------------------*/
 #include <sys/types.h>
 
@@ -39,52 +39,52 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class Policy
-{
+class Policy {
 public:
+  Policy() {};
 
-  Policy() { };
-
-  ~Policy() { };
+  ~Policy() {};
 
   static void GetLayoutAndSpace(const char* path,
                                 eos::IContainerMD::XAttrMap& map,
                                 const eos::common::VirtualIdentity& vid,
-                                unsigned long& layoutId,
-                                std::string& space,
-                                XrdOucEnv& env,
-                                unsigned long& forcedfsid,
-                                long& forcedgroup,
-                                std::string& bandwidth,
-                                bool& schedul,
-                                std::string& iopriority,
-                                std::string& ioptype,
-                                bool isrw,
-                                bool lock_view = false,
-                                uint64_t* atimeage = 0);
+                                unsigned long& layoutId, std::string& space,
+                                XrdOucEnv& env, unsigned long& forcedfsid,
+                                long& forcedgroup, std::string& bandwidth,
+                                bool& schedul, std::string& iopriority,
+                                std::string& ioptype, bool isrw,
+                                bool lock_view = false, uint64_t* atimeage = 0);
 
-  static void GetPlctPolicy(const char* path,
-                            eos::IContainerMD::XAttrMap& map,
+  static void GetPlctPolicy(const char* path, eos::IContainerMD::XAttrMap& map,
                             const eos::common::VirtualIdentity& vid,
                             XrdOucEnv& env,
                             eos::mgm::Scheduler::tPlctPolicy& plctpo,
                             std::string& targetgeotag);
-  enum RedirectStatus {
-    eNever,
-    eAlways,
-    eOptional
-  };
+  enum RedirectStatus { eNever, eAlways, eOptional };
 
   static RedirectStatus RedirectLocal(const char* path,
-                            eos::IContainerMD::XAttrMap& map,
-                            const eos::common::VirtualIdentity& vid,
-                            unsigned long& layoutId,
-                            const std::string& space,
-                            XrdOucEnv& env
-                           );
+                                      eos::IContainerMD::XAttrMap& map,
+                                      const eos::common::VirtualIdentity& vid,
+                                      unsigned long& layoutId,
+                                      const std::string& space, XrdOucEnv& env);
+
+  enum ConversionPolicy { eSync, eAsync, eNone, eFail };
+
+  static ConversionPolicy
+  UpdateConversion(const char* path, eos::IContainerMD::XAttrMap& map,
+                   const eos::common::VirtualIdentity& vid,
+                   unsigned long& layoutId, const std::string& space,
+                   XrdOucEnv& env, unsigned long& targetLayoutId,
+                   std::string& target_space);
+
+  static ConversionPolicy
+  ReadConversion(const char* path, eos::IContainerMD::XAttrMap& map,
+                   const eos::common::VirtualIdentity& vid,
+                   unsigned long& layoutId, const std::string& space,
+                   XrdOucEnv& env, unsigned long& targetLayoutId,
+                   std::string& target_space);
 
   static unsigned long GetSpacePolicyLayout(const char* space);
-
 
   static bool Set(const char* value);
   static bool Set(XrdOucEnv& env, int& retc, XrdOucString& stdOut,
@@ -94,14 +94,14 @@ public:
   static bool Rm(XrdOucEnv& env, int& retc, XrdOucString& stdOut,
                  XrdOucString& stdErr);
 
-
   static bool IsProcConversion(const char* path);
 
   static const char* Get(const char* key);
 
   struct RWParams;
 
-  static inline std::vector<std::string> GetConfigKeys()
+  static inline std::vector<std::string>
+  GetConfigKeys()
   {
     return gBasePolicyKeys;
   }
@@ -109,8 +109,7 @@ public:
   static std::vector<std::string> GetRWConfigKeys(const RWParams& params);
 
   static void GetRWValue(const std::map<std::string, std::string>& conf_map,
-                         const std::string& key_name,
-                         const RWParams& params,
+                         const std::string& key_name, const RWParams& params,
                          std::string& value);
 
   static const std::vector<std::string> gBasePolicyKeys;
@@ -125,17 +124,15 @@ public:
     std::string app_key;
     std::string rw_marker;
 
-    RWParams(const std::string& user_str,
-             const std::string& group_str,
-             const std::string& app_str,
-             bool is_rw) :
-      user_key(".user:" + user_str),
-      group_key(".group:" + group_str),
-      app_key(".app:" + app_str),
-      rw_marker(is_rw ? ":w" : ":r")
-    {}
+    RWParams(const std::string& user_str, const std::string& group_str,
+             const std::string& app_str, bool is_rw)
+        : user_key(".user:" + user_str), group_key(".group:" + group_str),
+          app_key(".app:" + app_str), rw_marker(is_rw ? ":w" : ":r")
+    {
+    }
 
-    std::string getKey(const std::string& key) const
+    std::string
+    getKey(const std::string& key) const
     {
       return key + rw_marker;
     }
