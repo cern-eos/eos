@@ -32,6 +32,7 @@
 #include "common/Strerror_r_wrapper.hh"
 #include "common/BehaviourConfig.hh"
 #include "mgm/Access.hh"
+#include "mgm/convert/ConversionTag.hh"
 #include "mgm/FileSystem.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsFile.hh"
@@ -546,6 +547,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isRepair = false;
   // flag indicating a read for repair (meaningfull only on the FST)
   bool isRepairRead = false;
+  // flag indicationg a TPC action
+  bool isTpc = false;
   // flag indicating a file touch
   bool isTouch = false;
   // chunk upload ID
@@ -715,6 +718,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
+  {
+    // are we a TPC transfer?
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("tpc.stage"))) {
+      isTpc = true;
+    }
+  }
+
   if (!isFuse && isRW) {
     // resolve symbolic links
     try {
@@ -800,6 +812,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int ecode = 0;
   unsigned long fmdlid = 0;
   unsigned long long cid = 0;
+  unsigned int fmdfs0 = 0;
 
   // Proc filter
   if (ProcInterface::IsProcAccess(path)) {
@@ -1001,7 +1014,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             uint64_t dmd_id = fmd->getContainerId();
-
+            byfid = fmd->getId();
             // If fmd is resolved via a symbolic link, we have to find the
             // 'real' parent directory
             if (dmd_id != dmd->getId()) {
@@ -1034,6 +1047,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         } else {
           mFid = fmd->getId();
           fmdlid = fmd->getLayoutId();
+          fmdfs0  = fmd->getLocation(0);
           cid = fmd->getContainerId();
           fmdsize = fmd->getSize();
         }
@@ -1257,6 +1271,55 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (isRW) {
+    std::string source_space = "default";
+    std::string target_space;
+    unsigned long target_layout;
+
+    if (!isInjection && !isTpc && !isRepair && fmd) {
+      // we need to get the space by looking at the first location
+      if (fmdfs0) {
+        eos::common::FileSystem::fs_snapshot_t local_snapshot;
+        {
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+          eos::mgm::FileSystem* local_fs =
+              FsView::gFsView.mIdView.lookupByID(fmdfs0);
+          source_space = local_fs->GetSpace();
+        }
+      }
+      auto conversion =
+          Policy::UpdateConversion(path, attrmap, vid, fmdlid, source_space,
+                                   *openOpaque, target_layout, target_space);
+      if (conversion == Policy::eFail) {
+        return Emsg(
+            epname, error, EINVAL,
+            "open file for update - invalid update conversion policy found!",
+            path);
+      }
+
+      if (conversion == Policy::eAsync) {
+        error.setErrCode(0);
+        auto conversionCb = std::make_shared<XrdOucCallBack>();
+        conversionCb->Init(&error);
+        error.setErrInfo(1800, "delay client up to 30 minutes for update conversion");
+        auto conversiontag = ConversionTag::Get(
+            byfid, target_space, target_layout, std::string(""), true);
+        if (gOFS->mConverterDriver->ScheduleJob(byfid, conversiontag,
+                                                conversionCb)) {
+          eos_info("msg='update conversion started' fxid=%016llx conv='%s'", byfid, conversiontag.c_str());
+          return SFS_STARTED;
+        } else {
+          // remove the callback from the error object
+          error.setErrCB(0);
+          error.setErrArg(0);
+          error.setErrInfo(60, "please retry after 60 seconds for update conversion");
+          eos_info("msg='stalling client for update conversion' fxid=%016llx conv='%s'", byfid, conversiontag.c_str());
+          return SFS_STALL;
+        }
+      } else {
+        // no conversion to be run
+      }
+    }
+
     // Allow updates of 0-size RAIN files so that we are able to write from the
     // FUSE mount with lazy-open mode enabled.
     if (!getenv("EOS_ALLOW_RAIN_RWM") && isRewrite && (vid.uid > 3) &&
@@ -1529,6 +1592,53 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file", path);
     }
 
+    std::string source_space = "default";
+    std::string target_space;
+    unsigned long target_layout;
+
+    if (!isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
+      // we need to get the space by looking at the first location
+      if (fmdfs0) {
+        eos::common::FileSystem::fs_snapshot_t local_snapshot;
+        {
+          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+          eos::mgm::FileSystem* local_fs =
+              FsView::gFsView.mIdView.lookupByID(fmdfs0);
+          source_space = local_fs->GetSpace();
+        }
+      }
+      auto conversion =
+          Policy::ReadConversion(path, attrmap, vid, fmdlid, source_space,
+                                 *openOpaque, target_layout, target_space);
+      if (conversion == Policy::eFail) {
+        return Emsg(
+            epname, error, EINVAL,
+            "open file for read - invalid read conversion policy found!", path);
+      }
+
+      if (conversion == Policy::eAsync) {
+        error.setErrCode(0);
+        auto conversionCb = std::make_shared<XrdOucCallBack>();
+        conversionCb->Init(&error);
+        error.setErrInfo(1800, "delay client up to 30 minutes for read conversion");
+        auto conversiontag = ConversionTag::Get(
+            byfid, target_space, target_layout, std::string(""), true);
+        if (gOFS->mConverterDriver->ScheduleJob(byfid, conversiontag,
+                                                conversionCb)) {
+          eos_info("msg='read conversion started' fxid=%016llx conv='%s'", byfid, conversiontag.c_str());
+          return SFS_STARTED;
+        } else {
+          // remove the callback from the error object
+          error.setErrCB(0);
+          error.setErrArg(0);
+          error.setErrInfo(60, "please retry after 60 seconds for read conversion");
+          eos_info("msg='stalling client for read conversion' fxid=%016llx conv='%s'", byfid, conversiontag.c_str());
+          return SFS_STALL;
+        }
+      } else {
+        // no conversion to be run
+      }
+    }
     if (isSharedFile) {
       gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1);
     } else {
