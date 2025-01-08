@@ -1127,6 +1127,9 @@ The following policies can be configured
     iotype:r|w          io flavour [ direct, sync, csync, dsync ]
     iopriority:r|w      io priority [ rt:0...rt:7,be:0,be:7,idle ]
     schedule:r|w        fair FST scheduling [1 or 0]
+    localredirect       redirect clients to a local filesystem (0,1,never,optional,always)
+    readconversion      read-tiering: read files only from the given layout (space:hex-layout)
+    updateconversion    write-tiering: update files only with the given layout (space:hex-layout)
     =================== =================================================
      
 
@@ -1159,7 +1162,22 @@ Setting space policies
 
    # configure default FST iotype
    eos space config default space.policy.iotype:w=direct
-    
+
+   # configure local redirects for all clients
+   space config default space.policy.localredirect=always
+
+   # configure local redirects for all clients, which have a '#sharedfs' appended to the application
+   # e.g. eoscp#cephfs to redirect applications anchoring the 'cephfs' named shared filesystem
+   space config default space.policy.localredirect=optional
+
+   # disable local redirects for all clients
+   space config default space.policy.localredirect=never
+
+   # read files only from the given 'nvme' space with the given layout '00650012'
+   space config default space.policy.readconversion=nvme:00650012
+
+   # update files only in the given 'replica' space with the given layout ''
+   space config default space.policy.writeconversion=replica:00650012
 
 Setting user,group and application policies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -1199,7 +1217,7 @@ Examples:
    # files uploaded without selecting a space will end up in the replica space unless there is a forced overwrite in the target directory
 
    # point to the replica space as default policy
-   eos space config default space.policy..space=replica
+   eos space config default space.policy.space=replica
    # configure 2 replicas in the replica space
    eos space config replica space.policy.nstripes=2
    eos space config replica space.policy.layout=replica
@@ -1214,6 +1232,52 @@ Examples:
    eos space config rep4 space.policys.nstripes=4
    eos space config rep4 space.policy.layout=replica
     
+Storage Tiering
+^^^^^^^^^^^^^^^
+Currently we support two tiering scenarios:
+
+1) conversion on read
+
+.. code-block:: bash
+
+   flash <= disk
+
+When a file is stored on **flash**, it should be read there, when a file is stored on **disk**, it should before
+the read moved to the **flash** space before the file is opened by the application≥
+
+An example configuration who move the file to **flash** with a single replica layout would be:
+
+.. code-block:: bash
+
+   space config default space.policy.readconversion=flash:00650012
+
+This can be combined with an **LRU** policy which moves files of certain sizes and access times to the **disk** tier.
+As a result you have a dynamic tiering setup where **active** files are on the **flash** space, while
+cold data is on the **disk** tier (which could be for example erasure encoded).
+
+2) conversion on update  :
+
+.. code-block:: bash
+
+   flash <= disk(ec)
+
+When a file is stored on an erasure coded space **disk**, it is not possible to update files. This tiering
+option allows to convert a file from an erasure coded layout to a replica based layout e.g. on the **flash** space and
+files get updated there.
+
+.. code-block:: bash
+
+   space config default space.policy.updateconversion=flash:00650012
+
+This can be again combined with an **LRU** policy which move certain files (based on size, extension, access time) to
+an erasure coded **disk** space.
+
+.. ::note
+
+   Both methods use the EOS converter micro service. The client triggers with an **open** request a conversion
+   based on the given policy and receives a WAITRESP in the XRootD protocol. Once the conversion jobs finishes,
+   the client receives a response and retries the open. Due to the missing logic in HTTP clients, this works only
+   with XRootD protocol!
 
 Local Overwrites
 ^^^^^^^^^^^^^^^^
