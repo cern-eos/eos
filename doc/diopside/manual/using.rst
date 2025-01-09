@@ -2142,15 +2142,15 @@ is a bottleneck encountered in your clusters.
 		# Configuration for Qclient settings
 		#-------------------------------------------------------------------------------
 		# flusher type controls the temporary backend storage for qclient, which can
-		# be utilized in case of # crashes where the not acknowledged QuarkDB messages
-		# are replayed  for purely developer clusters options like MEMORY &
+		# be utilized in case of crashes where the not acknowledged QuarkDB messages
+		# are replayed. For purely developer clusters options like MEMORY &
 		# MEMORY_MULTI provide faster interfaces which can help debug performance
-		# problems and aid in future development; (also TESTING_NULL_UNSAFE_IN_PROD
-		# completely eliminates journalling for pure interface adherence tests)
+		# problems and aid in future development; also TESTING_NULL_UNSAFE_IN_PROD
+		# completely eliminates journalling for pure interface adherence tests
     # In multithreaded scenarios, we currently track the highest acknowledged message
     # this behaviour can be controlled by setting ROCKSDB_MULIT:LOW or HIGH respectively
 
-		mgmofs.qclient_flusher_type ROCKSDB # choose between ROCKSDB & ROCKSDB_MULIT
+		mgmofs.qclient_flusher_type ROCKSDB # choose between ROCKSDB (default) & ROCKSDB_MULTI
 
     # For tuning ROCKSDB itself, we provide the following option, please exercise caution
     # eg: "write_buffer_size=1073741824;max_write_buffer_number=5;min_write_buffer_number_to_merge=2"
