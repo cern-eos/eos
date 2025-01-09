@@ -669,3 +669,21 @@ If you enabled other authentication mechanisms than sss and unix, you need to en
 
     eos vid enable gsi
     eos vid enable krb5
+
+
+FlatScheduler concepts
+""""""""""""""""""""""
+
+The scheduler builds a hierarchical tree for placement, there are 2 types of elements:
+
+*Disk* - The final resulting disks where the writes will eventually happen
+*Bucket* - Any other element in the storage hierarchy - ie. Rack, Row, DC etc.
+
+The default behaviour uses a simple hierarchy of ROOT - SITE - Group - Disk
+
+However it will be possible to do more interesting placements by specifying a
+strategy where one can choose how many replicas of a particular element one
+needs to choose. For a cross DC placement it would be simply a matter of
+choosing 2 DCs at the first bucket and subsequently choosing the disks. This feature
+is being worked on in the 5.3.x series, currently the cross DC placement examples
+can be found in `unit_tests/mgm/placement/SchedulerTests.cc`.

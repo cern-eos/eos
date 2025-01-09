@@ -2159,3 +2159,58 @@ is a bottleneck encountered in your clusters.
     # Path where the persistent storage lives; Only needed when you really need to drop and recreate rocksdb
     # which is almost never
     mgmofs.queue_path /var/eos/ns-queue
+
+
+FlatScheduler configuration
+---------------------------
+
+EOS v5.2.0 release introduces a new scheduler where scheduling strategies can be
+configured at runtime. These can be enabled on a per space level. The scheduler
+is also weights aware, where a disk is alloted different weights according to
+its capacity, so for groups with heterogenous disks one has a better filling of
+disk capacities. Currently we fallback to the classical geoscheduler in case
+valid placements using any of the scheduling strategies isn't found.
+
+
+Scheduling Strategies
+"""""""""""""""""""""
+
+The following strategies are currently offered:
+
++------------------+----------------------------------------------------------------------------------------------+
+| Strategy         | Description                                                                                  |
++==================+==============================================================================================+
+| ``geo``          | The classical geotree engine, this is the default option                                     |
++------------------+----------------------------------------------------------------------------------------------+
+| ``weightedrr``   | A strategy that fills weights for disks and distributes roundrobin according to weights      |
++------------------+----------------------------------------------------------------------------------------------+
+| ``weightedrandom`` | Uses a weightedrandom engine, for randomly choosing according to weights                   |
++------------------+----------------------------------------------------------------------------------------------+
+| ``random``       | Randomly chooses disks within groups, useful for homogeneous groups                          |
++------------------+----------------------------------------------------------------------------------------------+
+| ``roundrobin``   | Goes in a roundrobin fashion choosing disks within groups, useful for homogeneous groups     |
++------------------+----------------------------------------------------------------------------------------------+
+| ``tlrr``         | A more performant version of the roundrobin algorithm, where each MGM thread has its own     |
+|                  | roundrobin. While not as coordinated as a global roundrobin, it should be more or less       |
+|                  | amortized for large enough placements. Useful for homogeneous groups                         |
++------------------+----------------------------------------------------------------------------------------------+
+
+
+.. code-block:: bash
+
+   # configure scheduler type for a space
+   eos space config <spacename> space.scheduler.type=weightedrandom
+
+
+
+Disk Weight configuration
+"""""""""""""""""""""""""
+For weighted scheduling, by default disks are weighted as a short unsigned integer, where the number is equivalent to
+the disk capacity in TB, ie. a disk with 4 TB capacity is allotted a weight of 4 and so forth. This can be
+changed at runtime to for eg. do certain draining/maintenance operations where the weight can be lowered
+to attract less writes.
+
+.. code-block:: bash
+
+   # configure weight as 0 for disk with fsid 10
+   eos sched configure weight default 10 0
