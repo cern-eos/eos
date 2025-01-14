@@ -48,7 +48,7 @@ for RELEASE in "jammy" "noble"; do
       if [ -f ${DEB_PKG} ]; then
         FN=$(basename ${DEB_PKG})
         # Check that find output is not empty  
-        if [[ -n "$(find ${EXPORT_REPO} -name ${FN} -type f)" ]]; then  
+        if [[ -n "$(find ${EXPORT_REPO}/pool/${RELEASE} -name ${FN} -type f)" ]]; then  
           echo "notice: file already exists ${DEB_PKG}"
           found=true
           break
@@ -58,7 +58,7 @@ for RELEASE in "jammy" "noble"; do
 
     if [[ "${found}" = true ]]; then
       echo "notice: skip publising for already existing packages"
-      break
+      continue
     fi
 
     echo "info: Publishing for: ${RELEASE} in location: ${EXPORT_REPO}"
