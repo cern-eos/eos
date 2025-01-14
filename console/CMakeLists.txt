@@ -42,6 +42,7 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   GOOGLE::SPARSEHASH
   XROOTD::UTILS
   XROOTD::POSIX
+  XROOTD::PRIVATE
   SCITOKENS::SCITOKENS
   stdc++fs 
   )

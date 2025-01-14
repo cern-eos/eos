@@ -46,6 +46,7 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <list>
+#include <XrdCl/XrdClPostMaster.hh>
 
 #ifdef __APPLE__
 #define ENONET 64
@@ -818,6 +819,12 @@ usage()
 int
 Run(int argc, char* argv[])
 {
+  // Ugly temporary hack for stopping the XRootD PostMaster environment no matter what happens (https://its.cern.ch/jira/browse/EOS-6282)
+  auto stopPostMaster = [&](void*) {
+    XrdCl::DefaultEnv::GetPostMaster()->Stop();
+  };
+  std::unique_ptr<void, decltype(stopPostMaster)> stopPostMasterDeleter((void *)1, stopPostMaster);
+
   char* line, *s;
   serveruri = (char*) "root://localhost";
   // Enable fork handlers for XrdCl
