@@ -226,8 +226,8 @@ DrainTransferJob::GetFileInfo() const
   eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFileId);
 
   try {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-    std::shared_ptr<eos::IFileMD> fmd = gOFS->eosFileService->getFileMD(mFileId);
+    auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(mFileId);
+    std::shared_ptr<eos::IFileMD> fmd = fmdLock->getUnderlyingPtr();
     fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
     fdrain.mProto.set_id(fmd->getId());
     fdrain.mProto.set_layout_id(fmd->getLayoutId());
@@ -663,7 +663,6 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
 DrainTransferJob::Status
 DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
 {
-  eos::common::RWMutexWriteLock wr_lock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> file {nullptr};
 
   try {
@@ -675,6 +674,8 @@ DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
   if (file == nullptr) {
     return Status::Failed;
   }
+
+  eos::MDLocking::FileWriteLock fmdLock(file);
 
   // We already have excess replicas just drop the current one
   if (file->getNumLocation() >
