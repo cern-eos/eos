@@ -1596,6 +1596,40 @@ TEST_F(VariousTests, ContainerIterator)
   }
 }
 
+TEST_F(VariousTests, FileContainerIteratorConcurrentAccess)
+{
+  eos::IContainerMDPtr cont1 = view()->createContainer("/dir-1/");
+  eos::IFileMDPtr file1 = view()->createFile("/dir-1/file-1");
+  eos::IFileMDPtr file2 = view()->createFile("/dir-1/file-2");
+  eos::IFileMDPtr file3 = view()->createFile("/dir-1/file-3");
+  eos::IFileMDPtr file4 = view()->createFile("/dir-1/file-4");
+  eos::IContainerMDPtr subcont1 = view()->createContainer("/dir-1/dir-1/");
+  eos::IContainerMDPtr subcont2 = view()->createContainer("/dir-1/dir-2/");
+  eos::IContainerMDPtr subcont3 = view()->createContainer("/dir-1/dir-3/");
+  eos::IContainerMDPtr subcont4 = view()->createContainer("/dir-1/dir-4/");
+
+  std::vector<std::thread> workers;
+  for(int i = 0;i < 100; i++) {
+    workers.emplace_back([this,cont1](){
+      for(auto cit = eos::ContainerMapIterator(cont1); cit.valid(); cit.next()){
+        auto cmd = cont1->findContainer(cit.key());
+        eos::MDLocking::ContainerWriteLock cmdLock(cmd);
+        cmd->setAttribute("test","test");
+        cont1->notifyMTimeChange(containerSvc());
+      }
+      for(auto fit = eos::FileMapIterator(cont1); fit.valid(); fit.next()) {
+        auto fmd = cont1->findFile(fit.key());
+        eos::MDLocking::FileWriteLock fmdLock(fmd);
+        fmd->setAttribute("test","test");
+      }
+    });
+  }
+
+  for(auto & w: workers) {
+    w.join();
+  }
+}
+
 TEST_F(VariousTests, FileIteratorInvalidation)
 {
   // exercises the FileMapIterator when underlying file map's densehashtable
