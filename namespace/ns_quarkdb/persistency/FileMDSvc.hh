@@ -94,6 +94,7 @@ public:
 
   //------------------------------------------------------------------------
   //! Get the file metadata information for the given file ID and read lock it
+  //! throws MD exception in case the file does not exist
   //------------------------------------------------------------------------
   virtual MDLocking::FileReadLockPtr
   getFileMDReadLocked(IFileMD::id_t id) override;
