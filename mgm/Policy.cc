@@ -40,7 +40,8 @@ EOSMGMNAMESPACE_BEGIN
 const std::vector<std::string> Policy::gBasePolicyKeys = {
     "policy.space",         "policy.layout",          "policy.nstripes",
     "policy.checksum",      "policy.blocksize",       "policy.blockchecksum",
-    "policy.localredirect", "policy.updateconversion","policy.readconversion"};
+    "policy.localredirect", "policy.updateconversion","policy.readconversion",
+    "policy.altspaces"};
 
 const std::vector<std::string> Policy::gBasePolicyRWKeys = {
     "policy.bandwidth", "policy.iopriority", "policy.iotype",
@@ -170,6 +171,26 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   }
 
+  // Check if the given space is under the nominal value, otherwise loop through altspaces and take the first having capacity
+  if (rw) {
+    if (FsView::gFsView.UnderNominalQuota(space, (vid.uid==0))) {
+      std::string altspaces_key = "policy.altspaces";
+      if (auto kv = spacepolicies.find(altspaces_key);
+          kv != spacepolicies.end() && (!kv->second.empty())) {
+	std::vector<std::string> alt_spaces;
+	eos::common::StringConversion::Tokenize(kv->second,
+						alt_spaces,
+						":");
+	for (auto aspace:alt_spaces) {
+	  if (!FsView::gFsView.UnderNominalQuota(aspace, (vid.uid==0))) {
+	    eos_static_info("msg=\"space '%s' is under nominal quota - selected alternative space '%s'", space.c_str(), aspace.c_str());
+	    space = aspace; // select this one and continue
+	    break;
+	  }
+	}
+      }
+    }
+  }
   // Replace the non empty settings from the default space have been already
   // defined before
   if (!conversion && space != "default") {

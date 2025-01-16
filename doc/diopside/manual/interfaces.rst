@@ -1118,6 +1118,7 @@ The following policies can be configured
     key                 values                                          
     =================== =================================================
     space               default,...
+    altspaces           [space1[,space2[,space3]]]
     layout              plain,replica,raid5,raid6,raiddp,archive,qrain
     nstripes            1..255
     checksum            adler,md5,sha1,crc32,crc32c
@@ -1229,9 +1230,31 @@ Examples:
    # files uploaded selecting the rep4 space will be stored with 4 replicas, if non space is selected they will get the default for the target directory or the default space
 
    # define a space with 4 replica policy
-   eos space config rep4 space.policys.nstripes=4
+   eos space config rep4 space.policy.nstripes=4
    eos space config rep4 space.policy.layout=replica
     
+
+   ##############
+   # Example 3  #
+   ##############
+   # When the policy is consulted for a write operation, alternative storage spaces can be defined as fallbacks.
+   # These alternatives are used when the available space in the primary storage, as determined by the policy, is exceeded.
+   # For instance, if files are initially placed in an NVME storage space and it becomes full, the system can fall back
+   # to an alternative space, such as an HDD. If the HDD space is also exhausted, another fallback, like OLDHDD, can be tried.
+   # If all alternative spaces are exhausted, the policy will revert to the initially selected space, and the placement
+   # operation will fail due to insufficient space.
+
+
+   # define as default the NVME space
+   eos space config default space.policy.space=NVME
+
+   # define the HDD space as alternative to the NVME space
+   eos space config NVME space.policy.altspaces=HDD,OLDHDD
+
+   # define several alternative spaces HDD,OLDHDD if the NVME space has no nominal bytes left
+   # HDD is tried first and if there are nominal bytes left that one is taken
+   eos space config NVME space.policy.altspaces=HDD,OLDHDD
+
 Storage Tiering
 ^^^^^^^^^^^^^^^
 Currently we support two tiering scenarios:
