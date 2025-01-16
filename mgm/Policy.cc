@@ -173,11 +173,11 @@ Policy::GetLayoutAndSpace(const char* path,
 
   // Check if the given space is under the nominal value, otherwise loop through altspaces and take the first having capacity
   if (rw) {
-    if (FsView::gFsView.UnderNominalQuota(space, (vid.uid==0))) {
-      std::string altspaces_key = "policy.altspaces";
-      if (auto kv = spacepolicies.find(altspaces_key);
+    std::vector<std::string> alt_spaces;
+    std::string altspaces_key = "policy.altspaces";
+    if (auto kv = spacepolicies.find(altspaces_key);
           kv != spacepolicies.end() && (!kv->second.empty())) {
-	std::vector<std::string> alt_spaces;
+      if (FsView::gFsView.UnderNominalQuota(space, (vid.uid==0))) {
 	eos::common::StringConversion::Tokenize(kv->second,
 						alt_spaces,
 						":");
@@ -612,6 +612,11 @@ Policy::ReadConversion(const char* path, eos::IContainerMD::XAttrMap& map,
       return eNone;
     }
 
+    if (FsView::gFsView.UnderNominalQuota(target_space, (vid.uid==0))) {
+      // there is no space in the target space left, just don't convert it
+      eos_static_info("msg=\"target space '%s' over nominal size - suppresing read conversion policy\"");
+      return Policy::eNone;
+    }
     return Policy::eAsync; // for the moment we don't want anything synchronous
                            // happening in the MGM
   } else {
