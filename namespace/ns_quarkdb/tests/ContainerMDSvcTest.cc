@@ -150,3 +150,16 @@ TEST_F(ContainerMDSvcF, getContainerLocked) {
     ASSERT_EQ(contWriteLocked->getUnderlyingPtr().get(),contWriteLocked2->getUnderlyingPtr().get());
   }
 }
+
+TEST_F(ContainerMDSvcF, getContainerMDWhenContIsLockedShouldNotLock) {
+  auto cont = view()->createContainer("/root/");
+  auto id = cont->getId();
+  eos::MDLocking::ContainerWriteLock contLock(cont);
+
+  std::thread t([this,id](){
+    // Here, we just check that the getContainerMD(id) does not lock
+    // despite having the container being locked
+    auto cont = containerSvc()->getContainerMD(id);
+  });
+  t.join();
+}
