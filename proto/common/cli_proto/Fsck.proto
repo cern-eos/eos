@@ -20,6 +20,7 @@ message FsckProto {
     uint64 fid = 2;
     uint64 fsid_err = 3;
     string error = 4;
+    bool failed = 5;
   }
 
   message CleanOrphansProto {

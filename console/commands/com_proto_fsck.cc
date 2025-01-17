@@ -76,7 +76,7 @@ void com_fsck_help()
       << "    max-queued-jobs      : maximum number of queued jobs\n"
       << "    max-thread-pool-size : maximum number of threads in the fsck pool\n"
       << std::endl
-      << "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> ...]\n"
+      << "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--failed] [--error <tag1> <tag2> ...]\n"
       << "    report consistency check results, with the following options\n"
       << "    -a         : break down statistics per file system" << std::endl
       << "    -i         : display file identifiers" << std::endl
@@ -86,10 +86,12 @@ void com_fsck_help()
       << std::endl
       << "  fsck repair --fxid <val> [--fsid <val>] [--error <err_type>] [--async]\n"
       << "    repair the given file if there are any errors\n"
-      << "    --fxid  : hexadecimal file identifier\n"
-      << "    --fsid  : file system id used for collecting info\n"
-      << "    --error : error type for given file system id e.g. m_cx_diff unreg_n etc\n"
-      << "    --async : job queued and ran by the repair thread if enabled\n"
+      << "    --fxid   : hexadecimal file identifier\n"
+      << "    --fsid   : file system id used for collecting info\n"
+      << "    --error  : error type for given file system id e.g. m_cx_diff unreg_n etc\n"
+      << "    --failed : print the list of failed repairs\n"
+      << "               it can be used with --error to filter by error\n"
+      << "    --async  : job queued and ran by the repair thread if enabled\n"
       << std::endl
       << "  fsck clean_orphans [--fsid <val>] [--force-qdb-cleanup]\n"
       << "     clean orphans by removing the entries from disk and local\n "
