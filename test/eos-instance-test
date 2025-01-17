@@ -647,6 +647,8 @@ runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Chmod     " unix 0 "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Motd      " unix 0 "" eos motd
 runtest "### Help      " unix 0 "" eos "help | grep \"Display this text\""
+# Define huge nominal space
+runtest "### NomianlSp " unix 0 "" eos space config default space.nominalsize=100T
 ################################################################################
 # Upload,Download,Stat,Rename
 ################################################################################
