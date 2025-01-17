@@ -237,12 +237,6 @@ com_report(char* arg1)
           time_t start_ots = std::stoul(map["ots"]);
           time_t start_cts = std::stoul(map["cts"]);
 
-          if (!first_ts) {
-            first_ts = start_ots;
-          }
-
-          last_ts = start_cts;
-
           if (start_time) {
             if (start_ots < start_time) {
               continue;
@@ -254,6 +248,12 @@ com_report(char* arg1)
               continue;
             }
           }
+
+	  if (!first_ts) {
+            first_ts = start_ots;
+          }
+
+          last_ts = start_cts;
 
           ssize_t wsize = std::stol(map["wb"]);
           ssize_t rsize = std::stol(map["rb"]);
