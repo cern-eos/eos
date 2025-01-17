@@ -71,7 +71,7 @@ using RepairFactoryFnT =
   std::function<std::shared_ptr<FsckRepairJob>
   (eos::common::FileId::fileid_t fid,
    eos::common::FileSystem::fsid_t fsid_src,
-   eos::common::FileSystem::fsid_t fsid_trg ,
+   eos::common::FileSystem::fsid_t fsid_trg,
    std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
    std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
    bool drop_src,
@@ -95,7 +95,7 @@ public:
   //----------------------------------------------------------------------------
   FsckEntry(eos::IFileMD::id_t fid,
             const std::set<eos::common::FileSystem::fsid_t>& fsid_err,
-            const std::string& expected_err, bool best_effort,
+            eos::common::FsckErr expected_err, bool best_effort,
             std::shared_ptr<qclient::QClient> qcl);
 
   //----------------------------------------------------------------------------
