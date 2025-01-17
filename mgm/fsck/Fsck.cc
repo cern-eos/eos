@@ -449,9 +449,11 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
         std::shared_ptr<FsckEntry> job{
           new FsckEntry(fid, fsids, err, mDoBestEffort, mQcl)};
         mThreadPool.PushTask<void>([this, job, fid, err]() {
-          bool ok = job->Repair();
-
-          if (!ok) {
+          if (job->Repair()) {
+            eos::common::RWMutexWriteLock wr_lock(mErrMutex);
+            mFailedRepair[err].erase(fid);
+          } else {
+            eos::common::RWMutexWriteLock wr_lock(mErrMutex);
             mFailedRepair[err].insert(fid);
           }
         });
@@ -539,6 +541,7 @@ bool Fsck::ListFailed(const std::string& err_type, std::string& out_msg) const
   }
 
   std::ostringstream oss;
+  eos::common::RWMutexReadLock rd_lock(mErrMutex);
 
   if (err == eos::common::FsckErr::None) {
     for (const auto& [error, fids] : mFailedRepair) {
@@ -574,9 +577,11 @@ Fsck::RepairEntry(eos::IFileMD::id_t fid,
   if (async) {
     out_msg = "msg=\"repair job submitted\"";
     mThreadPool.PushTask<void>([this, job, fid, err]() {
-      bool ok = job->Repair();
-
-      if (!ok) {
+      if (job->Repair()) {
+        eos::common::RWMutexWriteLock wr_lock(mErrMutex);
+        mFailedRepair[err].erase(fid);
+      } else {
+        eos::common::RWMutexWriteLock wr_lock(mErrMutex);
         mFailedRepair[err].insert(fid);
       }
     });
