@@ -195,7 +195,7 @@ public:
   virtual void updateStore(IFileMD* obj) = 0;
 
   //------------------------------------------------------------------------
-  //! Remove object from the store
+  //! Remove object from the store, you should write lock the file before calling this
   //------------------------------------------------------------------------
   virtual void removeFile(IFileMD* obj) = 0;
 

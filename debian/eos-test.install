@@ -3,6 +3,7 @@ usr/sbin/eos-fusex-certify
 usr/sbin/eos-instance-test
 usr/sbin/eos-instance-test-ci
 usr/sbin/eos-accounting-test
+usr/sbin/eos-file-cont-detached-test
 usr/sbin/eos-lru-test
 usr/sbin/eos-io-test
 usr/sbin/eos-io-tool

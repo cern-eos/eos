@@ -1,0 +1,124 @@
+#!/bin/bash
+# Output what this script will do
+set -x
+
+prefix="$1"
+qdb_cluster=${2-"localhost:7777"}
+qdb_host=$(echo "$qdb_cluster" | cut -d':' -f1)
+qdb_port=$(echo "$qdb_cluster" | cut -d':' -f2)
+qdb_password=${3-"/etc/eos.keytab"}
+qdb="$qdb_cluster"
+EOS_REMOVED_DETACHED_DIR="$prefix"
+
+NB_DIRS=3
+NB_FILES_PER_DIR=100
+
+cleanup() {
+  eos ns cache drop
+  eos rm -rF --no-confirmation "$EOS_REMOVED_DETACHED_DIR"
+}
+
+# cleanup everything if needed
+cleanup
+
+# Create directories
+seq 1 $NB_DIRS | xargs -I{} -P 100 eos mkdir -p "$EOS_REMOVED_DETACHED_DIR/{}"
+
+# Remember the id of the test root directory
+eosRemovedDetachedId=$(eos -j fileinfo "$EOS_REMOVED_DETACHED_DIR" | jq .id)
+
+# Remember every id of the directories created
+dirs=$(eos find -d "$EOS_REMOVED_DETACHED_DIR" | tail -n +2);
+dirIds=()
+for dir in $dirs;
+do
+  dirIds+=($(eos -j fileinfo "$dir" | jq .id))
+done
+
+# Create files under each directory
+for dir in $dirs
+do
+  seq 1 $NB_FILES_PER_DIR | xargs -I{} -P 100 eos touch "$dir/file{}"
+done
+
+# Remember file ids
+files=$(eos find -f "$EOS_REMOVED_DETACHED_DIR")
+fileIds=()
+for file in $files;
+do
+  fileIds+=($(eos -j fileinfo "$file" | jq .id))
+done
+
+# Get available fsids
+fsids=$(eos fs ls | awk '/booted/ {print $3}')
+
+# Fake file replication on fsids and unlink the file from the fsids
+for file in ${files[@]};
+do
+  for fsid in $fsids;
+  do
+    eos file tag "$file" "+$fsid" &
+  done
+  wait
+  for fsid in $fsids;
+  do
+    eos file tag "$file" "~$fsid" &
+  done
+  wait
+done
+
+# Change the parent of the files to one that does not exist (create detached files)
+for fid in ${fileIds[@]};
+do
+  eos-ns-inspect change-fid --password-file "$qdb_password" --members "$qdb" --fid "$fid" --new-parent 20000000 --no-dry-run
+done
+
+# Do parallel detached file deletion
+for fid in ${fileIds[@]};
+do
+  eos rm -F "fid:$fid" &
+done
+wait
+
+# Delete the file entries from the directories' file map (in quarkdb). Otherwise we will not
+# be able to delete the directories later on
+for dirId in ${dirIds[@]};
+do
+  seq 1 "$NB_FILES_PER_DIR" | xargs -P 100 -I{} redis-cli -h "$qdb_host" -p "$qdb_port" 'HDEL' "$dirId:map_files" "file{}"
+done
+
+# Detach the directories
+for dirId in ${dirIds[@]};
+do
+  eos-ns-inspect overwrite-container --password-file "$qdb_password" --members "$qdb" --cid "$dirId" --parent-id 2000000000 --name test2 --no-dry-run
+done
+
+# Drop the cache
+eos ns cache drop
+
+for dirId in ${dirIds[@]}
+do
+  # Will display error in the output but it's OK, the detached directories will be deleted at the end
+  eos rm -rF "cid:$dirId" &
+done
+
+wait
+
+for i in $(seq 1 "$NB_DIRS");
+do
+  # Delete the directories from the root directory's directory map
+  redis-cli -h "$qdb_host" -p "$qdb_port" 'HDEL' "$eosRemovedDetachedId:map_conts" "$i"
+done
+
+# Cleanup everything
+cleanup
+
+# The test is successful if nothing is left
+eos ls /eos/dev/detached_parent_test/
+if [[ $? -eq 2 ]];
+then
+  echo "removed-detached-test OK"
+  exit 0
+fi
+echo "removed-detahed-test FAILED"
+exit 1

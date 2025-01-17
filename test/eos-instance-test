@@ -486,6 +486,12 @@ eos_accounting() {
   echo eos-accounting-test $1 ; eval eos-accounting-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
+eos_file_cont_detached() {
+  local QDB_CLUSTER=$(cat /etc/xrd.cf.mgm | grep "^mgmofs.qdbcluster" | awk '{print $2;}')
+  local QDB_PWDFILE=$(cat /etc/xrd.cf.mgm | grep "^mgmofs.qdbpassword_file" | awk '{print $2;}')
+  echo eos-file-cont-detached-test "$1"; eval eos-file-cont-detached-test "$1" "$QDB_CLUSTER" "$QDB_PWDFILE" >> "$EOSCERTLOG" 2>&1
+}
+
 eos_lru() {
   echo eos-lru-test $1 ; eval eos-lru-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
@@ -1714,6 +1720,9 @@ runtest "### Stat file   " unix 1 "" command eos stat "$rmTestDir/regexx*p.tt\.e
 
 # Cleanup everything
 runtest "### Cleanup     " unix 0 "" eos rm -rF $rmTestDir/
+
+# Rm detached
+runtest "### eos-file-cont-detached-test  " unix 0 "" eos_file_cont_detached "/eos/$EOS_TEST_INSTANCE/test/instancetest/file_cont_detached"
 
 # ------------------------------------------------------------------------------
 categorie="ls"

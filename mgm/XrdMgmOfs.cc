@@ -1606,10 +1606,8 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
 
   if (is_dir) {
     try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-      std::shared_ptr<eos::IContainerMD> cont  =
-        gOFS->eosDirectoryService->getContainerMD(id);
-
+      auto contLock = gOFS->eosDirectoryService->getContainerMDWriteLocked(id);
+      std::shared_ptr<eos::IContainerMD> cont = contLock->getUnderlyingPtr();
       if (cont->getParentId()) {
         gOFS->eosDirectoryService->removeContainer(cont.get());
         return true;
@@ -1627,23 +1625,24 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
   } else {
     try {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
       std::shared_ptr<eos::IFileMD> file = gOFS->eosFileService->getFileMD(id);
-
-      if (file->getContainerId()) {
+      // Only one operation: no need to take a long file lock
+      auto contId = file->getContainerId();
+      if (contId) {
         // Double check if the parent container really exists. It could be
         // that the file is attached to a container which is already deleted.
         try {
-          (void) gOFS->eosDirectoryService->getContainerMD(file->getContainerId());
+          (void) gOFS->eosDirectoryService->getContainerMD(contId);
           msg = "error: file fxid=" + eos::common::FileId::Fid2Hex(id) +
-                " is attached to cid=" + std::to_string(file->getContainerId());
+                " is attached to cid=" + std::to_string(contId);
           return false;
         } catch (const eos::MDException& e) {
           // This means the parent container does not exist so we can safely
           // remove this file entry.
         }
       }
-
+      // Write lock the file
+      eos::MDLocking::FileWriteLock fileLock(file);
       // If any of the unlink locations is a file systems that doesn't exist
       // anymore then just remove it
       auto unlink_locs = file->getUnlinkedLocations();

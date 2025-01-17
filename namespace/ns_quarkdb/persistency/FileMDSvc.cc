@@ -253,9 +253,9 @@ QuarkFileMDSvc::updateStore(IFileMD* obj)
   }
 }
 
-//------------------------------------------------------------------------------
-// Remove object from the store
-//------------------------------------------------------------------------------
+//------------------------------------------------------------------------
+//! Remove object from the store, you should write lock the file before calling this
+//------------------------------------------------------------------------
 void
 QuarkFileMDSvc::removeFile(IFileMD* obj)
 {
