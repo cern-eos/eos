@@ -1200,8 +1200,8 @@ The evaluation order is by space (lowest), by group, by user, by app
 (highest). Finally IO policies can be overwritten by extended
 **sys.forced** attributes (see the following).
 
-Policy Selection and Scopes
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Policy Selection, Scopes and alternative Spaces
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Clients can select the space ( and its default policies ) by adding
 `eos.space=<space>` to the CGI query of an URL, otherwise the space is
@@ -1243,6 +1243,9 @@ Examples:
    # to an alternative space, such as an HDD. If the HDD space is also exhausted, another fallback, like OLDHDD, can be tried.
    # If all alternative spaces are exhausted, the policy will revert to the initially selected space, and the placement
    # operation will fail due to insufficient space.
+   # It is important that all spaces have a proper nominalsize configuration since this is used to determine which one can
+   # be used. It is also important to have the full layout configurations for each alternative space because they cannot be taken from
+   # directory based sys.forced.* attributes, some for IO policies.
 
 
    # define as default the NVME space
@@ -1254,6 +1257,10 @@ Examples:
    # define several alternative spaces HDD,OLDHDD if the NVME space has no nominal bytes left
    # HDD is tried first and if there are nominal bytes left that one is taken
    eos space config NVME space.policy.altspaces=HDD,OLDHDD
+
+Example 3 describes the configuration of alternative spaces. An alternative space is selected if the configured target space for a
+file has no space left and there is an *space.policy.altspaces* entry in the configured target space. Read the comment on top of this example
+for more information!
 
 Storage Tiering
 ^^^^^^^^^^^^^^^
