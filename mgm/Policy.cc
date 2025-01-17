@@ -257,7 +257,7 @@ Policy::GetLayoutAndSpace(const char* path,
       if (auto kv = spacepolicies.find(altspaces_key);
           kv != spacepolicies.end() && (!kv->second.empty())) {
         if (FsView::gFsView.UnderNominalQuota(space, (vid.uid == 0))) {
-          eos::common::StringConversion::Tokenize(kv->second, alt_spaces, ":");
+          eos::common::StringConversion::Tokenize(kv->second, alt_spaces, ",");
           for (auto aspace : alt_spaces) {
             if (FsView::gFsView.UnderNominalQuota(aspace, (vid.uid == 0))) {
               eos_static_info("msg=\"space '%s' is under nominal quota - "
