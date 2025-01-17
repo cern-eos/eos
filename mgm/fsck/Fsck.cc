@@ -40,8 +40,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-const std::string Fsck::sFsckKey
-{"fsck"
+const std::string Fsck::sFsckKey {
+  "fsck"
 };
 const std::string Fsck::sCollectKey {"toggle-collect"};
 const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
@@ -106,6 +106,7 @@ Fsck::ApplyFsckConfig()
 
   if (kv_map.count(sCollectKey) && kv_map.count(sCollectIntervalKey)) {
     bool enable_collect = (kv_map[sCollectKey] == "1");
+
     // Make fsck config enforcement idempotent. Note the value in the Config
     // call is overloaded with the "off" string marking the fact that fsck
     // collection should be disabled.
@@ -417,7 +418,7 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     // Create local struct for errors so that we avoid the iterator invalidation
     // and the long locks
     std::map<std::string,
-        std::map<eos::common::FileId::fileid_t ,
+        std::map<eos::common::FileId::fileid_t,
         std::set <eos::common::FileSystem::fsid_t> > > local_emap;
     {
       eos::common::RWMutexReadLock rd_lock(mErrMutex);
@@ -508,6 +509,44 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
   gOFS->mFidTracker.Clear(TrackerType::Fsck);
   eos_info("%s", "msg=\"stopped fsck repair thread\"");
   mRepairRunning = false;
+}
+
+
+void printFids(std::ostringstream& oss,
+               const std::set<eos::common::FileId::fileid_t> fids,
+               const eos::common::FsckErr err)
+{
+  for (const auto fid : fids) {
+    oss << "fxid=" << eos::common::FileId::Fid2Hex(fid) << " err=" <<
+        eos::common::FsckErrToString(err) << "\n";
+  }
+}
+
+//------------------------------------------------------------------------------
+// List failed repaired files
+//------------------------------------------------------------------------------
+bool Fsck::ListFailed(const std::string& err_type, std::string& out_msg) const
+{
+  eos::common::FsckErr err = eos::common::FsckErr::None;
+
+  if (!err_type.empty()) {
+    err = eos::common::ConvertToFsckErr(err_type);
+  }
+
+  std::ostringstream oss;
+
+  if (err == eos::common::FsckErr::None) {
+    for (const auto& [error, fids] : mFailedRepair) {
+      printFids(oss, fids, error);
+    }
+  } else {
+    try {
+      auto fids = mFailedRepair.at(err);
+      printFids(oss, fids, err);
+    } catch (const std::out_of_range& e) {}
+  }
+
+  out_msg = oss.str();
 }
 
 //------------------------------------------------------------------------------
@@ -1184,7 +1223,7 @@ Fsck::QueryQdb(ErrMapT& err_map)
     if ((pos == std::string::npos) || (pos == data.length()))
     {
       eos_static_err("msg=\"failed to parse fsck element\" data=\"%s\"",
-      data.c_str());
+                     data.c_str());
       return {0ull, 0ul};
     }
 

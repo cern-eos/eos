@@ -159,7 +159,7 @@ public:
   //! @param err_type type of error on the explicit file system
   //! @param async if true then submit the job to the repair thread if it's
   //!        enabled
-  //! @param err_msg output message
+  //! @param out_msg output message
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
@@ -167,6 +167,16 @@ public:
                    const std::set<eos::common::FileSystem::fsid_t>& fsid_err,
                    const std::string& err_type, bool async,
                    std::string& out_msg);
+
+  //----------------------------------------------------------------------------
+  //! List failed files
+  //!
+  //! @param err_type type of error
+  //! @param out_msg output message
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool ListFailed(const std::string& err_type, std::string& out_msg) const;
 
   //----------------------------------------------------------------------------
   //! Update the backend given the successful outcome of the repair
@@ -244,7 +254,7 @@ private:
   mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
   using ErrMapT = std::map<std::string,
-        std::map<eos::common::FileId::fileid_t ,
+        std::map<eos::common::FileId::fileid_t,
         std::set <eos::common::FileSystem::fsid_t>>>;
   ErrMapT eFsMap;
   //! Unavailable filesystems map
@@ -252,6 +262,8 @@ private:
   //! Dark filesystem map - filesystems referenced by a file but not configured
   //! in the filesystem view
   std::map<eos::common::FileSystem::fsid_t, unsigned long long > eFsDark;
+  std::map<eos::common::FsckErr, std::set<eos::common::FileId::fileid_t>>
+      mFailedRepair; ///< Failed files to be repaired, grouped by error type
   time_t eTimeStamp; ///< Timestamp of collection
   uint64_t mMaxQueuedJobs {(uint64_t)1e3}; ///< Max number of queued jobs (1k)
   uint32_t mMaxThreadPoolSize {20}; ///< Max number of threads in the pool
