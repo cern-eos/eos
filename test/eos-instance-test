@@ -787,6 +787,22 @@ runtest "### UploadSz  " unix 1 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_IN
 runtest "### FileInfo  " unix 1 "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=0"
 runtest "### Rem       " unix 2 "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k"
 
+# --------------------------
+# Alternative Space test
+# --------------------------
+runtest "### MkSpace   " unix 0 "" eos "space define nothing"
+runtest "### SetSpace  " unix 0 "" eos "space set nothing on "
+runtest "### AltSpace  " unix 0 "" eos "space config nothing space.policy.altspaces=default"
+runtest "### AltSpace  " unix 0 "" eos "space config default space.policy.space=nothing"
+runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/forced-altspace"
+runtest "### Mkdir     " unix 0 "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/default-altspace"
+runtest "### Force     " unix 0 "" eos "attr set sys.forced.space=nothing /eos/$EOS_TEST_INSTANCE/test/instancetest/forced-altspace"
+runtest "### Upload    " unix 0 "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/forced-altspace/1M"
+runtest "### Upload    " unix 0 "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/default-altspace/1M"
+runtest "### RmSpace   " unix 0 "" eos "space rm nothing"
+runtest "### AltSpace  " unix 0 "" eos "space config default space.policy.space=default"
+runtest "### Rem       " unix 0 "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/forced-altspace"
+runtest "### Rem       " unix 0 "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/default-altspace"
 #-------------------------------------------------------------------------------
 # Verify sys.owner.auth behaviour
 #-------------------------------------------------------------------------------
