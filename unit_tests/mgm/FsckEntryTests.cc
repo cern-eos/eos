@@ -73,7 +73,8 @@ protected:
   {
     mRepairJob = nullptr;
     mFsckEntry = std::unique_ptr<eos::mgm::FsckEntry>
-      (new eos::mgm::FsckEntry(1234567, {3}, "none", false, nullptr));
+                 (new eos::mgm::FsckEntry(1234567, {3}, eos::common::FsckErr::None, false,
+                                          nullptr));
     PopulateMgmFmd();
 
     for (auto fsid : mFsckEntry->mMgmFmd.locations()) {
@@ -84,12 +85,12 @@ protected:
     mFsckEntry->mRepairFactory =
       [&](eos::common::FileId::fileid_t fid,
           FileSystem::fsid_t fsid_src,
-          FileSystem::fsid_t fsid_trg ,
+          FileSystem::fsid_t fsid_trg,
           std::set<FileSystem::fsid_t> exclude_srcs,
           std::set<FileSystem::fsid_t> exclude_dsts,
           bool drop_src,
-    const std::string & app_tag,
-          bool repair_excluded) {
+          const std::string & app_tag,
+    bool repair_excluded) {
       if (mRepairJob) {
         return mRepairJob;
       } else {
@@ -367,8 +368,8 @@ TEST_F(FsckEntryTest, FileOverReplicated)
   mFsckEntry->mReportedErr = eos::common::FsckErr::DiffRepl;
 
   for (const auto& elem : {
-  6, 7
-}) {
+         6, 7
+       }) {
     PopulateFstFmd(elem);
     mFsckEntry->mMgmFmd.add_locations(elem);
   }
