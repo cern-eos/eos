@@ -134,7 +134,7 @@ public:
   virtual void updateStore(IContainerMD* obj) override;
 
   //----------------------------------------------------------------------------
-  //! Remove object from the store
+  //! Remove object from the store, write lock the container before calling this!
   //----------------------------------------------------------------------------
   virtual void removeContainer(IContainerMD* obj) override;
 
