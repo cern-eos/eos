@@ -144,6 +144,8 @@ FsckHelper::ParseCommand(const char* arg)
         repair->set_error(option);
       } else if (soption == "--async") {
         repair->set_async(true);
+      } else if (soption == "--failed") {
+        repair->set_failed(true);
       } else {
         std::cerr << "error: unknown option \"" << soption << "\"\n\n";
         return false;
