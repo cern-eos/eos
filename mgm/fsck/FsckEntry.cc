@@ -44,10 +44,9 @@ EOSMGMNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                      const std::set<eos::common::FileSystem::fsid_t>& fsid_err,
-                     const std::string& expected_err, bool best_effort,
+                     eos::common::FsckErr expected_err, bool best_effort,
                      std::shared_ptr<qclient::QClient> qcl):
-  mFid(fid), mFsidErr(fsid_err),
-  mReportedErr(eos::common::ConvertToFsckErr(expected_err)),
+  mFid(fid), mFsidErr(fsid_err), mReportedErr(expected_err),
   mBestEffort(best_effort), mRepairFactory(), mQcl(qcl)
 {
   using namespace eos::common;

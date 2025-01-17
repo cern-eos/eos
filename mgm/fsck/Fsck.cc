@@ -426,29 +426,34 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
     }
     uint64_t count = 0ull;
     uint64_t msg_delay = 0;
-    std::list<std::string> err_priority{
-      "stripe_err", "blockxs_err",   "unreg_n",
-      "rep_diff_n", "rep_missing_n", "m_mem_sz_diff",
-      "m_cx_diff",  "d_mem_sz_diff", "d_cx_diff"};
+    static constexpr std::array err_priority{
+      eos::common::FSCK_STRIPE_ERR, eos::common::FSCK_BLOCKXS_ERR,   eos::common::FSCK_UNREG_N,
+      eos::common::FSCK_REP_DIFF_N, eos::common::FSCK_REP_MISSING_N, eos::common::FSCK_D_MEM_SZ_DIFF,
+      eos::common::FSCK_M_CX_DIFF,  eos::common::FSCK_D_MEM_SZ_DIFF, eos::common::FSCK_D_CX_DIFF};
 
     for (const auto& err_type : err_priority) {
+      eos::common::FsckErr err = ConvertToFsckErr(err_type);
+
       // Repair only targeted categories if this option is set
       if ((mRepairCategory != FsckErr::None) &&
-          (mRepairCategory != ConvertToFsckErr(err_type))) {
+          (mRepairCategory != err)) {
         continue;
       }
 
-      for (const auto& elem : local_emap[err_type]) {
-        if (!gOFS->mFidTracker.AddEntry(elem.first, TrackerType::Fsck)) {
-          eos_debug("msg=\"skip already scheduled transfer\" fxid=%08llx",
-                    elem.first);
+      for (const auto& [fid, fsids] : local_emap[err_type]) {
+        if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Fsck)) {
+          eos_debug("msg=\"skip already scheduled transfer\" fxid=%08llx", fid);
           continue;
         }
 
         std::shared_ptr<FsckEntry> job{
-          new FsckEntry(elem.first, elem.second, err_type, mDoBestEffort, mQcl)};
-        mThreadPool.PushTask<void>([job]() {
-          return job->Repair();
+          new FsckEntry(fid, fsids, err, mDoBestEffort, mQcl)};
+        mThreadPool.PushTask<void>([this, job, fid, err]() {
+          bool ok = job->Repair();
+
+          if (!ok) {
+            mFailedRepair[err].insert(fid);
+          }
         });
 
         // Check regularly if we should exit and sleep if queue is full
@@ -562,13 +567,18 @@ Fsck::RepairEntry(eos::IFileMD::id_t fid,
     return false;
   }
 
+  eos::common::FsckErr err = eos::common::ConvertToFsckErr(err_type);
   std::shared_ptr<FsckEntry> job {
-    new FsckEntry(fid, fsid_err, err_type, false, mQcl)};
+    new FsckEntry(fid, fsid_err, err, false, mQcl)};
 
   if (async) {
     out_msg = "msg=\"repair job submitted\"";
-    mThreadPool.PushTask<void>([job]() {
-      return job->Repair();
+    mThreadPool.PushTask<void>([this, job, fid, err]() {
+      bool ok = job->Repair();
+
+      if (!ok) {
+        mFailedRepair[err].insert(fid);
+      }
     });
   } else {
     if (!job->Repair()) {
