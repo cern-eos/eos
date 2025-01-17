@@ -38,9 +38,9 @@
 EOSMGMNAMESPACE_BEGIN
 
 const std::vector<std::string> Policy::gBasePolicyKeys = {
-    "policy.space",         "policy.layout",          "policy.nstripes",
-    "policy.checksum",      "policy.blocksize",       "policy.blockchecksum",
-    "policy.localredirect", "policy.updateconversion","policy.readconversion",
+    "policy.space",         "policy.layout",           "policy.nstripes",
+    "policy.checksum",      "policy.blocksize",        "policy.blockchecksum",
+    "policy.localredirect", "policy.updateconversion", "policy.readconversion",
     "policy.altspaces"};
 
 const std::vector<std::string> Policy::gBasePolicyRWKeys = {
@@ -171,26 +171,6 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   }
 
-  // Check if the given space is under the nominal value, otherwise loop through altspaces and take the first having capacity
-  if (rw) {
-    std::vector<std::string> alt_spaces;
-    std::string altspaces_key = "policy.altspaces";
-    if (auto kv = spacepolicies.find(altspaces_key);
-          kv != spacepolicies.end() && (!kv->second.empty())) {
-      if (FsView::gFsView.UnderNominalQuota(space, (vid.uid==0))) {
-	eos::common::StringConversion::Tokenize(kv->second,
-						alt_spaces,
-						":");
-	for (auto aspace:alt_spaces) {
-	  if (!FsView::gFsView.UnderNominalQuota(aspace, (vid.uid==0))) {
-	    eos_static_info("msg=\"space '%s' is under nominal quota - selected alternative space '%s'", space.c_str(), aspace.c_str());
-	    space = aspace; // select this one and continue
-	    break;
-	  }
-	}
-      }
-    }
-  }
   // Replace the non empty settings from the default space have been already
   // defined before
   if (!conversion && space != "default") {
@@ -266,6 +246,69 @@ Policy::GetLayoutAndSpace(const char* path,
       // wants something else
       space = space_kv->second.c_str();
       eos_static_debug("sys.forced.space in %s", path);
+    }
+
+    // Check if the given space is under the nominal value, otherwise loop
+    // through
+    // altspaces and take the first having capacity
+    if (rw) {
+      std::vector<std::string> alt_spaces;
+      std::string altspaces_key = "policy.altspaces";
+      if (auto kv = spacepolicies.find(altspaces_key);
+          kv != spacepolicies.end() && (!kv->second.empty())) {
+        if (FsView::gFsView.UnderNominalQuota(space, (vid.uid == 0))) {
+          eos::common::StringConversion::Tokenize(kv->second, alt_spaces, ":");
+          for (auto aspace : alt_spaces) {
+            if (FsView::gFsView.UnderNominalQuota(aspace, (vid.uid == 0))) {
+              eos_static_info("msg=\"space '%s' is under nominal quota - "
+                              "selected alternative space '%s'",
+                              space.c_str(), aspace.c_str());
+              space = aspace;
+              // select this one and refersh all the attrmap for
+              // the following section!
+              std::map<std::string, std::string> altspacepolicies;
+              spacerwpolicies.clear();
+              if (lockview) {
+                lock.Grab(FsView::gFsView.ViewMutex);
+              }
+
+              auto it = FsView::gFsView.mSpaceView.find(space.c_str());
+
+              if (it != FsView::gFsView.mSpaceView.end()) {
+                it->second->GetConfigMembers(policy_keys, altspacepolicies);
+                it->second->GetConfigMembers(policy_rw_keys, spacerwpolicies);
+                satime = it->second->GetConfigMember("atime");
+              } // FsView;
+
+              if (lockview) {
+                lock.Release();
+              }
+              std::string schedule_str;
+              GetRWValue(spacerwpolicies, POLICY_SCHEDULE, rwparams,
+                         schedule_str);
+              GetRWValue(spacerwpolicies, POLICY_IOPRIORITY, rwparams,
+                         iopriority);
+              GetRWValue(spacerwpolicies, POLICY_IOTYPE, rwparams, iotype);
+              GetRWValue(spacerwpolicies, POLICY_BANDWIDTH, rwparams,
+                         bandwidth);
+              schedule = schedule_str.length() ? schedule_str == "1" : schedule;
+              // overwrite everything from the space policy settings for the alternative space!
+              for (const auto& it : altspacepolicies) {
+                std::string key_name = it.first.substr(7);
+
+                if (key_name == "space") {
+                  continue;
+                }
+
+                std::string sys_key = "sys.forced.";
+                sys_key += key_name;
+                attrmap[sys_key] = it.second;
+              }
+              break;
+            }
+          }
+        }
+      }
     }
 
     if (auto forcedgroup_kv = attrmap.find(SYS_FORCED_GROUP);
@@ -589,10 +632,10 @@ Policy::UpdateConversion(const char* path, eos::IContainerMD::XAttrMap& map,
 /*----------------------------------------------------------------------------*/
 Policy::ConversionPolicy
 Policy::ReadConversion(const char* path, eos::IContainerMD::XAttrMap& map,
-                         const eos::common::VirtualIdentity& vid,
-                         unsigned long& layoutId, const std::string& space,
-                         XrdOucEnv& env, unsigned long& targetLayoutId,
-                         std::string& target_space)
+                       const eos::common::VirtualIdentity& vid,
+                       unsigned long& layoutId, const std::string& space,
+                       XrdOucEnv& env, unsigned long& targetLayoutId,
+                       std::string& target_space)
 {
   std::string rkey = "sys.forced.readconversion";
   if (map.count(rkey)) {
@@ -612,9 +655,10 @@ Policy::ReadConversion(const char* path, eos::IContainerMD::XAttrMap& map,
       return eNone;
     }
 
-    if (FsView::gFsView.UnderNominalQuota(target_space, (vid.uid==0))) {
+    if (FsView::gFsView.UnderNominalQuota(target_space, (vid.uid == 0))) {
       // there is no space in the target space left, just don't convert it
-      eos_static_info("msg=\"target space '%s' over nominal size - suppresing read conversion policy\"");
+      eos_static_info("msg=\"target space '%s' over nominal size - suppresing "
+                      "read conversion policy\"");
       return Policy::eNone;
     }
     return Policy::eAsync; // for the moment we don't want anything synchronous
