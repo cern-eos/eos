@@ -303,6 +303,8 @@ Policy::GetLayoutAndSpace(const char* path,
                 std::string sys_key = "sys.forced.";
                 sys_key += key_name;
                 attrmap[sys_key] = it.second;
+		eos_static_info("msg=\"setting alternative space policy\" attr=\"%s\" value=\"%\"",
+				sys_key.c_str(), it.second.c_str());
               }
               break;
             }
@@ -466,6 +468,8 @@ Policy::GetLayoutAndSpace(const char* path,
 
   layoutId =
       eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize, bxsum);
+
+  eos_static_info("layoutId=%lxl layout=%ld xsum=%ld stripes=%ld blocksize=%ld", layout, layoutId, xsum, stripes, blocksize);
   return;
 }
 
