@@ -300,10 +300,13 @@ Policy::GetLayoutAndSpace(const char* path,
                   continue;
                 }
 
+		if (it.second.empty()) {
+		  continue;
+		}
                 std::string sys_key = "sys.forced.";
                 sys_key += key_name;
                 attrmap[sys_key] = it.second;
-		eos_static_info("msg=\"setting alternative space policy\" attr=\"%s\" value=\"%\"",
+		eos_static_info("msg=\"setting alternative space policy\" attr=\"%s\" value=\"%s\"",
 				sys_key.c_str(), it.second.c_str());
               }
               break;
