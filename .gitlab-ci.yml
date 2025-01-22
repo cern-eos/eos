@@ -909,24 +909,27 @@ notify_cta_project:
       LATEST_CTA_TAG=$(curl --silent "$CTA_PROJECT_API/repository/tags?order_by=updated&sort=desc" | jq -r '.[0].name')
       echo "Latest tag from the CTA project: $LATEST_CTA_TAG"
 
-      if [ "$EOS_TAG_NAME" != "not-a-tag" ]; then
-       # Trigger the external CTA pipeline using the latest CTA and EOS tags
-       curl -X POST \
-         -F token=$CTA_TRIGGER_TOKEN \
-         -F ref=$LATEST_CTA_TAG \
-         -F "variables[TAG_NAME]=$EOS_TAG_NAME" \
-         -F "variables[XROOTD_VERSION]=$XROOTD_VERSION" \
-         $TRIGGER_URL
-
-       # Trigger the external CTA pipeline using the latest EOS tag a
-       # and latest CTA commit to main
-       curl -X POST \
+      # if [ "$EOS_TAG_NAME" != "not-a-tag" ]; then
+      # Trigger the external CTA pipeline using the latest CTA and EOS tags
+      curl -X POST \
          -F token=$CTA_TRIGGER_TOKEN \
          -F ref=main \
-         -F "variables[TAG_NAME]=$EOS_TAG_NAME" \
-         -F "variables[XROOTD_VERSION]=$XROOTD_VERSION" \
+         -F "variables[CUSTOM_EOS_TAG]=$EOS_TAG_NAME" \
+         -F "variables[CUSTOM_XRD_TAG]=$XROOTD_VERSION" \
+         -F "variables[CUSTOM_CTA_TAG]=$LATEST_CTA_TAG"
+         -F "variables[PIPELINE_TYPE]=EOS_REGR_AGAINST_CTA_TAG"
          $TRIGGER_URL
-      fi
+
+      # Trigger the external CTA pipeline using the latest EOS tag a
+      # and latest CTA commit to main
+      curl -X POST \
+         -F token=$CTA_TRIGGER_TOKEN \
+         -F ref=main \
+         -F "variables[CUSTOM_EOS_TAG]=$EOS_TAG_NAME" \
+         -F "variables[CUSTOM_XRD_TAG]=$XROOTD_VERSION" \
+         -F "variables[PIPELINE_TYPE]=EOS_REGR_AGAINST_CTA_MAIN"
+         $TRIGGER_URL
+      # fi
   when: manual
   #only:
   #  - tags
