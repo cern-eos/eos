@@ -56,13 +56,16 @@ doc-skip:
   stage: .pre
   script:
     - |
+      if git diff --name-only HEAD..FETCH_HEAD | grep -qv '^docs/'; then
+         echo "Non doc changes detected, running full pipeline"
+         exit 0
+      fi
       echo "Documentation-only changes detected. Skipping pipeline."
       # In an ideal world this job failing at the top should not trigger builds
       # we don't live in that world! In order to avoid creating more complex
       # dependency graphs, we just cancel the pipeline
       curl -X POST -H "PRIVATE-TOKEN: $GITLAB_CI_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel"
       exit 1
-      fi
   allow_failure: true
   rules:
     - changes:
