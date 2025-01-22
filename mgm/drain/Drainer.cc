@@ -142,9 +142,15 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
   // Start the drain
   std::shared_ptr<DrainFs> dfs(new DrainFs(mThreadPool, gOFS->eosFsView,
                                src_fsid, dst_fsid));
-  auto future = std::async(std::launch::async, &DrainFs::DoIt, dfs);
-  dfs->SetFuture(std::move(future));
-  mDrainFs[src_snapshot.mHostPort].emplace(dfs);
+  try {
+    auto future = std::async(std::launch::async, &DrainFs::DoIt, dfs);
+    dfs->SetFuture(std::move(future));
+    mDrainFs[src_snapshot.mHostPort].emplace(dfs);
+  } catch (const std::exception& e) {
+    err = SSTR("Starting drain thread failure, std::async exception"
+               << e.what());
+    return false;
+  }
   return true;
 }
 
