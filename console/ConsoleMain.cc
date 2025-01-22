@@ -1145,7 +1145,7 @@ Run(int argc, char* argv[])
   if (interactive) {
     fprintf(stderr,
             "# ---------------------------------------------------------------------------\n");
-    fprintf(stderr, "# EOS  Copyright (C) 2011-2020 CERN/Switzerland\n");
+    fprintf(stderr, "# EOS  Copyright (C) 2011-2025 CERN/Switzerland\n");
     fprintf(stderr,
             "# This program comes with ABSOLUTELY NO WARRANTY; for details type `license'.\n");
     fprintf(stderr,
