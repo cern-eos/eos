@@ -604,16 +604,7 @@ FsckEntry::RepairFstXsSzDiff()
         // It could be that the diskchecksum for the replica was not yet
         // computed - this does not mean the replica is bad
         if (!finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
-          std::string hex_xs_val = StringConversion::BinData2HexString(
-                                     finfo->mFstFmd.mProtoFmd.diskchecksum().c_str(),
-                                     SHA256_DIGEST_LENGTH,
-                                     LayoutId::GetChecksumLen(finfo->mFstFmd.mProtoFmd.lid()));
-
-          if (!hex_xs_val.empty()) {
-            bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
-          } else {
-            good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
-          }
+          bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
         }
       }
     }
