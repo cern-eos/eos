@@ -41,6 +41,7 @@
 %define xrootd_version_min 1:5.7.2
 %define eos_grpc_version 1.56.1
 %define eos_rocksdb_version 8.8.1
+%define eos_grpc_gateway_version 0.2.0
 
 %define major_version @CPACK_PACKAGE_VERSION_MAJOR@
 %define release_version @CPACK_PACKAGE_RELEASE@
@@ -135,8 +136,8 @@ BuildRequires: eos-grpc-plugins = %{eos_grpc_version}
 %global __requires_exclude %{__requires_exclude}|^libprot.*$|^libabsl.*$|^libgrpc.*$|^libaddress_sorting.*$|^libre2.*$|^libgpr.*$|^libupb.*$
 
 %if %{?_with_eos_grpc_gateway:1}%{!?_with_eos_grpc_gateway:0}
-BuildRequires: eos-grpc-gateway
-Requires: eos-grpc-gateway
+BuildRequires: eos-grpc-gateway = %{eos_grpc_gateway_version}
+Requires: eos-grpc-gateway = %{eos_grpc_gateway_version}
 %endif
 
 BuildRequires: %{cmake} >= 3.17
@@ -342,7 +343,7 @@ Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
 %if %{?_with_eos_grpc_gateway:1}%{!?_with_eos_grpc_gateway:0}
-Requires: eos-grpc-gateway
+Requires: eos-grpc-gateway = %{eos_grpc_gateway_version}
 %endif
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
