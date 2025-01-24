@@ -1,6 +1,8 @@
 syntax="proto3";
 package eos.console;
 
+option go_package = "eos.rest.gateway.service";
+
 message NsProto {
   message StatProto {
     bool Groupids   = 1;
@@ -129,7 +131,7 @@ message NsProto {
      string name  = 2;
      string value = 3;
   }
-    
+
   oneof subcmd {
     StatProto stat           = 1;
     MutexProto mutex         = 2;

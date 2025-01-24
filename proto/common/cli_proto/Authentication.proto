@@ -6,6 +6,8 @@ syntax="proto3";
 
 package eos.console;
 
+option go_package = "eos.rest.gateway.service";
+
 message RoleId {
   uint64 uid = 1;
   uint64 gid = 2;

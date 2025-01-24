@@ -6,6 +6,8 @@ syntax="proto3";
 
 package eos.console;
 
+option go_package = "eos.rest.gateway.service";
+
 import "Metadata.proto";
 
 message LsProto {
@@ -18,6 +20,6 @@ message LsProto {
   bool num_ids        = 7; // -n
   bool append_dir_ind = 8; // -F
   bool silent         = 9; // -s
-  bool noglobbing     = 11; // --no-globbing
   bool wnc            = 10; // for EOS-wnc
+  bool noglobbing     = 11; // --no-globbing
 }

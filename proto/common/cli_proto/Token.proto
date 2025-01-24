@@ -1,6 +1,7 @@
 syntax="proto3";
 package eos.console;
 
+option go_package = "eos.rest.gateway.service";
 
 message TokenAuth {
  string prot = 1;

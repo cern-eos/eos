@@ -8,6 +8,8 @@ package eos.console;
 
 import "Metadata.proto";
 
+option go_package = "eos.rest.gateway.service";
+
 message MoveProto {
   Metadata md = 1;
   bytes target = 2;

@@ -9,6 +9,8 @@ package eos.console;
 
 import "Metadata.proto";
 
+option go_package = "eos.rest.gateway.service";
+
 message ChmodProto {
   Metadata md    = 1;
   int64 mode     = 2;

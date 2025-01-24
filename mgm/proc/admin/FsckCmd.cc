@@ -162,6 +162,7 @@ FsckCmd::ProcessRequest() noexcept
   return reply;
 }
 
+#ifdef EOS_GRPC_GATEWAY
 //------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed and
 // streaming the response via the grpc::ServerWriter
@@ -309,5 +310,7 @@ FsckCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     writer->Write(StreamReply);
   }
 }
+
+#endif
 
 EOSMGMNAMESPACE_END

@@ -8,6 +8,8 @@ package eos.console;
 
 import "Metadata.proto";
 
+option go_package = "eos.rest.gateway.service";
+
 enum AttrCmd {
   ATTR_LS     = 0;
   ATTR_SET    = 1;

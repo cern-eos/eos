@@ -6,7 +6,10 @@
 syntax="proto3";
 package eos.console;
 
+option go_package = "eos.rest.gateway.service";
+
 message MemberProto {
   string egroup = 1;
   bool update   = 2;
 }
+

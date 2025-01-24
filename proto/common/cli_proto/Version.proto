@@ -7,6 +7,8 @@ syntax="proto3";
 
 package eos.console;
 
+option go_package = "eos.rest.gateway.service";
+
 message VersionProto {
   bool features   = 1;
   bool monitoring = 2;

@@ -1,6 +1,8 @@
 syntax="proto3";
 package eos.console;
 
+option go_package = "eos.rest.gateway.service";
+
 message FsProto {
   message AddProto {
     bool Manual = 1;
