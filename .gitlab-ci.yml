@@ -177,7 +177,7 @@ clone_docker:
       - ${BUILD_NAME}_artifacts/
 
 
-build_cc7:
+.build_cc7:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
     PKG_MGR: yum
@@ -353,7 +353,7 @@ build_fedora_rawhide:
   allow_failure: true
 
 
-build_cc7_asan:
+.build_cc7_asan:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
   variables:
     PKG_MGR: yum
@@ -480,7 +480,7 @@ build_cc7_coverage:
   retry: 1
 
 
-cc7_docker_image:
+.cc7_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile
@@ -490,7 +490,7 @@ cc7_docker_image:
     - job: build_cc7
 
 
-cc7_asan_docker_image:
+.cc7_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_cc7_asan
@@ -831,7 +831,7 @@ unit_test_asan:
   when: manual
 
 
-publish_koji_cc7:
+.publish_koji_cc7:
   <<: *publish_koji_template_definition
   variables:
     TARGET: "eos7"
