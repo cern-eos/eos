@@ -1067,6 +1067,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
+        if (!strcmp("postslavetomaster", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for postslavetomaster invalid.");
+            NoGo = 1;
+          } else {
+            Eroute.Say("=====> mgmofs.postslavetomaster: ", val, "");
+            mPostSlaveToMaster = val;
+          }
+        }
+
         if (!strcmp("protowfendpoint", var)) {
           val = Config.GetWord();
 

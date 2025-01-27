@@ -42,6 +42,7 @@
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/IntervalStopwatch.hh"
 #include <qclient/QClient.hh>
+#include "common/ShellCmd.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -110,6 +111,7 @@ QdbMaster::BootNamespace()
   namespaceConfig["qdb_password"] = gOFS->mQdbPassword;
   namespaceConfig["qdb_flusher_md"] = SSTR(instance_id << "_md");
   namespaceConfig["qdb_flusher_quota"] = SSTR(instance_id << "_quota");
+
   if (!gOFS->mQClientFlusherType.empty()) {
     namespaceConfig["qclient_flusher_type"] = gOFS->mQClientFlusherType;
   }
@@ -117,7 +119,6 @@ QdbMaster::BootNamespace()
   if (!gOFS->mQClientRocksDBOptions.empty()) {
     namespaceConfig["qclient_rocksdb_options"] = gOFS->mQClientRocksDBOptions;
   }
-
 
   FillNsCacheConfig(gOFS->ConfEngine, namespaceConfig);
 
@@ -319,6 +320,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
 
           MasterLog(eos_log(LOG_ERR, "%s", "msg=\"acquired the master lease\""));
           SlaveToMaster();
+          PostSlaveToMaster(old_master_id, GetMasterId());
         }
       } else {
         std::string new_master_id = GetMasterId();
@@ -337,8 +339,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
             eos_static_info("%s", "msg=\"follow up master-to-slave transition\"");
             Access::SetMasterToSlaveRules(new_master_id);
             gOFS->mTracker.SetAcceptingRequests(true);
-          }
-          else {
+          } else {
             if (new_master_id == mIdentity) {
               if (mDoMasterDelay) {
                 if (mMasterDelayDeadline < std::chrono::system_clock::now()) {
@@ -365,6 +366,33 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
   }
 
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
+}
+
+//------------------------------------------------------------------------------
+// PostSlaveToMaster runs a custom hook. It is invoked after the SlaveToMaster
+// transition. It only runs if configured in the mgmofs.postslavetomaster option.
+//------------------------------------------------------------------------------
+void QdbMaster::PostSlaveToMaster(std::string old_master,
+                                  std::string new_master)
+{
+  if (gOFS->mPostSlaveToMaster.length() == 0) {
+    return;
+  }
+
+  eos_static_info("msg=\"running post slave to master script\" path=\"%s\"",
+                  gOFS->mPostSlaveToMaster.c_str());
+  std::string script = std::string(gOFS->mPostSlaveToMaster.c_str())
+                       + " '" + old_master + "'"
+                       + " '" + new_master + "'";
+  eos::common::ShellCmd cmd(script);
+  auto status = cmd.wait(POST_SLAVE_TO_MASTER_TIMEOUT);
+  
+  if (status.exit_code) {
+    eos_static_warning("msg=\"post slave to master script failed\" script=\"%s\" retcode=%d",
+                       script, status.exit_code);
+  } else {
+    eos_static_info("msg=\"post slave to master script run successfully\"");
+  }
 }
 
 //------------------------------------------------------------------------------

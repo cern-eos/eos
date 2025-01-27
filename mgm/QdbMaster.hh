@@ -37,6 +37,8 @@ class QClient;
 
 EOSMGMNAMESPACE_BEGIN
 
+#define POST_SLAVE_TO_MASTER_TIMEOUT 60
+
 //------------------------------------------------------------------------------
 //! Class IMaster
 //------------------------------------------------------------------------------
@@ -213,6 +215,11 @@ private:
   //! Slave to master transition
   //----------------------------------------------------------------------------
   void SlaveToMaster();
+
+  //----------------------------------------------------------------------------
+  //! Run a post slave to master hook, if configured
+  //----------------------------------------------------------------------------
+  void PostSlaveToMaster(std::string old_master, std::string new_master);
 
   //----------------------------------------------------------------------------
   //! Master to slave transition

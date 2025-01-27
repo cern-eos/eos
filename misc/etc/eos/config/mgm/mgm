@@ -54,6 +54,9 @@ mgmofs.autoloadconfig default
 # QoS configuration file
 mgmofs.qoscfg /var/eos/qos/qos.conf
 
+# Post slave to master transition script
+# mgmofs.postslavetomaster /usr/bin/true
+
 #-------------------------------------------------------------------------------
 # Configuration for the authentication plugin EosAuth
 #-------------------------------------------------------------------------------

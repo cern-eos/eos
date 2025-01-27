@@ -830,8 +830,8 @@ public:
   //! container and the file individually before checking their access with the
   //! AccessChecker.
   //----------------------------------------------------------------------------
-   int _access(const char*, int mode, XrdOucErrInfo&,
-               eos::common::VirtualIdentity& vid, const char*);
+  int _access(const char*, int mode, XrdOucErrInfo&,
+              eos::common::VirtualIdentity& vid, const char*);
 
   //----------------------------------------------------------------------------
   //! @brief define access permissions for files/directories
@@ -1759,6 +1759,8 @@ public:
   XrdOucString MgmAuthDir; ///< Directory containing exported authentication token
   XrdOucString ManagerId; ///< manager id in <host>:<port> format
   XrdOucString ManagerIp; ///< manager ip in <xxx.yyy.zzz.vvv> format
+  XrdOucString
+  mPostSlaveToMaster; ///< Path of the script running after the Slave to Master transition
   int ManagerPort; ///< manager port as number e.g. 1094
   uint16_t XrdHttpPort; ///< The port on which the XrdHttp server is running
   std::string
@@ -1795,8 +1797,10 @@ public:
   bool mAuthorize; ///< Determine if the authorization should be applied or not
   std::string mAuthLib; ///< Path to authorization library
   bool mTapeEnabled; ///< True if support for tape is enabled
-  std::string mPrepareDestSpace; ///< Space to be used when retrieving files from tape
-  unsigned int mReqIdMax; ///< Maximum number of request IDs on a single retrieving file
+  std::string
+  mPrepareDestSpace; ///< Space to be used when retrieving files from tape
+  unsigned int
+  mReqIdMax; ///< Maximum number of request IDs on a single retrieving file
   //!  Acts only as a redirector, disables many components in the MGM
   bool MgmRedirector;
   //! Writes error log with cluster wide collected errors in
