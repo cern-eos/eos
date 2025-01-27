@@ -210,6 +210,18 @@ public:
   ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
                         std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
 
+  //----------------------------------------------------------------------------
+  //! Check each stripe checksum comparing them with the ones stored in the
+  //! namespace
+  //!
+  //! @param fid file id
+  //! @param invalid_fsid fsids of invalid stripes
+  //!
+  //! @return true if check happened, false if error occurred
+  //----------------------------------------------------------------------------
+  bool ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
+                            std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
+
 #endif
 
   //----------------------------------------------------------------------------
