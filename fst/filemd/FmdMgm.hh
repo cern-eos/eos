@@ -43,7 +43,7 @@ public:
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
-  static bool EnvMgmToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd);
+  static bool EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd);
 
   //----------------------------------------------------------------------------
   //! Convert namespace file proto md to an Fmd struct
@@ -54,7 +54,7 @@ public:
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
   static bool NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
-			       eos::common::FmdHelper& fmd);
+                               eos::common::FmdHelper& fmd);
 
   //----------------------------------------------------------------------------
   //! Return Fmd from MGM doing getfmd command
@@ -66,8 +66,8 @@ public:
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int GetMgmFmd(const std::string& manager,
-		       eos::common::FileId::fileid_t fid,
-		       eos::common::FmdHelper& fmd);
+                       eos::common::FileId::fileid_t fid,
+                       eos::ns::FileMdProto& fmd);
 
   //----------------------------------------------------------------------------
   //! Exclude unlinked locations from the given string representation
