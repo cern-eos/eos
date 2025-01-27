@@ -425,21 +425,22 @@ FmdHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
                       eos::common::FileId::fileid_t fid,
                       const char* manager)
 {
-  eos::common::FmdHelper fMd;
-  int rc = FmdMgmHandler::GetMgmFmd((manager ? manager : ""), fid, fMd);
+  eos::ns::FileMdProto file;
+  int rc = FmdMgmHandler::GetMgmFmd((manager ? manager : ""), fid, file);
 
   if ((rc == 0) || (rc == ENODATA)) {
     if (rc == ENODATA) {
       eos_warning("msg=\"file not found on MGM\" fxid=%08llx", fid);
-      fMd.mProtoFmd.set_fid(fid);
 
       if (fid == 0) {
         eos_warning("msg=\"removing fxid=0 entry\"");
-        LocalDeleteFmd(fMd.mProtoFmd.fid(), fsid, false);
+        LocalDeleteFmd(fid, fsid, false);
         return true;
       }
     }
 
+    eos::common::FmdHelper fMd;
+    FmdMgmHandler::NsFileProtoToFmd(std::move(file), fMd);
     fMd.mProtoFmd.set_layouterror(fMd.LayoutError(fsid));
     // Get an existing record without creating the record !!!
     std::unique_ptr<eos::common::FmdHelper> fmd {
