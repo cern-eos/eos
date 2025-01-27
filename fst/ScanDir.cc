@@ -1015,8 +1015,10 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
 
   std::set<eos::common::FileSystem::fsid_t> invalid_fsid;
 
-  if (!ScanRainFileLoadAware(fid, invalid_fsid)) {
-    return false;
+  if (!ScanRainFileFastPath(fid, invalid_fsid)) {
+    if (!ScanRainFileLoadAware(fid, invalid_fsid)) {
+      return false;
+    }
   }
 
   bool reopened = false;
@@ -1048,6 +1050,21 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
   }
 
   return true;
+}
+
+bool ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
+                          std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
+{
+  eos::ns::FileMdProto fmd;
+  int rc = FmdMgmHandler::GetMgmFmd(gConfig.GetManager(), fid, fmd);
+
+  if (rc != 0) {
+    // TODO
+    return false;
+  }
+
+  // fmd.mProtoFmd.ch
+  return false;
 }
 
 //------------------------------------------------------------------------------
