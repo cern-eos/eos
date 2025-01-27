@@ -29,3 +29,6 @@
 [submodule "common/cppzmq"]
 	path = common/cppzmq
 	url = https://github.com/zeromq/cppzmq.git
+[submodule "proto/eos-protobuf-spec"]
+	path = proto/eos-protobuf-spec
+	url = https://gitlab.cern.ch/eos/eos-protobuf-spec.git
