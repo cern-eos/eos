@@ -30,14 +30,47 @@ FmdMgmHandler::ExcludeUnlinkedLoc(const std::string& slocations)
   return oss.str();
 }
 
+void ParseLocations(std::string locations, eos::ns::FileMdProto& fmd)
+{
+  std::vector<std::string> location_vector;
+  eos::common::StringConversion::Tokenize(locations, location_vector, ",");
+  int ul_idx = 0, l_idx = 0;
+
+  for (const auto& elem : location_vector) {
+    if (elem.empty()) {
+      continue;
+    }
+
+    if (elem[0] == '!') {
+      fmd.set_unlink_locations(ul_idx++, strtoul(elem.c_str() + 1, 0, 10));
+    } else {
+      fmd.set_locations(l_idx++, strtoul(elem.c_str(), 0, 10));
+    }
+  }
+}
+
+std::string parseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
+{
+  char buff[sizeof(eos::IFileMD::ctime_t)];
+  eos::IFileMD::ctime_t time;
+  time.tv_sec = strtoul(env.Get(key), 0, 10);
+  time.tv_nsec = strtoul(env.Get(key_ns), 0, 10);
+  (void) memcpy(buff, &time, sizeof(time));
+  return std::string(buff);
+}
+
 //------------------------------------------------------------------------------
 // Convert an MGM env representation to an Fmd struct
 //------------------------------------------------------------------------------
 bool
-FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd)
+FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd)
 {
+  // &name=random&id=705&ctime=1738852302&ctime_ns=871468404&mtime=1738852312&
+  //mtime_ns=619640000&size=2117825536&cid=90&uid=0&gid=0&lid=543425858&flags=416&link=&location=9,2,1,6,7,3,
+  //&checksum=0e27ecd900000000000000000000000000000000000000000000000000000000&container=/eos/dev/rain/
   // Check that all tags are present
-  if (!env.Get("id") ||
+  if (!env.Get("name") ||
+      !env.Get("id") ||
       !env.Get("cid") ||
       !env.Get("ctime") ||
       !env.Get("ctime_ns") ||
@@ -47,28 +80,24 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::common::FmdHelper& fmd)
       !env.Get("checksum") ||
       !env.Get("lid") ||
       !env.Get("uid") ||
-      !env.Get("gid")) {
+      !env.Get("gid") ||
+      !env.Get("location")) {
     return false;
   }
 
-  fmd.mProtoFmd.set_fid(strtoull(env.Get("id"), 0, 10));
-  fmd.mProtoFmd.set_cid(strtoull(env.Get("cid"), 0, 10));
-  fmd.mProtoFmd.set_ctime(strtoul(env.Get("ctime"), 0, 10));
-  fmd.mProtoFmd.set_ctime_ns(strtoul(env.Get("ctime_ns"), 0, 10));
-  fmd.mProtoFmd.set_mtime(strtoul(env.Get("mtime"), 0, 10));
-  fmd.mProtoFmd.set_mtime_ns(strtoul(env.Get("mtime_ns"), 0, 10));
-  fmd.mProtoFmd.set_mgmsize(strtoull(env.Get("size"), 0, 10));
-  fmd.mProtoFmd.set_lid(strtoul(env.Get("lid"), 0, 10));
-  fmd.mProtoFmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
-  fmd.mProtoFmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
-  fmd.mProtoFmd.set_mgmchecksum(env.Get("checksum"));
-  // Store only the valid locations, exclude the unlinked ones
-  std::string locations = ExcludeUnlinkedLoc(env.Get("location") ?
-                          env.Get("location") : "");
-  fmd.mProtoFmd.set_locations(locations);
-  size_t cslen = eos::common::LayoutId::GetChecksumLen(fmd.mProtoFmd.lid()) * 2;
-  fmd.mProtoFmd.set_mgmchecksum(std::string(fmd.mProtoFmd.mgmchecksum()).erase
-                                (std::min(fmd.mProtoFmd.mgmchecksum().length(), cslen)));
+  fmd.set_id(strtoull(env.Get("id"), 0, 10));
+  fmd.set_cont_id(strtoull(env.Get("cid"), 0, 10));
+  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
+  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
+  fmd.set_size(strtoull(env.Get("size"), 0, 10));
+  fmd.set_layout_id(strtoul(env.Get("lid"), 0, 10));
+  fmd.set_name(env.Get("name"));
+  fmd.set_link_name(env.Get("link"));
+  fmd.set_ctime(parseFileMDTime(env, "ctime", "ctime_ns"));
+  fmd.set_mtime(parseFileMDTime(env, "mtime", "mtime_ns"));
+  fmd.set_checksum(env.Get("checksum"));
+  ParseLocations(env.Get("location"), fmd);
+  // fmd.set_stripe
   return true;
 }
 
@@ -129,7 +158,7 @@ FmdMgmHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
 int
 FmdMgmHandler::GetMgmFmd(const std::string& manager,
                          eos::common::FileId::fileid_t fid,
-                         eos::common::FmdHelper& fmd)
+                         eos::ns::FileMdProto& fmd)
 {
   if (!fid) {
     return EINVAL;
@@ -230,9 +259,9 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
     return EIO;
   }
 
-  if (fmd.mProtoFmd.fid() != fid) {
+  if (fmd.id() != fid) {
     eos_static_err("msg=\"received wrong meta data from mgm\" fid=%08llx "
-                   "recv_fid=%08llx", fmd.mProtoFmd.fid(), fid);
+                   "recv_fid=%08llx", fmd.id(), fid);
     return EIO;
   }
 
