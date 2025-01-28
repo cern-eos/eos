@@ -58,7 +58,9 @@ QuarkFileMD::QuarkFileMD(IFileMD::id_t id, IFileMDSvc* fileMDSvc):
 QuarkFileMD*
 QuarkFileMD::clone() const
 {
-  return runWriteOp([this]() { return new QuarkFileMD(*this); });
+  return runWriteOp([this]() {
+    return new QuarkFileMD(*this);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -75,7 +77,6 @@ QuarkFileMD::QuarkFileMD(const QuarkFileMD& other)
 QuarkFileMD&
 QuarkFileMD::operator = (const QuarkFileMD& other)
 {
-
   return runWriteOp([this, &other]() -> QuarkFileMD& {
     mFile = other.mFile;
     mClock = other.mClock;
@@ -95,7 +96,9 @@ void QuarkFileMD::setName(const std::string& name)
     throw_mdexception(EINVAL, "Bug, detected slashes in file name: " << name);
   }
 
-  runWriteOp([this, &name]() { mFile.set_name(name); });
+  runWriteOp([this, &name]() {
+    mFile.set_name(name);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -108,9 +111,9 @@ QuarkFileMD::addLocation(location_t location)
     if (hasLocationNoLock(location)) {
       return;
     }
+
     mFile.add_locations(location);
   });
-
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::LocationAdded,
                                  location);
   pFileMDSvc->notifyListeners(&e);
@@ -122,7 +125,6 @@ QuarkFileMD::addLocation(location_t location)
 void
 QuarkFileMD::removeLocation(location_t location)
 {
-
   bool locationRemoved = false;
   {
     this->runWriteOp([this, &locationRemoved, location]() {
@@ -137,9 +139,9 @@ QuarkFileMD::removeLocation(location_t location)
     });
   }
 
-  if(locationRemoved){
+  if (locationRemoved) {
     IFileMDChangeListener::Event
-        e(this, IFileMDChangeListener::LocationRemoved, location);
+    e(this, IFileMDChangeListener::LocationRemoved, location);
     pFileMDSvc->notifyListeners(&e);
   }
 }
@@ -151,6 +153,7 @@ void
 QuarkFileMD::removeAllLocations()
 {
   bool stop = false;
+
   while (!stop) {
     std::optional<location_t> location;
     {
@@ -165,7 +168,8 @@ QuarkFileMD::removeAllLocations()
         return false;
       });
     }
-    if(location) {
+
+    if (location) {
       removeLocation(*location);
     }
   }
@@ -194,7 +198,7 @@ QuarkFileMD::unlinkLocation(location_t location)
     });
   }
   IFileMDChangeListener::Event
-      e(this, IFileMDChangeListener::LocationUnlinked, location);
+  e(this, IFileMDChangeListener::LocationUnlinked, location);
   pFileMDSvc->notifyListeners(&e);
 }
 
@@ -215,12 +219,28 @@ QuarkFileMD::unlinkAllLocations()
 
       location = *it;
     });
-    if(location) {
+
+    if (location) {
       unlinkLocation(*location);
     } else {
       return;
     }
   }
+}
+
+std::string StringifyChecksum(std::string xs)
+{
+  std::ostringstream oss;
+
+  for (uint8_t i = 0; i < xs.size(); i++) {
+    char hx[3];
+    hx[0] = 0;
+    snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
+             *(unsigned char*)(xs.data() + i));
+    oss << static_cast<char*>(hx);
+  }
+
+  return oss.str();
 }
 
 //------------------------------------------------------------------------
@@ -234,7 +254,8 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
     std::ostringstream oss;
     std::string saveName = mFile.name();
 
-    if (escapeAnd) {
+    if (escapeAnd)
+    {
       if (!saveName.empty()) {
         saveName = eos::common::StringConversion::SealXrdPath(saveName);
       }
@@ -255,27 +276,31 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
     env += "&location=";
     char locs[16];
 
-    for (const auto& elem : mFile.locations()) {
+    for (const auto& elem : mFile.locations())
+    {
       snprintf(static_cast<char*>(locs), sizeof(locs), "%u", elem);
       env += static_cast<char*>(locs);
       env += ",";
     }
 
-    for (const auto& elem : mFile.unlink_locations()) {
+    for (const auto& elem : mFile.unlink_locations())
+    {
       snprintf(static_cast<char*>(locs), sizeof(locs), "!%u", elem);
       env += static_cast<char*>(locs);
       env += ",";
     }
 
     env += "&checksum=";
-    uint8_t size = mFile.checksum().size();
+    env += StringifyChecksum(mFile.checksum());
 
-    for (uint8_t i = 0; i < size; i++) {
-      char hx[3];
-      hx[0] = 0;
-      snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
-               *(unsigned char*)(mFile.checksum().data() + i));
-      env += static_cast<char*>(hx);
+    if (mFile.stripe_checksums_size())
+    {
+      env += "&stripes=";
+
+      for (const auto & [key, val] : mFile.stripe_checksums()) {
+        env += std::to_string(key) + ":" + StringifyChecksum(val);
+        env += ",";
+      }
     }
   });
 }
@@ -289,7 +314,7 @@ QuarkFileMD::serialize(eos::Buffer& buffer)
   runReadOp([this, &buffer]() {
     // Increase clock to mark that metadata file has suffered updates
     mClock =
-        std::chrono::high_resolution_clock::now().time_since_epoch().count();
+      std::chrono::high_resolution_clock::now().time_since_epoch().count();
     // Align the buffer to 4 bytes to efficiently compute the checksum
 #if GOOGLE_PROTOBUF_VERSION < 3004000
     size_t obj_size = mFile.ByteSize();
@@ -329,7 +354,7 @@ void
 QuarkFileMD::initialize(eos::ns::FileMdProto&& proto)
 {
   runWriteOp(
-      [this, prot = std::move(proto)]() mutable { mFile = std::move(prot); });
+    [this, prot = std::move(proto)]() mutable { mFile = std::move(prot); });
 }
 
 //------------------------------------------------------------------------------
@@ -339,7 +364,9 @@ void
 QuarkFileMD::deserialize(const eos::Buffer& buffer)
 {
   runWriteOp(
-      [this, &buffer]() { Serialization::deserializeFile(buffer, mFile); });
+  [this, &buffer]() {
+    Serialization::deserializeFile(buffer, mFile);
+  });
 }
 
 //----------------------------------------------------------------------------
@@ -363,7 +390,7 @@ QuarkFileMD::setSize(uint64_t size)
     mFile.set_size(size & 0x0000ffffffffffff);
   });
   IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0,
-                                 {sizeChange,0,0});
+  {sizeChange, 0, 0});
   pFileMDSvc->notifyListeners(&e);
 }
 
@@ -386,7 +413,9 @@ QuarkFileMD::getCTimeNoLock(ctime_t& ctime) const
 void
 QuarkFileMD::getCTime(ctime_t& ctime) const
 {
-  return runReadOp([this, &ctime]() { return getCTimeNoLock(ctime); });
+  return runReadOp([this, &ctime]() {
+    return getCTimeNoLock(ctime);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -395,7 +424,9 @@ QuarkFileMD::getCTime(ctime_t& ctime) const
 void
 QuarkFileMD::setCTime(ctime_t ctime)
 {
-  runWriteOp([this, ctime]() { mFile.set_ctime(&ctime, sizeof(ctime)); });
+  runWriteOp([this, ctime]() {
+    mFile.set_ctime(&ctime, sizeof(ctime));
+  });
 }
 
 //----------------------------------------------------------------------------
@@ -435,7 +466,9 @@ QuarkFileMD::getMTimeNoLock(ctime_t& mtime) const
 void
 QuarkFileMD::getMTime(ctime_t& mtime) const
 {
-  return runReadOp([this, &mtime]() { return getMTimeNoLock(mtime); });
+  return runReadOp([this, &mtime]() {
+    return getMTimeNoLock(mtime);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -444,7 +477,9 @@ QuarkFileMD::getMTime(ctime_t& mtime) const
 void
 QuarkFileMD::setMTime(ctime_t mtime)
 {
-  runWriteOp([this, mtime]() { mFile.set_mtime(&mtime, sizeof(mtime)); });
+  runWriteOp([this, mtime]() {
+    mFile.set_mtime(&mtime, sizeof(mtime));
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -486,7 +521,7 @@ QuarkFileMD::getATimeNoLock(ctime_t& atime) const
 void
 QuarkFileMD::getATime(ctime_t& atime) const
 {
-  runReadOp([this,&atime] {
+  runReadOp([this, &atime] {
     getATimeNoLock(atime);
   });
 }
@@ -497,10 +532,9 @@ QuarkFileMD::getATime(ctime_t& atime) const
 void
 QuarkFileMD::setATime(ctime_t atime)
 {
-  runWriteOp([this,atime](){
+  runWriteOp([this, atime]() {
     mFile.set_atime(&atime, sizeof(atime));
   });
-
 }
 
 //------------------------------------------------------------------------------
@@ -521,6 +555,7 @@ QuarkFileMD::setATimeNow(uint64_t olderthan)
   clock_gettime(CLOCK_REALTIME, &tnow);
 #endif
   getATime(atime);
+
   // only set the atime if it is older than olderthan
   if (((tnow.tv_sec - atime.tv_sec) >= (time_t) olderthan)) {
     setATime(tnow);
@@ -556,8 +591,9 @@ QuarkFileMD::getSyncTimeNoLock(ctime_t& stime) const
 void
 QuarkFileMD::getSyncTime(ctime_t& stime) const
 {
-  runReadOp([this, &stime]() { getSyncTimeNoLock(stime); });
-
+  runReadOp([this, &stime]() {
+    getSyncTimeNoLock(stime);
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -566,8 +602,9 @@ QuarkFileMD::getSyncTime(ctime_t& stime) const
 void
 QuarkFileMD::setSyncTime(ctime_t stime)
 {
-  runWriteOp([this, stime]() { mFile.set_stime(&stime, sizeof(stime)); });
-
+  runWriteOp([this, stime]() {
+    mFile.set_stime(&stime, sizeof(stime));
+  });
 }
 
 //------------------------------------------------------------------------------
@@ -604,7 +641,9 @@ QuarkFileMD::getAttributes() const
 bool QuarkFileMD::hasUnlinkedLocation(IFileMD::location_t location)
 {
   return this->runReadOp(
-      [this, location]() { return hasUnlinkedLocationNoLock(location); });
+  [this, location]() {
+    return hasUnlinkedLocationNoLock(location);
+  });
 }
 
 //------------------------------------------------------------------------------
