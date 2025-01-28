@@ -44,47 +44,53 @@ AdminSocket::Run(ThreadAssistant& assistant) noexcept
 
     if (items[0].revents & ZMQ_POLLIN) {
       try {
-	auto s = socket.recv(request, rf);
-	if (!s.has_value()) {
-	  continue;
-	}
+        auto s = socket.recv(request, rf);
+        if (!s.has_value()) {
+          continue;
+        }
       } catch (zmq::error_t& zmq_err) {
-	eos_static_err("receive:err=\"%s\"", zmq_err.what());
-	continue;
+        eos_static_err("receive:err=\"%s\"", zmq_err.what());
+        continue;
       }
       std::string input((char*)request.data(), request.size());
-      std::string info = input.substr(input.find("?") + 1);
-      input.erase(input.find("?"));
-      std::cerr << "serving path: " << input << " cgi: " << info << std::endl;
+      std::string info;
+      std::unique_ptr<IProcCommand> proccmd {nullptr};
       eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
-      std::unique_ptr<IProcCommand> proccmd =
-        ProcInterface::GetProcCommand("adminsocket@localhost", root_vid, input.c_str(),
-                                      info.c_str(), "adminsocket");
-      size_t size = 0;
 
+      if (auto split_pos = input.find("?");
+          split_pos != std::string::npos) {
+        info = input.substr(split_pos + 1);
+        input.erase(split_pos);
+        eos_static_info("msg=processing admin socket command %s, cgi: %s",
+                        input.c_str(), info.c_str());
+        proccmd = ProcInterface::GetProcCommand("adminsocket@localhost", root_vid, input.c_str(),
+                                                info.c_str(), "adminsocket");
+      }
+
+      size_t size = 0;
       std::string result;
 
       try {
-	if (proccmd) {
-	  XrdOucErrInfo error;
-	  (void) proccmd->open(input.c_str() , info.c_str() , root_vid, &error);
-	  struct stat buf;
-	  proccmd->stat(&buf);
-	  size = buf.st_size;
-	  zmq::message_t reply(size);
-	  zmq::send_flags sf = zmq::send_flags::none;
-	  proccmd->read(0, (char*)reply.data(), size);
-	  proccmd->close();
-	  socket.send(reply,sf);
-	} else {
-	  zmq::message_t reply(0);
-	  zmq::send_flags sf = zmq::send_flags::none;
-	  memcpy(reply.data(), result.c_str(), size);
-	  socket.send(reply,sf);
-	}
+        if (proccmd) {
+          XrdOucErrInfo error;
+          (void) proccmd->open(input.c_str() , info.c_str() , root_vid, &error);
+          struct stat buf;
+          proccmd->stat(&buf);
+          size = buf.st_size;
+          zmq::message_t reply(size);
+          zmq::send_flags sf = zmq::send_flags::none;
+          proccmd->read(0, (char*)reply.data(), size);
+          proccmd->close();
+          socket.send(reply,sf);
+        } else {
+          zmq::message_t reply(0);
+          zmq::send_flags sf = zmq::send_flags::none;
+          memcpy(reply.data(), result.c_str(), size);
+          socket.send(reply,sf);
+        }
       } catch (zmq::error_t& zmq_err) {
-	eos_static_err("send:err=\"%s\"", zmq_err.what());
-	continue;
+        eos_static_err("send:err=\"%s\"", zmq_err.what());
+        continue;
       }
     }
   }
