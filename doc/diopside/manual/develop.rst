@@ -90,6 +90,17 @@ If you don't source it, you will not be able to use the good cmake version that 
 You are ready to compile.
 You can skip the next parts and go directly to the `Compilation`_ part of this documentation. Though you can also read them if you need to troubleshoot future problems.
 
+
+EL9
+"""
+
+Go to your :code:`eos` directory and type:
+
+.. code-block:: bash
+   bash ./utils/el9-dev-environment.sh
+
+This should setup eos-depend repo for diopside and install the requisite dependencies. Move on the `Compilation`_ part for the rest of instructions.
+
 Dependencies
 ^^^^^^^^^^^^^^
 
