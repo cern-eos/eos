@@ -49,7 +49,65 @@ void ParseLocations(std::string locations, eos::ns::FileMdProto& fmd)
   }
 }
 
-std::string parseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
+std::string ParseChecksum(const std::string& hexStr)
+{
+  if (hexStr.length() % 2 != 0) {
+    throw std::invalid_argument("Hex string must have even length");
+  }
+
+  std::string result;
+  result.reserve(hexStr.length() / 2);
+
+  for (size_t i = 0; i < hexStr.length(); i += 2) {
+    auto hexCharToInt = [](char c) -> int {
+      if (c >= '0' && c <= '9')
+      {
+        return c - '0';
+      }
+
+      if (c >= 'a' && c <= 'f')
+      {
+        return c - 'a' + 10;
+      }
+
+      if (c >= 'A' && c <= 'F')
+      {
+        return c - 'A' + 10;
+      }
+
+      throw std::invalid_argument("Invalid hex character");
+    };
+    char highNibble = hexCharToInt(hexStr[i]);
+    char lowNibble = hexCharToInt(hexStr[i + 1]);
+    char byte = (highNibble << 4) | lowNibble;
+    result.push_back(byte);
+  }
+
+  return result;
+}
+
+void ParseStripeChecksums(std::string stripe_checksums,
+                          eos::ns::FileMdProto& fmd)
+{
+  auto xs = fmd.mutable_stripe_checksums();
+  std::vector<std::string> stripes;
+  std::vector<std::string> stripeXsEntry;
+  stripeXsEntry.resize(2);
+  eos::common::StringConversion::Tokenize(stripe_checksums, stripes, ",");
+
+  for (const auto& stripe : stripes) {
+    if (stripe.empty()) {
+      continue;
+    }
+
+    eos::common::StringConversion::Tokenize(stripe, stripeXsEntry, ":");
+    uint32_t fsid = static_cast<uint32_t>(std::stoul(stripeXsEntry[0]));
+    xs->insert(std::pair(fsid, ParseChecksum(stripeXsEntry[1])));
+    stripeXsEntry.clear();
+  }
+}
+
+std::string ParseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
 {
   char buff[sizeof(eos::IFileMD::ctime_t)];
   eos::IFileMD::ctime_t time;
@@ -93,11 +151,15 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd)
   fmd.set_layout_id(strtoul(env.Get("lid"), 0, 10));
   fmd.set_name(env.Get("name"));
   fmd.set_link_name(env.Get("link"));
-  fmd.set_ctime(parseFileMDTime(env, "ctime", "ctime_ns"));
-  fmd.set_mtime(parseFileMDTime(env, "mtime", "mtime_ns"));
-  fmd.set_checksum(env.Get("checksum"));
+  fmd.set_ctime(ParseFileMDTime(env, "ctime", "ctime_ns"));
+  fmd.set_mtime(ParseFileMDTime(env, "mtime", "mtime_ns"));
+  fmd.set_checksum(ParseChecksum(env.Get("checksum")));
   ParseLocations(env.Get("location"), fmd);
-  // fmd.set_stripe
+
+  if (!env.Get("stripes")) {
+    ParseStripeChecksums(env.Get("stripes"), fmd);
+  }
+
   return true;
 }
 
