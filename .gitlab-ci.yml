@@ -52,11 +52,11 @@ workflow:
 #-------------------------------------------------------------------------------
 # Prebuild
 #-------------------------------------------------------------------------------
-doc-skip:
+.doc-skip:
   stage: .pre
   script:
     - |
-      if git diff --name-only HEAD..FETCH_HEAD | grep -qv '^docs/'; then
+      if git diff --name-only $CI_COMMIT_BEFORE_SHA..$CI_COMMIT_SHA | grep -qv '^docs/'; then
          echo "Non doc changes detected, running full pipeline"
          exit 0
       fi
@@ -68,6 +68,8 @@ doc-skip:
       exit 1
   allow_failure: true
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
     - changes:
         - docs/**/*
       when: always
