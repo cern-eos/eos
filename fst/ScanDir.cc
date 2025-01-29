@@ -1052,8 +1052,8 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
   return true;
 }
 
-bool ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
-                          std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
+bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
+                                   std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
 {
   eos::ns::FileMdProto fmd;
   int rc = FmdMgmHandler::GetMgmFmd(gConfig.GetManager(), fid, fmd);
@@ -1063,8 +1063,46 @@ bool ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
     return false;
   }
 
-  // fmd.mProtoFmd.ch
-  return false;
+  std::vector<stripe_s> stripes;
+  std::string opaqueInfo;
+
+  if (!ListStripes(fid, stripes, opaqueInfo)) {
+    // TODO
+    return false;
+  }
+
+  std::map<eos::common::FileSystem::fsid_t, std::string> fst_xs;
+
+  for (const auto& stripe : stripes) {
+    std::unique_ptr<eos::common::FmdHelper> fmd;
+
+    if (stripe.fsid == mFsId) {
+      fmd = gOFS.mFmdHandler->LocalGetFmd(fid, stripe.fsid);
+    } else {
+      fmd = FmdHandler::RemoteGetFmd(stripe.url, fid, stripe.fsid);
+    }
+
+    if (!fmd) {
+      return false;
+    }
+
+    fst_xs[stripe.fsid] = fmd->mProtoFmd.checksum();
+  }
+
+  size_t nstripes = eos::common::LayoutId::GetStripeNumber(fmd.layout_id()) + 1;
+
+  if (nstripes != fmd.stripe_checksums_size() || nstripes != stripes.size()) {
+    // cannot do too much here. we don't know which are good, which not
+    return false;
+  }
+
+  for (const auto& [fsid, xs_mgm] : fmd.stripe_checksums()) {
+    if (fst_xs[fsid] != xs_mgm) {
+      invalid_fsid.insert(fsid);
+    }
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -1121,48 +1159,13 @@ ScanDir::IsValidStripeCombination(
   return !strcmp(xs_obj->GetHexChecksum(), xs_val.c_str());
 }
 
-//------------------------------------------------------------------------------
-// Check for stripes that are unable to reconstruct the original file
-//------------------------------------------------------------------------------
-bool
-ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
-                               std::set<eos::common::FileSystem::fsid_t>&
-                               invalid_fsid)
+bool ScanDir::ListStripes(eos::common::FileId::fileid_t fid,
+                          std::vector<stripe_s>& stripes, std::string& opaqueInfo)
 {
   const std::string mgr = gConfig.GetManager();
 
   if (mgr.empty()) {
     eos_static_err("%s", "msg=\"no manager info available\"");
-    return false;
-  }
-
-  eos_static_debug("msg=\"scan rain file load aware\" fxid=%08llx", fid);
-  std::string xs_mgm;
-  uint32_t num_locations;
-  LayoutId::layoutid_t layout;
-  {
-    // Reduce scope of the FmdHelper object
-    auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
-
-    if (!fmd) {
-      eos_static_err("msg=\"could not get fmd from manager\" fxid=%08llx", fid);
-      return false;
-    }
-
-    layout = fmd->mProtoFmd.lid();
-
-    if (!LayoutId::IsRain(layout)) {
-      eos_static_err("msg=\"layout is not rain\" fixd=%08llx", fid);
-      return false;
-    }
-
-    num_locations = fmd->GetLocations().size();
-    xs_mgm = fmd->mProtoFmd.mgmchecksum();
-  }
-
-  if (xs_mgm.empty() || (num_locations == 0)) {
-    eos_static_err("msg=\"mgm checksum empty or no locations\" fxid=%08llx",
-                   fid);
     return false;
   }
 
@@ -1205,7 +1208,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
     return false;
   }
 
-  const std::string opaqueInfo = ptr;
+  opaqueInfo = ptr;
   std::unique_ptr<XrdOucEnv> openOpaque(new XrdOucEnv(response.c_str()));
   XrdOucEnv* raw_cap_opaque = nullptr;
   eos::common::SymKey::ExtractCapability(openOpaque.get(), raw_cap_opaque);
@@ -1218,31 +1221,16 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   }
 
   const std::string ns_path = capOpaque->Get("mgm.path");
-  const auto nStripes = LayoutId::GetStripeNumber(layout) + 1;
-  const auto nParityStripes = LayoutId::GetRedundancyStripeNumber(layout);
-  const auto nDataStripes = nStripes - nParityStripes;
   FileSystem::fsid_t stripeFsId = 0;
   std::string stripeUrl;
   std::string pio;
   std::string tag;
-  // Struct for stripe extra information
-  struct stripe_s {
-    FileSystem::fsid_t fsid;
-    std::string url;
-    enum { Unknown, Valid, Invalid } state;
-    unsigned int id; // logical stripe id
-  };
-  std::vector<stripe_s> stripes;
-  stripes.reserve(num_locations);
 
-  for (unsigned long i = 0; i < num_locations; ++i) {
+  for (unsigned long i = 0; ; ++i) {
     tag = SSTR("pio." << i);
 
-    // Skip files with missing replicas, they will be detected elsewhere.
     if (!openOpaque->Get(tag.c_str())) {
-      eos_static_err("msg=\"missing pio entry in mgm response\" fxid=%08llx",
-                     fid);
-      return false;
+      break;
     }
 
     pio = openOpaque->Get(tag.c_str());
@@ -1251,6 +1239,55 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
     // Start by marking all stripes invalid. Mark them unknown once we
     // have successfully read their headers.
     stripes.push_back({stripeFsId, stripeUrl, stripe_s::Invalid, 0});
+  }
+}
+
+//------------------------------------------------------------------------------
+// Check for stripes that are unable to reconstruct the original file
+//------------------------------------------------------------------------------
+bool
+ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
+                               std::set<eos::common::FileSystem::fsid_t>&
+                               invalid_fsid)
+{
+  eos_static_debug("msg=\"scan rain file load aware\" fxid=%08llx", fid);
+  std::string xs_mgm;
+  uint32_t num_locations;
+  LayoutId::layoutid_t layout;
+  {
+    // Reduce scope of the FmdHelper object
+    auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
+
+    if (!fmd) {
+      eos_static_err("msg=\"could not get fmd from manager\" fxid=%08llx", fid);
+      return false;
+    }
+
+    layout = fmd->mProtoFmd.lid();
+
+    if (!LayoutId::IsRain(layout)) {
+      eos_static_err("msg=\"layout is not rain\" fixd=%08llx", fid);
+      return false;
+    }
+
+    num_locations = fmd->GetLocations().size();
+    xs_mgm = fmd->mProtoFmd.mgmchecksum();
+  }
+
+  if (xs_mgm.empty() || (num_locations == 0)) {
+    eos_static_err("msg=\"mgm checksum empty or no locations\" fxid=%08llx",
+                   fid);
+    return false;
+  }
+
+  const auto nStripes = LayoutId::GetStripeNumber(layout) + 1;
+  const auto nParityStripes = LayoutId::GetRedundancyStripeNumber(layout);
+  const auto nDataStripes = nStripes - nParityStripes;
+  std::vector<stripe_s> stripes;
+  std::string opaqueInfo;
+
+  if (!ListStripes(fid, stripes, opaqueInfo)) {
+    return false;
   }
 
   std::unique_ptr<HeaderCRC> hd {new HeaderCRC(0, 0)};
