@@ -514,6 +514,73 @@ FmdHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
   return true;
 }
 
+std::unique_ptr<eos::common::FmdHelper> FmdHandler::RemoteGetFmd(
+  const std::string& remote,
+  eos::common::FileId::fileid_t fid,
+  eos::common::FileSystem::fsid_t fsid)
+{
+  std::unique_ptr<eos::common::FmdHelper> fmd;
+  int rc = 0;
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* response = 0;
+  XrdCl::XRootDStatus status;
+  std::string query = SSTR("/?fst.pcmd=getfmd"
+                           "&fst.getfmd.fid=" << fid
+                           << "&fst.getfmd.fsid=" << fsid);
+  std::string address = SSTR("root://" << remote << "//dummy");
+  XrdCl::URL url(address.c_str());
+
+  if (!url.IsValid()) {
+    eos_static_err("error=URL is not valid: %s", address.c_str());
+    return nullptr;
+  }
+
+  std::unique_ptr<XrdCl::FileSystem> fs(new XrdCl::FileSystem(url));
+
+  if (!fs) {
+    eos_static_err("error=failed to get new FS object");
+    return nullptr;
+  }
+
+  arg.FromString(query.c_str());
+  status = fs->Query(XrdCl::QueryCode::OpaqueFile, arg, response);
+
+  if (status.IsOK()) {
+    rc = 0;
+    eos_static_debug("got replica file meta data from server %s for fid=%s fsid=%s",
+                     address, fid, fsid);
+  } else {
+    rc = ECOMM;
+    eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",
+                   address, fid, fsid);
+  }
+
+  if (rc) {
+    delete response;
+    return nullptr;
+  }
+
+  if (!strncmp(response->GetBuffer(), "ERROR", 5)) {
+    // remote side couldn't get the record
+    eos_static_info("Unable to retrieve meta data on remote server %s for fid=%s fsid=%s",
+                    address, fid, fsid);
+    delete response;
+    return nullptr;
+  }
+
+  // get the remote file meta data into an env hash
+  XrdOucEnv fmdenv(response->GetBuffer());
+
+  if (!eos::common::EnvToFstFmd(fmdenv, *fmd)) {
+    int envlen;
+    eos_static_err("Failed to unparse file meta data %s", fmdenv.Env(envlen));
+    delete response;
+    return nullptr;
+  }
+
+  return fmd;
+}
+
 //------------------------------------------------------------------------------
 // Move given file to orphans directory and also set its extended attribute
 // to reflect the original path to the file.
