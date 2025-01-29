@@ -40,6 +40,13 @@ class Load;
 class FileIo;
 class CheckSum;
 
+struct stripe_s {
+  eos::common::FileSystem::fsid_t fsid;
+  std::string url;
+  enum { Unknown, Valid, Invalid } state;
+  unsigned int id; // logical stripe id
+};
+
 constexpr uint64_t DEFAULT_RAIN_RESCAN_INTERVAL = 4 * 7 * 24 * 3600;
 constexpr uint64_t DEFAULT_DISK_INTERVAL = 4 * 3600;
 constexpr uint64_t DEFAULT_NS_INTERVAL = 3 * 24 * 3600;
@@ -181,6 +188,9 @@ public:
     const std::vector<std::pair<int, std::string>>& stripes,
     const std::string& xs_val, std::unique_ptr<CheckSum>& xs_obj,
     eos::common::LayoutId::layoutid_t layout, const std::string& opaqueInfo);
+
+  bool ListStripes(eos::common::FileId::fileid_t fid,
+                   std::vector<stripe_s>& stripes, std::string& opaqueInfo);
 
 
   //----------------------------------------------------------------------------
