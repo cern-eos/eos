@@ -563,6 +563,16 @@ cc7_docker_image:
     - job: clone_docker
     - job: build_cc7
 
+el9_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_el9
+    OS_TAG: ".el9"
+  needs:
+    - job: clone_docker
+    - job: build_el9
+
+
 # @note(esindril) disable ubuntu builds
 .ubuntu_focal_docker_image:
   extends: .build_dockerimage-template
