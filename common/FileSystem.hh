@@ -786,11 +786,15 @@ public:
   bool hasHeartbeat() const;
 
   //----------------------------------------------------------------------------
-  //! Delete shared hash object corresponding to this file system and also
-  //! broadcast the message. This should be called only when an explicit removal
-  //! of the file system is request though "fs rm"
+  //! Delete shared hash object corresponding to this file system which is
+  //! stored in memory in the SharedHashProvier. If delete_from_qdb is true
+  //! then perform also the deletion of the SharedHash object from QDB and
+  //! broadcast the notification - this should be called only when an explicit
+  //! removal of the file system is request though "fs rm"!
+  //!
+  //! @param delete_from_qdb if true delete the backing SharedHash from QDB
   //----------------------------------------------------------------------------
-  void DeleteSharedHash();
+  void DeleteSharedHash(bool delete_from_qdb);
 
   //--------------------------------------------------------------------------
   //! Get used bytes

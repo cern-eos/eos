@@ -94,9 +94,15 @@ public:
 
   //----------------------------------------------------------------------------
   //! Delete a shared hash, without creating an object first
+  //!
+  //! @param realm messaging realm instance
+  //! @param locator hash locator
+  //! @param delete_from_qdb by default true and triggers the deletion of the
+  //!        SharedHash object from QDB
   //----------------------------------------------------------------------------
   static bool deleteHash(mq::MessagingRealm* realm,
-                         const common::SharedHashLocator& locator);
+                         const common::SharedHashLocator& locator,
+                         bool delete_from_qdb = true);
 
   //----------------------------------------------------------------------------
   //! "Constructor" for global MGM hash

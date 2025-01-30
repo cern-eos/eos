@@ -513,13 +513,11 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
 }
 
 //------------------------------------------------------------------------------
-// Delete shared hash object corresponding to this file system and also
-// broadcast the message. This should be called only when an explicit removal
-// of the file system is requested though "fs rm".
+// Delete shared hash object corresponding to this file system
 //------------------------------------------------------------------------------
-void FileSystem::DeleteSharedHash()
+void FileSystem::DeleteSharedHash(bool delete_from_qdb)
 {
-  mq::SharedHashWrapper::deleteHash(mRealm, mHashLocator);
+  mq::SharedHashWrapper::deleteHash(mRealm, mHashLocator, delete_from_qdb);
 }
 
 //------------------------------------------------------------------------------

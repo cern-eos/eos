@@ -68,7 +68,8 @@ SharedHashProvider::Get(const eos::common::SharedHashLocator& locator)
 // Delete shared hash
 //------------------------------------------------------------------------------
 void
-SharedHashProvider::Delete(const eos::common::SharedHashLocator& locator)
+SharedHashProvider::Delete(const eos::common::SharedHashLocator& locator,
+                           bool delete_from_qdb)
 {
   const std::string qdb_key = locator.getQDBKey();
   std::unique_lock lock(mMutex);
@@ -78,10 +79,12 @@ SharedHashProvider::Delete(const eos::common::SharedHashLocator& locator)
     mStore.erase(it);
   }
 
-  qclient::QClient* qcl = mSharedManager->getQClient();
+  if (delete_from_qdb) {
+    qclient::QClient* qcl = mSharedManager->getQClient();
 
-  if (qcl) {
-    qcl->exec("DEL", qdb_key);
+    if (qcl) {
+      qcl->exec("DEL", qdb_key);
+    }
   }
 }
 

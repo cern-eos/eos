@@ -364,13 +364,15 @@ bool SharedHashWrapper::getContents(std::map<std::string, std::string>& out)
 //------------------------------------------------------------------------------
 // Delete a shared hash, without creating an object first
 //------------------------------------------------------------------------------
-bool SharedHashWrapper::deleteHash(mq::MessagingRealm* realm,
-                                   const common::SharedHashLocator& locator)
+bool
+SharedHashWrapper::deleteHash(mq::MessagingRealm* realm,
+                              const common::SharedHashLocator& locator,
+                              bool delete_from_qdb)
 {
-  if (realm->getQSom()) {
-    realm->getHashProvider()->Delete(locator);
+  if (realm->getQSom()) { // QDB backend
+    realm->getHashProvider()->Delete(locator, delete_from_qdb);
     return true;
-  } else if (realm->getSom()) {
+  } else if (realm->getSom()) { // MQ backend
     return realm->getSom()->DeleteSharedHash(locator.getConfigQueue().c_str(),
            true);
   } else {

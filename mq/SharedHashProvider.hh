@@ -66,8 +66,10 @@ public:
   //! Delete shared hash
   //!
   //! @param locator locator object for the given hash
+  //! @param delete_from_qdb if true delete the backing SharedHash from QDB
   //----------------------------------------------------------------------------
-  void Delete(const eos::common::SharedHashLocator& locator);
+  void Delete(const eos::common::SharedHashLocator& locator,
+              bool delete_from_qdb);
 
 private:
   qclient::SharedManager* mSharedManager;
