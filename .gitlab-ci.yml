@@ -915,9 +915,11 @@ notify_cta_project:
        # Trigger the external CTA pipeline using the latest CTA and EOS tags
        curl -X POST \
          -F token=$CTA_TRIGGER_TOKEN \
-         -F ref=$LATEST_CTA_TAG \
-         -F "variables[TAG_NAME]=$EOS_TAG_NAME" \
-         -F "variables[XROOTD_VERSION]=$XROOTD_VERSION" \
+         -F ref=main \
+         -F "variables[CUSTOM_EOS_TAG]=$EOS_TAG_NAME" \
+         -F "variables[CUSTOM_XRD_TAG]=$XROOTD_VERSION" \
+         -F "variables[CUSTOM_CTA_TAG]=$LATEST_CTA_TAG" \
+         -F "variables[PIPELINE_TYPE]=EOS_REGR_AGAINST_CTA_TAG" \
          $TRIGGER_URL
 
        # Trigger the external CTA pipeline using the latest EOS tag a
@@ -925,8 +927,9 @@ notify_cta_project:
        curl -X POST \
          -F token=$CTA_TRIGGER_TOKEN \
          -F ref=main \
-         -F "variables[TAG_NAME]=$EOS_TAG_NAME" \
-         -F "variables[XROOTD_VERSION]=$XROOTD_VERSION" \
+         -F "variables[CUSTOM_EOS_TAG]=$EOS_TAG_NAME" \
+         -F "variables[CUSTOM_XRD_TAG]=$XROOTD_VERSION" \
+         -F "variables[PIPELINE_TYPE]=EOS_REGR_AGAINST_CTA_MAIN" \
          $TRIGGER_URL
       fi
   when: manual
