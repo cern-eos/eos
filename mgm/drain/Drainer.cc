@@ -143,7 +143,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
   std::shared_ptr<DrainFs> dfs(new DrainFs(mThreadPool, gOFS->eosFsView,
                                src_fsid, dst_fsid));
   try {
-    auto future = std::async(std::launch::async, &DrainFs::DoIt, dfs);
+    auto future = std::async(std::launch::async, &DrainFs::DoIt, dfs.get());
     dfs->SetFuture(std::move(future));
     mDrainFs[src_snapshot.mHostPort].emplace(dfs);
   } catch (const std::exception& e) {
