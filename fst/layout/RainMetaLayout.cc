@@ -812,7 +812,7 @@ RainMetaLayout::ReadForceRecovery(XrdSfsFileOffset offset,
   std::unique_ptr<RainBlock> recover_block {new RainBlock(mStripeWidth)};
   XrdCl::ChunkList all_errs {
     XrdCl::ChunkInfo((uint64_t) grp_offset, (uint32_t) mStripeWidth,
-    (void*)recover_block->GetDataPtr())};
+                     (void*)recover_block->GetDataPtr())};
 
   if (!RecoverPieces(all_errs)) {
     eos_err("msg=\"failed recovery\" offset=%llu length=%d", offset, length);
@@ -980,6 +980,10 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
     // Non-entry server doing only local operations
     if (mStripe[0]) {
       write_length = mStripe[0]->fileWrite(offset, buffer, length, mTimeout);
+
+      if (mUnitCheckSum) {
+        mUnitCheckSum->Add(buffer, length, offset);
+      }
     }
   } else {
     // Detect if this is a non-streaming write
@@ -1042,6 +1046,13 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
                     offset, length);
             write_length = SFS_ERROR;
             break;
+          }
+
+          if (physical_id == 0) {
+            // local file
+            if (mUnitCheckSum) {
+              mUnitCheckSum->Add(buffer, nwrite, off_local);
+            }
           }
         }
       }
