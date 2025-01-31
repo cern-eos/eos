@@ -52,8 +52,8 @@ public:
   ReedSLayout(XrdFstOfsFile* file, unsigned long lid,
               const XrdSecEntity* client, XrdOucErrInfo* outError,
               const char* path, uint16_t timeout = 0,
-              bool storeRecovery = false, off_t targetSize = 0,
-              std::string bookingOpaque = "oss.size");
+              bool storeRecovery = false, eos::fst::CheckSum* unitCheckSum = nullptr,
+              off_t targetSize = 0, std::string bookingOpaque = "oss.size");
 
   //----------------------------------------------------------------------------
   //! Destructor
