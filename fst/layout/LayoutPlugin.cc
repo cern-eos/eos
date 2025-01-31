@@ -27,6 +27,7 @@
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/Load.hh"
 
 EOSFSTNAMESPACE_BEGIN
@@ -54,16 +55,20 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
   }
 
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP) {
+    std::unique_ptr<eos::fst::CheckSum> xs =
+      eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
     return static_cast<Layout*>(new RaidDpLayout(file, layoutId, client, error,
-                                path, timeout, storeRecovery));
+                                path, timeout, storeRecovery, xs.release()));
   }
 
   if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid5) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kQrain)) {
+    std::unique_ptr<eos::fst::CheckSum> xs =
+      eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
     return static_cast<Layout*>(new ReedSLayout(file, layoutId, client, error, path,
-                                timeout, storeRecovery));
+                                timeout, storeRecovery, xs.release()));
   }
 
   return 0;
