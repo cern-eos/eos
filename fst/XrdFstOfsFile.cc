@@ -4269,6 +4269,12 @@ XrdFstOfsFile::CommitToMgm()
     oss << "&mgm.checksum=" << mCheckSum->GetHexChecksum();
   }
 
+  auto unitCheckSum = mLayout->GetUnitChecksum();
+
+  if (unitCheckSum) {
+    oss << "&mgm.unit_checksum=" << unitCheckSum->GetHexChecksum();
+  }
+
   if (mFusex) {
     oss << "&mgm.fusex=1";
   }
