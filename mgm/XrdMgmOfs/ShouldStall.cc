@@ -65,11 +65,13 @@ XrdMgmOfs::ShouldStall(const char* function,
   if (stall) {
     if ((vid.uid > 3) && (functionname != "stat")  && (vid.app != "fuse::restic")) {
       if ((stalltime = gOFS->mTracker.ShouldStall(vid.uid, saturated, uid_threads))) {
-        smsg = "operate - your are exceeding your thread pool limit";
+        smsg = SSTR("operate - uid=" << vid.uid << " exceeding the "
+                    "thread pool limit");
         stallid += "::threads::";
         stallid += std::to_string(vid.uid);;
       } else if (Access::gBannedUsers.count(vid.uid)) {
-        smsg = "operate - you are banned in this instance - contact an administrator";
+        smsg = SSTR("operate - uid=" << vid.uid << " banned in this instance "
+                    "- contact an administrator");
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app.substr(0, 4) == "fuse") {
@@ -80,7 +82,8 @@ XrdMgmOfs::ShouldStall(const char* function,
         // BANNED USER
         stalltime = 300;
       } else if (Access::gBannedGroups.count(vid.gid)) {
-        smsg = "operate - your group is banned in this instance - contact an administrator";
+        smsg = SSTR("operate - gid=" << vid.gid << " banned in this instance "
+                    "- contact an administrator");
 
         // fuse clients don't get stalled by a booted namespace, they get EACCES
         if (vid.app.substr(0, 4) == "fuse") {
@@ -91,11 +94,13 @@ XrdMgmOfs::ShouldStall(const char* function,
         // BANNED GROUP
         stalltime = 300;
       } else if (Access::gBannedHosts.count(vid.host)) {
-        smsg = "operate - your client host is banned in this instance - contact an administrator";
+        smsg = SSTR("operate - client host=" << vid.host << " banned in this "
+                    "instance - contact an administrator");
         // BANNED HOST
         stalltime = 300;
       } else if (Access::gBannedDomains.count(vid.domain)) {
-        smsg = "operate - your client domain is banned in this instance - contact an administrator";
+        smsg = SSTR("operate -  client domain=" << vid.domain << " banned "
+                    "in this instance - contact an administrator");
         // BANNED DOMAINS
         stalltime = 300;
       } else if (vid.token && Access::gBannedTokens.count(vid.token->Voucher())) {
@@ -135,10 +140,7 @@ XrdMgmOfs::ShouldStall(const char* function,
                               it->first.substr(eosxd_pos) : it->first.substr(pos + 1);
             stallid += "::";
             stallid += cmd;
-
-            if (EOS_LOGS_DEBUG) {
-              eos_static_debug("rule=%s function=%s", cmd.c_str(), function);
-            }
+            eos_static_debug("rule=%s function=%s", cmd.c_str(), function);
 
             // only Eosxd rates can be fine-grained by function
             if (cmd.substr(0, 5) == "Eosxd") {
