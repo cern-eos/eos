@@ -141,6 +141,14 @@ public:
   }
 
   //--------------------------------------------------------------------------
+  //! Get unit checksum
+  //--------------------------------------------------------------------------
+  eos::fst::CheckSum* GetUnitChecksum() const
+  {
+    return mUnitCheckSum.get();
+  }
+
+  //--------------------------------------------------------------------------
   //! Test if we are at the entry server
   //--------------------------------------------------------------------------
   virtual bool IsEntryServer()
@@ -326,6 +334,8 @@ protected:
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
   std::unique_ptr<FileIo> mFileIO; //< IO object as entry server
+  std::unique_ptr<eos::fst::CheckSum>
+  mUnitCheckSum; //< Checksum of the layout unit
 };
 
 EOSFSTNAMESPACE_END

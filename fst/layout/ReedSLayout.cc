@@ -46,10 +46,11 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
                          const char* path,
                          uint16_t timeout,
                          bool storeRecovery,
+                         eos::fst::CheckSum* unitCheckSum,
                          off_t targetSize,
                          std::string bookingOpaque) :
   RainMetaLayout(file, lid, client, outError, path, timeout,
-                 storeRecovery, targetSize, bookingOpaque),
+                 storeRecovery, targetSize, bookingOpaque, unitCheckSum),
   mPacketSize(0), matrix(0), bitmatrix(0), schedule(0)
 {
   mNbDataBlocks = mNbDataFiles;
