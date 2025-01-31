@@ -984,6 +984,10 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
     // Non-entry server doing only local operations
     if (mStripe[0]) {
       write_length = mStripe[0]->fileWrite(offset, buffer, length, mTimeout);
+
+      if (mUnitCheckSum) {
+        mUnitCheckSum->Add(buffer, length, offset);
+      }
     }
   } else {
     // Detect if this is a non-streaming write
@@ -1046,6 +1050,13 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
                     offset, length);
             write_length = SFS_ERROR;
             break;
+          }
+
+          if (physical_id == 0) {
+            // local file
+            if (mUnitCheckSum) {
+              mUnitCheckSum->Add(buffer, nwrite, off_local);
+            }
           }
         }
       }
