@@ -1876,7 +1876,6 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
-  notification->mutable_file()->set_fid(mFid);
   notification->mutable_file()->mutable_owner()->set_uid(cuid);
   notification->mutable_file()->mutable_owner()->set_gid(cgid);
   notification->mutable_file()->set_disk_file_id(std::to_string(mFid));
@@ -2085,7 +2084,6 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   notification->mutable_file()->set_lpath(fullPath);
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
-  notification->mutable_file()->set_fid(mFid);
   notification->mutable_file()->set_disk_file_id(std::to_string(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
@@ -2258,7 +2256,6 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
-  notification->mutable_file()->set_fid(mFid);
   notification->mutable_file()->set_disk_file_id(std::to_string(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
@@ -2308,7 +2305,6 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
-  notification->mutable_file()->set_fid(mFid);
   notification->mutable_file()->set_disk_file_id(std::to_string(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {
@@ -2732,7 +2728,6 @@ WFE::Job::HandleProtoMethodUpdateFidEvent(const std::string& fullPath,
   notification->mutable_wf()->mutable_instance()->set_name(
     gOFS->MgmOfsInstanceName.c_str());
   notification->mutable_file()->set_lpath(fullPath);
-  notification->mutable_file()->set_fid(mFid);
   notification->mutable_file()->set_disk_file_id(std::to_string(mFid));
 
   if (xAttrs.count(ARCHIVE_FILE_ID_ATTR_NAME)) {

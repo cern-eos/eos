@@ -3826,7 +3826,6 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
                             (xrdname ? std::string(xrdname) : "NULL");
   notification->mutable_wf()->set_requester_instance(requester_instance);
   notification->mutable_file()->set_lpath(fullpath);
-  notification->mutable_file()->set_fid(file_id);
   notification->mutable_file()->set_disk_file_id(std::to_string(file_id));
   auto fxidString = StringConversion::FastUnsignedToAsciiHex(file_id);
   std::string ctaArchiveFileId = "none";
