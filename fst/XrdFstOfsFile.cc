@@ -1161,7 +1161,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   if (rc < 0) {
     int envlen = 0;
-
     // Indicate the deletion flag for write errors
     mWrDelete = true;
     XrdOucString errdetail;
@@ -1439,7 +1438,7 @@ XrdFstOfsFile::close()
     // During Reply() we expect the enclosing XrdFstOfsFile to be destroyed,
     // so we don't refer to anything captured by reference once done
     int reply_rc = closeCb->Reply(rc, (rc ? error.getErrInfo() : 0),
-    (rc ? error.getErrText() : ""));
+                                  (rc ? error.getErrText() : ""));
 
     if (reply_rc == 0)
     {
@@ -1829,7 +1828,6 @@ XrdFstOfsFile::_close_wr()
       gOFS.WNoDeleteOnCloseFid[mFsId].resize(0);
     }
   }
-
 
   // Commit to MGM in case of rain reconstruction and not del on close
   if (mRainReconstruct && mLayout->IsEntryServer() && !mDelOnClose) {
@@ -3907,12 +3905,14 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     // If static initialization throws an exception, it will be retried next time
     static XrdSsiPbServiceType service(endPoint, resource, config);
     auto sentAt = std::chrono::steady_clock::now();
+
     try {
       service.Send(request, response, false);
     } catch (std::runtime_error& err) {
       eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
       service.Send(request, response, true);
     }
+
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
                      (receivedAt - sentAt);
@@ -4171,6 +4171,12 @@ XrdFstOfsFile::CommitToMgm()
 
   if (mCheckSum) {
     oss << "&mgm.checksum=" << mCheckSum->GetHexChecksum();
+  }
+
+  auto unitCheckSum = mLayout->GetUnitChecksum();
+
+  if (unitCheckSum) {
+    oss << "&mgm.unit_checksum=" << unitCheckSum->GetHexChecksum();
   }
 
   if (mFusex) {
