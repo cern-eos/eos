@@ -214,7 +214,7 @@ FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
   eos::common::ConfigStatus old_status = GetConfigStatus();
   int drain_tx = IsDrainTransition(old_status, new_status);
 
-  // Only master drains
+  // Only master drains and updates the configuration status
   if (ShouldBroadCast()) {
     std::string out_msg;
 
@@ -237,10 +237,12 @@ FileSystem::SetConfigStatus(eos::common::ConfigStatus new_status)
         }
       }
     }
+
+    std::string val = eos::common::FileSystem::GetConfigStatusAsString(new_status);
+    return eos::common::FileSystem::SetString("configstatus", val.c_str());
   }
 
-  std::string val = eos::common::FileSystem::GetConfigStatusAsString(new_status);
-  return eos::common::FileSystem::SetString("configstatus", val.c_str());
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -297,11 +299,15 @@ bool
 FileSystem::ShouldBroadCast()
 {
   if (mRealm) {
-    if (mRealm->getSom()) {
+    if (mRealm->getSom()) { // MQ backend
       return mRealm->getSom()->ShouldBroadCast();
     } else {
-      // @note (esindril) to review when active-passive is actually enabled
-      return true;
+      // QDB pub-sub
+      if (gOFS && gOFS->mMaster->IsMaster()) {
+        return true;
+      } else {
+        return false;
+      }
     }
   } else {
     return false;

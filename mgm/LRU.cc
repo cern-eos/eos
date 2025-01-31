@@ -195,15 +195,16 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
   while (explorer.fetch(item)) {
     eos_static_debug("lru-dir-qdb=\"%s\" attrs=%d", item.fullPath.c_str(),
                      item.attrs.size());
-    processDirectory(item.fullPath,item.attrs);
+    processDirectory(item.fullPath, item.attrs);
     processed++;
 
     if (processed % 1000 == 0) {
       eos_static_info("msg=\"LRU scan in progress\" num_scanned_dirs=%lli",
                       processed);
 
-      if (assistant.terminationRequested()) {
-        eos_static_info("%s", "msg=\"termination requested, quit LRU\"");
+      if (assistant.terminationRequested() || !gOFS->mMaster->IsMaster()) {
+        eos_static_info("%s", "msg=\"quit LRU due termination request "
+                        "or MGM running in slave mode\"");
         break;
       }
     }
@@ -265,10 +266,11 @@ void LRU::processDirectory(const std::string& dir,
   }
 
   // Don't walk into the proc directory
-  if (dir.substr(0,gOFS->MgmProcPath.length()) == gOFS->MgmProcPath.c_str()) {
+  if (dir.substr(0, gOFS->MgmProcPath.length()) == gOFS->MgmProcPath.c_str()) {
     eos_static_debug("skipping proc tree %s\n", dir.c_str());
     return;
   }
+
   // Sort out the individual LRU policies
   if (map.count("sys.lru.expire.empty")) {
     // Remove empty directories older than <age>
@@ -358,18 +360,20 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
 
       // Loop through all file names
       for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
-
         // no need to lock the cmd
         fmd = cmd->findFile(it.key());
-        if(fmd == nullptr) {
+
+        if (fmd == nullptr) {
           eos_static_err("msg=\"file is null\" fxid=%08llx", it.key().c_str());
           continue;
         }
+
         {
           eos::MDLocking::FileReadLock fmdLock(fmd);
           fname = fmd->getName().c_str();
           fmd->getCTime(fctime);
         }
+
         fullpath = dir;
         fullpath += fname.c_str();
         eos_static_debug("check_file=\"%s\"", fullpath.c_str());
@@ -795,7 +799,8 @@ LRU::ConvertMatch(const char* dir,
       space = cenv.Get("eos.space");
     }
 
-    std::string conv_tag = ConversionTag::Get(it->first, space.c_str(), conversion, plctplcy);
+    std::string conv_tag = ConversionTag::Get(it->first, space.c_str(), conversion,
+                           plctplcy);
 
     if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
       eos_static_info("msg=\"LRU scheduled conversion job\" tag=\"%s\"",

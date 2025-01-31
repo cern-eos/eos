@@ -40,8 +40,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-const std::string Fsck::sFsckKey
-{"fsck"
+const std::string Fsck::sFsckKey {
+  "fsck"
 };
 const std::string Fsck::sCollectKey {"toggle-collect"};
 const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
@@ -106,6 +106,7 @@ Fsck::ApplyFsckConfig()
 
   if (kv_map.count(sCollectKey) && kv_map.count(sCollectIntervalKey)) {
     bool enable_collect = (kv_map[sCollectKey] == "1");
+
     // Make fsck config enforcement idempotent. Note the value in the Config
     // call is overloaded with the "off" string marking the fact that fsck
     // collection should be disabled.
@@ -317,13 +318,22 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 
   gOFS->WaitUntilNamespaceIsBooted();
 
-  // Wait that current MGM becomes a master
-  do {
-    eos_debug("%s", "msg=\"fsck waiting for master MGM\"");
-    assistant.wait_for(std::chrono::seconds(10));
-  } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
-
   while (!assistant.terminationRequested()) {
+    // Wait for the current MGM to become a master
+    while (!gOFS->mMaster->IsMaster()) {
+      eos_debug("%s", "msg=\"fsck collect disabled for slave\"");
+      assistant.wait_for(std::chrono::seconds(5));
+
+      if (assistant.terminationRequested()) {
+        eos_info("%s", "msg=\"stopped fsck collect thread\"");
+        break;
+      }
+    }
+
+    if (assistant.terminationRequested()) {
+      break;
+    }
+
     Log("Start error collection");
     Log("Filesystems to check: %lu", FsView::gFsView.GetNumFileSystems());
     decltype(eFsMap) tmp_err_map;
@@ -392,32 +402,35 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
   gOFS->WaitUntilNamespaceIsBooted();
 
   while (!assistant.terminationRequested()) {
-    // Don't run if we are not a master
+    // Wait for the current MGM to become a master
     while (!gOFS->mMaster->IsMaster()) {
-      assistant.wait_for(std::chrono::seconds(1));
+      eos_debug("%s", "msg=\"fsck repair disabled for slave\"");
+      assistant.wait_for(std::chrono::seconds(5));
 
       if (assistant.terminationRequested()) {
         eos_info("%s", "msg=\"stopped fsck repair thread\"");
-        mRepairRunning = false;
-        return;
+        break;
       }
     }
 
     // Wait for the collector thread to signal us
-    while (!mStartProcessing) {
+    while (!mStartProcessing && !assistant.terminationRequested()) {
       assistant.wait_for(std::chrono::seconds(1));
 
       if (assistant.terminationRequested()) {
         eos_info("%s", "msg=\"stopped fsck repair thread\"");
-        mRepairRunning = false;
-        return;
+        break;
       }
+    }
+
+    if (assistant.terminationRequested()) {
+      break;
     }
 
     // Create local struct for errors so that we avoid the iterator invalidation
     // and the long locks
     std::map<std::string,
-        std::map<eos::common::FileId::fileid_t ,
+        std::map<eos::common::FileId::fileid_t,
         std::set <eos::common::FileSystem::fsid_t> > > local_emap;
     {
       eos::common::RWMutexReadLock rd_lock(mErrMutex);
@@ -453,7 +466,8 @@ Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
         // Check regularly if we should exit and sleep if queue is full
         while ((mThreadPool.GetQueueSize() > mMaxQueuedJobs) ||
                (++count % 100 == 0)) {
-          if (assistant.terminationRequested()) {
+          if (assistant.terminationRequested() ||
+              !gOFS->mMaster->IsMaster()) {
             // Wait that there are not more jobs in the queue - this can
             // take a while depending on the queue size
             while (mThreadPool.GetQueueSize()) {
@@ -1184,7 +1198,7 @@ Fsck::QueryQdb(ErrMapT& err_map)
     if ((pos == std::string::npos) || (pos == data.length()))
     {
       eos_static_err("msg=\"failed to parse fsck element\" data=\"%s\"",
-      data.c_str());
+                     data.c_str());
       return {0ull, 0ul};
     }
 

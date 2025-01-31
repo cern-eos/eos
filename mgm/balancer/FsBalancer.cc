@@ -227,7 +227,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
       const auto& src_fses = it_current->first;
 
       for (const auto& src : src_fses) {
-        if (assistant.terminationRequested()) {
+        if (assistant.terminationRequested() || !gOFS->mMaster->IsMaster()) {
           break;
         }
 
@@ -276,7 +276,9 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
       if (it_current == vect_tx.end()) {
         it_current = vect_tx.begin();
       }
-    } while ((it_current != it_start) && !assistant.terminationRequested());
+    } while ((it_current != it_start) &&
+             !assistant.terminationRequested() &&
+             gOFS->mMaster->IsMaster());
 
     if (no_slots) {
       eos_static_info("%s", "msg=\"sleep no slots\"");

@@ -59,12 +59,11 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
         (key.substr(0, 6) != "quota:") &&
         (key.substr(0, 4) != "vid:") &&
         (key.substr(0, 7) != "policy:")) {
-      XrdOucString skey = key.c_str();
       eos_info("msg=\"apply access config\" key=\"%s\" val=\"%s\"",
                key.c_str(), value.c_str());
       Access::ApplyAccessConfig(false);
 
-      if (skey.beginswith("iostat:")) {
+      if (key.find("iostat:") == 0) {
         gOFS->IoStats->ApplyIostatConfig(&FsView::gFsView);
       }
     } else {
@@ -119,7 +118,7 @@ XrdMgmOfs::ProcessGeotagChange(const std::string& queue)
   if (FsView::gFsView.mNodeView.count(fs->GetQueue())) {
     // Check if the change notification is an actual change in the geotag
     FsNode* node = FsView::gFsView.mNodeView[fs->GetQueue()];
-    static_cast<GeoTree*>(node)->getGeoTagInTree(fsid , oldgeotag);
+    static_cast<GeoTree*>(node)->getGeoTagInTree(fsid, oldgeotag);
     oldgeotag.erase(0, 8); // to get rid of the "<ROOT>::" prefix
   }
 
