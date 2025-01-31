@@ -58,6 +58,7 @@ public:
                const char* path,
                uint16_t timeout = 0,
                bool storeRecovery = false,
+               eos::fst::CheckSum* unitCheckSum = nullptr,
                off_t targetSize = 0,
                std::string bookingOpaque = "oss.size");
 
