@@ -50,7 +50,8 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
                                uint16_t timeout,
                                bool force_recovery,
                                off_t targetSize,
-                               std::string bookingOpaque) :
+                               std::string bookingOpaque,
+                               eos::fst::CheckSum* unitCheckSum) :
   Layout(file, lid, client, outError, path, timeout),
   mIsRw(false),
   mIsOpen(false),
@@ -76,6 +77,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
+  mUnitCheckSum.reset(unitCheckSum);
 }
 
 //------------------------------------------------------------------------------
