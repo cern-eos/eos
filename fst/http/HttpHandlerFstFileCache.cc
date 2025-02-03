@@ -75,6 +75,9 @@ bool HttpHandlerFstFileCache::insert(const HttpHandlerFstFileCache::Entry &ein)
   if (!ein) return false;
   if (!mMaxEntries || !mMaxIdletimeMs || !mIdletimeResMs) return false;
 
+  if (ein.fp_)
+    ein.fp_->OnCacheInsert();
+
   std::list<EntryGuard> todel;
   {
     XrdSysMutexHelper cLock(mCacheLock);

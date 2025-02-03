@@ -289,6 +289,15 @@ public:
     return mFsId;
   }
 
+  //----------------------------------------------------------------------------
+  //! We're being placed in a cache. We record this time so we can report more
+  //! relevant information when we are eventually closed.
+  //----------------------------------------------------------------------------
+  void OnCacheInsert()
+  {
+    gettimeofday(&cacheITime, &tz);
+  }
+
 private:
 #ifdef IN_TEST_HARNESS
 public:
@@ -386,6 +395,7 @@ public:
   struct timeval closeTime; //! time when a file was closed
   struct timeval closeStart; //! time when a file close started
   struct timeval closeStop; //! time when a file close stopped
+  struct timeval cacheITime; //! time when object was put into a cache
   struct timezone tz; //! timezone
   int mBandwidth; //! bandwidth limitation setting
   XrdSysMutex vecMutex; //! mutex protecting the rvec/wvec variables
