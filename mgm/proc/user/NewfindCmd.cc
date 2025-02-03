@@ -805,7 +805,8 @@ NewfindCmd::ProcessAtomicFilePurge(S& ss,
   //----------------------------------------------------------------------------
   XrdOucErrInfo errInfo;
 
-  if (!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr)) {
+  if (!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr,
+                  false, false, true)) {
     ss << "# purging atomic " << fspath;
   } else {
     ss << "# could not purge atomic " << fspath;
@@ -1208,7 +1209,7 @@ NewfindCmd::ProcessRequest() noexcept
 
   bool onlydirs = (findRequest.directories() &&
                    !findRequest.files()) | findRequest.count() |
-                   findRequest.treecount() | findRequest.childcount();
+                  findRequest.treecount() | findRequest.childcount();
 
   if (findRequest.cache()) {
     // read via our in-memory cache using _find
@@ -1238,8 +1239,8 @@ NewfindCmd::ProcessRequest() noexcept
     // read from the QDB backend
     try {
       findResultProvider.reset
-        (new FindResultProvider(qcl.get(), real_path, depthlimit, onlydirs,
-                                findRequest.skipversiondirs(), mVid));
+      (new FindResultProvider(qcl.get(), real_path, depthlimit, onlydirs,
+                              findRequest.skipversiondirs(), mVid));
     } catch (eos::MDException& e) {
       eos_static_info("msg=\"caught newfind exception\" orig_path=\"%s\" "
                       "rpath=\"%s\" errno=%d what=\"%s\"",
@@ -1301,10 +1302,10 @@ NewfindCmd::ProcessRequest() noexcept
         if (findRequest.skipversiondirs() &&
             (findResult.path.find(EOS_COMMON_PATH_VERSION_PREFIX) != std::string::npos)) {
           eos_static_debug("msg=\"entry filtered out\" path=\"%s\"",
-                          findResult.path.c_str());
+                           findResult.path.c_str());
           continue;
         } else if (!AccessChecker::checkContainer(findResult.toContainerMD().get(),
-                                                  findResult.attrs, R_OK | X_OK, mVid)) {
+                   findResult.attrs, R_OK | X_OK, mVid)) {
           mOfsErrStream << "error(" << EACCES << "): no permissions to read directory ";
           mOfsErrStream << findResult.path << std::endl;
           reply.set_retc(EACCES);
@@ -1596,8 +1597,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     // read from the back-end
     try {
       findResultProvider.reset
-        (new FindResultProvider(qcl.get(), real_path, depthlimit, onlydirs,
-                                findRequest.skipversiondirs(), mVid));
+      (new FindResultProvider(qcl.get(), real_path, depthlimit, onlydirs,
+                              findRequest.skipversiondirs(), mVid));
     } catch (eos::MDException& e) {
       eos_static_info("msg=\"caught newfind exception\" orig_path=\"%s\" "
                       "rpath=\"%s\" errno=%d what=\"%s\"",
