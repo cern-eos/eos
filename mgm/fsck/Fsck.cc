@@ -254,6 +254,11 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       // Mandatory config coming from the stored configuration
       mDoBestEffort = (value == "1");
     }
+
+    if (!StoreFsckConfig()) {
+      msg = "error: failed to store fsck configuration changes";
+      return false;
+    }
   } else if (key == sRepairCategory) {
     if (value == "all") {
       mRepairCategory = FsckErr::None;
