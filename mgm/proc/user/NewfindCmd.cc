@@ -792,17 +792,13 @@ NewfindCmd::ProcessAtomicFilePurge(S& ss,
   eos::IFileMD::ctime_t atime;
   fmd.getCTime(atime);
 
-  //----------------------------------------------------------------------------
   // Is the file older than 1 day?
-  //----------------------------------------------------------------------------
   if (now - atime.tv_sec <= 86400) {
     ss << "# skipping atomic " << fspath << " [< 1d old ]" << std::endl;
     return;
   }
 
-  //----------------------------------------------------------------------------
   // Perform the rm
-  //----------------------------------------------------------------------------
   XrdOucErrInfo errInfo;
 
   if (!gOFS->_rem(fspath.c_str(), errInfo, mVid, (const char*) nullptr,

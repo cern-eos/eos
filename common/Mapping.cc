@@ -259,7 +259,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (authz_obj->Access(client, path.c_str(), acc_op, &Env) ==
           XrdAccPriv_None) {
         vid = VirtualIdentity::Nobody();
-        std::string nobearer=authz.substr(9);
+        std::string nobearer = authz.substr(9);
         eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
                        "jwt={%s}[%s]", path.c_str(), env,
                        PrintJWT(nobearer).c_str(), nobearer.c_str());
@@ -341,7 +341,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // unix mapping
   if ((vid.prot == "unix")) {
     if (authz_obj && authz.length()) {
-      if ( authz_obj->Access(client, path.c_str(), acc_op, &Env) == XrdAccPriv_None) {
+      if (authz_obj->Access(client, path.c_str(), acc_op, &Env) == XrdAccPriv_None) {
         // In principle we will never get here if XrdMgmAuthz is chained since
         // it says ok if there is a user name defined
         vid = VirtualIdentity::Nobody();
@@ -353,20 +353,24 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
                                 std::string("")).c_str());
         return;
       }
+
       // Check if we have the request.name in the attributes of the XrdSecEntity
       // object which is the client username according to the authz mapping.
-      std::string client_username="nobody";
+      std::string client_username = "nobody";
       std::string user_value;
       static const std::string user_key = "request.name";
+      bool force_mapping = false;
 
       if (client->eaAPI->Get(user_key, user_value)) {
+        force_mapping = true;
         client_username = user_value;
       } else {
         // No user from the token, we are 'anonymous'
         client_username = "nobody";
       }
+
       HandleUidGidMapping(client_username.c_str(), vid,
-                          g_unix_uid_key, g_unix_gid_key, true);
+                          g_unix_uid_key, g_unix_gid_key, force_mapping);
     } else {
       HandleUidGidMapping(client->name, vid, g_unix_uid_key, g_unix_gid_key);
     }
@@ -1758,8 +1762,7 @@ Mapping::CommaListToUidSet(const char* list, std::set<uid_t>& uids_set)
       })
       != username.end()) {
         uid = eos::common::Mapping::UserNameToUid(username, errc);
-      }
-      else {
+      } else {
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
@@ -2339,7 +2342,7 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
   bool gid_mapped = kv_gid != gVirtualGidMap.end();
 
   if (force || (uid_mapped && gid_mapped &&
-                (kv_uid->second == 0) && (kv_gid->second == 0)) ) {
+                (kv_uid->second == 0) && (kv_gid->second == 0))) {
     eos_static_debug("msg=\"%s uid/gid mapping\"", vid.prot.c_str());
     Mapping::getPhysicalUidGids(name, vid);
     return;
@@ -2378,7 +2381,8 @@ Mapping::HandleUidGidMapping(const char* name, VirtualIdentity& vid,
 // Print JWT token
 //------------------------------------------------------------------------------
 std::string
-Mapping::PrintJWT(const std::string accesstoken, bool dense) {
+Mapping::PrintJWT(const std::string accesstoken, bool dense)
+{
   std::stringstream ss;
 
   try {
@@ -2388,65 +2392,80 @@ Mapping::PrintJWT(const std::string accesstoken, bool dense) {
       if (dense) {
         ss << "issuer:" << decoded.get_issuer() << ",";
       } else {
-        ss << std::left << std::setw(20) << "issuer: " << decoded.get_issuer() << std::endl;
+        ss << std::left << std::setw(20) << "issuer: " << decoded.get_issuer() <<
+           std::endl;
       }
     } catch (...) {
-      if (!dense) {ss << std::endl;}
+      if (!dense) {
+        ss << std::endl;
+      }
     }
 
     try {
       if (dense) {
         ss << "subject:" << decoded.get_subject() << ",";
       } else {
-        ss << std::left << std::setw(20) << "subject: " << decoded.get_subject() << std::endl;
+        ss << std::left << std::setw(20) << "subject: " << decoded.get_subject() <<
+           std::endl;
       }
     } catch (...) {
-      if(!dense) {ss << std::endl;}
+      if (!dense) {
+        ss << std::endl;
+      }
     }
 
     try {
       if (dense) {
         ss << "audience:[";
-        for (auto i:decoded.get_audience()) {
+
+        for (auto i : decoded.get_audience()) {
           ss << i << ",";
         }
-        ss.seekp(-1,ss.cur);
+
+        ss.seekp(-1, ss.cur);
         ss << "],";
       } else {
         ss << std::setw(20) << "audience: ";
         ss << "[";
-        for (auto i:decoded.get_audience()) {
+
+        for (auto i : decoded.get_audience()) {
           ss << i << ",";
         }
-        ss.seekp(-1,ss.cur);
+
+        ss.seekp(-1, ss.cur);
         ss << "]" << std::endl;
       }
-    } catch (...){
-        if (!dense) {ss << std::endl;}
+    } catch (...) {
+      if (!dense) {
+        ss << std::endl;
+      }
     }
 
     if (dense) {
       ss << "claims:[";
 
       try {
-        for(auto& e : decoded.get_payload_claims()) {
+        for (auto& e : decoded.get_payload_claims()) {
           ss << e.first << ":" << e.second << ",";
         }
       } catch (...) {}
 
-      ss.seekp(-1,ss.cur);
+      ss.seekp(-1, ss.cur);
       ss << "]";
     } else {
       ss << std::left << std::setw(20) << "claims: ";
       ss << "{" << std::endl;;
 
       try {
-        for(auto& e : decoded.get_payload_claims()) {
-          ss << std::left << std::setw(22) << " " << e.first << ":" << e.second << "," << std::endl;
+        for (auto& e : decoded.get_payload_claims()) {
+          ss << std::left << std::setw(22) << " " << e.first << ":" << e.second << "," <<
+             std::endl;
         }
-      } catch (...) {ss << std::endl;}
+      } catch (...) {
+        ss << std::endl;
+      }
 
-      ss.seekp(-1,ss.cur);
+      ss.seekp(-1, ss.cur);
       ss << std::endl;
       ss << std::left << std::setw(20) << " " << "}" << std::endl;
     }
