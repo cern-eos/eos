@@ -28,6 +28,7 @@
 #include <gtest/gtest.h>
 #include <unistd.h>
 #include <atomic>
+#include <memory>
 
 std::atomic<uint64_t> nFakeClose = 0;
 std::atomic<uint64_t> nFakeDest  = 0;
@@ -52,7 +53,10 @@ TEST(FstFileCacheTest, StoreFetch)
   XrdSfsFileOpenMode open_mode = 0;
   eos::fst::HttpHandlerFstFileCache fc;
   eos::fst::HttpHandlerFstFileCache::Entry entry;
-  eos::fst::XrdFstOfsFile *fp = (eos::fst::XrdFstOfsFile *)0x110;
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fpP = std::make_unique<FakeOfsFile>("");
+  eos::fst::XrdFstOfsFile *fp = fpP.get();
+
+  const int dc1 = nFakeDest;
 
   {
     eos::fst::HttpHandlerFstFileCache::Key
@@ -67,6 +71,9 @@ TEST(FstFileCacheTest, StoreFetch)
     ASSERT_TRUE(entry);
     ASSERT_TRUE(entry.getfp() == fp);
   }
+
+  const int dc2 = nFakeDest;
+  ASSERT_TRUE( dc2 == dc1 );
 }
 
 TEST(FstFileCacheTest, StoreFetchMultiSameFile)
@@ -74,9 +81,14 @@ TEST(FstFileCacheTest, StoreFetchMultiSameFile)
   XrdSfsFileOpenMode open_mode = 0;
   eos::fst::HttpHandlerFstFileCache fc;
   eos::fst::HttpHandlerFstFileCache::Entry entry;
-  eos::fst::XrdFstOfsFile *fp1 = (eos::fst::XrdFstOfsFile *)0x120;
-  eos::fst::XrdFstOfsFile *fp2 = (eos::fst::XrdFstOfsFile *)0x121;
-  eos::fst::XrdFstOfsFile *fp3 = (eos::fst::XrdFstOfsFile *)0x122;
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp1P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp2P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp3P = std::make_unique<FakeOfsFile>("");
+  eos::fst::XrdFstOfsFile *fp1 = fp1P.get();
+  eos::fst::XrdFstOfsFile *fp2 = fp2P.get();
+  eos::fst::XrdFstOfsFile *fp3 = fp3P.get();
+
+  const int dc1 = nFakeDest;
 
   {
     eos::fst::HttpHandlerFstFileCache::Key
@@ -107,6 +119,9 @@ TEST(FstFileCacheTest, StoreFetchMultiSameFile)
     ASSERT_TRUE(entry);
     ASSERT_TRUE(entry.getfp() == fp1);
   }
+
+  const int dc2 = nFakeDest;
+  ASSERT_TRUE( dc2 == dc1 );
 }
 
 TEST(FstFileCacheTest, StoreFetchMultiDifferentFiles)
@@ -114,12 +129,20 @@ TEST(FstFileCacheTest, StoreFetchMultiDifferentFiles)
   XrdSfsFileOpenMode open_mode = 0;
   eos::fst::HttpHandlerFstFileCache fc;
   eos::fst::HttpHandlerFstFileCache::Entry entry;
-  eos::fst::XrdFstOfsFile *fp1 = (eos::fst::XrdFstOfsFile *)0x130;
-  eos::fst::XrdFstOfsFile *fp2 = (eos::fst::XrdFstOfsFile *)0x131;
-  eos::fst::XrdFstOfsFile *fp3 = (eos::fst::XrdFstOfsFile *)0x132;
-  eos::fst::XrdFstOfsFile *fp4 = (eos::fst::XrdFstOfsFile *)0x133;
-  eos::fst::XrdFstOfsFile *fp5 = (eos::fst::XrdFstOfsFile *)0x134;
-  eos::fst::XrdFstOfsFile *fp6 = (eos::fst::XrdFstOfsFile *)0x135;
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp1P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp2P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp3P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp4P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp5P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp6P = std::make_unique<FakeOfsFile>("");
+  eos::fst::XrdFstOfsFile *fp1 = fp1P.get();
+  eos::fst::XrdFstOfsFile *fp2 = fp2P.get();
+  eos::fst::XrdFstOfsFile *fp3 = fp3P.get();
+  eos::fst::XrdFstOfsFile *fp4 = fp4P.get();
+  eos::fst::XrdFstOfsFile *fp5 = fp5P.get();
+  eos::fst::XrdFstOfsFile *fp6 = fp6P.get();
+
+  const int dc1 = nFakeDest;
 
   {
     eos::fst::HttpHandlerFstFileCache::Key
@@ -174,6 +197,9 @@ TEST(FstFileCacheTest, StoreFetchMultiDifferentFiles)
     ASSERT_TRUE(entry);
     ASSERT_TRUE(entry.getfp() == fp1);
   }
+
+  const int dc2 = nFakeDest;
+  ASSERT_TRUE( dc2 == dc1 );
 }
 
 TEST(FstFileCacheTest, StoreFetchDifferentOpaque)
@@ -181,9 +207,14 @@ TEST(FstFileCacheTest, StoreFetchDifferentOpaque)
   XrdSfsFileOpenMode open_mode = 0;
   eos::fst::HttpHandlerFstFileCache fc;
   eos::fst::HttpHandlerFstFileCache::Entry entry;
-  eos::fst::XrdFstOfsFile *fp1 = (eos::fst::XrdFstOfsFile *)0x140;
-  eos::fst::XrdFstOfsFile *fp2 = (eos::fst::XrdFstOfsFile *)0x141;
-  eos::fst::XrdFstOfsFile *fp3 = (eos::fst::XrdFstOfsFile *)0x142;
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp1P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp2P = std::make_unique<FakeOfsFile>("");
+  std::unique_ptr<eos::fst::XrdFstOfsFile> fp3P = std::make_unique<FakeOfsFile>("");
+  eos::fst::XrdFstOfsFile *fp1 = fp1P.get();
+  eos::fst::XrdFstOfsFile *fp2 = fp2P.get();
+  eos::fst::XrdFstOfsFile *fp3 = fp3P.get();
+
+  const int dc1 = nFakeDest;
 
   {
     eos::fst::HttpHandlerFstFileCache::Key
@@ -217,6 +248,9 @@ TEST(FstFileCacheTest, StoreFetchDifferentOpaque)
     ASSERT_TRUE(entry);
     ASSERT_TRUE(entry.getfp() == fp1);
   }
+
+  const int dc2 = nFakeDest;
+  ASSERT_TRUE( dc2 == dc1 );
 }
 
 

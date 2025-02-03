@@ -182,7 +182,8 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     // if this file wasn't in opened-file cache and it's for reading
     // in a range request, save it to the cache once we're finished.
     // (perhaps we'll soon have another read-range request for the same file)
-    if (open_mode == 0 && mRc == SFS_OK && mFileCacheEntry.getfp() != mFile) {
+    if (open_mode == 0 && mRc == SFS_OK &&
+        mRangeRequest && mFileCacheEntry.getfp() != mFile) {
       eos_static_debug("path=%s eligible to be saved in open-file cache fp=%p",
                        openUrl.c_str(), mFile);
       mFileCacheEntry.set(cachekey, mFile);

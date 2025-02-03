@@ -117,6 +117,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   wTime.tv_usec = lwTime.tv_usec = cTime.tv_usec = 0;
   rCalls = wCalls = nFwdSeeks = nBwdSeeks = nXlFwdSeeks = nXlBwdSeeks = 0;
   closeTime.tv_sec = closeTime.tv_usec = 0;
+  cacheITime.tv_sec = cacheITime.tv_usec = 0;
   currentTime.tv_sec = openTime.tv_usec = 0;
   openTime.tv_sec = openTime.tv_usec = 0;
   totalBytes = 0;
@@ -1499,6 +1500,20 @@ XrdFstOfsFile::_close()
     gettimeofday(&closeStop, &tz);
     CloseTime();
     gettimeofday(&closeTime, &tz);
+    // if we were kept in a cache (e.g. HttpHandlerFstFileCache)
+    // use the last time we put placed in the cache as the closetime
+    // (as this was the last time the user sent a request) for the
+    // purpose of the stats
+    if (cacheITime.tv_sec != 0) {
+      closeTime = cacheITime;
+      const unsigned long mus = timeToClose * 1000.0;
+      closeTime.tv_sec += (mus / 1000000);
+      closeTime.tv_usec += (mus % 1000000);
+      if (closeTime.tv_usec >= 1000000) {
+        closeTime.tv_sec++;
+        closeTime.tv_usec -= 1000000;
+      }
+    }
     MakeReportEnv(report);
     eos_static_info("msg=\"%s\"", report.c_str());
 
