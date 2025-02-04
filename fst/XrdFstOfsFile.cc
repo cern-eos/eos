@@ -1645,6 +1645,7 @@ XrdFstOfsFile::_close_wr()
 {
   EPNAME("close_wr");
   bool checksum_err = false; // full file checksum error
+  bool unit_checksum_err = false; // unit checksum error
   bool target_sz_err = false; // final target file size error
   bool min_sz_err = false; // minimum file size policy error
   bool queuing_err = false; // queuing error for archive
@@ -1728,7 +1729,10 @@ XrdFstOfsFile::_close_wr()
       }
     }
 
-    if (checksum_err || target_sz_err || min_sz_err) {
+    unit_checksum_err = mLayout->VerifyChecksum();
+    eos_debug("unit_checksum_err=%i", unit_checksum_err);
+
+    if (checksum_err || target_sz_err || min_sz_err || unit_checksum_err) {
       mDelOnClose = true;
     }
   }
