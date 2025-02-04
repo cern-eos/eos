@@ -29,6 +29,7 @@
 #include "fst/layout/RainMetaLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/layout/HeaderCRC.hh"
+#include "RainMetaLayout.hh"
 
 // Linux compat for Apple
 #ifdef __APPLE__
@@ -986,7 +987,8 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
       write_length = mStripe[0]->fileWrite(offset, buffer, length, mTimeout);
 
       if (mUnitCheckSum) {
-        mUnitCheckSum->Add(buffer, length, offset);
+        XrdSysMutexHelper cLock(mChecksumMutex);
+        mUnitCheckSum->Add(buffer, write_length, offset);
       }
     }
   } else {
@@ -1052,12 +1054,13 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
             break;
           }
 
-          if (physical_id == 0) {
-            // local file
-            if (mUnitCheckSum) {
-              mUnitCheckSum->Add(buffer, nwrite, off_local);
-            }
-          }
+          // if (physical_id == 0) {
+          //   // local file
+          //   if (mUnitCheckSum) {
+          //     XrdSysMutexHelper cLock(mChecksumMutex);
+          //     mUnitCheckSum->Add(buffer, nwrite, off_local);
+          //   }
+          // }
         }
       }
 
@@ -1625,6 +1628,41 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   }
 
   return rc;
+}
+
+bool RainMetaLayout::VerifyChecksum()
+{
+  if (!mUnitCheckSum) {
+    return false;
+  }
+
+  unsigned long long scansize = 0;
+  float scantime = 0;
+
+  // Update unit checksum if it needs recalculation
+  if (mUnitCheckSum->NeedsRecalculation()) {
+    eos_debug("msg=\"unit checksum needs recalculation\" fxid=%08llx",
+              mOfsFile->GetFileId());
+
+    if (mUnitCheckSum->ScanFile(mOfsFile->GetFstPath().c_str(), scansize,
+                                scantime)) {
+      XrdOucString sizestring;
+      eos_info("msg=\"rescanned unit checksum\" fxid=%08llx size=%s time=%.02f ms rate=%.02f MB/s %s",
+               mOfsFile->GetFileId(), eos::common::StringConversion::GetReadableSizeString(
+                 sizestring,
+                 scansize, "B"),
+               scantime,
+               1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
+               mUnitCheckSum->GetHexChecksum());
+    } else {
+      eos_err("msg=\"unit checksum rescanning failed\" fxid=%08llx",
+              mOfsFile->GetFileId());
+      mUnitCheckSum.reset(nullptr);
+      return true;
+    }
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
