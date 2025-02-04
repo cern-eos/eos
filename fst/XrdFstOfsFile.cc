@@ -1499,6 +1499,7 @@ XrdFstOfsFile::_close()
     gettimeofday(&closeStop, &tz);
     CloseTime();
     gettimeofday(&closeTime, &tz);
+
     // if we were kept in a cache (e.g. HttpHandlerFstFileCache)
     // use the last time we put placed in the cache as the closetime
     // (as this was the last time the user sent a request) for the
@@ -1508,11 +1509,13 @@ XrdFstOfsFile::_close()
       const unsigned long mus = timeToClose * 1000.0;
       closeTime.tv_sec += (mus / 1000000);
       closeTime.tv_usec += (mus % 1000000);
+
       if (closeTime.tv_usec >= 1000000) {
         closeTime.tv_sec++;
         closeTime.tv_usec -= 1000000;
       }
     }
+
     MakeReportEnv(report);
     eos_static_info("msg=\"%s\"", report.c_str());
 
@@ -1669,8 +1672,10 @@ XrdFstOfsFile::_close_wr()
       }
     }
 
-    unit_checksum_err = mLayout->VerifyChecksum();
-    eos_debug("unit_checksum_err=%i", unit_checksum_err);
+    if (!mLayout->IsEntryServer()) {
+      unit_checksum_err = mLayout->VerifyChecksum();
+      eos_debug("unit_checksum_err=%i", unit_checksum_err);
+    }
 
     if (checksum_err || target_sz_err || min_sz_err || unit_checksum_err) {
       mDelOnClose = true;
@@ -1719,7 +1724,8 @@ XrdFstOfsFile::_close_wr()
           // until after we have the result of the CLOSE otherwise we risk
           // dropping a good replica for a failed reconstruction which we
           // can not get back.
-          if ((mRainReconstruct == false) && (rc = CommitToMgm())) {
+          if ((mRainReconstruct == false) && !mLayout->IsEntryServer() &&
+              (rc = CommitToMgm())) {
             //if ((rc = CommitToMgm())) {
             if ((error.getErrInfo() == EIDRM) ||
                 (error.getErrInfo() == EBADE) ||
@@ -1834,7 +1840,14 @@ XrdFstOfsFile::_close_wr()
   }
 
   // Commit to MGM in case of rain reconstruction and not del on close
-  if (mRainReconstruct && mLayout->IsEntryServer() && !mDelOnClose) {
+  if (mLayout->IsEntryServer() && !mDelOnClose) {
+    unit_checksum_err = mLayout->VerifyChecksum();
+
+    if (unit_checksum_err) {
+      mDelOnClose = true;
+      // TODO
+    }
+
     if ((rc = CommitToMgm())) {
       if ((error.getErrInfo() == EIDRM) ||
           (error.getErrInfo() == EBADE) ||

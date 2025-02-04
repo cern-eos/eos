@@ -1060,6 +1060,10 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
         }
       }
 
+      if (physical_id == 0 && mUnitCheckSum) {
+        mUnitCheckSum->SetDirty();
+      }
+
       AddPiece(offset, nwrite);
       offset += nwrite;
       length -= nwrite;
