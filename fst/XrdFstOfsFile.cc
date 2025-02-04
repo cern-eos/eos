@@ -1728,7 +1728,7 @@ XrdFstOfsFile::_close_wr()
     }
 
     if (!mLayout->IsEntryServer()) {
-      unit_checksum_err = mLayout->VerifyChecksum();
+      unit_checksum_err = VerifyUnitChecksum();
       eos_debug("unit_checksum_err=%i", unit_checksum_err);
     }
 
@@ -1896,7 +1896,7 @@ XrdFstOfsFile::_close_wr()
 
   // Commit to MGM in case of rain reconstruction and not del on close
   if (mLayout->IsEntryServer() && !mDelOnClose) {
-    unit_checksum_err = mLayout->VerifyChecksum();
+    unit_checksum_err = VerifyUnitChecksum();
 
     if (unit_checksum_err) {
       mDelOnClose = true;
@@ -3441,8 +3441,6 @@ XrdFstOfsFile::VerifyChecksum()
         }
       }
 
-      mCheckSum->GetBinChecksum(checksumlen);
-      // Copy checksum into meta data
       mFmd->mProtoFmd.set_checksum(mCheckSum->GetHexChecksum());
 
       if (mHasWrite) {
@@ -3504,6 +3502,21 @@ XrdFstOfsFile::VerifyChecksum()
   }
 
   return checksumerror;
+}
+
+bool XrdFstOfsFile::VerifyUnitChecksum()
+{
+  bool unit_checksum_err = mLayout->VerifyChecksum();
+
+  if (unit_checksum_err) {
+    return true;
+  }
+
+  if (mLayout->GetUnitChecksum()) {
+    mFmd->mProtoFmd.set_checksum(mLayout->GetUnitChecksum()->GetHexChecksum());
+  }
+
+  return false;
 }
 
 //------------------------------------------------------------------------------
