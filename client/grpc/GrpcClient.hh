@@ -68,9 +68,6 @@ public:
 		   bool files = true, bool dirs = true, uint64_t depth=0, bool printonly = false, 
 		   const std::string& exportfs="");
 
-  int ManilaRequest(const eos::rpc::ManilaRequest& request,
-		    eos::rpc::ManilaResponse& reply);
-
   int NsStat(const eos::rpc::NsStatRequest& request,
              eos::rpc::NsStatResponse& reply);
 

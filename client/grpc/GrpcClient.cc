@@ -62,9 +62,6 @@ using eos::rpc::ContainerInsertRequest;
 using eos::rpc::InsertReply;
 using eos::rpc::ContainerMdProto;
 using eos::rpc::FileMdProto;
-using eos::rpc::ManilaRequest;
-using eos::rpc::ManilaResponse;
-
 
 
 std::string GrpcClient::Ping(const std::string& payload)
@@ -105,30 +102,6 @@ std::string GrpcClient::Ping(const std::string& payload)
     return reply.message();
   } else {
     return "";
-  }
-}
-
-int
-GrpcClient::ManilaRequest(const eos::rpc::ManilaRequest& request,
-                          eos::rpc::ManilaResponse& reply)
-{
-  ClientContext context;
-  CompletionQueue cq;
-  Status status;
-  std::unique_ptr<ClientAsyncResponseReader<ManilaResponse> > rpc(
-    stub_->AsyncManilaServerRequest(&context, request, &cq));
-  rpc->Finish(&reply, &status, (void*) 1);
-  void* got_tag;
-  bool ok = false;
-  ABSL_CHECK(cq.Next(&got_tag, &ok));
-  ABSL_CHECK(got_tag == (void*) 1);
-  ABSL_CHECK(ok);
-
-  // Act upon the status of the actual RPC.
-  if (status.ok()) {
-    return reply.code();
-  } else {
-    return -1;
   }
 }
 
