@@ -887,7 +887,15 @@ TEST(FlatScheduler, TLNoSiteWeightedRR)
   ASSERT_TRUE(flat_scheduler.schedule(cluster_data(), {2}));
 }
 
-
+void printProcessMemoryUsage() {
+  std::ifstream status_file("/proc/self/status");
+  std::string line;
+  while (std::getline(status_file, line)) {
+    if (line.find("VmRSS") == 0 || line.find("VmSize") == 0) {
+      std::cout << line << std::endl;
+    }
+  }
+}
 
 TEST(ClusterMap, Concurrency)
 {
@@ -895,6 +903,8 @@ TEST(ClusterMap, Concurrency)
   ClusterMgr mgr;
   using eos::mgm::placement::PlacementStrategyT;
 
+  std::mutex log_mtx;
+  printProcessMemoryUsage();
   eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kRoundRobin,
                                                     2048);
 
@@ -911,9 +921,10 @@ TEST(ClusterMap, Concurrency)
     ASSERT_TRUE(sh.addDisk(Disk(5, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
   }
 
+  printProcessMemoryUsage();
   auto mgr_ptr = &mgr;
 
-  auto add_fn = [mgr_ptr]() {
+  auto add_fn = [mgr_ptr, &log_mtx]() {
     for (int i=0; i < 10; i++) {
       std::cout << "Writer thread: " << std::this_thread::get_id() << " ctr"
                 << i << std::endl;
@@ -928,13 +939,16 @@ TEST(ClusterMap, Concurrency)
         }
       }
     }
-    std::cout << "Done with writer at " << std::this_thread::get_id() << std::endl;
-
+    {
+      std::scoped_lock log_lock(log_mtx);
+      printProcessMemoryUsage();
+      std::cout << "Done with writer at " << std::this_thread::get_id() << std::endl;
+    }
   };
 
 
 
-  auto read_fn = [&flat_scheduler, mgr_ptr]() {
+  auto read_fn = [&flat_scheduler, mgr_ptr, &log_mtx]() {
     for (int i=0; i < 1000; i++) {
       auto data = mgr_ptr->getClusterData();
 
@@ -945,7 +959,11 @@ TEST(ClusterMap, Concurrency)
       ASSERT_TRUE(result);
       ASSERT_TRUE(result.is_valid_placement(2));
     }
-    std::cout << "Done with reader at " << std::this_thread::get_id() << std::endl;
+    {
+      std::scoped_lock log_lock(log_mtx);
+      printProcessMemoryUsage();
+      std::cout << "Done with reader at " << std::this_thread::get_id() << std::endl;
+    }
   };
 
   std::vector<std::thread> reader_threads;
