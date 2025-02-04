@@ -170,6 +170,8 @@ public:
   //----------------------------------------------------------------------------
   virtual int Truncate(XrdSfsFileOffset offset);
 
+  virtual bool VerifyChecksum() override;
+
   //----------------------------------------------------------------------------
   //! Allocate file space
   //!

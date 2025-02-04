@@ -284,6 +284,11 @@ public:
   //----------------------------------------------------------------------------
   virtual int Fctl(const std::string& cmd, const XrdSecEntity* client) = 0;
 
+  virtual bool VerifyChecksum()
+  {
+    return false;
+  };
+
   //--------------------------------------------------------------------------
   //! Get stats about the file
   //!
@@ -336,6 +341,7 @@ protected:
   std::unique_ptr<FileIo> mFileIO; //< IO object as entry server
   std::unique_ptr<eos::fst::CheckSum>
   mUnitCheckSum; //< Checksum of the layout unit
+  XrdSysMutex mChecksumMutex; ///< Mutex protecting the checksum class
 };
 
 EOSFSTNAMESPACE_END
