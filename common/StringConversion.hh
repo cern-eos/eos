@@ -95,6 +95,20 @@ public:
                             std::vector<std::string>& tokens,
                             const std::string& delimiters = " ");
 
+  // ---------------------------------------------------------------------------
+  /**
+   * Join concatenates the elements of the vector to create a single string.
+   * The separator is placed between the elements in the result string.
+   *
+   * @param tokens the elements to concatenate
+   * @param separator the string to place between the elements
+   *
+   * @return joined string
+   */
+  // ---------------------------------------------------------------------------
+  static std::string Join(const std::vector<std::string>& tokens,
+                          const std::string& separator = "");
+
 
   // ---------------------------------------------------------------------------
   /**
