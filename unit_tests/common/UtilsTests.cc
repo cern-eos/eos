@@ -104,4 +104,86 @@ TEST(ParseUtils, ComputeSize) {
   ASSERT_EQ(0,size);
 }
 
+TEST(ParseUtils, AddEosApp) {
+  std::string origPath = "/eos/test/file";
+  std::string path = origPath;
+  AddEosApp(path,"http");
+  ASSERT_EQ(origPath + "?eos.app=http",path);
+
+  path = origPath + "?test1=test2";
+  AddEosApp(path,"srm");
+  ASSERT_EQ(origPath + "?test1=test2&eos.app=srm",path);
+
+  path = origPath + "?test1=test2&eos.app=hello&test2=test3&eos.app=world";
+  AddEosApp(path,"srm");
+  ASSERT_EQ(origPath + "?test1=test2&eos.app=hello&test2=test3&eos.app=srm/world",path);
+
+  path = origPath + "?eos.app=http";
+  AddEosApp(path,"http");
+  ASSERT_EQ(origPath + "?eos.app=http",path);
+
+  path = origPath + "?eos.app=http/test";
+  AddEosApp(path,"http");
+  ASSERT_EQ(origPath + "?eos.app=http/test",path);
+
+  path = origPath + "?eos.app=http/";
+  AddEosApp(path,"http");
+  ASSERT_EQ(origPath + "?eos.app=http",path);
+
+  path = origPath + "?";
+  AddEosApp(path,"xrootd");
+  ASSERT_EQ(origPath + "?eos.app=xrootd",path);
+
+  path = origPath + "?eos.app=test";
+  AddEosApp(path,"xrootd");
+  ASSERT_EQ(origPath + "?eos.app=xrootd/test",path);
+
+  path = origPath + "?eos.app=verylongapplicationname";
+  AddEosApp(path,"xrootd");
+  ASSERT_EQ(origPath + "?eos.app=xrootd/verylongapplicationname",path);
+
+  path = origPath + "?eos.app=test&test1=test2";
+  AddEosApp(path,"xrootd");
+  ASSERT_EQ(origPath + "?eos.app=xrootd/test&test1=test2",path);
+
+  path = origPath + "?test1=test2&eos.app=test";
+  AddEosApp(path,"xrootd");
+  ASSERT_EQ(origPath + "?test1=test2&eos.app=xrootd/test",path);
+
+  path = origPath + "?test1=test2&eos.app=verylongapplicationname";
+  AddEosApp(path,"xrootd");
+  ASSERT_EQ(origPath + "?test1=test2&eos.app=xrootd/verylongapplicationname",path);
+
+  path = origPath + "?test1=test2&eos.app=verylongapplicationname&test3=test4";
+  AddEosApp(path,"xrootd");
+  ASSERT_EQ(origPath + "?test1=test2&eos.app=xrootd/verylongapplicationname&test3=test4",path);
+
+  path = origPath + "?test1=test2&eos.app=xrootd/&test3=test4";
+  AddEosApp(path,"xrootd");
+  ASSERT_EQ(origPath + "?test1=test2&eos.app=xrootd&test3=test4",path);
+
+  path = origPath + "?test1=test2&eos.app=https&test3=test4";
+  AddEosApp(path,"http");
+  ASSERT_EQ(origPath + "?test1=test2&eos.app=http/https&test3=test4",path);
+
+  std::string opaque = "";
+  AddEosApp(opaque,"xrootd");
+  ASSERT_EQ("eos.app=xrootd",opaque);
+
+  std::string origOpaque = "test=1&test=2";
+  opaque = origOpaque;
+  AddEosApp(opaque,"http");
+  ASSERT_EQ(origOpaque + "&eos.app=http",opaque);
+
+  origOpaque = "&test=1&test=2";
+  opaque = origOpaque;
+  AddEosApp(opaque,"http");
+  ASSERT_EQ(origOpaque + "&eos.app=http",opaque);
+
+  origOpaque = "?test=1&test=2";
+  opaque = origOpaque;
+  AddEosApp(opaque,"http");
+  ASSERT_EQ(origOpaque + "&eos.app=http",opaque);
+}
+
 EOSCOMMONTESTING_END

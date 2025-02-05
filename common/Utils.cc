@@ -192,4 +192,70 @@ void ComputeSize(uint64_t & size, int64_t delta) {
   }
 }
 
+void AddEosApp(std::string & pathOrOpaque, const std::string & protocol)
+{
+  constexpr std::string_view eosAppPrefix = "eos.app=";
+  const size_t eosAppPrefixLen = eosAppPrefix.size();
+
+  // Remove the last character if it is an '&' or a '?' --> we will add it if eos.app does not exist,
+  // we will replace the value of eos.app otherwise
+  if(!pathOrOpaque.empty() && (pathOrOpaque.back() == '&' || pathOrOpaque.back() == '?')) {
+    pathOrOpaque.pop_back();
+  }
+
+  // Only get the last eos.app of the opaque query as
+  // explained in the comment of this function!
+  size_t eosAppPos = pathOrOpaque.rfind(eosAppPrefix.data());
+  // eos.app not found, set it to protocol
+  if (eosAppPos == std::string::npos) {
+    if(!pathOrOpaque.empty()) {
+      // Only add a question mark if the pathOrOpaque provided is a path (starts with '/') and there's no question mark anywhere
+      const bool needQuestion = (pathOrOpaque.front() == '/' &&
+                                 pathOrOpaque.find('?') == std::string::npos);
+      pathOrOpaque.append(needQuestion ? "?" : "&");
+    }
+    pathOrOpaque.append(eosAppPrefix)
+                .append(protocol);
+    return;
+  }
+
+  // eos.app is found, ensure it is either equal to protocol otherwise prepend it with "protocol/"
+  // Extract eos.app value
+  size_t eosAppEndValuePos =
+      pathOrOpaque.find('&', eosAppPos + eosAppPrefixLen);
+  std::string eosAppValue =
+      pathOrOpaque.substr(eosAppPos + eosAppPrefixLen, eosAppEndValuePos - (eosAppPos + eosAppPrefixLen));
+  size_t eosAppValueLen = eosAppValue.size();
+  size_t protocolLen = protocol.size();
+  int startsWithProtocol = eosAppValue.compare(0, protocolLen, protocol);
+  if (startsWithProtocol != 0) {
+    eosAppValue.insert(0, protocol + "/");
+  } else {
+    // eos.app value starts with protocol
+    if (eosAppValueLen > protocolLen) {
+      // the eos.app value starts with protocol but has stuff behind
+      // is it a "/" ?
+      size_t slashPos = eosAppValue.find('/', protocolLen);
+      if (slashPos == std::string::npos) {
+        // No slash found, prepend protocol + "/"
+        eosAppValue.insert(0, protocol + "/");
+      } else {
+        // Slash found
+        if (slashPos == eosAppValueLen - 1) {
+          // There's nothing after the slash, delete it
+          // e.g: /eos/test/fic.txt?eos.app=protocol/ --> /eos/test/fic.txt?eos.app=protocol
+          eosAppValue.erase(slashPos);
+        } else {
+          // There's something after the slash,
+          // nothing to do with the eos.app value
+          return;
+        }
+      }
+    }
+  }
+  // Replace the previous value of eos.app
+  pathOrOpaque.erase(eosAppPos + eosAppPrefixLen, eosAppValueLen);
+  pathOrOpaque.insert(eosAppPos + eosAppPrefixLen, eosAppValue);
+}
+
 EOSCOMMONNAMESPACE_END

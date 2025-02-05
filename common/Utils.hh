@@ -83,4 +83,24 @@ bool GetFileHexSha1(std::string& hex_sha1,
 
 void ComputeSize(uint64_t & size, int64_t delta);
 
+//------------------------------------------------------------------------------
+//! Adds eos.app=protocol opaque info to the path or opaque infos provided by pathOrOpaque
+//! if eos.app is already present in the pathOrOpaque, the value will be prepended
+//! by protocol/. If the value is equal to protocol, then nothing will be done
+//! If the value is equal to protocol/xyz, then nothing will be done
+//! e.g: pathOrOpaque=/eos/test/fic.txt?eos.app=hello --> pathOrOpaque will be equal to
+//! /eos/test/fic.txt?eos.app=protocol/hello
+//! e.g2: pathOrOpaque= test=test1&eos.app=protocol --> pathOpaque will be left untouched
+//! e.g3: pathOrOpaque=/eos/test/fic.txt?eos.app=http/s3 --> pathOpaque will be left untouched
+//! if eos.app is not already present in the pathOrOpaque, the value of eos.app
+//! will be eos.app=protocol
+//! if eos.app is provided twice in the pathOrOpaque, only the last occurence of eos.app will be
+//! considered. Indeed, usually the opaque will be transformed into a XrdOucEnv and it
+//! is implemented using a hash --> the second occurence will overwrite the first one!
+//!
+//! @param pathOrOpaque the pathOrOpaque to add the eos.app opaque info
+//! @param protocol the protocol of the eos.app opaque parameter
+//------------------------------------------------------------------------------
+void AddEosApp(std::string & pathOrOpaque, const std::string & protocol);
+
 EOSCOMMONNAMESPACE_END
