@@ -1,9 +1,16 @@
 #!/bin/bash
 
+set -x
+
 prefix=$1
 host=${2-"localhost"}
 url=root://$host
 EOS_ACCOUNTING_DIR=$prefix
+
+echo "prefix = $prefix"
+echo "host = $host"
+echo "url = $url"
+echo "EOS_ACCOUNTING_DIR = $EOS_ACCOUNTING_DIR"
 
 cleanup() {
   echo "Cleaning up the test directories"
@@ -57,11 +64,12 @@ test_accounting $EOS_ACCOUNTING_DIR 0 0 0
 eos mkdir -p $EOS_ACCOUNTING_DIR/source
 eos mkdir -p $EOS_ACCOUNTING_DIR/destination
 
-nDirs=50
+nDirs=20
 nFiles=10
 
 echo "Creating directory structures for the test..."
 start_time=$(date +%s)
+
 # create nDirs directories in each we will create another directory containing a 0-size file (touch)
 # then copy /etc/passwd to the nDirs directories
 for (( i=0; i<$nDirs; i++ ));
@@ -76,8 +84,9 @@ do
     eos mkdir -p $EOS_ACCOUNTING_DIR/source/$i/dir$j && eos touch $EOS_ACCOUNTING_DIR/source/$i/dir$j/touch$j &
     eos cp /etc/passwd $url/$EOS_ACCOUNTING_DIR/source/$i/passwd$j &
   done
+  wait
 done
-wait
+
 end_time=$(date +%s)
 elapsed=$((end_time - start_time))
 echo "Done, elapsed time = $elapsed seconds"

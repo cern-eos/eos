@@ -483,7 +483,7 @@ eos_squash() {
 }
 
 eos_accounting() {
-  echo eos-accounting-test $1 ; eval eos-accounting-test $1 ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
+  echo eos-accounting-test "$1" ; eval eos-accounting-test "$1" ${EOS_TEST_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
 eos_file_cont_detached() {
