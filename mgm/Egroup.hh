@@ -199,7 +199,7 @@ private:
   //! Set of pending requests in the form <username>:<egroup>
   std::unordered_set<std::string> mPendingSet;
   //! Mutex protecting the pending set
-  mutable std::mutex mMutexPending;
+  std::mutex mMutexPending;
 
   /// injections to simulate LDAP server responses - different than the cache
   std::map<std::string, std::map<std::string, Status>> injections;

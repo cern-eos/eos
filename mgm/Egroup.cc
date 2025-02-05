@@ -348,7 +348,7 @@ void Egroup::scheduleRefresh(const std::string& username,
 
   if (mPendingSet.find(key) == mPendingSet.end()) {
     mPendingSet.insert(key);
-    lock.unlock();
+    lock.release();
     mPendingQueue.emplace_back(std::make_pair(username, egroupname));
   }
 }
