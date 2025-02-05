@@ -1,0 +1,166 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# File: eos-diagnostic-tool
+# Author: Abhishek Lekshmanan - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2025 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+EXPORT_BASE_DIR="${EXPORT_BASE_DIR:-/tmp/eos-diagnostics}"
+DUMP_DIR_NAME="dump-$(date +"%Y%m%dT%H%M%S")"
+EXPORT_DIR="${EXPORT_BASE_DIR}/dumps/${DUMP_DIR_NAME}"
+TARBALL_DIR="${EXPORT_BASE_DIR}/tarballs"
+
+# directory tree within the export dir for various info
+STATS_DIR="${EXPORT_DIR}/stats"
+STACKDUMP_DIR="${EXPORT_DIR}/stacktraces"
+PROC_STATS_DIR="${EXPORT_DIR}/stacktraces/proc"
+CONFIG_DIR="${EXPORT_DIR}/config"
+CONFIG_ETC_DIR="${EXPORT_DIR}/config/etc"
+
+EOS_MGM_URL="${EOS_MGM_URL:-ipc://}"
+
+echoerr() { echo "$@" 1>&2; }
+
+log_msg() {
+    local level="$1"
+    local message="$2"
+    local timestamp=$(date -Iseconds)
+    local log_file="${EXPORT_DIR}/eos-diagnostic.log"
+
+    # Log to stderr only for interactive use cases
+    if [[ -t 1 ]]; then
+        echo "${timestamp} [${level}] ${message}" 1>&2
+    fi
+    echo "${timestamp} [${level}] ${message}" >> "$log_file"
+}
+
+log_info() { log_msg "INFO" "$*"; }
+log_debug() { log_msg "DEBUG" "$*"; }
+log_error() { log_msg "ERROR" "$*"; }
+
+error_exit() {
+    log_error "$*";
+    exit 1
+}
+
+setup_dir_tree()
+{
+    mkdir -p "$EXPORT_DIR"
+    mkdir -p "$STATS_DIR"
+    mkdir -p "$STACKDUMP_DIR"
+    mkdir -p "$PROC_STATS_DIR"
+    mkdir -p "$CONFIG_DIR"
+    mkdir -p "$CONFIG_ETC_DIR"
+    mkdir -p "$TARBALL_DIR"
+}
+
+collect_eos_stats()
+{
+    log_info "Collecting EOS stats for ${EOS_MGM_URL}"
+    eos ns stat -a -m > "${STATS_DIR}/ns_all.info"
+    eos who -a -m > "${STATS_DIR}/who.info"
+    eos io stat -x -m > "${STATS_DIR}/iostat.info"
+    eos fusex ls -m > "${STATS_DIR}/fusex.info"
+    eos node ls -m > "${STATS_DIR}/node.info"
+    eos space ls -m > "${STATS_DIR}/space.info"
+    eos config dump > "${CONFIG_DIR}/eos.conf.dump"
+}
+
+
+get_mgm_pid()
+{
+    local service_name="${1:-eos@mgm}"
+    if systemctl -q is-active "$service_name"; then
+	      log_debug "getting mgm pid from systemd"
+        MGM_PID=$(systemctl show -P MainPID "${service_name}")
+    fi
+
+    if [[ -z "$MGM_PID" ]]; then
+	      log_debug "trying xrootd mgm pid"
+    	  MGM_PID=$(pgrep -f 'xrootd.*mgm' -P 1)
+    fi
+
+    if [[ -z "$MGM_PID" ]]; then
+	      log_debug "tying eos-mgm pid"
+	      MGM_PID=$(pgrep -f 'eos-mgm')
+    fi
+
+    if [[ -z "$MGM_PID" ]]; then
+        # Time to bailout now!
+        error_exit "Unable to determine MGM PID, exiting!"
+    fi
+
+}
+
+
+gen_eu_stack()
+{
+    local pid=$1
+    log_info "Generating eu-stack for PID: $pid"
+    eu-stack -p $pid > "${STACKDUMP_DIR}/eu-stack-$(date -Iseconds)"
+}
+
+gen_stacks()
+{
+    local pid=$1
+	  gen_eu_stack "$pid"
+	  kill -SIGUSR2 "$pid"
+	  sleep 5 && gen_eu_stack "$pid"
+}
+
+gen_proc_stats()
+{
+    local pid=$1
+    log_info "Collecting /proc stats for PID: $pid"
+
+    cp "/proc/$pid/limits" "${PROC_STATS_DIR}/limits"
+    cp "/proc/$pid/status" "${PROC_STATS_DIR}/status"
+    cp "/proc/$pid/maps" "${PROC_STATS_DIR}/maps"
+    cp "/proc/$pid/smaps" "${PROC_STATS_DIR}/smaps"
+    cp "/proc/$pid/stat" "${PROC_STATS_DIR}/stat"
+    cp "/proc/$pid/statm" "${PROC_STATS_DIR}/statm"
+}
+
+get_config()
+{
+    cp /etc/syconfig/eos_env "${CONFIG_ETC_DIR}/"
+    cp /etc/xrd.cf.* "${CONFIG_ETC_DIR}/"
+    cp -r /etc/eos/ "${CONFIG_ETC_DIR}/"
+}
+
+make_tarball()
+{
+    DUMP_TARBALL="${TARBALL_DIR}/${DUMP_DIR_NAME}.tar.xz"
+    pushd "$(dirname "${EXPORT_DIR}")" > /dev/null
+    tar -cJf "${DUMP_TARBALL}" "${DUMP_DIR_NAME}"
+    log_info "Tarballs at ${DUMP_TARBALL}"
+    popd > /dev/null
+}
+
+setup_dir_tree
+get_mgm_pid
+log_info "Found MGM PID as ${MGM_PID}"
+gen_stacks "$MGM_PID" &
+gen_proc_stats "$MGM_PID" &
+collect_eos_stats &
+get_config &
+log_info "Dumping diagnostics at ${EXPORT_DIR}"
+wait
+make_tarball
