@@ -103,6 +103,7 @@ void xrdmgmofs_stack(int sig)
   std::ostringstream out;
 
   if (sig == SIGUSR2) {
+    stacktime = time(NULL);
     out << "# ___ thread:" << syscall(SYS_gettid) << " ";
     eos::common::RWMutex::PrintMutexOps(out);
     out << std::endl;
