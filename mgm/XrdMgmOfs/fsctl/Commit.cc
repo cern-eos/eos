@@ -262,6 +262,25 @@ XrdMgmOfs::Commit(const char* path,
         fmd->setAttribute("sys.fusex.state", fusexstate);
       }
 
+      // Update the list of unit checksums if it is a RAIN file
+      if (eos::common::LayoutId::IsRain(lid)) {
+        std::string unitxs;
+        std::string separator = ",";
+
+        if (cgi["unit_checksum"].length()) {
+          try {
+            unitxs = fmd->getAttribute("sys.unitchecksum");
+          } catch (...) {}
+
+          if (unitxs.empty()) {
+            separator = "";
+          }
+
+          unitxs = SSTR(unitxs << separator << fsid << ":" << cgi["unit_checksum"]);
+          fmd->setAttribute("sys.unitchecksum", unitxs);
+        }
+      }
+
       // Advance oc upload parameters if concerned
       CommitHelper::handle_occhunk(vid, fmd, option, params);
       // Set checksum if concerned
