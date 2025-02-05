@@ -34,6 +34,7 @@
 #include <string>
 #include <map>
 #include <chrono>
+#include <unordered_set>
 
 /*----------------------------------------------------------------------------*/
 /**
@@ -162,8 +163,7 @@ public:
                       const std::string& egroupname);
 
 private:
-  const std::chrono::seconds kCacheDuration
-  {
+  const std::chrono::seconds kCacheDuration {
     1800
   };
   eos::common::SteadyClock* clock = nullptr;
@@ -195,7 +195,11 @@ private:
   std::map<std::string, std::map<std::string, CachedEntry>> cache;
 
   /// thred-safe queue keeping track of pending refresh requests
-  qclient::WaitableQueue<std::pair<std::string, std::string>, 500> PendingQueue;
+  qclient::WaitableQueue<std::pair<std::string, std::string>, 500> mPendingQueue;
+  //! Set of pending requests in the form <username>:<egroup>
+  std::unordered_set<std::string> mPendingSet;
+  //! Mutex protecting the pending set
+  mutable std::mutex mMutexPending;
 
   /// injections to simulate LDAP server responses - different than the cache
   std::map<std::string, std::map<std::string, Status>> injections;

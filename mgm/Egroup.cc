@@ -44,7 +44,7 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 Egroup::Egroup(common::SteadyClock* clock_) : clock(clock_)
 {
-  PendingQueue.setBlockingMode(true);
+  mPendingQueue.setBlockingMode(true);
   mThread.reset(&Egroup::Refresh, this);
 }
 
@@ -53,7 +53,7 @@ Egroup::Egroup(common::SteadyClock* clock_) : clock(clock_)
 //------------------------------------------------------------------------------
 Egroup::~Egroup()
 {
-  PendingQueue.setBlockingMode(false);
+  mPendingQueue.setBlockingMode(false);
   mThread.join();
 }
 
@@ -62,7 +62,7 @@ Egroup::~Egroup()
 //----------------------------------------------------------------------------
 size_t Egroup::getPendingQueueSize() const
 {
-  return PendingQueue.size();
+  return mPendingQueue.size();
 }
 
 //------------------------------------------------------------------------------
@@ -312,7 +312,8 @@ Egroup::CachedEntry Egroup::query(const std::string& username,
 void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("%s", "msg=\"async egroup fetch thread started\"");
-  auto iterator = PendingQueue.begin();
+  std::string key;
+  auto iterator = mPendingQueue.begin();
 
   while (!assistant.terminationRequested()) {
     std::pair<std::string, std::string>* resolve = iterator.getItemBlockOrNull();
@@ -326,7 +327,13 @@ void Egroup::Refresh(ThreadAssistant& assistant) noexcept
     }
 
     iterator.next();
-    PendingQueue.pop_front();
+    {
+      // Remove <user>:<egroup> key from the pending set
+      key = resolve->first + ":" + resolve->second;
+      std::unique_lock<std::mutex> lock(mMutexPending);
+      (void)mPendingSet.erase(key);
+    }
+    mPendingQueue.pop_front();
   }
 }
 
@@ -336,7 +343,14 @@ void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 void Egroup::scheduleRefresh(const std::string& username,
                              const std::string& egroupname)
 {
-  PendingQueue.emplace_back(std::make_pair(username, egroupname));
+  const std::string key = username + ":" + egroupname;
+  std::unique_lock<std::mutex> lock(mMutexPending);
+
+  if (mPendingSet.find(key) == mPendingSet.end()) {
+    mPendingSet.insert(key);
+    lock.unlock();
+    mPendingQueue.emplace_back(std::make_pair(username, egroupname));
+  }
 }
 
 //------------------------------------------------------------------------------
