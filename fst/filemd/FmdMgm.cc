@@ -89,22 +89,20 @@ std::string ParseChecksum(const std::string& hexStr)
 void ParseStripeChecksums(std::string stripe_checksums,
                           eos::ns::FileMdProto& fmd)
 {
-  auto xs = fmd.mutable_stripe_checksums();
-  std::vector<std::string> stripes;
-  std::vector<std::string> stripeXsEntry;
-  stripeXsEntry.resize(2);
-  eos::common::StringConversion::Tokenize(stripe_checksums, stripes, ",");
-
-  for (const auto& stripe : stripes) {
-    if (stripe.empty()) {
-      continue;
-    }
-
-    eos::common::StringConversion::Tokenize(stripe, stripeXsEntry, ":");
-    uint32_t fsid = static_cast<uint32_t>(std::stoul(stripeXsEntry[0]));
-    xs->insert(std::pair(fsid, ParseChecksum(stripeXsEntry[1])));
-    stripeXsEntry.clear();
-  }
+  // auto xs = "";
+  // std::vector<std::string> stripes;
+  // std::vector<std::string> stripeXsEntry;
+  // stripeXsEntry.resize(2);
+  // eos::common::StringConversion::Tokenize(stripe_checksums, stripes, ",");
+  // for (const auto& stripe : stripes) {
+  //   if (stripe.empty()) {
+  //     continue;
+  //   }
+  //   eos::common::StringConversion::Tokenize(stripe, stripeXsEntry, ":");
+  //   uint32_t fsid = static_cast<uint32_t>(std::stoul(stripeXsEntry[0]));
+  //   xs->insert(std::pair(fsid, ParseChecksum(stripeXsEntry[1])));
+  //   stripeXsEntry.clear();
+  // }
 }
 
 std::string ParseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
@@ -121,7 +119,8 @@ std::string ParseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
 // Convert an MGM env representation to an Fmd struct
 //------------------------------------------------------------------------------
 bool
-FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd)
+FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd,
+                           const std::vector<std::string>& xattrs = {})
 {
   // &name=random&id=705&ctime=1738852302&ctime_ns=871468404&mtime=1738852312&
   //mtime_ns=619640000&size=2117825536&cid=90&uid=0&gid=0&lid=543425858&flags=416&link=&location=9,2,1,6,7,3,
@@ -155,9 +154,12 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd)
   fmd.set_mtime(ParseFileMDTime(env, "mtime", "mtime_ns"));
   fmd.set_checksum(ParseChecksum(env.Get("checksum")));
   ParseLocations(env.Get("location"), fmd);
+  // include the xattrs requested
+  auto xattr_map = fmd.mutable_xattrs();
 
-  if (!env.Get("stripes")) {
-    ParseStripeChecksums(env.Get("stripes"), fmd);
+  for (const auto& key : xattrs) {
+    const char* env_key = SSTR("xattr." << key).c_str();
+    xattr_map->insert(std::pair(key, env.Get(env_key)));
   }
 
   return true;
@@ -220,7 +222,7 @@ FmdMgmHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
 int
 FmdMgmHandler::GetMgmFmd(const std::string& manager,
                          eos::common::FileId::fileid_t fid,
-                         eos::ns::FileMdProto& fmd)
+                         eos::ns::FileMdProto& fmd, const std::vector<std::string>& xattrs = {})
 {
   if (!fid) {
     return EINVAL;
@@ -233,6 +235,11 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
   std::unique_ptr<XrdCl::Buffer> response;
   XrdCl::Buffer* resp_raw = nullptr;
   XrdCl::XRootDStatus status;
+
+  if (!xattrs.empty()) {
+    query += "&mgm.getfmd.xattrs=" + eos::common::StringConversion::Join(xattrs,
+             ",");
+  }
 
   do {
     mgr = manager;
@@ -314,7 +321,7 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
   // Get the remote file meta data into an env hash
   XrdOucEnv fmd_env(sresult.c_str());
 
-  if (!EnvMgmToFmd(fmd_env, fmd)) {
+  if (!EnvMgmToFmd(fmd_env, fmd, xattrs)) {
     int envlen;
     eos_static_err("msg=\"failed to parse metadata info\" data=\"%s\" fxid=%08llx",
                    fmd_env.Env(envlen), fid);
