@@ -120,7 +120,7 @@ std::string ParseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
 //------------------------------------------------------------------------------
 bool
 FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd,
-                           const std::vector<std::string>& xattrs = {})
+                           const std::vector<std::string>& xattrs)
 {
   // &name=random&id=705&ctime=1738852302&ctime_ns=871468404&mtime=1738852312&
   //mtime_ns=619640000&size=2117825536&cid=90&uid=0&gid=0&lid=543425858&flags=416&link=&location=9,2,1,6,7,3,
@@ -222,7 +222,7 @@ FmdMgmHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
 int
 FmdMgmHandler::GetMgmFmd(const std::string& manager,
                          eos::common::FileId::fileid_t fid,
-                         eos::ns::FileMdProto& fmd, const std::vector<std::string>& xattrs = {})
+                         eos::ns::FileMdProto& fmd, const std::vector<std::string>& xattrs)
 {
   if (!fid) {
     return EINVAL;

@@ -1052,11 +1052,35 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
   return true;
 }
 
+std::map<eos::common::FileSystem::fsid_t, std::string> GetUnitChecksums(
+  const eos::ns::FileMdProto& fmd)
+{
+  std::vector<std::string> tokens;
+  std::vector<std::string> pair;
+  pair.resize(2);
+  std::map<eos::common::FileSystem::fsid_t, std::string> fst_xs;
+  eos::common::StringConversion::Tokenize(fmd.xattrs().at("sys.unitchecksum"),
+                                          tokens, ",");
+
+  for (const auto& tkn : tokens) {
+    if (tkn.empty()) {
+      continue;
+    }
+
+    eos::common::StringConversion::Tokenize(tkn, pair, ":");
+    uint32_t fsid = static_cast<uint32_t>(std::stoul(pair[0]));
+    fst_xs.insert(std::pair(fsid, pair[1]));
+    pair.clear();
+  }
+
+  return fst_xs;
+}
+
 bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
                                    std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
 {
   eos::ns::FileMdProto fmd;
-  int rc = FmdMgmHandler::GetMgmFmd(gConfig.GetManager(), fid, fmd);
+  int rc = FmdMgmHandler::GetMgmFmd(gConfig.GetManager(), fid, fmd, {"sys.unitchecksum"});
 
   if (rc != 0) {
     // TODO
@@ -1090,13 +1114,14 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
   }
 
   size_t nstripes = eos::common::LayoutId::GetStripeNumber(fmd.layout_id()) + 1;
+  auto mgm_xs = GetUnitChecksums(fmd);
 
-  if (nstripes != fmd.stripe_checksums_size() || nstripes != stripes.size()) {
+  if (nstripes != mgm_xs.size() || nstripes != stripes.size()) {
     // cannot do too much here. we don't know which are good, which not
     return false;
   }
 
-  for (const auto& [fsid, xs_mgm] : fmd.stripe_checksums()) {
+  for (const auto& [fsid, xs_mgm] : mgm_xs) {
     if (fst_xs[fsid] != xs_mgm) {
       invalid_fsid.insert(fsid);
     }
