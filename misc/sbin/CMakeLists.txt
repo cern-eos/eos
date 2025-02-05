@@ -32,6 +32,7 @@ install(PROGRAMS
   eos-inspectorstat
   eos-prom-push
   eos-jwk-https
+  eos-diagnostic-tool
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
 if(TARGET eosxd)
