@@ -292,16 +292,6 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
 
     env += "&checksum=";
     env += StringifyChecksum(mFile.checksum());
-
-    if (mFile.stripe_checksums_size())
-    {
-      env += "&stripes=";
-
-      for (const auto & [key, val] : mFile.stripe_checksums()) {
-        env += std::to_string(key) + ":" + StringifyChecksum(val);
-        env += ",";
-      }
-    }
   });
 }
 
