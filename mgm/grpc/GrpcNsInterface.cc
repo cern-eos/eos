@@ -748,6 +748,8 @@ GrpcNsInterface::Stat(eos::common::VirtualIdentity& ivid,
       vid = eos::common::Mapping::Someone(request->role().uid(),
                                           request->role().gid());
       vid.app = request->role().app();
+      vid.trace = request->role().trace();
+      vid.onbehalf = request->role().onbehalf();
     }
   }
 
@@ -773,6 +775,8 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
 	vid.app = request->role().app();
+	vid.trace = request->role().trace();
+	vid.onbehalf = request->role().onbehalf();
       }
     }
   } else {
@@ -914,6 +918,8 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
 	vid.app = request->role().app();
+	vid.trace = request->role().trace();
+	vid.onbehalf = request->role().onbehalf();
       }
     }
   } else {
@@ -1350,6 +1356,8 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
 	vid.app = request->role().app();
+	vid.trace = request->role().trace();
+	vid.onbehalf = request->role().onbehalf();
       }
     }
   } else {

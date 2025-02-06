@@ -575,8 +575,8 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
               sourceline);
     }
   } else {
-    sprintf(fcident, "tident=%s sec=%-5s uid=%d gid=%d name=%s geo=\"%s\"", cident,
-            vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str());
+    sprintf(fcident, "tident=%s sec=%-5s uid=%d gid=%d name=%s geo=\"%s\" xt=\"%s\" ob=\"%s\"", cident,
+            vid.prot.c_str(), vid.uid, vid.gid, truncname.c_str(), vid.geolocation.c_str(), vid.trace.c_str(), vid.onbehalf.c_str());
     localtime_r(&current_time, &tm);
     snprintf(sourceline, sizeof(sourceline) - 1, "%s:%s", File.c_str(), linen);
     sprintf(buffer,
