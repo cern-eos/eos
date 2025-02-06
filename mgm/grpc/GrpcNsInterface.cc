@@ -772,6 +772,7 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
       } else {
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
+	vid.app = request->role().app();
       }
     }
   } else {
@@ -912,6 +913,7 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
       } else {
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
+	vid.app = request->role().app();
       }
     }
   } else {
@@ -1347,6 +1349,7 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
       } else {
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
+	vid.app = request->role().app();
       }
     }
   } else {
