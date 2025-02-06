@@ -140,7 +140,7 @@ VirtualIdentity::getTrace(bool compact) const
   std::stringstream ss;
   time_t now = time(NULL);
   if (compact) {
-    ss << "{uid:" << uid << ",gid:" << gid << ",tident:" << tident << ",prot:" << prot << ",app:" << app << ",host:" << host << ",domain:"<<domain<<"}";
+    ss << "{uid:" << uid << ",gid:" << gid << ",tident:" << tident << ",prot:" << prot << ",app:" << app << ",host:" << host << ",domain:" << domain << "trace:" << trace << ",onbehalf:"<<onbehalf<<"}";
     return ss.str();
   } else {
     ss << "[" << eos::common::Timing::ltime(now) << "] uid:" << uid << "[" <<
@@ -148,7 +148,7 @@ VirtualIdentity::getTrace(bool compact) const
       tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot <<
       " app:" << app << " host:" << host << " domain:" << domain << " geo:" <<
       geolocation << " sudo:"
-       << sudoer;
+       << sudoer << " trace: " << trace << " onbehalf: " << onbehalf;
     return ss.str();
   }
 }

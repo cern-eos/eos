@@ -61,6 +61,8 @@ struct VirtualIdentity {
   std::string fullname;
   std::string federation;
   std::string scope;
+  std::string trace;
+  std::string onbehalf;
   bool sudoer;
   bool gateway;
   std::shared_ptr<Token> token;
