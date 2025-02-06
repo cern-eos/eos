@@ -166,6 +166,7 @@ static IContainerMDPtr extractContainerMD(FileOrContainerMD ptr)
 folly::Future<FileOrContainerMD>
 QuarkContainerMD::findItem(const std::string& name)
 {
+  const IContainerMD::id_t id = getId();
   std::optional<ContainerIdentifier> targetContainer;
   std::optional<FileIdentifier> targetFile;
   //Only the search within the files and the sub containers need to be read locked.
@@ -193,11 +194,11 @@ QuarkContainerMD::findItem(const std::string& name)
       pContSvc->getContainerMDFut(
         targetContainer->getUnderlyingUInt64())
       .thenValue(wrapContainerMD)
-    .thenError([this, name](const folly::exception_wrapper & e) {
+    .thenError([name, id](const folly::exception_wrapper & e) {
       // Should not happen...
       eos_static_crit("Exception occurred while looking up container with "
                       "name %s in subcontainer with id %llu: %s", name.c_str(),
-                      getId(), e.what().c_str());
+                      id, e.what().c_str());
       return FileOrContainerMD {};
     });
     return fut;
@@ -208,10 +209,10 @@ QuarkContainerMD::findItem(const std::string& name)
       pFileSvc->getFileMDFut(
         targetFile->getUnderlyingUInt64())
       .thenValue(wrapFileMD)
-    .thenError([this, name](const folly::exception_wrapper & e) {
+    .thenError([name, id](const folly::exception_wrapper & e) {
       // Should not happen...
       eos_static_crit("Exception occurred while looking up file with name %s "
-                      "in subcontainer with id %llu: %s", name.c_str(), getId(),
+                      "in subcontainer with id %llu: %s", name.c_str(), id,
                       e.what().c_str());
       return FileOrContainerMD {};
     });
@@ -245,9 +246,10 @@ QuarkContainerMD::removeContainer(const std::string& name)
   // NOTE: This is an ugly hack. There's no file object here
   // and we hijack the "location" member of the Event
   // class to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
+  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
+                                 mCont.id(),
                                  // remove this container from the tree container counter
-                                 {0,0,-1});
+  {0, 0, -1});
   pFileSvc->notifyListeners(&e);
 }
 
@@ -290,13 +292,13 @@ QuarkContainerMD::addContainer(IContainerMD* container)
     // Add to new container to KV backend
     pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
   });
-
   // NOTE: This is an ugly hack. There's no file object here
   // and we hijack the "location" member of the Event
   // class to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
+  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
+                                 mCont.id(),
                                  //Add this container to the tree container counter
-                                 {0,0,1});
+  {0, 0, 1});
   pFileSvc->notifyListeners(&e);
 }
 
@@ -326,9 +328,11 @@ MDLocking::FileReadLockPtr QuarkContainerMD::findFileReadLocked(
 {
   MDLocking::FileReadLockPtr fhLock = nullptr;
   auto file = findItem(name).get().file;
-  if(file){
+
+  if (file) {
     fhLock = MDLocking::readLock(file);
   }
+
   return fhLock;
 }
 
@@ -340,9 +344,11 @@ MDLocking::FileWriteLockPtr QuarkContainerMD::findFileWriteLocked(
 {
   MDLocking::FileWriteLockPtr fhLock = nullptr;
   auto file = findItem(name).get().file;
-  if(file){
+
+  if (file) {
     fhLock = MDLocking::writeLock(file);
   }
+
   return fhLock;
 }
 
@@ -400,15 +406,14 @@ QuarkContainerMD::addFile(IFileMD* file)
     (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
     pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
   });
-
   // NOTE: This is an ugly hack. The file object has no reference to the
   // container id, therefore we hijack the "location" member of the Event
   // class to pass in the container id.
-  IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange, mCont.id(),
+  IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
+                                 mCont.id(),
                                  // add the file size and do +1 in the tree files counter
-                                 {static_cast<int64_t>(file->getSize()),1,0});
+  {static_cast<int64_t>(file->getSize()), 1, 0});
   pFileSvc->notifyListeners(&e);
-
 }
 
 //------------------------------------------------------------------------------
@@ -439,8 +444,8 @@ QuarkContainerMD::removeFile(const std::string& name)
       // class to pass in the container id.
       IFileMDChangeListener::Event
       e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(),
-            // remove the file size and do -1 in the tree files counter
-            {-static_cast<int64_t>(file->getSize()),-1,0});
+        // remove the file size and do -1 in the tree files counter
+      {-static_cast<int64_t>(file->getSize()), -1, 0});
       pFileSvc->notifyListeners(&e);
     } catch (MDException& e) {
       // File already removed
@@ -722,32 +727,28 @@ QuarkContainerMD::updateTreeSize(int64_t delta)
 {
   return runWriteOp([this, delta]() {
     uint64_t sz = mCont.tree_size();
-
-    eos::common::ComputeSize(sz,delta);
-
+    eos::common::ComputeSize(sz, delta);
     mCont.set_tree_size(sz);
     return sz;
   });
 }
 
-uint64_t QuarkContainerMD::updateTreeContainers(int64_t delta) {
+uint64_t QuarkContainerMD::updateTreeContainers(int64_t delta)
+{
   return runWriteOp([this, delta]() {
     uint64_t sz = mCont.tree_containers();
-
-    eos::common::ComputeSize(sz,delta);
-
+    eos::common::ComputeSize(sz, delta);
     mCont.set_tree_containers(sz);
     return sz;
   });
 }
 
-uint64_t QuarkContainerMD::updateTreeFiles(int64_t delta) {
+uint64_t QuarkContainerMD::updateTreeFiles(int64_t delta)
+{
   return runWriteOp([this, delta]() {
     uint64_t sz = mCont.tree_files();
-
     // Avoid negative tree size
-    eos::common::ComputeSize(sz,delta);
-
+    eos::common::ComputeSize(sz, delta);
     mCont.set_tree_files(sz);
     return sz;
   });
@@ -870,7 +871,7 @@ QuarkContainerMD::initialize(eos::ns::ContainerMdProto&& proto,
                              IContainerMD::FileMap&& fileMap, IContainerMD::ContainerMap&& containerMap)
 {
   runWriteOp([this, Proto = std::move(proto), FileMap = std::move(fileMap),
-  ContainerMap = std::move(containerMap)]() {
+        ContainerMap = std::move(containerMap)]() {
     mCont = std::move(Proto);
     mFiles.get() = std::move(FileMap);
     mSubcontainers.get() = std::move(ContainerMap);
