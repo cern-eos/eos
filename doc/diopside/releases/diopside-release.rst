@@ -16,6 +16,41 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.3.1 Diopside``
+====================
+
+2025-02-06
+
+Note
+-----
+
+* Update eos-xrootd/xrootd dependency to version 5.7.3
+* Update eos-grpc-gateway dependency to version 0.2.0
+
+
+Bug
+----
+
+* [EOS-6269] - e-group membership does not seem to synchronize
+* [EOS-6279] - GRPC: honor the "app" attribute on upload and setAttr
+* [EOS-6282] - "eos whoami" abort()s
+* [EOS-6294] - eos: ipc socket protection from user crafted input
+* [EOS-6306] - FST keeps deleted SharedHash obj in memory
+* [EOS-6311] - file read handle caching used for full file http GET
+* [EOS-6314] - SIGUSR2 overwrites stacktraces
+
+Improvement
+------------
+
+* [EOS-6182] - GRPC: extend all requests to improve traceability
+* [EOS-6248] - Persist last run of inspector
+* [EOS-6271] - RFE: log "banned" identitiy
+* [EOS-6288] - RFE: align GRPC to other clients when dealing with hardlinks and tombstones
+* [EOS-6301] - RFE: "eos find --purge atomic" should bypass recycle bin
+* [EOS-6303] - Clients.log: review logline "::open   acl= r= w= wo= egroup= shared= mutable= facl="
+
+
 ``v5.3.0 Diopside``
 ====================
 
