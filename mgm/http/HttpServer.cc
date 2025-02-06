@@ -519,10 +519,8 @@ HttpServer::BuildPathAndEnvOpaque
     }
   }
 
-  // Append eos.app tag if none is already present
-  if (opaque.find("eos.app=") == std::string::npos) {
-    opaque += "&eos.app=http";
-  }
+  // Append eos.app tag
+  eos::common::AddEosApp(opaque,"http");
 
   env_opaque = std::make_unique<XrdOucEnv>(opaque.c_str(), opaque.length());
   return true;

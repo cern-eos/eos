@@ -72,4 +72,13 @@ TEST(HttpServer, ParsePathAndToken)
   EXPECT_EQ("/eos/dev/file4.dat", path);
   ASSERT_STREQ("deadbeef", env_opaque->Get("authz"));
   ASSERT_STREQ("dummy", env_opaque->Get("test"));
+  ASSERT_STREQ("http",env_opaque->Get("eos.app"));
+  // eos.app provided by client via opaque infos, should either be http or http/xyz
+  norm_hdrs = {{"xrd-http-fullresource", "/eos/dev/file4.dat?authz=deadbeef&test=dummy&eos.app=wizz"}};
+  ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(norm_hdrs, path, env_opaque));
+  ASSERT_STREQ("http/wizz", env_opaque->Get("eos.app"));
+  // eos.app provided by client via opaque infos, should either be http or http/xyz
+  norm_hdrs = {{"xrd-http-fullresource", "/eos/dev/file4.dat?eos.app=test&authz=deadbeef&test=dummy&eos.app=wizz"}};
+  ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(norm_hdrs, path, env_opaque));
+  ASSERT_STREQ("http/wizz", env_opaque->Get("eos.app"));
 }

@@ -32,6 +32,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
+#include "common/Utils.hh"
 /*----------------------------------------------------------------------------*/
 #include <map>
 #include <string>
@@ -149,8 +150,9 @@ public:
   /**
    * Add the eos HTTP application CGI query
    */
-  void
-  AddEosApp () { mRequestQuery += "&eos.app=http"; }
+  void AddEosApp () {
+    common::AddEosApp(mRequestQuery,"http");
+  }
 
 };
 
