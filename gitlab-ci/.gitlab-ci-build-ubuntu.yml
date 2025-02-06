@@ -68,14 +68,14 @@
     
 ubuntu-jammy:
   extends: .build-ubuntu
-  image: ubuntu:jammy
+  image: registry.cern.ch/docker.io/ubuntu:jammy
   variables:
     BUILD_NAME: jammy
 
 
 ubuntu-noble:
   extends: .build-ubuntu
-  image: ubuntu:noble
+  image: registry.cern.ch/docker.io/ubuntu:noble
   variables:
     BUILD_NAME: noble
 
@@ -86,7 +86,7 @@ ubuntu-noble:
 
 publish_debian:
   stage: publish
-  image: ubuntu:noble
+  image: registry.cern.ch/docker.io/ubuntu:noble
   script:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd reprepro
@@ -109,7 +109,7 @@ publish_debian:
 
 .clean_debian_artifacts:
   stage: clean
-  image: ubuntu:noble
+  image: registry.cern.ch/docker.io/ubuntu:noble
   script:
     - apt-get update
     - apt-get install -y sudo apt-utils sssd gpg

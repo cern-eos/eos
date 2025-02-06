@@ -281,7 +281,7 @@ rh-9:
 
 build_fedora_38:
   extends: .build-fedora-template
-  image: fedora:38
+  image: registry.fedoraproject.org/fedora:38
   variables:
     BUILD_NAME: fc-38
   only:
