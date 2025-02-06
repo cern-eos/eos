@@ -503,8 +503,12 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
                          e.getMessage().str().c_str());
 
-        if ((request->type() != eos::rpc::STAT)) {
-          return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+        if (request->type() != eos::rpc::STAT) {
+          if (errno == ENOENT) {
+            return grpc::Status::OK;
+          } else {
+            return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+          }
         } else {
           fallthrough  = true;
         }
@@ -523,8 +527,12 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
                          e.getMessage().str().c_str());
 
-        if ((request->type() != eos::rpc::STAT)) {
-          return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+        if (request->type() != eos::rpc::STAT) {
+          if (errno == ENOENT) {
+            return grpc::Status::OK;
+          } else {
+            return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+          }
         } else {
           fallthrough  = true;
         }
@@ -645,12 +653,22 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
         errno = e.getErrno();
         eos_static_debug("caught exception %d %s\n", e.getErrno(),
                          e.getMessage().str().c_str());
-        return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+
+        if (request->type() != eos::rpc::STAT) {
+          if (errno == ENOENT) {
+            return grpc::Status::OK;
+          } else {
+            return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+          }
+        } else {
+          return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
+        }
       }
     }
 
     if (request->type() == eos::rpc::STAT) {
-      // if a client sends a eos::rpc::STAT request, we check permissions on a folder itself and never on the parent (to enabe stat'ing CERNBOX shares)
+      // if a client sends a eos::rpc::STAT request, we check permissions on a folder
+      // itself and never on the parent (to enabe stat'ing CERNBOX shares)
       access_self = true;
     }
 
