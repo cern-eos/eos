@@ -1014,8 +1014,12 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
   }
 
   std::set<eos::common::FileSystem::fsid_t> invalid_fsid;
+  eos_debug("msg=\"scanning rain file using fast path\" fxid=%08llx", fid);
+  bool ok = ScanRainFileFastPath(fid, invalid_fsid);
 
-  if (!ScanRainFileFastPath(fid, invalid_fsid)) {
+  if (!ok) {
+    eos_debug("msg=\"scanning rain file using slow path\" fxid=%08llx", fid);
+
     if (!ScanRainFileLoadAware(fid, invalid_fsid)) {
       return false;
     }
