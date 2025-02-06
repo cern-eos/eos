@@ -1769,7 +1769,9 @@ XrdFstOfsFile::_close_wr()
         mDelOnClose = queuing_err;
       }
 
-      if (!mDelOnClose) {
+      // For RAIN file, if it's the entry server, we do the commit later, after the close.
+      if (!mDelOnClose && !(eos::common::LayoutId::IsRain(mLayout->GetLayoutId()) &&
+                            mLayout->IsEntryServer())) {
         // Update size
         mCloseSize = statinfo.st_size;
 
@@ -1781,9 +1783,7 @@ XrdFstOfsFile::_close_wr()
           // until after we have the result of the CLOSE otherwise we risk
           // dropping a good replica for a failed reconstruction which we
           // can not get back.
-          if ((mRainReconstruct == false) && !mLayout->IsEntryServer() &&
-              (rc = CommitToMgm())) {
-            //if ((rc = CommitToMgm())) {
+          if ((mRainReconstruct == false) && (rc = CommitToMgm())) {
             if ((error.getErrInfo() == EIDRM) ||
                 (error.getErrInfo() == EBADE) ||
                 (error.getErrInfo() == EBADR) ||
@@ -1897,7 +1897,8 @@ XrdFstOfsFile::_close_wr()
   }
 
   // Commit to MGM in case of rain reconstruction and not del on close
-  if (mLayout->IsEntryServer() && !mDelOnClose) {
+  if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId()) &&
+      mLayout->IsEntryServer() && !mDelOnClose) {
     unit_checksum_err = VerifyUnitChecksum();
 
     if (unit_checksum_err) {
@@ -1905,14 +1906,23 @@ XrdFstOfsFile::_close_wr()
       // TODO
     }
 
-    if ((rc = CommitToMgm())) {
-      if ((error.getErrInfo() == EIDRM) ||
-          (error.getErrInfo() == EBADE) ||
-          (error.getErrInfo() == EBADR) ||
-          (error.getErrInfo() == EREMCHG)) {
-        eos_err("msg=\"failed commit to MGM for RAIN reconstruct\" "
-                "fxid=%08llx", mFileId);
-        mDelOnClose = true;
+    mCloseSize = totalBytes;
+    struct stat info;
+    info.st_size = totalBytes;
+
+    if (CommitToLocalFmd(info)) {
+      eos_err("msg=\"failed to commit fmd info\" fxid=%08llx", mFileId);
+      mDelOnClose = true;
+    } else {
+      if ((rc = CommitToMgm())) {
+        if ((error.getErrInfo() == EIDRM) ||
+            (error.getErrInfo() == EBADE) ||
+            (error.getErrInfo() == EBADR) ||
+            (error.getErrInfo() == EREMCHG)) {
+          eos_err("msg=\"failed commit to MGM for RAIN\" "
+                  "fxid=%08llx", mFileId);
+          mDelOnClose = true;
+        }
       }
     }
   }
