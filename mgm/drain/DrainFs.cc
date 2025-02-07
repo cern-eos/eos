@@ -55,7 +55,6 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool, eos::IFsView* fs_view,
 DrainFs::~DrainFs()
 {
   eos_static_debug("msg=\"fsid=%u destroying fs drain object", mFsId);
-  ResetCounters();
 }
 
 //------------------------------------------------------------------------------
@@ -210,7 +209,7 @@ DrainFs::UpdateFinishedJob(const eos::IFileMD::id_t fid)
 void
 DrainFs::SuccessfulDrain()
 {
-  eos_notice("msg=\"complete drain\" fsid=%d", mFsId);
+  eos_notice("msg=\"successful drain\" fsid=%d", mFsId);
   eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
   FileSystem* fs = FsView::gFsView.mIdView.lookupByID(mFsId);
 
@@ -218,6 +217,7 @@ DrainFs::SuccessfulDrain()
     mStatus = eos::common::DrainStatus::kDrained;
     eos::common::FileSystemUpdateBatch batch;
     batch.setDrainStatusLocal(mStatus);
+    batch.setLongLongLocal("local.drain.progress", 100);
     batch.setLongLongLocal("local.drain.bytesleft", 0);
     batch.setLongLongLocal("local.drain.timeleft", 0);
     batch.setLongLongLocal("local.drain.failed", 0);
@@ -226,8 +226,6 @@ DrainFs::SuccessfulDrain()
     if (!gOFS->Shutdown) {
       // If drain done and the system is not shutting down then set the
       // file system to "empty" state
-      batch.setLongLongLocal("local.drain.progress", 100);
-      batch.setLongLongLocal("local.drain.failed", 0);
       batch.setStringDurable("configstatus", "empty");
       FsView::gFsView.StoreFsConfig(fs);
     }
@@ -517,10 +515,11 @@ DrainFs::ResetCounters()
 
   if (fs) {
     common::FileSystemUpdateBatch batch;
-    batch.setLongLongLocal("local.drain.bytesleft", 0);
-    batch.setLongLongLocal("local.drain.files", 0);
-    batch.setLongLongLocal("local.drain.timeleft", 0);
     batch.setLongLongLocal("local.drain.progress", 0);
+    batch.setLongLongLocal("local.drain.bytesleft", 0);
+    batch.setLongLongLocal("local.drain.timeleft", 0);
+    batch.setLongLongLocal("local.drain.failed", 0);
+    batch.setLongLongLocal("local.drain.files", 0);
     batch.setDrainStatusLocal(eos::common::DrainStatus::kNoDrain);
     fs->applyBatch(batch);
   }
