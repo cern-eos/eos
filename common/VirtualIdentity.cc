@@ -28,23 +28,25 @@
 #include <cstring>
 #include <pwd.h>
 
-namespace {
-  //! Method to get the uid/gid values for user 'nobody'
-  std::pair<uid_t, gid_t> GetNobodyUidGid() {
-    struct passwd pw_info;
-    memset(&pw_info, 0, sizeof(pw_info));
-    char buffer[131072];
-    size_t buflen = sizeof(buffer);
-    struct passwd* pw_prt = 0;
-    const std::string name = "nobody";
+namespace
+{
+//! Method to get the uid/gid values for user 'nobody'
+std::pair<uid_t, gid_t> GetNobodyUidGid()
+{
+  struct passwd pw_info;
+  memset(&pw_info, 0, sizeof(pw_info));
+  char buffer[131072];
+  size_t buflen = sizeof(buffer);
+  struct passwd* pw_prt = 0;
+  const std::string name = "nobody";
 
-    if (getpwnam_r(name.c_str(), &pw_info, buffer, buflen, &pw_prt) ||
-        (!pw_prt)) {
-      std::terminate();
-    }
+  if (getpwnam_r(name.c_str(), &pw_info, buffer, buflen, &pw_prt) ||
+      (!pw_prt)) {
+    std::terminate();
+  }
 
-    return std::make_pair(pw_info.pw_uid, pw_info.pw_gid);
-  };
+  return std::make_pair(pw_info.pw_uid, pw_info.pw_gid);
+};
 }
 
 
@@ -139,16 +141,19 @@ VirtualIdentity::getTrace(bool compact) const
 {
   std::stringstream ss;
   time_t now = time(NULL);
+
   if (compact) {
-    ss << "{uid:" << uid << ",gid:" << gid << ",tident:" << tident << ",prot:" << prot << ",app:" << app << ",host:" << host << ",domain:" << domain << "trace:" << trace << ",onbehalf:"<<onbehalf<<"}";
+    ss << "{uid:" << uid << ",gid:" << gid << ",tident:" << tident << ",prot:" <<
+       prot << ",app:" << app << ",host:" << host << ",domain:" << domain << "trace:"
+       << trace << ",onbehalf:" << onbehalf << "}";
     return ss.str();
   } else {
     ss << "[" << eos::common::Timing::ltime(now) << "] uid:" << uid << "[" <<
-      uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" <<
-      tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot <<
-      " app:" << app << " host:" << host << " domain:" << domain << " geo:" <<
-      geolocation << " sudo:"
-       << sudoer << " trace: " << trace << " onbehalf: " << onbehalf;
+       uid_string << "] gid:" << gid << "[" << gid_string << "] tident:" <<
+       tident.c_str() << " name:" << name << " dn:" << dn << " prot:" << prot <<
+       " app:" << app << " host:" << host << " domain:" << domain << " geo:" <<
+       geolocation << " sudo:"
+       << sudoer << " trace:" << trace << " onbehalf:" << onbehalf;
     return ss.str();
   }
 }
