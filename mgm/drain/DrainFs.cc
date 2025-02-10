@@ -262,9 +262,9 @@ void
 DrainFs::StopJobs()
 {
   {
+    // Signal all drain jobs to stop/cancel
     eos::common::RWMutexReadLock rd_lock(mJobsMutex);
 
-    // Signal all drain jobs to stop/cancel
     for (auto& pair : mJobsRunning) {
       auto& job = pair.second;
 
@@ -272,24 +272,28 @@ DrainFs::StopJobs()
         job->Cancel();
       }
     }
-
+  }
+  {
     // Wait for drain jobs to cancel
-    for (auto& pair : mJobsRunning) {
-      auto& job = pair.second;
+    eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
+
+    while (!mJobsRunning.empty()) {
+      auto job = mJobsRunning.begin()->second;
+      wr_lock.Release();
 
       while ((job->GetStatus() == DrainTransferJob::Status::Running) ||
              (job->GetStatus() == DrainTransferJob::Status::Ready)) {
-        std::this_thread::sleep_for(milliseconds(10));
+        std::this_thread::sleep_for(milliseconds(50));
       }
 
       // Also clean them up form the tracker
       const std::string sfxid = job->GetInfo({"fxid"}).front();
-      eos::IFileMD::id_t fxid = eos::common::FileId::Hex2Fid(sfxid.c_str());
-      gOFS->mFidTracker.RemoveEntry(fxid);
+      eos::IFileMD::id_t fid = eos::common::FileId::Hex2Fid(sfxid.c_str());
+      gOFS->mFidTracker.RemoveEntry(fid);
+      wr_lock.Grab(mJobsMutex);
+      mJobsRunning.erase(fid);
     }
   }
-  eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
-  mJobsRunning.clear();
 }
 
 //------------------------------------------------------------------------------

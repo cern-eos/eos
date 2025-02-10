@@ -241,8 +241,8 @@ private:
   //! Collection of failed drain jobs
   std::set<std::shared_ptr<DrainTransferJob>> mJobsFailed;
   //! Collection of running drain jobs
-  std::map<eos::common::FileSystem::fsid_t,
-      std::shared_ptr<DrainTransferJob>> mJobsRunning;
+  std::map<eos::IFileMD::id_t, std::shared_ptr<DrainTransferJob>>
+      mJobsRunning;
   mutable eos::common::RWMutex mJobsMutex; ///< RW mutex protecting job lists
   eos::common::ThreadPool& mThreadPool;
   std::future<State> mFuture;
