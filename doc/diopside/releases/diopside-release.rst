@@ -16,6 +16,16 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.2 Diopside``
+====================
+
+2025-02-10
+
+Bug
+----
+
+* MGM: Fix possible deadlock during draining and fix drain counters
+
 
 ``v5.3.1 Diopside``
 ====================
