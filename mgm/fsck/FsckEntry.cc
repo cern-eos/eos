@@ -1029,7 +1029,7 @@ FsckEntry::RepairReplicaInconsistencies()
         ++num_actual_rep;
       }
 
-      if (num_actual_rep < num_expected_rep) {
+      if ((num_actual_rep < num_expected_rep) && mMgmFmd.size()) {
         eos_err("msg=\"replica inconsistency repair failed\" fxid=%08llx", mFid);
         return false;
       }
