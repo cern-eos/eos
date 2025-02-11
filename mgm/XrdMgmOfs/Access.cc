@@ -74,6 +74,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
   std::shared_ptr<eos::IContainerMD> dh;
   mode_t dh_mode;
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
+
   // Check for existing file
   try {
     fh = gOFS->eosView->getFile(cPath.GetPath());
@@ -115,6 +116,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
 
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap);
+
     // Take into account file acls
     if (fattrmap.size()) {
       acl.SetFromAttrMap(attrmap, vid, &fattrmap);
@@ -205,7 +207,7 @@ XrdMgmOfs::acc_access(const char* path,
                       eos::common::VirtualIdentity& vid,
                       std::string& accperm)
 {
-  eos_debug("path=%s mode=%x uid=%u gid=%u", path, vid.uid, vid.gid);
+  eos_debug("path=\"%s\" mode=%x uid=%u gid=%u", path, vid.uid, vid.gid);
   gOFS->MgmStats.Add("Access", vid.uid, vid.gid, 1);
   eos::common::Path cPath(path);
   std::shared_ptr<eos::IContainerMD> dh;
@@ -266,6 +268,7 @@ XrdMgmOfs::acc_access(const char* path,
     std::unique_ptr<Acl> aclPtr;
     {
       eos::MDLocking::ContainerReadLock dhLock(dh);
+
       for (auto g : gids) {
         if (dh->access(vid.uid, g, R_OK)) {
           r_ok = true;
@@ -280,16 +283,16 @@ XrdMgmOfs::acc_access(const char* path,
           x_ok = true;
         }
       }
+
       //We prevent releasing the directory lock before calling the ACL constructor that will do
       //an _attr_ls on the directory
       aclPtr = std::make_unique<Acl>(attr_path.c_str(), error, vid, attrmap);
     }
-
     // ACL and permission check
-    Acl & acl = *aclPtr;
-    eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
-             acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
+    Acl& acl = *aclPtr;
+    eos_debug("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d path=\"%s\"",
+              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable(), path);
 
     // browse permission by ACL
     if (acl.HasAcl()) {
