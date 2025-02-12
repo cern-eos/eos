@@ -29,6 +29,7 @@
 #include "mq/XrdMqMessage.hh"
 #include "mq/XrdMqClient.hh"
 #include "mq/FsChangeListener.hh"
+#include "mq/XrdMqSharedObject.hh"
 
 EOSMQNAMESPACE_BEGIN
 
@@ -221,6 +222,32 @@ std::map<std::shared_ptr<FsChangeListener>, std::set<std::string>>
   }
 
   return map_interest;
+}
+
+//------------------------------------------------------------------------------
+// Enable broadcasts
+//------------------------------------------------------------------------------
+void
+MessagingRealm::EnableBroadcast()
+{
+  mBroadcast = true;
+
+  if (!haveQDB() && mSom) {
+    mSom->EnableBroadCast(true);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Disable broadcasts
+//------------------------------------------------------------------------------
+void
+MessagingRealm::DisableBroadcast()
+{
+  mBroadcast = false;
+
+  if (!haveQDB() && mSom) {
+    mSom->EnableBroadCast(false);
+  }
 }
 
 EOSMQNAMESPACE_END

@@ -1530,7 +1530,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   configbasequeue += MgmOfsInstanceName.c_str();
   MgmConfigQueue = configbasequeue;
   MgmConfigQueue += "/mgm/";
-  ObjectNotifier.SetShareObjectManager(&ObjectManager);
   // Shared object manager to be used
   qclient::SharedManager* qsm = nullptr;
 
@@ -1542,10 +1541,16 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     mMessagingRealm.reset(new eos::mq::MessagingRealm(nullptr,
                           nullptr, nullptr, qsm));
   } else {
+    ObjectNotifier.SetShareObjectManager(&ObjectManager);
     eos_static_notice("%s", "msg=\"running SharedManager via MQ\"");
     mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
                           &ObjectNotifier, &XrdMqMessaging::gMessageClient,
                           qsm));
+    // set the object manager to listener only
+    mMessagingRealm->DisableBroadcast();
+    ObjectManager.EnableBroadCast(false);
+    // setup the modifications which the fs listener thread is waiting for
+    ObjectManager.SetDebug(false);
   }
 
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
@@ -1555,11 +1560,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Emsg("Config", "cannot set instance name in QDB");
     return 1;
   }
-
-  // set the object manager to listener only
-  ObjectManager.EnableBroadCast(false);
-  // setup the modifications which the fs listener thread is waiting for
-  ObjectManager.SetDebug(false);
 
   // Disable some features if we are only a redirector
   if (!MgmRedirector) {
@@ -1575,6 +1575,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         Eroute.Emsg("Config", "cannot start messaging thread)");
         return 1;
       }
+
+      ObjectManager.SetAutoReplyQueueDerive(true);
+      ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
+      XrdOucString dumperfile = MgmMetaLogDir;
+      dumperfile += "/so.mgm.dump.";
+      dumperfile += ManagerId;
+      char* ptr = getenv("EOS_MGM_DISABLE_FILE_DUMPER");
+
+      if ((ptr == nullptr) || (strncmp(ptr, "1", 1) != 0)) {
+        eos_static_info("%s", "msg=\"mgm file dumper enabled");
+        ObjectManager.StartDumper(dumperfile.c_str());
+      } else {
+        eos_static_info("%s", "msg=\"mgm file dumper disabled");
+      }
     }
 
     // Create the ZMQ processor used especially for fuse
@@ -1588,22 +1602,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     zMQ->ServeFuse();
-    ObjectManager.SetAutoReplyQueueDerive(true);
-    ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
-    XrdOucString dumperfile = MgmMetaLogDir;
-    dumperfile += "/so.mgm.dump.";
-    dumperfile += ManagerId;
-    char* ptr = getenv("EOS_MGM_DISABLE_FILE_DUMPER");
-
-    if ((ptr == nullptr) || (strncmp(ptr, "1", 1) != 0)) {
-      eos_static_info("%s", "msg=\"mgm file dumper enabled");
-      ObjectManager.StartDumper(dumperfile.c_str());
-    } else {
-      eos_static_info("%s", "msg=\"mgm file dumper disabled");
-    }
   }
 
-  // @todo(esindril) decide if this is still neede in qdb pubsub mode
   SetupGlobalConfig();
   // Initialize geotree engine
   mGeoTreeEngine.reset(new eos::mgm::GeoTreeEngine(mMessagingRealm.get()));
@@ -2081,8 +2081,10 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     mFsMonitorTid.reset(&XrdMgmOfs::FileSystemMonitorThread, this);
   }
 
-  if (!mMessagingRealm->haveQDB() && !ObjectNotifier.Start()) {
-    eos_static_crit("error starting the shared object change notifier");
+  if (!mMessagingRealm->haveQDB()) {
+    if (!ObjectNotifier.Start()) {
+      eos_static_crit("error starting the shared object change notifier");
+    }
   }
 
   if (!mHttpd) {
@@ -2194,7 +2196,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_static_notice("%s", "msg=\"successfully initalized IoStat object\"");
   }
 
-  if (!MgmRedirector) {
+  if (!MgmRedirector && !mMessagingRealm->haveQDB()) {
     ObjectManager.HashMutex.LockRead();
     XrdMqSharedHash* hash = ObjectManager.GetHash("/eos/*");
 
@@ -2555,7 +2557,7 @@ XrdMgmOfs::SetupProcFiles()
 }
 
 //------------------------------------------------------------------------------
-// Set up global config
+// Set up global config - to be dropped when we drop support for MQ!
 //------------------------------------------------------------------------------
 void
 XrdMgmOfs::SetupGlobalConfig()

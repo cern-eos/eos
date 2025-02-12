@@ -138,7 +138,28 @@ public:
   std::map<std::shared_ptr<FsChangeListener>, std::set<std::string>>
       GetInterestedListeners(const std::string& channel);
 
+  //----------------------------------------------------------------------------
+  //! Enable broadcasts
+  //----------------------------------------------------------------------------
+  void EnableBroadcast();
+
+  //----------------------------------------------------------------------------
+  //! Disable broadcasts
+  //----------------------------------------------------------------------------
+  void DisableBroadcast();
+
+  //----------------------------------------------------------------------------
+  //! Check if broadcasts are enabled
+  //----------------------------------------------------------------------------
+  inline bool ShouldBroadcast()
+  {
+    return mBroadcast.load();
+  }
+
+
 private:
+  //! Flag to mark when broadcasting should be done
+  std::atomic<bool> mBroadcast {false};
   XrdMqSharedObjectManager* mSom;
   XrdMqSharedObjectChangeNotifier* mNotifier;
   XrdMqClient* mMessageClient;

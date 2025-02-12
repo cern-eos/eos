@@ -297,7 +297,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   HostName(0), HostPref(0), mNamespaceState(NamespaceState::kDown),
   mFileInitTime(0), mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)),
   Shutdown(false), mBootFileId(0), mBootContainerId(0), IsRedirect(true),
-  IsStall(true), mAuthorize(false), mAuthLib(""), mTapeEnabled(false), mReqIdMax(64),
+  IsStall(true), mAuthorize(false), mAuthLib(""), mTapeEnabled(false),
+  mReqIdMax(64),
   MgmRedirector(false), mErrLogEnabled(true), eosDirectoryService(0),
   eosFileService(0), eosView(0), eosFsView(0), eosContainerAccounting(0),
   eosSyncTimeAccounting(0), mFrontendPort(0), mNumAuthThreads(0),
@@ -514,8 +515,11 @@ XrdMgmOfs::OrderlyShutdown()
     WNCd.reset();
   }
 
-  eos_warning("%s", "msg=\"stopping the shared object notifier thread\"");
-  ObjectNotifier.Stop();
+  if (!mMessagingRealm->haveQDB()) {
+    eos_warning("%s", "msg=\"stopping the shared object notifier thread\"");
+    ObjectNotifier.Stop();
+  }
+
   eos_warning("%s", "msg=\"cleanup quota information\"");
   (void) Quota::CleanUp();
   eos_warning("%s", "msg=\"graceful shutdown of the FsView\"");
@@ -1608,6 +1612,7 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
     try {
       auto contLock = gOFS->eosDirectoryService->getContainerMDWriteLocked(id);
       std::shared_ptr<eos::IContainerMD> cont = contLock->getUnderlyingPtr();
+
       if (cont->getParentId()) {
         gOFS->eosDirectoryService->removeContainer(cont.get());
         return true;
@@ -1628,6 +1633,7 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
       std::shared_ptr<eos::IFileMD> file = gOFS->eosFileService->getFileMD(id);
       // Only one operation: no need to take a long file lock
       auto contId = file->getContainerId();
+
       if (contId) {
         // Double check if the parent container really exists. It could be
         // that the file is attached to a container which is already deleted.
@@ -1641,6 +1647,7 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
           // remove this file entry.
         }
       }
+
       // Write lock the file
       eos::MDLocking::FileWriteLock fileLock(file);
       // If any of the unlink locations is a file systems that doesn't exist

@@ -298,20 +298,7 @@ FileSystem::IsDrainTransition(const eos::common::ConfigStatus old,
 bool
 FileSystem::ShouldBroadCast()
 {
-  if (mRealm) {
-    if (mRealm->getSom()) { // MQ backend
-      return mRealm->getSom()->ShouldBroadCast();
-    } else {
-      // QDB pub-sub
-      if (gOFS && gOFS->mMaster->IsMaster()) {
-        return true;
-      } else {
-        return false;
-      }
-    }
-  } else {
-    return false;
-  }
+  return (mRealm ? mRealm->ShouldBroadcast() : false);
 }
 
 //------------------------------------------------------------------------------

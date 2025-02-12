@@ -32,6 +32,7 @@
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mq/MessagingRealm.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
@@ -414,7 +415,7 @@ QdbMaster::SlaveToMaster()
   gOFS->eosDirectoryService->initialize();
   std::string std_out, std_err;
   // We are the master and we broadcast every configuration change
-  gOFS->ObjectManager.EnableBroadCast(true);
+  gOFS->mMessagingRealm->EnableBroadcast();
 
   if (!ApplyMasterConfig(std_out, std_err, true)) {
     eos_err("%s", "msg=\"failed to apply master configuration\"");
@@ -486,7 +487,7 @@ QdbMaster::MasterToSlave()
   gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
       std::chrono::milliseconds(100));
   // We are the slave, we just listen and don't broadcast anything
-  gOFS->ObjectManager.EnableBroadCast(false);
+  gOFS->mMessagingRealm->DisableBroadcast();
   DisableNsCaching();
 
   // When we boot the first time also load the config
