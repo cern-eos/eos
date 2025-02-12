@@ -21,12 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_MQ_MESSAGING_REALM_HH
-#define EOS_MQ_MESSAGING_REALM_HH
-
+#pragma once
 #include "mq/Namespace.hh"
 #include "mq/SharedHashProvider.hh"
 #include "mq/SharedDequeProvider.hh"
+#include "common/RWMutex.hh"
 #include <string>
 #include <set>
 
@@ -168,10 +167,8 @@ private:
 
   SharedHashProvider mHashProvider;
   SharedDequeProvider mDequeProvider;
-  std::mutex mMutexListeners;
+  eos::common::RWMutex mMutexListeners;
   std::map<std::string, std::shared_ptr<FsChangeListener>> mFsListeners;
 };
 
 EOSMQNAMESPACE_END
-
-#endif

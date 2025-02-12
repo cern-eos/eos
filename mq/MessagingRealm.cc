@@ -190,13 +190,15 @@ bool MessagingRealm::getInstanceName(std::string& name)
 std::shared_ptr<FsChangeListener>
 MessagingRealm::GetFsChangeListener(const std::string& name)
 {
-  std::scoped_lock lock(mMutexListeners);
-  auto it = mFsListeners.find(name);
+  {
+    eos::common::RWMutexReadLock rd_lock(mMutexListeners);
+    auto it = mFsListeners.find(name);
 
-  if (it != mFsListeners.end()) {
-    return it->second;
+    if (it != mFsListeners.end()) {
+      return it->second;
+    }
   }
-
+  eos::common::RWMutexWriteLock wr_lock(mMutexListeners);
   mFsListeners[name] = std::make_shared<FsChangeListener>(this, name);
   return mFsListeners[name];
 }
@@ -208,9 +210,9 @@ MessagingRealm::GetFsChangeListener(const std::string& name)
 std::map<std::shared_ptr<FsChangeListener>, std::set<std::string>>
     MessagingRealm::GetInterestedListeners(const std::string& channel)
 {
-  std::map<std::shared_ptr<FsChangeListener>, std::set<std::string>>
-      map_interest;
-  std::scoped_lock lock(mMutexListeners);
+  std::map<std::shared_ptr<FsChangeListener>,
+      std::set<std::string>> map_interest;
+  eos::common::RWMutexReadLock rd_lock(mMutexListeners);
 
   for (auto& elem : mFsListeners) {
     auto& listener = elem.second;
