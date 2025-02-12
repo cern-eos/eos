@@ -198,11 +198,12 @@ BuildRequires: libevent, libevent-devel
 BuildRequires: bzip2-devel
 Requires: bzip2
 
-# ISA-L[_crypto], XXHash and scitokens dependencies for CC7 and CS8/9
-%if %{?_with_server:1}%{!?_with_server:0}
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 BuildRequires: scitokens-cpp-devel
 Requires: scitokens-cpp
+
+# ISA-L[_crypto], XXHash dependencies for CC7 and CS8/9
+%if %{?_with_server:1}%{!?_with_server:0}
+%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
 BuildRequires: xxhash-devel
 Requires: xxhash-libs
 %if 0%{?rhel} == 7
