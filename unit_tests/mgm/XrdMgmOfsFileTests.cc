@@ -46,20 +46,21 @@ TEST(XrdMgmOfsFile, ParsingExcludFsids)
   }
 }
 
-TEST(XrdMgmOfsFile, GetApplicationName)
+TEST(XrdMgmOfsFile, GetClientApplicationName)
 {
-  ASSERT_STREQ("", XrdMgmOfsFile::GetApplicationName(nullptr, nullptr).c_str());
+  ASSERT_STREQ("", XrdMgmOfsFile::GetClientApplicationName(nullptr, nullptr).c_str());
   std::string opaque_str = "&key1=val1&key2=val2&key3=val3";
   XrdOucEnv env(opaque_str.c_str());
   XrdSecEntity client("test");
-  ASSERT_STREQ("", XrdMgmOfsFile::GetApplicationName(&env, &client).c_str());
+  ASSERT_STREQ("",
+               XrdMgmOfsFile::GetClientApplicationName(&env, &client).c_str());
   client.eaAPI->Add("xrd.appname", "xrd_tag");
-  ASSERT_STREQ("xrd_tag", XrdMgmOfsFile::GetApplicationName(&env,
-               &client).c_str());
+  ASSERT_STREQ("xrd_tag",
+               XrdMgmOfsFile::GetClientApplicationName(&env, &client).c_str());
   opaque_str = "&key1=val1&key2=val2&key3=val3&eos.app=eos_tag";
   XrdOucEnv env1(opaque_str.c_str());
-  ASSERT_STREQ("eos_tag", XrdMgmOfsFile::GetApplicationName(&env1,
-               &client).c_str());
-  ASSERT_STREQ("eos_tag", XrdMgmOfsFile::GetApplicationName(&env1,
-               nullptr).c_str());
+  ASSERT_STREQ("eos_tag",
+               XrdMgmOfsFile::GetClientApplicationName(&env1, &client).c_str());
+  ASSERT_STREQ("eos_tag",
+               XrdMgmOfsFile::GetClientApplicationName(&env1, nullptr).c_str());
 }

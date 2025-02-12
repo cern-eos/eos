@@ -404,8 +404,7 @@ private:
   //!
   //! @return application name or empty string if nothing specified
   //----------------------------------------------------------------------------
-  static const std::string
-  GetApplicationName(XrdOucEnv* open_opaque, const XrdSecEntity* client);
+  static const std::string GetClientApplicationName(XrdOucEnv* open_opaque, const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Get POSIX open flags from the given XRootD open mode

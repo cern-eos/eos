@@ -31,6 +31,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/Strerror_r_wrapper.hh"
 #include "common/BehaviourConfig.hh"
+#include "common/Utils.hh"
 #include "mgm/Access.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/FileSystem.hh"
@@ -370,7 +371,7 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
 // Get the application name if specified
 //------------------------------------------------------------------------------
 const std::string
-XrdMgmOfsFile::GetApplicationName(XrdOucEnv* open_opaque,
+XrdMgmOfsFile::GetClientApplicationName(XrdOucEnv* open_opaque,
                                   const XrdSecEntity* client)
 {
   // Application name derived from the following in order of priority:
@@ -633,7 +634,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     return SFS_REDIRECT;
   }
 
-  const std::string app_name = GetApplicationName(openOpaque, client);
+  std::string app_name = GetClientApplicationName(openOpaque, client);
 
   // Decide if this is a FUSE access
   if (!app_name.empty()) {
@@ -642,6 +643,27 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     } else if (app_name == "touch") {
       isTouch = true;
       isFuse = true;
+    }
+  } else {
+    // App name is empty, check for the presence of oss.task
+    // as XRootD's XrdTpcTPC can set this opaque information
+    // to indicate that the open() is due to an HTTP TPC
+    // transfer
+    const char* ossTask = nullptr;
+    if(ossTask = openOpaque->Get("oss.task")) {
+      // We have oss.task opaque, check if it is equal to httptpc
+      // (set by XrdTpcTPC)
+      if(!strncmp("httptpc",ossTask,7)) {
+        app_name = "eos.app=";
+        if(isRW) {
+          // Open for write --> HTTP TPC PULL
+          app_name += "tpcpull";
+        } else {
+          // HTTP TPC PUSH
+          app_name += "tpcpush";
+        }
+        eos::common::AddEosApp(app_name,"http");
+      }
     }
   }
 
