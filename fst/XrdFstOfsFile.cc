@@ -4253,7 +4253,10 @@ XrdFstOfsFile::TriggerEventOnClose(const std::string& archive_req_id)
   }
 
   std::ostringstream oss;
-  oss << "/?mgm.pcmd=event"
+  int envlen = 0;
+  oss << "/?"
+      << mCapOpaque->Env(envlen)
+      << "&mgm.pcmd=event"
       << "&mgm.event=" << event_t
       << "&mgm.logid=" << logId
       << "&mgm.ruid=" << mCapOpaque->Get("mgm.ruid")
