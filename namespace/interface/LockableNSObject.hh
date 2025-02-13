@@ -32,6 +32,17 @@ EOSNSNAMESPACE_BEGIN
 
 typedef std::unique_lock<std::shared_timed_mutex> MDWriteLock;
 typedef std::shared_lock<std::shared_timed_mutex> MDReadLock;
+// To track if this thread has already a lock on a specific object MD
+// we map for each objectMDPtr the amount of locks taken by this thread.
+// How do we know about this thread? we use thread_local storage std::map
+// an instance of std::map will be instanciated at the beginning of this thread
+// and will be destroyed at the end of this thread, so no need to track the thread ID.
+// As a thread can have multiple NS File/ContainerMD tracked (bulk locks), this
+// map tracks the address of this object (std::uintptr_t) and the amount of time the lock
+// was acquired (uint64_t)
+typedef std::map<std::uintptr_t , uint64_t> MapLockTracker;
+inline thread_local MapLockTracker mThreadIdWriteLockMap;
+inline thread_local MapLockTracker mThreadIdReadLockMap;
 
 class LockableNSObjMD
 {
@@ -61,7 +72,7 @@ protected:
   template<typename Functor>
   auto runWriteOp(Functor&& functor) const -> decltype(functor())
   {
-    if (!isLockRegisteredByThisThread(MDWriteLock())) {
+    if (!isLocked(MDWriteLock())) {
       //Object mutex is not locked, lock it and run the functor
       MDWriteLock lock(getMutex());
       return functor();
@@ -89,7 +100,7 @@ protected:
   template<typename Functor>
   auto runReadOp(Functor&& functor) const -> decltype(functor())
   {
-    if (!isLockRegisteredByThisThread(MDReadLock())) {
+    if (!isLocked(MDReadLock())) {
       //Object mutex is not locked, lock it and run the functor
       MDReadLock lock(getMutex());
       return functor();
@@ -105,38 +116,35 @@ protected:
     return const_cast<const LockableNSObjMD*>(this)->runReadOp(functor);
   }
 
-  //Assumes read lock is taken for the map
-  bool isThisThreadInLockMap(const std::map<std::thread::id, uint64_t>&
-                             threadIdLockMap) const
+  bool isThisObjectInLockMap(const MapLockTracker& mapLockTracker) const
   {
-    return (threadIdLockMap.find(std::this_thread::get_id()) !=
-            threadIdLockMap.end());
+    return (mapLockTracker.find(std::uintptr_t(this)) !=
+            mapLockTracker.end());
   }
 
-  //Assumes lock is taken for the map
-  void registerLock(std::map<std::thread::id, uint64_t>& threadIdLockMap)
+  void registerLock(MapLockTracker& mapLockTracker)
   {
-    auto threadId = std::this_thread::get_id();
-    auto threadIdLockMapItor = threadIdLockMap.find(threadId);
+    auto thisPtr = std::uintptr_t(this);
+    auto thisPtrItor = mapLockTracker.find(thisPtr);
 
-    if (threadIdLockMapItor == threadIdLockMap.end()) {
-      threadIdLockMap[threadId] = 0;
+    if (thisPtrItor == mapLockTracker.end()) {
+      mapLockTracker[thisPtr] = 0;
     }
 
-    threadIdLockMap[threadId] += 1;
+    mapLockTracker[thisPtr] += 1;
   }
 
   //Assumes lock is taken for the map
-  void unregisterLock(std::map<std::thread::id, uint64_t>& threadIdLockMap)
+  void unregisterLock(MapLockTracker& mapLockTracker)
   {
-    auto threadId = std::this_thread::get_id();
-    auto threadIdLockMapItor = threadIdLockMap.find(threadId);
+    auto thisPtr = std::uintptr_t(this);
+    auto thisPtrItor = mapLockTracker.find(thisPtr);
 
-    if (threadIdLockMapItor != threadIdLockMap.end()) {
-      threadIdLockMap[threadId] -= 1;
+    if (thisPtrItor != mapLockTracker.end()) {
+      mapLockTracker[thisPtr] -= 1;
 
-      if (threadIdLockMapItor->second == 0) {
-        threadIdLockMap.erase(threadId);
+      if (thisPtrItor->second == 0) {
+        mapLockTracker.erase(thisPtr);
       }
     }
   }
@@ -145,7 +153,7 @@ protected:
   void lock(LockType& lock)
   {
     //Lock the object only if it is not already read-locked or write-locked
-    if (!isLockRegisteredByThisThread(lock)) {
+    if (!isLocked(lock)) {
       lock.lock();
     }
 
@@ -163,7 +171,7 @@ protected:
   bool tryLock(LockType& lock)
   {
     //Lock the object only if it is not already read-locked or write-locked
-    if (!isLockRegisteredByThisThread(lock)) {
+    if (!isLocked(lock)) {
       bool wasLocked = lock.try_lock();
 
       if (wasLocked) {
@@ -185,14 +193,12 @@ protected:
    * @return true if this thread already has the lock allowing the read operation to
    * be performed, false otherwise
    */
-  bool isLockRegisteredByThisThread(const MDReadLock& mdLock) const
-  {
-    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
+  bool isLocked(const MDReadLock& mdLock) const {
     // In case of a read, if this object is already locked by a write lock we consider it to be read-locked as well
     // otherwise a deadlock will happen if the object is write locked and a getter method that will try to
     // read lock the object is called...
-    return (isThisThreadInLockMap(mThreadIdWriteLockMap) ||
-            isThisThreadInLockMap(mThreadIdReadLockMap));
+    return (isThisObjectInLockMap(mThreadIdWriteLockMap) ||
+            isThisObjectInLockMap(mThreadIdReadLockMap));
   }
 
   /**
@@ -203,10 +209,8 @@ protected:
    * @return true if this thread already has the lock allowing the write operation to
    * be performed, false otherwise
    */
-  bool isLockRegisteredByThisThread(const MDWriteLock& mdLock) const
-  {
-    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
-    return isThisThreadInLockMap(mThreadIdWriteLockMap);
+  bool isLocked(const MDWriteLock& mdLock) const {
+    return isThisObjectInLockMap(mThreadIdWriteLockMap);
   }
 
   /**
@@ -216,7 +220,6 @@ protected:
    */
   virtual void registerLock(MDReadLock& mdLock)
   {
-    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     registerLock(mThreadIdReadLockMap);
   }
 
@@ -227,7 +230,6 @@ protected:
    */
   virtual void registerLock(MDWriteLock& mdLock)
   {
-    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     registerLock(mThreadIdWriteLockMap);
     //A Write lock is also a readlock. If one tries to read
     //lock after a write lock on the same thread, a deadlock will happen
@@ -241,7 +243,6 @@ protected:
    */
   virtual void unregisterLock(MDReadLock& mdLock)
   {
-    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     unregisterLock(mThreadIdReadLockMap);
   }
 
@@ -252,7 +253,6 @@ protected:
    */
   virtual void unregisterLock(MDWriteLock& mdLock)
   {
-    std::unique_lock<std::mutex> lock(mThreadIdLockMapMutex);
     unregisterLock(mThreadIdWriteLockMap);
     unregisterLock(mThreadIdReadLockMap);
   }
@@ -264,14 +264,6 @@ protected:
 
   virtual std::shared_timed_mutex& getMutex() const = 0;
 
-private:
-  //Mutex to protect the map that keeps track of the threads that are locking this MD object
-  mutable std::mutex mThreadIdLockMapMutex;
-  //Map that keeps track of the threads that already have a lock
-  //on this MD object. This map is only filled when the MDLocker object
-  //is used.
-  mutable std::map<std::thread::id, uint64_t> mThreadIdWriteLockMap;
-  mutable std::map<std::thread::id, uint64_t> mThreadIdReadLockMap;
 
 };
 
