@@ -1156,15 +1156,17 @@ NewfindCmd::ProcessRequest() noexcept
       return reply;
     }
 
-    try {
-      eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-      real_path = gOFS->eosView->getRealPath(findRequest.path());
-      eos_static_info("msg=\"real path resolved\" rpath=\"%s\"",
-                      real_path.c_str());
-    } catch (eos::MDException& e) {
-      mOfsErrStream << "error: could not resove real path" << std::endl;
-      reply.set_retc(ENOENT);
-      return reply;
+    if (findRequest.path() != "/") {
+      try {
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+        real_path = gOFS->eosView->getRealPath(findRequest.path());
+        eos_static_info("msg=\"real path resolved\" rpath=\"%s\"",
+                        real_path.c_str());
+      } catch (eos::MDException& e) {
+        mOfsErrStream << "error: could not resove real path" << std::endl;
+        reply.set_retc(ENOENT);
+        return reply;
+      }
     }
   }
 
