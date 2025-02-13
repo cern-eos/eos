@@ -89,6 +89,7 @@ echo "disabling group default.0 for writes"
 eos fs ls default.0 | grep online | awk '{print $6}' | sort | uniq | xargs -I {} eos geosched disabled add {} plct default.0
 eos geosched disabled show \* \* \*
 eos geosched disabled show \* \* \* | grep -v "default.1"
+
 if [[ $? -ne 0 ]]; then
       echo "error: group default.1 is already disabled ..."
       eos fs ls
@@ -137,6 +138,7 @@ while [[ "$count" -lt "7" ]]; do
       eos space groupdrainer status default --detail
 done
 
+eos fs ls
 drained_fsids=$(eos -j fs ls default.1 | jq .result[].id)
 
 for fsid in $drained_fsids; do
