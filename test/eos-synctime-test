@@ -2,62 +2,51 @@
 set -e
 fusedir=$1
 eosdir=$2
-# Sync time propgation happens every 5 seconds on average, set the sleep_time
-# to 10 seconds to make sure sync info is propagated.
-sleep_time=10
+# Sync time propgation happens every 5 seconds, set the sleep_time
+# to 7 seconds to make sure sync info is propagated.
+sleep_time=7
 
 # this test script creates a file/direcotry, chmod, rename's it and verifies that the sync times are updated accordingly
 
 eos mkdir -p /eos/$eosdir/synctime/
 eos attr set sys.mtime.propagation=1 /eos/$eosdir/synctime/
 eos chmod 777 /eos/$eosdir/synctime/
+# Sleep a bit so that the changes above propagated
+sleep ${sleep_time}
 
-# SYNC TIME PROPAGATION FOR FILES
-stime0=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+# Check sync time propagation for both files and directories
+GET_SYNCTIME_CMD="eos -j fileinfo /eos/$eosdir/synctime/ | jq -r '(.tmtime|tostring) + \".\" + (.tmtime_ns|tostring)'"
+stime0=$(eval ${GET_SYNCTIME_CMD})
 
+# New file creation should trigger an update
 touch $fusedir/$eosdir/synctime/f.1
-
 sleep ${sleep_time}
+stime1=$(eval ${GET_SYNCTIME_CMD})
 
-stime1=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
-
-chmod 700 $fusedir/$eosdir/synctime/f.1
-
-sleep ${sleep_time}
-
-stime2=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
-
-mv $fusedir/$eosdir/synctime/f.1 $fusedir/$eosdir/synctime/f.2
-
-sleep ${sleep_time}
-
-stime3=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
-
-# SYNC TIME PROPAGATION FOR DIRECTORIES
+# New directory creation should trigger an update
 mkdir -p $fusedir/$eosdir/synctime/d.1
-
 sleep ${sleep_time}
+stime2=$(eval ${GET_SYNCTIME_CMD})
 
-stime4=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
-
+# Chmod on files or dirs does not update the synctime
+chmod 700 $fusedir/$eosdir/synctime/f.1
 chmod 777 $fusedir/$eosdir/synctime/d.1
-
 sleep ${sleep_time}
+stime3=$(eval ${GET_SYNCTIME_CMD})
 
-stime5=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
+# Move of a file should trigger an update
+mv $fusedir/$eosdir/synctime/f.1 $fusedir/$eosdir/synctime/f.2
+sleep ${sleep_time}
+stime4=$(eval ${GET_SYNCTIME_CMD})
 
+# Move of a directory should trigger an update
 mv $fusedir/$eosdir/synctime/d.1 $fusedir/$eosdir/synctime/d.2
-
 sleep ${sleep_time}
+stime5=$(eval ${GET_SYNCTIME_CMD})
 
-stime6=`eos file info /eos/$eosdir/synctime/ -m | grep -o 'stime=[^ ]\+' | cut -d "=" -f 2`
-
-
-echo $stime0 $stime1 $stime2 $stime3 $stime4 $stime5 $stime6
-
+echo "Timestamps: $stime0 $stime1 $stime2 $stime3 $stime4 $stime5"
 test "1" = $(  printf '%F < %F\n' "$stime0" "$stime1" | bc -l  )
-test "1" = $(  printf '%F == %F\n' "$stime1" "$stime2" | bc -l  )
-test "1" = $(  printf '%F < %F\n' "$stime2" "$stime3" | bc -l  )
+test "1" = $(  printf '%F < %F\n' "$stime1" "$stime2" | bc -l  )
+test "1" = $(  printf '%F == %F\n' "$stime2" "$stime3" | bc -l  )
 test "1" = $(  printf '%F < %F\n' "$stime3" "$stime4" | bc -l  )
-test "1" = $(  printf '%F == %F\n' "$stime4" "$stime5" | bc -l  )
-test "1" = $(  printf '%F < %F\n' "$stime5" "$stime6" | bc -l  )
+test "1" = $(  printf '%F < %F\n' "$stime4" "$stime5" | bc -l  )
