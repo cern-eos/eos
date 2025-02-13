@@ -654,15 +654,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // We have oss.task opaque, check if it is equal to httptpc
       // (set by XrdTpcTPC)
       if(!strncmp("httptpc",ossTask,7)) {
-        app_name = "eos.app=";
         if(isRW) {
           // Open for write --> HTTP TPC PULL
-          app_name += "tpcpull";
+          app_name += "http/tpcpull";
         } else {
           // HTTP TPC PUSH
-          app_name += "tpcpush";
+          app_name += "http/tpcpush";
         }
-        eos::common::AddEosApp(app_name,"http");
       }
     }
   }
