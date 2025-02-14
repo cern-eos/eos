@@ -334,12 +334,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     eosViewMutexPenultimateSecWriteLockTimePercentage = 100;
   }
 
-  double rnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedR");
-  double readcontention = (rnorm) ? 100.0 * gOFS->MgmStats.GetTotalAvg5("NsLeadR")
-                          / rnorm : 0.0;
-  double wnorm = gOFS->MgmStats.GetTotalAvg5("NsUsedW");
-  double writecontention = (wnorm) ? 100.0 *
-                           gOFS->MgmStats.GetTotalAvg5("NsLeadW") / wnorm : 0.0;
+  double readcontention = gOFS->MgmStats.GetReadContention();
+  double writecontention = gOFS->MgmStats.GetWriteContention();
 
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f
@@ -347,16 +343,20 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "\nuid=all gid=all ns.current.fid=" << fid_now
         << "\nuid=all gid=all ns.current.cid=" << cid_now
         << "\nuid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
-        << "\nuid=all gid=all ns.generated.cid=" << (int)(cid_now - gOFS->mBootContainerId)
+        << "\nuid=all gid=all ns.generated.cid=" << (int)(cid_now -
+            gOFS->mBootContainerId)
         << "\nuid=all gid=all ns.contention.read=" << readcontention
         << "\nuid=all gid=all ns.contention.write=" << writecontention
         << "\nuid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum
         << "\nuid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy
         << "\nuid=all gid=all ns.cache.files.requests=" << fileCacheStats.numRequests
         << "\nuid=all gid=all ns.cache.files.hits=" << fileCacheStats.numHits
-        << "\nuid=all gid=all ns.cache.containers.maxsize=" << containerCacheStats.maxNum
-        << "\nuid=all gid=all ns.cache.containers.occupancy=" << containerCacheStats.occupancy
-        << "\nuid=all gid=all ns.cache.containers.requests=" << containerCacheStats.numRequests
+        << "\nuid=all gid=all ns.cache.containers.maxsize=" <<
+        containerCacheStats.maxNum
+        << "\nuid=all gid=all ns.cache.containers.occupancy=" <<
+        containerCacheStats.occupancy
+        << "\nuid=all gid=all ns.cache.containers.requests=" <<
+        containerCacheStats.numRequests
         << "\nuid=all gid=all ns.cache.containers.hits=" << containerCacheStats.numHits
         << "\nuid=all gid=all ns.total.files.changelog.size="
         << StringConversion::GetSizeString(clfsize, (unsigned long long) statf.st_size)
@@ -996,7 +996,8 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
     }
 
     tree_size += tmp_cont->getTreeSize();
-    tree_containers += tmp_cont->getTreeContainers() + 1; //Count the current cont' children + the subChildren (getDirCount())
+    tree_containers += tmp_cont->getTreeContainers() +
+                       1; //Count the current cont' children + the subChildren (getDirCount())
     tree_files += tmp_cont->getTreeFiles();
   }
 
@@ -1265,7 +1266,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
             XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
 
             if (file) {
-              file->open(&vid, fname.c_str(), SFS_O_CREAT | SFS_O_RDWR, 0777, 0 , 0);
+              file->open(&vid, fname.c_str(), SFS_O_CREAT | SFS_O_RDWR, 0777, 0, 0);
               delete file;
             }
           }
@@ -1311,7 +1312,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
             XrdMgmOfsFile* file = new XrdMgmOfsFile((char*)"bench");
 
             if (file) {
-              file->open(&vid, fname.c_str(), 0, 0 , 0, "eos.app=fuse");
+              file->open(&vid, fname.c_str(), 0, 0, 0, "eos.app=fuse");
               delete file;
             }
           }

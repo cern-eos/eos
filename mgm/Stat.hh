@@ -493,7 +493,7 @@ public:
 class Stat
 {
 public:
-  XrdSysMutex mMutex;
+  mutable XrdSysMutex mMutex;
 
   // first is name of value, then the map
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, unsigned long long> >
@@ -558,6 +558,17 @@ public:
   double GetTotalExec(double& deviation);
 
   void Clear();
+
+  //----------------------------------------------------------------------------
+  //! Get read contention approximation
+  //----------------------------------------------------------------------------
+  double GetReadContention() const;
+
+  //----------------------------------------------------------------------------
+  //! Get write contention approximation
+  //----------------------------------------------------------------------------
+  double GetWriteContention() const;
+
 
   void PrintOutTotal(XrdOucString& out, bool details = false,
                      bool monitoring = false, bool numerical = false);
