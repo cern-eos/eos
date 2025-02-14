@@ -167,7 +167,7 @@ DrainFs::DoIt()
     }
   }
 
-  if (mDrainStop) {
+  if (mDrainStop || NumRunningJobs()) {
     StopJobs();
     ResetCounters();
     state = State::Failed;
