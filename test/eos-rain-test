@@ -271,10 +271,10 @@ for file in $ROOT_PATH/*.rain; do
         get_file_fs "$EOS_DIR/$file"
         echo "Process file $file ..."
         idx1=0
-        idx2=0
-
 
         for fst1 in "${VECT_FS[@]}"; do
+            idx2=0
+
             for fst2 in "${VECT_FS[@]}"; do
                 if [ "$idx2" -gt "$idx1" ]; then
                     #echo "Disable FST $fst1 and $fst2 and redo read test..."
