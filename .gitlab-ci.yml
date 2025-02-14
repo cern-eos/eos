@@ -611,7 +611,7 @@ el9_asan_docker_image:
       esac
     - date
   artifacts:
-    when: on_failure
+    #when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
