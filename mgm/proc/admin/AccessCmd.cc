@@ -21,13 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <cctype>
+
 #include "AccessCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include <XrdOuc/XrdOucEnv.hh>
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Access.hh"
 #include "mgm/Stat.hh"
+#include "common/StringUtils.hh"
+#include <XrdOuc/XrdOucEnv.hh>
+#include <cctype>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -47,6 +49,11 @@ ProcessRuleKey(const std::string& key)
     }
 
     std::string target = new_key.substr(pos + 1);
+    eos::common::trim(target);
+
+    if (target.empty()) {
+      return std::string();
+    }
 
     if ((target != "max") && (target != "*")) {
       // Check if target is a username and then try to convert it

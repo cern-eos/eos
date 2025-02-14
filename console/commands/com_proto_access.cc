@@ -190,7 +190,6 @@ bool AccessHelper::ParseCommand(const char* arg)
         return false;
       }
 
-      fprintf(stderr, "settings %s\n", token.c_str());
       set->set_key(token);
     } else {
       return false;
