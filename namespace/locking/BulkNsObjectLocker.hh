@@ -223,13 +223,17 @@ public:
 
   Locks lockAll() {
     Locks locks;
+    auto backoffDuration = std::chrono::microseconds(10); // start with 10 microseconds
+    const auto maxBackoffDuration = std::chrono::milliseconds(10); // cap backoff at 10 milliseconds
     while(true) {
       std::unique_ptr<ContainerLocksVector> containerLocksVector = std::make_unique<ContainerLocksVector>();
       std::unique_ptr<FileLocksVector> fileLocksVector = std::make_unique<FileLocksVector>();
       // We first try to lock all the containers
-      if(mContainerTryLocker.lockAll(*containerLocksVector)){
+      bool containerLocked = mContainerTryLocker.lockAll(*containerLocksVector);
+      if(containerLocked){
         // Then we try to lock all the files
-        if(mFileTryLocker.lockAll(*fileLocksVector)) {
+        bool filesLocked = mFileTryLocker.lockAll(*fileLocksVector);
+        if(filesLocked) {
           locks.addContainerLocks(std::move(containerLocksVector));
           locks.addFileLocks(std::move(fileLocksVector));
           break;
@@ -239,6 +243,14 @@ public:
           fileLocksVector->releaseAllLocksAndClear();
           containerLocksVector->releaseAllLocksAndClear();
         }
+      }
+      // Exponential backoff:
+      std::this_thread::sleep_for(backoffDuration);
+      // Double the backoff duration for the next iteration.
+      backoffDuration *= 2;
+      // Ensure the backoff does not exceed the maximum allowed.
+      if (backoffDuration > maxBackoffDuration) {
+        backoffDuration = maxBackoffDuration;
       }
     }
     return locks;
