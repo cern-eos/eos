@@ -484,6 +484,7 @@ Storage::Boot(FileSystem* fs)
   }
 
   fs->SetStatus(eos::common::BootStatus::kBooting);
+  fs->SetError(0, "");
   // Wait to know who is our manager
   std::string manager = "";
   size_t cnt = 0;
