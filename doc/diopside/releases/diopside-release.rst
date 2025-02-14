@@ -16,6 +16,30 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.3 Diopside``
+====================
+
+2025-02-14
+
+Bug
+-----
+
+* [EOS-6243] - MGM stuck on EOSHOME-I04 (no reply to "ns stat")
+* [EOS-6247] - non-removable "eos access" rule
+* [EOS-6277] - FS error status not reset at sucessful boot
+* [EOS-6317] - Starting conditional EOS services: Too few arguments.
+* [EOS-6318] - _access lines >52% of xrdlog.mgm
+* [EOS-6322] - Regression in CTA archiving
+* [EOS-6324] - eos find on / fails
+* [EOS-6325] - MGM crash around DrainFs::UpdateFinishedJob
+* [EOS-5992] - RFE: faster MGM graceful restart ("systemctl restart eos@mgm")
+
+New Feature
+-------------
+
+* [EOS-6310] - MGM: HTTP - Allow users to overwrite eos.app tag via HTTP path opaque query
+
+
 ``v5.3.2 Diopside``
 ====================
 
