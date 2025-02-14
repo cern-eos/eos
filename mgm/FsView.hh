@@ -132,7 +132,7 @@ struct GeoTreeElement {
   //! All the FileSystems attached to this node of the tree
   std::set<eos::common::FileSystem::fsid_t> mFsIds;
   //! Map geoTreeTag -> son branches
-  std::map<std::string , GeoTreeElement*> mSons;
+  std::map<std::string, GeoTreeElement*> mSons;
 };
 
 //------------------------------------------------------------------------------
@@ -173,14 +173,14 @@ public:
   // WARNING target node might be part of the nodes to aggregate.
   // Careful before overwriting the target node.
   //----------------------------------------------------------------------------
-  virtual bool aggregateNodes(const std::map<std::string , GeoTreeElement*>&
+  virtual bool aggregateNodes(const std::map<std::string, GeoTreeElement*>&
                               nodes,
                               const size_t& idx, bool includeSelf = false) = 0;
 
   // Aggregate the leaves and the nodes at any level of the tree
   virtual bool aggregateLeavesAndNodes(
     const std::set<eos::common::FileSystem::fsid_t>& leaves,
-    const std::map<std::string , GeoTreeElement*>& nodes,
+    const std::map<std::string, GeoTreeElement*>& nodes,
     const size_t& idx)
   {
     return (leaves.empty() ? true : aggregateLeaves(leaves, idx))
@@ -232,7 +232,7 @@ public:
   //!
   // @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool getGeoTagInTree(const fsid_t& fs , std::string& geoTag);
+  bool getGeoTagInTree(const fsid_t& fs, std::string& geoTag);
 
   //----------------------------------------------------------------------------
   //! Get number of file systems in the tree
@@ -566,13 +566,18 @@ public:
   //! values by default values
   static std::atomic<bool> gDisableDefaults;
   static std::string gConfigQueuePrefix; ///<  Configuration queue prefix
-  std::unique_ptr<FsBalancer> mFsBalancer; ///< File system balancer
-  Converter* mConverter; ///< Threaded object running layout conversion jobs
-  GroupBalancer* mGroupBalancer; ///< Threaded object running group balancing
-  GeoBalancer* mGeoBalancer; ///< Threaded object running geotag balancing
-  std::unique_ptr<GroupDrainer>
-  mGroupDrainer; ///< Threaded object running group drainer
-  std::unique_ptr<FileInspector> mFileInspector; ///< Space file inspector
+  //! File system balancer
+  std::unique_ptr<FsBalancer> mFsBalancer;
+  //! Threaded object running layout conversion jobs
+  Converter* mConverter;
+  //! Threaded object running group balancing
+  GroupBalancer* mGroupBalancer;
+  //! Threaded object running geotag balancing
+  GeoBalancer* mGeoBalancer;
+  //! Threaded object running group drainer
+  std::unique_ptr<GroupDrainer>  mGroupDrainer;
+  //! Space file inspector
+  std::unique_ptr<FileInspector> mFileInspector;
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -1179,7 +1184,7 @@ public:
     const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 
   virtual bool aggregateNodes(
-    const std::map<std::string , GeoTreeElement*>& nodes,
+    const std::map<std::string, GeoTreeElement*>& nodes,
     const size_t& idx, bool includeSelf = false);
 };
 
@@ -1241,7 +1246,7 @@ public:
     const std::set<eos::common::FileSystem::fsid_t>& leaves, const size_t& idx);
 
   virtual bool aggregateNodes(
-    const std::map<std::string , GeoTreeElement*>& nodes, const size_t& idx,
+    const std::map<std::string, GeoTreeElement*>& nodes, const size_t& idx,
     bool includeSelf = false);
 };
 

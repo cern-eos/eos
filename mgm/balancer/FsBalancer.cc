@@ -402,15 +402,17 @@ void
 FsBalancer::FreeTxSlot(eos::IFileMD::id_t fid,
                        FsBalanceInfo src, FsBalanceInfo dst)
 {
-  --mRunningJobs;
   mBalanceStats.FreeTxSlot(src.mNodeInfo, dst.mNodeInfo);
   gOFS->mFidTracker.RemoveEntry(fid);
-  eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-  auto* fs = FsView::gFsView.mIdView.lookupByID(dst.mFsId);
+  {
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    auto* fs = FsView::gFsView.mIdView.lookupByID(dst.mFsId);
 
-  if (fs) {
-    fs->DecrementBalanceTx();
+    if (fs) {
+      fs->DecrementBalanceTx();
+    }
   }
+  --mRunningJobs;
 }
 
 EOSMGMNAMESPACE_END
