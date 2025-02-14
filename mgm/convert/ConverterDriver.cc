@@ -143,7 +143,8 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
     auto conversion_info = ConversionInfo::parseConversionString(std::get<1>(info));
 
     if (conversion_info != nullptr) {
-      auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get(),std::get<2>(info));
+      auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get(),
+                 std::get<2>(info));
       mThreadPool.PushTask<void>([ = ]() {
         job->DoIt();
         HandlePostJobRun(job);
@@ -171,23 +172,35 @@ ConverterDriver::JoinAllConversionJobs()
 {
   eos_notice("%s", "msg=\"stopping all running conversion jobs\"");
   {
-    eos::common::RWMutexReadLock rlock(mJobsMutex);
+    // Signal all conversion jobs to stop/cancel
+    eos::common::RWMutexReadLock rd_lock(mJobsMutex);
 
-    for (const auto& fid_job : mJobsRunning) {
-      if (fid_job.second->GetStatus() == ConversionJob::Status::RUNNING) {
-        fid_job.second->Cancel();
-      }
-    }
+    for (const auto& pair : mJobsRunning) {
+      auto& job = pair.second;
 
-    for (const auto& fid_job : mJobsRunning) {
-      while ((fid_job.second->GetStatus() == ConversionJob::Status::RUNNING) ||
-             (fid_job.second->GetStatus() == ConversionJob::Status::PENDING)) {
-        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      if (job->GetStatus() == ConversionJob::Status::RUNNING) {
+        job->Cancel();
       }
     }
   }
-  eos::common::RWMutexWriteLock wlock(mJobsMutex);
-  mJobsRunning.clear();
+  {
+    // Wait for conversion jobs to cancel
+    eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
+
+    while (!mJobsRunning.empty()) {
+      const eos::IFileMD::id_t fid = mJobsRunning.begin()->first;
+      auto job = mJobsRunning.begin()->second;
+      wr_lock.Release();
+
+      while ((job->GetStatus() == ConversionJob::Status::RUNNING) ||
+             (job->GetStatus() == ConversionJob::Status::PENDING)) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      }
+
+      wr_lock.Grab(mJobsMutex);
+      mJobsRunning.erase(fid);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -249,7 +262,8 @@ bool
 ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 {
   try {
-    bool hset = mQHashPending.hset(std::to_string(std::get<0>(jobinfo)), std::get<1>(jobinfo));
+    bool hset = mQHashPending.hset(std::to_string(std::get<0>(jobinfo)),
+                                   std::get<1>(jobinfo));
     std::cerr << "hset: " << hset << std::endl;
     return hset;
   } catch (const std::exception& e) {
