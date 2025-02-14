@@ -17,6 +17,7 @@ qdb:
 
 fst:
   replicaCount: 15
+  minFsSizeGb: 1
   selfRegister:
     groupsize: 7
     groupmod: 2
