@@ -372,7 +372,7 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
 //------------------------------------------------------------------------------
 const std::string
 XrdMgmOfsFile::GetClientApplicationName(XrdOucEnv* open_opaque,
-                                  const XrdSecEntity* client)
+                                        const XrdSecEntity* client)
 {
   // Application name derived from the following in order of priority:
   // 1. eos.app=<tag>
@@ -638,7 +638,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // Decide if this is a FUSE access
   if (!app_name.empty()) {
-    if (app_name == "fuse" || app_name == "xrootdfs" || app_name.find("fuse::") == 0) {
+    if (app_name == "fuse" || app_name == "xrootdfs" ||
+        app_name.find("fuse::") == 0) {
       isFuse = true;
     } else if (app_name == "touch") {
       isTouch = true;
@@ -650,11 +651,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // to indicate that the open() is due to an HTTP TPC
     // transfer
     const char* ossTask = nullptr;
-    if(ossTask = openOpaque->Get("oss.task")) {
+
+    if (ossTask = openOpaque->Get("oss.task")) {
       // We have oss.task opaque, check if it is equal to httptpc
       // (set by XrdTpcTPC)
-      if(!strncmp("httptpc",ossTask,7)) {
-        if(isRW) {
+      if (!strncmp("httptpc", ossTask, 7)) {
+        if (isRW) {
           // Open for write --> HTTP TPC PULL
           app_name += "http/tpcpull";
         } else {
@@ -1035,6 +1037,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             uint64_t dmd_id = fmd->getContainerId();
             byfid = fmd->getId();
+
             // If fmd is resolved via a symbolic link, we have to find the
             // 'real' parent directory
             if (dmd_id != dmd->getId()) {
@@ -1302,18 +1305,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         {
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
           eos::mgm::FileSystem* local_fs =
-              FsView::gFsView.mIdView.lookupByID(fmdfs0);
+            FsView::gFsView.mIdView.lookupByID(fmdfs0);
+
+          if (!local_fs) {
+            eos_err("msg=\"file has unknown file system location\" "
+                    "fxid=%08llx fsid=%d", mFid, fmdfs0);
+            return Emsg(epname, error, EINVAL, "open file for update - unknown "
+                        "location for file", path);
+          }
+
           source_space = local_fs->GetSpace();
         }
       }
+
       auto conversion =
-          Policy::UpdateConversion(path, attrmap, vid, fmdlid, source_space,
-                                   *openOpaque, target_layout, target_space);
+        Policy::UpdateConversion(path, attrmap, vid, fmdlid, source_space,
+                                 *openOpaque, target_layout, target_space);
+
       if (conversion == Policy::eFail) {
-        return Emsg(
-            epname, error, EINVAL,
-            "open file for update - invalid update conversion policy found!",
-            path);
+        return Emsg(epname, error, EINVAL, "open file for update - invalid "
+                    "update conversion policy found!", path);
       }
 
       if (conversion == Policy::eAsync) {
@@ -1322,17 +1333,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         conversionCb->Init(&error);
         error.setErrInfo(1800, "delay client up to 30 minutes for update conversion");
         auto conversiontag = ConversionTag::Get(
-            byfid, target_space, target_layout, std::string(""), true);
+                               byfid, target_space, target_layout, std::string(""), true);
+
         if (gOFS->mConverterDriver->ScheduleJob(byfid, conversiontag,
                                                 conversionCb)) {
-          eos_info("msg='update conversion started' fxid=%016llx conv='%s'", byfid, conversiontag.c_str());
+          eos_info("msg='update conversion started' fxid=%016llx conv='%s'", byfid,
+                   conversiontag.c_str());
           return SFS_STARTED;
         } else {
           // remove the callback from the error object
           error.setErrCB(0);
           error.setErrArg(0);
           error.setErrInfo(60, "please retry after 60 seconds for update conversion");
-          eos_info("msg='stalling client for update conversion' fxid=%016llx conv='%s'", byfid, conversiontag.c_str());
+          eos_info("msg='stalling client for update conversion' fxid=%016llx conv='%s'",
+                   byfid, conversiontag.c_str());
           return SFS_STALL;
         }
       } else {
@@ -1616,24 +1630,35 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     std::string target_space;
     unsigned long target_layout;
 
-    if (vid.prot != "https" && !isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
+    if (vid.prot != "https" && !isTpc && !isRepair && !isRepairRead && !isPio &&
+        !isPioReconstruct) {
       // we need to get the space by looking at the first location
       if (fmdfs0 && (fmdfs0 != EOS_TAPE_FSID)) {
         eos::common::FileSystem::fs_snapshot_t local_snapshot;
         {
           eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
           eos::mgm::FileSystem* local_fs =
-              FsView::gFsView.mIdView.lookupByID(fmdfs0);
+            FsView::gFsView.mIdView.lookupByID(fmdfs0);
+
+          if (!local_fs) {
+            eos_err("msg=\"file has unknown file system location\" "
+                    "fxid=%08llx fsid=%d", mFid, fmdfs0);
+            return Emsg(epname, error, EINVAL, "open file for update - unknown "
+                        "location for file", path);
+          }
+
           source_space = local_fs->GetSpace();
         }
       }
+
       auto conversion =
-          Policy::ReadConversion(path, attrmap, vid, fmdlid, source_space,
-                                 *openOpaque, target_layout, target_space);
+        Policy::ReadConversion(path, attrmap, vid, fmdlid, source_space,
+                               *openOpaque, target_layout, target_space);
+
       if (conversion == Policy::eFail) {
         return Emsg(
-            epname, error, EINVAL,
-            "open file for read - invalid read conversion policy found!", path);
+                 epname, error, EINVAL,
+                 "open file for read - invalid read conversion policy found!", path);
       }
 
       if (conversion == Policy::eAsync) {
@@ -1642,23 +1667,27 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         conversionCb->Init(&error);
         error.setErrInfo(1800, "delay client up to 30 minutes for read conversion");
         auto conversiontag = ConversionTag::Get(
-            byfid, target_space, target_layout, std::string(""), true);
+                               byfid, target_space, target_layout, std::string(""), true);
+
         if (gOFS->mConverterDriver->ScheduleJob(byfid, conversiontag,
                                                 conversionCb)) {
-          eos_info("msg='read conversion started' fxid=%016llx conv='%s'", byfid, conversiontag.c_str());
+          eos_info("msg='read conversion started' fxid=%016llx conv='%s'", byfid,
+                   conversiontag.c_str());
           return SFS_STARTED;
         } else {
           // remove the callback from the error object
           error.setErrCB(0);
           error.setErrArg(0);
           error.setErrInfo(60, "please retry after 60 seconds for read conversion");
-          eos_info("msg='stalling client for read conversion' fxid=%016llx conv='%s'", byfid, conversiontag.c_str());
+          eos_info("msg='stalling client for read conversion' fxid=%016llx conv='%s'",
+                   byfid, conversiontag.c_str());
           return SFS_STALL;
         }
       } else {
         // no conversion to be run
       }
     }
+
     if (isSharedFile) {
       gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1);
     } else {
@@ -1761,11 +1790,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                             forcedFsId, forced_group, bandwidth, schedule,
                             ioprio, iotype, isRW, true, &atimeage);
   COMMONTIMING("Policy::end", &tm);
-
   Policy::RedirectStatus rs;
+
   // do a local redirect here if there is only one replica attached and this is not an HTTPS request
-  if (vid.prot != "https" && !isRW && !isFuse && !isPio && (fmd->getNumLocation() == 1) &&
-      (rs = Policy::RedirectLocal(path, attrmap, vid, layoutId, space, *openOpaque))!=Policy::eNever) {
+  if (vid.prot != "https" && !isRW && !isFuse && !isPio &&
+      (fmd->getNumLocation() == 1) &&
+      (rs = Policy::RedirectLocal(path, attrmap, vid, layoutId, space,
+                                  *openOpaque)) != Policy::eNever) {
     XrdCl::URL url(std::string("root://localhost//") + std::string(
                      path ? path : "/dummy/") + std::string("?") + std::string(
                      ininfo ? ininfo : ""));
@@ -1782,39 +1813,41 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
         local_fs->SnapShotFileSystem(local_snapshot);
-	eos_info("sharedfs='%s'", local_fs->getSharedFs().c_str());
+        eos_info("sharedfs='%s'", local_fs->getSharedFs().c_str());
       }
-
       std::string anchor = "#";
-      std::string appanchor=app_name;
+      std::string appanchor = app_name;
       auto hpos = app_name.find("#");
+
       if (hpos != std::string::npos) {
-	appanchor = app_name.substr(hpos);
+        appanchor = app_name.substr(hpos);
       }
+
       anchor += local_snapshot.mSharedFs;
+      eos_debug("app-anchor='%s' anchor='%s' redirect-policy=%d", appanchor.c_str(),
+                anchor.c_str(), rs);
 
-      eos_debug("app-anchor='%s' anchor='%s' redirect-policy=%d", appanchor.c_str(), anchor.c_str(), rs);
-      if ( (rs == Policy::eAlways) ||
-	   ((rs == Policy::eOptional) && (appanchor == anchor)) ) {
-	// compute the local path
-	std::string local_path = eos::common::FileId::FidPrefix2FullPath(
-									 eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
-									 local_snapshot.mPath.c_str());
-	eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"",
-		 local_path.c_str(), path, ininfo);
-	redirectionhost = "file://localhost";
-	redirectionhost += local_path.c_str();
-	ecode = -1;
+      if ((rs == Policy::eAlways) ||
+          ((rs == Policy::eOptional) && (appanchor == anchor))) {
+        // compute the local path
+        std::string local_path = eos::common::FileId::FidPrefix2FullPath(
+                                   eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
+                                   local_snapshot.mPath.c_str());
+        eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"",
+                 local_path.c_str(), path, ininfo);
+        redirectionhost = "file://localhost";
+        redirectionhost += local_path.c_str();
+        ecode = -1;
 
-	if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-	  eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-	  return SFS_ERROR;
-	}
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
 
-	rcode = SFS_REDIRECT;
-	gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
-	eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
-	return rcode;
+        rcode = SFS_REDIRECT;
+        gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
+        eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
+        return rcode;
       }
     }
   }
@@ -2168,7 +2201,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (isRepair) {
       plctargs.bookingsize = bookingsize ? bookingsize : gOFS->getFuseBookingSize();
     } else {
-      plctargs.bookingsize = isFuse ? (isTouch ? 0 : gOFS->getFuseBookingSize()) : bookingsize;
+      plctargs.bookingsize = isFuse ? (isTouch ? 0 : gOFS->getFuseBookingSize()) :
+                             bookingsize;
     }
 
     plctargs.dataproxys = &proxys;
