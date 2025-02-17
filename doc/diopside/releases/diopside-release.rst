@@ -16,6 +16,17 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.4 Diopside``
+====================
+
+2025-02-17
+
+Bug
+-----
+
+* [EOS-6327] - MGM: MGM crash in eos::common::FileSystem::getCoreParams(this=0x0)
+
+
 ``v5.3.3 Diopside``
 ====================
 
