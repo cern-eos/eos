@@ -389,8 +389,9 @@ void QdbMaster::PostSlaveToMaster(std::string old_master,
   auto status = cmd.wait(POST_SLAVE_TO_MASTER_TIMEOUT);
   
   if (status.exit_code) {
-    eos_static_warning("msg=\"post slave to master script failed\" script=\"%s\" retcode=%d",
-                       script, status.exit_code);
+    eos_static_warning("msg=\"post slave to master script failed\" "
+                       "script=\"%s\" retcode=%d", script.c_str(),
+                       status.exit_code);
   } else {
     eos_static_info("msg=\"post slave to master script run successfully\"");
   }
