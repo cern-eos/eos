@@ -385,59 +385,87 @@ public:
     }
   }
 
+  //--------------------------------------------------------------------------
+  //! Get hex empty file checksum representation depending on the
+  //! checksum type embedded in the layout
+  //!
+  //! @param layout layout type
+  //!
+  //! @return hex checksum value
+  //--------------------------------------------------------------------------
   static std::string
-  GetEmptyFileChecksum(unsigned long layout)
+  GetEmptyFileHexChecksum(unsigned long layout)
   {
-    std::string hexchecksum;
-    std::string binchecksum;
-    binchecksum.resize(40);
+    std::string hex_xs;
 
     switch ((layout & 0xf)) {
     case kAdler:
-      hexchecksum = "00000001";
+      hex_xs = "00000001";
       break;
 
     case kCRC32:
-      hexchecksum = "00000000";
+      hex_xs = "00000000";
       break;
 
     case kCRC32C:
-      hexchecksum = "00000000";
+      hex_xs = "00000000";
       break;
 
     case kMD5:
-      hexchecksum = "d41d8cd98f00b204e9800998ecf8427e";
+      hex_xs = "d41d8cd98f00b204e9800998ecf8427e";
       break;
 
     case kSHA1:
-      hexchecksum = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
+      hex_xs = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
       break;
 
     case kBLAKE3:
-      hexchecksum =
+      hex_xs =
         "af1349b9f5f9a1a6a0404dea36dcc9499bcb25c9adc112b7cc9a93cae41f3262";
       break;
 
     case kHWH64:
     case kCRC64:
     case kXXHASH64:
-      hexchecksum =
+      hex_xs =
         "0000000000000000";
+      break;
+
+    default:
+      hex_xs = "0000000000000000";
       break;
     }
 
-    for (unsigned int i = 0; i < hexchecksum.length(); i += 2) {
+    return hex_xs;
+  }
+
+  //--------------------------------------------------------------------------
+  //! Get binary empty file checksum representation depending on the
+  //! checksum type embedded in the layout
+  //!
+  //! @param layout layout type
+  //!
+  //! @return binary checksum value
+  //--------------------------------------------------------------------------
+  static std::string
+  GetEmptyFileBinChecksum(unsigned long layout)
+  {
+    std::string bin_xs;
+    bin_xs.resize(40);
+    std::string hex_xs = GetEmptyFileHexChecksum(layout);
+
+    for (unsigned int i = 0; i < hex_xs.length(); i += 2) {
       // hex2binary conversion
       char hex[3];
-      hex[0] = hexchecksum[i];
-      hex[1] = hexchecksum[i + 1];
+      hex[0] = hex_xs[i];
+      hex[1] = hex_xs[i + 1];
       hex[2] = 0;
-      binchecksum[i / 2] = strtol(hex, 0, 16);
+      bin_xs[i / 2] = strtol(hex, 0, 16);
     }
 
-    binchecksum.erase(hexchecksum.length() / 2);
-    binchecksum.resize(hexchecksum.length() / 2);
-    return binchecksum;
+    bin_xs.erase(hex_xs.length() / 2);
+    bin_xs.resize(hex_xs.length() / 2);
+    return bin_xs;
   }
 
   //--------------------------------------------------------------------------

@@ -2639,7 +2639,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // ---------------------------------------------------------------------
         {
           // get an empty file checksum
-          std::string binchecksum = LayoutId::GetEmptyFileChecksum(layoutId);
+          std::string binchecksum = LayoutId::GetEmptyFileBinChecksum(layoutId);
           eos::Buffer cx;
           cx.putData(binchecksum.c_str(), binchecksum.size());
 

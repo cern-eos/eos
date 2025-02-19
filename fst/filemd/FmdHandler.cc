@@ -101,6 +101,8 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
                                bool blockxs_err,
                                bool layout_err)
 {
+  using eos::common::LayoutId;
+
   if (!fid) {
     eos_err("%s", "msg=\"skipping insert of file with fid=0\"");
     return false;
@@ -121,21 +123,21 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
   // Update reference size only if undefined
   if (valfmd.mProtoFmd.size() == eos::common::FmdHelper::UNDEF) {
     // This is done only for non-rain layouts
-    if (!eos::common::LayoutId::IsRain(valfmd.mProtoFmd.lid())) {
+    if (!LayoutId::IsRain(valfmd.mProtoFmd.lid())) {
       valfmd.mProtoFmd.set_size(disk_size);
     }
   }
 
   if (disk_xs.empty() && disk_size == 0)  {
-    valfmd.mProtoFmd.set_diskchecksum(common::LayoutId::GetEmptyFileChecksum(
-                                        valfmd.mProtoFmd.lid()));
+    valfmd.mProtoFmd.set_diskchecksum
+    (LayoutId::GetEmptyFileHexChecksum(valfmd.mProtoFmd.lid()));
   } else {
     valfmd.mProtoFmd.set_diskchecksum(disk_xs);
   }
 
   // Update the reference checksum only if empty
   if (valfmd.mProtoFmd.checksum().empty()) {
-    valfmd.mProtoFmd.set_checksum(disk_xs);
+    valfmd.mProtoFmd.set_checksum(valfmd.mProtoFmd.diskchecksum());
   }
 
   if (layout_err) {
@@ -442,7 +444,7 @@ FmdHandler::ResyncMgm(eos::common::FileSystem::fsid_t fsid,
     // Get an existing record without creating the record !!!
     std::unique_ptr<eos::common::FmdHelper> fmd {
       LocalGetFmd(fMd.mProtoFmd.fid(), fsid, true, false, fMd.mProtoFmd.uid(),
-      fMd.mProtoFmd.gid(), fMd.mProtoFmd.lid())};
+                  fMd.mProtoFmd.gid(), fMd.mProtoFmd.lid())};
 
     if (fmd) {
       // Check if exists on disk
