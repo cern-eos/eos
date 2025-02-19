@@ -128,7 +128,7 @@ FmdHandler::UpdateWithDiskInfo(eos::common::FileSystem::fsid_t fsid,
     }
   }
 
-  if (disk_xs.empty() && disk_size == 0)  {
+  if (disk_xs.empty() && (disk_size == 0))  {
     valfmd.mProtoFmd.set_diskchecksum
     (LayoutId::GetEmptyFileHexChecksum(valfmd.mProtoFmd.lid()));
   } else {

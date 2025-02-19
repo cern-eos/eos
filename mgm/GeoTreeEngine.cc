@@ -370,7 +370,7 @@ bool GeoTreeEngine::insertFsIntoGroup(FileSystem* fs,
   }
 
   // update all the information about this new node
-  if (!updateTreeInfo(mapEntry, &fsn, ~sfgGeotag & ~sfgId & ~sfgHost , 0, node)) {
+  if (!updateTreeInfo(mapEntry, &fsn, ~sfgGeotag & ~sfgId & ~sfgHost, 0, node)) {
     mapEntry->slowTreeMutex.UnLockWrite();
     pTreeMapMutex.LockRead();
     eos_err("error inserting fs %lu into group %s : slow tree node update failed",
@@ -652,9 +652,9 @@ void GeoTreeEngine::printInfo(std::string& info, bool dispTree, bool dispSnaps,
 
       for (size_t itcol = 0; itcol < pCircSize; itcol++) {
         float frame = pLatencySched.pCircFrCnt2Timestamp[
-                        (pFrameCount + pCircSize - 1 - itcol) % pCircSize] ?
+                 (pFrameCount + pCircSize - 1 - itcol) % pCircSize] ?
                       (ts - pLatencySched.pCircFrCnt2Timestamp[
-                         (pFrameCount + pCircSize - 1 - itcol) % pCircSize]) * 0.001 : 0;
+                  (pFrameCount + pCircSize - 1 - itcol) % pCircSize]) * 0.001 : 0;
         char header_name[24];
         std::sprintf(header_name, "%.1f", frame);
         table_header.push_back(std::make_tuple(header_name, 4, format_l));
@@ -1255,7 +1255,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
     int count = 0;
 
     for (auto it = existingReplicas->begin(); it != existingReplicas->end();
-         ++it , ++count) {
+         ++it, ++count) {
       const SchedTreeBase::tFastTreeIdx* idx =
         static_cast<const SchedTreeBase::tFastTreeIdx*>(0);
 
@@ -1419,7 +1419,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
       for (size_t i = 0; i < newReplicasIdx.size(); i++) {
         if (clientGeoTag.empty() ||
             accessReqFwEP((
-                            *entries[i]->foregroundFastStruct->treeInfo)[newReplicasIdx[i]].fullGeotag ,
+                            *entries[i]->foregroundFastStruct->treeInfo)[newReplicasIdx[i]].fullGeotag,
                           clientGeoTag)) {
           firewallProxyGroups[i] = accessGetProxygroup((
                                      *entries[i]->foregroundFastStruct->treeInfo)[newReplicasIdx[i]].fullGeotag);
@@ -1944,7 +1944,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
     {
       // maps a geolocation scores (int) to all the file system having this geolocation scores
-      map< unsigned , std::vector< FileSystem::fsid_t > > geoScore2Fs;
+      map< unsigned, std::vector< FileSystem::fsid_t > > geoScore2Fs;
       vector<SchedTreeBase::tFastTreeIdx> accessedReplicasIdx(1);
 
       for (auto entryIt = entry2FsId.begin(); entryIt != entry2FsId.end();
@@ -2048,7 +2048,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
       // randomly choose a fs among the highest scored ones
       selectedFsId = geoScore2Fs.rbegin()->second[eos::common::getRandom() %
-                     geoScore2Fs.rbegin()->second.size()];
+                                              geoScore2Fs.rbegin()->second.size()];
 
       // return the corresponding index
       for (it = existingReplicas->begin(); it != existingReplicas->end(); it++) {
@@ -2212,9 +2212,10 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
   gUpdaterStarted = true;
 
   if (!mFsListener->startListening()) {
-    eos_crit("error starting shared objects change notifications");
+    eos_crit("%s", "msg=\"failed starting shared object change notifications "
+             "listener\"");
   } else {
-    eos_info("GeoTreeEngine updater is starting...");
+    eos_info("%s", "msg=\"started GeoTreeEngine change listener\"");
   }
 
   std::chrono::seconds timeout {1};
@@ -2285,7 +2286,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 
 bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
                                    eos::common::FileSystem::fs_snapshot_t* fs, int keys,
-                                   SchedTreeBase::tFastTreeIdx ftIdx , SlowTreeNode* stn)
+                                   SchedTreeBase::tFastTreeIdx ftIdx, SlowTreeNode* stn)
 {
   // We get a consistent set of configuration parameters per refresh of the state
   eos::common::RWMutexReadLock lock(configMutex);
@@ -2651,7 +2652,7 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     if (!na.saturated) {
       if (na.fsCount == 1) {
         na.netSpeedClass = netSpeedClass;
-        pPenaltySched.pMaxNetSpeedClass = std::max(pPenaltySched.pMaxNetSpeedClass ,
+        pPenaltySched.pMaxNetSpeedClass = std::max(pPenaltySched.pMaxNetSpeedClass,
                                           netSpeedClass);
         na.netOutWeight += (1.0 - ((fs->mNetEthRateMiB) ? (fs->mNetOutRateMiB /
                                    fs->mNetEthRateMiB) : 0.0));
@@ -2829,7 +2830,7 @@ bool GeoTreeEngine::updateTreeInfo(const std::map<std::string, int>& updatesFs,
                 (unsigned long)fsid);
     }
 
-    updateTreeInfo(entry, &fs, it->second, idx ? *idx : 0 , node);
+    updateTreeInfo(entry, &fs, it->second, idx ? *idx : 0, node);
 
     if (idx) {
       entry->fastStructModified = true;
@@ -3098,36 +3099,36 @@ void GeoTreeEngine::updateAtomicPenalties()
                            pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass] +
                            pPenaltyUpdateRate * updateSched);
             AtomicCAS(reinterpret_cast<uint32_t&>
-                      (pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass]) ,
+                      (pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass]),
                       reinterpret_cast<uint32_t&>(pPenaltySched.pAccessDlScorePenaltyF[netSpeedClass])
                       , uf.u);
             uf.f = 0.01 * ((100 - pPenaltyUpdateRate) *
                            pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass] +
                            pPenaltyUpdateRate * updateSched);
             AtomicCAS(reinterpret_cast<uint32_t&>
-                      (pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass]) ,
-                      reinterpret_cast<uint32_t&>(pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass]) ,
+                      (pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass]),
+                      reinterpret_cast<uint32_t&>(pPenaltySched.pPlctDlScorePenaltyF[netSpeedClass]),
                       uf.u);
             uf.f = 0.01 * ((100 - pPenaltyUpdateRate) *
                            pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass] +
                            pPenaltyUpdateRate * updateSched);
             AtomicCAS(reinterpret_cast<uint32_t&>
-                      (pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass]) ,
+                      (pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass]),
                       reinterpret_cast<uint32_t&>(pPenaltySched.pAccessUlScorePenaltyF[netSpeedClass])
                       , uf.u);
             uf.f = 0.01 * ((100 - pPenaltyUpdateRate) *
                            pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass] +
                            pPenaltyUpdateRate * updateSched);
             AtomicCAS(reinterpret_cast<uint32_t&>
-                      (pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]) ,
-                      reinterpret_cast<uint32_t&>(pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]) ,
+                      (pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]),
+                      reinterpret_cast<uint32_t&>(pPenaltySched.pPlctUlScorePenaltyF[netSpeedClass]),
                       uf.u);
             uf.f = 0.01 * ((100 - pPenaltyUpdateRate) *
                            pPenaltySched.pProxyScorePenaltyF[netSpeedClass] +
                            pPenaltyUpdateRate * updateGw);
             AtomicCAS(reinterpret_cast<uint32_t&>
-                      (pPenaltySched.pProxyScorePenaltyF[netSpeedClass]) ,
-                      reinterpret_cast<uint32_t&>(pPenaltySched.pProxyScorePenaltyF[netSpeedClass]) ,
+                      (pPenaltySched.pProxyScorePenaltyF[netSpeedClass]),
+                      reinterpret_cast<uint32_t&>(pPenaltySched.pProxyScorePenaltyF[netSpeedClass]),
                       uf.u);
             eos_debug("netSpeedClass %d : values after update are "
                       "accessDlScorePenalty=%f, plctDlScorePenalty=%f, "
@@ -3586,7 +3587,7 @@ bool GeoTreeEngine::addDisabledBranch(const std::string& group,
     outStr.replace(")\n(", ") , (");
     outStr.replace(")\n", ")");
     outStr += " ]";
-    setConfigValue("geosched", "disabledbranches" , outStr.c_str());
+    setConfigValue("geosched", "disabledbranches", outStr.c_str());
   }
 
   return true;
@@ -3628,7 +3629,7 @@ bool GeoTreeEngine::rmDisabledBranch(const std::string& group,
       outStr.replace(")\n(", ") , (");
       outStr.replace(")\n", ")");
       outStr += " ]";
-      setConfigValue("geosched", "disabledbranches" , outStr.c_str());
+      setConfigValue("geosched", "disabledbranches", outStr.c_str());
     }
   }
 
