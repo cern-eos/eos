@@ -519,14 +519,18 @@ Iostat::ApplyIostatConfig(FsView* fsview)
 bool
 Iostat::StoreIostatConfig(FsView* fsview) const
 {
-  bool ok = fsview->SetGlobalConfig(gIostatPopularity, mReportPopularity) &
-            fsview->SetGlobalConfig(gIostatReportSave, mReportSave) &
-            fsview->SetGlobalConfig(gIostatReportNamespace, mReportNamespace) &
-            fsview->SetGlobalConfig(gIostatCollect, mRunning);
-  std::string udp_popularity_targets = EncodeUdpPopularityTargets();
+  bool ok = true;
 
-  if (!udp_popularity_targets.empty()) {
-    ok &= fsview->SetGlobalConfig(gIostatUdpTargetList, udp_popularity_targets);
+  if (gOFS && gOFS->mMaster->IsMaster()) {
+    ok = fsview->SetGlobalConfig(gIostatPopularity, mReportPopularity) &
+         fsview->SetGlobalConfig(gIostatReportSave, mReportSave) &
+         fsview->SetGlobalConfig(gIostatReportNamespace, mReportNamespace) &
+         fsview->SetGlobalConfig(gIostatCollect, mRunning);
+    std::string udp_popularity_targets = EncodeUdpPopularityTargets();
+
+    if (!udp_popularity_targets.empty()) {
+      ok &= fsview->SetGlobalConfig(gIostatUdpTargetList, udp_popularity_targets);
+    }
   }
 
   return ok;
