@@ -412,6 +412,8 @@ XrdMgmOfs::OrderlyShutdown()
   gOFS->mTracker.SetAcceptingRequests(false);
   gOFS->mTracker.SpinUntilNoRequestsInFlight(true,
       std::chrono::milliseconds(100));
+  eos_warning("%s", "msg=\"stopping error logger thread\"");
+  mErrLoggerTid.join();
   eos_warning("%s", "msg=\"stopping fs listener thread\"");
   auto stop_fsconfiglistener = std::thread([&]() {
     mFsConfigTid.join();

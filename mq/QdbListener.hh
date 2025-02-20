@@ -75,7 +75,7 @@ public:
   bool fetch(std::string& out, ThreadAssistant* assistant = nullptr);
 
 private:
-  qclient::Subscriber mSubscriber; ///< Subsriber to notifications
+  qclient::Subscriber mSubscriber; ///< Subscriber to notifications
   //! Subscription to channel
   std::unique_ptr<qclient::Subscription> mSubscription;
   std::mutex mMutex;
