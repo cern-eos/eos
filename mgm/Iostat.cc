@@ -521,7 +521,7 @@ Iostat::StoreIostatConfig(FsView* fsview) const
 {
   bool ok = true;
 
-  if (gOFS && gOFS->mMaster->IsMaster()) {
+  if ((gOFS && gOFS->mMaster->IsMaster()) || !gOFS) {
     ok = fsview->SetGlobalConfig(gIostatPopularity, mReportPopularity) &
          fsview->SetGlobalConfig(gIostatReportSave, mReportSave) &
          fsview->SetGlobalConfig(gIostatReportNamespace, mReportNamespace) &
