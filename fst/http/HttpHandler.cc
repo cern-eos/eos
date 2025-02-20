@@ -210,6 +210,9 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     }
   }
 
+  delete mHttpResponse;
+  mHttpResponse = 0;
+
   if (request->GetMethod() == "GET") {
     // call the HttpHandler::Get method
     mHttpResponse = Get(request);
