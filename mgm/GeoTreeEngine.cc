@@ -2220,6 +2220,10 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 
   std::chrono::seconds timeout {1};
   mq::FsChangeListener::Event event;
+  // Counter to force an update at most every 100 events, otherwise if there
+  // is a continuous stream of updates (and no fetch timeout happens) we risk
+  // having a stale tree view
+  uint32_t count = 0;
 
   while (!assistant.terminationRequested()) {
     while (sem_wait(&gUpdaterPauseSem)) {
@@ -2227,6 +2231,8 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
         throw "sem_wait() failed";
       }
     }
+
+    count = 0;
 
     while (mFsListener->fetch(assistant, event, timeout)) {
       if (event.isDeletion()) {
@@ -2239,9 +2245,13 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
       auto notifTypeIt = gQueue2NotifType.find(event.fileSystemQueue);
 
       if (notifTypeIt == gQueue2NotifType.end()) {
-        eos_err("could not determine the type of notification associated to queue ",
+        eos_err("msg=\"no notification associated to queue\" queue=\"%s\"",
                 event.fileSystemQueue.c_str());
       } else {
+        eos_debug("msg=\"got notification\" event.queue=\"%s\" "
+                  "event.key=\"%s\" type=%x", event.fileSystemQueue.c_str(),
+                  event.key.c_str(), notifTypeIt->second);
+
         // A machine might have several roles at the same time (DataProxy and
         // Gateway), so an update might end in multiple update maps
         if (notifTypeIt->second & sntFilesystem) {
@@ -2252,6 +2262,11 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
             (gNotificationsBufferFs)[event.fileSystemQueue] = gNotifKey2EnumSched.at(
                   event.key);
           }
+        }
+
+        // Handle at most 100 events if fetch timeout didn't trigger
+        if (++count == 100) {
+          break;
         }
       }
     }
@@ -2383,10 +2398,9 @@ bool GeoTreeEngine::updateTreeInfo(SchedTME* entry,
     BootStatus statboot = fs->mStatus;
     unsigned int errc = fs->mErrCode;
     ActiveStatus statactive = fs->mActiveStatus;
-    eos_debug("fs %lu available recompute  boot=%s  errcode=%d  active=%s",
+    eos_debug("msg=\"fs %lu available recompute\" boot=%s  errcode=%d  active=%s",
               (unsigned long) fs->mId,
-              eos::common::FileSystem::GetStatusAsString(statboot),
-              errc,
+              eos::common::FileSystem::GetStatusAsString(statboot), errc,
               (statactive == eos::common::ActiveStatus::kOnline) ? "online" : "offline");
 
     if ((statboot == BootStatus::kBooted) &&
