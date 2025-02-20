@@ -657,7 +657,8 @@ Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept
   // One-off collect all configured file systems for this node
   SignalRegisterThread();
   // Attach callback for node configuration updates
-  auto node_subscription = node_hash.subscribe();
+  std::unique_ptr<qclient::SharedHashSubscription>
+  node_subscription = node_hash.subscribe();
   node_subscription->attachCallback(std::bind(&Storage::NodeUpdateCb,
                                     this, _1));
 
@@ -666,6 +667,12 @@ Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept
     node_hash.set(eos::common::FST_HEARTBEAT_KEY, std::to_string(time(0)));
     assistant.wait_for(std::chrono::seconds(1));
   }
+
+  node_subscription->detachCallback();
+  node_subscription.reset(nullptr);
+  mq::SharedHashWrapper::deleteHash(gOFS.mMessagingRealm.get(),
+                                    gConfig.getNodeHashLocator(), false);
+  eos_static_info("%s", "msg=\"stopped QDB communicator thread\"");
 }
 
 //------------------------------------------------------------------------------
