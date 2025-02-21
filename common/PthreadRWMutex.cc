@@ -78,6 +78,15 @@ PthreadRWMutex::LockRead()
   return pthread_rwlock_rdlock(&mMutex);
 }
 
+//----------------------------------------------------------------------------
+// Try lock for read (shared)
+//----------------------------------------------------------------------------
+int
+PthreadRWMutex::TryLockRead()
+{
+  return pthread_rwlock_tryrdlock(&mMutex);
+}
+
 //------------------------------------------------------------------------------
 // Try to read lock the mutex within the timeout
 //------------------------------------------------------------------------------
@@ -121,6 +130,15 @@ int
 PthreadRWMutex::LockWrite()
 {
   return pthread_rwlock_wrlock(&mMutex);
+}
+
+//----------------------------------------------------------------------------
+// Try lock for write (exclusive)
+//----------------------------------------------------------------------------
+int
+PthreadRWMutex::TryLockWrite()
+{
+  return pthread_rwlock_trywrlock(&mMutex);
 }
 
 //------------------------------------------------------------------------------

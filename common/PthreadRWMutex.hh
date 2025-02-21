@@ -58,6 +58,13 @@ public:
   int LockRead() override;
 
   //----------------------------------------------------------------------------
+  //! Try lock for read (shared)
+  //!
+  //! @return 0 if lock acquired successfully, otherwise non-zero
+  //----------------------------------------------------------------------------
+  int TryLockRead() override;
+
+  //----------------------------------------------------------------------------
   //! Try to read lock the mutex within the timeout
   //!
   //! @param timeout_ns nano seconds timeout
@@ -75,6 +82,13 @@ public:
   //! Lock for write
   //----------------------------------------------------------------------------
   int LockWrite() override;
+
+  //----------------------------------------------------------------------------
+  //! Try lock for write (exclusive)
+  //!
+  //! @return 0 if lock acquired successfully, otherwise non-zero
+  //----------------------------------------------------------------------------
+  int TryLockWrite() override;
 
   //----------------------------------------------------------------------------
   //! Unlock a write lock
