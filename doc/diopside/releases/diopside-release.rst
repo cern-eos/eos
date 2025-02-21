@@ -26,6 +26,31 @@ Bug
 
 * [EOS-6327] - MGM: MGM crash in eos::common::FileSystem::getCoreParams(this=0x0)
 
+``v5.3.5 Diopside``
+====================
+
+2025-02-21
+
+Bug
+----
+
+* [EOS-6332] - MGM crash in ReplicationTracker
+* [EOS-6333] - GeoScheduler views are not always updated with no-MQ
+* [EOS-6334] - MGM slave tries to save Iostat configuration
+* [EOS-6336] - Possible FST deadlock on the mFsMutex
+* [EOS-6337] - Memory leak when handling HTTP chunk uploads
+
+
+``v5.3.4 Diopside``
+====================
+
+2025-02-17
+
+Bug
+----
+
+* [EOS-6327] - MGM crash in eos::common::FileSystem::getCoreParams(this=0x0)
+
 
 ``v5.3.3 Diopside``
 ====================
