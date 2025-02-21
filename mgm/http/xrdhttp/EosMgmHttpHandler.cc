@@ -228,7 +228,7 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
   for (const auto& hdr : req.headers) {
     eos_static_debug("msg=\"normalize hdr\" key=\"%s\" value=\"%s\"",
-                    hdr.first.c_str(), hdr.second.c_str());
+                     hdr.first.c_str(), hdr.second.c_str());
     std::string lc_string = LC_STRING(hdr.first);
     normalized_headers[lc_string] = hdr.second;
 
@@ -452,8 +452,9 @@ EosMgmHttpHandler::ProcessRestApiPost(XrdHttpExtReq& req,
     res = req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
                              errmsg.length());
   } else {
+    eos_static_debug("response=\"%s\"", responseData.c_str());
     // HTTP request successful, send the response
-    res = req.SendSimpleResp(200, responseData.c_str(), "", responseData.c_str(),
+    res = req.SendSimpleResp(200, "OK", "", responseData.c_str(),
                              responseData.length());
   }
 
