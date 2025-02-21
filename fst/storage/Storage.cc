@@ -385,7 +385,9 @@ Storage::Shutdown()
   // deletion outside the mFsMutex to avoid any deadlocks
   std::set<eos::fst::FileSystem*> set_fs;
   {
-    eos::common::RWMutexWriteLock wr_lock(mFsMutex);
+    while (mFsMutex.TryLockWrite() != 0) {
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
 
     for (auto* ptr_fs : mFsVect) {
       set_fs.insert(ptr_fs);
@@ -397,6 +399,7 @@ Storage::Shutdown()
 
     mFsVect.clear();
     mFsMap.clear();
+    mFsMutex.UnLockWrite();
   }
 
   for (auto& ptr_fs : set_fs) {

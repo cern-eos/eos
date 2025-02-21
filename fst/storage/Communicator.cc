@@ -80,7 +80,10 @@ Storage::GetFstConfigValue(const std::string& key,
 void
 Storage::UnregisterFileSystem(const std::string& queuepath)
 {
-  eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
+  while (mFsMutex.TryLockWrite() != 0) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
   auto it = std::find_if(mFsVect.begin(), mFsVect.end(), [&](FileSystem * fs) {
     return (fs->GetQueuePath() == queuepath);
   });
@@ -88,6 +91,7 @@ Storage::UnregisterFileSystem(const std::string& queuepath)
   if (it == mFsVect.end()) {
     eos_static_warning("msg=\"file system is already removed\" qpath=%s",
                        queuepath.c_str());
+    mFsMutex.UnLockWrite();
     return;
   }
 
@@ -105,6 +109,7 @@ Storage::UnregisterFileSystem(const std::string& queuepath)
     mFsMap.erase(it_map);
   }
 
+  mFsMutex.UnLockWrite();
   eos_static_info("msg=\"deleting file system\" qpath=%s",
                   fs->GetQueuePath().c_str());
   delete fs;
@@ -116,7 +121,10 @@ Storage::UnregisterFileSystem(const std::string& queuepath)
 Storage::FsRegisterStatus
 Storage::RegisterFileSystem(const std::string& queuepath)
 {
-  eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
+  while (mFsMutex.TryLockWrite() != 0) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
   auto it = std::find_if(mFsVect.begin(), mFsVect.end(),
   [&](FileSystem * fs) {
     return (fs->GetQueuePath() == queuepath);
@@ -125,6 +133,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   if (it != mFsVect.end()) {
     eos_static_warning("msg=\"file system is already registered\" qpath=%s",
                        queuepath.c_str());
+    mFsMutex.UnLockWrite();
     return FsRegisterStatus::kNoAction;
   }
 
@@ -133,6 +142,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
     eos_static_crit("msg=\"failed to parse locator\" qpath=%s",
                     queuepath.c_str());
+    mFsMutex.UnLockWrite();
     return FsRegisterStatus::kNoAction;
   }
 
@@ -147,6 +157,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
     eos_static_info("msg=\"partially register file system\" qpath=\"%s\"",
                     queuepath.c_str());
+    mFsMutex.UnLockWrite();
     return FsRegisterStatus::kPartial;
   }
 
@@ -166,6 +177,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
     }
   }
 
+  mFsMutex.UnLockWrite();
   return FsRegisterStatus::kRegistered;
 }
 
@@ -268,7 +280,12 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
     if ((key == "id") || (key == "uuid")) {
       // Switch to a write lock as we might add the new fs to the map
       fs_rd_lock.Release();
-      eos::common::RWMutexWriteLock fs_wr_lock(mFsMutex);
+
+      // Mutex write lock non-blocking
+      while (mFsMutex.TryLockWrite() != 0) {
+        std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      }
+
       auto itv = std::find_if(mFsVect.begin(), mFsVect.end(),
       [&](fst::FileSystem * fs) {
         return (fs->GetQueuePath() == queuepath);
@@ -278,6 +295,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
         eos_static_err("msg=\"no file system for id modification\" "
                        "qpath=\"%s\" key=\"%s\"", queuepath.c_str(),
                        key.c_str());
+        mFsMutex.UnLockWrite();
         return;
       }
 
@@ -291,6 +309,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
         eos_static_info("msg=\"defer file system registration\" qpath=\"%s\"",
                         queuepath.c_str());
+        mFsMutex.UnLockWrite();
         return;
       }
 
@@ -300,7 +319,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
                       "uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
                       fs->GetLocalUuid().c_str());
       // Switch back to read lock and update the iterator
-      fs_wr_lock.Release();
+      mFsMutex.UnLockWrite();
       fs_rd_lock.Grab(mFsMutex);
       it = mFsMap.find(fsid);
     } else {
