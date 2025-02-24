@@ -16,6 +16,16 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.6 Diopside``
+====================
+
+2025-02-24
+
+Bug
+-----
+
+* [EOS-6338] - Gateway REST API hangs on p2
+
 ``v5.3.4 Diopside``
 ====================
 
