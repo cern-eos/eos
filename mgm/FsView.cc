@@ -2235,7 +2235,10 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   // Notify the FST to delete the fs object from local maps is actually done
   // above but we also needs to notify about the node hash deletion if needed.
   if (notify_fst) {
-    fs->DeleteSharedHash(true);
+    // Delete the shared hash only in QDB pub-sub mode
+    if (gOFS->mMessagingRealm->haveQDB()) {
+      fs->DeleteSharedHash(true);
+    }
 
     // Eventually delete the node
     if (mNodeView.count(snapshot.mQueue)) {

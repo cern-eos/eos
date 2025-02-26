@@ -86,9 +86,12 @@ FileSystem::~FileSystem()
   mFileIO.release();
   // Notify the MGM this file system is down
   SetStatus(eos::common::BootStatus::kDown);
+
   // Delete the local SharedHash object attached to it without touching the
-  // shared object in QDB.
-  DeleteSharedHash(false);
+  // shared object in QDB, this only for QDB pub-sub mode
+  if (mRealm->haveQDB()) {
+    DeleteSharedHash(false);
+  }
 }
 
 //------------------------------------------------------------------------------
