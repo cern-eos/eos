@@ -1244,8 +1244,7 @@ data::datax::recover_ropen(fuse_req_t req)
     }
 
     // Issue a new open requesting also a new TCP connection
-    const struct fuse_ctx* ctx = fuse_req_ctx(req);
-    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(ctx);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy, true);
     newproxy->OpenAsync(newproxy, mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
@@ -1407,8 +1406,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::shared_proxy &proxy,
     }
 
     // Issue a new open requesting also a new TCP connection
-    const struct fuse_ctx* ctx = fuse_req_ctx(req);
-    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(ctx);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy, true);
     newproxy->OpenAsync(newproxy, open_url.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
@@ -1557,8 +1555,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::shared_proxy &proxy,
 
     eos_warning("recover reopening file for writing");
     // Issue a new open requesting also a new TCP connection
-    const struct fuse_ctx* ctx = fuse_req_ctx(req);
-    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(ctx);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy, true);
     newproxy->OpenAsync(newproxy, open_url.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
@@ -1739,8 +1736,7 @@ data::datax::recover_write(fuse_req_t req)
   }
 
   // Issue a new open requesting also a new TCP connection
-  const struct fuse_ctx* ctx = fuse_req_ctx(req);
-  XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(ctx);
+  XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy, true);
 
   if (!recover_from_file_cache && !recover_truncate) {
     // we need to open this file because it is not complete locally
@@ -1904,7 +1900,8 @@ data::datax::recover_write(fuse_req_t req)
     }
 
     // upload into identical inode using the drop & replace option (repair flag)
-    XrdCl::shared_proxy uploadproxy = XrdCl::Proxy::Factory();
+    // Issue a new open requesting also a new TCP connection
+    XrdCl::shared_proxy uploadproxy = XrdCl::Proxy::Factory(proxy, true);
     uploadproxy->inherit_attached(proxy);
     uploadproxy->inherit_writequeue(uploadproxy, proxy);
 
@@ -1913,15 +1910,14 @@ data::datax::recover_write(fuse_req_t req)
       eos_warning("failed to signal begin-flush");
     }
 
+    std::string tmpUrl = mRemoteUrlRW;
     // add the repair flag to drop existing locations and select new ones
-    mRemoteUrlRW += "&eos.repair=1";
+    tmpUrl += "&eos.repair=1";
     // request enough space for this recovery upload
-    mRemoteUrlRW += "&eos.bookingsize=0";
+    tmpUrl += "&eos.bookingsize=0";
     eos_warning("re-opening with repair flag for recovery %s",
-                mRemoteUrlRW.c_str());
-    int rc = try_wopen(req, uploadproxy, mRemoteUrlRW);
-    mRemoteUrlRW.erase(mRemoteUrlRW.length() -
-                       std::string("&eos.repair=1").length());
+                tmpUrl.c_str());
+    int rc = try_wopen(req, uploadproxy, tmpUrl);
 
     // put back the flush indicator
     if (req && begin_flush(req)) {
@@ -2641,7 +2637,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
         int tret = 0;
 
         // call recovery for an open
-        if ((tret = TryRecovery(req, false))) {
+        if ((tret = TryRecovery(req, true))) {
           mRecoveryStack.push_back(eos_log(LOG_SILENT,
                                            "status='%s' errno='%d' hint='failed TryRecovery'",
                                            status.ToString().c_str(), tret));
@@ -2702,7 +2698,7 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
         mRecoveryStack.push_back(eos_log(LOG_SILENT,
                                          "status='%s' hint='will TryRecovery'",
                                          status.ToString().c_str()));
-        recovery = TryRecovery(req, false);
+        recovery = TryRecovery(req, mFile->has_xrdioro(req) ? false : true);
 
         if (recovery) {
           // recovery failed
@@ -3024,6 +3020,18 @@ data::datax::set_remote(const std::string& hostport,
   } else {
     mRemoteUrlRO = remoteurl;
   }
+}
+
+/* -------------------------------------------------------------------------- */
+std::string
+/* -------------------------------------------------------------------------- */
+data::datax::get_remote(bool isRW)
+/* -------------------------------------------------------------------------- */
+{
+  if (isRW) {
+    return mRemoteUrlRW;
+  }
+  return mRemoteUrlRO;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -3355,32 +3363,47 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                     // let's see if the initial OpenAsync got a timeout, this we should retry always
                     XrdCl::XRootDStatus status = fit->second->opening_state();
                     bool rescue = true;
+                    bool canreissue = true;
+                    const std::string opname =
+                      (fit->second->state() == XrdCl::Proxy::CLOSEFAILED) ? "CloseAsync" : "OpenAsync";
 
-                    if (
+                    if (fit->second->state() == XrdCl::Proxy::CLOSEFAILED &&
+                        fit->second->opening_state().code == XrdCl::errOperationExpired) {
+                      // to trigger new tcp conneciton for next time
+                      XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(fit->second, true);
+                      canreissue = false;
+                    }
+
+                    if (canreissue && (
                       (status.code == XrdCl::errConnectionError) ||
                       (status.code == XrdCl::errSocketTimeout) ||
                       (status.code == XrdCl::errOperationExpired) ||
-                      (status.code == XrdCl::errSocketDisconnected)) {
-                      eos_static_warning("re-issuing OpenAsync request after timeout - ino:%16lx err-code:%d",
-                                         (*it)->id(), status.code);
+                      (status.code == XrdCl::errSocketDisconnected))){
+                      eos_static_warning("re-issuing %s request after timeout - ino:%16lx err-code:%d",
+                                         opname.c_str(),(*it)->id(), status.code);
                       // Recover such errors by force creation of a new XrdCl
-                      // File object and a new TCP connection to avoid pilling
-                      // up requests on a "blocked" TCP due, for example, to a
-                      // slow close operation.
-                      fuse_id id = fit->second->fuseid();
-                      XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(nullptr, &id);
-                      newproxy->OpenAsync(newproxy, fit->second->url(), fit->second->flags(),
-                                          fit->second->mode(), 0);
+                      // File object. Also try to use a new TCP connection for our
+                      // fuseid(), to avoid pilling up requests on a "blocked" TCP due,
+                      // for example, to a slow close operation. A new conneciton may
+                      // not always used for the re-issued open below, e.g. if the
+                      // process identified by the proxy's fuseid() has exited, the
+                      // processCache will not increment the conneciton counter.
+                      XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(fit->second, true);
+                      // For the open use the url from the ioctx (datax) object rather than
+                      // the previous proxy. The previous proxy may have used url options
+                      // we don't want here, such as eos.repair.
+                      newproxy->OpenAsync(newproxy, (*it)->get_remote(true),
+                                          fit->second->flags(), fit->second->mode(), 0);
                       newproxy->inherit_attached(fit->second);
                       newproxy->inherit_protocol(fit->second);
                       map[fit->first] = newproxy;
                       continue;
                     } else {
-                      eos_static_warning("OpenAsync failed - trying recovery - ino:%16lx err-code:%d",
-                                         (*it)->id(), status.code);
-
                       if (status.errNo == kXR_noserver) {
                         int tret = 0;
+
+                        eos_static_warning("%s failed - trying recovery - ino:%16lx err-code:%d",
+                                           opname.c_str(),(*it)->id(), status.code);
 
                         if (!(tret = (*it)->TryRecovery(0, true))) {
                           (*it)->recoverystack().push_back
@@ -3402,8 +3425,8 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                         }
                       }
 
-                      eos_static_warning("giving up OpenAsync request - ino:%16lx err-code:%d",
-                                         (*it)->id(), status.code);
+                      eos_static_warning("giving up %s request - ino:%16lx err-code:%d",
+                                         opname.c_str(),(*it)->id(), status.code);
 
                       if (status.errNo == kXR_overQuota) {
                         // don't preserve these files, they got an application error beforehand
