@@ -51,18 +51,48 @@ XrdCl::Proxy::ReadAsyncHandler::gExpiredChunks;
 // creation of a new TCP connection for the underlying XrdC::File object.
 //------------------------------------------------------------------------------
 XrdCl::shared_proxy
-XrdCl::Proxy::Factory(const fuse_ctx* ctx, const fuse_id* id)
+XrdCl::Proxy::Factory(const shared_proxy proxy, bool reconnect)
 {
-  // If fusex ctx or fuse_id present then we need to force the creation of a
-  // new TCP connection for the underlying proxy object
-  if (ctx || id) {
-    uid_t uid = (ctx ? ctx->uid : id->uid);
-    gid_t gid = (ctx ? ctx->gid : id->gid);
-    pid_t pid = (ctx ? ctx->pid : id->pid);
-    (void) fusexrdlogin::processCache->retrieve(pid, uid, gid, true);
+  fuse_id fid;
+  std::string ruser;
+  // If reconnect is true we try to ensure that the new proxy will use a
+  // different connection to the original proxy supplied in the proxy argument.
+  // If the current login url proposed by the processCache has already changed
+  // from that which the old proxyed used, we use that login url. Otherwise we
+  // request the processCache to change login url and use the new one.
+  if (proxy) {
+    fid = proxy->fuseid();
+    ruser = proxy->mReconUsername;
+    if (ruser.empty()) {
+      XrdCl::URL url(proxy->url());
+      ruser = url.GetUserName();
+    }
+  }
+
+  if (fid.pid != 0 && reconnect) {
+    bool skip = false;
+    ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(fid.pid, fid.uid, fid.gid, false);
+    if (snapshot) {
+      if (snapshot->getBoundIdentity()->getLogin().getStringID() != ruser) {
+        ruser = snapshot->getBoundIdentity()->getLogin().getStringID();
+        skip = true;
+      }
+    }
+    if (!skip) {
+      snapshot = fusexrdlogin::processCache->retrieve(fid.pid, fid.uid, fid.gid, true);
+      if (snapshot) {
+        ruser = snapshot->getBoundIdentity()->getLogin().getStringID();
+      }
+    }
   }
 
   shared_proxy sp = std::make_shared<Proxy>();
+  if (proxy) {
+    sp->mIno = proxy->id();
+    sp->mReq = proxy->req();
+  }
+  sp->mId = fid;
+  sp->mReconUsername = ruser;
   return sp;
 }
 
@@ -458,6 +488,11 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
   XrdSysCondVarHelper lLock(OpenCondVar());
   int in_state = state();
   mUrl = url;
+  if (!mReconUsername.empty()) {
+    XrdCl::URL tmpurl(url);
+    tmpurl.SetUserName(mReconUsername);
+    mUrl = tmpurl.GetURL();
+  }
   mFlags = flags;
   mMode = mode;
   mTimeout = timeout;
@@ -482,7 +517,7 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
   }
 
   if (state() == FAILED) {
-    eos_err("url=%s flags=%x mode=%x state=failed", url.c_str(), (int) flags,
+    eos_err("url=%s flags=%x mode=%x state=failed", mUrl.c_str(), (int) flags,
             (int) mode);
     return XOpenState;
   }
@@ -497,7 +532,7 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
 #endif
 
   if (EOS_LOGS_DEBUG) {
-    eos_debug("this=%x url=%s in-state %d state %d\n", this, url.c_str(), in_state,
+    eos_debug("this=%x url=%s in-state %d state %d\n", this, mUrl.c_str(), in_state,
               state());
   }
 
@@ -507,7 +542,7 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
   if (!status.IsOK()) {
   } else {
     XOpenAsyncHandler.SetProxy(proxy);
-    status = Open(url.c_str(),
+    status = Open(mUrl.c_str(),
                   flags,
                   mode,
                   &XOpenAsyncHandler,
@@ -515,12 +550,14 @@ XrdCl::Proxy::OpenAsync(XrdCl::shared_proxy proxy,
   }
 
   if (status.IsOK()) {
-    set_state(OPENING);
+    // the status is cleared here, e.g. in case a closed proxy
+    // with a previous error is reopened ok.
+    set_state(OPENING, &status);
   } else {
-    eos_err("url=%s flags=%x mode=%x state=failed errmsg=%s", url.c_str(),
+    eos_err("url=%s flags=%x mode=%x state=failed errmsg=%s", mUrl.c_str(),
             (int) flags, (int) mode, status.ToString().c_str());
     XOpenAsyncHandler.SetProxy(0);
-    set_state(FAILED);
+    set_state(FAILED, &status);
   }
 
   return XOpenState;

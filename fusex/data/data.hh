@@ -139,6 +139,8 @@ public:
                     fuse_req_t req,
                     bool isRW);
 
+    std::string get_remote(bool isRW);
+
     // IO bridge interface
     ssize_t pread(fuse_req_t req, void* buf, size_t count, off_t offset);
     ssize_t pwrite(fuse_req_t req, const void* buf, size_t count, off_t offset);
