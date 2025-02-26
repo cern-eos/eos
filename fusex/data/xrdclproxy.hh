@@ -295,13 +295,19 @@ public:
   //! Method to crate a new XrdCl::Proxy object with the option to request the
   //! creation of a new TCP connection for the underlying XrdC::File object.
   //!
-  //! @param ctx current fuse_ctx if available otherwise nullptr
-  //! @param id current fuse_id if available otherwise nullptr
+  //! @param proxy     a proxy from which to copy fuseid, ino and req
+  //! @param reconnect if true try to ensure the new proxy will use a different
+  //!                  login url to one used by "proxy", either by using
+  //!                  the current login url proposed by processCache or
+  //!                  otherwise requesting a new one. IF the process pid in
+  //!                  fuseid has already exited processCache will likely
+  //!                  not be able update the login url, so no reconnect.
   //!
   //! @return new XrdCl::Proxy object
   //----------------------------------------------------------------------------
-  static XrdCl::shared_proxy Factory(const fuse_ctx* ctx = nullptr,
-                                     const fuse_id* id = nullptr);
+  static XrdCl::shared_proxy Factory(const shared_proxy proxy = {},
+                                     bool reconnect = false);
+
 
   // ---------------------------------------------------------------------- //
   XRootDStatus OpenAsync(XrdCl::shared_proxy proxy,
@@ -1553,6 +1559,7 @@ private:
 
   std::string mUrl;
   std::string mLastUrl;
+  std::string mReconUsername;
 
   OpenFlags::Flags mFlags;
   Access::Mode mMode;
