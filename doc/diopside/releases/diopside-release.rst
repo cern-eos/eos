@@ -16,6 +16,21 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.7 Diopside``
+====================
+
+2025-02-26
+
+Bug
+-----
+
+* [EOS-6339] - Do not abort if a configuration entry is wrong
+
+New Feature
+-------------
+
+* Add a very basic eos-diagnostic-tool
+
 ``v5.3.6 Diopside``
 ====================
 
