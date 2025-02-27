@@ -241,9 +241,8 @@ ReplicationTracker::ConversionPolicy(OperationMode mode, int fsid)
         return it->second->GetConfigMember("policy.conversion.access");
       }
     }
-
-    return "";
   }
+  return "";
 }
 
 std::string
