@@ -54,7 +54,6 @@ add_compile_options(-Wall
   -Wno-overflow
   -Wno-parentheses
   -Wno-pragmas
-  -Wno-return-type
   -Wno-sign-compare
   -Wno-type-limits
   -Wno-unused-function
@@ -69,6 +68,7 @@ add_compile_options(-Wall
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-mismatched-new-delete>
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-redundant-move>
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-reorder>
+  -Werror=return-type
 )
 
 #-------------------------------------------------------------------------------
@@ -112,6 +112,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     $<$<COMPILE_LANGUAGE:CXX>:-Wno-delete-non-abstract-non-virtual-dtor>
     $<$<COMPILE_LANGUAGE:CXX>:-Wno-inconsistent-missing-override>
     $<$<COMPILE_LANGUAGE:CXX>:-Wno-unqualified-std-cast-call>
+    -Werror=return-type
   )
 endif()
 

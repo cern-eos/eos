@@ -267,9 +267,8 @@ ReplicationTracker::ConversionSizePolicy(OperationMode mode, int fsid)
         return it->second->GetConfigMember("policy.conversion.access.size");
       }
     }
-
-    return "";
   }
+  return "";
 }
 
 //------------------------------------------------------------------------------
