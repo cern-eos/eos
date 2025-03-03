@@ -192,9 +192,16 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
 {
   std::shared_ptr<eos::mq::FsChangeListener> fs_listener =
     mMessagingRealm->GetFsChangeListener("filesystem-listener-thread");
-  FsView::gFsView.AddFsChangeListener(fs_listener, {"stat.errc", "stat.geotag",
-                                      "configstatus", "stat.boot"
-                                                   });
+  const std::set<std::string> interests {"stat.errc", "stat.geotag",
+                                         "configstatus", "stat.boot"};
+
+  // Register all the interests for this listener so that new file systems
+  // are properly registered with this listener based on it's interests
+  for (const auto& key : interests) {
+    fs_listener->subscribe(key);
+  }
+
+  FsView::gFsView.AddFsChangeListener(fs_listener, interests);
 
   if (!fs_listener->startListening()) {
     eos_static_crit("%s", "msg=\"unspecified problem when attempting to "
