@@ -34,6 +34,7 @@
 #include "common/Locators.hh"
 #include "common/InstanceName.hh"
 #include "common/AssistedThread.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
 #include <string_view>
 #ifndef __APPLE__
@@ -1081,6 +1082,19 @@ public:
   //----------------------------------------------------------------------------
   void DumpBalancerPoolInfo(std::ostringstream& oss,
                             std::string_view prefix) const;
+
+
+  //----------------------------------------------------------------------------
+  //! Get space name for the given vector of locations belonging to a file
+  //!
+  //! @param fid file identifier used for debug purposes
+  //! @param vect_loc file system location vector
+  //!
+  //! @return space name or empty if any error happened
+  //----------------------------------------------------------------------------
+  std::string
+  GetSpaceNameForFses(const eos::IFileMD::id_t fid,
+                      const eos::IFileMD::LocationVector& vect_loc) const;
 
   //! Mutex protecting all ...View variables
   mutable eos::common::RWMutexR ViewMutex;

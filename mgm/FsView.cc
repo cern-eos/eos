@@ -3509,6 +3509,34 @@ FsView::DumpBalancerPoolInfo(std::ostringstream& oss,
 }
 
 //------------------------------------------------------------------------------
+// Get space name for the given file system id
+//------------------------------------------------------------------------------
+std::string
+FsView::GetSpaceNameForFses(const eos::IFileMD::id_t fid,
+                            const eos::IFileMD::LocationVector& vect_loc) const
+{
+  std::string space_name;
+
+  for (const auto fs_loc : vect_loc) {
+    if (fs_loc && (fs_loc != EOS_TAPE_FSID)) {
+      eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
+      eos::mgm::FileSystem* fs = mIdView.lookupByID(fs_loc);
+
+      if (!fs) {
+        eos_err("msg=\"file has unknown file system location\" fxid=%08llx "
+                "fsid=%d", fid, fs_loc);
+        continue;
+      }
+
+      space_name = fs->GetSpace();
+      break;
+    }
+  }
+
+  return space_name;
+}
+
+//------------------------------------------------------------------------------
 // Should the provided fsid participate in statistics calculations?
 // Yes, if:
 // - The filesystem exists (duh)

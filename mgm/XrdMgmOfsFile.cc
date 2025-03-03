@@ -834,7 +834,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int ecode = 0;
   unsigned long fmdlid = 0;
   unsigned long long cid = 0;
-  unsigned int fmdfs0 = 0;
+  eos::IFileMD::LocationVector vect_loc;
 
   // Proc filter
   if (ProcInterface::IsProcAccess(path)) {
@@ -1070,7 +1070,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         } else {
           mFid = fmd->getId();
           fmdlid = fmd->getLayoutId();
-          fmdfs0  = fmd->getLocation(0);
+          vect_loc = fmd->getLocations();
           cid = fmd->getContainerId();
           fmdsize = fmd->getSize();
         }
@@ -1294,33 +1294,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (isRW) {
-    std::string source_space = "default";
-    std::string target_space;
-    unsigned long target_layout;
-
     if (vid.prot != "https" && !isInjection && !isTpc && !isRepair && fmd) {
-      // we need to get the space by looking at the first location
-      if (fmdfs0 && (fmdfs0 != EOS_TAPE_FSID)) {
-        eos::common::FileSystem::fs_snapshot_t local_snapshot;
-        {
-          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-          eos::mgm::FileSystem* local_fs =
-            FsView::gFsView.mIdView.lookupByID(fmdfs0);
-
-          if (!local_fs) {
-            eos_err("msg=\"file has unknown file system location\" "
-                    "fxid=%08llx fsid=%d", mFid, fmdfs0);
-            return Emsg(epname, error, EINVAL, "open file for update - unknown "
-                        "location for file", path);
-          }
-
-          source_space = local_fs->GetSpace();
-        }
-      }
-
-      auto conversion =
-        Policy::UpdateConversion(path, attrmap, vid, fmdlid, source_space,
-                                 *openOpaque, target_layout, target_space);
+      // Get space that file belongs to
+      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);
+      std::string source_space = (space_name.empty() ? "default" : space_name);
+      std::string target_space;
+      unsigned long target_layout;
+      auto conversion = Policy::UpdateConversion(path, attrmap, vid, fmdlid,
+                        source_space, *openOpaque,
+                        target_layout, target_space);
 
       if (conversion == Policy::eFail) {
         return Emsg(epname, error, EINVAL, "open file for update - invalid "
@@ -1626,34 +1608,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file", path);
     }
 
-    std::string source_space = "default";
-    std::string target_space;
-    unsigned long target_layout;
-
-    if (vid.prot != "https" && !isTpc && !isRepair && !isRepairRead && !isPio &&
-        !isPioReconstruct) {
-      // we need to get the space by looking at the first location
-      if (fmdfs0 && (fmdfs0 != EOS_TAPE_FSID)) {
-        eos::common::FileSystem::fs_snapshot_t local_snapshot;
-        {
-          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-          eos::mgm::FileSystem* local_fs =
-            FsView::gFsView.mIdView.lookupByID(fmdfs0);
-
-          if (!local_fs) {
-            eos_err("msg=\"file has unknown file system location\" "
-                    "fxid=%08llx fsid=%d", mFid, fmdfs0);
-            return Emsg(epname, error, EINVAL, "open file for update - unknown "
-                        "location for file", path);
-          }
-
-          source_space = local_fs->GetSpace();
-        }
-      }
-
-      auto conversion =
-        Policy::ReadConversion(path, attrmap, vid, fmdlid, source_space,
-                               *openOpaque, target_layout, target_space);
+    if (vid.prot != "https" && !isTpc && !isRepair && !isRepairRead &&
+        !isPio && !isPioReconstruct) {
+      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);
+      std::string source_space = (space_name.empty() ? "default" : space_name);
+      std::string target_space;
+      unsigned long target_layout;
+      auto conversion = Policy::ReadConversion(path, attrmap, vid, fmdlid,
+                        source_space, *openOpaque,
+                        target_layout, target_space);
 
       if (conversion == Policy::eFail) {
         return Emsg(
