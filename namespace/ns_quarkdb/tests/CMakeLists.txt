@@ -39,7 +39,7 @@ add_executable(
   MetadataTests.cc
   NextInodeProviderTest.cc
   OtherTests.cc
-  TestUtils.cc
+  NsTests.cc
   VariousTests.cc)
 
 target_link_libraries(
