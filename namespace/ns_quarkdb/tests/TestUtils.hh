@@ -24,27 +24,9 @@
 
 #include <gtest/gtest.h>
 #include "Namespace.hh"
-#include "qclient/Members.hh"
-#include "namespace/ns_quarkdb/NamespaceGroup.hh"
-#include "common/RWMutex.hh"
-#include <memory>
+#include "NsTests.hh"
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
-
-namespace qclient
-{
-class QClient;
-}
-
-namespace eos
-{
-class IContainerMDSvc;
-class IFileMDSvc;
-class IView;
-class IFsView;
-class MetadataFlusher;
-class IFileMD;
-}
 
 EOSNSTESTING_BEGIN
 
@@ -101,78 +83,11 @@ bool verifyContents(Iterator start, Iterator end, std::set<T> contents)
   return true;
 }
 
-//------------------------------------------------------------------------------
-//! Class FlushAllOnConstruction
-//------------------------------------------------------------------------------
-class FlushAllOnConstruction
+class NsTestsFixture : public NsTests, public ::testing::Test
 {
 public:
-  FlushAllOnConstruction(const QdbContactDetails& cd);
-  ~FlushAllOnConstruction();
-
-private:
-  QdbContactDetails contactDetails;
-};
-
-//------------------------------------------------------------------------------
-//! Test fixture providing generic utilities and initialization / destruction
-//! boilerplate code
-//------------------------------------------------------------------------------
-
-typedef uint64_t (*SizeMapper)(const IFileMD* file);
-
-class NsTestsFixture : public ::testing::Test
-{
-public:
-  NsTestsFixture();
-  ~NsTestsFixture();
-
-  // Lazy initialization.
-  eos::IContainerMDSvc* containerSvc();
-  eos::IFileMDSvc* fileSvc();
-  eos::IView* view();
-  eos::IFsView* fsview();
-
-  void shut_down_everything();
-
-  // explicit transfer of ownership
-  std::unique_ptr<qclient::QClient> createQClient();
-
-  // get a contact details object
-  QdbContactDetails getContactDetails();
-
-  // Return test cluster members
-  qclient::Members getMembers();
-
-  // Return default qclient instance. Use if you need just one qclient, and
-  // you're too lazy to call createQClient.
-  qclient::QClient& qcl();
-
-  // Return the namespaces' executor
-  folly::Executor* executor();
-
-  // Return flushers
-  eos::MetadataFlusher* mdFlusher();
-  eos::MetadataFlusher* quotaFlusher();
-
-  // Register size mapper
-  void setSizeMapper(SizeMapper sizeMapper);
-
-  // Populate namespace with dummy test data.
-  void populateDummyData1();
-
-  void cleanNSCache();
-private:
-  eos::common::RWMutex nsMutex;
-  void initServices();
-
-  std::map<std::string, std::string> testconfig;
-  std::unique_ptr<eos::ns::testing::FlushAllOnConstruction> guard;
-
-  std::unique_ptr<eos::QuarkNamespaceGroup> namespaceGroupPtr;
-
-  // Size mapper, if avaliable
-  SizeMapper sizeMapper = nullptr;
+  NsTestsFixture() = default;
+  ~NsTestsFixture() = default;
 };
 
 
