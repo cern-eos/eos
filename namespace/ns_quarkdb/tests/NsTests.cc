@@ -1,6 +1,11 @@
+//------------------------------------------------------------------------------
+// File: NsTests.cc
+// Author: Cedric Caffy <cedric.caffy@cern.ch>
+//------------------------------------------------------------------------------
+
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2016 CERN/Switzerland                                  *
+ * Copyright (C) 2025 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -16,28 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-//------------------------------------------------------------------------------
-// author: Georgios Bitzes <georgios.bitzes@cern.ch>
-// desc:   Test utilities
-//------------------------------------------------------------------------------
 
-#include "TestUtils.hh"
-#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "NsTests.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
 #include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include <sstream>
 #include <fstream>
 #include <qclient/QClient.hh>
-#include <gtest/gtest.h>
 
 EOSNSTESTING_BEGIN
 
 FlushAllOnConstruction::FlushAllOnConstruction(const QdbContactDetails& cd)
-  : contactDetails(cd)
+    : contactDetails(cd)
 {
   qclient::QClient qcl(cd.members, cd.constructOptions());
   qcl.exec("FLUSHALL").get();
@@ -46,7 +46,7 @@ FlushAllOnConstruction::FlushAllOnConstruction(const QdbContactDetails& cd)
 
 FlushAllOnConstruction::~FlushAllOnConstruction() { }
 
-NsTestsFixture::NsTestsFixture()
+NsTests::NsTests()
 {
   srandom(time(nullptr));
   // Connection parameters
@@ -77,27 +77,27 @@ NsTestsFixture::NsTestsFixture()
   guard.reset(new eos::ns::testing::FlushAllOnConstruction(getContactDetails()));
 }
 
-NsTestsFixture::~NsTestsFixture()
+NsTests::~NsTests()
 {
   shut_down_everything();
 }
 
-QdbContactDetails NsTestsFixture::getContactDetails()
+QdbContactDetails NsTests::getContactDetails()
 {
   return QdbContactDetails(getMembers(), testconfig["qdb_password"]);
 }
 
-qclient::Members NsTestsFixture::getMembers()
+qclient::Members NsTests::getMembers()
 {
   return qclient::Members::fromString(testconfig["qdb_cluster"]);
 }
 
-void NsTestsFixture::setSizeMapper(IQuotaStats::SizeMapper mapper)
+void NsTests::setSizeMapper(IQuotaStats::SizeMapper mapper)
 {
   sizeMapper = mapper;
 }
 
-void NsTestsFixture::initServices()
+void NsTests::initServices()
 {
   if (namespaceGroupPtr) {
     // Already initialized.
@@ -127,54 +127,54 @@ void NsTestsFixture::initServices()
   namespaceGroupPtr->getHierarchicalView()->initialize();
 }
 
-eos::IContainerMDSvc* NsTestsFixture::containerSvc()
+eos::IContainerMDSvc* NsTests::containerSvc()
 {
   initServices();
   return namespaceGroupPtr->getContainerService();
 }
 
-eos::IFileMDSvc* NsTestsFixture::fileSvc()
+eos::IFileMDSvc* NsTests::fileSvc()
 {
   initServices();
   return namespaceGroupPtr->getFileService();
 }
 
-eos::IView* NsTestsFixture::view()
+eos::IView* NsTests::view()
 {
   initServices();
   return namespaceGroupPtr->getHierarchicalView();
 }
 
-eos::IFsView* NsTestsFixture::fsview()
+eos::IFsView* NsTests::fsview()
 {
   initServices();
   return namespaceGroupPtr->getFilesystemView();
 }
 
-qclient::QClient& NsTestsFixture::qcl()
+qclient::QClient& NsTests::qcl()
 {
   initServices();
   return *(namespaceGroupPtr->getQClient());
 }
 
-folly::Executor* NsTestsFixture::executor()
+folly::Executor* NsTests::executor()
 {
   return namespaceGroupPtr->getExecutor();
 }
 
-eos::MetadataFlusher* NsTestsFixture::mdFlusher()
+eos::MetadataFlusher* NsTests::mdFlusher()
 {
   initServices();
   return namespaceGroupPtr->getMetadataFlusher();
 }
 
-eos::MetadataFlusher* NsTestsFixture::quotaFlusher()
+eos::MetadataFlusher* NsTests::quotaFlusher()
 {
   initServices();
   return namespaceGroupPtr->getQuotaFlusher();
 }
 
-void NsTestsFixture::shut_down_everything()
+void NsTests::shut_down_everything()
 {
   if (namespaceGroupPtr) {
     namespaceGroupPtr->getHierarchicalView()->finalize();
@@ -184,7 +184,7 @@ void NsTestsFixture::shut_down_everything()
   namespaceGroupPtr.reset();
 }
 
-std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient()
+std::unique_ptr<qclient::QClient> NsTests::createQClient()
 {
   QdbContactDetails cd = getContactDetails();
   return std::unique_ptr<qclient::QClient>(
@@ -192,7 +192,7 @@ std::unique_ptr<qclient::QClient> NsTestsFixture::createQClient()
          );
 }
 
-void NsTestsFixture::populateDummyData1()
+void NsTests::populateDummyData1()
 {
   // Be careful when making changes! Lots of tests depend on this structure,
   // you should probably create a new dummy dataset.
@@ -226,7 +226,7 @@ void NsTestsFixture::populateDummyData1()
   mdFlusher()->synchronize();
 }
 
-void NsTestsFixture::cleanNSCache()
+void NsTests::cleanNSCache()
 {
   using namespace eos::constants;
   std::map<std::string, std::string> map_cfg;

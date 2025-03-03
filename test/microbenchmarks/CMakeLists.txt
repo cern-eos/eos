@@ -44,6 +44,8 @@ add_executable(eos-microbenchmarks main.cc)
 add_executable(eos-idmap-microbenchmark common/BM_IdMap.cc)
 add_executable(eos-atomic-ptr-microbenchmark common/BM_AtomicPtr.cc)
 add_executable(eos-random-microbenchmark common/BM_Random.cc)
+add_executable(eos-nslocking-microbenchmark namespace/ns_quarkdb/BM_NSLocking.cc
+        ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/tests/NsTests.cc)
 add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMap.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/FlatScheduler.cc
@@ -83,3 +85,9 @@ target_link_libraries(eos-random-microbenchmark PRIVATE
 
 target_link_libraries(eos-threadid-microbenchmark PRIVATE
   benchmark::benchmark EosCommon-Static)
+
+target_link_libraries(eos-nslocking-microbenchmark PRIVATE
+  benchmark::benchmark
+  EosNsCommon-Static
+  FOLLY::FOLLY
+)
