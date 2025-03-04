@@ -16,6 +16,22 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.8 Diopside``
+====================
+
+2025-03-04
+
+Bug
+----
+
+* [EOS-6217] - eosxd looping in async open during write recovery
+* [EOS-6326] - fusex: crash in eosxd (fusex) around Proxy::Factory
+* [EOS-6347] - Conversion policies should better handle N/A file systems
+* MGM: Improvements to the geotree update process when running without MQ.
+* MGM/FST: Fix fs registration bug when running with MQ due to the deletion
+  of the shared hash object.
+
+
 ``v5.3.7 Diopside``
 ====================
 
