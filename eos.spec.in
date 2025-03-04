@@ -528,8 +528,6 @@ Requires: xrootd-client >= %{xrootd_version_min}
 Requires: xrootd-client >= %{xrootd_version_min}
 %endif
 
-
-
 %description -n eos-client
 The EOS shell client.
 
@@ -843,8 +841,6 @@ case "$1" in
   ;;
 esac
 
-%endif
-
 #-------------------------------------------------------------------------------
 # Package eos-scitokenapi only for >= CC7
 #-------------------------------------------------------------------------------
@@ -863,6 +859,9 @@ The EOS scitoken API for C,C++ and PYTHON.
 %{python3_sitearch}/eosscitoken*
 
 %endif
+
+%endif
+
 
 #-------------------------------------------------------------------------------
 # Package eos-test
