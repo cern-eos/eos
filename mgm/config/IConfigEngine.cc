@@ -217,8 +217,16 @@ void IConfigEngine::PublishConfigChange(const std::string& key,
 
   while (repval.replace("&", " ")) {}
 
-  mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key,
-      repval.c_str());
+  mq::SharedHashWrapper::Batch batch;
+
+  if (key.find("fs:") == 0) {
+    batch.SetTransient(key, repval.c_str());
+  } else {
+    batch.SetDurable(key, repval.c_str());
+  }
+
+  mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(
+    batch);
 }
 
 //------------------------------------------------------------------------------
