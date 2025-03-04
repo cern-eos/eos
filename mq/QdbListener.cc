@@ -73,9 +73,12 @@ QdbListener::fetch(std::string& out, ThreadAssistant* assistant)
   std::chrono::seconds timeout {5};
   std::unique_lock lock(mMutex);
 
-  if (!mCv.wait_for(lock, timeout, [&] {return !mPendingUpdates.empty();})) {
-    return false;
+  if (mPendingUpdates.empty()) {
+    if (!mCv.wait_for(lock, timeout, [&] {return !mPendingUpdates.empty();})) {
+      return false;
+    }
   }
+
   auto msg = mPendingUpdates.front();
   mPendingUpdates.pop_front();
   lock.unlock();
