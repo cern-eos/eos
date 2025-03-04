@@ -805,7 +805,7 @@ FsckEntry::RepairRainInconsistencies()
            !bad_fsids.empty()) {
       const FileSystem::fsid_t drop_fsid = *bad_fsids.begin();
       bad_fsids.erase(drop_fsid);
-      eos_info("msg=\"drop over-replicated stripe\" fxid=%08llx dfsid=%lu",
+      eos_info("msg=\"drop over-replicated stripe\" fxid=%08llx fsid=%lu",
                mFid, drop_fsid);
       (void)gOFS->DropReplica(mFid, drop_fsid);
       mFstFileInfo.erase(drop_fsid);
@@ -816,6 +816,39 @@ FsckEntry::RepairRainInconsistencies()
           mutable_loc->erase(it);
           break;
         }
+      }
+    }
+
+    // If there is the nominal number of stripes and the bad fsids are not
+    // among the attached fsids then these can be dropped
+    if ((mMgmFmd.locations_size() ==
+         LayoutId::GetStripeNumber(mMgmFmd.layout_id()) + 1) &&
+        !bad_fsids.empty()) {
+      std::set<eos::common::FileSystem::fsid_t> to_del;
+
+      for (const auto& bfsid : bad_fsids) {
+        bool found = false;
+
+        for (const auto& loc : mMgmFmd.locations()) {
+          if (bfsid == loc) {
+            found = true;
+            break;
+          }
+        }
+
+        // We can drop this stripe which is not in the list of locations
+        if (!found) {
+          eos_info("msg=\"drop bad unregistered stripe\" fxid=%08llx fsid=%lu",
+                   mFid, bfsid);
+          to_del.insert(bfsid);
+          (void)gOFS->DropReplica(mFid, bfsid);
+          mFstFileInfo.erase(bfsid);
+        }
+      }
+
+      // Remove all the stripes that have been dropped
+      for (const auto& d_fsid : to_del) {
+        bad_fsids.erase(d_fsid);
       }
     }
 
