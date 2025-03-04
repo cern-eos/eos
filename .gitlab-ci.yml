@@ -822,9 +822,6 @@ unit_test_asan:
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     # KOJI_SCRATCH will be set for branches and empty for tags
     - koji build ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
-  only:
-    - schedules
-    - tags
   tags:
     - docker_node
     - publish
@@ -862,6 +859,9 @@ publish_koji_rh-8:
   variables:
     TARGET: "eos8el"
     BUILD_NAME: "rh-8"
+  only:
+    - schedules
+    - tags
   needs:
     - job: rh-8
 
@@ -871,6 +871,9 @@ publish_koji_rh-9:
   variables:
     TARGET: "eos9el"
     BUILD_NAME: "rh-9"
+  only:
+    - schedules
+    - tags
   needs:
     - job: rh-9
 
