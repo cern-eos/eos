@@ -191,6 +191,15 @@ void MetadataFlusher::synchronize(ItemIndex targetIndex)
                   backgroundFlusher.getEndingIndex(), targetIndex);
 }
 
+std::string MetadataFlusher::getPersistencyType() {
+  // This doesn't change at runtime, init once and cache forever
+  if (persistencyConfig.empty()) {
+    persistencyConfig = backgroundFlusher.getPersistencyType();
+  }
+
+  return persistencyConfig;
+}
+
 //------------------------------------------------------------------
 // Class to receive notifications from the BackgroundFlusher
 //------------------------------------------------------------------------------

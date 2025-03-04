@@ -104,10 +104,12 @@ public:
   //----------------------------------------------------------------------------
   void synchronize(ItemIndex targetIndex = -1);
 
+  std::string getPersistencyType();
+
 private:
   void queueSizeMonitoring(qclient::ThreadAssistant& assistant);
   std::string id;
-
+  std::string persistencyConfig;
   FlusherNotifier notifier;
   qclient::BackgroundFlusher backgroundFlusher;
   qclient::AssistedThread sizePrinter;

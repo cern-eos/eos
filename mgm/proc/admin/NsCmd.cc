@@ -33,6 +33,7 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
 #include "namespace/Resolver.hh"
 #include "namespace/Constants.hh"
@@ -412,6 +413,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
                            (qdb_group->getPerformanceMonitor().get());
       std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
 
+      oss << "uid=all gid=all ns.qclient.persistency_type="
+          << qdb_group->getMetadataFlusher()->getPersistencyType() << "\n";
       if (info.find("rtt_min") != info.end()) {
         oss << "uid=all gid=all ns.qclient.rtt_ms.min="
             << info["rtt_min"] / 1000 << std::endl
@@ -599,6 +602,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       auto* perf_monitor = dynamic_cast<eos::QClPerfMonitor*>
                            (qdb_group->getPerformanceMonitor().get());
       std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
+      oss << "ALL      QClient Persistency              "
+          << qdb_group->getMetadataFlusher()->getPersistencyType() << "\n";
 
       if (info.find("rtt_min") != info.end()) {
         oss << "ALL      QClient overall RTT              "
