@@ -1162,7 +1162,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
                                   << "&eos.ruid=" << DAEMONUID
                                   << "&eos.rgid=" << DAEMONGID
                                   << "&xrd.wantprot=sss"
-                                  << "&eos.app=eos/fsck");
+                                  << "&eos.app=eos/fsck_scan");
   arg.FromString(opaque);
   XrdCl::FileSystem fs(url);
   const XrdCl::XRootDStatus status =
