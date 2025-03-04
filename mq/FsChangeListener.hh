@@ -158,6 +158,15 @@ public:
     return mListenerName;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get number of pending events
+  //----------------------------------------------------------------------------
+  uint64_t GetNumPendingEvents() const
+  {
+    std::lock_guard lock(mMutex);
+    return mPendingEvents.size();
+  }
+
 private:
   static std::string sAllMatchTag;
   mq::MessagingRealm* mMessagingRealm;

@@ -2235,6 +2235,8 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
     count = 0;
 
     while (mFsListener->fetch(assistant, event, timeout)) {
+      eos_static_debug("num_pending_events=%llu", mFsListener->GetNumPendingEvents());
+
       if (event.isDeletion()) {
         eos_debug("received deletion on subject %s : the fs was removed from "
                   "the GeoTreeEngine, skipping this update", event.fileSystemQueue.c_str());

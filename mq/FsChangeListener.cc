@@ -226,9 +226,12 @@ FsChangeListener::WaitForEvent(Event& out, std::chrono::seconds timeout)
 {
   std::unique_lock lock(mMutex);
 
-  if (!mCv.wait_for(lock, timeout, [&] {return !mPendingEvents.empty();})) {
-    return false;
+  if (mPendingEvents.empty()) {
+    if (!mCv.wait_for(lock, timeout, [&] {return !mPendingEvents.empty();})) {
+      return false;
+    }
   }
+
   out = mPendingEvents.front();
   mPendingEvents.pop_front();
   lock.unlock();
