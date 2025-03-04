@@ -150,9 +150,11 @@ class RequestServiceImpl final : public Eos::Service
               const eos::rpc::NSRequest* request,
               eos::rpc::NSResponse* reply) override
   {
-    eos_static_info("grpc::exec::request from client peer=%s ip=%s DN=%s token=%s",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+    eos_static_info("grpc::exec::request from client peer=%s ip=%s DN=%s "
+                    "token=%s req_type=%lu", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(),
+                    GrpcServer::DN(context).c_str(),
+                    request->authkey().c_str(), request->command_case());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
