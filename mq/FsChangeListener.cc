@@ -234,7 +234,6 @@ FsChangeListener::WaitForEvent(Event& out, std::chrono::seconds timeout)
 
   out = mPendingEvents.front();
   mPendingEvents.pop_front();
-  lock.unlock();
   return true;
 }
 

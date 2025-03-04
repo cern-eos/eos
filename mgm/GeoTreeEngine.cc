@@ -2220,10 +2220,11 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 
   std::chrono::seconds timeout {1};
   mq::FsChangeListener::Event event;
-  // Counter to force an update at most every 100 events, otherwise if there
-  // is a continuous stream of updates (and no fetch timeout happens) we risk
-  // having a stale tree view
+  // Counter to check regularly if the collection stopwatch has expired,
+  // otherwise if there is a continuous stream of updates (and no fetch
+  // timeout happens) we risk having a stale tree view.
   uint32_t count = 0;
+  common::IntervalStopwatch collect_stopwatch;
 
   while (!assistant.terminationRequested()) {
     while (sem_wait(&gUpdaterPauseSem)) {
@@ -2232,7 +2233,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
       }
     }
 
-    count = 0;
+    collect_stopwatch.startCycle(std::chrono::milliseconds(pTimeFrameDurationMs));
 
     while (mFsListener->fetch(assistant, event, timeout)) {
       eos_static_debug("num_pending_events=%llu", mFsListener->GetNumPendingEvents());
@@ -2266,9 +2267,13 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
           }
         }
 
-        // Handle at most 100 events if fetch timeout didn't trigger
-        if (++count == 100) {
-          break;
+        // Check regularly if the collection stopwatch has expired
+        if (++count == 10) {
+          count = 0;
+
+          if (collect_stopwatch.timeRemainingInCycle() == std::chrono::milliseconds(0)) {
+            break;
+          }
         }
       }
     }
