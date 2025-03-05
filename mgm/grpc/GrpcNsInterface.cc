@@ -774,9 +774,9 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
       } else {
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
-	vid.app = request->role().app();
-	vid.trace = request->role().trace();
-	vid.onbehalf = request->role().onbehalf();
+        vid.app = request->role().app();
+        vid.trace = request->role().trace();
+        vid.onbehalf = request->role().onbehalf();
       }
     }
   } else {
@@ -917,9 +917,9 @@ GrpcNsInterface::Find(eos::common::VirtualIdentity& ivid,
       } else {
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
-	vid.app = request->role().app();
-	vid.trace = request->role().trace();
-	vid.onbehalf = request->role().onbehalf();
+        vid.app = request->role().app();
+        vid.trace = request->role().trace();
+        vid.onbehalf = request->role().onbehalf();
       }
     }
   } else {
@@ -1355,9 +1355,9 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
       } else {
         vid = eos::common::Mapping::Someone(request->role().uid(),
                                             request->role().gid());
-	vid.app = request->role().app();
-	vid.trace = request->role().trace();
-	vid.onbehalf = request->role().onbehalf();
+        vid.app = request->role().app();
+        vid.trace = request->role().trace();
+        vid.onbehalf = request->role().onbehalf();
       }
     }
   } else {
@@ -1800,6 +1800,30 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
   }
 
   XrdOucErrInfo error;
+  std::set<std::string> lst_dirs;
+
+  if (request->recursive()) {
+    // Collect all the directories in the current subtree
+    XrdOucString err_msg;
+    std::map<std::string, std::set<std::string>> found;
+    bool no_files = true; // search only for directories
+    eos_static_debug("msg=\"collect subdirs for recursive setxattr\" "
+                     "path=\"%s\"", path.c_str());
+
+    if (gOFS->_find(path.c_str(), error, err_msg, vid, found, nullptr, nullptr,
+                    no_files)) {
+      reply->set_code((errno ? errno : EINVAL));
+      reply->set_msg(error.getErrText());
+      return grpc::Status::OK;
+    }
+
+    for (const auto& pair : found) {
+      lst_dirs.insert(pair.first);
+    }
+  } else {
+    lst_dirs.insert(path);
+  }
+
   errno = 0;
 
   // setting keys
@@ -1809,29 +1833,34 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
     std::string b64value;
     eos::common::SymKey::Base64(value, b64value);
 
-    if (gOFS->_attr_set(path.c_str(), error, vid, (const char*) 0, key.c_str(),
-                        b64value.c_str(), request->create())) {
-      reply->set_code(errno);
-      reply->set_msg(error.getErrText());
-      return grpc::Status::OK;
+    for (const auto& spath : lst_dirs) {
+      if (gOFS->_attr_set(spath.c_str(), error, vid, (const char*) 0, key.c_str(),
+                          b64value.c_str(), request->create())) {
+        reply->set_code(errno);
+        reply->set_msg(error.getErrText());
+        return grpc::Status::OK;
+      }
     }
   }
 
   // deleting keys
-  for (auto i = 0; i < request->keystodelete().size(); i++) {
-    if (gOFS->_attr_rem(path.c_str(), error, vid, (const char*) 0,
-                        request->keystodelete()[i].c_str())) {
-      reply->set_code(errno);
-      reply->set_msg(error.getErrText());
-      return grpc::Status::OK;
+  for (auto i = 0; i < request->keystodelete().size(); ++i) {
+    for (const auto& spath : lst_dirs) {
+      if (gOFS->_attr_rem(spath.c_str(), error, vid, (const char*) 0,
+                          request->keystodelete()[i].c_str())) {
+        reply->set_code(errno);
+        reply->set_msg(error.getErrText());
+        return grpc::Status::OK;
+      }
     }
   }
 
   reply->set_code(0);
-  std::string msg = "info: setxattr on '";
-  msg += path.c_str();
-  msg += "'";
-  reply->set_msg(msg);
+  std::ostringstream oss;
+  oss << "info: setxattr "
+      << (request->recursive() ? "recursively" : "")
+      << " on '" << path << "'";
+  reply->set_msg(oss.str());
   return grpc::Status::OK;
 }
 

@@ -25,6 +25,7 @@
 
 #ifdef EOS_GRPC
 #include "common/Mapping.hh"
+#include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -45,7 +46,7 @@ EOSMGMNAMESPACE_BEGIN
  */
 
 
-class GrpcNsInterface
+class GrpcNsInterface: public eos::common::LogId
 {
 public:
 

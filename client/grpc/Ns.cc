@@ -13,28 +13,27 @@ int usage(const char* prog)
           "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--app <app>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] [--position <position>] [--front] -p <path> <command>\n",
           prog);
   fprintf(stderr,
-          "                                     -p <path> mkdir \n"
-          "                                [-r] -p <path> rmdir \n"
-          "                                     -p <path> touch \n"
-          "                       [--norecycle] -p <path> rm \n"
-          "                   --target <target> -p <path> rename \n"
-          "                   --target <target> -p <path> symlink \n"
-          "                   --xattr <key=val> -p <path> setxattr # sets key=val \n"
-          "                     --xattr <!key=> -p <path> setxattr # deletes key\n"
-          " --owner-uid <uid> --owner-gid <gid> -p <path> chown \n"
-          "                       --mode <mode> -p <path> chmod \n"
-          " [--sysacl] [-r] [--acl <acl>] [--position <pos>] [--front] -p <path> acl \n"
+          "                                     -p <path> mkdir\n"
+          "                                [-r] -p <path> rmdir\n"
+          "                                     -p <path> touch\n"
+          "                       [--norecycle] -p <path> rm\n"
+          "                   --target <target> -p <path> rename\n"
+          "                   --target <target> -p <path> symlink\n"
+          "              [-r] --xattr <key=val> -p <path> setxattr # sets key=val\n"
+          "               [-r]  --xattr <!key=> -p <path> setxattr # deletes key\n"
+          " --owner-uid <uid> --owner-gid <gid> -p <path> chown\n"
+          "                       --mode <mode> -p <path> chmod\n"
+          " [--sysacl] [-r] [--acl <acl>] [--position <pos>] [--front] -p <path> acl\n"
           "     --ztoken <token> | [--acl] [-r] -p <path> token\n"
-          "                [--max-version <max> -p <path> create-version \n"
-          "                                     -p <path> list-version \n"
-          "                [--max-version <max> -p <path> purge-version \n"
+          "                [--max-version <max> -p <path> create-version\n"
+          "                                     -p <path> list-version\n"
+          "                [--max-version <max> -p <path> purge-version\n"
           "                                               recycle ls\n"
           "                                     -p <key>  recycle restore\n"
           " --year <year> [--month <month> [--day <day>]] recycle purge\n"
           "                                     -p <key>  recycle purge\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota get\n"
-          "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> --quota user|group|project \\"
-          "quota set\n"
+          "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> --quota user|group|project quota set\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota rm\n"
           "                                   [-p <path>] quota rmnode\n");
   return -1;
@@ -149,17 +148,17 @@ int main(int argc, const char* argv[])
         return usage(argv[0]);
       }
     }
-    
+
     if (option == "--app") {
       if (argc > i + 1) {
-        app = argv[i + 1]; 
+        app = argv[i + 1];
         ++i;
         continue;
       } else {
         return usage(argv[0]);
       }
     }
-    
+
     if (option == "--inodes") {
       if (argc > i + 1) {
         inodes = strtoul(argv[i + 1], 0, 10);
@@ -492,6 +491,7 @@ int main(int argc, const char* argv[])
     request.mutable_symlink()->mutable_id()->set_path(path);
     request.mutable_symlink()->set_target(target);
   } else if (cmd == "setxattr") {
+    request.mutable_xattr()->set_recursive(recursive);
     request.mutable_xattr()->mutable_id()->set_path(path);
     std::string key, val;
     eos::common::StringConversion::SplitKeyValue(xattr, key, val, "=");
