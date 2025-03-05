@@ -366,7 +366,7 @@ XrdFstOfs::XrdFstOfs() :
   eos::common::LogId(), mFstMessaging(nullptr), Storage(nullptr),
   mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
   mGeoTag("nogeotag"), mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
-  mCloseThreadPool(8, 64, 5, 6, 5, "async_close"),
+  mAsyncOpThreadPool(8, 64, 5, 6, 5, "async_op"),
   mMgmXrdPool(nullptr),
   mSimOpenDelay(false), mSimOpenDelaySec(120),
   mSimFmdOpenErr(false), mSimIoReadErr(false),

@@ -441,8 +441,8 @@ public:
   std::string mGeoTag; ///< Node geotag
   //! XrdOucBuffPool object for managing redirection buffers >= 2kb
   XrdOucBuffPool mXrdBuffPool;
-  //! Thread pool for async file close operations
-  eos::common::ThreadPool mCloseThreadPool;
+  //! Thread pool for async file  operations
+  eos::common::ThreadPool mAsyncOpThreadPool;
   //! Xrd connection pool for interaction with the MGM, used from CallManager
   std::unique_ptr<eos::common::XrdConnPool> mMgmXrdPool;
   std::atomic<bool> mSimOpenDelay; ///< simulate an open timeout for client

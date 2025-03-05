@@ -1161,7 +1161,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   if (rc < 0) {
     int envlen = 0;
-
     // Indicate the deletion flag for write errors
     mWrDelete = true;
     XrdOucString errdetail;
@@ -1432,14 +1431,14 @@ XrdFstOfsFile::close()
   auto closeCb = std::make_shared<XrdOucCallBack>();
   closeCb->Init(&error);
   error.setErrInfo(1800, "delay client up to 30 minutes");
-  gOFS.mCloseThreadPool.PushTask<void>([&, closeCb]() -> void {
+  gOFS.mAsyncOpThreadPool.PushTask<void>([&, closeCb]() -> void {
     eos_info("msg=\"doing close in the async thread\" fxid=%08llx", mFileId);
     int rc = _close();
     auto fileId = mFileId;
     // During Reply() we expect the enclosing XrdFstOfsFile to be destroyed,
     // so we don't refer to anything captured by reference once done
     int reply_rc = closeCb->Reply(rc, (rc ? error.getErrInfo() : 0),
-    (rc ? error.getErrText() : ""));
+                                  (rc ? error.getErrText() : ""));
 
     if (reply_rc == 0)
     {
@@ -1500,6 +1499,7 @@ XrdFstOfsFile::_close()
     gettimeofday(&closeStop, &tz);
     CloseTime();
     gettimeofday(&closeTime, &tz);
+
     // if we were kept in a cache (e.g. HttpHandlerFstFileCache)
     // use the last time we put placed in the cache as the closetime
     // (as this was the last time the user sent a request) for the
@@ -1509,11 +1509,13 @@ XrdFstOfsFile::_close()
       const unsigned long mus = timeToClose * 1000.0;
       closeTime.tv_sec += (mus / 1000000);
       closeTime.tv_usec += (mus % 1000000);
+
       if (closeTime.tv_usec >= 1000000) {
         closeTime.tv_sec++;
         closeTime.tv_usec -= 1000000;
       }
     }
+
     MakeReportEnv(report);
     eos_static_info("msg=\"%s\"", report.c_str());
 
@@ -1829,7 +1831,6 @@ XrdFstOfsFile::_close_wr()
       gOFS.WNoDeleteOnCloseFid[mFsId].resize(0);
     }
   }
-
 
   // Commit to MGM in case of rain reconstruction and not del on close
   if (mRainReconstruct && mLayout->IsEntryServer() && !mDelOnClose) {
@@ -3907,12 +3908,14 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     // If static initialization throws an exception, it will be retried next time
     static XrdSsiPbServiceType service(endPoint, resource, config);
     auto sentAt = std::chrono::steady_clock::now();
+
     try {
       service.Send(request, response, false);
     } catch (std::runtime_error& err) {
       eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
       service.Send(request, response, true);
     }
+
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
                      (receivedAt - sentAt);
@@ -4030,7 +4033,7 @@ XrdFstOfsFile::IsAsyncCloseConfigured()
 //------------------------------------------------------------------------------
 // Decide if close should be done synchronously. There are cases when close
 // should happen in the same thread eg. read, http tx, sink writes etc.
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
 bool
 XrdFstOfsFile::DoSyncClose()
 {
