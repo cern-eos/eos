@@ -322,6 +322,8 @@ public:
   bool DropGhostFid(const eos::common::FileSystem::fsid_t fsid,
                     const eos::IFileMD::id_t fid) const;
 
+  void ScanDir::ComputeChecksumIfRainFile(eos::common::FileId::fileid_t fid);
+
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode
   //! or inside the FST daemon

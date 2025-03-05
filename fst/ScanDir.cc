@@ -561,6 +561,28 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 #endif
 }
 
+void ScanDir::ComputeChecksumIfRainFile(eos::common::FileId::fileid_t fid)
+{
+  // In case this is a EC file and the xs stripe has not computed yet,
+  // for example because it was create with an older EOS version, instead
+  // of checking it, we compute the xs and store in the local storage, and
+  // leave the check for later.
+  // It might happen that even other stripes doesn't have yet the xs computed.
+  // Also in this case we skip the verification for later.
+  auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId);
+
+  if (!LayoutId::IsRain(fmd->mProtoFmd.lid())) {
+    return;
+  }
+
+  if (!fmd->mProtoFmd.checksum().empty()) {
+    // local checksum already computed
+    return;
+  }
+
+  // TODO: compute the checksum here
+}
+
 //------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
 // scanner level and also by setting the proper xattrs on the file.
@@ -623,6 +645,7 @@ ScanDir::CheckFile(const std::string& fpath)
     scan_ts_sec.erase(10);
   }
 
+  ComputeChecksumIfRainFile(fid);
   bool scan_result = false;
 
   if (DoRescan(scan_ts_sec)) {
