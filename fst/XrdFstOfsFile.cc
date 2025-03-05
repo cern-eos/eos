@@ -1305,6 +1305,7 @@ XrdFstOfsFile::stat(struct stat* buf)
 int
 XrdFstOfsFile::sync()
 {
+  eos_debug("msg=\"sync request\", fxid=%08llx", mFileId);
   static const int cbWaitTime = 3600;
 
   // TPC transfer
@@ -1359,7 +1360,52 @@ XrdFstOfsFile::sync()
     }
   } else {
     // Standard file sync
-    return mLayout->Sync();
+    static bool async_sync_cfg = IsAsyncSyncConfigured();
+
+    if (!async_sync_cfg || DoSyncSync()) {
+      eos::common::Timing tm("sync");
+      COMMONTIMING("begin", &tm);
+      int rc = mLayout->Sync();
+      COMMONTIMING("end", &tm);
+
+      if (tm.RealTime() > 2000) {
+        eos_warning("msg=\"slow sync operation\" fxid=%08llx", mFileId);
+      }
+
+      return rc;
+    }
+
+    // Delegate sync call to a differet thread while the client is waiting for
+    // the callback (SFS_STARTED)
+    eos_info("msg=\"sync delegated to async thread\" fxid=%08llx path=\"%s\" "
+             "fst_path=\"%s\"", mFileId, mNsPath.c_str(), mFstPath.c_str());
+    auto sync_cb = std::make_shared<XrdOucCallBack>();
+    sync_cb->Init(&error);
+    error.setErrInfo(600, "delay client up to 10 min for sync call");
+    gOFS.mAsyncOpThreadPool.PushTask<void>([&, sync_cb]() -> void {
+      // Make a local copy since the XrdFstOfsFile object is destroyed after
+      // the callback reply is called!
+      const auto fid = mFileId;
+      eos_info("msg=\"doing sync in async thread\", fxid=%08llx", fid);
+      eos::common::Timing tm("sync");
+      COMMONTIMING("begin", &tm);
+      int rc = mLayout->Sync();
+      COMMONTIMING("end", &tm);
+
+      if (tm.RealTime() > 2000)
+      {
+        eos_warning("msg=\"slow sync operation\" fxid=%08llx", fid);
+      }
+
+      int reply_rc = sync_cb->Reply(rc, (rc ? error.getErrInfo() : 0),
+                                    (rc ? error.getErrText() : ""));
+
+      if (reply_rc)
+      {
+        eos_err("msg=\"sync callback reply failed\" fxid=%08llx", fid);
+      }
+    });
+    return SFS_STARTED;
   }
 }
 
@@ -1428,21 +1474,23 @@ XrdFstOfsFile::close()
            "path=\"%s\" fst_path=\"%s\"", mFileId, mNsPath.c_str(),
            mFstPath.c_str());
   // Create a close callback and put the client in waiting mode
-  auto closeCb = std::make_shared<XrdOucCallBack>();
-  closeCb->Init(&error);
-  error.setErrInfo(1800, "delay client up to 30 minutes");
-  gOFS.mAsyncOpThreadPool.PushTask<void>([&, closeCb]() -> void {
-    eos_info("msg=\"doing close in the async thread\" fxid=%08llx", mFileId);
+  auto close_cb = std::make_shared<XrdOucCallBack>();
+  close_cb->Init(&error);
+  error.setErrInfo(1800, "delay client up to 30 minutes for close");
+  gOFS.mAsyncOpThreadPool.PushTask<void>([&, close_cb]() -> void {
+    // Make a local copy since the XrdFstOfsFile object is destroyed after
+    // the callback reply is called!
+    const auto fid = mFileId;
+    eos_info("msg=\"doing close in the async thread\" fxid=%08llx", fid);
     int rc = _close();
-    auto fileId = mFileId;
     // During Reply() we expect the enclosing XrdFstOfsFile to be destroyed,
     // so we don't refer to anything captured by reference once done
-    int reply_rc = closeCb->Reply(rc, (rc ? error.getErrInfo() : 0),
-                                  (rc ? error.getErrText() : ""));
+    int reply_rc = close_cb->Reply(rc, (rc ? error.getErrInfo() : 0),
+                                   (rc ? error.getErrText() : ""));
 
     if (reply_rc == 0)
     {
-      eos_err("%s", "msg=\"callback reply failed\" fxid=%08llx", fileId);
+      eos_err("msg=\"close callback reply failed\" fxid=%08llx", fid);
     }
   });
   return SFS_STARTED;
@@ -4029,6 +4077,20 @@ XrdFstOfsFile::IsAsyncCloseConfigured()
   return true;
 }
 
+//------------------------------------------------------------------------------
+// Check if async sync is configured
+//------------------------------------------------------------------------------
+bool
+XrdFstOfsFile::IsAsyncSyncConfigured()
+{
+  const char* ptr = getenv("EOS_FST_ASYNC_SYNC");
+
+  if (!ptr || (strncmp(ptr, "1", 1) != 0)) {
+    return false;
+  }
+
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Decide if close should be done synchronously. There are cases when close
@@ -4047,6 +4109,33 @@ XrdFstOfsFile::DoSyncClose()
   }
 
   // For RAIN layouts especially only the entry server should do an async close.
+  // If all stripes are on the same FST (which is not a good idea) there is a
+  // risk that the thread pool for handling close requests will deadlock as
+  // some close requests will wait forever for queued depended close ops.
+  if (mIsRW && mLayout && !mLayout->IsEntryServer()) {
+    return true;
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Decide if sync should be done synchronously - keep the same boundary
+// conditions as for async close on purpose!
+//------------------------------------------------------------------------------
+bool
+XrdFstOfsFile::DoSyncSync()
+{
+  static uint64_t min_size_async_sync = GetAsyncCloseMinSize(); // on purpose!
+
+  // Even if async close is enabled there are some cases when close happens in
+  // the same XRootD thread
+  if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) || mIsHttp ||
+      (mIsRW && (mMaxOffsetWritten <= (long long) min_size_async_sync))) {
+    return true;
+  }
+
+  // For RAIN layouts especially only the entry server should do an async sync.
   // If all stripes are on the same FST (which is not a good idea) there is a
   // risk that the thread pool for handling close requests will deadlock as
   // some close requests will wait forever for queued depended close ops.

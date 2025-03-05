@@ -489,6 +489,13 @@ public:
   static bool IsAsyncCloseConfigured();
 
   //----------------------------------------------------------------------------
+  //! Check if async sycn is configured - a bit of an oxymoron ...
+  //!
+  //! @return true if enabled, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsAsyncSyncConfigured();
+
+  //----------------------------------------------------------------------------
   //! Get hostname from tident. This is used when checking the origin match for
   //! TPC transfers. It only extract the hostname without domain to avoid
   //! mismatch in cases where the same machine provides both IPV4 and IPV6
@@ -870,6 +877,15 @@ public:
   //! @return true if close is synchronous, otherwise false
   //----------------------------------------------------------------------------
   bool DoSyncClose();
+
+  //----------------------------------------------------------------------------
+  //! Decide if sync should be done synchronously. There are cases when sync
+  //! should happen in the same thread eg. read, http tx, sink writes etc.
+  //! Keep the same boundary conditions as async close on purpose!
+  //!
+  //! @return true if sync is synchronous, otherwise false
+  //----------------------------------------------------------------------------
+  bool DoSyncSync();
 
   //----------------------------------------------------------------------------
   //! Populate and commit FMD info locally
