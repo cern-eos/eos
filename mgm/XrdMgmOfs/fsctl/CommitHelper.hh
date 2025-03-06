@@ -74,6 +74,8 @@ public:
 
   static bool check_commit_params(CommitHelper::cgi_t& cgi);
 
+  static bool check_unit_checksum_commit_params(CommitHelper::cgi_t& cgi);
+
   static void remove_scheduler(unsigned long long fid);
 
   static bool validate_size(eos::common::VirtualIdentity& vid,
@@ -121,7 +123,7 @@ public:
                          CommitHelper::option_t& option,
                          std::string& errmsg,
                          eos::ContainerIdentifier& p_ident
-                         );
+                        );
 
   static unsigned long long get_version_fid(
     eos::common::VirtualIdentity& vid,
