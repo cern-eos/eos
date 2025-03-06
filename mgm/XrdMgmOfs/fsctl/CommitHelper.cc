@@ -341,6 +341,16 @@ CommitHelper::check_commit_params(CommitHelper::cgi_t& cgi)
 }
 
 //------------------------------------------------------------------------------
+// check proper commit parameter for unit checksum
+//------------------------------------------------------------------------------
+
+bool CommitHelper::check_unit_checksum_commit_params(CommitHelper::cgi_t& cgi)
+{
+  return cgi["fid"].length() && cgi["fsid"].length() &&
+         cgi["unit_checksum"].length();
+}
+
+//------------------------------------------------------------------------------
 // Remove fid from the trakced maps
 //------------------------------------------------------------------------------
 void
