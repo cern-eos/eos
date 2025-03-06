@@ -227,6 +227,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_MGM_GRPC_SSL_KEY
 # EOS_MGM_GRPC_SSL_CA
 
+# If this is set then the GRPC server does not request a client certificate
+# from the user contacting it
+# EOS_MGM_GRPC_DONT_REQUEST_CLIENT_CERTIFICATE
+
 #-------------------------------------------------------------------------------
 # Configure GRPC server dedicated for access via Windows native client (EOS-wnc)
 #-------------------------------------------------------------------------------

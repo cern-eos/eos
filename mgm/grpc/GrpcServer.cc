@@ -297,12 +297,18 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
   grpc::ServerBuilder builder;
 
   if (mSSL) {
+    grpc_ssl_client_certificate_request_type gsccrt =
+      GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY;
+
+    if (getenv("EOS_MGM_GRPC_DONT_REQUEST_CLIENT_CERTIFICATE")) {
+      gsccrt = GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE;
+    }
+
     grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {
       mSSLKey,
       mSSLCert
     };
-    grpc::SslServerCredentialsOptions sslOps(
-      GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY);
+    grpc::SslServerCredentialsOptions sslOps(gsccrt);
     sslOps.pem_root_certs = mSSLCa;
     sslOps.pem_key_cert_pairs.push_back(keycert);
     builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps));
