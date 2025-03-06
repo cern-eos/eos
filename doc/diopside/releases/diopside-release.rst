@@ -16,6 +16,28 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.9 Diopside``
+====================
+
+2025-03-06
+
+Bug
+----
+
+* [EOS-6330] - HEAD requests are not executed on FSTs
+* [EOS-6348] - GRPC: set attribute does not honor the recursive flag
+
+New Feature
+------------
+
+* [EOS-6349] - Support qclient persistency layer type in config/ns output
+
+Improvement
+-----------
+
+* [EOS-6331] - Print start and stop of file sync operations in the FST log
+* [EOS-6353] - RFE: GRPC with TLS but _not_ certificate auth
+
 ``v5.3.8 Diopside``
 ====================
 
