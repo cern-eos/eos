@@ -574,7 +574,7 @@ bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath)
     return false;
   }
 
-  if (!fmd->mProtoFmd.checksum().empty()) {
+  if (!fmd->mProtoFmd.unitchecksum().empty()) {
     // local checksum already computed
     return false;
   }
@@ -598,7 +598,7 @@ bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath)
            1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
            xs);
   // save the xs in the local database
-  fmd->mProtoFmd.set_checksum(xs);
+  fmd->mProtoFmd.set_unitchecksum(xs);
   gOFS.mFmdHandler->Commit(fmd.get());
   return true;
 }
@@ -1160,7 +1160,7 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
       return false;
     }
 
-    fst_xs[stripe.fsid] = fmd->mProtoFmd.checksum();
+    fst_xs[stripe.fsid] = fmd->mProtoFmd.unitchecksum();
   }
 
   size_t nstripes = eos::common::LayoutId::GetStripeNumber(fmd.layout_id()) + 1;

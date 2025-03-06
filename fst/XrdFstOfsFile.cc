@@ -3525,7 +3525,7 @@ bool XrdFstOfsFile::VerifyUnitChecksum()
   }
 
   if (mLayout->GetUnitChecksum()) {
-    mFmd->mProtoFmd.set_checksum(mLayout->GetUnitChecksum()->GetHexChecksum());
+    mFmd->mProtoFmd.set_unitchecksum(mLayout->GetUnitChecksum()->GetHexChecksum());
   }
 
   return false;
