@@ -1177,6 +1177,18 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
     return false;
   }
 
+  auto mgm_xs = GetUnitChecksums(fmd);
+  size_t nstripes = eos::common::LayoutId::GetStripeNumber(fmd.layout_id()) + 1;
+
+  // in case the number of committed xs to the MGM is less
+  // than the number of stripes, it might be that not all
+  // the local checksums have been committed, so we can
+  // skip the check for later.
+  if (mgm_xs.size() < nstripes) {
+    // TODO: leave a log line here
+    return true;
+  }
+
   std::vector<stripe_s> stripes;
   std::string opaqueInfo;
 
@@ -1202,9 +1214,6 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
 
     fst_xs[stripe.fsid] = fmd->mProtoFmd.unitchecksum();
   }
-
-  size_t nstripes = eos::common::LayoutId::GetStripeNumber(fmd.layout_id()) + 1;
-  auto mgm_xs = GetUnitChecksums(fmd);
 
   if (nstripes != mgm_xs.size() || nstripes != stripes.size()) {
     // cannot do too much here. we don't know which are good, which not
