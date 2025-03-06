@@ -44,14 +44,6 @@ add_executable(eos-microbenchmarks main.cc)
 add_executable(eos-idmap-microbenchmark common/BM_IdMap.cc)
 add_executable(eos-atomic-ptr-microbenchmark common/BM_AtomicPtr.cc)
 add_executable(eos-random-microbenchmark common/BM_Random.cc)
-add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
-        ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMap.cc
-        ${CMAKE_SOURCE_DIR}/mgm/placement/FlatScheduler.cc
-        ${CMAKE_SOURCE_DIR}/mgm/placement/RoundRobinPlacementStrategy.cc
-        ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRandomStrategy.cc
-        ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRoundRobinStrategy.cc
-        ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc
-        )
 add_executable(eos-rrseed-microbenchmark mgm/BM_RRSeed.cc
         ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
 add_executable(eos-threadid-microbenchmark common/BM_ThreadId.cc)
@@ -74,12 +66,22 @@ target_link_libraries(eos-rrseed-microbenchmark PRIVATE
   ${CMAKE_THREAD_LIBS_INIT}
   EosCommon-Static)
 
-target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
-  benchmark::benchmark
-  EosCommonServer-Static)
-
 target_link_libraries(eos-random-microbenchmark PRIVATE
   benchmark::benchmark)
 
 target_link_libraries(eos-threadid-microbenchmark PRIVATE
   benchmark::benchmark EosCommon-Static)
+
+if (NOT CLIENT AND Linux)
+  add_executable(eos-flatscheduler-microbenchmark mgm/BM_FlatScheduler.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/ClusterMap.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/FlatScheduler.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/RoundRobinPlacementStrategy.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRandomStrategy.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/WeightedRoundRobinStrategy.cc
+    ${CMAKE_SOURCE_DIR}/mgm/placement/ThreadLocalRRSeed.cc)
+
+  target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
+    benchmark::benchmark
+    EosCommonServer-Static)
+endif()
