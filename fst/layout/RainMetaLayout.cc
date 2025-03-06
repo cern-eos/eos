@@ -810,7 +810,7 @@ RainMetaLayout::ReadForceRecovery(XrdSfsFileOffset offset,
   std::unique_ptr<RainBlock> recover_block {new RainBlock(mStripeWidth)};
   XrdCl::ChunkList all_errs {
     XrdCl::ChunkInfo((uint64_t) grp_offset, (uint32_t) mStripeWidth,
-    (void*)recover_block->GetDataPtr())};
+                     (void*)recover_block->GetDataPtr())};
 
   if (!RecoverPieces(all_errs)) {
     eos_err("msg=\"failed recovery\" offset=%llu length=%d", offset, length);
@@ -895,9 +895,13 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
         for (auto chunk = stripe_chunks[stripe_id].begin();
              chunk != stripe_chunks[stripe_id].end(); ++chunk) {
           chunk->offset = GetGlobalOff(stripe_id, chunk->offset - mSizeHeader);
-          eos_err("msg=\"vector read error\" offset=%llu length=%d "
-                  "physical_id=%u", chunk->offset, chunk->length,
-                  physical_id);
+
+          if (mStripe[physical_id]) {
+            eos_err("msg=\"vector read error\" offset=%llu length=%d "
+                    "physical_id=%u", chunk->offset, chunk->length,
+                    physical_id);
+          }
+
           all_errs.push_back(*chunk);
         }
       }
