@@ -332,12 +332,8 @@ CommitHelper::is_reconstruction(CommitHelper::option_t& option)
 bool
 CommitHelper::check_commit_params(CommitHelper::cgi_t& cgi)
 {
-  if (cgi["size"].length() && cgi["fid"].length() && cgi["path"].length() &&
-      cgi["fsid"].length() && cgi["mtime"].length() && cgi["mtimensec"].length()) {
-    return true;
-  } else {
-    return false;
-  }
+  return cgi["size"].length() && cgi["fid"].length() && cgi["path"].length() &&
+         cgi["fsid"].length() && cgi["mtime"].length() && cgi["mtimensec"].length();
 }
 
 //------------------------------------------------------------------------------
