@@ -322,7 +322,16 @@ public:
   bool DropGhostFid(const eos::common::FileSystem::fsid_t fsid,
                     const eos::IFileMD::id_t fid) const;
 
-  void ScanDir::ComputeChecksumIfRainFile(eos::common::FileId::fileid_t fid);
+  //----------------------------------------------------------------------------
+  //! If the file is a stripe of a RAIN file and the local checksum has
+  //! been computed yet, compute the checksum of the stripe and store it
+  //! in the local database
+  //!
+  //! @param fpath local path
+  //!
+  //! @return true if the checksum has been computed, otherwise false
+  //----------------------------------------------------------------------------
+  bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath);
 
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode

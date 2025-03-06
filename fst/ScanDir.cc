@@ -561,26 +561,46 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 #endif
 }
 
-void ScanDir::ComputeChecksumIfRainFile(eos::common::FileId::fileid_t fid)
+bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath)
 {
   // In case this is a EC file and the xs stripe has not computed yet,
   // for example because it was create with an older EOS version, instead
   // of checking it, we compute the xs and store in the local storage, and
   // leave the check for later.
-  // It might happen that even other stripes doesn't have yet the xs computed.
-  // Also in this case we skip the verification for later.
+  auto fid = eos::common::FileId::PathToFid(fpath.c_str());
   auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId);
 
   if (!LayoutId::IsRain(fmd->mProtoFmd.lid())) {
-    return;
+    return false;
   }
 
   if (!fmd->mProtoFmd.checksum().empty()) {
     // local checksum already computed
-    return;
+    return false;
   }
 
-  // TODO: compute the checksum here
+  std::unique_ptr<CheckSum> xs_obj(ChecksumPlugins::GetChecksumObject(
+                                     fmd->mProtoFmd.lid()));
+  unsigned long long scansize;
+  float scantime;
+
+  if (!xs_obj->ScanFile(fpath.c_str(), scansize, scantime)) {
+    eos_err("msg=\"checksum scanning failed\" fxid=%08llx", fid);
+  }
+
+  const char* xs = xs_obj->GetHexChecksum();
+  XrdOucString sizestring;
+  eos_info("msg=\"computed checksum\" fxid=%08llx size=%s time=%.02f ms rate=%.02f MB/s %s",
+           fid, eos::common::StringConversion::GetReadableSizeString(
+             sizestring,
+             scansize, "B"),
+           scantime,
+           1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
+           xs);
+  // save the xs in the local database
+  fmd->mProtoFmd.set_checksum(xs);
+  gOFS.mFmdHandler->Commit(fmd.get());
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -645,7 +665,10 @@ ScanDir::CheckFile(const std::string& fpath)
     scan_ts_sec.erase(10);
   }
 
-  ComputeChecksumIfRainFile(fid);
+  if (ComputeChecksumIfRainFile(fpath)) {
+    return true;
+  }
+
   bool scan_result = false;
 
   if (DoRescan(scan_ts_sec)) {
