@@ -147,19 +147,25 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   response->AddHeader("Date",  eos::common::Timing::utctime(time(NULL)));
-  eos_static_debug("response-header: %s",
+  eos_static_debug("req-verb=\"%s\" resp-code=%i resp-desc=\"%s\" "
+                   "resp-headers: %s", req.verb.c_str(),
+                   response->GetResponseCode(),
+                   response->GetResponseCodeDescription().c_str(),
                    response->GetHdrsWithFilter({}).c_str());
 
   if (req.verb == "HEAD") {
+    // @note: SendSimpleResp will overwrite the Content-Length header with
+    // the size of the body if body is not null and the Content-Length must
+    // not already be present in the response headers - mind blowing ...
     return req.SendSimpleResp(response->GetResponseCode(),
                               response->GetResponseCodeDescription().c_str(),
                               response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str(),
-                              response->GetBody().c_str(),
-                              response->GetBody().length());
+                              nullptr, response->mResponseLength);
   }
 
   if (req.verb == "GET") {
-    auto pmarkHandle = getPMarkHandle(req,normalized_headers,req.verb);
+    auto pmarkHandle = getPMarkHandle(req, normalized_headers, req.verb);
+
     if ((response->GetResponseCode() != response->OK) &&
         (response->GetResponseCode() != response->PARTIAL_CONTENT)) {
       return req.SendSimpleResp(response->GetResponseCode(),
@@ -187,7 +193,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
       } else {
         retc = req.SendSimpleResp(0, response->GetResponseCodeDescription().c_str(),
                                   response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str(),
-                                  nullptr , content_length);
+                                  nullptr, content_length);
       }
 
       if (retc) {
@@ -199,8 +205,8 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
       // allocate an IO buffer of 1M or if smaller the required content length
       std::vector<char> buffer(content_length > (1024 * 1024) ?
                                (1024 * 1024) : content_length);
-
       bool eskip = false;
+
       do {
         eos_static_debug("pos=%llu size=%u", pos, buffer.capacity());
         nread = OFS->mHttpd->FileReader(handler.get(), pos, &buffer[0],
@@ -225,7 +231,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   if (req.verb == "PUT") {
-    auto pmarkHandle = getPMarkHandle(req,normalized_headers,req.verb);
+    auto pmarkHandle = getPMarkHandle(req, normalized_headers, req.verb);
     bool is_chunked = (normalized_headers.count("transfer-encoding") &&
                        (normalized_headers["transfer-encoding"] == "chunked"));
 
@@ -361,14 +367,17 @@ EosFstHttpHandler::HandleChunkUpload(XrdHttpExtReq& req,
     // if it is greater than a certain threshold, we will stop trying to read data from the socket
     unsigned int noDataReceivedCpt = 0;
     unsigned int noDataReceivedCptThreshold = max_size * 2;
+
     // Read in line containing the chunk size
-    while (ssize.length() < max_size && noDataReceivedCpt <= noDataReceivedCptThreshold) {
+    while (ssize.length() < max_size &&
+           noDataReceivedCpt <= noDataReceivedCptThreshold) {
       if (req.BuffgetData(1, &ptr, true) == 1) {
         ssize.append(ptr, 1);
       }
 
       size_t len = ssize.length();
-      if(len == 0) {
+
+      if (len == 0) {
         noDataReceivedCpt++;
       } else {
         noDataReceivedCpt = 0;
@@ -381,9 +390,10 @@ EosFstHttpHandler::HandleChunkUpload(XrdHttpExtReq& req,
       }
     }
 
-    if(noDataReceivedCpt > noDataReceivedCptThreshold) {
+    if (noDataReceivedCpt > noDataReceivedCptThreshold) {
       std::stringstream ss;
-      ss << "msg=\"no data received from the client after " << noDataReceivedCptThreshold << " attempts\"";
+      ss << "msg=\"no data received from the client after " <<
+         noDataReceivedCptThreshold << " attempts\"";
       eos_static_err("%s", ss.str().c_str());
     }
 
@@ -667,15 +677,21 @@ EosFstHttpHandler::HandleChunkUpload2(XrdHttpExtReq& req,
   return (state == CHUNK_DATA);
 }
 
-std::unique_ptr<XrdNetPMark::Handle> EosFstHttpHandler::getPMarkHandle(XrdHttpExtReq& req,const std::map<std::string, std::string> & normalized_headers, const std::string & verb) {
-  if(req.pmark && normalized_headers.count("scitag")) {
+std::unique_ptr<XrdNetPMark::Handle> EosFstHttpHandler::getPMarkHandle(
+  XrdHttpExtReq& req, const std::map<std::string, std::string>&
+  normalized_headers, const std::string& verb)
+{
+  if (req.pmark && normalized_headers.count("scitag")) {
     // With the new scitag specifications, we now have to tell XRootD PMark handler code whether the HTTP transfer is a GET or a PUT
     // so the different fields populated in the firefly matches the new specifications (i.e: fireflies are emitted on behalf of the data sender part of a transfer)
-    std::string scitagOpaque = "scitag.flow=" + std::to_string(req.mSciTag) + "&pmark.appname=" + verb == "GET" ? "http-get" : "http-put";
-    return std::unique_ptr<XrdNetPMark::Handle>(req.pmark->Begin(*(const_cast<XrdSecEntity *>(&req.GetSecEntity())),
-                                                                 req.resource.c_str(),
-                                                                 scitagOpaque.c_str(),
-                                                                 "http"));
+    std::string scitagOpaque = "scitag.flow=" + std::to_string(
+                                 req.mSciTag) + "&pmark.appname=" + verb == "GET" ? "http-get" : "http-put";
+    return std::unique_ptr<XrdNetPMark::Handle>(req.pmark->Begin(*
+           (const_cast<XrdSecEntity*>(&req.GetSecEntity())),
+           req.resource.c_str(),
+           scitagOpaque.c_str(),
+           "http"));
   }
+
   return nullptr;
 }

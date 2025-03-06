@@ -118,11 +118,13 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
     // if we are opening for reading see if we already have an opened file
     // in the cache
     HttpHandlerFstFileCache::Key cachekey(mClient.name, openUrl.c_str(),
-                                       query.c_str(), open_mode);
+                                          query.c_str(), open_mode);
     mFileCacheEntry.clear();
+
     if (open_mode == 0) {
       mFileCacheEntry = sFileCache.remove(cachekey);
-      if ( (mFile = mFileCacheEntry.getfp()) ) {
+
+      if ((mFile = mFileCacheEntry.getfp())) {
         eos_static_debug("path=%s found in open-file cache fp=%p",
                          openUrl.c_str(), mFile);
         mRc = SFS_OK;
@@ -131,7 +133,6 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 
     // if no cached file open a new one
     if (!mFile) {
-
       XrdSysMutex* hMutex = 0;
       {
         // use path dependent locks for opens
@@ -151,7 +152,6 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
           }
         }
       }
-
       mFile = (XrdFstOfsFile*) gOFS.newFile(mClient.name);
       {
         XrdSysMutexHelper oLock(*hMutex);
@@ -162,6 +162,7 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
                           query.c_str());
       }
     }
+
     mFileSize = mFile->GetOpenSize();
     mFileId = mFile->GetFileId();
     mLogId = mFile->logId;
@@ -216,6 +217,10 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
   if (request->GetMethod() == "GET") {
     // call the HttpHandler::Get method
     mHttpResponse = Get(request);
+  }
+
+  if (request->GetMethod() == "HEAD") {
+    mHttpResponse = Head(request);
   }
 
   if (request->GetMethod() == "CREATE") {
@@ -409,6 +414,7 @@ eos::common::HttpResponse*
 HttpHandler::Head(eos::common::HttpRequest* request)
 {
   eos::common::HttpResponse* response = Get(request);
+  response->SetBody("");
   response->mUseFileReaderCallback = false;
 
   if (mFile) {
@@ -914,10 +920,13 @@ HttpHandler::FileClose(enum HttpHandler::CanCache cache)
       mCloseCode = 0;
     }
   }
+
   mFileCacheEntry.clear();
+
   if (mFile) {
     mCloseCode = mFile->close();
   }
+
   return;
 }
 
