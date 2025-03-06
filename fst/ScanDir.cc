@@ -600,11 +600,12 @@ bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath)
   // save the xs in the local database
   fmd->mProtoFmd.set_unitchecksum(xs);
   gOFS.mFmdHandler->Commit(fmd.get());
-  CommitUnitChecksumToMGM(fmd.get());
+  CommitUnitChecksumToMGM(fmd->mProtoFmd.fid(), xs);
   return true;
 }
 
-bool ScanDir::CommitUnitChecksumToMGM(eos::common::FmdHelper* fmd)
+bool ScanDir::CommitUnitChecksumToMGM(const eos::IFileMD::id_t fid,
+                                      const char* unit_checksum)
 {
   const std::string mgr = gConfig.GetManager();
 
@@ -626,9 +627,9 @@ bool ScanDir::CommitUnitChecksumToMGM(eos::common::FmdHelper* fmd)
   XrdCl::Buffer* resp_raw = nullptr;
   const std::string opaque = SSTR("/?"
                                   << "?mgm.pcmd=commit"
-                                  << "&mgm.fid=" << fmd->mProtoFmd.fid()
+                                  << "&mgm.fid=" << fid
                                   << "&mgm.add.fsid=" << mFsId
-                                  << "&mgm.unit_checksum=" << fmd->mProtoFmd.unitchecksum());
+                                  << "&mgm.unit_checksum=" << unit_checksum);
   arg.FromString(opaque);
   XrdCl::FileSystem fs(url);
   const XrdCl::XRootDStatus status =
@@ -1364,6 +1365,8 @@ bool ScanDir::ListStripes(eos::common::FileId::fileid_t fid,
     // have successfully read their headers.
     stripes.push_back({stripeFsId, stripeUrl, stripe_s::Invalid, 0});
   }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------

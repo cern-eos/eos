@@ -333,7 +333,8 @@ public:
   //----------------------------------------------------------------------------
   bool ComputeChecksumIfRainFile(const std::string& fpath);
 
-  bool CommitUnitChecksumToMGM(eos::common::FmdHelper* fmd);
+  bool CommitUnitChecksumToMGM(const eos::IFileMD::id_t fid,
+                               const char* unit_checksum);
 
 
   //----------------------------------------------------------------------------
