@@ -600,6 +600,46 @@ bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath)
   // save the xs in the local database
   fmd->mProtoFmd.set_unitchecksum(xs);
   gOFS.mFmdHandler->Commit(fmd.get());
+  CommitUnitChecksumToMGM(fmd.get());
+  return true;
+}
+
+bool ScanDir::CommitUnitChecksumToMGM(eos::common::FmdHelper* fmd)
+{
+  const std::string mgr = gConfig.GetManager();
+
+  if (mgr.empty()) {
+    eos_static_err("%s", "msg=\"no manager info available\"");
+    return false;
+  }
+
+  const std::string address = SSTR("root://" << mgr << "/");
+  const XrdCl::URL url(address.c_str());
+
+  if (!url.IsValid()) {
+    eos_static_err("msg=\"invalid url\" url=\"%s\"", address.c_str());
+    return false;
+  }
+
+  // Query MGM for list of stripes to open
+  XrdCl::Buffer arg;
+  XrdCl::Buffer* resp_raw = nullptr;
+  const std::string opaque = SSTR("/?"
+                                  << "?mgm.pcmd=commit"
+                                  << "&mgm.fid=" << fmd->mProtoFmd.fid()
+                                  << "&mgm.add.fsid=" << mFsId
+                                  << "&mgm.unit_checksum=" << fmd->mProtoFmd.unitchecksum());
+  arg.FromString(opaque);
+  XrdCl::FileSystem fs(url);
+  const XrdCl::XRootDStatus status =
+    fs.Query(XrdCl::QueryCode::OpaqueFile, arg, resp_raw);
+
+  if (!status.IsOK()) {
+    eos_static_err("msg=\"MGM query failed\" opaque=\"%s\"", opaque.c_str());
+    delete resp_raw;
+    return false;
+  }
+
   return true;
 }
 

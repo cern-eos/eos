@@ -331,7 +331,10 @@ public:
   //!
   //! @return true if the checksum has been computed, otherwise false
   //----------------------------------------------------------------------------
-  bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath);
+  bool ComputeChecksumIfRainFile(const std::string& fpath);
+
+  bool CommitUnitChecksumToMGM(eos::common::FmdHelper* fmd);
+
 
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode
