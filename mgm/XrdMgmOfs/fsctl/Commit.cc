@@ -36,6 +36,29 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <openssl/sha.h>
 
+// helper function to update the list of unit checksums
+void updateListUnitChecksum(std::shared_ptr< eos::IFileMD> fmd,
+                            const std::string& unit_checksum, unsigned long fsid)
+{
+// Update the list of unit checksums if it is a RAIN file
+  std::string unitxs;
+  std::string separator = ",";
+
+  if (unit_checksum.length()) {
+    try {
+      unitxs = fmd->getAttribute("sys.unitchecksum");
+    } catch (...) {}
+
+    if (unitxs.empty()) {
+      separator = "";
+    }
+
+    unitxs = SSTR(unitxs << separator << fsid << ":" << unit_checksum);
+    fmd->setAttribute("sys.unitchecksum", unitxs);
+  }
+}
+
+
 //----------------------------------------------------------------------------
 // Commit a replica
 //----------------------------------------------------------------------------
@@ -264,21 +287,7 @@ XrdMgmOfs::Commit(const char* path,
 
       // Update the list of unit checksums if it is a RAIN file
       if (eos::common::LayoutId::IsRain(lid)) {
-        std::string unitxs;
-        std::string separator = ",";
-
-        if (cgi["unit_checksum"].length()) {
-          try {
-            unitxs = fmd->getAttribute("sys.unitchecksum");
-          } catch (...) {}
-
-          if (unitxs.empty()) {
-            separator = "";
-          }
-
-          unitxs = SSTR(unitxs << separator << fsid << ":" << cgi["unit_checksum"]);
-          fmd->setAttribute("sys.unitchecksum", unitxs);
-        }
+        updateListUnitChecksum(fmd, cgi["unit_checksum"], fsid);
       }
 
       // Advance oc upload parameters if concerned
@@ -399,6 +408,53 @@ XrdMgmOfs::Commit(const char* path,
       if (option["abort"]) {
         return Emsg(epname, error, EREMCHG, "commit replica - overlapping "
                     "atomic upload - discarding atomic upload [EREMCHG]", "");
+      }
+    }
+  } else if (CommitHelper::check_unit_checksum_commit_params(cgi)) {
+    unsigned long long fid = std::stoull(cgi["fid"].c_str(), 0, 16);
+    unsigned long fsid = std::stoul(cgi["fsid"]);
+    const char* unitxs = cgi["unit_checksum"].c_str();
+    std::shared_ptr<eos::IFileMD> fmd;
+    std::string emsg;
+    {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
+      // Keep the lock order View => Namespace => Quota
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      errno = 0;
+
+      try {
+        fmd = gOFS->eosFileService->getFileMD(fid);
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                         e.getErrno(), e.getMessage().str().c_str());
+        emsg = "retc=";
+        emsg += e.getErrno();
+        emsg += " msg=";
+        emsg += e.getMessage().str().c_str();
+      }
+
+      if (!fmd) {
+        if (errno == ENOENT) {
+          return Emsg(epname, error, ENOENT,
+                      "commit filesize change - file is already removed [EIDRM]", "");
+        }
+
+        emsg.insert(0, "commit filesize change [EIO]");
+        return Emsg(epname, error, errno, emsg.c_str(), cgi["path"].c_str());
+      }
+
+      if (eos::common::LayoutId::IsRain(fmd->getLayoutId())) {
+        updateListUnitChecksum(fmd, cgi["unit_checksum"], fsid);
+      } else {
+        // TODO: add a warning here
+      }
+
+      eos::ContainerIdentifier p_ident;
+
+      if (!CommitHelper::commit_fmd(vid, fmd->getContainerId(), fmd, fmd->getSize(),
+                                    option, emsg, p_ident)) {
+        return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
       }
     }
   } else {
