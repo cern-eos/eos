@@ -26,4 +26,5 @@ message FmdBase {
   optional sint64 layouterror = 22; //< indicator for resync errors e.g. the mgm layout information is inconsistent e.g. only 1 of 2 replicas exist
   optional string locations = 23; //< fsid list with locations e.g. 1,2,3,4,10
   repeated sint64 stripeerror = 24; //< fsid of broken stripes
+  optional string unitchecksum = 25; //< checksum in hex representation
 }
