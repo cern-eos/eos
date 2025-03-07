@@ -91,7 +91,7 @@ enum class PlacementStrategyT : uint8_t {
 };
 
 constexpr size_t TOTAL_PLACEMENT_STRATEGIES=static_cast<size_t>(PlacementStrategyT::Count);
-constexpr uint8_t MAX_PLACEMENT_ATTEMPTS = 20;
+constexpr uint8_t MAX_PLACEMENT_ATTEMPTS = 100;
 
 inline constexpr bool is_valid_placement_strategy(PlacementStrategyT strategy) {
   return strategy != PlacementStrategyT::Count;

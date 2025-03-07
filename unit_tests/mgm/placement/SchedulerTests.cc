@@ -567,23 +567,36 @@ TEST(FlatScheduler, TLNoSiteExcludeFsids)
   for (auto it: root_bucket.items) {
     EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
   }
-  for (auto t: {PlacementStrategyT::kRoundRobin,
+  uint8_t n_replicas = 12;
+  for (auto t: {PlacementStrategyT::kWeightedRoundRobin,
+                PlacementStrategyT::kRoundRobin,
                 PlacementStrategyT::kThreadLocalRoundRobin,
                 PlacementStrategyT::kWeightedRandom,
-                PlacementStrategyT::kWeightedRoundRobin}) {
+                }) {
 
-    PlacementArguments args{2};
+    PlacementArguments args{n_replicas};
     args.excludefs = {1};
     args.strategy = t;
-    for (int i = 0; i < 1000; i++) {
+    auto strategy_str = eos::mgm::placement::strategy_to_str(t);
+    std::cerr << "\nTesting using strategy=" << strategy_str;
+    for (int i = 0; i < 10000; i++) {
+      if (i%500 == 0) {
+        std::cerr << ".";
+      }
       auto result = flat_scheduler.schedule(cluster_data(), args);
       if (!result) {
-        std::cerr << "Iteration " << i << " failed: " << result.err_msg.value_or("") << std::endl;
+        std::cerr << "Iteration " << i << " failed: err="
+                  << result.err_msg.value_or("")
+                  << " strategy=" << strategy_str
+                    << " result=" << result << std::endl;
       }
+
       EXPECT_TRUE(result);
-      EXPECT_TRUE(result.is_valid_placement(2));
-      EXPECT_NE(result.ids[0], 1);
-      EXPECT_NE(result.ids[1], 1);
+      EXPECT_TRUE(result.is_valid_placement(n_replicas));
+
+     for (int i=0; i<n_replicas; ++i) {
+        EXPECT_NE(result.ids[i],1);
+      }
     }
   }
 }

@@ -82,8 +82,6 @@ WeightedRoundRobinPlacement::Impl::placeFiles(const ClusterData& cluster_data,
 
       if (std::find(args.excludefs.begin(),
                     args.excludefs.end(), item_id) != args.excludefs.end()) {
-        --total_wt;
-        --mItemWeights[args.bucket_id];
         continue;
       }
 

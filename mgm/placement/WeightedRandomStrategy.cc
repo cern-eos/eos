@@ -75,10 +75,9 @@ PlacementResult WeightedRandomPlacement::Impl::placeFiles(
   for (int i = 0; items_added < args.n_replicas && i < MAX_PLACEMENT_ATTEMPTS;
        i++) {
     auto item_index = mDiskWeights[args.bucket_id](gen);
-    eos_static_debug("Got item_index=%d item_id=%d",
-                     item_index, data.buckets[bucket_index].items[item_index]);
-    //result.ids[i] = data.buckets[bucket_index].items[item_index];
     item_id_t item_id = data.buckets[bucket_index].items[item_index];
+    eos_static_debug("Got item_index=%d item_id=%d",
+                     item_index, item_id);
 
     if (result.contains(item_id)) {
       eos_static_info("msg=\"Skipping duplicate result\" item_id=%d", item_id);
