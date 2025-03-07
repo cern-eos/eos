@@ -53,6 +53,7 @@
 #include "common/BufferManager.hh"
 #include "common/async/ExecutorMgr.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "private/XrdSfs/XrdSfsFAttr.hh"
 #include <XrdNet/XrdNetOpts.hh>
 #include <XrdNet/XrdNetUtils.hh>
 #include <XrdOfs/XrdOfs.hh>
@@ -1089,6 +1090,59 @@ XrdFstOfs::stat(const char* path,
   } else {
     return gOFS.Emsg(epname, out_error, errno, "stat file", path);
   }
+}
+
+//------------------------------------------------------------------------------
+// Perform a filesystem extended attribute function
+//------------------------------------------------------------------------------
+int
+XrdFstOfs::FAttr(XrdSfsFACtl* faReq,
+                 XrdOucErrInfo& error,
+                 const XrdSecEntity* client)
+{
+  static std::map<XrdSfsFACtl::RQST, Access_Operation> s_map {
+    {XrdSfsFACtl::RQST::faDel, AOP_Update},
+    {XrdSfsFACtl::RQST::faGet, AOP_Read},
+    {XrdSfsFACtl::RQST::faLst, AOP_Read},
+    {XrdSfsFACtl::RQST::faSet, AOP_Update}
+  };
+  static const char* epname = "fattr";
+
+  // Check if we only need to return support information
+  if (!faReq) {
+    eos_static_info("%s", "msg=\"fattr support info request\"");
+    XrdOucEnv* env = error.getEnv();
+
+    if (!env) {
+      error.setErrInfo(ENOTSUP, "Not supported");
+      return SFS_ERROR;
+    }
+
+    env->PutInt("usxMaxNsz", kXR_faMaxNlen);
+    env->PutInt("usxMaxVsz", kXR_faMaxVlen);
+    return SFS_OK;
+  }
+
+  const char* tident = error.getErrUser();
+  const char* inpath = (faReq->path ? faReq->path : "");
+  const char* ininfo = (faReq->pcgi ? faReq->pcgi : "");
+  eos_static_info("msg=\"fattr request redirect to MGM\" "
+                  "path=\"%s\" tident=\"%s\",info=\"%s\"",
+                  (inpath ? inpath : ""), (tident ? tident : ""),
+                  (ininfo ? ininfo : ""));
+  int ecode = 1094;
+  XrdOucString rdr_mgr;
+  {
+    XrdSysMutexHelper lock(gConfig.Mutex);
+    rdr_mgr = gConfig.Manager;
+  }
+  int pos = rdr_mgr.find(":");
+
+  if (pos != STR_NPOS) {
+    rdr_mgr.erase(pos);
+  }
+
+  return Redirect(error, rdr_mgr.c_str(), ecode);
 }
 
 //------------------------------------------------------------------------------
