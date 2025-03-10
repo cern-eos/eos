@@ -563,6 +563,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 
 bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath)
 {
+#ifndef _NOOFS
   // In case this is a EC file and the xs stripe has not computed yet,
   // for example because it was create with an older EOS version, instead
   // of checking it, we compute the xs and store in the local storage, and
@@ -601,6 +602,7 @@ bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath)
   fmd->mProtoFmd.set_unitchecksum(xs);
   gOFS.mFmdHandler->Commit(fmd.get());
   CommitUnitChecksumToMGM(fmd->mProtoFmd.fid(), xs);
+#endif
   return true;
 }
 
@@ -706,11 +708,24 @@ ScanDir::CheckFile(const std::string& fpath)
     scan_ts_sec.erase(10);
   }
 
+  bool scan_result = false;
+#ifndef _NOOFS
+
   if (ComputeChecksumIfRainFile(fpath)) {
     return true;
   }
 
-  bool scan_result = false;
+  // If this is a rain file, we don't read it initially
+  // but check the checksums
+  auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId);
+
+  if (LayoutId::IsRain(fmd->mProtoFmd.lid())) {
+    if (ScanRainFile(io, fpath, fid, scan_ts_sec, true)) {
+      return true;
+    }
+  }
+
+#endif
 
   if (DoRescan(scan_ts_sec)) {
 #ifndef _NOOFS
@@ -734,7 +749,7 @@ ScanDir::CheckFile(const std::string& fpath)
 
     if (DoRescan(scan_ts_sec, true)) {
       gOFS.mFmdHandler->ClearErrors(fid, mFsId, true);
-      scan_result = (ScanRainFile(io, fpath, fid, scan_ts_sec) || scan_result);
+      scan_result = (ScanRainFile(io, fpath, fid, scan_ts_sec, false) || scan_result);
     }
   }
 
@@ -788,7 +803,6 @@ ScanDir::GetBlockXS(const std::string& file_path)
 
   return nullptr;
 }
-
 //------------------------------------------------------------------------------
 // Decide if a rescan is needed based on the timestamp provided and the
 // configured rescan interval
@@ -833,7 +847,6 @@ ScanDir::DoRescan(const std::string& timestamp_sec, bool rain_ts) const
     }
   }
 }
-
 //------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
 // scanner level and also by setting the proper xattrs on the file.
@@ -924,7 +937,6 @@ ScanDir::ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
 #endif
   return true;
 }
-
 //------------------------------------------------------------------------------
 // Scan file taking the load into consideration
 //------------------------------------------------------------------------------
@@ -1054,10 +1066,9 @@ ScanDir::ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
 //------------------------------------------------------------------------------
 // Check the given file for rain stripes errors
 //------------------------------------------------------------------------------
-bool
-ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
-                      const std::string& fpath, eos::common::FileId::fileid_t fid,
-                      const std::string& scan_ts_sec)
+bool ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
+                           const std::string& fpath, eos::common::FileId::fileid_t fid,
+                           const std::string& scan_ts_sec, bool fast)
 {
   if (mBgThread) {
     //  Skip check if file is open for reading, as this can mean we are in the
@@ -1101,10 +1112,14 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
   }
 
   std::set<eos::common::FileSystem::fsid_t> invalid_fsid;
-  eos_debug("msg=\"scanning rain file using fast path\" fxid=%08llx", fid);
-  bool ok = ScanRainFileFastPath(fid, invalid_fsid);
 
-  if (!ok) {
+  if (fast) {
+    eos_debug("msg=\"scanning rain file using fast path\" fxid=%08llx", fid);
+
+    if (!ScanRainFileFastPath(fid, invalid_fsid)) {
+      return false;
+    }
+  } else {
     eos_debug("msg=\"scanning rain file using slow path\" fxid=%08llx", fid);
 
     if (!ScanRainFileLoadAware(fid, invalid_fsid)) {
@@ -1142,7 +1157,6 @@ ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
 
   return true;
 }
-
 std::map<eos::common::FileSystem::fsid_t, std::string> GetUnitChecksums(
   const eos::ns::FileMdProto& fmd)
 {
@@ -1166,7 +1180,6 @@ std::map<eos::common::FileSystem::fsid_t, std::string> GetUnitChecksums(
 
   return fst_xs;
 }
-
 bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
                                    std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
 {
@@ -1229,7 +1242,6 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
 
   return true;
 }
-
 //------------------------------------------------------------------------------
 // Check if a given stripe combination can recreate the original file
 //------------------------------------------------------------------------------
@@ -1283,7 +1295,6 @@ ScanDir::IsValidStripeCombination(
   xs_obj->Finalize();
   return !strcmp(xs_obj->GetHexChecksum(), xs_val.c_str());
 }
-
 bool ScanDir::ListStripes(eos::common::FileId::fileid_t fid,
                           std::vector<stripe_s>& stripes, std::string& opaqueInfo)
 {
@@ -1368,7 +1379,6 @@ bool ScanDir::ListStripes(eos::common::FileId::fileid_t fid,
 
   return true;
 }
-
 //------------------------------------------------------------------------------
 // Check for stripes that are unable to reconstruct the original file
 //------------------------------------------------------------------------------
@@ -1588,9 +1598,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
 
   return true;
 }
-
 #endif
-
 //------------------------------------------------------------------------------
 // Enforce the scan rate by throttling the current thread and also adjust it
 // depending on the IO load on the mountpoint
@@ -1628,7 +1636,6 @@ ScanDir::EnforceAndAdjustScanRate(const off_t offset,
     }
   }
 }
-
 //------------------------------------------------------------------------------
 // Get timestamp smeared +/-20% of mEntryIntervalSec around the current
 // timestamp value
@@ -1663,5 +1670,4 @@ ScanDir::GetTimestampSmearedSec(bool rain_ts) const
 
   return std::to_string(ts_sec);
 }
-
 EOSFSTNAMESPACE_END
