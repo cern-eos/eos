@@ -22,12 +22,16 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
+#include "gmock/gmock.h"
 #include "Namespace.hh"
+
 #define IN_TEST_HARNESS
 #include "common/Mapping.hh"
 #undef IN_TEST_HARNESS
 #include "XrdSec/XrdSecEntity.hh"
 #include <memory>
+#include "common/UnixGroupsFetcher.hh"
+
 
 EOSCOMMONTESTING_BEGIN
 
@@ -178,6 +182,48 @@ TEST(VirtualIdentity, HandleKEYS)
   Mapping::HandleKEYS(client.get(), vid);
   ASSERT_EQ(32, vid.uid);
   ASSERT_EQ(32, vid.gid);
+}
+
+
+struct MockGroupListProvider : UnixGroupListFetcher {
+  MOCK_METHOD(std::vector<gid_t>, getGroups, (const std::string&, gid_t), (override));
+};
+
+class SecondaryGroupF: public ::testing::Test {
+protected:
+  void SetUp() override {
+    Mapping::gSecondaryGroups = true;
+    Mapping::gGroupsFetcher = std::make_unique<MockGroupListProvider>();
+  }
+  void TearDown() override {
+    Mapping::gGroupsFetcher.reset();
+  }
+};
+
+void printvid(const VirtualIdentity& vid) {
+  std::cerr << vid.getTrace() << "\nallowed gids: ";
+  for (const auto& gid: vid.allowed_gids) {
+    std::cerr << gid << ",";
+  }
+}
+
+TEST_F(SecondaryGroupF, AddSecondaryGroups)
+{
+  VirtualIdentity vid;
+  const std::string name = "dummy_user";
+  const gid_t gid = 99;
+  ASSERT_NE(Mapping::gGroupsFetcher, nullptr);
+  MockGroupListProvider* mock = dynamic_cast<MockGroupListProvider*>(Mapping::gGroupsFetcher.get());
+  ASSERT_NE(mock, nullptr);
+
+  EXPECT_CALL(*mock, getGroups(name, gid))
+  .WillOnce(::testing::Return(std::vector<gid_t>{2, 3, 4}));
+  Mapping::addSecondaryGroups(vid, name, gid);
+  printvid(vid);
+  EXPECT_TRUE(vid.hasGid(2));
+  EXPECT_TRUE(vid.hasGid(3));
+  EXPECT_TRUE(vid.hasGid(4));
+  EXPECT_FALSE(vid.hasGid(5));
 }
 
 EOSCOMMONTESTING_END
