@@ -79,6 +79,8 @@ std::map<std::string, gid_t> Mapping::gPhysicalGroupIdCache;
 
 Mapping::ip_cache Mapping::gIpCache(300);
 
+std::unique_ptr<UnixGroupsFetcher> Mapping::gGroupsFetcher(new UnixGroupListFetcher());
+
 OAuth Mapping::gOAuth;
 
 static std::string g_pwd_key = "\"<pwd>\"";
@@ -101,6 +103,7 @@ static std::string g_ztn_gid_key = "ztn:" + g_pwd_gid_key;
 
 // flag to indicate whether the mapping is initialized
 std::once_flag g_cache_map_init;
+
 //------------------------------------------------------------------------------
 // Initialize static maps
 //------------------------------------------------------------------------------
@@ -116,6 +119,10 @@ Mapping::Init()
   if (getenv("EOS_SECONDARY_GROUPS") &&
       !strcmp("1", getenv("EOS_SECONDARY_GROUPS"))) {
     gSecondaryGroups = true;
+    if (getenv("EOS_SECONDARY_GROUPS_GRENT") &&
+        !strcmp("1", getenv("EOS_SECONDARY_GROUPS_GRENT"))) {
+      gGroupsFetcher.reset(new UnixGrentFetcher());
+      }
   }
 
   gOAuth.Init();
@@ -2056,40 +2063,13 @@ void
 Mapping::addSecondaryGroups(VirtualIdentity& vid, const std::string& name,
                             gid_t gid)
 {
-  if (gSecondaryGroups) {
-    eos_static_debug("msg=\"group lookup\" name=\"%s\" gid=%d",
-                     name.c_str(), gid);
-    struct group* gr;
-    // Calls to setgrent/getgrent/endgrent are not thread-safe
-    static std::mutex mutex;
-    std::unique_lock<std::mutex> lock(mutex);
-    setgrent();
-
-    while ((gr = getgrent())) {
-      int cnt;
-      cnt = 0;
-
-      if (gr->gr_gid == gid) {
-        if (!vid.allowed_gids.size()) {
-          vid.allowed_gids.insert(gid);
-          vid.gid = gid;
-          eos_static_debug("adding %d\n", gid);
-        }
-      }
-
-      while (gr->gr_mem[cnt]) {
-        if (!strcmp(gr->gr_mem[cnt], name.c_str())) {
-          vid.allowed_gids.insert(gr->gr_gid);
-          eos_static_debug("adding %d\n", gr->gr_gid);
-        }
-
-        cnt++;
-      }
-    }
-
-    endgrent();
+  if (!gSecondaryGroups) {
+    return;
   }
+  populateGroups(name,gid,vid, gGroupsFetcher.get());
+
 }
+
 
 
 void
