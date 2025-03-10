@@ -157,6 +157,31 @@ TEST(ObserverMgr, moveArguments)
   ASSERT_NO_THROW(mgr.notifyChange("A tree fell in a forest!!!"));
 }
 
+TEST(ObserverMgr, notifyMultiThreaded)
+{
+   ObserverMgr<std::string> mgr;
+   auto obs_startswith = mgr.addObserver([](std::string s) {
+      ASSERT_TRUE(eos::common::startsWith(s, "message "));
+      std::cout << "Observer (value) received msg=" << s << std::endl;
+   });
+  std::atomic<int> ctr {0};
+  auto gen_string = [&ctr]() {
+    std::string s = "message " + std::to_string(ctr++);
+    return s;
+  };
+  std::vector<std::thread> threads;
+  for (int i=0; i< 100; ++i) {
+    threads.emplace_back([&mgr, &gen_string]() {
+      for (int i=0; i< 100; ++i) {
+        mgr.notifyChange(gen_string());
+      }
+    });
+  }
+  for (auto &t: threads) {
+    t.join();
+  }
+
+}
 
 TEST(ObserverMgr, moveArgumentsSync)
 {
