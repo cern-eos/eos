@@ -28,6 +28,7 @@
 #include "common/ShardedCache.hh"
 #include "common/OAuth.hh"
 #include "common/VirtualIdentity.hh"
+#include "common/UnixGroupsFetcher.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdAcc/XrdAccAuthorize.hh>
 #include <map>
@@ -36,7 +37,6 @@
 
 //! Forward declaration
 class XrdSecEntity;
-
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -243,6 +243,11 @@ public:
   //! Map storing the active client uids
   // ---------------------------------------------------------------------------
   static ShardedCache<uid_t, size_t> ActiveUidsSharded;
+
+  // ---------------------------------------------------------------------------
+  //! Fetcher for user's groups
+  // ---------------------------------------------------------------------------
+  static std::unique_ptr<UnixGroupsFetcher> gGroupsFetcher;
   // ---------------------------------------------------------------------------
   //! Retrieve the user ID from a trace identifier
   // ---------------------------------------------------------------------------
