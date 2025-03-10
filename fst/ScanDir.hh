@@ -192,8 +192,7 @@ public:
   bool ListStripes(eos::common::FileId::fileid_t fid,
                    std::vector<stripe_s>& stripes, std::string& opaqueInfo);
 
-
-  //----------------------------------------------------------------------------
+//----------------------------------------------------------------------------
   //! Check the given file for rain stripes errors
   //!
   //! @param io io object attached to the file
@@ -203,10 +202,11 @@ public:
   //!
   //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
-  bool ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
-                    const std::string& fpath,
-                    eos::common::FileId::fileid_t fid,
-                    const std::string& scan_ts_sec);
+  bool
+  ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
+               const std::string& fpath,
+               eos::common::FileId::fileid_t fid,
+               const std::string& scan_ts_sec, bool fast = false);
 
   //----------------------------------------------------------------------------
   //! Check each stripe to verify if they can reconstruct the original file
@@ -229,8 +229,9 @@ public:
   //!
   //! @return true if check happened, false if error occurred
   //----------------------------------------------------------------------------
-  bool ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
-                            std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
+  bool
+  ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
+                       std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
 
 #endif
 
