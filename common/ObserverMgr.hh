@@ -56,6 +56,7 @@ public:
   // reap all notifications, blocks the calling thread; not meant to be called often
   void syncAllNotifications()
   {
+    std::scoped_lock lock(async_completions_mtx);
     for (auto it = async_completions.begin();
          it != async_completions.end();) {
       it->wait();
@@ -113,6 +114,7 @@ public:
   {
     auto callbacks = mObservers.getCallbacks();
 
+    std::scoped_lock lock(async_completions_mtx);
     for (auto callback : callbacks) {
       if (auto shared_fn = callback.lock()) {
         async_completions.emplace_back(mThreadPool.PushTask(std::make_shared <
@@ -134,6 +136,7 @@ public:
 private:
   mutable eos::common::ThreadPool mThreadPool;
   mutable std::vector<std::future<void>> async_completions;
+  mutable std::mutex async_completions_mtx;
   SharedCallbackList<Args...> mObservers;
 };
 
