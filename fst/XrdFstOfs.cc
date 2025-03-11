@@ -478,7 +478,7 @@ XrdFstOfs::newDir(char* user, int MonID)
 // Get a new OFS file object
 //-----------------------------------------------------------------------------
 XrdSfsFile*
-XrdFstOfs::newFile(char* user, int MonID)
+XrdFstOfs::newFile(char* user, int MonID) // TODO: need to add a use_grpc argument here
 {
   return static_cast<XrdSfsFile*>(new XrdFstOfsFile(user, MonID));
 }
@@ -613,6 +613,23 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
               gConfig.autoBoot = true;
             }
+          }
+        }
+
+        // Use gRPC calls instead of xrootd notifications?
+        if (!strcmp("use_grpc", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument for use_grpc is invalid. "
+                        "Must be <true>, <false>, <1> or <0>!");
+            NoGo = 1;
+          } else {
+            gConfig.use_grpc = false;
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              gConfig.use_grpc = true;
+            }
+            Eroute.Say("=====> fstofs.use_grpc : ", val);
           }
         }
 

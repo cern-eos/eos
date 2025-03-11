@@ -1,0 +1,112 @@
+// ----------------------------------------------------------------------
+// File: WFEClient.hh
+// Author: Konstantina Skovola - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2025 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#include <grpc++/grpc++.h>
+#include "cta_frontend.pb.h"
+#include "cta_frontend.grpc.pb.h"
+
+ // maybe put it in a namespace?
+class WFEClient {
+public:
+  virtual void Send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0; // all methods but closew
+  // virtual void SendClosewRequest(const cta::xrd::Request& request, cta::xrd::Response& response) = 0; // CLOSEW event sender
+  virtual ~WFEClient() = default;
+};
+
+class WFEGrpcClient : public WFEClient {
+public:
+  WFEGrpcClient(std::string endpoint_str) : endpoint(endpoint_str), client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials()))) {}
+
+  void Send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
+    eos_static_info("In SendProtoWFRequestGrpc");
+    grpc::ClientContext context;
+    grpc::Status status;
+
+    // std::string endpoint("cta-frontend:10955"); // endpoint needs to come from config
+
+    eos_static_info("In WFEGrpcClient send method");
+
+    using namespace cta::eos;
+    // client_stub->GenericRequest(&context, request, &response);
+    switch (request.notification().wf().event()) {
+      // this is prepare
+      case cta::eos::Workflow::CREATE:
+        eos_static_info("In SendProtoWFRequestGrpc, this is a CREATE call, about to make it from the client-side");
+        status = client_stub->Create(&context, request, &response);
+        break;
+      case cta::eos::Workflow::CLOSEW:
+        status = client_stub->Archive(&context, request, &response);
+        break;
+      case cta::eos::Workflow::PREPARE:
+        status = client_stub->Retrieve(&context, request, &response);
+        break;
+      case cta::eos::Workflow::ABORT_PREPARE:
+        status = client_stub->CancelRetrieve(&context, request, &response);
+        break;
+      case cta::eos::Workflow::DELETE:
+        status = client_stub->Delete(&context, request, &response);
+        break;
+      case cta::eos::Workflow::OPENW:
+        // this does nothing and we don't have a gRPC method for it
+        /* fallthrough */
+      case cta::eos::Workflow::UPDATE_FID:
+        /* fallthrough */
+      default:
+        // should probably have an error here that we don't have a gRPC method for this
+        break;
+    }
+  }
+private:
+  std::string endpoint;
+  std::unique_ptr<cta::xrd::CtaRpc::Stub> client_stub;
+};
+
+class WFEXrdClient : public WFEClient {
+public:
+  WFEXrdClient(std::string endpoint, std::string resource, XrdSsiPb::Config &config) : service(XrdSsiPbServiceType(endpoint, resource, config)) {}
+  void Send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
+    service.Send(request, response);
+  }
+private:
+  XrdSsiPbServiceType service;
+};
+
+std::unique_ptr<WFEClient>
+CreateRequestSender(bool use_grpc, std::string endpoint, std::string ssi_resource) {
+  eos_static_info("In CreateRequestSender, about to return the pointer");
+  if (use_grpc) {
+    return std::make_unique<WFEGrpcClient>(endpoint);
+  }
+  else {
+    XrdSsiPb::Config config;
+
+    if (getenv("XRDDEBUG")) {
+      config.set("log", "all");
+    } else {
+      config.set("log", "info");
+    }
+
+    config.set("request_timeout", "120");
+    return std::make_unique<WFEXrdClient>(endpoint, ssi_resource, config);
+  }
+}

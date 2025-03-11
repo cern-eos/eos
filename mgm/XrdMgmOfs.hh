@@ -1771,6 +1771,7 @@ public:
   eos::common::LinuxStat::linux_stat_t LinuxStatsStartup;
   char* HostName; ///< our hostname as derived in XrdOfs
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
+  bool use_grpc; ///< use xrootd or grpc?
 
   static XrdSysError* eDest; ///< error routing object
 

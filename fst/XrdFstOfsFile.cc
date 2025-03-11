@@ -40,6 +40,13 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/utils/Etag.hh"
 #include <XrdOuc/XrdOucPgrwUtils.hh>
+
+// includes for gRPC
+#include <grpc++/grpc++.h>
+#include "cta_frontend.pb.h"
+#include "cta_frontend.grpc.pb.h"
+#include "common/WFEClient.hh"
+
 extern XrdOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
@@ -105,7 +112,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mWritePosition(0ull), mOpenSize(0),
   mCloseSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
-  mTpcCancel(false), mIsHttp(false)
+  mTpcCancel(false), mIsHttp(false), use_grpc(true)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -3855,6 +3862,8 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
   return log_id;
 }
 
+// need to modify the following function. I think I'll also have to
+// pass the ARCHIVE_STORAGE_CLASS_ATTR_NAME attribute - aka sys.archive.storage_class as CTA expects it
 //------------------------------------------------------------------------------
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
@@ -3868,7 +3877,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     const std::string& instance_name,
     const std::string& fullpath,
     const std::string& manager_name,
-    const std::map<std::string, std::string>& xattrs,
+    const std::map<std::string, std::string>& xattrs, // which ones do we need here?
     std::string& errmsg_wfe,
     std::string& archive_req_id)
 {
@@ -3893,16 +3902,24 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   notification->mutable_file()->set_disk_file_id(std::to_string(file_id));
   auto fxidString = StringConversion::FastUnsignedToAsciiHex(file_id);
   std::string ctaArchiveFileId = "none";
+  std::string storageClass = "";
 
+  // also make sure to pass the right attribute, don't just use the extended ones (old format), fill in the new ones
   for (const auto& attrPair : xattrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
         attrPair.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
 
-    if (attrPair.first == "sys.archive.file_id") {
+    if (attrPair.first == "sys.archive.file_id") { // sys.archive.file_id xattr corresponds to archive_file_id first-class attribute
       ctaArchiveFileId = attrPair.second;
     }
+    if (attrPair.first == "sys.archive.storage_class") {
+      storageClass = attrPair.second;
+    }
   }
+
+  notification->mutable_file()->set_storage_class(storageClass);
+  // notification->mutable_file()->set_archive_file_id(ctaArchiveFileId); // maybe not required for the CLOSEW event
 
   // Build query strings
   std::ostringstream srcStream;
@@ -3927,10 +3944,12 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   // Communication with service
   std::string endPoint;
   std::string resource;
+  bool use_grpc;
   {
     XrdSysMutexHelper lock(gConfig.Mutex);
     endPoint = gConfig.ProtoWFEndpoint;
     resource = gConfig.ProtoWFResource;
+    use_grpc = gConfig.use_grpc;
   }
 
   if (endPoint.empty() || resource.empty()) {
@@ -3940,40 +3959,34 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     return ENOTCONN;
   }
 
-  XrdSsiPb::Config config;
-
-  if (getenv("XRDDEBUG")) {
-    config.set("log", "all");
-  } else {
-    config.set("log", "info");
-  }
-
-  config.set("request_timeout", "120");
   cta::xrd::Response response;
 
+  eos_static_info("In NotifyProtoWfEndPointClosew, value of gOGS.use_grpc is %d", use_grpc);
+  
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
-    static XrdSsiPbServiceType service(endPoint, resource, config);
+    static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(use_grpc, endPoint, resource);
     auto sentAt = std::chrono::steady_clock::now();
 
     try {
       service.Send(request, response, false);
     } catch (std::runtime_error& err) {
       eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
-      service.Send(request, response, true);
+      request_sender->Send(request, response, true);
     }
 
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
-                     (receivedAt - sentAt);
-    eos_static_info("SSI Protobuf time for sync::closew=%ld", timeSpent.count());
+                      (receivedAt - sentAt);
+    eos_static_info("SSI Protobuf time for sync::closew=%ld", timeSpent.count()); // this should no longer mention "SSI"
   } catch (std::runtime_error& err) {
     eos_static_err("Could not send request to outside service. Reason: %s",
-                   err.what());
+                    err.what());
     return ENOTCONN;
   }
 
+  // also make sure to check not only the extended attribute but also the actual first-class attribute
   switch (response.type()) {
   case cta::xrd::Response::RSP_SUCCESS: {
     auto archiveReqIdItor = response.xattr().find("sys.cta.objectstore.id");
