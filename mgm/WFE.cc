@@ -42,6 +42,11 @@
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
 #include <Xrd/XrdScheduler.hh>
+// #include "GrpcClientForCta.hh"
+#include <grpc++/grpc++.h>
+#include "cta_frontend.pb.h"
+#include "cta_frontend.grpc.pb.h"
+#include "common/WFEClient.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
@@ -1852,6 +1857,7 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
 
   // If we reached this point: the file is not on disk, it is on tape, and this is the first Prepare
   // request for this file. Proceed with issuing the Prepare request to the tape back-end.
+  // need to set the storage_class and archive_file_id attributes (not just the extended ones)
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(GetUserName(
@@ -1864,6 +1870,13 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
+
+    if (attribute.first == "sys.archive.storage_class") {
+      notification->mutable_file()->set_storage_class(attribute.second);
+    }
+    if (attribute.first == "sys.archive.archive_file_id") {
+      notification->mutable_file()->set_archive_file_id(std::strtoul(attribute.second.c_str(), nullptr, 10));
+    }
   }
 
   if (prepareActivity.length()) {
@@ -2207,6 +2220,7 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
                                        const char* const ininfo,
                                        std::string& errorMsg)
 {
+  eos_static_info("In HandleProtoMethodCreateEvent");
   EXEC_TIMING_BEGIN("Proto::Create");
   gOFS->MgmStats.Add("Proto::Create", 0, 0, 1);
   cta::xrd::Request request;
@@ -2285,6 +2299,7 @@ int
 WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
                                        std::string& errorMsg)
 {
+  eos_static_info("In HandleProtoMethodDeleteEvent");
   EXEC_TIMING_BEGIN("Proto::Delete");
   gOFS->MgmStats.Add("Proto::Delete", 0, 0, 1);
   cta::xrd::Request request;
@@ -2421,6 +2436,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   return SFS_OK; // Ignore any failure in notifying the protocol buffer endpoint
 }
 
+// what does this method do?
 int
 WFE::Job::HandleProtoMethodCloseEvent(const std::string& event,
                                       const std::string& fullPath,
@@ -2766,7 +2782,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   std::string exec_tag = "Proto::Send::";
   exec_tag += event;
   EXEC_TIMING_BEGIN(exec_tag.c_str());
-  gOFS->MgmStats.Add(exec_tag.c_str(), 0, 0, 1);
+  gOFS->MgmStats.Add(exec_tag.c_str(), 0, 0, 1); // what is the type of gOFS??
 
   if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
@@ -2778,19 +2794,13 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return ENOTCONN;
   }
 
-  XrdSsiPb::Config config;
-
-  if (getenv("XRDDEBUG")) {
-    config.set("log", "all");
-  } else {
-    config.set("log", "info");
-  }
-
-  config.set("request_timeout", "120");
-  // Instantiate service object only once, static is thread-safe
-  static XrdSsiPbServiceType service(gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource,
-                                     config);
+  // now if we are using gRPC, we do not need a service provider here
+  // for grpc, create a client stub?
+  // if we have defined the usage of gRPC in the config
   cta::xrd::Response response;
+  // Instantiate service object only once, static is thread-safe
+  eos_static_info("In SendProtoWFRequest, about to call CreateRequestSender");
+  static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->use_grpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource);
 
   // Send the request
   try {
@@ -2799,7 +2809,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
       service.Send(request, response, false);
     } catch (std::runtime_error& err) {
       eos_static_err("msg=\"Could not send SSI protocol buffer request to outside service. Retrying with DNS cache refresh.\"");
-      service.Send(request, response, true);
+      request_sender->Send(request, response, true);
     }
     const auto receivedAt = std::chrono::steady_clock::now();
     const auto timeSpentMilliseconds =
@@ -2811,15 +2821,16 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                     timeSpentMilliseconds.count());
   } catch (std::runtime_error& error) {
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-                   "msg=\"Could not send SSI protocol buffer request to outside service.\" reason=\"%s\"",
-                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
-                   event.c_str(),
-                   error.what());
+                  "msg=\"Could not send SSI protocol buffer request to outside service.\" reason=\"%s\"",
+                  gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                  event.c_str(),
+                  error.what());
     errorMsg = error.what();
     retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
   }
-
+  // note: the gRPC frontend only returns the following error types:
+  // RSP_ERR_PROTOBUF, RSP_ERR_USER, RSP_ERR_CTA
   // Handle the response
   int retval = EPROTO;
 

@@ -316,7 +316,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mBehaviourCfg(new eos::common::BehaviourConfig()),
   mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
-  mJeMallocHandler(new eos::common::JeMallocHandler())
+  mJeMallocHandler(new eos::common::JeMallocHandler()),
+  use_grpc(false)
 {
   eDest = ep;
   ConfigFN = 0;

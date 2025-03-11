@@ -364,6 +364,8 @@ public:
   int mIoPriorityClass;
   bool mIoPriorityErrorReported;
   std::string mAppRR;
+  // think use_grpc needs to go here
+  bool use_grpc;
 
   enum {
     kOfsIoError = 1, //! generic IO error

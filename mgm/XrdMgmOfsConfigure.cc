@@ -1093,6 +1093,22 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             ProtoWFResource = val;
           }
         }
+
+        // Use gRPC calls instead of xrootd notifications?
+        if (!strcmp("use_grpc", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument for use_grpc is invalid. "
+                        "Must be <true>, <false>, <1> or <0>!");
+          } else {
+            use_grpc = false;
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              use_grpc = true;
+            }
+            Eroute.Say("=====> mgmofs.use_grpc : ", val);
+          }
+        }
       }
 
       //Get the XrdHttp server port number

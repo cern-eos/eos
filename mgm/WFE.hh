@@ -36,9 +36,11 @@
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include <Xrd/XrdJob.hh>
 #include <sys/types.h>
+// #include "common/WFEClient.hh"
 
 //! Forward declaration
 class XrdScheduler;
+class WFEClient;
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -116,7 +118,7 @@ public:
   class Job : XrdJob
   {
   public:
-
+    friend class WFEClient;
     struct Action {
 
       Action(std::string a, std::string e, time_t when, std::string workflow,
@@ -271,6 +273,7 @@ public:
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                                   const cta::xrd::Request& request, std::string& errorMsg,
                                   bool retry = false);
+    
 
     //! @brief Execute evict as user root
     //!
