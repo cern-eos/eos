@@ -149,7 +149,11 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd,
   fmd.set_size(strtoull(env.Get("size"), 0, 10));
   fmd.set_layout_id(strtoul(env.Get("lid"), 0, 10));
   fmd.set_name(env.Get("name"));
-  fmd.set_link_name(env.Get("link"));
+
+  if (env.Get("link")) {
+    fmd.set_link_name(env.Get("link"));
+  }
+
   fmd.set_ctime(ParseFileMDTime(env, "ctime", "ctime_ns"));
   fmd.set_mtime(ParseFileMDTime(env, "mtime", "mtime_ns"));
   fmd.set_checksum(ParseChecksum(env.Get("checksum")));
