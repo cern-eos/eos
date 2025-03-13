@@ -34,7 +34,6 @@ void ParseLocations(std::string locations, eos::ns::FileMdProto& fmd)
 {
   std::vector<std::string> location_vector;
   eos::common::StringConversion::Tokenize(locations, location_vector, ",");
-  int ul_idx = 0, l_idx = 0;
 
   for (const auto& elem : location_vector) {
     if (elem.empty()) {
@@ -42,9 +41,9 @@ void ParseLocations(std::string locations, eos::ns::FileMdProto& fmd)
     }
 
     if (elem[0] == '!') {
-      fmd.set_unlink_locations(ul_idx++, strtoul(elem.c_str() + 1, 0, 10));
+      fmd.add_unlink_locations(strtoul(elem.c_str() + 1, 0, 10));
     } else {
-      fmd.set_locations(l_idx++, strtoul(elem.c_str(), 0, 10));
+      fmd.add_locations(strtoul(elem.c_str(), 0, 10));
     }
   }
 }
@@ -159,11 +158,11 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd,
   fmd.set_checksum(ParseChecksum(env.Get("checksum")));
   ParseLocations(env.Get("location"), fmd);
   // include the xattrs requested
-  auto xattr_map = fmd.mutable_xattrs();
 
   for (const auto& key : xattrs) {
-    const char* env_key = SSTR("xattr." << key).c_str();
-    xattr_map->insert(std::pair(key, env.Get(env_key)));
+    std::string env_key = "xattr." + key;
+    fmd.mutable_xattrs()->insert(std::pair(std::string(key),
+                                           std::string(env.Get(env_key.c_str()))));
   }
 
   return true;

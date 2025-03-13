@@ -1157,12 +1157,13 @@ bool ScanDir::ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
 
   return true;
 }
+
 std::map<eos::common::FileSystem::fsid_t, std::string> GetUnitChecksums(
   const eos::ns::FileMdProto& fmd)
 {
   std::vector<std::string> tokens;
   std::vector<std::string> pair;
-  pair.resize(2);
+  pair.reserve(2);
   std::map<eos::common::FileSystem::fsid_t, std::string> fst_xs;
   eos::common::StringConversion::Tokenize(fmd.xattrs().at("sys.unitchecksum"),
                                           tokens, ",");
@@ -1180,11 +1181,13 @@ std::map<eos::common::FileSystem::fsid_t, std::string> GetUnitChecksums(
 
   return fst_xs;
 }
+
 bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
                                    std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
 {
   eos::ns::FileMdProto fmd;
-  int rc = FmdMgmHandler::GetMgmFmd(gConfig.GetManager(), fid, fmd, {"sys.unitchecksum"});
+  std::vector<std::string> xattrs = {"sys.unitchecksum"};
+  int rc = FmdMgmHandler::GetMgmFmd(gConfig.GetManager(), fid, fmd, xattrs);
 
   if (rc != 0) {
     // TODO
