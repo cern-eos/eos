@@ -23,8 +23,8 @@
 # ************************************************************************
 
 EXPORT_BASE_DIR="${EXPORT_BASE_DIR:-/tmp/eos-diagnostics}"
-DUMP_DIR_NAME="dump-$(date +"%Y%m%dT%H%M%S")"
-EXPORT_DIR="${EXPORT_BASE_DIR}/dumps/${DUMP_DIR_NAME}"
+DUMP_DIR="dump-$(date +"%Y%m%dT%H%M%S")"
+EXPORT_DIR="${EXPORT_BASE_DIR}/dumps/${DUMP_DIR}"
 TARBALL_DIR="${EXPORT_BASE_DIR}/tarballs"
 
 # directory tree within the export dir for various info
@@ -74,7 +74,14 @@ setup_dir_tree()
 collect_eos_stats()
 {
     log_info "Collecting EOS stats for ${EOS_MGM_URL}"
-    eos ns stat -a -m > "${STATS_DIR}/ns_all.info"
+
+    ns_hang=$(timeout 30 eos ns stat -a -m 2>&1 | tee "${STATS_DIR}/ns_all.info" | grep ns.hanging)
+
+    if [[ -z "${ns_hang}" || "${ns_hang}" =~ ns.hanging=1 ]]; then
+        log_error "MGM is stuck, skipping extraction of MGM stats in this run!"
+        return 125
+    fi
+
     eos who -a -m > "${STATS_DIR}/who.info"
     eos io stat -x -m > "${STATS_DIR}/iostat.info"
     eos fusex ls -m > "${STATS_DIR}/fusex.info"
@@ -147,9 +154,9 @@ get_config()
 
 make_tarball()
 {
-    DUMP_TARBALL="${TARBALL_DIR}/${DUMP_DIR_NAME}.tar.xz"
+    DUMP_TARBALL="${TARBALL_DIR}/${DUMP_DIR}.tar.xz"
     pushd "$(dirname "${EXPORT_DIR}")" > /dev/null
-    tar -cJf "${DUMP_TARBALL}" "${DUMP_DIR_NAME}"
+    tar -cJf "${DUMP_TARBALL}" "${DUMP_DIR}"
     log_info "Tarballs at ${DUMP_TARBALL}"
     popd > /dev/null
 }
