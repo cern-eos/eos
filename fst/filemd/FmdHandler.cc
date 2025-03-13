@@ -547,11 +547,11 @@ std::unique_ptr<eos::common::FmdHelper> FmdHandler::RemoteGetFmd(
 
   if (status.IsOK()) {
     rc = 0;
-    eos_static_debug("got replica file meta data from server %s for fid=%s fsid=%s",
+    eos_static_debug("got replica file meta data from server %s for fxid=%08llxs fsid=%d",
                      address, fid, fsid);
   } else {
     rc = ECOMM;
-    eos_static_err("Unable to retrieve meta data from server %s for fid=%s fsid=%s",
+    eos_static_err("Unable to retrieve meta data from server %s for fxid=%08llx fsid=%d",
                    address, fid, fsid);
   }
 
