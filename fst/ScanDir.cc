@@ -1219,7 +1219,8 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
     if (stripe.fsid == mFsId) {
       fmd = gOFS.mFmdHandler->LocalGetFmd(fid, stripe.fsid);
     } else {
-      fmd = FmdHandler::RemoteGetFmd(stripe.url, fid, stripe.fsid);
+      XrdCl::URL url(stripe.url.c_str());
+      fmd = FmdHandler::RemoteGetFmd(url.GetHostId(), fid, stripe.fsid);
     }
 
     if (!fmd) {
@@ -1295,6 +1296,7 @@ ScanDir::IsValidStripeCombination(
   xs_obj->Finalize();
   return !strcmp(xs_obj->GetHexChecksum(), xs_val.c_str());
 }
+
 bool ScanDir::ListStripes(eos::common::FileId::fileid_t fid,
                           std::vector<stripe_s>& stripes, std::string& opaqueInfo)
 {
@@ -1328,7 +1330,8 @@ bool ScanDir::ListStripes(eos::common::FileId::fileid_t fid,
     fs.Query(XrdCl::QueryCode::OpaqueFile, arg, resp_raw);
 
   if (!status.IsOK()) {
-    eos_static_err("msg=\"MGM query failed\" opaque=\"%s\"", opaque.c_str());
+    eos_static_err("msg=\"MGM query failed: '%s'\" opaque=\"%s\"",
+                   status.ToString().c_str(), opaque.c_str());
     delete resp_raw;
     return false;
   }
