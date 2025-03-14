@@ -199,7 +199,12 @@ MessagingRealm::GetFsChangeListener(const std::string& name)
     }
   }
   eos::common::RWMutexWriteLock wr_lock(mMutexListeners);
-  mFsListeners[name] = std::make_shared<FsChangeListener>(this, name);
+  auto it = mFsListeners.find(name);
+
+  if (it == mFsListeners.end()) {
+    mFsListeners[name] = std::make_shared<FsChangeListener>(this, name);
+  }
+
   return mFsListeners[name];
 }
 
