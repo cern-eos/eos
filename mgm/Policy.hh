@@ -39,7 +39,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class Policy {
+class Policy
+{
 public:
   Policy() {};
 
@@ -70,6 +71,20 @@ public:
 
   enum ConversionPolicy { eSync, eAsync, eNone, eFail };
 
+  //----------------------------------------------------------------------------
+  //! Check if update conversion is configured for the current entry
+  //!
+  //! @return true if configured, otherwise false
+  //----------------------------------------------------------------------------
+  static bool HasUpdConversion(eos::IContainerMD::XAttrMap& map);
+
+  //----------------------------------------------------------------------------
+  //! Check if read conversion is configured for the current entry
+  //!
+  //! @return true if configured, otherwise false
+  //----------------------------------------------------------------------------
+  static bool HasReadConversion(eos::IContainerMD::XAttrMap& map);
+
   static ConversionPolicy
   UpdateConversion(const char* path, eos::IContainerMD::XAttrMap& map,
                    const eos::common::VirtualIdentity& vid,
@@ -79,10 +94,10 @@ public:
 
   static ConversionPolicy
   ReadConversion(const char* path, eos::IContainerMD::XAttrMap& map,
-                   const eos::common::VirtualIdentity& vid,
-                   unsigned long& layoutId, const std::string& space,
-                   XrdOucEnv& env, unsigned long& targetLayoutId,
-                   std::string& target_space);
+                 const eos::common::VirtualIdentity& vid,
+                 unsigned long& layoutId, const std::string& space,
+                 XrdOucEnv& env, unsigned long& targetLayoutId,
+                 std::string& target_space);
 
   static unsigned long GetSpacePolicyLayout(const char* space);
 
@@ -126,8 +141,8 @@ public:
 
     RWParams(const std::string& user_str, const std::string& group_str,
              const std::string& app_str, bool is_rw)
-        : user_key(".user:" + user_str), group_key(".group:" + group_str),
-          app_key(".app:" + app_str), rw_marker(is_rw ? ":w" : ":r")
+      : user_key(".user:" + user_str), group_key(".group:" + group_str),
+        app_key(".app:" + app_str), rw_marker(is_rw ? ":w" : ":r")
     {
     }
 

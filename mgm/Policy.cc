@@ -38,14 +38,16 @@
 EOSMGMNAMESPACE_BEGIN
 
 const std::vector<std::string> Policy::gBasePolicyKeys = {
-    "policy.space",         "policy.layout",           "policy.nstripes",
-    "policy.checksum",      "policy.blocksize",        "policy.blockchecksum",
-    "policy.localredirect", "policy.updateconversion", "policy.readconversion",
-    "policy.altspaces"};
+  "policy.space",         "policy.layout",           "policy.nstripes",
+  "policy.checksum",      "policy.blocksize",        "policy.blockchecksum",
+  "policy.localredirect", "policy.updateconversion", "policy.readconversion",
+  "policy.altspaces"
+};
 
 const std::vector<std::string> Policy::gBasePolicyRWKeys = {
-    "policy.bandwidth", "policy.iopriority", "policy.iotype",
-    "policy.schedule"};
+  "policy.bandwidth", "policy.iopriority", "policy.iotype",
+  "policy.schedule"
+};
 
 /*----------------------------------------------------------------------------*/
 double
@@ -228,7 +230,7 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   }
 
-  forcedgroup = eos::common::XrdUtils::GetEnv(env, "eos.group", (long)-1);
+  forcedgroup = eos::common::XrdUtils::GetEnv(env, "eos.group", (long) -1);
 
   if ((xsum != eos::common::LayoutId::kNone) &&
       (val = env.Get("eos.checksum.noforce"))) {
@@ -254,10 +256,12 @@ Policy::GetLayoutAndSpace(const char* path,
     if (rw) {
       std::vector<std::string> alt_spaces;
       std::string altspaces_key = "policy.altspaces";
+
       if (auto kv = spacepolicies.find(altspaces_key);
           kv != spacepolicies.end() && (!kv->second.empty())) {
         if (FsView::gFsView.UnderNominalQuota(space, (vid.uid == 0))) {
           eos::common::StringConversion::Tokenize(kv->second, alt_spaces, ",");
+
           for (auto aspace : alt_spaces) {
             if (FsView::gFsView.UnderNominalQuota(aspace, (vid.uid == 0))) {
               eos_static_info("msg=\"space '%s' is under nominal quota - "
@@ -268,6 +272,7 @@ Policy::GetLayoutAndSpace(const char* path,
               // the following section!
               std::map<std::string, std::string> altspacepolicies;
               spacerwpolicies.clear();
+
               if (lockview) {
                 lock.Grab(FsView::gFsView.ViewMutex);
               }
@@ -283,6 +288,7 @@ Policy::GetLayoutAndSpace(const char* path,
               if (lockview) {
                 lock.Release();
               }
+
               std::string schedule_str;
               GetRWValue(spacerwpolicies, POLICY_SCHEDULE, rwparams,
                          schedule_str);
@@ -292,6 +298,7 @@ Policy::GetLayoutAndSpace(const char* path,
               GetRWValue(spacerwpolicies, POLICY_BANDWIDTH, rwparams,
                          bandwidth);
               schedule = schedule_str.length() ? schedule_str == "1" : schedule;
+
               // overwrite everything from the space policy settings for the alternative space!
               for (const auto& it : altspacepolicies) {
                 std::string key_name = it.first.substr(7);
@@ -300,15 +307,17 @@ Policy::GetLayoutAndSpace(const char* path,
                   continue;
                 }
 
-		if (it.second.empty()) {
-		  continue;
-		}
+                if (it.second.empty()) {
+                  continue;
+                }
+
                 std::string sys_key = "sys.forced.";
                 sys_key += key_name;
                 attrmap[sys_key] = it.second;
-		eos_static_info("msg=\"setting alternative space policy\" attr=\"%s\" value=\"%s\"",
-				sys_key.c_str(), it.second.c_str());
+                eos_static_info("msg=\"setting alternative space policy\" attr=\"%s\" value=\"%s\"",
+                                sys_key.c_str(), it.second.c_str());
               }
+
               break;
             }
           }
@@ -373,7 +382,7 @@ Policy::GetLayoutAndSpace(const char* path,
     }
 
     std::string iopriorityattr =
-        rw ? "sys.forced.iopriority:w" : "sys.forced.iopriority:r";
+      rw ? "sys.forced.iopriority:w" : "sys.forced.iopriority:r";
 
     if (attrmap.count(iopriorityattr)) {
       iopriority = attrmap[iopriorityattr];
@@ -382,7 +391,7 @@ Policy::GetLayoutAndSpace(const char* path,
     }
 
     std::string bandwidthattr =
-        rw ? "sys.forced.bandwidth:w" : "sys.forced.bandwidth:r";
+      rw ? "sys.forced.bandwidth:w" : "sys.forced.bandwidth:r";
 
     if (attrmap.count(bandwidthattr)) {
       bandwidth = attrmap[bandwidthattr];
@@ -391,7 +400,7 @@ Policy::GetLayoutAndSpace(const char* path,
     }
 
     std::string scheduleattr =
-        rw ? "sys.forced.schedule:w" : "sys.forced.schedule:r";
+      rw ? "sys.forced.schedule:w" : "sys.forced.schedule:r";
 
     if (attrmap.count(scheduleattr)) {
       schedule = (attrmap[scheduleattr] == "1");
@@ -470,9 +479,9 @@ Policy::GetLayoutAndSpace(const char* path,
   }
 
   layoutId =
-      eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize, bxsum);
-
-  eos_static_info("layoutId=%lxl layout=%ld xsum=%ld stripes=%ld blocksize=%ld", layout, layoutId, xsum, stripes, blocksize);
+    eos::common::LayoutId::GetId(layout, xsum, stripes, blocksize, bxsum);
+  eos_static_info("layoutId=%lxl layout=%ld xsum=%ld stripes=%ld blocksize=%ld",
+                  layout, layoutId, xsum, stripes, blocksize);
   return;
 }
 
@@ -524,8 +533,8 @@ Policy::GetPlctPolicy(const char* path, eos::IContainerMD::XAttrMap& attrmap,
   // if no target geotag is provided, it's not a valid placement policy
   if (seppos == std::string::npos || seppos == policyString.length() - 1) {
     eos_static_warning(
-        "no geotag given in placement policy for path %s : \"%s\"", path,
-        policyString.c_str());
+      "no geotag given in placement policy for path %s : \"%s\"", path,
+      policyString.c_str());
     return;
   }
 
@@ -595,12 +604,25 @@ Policy::RedirectLocal(const char* path, eos::IContainerMD::XAttrMap& map,
   }
 }
 
-//  enum ConversionPolicy {
-//                         eSync,
-//                         eAsync,
-//                         eNone,
-//                         eFail
-//  };
+//------------------------------------------------------------------------------
+// Check if update conversion is configured for the current entry
+//------------------------------------------------------------------------------
+bool
+Policy::HasUpdConversion(eos::IContainerMD::XAttrMap& map)
+{
+  static const std::string key_upd_conv = "sys.forced.updateconversion";
+  return (map.find(key_upd_conv) != map.end());
+}
+
+//------------------------------------------------------------------------------
+// Check if read conversion is configured for the current entry
+//------------------------------------------------------------------------------
+bool
+Policy::HasReadConversion(eos::IContainerMD::XAttrMap& map)
+{
+  static const std::string key_rd_conv = "sys.forced.updateconversion";
+  return (map.find(key_rd_conv) != map.end());
+}
 
 /*----------------------------------------------------------------------------*/
 Policy::ConversionPolicy
@@ -610,15 +632,18 @@ Policy::UpdateConversion(const char* path, eos::IContainerMD::XAttrMap& map,
                          XrdOucEnv& env, unsigned long& targetLayoutId,
                          std::string& target_space)
 {
-  std::string rkey = "sys.forced.updateconversion";
+  static const std::string rkey = "sys.forced.updateconversion";
+
   if (map.count(rkey)) {
     std::string tspace;
     std::string tlayout;
     bool split = eos::common::StringConversion::SplitKeyValue(map[rkey], tspace,
-                                                              tlayout);
+                 tlayout);
+
     if (!split) {
       return Policy::eFail;
     }
+
     // return space and layout id
     target_space = tspace;
     targetLayoutId = std::stoi(tlayout, nullptr, 16);
@@ -629,7 +654,7 @@ Policy::UpdateConversion(const char* path, eos::IContainerMD::XAttrMap& map,
     }
 
     return Policy::eAsync; // for the moment we don't want anything synchronous
-                           // happening in the MGM
+    // happening in the MGM
   } else {
     // nothing to convert
     return Policy::eNone;
@@ -644,15 +669,18 @@ Policy::ReadConversion(const char* path, eos::IContainerMD::XAttrMap& map,
                        XrdOucEnv& env, unsigned long& targetLayoutId,
                        std::string& target_space)
 {
-  std::string rkey = "sys.forced.readconversion";
+  static const std::string rkey = "sys.forced.readconversion";
+
   if (map.count(rkey)) {
     std::string tspace;
     std::string tlayout;
     bool split = eos::common::StringConversion::SplitKeyValue(map[rkey], tspace,
-                                                              tlayout);
+                 tlayout);
+
     if (!split) {
       return Policy::eFail;
     }
+
     // return space and layout id
     target_space = tspace;
     targetLayoutId = std::stoi(tlayout, nullptr, 16);
@@ -668,8 +696,9 @@ Policy::ReadConversion(const char* path, eos::IContainerMD::XAttrMap& map,
                       "read conversion policy\"");
       return Policy::eNone;
     }
+
     return Policy::eAsync; // for the moment we don't want anything synchronous
-                           // happening in the MGM
+    // happening in the MGM
   } else {
     // nothing to convert
     return Policy::eNone;

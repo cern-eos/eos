@@ -1294,7 +1294,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (isRW) {
-    if (vid.prot != "https" && !isInjection && !isTpc && !isRepair && fmd) {
+    if (fmd && Policy::HasUpdConversion(attrmap) && (vid.prot != "https") &&
+        !isInjection && !isTpc && !isRepair) {
       // Get space that file belongs to
       std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);
       std::string source_space = (space_name.empty() ? "default" : space_name);
@@ -1608,8 +1609,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file", path);
     }
 
-    if (vid.prot != "https" && !isTpc && !isRepair && !isRepairRead &&
-        !isPio && !isPioReconstruct) {
+    if (Policy::HasReadConversion(attrmap) && (vid.prot != "https") &&
+        !isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
       std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);
       std::string source_space = (space_name.empty() ? "default" : space_name);
       std::string target_space;
