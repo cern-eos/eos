@@ -2433,7 +2433,6 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   return SFS_OK; // Ignore any failure in notifying the protocol buffer endpoint
 }
 
-// what does this method do?
 int
 WFE::Job::HandleProtoMethodCloseEvent(const std::string& event,
                                       const std::string& fullPath,
