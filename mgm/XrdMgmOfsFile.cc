@@ -1609,6 +1609,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file", path);
     }
 
+    eos_static_debug("has-read-conversion: %d", Policy::HasReadConversion(attrmap));
+
     if (Policy::HasReadConversion(attrmap) && (vid.prot != "https") &&
         !isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
       std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);

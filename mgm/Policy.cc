@@ -620,7 +620,7 @@ Policy::HasUpdConversion(eos::IContainerMD::XAttrMap& map)
 bool
 Policy::HasReadConversion(eos::IContainerMD::XAttrMap& map)
 {
-  static const std::string key_rd_conv = "sys.forced.updateconversion";
+  static const std::string key_rd_conv = "sys.forced.readconversion";
   return (map.find(key_rd_conv) != map.end());
 }
 
@@ -690,10 +690,10 @@ Policy::ReadConversion(const char* path, eos::IContainerMD::XAttrMap& map,
       return eNone;
     }
 
-    if (FsView::gFsView.UnderNominalQuota(target_space, (vid.uid == 0))) {
+    if (!FsView::gFsView.UnderNominalQuota(target_space, (vid.uid == 0))) {
       // there is no space in the target space left, just don't convert it
       eos_static_info("msg=\"target space '%s' over nominal size - suppresing "
-                      "read conversion policy\"");
+                      "read conversion policy\"", target_space.c_str());
       return Policy::eNone;
     }
 
