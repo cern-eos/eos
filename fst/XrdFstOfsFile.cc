@@ -3970,7 +3970,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     auto sentAt = std::chrono::steady_clock::now();
 
     try {
-      service.Send(request, response, false);
+      request_sender->Send(request, response, false);
     } catch (std::runtime_error& err) {
       eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
       request_sender->Send(request, response, true);
