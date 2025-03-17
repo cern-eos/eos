@@ -36,7 +36,6 @@
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include <Xrd/XrdJob.hh>
 #include <sys/types.h>
-// #include "common/WFEClient.hh"
 
 //! Forward declaration
 class XrdScheduler;
@@ -118,7 +117,6 @@ public:
   class Job : XrdJob
   {
   public:
-    friend class WFEClient;
     struct Action {
 
       Action(std::string a, std::string e, time_t when, std::string workflow,
