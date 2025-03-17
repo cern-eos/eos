@@ -42,7 +42,6 @@
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
 #include <Xrd/XrdScheduler.hh>
-// #include "GrpcClientForCta.hh"
 #include <grpc++/grpc++.h>
 #include "cta_frontend.pb.h"
 #include "cta_frontend.grpc.pb.h"
