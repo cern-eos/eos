@@ -112,7 +112,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mWritePosition(0ull), mOpenSize(0),
   mCloseSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
-  mTpcCancel(false), mIsHttp(false), use_grpc(true)
+  mTpcCancel(false), mIsHttp(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -3960,8 +3960,6 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   }
 
   cta::xrd::Response response;
-
-  eos_static_info("In NotifyProtoWfEndPointClosew, value of gOGS.use_grpc is %d", use_grpc);
   
   try {
     // Instantiate service object only once, static is also thread-safe
