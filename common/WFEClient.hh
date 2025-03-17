@@ -28,8 +28,7 @@
  // maybe put it in a namespace?
 class WFEClient {
 public:
-  virtual void Send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0; // all methods but closew
-  // virtual void SendClosewRequest(const cta::xrd::Request& request, cta::xrd::Response& response) = 0; // CLOSEW event sender
+  virtual void Send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) = 0; // retry is actually XRootD/SSI specific
   virtual ~WFEClient() = default;
 };
 
@@ -37,12 +36,10 @@ class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str) : endpoint(endpoint_str), client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials()))) {}
 
-  void Send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
+  void Send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
     eos_static_info("In SendProtoWFRequestGrpc");
     grpc::ClientContext context;
     grpc::Status status;
-
-    // std::string endpoint("cta-frontend:10955"); // endpoint needs to come from config
 
     eos_static_info("In WFEGrpcClient send method");
 
@@ -84,8 +81,8 @@ private:
 class WFEXrdClient : public WFEClient {
 public:
   WFEXrdClient(std::string endpoint, std::string resource, XrdSsiPb::Config &config) : service(XrdSsiPbServiceType(endpoint, resource, config)) {}
-  void Send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
-    service.Send(request, response);
+  void Send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
+    service.Send(request, response, retry);
   }
 private:
   XrdSsiPbServiceType service;
