@@ -433,7 +433,6 @@ public:
   //! Mark if Fsck deletions should be done by moving files to a quarantine
   //! directory called .eosdeletions on the file system root mount
   bool mEnvFsckDeleteByMove {false};
-  bool use_grpc; // Use gRPC for CTA frontend?
 
 private:
 #ifdef IN_TEST_HARNESS
