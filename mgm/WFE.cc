@@ -2220,7 +2220,6 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
                                        const char* const ininfo,
                                        std::string& errorMsg)
 {
-  eos_static_info("In HandleProtoMethodCreateEvent");
   EXEC_TIMING_BEGIN("Proto::Create");
   gOFS->MgmStats.Add("Proto::Create", 0, 0, 1);
   cta::xrd::Request request;
@@ -2299,7 +2298,6 @@ int
 WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
                                        std::string& errorMsg)
 {
-  eos_static_info("In HandleProtoMethodDeleteEvent");
   EXEC_TIMING_BEGIN("Proto::Delete");
   gOFS->MgmStats.Add("Proto::Delete", 0, 0, 1);
   cta::xrd::Request request;
