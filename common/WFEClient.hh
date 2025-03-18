@@ -85,8 +85,7 @@ std::unique_ptr<WFEClient>
 CreateRequestSender(bool cta_use_grpc, std::string endpoint, std::string ssi_resource) {
   if (cta_use_grpc) {
     return std::make_unique<WFEGrpcClient>(endpoint);
-  }
-  else {
+  } else {
     XrdSsiPb::Config config;
 
     if (getenv("XRDDEBUG")) {
