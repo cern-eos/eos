@@ -139,6 +139,7 @@ gen_proc_stats()
 
     cp "/proc/$pid/limits" "${PROC_STATS_DIR}/limits"
     cp "/proc/$pid/status" "${PROC_STATS_DIR}/status"
+    cp "/proc/$pid/stack" "${PROC_STATS_DIR}/stack"
     cp "/proc/$pid/maps" "${PROC_STATS_DIR}/maps"
     cp "/proc/$pid/smaps" "${PROC_STATS_DIR}/smaps"
     cp "/proc/$pid/stat" "${PROC_STATS_DIR}/stat"
