@@ -25,7 +25,6 @@
 #include "cta_frontend.pb.h"
 #include "cta_frontend.grpc.pb.h"
 
- // maybe put it in a namespace?
 class WFEClient {
 public:
   virtual void Send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) = 0; // retry is actually XRootD/SSI specific

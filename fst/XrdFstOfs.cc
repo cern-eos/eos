@@ -478,7 +478,7 @@ XrdFstOfs::newDir(char* user, int MonID)
 // Get a new OFS file object
 //-----------------------------------------------------------------------------
 XrdSfsFile*
-XrdFstOfs::newFile(char* user, int MonID) // TODO: need to add a use_grpc argument here
+XrdFstOfs::newFile(char* user, int MonID)
 {
   return static_cast<XrdSfsFile*>(new XrdFstOfsFile(user, MonID));
 }
