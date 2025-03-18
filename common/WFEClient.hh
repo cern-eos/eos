@@ -83,7 +83,6 @@ private:
 
 std::unique_ptr<WFEClient>
 CreateRequestSender(bool cta_use_grpc, std::string endpoint, std::string ssi_resource) {
-  eos_static_info("In CreateRequestSender, about to return the pointer");
   if (cta_use_grpc) {
     return std::make_unique<WFEGrpcClient>(endpoint);
   }
