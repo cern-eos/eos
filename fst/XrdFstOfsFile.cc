@@ -3907,10 +3907,10 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
         attrPair.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
 
-    if (attrPair.first == "sys.archive.file_id") { // sys.archive.file_id xattr corresponds to archive_file_id first-class attribute
+    if (attrPair.first == ARCHIVE_FILE_ID_ATTR_NAME) { // sys.archive.file_id xattr corresponds to archive_file_id first-class attribute
       ctaArchiveFileId = attrPair.second;
     }
-    if (attrPair.first == "sys.archive.storage_class") {
+    if (attrPair.first == ARCHIVE_STORAGE_CLASS_ATTR_NAME) {
       storageClass = attrPair.second;
     }
   }
