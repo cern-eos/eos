@@ -36,16 +36,12 @@ public:
   WFEGrpcClient(std::string endpoint_str) : endpoint(endpoint_str), client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials()))) {}
 
   void Send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
-    eos_static_info("In SendProtoWFRequestGrpc");
     grpc::ClientContext context;
     grpc::Status status;
-
-    eos_static_info("In WFEGrpcClient send method");
 
     switch (request.notification().wf().event()) {
       // this is prepare
       case cta::eos::Workflow::CREATE:
-        eos_static_info("In SendProtoWFRequestGrpc, this is a CREATE call, about to make it from the client-side");
         status = client_stub->Create(&context, request, &response);
         break;
       case cta::eos::Workflow::CLOSEW:

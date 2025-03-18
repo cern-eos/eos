@@ -3862,8 +3862,6 @@ XrdFstOfsFile::ExtractLogId(const char* opaque) const
   return log_id;
 }
 
-// need to modify the following function. I think I'll also have to
-// pass the ARCHIVE_STORAGE_CLASS_ATTR_NAME attribute - aka sys.archive.storage_class as CTA expects it
 //------------------------------------------------------------------------------
 // Notify the workflow protobuf endpoint of closew event
 //------------------------------------------------------------------------------
@@ -3877,7 +3875,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     const std::string& instance_name,
     const std::string& fullpath,
     const std::string& manager_name,
-    const std::map<std::string, std::string>& xattrs, // which ones do we need here?
+    const std::map<std::string, std::string>& xattrs,
     std::string& errmsg_wfe,
     std::string& archive_req_id)
 {
