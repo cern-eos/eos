@@ -1732,7 +1732,7 @@ XrdFstOfsFile::_close_wr()
   }
 
   // When doing RAIN reconstruction and we are at the entry server we have
-  // any read errors or we read less then the full file size it means then
+  // any read errors or we read less then the full file size it means the
   // recovery failed. This can also be a side effect of a timeout.
   if (mRainReconstruct && mLayout->IsEntryServer()) {
     if (mHasReadErr || (rOffset != mRainSize)) {
@@ -2695,7 +2695,7 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
 
 //----------------------------------------------------------------------------
 // Process mixed opaque information - decisions that need to be taken based
-// on both the ecrypted and un-encrypted opaque info
+// on both the encrypted and un-encrypted opaque info
 //----------------------------------------------------------------------------
 int
 XrdFstOfsFile::ProcessMixedOpaque()
@@ -3017,7 +3017,6 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
   return SFS_OK;
 }
 
-
 //------------------------------------------------------------------------------
 // Compute close time
 //------------------------------------------------------------------------------
@@ -3264,11 +3263,11 @@ XrdFstOfsFile::ModifiedWhileInUse()
   struct stat statinfo;
 
   if (mLayout) {
-    if ((mLayout->Stat(&statinfo))) {
+    if (mLayout->Stat(&statinfo)) {
       fileExists = false;
     }
   } else {
-    if ((XrdOfsOss->Stat(mFstPath.c_str(), &statinfo))) {
+    if (XrdOfsOss->Stat(mFstPath.c_str(), &statinfo)) {
       fileExists = false;
     }
   }

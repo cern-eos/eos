@@ -405,7 +405,7 @@ com_scitoken_usage:
       << "    base64 decode a scitokens without verification\n"
       << std::endl
       << "  scitoken create-keys [--keyid <keyid>]\n"
-      << "    create a PEM key pair and a JSON public we key. If <keyid> is specified \n"
+      << "    create a PEM key pair and a JSON public web key. If <keyid> is specified \n"
       << "    then the pub/priv key pair is in /eos/xrootd/<keyid>-{key,pkey}.pem.\n"
       << "    Otherwise they are stored in CWD in default-{key,pkey}.pem. The JSON web \n"
       << "    key is printed on stdout, and the key locations on stderr.\n"
