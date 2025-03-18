@@ -42,8 +42,6 @@ public:
 
     eos_static_info("In WFEGrpcClient send method");
 
-    using namespace cta::eos;
-    // client_stub->GenericRequest(&context, request, &response);
     switch (request.notification().wf().event()) {
       // this is prepare
       case cta::eos::Workflow::CREATE:

@@ -3904,7 +3904,6 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   std::string ctaArchiveFileId = "none";
   std::string storageClass = "";
 
-  // also make sure to pass the right attribute, don't just use the extended ones (old format), fill in the new ones
   for (const auto& attrPair : xattrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
         attrPair.second);
@@ -3918,6 +3917,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     }
   }
 
+  // also make sure to pass the right attribute, don't just use the extended ones (old format), fill in the new ones
   notification->mutable_file()->set_storage_class(storageClass);
   // notification->mutable_file()->set_archive_file_id(ctaArchiveFileId); // maybe not required for the CLOSEW event
 
