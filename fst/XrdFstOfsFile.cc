@@ -3975,7 +3975,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
                       (receivedAt - sentAt);
-    eos_static_info("SSI Protobuf time for sync::closew=%ld", timeSpent.count()); // this should no longer mention "SSI"
+    eos_static_info("WFEClient send time for sync::closew=%ld", timeSpent.count());
   } catch (std::runtime_error& err) {
     eos_static_err("Could not send request to outside service. Reason: %s",
                     err.what());
