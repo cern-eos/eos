@@ -214,25 +214,13 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
     } else {
       // boot filesystem by fsid or uuid
       FileSystem* fs = nullptr;
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
 
       if (fsid) {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
         fs = FsView::gFsView.mIdView.lookupByID(fsid);
-
-        if (!fs) {
-          errStream << "error: cannot boot filesystem - no filesystem with fsid=";
-          errStream << sfsid.c_str();
-          mRetc = ENOENT;
-        }
       } else if (fsuuid.length()) {
-        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-
         if (FsView::gFsView.GetMapping(fsuuid)) {
           fs = FsView::gFsView.mIdView.lookupByID(FsView::gFsView.GetMapping(fsuuid));
-        } else {
-          errStream << "error: cannot boot filesystem - no filesystem with uuid=";
-          errStream << fsuuid.c_str();
-          mRetc = ENOENT;
         }
       }
 
@@ -243,9 +231,10 @@ FsCmd::Boot(const eos::console::FsProto::BootProto& bootProto)
         outStream << fs->GetString("host").c_str();
         outStream << ":";
         outStream << fs->GetString("path").c_str();
-      } else if (!mRetc) {
+      } else {
         // Should not get here
-        errStream << "error: could not retrieve filesystem";
+        errStream << "error: fail boot, could not retrieve filesystem with "
+                  << "identifier " << (sfsid.empty() ? fsuuid : sfsid);
         mRetc = ENOENT;
       }
     }
@@ -427,10 +416,12 @@ eos::mgm::FsCmd::List(const eos::console::FsProto::LsProto& lsProto)
     }
   }
 
-  eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-  FsView::gFsView.PrintSpaces(output, "", format, 0,
-                              lsProto.matchlist().c_str(),
-                              display_string, mReqProto.dontcolor());
+  {
+    eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+    FsView::gFsView.PrintSpaces(output, "", format, 0,
+                                lsProto.matchlist().c_str(),
+                                display_string, mReqProto.dontcolor());
+  }
 
   if (json_output) {
     output = ResponseToJsonString(output);
