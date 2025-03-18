@@ -2792,7 +2792,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
   cta::xrd::Response response;
   // Instantiate service object only once, static is thread-safe
-  static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->use_grpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource);
+  static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->cta_use_grpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource);
 
   // Send the request
   try {
@@ -2800,7 +2800,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     try {
       request_sender->Send(request, response, false);
     } catch (std::runtime_error& err) {
-      if (!gOFS->use_grpc) {
+      if (!gOFS->cta_use_grpc) {
         eos_static_err("msg=\"Could not send SSI protocol buffer request to outside service. Retrying with DNS cache refresh.\"");
       } else {
         eos_static_err("msg=\"Could not send gRPC protocol buffer request to outside service. Retrying.\"");

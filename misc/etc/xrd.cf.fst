@@ -35,7 +35,7 @@ fstofs.metalog /var/eos/md/
 #fstofs.qdbcluster localhost:777
 #fstofs.qdbpassword_file /etc/eos.keytab
 # Use gRPC?
-#fstofs.use_grpc true
+#fstofs.cta_use_grpc true
 
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000
