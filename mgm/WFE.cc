@@ -1856,7 +1856,6 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
 
   // If we reached this point: the file is not on disk, it is on tape, and this is the first Prepare
   // request for this file. Proceed with issuing the Prepare request to the tape back-end.
-  // need to set the storage_class and archive_file_id attributes (not just the extended ones)
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
   notification->mutable_cli()->mutable_user()->set_username(GetUserName(
@@ -1870,6 +1869,7 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
 
+    // need to set the storage_class and archive_file_id attributes (not just the extended ones)
     if (attribute.first == "sys.archive.storage_class") {
       notification->mutable_file()->set_storage_class(attribute.second);
     }
@@ -2790,12 +2790,8 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return ENOTCONN;
   }
 
-  // now if we are using gRPC, we do not need a service provider here
-  // for grpc, create a client stub?
-  // if we have defined the usage of gRPC in the config
   cta::xrd::Response response;
   // Instantiate service object only once, static is thread-safe
-  eos_static_info("In SendProtoWFRequest, about to call CreateRequestSender");
   static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->use_grpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource);
 
   // Send the request
@@ -2804,20 +2800,24 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     try {
       request_sender->Send(request, response, false);
     } catch (std::runtime_error& err) {
-      eos_static_err("msg=\"Could not send SSI protocol buffer request to outside service. Retrying with DNS cache refresh.\"");
+      if (!gOFS->use_grpc) {
+        eos_static_err("msg=\"Could not send SSI protocol buffer request to outside service. Retrying with DNS cache refresh.\"");
+      } else {
+        eos_static_err("msg=\"Could not send gRPC protocol buffer request to outside service. Retrying.\"");
+      }
       request_sender->Send(request, response, true);
     }
     const auto receivedAt = std::chrono::steady_clock::now();
     const auto timeSpentMilliseconds =
       std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);
     eos_static_info("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" timeSpentMs=%ld "
-                    "msg=\"Sent SSI protocol buffer request\"",
+                    "msg=\"Sent protocol buffer request\"",
                     gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
                     event.c_str(),
                     timeSpentMilliseconds.count());
   } catch (std::runtime_error& error) {
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-                  "msg=\"Could not send SSI protocol buffer request to outside service.\" reason=\"%s\"",
+                  "msg=\"Could not send protocol buffer request to outside service.\" reason=\"%s\"",
                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
                   event.c_str(),
                   error.what());
