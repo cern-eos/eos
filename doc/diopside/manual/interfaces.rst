@@ -1174,12 +1174,6 @@ Setting space policies
    # disable local redirects for all clients
    space config default space.policy.localredirect=never
 
-   # read files only from the given 'nvme' space with the given layout '00650012'
-   space config default space.policy.readconversion=nvme:00650012
-
-   # update files only in the given 'replica' space with the given layout ''
-   space config default space.policy.writeconversion=replica:00650012
-
 Setting user,group and application policies
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1273,13 +1267,14 @@ Currently we support two tiering scenarios:
    flash <= disk
 
 When a file is stored on **flash**, it should be read there, when a file is stored on **disk**, it should before
-the read moved to the **flash** space before the file is opened by the application≥
+the read moved to the **flash** space before the file is opened by the application. Since this applies to existing files
+the policy is not defined on the space level but on parent directories via an extended attribute.
 
 An example configuration who move the file to **flash** with a single replica layout would be:
 
 .. code-block:: bash
 
-   space config default space.policy.readconversion=flash:00650012
+   attr set sys.forced.space.policy.readconversion=flash:00650012
 
 This can be combined with an **LRU** policy which moves files of certain sizes and access times to the **disk** tier.
 As a result you have a dynamic tiering setup where **active** files are on the **flash** space, while
@@ -1293,11 +1288,11 @@ cold data is on the **disk** tier (which could be for example erasure encoded).
 
 When a file is stored on an erasure coded space **disk**, it is not possible to update files. This tiering
 option allows to convert a file from an erasure coded layout to a replica based layout e.g. on the **flash** space and
-files get updated there.
+files get updated there. Also this policy is defined on the parent directory via an extended attribute:
 
 .. code-block:: bash
 
-   space config default space.policy.updateconversion=flash:00650012
+   attr set sys.forced.space.policy.updateconversion=flash:00650012
 
 This can be again combined with an **LRU** policy which move certain files (based on size, extension, access time) to
 an erasure coded **disk** space.
