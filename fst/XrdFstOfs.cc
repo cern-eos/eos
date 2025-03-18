@@ -617,19 +617,19 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
         }
 
         // Use gRPC calls instead of xrootd notifications?
-        if (!strcmp("use_grpc", var)) {
+        if (!strcmp("cta_use_grpc", var)) {
           if ((!(val = Config.GetWord())) ||
               (strcmp("true", val) && strcmp("false", val) &&
                strcmp("1", val) && strcmp("0", val))) {
-            Eroute.Emsg("Config", "argument for use_grpc is invalid. "
+            Eroute.Emsg("Config", "argument for cta_use_grpc is invalid. "
                         "Must be <true>, <false>, <1> or <0>!");
             NoGo = 1;
           } else {
-            gConfig.use_grpc = false;
+            gConfig.cta_use_grpc = false;
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
-              gConfig.use_grpc = true;
+              gConfig.cta_use_grpc = true;
             }
-            Eroute.Say("=====> fstofs.use_grpc : ", val);
+            Eroute.Say("=====> fstofs.cta_use_grpc : ", val);
           }
         }
 
