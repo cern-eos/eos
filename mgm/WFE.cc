@@ -2778,7 +2778,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   std::string exec_tag = "Proto::Send::";
   exec_tag += event;
   EXEC_TIMING_BEGIN(exec_tag.c_str());
-  gOFS->MgmStats.Add(exec_tag.c_str(), 0, 0, 1); // what is the type of gOFS??
+  gOFS->MgmStats.Add(exec_tag.c_str(), 0, 0, 1);
 
   if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
