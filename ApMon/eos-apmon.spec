@@ -51,8 +51,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-/opt/eos/apmon/eosapmond
-/opt/eos/apmon/functions
 /etc/logrotate.d/apmon-logs
 /usr/sbin/eos_apmond
 /usr/sbin/eos_apmonpl

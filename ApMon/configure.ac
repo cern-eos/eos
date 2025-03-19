@@ -1,6 +1,5 @@
 AC_INIT([eos apmon], [2.2.26])
 AC_PREREQ(2.53)
-AC_CONFIG_SRCDIR([opt/eos/apmon/eosapmond])
 
 AC_CANONICAL_HOST
 AM_INIT_AUTOMAKE([1.6.3 subdir-objects])

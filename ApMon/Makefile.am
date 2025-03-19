@@ -30,12 +30,10 @@ EXTRA_DIST = opt/eos/apmon/eosapmond \
 install-exec-local :
 		mkdir -p $(DESTDIR)/$(prefix)/perl/ApMon/ApMon/
 		mkdir -p $(DESTDIR)/etc/logrotate.d/ $(DESTDIR)/opt/eos/apmon $(DESTDIR)/etc/sysconfig/ $(DESTDIR)/var/log/eos  $(DESTDIR)/`perl -V:installsitearch | cut -d "'" -f 2`/ApMon/ApMon;
-	    mkdir -p $(DESTDIR)/usr/sbin/ $(DESTDIR)/usr/lib/systemd/system/
+	    mkdir -p $(DESTDIR)/usr/sbin/ $(DESTDIR)/usr/lib/systemd/system/ $(DESTDIR)/var/log/eos/apmon
 		for name in ` find etc -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/$$name; done
 		cd perl ; for name in ` find . -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/`perl -V:installsitearch | cut -d "'" -f 2`/$$name; done
 		$(INSTALL) -m 755 $(srcdir)/eos_apmonpl $(DESTDIR)/usr/sbin/
-		$(INSTALL) -m 755 $(srcdir)/opt/eos/apmon/eosapmond $(DESTDIR)/opt/eos/apmon/
-		$(INSTALL) -m 755 $(srcdir)/opt/eos/apmon/functions $(DESTDIR)/opt/eos/apmon/
 		$(INSTALL) -m 644 $(srcdir)/usr/lib/systemd/system/eosapmond.service $(DESTDIR)/usr/lib/systemd/system/eosapmond.service
 
 uninstall-local :
