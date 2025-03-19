@@ -27,7 +27,7 @@
 
 class WFEClient {
 public:
-  virtual void Send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) = 0; // retry is actually XRootD/SSI specific
+  virtual void send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) = 0; // retry is actually XRootD/SSI specific
   virtual ~WFEClient() = default;
 };
 
@@ -35,7 +35,7 @@ class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str) : endpoint(endpoint_str), client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials()))) {}
 
-  void Send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
+  void send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
     grpc::ClientContext context;
     grpc::Status status;
 
@@ -74,7 +74,7 @@ private:
 class WFEXrdClient : public WFEClient {
 public:
   WFEXrdClient(std::string endpoint, std::string resource, XrdSsiPb::Config &config) : service(XrdSsiPbServiceType(endpoint, resource, config)) {}
-  void Send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
+  void send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
     service.Send(request, response, retry);
   }
 private:
