@@ -2797,16 +2797,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   // Send the request
   try {
     const auto sentAt = std::chrono::steady_clock::now();
-    try {
-      request_sender->send(request, response, false);
-    } catch (std::runtime_error& err) {
-      if (!gOFS->protowfusegrpc) {
-        eos_static_err("msg=\"Could not send SSI protocol buffer request to outside service. Retrying with DNS cache refresh.\"");
-      } else {
-        eos_static_err("msg=\"Could not send gRPC protocol buffer request to outside service. Retrying.\"");
-      }
-      request_sender->send(request, response, true);
-    }
+    request_sender->send(request, response);
     const auto receivedAt = std::chrono::steady_clock::now();
     const auto timeSpentMilliseconds =
       std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);

@@ -3965,12 +3965,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(protowfusegrpc, endPoint, resource);
     auto sentAt = std::chrono::steady_clock::now();
 
-    try {
-      request_sender->send(request, response, false);
-    } catch (std::runtime_error& err) {
-      eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
-      request_sender->send(request, response, true);
-    }
+    request_sender->send(request, response);
 
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
