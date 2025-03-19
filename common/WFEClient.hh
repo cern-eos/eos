@@ -24,10 +24,11 @@
 #include <grpc++/grpc++.h>
 #include "cta_frontend.pb.h"
 #include "cta_frontend.grpc.pb.h"
+#include "common/Logging.hh"
 
 class WFEClient {
 public:
-  virtual void send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) = 0; // retry is actually XRootD/SSI specific
+  virtual void send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0;
   virtual ~WFEClient() = default;
 };
 
@@ -35,7 +36,8 @@ class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str) : endpoint(endpoint_str), client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials()))) {}
 
-  void send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
+  // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
+  void send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
     grpc::ClientContext context;
     grpc::Status status;
 
@@ -74,8 +76,13 @@ private:
 class WFEXrdClient : public WFEClient {
 public:
   WFEXrdClient(std::string endpoint, std::string resource, XrdSsiPb::Config &config) : service(XrdSsiPbServiceType(endpoint, resource, config)) {}
-  void send(const cta::xrd::Request& request, cta::xrd::Response& response, bool retry) override {
-    service.Send(request, response, retry);
+  void send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
+    try {
+      service.Send(request, response, false);
+    } catch (std::runtime_error& err) {
+      eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
+      service.Send(request, response, true);
+    }
   }
 private:
   XrdSsiPbServiceType service;
