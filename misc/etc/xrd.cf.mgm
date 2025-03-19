@@ -126,4 +126,4 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 #mgmofs.tgc.enablespace space1 space2 ...
 
 # Use gRPC?
-#mgmofs.cta_use_grpc true
+#mgmofs.protowfusegrpc true

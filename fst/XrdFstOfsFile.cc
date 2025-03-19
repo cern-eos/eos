@@ -3942,12 +3942,12 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   // Communication with service
   std::string endPoint;
   std::string resource;
-  bool cta_use_grpc;
+  bool protowfusegrpc;
   {
     XrdSysMutexHelper lock(gConfig.Mutex);
     endPoint = gConfig.ProtoWFEndpoint;
     resource = gConfig.ProtoWFResource;
-    cta_use_grpc = gConfig.cta_use_grpc;
+    protowfusegrpc = gConfig.protowfusegrpc;
   }
 
   if (endPoint.empty() || resource.empty()) {
@@ -3962,7 +3962,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
-    static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(cta_use_grpc, endPoint, resource);
+    static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(protowfusegrpc, endPoint, resource);
     auto sentAt = std::chrono::steady_clock::now();
 
     try {
