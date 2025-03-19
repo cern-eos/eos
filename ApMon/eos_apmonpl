@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# apmonpl <MONALISAHOST> <APMONLOGLEVEL> <NODES-NAME> <HOST-NAME> <XRD-PID>
+# apmonpl <MONALISAHOST> <APMONLOGLEVEL> <NODES-NAME> <HOST-NAME>
 use strict;
 use warnings;
 use ApMon;

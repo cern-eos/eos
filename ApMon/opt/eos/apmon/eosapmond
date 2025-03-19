@@ -14,7 +14,10 @@ EOSCONFIG="/etc/xrd.cf.fst"
 EOSLOGDIR="/var/log/eos/"
 EOSROLE="apmon"
 EOSUSER="daemon"
-. /etc/init.d/functions
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+source "${SCRIPT_DIR}/functions"
+
 test -e /etc/sysconfig/eos && . /etc/sysconfig/eos
 test -e /etc/sysconfig/eos_env && . /etc/sysconfig/eos_env
 
@@ -67,7 +70,10 @@ start() {
             daemon --user ${EOSUSER} "test -e /etc/sysconfig/eos && source /etc/sysconfig/eos; cd ${EOSCOREDIR}; ulimit -c unlimited; export PERL5LIB=`perl -V:installsitearch | cut -d "'" -f 2`/ApMon ;${EOSLOCATION}/sbin/$prog /usr/sbin/eos_apmonpl ${EOSLOGDIR}/${EOSROLE}/apmon.log ${MONALISA_HOST} ${APMON_DEBUG_LEVEL} ${APMON_INSTANCE_NAME} $host $xrdpid >& /dev/null < /dev/null" 
             RETVAL=$?
 	    sleep 1
-	    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+	    if [ $RETVAL -eq 0 ]; then
+                touch /var/lock/subsys/$prog
+                echo `pgrep -f -u ${EOSUSER} $prog` > /var/run/eos_apmonpl.pid
+            fi
             echo
 	else 
             echo $prog already running.  
@@ -82,7 +88,10 @@ stop() {
         echo -n "Stopping $prog: "
         killproc /${EOSLOCATION}/sbin/$prog
         RETVAL=$?
-        [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+        if [ $RETVAL -eq 0 ]; then
+                rm -f /var/lock/subsys/$prog
+                rm -f /run/eos_apmonpl.pid
+        fi
         echo
         return $RETVAL
 }

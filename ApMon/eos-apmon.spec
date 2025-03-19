@@ -23,11 +23,6 @@ This package contains service scripts for ML monitoring in EOS
 The service is started via systemd
 systemctl start | stop | status | restart eosapmond.service
 
-Old way is to start via init.d scripts.
-/etc/init.d/eosapmond start | stop | status | restart
-
-'eosapmond' service is added to run by default in run level 3,4 and 5.
-
 The initd scripts were done by Andreas-Joachim Peters [CERN] (EMAIL: andreas.joachim.peters@cern.ch).
 
 %prep
@@ -56,11 +51,12 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(-,root,root)
-/etc/init.d/eosapmond
-/etc/rc.d/init.d/eosapmond
+/opt/eos/apmon/eosapmond
+/opt/eos/apmon/functions
 /etc/logrotate.d/apmon-logs
 /usr/sbin/eos_apmond
 /usr/sbin/eos_apmonpl
+/usr/lib/systemd/system/eosapmond.service
 
 %{perl_sitearch}/ApMon/
 
