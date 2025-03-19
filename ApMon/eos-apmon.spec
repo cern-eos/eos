@@ -5,7 +5,7 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.11
+Version: 1.1.12
 Release: 1%{?dist}
 URL: none
 Source0: %{name}-%{version}.tar.gz
@@ -61,6 +61,9 @@ rm -rf $RPM_BUILD_ROOT
 %{perl_sitearch}/ApMon/
 
 %changelog
+* Wed Mar 19 2025 Gianmaria Del Monte <gianmaria.del.monte@cern.ch> - 1.1.12-1
+- Move to systemd service
+
 * Fri Jan 26 2024  Volodymyr Yurchenko <volodymyr.yurchenko@cern.ch> - 1.1.11-1
 - install systemd unit file compatible with Alma 9
 
