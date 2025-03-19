@@ -317,7 +317,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
   mJeMallocHandler(new eos::common::JeMallocHandler()),
-  cta_use_grpc(false)
+  protowfusegrpc(false)
 {
   eDest = ep;
   ConfigFN = 0;
