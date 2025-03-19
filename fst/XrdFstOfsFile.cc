@@ -3917,7 +3917,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
 
   // also make sure to pass the right attribute, don't just use the extended ones (old format), fill in the new ones
   notification->mutable_file()->set_storage_class(storageClass);
-  // notification->mutable_file()->set_archive_file_id(ctaArchiveFileId); // maybe not required for the CLOSEW event
+  notification->mutable_file()->set_archive_file_id(std::strtoul(ctaArchiveFileId.c_str(), nullptr, 10));
 
   // Build query strings
   std::ostringstream srcStream;
