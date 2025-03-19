@@ -9,9 +9,12 @@ StartLimitBurst=3
 StartLimitIntervalSec=5
 
 [Service]
+ExecStartPre=/bin/sh -c "echo PERL5LIB=\$(perl -V:installsitearch | cut -d \"'\" -f 2)/ApMon > /run/eosapmond.env"
+EnvironmentFile=/run/eosapmond.env
 EnvironmentFile=-/etc/sysconfig/eos
 EnvironmentFile=-/etc/sysconfig/eos_env
 ExecStart=/usr/sbin/eos_apmond /usr/sbin/eos_apmonpl /var/log/eos/apmon/apmon.log ${MONALISAHOST:-"undef"} ${APMON_DEBUG_LEVEL:-"WARNING"} ${APMON_INSTANCE_NAME:-"unconfigured"} ${HOSTNAME}
+ExecStopPost=/bin/rm -f /run/eosapmond.env
 User=daemon
 Restart=always
 
