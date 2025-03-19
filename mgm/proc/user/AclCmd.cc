@@ -189,6 +189,10 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   int ret = 0;
 
   for (const auto& elem : paths) {
+    // Clear the dir_acls variable for each pass
+    // as GetAcl() takes the dir_acls variable and append to it
+    dir_acls.clear();
+
     GetAcls(elem, dir_acls, acl.sys_acl(), acl.user_acl(), false);
     GenerateRuleMap(dir_acls, rule_map);
     // ACL position is 1-indexed as 0 is the default numeric protobuf val

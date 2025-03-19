@@ -1213,6 +1213,14 @@ runtest "### Space     " unix 0 "" eos space config "default space.wfe=off"
 ###################################################A############################
 categorie="acl"
 runtest "### Mkdir   " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Mkdir   " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl/dir1"
+runtest "### Mkdir   " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl/dir1/dir2"
+runtest "### Acl set " unix 0 "" eos acl --recursive u:daemon=rwx "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl set " unix 0 "" eos acl --recursive u:${NOBODY_UID}=rwx "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### Acl ls  " unix 0 "" "eos attr -r ls \"/eos/$EOS_TEST_INSTANCE/test/acl\" | grep -o -c 'sys.acl=\"u:2:rwx,u:65534:rwx\"' | grep '3'"
+runtest "### Acl ls  " unix 0 "" eos attr -r rm sys.acl "/eos/$EOS_TEST_INSTANCE/test/acl"
+runtest "### RmDir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl/dir1/dir2"
+runtest "### RmDir   " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/acl/dir1/"
 runtest "### Acl set " unix 1 "" eos acl u:daemon=\!x /eos/does_not_exist
 runtest "### Acl set " unix 1 "" eos acl --recursive u:daemon=\!x /eos/does_not_exist
 runtest "### Acl ls  " unix 1 "" eos acl -l "/eos/$EOS_TEST_INSTANCE/test/acl"
