@@ -34,7 +34,8 @@ install-exec-local :
 		for name in ` find etc -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/$$name; done
 		cd perl ; for name in ` find . -type f | grep -v svn`; do $(INSTALL) -m 755 $(srcdir)/$$name $(DESTDIR)/`perl -V:installsitearch | cut -d "'" -f 2`/$$name; done
 		$(INSTALL) -m 755 $(srcdir)/eos_apmonpl $(DESTDIR)/usr/sbin/
-		$(INSTALL) -m 644 $(srcdir)/usr/lib/systemd/system/eosapmond.service $(DESTDIR)/usr/lib/systemd/system/eosapmond.service
+		$(INSTALL) -m 644 $(srcdir)/usr/lib/systemd/system/eosapmond.service $(DESTDIR)/usr/lib/systemd/system/
+		$(INSTALL) -m 755 $(srcdir)/eosapmon.sh $(DESTDIR)/usr/sbin/eosapmon.sh
 
 uninstall-local :
 		for name in ` find etc -type f | grep -v svn`; do rm $(DESTDIR)/$$name; done

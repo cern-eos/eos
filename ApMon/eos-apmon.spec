@@ -55,6 +55,7 @@ rm -rf $RPM_BUILD_ROOT
 /usr/sbin/eos_apmond
 /usr/sbin/eos_apmonpl
 /usr/lib/systemd/system/eosapmond.service
+/usr/sbin/eosapmon.sh
 
 %{perl_sitearch}/ApMon/
 
