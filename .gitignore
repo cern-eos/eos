@@ -51,3 +51,9 @@ my_clang_cache.cmake
 doc/_build/
 doc/html/
 debian/control
+
+# ApMon specific
+ApMon/*.tar.gz
+ApMon/rpmbuild*
+ApMon/eos-apmon-*
+!ApMon/Makefile

@@ -11,9 +11,8 @@ URL: none
 Source0: %{name}-%{version}.tar.gz
 License: OpenSource
 Group: Applications/Eos
-BuildRoot: %{_tmppath}/%{name}-root
 
-BuildRequires: autoconf, automake, libtool, systemd-rpm-macros
+BuildRequires: systemd-rpm-macros
 
 Requires: perl
 
@@ -28,14 +27,10 @@ The initd scripts were done by Andreas-Joachim Peters [CERN] (EMAIL: andreas.joa
 %prep
 %setup -q
 
-%build
-rm -rf $RPM_BUILD_ROOT
-./bootstrap.sh
-./configure --prefix=/usr/
-%{__make} %{_smp_mflags}
-
 %install
-%{__make} install DESTDIR=$RPM_BUILD_ROOT
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+%{__make} install DESTDIR=%{buildroot}
 
 %post
 %systemd_post eosapmond.service
@@ -46,18 +41,13 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 %systemd_postun_with_restart eosapmond.service
 
-%clean
-rm -rf $RPM_BUILD_ROOT
-
 %files
 %defattr(-,root,root)
-/etc/logrotate.d/apmon-logs
-/usr/sbin/eos_apmond
-/usr/sbin/eos_apmonpl
-/usr/lib/systemd/system/eosapmond.service
-/usr/sbin/eosapmon.sh
-
+/%{_unitdir}/eosapmond.service
+/etc/logrotate.d/eosapmond
 %{perl_sitearch}/ApMon/
+/opt/eos/apmon/eosapmond
+/opt/eos/apmon/run.sh
 
 %changelog
 * Wed Mar 19 2025 Gianmaria Del Monte <gianmaria.del.monte@cern.ch> - 1.1.12-1

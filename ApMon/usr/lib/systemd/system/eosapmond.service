@@ -9,7 +9,7 @@ StartLimitBurst=3
 StartLimitIntervalSec=5
 
 [Service]
-ExecStart=/usr/sbin/eosapmon.sh
+ExecStart=/opt/eos/apmon/run.sh
 User=root
 Restart=always
 
