@@ -2793,11 +2793,11 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   cta::xrd::Response response;
   // Instantiate service object only once, static is thread-safe
   static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->protowfusegrpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource);
-
+  cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
   // Send the request
   try {
     const auto sentAt = std::chrono::steady_clock::now();
-    request_sender->send(request, response);
+    response_type = request_sender->send(request, response);
     const auto receivedAt = std::chrono::steady_clock::now();
     const auto timeSpentMilliseconds =
       std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);
@@ -2821,7 +2821,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   // Handle the response
   int retval = EPROTO;
 
-  switch (response.type()) {
+  switch (response_type) {
   case cta::xrd::Response::RSP_SUCCESS: {
     // Set all attributes for file from response
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
@@ -2875,7 +2875,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                  "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
                  gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
                  event.c_str(),
-                 CtaCommon::ctaResponseCodeToString(response.type()).c_str(),
+                 CtaCommon::ctaResponseCodeToString(response_type).c_str(),
                  response.message_txt().c_str());
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
   errorMsg = response.message_txt();
