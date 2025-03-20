@@ -3958,6 +3958,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   }
 
   cta::xrd::Response response;
+  cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
   
   try {
     // Instantiate service object only once, static is also thread-safe
@@ -3965,7 +3966,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(protowfusegrpc, endPoint, resource);
     auto sentAt = std::chrono::steady_clock::now();
 
-    request_sender->send(request, response);
+    response_type = request_sender->send(request, response);
 
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
@@ -3978,7 +3979,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   }
 
   // also make sure to check not only the extended attribute but also the actual first-class attribute
-  switch (response.type()) {
+  switch (response_type) {
   case cta::xrd::Response::RSP_SUCCESS: {
     auto archiveReqIdItor = response.xattr().find("sys.cta.objectstore.id");
 
@@ -3998,7 +3999,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   case cta::xrd::Response::RSP_INVALID:
     errmsg_wfe = response.message_txt();
     eos_static_err("%s for file %s. Reason: %s",
-                   CtaCommon::ctaResponseCodeToString(response.type()).c_str(),
+                   CtaCommon::ctaResponseCodeToString(response_type).c_str(),
                    fullpath.c_str(), response.message_txt().c_str());
     return EPROTO;
 

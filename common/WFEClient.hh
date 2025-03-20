@@ -28,7 +28,7 @@
 
 class WFEClient {
 public:
-  virtual void send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0;
+  virtual cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0;
   virtual ~WFEClient() = default;
 };
 
@@ -37,7 +37,7 @@ public:
   WFEGrpcClient(std::string endpoint_str) : endpoint(endpoint_str), client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials()))) {}
 
   // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
-  void send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
+  cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
     grpc::ClientContext context;
     grpc::Status status;
 
@@ -65,7 +65,40 @@ public:
         /* fallthrough */
       default:
         // should probably have an error here that we don't have a gRPC method for this
+        status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "gRPC method not implemented for " + cta::eos::Workflow_EventType_Name(request.notification().wf().event()));
         break;
+    }
+    if (status.ok()){
+      return cta::xrd::Response::RSP_SUCCESS;
+    } else {
+      switch (status.error_code()) {
+        // user-code (CTA) generated errors,
+        case grpc::StatusCode::INVALID_ARGUMENT:
+          return cta::xrd::Response::RSP_ERR_PROTOBUF;
+        case grpc::StatusCode::ABORTED:
+          return cta::xrd::Response::RSP_ERR_USER;
+        case grpc::StatusCode::FAILED_PRECONDITION:
+          return cta::xrd::Response::RSP_ERR_CTA;
+        // something went wrong in the gRPC code, throw an exception
+        case grpc::StatusCode::UNKNOWN:
+          throw std::runtime_error("UNKNOWN error from the gRPC framework");
+        case grpc::StatusCode::DEADLINE_EXCEEDED:
+          throw std::runtime_error("DEADLINE_EXCEEDED error from the gRPC framework");
+        case grpc::StatusCode::PERMISSION_DENIED:
+          throw std::runtime_error("PERMISSION_DENIED error from the gRPC framework");
+        case grpc::StatusCode::UNIMPLEMENTED:
+          throw std::runtime_error("UNIMPLEMENTED error from the gRPC framework");
+        case grpc::StatusCode::INTERNAL:
+          throw std::runtime_error("INTERNAL error from the gRPC framework");
+        case grpc::StatusCode::UNAVAILABLE:
+          throw std::runtime_error("UNAVAILABLE error from the gRPC framework");
+        case grpc::StatusCode::UNAUTHENTICATED:
+          throw std::runtime_error("UNAUTHENTICATED error from the gRPC framework");
+        case grpc::StatusCode::CANCELLED:
+          throw std::runtime_error("CANCELLED error from the gRPC framework");
+        default:
+          return cta::xrd::Response::RSP_INVALID;
+      }
     }
   }
 private:
@@ -76,12 +109,14 @@ private:
 class WFEXrdClient : public WFEClient {
 public:
   WFEXrdClient(std::string endpoint, std::string resource, XrdSsiPb::Config &config) : service(XrdSsiPbServiceType(endpoint, resource, config)) {}
-  void send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
+  cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
     try {
       service.Send(request, response, false);
+      return response.type();
     } catch (std::runtime_error& err) {
       eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
       service.Send(request, response, true);
+      return response.type();
     }
   }
 private:
