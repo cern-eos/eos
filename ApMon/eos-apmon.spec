@@ -5,15 +5,14 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.11
+Version: 1.1.12
 Release: 1%{?dist}
 URL: none
 Source0: %{name}-%{version}.tar.gz
 License: OpenSource
 Group: Applications/Eos
-BuildRoot: %{_tmppath}/%{name}-root
 
-BuildRequires: autoconf, automake, libtool, systemd-rpm-macros
+BuildRequires: systemd-rpm-macros
 
 Requires: perl
 
@@ -23,24 +22,15 @@ This package contains service scripts for ML monitoring in EOS
 The service is started via systemd
 systemctl start | stop | status | restart eosapmond.service
 
-Old way is to start via init.d scripts.
-/etc/init.d/eosapmond start | stop | status | restart
-
-'eosapmond' service is added to run by default in run level 3,4 and 5.
-
 The initd scripts were done by Andreas-Joachim Peters [CERN] (EMAIL: andreas.joachim.peters@cern.ch).
 
 %prep
 %setup -q
 
-%build
-rm -rf $RPM_BUILD_ROOT
-./bootstrap.sh
-./configure --prefix=/usr/
-%{__make} %{_smp_mflags}
-
 %install
-%{__make} install DESTDIR=$RPM_BUILD_ROOT
+rm -rf %{buildroot}
+mkdir -p %{buildroot}
+%{__make} install DESTDIR=%{buildroot}
 
 %post
 %systemd_post eosapmond.service
@@ -51,20 +41,18 @@ rm -rf $RPM_BUILD_ROOT
 %postun
 %systemd_postun_with_restart eosapmond.service
 
-%clean
-rm -rf $RPM_BUILD_ROOT
-
 %files
 %defattr(-,root,root)
-/etc/init.d/eosapmond
-/etc/rc.d/init.d/eosapmond
-/etc/logrotate.d/apmon-logs
-/usr/sbin/eos_apmond
-/usr/sbin/eos_apmonpl
-
+/%{_unitdir}/eosapmond.service
+/etc/logrotate.d/eosapmond
 %{perl_sitearch}/ApMon/
+/opt/eos/apmon/eosapmond
+/opt/eos/apmon/run.sh
 
 %changelog
+* Wed Mar 19 2025 Gianmaria Del Monte <gianmaria.del.monte@cern.ch> - 1.1.12-1
+- Move to systemd service
+
 * Fri Jan 26 2024  Volodymyr Yurchenko <volodymyr.yurchenko@cern.ch> - 1.1.11-1
 - install systemd unit file compatible with Alma 9
 

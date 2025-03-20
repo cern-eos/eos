@@ -1,0 +1,46 @@
+#!/usr/bin/perl
+# apmonpl <MONALISAHOST> <LOGFILE> <APMONLOGLEVEL> <NODES-NAME> <HOST-NAME> <XRD-PID>
+
+if (@ARGV != 6) {
+    print "Usage: $0 <MONALISAHOST> <LOGFILE> <APMONLOGLEVEL> <NODES-NAME> <HOST-NAME> <XRD-PID>";
+    exit(1);
+}
+
+# Redirect stdout and stderr to log file
+if (!open(STDOUT, ">>", $ARGV[1])) {
+    print STDERR "ERROR: cannot stream stdout into $ARGV[1]\n";
+    exit(-1);
+}
+STDOUT->autoflush(1);
+
+if (!open(STDERR, ">>", $ARGV[1])) {
+    print STDERR "ERROR: cannot stream stderr into $ARGV[1]\n";
+    exit(-1);
+}
+STDERR->autoflush(1);
+
+use POSIX qw(setsid);
+my $sid = setsid();
+if ($sid < 0) {
+    print STDERR "ERROR: failed to create new session (setsid())\n";
+    exit(-1);
+}
+
+use strict;
+use warnings;
+use ApMon;
+my $apm = new ApMon(0);
+my $now = `date`;
+chomp $now;
+printf "# Starting at $now\n";
+select STDOUT; $| = 1;
+select STDERR; $| = 1;
+$apm->setLogLevel($ARGV[2]);
+$apm->setDestinations(["$ARGV[0]"]);
+$apm->setMonitorClusterNode("$ARGV[3]_xrootd_Nodes", "$ARGV[4]");
+$apm->addJobToMonitor($ARGV[5], '', 'xrootd_Services', "$ARGV[4]");
+
+while(1){
+    $apm->sendBgMonitoring();
+    sleep(120);
+}

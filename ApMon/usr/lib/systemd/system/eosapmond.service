@@ -1,0 +1,17 @@
+# systemd service unit file for eosapmond
+# Author: Gianmaria Del Monte <gianmaria.del.monte@cern.ch>
+# Description: Systemd service to start apmon for monitoring xrootd on EOS
+
+[Unit]
+Description=Starts apmon to monitor xrootd on EOS
+After=network.target
+StartLimitBurst=3
+StartLimitIntervalSec=5
+
+[Service]
+ExecStart=/opt/eos/apmon/run.sh
+User=root
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
