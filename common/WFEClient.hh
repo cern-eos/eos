@@ -80,24 +80,8 @@ public:
         case grpc::StatusCode::FAILED_PRECONDITION:
           return cta::xrd::Response::RSP_ERR_CTA;
         // something went wrong in the gRPC code, throw an exception
-        case grpc::StatusCode::UNKNOWN:
-          throw std::runtime_error("UNKNOWN error from the gRPC framework");
-        case grpc::StatusCode::DEADLINE_EXCEEDED:
-          throw std::runtime_error("DEADLINE_EXCEEDED error from the gRPC framework");
-        case grpc::StatusCode::PERMISSION_DENIED:
-          throw std::runtime_error("PERMISSION_DENIED error from the gRPC framework");
-        case grpc::StatusCode::UNIMPLEMENTED:
-          throw std::runtime_error("UNIMPLEMENTED error from the gRPC framework");
-        case grpc::StatusCode::INTERNAL:
-          throw std::runtime_error("INTERNAL error from the gRPC framework");
-        case grpc::StatusCode::UNAVAILABLE:
-          throw std::runtime_error("UNAVAILABLE error from the gRPC framework");
-        case grpc::StatusCode::UNAUTHENTICATED:
-          throw std::runtime_error("UNAUTHENTICATED error from the gRPC framework");
-        case grpc::StatusCode::CANCELLED:
-          throw std::runtime_error("CANCELLED error from the gRPC framework");
         default:
-          return cta::xrd::Response::RSP_INVALID;
+          throw std::runtime_error("gRPC call failed internally. Error code: " + std::to_string(status.error_code()) + " Error message: " + status.error_message());
       }
     }
   }
