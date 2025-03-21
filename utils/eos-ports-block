@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# Function to display help message
+display_help() {
+    cat << EOF
+Usage: $0 --ports PORT [PORT ...]
+
+Block the ports passed in parameters for incoming traffic
+
+This script will flush the nft list ruleset and will create nft rules
+to accept any incoming connection. Consequently to this, it will create rules
+to block any incoming traffic to the ports passed in parameters.
+
+Note: these rules are NOT persisted!
+To rollback all the nft rules to the previous states, please run "$0 --reset-defaults". This will
+trigger a systemctl restart nftables and will apply all the rules that are under /etc/nftables.
+
+Options:
+  --ports           Specify one or more valid port numbers (1-65535) to block.
+  --reset-defaults  Reset defaults nft list (does not accept any arguments).
+  --help            Display this help message.
+Example:
+  $0 --ports 443 8444 1094
+  $0 --reset-defaults
+EOF
+}
+
+# Check for flags
+case "$1" in
+    --help)
+        display_help
+        exit 0
+        ;;
+    --reset-defaults)
+        # Check if there are any extra arguments.
+        if [ $# -gt 1 ]; then
+            echo "Error: --reset-defaults does not accept any arguments." >&2
+            display_help
+            exit 1
+        else
+            echo "Resetting defaults value for nftables..."
+            echo "    systemctl restart nftables"
+            systemctl restart nftables
+            echo "Done."
+            exit 0
+        fi
+        ;;
+    --ports)
+        # Remove the --ports flag from the arguments list.
+        shift
+        # Ensure at least one port number is provided.
+        if [ $# -eq 0 ]; then
+            echo "Error: no port number provided!"
+            display_help
+            exit 1
+        fi
+        # Validate each provided port number.
+        for port in "$@"; do
+            # Check if the port is a number.
+            if ! [[ "$port" =~ ^[0-9]+$ ]]; then
+                echo "Error: '$port' is not a valid port number." >&2
+                exit 1
+            fi
+            # Check if the port is within the valid range (1 to 65535)
+            if [ "$port" -le 0 ] || [ "$port" -gt 65535 ]; then
+                echo "Error: Port '$port' is out of valid range (1-65535)." >&2
+                exit 1
+            fi
+        done
+        # If all ports are valid, block them
+        echo "Flushing nft ruleset"
+        cmd="nft flush ruleset"
+        echo "   $cmd"
+        bash -c "$cmd"
+        echo "Done."
+        echo "Accept all incoming traffic"
+        cmd="nft add table inet filter"
+        echo "   $cmd"
+        bash -c "$cmd"
+        cmd="nft add chain inet filter input { type filter hook input priority 0 \; policy accept \; }"
+        echo "   $cmd"
+        bash -c "$cmd"
+        echo "Done."
+        echo "Blocking all provided ports"
+        for port in "$@"; do
+            echo "   Blocking port $port"
+            cmd="nft add rule inet filter input tcp dport $port drop"
+            echo "       $cmd"
+            bash -c "$cmd"
+            echo "   Done."
+        done
+        echo "Done."
+        exit 0
+        ;;
+    *)
+        # For any other flag, display help.
+        display_help
+        exit 1
+        ;;
+esac
+
+exit 0

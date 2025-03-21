@@ -389,6 +389,7 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_sbindir}/eos-rain-hd-dump
 %{_sbindir}/eos-rain-check
 %{_sbindir}/eos-filter-stacktrace
+%{_sbindir}/eos-ports-block
 %{_sbindir}/eos-status
 %{_sbindir}/eos-diagnostic-tool
 %{_libdir}/libEosCommonServer.so.%{version}

@@ -22,5 +22,5 @@
 # ************************************************************************
 
 install(
-  PROGRAMS eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall eos-tty-broadcast filter-trace/eos-filter-stacktrace flamegraph/eos-util-flamegraph flamegraph/eos-util-stackcollapse flamegraph/eos-make-flamegraph
+  PROGRAMS eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall eos-ports-block eos-tty-broadcast filter-trace/eos-filter-stacktrace flamegraph/eos-util-flamegraph flamegraph/eos-util-stackcollapse flamegraph/eos-make-flamegraph
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
