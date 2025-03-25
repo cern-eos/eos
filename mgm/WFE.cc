@@ -1874,7 +1874,7 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
       notification->mutable_file()->set_storage_class(attribute.second);
     }
     if (attribute.first == ARCHIVE_FILE_ID_ATTR_NAME) {
-      notification->mutable_file()->set_archive_file_id(std::stoull(attribute.second.c_str()));
+      notification->mutable_file()->set_archive_file_id(std::strtoul(attribute.second.c_str(), nullptr, 10));
     }
   }
 
