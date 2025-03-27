@@ -60,6 +60,7 @@ public:
   XrdOucString HostAlias; // alias for this hostname to use in redirection
   XrdOucString PortAlias; // alias for the port to use in redirection
   mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
+  bool protowfusegrpc; // use the xrootd or the grpc protocol
 
   Config() : generator((std::random_device())())
   {

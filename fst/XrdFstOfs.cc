@@ -616,6 +616,23 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
+        // Use gRPC calls instead of xrootd notifications?
+        if (!strcmp("protowfusegrpc", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument for protowfusegrpc is invalid. "
+                        "Must be <true>, <false>, <1> or <0>!");
+            NoGo = 1;
+          } else {
+            gConfig.protowfusegrpc = false;
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              gConfig.protowfusegrpc = true;
+            }
+            Eroute.Say("=====> fstofs.protowfusegrpc : ", val);
+          }
+        }
+
         if (!strcmp("metalog", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument 2 for metalog missing");

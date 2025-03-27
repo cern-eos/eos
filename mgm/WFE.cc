@@ -42,6 +42,10 @@
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
 #include <Xrd/XrdScheduler.hh>
+#include <grpc++/grpc++.h>
+#include "cta_frontend.pb.h"
+#include "cta_frontend.grpc.pb.h"
+#include "common/WFEClient.hh"
 
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
@@ -1864,6 +1868,14 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     google::protobuf::MapPair<std::string, std::string> attr(attribute.first,
         attribute.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
+
+    // need to set the storage_class and archive_file_id attributes (not just the extended ones)
+    if (attribute.first == ARCHIVE_STORAGE_CLASS_ATTR_NAME) {
+      notification->mutable_file()->set_storage_class(attribute.second);
+    }
+    if (attribute.first == ARCHIVE_FILE_ID_ATTR_NAME) {
+      notification->mutable_file()->set_archive_file_id(std::strtoul(attribute.second.c_str(), nullptr, 10));
+    }
   }
 
   if (prepareActivity.length()) {
@@ -2778,52 +2790,38 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     return ENOTCONN;
   }
 
-  XrdSsiPb::Config config;
-
-  if (getenv("XRDDEBUG")) {
-    config.set("log", "all");
-  } else {
-    config.set("log", "info");
-  }
-
-  config.set("request_timeout", "120");
-  // Instantiate service object only once, static is thread-safe
-  static XrdSsiPbServiceType service(gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource,
-                                     config);
   cta::xrd::Response response;
-
+  // Instantiate service object only once, static is thread-safe
+  static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->protowfusegrpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource);
+  cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
   // Send the request
   try {
     const auto sentAt = std::chrono::steady_clock::now();
-    try {
-      service.Send(request, response, false);
-    } catch (std::runtime_error& err) {
-      eos_static_err("msg=\"Could not send SSI protocol buffer request to outside service. Retrying with DNS cache refresh.\"");
-      service.Send(request, response, true);
-    }
+    response_type = request_sender->send(request, response);
     const auto receivedAt = std::chrono::steady_clock::now();
     const auto timeSpentMilliseconds =
       std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);
     eos_static_info("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" timeSpentMs=%ld "
-                    "msg=\"Sent SSI protocol buffer request\"",
+                    "msg=\"Sent protocol buffer request\"",
                     gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
                     event.c_str(),
                     timeSpentMilliseconds.count());
   } catch (std::runtime_error& error) {
     eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-                   "msg=\"Could not send SSI protocol buffer request to outside service.\" reason=\"%s\"",
-                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
-                   event.c_str(),
-                   error.what());
+                  "msg=\"Could not send protocol buffer request to outside service.\" reason=\"%s\"",
+                  gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                  event.c_str(),
+                  error.what());
     errorMsg = error.what();
     retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
   }
-
+  // note: the gRPC frontend only returns the following error types:
+  // RSP_ERR_PROTOBUF, RSP_ERR_USER, RSP_ERR_CTA
   // Handle the response
   int retval = EPROTO;
 
-  switch (response.type()) {
+  switch (response_type) {
   case cta::xrd::Response::RSP_SUCCESS: {
     // Set all attributes for file from response
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
@@ -2877,7 +2875,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                  "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
                  gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
                  event.c_str(),
-                 CtaCommon::ctaResponseCodeToString(response.type()).c_str(),
+                 CtaCommon::ctaResponseCodeToString(response_type).c_str(),
                  response.message_txt().c_str());
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
   errorMsg = response.message_txt();

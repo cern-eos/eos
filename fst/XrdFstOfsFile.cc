@@ -40,6 +40,13 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/utils/Etag.hh"
 #include <XrdOuc/XrdOucPgrwUtils.hh>
+
+// includes for gRPC
+#include <grpc++/grpc++.h>
+#include "cta_frontend.pb.h"
+#include "cta_frontend.grpc.pb.h"
+#include "common/WFEClient.hh"
+
 extern XrdOss* XrdOfsOss;
 
 EOSFSTNAMESPACE_BEGIN
@@ -3893,16 +3900,24 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   notification->mutable_file()->set_disk_file_id(std::to_string(file_id));
   auto fxidString = StringConversion::FastUnsignedToAsciiHex(file_id);
   std::string ctaArchiveFileId = "none";
+  std::string storageClass = "";
 
   for (const auto& attrPair : xattrs) {
     google::protobuf::MapPair<std::string, std::string> attr(attrPair.first,
         attrPair.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
 
-    if (attrPair.first == "sys.archive.file_id") {
+    if (attrPair.first == ARCHIVE_FILE_ID_ATTR_NAME) { // sys.archive.file_id xattr corresponds to archive_file_id first-class attribute
       ctaArchiveFileId = attrPair.second;
     }
+    if (attrPair.first == ARCHIVE_STORAGE_CLASS_ATTR_NAME) {
+      storageClass = attrPair.second;
+    }
   }
+
+  // also make sure to pass the right attribute, don't just use the extended ones (old format), fill in the new ones
+  notification->mutable_file()->set_storage_class(storageClass);
+  notification->mutable_file()->set_archive_file_id(std::strtoul(ctaArchiveFileId.c_str(), nullptr, 10));
 
   // Build query strings
   std::ostringstream srcStream;
@@ -3927,10 +3942,12 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   // Communication with service
   std::string endPoint;
   std::string resource;
+  bool protowfusegrpc;
   {
     XrdSysMutexHelper lock(gConfig.Mutex);
     endPoint = gConfig.ProtoWFEndpoint;
     resource = gConfig.ProtoWFResource;
+    protowfusegrpc = gConfig.protowfusegrpc;
   }
 
   if (endPoint.empty() || resource.empty()) {
@@ -3940,41 +3957,29 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     return ENOTCONN;
   }
 
-  XrdSsiPb::Config config;
-
-  if (getenv("XRDDEBUG")) {
-    config.set("log", "all");
-  } else {
-    config.set("log", "info");
-  }
-
-  config.set("request_timeout", "120");
   cta::xrd::Response response;
-
+  cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
+  
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
-    static XrdSsiPbServiceType service(endPoint, resource, config);
+    static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(protowfusegrpc, endPoint, resource);
     auto sentAt = std::chrono::steady_clock::now();
 
-    try {
-      service.Send(request, response, false);
-    } catch (std::runtime_error& err) {
-      eos_static_err("Could not send request to outside service. Retrying with DNS cache refresh.");
-      service.Send(request, response, true);
-    }
+    response_type = request_sender->send(request, response);
 
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
-                     (receivedAt - sentAt);
-    eos_static_info("SSI Protobuf time for sync::closew=%ld", timeSpent.count());
+                      (receivedAt - sentAt);
+    eos_static_info("WFEClient send time for sync::closew=%ld", timeSpent.count());
   } catch (std::runtime_error& err) {
     eos_static_err("Could not send request to outside service. Reason: %s",
-                   err.what());
+                    err.what());
     return ENOTCONN;
   }
 
-  switch (response.type()) {
+  // also make sure to check not only the extended attribute but also the actual first-class attribute
+  switch (response_type) {
   case cta::xrd::Response::RSP_SUCCESS: {
     auto archiveReqIdItor = response.xattr().find("sys.cta.objectstore.id");
 
@@ -3994,7 +3999,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   case cta::xrd::Response::RSP_INVALID:
     errmsg_wfe = response.message_txt();
     eos_static_err("%s for file %s. Reason: %s",
-                   CtaCommon::ctaResponseCodeToString(response.type()).c_str(),
+                   CtaCommon::ctaResponseCodeToString(response_type).c_str(),
                    fullpath.c_str(), response.message_txt().c_str());
     return EPROTO;
 

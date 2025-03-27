@@ -124,3 +124,6 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
 # EOS spaces for which the tape aware garbage collector should be enabled
 #mgmofs.tgc.enablespace space1 space2 ...
+
+# Use gRPC?
+#mgmofs.protowfusegrpc true
