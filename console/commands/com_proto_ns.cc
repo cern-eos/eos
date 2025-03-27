@@ -749,8 +749,8 @@ void com_ns_help()
       << std::endl
       << "     example: eos ns benchmark 100 10 10\n"
       << std::endl
-      << " ns tracker list|clean --name tracker_type\n"
-      << "     list or clean the different file identifier trackers\n"
+      << " ns tracker list|clear --name tracker_type\n"
+      << "     list or clear the different file identifier trackers\n"
       << "     tracker_type : one of the following: drain, balance, fsck, convert, all\n"
       << std::endl
       << " ns behaviour list|set|clear\n"
