@@ -1190,7 +1190,8 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
   int rc = FmdMgmHandler::GetMgmFmd(gConfig.GetManager(), fid, fmd, xattrs);
 
   if (rc != 0) {
-    // TODO
+    eos_static_err("msg=\"error getting file from MGM\" fxid=%08llx rc=%d", fid,
+                   rc);
     return false;
   }
 
@@ -1199,18 +1200,18 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
 
   // in case the number of committed xs to the MGM is less
   // than the number of stripes, it might be that not all
-  // the local checksums have been committed, so we can
-  // skip the check for later.
+  // the local checksums have been committed.
   if (mgm_xs.size() < nstripes) {
-    // TODO: leave a log line here
-    return true;
+    eos_static_info("msg=\"cannot check the rain file: number of commited checksums is less than stripe numbers\" fxid=%08llx",
+                    fid);
+    return false;
   }
 
   std::vector<stripe_s> stripes;
   std::string opaqueInfo;
 
   if (!ListStripes(fid, stripes, opaqueInfo)) {
-    // TODO
+    eos_static_err("msg=\"error listing stripes\" fxid=%08llx", fid);
     return false;
   }
 
@@ -1227,6 +1228,8 @@ bool ScanDir::ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
     }
 
     if (!fmd) {
+      eos_static_err("msg=\"error getting fmd\" fxid=%08llx fsid=%d is_remote=%d",
+                     fid, stripe.fsid, stripe.fsid == mFsId);
       return false;
     }
 
