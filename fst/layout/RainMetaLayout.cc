@@ -986,9 +986,11 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
     if (mStripe[0]) {
       write_length = mStripe[0]->fileWrite(offset, buffer, length, mTimeout);
 
-      if (mUnitCheckSum) {
+      // the unit checksum is only computed for the data part
+      // the header part is skipped
+      if (mUnitCheckSum && offset >= mSizeHeader && write_length > 0) {
         XrdSysMutexHelper cLock(mChecksumMutex);
-        mUnitCheckSum->Add(buffer, write_length, offset);
+        mUnitCheckSum->Add(buffer, write_length, offset - mSizeHeader);
       }
     }
   } else {
@@ -1053,19 +1055,14 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
             write_length = SFS_ERROR;
             break;
           }
-
-          // if (physical_id == 0) {
-          //   // local file
-          //   if (mUnitCheckSum) {
-          //     XrdSysMutexHelper cLock(mChecksumMutex);
-          //     mUnitCheckSum->Add(buffer, nwrite, off_local);
-          //   }
-          // }
         }
       }
 
-      if (physical_id == 0 && mUnitCheckSum) {
-        mUnitCheckSum->SetDirty();
+      // we compute the unit checksum only on the entry server
+      // since for the other stripes this is computed by the other FSTs
+      if (physical_id == 0 && mUnitCheckSum && off_local >= mSizeHeader) {
+        XrdSysMutexHelper cLock(mChecksumMutex);
+        mUnitCheckSum->Add(buffer, nwrite, off_local - mSizeHeader);
       }
 
       AddPiece(offset, nwrite);
@@ -1640,6 +1637,7 @@ bool RainMetaLayout::VerifyChecksum()
     return false;
   }
 
+  mUnitCheckSum->Finalize();
   unsigned long long scansize = 0;
   float scantime = 0;
 
@@ -1649,7 +1647,7 @@ bool RainMetaLayout::VerifyChecksum()
               mOfsFile->GetFileId());
 
     if (mUnitCheckSum->ScanFile(mOfsFile->GetFstPath().c_str(), scansize,
-                                scantime)) {
+                                scantime, mSizeHeader)) {
       XrdOucString sizestring;
       eos_info("msg=\"rescanned unit checksum\" fxid=%08llx size=%s time=%.02f ms rate=%.02f MB/s %s",
                mOfsFile->GetFileId(), eos::common::StringConversion::GetReadableSizeString(
