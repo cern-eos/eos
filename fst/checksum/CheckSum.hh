@@ -189,11 +189,11 @@ public:
   };
 
   virtual bool ScanFile(const char* path, unsigned long long& scansize,
-                        float& scantime, int rate = 0);
+                        float& scantime, int rate = 0, off_t offset = 0);
   virtual bool ScanFile(ReadCallBack rcb, unsigned long long& scansize,
                         float& scantime, int rate = 0);
   virtual bool ScanFile(int fd, unsigned long long& scansize, float& scantime,
-                        int rate = 0, bool is_stdin=false);
+                        int rate = 0, bool is_stdin = false, off_t offset = 0);
   virtual bool ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
                         const char* partialChecksum,
                         unsigned long long& scansize, float& scantime, int rate = 0);

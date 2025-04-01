@@ -60,7 +60,7 @@ static void
 sigbus_hdl(int sig, siginfo_t* siginfo, void* ptr)
 {
   // jump to the saved program state to catch SIGBUS caused by illegal mmapped memory access
-  siglongjmp(sj_env[ SYSGETTID % 65536] , 1);
+  siglongjmp(sj_env[ SYSGETTID % 65536], 1);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -85,7 +85,7 @@ CheckSum::Compare(const char* refchecksum)
 /* scan of a complete file */
 bool
 CheckSum::ScanFile(const char* path, unsigned long long& scansize,
-                   float& scantime, int rate)
+                   float& scantime, int rate, off_t offset)
 {
   int fd = open(path, O_RDONLY);
 
@@ -94,7 +94,8 @@ CheckSum::ScanFile(const char* path, unsigned long long& scansize,
   }
 
   (void) eos::common::CloExec::Set(fd);
-  bool scan = ScanFile(fd, scansize, scantime, rate, (std::string(path) == "/dev/stdin")?true:false);
+  bool scan = ScanFile(fd, scansize, scantime, rate,
+                       (std::string(path) == "/dev/stdin") ? true : false, offset);
   (void) close(fd);
   return scan;
 }
@@ -104,7 +105,7 @@ CheckSum::ScanFile(const char* path, unsigned long long& scansize,
 /* scan of a complete file */
 bool
 CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
-                   int rate, bool is_stdin)
+                   int rate, bool is_stdin, off_t offset)
 {
   static int buffersize = 1024 * 1024;
   struct timezone tz;
@@ -115,10 +116,9 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
   gettimeofday(&opentime, &tz);
   Reset();
   int nread = 0;
-  off_t offset = 0;
   char* buffer = 0;
 
-  if (posix_memalign((void**) &buffer, 256*1024, buffersize)) {
+  if (posix_memalign((void**) &buffer, 256 * 1024, buffersize)) {
     fprintf(stderr, "warning: failed to use posix_memaling \n");
     buffer = (char*) malloc(buffersize);
   }
@@ -129,6 +129,7 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
 
   do {
     errno = 0;
+
     if (is_stdin) {
       nread = read(fd, buffer, buffersize);
     } else {
