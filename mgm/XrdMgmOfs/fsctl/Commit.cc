@@ -437,17 +437,20 @@ XrdMgmOfs::Commit(const char* path,
       if (!fmd) {
         if (errno == ENOENT) {
           return Emsg(epname, error, ENOENT,
-                      "commit filesize change - file is already removed [EIDRM]", "");
+                      "commit unit checksum - file is already removed [EIDRM]", "");
         }
 
-        emsg.insert(0, "commit filesize change [EIO]");
+        emsg.insert(0, "commit unit checksum [EIO]");
         return Emsg(epname, error, errno, emsg.c_str(), cgi["path"].c_str());
       }
 
       if (eos::common::LayoutId::IsRain(fmd->getLayoutId())) {
         updateListUnitChecksum(fmd, cgi["unit_checksum"], fsid);
       } else {
-        // TODO: add a warning here
+        eos_thread_warning("msg=\"cannot commit unit checksum for a non rain file\" fxid=%08llx",
+                           fid);
+        return Emsg(epname, error, EINVAL,
+                    "cannot commit unit checksum - not a rain file");
       }
 
       eos::ContainerIdentifier p_ident;
