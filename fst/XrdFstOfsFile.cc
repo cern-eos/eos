@@ -1902,8 +1902,8 @@ XrdFstOfsFile::_close_wr()
     unit_checksum_err = VerifyUnitChecksum();
 
     if (unit_checksum_err) {
+      eos_err("msg=\"error verifying unit checksum\" fxid=%08llx", mFileId);
       mDelOnClose = true;
-      // TODO
     }
 
     mCloseSize = totalBytes;
