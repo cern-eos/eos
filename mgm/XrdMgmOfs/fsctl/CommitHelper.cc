@@ -204,10 +204,6 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
   if (env.Get("mgm.checksum")) {
     cgi["checksum"] = env.Get("mgm.checksum");
   }
-
-  if (env.Get("mgm.unit_checksum")) {
-    cgi["unit_checksum"] = env.Get("mgm.unit_checksum");
-  }
 }
 
 //------------------------------------------------------------------------------
