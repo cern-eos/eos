@@ -114,8 +114,7 @@ public:
   //!
   //! @return true if file is to be rescanned, otherwise false
   //----------------------------------------------------------------------------
-  bool DoRescan(const std::string& timestamp_sec,
-                bool rain_ts = false) const;
+  bool DoRescan(std::chrono::seconds last_scan, bool rain_ts = false) const;
 
   //----------------------------------------------------------------------------
   //! Check the given file for errors and properly account them both at the
@@ -146,14 +145,14 @@ public:
   //! @param io io object attached to the file
   //! @param fpath file path
   //! @param fid file id
-  //! @param scan_ts_sec time file was last checked
+  //! @param last_scan time file was last checked
   //! @param mtime time file contents was last modified
   //!
   //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
   bool ScanFile(eos::fst::FileIo* io,
                 const std::string& fpath, eos::common::FileId::fileid_t fid,
-                const std::string& scan_ts_sec, time_t mtime);
+                std::chrono::seconds last_scan, time_t mtime);
 
   //----------------------------------------------------------------------------
   //! Scan the given file for checksum errors taking the load into consideration
@@ -173,12 +172,11 @@ public:
                          bool& filexs_err, bool& blockxs_err);
 
   bool CheckReplicaFile(eos::fst::FileIo* io,
-                        eos::common::FmdHelper* fmd,
+                        eos::common::FileId::fileid_t fid,
                         time_t mtime);
 
-  bool CheckRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd);
-
 #ifndef _NOOFS
+  bool CheckRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd);
 
   //----------------------------------------------------------------------------
   //! Check for stripes that are unable to reconstruct the original file
@@ -199,20 +197,6 @@ public:
   bool ListStripes(eos::common::FileId::fileid_t fid,
                    std::vector<stripe_s>& stripes, std::string& opaqueInfo);
 
-//----------------------------------------------------------------------------
-  //! Check the given file for rain stripes errors
-  //!
-  //! @param io io object attached to the file
-  //! @param fpath file path
-  //! @param fid file id
-  //! @param scan_ts_sec time file was last checked
-  //!
-  //! @return true if file check, otherwise false
-  //----------------------------------------------------------------------------
-  bool
-  ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
-               const std::string& scan_ts_sec);
-
   //----------------------------------------------------------------------------
   //! Check each stripe to verify if they can reconstruct the original file
   //!
@@ -224,21 +208,20 @@ public:
   bool
   ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
                         std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
-
+#endif
   //----------------------------------------------------------------------------
-  //! Check each stripe checksum comparing them with the ones stored in the
-  //! namespace
+  //! Check the given file for rain stripes errors
   //!
+  //! @param io io object attached to the file
+  //! @param fpath file path
   //! @param fid file id
-  //! @param invalid_fsid fsids of invalid stripes
+  //! @param last_scan time file was last checked
   //!
-  //! @return true if check happened, false if error occurred
+  //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
   bool
-  ScanRainFileFastPath(eos::common::FileId::fileid_t fid,
-                       std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
-
-#endif
+  ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
+               std::chrono::seconds last_scan);
 
   //----------------------------------------------------------------------------
   //! Get clock reference for testing purposes
@@ -327,20 +310,6 @@ public:
   //----------------------------------------------------------------------------
   bool DropGhostFid(const eos::common::FileSystem::fsid_t fsid,
                     const eos::IFileMD::id_t fid) const;
-
-  //----------------------------------------------------------------------------
-  //! If the file is a stripe of a RAIN file and the local checksum has
-  //! been computed yet, compute the checksum of the stripe and store it
-  //! in the local database
-  //!
-  //! @param fpath local path
-  //!
-  //! @return true if the checksum has been computed, otherwise false
-  //----------------------------------------------------------------------------
-  bool ComputeChecksumIfRainFile(const std::string& fpath);
-
-  bool CommitUnitChecksumToMGM(const eos::IFileMD::id_t fid,
-                               const char* unit_checksum);
 
 
   //----------------------------------------------------------------------------
