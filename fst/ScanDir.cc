@@ -1081,26 +1081,26 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   // The old method will only be run by the replica 0 file, and the unitcheckusm
   // computation will be triggered.
   std::set<eos::common::FileSystem::fsid_t> invalid_fsid;
+  // Compute the checksum of the stripe
+  auto xs = ChecksumPlugins::GetChecksumObject(fmd->mProtoFmd.lid());
+  unsigned long long scansize = 0;
+  float scantime = 0; // is ms
+
+  if (!xs->ScanFile(path.c_str(), scansize, scantime, 0, hd->GetSize())) {
+    eos_err("msg=\"checksum scanning failed\" path=%s", path);
+    return false;
+  }
+
+  XrdOucString sizestring;
+  eos_debug("info=\"scanned checksum\" path=%s size=%s time=%.02f ms rate=%.02f MB/s %s",
+            path,
+            eos::common::StringConversion::GetReadableSizeString(sizestring,
+                scansize, "B"),
+            scantime,
+            1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
+            xs->GetHexChecksum());
 
   if (fmd->mProtoFmd.unitchecksum() != "") {
-    auto xs = ChecksumPlugins::GetChecksumObject(fmd->mProtoFmd.lid());
-    unsigned long long scansize = 0;
-    float scantime = 0; // is ms
-
-    if (xs->ScanFile(path.c_str(), scansize, scantime, 0, hd->GetSize())) {
-      XrdOucString sizestring;
-      eos_debug("info=\"scanned checksum\" path=%s size=%s time=%.02f ms rate=%.02f MB/s %s",
-                path,
-                eos::common::StringConversion::GetReadableSizeString(sizestring,
-                    scansize, "B"),
-                scantime,
-                1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
-                xs->GetHexChecksum());
-    } else {
-      eos_err("msg=\"checksum scanning failed\" path=%s", path);
-      return false;
-    }
-
     size_t unit_xs_size;
     auto unit_xs = eos::common::StringConversion::Hex2BinDataChar(
                      fmd->mProtoFmd.unitchecksum(), unit_xs_size);
@@ -1109,7 +1109,16 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
       invalid_fsid.insert(mFsId);
     }
   } else {
-    // fall back to the old method using ScanRainFileLoadAware
+    // The unitchecksum is not stored in the file metadata
+    // So we fallback to the old procedure
+    //
+    // Technically this is not really needed since if we scan the file
+    // with the old procedure, once it's scanned it will not be checked
+    // again, unless the file is updated, but we compute it to keep
+    // the metadata consistent with all the rest of the files.
+    fmd->mProtoFmd.set_unitchecksum(xs->GetHexChecksum());
+    gOFS.mFmdHandler->Commit(fmd);
+
     if (hd->GetIdStripe() != 0) {
       // only run the procedure on the FST storing the first stripe
       return false;
