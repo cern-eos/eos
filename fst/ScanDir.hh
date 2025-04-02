@@ -30,6 +30,7 @@
 #include "common/SteadyClock.hh"
 #include "common/RateLimit.hh"
 #include "common/LayoutId.hh"
+#include "common/Fmd.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include <deque>
@@ -150,7 +151,7 @@ public:
   //!
   //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
-  bool ScanFile(const std::unique_ptr<eos::fst::FileIo>& io,
+  bool ScanFile(eos::fst::FileIo* io,
                 const std::string& fpath, eos::common::FileId::fileid_t fid,
                 const std::string& scan_ts_sec, time_t mtime);
 
@@ -166,10 +167,16 @@ public:
   //! @return true if file is correct, otherwise false if file does not exist,
   //!        or there is any type of checksum error
   //----------------------------------------------------------------------------
-  bool ScanFileLoadAware(const std::unique_ptr<eos::fst::FileIo>& io,
+  bool ScanFileLoadAware(eos::fst::FileIo* io,
                          unsigned long long& scan_size,
                          std::string& scan_xs_hex,
                          bool& filexs_err, bool& blockxs_err);
+
+  bool CheckReplicaFile(eos::fst::FileIo* io,
+                        eos::common::FmdHelper* fmd,
+                        time_t mtime);
+
+  bool CheckRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd);
 
 #ifndef _NOOFS
 
@@ -203,10 +210,8 @@ public:
   //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
   bool
-  ScanRainFile(const std::unique_ptr<eos::fst::FileIo>& io,
-               const std::string& fpath,
-               eos::common::FileId::fileid_t fid,
-               const std::string& scan_ts_sec, bool fast = false);
+  ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
+               const std::string& scan_ts_sec);
 
   //----------------------------------------------------------------------------
   //! Check each stripe to verify if they can reconstruct the original file
