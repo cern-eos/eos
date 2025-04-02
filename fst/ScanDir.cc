@@ -561,95 +561,56 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 #endif
 }
 
-bool ScanDir::ComputeChecksumIfRainFile(const std::string& fpath)
-{
-#ifndef _NOOFS
-  // In case this is a EC file and the xs stripe has not computed yet,
-  // for example because it was create with an older EOS version, instead
-  // of checking it, we compute the xs and store in the local storage, and
-  // leave the check for later.
-  auto fid = eos::common::FileId::PathToFid(fpath.c_str());
-  auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId);
-
-  if (!LayoutId::IsRain(fmd->mProtoFmd.lid())) {
-    return false;
-  }
-
-  if (!fmd->mProtoFmd.unitchecksum().empty()) {
-    // local checksum already computed
-    return false;
-  }
-
-  std::unique_ptr<CheckSum> xs_obj(ChecksumPlugins::GetChecksumObject(
-                                     fmd->mProtoFmd.lid()));
-  unsigned long long scansize;
-  float scantime;
-
-  if (!xs_obj->ScanFile(fpath.c_str(), scansize, scantime)) {
-    eos_err("msg=\"checksum scanning failed\" fxid=%08llx", fid);
-  }
-
-  const char* xs = xs_obj->GetHexChecksum();
-  XrdOucString sizestring;
-  eos_info("msg=\"computed checksum\" fxid=%08llx size=%s time=%.02f ms rate=%.02f MB/s %s",
-           fid, eos::common::StringConversion::GetReadableSizeString(
-             sizestring,
-             scansize, "B"),
-           scantime,
-           1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
-           xs);
-  // save the xs in the local database
-  fmd->mProtoFmd.set_unitchecksum(xs);
-  gOFS.mFmdHandler->Commit(fmd.get());
-  CommitUnitChecksumToMGM(fmd->mProtoFmd.fid(), xs);
-#endif
-  return true;
-}
-
-std::string getScanTimestamp(eos::fst::FileIo* io, const std::string key)
+std::chrono::seconds getScanTimestamp(eos::fst::FileIo* io,
+                                      const std::string key)
 {
   std::string scan_ts_sec = "0";
   io->attrGet(key, scan_ts_sec);
 
-// Handle the old format in microseconds, truncate to seconds
+  // Handle the old format in microseconds, truncate to seconds
   if (scan_ts_sec.length() > 10) {
     scan_ts_sec.erase(10);
   }
 
-  return scan_ts_sec;
+  try {
+    std::int64_t seconds = std::stoll(scan_ts_sec);
+    return std::chrono::seconds(seconds);
+  } catch (...) {
+    return std::chrono::seconds(-1);
+  }
 }
 
 bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
-                               eos::common::FmdHelper* fmd,
+                               eos::common::FileId::fileid_t fid,
                                time_t mtime)
 {
-  std::string scan_ts_sec = getScanTimestamp(io, "user.eos.timestamp");
+  auto last_scan = getScanTimestamp(io, "user.eos.timestamp");
 
-  if (!DoRescan(scan_ts_sec)) {
+  if (!DoRescan(last_scan)) {
     ++mNumSkippedFiles;
     return false; // TODO: check this return value: here a rescan of the file is not needed
   }
 
 #ifndef _NOOFS
-  gOFS.mFmdHandler->ClearErrors(fmd->mProtoFmd.fid(), mFsId, false);
+  gOFS.mFmdHandler->ClearErrors(fid, mFsId, false);
 #endif
-  return ScanFile(io, io->GetPath(), fmd->mProtoFmd.fid(), scan_ts_sec, mtime);
+  return ScanFile(io, io->GetPath(), fid, last_scan, mtime);
 }
 
+#ifndef _NOOFS
 bool ScanDir::CheckRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd)
 {
-  std::string scan_ts_sec = getScanTimestamp(io, "user.eos.rain_timestamp");
+  auto last_scan = getScanTimestamp(io, "user.eos.rain_timestamp");
 
-  if (!DoRescan(scan_ts_sec, true)) {
+  if (!DoRescan(last_scan, true)) {
     ++mNumSkippedFiles;
     return false; // TODO: same as check replica file function
   }
 
-#ifndef _NOOFS
   gOFS.mFmdHandler->ClearErrors(fmd->mProtoFmd.fid(), mFsId, true);
-#endif
-  return ScanRainFile(io, fmd, scan_ts_sec);
+  return ScanRainFile(io, fmd, last_scan);
 }
+#endif
 
 //------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
@@ -704,7 +665,6 @@ ScanDir::CheckFile(const std::string& fpath)
     }
   }
 
-#endif
   auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId);
 
   if (!fmd) {
@@ -713,9 +673,10 @@ ScanDir::CheckFile(const std::string& fpath)
 
   if (LayoutId::IsRain(fmd->mProtoFmd.lid())) {
     return CheckRainFile(io.get(), fmd.get());
-  } else {
-    return CheckReplicaFile(io.get(), fmd.get(), info.st_mtime);
   }
+
+#endif
+  return CheckReplicaFile(io.get(), fid, info.st_mtime);
 }
 
 //------------------------------------------------------------------------------
@@ -764,50 +725,44 @@ ScanDir::GetBlockXS(const std::string& file_path)
 
   return nullptr;
 }
+
 //------------------------------------------------------------------------------
 // Decide if a rescan is needed based on the timestamp provided and the
 // configured rescan interval
 //------------------------------------------------------------------------------
 bool
-ScanDir::DoRescan(const std::string& timestamp_sec, bool rain_ts) const
+ScanDir::DoRescan(std::chrono::seconds last_scan, bool rain_ts) const
 {
   using namespace std::chrono;
   uint64_t rescan_interval = rain_ts ?
                              mRainEntryIntervalSec.load(std::memory_order_acquire) :
                              mEntryIntervalSec.load(std::memory_order_acquire);
 
-  if (timestamp_sec == "") {
-    if (rescan_interval == 0ull) {
-      return false;
-    } else {
-      // Check the first time if scanner is not completely disabled
-      return true;
-    }
+  if (rescan_interval == 0) {
+    // scan is disabled when this setting is 0
+    return false;
+  }
+
+  if (last_scan.count() <= 0) {
+    return true;
   }
 
   uint64_t elapsed_sec {0ull};
 
   // Used only during testing
   if (mClock.IsFake()) {
-    steady_clock::time_point old_ts(seconds(std::stoull(timestamp_sec)));
+    steady_clock::time_point old_ts(last_scan);
     steady_clock::time_point now_ts(mClock.getTime());
     elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
   } else {
-    system_clock::time_point old_ts(seconds(std::stoull(timestamp_sec)));
+    system_clock::time_point old_ts(last_scan);
     system_clock::time_point now_ts(system_clock::now());
     elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
   }
 
-  if (elapsed_sec < rescan_interval) {
-    return false;
-  } else {
-    if (rescan_interval) {
-      return true;
-    } else {
-      return false;
-    }
-  }
+  return elapsed_sec >= rescan_interval;
 }
+
 //------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
 // scanner level and also by setting the proper xattrs on the file.
@@ -816,7 +771,7 @@ bool
 ScanDir::ScanFile(eos::fst::FileIo* io,
                   const std::string& fpath,
                   eos::common::FileId::fileid_t fid,
-                  const std::string& scan_ts_sec,
+                  std::chrono::seconds last_scan,
                   time_t mtime)
 {
   std::string lfn, previous_xs_err;
@@ -824,7 +779,7 @@ ScanDir::ScanFile(eos::fst::FileIo* io,
   io->attrGet("user.eos.filecxerror", previous_xs_err);
   bool was_healthy = (previous_xs_err == "0");
   // Flag if file has been modified since the last time we scanned it
-  bool didnt_change = (mtime < atoll(scan_ts_sec.c_str()));
+  bool didnt_change = (mtime < last_scan.count());
   bool blockxs_err = false;
   bool filexs_err = false;
   unsigned long long scan_size{0ull};
@@ -1028,7 +983,7 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io,
 // Check the given file for rain stripes errors
 //------------------------------------------------------------------------------
 bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
-                           const std::string& scan_ts_sec)
+                           std::chrono::seconds last_scan)
 {
   auto fid = fmd->mProtoFmd.fid();
   auto path = io->GetPath();
@@ -1067,7 +1022,7 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     return false;
   }
 
-  if (info_before.st_ctime < std::stoll(scan_ts_sec)) {
+  if (info_before.st_ctime < last_scan.count()) {
     eos_static_debug("msg=\"skip rain check for unmodified file\" path=\"%s\"",
                      path.c_str());
     return false;
@@ -1109,6 +1064,7 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
       invalid_fsid.insert(mFsId);
     }
   } else {
+#ifndef _NOOFS
     // The unitchecksum is not stored in the file metadata
     // So we fallback to the old procedure
     //
@@ -1127,6 +1083,8 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     if (!ScanRainFileLoadAware(fid, invalid_fsid)) {
       return false;
     }
+
+#endif
   }
 
   if (invalid_fsid.empty()) {

@@ -33,12 +33,11 @@
 // Helper method to convert current timestamp to string microseconds
 // representation
 //------------------------------------------------------------------------------
-std::string GetTimestampSec(eos::common::SteadyClock& clock)
+int64_t GetTimestampSec(eos::common::SteadyClock& clock)
 {
   using namespace std::chrono;
-  uint64_t now_us = duration_cast<seconds>
-                    (clock.getTime().time_since_epoch()).count();
-  return std::to_string(now_us);
+  return duration_cast<seconds>
+         (clock.getTime().time_since_epoch()).count();
 }
 
 //------------------------------------------------------------------------------
@@ -58,21 +57,21 @@ TEST(ScanDir, RescanTiming)
   // Scanner completely disabled
   eos::fst::ScanDir sd(path.c_str(), fsid, nullptr, false, 0, 50, true);
   auto& clock = sd.GetClock();
-  std::string sinit_ts = GetTimestampSec(clock);
-  ASSERT_FALSE(sd.DoRescan(""));
+  auto sinit_ts = GetTimestampSec(clock);
+  ASSERT_FALSE(sd.DoRescan(seconds(-1)));
   clock.advance(seconds(65));
-  ASSERT_FALSE(sd.DoRescan(sinit_ts));
+  ASSERT_FALSE(sd.DoRescan(seconds(sinit_ts)));
   // Configure the scan interval to 60 seconds
   sd.SetConfig("scaninterval", 60);
   // First time the file should be scanned
-  ASSERT_TRUE(sd.DoRescan(""));
+  ASSERT_TRUE(sd.DoRescan(seconds(-1)));
   // Update initial timestamp
   sinit_ts = GetTimestampSec(clock);
-  ASSERT_FALSE(sd.DoRescan(sinit_ts));
+  ASSERT_FALSE(sd.DoRescan(seconds(sinit_ts)));
   clock.advance(seconds(59));
-  ASSERT_FALSE(sd.DoRescan(sinit_ts));
+  ASSERT_FALSE(sd.DoRescan(seconds(sinit_ts)));
   clock.advance(seconds(2));
-  ASSERT_TRUE(sd.DoRescan(sinit_ts));
+  ASSERT_TRUE(sd.DoRescan(seconds(sinit_ts)));
 }
 
 TEST(ScanDir, TimestampSmeared)
