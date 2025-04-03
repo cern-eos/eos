@@ -183,12 +183,14 @@ public:
     Reset();
   }
 
-  uint64_t crc64(uint64_t crc, const unsigned char *s, uint64_t l) {
+  uint64_t crc64(uint64_t crc, const unsigned char* s, uint64_t l)
+  {
     while (l) {
-      int i = ((int) (crc >> 56) ^ *s++) & 0xFF;
+      int i = ((int)(crc >> 56) ^ *s++) & 0xFF;
       crc = crc64_tab[i] ^ (crc << 8);
       l--;
     }
+
     return crc;
   }
 
@@ -203,12 +205,16 @@ public:
   bool
   Add(const char* buffer, size_t length, off_t offset)
   {
+    if (offset < 0) {
+      offset = crc64offset;
+    }
+
     if (offset != crc64offset) {
       needsRecalculation = true;
       return false;
     }
 
-    crcsum = crc64( crcsum, (unsigned char*) buffer, length);
+    crcsum = crc64(crcsum, (unsigned char*) buffer, length);
     crc64offset += length;
     return true;
   }

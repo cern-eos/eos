@@ -67,17 +67,20 @@ public:
   bool
   Add(const char* buffer, size_t length, off_t offset)
   {
+    if (offset < 0) {
+      offset = blake3offset;
+    }
+
     if (offset != blake3offset) {
       needsRecalculation = true;
       return false;
     }
 
     if (finalized) {
-	return false;
+      return false;
     }
 
     blake3_hasher_update(&hasher, buffer, length);
-
     blake3offset += length;
     return true;
   }
@@ -89,12 +92,14 @@ public:
       Finalize();
     }
 
-    Checksum="";
-    for (size_t i=0; i<BLAKE3_OUT_LEN;++i) {
+    Checksum = "";
+
+    for (size_t i = 0; i < BLAKE3_OUT_LEN; ++i) {
       char b3[3];
       sprintf(b3, "%02x", blake3checksum[i]);
       Checksum += b3;
     }
+
     return Checksum.c_str();
   }
 
@@ -119,7 +124,7 @@ public:
   Reset()
   {
     blake3_hasher_init(&hasher);
-    memset(&blake3checksum,0,BLAKE3_OUT_LEN);
+    memset(&blake3checksum, 0, BLAKE3_OUT_LEN);
     blake3offset = 0;
     needsRecalculation = 0;
     finalized = false;
