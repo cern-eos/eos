@@ -60,7 +60,8 @@ main(int argc, char* argv[])
     float scantime;
 
     if (!normalXS->ScanFile(path.c_str(), scansize, scantime)) {
-      fprintf(stderr, "error: unable to scan file path=%s\n", argv[2]);
+      fprintf(stderr, "error: unable to scan file path=%s errno=%d\n", argv[2],
+              errno);
       exit(-1);
     } else {
       fprintf(stdout, "path=%s size=%llu time=%.02f %s=%s\n", argv[2], scansize,
