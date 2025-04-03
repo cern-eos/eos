@@ -66,6 +66,22 @@ WebDAVHandler::HandleRequest(eos::common::HttpRequest* request)
   request->AddEosApp();
   int meth = ParseMethodString(request->GetMethod());
 
+  {
+    // call the routing module before doing anything with WebDAV
+    int port;
+    std::string host;
+    int stall_timeout = 0;
+
+    if (gOFS->ShouldRoute(
+            __FUNCTION__, 0, *mVirtualIdentity, request->GetUrl().c_str(),
+            request->GetQuery().c_str(), host, port, stall_timeout)) {
+      response = HttpServer::HttpRedirect(request->GetUrl().c_str(),
+                                          host.c_str(), port, false);
+      mHttpResponse = response;
+      return;
+    }
+  }
+
   switch (meth) {
   case PROPFIND:
     gOFS->MgmStats.Add("Http-PROPFIND", mVirtualIdentity->uid,
