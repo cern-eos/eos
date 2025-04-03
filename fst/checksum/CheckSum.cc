@@ -127,14 +127,16 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
     return false;
   }
 
+  if (offset > 0 && !is_stdin) {
+    if (lseek(fd, offset, SEEK_SET) < 0) {
+      free(buffer);
+      return false;
+    }
+  }
+
   do {
     errno = 0;
-
-    if (is_stdin) {
-      nread = read(fd, buffer, buffersize);
-    } else {
-      nread = pread(fd, buffer, buffersize, offset);
-    }
+    nread = read(fd, buffer, buffersize);
 
     if (nread < 0) {
       free(buffer);
@@ -142,8 +144,8 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
     }
 
     if (nread > 0) {
-      Add(buffer, nread, offset);
-      offset += nread;
+      Add(buffer, nread);
+      scansize += nread;
     }
 
     if (rate) {
@@ -158,12 +160,11 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
         (std::chrono::milliseconds((int)(expecttime - scantime)));
       }
     }
-  } while (nread == buffersize);
+  } while (nread != 0);
 
   gettimeofday(&currenttime, &tz);
   scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
                 currenttime.tv_usec - opentime.tv_usec) / 1000.0));
-  scansize = (unsigned long long) offset;
   Finalize();
   free(buffer);
   return true;
