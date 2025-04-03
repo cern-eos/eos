@@ -66,22 +66,25 @@ public:
   bool
   Add(const char* buffer, size_t length, off_t offset)
   {
+    if (offset < 0) {
+      offset = crc32coffset;
+    }
+
     if (offset != crc32coffset) {
       needsRecalculation = true;
       return false;
     }
 
     if (finalized) {                /* handle read + append case, a little hackish. Alternative: set needsRecalculation */
-        crcsum = ~crcsum;           /* undo what Finalize did under the hood */
-        finalized = false;
+      crcsum = ~crcsum;           /* undo what Finalize did under the hood */
+      finalized = false;
     }
 
 #ifdef ISAL_FOUND
-    crcsum = crc32_iscsi( (unsigned char*) buffer, length, crcsum);
-#else 
+    crcsum = crc32_iscsi((unsigned char*) buffer, length, crcsum);
+#else
     crcsum = checksum::crc32c(crcsum, (const Bytef*) buffer, length);
 #endif
-
     crc32coffset += length;
     return true;
   }

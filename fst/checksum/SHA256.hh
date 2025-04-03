@@ -46,61 +46,65 @@ private:
   unsigned char sha256[SHA256_DIGEST_LENGTH + 1];
 public:
 
-  SHA256 () : CheckSum ("sha256")
+  SHA256() : CheckSum("sha256")
   {
     Reset();
   }
 
   off_t
-  GetLastOffset ()
+  GetLastOffset()
   {
     return sha256offset;
   }
 
   bool
-  Add (const char* buffer, size_t length, off_t offset)
+  Add(const char* buffer, size_t length, off_t offset)
   {
-    if (offset != sha256offset)
-    {
-        needsRecalculation = true;
-        return false;
+    if (offset < 0) {
+      offset = sha256offset;
     }
+
+    if (offset != sha256offset) {
+      needsRecalculation = true;
+      return false;
+    }
+
     SHA256_Update(&ctx, (const void*) buffer, (unsigned long) length);
     sha256offset += length;
     return true;
   }
 
   const char*
-  GetHexChecksum ()
+  GetHexChecksum()
   {
     Checksum = "";
     char hexs[16];
-    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++)
-    {
-        sprintf(hexs, "%02x", sha256[i]);
-        Checksum += hexs;
+
+    for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
+      sprintf(hexs, "%02x", sha256[i]);
+      Checksum += hexs;
     }
+
     return Checksum.c_str();
   }
 
   const char*
-  GetBinChecksum (int &len)
+  GetBinChecksum(int& len)
   {
     len = SHA256_DIGEST_LENGTH;
     return (char*) &sha256;
   }
 
   int
-  GetCheckSumLen ()
+  GetCheckSumLen()
   {
     return SHA256_DIGEST_LENGTH;
   }
 
   void
-  Finalize ()
+  Finalize()
   {
-    if (!finalized) 
-    {
+    if (!finalized) {
       SHA256_Final(sha256, &ctx);
       sha256[SHA256_DIGEST_LENGTH] = 0;
       finalized = true;
@@ -108,7 +112,7 @@ public:
   }
 
   void
-  Reset ()
+  Reset()
   {
     sha256offset = 0;
     SHA256_Init(&ctx);
@@ -119,7 +123,7 @@ public:
   }
 
   virtual
-  ~SHA256 () { };
+  ~SHA256() { };
 
 };
 

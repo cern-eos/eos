@@ -46,61 +46,65 @@ private:
   unsigned char sha1[SHA_DIGEST_LENGTH + 1];
 public:
 
-  SHA1 () : CheckSum ("sha1")
+  SHA1() : CheckSum("sha1")
   {
     Reset();
   }
 
   off_t
-  GetLastOffset ()
+  GetLastOffset()
   {
     return sha1offset;
   }
 
   bool
-  Add (const char* buffer, size_t length, off_t offset)
+  Add(const char* buffer, size_t length, off_t offset)
   {
-    if (offset != sha1offset)
-    {
-        needsRecalculation = true;
-        return false;
+    if (offset < 0) {
+      offset = sha1offset;
     }
+
+    if (offset != sha1offset) {
+      needsRecalculation = true;
+      return false;
+    }
+
     SHA1_Update(&ctx, (const void*) buffer, (unsigned long) length);
     sha1offset += length;
     return true;
   }
 
   const char*
-  GetHexChecksum ()
+  GetHexChecksum()
   {
     Checksum = "";
     char hexs[16];
-    for (int i = 0; i < SHA_DIGEST_LENGTH; i++)
-    {
-        sprintf(hexs, "%02x", sha1[i]);
-        Checksum += hexs;
+
+    for (int i = 0; i < SHA_DIGEST_LENGTH; i++) {
+      sprintf(hexs, "%02x", sha1[i]);
+      Checksum += hexs;
     }
+
     return Checksum.c_str();
   }
 
   const char*
-  GetBinChecksum (int &len)
+  GetBinChecksum(int& len)
   {
     len = SHA_DIGEST_LENGTH;
     return (char*) &sha1;
   }
 
   int
-  GetCheckSumLen ()
+  GetCheckSumLen()
   {
     return SHA_DIGEST_LENGTH;
   }
 
   void
-  Finalize ()
+  Finalize()
   {
-    if (!finalized) 
-    {
+    if (!finalized) {
       SHA1_Final(sha1, &ctx);
       sha1[SHA_DIGEST_LENGTH] = 0;
       finalized = true;
@@ -108,7 +112,7 @@ public:
   }
 
   void
-  Reset ()
+  Reset()
   {
     sha1offset = 0;
     SHA1_Init(&ctx);
@@ -119,7 +123,7 @@ public:
   }
 
   virtual
-  ~SHA1 () { };
+  ~SHA1() { };
 
 };
 

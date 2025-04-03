@@ -62,6 +62,10 @@ public:
 
   bool Add(const char* buffer, size_t length, off_t offset)
   {
+    if (offset < 0) {
+      offset = hwhoffset;
+    }
+
     if (offset != hwhoffset || finalized) {
       needsRecalculation = true;
       return false;

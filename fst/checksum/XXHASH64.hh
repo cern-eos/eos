@@ -46,32 +46,36 @@ private:
 
 public:
 
-  XXHASH64 () : CheckSum ("xxhash64"), state(0)
+  XXHASH64() : CheckSum("xxhash64"), state(0)
   {
     Reset();
   }
 
   off_t
-  GetLastOffset ()
+  GetLastOffset()
   {
     return xxhash64offset;
   }
 
   bool
-  Add (const char* buffer, size_t length, off_t offset)
+  Add(const char* buffer, size_t length, off_t offset)
   {
-    if (offset != xxhash64offset)
-    {
+    if (offset < 0) {
+      offset = xxhash64offset;
+    }
+
+    if (offset != xxhash64offset) {
       needsRecalculation = true;
       return false;
     }
+
     crcsum = XXH64_update(state, (const Bytef*) buffer, length);
     xxhash64offset += length;
     return true;
   }
 
   const char*
-  GetHexChecksum ()
+  GetHexChecksum()
   {
     char sxxhash64[1024];
     sprintf(sxxhash64, "%16lx", crcsum);
@@ -80,43 +84,43 @@ public:
   }
 
   const char*
-  GetBinChecksum (int &len)
+  GetBinChecksum(int& len)
   {
-    len = sizeof (unsigned int);
+    len = sizeof(unsigned int);
     return (char*) &crcsum;
   }
 
   int
-  GetCheckSumLen ()
+  GetCheckSumLen()
   {
-    return sizeof (unsigned int);
+    return sizeof(unsigned int);
   }
 
-  void 
-  Finalize () 
+  void
+  Finalize()
   {
     if (!finalized) {
       crcsum = XXH64_digest(state);
     }
   }
-  
+
   void
-  Reset ()
+  Reset()
   {
     if (state) {
       XXH64_freeState(state);
     }
+
     state = XXH64_createState();
     XXH64_reset(state, 0);
     xxhash64offset = 0;
     crcsum = 0;
-
     needsRecalculation = 0;
     finalized = false;
   }
 
   virtual
-  ~XXHASH64 () { };
+  ~XXHASH64() { };
 
 };
 

@@ -45,32 +45,36 @@ private:
 
 public:
 
-  CRC32 () : CheckSum ("crc32")
+  CRC32() : CheckSum("crc32")
   {
     Reset();
   }
 
   off_t
-  GetLastOffset ()
+  GetLastOffset()
   {
     return crc32offset;
   }
 
   bool
-  Add (const char* buffer, size_t length, off_t offset)
+  Add(const char* buffer, size_t length, off_t offset)
   {
-    if (offset != crc32offset)
-    {
+    if (offset < 0) {
+      offset = crc32offset;
+    }
+
+    if (offset != crc32offset) {
       needsRecalculation = true;
       return false;
     }
+
     crcsum = crc32(crcsum, (const Bytef*) buffer, length);
     crc32offset += length;
     return true;
   }
 
   const char*
-  GetHexChecksum ()
+  GetHexChecksum()
   {
     char scrc32[1024];
     sprintf(scrc32, "%08x", crcsum);
@@ -79,20 +83,20 @@ public:
   }
 
   const char*
-  GetBinChecksum (int &len)
+  GetBinChecksum(int& len)
   {
-    len = sizeof (unsigned int);
+    len = sizeof(unsigned int);
     return (char*) &crcsum;
   }
 
   int
-  GetCheckSumLen ()
+  GetCheckSumLen()
   {
-    return sizeof (unsigned int);
+    return sizeof(unsigned int);
   }
 
   void
-  Reset ()
+  Reset()
   {
     crc32offset = 0;
     crcsum = crc32(0L, Z_NULL, 0);
@@ -101,7 +105,7 @@ public:
   }
 
   virtual
-  ~CRC32 () { };
+  ~CRC32() { };
 
 };
 
