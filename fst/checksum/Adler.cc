@@ -32,50 +32,51 @@ EOSFSTNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 bool
-Adler::Add (const char* buffer, size_t length, off_t offset)
+Adler::Add(const char* buffer, size_t length, off_t offset)
 {
-  if (offset != adleroffset)
-    needsRecalculation = true;
+  if (offset < 0) {
+    offset = adleroffset;
+  }
 
-  if (finalized)                /* handle read/append case, no problem in this case */
-      finalized = false;
+  if (offset != adleroffset) {
+    needsRecalculation = true;
+  }
+
+  if (finalized) {              /* handle read/append case, no problem in this case */
+    finalized = false;
+  }
 
   adler = adler32(0L, Z_NULL, 0);
   Chunk currChunk;
-
 #ifdef ISAL_FOUND
   adler = isal_adler32(adler, (const unsigned char*) buffer, length);
 #else
   adler = adler32(adler, (const Bytef*) buffer, length);
 #endif
   adleroffset = offset + length;
-  if (adleroffset > maxoffset)
-  {
+
+  if (adleroffset > maxoffset) {
     maxoffset = adleroffset;
   }
+
   currChunk.offset = offset;
   currChunk.length = length;
   currChunk.adler = adler;
-
   map = AddElementToMap(map, currChunk);
-
   return true;
 }
 
 /*----------------------------------------------------------------------------*/
 MapChunks&
-Adler::AddElementToMap (MapChunks& map, Chunk& chunk)
+Adler::AddElementToMap(MapChunks& map, Chunk& chunk)
 {
   off_t offEndChunk = chunk.offset + chunk.length;
   IterMap iter = map.find(offEndChunk);
 
-  if (iter != map.end())
-  {
+  if (iter != map.end()) {
     map.erase(iter);
     map.insert(std::pair<off_t, Chunk > (offEndChunk, chunk));
-  }
-  else
-  {
+  } else {
     map.insert(std::pair<off_t, Chunk > (offEndChunk, chunk));
   }
 
@@ -84,7 +85,7 @@ Adler::AddElementToMap (MapChunks& map, Chunk& chunk)
 
 /*----------------------------------------------------------------------------*/
 const char*
-Adler::GetHexChecksum ()
+Adler::GetHexChecksum()
 {
   char sadler[1024];
   sprintf(sadler, "%08x", adler);
@@ -94,9 +95,9 @@ Adler::GetHexChecksum ()
 
 /*----------------------------------------------------------------------------*/
 const char*
-Adler::GetBinChecksum (int &len)
+Adler::GetBinChecksum(int& len)
 {
-  len = sizeof (unsigned int);
+  len = sizeof(unsigned int);
   return (char*) &adler;
 }
 
@@ -106,60 +107,50 @@ Adler::GetBinChecksum (int &len)
  * (starts from 0 and there are no holes)
  */
 void
-Adler::ValidateAdlerMap ()
+Adler::ValidateAdlerMap()
 {
   unsigned int value;
   adler = adler32(0L, Z_NULL, 0);
 
-  if (map.begin() == map.end())
-  {
+  if (map.begin() == map.end()) {
     adler = adler32(0L, Z_NULL, 0);
     return;
   }
 
   IterMap iter1 = map.begin();
   IterMap iter2 = iter1;
-
   value = iter1->second.adler;
-
   IterMap iter3;
   //  for (iter3= map.begin(); iter3!= map.end(); iter3++) {
   //    fprintf(stderr,"ADLER VALIDATE %llu %llu %llu %x\n", iter3->first,iter3->second.offset, iter3->second.length, iter3->second.adler);
-  //  } 
+  //  }
 
-  if (iter1->second.offset != 0)
-  {
+  if (iter1->second.offset != 0) {
     // the first chunk is not at the beginning
     needsRecalculation = true;
     adler = adler32(0L, Z_NULL, 0);
     return;
   }
 
-  if (map.begin() == map.end())
-  {
+  if (map.begin() == map.end()) {
     //we have no chunk
     adler = adler32(0L, Z_NULL, 0);
     return;
   }
 
   needsRecalculation = false;
-
   iter2++;
 
-  if (iter2 == map.end())
-  {
-    if ((iter1->first) != maxoffset)
-    {
+  if (iter2 == map.end()) {
+    if ((iter1->first) != maxoffset) {
       // there was probably some overwrite
       needsRecalculation = true;
-    }
-    else
-    {
-      if (iter1->second.offset != 0)
-      {
+    } else {
+      if (iter1->second.offset != 0) {
         needsRecalculation = true;
       }
     }
+
     //we have one chunk
     adler = value;
     return;
@@ -167,29 +158,24 @@ Adler::ValidateAdlerMap ()
 
   off_t appliedoffset = 0;
 
-  for (; iter2 != map.end(); iter1++, iter2++)
-  {
+  for (; iter2 != map.end(); iter1++, iter2++) {
     appliedoffset = iter2->first;
     value = adler32_combine(value, iter2->second.adler, iter2->second.length);
-    if (iter1->first != iter2->second.offset)
-    {
+
+    if (iter1->first != iter2->second.offset) {
       needsRecalculation = true;
       break;
     }
   }
 
-  if (appliedoffset != maxoffset)
-  {
+  if (appliedoffset != maxoffset) {
     // there was probably some overwrite
     needsRecalculation = true;
   }
 
-  if (!needsRecalculation)
-  {
+  if (!needsRecalculation) {
     adler = value;
-  }
-  else
-  {
+  } else {
     adler = adler32(0L, Z_NULL, 0);
   }
 
@@ -199,7 +185,7 @@ Adler::ValidateAdlerMap ()
 
 /*----------------------------------------------------------------------------*/
 void
-Adler::Finalize ()
+Adler::Finalize()
 {
   if (!finalized) {
     ValidateAdlerMap();

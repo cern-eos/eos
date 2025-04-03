@@ -88,7 +88,15 @@ public:
     finalized = false;
   }
 
-  virtual bool Add(const char* buffer, size_t length, off_t offset) = 0;
+  //-------------------------------------------------------------------------------
+  //! Add adds more data to the checksum object.
+  //!
+  //! @param buffer buffer containing the data to be added
+  //! @param lenght buffer size
+  //! @param offset position in the file where the buffer starts. If set to < 0
+  //!               the data is assumed to be contiguous with the previous Add call
+  //-------------------------------------------------------------------------------
+  virtual bool Add(const char* buffer, size_t length, off_t offset = -1) = 0;
 
   virtual void
   Finalize()
