@@ -1901,7 +1901,7 @@ ProcCommand::File()
                loc_it != loc_vect.end(); ++loc_it) {
             // ignore filesystem id 0
             if (!(*loc_it)) {
-              eos_err("fsid 0 found fid=%08llx", fmd->getId());
+              eos_err("fsid 0 found fxid=%08llx", fmd->getId());
               continue;
             }
 
