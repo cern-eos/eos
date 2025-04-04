@@ -308,7 +308,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   // Cross-check that the file wasn't scheduled before we attempt to check FS
   // and possibly redo a transfer
   if (trackedTransferEntry(fid)) {
-    eos_info("msg=\"Skipping scheduling of Tracked Transfer\" fid=%08llx", fid);
+    eos_info("msg=\"Skipping scheduling of Tracked Transfer\" fxid=%08llx", fid);
     return;
   }
 
@@ -316,7 +316,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   auto conv_tag = getFileProcTransferNameAndSize(fid, tgt_grp, &filesz);
 
   if (conv_tag.empty()) {
-    eos_err("msg=\"Possibly failed proc file found\" fid=%08llx", fid);
+    eos_err("msg=\"Possibly failed proc file found\" fxid=%08llx", fid);
     return;
   }
 

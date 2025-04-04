@@ -193,7 +193,7 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   auto [status, _fmd] = LocalRetrieveFmd(fid, fsid);
 
   if (!status && !do_create) {
-    eos_warning("msg=\"no fmd record found\" fid=%08llx fsid=%lu", fid, fsid);
+    eos_warning("msg=\"no fmd record found\" fxid=%08llx fsid=%lu", fid, fsid);
     return nullptr;
   }
 
@@ -268,11 +268,11 @@ FmdAttrHandler::LocalGetFmd(eos::common::FileId::fileid_t fid,
   fmd->mProtoFmd.set_ctime_ns(tv.tv_usec * 1000);
 
   if (Commit(fmd.get(), false)) {
-    eos_debug("msg=\"return fmd object\" fid=%08llx fsid=%lu", fid, fsid);
+    eos_debug("msg=\"return fmd object\" fxid=%08llx fsid=%lu", fid, fsid);
     return fmd;
   }
 
-  eos_crit("msg=\"failed to commit fmd to storage\" fid=%08llx fsid=%lu",
+  eos_crit("msg=\"failed to commit fmd to storage\" fxid=%08llx fsid=%lu",
            fid, fsid);
   return nullptr;
 }

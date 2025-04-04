@@ -291,7 +291,7 @@ XrdMgmOfs::_dropstripe(const char* path,
         (*fmd_wlock)->setAttribute("sys.fs.tracking",
                                    StringConversion::ReduceString(locations).c_str());
         gOFS->eosView->updateFileStore(fmd_wlock->getUnderlyingPtr().get());
-        eos_debug("msg=\"unlinking location\" fid=%08llx fsid=%lu", fid, fsid);
+        eos_debug("msg=\"unlinking location\" fxid=%08llx fsid=%lu", fid, fsid);
       } else {
         errc = ENOENT;
         return Emsg(epname, error, errc, "drop stripe", path);
@@ -390,7 +390,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
 
       if (!forceRemove) {
         (*fmd_wlock)->unlinkLocation(location);
-        eos_debug("msg=\"unlinking location\" fid=%08llx fsid=%lu",
+        eos_debug("msg=\"unlinking location\" fxid=%08llx fsid=%lu",
                   fid, location);
       } else {
         (*fmd_wlock)->unlinkLocation(location);

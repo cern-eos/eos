@@ -222,7 +222,7 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
   }
 
   if (conversion_info.empty()) {
-    eos_static_err("msg=\"Invalid conversion_info string for file\" fid=%08llx",
+    eos_static_err("msg=\"Invalid conversion_info string for file\" fxid=%08llx",
                    id);
     return false;
   }

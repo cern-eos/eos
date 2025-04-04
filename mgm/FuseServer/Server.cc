@@ -2216,7 +2216,7 @@ Server::OpSetFile(const std::string& id,
         }
       }
 
-      eos_info("fid=%08llx ino=%lx pino=%lx cpino=%lx update-file",
+      eos_info("fxid=%08llx ino=%lx pino=%lx cpino=%lx update-file",
                (long) fid,
                (long) md.md_ino(),
                (long) md.md_pino(), (long) fmd->getContainerId());
@@ -2238,7 +2238,7 @@ Server::OpSetFile(const std::string& id,
                 k_nlink)) + 1 : 1;
 
       if (EOS_LOGS_DEBUG) {
-        eos_debug("hlnk fid=%08llx target name %s nlink %d create hard link %s",
+        eos_debug("hlnk fxid=%08llx target name %s nlink %d create hard link %s",
                   (long)fid, fmd->getName().c_str(), nlink, md.name().c_str());
       }
 

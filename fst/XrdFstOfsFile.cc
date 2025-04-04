@@ -550,7 +550,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     // this is done by the Scrub thread if necessary!
     if (mLayout->IsEntryServer() && !mIsReplication) {
       eos_warning("msg=\"open error return recoverable error "
-                  "EIO(kXR_IOError)\" fid=%08llx", mFileId);
+                  "EIO(kXR_IOError)\" fxid=%08llx", mFileId);
 
       // Clean-up before re-bouncing
       if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
