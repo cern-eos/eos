@@ -862,17 +862,17 @@ XrdMgmOfs::Emsg(const char* pfx,
   }
 
   // Format the error message
-  snprintf(buffer, sizeof(buffer), "Unable to %s %s; %s", op, target, etext);
+  snprintf(buffer, sizeof(buffer), "Unable to %s: %s; %s", op, etext, target);
 
   if ((ecode == EIDRM) || (ecode == ENODATA)) {
-    eos_debug("Unable to %s %s; %s", op, target, etext);
+    eos_debug("msg=\"Unable to %s: %s\" path=\"%s\"", op, etext, target);
   } else {
     if ((!strcmp(op, "stat")) || (((!strcmp(pfx, "attr_get")) ||
                                    (!strcmp(pfx, "attr_ls")) ||
                                    (!strcmp(pfx, "FuseX"))) && (ecode == ENOENT))) {
-      eos_debug("Unable to %s %s; %s", op, target, etext);
+      eos_debug("msg=\"Unable to %s: %s\" path=\"%s\"", op, etext, target);
     } else {
-      eos_err("Unable to %s %s; %s", op, target, etext);
+      eos_err("msg=\"Unable to %s: %s\" path=\"%s\"", op, etext, target);
     }
   }
 
