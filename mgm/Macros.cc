@@ -128,8 +128,8 @@ ProcBounceNotAllowed(const std::string& path,
           (!Access::gAllowedUsers.count(vid.uid)) &&
           (!Access::gAllowedHosts.count(vid.host)) &&
           (!Access::gAllowedDomains.count(vid.getUserAtDomain()))) {
-        eos_static_err("user access restricted - unauthorized identity vid.uid="
-                       "%d, vid.gid=%d, vid.host=\"%s\", vid.tident=\"%s\" for "
+        eos_static_err("msg=\"user access restricted - unauthorized identity\" vid.uid="
+                       "%d vid.gid=%d vid.host=\"%s\" vid.tident=\"%s\" "
                        "path=\"%s\" user@domain=\"%s\"", vid.uid, vid.gid, vid.host.c_str(),
                        (vid.tident.c_str() ? vid.tident.c_str() : ""), path.c_str(),
                        vid.getUserAtDomain().c_str());
@@ -143,7 +143,7 @@ ProcBounceNotAllowed(const std::string& path,
         (!Access::gAllowedDomains.count("-")) &&
         (!Access::gAllowedDomains.count(vid.domain))) {
       eos_static_err("msg=\"domain access restricted - unauthorized identity\" "
-                     "vid.domain=\"%s\" for path=\"%s\"", vid.domain.c_str(),
+                     "vid.domain=\"%s\" path=\"%s\"", vid.domain.c_str(),
                      path.c_str());
       err_check += "error: domain access restricted - unauthorized identity used";
       errno_check = EACCES;
