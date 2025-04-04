@@ -1459,7 +1459,7 @@ Storage::PublishFsckError(eos::common::FileId::fileid_t fid,
   errs_map[eos::common::FsckErrToString(err_type)][fsid].insert(fid);
 
   if (!PushToQdb(fsid, errs_map)) {
-    eos_static_err("msg=\"failed to push fsck error to QDB\" fid=%08llx "
+    eos_static_err("msg=\"failed to push fsck error to QDB\" fxid=%08llx "
                    "fsid=%lu err=%s", fid, fsid,
                    eos::common::FsckErrToString(err_type).c_str());
   }
