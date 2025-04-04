@@ -1801,7 +1801,7 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         // Update the filemd info to point to the original fille identifier
         if (!mFmdHandler->UpdateFmd(new_path, new_fid)) {
           eos_static_err("msg=\"failed to update fid for the fmd object\" "
-                         "path=%s new_fid=%08llx", new_path.c_str(), new_fid);
+                         "path=%s new_fxid=%08llx", new_path.c_str(), new_fid);
           // Clean up the file on disk
           (void) unlink(new_path.c_str());
           return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
@@ -2199,11 +2199,11 @@ XrdFstOfs::HandleResync(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 
         if (mFmdHandler->ResyncDisk(fpath.c_str(), fsid, false) == 0) {
           if (!mFmdHandler->ResyncMgm(fsid, fid, nullptr)) {
-            eos_static_err("msg=\"resync mgm failed\" fid=%08llx fsid=%lu",
+            eos_static_err("msg=\"resync mgm failed\" fxid=%08llx fsid=%lu",
                            fid, fsid);
           }
         } else {
-          eos_static_err("msg=\"resync disk failed\" fid=%08llx fsid=%lu",
+          eos_static_err("msg=\"resync disk failed\" fxid=%08llx fsid=%lu",
                          fid, fsid);
         }
       } else {

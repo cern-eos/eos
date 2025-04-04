@@ -118,7 +118,7 @@ void OpenFileTracker::down(eos::common::FileSystem::fsid_t fsid, uint64_t fid)
 
   if (fidit->second < 1) {
     eos_static_crit("Should never happen - encountered bogus value in "
-                    "OpenFileTracker::down for fsid=%lu, fid=%08llx - dropping",
+                    "OpenFileTracker::down for fsid=%lu, fxid=%08llx - dropping",
                     fsid, fid);
     fsit->second.erase(fidit);
     mMultiOpen.erase(fid);
