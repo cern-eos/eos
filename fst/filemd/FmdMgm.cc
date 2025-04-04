@@ -243,20 +243,20 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
 
     if (status.IsOK()) {
       rc = 0;
-      eos_static_debug("msg=\"got metadata from mgm\" manager=%s fid=%08llx",
+      eos_static_debug("msg=\"got metadata from mgm\" manager=%s fxid=%08llx",
                        mgr.c_str(), fid);
     } else {
-      eos_static_err("msg=\"query error\" fid=%08llx status=%d code=%d", fid,
+      eos_static_err("msg=\"query error\" fxid=%08llx status=%d code=%d", fid,
                      status.status, status.code);
 
       if ((status.code >= 100) &&
           (status.code <= 300)) {
         std::this_thread::sleep_for(std::chrono::seconds(1));
-        eos_static_info("msg=\"retry query\" fid=%08llx query=\"%s\"", fid,
+        eos_static_info("msg=\"retry query\" fxid=%08llx query=\"%s\"", fid,
                         query.c_str());
       } else {
         eos_static_err("msg=\"failed to retrieve metadata from mgm\" manager=%s "
-                       "fid=%08llx", mgr.c_str(), fid);
+                       "fxid=%08llx", mgr.c_str(), fid);
         rc = ECOMM;
       }
     }
@@ -295,8 +295,8 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
   }
 
   if (fmd.id() != fid) {
-    eos_static_err("msg=\"received wrong meta data from mgm\" fid=%08llx "
-                   "recv_fid=%08llx", fmd.id(), fid);
+    eos_static_err("msg=\"received wrong meta data from mgm\" fxid=%08llx "
+                   "recv_fxid=%08llx", fmd.id(), fid);
     return EIO;
   }
 

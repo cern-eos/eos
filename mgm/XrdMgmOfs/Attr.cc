@@ -264,7 +264,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   if (!key || (strlen(key) == 0) || !value) {
     errno = EINVAL;
-    return Emsg(epname, error, errno, "set attribute", path);
+    return Emsg(epname, error, errno, "set attribute (missing/empty)", path);
   }
 
   const std::string skey = key;
