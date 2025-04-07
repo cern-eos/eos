@@ -313,7 +313,8 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   }
 
   uint64_t filesz;
-  auto conv_tag = getFileProcTransferNameAndSize(fid, tgt_grp, &filesz);
+  auto conv_tag = getFileProcTransferNameAndSize(fid, tgt_grp, &filesz,
+                                                 group_balancer::NullFilter);
 
   if (conv_tag.empty()) {
     eos_err("msg=\"Possibly failed proc file found\" fid=%08llx", fid);

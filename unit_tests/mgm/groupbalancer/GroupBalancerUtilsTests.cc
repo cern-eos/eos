@@ -1,10 +1,8 @@
 #include "gtest/gtest.h"
 #include "mgm/groupbalancer/BalancerEngineUtils.hh"
+#include "mgm/groupbalancer/ConverterUtils.hh"
 
 using namespace eos::mgm::group_balancer;
-
-
-
 
 TEST(GroupBalancerUtils, Avg)
 {
@@ -83,4 +81,29 @@ TEST(GroupBalancerUtils, extract_commalist_value)
   std::unordered_set<std::string> empty;
   EXPECT_EQ(empty,
             extract_commalist_value(conf, "some key"));
+}
+
+// a function that behaves like the skipFiles call in
+// getProcTransferNameAndSize
+std::string fakeSkipFile(const SkipFileFn& skip_file_fn,
+                         std::string_view path)
+{
+  if (skip_file_fn && skip_file_fn(path)) {
+    return std::string("");
+  }
+  return std::string(path);
+}
+
+TEST(GroupBalancerUtils, SkipFilesNullFilter)
+{
+  EXPECT_FALSE(NullFilter);
+  EXPECT_EQ("/proc/foo",fakeSkipFile(NullFilter, "/proc/foo"));
+  EXPECT_EQ("/00001/bar",fakeSkipFile(NullFilter, "/00001/bar"));
+}
+
+TEST(GroupBalancerUtils, SkipFiles)
+{
+  PrefixFilter procFilter{"/proc/"};
+  EXPECT_EQ("", fakeSkipFile(procFilter, "/proc/foo"));
+  EXPECT_EQ("/000001/bar",fakeSkipFile(procFilter, "/000001/bar"));
 }

@@ -41,13 +41,14 @@ EOSMGMNAMESPACE_BEGIN
 using group_balancer::BalancerEngineT;
 using group_balancer::group_size_map;
 using group_balancer::eosGroupsInfoFetcher;
-
+using group_balancer::PrefixFilter;
 
 //-------------------------------------------------------------------------------
 // GroupBalancer constructor
 //-------------------------------------------------------------------------------
 GroupBalancer::GroupBalancer(const char* spacename)
-  : mSpaceName(spacename), mLastCheck(0)
+  : mSpaceName(spacename), mLastCheck(0),
+    mProcFilter(PrefixFilter(gOFS->MgmProcPath.c_str()))
 {
   mEngine.reset(group_balancer::make_balancer_engine(BalancerEngineT::stddev));
   mThread.reset(&GroupBalancer::GroupBalance, this);
@@ -216,7 +217,8 @@ GroupBalancer::chooseFileFromGroup(FsGroup* from_group, FsGroup* to_group,
 
     auto filename = group_balancer::getFileProcTransferNameAndSize(fid,
                     to_group->mName,
-                    &filesize);
+                    &filesize,
+                    mProcFilter);
 
     if (filename.empty() ||
         (mCfg.mMinFileSize > filesize) ||

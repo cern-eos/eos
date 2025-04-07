@@ -24,11 +24,24 @@
 #ifndef EOS_CONVERTERUTILS_HH
 #define EOS_CONVERTERUTILS_HH
 
+#include <functional>
+#include <string_view>
+
 #include "common/FileId.hh"
 #include <string>
 
 namespace eos::mgm::group_balancer
 {
+
+using SkipFileFn = std::function<bool(std::string_view)>;
+inline const SkipFileFn NullFilter = {};
+
+struct PrefixFilter {
+    bool operator()(std::string_view path);
+    std::string prefix;
+    PrefixFilter(std::string_view _prefix): prefix(_prefix) {}
+};
+
 //----------------------------------------------------------------------------
 //! Produces a file conversion path to be placed in the proc directory taking
 //! into account the given group and also returns its size
@@ -36,12 +49,14 @@ namespace eos::mgm::group_balancer
 //! @param fid the file ID
 //! @param target_group the group to which the file will be transferred
 //! @param size return address for the size of the file
+//! @param skip_file_fn function to skip files matching filter
+//!          defaults to NullFilter, which means no files will be skipped
 //!
 //! @return name of the proc transfer file
 //----------------------------------------------------------------------------
 std::string
 getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-                               const std::string& target_group, uint64_t* size);
-
+                               const std::string& target_group, uint64_t* size,
+                               const SkipFileFn& skip_file_fn = NullFilter);
 } // eos::mgm::group_balancer
 #endif // EOS_CONVERTERUTILS_HH

@@ -1,8 +1,6 @@
-//
-// Created by abhi on 4/26/22.
-//
-
 #include "ConverterUtils.hh"
+
+#include "common/StringUtils.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "namespace/Prefetcher.hh"
@@ -12,10 +10,14 @@
 
 namespace eos::mgm::group_balancer
 {
+bool PrefixFilter::operator()(std::string_view path) {
+    return eos::common::startsWith(path, prefix);
+}
 
 std::string
 getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
-                               const std::string& target_group, uint64_t* size)
+                               const std::string& target_group, uint64_t* size,
+                               const SkipFileFn& skip_file_fn)
 {
   char fileName[1024];
   std::shared_ptr<eos::IFileMD> fmd;
@@ -34,19 +36,16 @@ getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
         return std::string("");
       }
 
+      if (skip_file_fn && skip_file_fn(gOFS->eosView->getUri(fmd.get()))) {
+        return std::string("");
+      }
+
       if (size) {
         *size = fmd->getSize();
       }
 
-      XrdOucString fileURI = gOFS->eosView->getUri(fmd.get()).c_str();
-
-      if (fileURI.beginswith(gOFS->MgmProcPath.c_str())) {
-        // don't touch files in any ../proc/ directory
-        return std::string("");
-      }
-
-      eos_static_debug("msg=\"found file for transfering\" file=\"%s\"",
-                       fileURI.c_str());
+      eos_static_debug("msg=\"found file for transfering\" fid=\"%08llx\"",
+                       fileid);
     } catch (eos::MDException& e) {
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
                        e.getMessage().str().c_str());

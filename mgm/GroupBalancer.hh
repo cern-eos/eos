@@ -33,6 +33,7 @@
 #include <map>
 #include <unordered_set>
 #include "mgm/groupbalancer/BalancerEngineTypes.hh"
+#include "mgm/groupbalancer/ConverterUtils.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -158,7 +159,7 @@ private:
   //! Scheduled transfers (maps fid to path in proc)
   std::map<eos::common::FileId::fileid_t, std::string> mTransfers;
   group_balancer::engine_conf_t mEngineConf;
-
+  group_balancer::SkipFileFn mProcFilter;
 
   //----------------------------------------------------------------------------
   //! Chooses a random file ID from a random filesystem in the given group
