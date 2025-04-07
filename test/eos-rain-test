@@ -104,24 +104,11 @@ function write_and_check_stripe_checksum()
     # Write the file in EOS
     $XRDCP $SRC/$FNAME $DEST/$FNAME -f
     
-    declare -A XS_MAP
-    
-    # compute checksum of stripes
-    mapfile -t entries < <($EOS -j file info $DEST/$FNAME | jq -r '.locations[] | "\(.fsid) \(.host) \(.fstpath)"')
-    for entry in "${entries[@]}"; do
-        read -r fsid host fstpath <<< "$entry"
-        checksum=$(ssh "$host" eos-adler32 "$fstpath" | sed -n 's/.*adler32=\([^ ]*\).*/\1/p')
-        XS_MAP[$fsid]=$checksum
-    done
+    for fstpath in "$($EOS -j file info $DEST/$FNAME | jq -r '.locations[].fstpath')"; do
+        expected_xs=$(eos-checksum adler <(dd if=$fstpath bs=4096 skip=1 status=none | sed -n 's/.*adler32=\([^ ]*\).*/\1/p'))
+        stored_xs=$(eos-fmd-tool inspect --path $fstpath | grep -oP 'unitchecksum: "\K[^"]+')
 
-    # get checksum from MGM and compare again computed from FSTs
-    IFS=',' read -ra mgm_xs < <(eos attr -V get sys.unitchecksum $DEST/$FNAME)
-    for entry in ${mgm_xs[@]}; do
-        fsid=${entry%%:*}
-        expected_xs=${entry#*:}
-        mgm_xs="${XS_MAP[$fsid]}"
-
-        test "$mgm_xs" = "$expected_xs"
+        test "$expected_xs" = "$stored_xs"
         if [[ $? -ne 0 ]]; then
             echo_failure
             exit 1
