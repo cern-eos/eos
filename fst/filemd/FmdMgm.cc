@@ -85,25 +85,6 @@ std::string ParseChecksum(const std::string& hexStr)
   return result;
 }
 
-void ParseStripeChecksums(std::string stripe_checksums,
-                          eos::ns::FileMdProto& fmd)
-{
-  // auto xs = "";
-  // std::vector<std::string> stripes;
-  // std::vector<std::string> stripeXsEntry;
-  // stripeXsEntry.resize(2);
-  // eos::common::StringConversion::Tokenize(stripe_checksums, stripes, ",");
-  // for (const auto& stripe : stripes) {
-  //   if (stripe.empty()) {
-  //     continue;
-  //   }
-  //   eos::common::StringConversion::Tokenize(stripe, stripeXsEntry, ":");
-  //   uint32_t fsid = static_cast<uint32_t>(std::stoul(stripeXsEntry[0]));
-  //   xs->insert(std::pair(fsid, ParseChecksum(stripeXsEntry[1])));
-  //   stripeXsEntry.clear();
-  // }
-}
-
 std::string ParseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
 {
   char buff[sizeof(eos::IFileMD::ctime_t)];
