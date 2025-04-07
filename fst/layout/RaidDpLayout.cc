@@ -306,6 +306,13 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
                   offset_local, stripe_id);
           ret = false;
         }
+
+        // Add the data contained into the buffer to compute the
+        // unit checksum, skipping the header
+        if (mUnitCheckSum && offset_local >= mSizeHeader) {
+          mUnitCheckSum->Add(data_blocks[stripe_id](), nwrite,
+                             offset_local - mSizeHeader);
+        }
       }
 
       // Return corrected information to the buffer
