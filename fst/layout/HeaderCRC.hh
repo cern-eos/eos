@@ -23,6 +23,7 @@
  ************************************************************************/
 
 #pragma once
+#include <memory>
 #include <XrdCl/XrdClFile.hh>
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
@@ -182,6 +183,23 @@ public:
     return 0;
   }
 
+  inline const char* GetBlockChecksum() const
+  {
+    return mBlockChecksum.get();
+  }
+
+  inline void SetBlockChecksum(const char* checksum, size_t size)
+  {
+    if (!checksum) {
+      mBlockChecksum.reset(nullptr);
+      return;
+    }
+
+    mBlockChecksum = std::make_unique<char[]>(size);
+    (void) memcpy(mBlockChecksum.get(), checksum, size);
+    mBlockChecksumSize = size;
+  }
+
   //----------------------------------------------------------------------------
   //! Dump header info in readable format
   //----------------------------------------------------------------------------
@@ -195,6 +213,9 @@ private:
   size_t mSizeLastBlock; ///< size of the last block of data
   size_t mSizeBlock; ///< size of a block of data
   int mSizeHeader; ///< size of the header
+  std::unique_ptr<char[]>
+  mBlockChecksum; ///< checksum of the block (only data, no header)
+  size_t mBlockChecksumSize; ///< size of the checksum in bytes
   static char msTagName[]; ///< default tag name
 };
 
