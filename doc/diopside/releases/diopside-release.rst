@@ -16,6 +16,33 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.10 Diopside``
+====================
+
+2025-04-07
+
+Note
+-----
+
+* Update eos-xrootd/xrootd dependency to version 5.8.0
+
+
+Bug
+----
+
+* [EOS-6356] - Mapping: constant hit of LDAP for secondary accounts
+* [EOS-6364] - [MGM] EOS ACL recursive settings breaks ACLs already set
+
+
+
+New Feature
+------------
+
+* [EOS-6368] - Implement eos-ports-block and eos-ports-reset-default
+* [EOS-6370] - https gfal-ls with redirector does not work
+* [EOS-6371] - Add gRPC support for MGM/FST - CTA Frontend protobuf communication
+
+
 ``v5.3.9 Diopside``
 ====================
 
