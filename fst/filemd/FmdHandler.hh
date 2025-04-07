@@ -78,20 +78,6 @@ public:
   FmdHandler() = default;
 
   //----------------------------------------------------------------------------
-  //! Get the Fmd from the remote fst.
-  //!
-  //! @param remote fst endpoint
-  //! @param fid file id
-  //! @param fsid filesystem id
-  //!
-  //! @return pointer to Fmd struct if successful, otherwise nullptr
-  //----------------------------------------------------------------------------
-  static std::unique_ptr<eos::common::FmdHelper> RemoteGetFmd(
-    const std::string& remote,
-    eos::common::FileId::fileid_t fid,
-    eos::common::FileSystem::fsid_t fsid);
-
-  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   virtual ~FmdHandler() = default;
