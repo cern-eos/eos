@@ -107,6 +107,7 @@ bool GeoTreeEngine::gUpdaterStarted = false;
 const unsigned char GeoTreeEngine::sntFilesystem = 1,
                                    GeoTreeEngine::sntDataproxy = 4;
 std::map<std::string, unsigned char> GeoTreeEngine::gQueue2NotifType;
+static constexpr auto FS_LISTENER_THREAD_NAME="fschangelistener";
 
 //------------------------------------------------------------------------------
 // Get the maximum number of placement attempts
@@ -2210,6 +2211,7 @@ void GeoTreeEngine::StopUpdater()
 void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 {
   gUpdaterStarted = true;
+  ThreadAssistant::setSelfThreadName(FS_LISTENER_THREAD_NAME);
 
   if (!mFsListener->startListening()) {
     eos_crit("%s", "msg=\"failed starting shared object change notifications "
