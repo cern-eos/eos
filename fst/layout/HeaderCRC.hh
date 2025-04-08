@@ -27,6 +27,8 @@
 #include <XrdCl/XrdClFile.hh>
 #include "common/Logging.hh"
 #include "fst/Namespace.hh"
+#include "fst/checksum/CheckSum.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -183,12 +185,20 @@ public:
     return 0;
   }
 
-  inline const char* GetBlockChecksum() const
+  inline std::unique_ptr<eos::fst::CheckSum> GetBlockChecksum() const
   {
-    return mBlockChecksum.get();
+    auto xs = eos::fst::ChecksumPlugins::GetXsObj(mChecksumType);
+
+    if (!xs) {
+      return nullptr;
+    }
+
+    xs->SetBinChecksum(mBlockChecksum.get(), mBlockChecksumSize);
+    return std::unique_ptr<eos::fst::CheckSum> {xs};
   }
 
-  inline void SetBlockChecksum(const char* checksum, size_t size)
+  inline void SetBlockChecksum(const char* checksum, size_t size,
+                               unsigned long type)
   {
     if (!checksum) {
       mBlockChecksum.reset(nullptr);
@@ -198,6 +208,7 @@ public:
     mBlockChecksum = std::make_unique<char[]>(size);
     (void) memcpy(mBlockChecksum.get(), checksum, size);
     mBlockChecksumSize = size;
+    mChecksumType = type;
   }
 
   //----------------------------------------------------------------------------
@@ -216,6 +227,7 @@ private:
   std::unique_ptr<char[]>
   mBlockChecksum; ///< checksum of the block (only data, no header)
   size_t mBlockChecksumSize; ///< size of the checksum in bytes
+  unsigned long mChecksumType; ///< checksum type
   static char msTagName[]; ///< default tag name
 };
 

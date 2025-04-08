@@ -1729,11 +1729,6 @@ XrdFstOfsFile::_close_wr()
       }
     }
 
-    if (!mLayout->IsEntryServer()) {
-      unit_checksum_err = VerifyUnitChecksum();
-      eos_debug("unit_checksum_err=%i", unit_checksum_err);
-    }
-
     if (checksum_err || target_sz_err || min_sz_err || unit_checksum_err) {
       mDelOnClose = true;
     }
@@ -1899,13 +1894,6 @@ XrdFstOfsFile::_close_wr()
   // Commit to MGM in case of rain reconstruction and not del on close
   if (eos::common::LayoutId::IsRain(mLayout->GetLayoutId()) &&
       mLayout->IsEntryServer() && !mDelOnClose) {
-    unit_checksum_err = VerifyUnitChecksum();
-
-    if (unit_checksum_err) {
-      eos_err("msg=\"error verifying unit checksum\" fxid=%08llx", mFileId);
-      mDelOnClose = true;
-    }
-
     mCloseSize = totalBytes;
     struct stat info;
     info.st_size = totalBytes;
@@ -3516,21 +3504,6 @@ XrdFstOfsFile::VerifyChecksum()
   return checksumerror;
 }
 
-bool XrdFstOfsFile::VerifyUnitChecksum()
-{
-  bool unit_checksum_err = mLayout->VerifyChecksum();
-
-  if (unit_checksum_err) {
-    return true;
-  }
-
-  if (mLayout->GetUnitChecksum()) {
-    mFmd->mProtoFmd.set_unitchecksum(mLayout->GetUnitChecksum()->GetHexChecksum());
-  }
-
-  return false;
-}
-
 //------------------------------------------------------------------------------
 // Queue file for CTA archiving
 //------------------------------------------------------------------------------
@@ -4309,8 +4282,6 @@ XrdFstOfsFile::CommitToMgm()
   if (mCheckSum) {
     oss << "&mgm.checksum=" << mCheckSum->GetHexChecksum();
   }
-
-  auto unitCheckSum = mLayout->GetUnitChecksum();
 
   if (mFusex) {
     oss << "&mgm.fusex=1";

@@ -588,7 +588,7 @@ bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
 
   if (!DoRescan(last_scan)) {
     ++mNumSkippedFiles;
-    return false; // TODO: check this return value: here a rescan of the file is not needed
+    return false;
   }
 
 #ifndef _NOOFS
@@ -604,7 +604,7 @@ bool ScanDir::CheckRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd)
 
   if (!DoRescan(last_scan, true)) {
     ++mNumSkippedFiles;
-    return false; // TODO: same as check replica file function
+    return false;
   }
 
   gOFS.mFmdHandler->ClearErrors(fmd->mProtoFmd.fid(), mFsId, true);
@@ -987,6 +987,9 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
 {
   auto fid = fmd->mProtoFmd.fid();
   auto path = io->GetPath();
+  std::set<eos::common::FileSystem::fsid_t> invalid_fsid;
+  eos_debug("msg=\"starting scanning rain file\" path=%s fsid=%d fxid=%08llx",
+            path.c_str(), mFsId, fid);
 
   if (mBgThread) {
     //  Skip check if file is open for reading, as this can mean we are in the
@@ -999,20 +1002,6 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
                   "fsid=%d fxid=%08llx", path.c_str(), mFsId, fid);
       return false;
     }
-  }
-
-  std::unique_ptr<HeaderCRC> hd(new HeaderCRC(0, 0));
-
-  if (!hd) {
-    eos_static_err("msg=\"failed to allocate header\" path=\"%s\"",
-                   path.c_str());
-    return false;
-  }
-
-  hd->ReadFromFile(io, 0);
-
-  if (!hd->IsValid()) {
-    return false;
   }
 
   struct stat info_before;
@@ -1028,14 +1017,45 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     return false;
   }
 
-  // We use the new fast method only if the unitchecksum has been computed
+  std::unique_ptr<HeaderCRC> hd(new HeaderCRC(0, 0));
+
+  if (!hd) {
+    eos_static_err("msg=\"failed to allocate header\" path=\"%s\"",
+                   path.c_str());
+    return false;
+  }
+
+  hd->ReadFromFile(io, 0);
+
+  if (!hd->IsValid()) {
+    // the stripe is corrupted
+    eos_debug("msg=\"header file is not valid\" path=%s fsid=%d fxid=%08llx",
+              path.c_str(), mFsId, fid);
+    ReportInvalidFsid(io, fid, {mFsId});
+    return true;
+  }
+
+  if (fmd->GetLocations().size() > LayoutId::GetStripeNumber(
+        fmd->mProtoFmd.lid()) + 1) {
+    if (!ScanRainFileLoadAware(fid, invalid_fsid)) {
+      return false;
+    }
+
+    if (ShouldSkipAfterCheck(io, fid, info_before)) {
+      return false;
+    }
+
+    ReportInvalidFsid(io, fid, invalid_fsid);
+    return true;
+  }
+
+  // We use the new fast method only if the checksum has been computed
   // for the stripe, otherwise we use the old method, since we don't have
   // enough information to get the invalid fsid.
   // The fast method is run by each FSTs, where each of them is checking
   // the stripe that is storing.
   // The old method will only be run by the replica 0 file, and the unitcheckusm
   // computation will be triggered.
-  std::set<eos::common::FileSystem::fsid_t> invalid_fsid;
   // Compute the checksum of the stripe
   auto xs = ChecksumPlugins::GetChecksumObject(fmd->mProtoFmd.lid());
   unsigned long long scansize = 0;
@@ -1054,26 +1074,28 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
             scantime,
             1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
             xs->GetHexChecksum());
+  auto stripeChecksum = hd->GetBlockChecksum();
 
-  if (fmd->mProtoFmd.unitchecksum() != "") {
-    size_t unit_xs_size;
-    auto unit_xs = eos::common::StringConversion::Hex2BinDataChar(
-                     fmd->mProtoFmd.unitchecksum(), unit_xs_size);
+  if (stripeChecksum != nullptr) {
+    eos_debug("msg=\"block checksum available in header\" xs=%s path=%s fsid=%d fxid=%08llx",
+              xs->GetHexChecksum(), path.c_str(), mFsId, fid);
 
-    if (!xs->Compare(unit_xs.get())) {
+    if (!xs->Compare(stripeChecksum.get())) {
+      eos_debug("msg=\"checksums do not match\" expected_xs=%s computed_xs=%s path=%s fsid=%d fxid=%08llx",
+                stripeChecksum->GetHexChecksum(), xs->GetHexChecksum(), path.c_str(), mFsId,
+                fid);
       invalid_fsid.insert(mFsId);
     }
   } else {
 #ifndef _NOOFS
-    // The unitchecksum is not stored in the file metadata
-    // So we fallback to the old procedure
-    //
-    // Technically this is not really needed since if we scan the file
-    // with the old procedure, once it's scanned it will not be checked
-    // again, unless the file is updated, but we compute it to keep
-    // the metadata consistent with all the rest of the files.
-    fmd->mProtoFmd.set_unitchecksum(xs->GetHexChecksum());
-    gOFS.mFmdHandler->Commit(fmd);
+    // The stripe checkum is not stored in the file header
+    // So we fallback to the old procedure, storing the checksum
+    // for the future checks.
+    int size = 0;
+    auto checksum = xs->GetBinChecksum(size);
+    hd->SetBlockChecksum(checksum, size,
+                         eos::common::LayoutId::GetChecksum(fmd->mProtoFmd.lid()));
+    hd->WriteToFile(io, 0);
 
     if (hd->GetIdStripe() != 0) {
       // only run the procedure on the FST storing the first stripe
@@ -1091,36 +1113,49 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     return true;
   }
 
-  // If file changed or opened for update in the meantime then skip the scan
-  bool reopened = false;
+  if (ShouldSkipAfterCheck(io, fid, info_before)) {
+    return false;
+  }
 
+  ReportInvalidFsid(io, fid, invalid_fsid);
+  return true;
+}
+
+bool ScanDir::ShouldSkipAfterCheck(eos::fst::FileIo* io,
+                                   eos::common::FileId::fileid_t fid, const struct stat& stat_before)
+{
   if (mBgThread) {
     if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
       eos_static_err("msg=\"file reopened during the scan, ignore stripe "
-                     "error\" path=\"%s\"", path.c_str());
-      reopened = true;
+                     "error\" path=\"%s\"", io->GetPath().c_str());
+      return true;
     }
   }
 
   struct stat info_after;
 
-  if (reopened || io->fileStat(&info_after) ||
-      (info_before.st_ctime != info_after.st_ctime)) {
+  if (io->fileStat(&info_after) ||
+      (stat_before.st_ctime != info_after.st_ctime)) {
     eos_static_err("msg=\"skip file modified during scan\" path=\"%s\"",
-                   path.c_str());
-    return false;
+                   io->GetPath().c_str());
+    return true;
   }
 
+  return false;
+}
+
+void ScanDir::ReportInvalidFsid(eos::fst::FileIo* io,
+                                eos::common::FileId::fileid_t fid,
+                                const std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
+{
   if (io->attrSet("user.eos.rain_timestamp", GetTimestampSmearedSec(true))) {
     eos_static_err("msg=\"failed to set xattr rain_timestamp\" path=\"%s\"",
-                   path.c_str());
+                   io->GetPath().c_str());
   }
 
   if (mBgThread) {
     gOFS.mFmdHandler->UpdateWithStripeCheckInfo(fid, mFsId, invalid_fsid);
   }
-
-  return true;
 }
 
 //------------------------------------------------------------------------------

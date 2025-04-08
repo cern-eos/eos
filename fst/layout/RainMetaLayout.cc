@@ -52,7 +52,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
                                bool force_recovery,
                                off_t targetSize,
                                std::string bookingOpaque,
-                               eos::fst::CheckSum* unitCheckSum) :
+                               eos::fst::CheckSum* stripeChecksum) :
   Layout(file, lid, client, outError, path, timeout),
   mIsRw(false),
   mIsOpen(false),
@@ -78,7 +78,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
-  mUnitCheckSum.reset(unitCheckSum);
+  mStripeChecksum.reset(stripeChecksum);
 }
 
 //------------------------------------------------------------------------------
@@ -382,6 +382,26 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       } else {
         eos_err("%s", "msg=\"head node can not compute the file size\"");
         return SFS_ERROR;
+      }
+    }
+  }
+
+  // Initialize stripe checksum
+  if (mIsRw && mStripeChecksum) {
+    struct stat info;
+    size_t blockSize = 0;
+
+    if (!mStripe[0]->fileStat(&info)) {
+      blockSize = info.st_size;
+    }
+
+    if (blockSize != 0) {
+      auto xs = mHdrInfo[0]->GetBlockChecksum();
+
+      if (!xs) {
+        mStripeChecksum->SetDirty();
+      } else {
+        mStripeChecksum->ResetInit(0, blockSize, xs->GetHexChecksum());
       }
     }
   }
@@ -988,10 +1008,15 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
 
       // the unit checksum is only computed for the data part
       // the header part is skipped
-      if (mUnitCheckSum && offset >= mSizeHeader && write_length > 0) {
+      if (mStripeChecksum && offset >= mSizeHeader && write_length > 0) {
         XrdSysMutexHelper cLock(mChecksumMutex);
-        mUnitCheckSum->Add(buffer, write_length, offset - mSizeHeader);
+        mStripeChecksum->Add(buffer, write_length, offset - mSizeHeader);
+        eos_info("********************* path=%s size=%d offset=%d dirty=%d",
+                 mStripe[0]->GetPath().c_str(), write_length, offset - mSizeHeader,
+                 mStripeChecksum->NeedsRecalculation());
       }
+
+      mLastWriteOffset += length;
     }
   } else {
     // Detect if this is a non-streaming write
@@ -1060,9 +1085,12 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
 
       // we compute the unit checksum only on the entry server
       // since for the other stripes this is computed by the other FSTs
-      if (physical_id == 0 && mUnitCheckSum && off_local >= mSizeHeader) {
+      if (physical_id == 0 && mStripeChecksum && off_local >= mSizeHeader) {
         XrdSysMutexHelper cLock(mChecksumMutex);
-        mUnitCheckSum->Add(buffer, nwrite, off_local - mSizeHeader);
+        mStripeChecksum->Add(buffer, nwrite, off_local - mSizeHeader);
+        eos_info("********************* path=%s size=%d offset=%d dirty=%d",
+                 mStripe[0]->GetPath().c_str(), nwrite, off_local - mSizeHeader,
+                 mStripeChecksum->NeedsRecalculation());
       }
 
       AddPiece(offset, nwrite);
@@ -1585,6 +1613,15 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
             offset, truncate_offset);
   eos::common::Timing tm("truncate");
   COMMONTIMING("begin", &tm);
+  // if (mLastWriteOffset != offset && mStripeChecksum) {
+  eos_info("****************** (TRUNCATE) path=%s offset=%d last_offset=%d xs_last_offset=%d",
+           mStripe[0]->GetPath().c_str(), truncate_offset, mLastWriteOffset,
+           mStripeChecksum->GetLastOffset());
+  {
+    mStripeChecksum->Reset();
+    mStripeChecksum->SetDirty();
+  }
+  // }
 
   for (unsigned int i = 0; i < mStripe.size(); ++i) {
     if (!mStripe[i]) {
@@ -1631,23 +1668,29 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   return rc;
 }
 
-bool RainMetaLayout::VerifyChecksum()
+bool RainMetaLayout::VerifyStripeChecksum()
 {
-  if (!mUnitCheckSum) {
+  if (!mStripeChecksum) {
     return false;
   }
 
-  mUnitCheckSum->Finalize();
+  eos_info("**************** (VERIFY STRIPE CHECKSUM) path=%s dirty=%d xs_last_offset=%d",
+           mOfsFile->GetFstPath().c_str(), mStripeChecksum->NeedsRecalculation(),
+           mStripeChecksum->GetLastOffset());
+  // mStripeChecksum->Finalize();
   unsigned long long scansize = 0;
   float scantime = 0;
+  eos_info("**************** (VERIFY STRIPE CHECKSUM) path=%s dirty=%d xs_last_offset=%d",
+           mOfsFile->GetFstPath().c_str(), mStripeChecksum->NeedsRecalculation(),
+           mStripeChecksum->GetLastOffset());
 
   // Update unit checksum if it needs recalculation
-  if (mUnitCheckSum->NeedsRecalculation()) {
+  if (mStripeChecksum->NeedsRecalculation()) {
     eos_debug("msg=\"unit checksum needs recalculation\" fxid=%08llx",
               mOfsFile->GetFileId());
 
-    if (mUnitCheckSum->ScanFile(mOfsFile->GetFstPath().c_str(), scansize,
-                                scantime, mSizeHeader)) {
+    if (mStripeChecksum->ScanFile(mOfsFile->GetFstPath().c_str(), scansize,
+                                  scantime, 0, mSizeHeader)) {
       XrdOucString sizestring;
       eos_info("msg=\"rescanned unit checksum\" fxid=%08llx size=%s time=%.02f ms rate=%.02f MB/s %s",
                mOfsFile->GetFileId(), eos::common::StringConversion::GetReadableSizeString(
@@ -1655,13 +1698,15 @@ bool RainMetaLayout::VerifyChecksum()
                  scansize, "B"),
                scantime,
                1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
-               mUnitCheckSum->GetHexChecksum());
+               mStripeChecksum->GetHexChecksum());
     } else {
       eos_err("msg=\"unit checksum rescanning failed\" fxid=%08llx",
               mOfsFile->GetFileId());
-      mUnitCheckSum.reset(nullptr);
+      mStripeChecksum.reset(nullptr);
       return true;
     }
+  } else {
+    mStripeChecksum->Finalize();
   }
 
   return false;
@@ -1788,6 +1833,29 @@ RainMetaLayout::Close()
 
     // Close local file
     if (mStripe[0]) {
+      // Set stripe checksum
+      if (!mIsEntryServer) {
+        if (!mHdrInfo[0]->ReadFromFile(mStripe[0].get(), mTimeout)) {
+          eos_err("msg=\"failed reading header\"");
+          rc = SFS_ERROR;
+        }
+      }
+
+      if (VerifyStripeChecksum()) {
+        eos_err("msg=\"error verifying stripe checksum\"");
+        rc = SFS_ERROR;
+      } else {
+        int checksumSize = 0;
+        const char* stripeChecksum = mStripeChecksum->GetBinChecksum(checksumSize);
+        mHdrInfo[0]->SetBlockChecksum(stripeChecksum, checksumSize,
+                                      eos::common::LayoutId::GetChecksum(mLayoutId));
+
+        if (!mHdrInfo[0]->WriteToFile(mStripe[0].get(), mTimeout)) {
+          eos_err("msg=\"failed write header\"");
+          rc =  SFS_ERROR;
+        }
+      }
+
       if (mStripe[0]->fileClose(mTimeout)) {
         eos_err("%s", "msg=\"failed to close local file\"");
         rc = SFS_ERROR;

@@ -141,14 +141,6 @@ public:
   }
 
   //--------------------------------------------------------------------------
-  //! Get unit checksum
-  //--------------------------------------------------------------------------
-  eos::fst::CheckSum* GetUnitChecksum() const
-  {
-    return mUnitCheckSum.get();
-  }
-
-  //--------------------------------------------------------------------------
   //! Test if we are at the entry server
   //--------------------------------------------------------------------------
   virtual bool IsEntryServer()
@@ -284,11 +276,6 @@ public:
   //----------------------------------------------------------------------------
   virtual int Fctl(const std::string& cmd, const XrdSecEntity* client) = 0;
 
-  virtual bool VerifyChecksum()
-  {
-    return false;
-  };
-
   //--------------------------------------------------------------------------
   //! Get stats about the file
   //!
@@ -339,9 +326,6 @@ protected:
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
   std::unique_ptr<FileIo> mFileIO; //< IO object as entry server
-  std::unique_ptr<eos::fst::CheckSum>
-  mUnitCheckSum; //< Checksum of the layout unit
-  XrdSysMutex mChecksumMutex; ///< Mutex protecting the checksum class
 };
 
 EOSFSTNAMESPACE_END
