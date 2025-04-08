@@ -61,7 +61,7 @@ public:
                  const XrdSecEntity* client, XrdOucErrInfo* outError,
                  const char* path, uint16_t timeout, bool force_recovery,
                  off_t targetSize, std::string bookingOpaque,
-                 eos::fst::CheckSum* unitCheckSum);
+                 eos::fst::CheckSum* stripeChecksum);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -169,8 +169,6 @@ public:
   //! @return 0 if successful, -1 otherwise and error code is set
   //----------------------------------------------------------------------------
   virtual int Truncate(XrdSfsFileOffset offset);
-
-  virtual bool VerifyChecksum() override;
 
   //----------------------------------------------------------------------------
   //! Allocate file space
@@ -295,6 +293,9 @@ protected:
   mutable std::mutex mMutexGroups;
   std::condition_variable mCvGroups;
   std::map<uint64_t, std::shared_ptr<eos::fst::RainGroup>> mMapGroups;
+  std::unique_ptr<eos::fst::CheckSum>
+  mStripeChecksum; //< Checksum of the stripe
+  XrdSysMutex mChecksumMutex; ///< Mutex protecting the checksum class
 
   //----------------------------------------------------------------------------
   //! Get group corresponding to the given offset or create one if it doesn't
@@ -442,6 +443,8 @@ protected:
   //----------------------------------------------------------------------------
   virtual uint64_t GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
 
+  bool VerifyStripeChecksum();
+
 private:
   //----------------------------------------------------------------------------
   //! Disable copy/move assign/constructor operators
@@ -537,7 +540,6 @@ private:
   std::set<uint64_t> mRecoveredGrpIndx;
   //! Mutex protecting the set of recovered groups
   std::mutex mMtxRecoveredGrps;
-
 };
 
 EOSFSTNAMESPACE_END
