@@ -85,7 +85,7 @@ Adler::AddElementToMap(MapChunks& map, Chunk& chunk)
 
 /*----------------------------------------------------------------------------*/
 const char*
-Adler::GetHexChecksum()
+Adler::GetHexChecksum() const
 {
   char sadler[1024];
   sprintf(sadler, "%08x", adler);
@@ -95,7 +95,7 @@ Adler::GetHexChecksum()
 
 /*----------------------------------------------------------------------------*/
 const char*
-Adler::GetBinChecksum(int& len)
+Adler::GetBinChecksum(int& len) const
 {
   len = sizeof(unsigned int);
   return (char*) &adler;
@@ -107,7 +107,7 @@ Adler::GetBinChecksum(int& len)
  * (starts from 0 and there are no holes)
  */
 void
-Adler::ValidateAdlerMap()
+Adler::ValidateAdlerMap() const
 {
   unsigned int value;
   adler = adler32(0L, Z_NULL, 0);
@@ -185,7 +185,7 @@ Adler::ValidateAdlerMap()
 
 /*----------------------------------------------------------------------------*/
 void
-Adler::Finalize()
+Adler::Finalize() const
 {
   if (!finalized) {
     ValidateAdlerMap();

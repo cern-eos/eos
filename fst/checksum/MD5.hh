@@ -39,9 +39,9 @@ EOSFSTNAMESPACE_BEGIN
 class MD5 : public CheckSum
 {
 private:
-  MD5_CTX ctx;
+  mutable MD5_CTX ctx;
   off_t md5offset;
-  unsigned char md5[MD5_DIGEST_LENGTH + 1];
+  mutable unsigned char md5[MD5_DIGEST_LENGTH + 1];
   unsigned char md5hex[(MD5_DIGEST_LENGTH * 2) + 1];
 public:
   MD5() : CheckSum("md5")
@@ -49,7 +49,7 @@ public:
     Reset();
   }
 
-  off_t GetLastOffset()
+  off_t GetLastOffset() const override
   {
     return md5offset;
   }
@@ -70,7 +70,7 @@ public:
     return true;
   }
 
-  const char* GetHexChecksum()
+  const char* GetHexChecksum() const override
   {
     Checksum = "";
     char hexs[16];
@@ -83,18 +83,18 @@ public:
     return Checksum.c_str();
   }
 
-  const char* GetBinChecksum(int& len)
+  const char* GetBinChecksum(int& len) const override
   {
     len = MD5_DIGEST_LENGTH;
     return (char*) &md5;
   }
 
-  int GetCheckSumLen()
+  int GetCheckSumLen() const override
   {
     return MD5_DIGEST_LENGTH;
   }
 
-  void Finalize()
+  void Finalize() const override
   {
     if (!finalized) {
       MD5_Final(md5, &ctx);

@@ -47,8 +47,7 @@ class CRC32C : public CheckSum
 {
 private:
   off_t crc32coffset;
-  uint32_t crcsum;
-  bool finalized;
+  mutable uint32_t crcsum;
 
 public:
 
@@ -58,7 +57,7 @@ public:
   }
 
   off_t
-  GetLastOffset()
+  GetLastOffset() const override
   {
     return crc32coffset;
   }
@@ -90,7 +89,7 @@ public:
   }
 
   const char*
-  GetHexChecksum()
+  GetHexChecksum() const override
   {
     if (!finalized) {
       Finalize();
@@ -103,7 +102,7 @@ public:
   }
 
   const char*
-  GetBinChecksum(int& len)
+  GetBinChecksum(int& len) const override
   {
     if (!finalized) {
       Finalize();
@@ -114,7 +113,7 @@ public:
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen() const override
   {
     return sizeof(unsigned int);
   }
@@ -129,7 +128,7 @@ public:
   }
 
   void
-  Finalize()
+  Finalize() const override
   {
     if (!finalized) {
       crcsum = checksum::crc32cFinish(crcsum);

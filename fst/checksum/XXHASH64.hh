@@ -41,8 +41,8 @@ class XXHASH64 : public CheckSum
 {
 private:
   off_t xxhash64offset;
-  uint64_t crcsum;
-  XXH64_state_t* state;
+  mutable uint64_t crcsum;
+  mutable XXH64_state_t* state;
 
 public:
 
@@ -52,7 +52,7 @@ public:
   }
 
   off_t
-  GetLastOffset()
+  GetLastOffset() const override
   {
     return xxhash64offset;
   }
@@ -75,7 +75,7 @@ public:
   }
 
   const char*
-  GetHexChecksum()
+  GetHexChecksum() const override
   {
     char sxxhash64[1024];
     sprintf(sxxhash64, "%16lx", crcsum);
@@ -84,20 +84,20 @@ public:
   }
 
   const char*
-  GetBinChecksum(int& len)
+  GetBinChecksum(int& len) const override
   {
     len = sizeof(unsigned int);
     return (char*) &crcsum;
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen() const override
   {
     return sizeof(unsigned int);
   }
 
   void
-  Finalize()
+  Finalize() const override
   {
     if (!finalized) {
       crcsum = XXH64_digest(state);

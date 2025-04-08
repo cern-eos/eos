@@ -45,8 +45,8 @@ class HWH64 : public CheckSum
 
 private:
   const HHKey key HH_ALIGNAS(32) = {1, 2, 3, 4};
-  HighwayHashCatT<HH_TARGET_PREFERRED> ctx;
-  HHResult64 result;
+  mutable HighwayHashCatT<HH_TARGET_PREFERRED> ctx;
+  mutable HHResult64 result;
 
   off_t hwhoffset;
 public:
@@ -55,7 +55,7 @@ public:
     Reset();
   }
 
-  off_t GetLastOffset()
+  off_t GetLastOffset() const override
   {
     return hwhoffset;
   }
@@ -76,7 +76,7 @@ public:
     return true;
   }
 
-  const char* GetHexChecksum()
+  const char* GetHexChecksum() const override
   {
     Checksum = "";
     char hexs[17];
@@ -85,18 +85,18 @@ public:
     return Checksum.c_str();
   }
 
-  const char* GetBinChecksum(int& len)
+  const char* GetBinChecksum(int& len) const override
   {
     len = HWH64_DIGEST_LENGTH;
     return (char*) &result;
   }
 
-  int GetCheckSumLen()
+  int GetCheckSumLen() const override
   {
     return HWH64_DIGEST_LENGTH;
   }
 
-  void Finalize()
+  void Finalize() const override
   {
     if (!finalized) {
       ctx.Finalize(&result);

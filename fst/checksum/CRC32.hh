@@ -51,7 +51,7 @@ public:
   }
 
   off_t
-  GetLastOffset()
+  GetLastOffset() const override
   {
     return crc32offset;
   }
@@ -74,7 +74,7 @@ public:
   }
 
   const char*
-  GetHexChecksum()
+  GetHexChecksum() const override
   {
     char scrc32[1024];
     sprintf(scrc32, "%08x", crcsum);
@@ -83,14 +83,14 @@ public:
   }
 
   const char*
-  GetBinChecksum(int& len)
+  GetBinChecksum(int& len) const override
   {
     len = sizeof(unsigned int);
     return (char*) &crcsum;
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen() const override
   {
     return sizeof(unsigned int);
   }

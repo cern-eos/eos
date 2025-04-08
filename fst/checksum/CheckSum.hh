@@ -44,10 +44,10 @@ class CheckSum
 {
 protected:
   XrdOucString Name;
-  XrdOucString Checksum;
+  mutable XrdOucString Checksum;
 
-  bool needsRecalculation;
-  bool finalized;
+  mutable bool needsRecalculation;
+  mutable bool finalized;
   char* ChecksumMap;
   size_t ChecksumMapSize;
   size_t ChecksumMapOpenSize;
@@ -99,7 +99,7 @@ public:
   virtual bool Add(const char* buffer, size_t length, off_t offset = -1) = 0;
 
   virtual void
-  Finalize()
+  Finalize() const
   {
     finalized = true;
   };
@@ -114,8 +114,8 @@ public:
     needsRecalculation = true;
   }
 
-  virtual const char* GetHexChecksum() = 0;
-  virtual const char* GetBinChecksum(int& len) = 0;
+  virtual const char* GetHexChecksum() const = 0;
+  virtual const char* GetBinChecksum(int& len) const = 0;
 
   virtual bool
   SetBinChecksum(const void* buffer, int len)
@@ -130,24 +130,26 @@ public:
     return true;
   }
 
-  virtual bool Compare(const char* refchecksum);
-  virtual off_t GetLastOffset() = 0;
+  virtual bool Compare(const char* refchecksum) const;
+  virtual bool Compare(const CheckSum* other) const;
+
+  virtual off_t GetLastOffset() const = 0;
 
   virtual off_t
-  GetMaxOffset()
+  GetMaxOffset() const
   {
     return GetLastOffset();
   }
-  virtual int GetCheckSumLen() = 0;
+  virtual int GetCheckSumLen() const = 0;
 
   const char*
-  GetName()
+  GetName() const
   {
     return Name.c_str();
   }
 
   bool
-  NeedsRecalculation()
+  NeedsRecalculation() const
   {
     return needsRecalculation;
   }
