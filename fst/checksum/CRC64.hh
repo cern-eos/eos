@@ -174,7 +174,6 @@ class CRC64 : public CheckSum
 private:
   off_t crc64offset;
   uint64_t crcsum;
-  bool finalized;
 
 public:
 
@@ -197,7 +196,7 @@ public:
 
 
   off_t
-  GetLastOffset()
+  GetLastOffset() const override
   {
     return crc64offset;
   }
@@ -220,7 +219,7 @@ public:
   }
 
   const char*
-  GetHexChecksum()
+  GetHexChecksum() const override
   {
     if (!finalized) {
       Finalize();
@@ -233,7 +232,7 @@ public:
   }
 
   const char*
-  GetBinChecksum(int& len)
+  GetBinChecksum(int& len) const override
   {
     if (!finalized) {
       Finalize();
@@ -244,7 +243,7 @@ public:
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen() const override
   {
     return sizeof(unsigned int);
   }
@@ -259,7 +258,7 @@ public:
   }
 
   void
-  Finalize()
+  Finalize() const override
   {
     if (!finalized) {
       finalized = true;
