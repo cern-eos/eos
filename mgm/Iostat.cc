@@ -819,6 +819,7 @@ Iostat::GetPeriodStatForTag(const char* tag, size_t period, time_t secago) const
 void
 Iostat::Receive(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("IoStatReceiver");
   eos_static_info("%s", "msg=\"starting iostat receive thread\"");
 
   if (gOFS == nullptr) {
@@ -2492,6 +2493,7 @@ Iostat::PrintNsReport(const char* path, XrdOucString& out) const
 void
 Iostat::Circulate(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("IoStatCirculate");
   while (!assistant.terminationRequested()) {
     if (mLegacyMode) {
       static unsigned long long sc = 0ull;

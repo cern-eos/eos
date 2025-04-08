@@ -42,6 +42,7 @@ using group_balancer::BalancerEngineT;
 using group_balancer::group_size_map;
 using group_balancer::eosGroupsInfoFetcher;
 using group_balancer::PrefixFilter;
+static constexpr auto GROUPBALANCER_THREAD_NAME = "GroupBalancer";
 
 //-------------------------------------------------------------------------------
 // GroupBalancer constructor
@@ -410,6 +411,7 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 void
 GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName(GROUPBALANCER_THREAD_NAME);
   gOFS->WaitUntilNamespaceIsBooted();
   eos_static_info("%s", "msg=\"starting group balancer thread\"");
   eosGroupsInfoFetcher fetcher(mSpaceName);

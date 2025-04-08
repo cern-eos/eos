@@ -70,6 +70,7 @@ QuarkFileSystemView::configure(const std::map<std::string, std::string>& config)
   mNoReplicas.reset(new FileSystemHandler(mExecutor.get(), pQcl, pFlusher,
                                           IsNoReplicaListTag()));
   mCacheCleanerThread.reset(&QuarkFileSystemView::CleanCacheJob, this);
+  mCacheCleanerThread.setName("NSCacheCleaner");
 }
 
 

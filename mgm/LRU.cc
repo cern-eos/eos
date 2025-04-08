@@ -171,6 +171,7 @@ bool LRU::parseExpireMatchPolicy(const std::string& policy,
 //------------------------------------------------------------------------------
 void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("LRUQDBCycle");
   eos_static_info("%s", "msg=\"start LRU scan on QDB\"");
   // Build exploration options..
   ExplorationOptions opts;
@@ -221,6 +222,7 @@ void LRU::performCycleQDB(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("LRUBackground");
   // Eternal thread doing LRU scans
   eos_static_notice("%s", "msg=\"starting LRU thread\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);

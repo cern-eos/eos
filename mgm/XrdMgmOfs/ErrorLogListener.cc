@@ -77,6 +77,7 @@ bool CheckFileExistanceAndPerm(const std::string& log_file, std::string& err)
 void
 XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("ErrorLogListener");
   static std::string channel = "/eos/*/errorreport";
   static std::string log_path = "/var/log/eos/mgm/error.log";
   std::string err_msg;

@@ -69,6 +69,7 @@ EOSMGMNAMESPACE_BEGIN
 
 using namespace eos::common;
 
+static constexpr auto REPTRACKER_THREAD_NAME = "RepTracker";
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -474,6 +475,7 @@ ReplicationTracker::getOptions()
 void
 ReplicationTracker::backgroundThread(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName(REPTRACKER_THREAD_NAME);
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   // set the initial state after boot
   Options opts = getOptions();

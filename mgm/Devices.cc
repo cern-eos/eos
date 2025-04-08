@@ -62,6 +62,7 @@ Devices::Stop()
 void
 Devices::Recorder(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("Devices");
   time_t snoozetime = 900;
   if (getenv("EOS_MGM_DEVICES_PUBLISHING_INTERVAL")) {
     auto rtime = std::atoi(getenv("EOS_MGM_DEVICES_PUBLISHING_INTERVAL"));

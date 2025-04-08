@@ -516,6 +516,7 @@ GeoBalancer::prepareTransfers(int nrTransfers)
 void
 GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("GeoBalancer");
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   assistant.wait_for(std::chrono::seconds(10));

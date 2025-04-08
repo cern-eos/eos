@@ -41,6 +41,7 @@ XrdMgmOfs::StartAuthWorkerThread(void* pp)
 void
 XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("AuthMaster");
   // Socket facing clients
   zmq::socket_t frontend(*mZmqContext, ZMQ_ROUTER);
   int enable_ipv6 = 1;

@@ -29,6 +29,7 @@ EOSMGMNAMESPACE_BEGIN
 void
 AdminSocket::Run(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("AdminSocket");
   zmq::context_t context(1);
   zmq::socket_t socket(context, ZMQ_REP);
   socket.bind(mSocket.c_str());

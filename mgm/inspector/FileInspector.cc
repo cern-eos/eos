@@ -154,6 +154,7 @@ FileInspector::Options FileInspector::getOptions(const LockFsView lockfsview)
 void
 FileInspector::backgroundThread(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("FileInspector");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
   // set the initial state after boot
   Options opts = getOptions(LockFsView::On);

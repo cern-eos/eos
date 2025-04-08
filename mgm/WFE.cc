@@ -112,6 +112,7 @@ WFE::Stop()
 void
 WFE::WFEr(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("WFE");
   // Eternal thread doing WFE scans
   time_t snoozetime = 10;
   size_t lWFEntx = 0;

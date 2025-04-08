@@ -25,6 +25,8 @@ static const std::string format_s = "-s";
 static const std::string format_l = "l";
 static const std::string format_f = "f";
 
+static constexpr auto GROUPDRAINER_THREADNAME = "GroupDrainer";
+
 GroupDrainer::GroupDrainer(std::string_view spacename):
   mMaxTransfers(DEFAULT_NUM_TX),
   mSpaceName(spacename),
@@ -41,6 +43,7 @@ GroupDrainer::~GroupDrainer()
 void
 GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName(GROUPDRAINER_THREADNAME);
   eosGroupsInfoFetcher fetcher(mSpaceName,
   [](GroupStatus s) {
     return s == GroupStatus::DRAIN || s == GroupStatus::ON;
