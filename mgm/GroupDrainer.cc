@@ -25,7 +25,7 @@ static const std::string format_s = "-s";
 static const std::string format_l = "l";
 static const std::string format_f = "f";
 
-static constexpr auto GROUPDRAINER_THREADNAME = "groupdrainer";
+static constexpr auto GROUPDRAINER_THREADNAME = "GroupDrainer";
 
 GroupDrainer::GroupDrainer(std::string_view spacename):
   mMaxTransfers(DEFAULT_NUM_TX),

@@ -29,6 +29,7 @@ EOSMGMNAMESPACE_BEGIN
 
 constexpr unsigned int ConverterDriver::cDefaultRequestIntervalSec;
 constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
+static constexpr auto CONVERTER_THREAD_NAME = "converter";
 
 //------------------------------------------------------------------------------
 // Start converter thread
@@ -114,6 +115,7 @@ ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
 void
 ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName(CONVERTER_THREAD_NAME);
   JobInfoT info;
   eos_notice("%s", "msg=\"starting converter engine\"");;
   gOFS->WaitUntilNamespaceIsBooted(assistant);

@@ -42,7 +42,7 @@ using group_balancer::BalancerEngineT;
 using group_balancer::group_size_map;
 using group_balancer::eosGroupsInfoFetcher;
 using group_balancer::PrefixFilter;
-static constexpr auto GROUPBALANCER_THREAD_NAME = "groupbalancer";
+static constexpr auto GROUPBALANCER_THREAD_NAME = "GroupBalancer";
 
 //-------------------------------------------------------------------------------
 // GroupBalancer constructor

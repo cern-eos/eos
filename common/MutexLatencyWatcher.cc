@@ -25,6 +25,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+static constexpr auto MTX_LATENCY_WATCHER_THREAD_NAME = "MtxLatencyWatcher";
 //------------------------------------------------------------------------------
 // Empty constructor
 //------------------------------------------------------------------------------
@@ -50,6 +51,7 @@ void MutexLatencyWatcher::activate(RWMutex& mutex, const std::string &friendlyNa
 // Main thread loop
 //------------------------------------------------------------------------------
 void MutexLatencyWatcher::main(ThreadAssistant &assistant) {
+  ThreadAssistant::setSelfThreadName(MTX_LATENCY_WATCHER_THREAD_NAME);
   while(!assistant.terminationRequested()) {
     Datapoint point;
     aStart = time(NULL);
