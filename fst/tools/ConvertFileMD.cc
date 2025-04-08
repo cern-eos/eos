@@ -87,8 +87,6 @@ main(int argc, char* argv[])
                           "checksum in hex representation");
   auto mgmchecksum_opt = set_subcmd->add_option("--mgmchecksum", mgmchecksum,
                          "checksum in hex representation");
-  auto unitchecksum_opt = set_subcmd->add_option("--unitchecksum", unitchecksum,
-                          "checksum in hex representation");
 
   try {
     app.parse(argc, argv);
@@ -206,11 +204,6 @@ main(int argc, char* argv[])
 
     if (!mgmchecksum_opt->empty()) {
       fmd.mProtoFmd.set_mgmchecksum(mgmchecksum);
-      updated = true;
-    }
-
-    if (!unitchecksum_opt->empty()) {
-      fmd.mProtoFmd.set_unitchecksum(unitchecksum);
       updated = true;
     }
 

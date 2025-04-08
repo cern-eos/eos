@@ -197,6 +197,13 @@ public:
   bool ListStripes(eos::common::FileId::fileid_t fid,
                    std::vector<stripe_s>& stripes, std::string& opaqueInfo);
 
+  void ReportInvalidFsid(eos::fst::FileIo* io,
+                         eos::common::FileId::fileid_t fid,
+                         const std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
+
+  bool ShouldSkipAfterCheck(eos::fst::FileIo* io,
+                            eos::common::FileId::fileid_t fid, const struct stat& stat_before);
+
   //----------------------------------------------------------------------------
   //! Check each stripe to verify if they can reconstruct the original file
   //!
