@@ -311,6 +311,7 @@ Egroup::CachedEntry Egroup::query(const std::string& username,
 //------------------------------------------------------------------------------
 void Egroup::Refresh(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("EgroupRefresh");
   eos_static_info("%s", "msg=\"async egroup fetch thread started\"");
   std::string key;
   auto iterator = mPendingQueue.begin();

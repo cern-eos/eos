@@ -311,6 +311,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
 void
 Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("FsckCollector");
   mCollectRunning = true;
   eos_info("%s", "msg=\"started fsck collector thread\"");
 
@@ -394,6 +395,7 @@ Fsck::CollectErrs(ThreadAssistant& assistant) noexcept
 void
 Fsck::RepairErrs(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("FsckRepair");
   mRepairRunning = true;
   eos_info("%s", "msg=\"started fsck repair thread\"");
 

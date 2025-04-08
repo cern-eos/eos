@@ -78,6 +78,7 @@ Recycle::Stop()
 void
 Recycle::Recycler(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("Recycler");
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdOucErrInfo lError;
   time_t lKeepTime = 0;

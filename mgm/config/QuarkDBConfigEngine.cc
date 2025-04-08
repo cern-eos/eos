@@ -269,6 +269,7 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 //------------------------------------------------------------------------------
 void QuarkDBConfigEngine::CleanupThread(ThreadAssistant& assistant)
 {
+  ThreadAssistant::setSelfThreadName("QDBConfigCleanup");
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::minutes(30));
 

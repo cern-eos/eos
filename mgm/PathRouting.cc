@@ -269,6 +269,7 @@ PathRouting::GetListing(const std::string& path, std::string& out) const
 void
 PathRouting::UpdateEndpointsStatus(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("PathRouter");
   while (!assistant.terminationRequested()) {
     {
       eos::common::RWMutexReadLock route_rd_lock(mPathRouteMutex);

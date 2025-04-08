@@ -172,6 +172,7 @@ FsBalancer::ConfigUpdate()
 void
 FsBalancer::Balance(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("FsBalancer");
   static constexpr std::chrono::seconds enable_refresh_delay {10};
   static constexpr std::chrono::seconds no_transfers_delay {30};
   static constexpr std::chrono::seconds no_slots_delay {10};

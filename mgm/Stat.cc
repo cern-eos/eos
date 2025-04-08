@@ -1198,6 +1198,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 void
 Stat::Circulate(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("StatCirculate");
   unsigned long long l1 = 0;
   unsigned long long l2 = 0;
   unsigned long long l3 = 0;

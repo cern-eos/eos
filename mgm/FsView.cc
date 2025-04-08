@@ -2609,6 +2609,7 @@ static void setFsStatus(FileSystem* fs,
 void
 FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("FsViewHB");
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(10));
     eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);

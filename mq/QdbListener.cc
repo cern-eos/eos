@@ -22,6 +22,9 @@
  ************************************************************************/
 
 #include "mq/QdbListener.hh"
+
+#include <common/AssistedThread.hh>
+
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/pubsub/Message.hh"
 
@@ -70,6 +73,7 @@ QdbListener::ProcessUpdateCb(qclient::Message&& msg)
 bool
 QdbListener::fetch(std::string& out, ThreadAssistant* assistant)
 {
+  ThreadAssistant::setSelfThreadName("QdbListener");
   std::chrono::seconds timeout {5};
   std::unique_lock lock(mMutex);
 

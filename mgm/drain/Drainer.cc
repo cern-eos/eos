@@ -275,6 +275,7 @@ Drainer::GetJobsInfo(std::string& out, const DrainHdrInfo& hdr_info,
 void
 Drainer::Drain(ThreadAssistant& assistant) noexcept
 {
+  ThreadAssistant::setSelfThreadName("Drainer");
   eos_static_notice("%s", "msg=\"starting central drainer\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
