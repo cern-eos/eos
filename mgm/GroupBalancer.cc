@@ -438,7 +438,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
       FsView::gFsView.ViewMutex.UnLockRead();
-      eos_static_warning("msg=\"no groups to balance\" space=\"%s\"",
+      eos_static_debug("msg=\"no groups to balance\" space=\"%s\"",
                          mSpaceName.c_str());
       break;
     }
