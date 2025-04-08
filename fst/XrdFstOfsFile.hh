@@ -809,13 +809,6 @@ public:
   bool VerifyChecksum();
 
   //----------------------------------------------------------------------------
-  //! Verify unit checksum
-  //!
-  //! @return true if ok, otherwise false
-  //----------------------------------------------------------------------------
-  bool VerifyUnitChecksum();
-
-  //----------------------------------------------------------------------------
   //! Queue file for CTA archiving
   //!
   //! @param statinfo The file stat structure
