@@ -47,9 +47,9 @@ class BLAKE3 : public CheckSum
 {
 private:
   blake3_hasher hasher;
-  uint8_t blake3checksum[BLAKE3_OUT_LEN];
+  mutable uint8_t blake3checksum[BLAKE3_OUT_LEN];
   off_t blake3offset;
-  bool finalized;
+  mutable bool finalized;
 
 public:
 
@@ -59,7 +59,7 @@ public:
   }
 
   off_t
-  GetLastOffset()
+  GetLastOffset() const override
   {
     return blake3offset;
   }
@@ -86,7 +86,7 @@ public:
   }
 
   const char*
-  GetHexChecksum()
+  GetHexChecksum() const override
   {
     if (!finalized) {
       Finalize();
@@ -104,7 +104,7 @@ public:
   }
 
   const char*
-  GetBinChecksum(int& len)
+  GetBinChecksum(int& len) const override
   {
     if (!finalized) {
       Finalize();
@@ -115,7 +115,7 @@ public:
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen() const override
   {
     return BLAKE3_OUT_LEN;
   }
@@ -131,7 +131,7 @@ public:
   }
 
   void
-  Finalize()
+  Finalize() const override
   {
     if (!finalized) {
       blake3_hasher_finalize(&hasher, blake3checksum, BLAKE3_OUT_LEN);

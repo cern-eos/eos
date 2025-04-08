@@ -40,10 +40,10 @@ EOSFSTNAMESPACE_BEGIN
 class SHA1 : public CheckSum
 {
 private:
-  SHA_CTX ctx;
+  mutable SHA_CTX ctx;
 
   off_t sha1offset;
-  unsigned char sha1[SHA_DIGEST_LENGTH + 1];
+  mutable unsigned char sha1[SHA_DIGEST_LENGTH + 1];
 public:
 
   SHA1() : CheckSum("sha1")
@@ -52,7 +52,7 @@ public:
   }
 
   off_t
-  GetLastOffset()
+  GetLastOffset() const override
   {
     return sha1offset;
   }
@@ -75,7 +75,7 @@ public:
   }
 
   const char*
-  GetHexChecksum()
+  GetHexChecksum() const override
   {
     Checksum = "";
     char hexs[16];
@@ -89,20 +89,20 @@ public:
   }
 
   const char*
-  GetBinChecksum(int& len)
+  GetBinChecksum(int& len) const override
   {
     len = SHA_DIGEST_LENGTH;
     return (char*) &sha1;
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen() const override
   {
     return SHA_DIGEST_LENGTH;
   }
 
   void
-  Finalize()
+  Finalize() const override
   {
     if (!finalized) {
       SHA1_Final(sha1, &ctx);

@@ -55,8 +55,8 @@ class Adler : public CheckSum
 private:
   off_t adleroffset;
   off_t maxoffset;
-  unsigned int adler;
-  MapChunks map;
+  mutable unsigned int adler;
+  mutable MapChunks map;
 
 public:
   Adler() : CheckSum("adler")
@@ -73,28 +73,28 @@ public:
   MapChunks& AddElementToMap(MapChunks& map, Chunk& chunk);
 
   off_t
-  GetLastOffset()
+  GetLastOffset() const override
   {
     return adleroffset;
   }
 
   off_t
-  GetMaxOffset()
+  GetMaxOffset() const override
   {
     return maxoffset;
   }
 
   int
-  GetCheckSumLen()
+  GetCheckSumLen() const override
   {
     return sizeof(unsigned int);
   }
-  void ValidateAdlerMap();
+  void ValidateAdlerMap() const;
 
-  const char* GetHexChecksum();
-  const char* GetBinChecksum(int& len);
+  const char* GetHexChecksum() const override;
+  const char* GetBinChecksum(int& len) const override;
 
-  void Finalize();
+  void Finalize() const override;
 
   void
   Reset()
