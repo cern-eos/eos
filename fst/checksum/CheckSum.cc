@@ -65,7 +65,7 @@ sigbus_hdl(int sig, siginfo_t* siginfo, void* ptr)
 
 /*----------------------------------------------------------------------------*/
 bool
-CheckSum::Compare(const char* refchecksum)
+CheckSum::Compare(const char* refchecksum) const
 {
   bool result = true;
 
@@ -78,6 +78,27 @@ CheckSum::Compare(const char* refchecksum)
   }
 
   return result;
+}
+
+/*----------------------------------------------------------------------------*/
+bool
+CheckSum::Compare(const CheckSum* other) const
+{
+  if (GetCheckSumLen() != other->GetCheckSumLen()) {
+    return false;
+  }
+
+  int len;
+  auto thisBinChecksum = GetBinChecksum(len);
+  auto otherBinChecksum = other->GetBinChecksum(len);
+
+  for (int i = 0; i < GetCheckSumLen(); i++) {
+    if (thisBinChecksum[i] != otherBinChecksum[i]) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /*----------------------------------------------------------------------------*/
