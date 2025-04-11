@@ -1761,7 +1761,6 @@ XrdFstOfsFile::_close_wr()
         mDelOnClose = queuing_err;
       }
 
-      // For RAIN file, if it's the entry server, we do the commit later, after the close.
       if (!mDelOnClose) {
         // Update size
         mCloseSize = statinfo.st_size;
