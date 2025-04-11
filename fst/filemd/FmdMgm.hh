@@ -43,8 +43,7 @@ public:
   //!
   //! @return true if successful otherwise false
   //----------------------------------------------------------------------------
-  static bool EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd,
-                          const std::vector<std::string>& xattrs = {});
+  static bool EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd);
 
   //----------------------------------------------------------------------------
   //! Convert namespace file proto md to an Fmd struct
@@ -63,13 +62,12 @@ public:
   //! @parm manager manager hostname:port
   //! @param fid file id
   //! @param fmd reference to the Fmd struct to store Fmd
-  //! @param xattrs list of xattrs to be retrieved
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int GetMgmFmd(const std::string& manager,
                        eos::common::FileId::fileid_t fid,
-                       eos::ns::FileMdProto& fmd, const std::vector<std::string>& xattrs = {});
+                       eos::ns::FileMdProto& fmd);
 
   //----------------------------------------------------------------------------
   //! Exclude unlinked locations from the given string representation

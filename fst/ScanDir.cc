@@ -53,6 +53,28 @@
 #endif
 
 
+namespace
+{
+std::chrono::seconds getScanTimestamp(eos::fst::FileIo* io,
+                                      const std::string key)
+{
+  std::string scan_ts_sec = "0";
+  io->attrGet(key, scan_ts_sec);
+
+  // Handle the old format in microseconds, truncate to seconds
+  if (scan_ts_sec.length() > 10) {
+    scan_ts_sec.erase(10);
+  }
+
+  try {
+    std::int64_t seconds = std::stoll(scan_ts_sec);
+    return std::chrono::seconds(seconds);
+  } catch (...) {
+    return std::chrono::seconds(-1);
+  }
+}
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 
@@ -561,25 +583,6 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 #endif
 }
 
-std::chrono::seconds getScanTimestamp(eos::fst::FileIo* io,
-                                      const std::string key)
-{
-  std::string scan_ts_sec = "0";
-  io->attrGet(key, scan_ts_sec);
-
-  // Handle the old format in microseconds, truncate to seconds
-  if (scan_ts_sec.length() > 10) {
-    scan_ts_sec.erase(10);
-  }
-
-  try {
-    std::int64_t seconds = std::stoll(scan_ts_sec);
-    return std::chrono::seconds(seconds);
-  } catch (...) {
-    return std::chrono::seconds(-1);
-  }
-}
-
 bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
                                eos::common::FileId::fileid_t fid,
                                time_t mtime)
@@ -1074,10 +1077,10 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
             scantime,
             1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
             xs->GetHexChecksum());
-  auto stripeChecksum = hd->GetBlockChecksum();
+  auto stripeChecksum = hd->GetStripeChecksum();
 
   if (stripeChecksum != nullptr) {
-    eos_debug("msg=\"block checksum available in header\" xs=%s path=%s fsid=%d fxid=%08llx",
+    eos_debug("msg=\"stripe checksum available in header\" xs=%s path=%s fsid=%d fxid=%08llx",
               xs->GetHexChecksum(), path.c_str(), mFsId, fid);
 
     if (!xs->Compare(stripeChecksum.get())) {
@@ -1093,8 +1096,9 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     // for the future checks.
     int size = 0;
     auto checksum = xs->GetBinChecksum(size);
-    hd->SetBlockChecksum(checksum, size,
-                         eos::common::LayoutId::GetChecksum(fmd->mProtoFmd.lid()));
+    hd->SetStripeChecksum(checksum, size,
+                          static_cast<eos::common::LayoutId::eChecksum>
+                          (eos::common::LayoutId::GetChecksum(fmd->mProtoFmd.lid())));
     hd->WriteToFile(io, 0);
 
     if (hd->GetIdStripe() != 0) {
@@ -1212,8 +1216,11 @@ ScanDir::IsValidStripeCombination(
   return !strcmp(xs_obj->GetHexChecksum(), xs_val.c_str());
 }
 
-bool ScanDir::ListStripes(eos::common::FileId::fileid_t fid,
-                          std::vector<stripe_s>& stripes, std::string& opaqueInfo)
+//------------------------------------------------------------------------------
+// Return the list of stripes for the file
+//------------------------------------------------------------------------------
+bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
+                             std::vector<stripe_s>& stripes, std::string& opaqueInfo)
 {
   const std::string mgr = gConfig.GetManager();
 
@@ -1297,6 +1304,7 @@ bool ScanDir::ListStripes(eos::common::FileId::fileid_t fid,
 
   return true;
 }
+
 //------------------------------------------------------------------------------
 // Check for stripes that are unable to reconstruct the original file
 //------------------------------------------------------------------------------
@@ -1341,7 +1349,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   std::vector<stripe_s> stripes;
   std::string opaqueInfo;
 
-  if (!ListStripes(fid, stripes, opaqueInfo)) {
+  if (!GetPioOpenInfo(fid, stripes, opaqueInfo)) {
     return false;
   }
 

@@ -46,11 +46,11 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
                          const char* path,
                          uint16_t timeout,
                          bool storeRecovery,
-                         eos::fst::CheckSum* unitCheckSum,
+                         eos::fst::CheckSum* stripeChecksum,
                          off_t targetSize,
                          std::string bookingOpaque) :
   RainMetaLayout(file, lid, client, outError, path, timeout,
-                 storeRecovery, targetSize, bookingOpaque, unitCheckSum),
+                 storeRecovery, targetSize, bookingOpaque, stripeChecksum),
   mPacketSize(0), matrix(0), bitmatrix(0), schedule(0)
 {
   mNbDataBlocks = mNbDataFiles;
@@ -326,6 +326,7 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
       // Add the data contained into the buffer to compute the
       // unit checksum, skipping the header
       if (mStripeChecksum && offset_local >= mSizeHeader) {
+        XrdSysMutexHelper cLock(mChecksumMutex);
         mStripeChecksum->Add(data_blocks[stripe_id](), nwrite,
                              offset_local - mSizeHeader);
       }

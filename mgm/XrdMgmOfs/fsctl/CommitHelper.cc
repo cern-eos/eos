@@ -223,7 +223,7 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
   if (cgi["checksum"].length()) {
     eos_thread_info("subcmd=commit path=%s size=%s fxid=%s fsid=%s dropfsid=%s "
                     "checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
-                    "oc-max=%d oc-uuid=%s unit_checksum=%s",
+                    "oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
                     cgi["size"].c_str(),
                     cgi["fid"].c_str(),
@@ -235,12 +235,11 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
                     option["occhunk"],
                     params["oc_n"],
                     params["oc_max"],
-                    cgi["ocuuid"].c_str(),
-                    cgi["unit_checksum"].c_str());
+                    cgi["ocuuid"].c_str());
   } else {
     eos_thread_info("subcmd=commit path=%s size=%s fxid=%s fsid=%s dropfsid=%s "
                     "mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
-                    "oc-max=%d oc-uuid=%s unit_checksum=%s",
+                    "oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
                     cgi["size"].c_str(),
                     cgi["fid"].c_str(),
@@ -251,8 +250,7 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
                     option["occhunk"],
                     params["oc_n"],
                     params["oc_max"],
-                    cgi["ocuuid"].c_str(),
-                    cgi["unit_checksum"].c_str());
+                    cgi["ocuuid"].c_str());
   }
 }
 
@@ -330,16 +328,6 @@ CommitHelper::check_commit_params(CommitHelper::cgi_t& cgi)
 {
   return cgi["size"].length() && cgi["fid"].length() && cgi["path"].length() &&
          cgi["fsid"].length() && cgi["mtime"].length() && cgi["mtimensec"].length();
-}
-
-//------------------------------------------------------------------------------
-// check proper commit parameter for unit checksum
-//------------------------------------------------------------------------------
-
-bool CommitHelper::check_unit_checksum_commit_params(CommitHelper::cgi_t& cgi)
-{
-  return cgi["fid"].length() && cgi["fsid"].length() &&
-         cgi["unit_checksum"].length();
 }
 
 //------------------------------------------------------------------------------

@@ -396,7 +396,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     }
 
     if (blockSize != 0) {
-      auto xs = mHdrInfo[0]->GetBlockChecksum();
+      auto xs = mHdrInfo[0]->GetStripeChecksum();
 
       if (!xs) {
         mStripeChecksum->SetDirty();
@@ -1006,14 +1006,11 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
     if (mStripe[0]) {
       write_length = mStripe[0]->fileWrite(offset, buffer, length, mTimeout);
 
-      // the unit checksum is only computed for the data part
+      // the stripe checksum is only computed for the data part
       // the header part is skipped
       if (mStripeChecksum && offset >= mSizeHeader && write_length > 0) {
         XrdSysMutexHelper cLock(mChecksumMutex);
         mStripeChecksum->Add(buffer, write_length, offset - mSizeHeader);
-        eos_info("********************* path=%s size=%d offset=%d dirty=%d",
-                 mStripe[0]->GetPath().c_str(), write_length, offset - mSizeHeader,
-                 mStripeChecksum->NeedsRecalculation());
       }
 
       mLastWriteOffset += length;
@@ -1083,14 +1080,11 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
         }
       }
 
-      // we compute the unit checksum only on the entry server
+      // we compute the stripe checksum only on the entry server
       // since for the other stripes this is computed by the other FSTs
-      if (physical_id == 0 && mStripeChecksum && off_local >= mSizeHeader) {
+      if (physical_id == 0 && mStripeChecksum && off_local > mSizeHeader) {
         XrdSysMutexHelper cLock(mChecksumMutex);
         mStripeChecksum->Add(buffer, nwrite, off_local - mSizeHeader);
-        eos_info("********************* path=%s size=%d offset=%d dirty=%d",
-                 mStripe[0]->GetPath().c_str(), nwrite, off_local - mSizeHeader,
-                 mStripeChecksum->NeedsRecalculation());
       }
 
       AddPiece(offset, nwrite);
@@ -1613,15 +1607,14 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
             offset, truncate_offset);
   eos::common::Timing tm("truncate");
   COMMONTIMING("begin", &tm);
-  // if (mLastWriteOffset != offset && mStripeChecksum) {
-  eos_info("****************** (TRUNCATE) path=%s offset=%d last_offset=%d xs_last_offset=%d",
-           mStripe[0]->GetPath().c_str(), truncate_offset, mLastWriteOffset,
-           mStripeChecksum->GetLastOffset());
-  {
+
+  if (mStripeChecksum && mLastWriteOffset != offset) {
+    // The Reset is needed since for checksums like adler,
+    // the dirty flag can be reset to false, when recomputing it.
+    // So, here we completely get rid of it.
     mStripeChecksum->Reset();
     mStripeChecksum->SetDirty();
   }
-  // }
 
   for (unsigned int i = 0; i < mStripe.size(); ++i) {
     if (!mStripe[i]) {
@@ -1668,26 +1661,18 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   return rc;
 }
 
-bool RainMetaLayout::VerifyStripeChecksum()
+bool RainMetaLayout::PrepareStripeChecksum()
 {
   if (!mStripeChecksum) {
     return false;
   }
 
-  eos_info("**************** (VERIFY STRIPE CHECKSUM) path=%s dirty=%d xs_last_offset=%d",
-           mOfsFile->GetFstPath().c_str(), mStripeChecksum->NeedsRecalculation(),
-           mStripeChecksum->GetLastOffset());
-  // mStripeChecksum->Finalize();
-  unsigned long long scansize = 0;
-  float scantime = 0;
-  eos_info("**************** (VERIFY STRIPE CHECKSUM) path=%s dirty=%d xs_last_offset=%d",
-           mOfsFile->GetFstPath().c_str(), mStripeChecksum->NeedsRecalculation(),
-           mStripeChecksum->GetLastOffset());
-
   // Update unit checksum if it needs recalculation
   if (mStripeChecksum->NeedsRecalculation()) {
     eos_debug("msg=\"unit checksum needs recalculation\" fxid=%08llx",
               mOfsFile->GetFileId());
+    unsigned long long scansize = 0;
+    float scantime = 0;
 
     if (mStripeChecksum->ScanFile(mOfsFile->GetFstPath().c_str(), scansize,
                                   scantime, 0, mSizeHeader)) {
@@ -1833,26 +1818,29 @@ RainMetaLayout::Close()
 
     // Close local file
     if (mStripe[0]) {
-      // Set stripe checksum
-      if (!mIsEntryServer) {
-        if (!mHdrInfo[0]->ReadFromFile(mStripe[0].get(), mTimeout)) {
-          eos_err("msg=\"failed reading header\"");
-          rc = SFS_ERROR;
+      if (mIsRw) {
+        // Set stripe checksum
+        if (!mIsEntryServer) {
+          if (!mHdrInfo[0]->ReadFromFile(mStripe[0].get(), mTimeout)) {
+            eos_err("msg=\"failed reading header\"");
+            rc = SFS_ERROR;
+          }
         }
-      }
 
-      if (VerifyStripeChecksum()) {
-        eos_err("msg=\"error verifying stripe checksum\"");
-        rc = SFS_ERROR;
-      } else {
-        int checksumSize = 0;
-        const char* stripeChecksum = mStripeChecksum->GetBinChecksum(checksumSize);
-        mHdrInfo[0]->SetBlockChecksum(stripeChecksum, checksumSize,
-                                      eos::common::LayoutId::GetChecksum(mLayoutId));
+        if (PrepareStripeChecksum()) {
+          eos_err("msg=\"error verifying stripe checksum\"");
+          rc = SFS_ERROR;
+        } else {
+          int checksumSize = 0;
+          const char* stripeChecksum = mStripeChecksum->GetBinChecksum(checksumSize);
+          mHdrInfo[0]->SetStripeChecksum(stripeChecksum, checksumSize,
+                                         static_cast<eos::common::LayoutId::eChecksum>
+                                         (eos::common::LayoutId::GetChecksum(mLayoutId)));
 
-        if (!mHdrInfo[0]->WriteToFile(mStripe[0].get(), mTimeout)) {
-          eos_err("msg=\"failed write header\"");
-          rc =  SFS_ERROR;
+          if (!mHdrInfo[0]->WriteToFile(mStripe[0].get(), mTimeout)) {
+            eos_err("msg=\"failed write header\"");
+            rc =  SFS_ERROR;
+          }
         }
       }
 
@@ -1860,8 +1848,6 @@ RainMetaLayout::Close()
         eos_err("%s", "msg=\"failed to close local file\"");
         rc = SFS_ERROR;
       }
-    } else {
-      eos_warning("%s", "msg=\"failed close for null local filed\"");
     }
   } else {
     eos_err("%s", "msg=\"file is not opened\"");

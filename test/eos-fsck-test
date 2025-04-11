@@ -60,7 +60,8 @@ function create_test_files() {
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_invalid_stripe_err.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_invalid_stripe_err2.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_stripe_diff_over.dat &&
-                     xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_stripe_diff_over2.dat"
+                     xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_stripe_diff_over2.dat &&
+                     xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_invalid_header.dat" 
   FXID_D_MEM_SZ_DIFF=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/file_d_mem_sz_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_M_MEM_SZ_DIFF1=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/file_m_mem_sz_diff1.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_M_MEM_SZ_DIFF2=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/file_m_mem_sz_diff2.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
@@ -79,6 +80,7 @@ function create_test_files() {
   FXID_RAIN_INVALID_STRIPE2=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_invalid_stripe_err2.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_RAIN_DIFF_OVER=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_stripe_diff_over.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_RAIN_DIFF_OVER2=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_stripe_diff_over2.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
+  FXID_RAIN_INVALID_HEADER=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_invalid_header.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
 
 
   # If any of the FXID_* variables are empty then we have a problem
@@ -99,7 +101,8 @@ function create_test_files() {
         -z "${FXID_RAIN_INVALID_STRIPE}"  ||
         -z "${FXID_RAIN_INVALID_STRIPE2}" ||
         -z "${FXID_RAIN_DIFF_OVER}"       ||
-        -z "${FXID_RAIN_DIFF_OVER2}"      ]]; then
+        -z "${FXID_RAIN_DIFF_OVER2}"      ||
+        -z "${FXID_RAIN_INVALID_HEADER}"  ]]; then
     echo "error: some of the fxids could not be retrieved"
     cleanup
     exit 1
@@ -400,6 +403,15 @@ function corrupt_rain_stripe_diff_over2() {
   exec_cmd eos-cli1 "eos -r 0 0 file verify fxid:${FXID_RAIN_DIFF_OVER2} ${NEW_FSID} -resync"
 }
 
+function corrupt_rain_invalid_header() {
+  local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_RAIN_INVALID_HEADER} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
+  # Extract the fxid and local path, trim the input
+  local FSID=$(echo "${CMD_OUT}" | head -n1 | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  local LPATH=$(echo "${CMD_OUT}" | tail -n1)
+  # Corrupt the stripe header by writing random bytes
+  exec_cmd "eos-fst${FSID}" "dd if=/dev/urandom of=${LPATH} bs=1 count=4096"
+}
+
 # Configure fsck to run more often and reduce the scan times
 function configure_fsck() {
   # First reduce the scan interval on the FSTs
@@ -442,6 +454,7 @@ function check_all_errors_collected() {
     local FOUND_RAIN_INVALID_STRIPE2=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_INVALID_STRIPE2}")
     local FOUND_RAIN_DIFF_OVER=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_DIFF_OVER}")
     local FOUND_RAIN_DIFF_OVER2=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_DIFF_OVER2}")
+    local FOUND_RAIN_INVALID_HEADER=$(exec_cmd eos-cli1 "eos -r 0 0 fsck report -i | grep ${FXID_RAIN_INVALID_HEADER}")
 
     if [[ -z "${FOUND_D_MEM_SZ_DIFF}"        ||
           -z "${FOUND_M_MEM_SZ_DIFF1}"       ||
@@ -459,7 +472,8 @@ function check_all_errors_collected() {
           -z "${FOUND_RAIN_INVALID_STRIPE}"  ||
           -z "${FOUND_RAIN_INVALID_STRIPE2}" ||
           -z "${FOUND_RAIN_DIFF_OVER}"       ||
-          -z "${FOUND_RAIN_DIFF_OVER2}"      ]]; then
+          -z "${FOUND_RAIN_DIFF_OVER2}"      ||
+          -z "${FOUND_RAIN_INVALID_HEADER}"  ]]; then
       if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
         echo "error: some errors not discovered"
         exec_cmd eos-cli1 "eos -r 0 0 fsck report -i -a"
@@ -574,6 +588,7 @@ corrupt_rain_invalid_stripe
 corrupt_rain_invalid_stripe2
 corrupt_rain_stripe_diff_over
 corrupt_rain_stripe_diff_over2
+corrupt_rain_invalid_header
 
 # Configure fsck to run more often and reduce scan times
 configure_fsck

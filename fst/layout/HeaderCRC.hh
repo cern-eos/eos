@@ -185,7 +185,7 @@ public:
     return 0;
   }
 
-  inline std::unique_ptr<eos::fst::CheckSum> GetBlockChecksum() const
+  inline std::unique_ptr<eos::fst::CheckSum> GetStripeChecksum() const
   {
     auto xs = eos::fst::ChecksumPlugins::GetXsObj(mChecksumType);
 
@@ -193,21 +193,21 @@ public:
       return nullptr;
     }
 
-    xs->SetBinChecksum(mBlockChecksum.get(), mBlockChecksumSize);
+    xs->SetBinChecksum(mStripeChecksum.get(), mStripeChecksumSize);
     return std::unique_ptr<eos::fst::CheckSum> {xs};
   }
 
-  inline void SetBlockChecksum(const char* checksum, size_t size,
-                               unsigned long type)
+  inline void SetStripeChecksum(const char* checksum, size_t size,
+                                eos::common::LayoutId::eChecksum type)
   {
     if (!checksum) {
-      mBlockChecksum.reset(nullptr);
+      mStripeChecksum.reset(nullptr);
       return;
     }
 
-    mBlockChecksum = std::make_unique<char[]>(size);
-    (void) memcpy(mBlockChecksum.get(), checksum, size);
-    mBlockChecksumSize = size;
+    mStripeChecksum = std::make_unique<char[]>(size);
+    (void) memcpy(mStripeChecksum.get(), checksum, size);
+    mStripeChecksumSize = size;
     mChecksumType = type;
   }
 
@@ -225,9 +225,9 @@ private:
   size_t mSizeBlock; ///< size of a block of data
   int mSizeHeader; ///< size of the header
   std::unique_ptr<char[]>
-  mBlockChecksum; ///< checksum of the block (only data, no header)
-  size_t mBlockChecksumSize; ///< size of the checksum in bytes
-  unsigned long mChecksumType; ///< checksum type
+  mStripeChecksum; ///< checksum of the stripe (only data, no header)
+  size_t mStripeChecksumSize; ///< size of the checksum in bytes
+  eos::common::LayoutId::eChecksum mChecksumType; ///< checksum type
   static char msTagName[]; ///< default tag name
 };
 

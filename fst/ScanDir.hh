@@ -171,11 +171,27 @@ public:
                          std::string& scan_xs_hex,
                          bool& filexs_err, bool& blockxs_err);
 
+  //----------------------------------------------------------------------------
+  //! Check the given replica file for errors.
+  //!
+  //! @param io io object attached to the file
+  //! @param fid file id
+  //! @param mtime time file contents was last modified
+  //!
+  //! @return true if file check, otherwise false
   bool CheckReplicaFile(eos::fst::FileIo* io,
                         eos::common::FileId::fileid_t fid,
                         time_t mtime);
 
 #ifndef _NOOFS
+  //----------------------------------------------------------------------------
+  //! Check the given rain file for errors.
+  //!
+  //! @param io io object attached to the file
+  //! @param fid file id
+  //! @param mtime time file contents was last modified
+  //!
+  //! @return true if file check, otherwise false
   bool CheckRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd);
 
   //----------------------------------------------------------------------------
@@ -194,13 +210,40 @@ public:
     const std::string& xs_val, std::unique_ptr<CheckSum>& xs_obj,
     eos::common::LayoutId::layoutid_t layout, const std::string& opaqueInfo);
 
-  bool ListStripes(eos::common::FileId::fileid_t fid,
-                   std::vector<stripe_s>& stripes, std::string& opaqueInfo);
+  //----------------------------------------------------------------------------
+  //! Return the list of stripes for the file
+  //!
+  //! @param fid file id
+  //! @param stripes list of stripes
+  //! @param opaqueInfo opaque information
+  //!
+  //! @return true if no errors, false otherwise
+  //----------------------------------------------------------------------------
+  bool GetPioOpenInfo(eos::common::FileId::fileid_t fid,
+                      std::vector<stripe_s>& stripes, std::string& opaqueInfo);
 
+  //----------------------------------------------------------------------------
+  //! Update local fmd with info from the stripe check
+  //!
+  //! @param io io object attached to the file
+  //! @param fid file id
+  //! @param invalid_fsid list of invalid stripes' locations
+  //!
+  //! @return true if no errors, false otherwise
+  //----------------------------------------------------------------------------
   void ReportInvalidFsid(eos::fst::FileIo* io,
                          eos::common::FileId::fileid_t fid,
                          const std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
 
+  //----------------------------------------------------------------------------
+  //! Check if the file was open or update during the scan
+  //!
+  //! @param io io object attached to the file
+  //! @param fid file id
+  //! @param stat_before stat info before going the scan
+  //!
+  //! @return true if file was updated/opened after the scan
+  //----------------------------------------------------------------------------
   bool ShouldSkipAfterCheck(eos::fst::FileIo* io,
                             eos::common::FileId::fileid_t fid, const struct stat& stat_before);
 
