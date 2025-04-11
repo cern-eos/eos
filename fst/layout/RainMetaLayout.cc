@@ -1833,26 +1833,28 @@ RainMetaLayout::Close()
 
     // Close local file
     if (mStripe[0]) {
-      // Set stripe checksum
-      if (!mIsEntryServer) {
-        if (!mHdrInfo[0]->ReadFromFile(mStripe[0].get(), mTimeout)) {
-          eos_err("msg=\"failed reading header\"");
-          rc = SFS_ERROR;
+      if (mIsRw) {
+        // Set stripe checksum
+        if (!mIsEntryServer) {
+          if (!mHdrInfo[0]->ReadFromFile(mStripe[0].get(), mTimeout)) {
+            eos_err("msg=\"failed reading header\"");
+            rc = SFS_ERROR;
+          }
         }
-      }
 
-      if (VerifyStripeChecksum()) {
-        eos_err("msg=\"error verifying stripe checksum\"");
-        rc = SFS_ERROR;
-      } else {
-        int checksumSize = 0;
-        const char* stripeChecksum = mStripeChecksum->GetBinChecksum(checksumSize);
-        mHdrInfo[0]->SetBlockChecksum(stripeChecksum, checksumSize,
-                                      eos::common::LayoutId::GetChecksum(mLayoutId));
+        if (VerifyStripeChecksum()) {
+          eos_err("msg=\"error verifying stripe checksum\"");
+          rc = SFS_ERROR;
+        } else {
+          int checksumSize = 0;
+          const char* stripeChecksum = mStripeChecksum->GetBinChecksum(checksumSize);
+          mHdrInfo[0]->SetBlockChecksum(stripeChecksum, checksumSize,
+                                        eos::common::LayoutId::GetChecksum(mLayoutId));
 
-        if (!mHdrInfo[0]->WriteToFile(mStripe[0].get(), mTimeout)) {
-          eos_err("msg=\"failed write header\"");
-          rc =  SFS_ERROR;
+          if (!mHdrInfo[0]->WriteToFile(mStripe[0].get(), mTimeout)) {
+            eos_err("msg=\"failed write header\"");
+            rc =  SFS_ERROR;
+          }
         }
       }
 
@@ -1860,8 +1862,6 @@ RainMetaLayout::Close()
         eos_err("%s", "msg=\"failed to close local file\"");
         rc = SFS_ERROR;
       }
-    } else {
-      eos_warning("%s", "msg=\"failed close for null local filed\"");
     }
   } else {
     eos_err("%s", "msg=\"file is not opened\"");
