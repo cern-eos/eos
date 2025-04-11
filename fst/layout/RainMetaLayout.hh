@@ -443,8 +443,6 @@ protected:
   //----------------------------------------------------------------------------
   virtual uint64_t GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
 
-  bool VerifyStripeChecksum();
-
 private:
   //----------------------------------------------------------------------------
   //! Disable copy/move assign/constructor operators
@@ -530,6 +528,13 @@ private:
   //----------------------------------------------------------------------------
   int64_t ReadForceRecovery(XrdSfsFileOffset offset, char* buffer,
                             XrdSfsXferSize length);
+
+  //----------------------------------------------------------------------------
+  //! Verify stripe checksum
+  //!
+  //! @return true if ok, otherwise false
+  //----------------------------------------------------------------------------
+  bool VerifyStripeChecksum();
 
   AssistedThread mParityThread; ///< Thread computing and wrintg parity
   //! Queue holding group offsets to be used for parity computation

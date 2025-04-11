@@ -41,11 +41,11 @@ RaidDpLayout::RaidDpLayout(XrdFstOfsFile* file,
                            const char* path,
                            uint16_t timeout,
                            bool storeRecovery,
-                           eos::fst::CheckSum* unitCheckSum,
+                           eos::fst::CheckSum* stripeChecksum,
                            off_t targetSize,
                            std::string bookingOpaque) :
   RainMetaLayout(file, lid, client, outError, path, timeout,
-                 storeRecovery, targetSize, bookingOpaque, unitCheckSum)
+                 storeRecovery, targetSize, bookingOpaque, stripeChecksum)
 {
   mNbDataBlocks = static_cast<int>(pow((double) mNbDataFiles, 2));
   mNbTotalBlocks = mNbDataBlocks + 2 * mNbDataFiles;
@@ -310,6 +310,7 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
         // Add the data contained into the buffer to compute the
         // unit checksum, skipping the header
         if (mStripeChecksum && offset_local >= mSizeHeader) {
+          XrdSysMutexHelper cLock(mChecksumMutex);
           mStripeChecksum->Add(data_blocks[stripe_id](), nwrite,
                                offset_local - mSizeHeader);
         }
