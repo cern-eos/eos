@@ -74,8 +74,6 @@ public:
 
   static bool check_commit_params(CommitHelper::cgi_t& cgi);
 
-  static bool check_unit_checksum_commit_params(CommitHelper::cgi_t& cgi);
-
   static void remove_scheduler(unsigned long long fid);
 
   static bool validate_size(eos::common::VirtualIdentity& vid,
