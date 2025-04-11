@@ -693,6 +693,7 @@ bool
 FsckEntry::RepairRainInconsistencies()
 {
   using namespace eos::common;
+  eos_info("************* (REPAIR RAIN INCONSISTENCIES) fxid=%08llx", mFid);
 
   if (mReportedErr == FsckErr::UnregRepl) {
     if (static_cast<unsigned long>(mMgmFmd.locations_size()) >=
@@ -797,6 +798,7 @@ FsckEntry::RepairRainInconsistencies()
     }
 
     bad_fsids = mFsidErr;
+    bool dropped = false;
 
     // If there is over replication, drop replicas until we have the right
     // number of stripes
@@ -853,6 +855,7 @@ FsckEntry::RepairRainInconsistencies()
     }
 
     if (bad_fsids.empty()) {
+      ResyncFstMd(true);
       eos_info("msg=\"stripe inconsistency repair successful\" fxid=%08llx",
                mFid);
       return true;
