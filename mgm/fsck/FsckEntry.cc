@@ -456,12 +456,13 @@ FsckEntry::RepairMgmXsSzDiff()
       if ((mMgmFmd.size() != finfo->mFstFmd.mProtoFmd.size()) ||
           (mMgmFmd.size() != finfo->mDiskSize) ||
           (mgm_xs_val != finfo->mFstFmd.mProtoFmd.diskchecksum())) {
-        if ((mMgmFmd.size() != finfo->mDiskSize)) {
+        if ((mMgmFmd.size() != finfo->mDiskSize) ||
+            (mgm_xs_val != finfo->mFstFmd.mProtoFmd.diskchecksum())) {
           bad_fsids.insert(it->first);
         } else {
           // Trigger a resync of the FST info as it looks to be out of sync
           ResyncFstMd(false);
-          return false;
+          return true;
         }
       } else {
         good_fsids.insert(it->first);

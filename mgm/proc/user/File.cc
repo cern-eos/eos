@@ -424,7 +424,7 @@ ProcCommand::File()
                                                 (unsigned long) * it, option.c_str());
 
                 if (!lretc) {
-                  stdOut += "success: sending verify to fsid= ";
+                  stdOut += "success: sending verify to fsid=";
                   stdOut += (int) * it;
                   stdOut += " for path=";
                   stdOut += spath;
@@ -444,7 +444,7 @@ ProcCommand::File()
                                               (unsigned long) acceptfsid, option.c_str());
 
               if (!lretc) {
-                stdOut += "success: sending forced verify to fsid= ";
+                stdOut += "success: sending forced verify to fsid=";
                 stdOut += acceptfsid;
                 stdOut += " for path=";
                 stdOut += spath;
@@ -750,7 +750,7 @@ ProcCommand::File()
 
       if (!((vid.prot == "sss") && vid.hasUid(DAEMONUID)) && (vid.uid != 0)) {
         stdErr = "error: permission denied - you have to be root to "
-          "run the 'tag' command";
+                 "run the 'tag' command";
         retc = EPERM;
         return SFS_OK;
       }
@@ -778,7 +778,7 @@ ProcCommand::File()
 
       if (errno || (fsid == 0) || (!do_add && !do_rm && !do_unlink)) {
         stdErr = "error: no valid filesystem id and/or operation (+/-/~) "
-          "provided e.g. 'file tag /myfile +1000'\n";
+                 "provided e.g. 'file tag /myfile +1000'\n";
         stdErr += sfsid;
         retc = EINVAL;
         return SFS_OK;
@@ -1178,8 +1178,8 @@ ProcCommand::File()
                 }
 
                 if (eos::common::StringConversion::IsHexNumber(layout.c_str(), "%08x")) {
-
-                  conversiontag = ConversionTag::Get(fileid, space.c_str(), layout.c_str(), std::string(""), false);
+                  conversiontag = ConversionTag::Get(fileid, space.c_str(), layout.c_str(),
+                                                     std::string(""), false);
                   stdOut += "info: conversion based on hexadecimal layout id\n";
                 } else {
                   unsigned long layout_type = 0;
@@ -1223,17 +1223,19 @@ ProcCommand::File()
                                                    eos::common::LayoutId::k4M,
                                                    eos::common::LayoutId::kCRC32C,
                                                    eos::common::LayoutId::GetRedundancyStripeNumber(layoutid));
-                    conversiontag = ConversionTag::Get(fileid, space.c_str(), layoutid, plctplcy.c_str(), false);
-
+                    conversiontag = ConversionTag::Get(fileid, space.c_str(), layoutid,
+                                                       plctplcy.c_str(), false);
                     stdOut += "info: conversion based layout+stripe arguments\n";
                   } else {
                     // assume this is the name of an attribute
-                    conversiontag = ConversionTag::Get(fileid, space.c_str(), layout.c_str(), plctplcy.c_str(), false);
+                    conversiontag = ConversionTag::Get(fileid, space.c_str(), layout.c_str(),
+                                                       plctplcy.c_str(), false);
                     stdOut += "info: conversion based conversion attribute name\n";
                   }
                 }
 
                 eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+
                 // Push conversion job to QuarkDB
                 if (gOFS->mConverterDriver->ScheduleJob(fmd->getId(), conversiontag)) {
                   stdOut += "success: pushed conversion job '";
@@ -1354,7 +1356,7 @@ ProcCommand::File()
             XattrLock applock;
             errno = 0;
 
-            if (applock.Lock(spath.c_str(), false , lifetime, *pVid, userwildcard,
+            if (applock.Lock(spath.c_str(), false, lifetime, *pVid, userwildcard,
                              appwildcard)) {
               stdOut += "success: created exclusive lock for '";
               stdOut += spath.c_str();
