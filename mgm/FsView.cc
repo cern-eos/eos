@@ -2852,18 +2852,6 @@ FsNode::SetNodeConfigDefault()
     SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true);
   }
 
-  // @todo(esindril) to be remove in 5.2.1
-  // By default set 2 balancing streams per node
-  if (!(GetConfigMember("stat.balance.ntx").length())) {
-    SetConfigMember("stat.balance.ntx", "2", true);
-  }
-
-  // @todo(esindril) to be remove in 5.2.1
-  // By default set 25 MB/s stream balancing rate
-  if (!(GetConfigMember("stat.balance.rate").length())) {
-    SetConfigMember("stat.balance.rate", "25", true);
-  }
-
   // Set the default sym key from the sym key store
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
   const std::string old_key = GetConfigMember("symkey");
