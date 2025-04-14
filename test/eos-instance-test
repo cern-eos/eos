@@ -1163,6 +1163,7 @@ runtest "### Attr Set  " unix 0 "" eos attr set sys.test=def "/eos/$EOS_TEST_INS
 runtest "### Find      " unix 0 "" eos find -f -x sys.test=abc "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest | wc -l | grep -w 1"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/"
 runtest "### Symlink   " unix 0 "" eos file symlink "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
+runtest "### Symlink   " unix 0 "" eos file symlink -f "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt"
 runtest "### Find      " unix 0 "" eos find "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/ | grep -w \"/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln -> /eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt\""
 runtest "### Rm        " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln"
 runtest "### Upload    " unix 0 "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/f1" "-ODeos.ruid=0"
