@@ -2415,6 +2415,15 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
    runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
 
+   # Create the RAID6 directory with 4MB stripe block size
+   runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M"
+   runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.checksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.blockchecksum=crc32c "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.blocksize=4M "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.layout=raid6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M"
+   runtest "### Attr      " unix 0 "" eos attr set sys.forced.nstripes=6 "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M"
+
    # Qrain test (4 parity stripes )
    runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
    runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
@@ -2448,16 +2457,20 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### XsRaiddp      " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
    runtest "### NStream6      " unix 0 "" cp_nonstreaming $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat"
    runtest "### XsRaid6       " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
+   runtest "### NStream6_4M   " unix 0 "" cp_nonstreaming $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M/eos_non_stream.dat"
+   runtest "### XsRaid6_4M    " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
    runtest "### NStreamQ      " unix 0 "" cp_nonstreaming $TESTFILE_NONSTREAMING "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat"
    runtest "### XsQrain       " unix 0 "" eosj fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat | jq -r '.checksumvalue' | grep $CKS_NONSTREAMING"
 
    # Run simple test to check the RAIN PIO mode which is by default enabled when doing eoscp
-   runtest "### eoscp pio     " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_raiddp_check.dat"
-   runtest "### eoscp pio xs  " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_raiddp_check.dat" | grep $CKS_NONSTREAMING
-   runtest "### eoscp pio     " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_raid6_check.dat"
-   runtest "### eoscp pio xs  " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_raid6_check.dat" | grep $CKS_NONSTREAMING
-   runtest "### eoscp pio     " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_qrain_check.dat"
-   runtest "### eoscp pio xs  " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_qrain_check.dat" | grep $CKS_NONSTREAMING
+   runtest "### eoscp pio raiddp      " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_raiddp_check.dat"
+   runtest "### eoscp pio xs raiddp   " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_raiddp_check.dat" | grep $CKS_NONSTREAMING
+   runtest "### eoscp pio raid6       " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raid6/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_raid6_check.dat"
+   runtest "### eoscp pio xs raid6    " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_raid6_check.dat" | grep $CKS_NONSTREAMING
+   runtest "### eoscp pio raid6_4M    " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/raid6_4M/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_raid6_4M_check.dat"
+   runtest "### eoscp pio xs raid6_4M " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_raid6_4M_check.dat" | grep $CKS_NONSTREAMING
+   runtest "### eoscp pio qrain       " unix 0 "" shell eoscp "root://$EOS_TEST_REDIRECTOR//eos/$EOS_TEST_INSTANCE/test/instancetest/qrain/eos_non_stream.dat" "$EOS_TEST_RAIN_TMP/pio_qrain_check.dat"
+   runtest "### eoscp pio xs qrain    " unix 0 "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_qrain_check.dat" | grep $CKS_NONSTREAMING
 
    # Clean up the files used for the RAIN test
    runtest "### Cleanup   " unix 2 "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
