@@ -108,7 +108,7 @@ bool
 RainMetaLayout::BasicLayoutChecks()
 {
   // Do some minimal checkups
-  if (mNbTotalFiles < 6) {
+  if (mNbTotalFiles < 5) {
     eos_err("msg=\"failed open, stripe size must be at least 6\" "
             "stripe_size=%u", mNbTotalFiles);
     return false;
