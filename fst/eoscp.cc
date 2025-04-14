@@ -1285,6 +1285,7 @@ main(int argc, char* argv[])
 
   int stat_failed = 0;
   struct stat st[MAXSRCDST];
+  LayoutId::layoutid_t layout_src;
 
   //.............................................................................
   // Get sources access type
@@ -1404,20 +1405,20 @@ main(int argc, char* argv[])
             // given as input to the command line
             //...................................................................
             if (opaque_info) {
-              LayoutId::layoutid_t layout = openOpaque->GetInt("mgm.lid");
+              layout_src = openOpaque->GetInt("mgm.lid");
               std::string orig_file = file_path;
 
-              if (eos::common::LayoutId::GetLayoutType(layout) ==
+              if (eos::common::LayoutId::GetLayoutType(layout_src) ==
                   eos::common::LayoutId::kRaidDP) {
-                nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
+                nsrc = eos::common::LayoutId::GetStripeNumber(layout_src) + 1;
                 nparitystripes = 2;
                 isRaidTransfer = true;
                 isSrcRaid = true;
                 src_location.clear();
                 replicationType = "raiddp";
-              } else if (eos::common::LayoutId::IsRain(layout)) {
-                nsrc = eos::common::LayoutId::GetStripeNumber(layout) + 1;
-                nparitystripes = eos::common::LayoutId::GetRedundancyStripeNumber(layout);
+              } else if (eos::common::LayoutId::IsRain(layout_src)) {
+                nsrc = eos::common::LayoutId::GetStripeNumber(layout_src) + 1;
+                nparitystripes = eos::common::LayoutId::GetRedundancyStripeNumber(layout_src);
                 isRaidTransfer = true;
                 isSrcRaid = true;
                 src_location.clear();
@@ -1996,26 +1997,12 @@ main(int argc, char* argv[])
           vectUrl.push_back(location);
         }
 
-        LayoutId::layoutid_t layout = 0;
-
         if (replicationType == "raiddp") {
-          layout = LayoutId::GetId(LayoutId::kRaidDP,
-                                   1, nsrc,
-                                   LayoutId::BlockSizeEnum(stripeWidth),
-                                   LayoutId::OssXsBlockSize,
-                                   0, nparitystripes);
-          redundancyObj = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
-              location.c_str(),
-              0, doStoreRecovery);
+          redundancyObj = new eos::fst::RaidDpLayout(NULL, layout_src, NULL,
+              NULL, location.c_str(), 0, doStoreRecovery);
         } else if (replicationType == "reeds") {
-          layout = LayoutId::GetId(LayoutId::GetReedSLayoutByParity(nparitystripes),
-                                   1, nsrc,
-                                   LayoutId::BlockSizeEnum(stripeWidth),
-                                   LayoutId::OssXsBlockSize,
-                                   0, nparitystripes);
-          redundancyObj = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
-              location.c_str(),
-              0, doStoreRecovery);
+          redundancyObj = new eos::fst::ReedSLayout(NULL, layout_src, NULL,
+              NULL, location.c_str(), 0, doStoreRecovery);
         }
 
         if (debug) {
@@ -2225,26 +2212,24 @@ main(int argc, char* argv[])
           vectUrl.push_back(location);
         }
 
-        LayoutId::layoutid_t layout = 0;
+        LayoutId::layoutid_t layout_dst = 0;
 
         if (replicationType == "raiddp") {
-          layout = LayoutId::GetId(LayoutId::kRaidDP,
-                                   1, ndst,
-                                   LayoutId::BlockSizeEnum(stripeWidth),
-                                   LayoutId::OssXsBlockSize,
-                                   0, nparitystripes);
-          redundancyObj = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
-              location.c_str(),
-              0, doStoreRecovery, isStreamFile);
+          layout_dst = LayoutId::GetId(LayoutId::kRaidDP,
+                                       1, ndst,
+                                       LayoutId::BlockSizeEnum(stripeWidth),
+                                       LayoutId::OssXsBlockSize,
+                                       0, nparitystripes);
+          redundancyObj = new eos::fst::RaidDpLayout(NULL, layout_dst, NULL, NULL,
+              location.c_str(), 0, doStoreRecovery, isStreamFile);
         } else if (replicationType == "reeds") {
-          layout = LayoutId::GetId(LayoutId::GetReedSLayoutByParity(nparitystripes),
-                                   1, ndst,
-                                   LayoutId::BlockSizeEnum(stripeWidth),
-                                   LayoutId::OssXsBlockSize,
-                                   0, nparitystripes);
-          redundancyObj = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
-              location.c_str(),
-              0, doStoreRecovery, isStreamFile);
+          layout_dst = LayoutId::GetId(LayoutId::GetReedSLayoutByParity(nparitystripes),
+                                       1, ndst,
+                                       LayoutId::BlockSizeEnum(stripeWidth),
+                                       LayoutId::OssXsBlockSize,
+                                       0, nparitystripes);
+          redundancyObj = new eos::fst::ReedSLayout(NULL, layout_dst, NULL, NULL,
+              location.c_str(), 0, doStoreRecovery, isStreamFile);
         }
 
         if (debug) {
