@@ -457,7 +457,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
       auto cmd_lock = eos::MDLocking::writeLock(cmd);
 
-      if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK)) {
+      if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
       } else {
         if (!cmd->hasAttribute(skey)) {
