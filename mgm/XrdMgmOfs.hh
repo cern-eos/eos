@@ -673,7 +673,8 @@ public:
               XrdOucErrInfo& out_error,
               const XrdSecEntity* client = 0,
               const char* opaqueO = 0,
-              const char* opaqueN = 0);
+              const char* opaqueN = 0,
+              bool overwrite = false);
 
   // ---------------------------------------------------------------------------
   // symlink file/dir by vid
@@ -694,7 +695,8 @@ public:
                XrdOucErrInfo& out_error,
                eos::common::VirtualIdentity& vid,
                const char* opaqueO = 0,
-               const char* opaqueN = 0);
+               const char* opaqueN = 0,
+               bool overwrite = false);
 
   // ---------------------------------------------------------------------------
   // read symbolic link

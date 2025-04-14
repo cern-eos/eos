@@ -308,6 +308,10 @@ com_file(char* arg1)
     in += path.c_str();
     in += "&mgm.file.target=";
     in += fsid1.c_str();
+
+    if (option.find("f") != STR_NPOS) {
+      in +=  "&mgm.file.force=1";
+    }
   }
 
   if (cmd == "share") {
@@ -1123,9 +1127,12 @@ com_file_usage:
           "file replicate [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2> :\n");
   fprintf(stdout,
           "                                                  replicate file <path> part on <fsid1> to <fsid2>\n");
-  fprintf(stdout, "file symlink <name> <link-name> :\n");
+  fprintf(stdout,
+          "file symlink [-f] <name> <link-name> :\n");
   fprintf(stdout,
           "                                                  create a symlink with <name> pointing to <link-name>\n");
+  fprintf(stdout,
+          "         -f                                                            :  force overwrite\n");
   fprintf(stdout, "file tag <path>|fid:<fid-dec>|fxid:<fid-hex> +|-|~<fsid> :\n");
   fprintf(stdout,
           "                                                  add/remove/unlink a filesystem location to/from a file in the location index - attention this does not move any data!\n");

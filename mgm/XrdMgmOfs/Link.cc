@@ -34,7 +34,8 @@ XrdMgmOfs::symlink(const char* source_name,
                    XrdOucErrInfo& error,
                    const XrdSecEntity* client,
                    const char* infoO,
-                   const char* infoN)
+                   const char* infoN,
+                   bool overwrite)
 /*----------------------------------------------------------------------------*/
 /*
  * @brief symlink a file or directory
@@ -100,7 +101,7 @@ XrdMgmOfs::symlink(const char* source_name,
     MAYREDIRECT;
   }
   return symlink(sourcen.c_str(), targetn.c_str(), error, vid, infoO, infoN,
-                 true);
+                 overwrite);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -157,7 +158,8 @@ XrdMgmOfs::symlink(const char* source_name,
     return SFS_ERROR;
   }
 
-  return _symlink(sourcen.c_str(), targetn.c_str(), error, vid, infoO, infoN);
+  return _symlink(sourcen.c_str(), targetn.c_str(), error, vid, infoO, infoN,
+                  overwrite);
 }
 
 /*----------------------------------------------------------------------------*/
@@ -167,7 +169,8 @@ XrdMgmOfs::_symlink(const char* source_name,
                     XrdOucErrInfo& error,
                     eos::common::VirtualIdentity& vid,
                     const char* infoO,
-                    const char* infoN
+                    const char* infoN,
+                    bool overwrite
                    )
 /*----------------------------------------------------------------------------*/
 /*
@@ -216,8 +219,12 @@ XrdMgmOfs::_symlink(const char* source_name,
   _exists(source_name, file_exists, error, vid, infoN);
 
   if (file_exists != XrdSfsFileExistNo) {
-    errno = EEXIST;
-    return Emsg(epname, error, ENOENT, "symlink - source exists");
+    if (overwrite) {
+      _rem(source_name, error, vid, infoO);
+    } else {
+      errno = EEXIST;
+      return Emsg(epname, error, ENOENT, "symlink - source exists");
+    }
   }
 
   {
