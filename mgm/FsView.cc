@@ -2866,9 +2866,10 @@ FsNode::SetNodeConfigDefault()
 
   // Set the default sym key from the sym key store
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
+  const std::string old_key = GetConfigMember("symkey");
 
-  // Store the sym key as configuration member
-  if (!(GetConfigMember("symkey").length())) {
+  if (old_key.empty() ||
+      (old_key != std::string(symkey->GetKey64()))) {
     SetConfigMember("symkey", symkey->GetKey64(), true);
   }
 
