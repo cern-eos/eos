@@ -420,6 +420,7 @@ QdbMaster::SlaveToMaster()
 
   if (!ApplyMasterConfig(std_out, std_err, true)) {
     eos_err("%s", "msg=\"failed to apply master configuration\"");
+    std::abort();
   }
 
   Quota::LoadNodes();
