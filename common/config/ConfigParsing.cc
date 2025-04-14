@@ -80,7 +80,7 @@ bool ConfigParsing::parseFilesystemConfig(const std::string& config,
   if ((!out.count("queuepath")) ||
       (!out.count("queue")) ||
       (!out.count("id"))) {
-    eos_static_err("%s", "msg=\"could not parse configuration entry: %s\"",
+    eos_static_err("msg=\"could not parse configuration entry: %s\"",
                    config.c_str());
     return false;
   }
