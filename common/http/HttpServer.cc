@@ -383,34 +383,14 @@ HttpServer::HttpError(const char* errorText, int errorCode)
     response->SetResponseCode(errorCode);
   }
 
-  XrdOucString html_dir, error;
-  char errct[256];
-  snprintf(errct, sizeof(errct) - 1, "%d", errorCode);
+  std::string error_body = (errorText ? errorText : "");
 
-  if (getenv("EOS_HTMLDIR")) {
-    html_dir = getenv("EOS_HTMLDIR");
-  } else {
-    html_dir = "/var/eos/html/";
+  if (!error_body.empty()) {
+    error_body += "\n";
   }
 
-  std::string path = html_dir.c_str();
-  path += std::string("error.html");
-  std::ifstream in(path.c_str());
-  std::stringstream buffer;
-  buffer << in.rdbuf();
-  error = buffer.str().c_str();
-  eos_static_info("errc=%d, retcode=%d errmsg=\"%s\"", errorCode,
-                  response->GetResponseCode(), errorText ? errorText : "<none>");
-
-  while (error.replace("__RESPONSE_CODE__",
-                       std::to_string(response->GetResponseCode()).c_str())) {
-  }
-
-  while (error.replace("__ERROR_TEXT__", errorText)) {
-  }
-
-  response->SetBody(error.c_str());
-  response->AddHeader("Content-Length", std::to_string(response->GetBodySize()));
+  response->SetBody(error_body.c_str());
+  response->AddHeader("Content-Length", std::to_string(error_body.length()));
   response->AddHeader("Content-Type", "text/html");
   return response;
 }
