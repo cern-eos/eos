@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.2.32 Diopside``
+====================
+
+2025-04-17
+
+Bug
+----
+
+* COMMON: Mapping: use getgrouplist to simplify fetching secondary groups
+
+
 ``v5.2.31 Diopside``
 ====================
 
