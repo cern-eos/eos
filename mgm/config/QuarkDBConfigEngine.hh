@@ -25,6 +25,7 @@
 #include "common/Status.hh"
 #include "common/AssistedThread.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/config/QuarkConfigHandler.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/AsyncHandler.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
@@ -114,7 +115,6 @@ public:
   //!
   //! @param filename name of the file where the current configuration will be saved
   //! @param overwrite force overwrite of <filename> if the file exists already
-  //! @param autosave
   //! @param comment comments
   //! @param err string holding any errors
   //!
@@ -163,6 +163,15 @@ public:
                          bool from_local = true) override;
 
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+
+  //----------------------------------------------------------------------------
+  //! Constructor used only for testing
+  //----------------------------------------------------------------------------
+  QuarkDBConfigEngine() = default;
+
   //----------------------------------------------------------------------------
   //! Format time
   //----------------------------------------------------------------------------
@@ -195,14 +204,11 @@ private:
   AssistedThread mCleanupThread;
 
   //----------------------------------------------------------------------------
-  //! Format time
+  //! Remove old unused nodes that are off and have no file systems registered
+  //!
+  //! @return true if there were any modifications, otherwise false
   //----------------------------------------------------------------------------
-  static std::string formatBackupTime(time_t timestamp)
-  {
-    char buff[128];
-    strftime(buff, 127, "%Y%m%d%H%M%S", localtime(&timestamp));
-    return SSTR(buff);
-  }
+  bool RemoveUnusedNodes();
 
   //----------------------------------------------------------------------------
   //! Filter configuration - display given configuration

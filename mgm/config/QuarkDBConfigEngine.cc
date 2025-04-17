@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "mgm/config/QuarkDBConfigEngine.hh"
-#include "mgm/config/QuarkConfigHandler.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/Timing.hh"
 #include "common/StringUtils.hh"
@@ -158,13 +157,138 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
     return false;
   }
 
+  // Do cleanup of old nodes not used anymore
+  if (RemoveUnusedNodes()) {
+    XrdOucString err;
+
+    if (!SaveConfig(filename, true, "", err)) {
+      eos_static_err("msg=\"failed to save config after node cleanup\" "
+                     "err_msg=\"%s\"", err.c_str());
+      return false;
+    }
+  }
+
   if (!ApplyConfig(err, apply_stall_redirect))   {
-    mChangelog->AddEntry("loaded config", filename, SSTR("with failure : " << err));
+    mChangelog->AddEntry("loaded config", filename,
+                         SSTR("with failure : " << err));
     return false;
   } else {
     mConfigFile = filename.c_str();
     return true;
   }
+}
+
+//------------------------------------------------------------------------------
+// Remove old unused nodes that are off and have no file systems registered
+//------------------------------------------------------------------------------
+bool
+QuarkDBConfigEngine::RemoveUnusedNodes()
+{
+  const std::string global_prefix {"global:/config/"};
+  const std::string node_token {"/node/"};
+  const std::string fs_prefix {"fs:/eos/"};
+  const std::string status_suffix {"#status"};
+  // Set of node hostnames to be removed
+  std::set<std::string> to_remove;
+  auto it_lower = sConfigDefinitions.lower_bound(global_prefix);
+
+  if ((it_lower == sConfigDefinitions.end()) ||
+      (it_lower->first.find(global_prefix) == std::string::npos)) {
+    return false;
+  }
+
+  for (auto it = it_lower; it != sConfigDefinitions.end(); ++it) {
+    // If outside the global config then stop
+    if (it->first.find(global_prefix) == std::string::npos) {
+      break;
+    }
+
+    const std::string key = it->first;
+
+    // The node status needs to be off
+    if ((key.find(status_suffix) != std::string::npos) &&
+        (key.find(node_token) != std::string::npos) &&
+        (it->second == "off")) {
+      // Remove the "global:" prefix and '#status' suffix
+      int pos = key.find('#');
+      std::string queue = key.substr(7, pos - 7);
+      eos::common::SharedHashLocator node_loc;
+
+      if (!eos::common::SharedHashLocator::fromConfigQueue(queue, node_loc)) {
+        eos_static_err("msg=\"failed to parse locator\" queue=\"%s\"",
+                       queue.c_str());
+        continue;
+      }
+
+      to_remove.insert(node_loc.GetName());
+    }
+  }
+
+  // Go through all the registered file systems
+  it_lower = sConfigDefinitions.lower_bound(fs_prefix);
+
+  if ((it_lower != sConfigDefinitions.end()) &&
+      (it_lower->first.find(fs_prefix) != std::string::npos)) {
+    for (auto it = it_lower; it != sConfigDefinitions.end(); ++it) {
+      const std::string fs_key = it->first;
+
+      if (fs_key.find(fs_prefix) == std::string::npos) {
+        break;
+      }
+
+      for (const auto& node : to_remove) {
+        // If there is a file system registerd for the current
+        // node then we don't remove this entry
+        if (fs_key.find(node) != std::string::npos) {
+          to_remove.erase(node);
+          break;
+        }
+      }
+    }
+  }
+
+  eos_static_info("msg=\"%i nodes to be removed\"", to_remove.size());
+
+  // These are the entries to be removed
+  for (const auto& node : to_remove) {
+    eos_static_info("msg=\"unused node to be removed\" node=\"%s\"", node.c_str());
+  }
+
+  if (!to_remove.empty()) {
+    const char* ptr = getenv("EOS_MGM_CONFIG_CLEANUP");
+
+    if (ptr && (strncmp(ptr, "1", 1) == 0)) {
+      eos_static_info("%s", "msg=\"perform config cleanup\"");
+      // The remaining nodes needs to be removed from the global configuration as
+      // they don't have any file system registered
+      it_lower = sConfigDefinitions.lower_bound(global_prefix);
+
+      for (auto it = it_lower; it != sConfigDefinitions.end(); /*no increment*/) {
+        if (it->first.find(global_prefix) == std::string::npos) {
+          break;
+        }
+
+        bool deleted = false;
+
+        for (const auto& node : to_remove) {
+          if (it->first.find(node) != std::string::npos) {
+            it = sConfigDefinitions.erase(it);
+            deleted = true;
+            break;
+          }
+        }
+
+        if (!deleted) {
+          ++it;
+        }
+      }
+    } else {
+      eos_static_info("%s", "msg=\"skip config cleanup\"");
+      return false;
+    }
+  }
+
+  return (to_remove.size() ? true : false);
 }
 
 //------------------------------------------------------------------------------
@@ -302,7 +426,7 @@ QuarkDBConfigEngine::PullFromQuarkDB(const std::string& configName)
 
   sConfigDefinitions.erase("timestamp");
 
-  for (const auto& elem :  sConfigDefinitions) {
+  for (const auto& elem : sConfigDefinitions) {
     eos_static_notice("msg=\"setting config\" key=\"%s\" value=\"%s\"",
                       elem.first.c_str(), elem.second.c_str());
   }

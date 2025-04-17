@@ -204,6 +204,15 @@ public:
     return mType;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get locator name
+  //----------------------------------------------------------------------------
+  inline std::string GetName() const
+  {
+    return mName;
+  }
+
+
 private:
   bool mInitialized;
   std::string mInstanceName;

@@ -276,6 +276,10 @@ public:
   void PublishConfigDeletion(const std::string& key);
 
 protected:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
+
   std::unique_ptr<ICfgEngineChangelog> mChangelog; ///< Changelog object
   //! Protect the static configuration definitions hash
   std::recursive_mutex mMutex;
