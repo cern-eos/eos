@@ -89,8 +89,8 @@ noexcept
   FaultyFiles = std::move(other.FaultyFiles);
   AccessTimeFiles = std::move(other.AccessTimeFiles);
   AccessTimeVolume = std::move(other.AccessTimeVolume);
-  BirthTimeFiles = std::move(BirthTimeFiles);
-  BirthTimeVolume = std::move(BirthTimeVolume);
+  BirthTimeFiles = std::move(other.BirthTimeFiles);
+  BirthTimeVolume = std::move(other.BirthTimeVolume);
   BirthVsAccessTimeFiles = std::move(other.BirthVsAccessTimeFiles);
   BirthVsAccessTimeVolume = std::move(other.BirthVsAccessTimeVolume);
   move(UserCosts, other.UserCosts);
