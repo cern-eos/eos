@@ -1752,11 +1752,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::string iotype;
   bool schedule = false;
   uint64_t atimeage = 0;
+  std::vector<std::string> altChecksums;
   // select space and layout according to policies
   COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forced_group, bandwidth, schedule,
-                            ioprio, iotype, isRW, true, &atimeage);
+                            ioprio, iotype, isRW, true, &atimeage, &altChecksums);
   COMMONTIMING("Policy::end", &tm);
   Policy::RedirectStatus rs;
 
@@ -3317,6 +3318,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         infolog += ") ";
       }
     } // fs_rd_lock
+  }
+
+  if (!altChecksums.empty()) {
+    capability += "&mgm.altchecksums=";
+    capability += eos::common::StringConversion::Join(altChecksums, ",").c_str();
   }
 
   // ---------------------------------------------------------------------------
