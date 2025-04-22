@@ -107,7 +107,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mIsInjection(false), mRainReconstruct(false), mDelOnClose(false),
   mRepairOnClose(false), mIsOCchunk(false), writeErrorFlag(false),
   mEventOnClose(false), mSyncOnClose(false), mEventWorkflow("default"),
-  mSyncEventOnClose(false), mFmd(nullptr), mCheckSum(nullptr),
+  mSyncEventOnClose(false), mFmd(nullptr),
   mLayout(nullptr), mMaxOffsetWritten(0ull),
   mWritePosition(0ull), mOpenSize(0),
   mCloseSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
@@ -139,6 +139,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mIoPriorityValue = 0;
   mIoPriorityClass = IOPRIO_CLASS_NONE;
   mIoPriorityErrorReported = false;
+  mChecksumGroup.reset(new ChecksumGroup);
 }
 
 //------------------------------------------------------------------------------
@@ -741,10 +742,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     // Preset with the last known checksum
-    if (mIsRW && mCheckSum && !mIsOCchunk) {
+    if (mIsRW && mChecksumGroup->HasChecksums() && !mIsOCchunk) {
       eos_info("msg=\"checksum reset init\" fxid=%08llx file-xs=%s",
                mFileId, mFmd->mProtoFmd.checksum().c_str());
-      mCheckSum->ResetInit(0, mOpenSize, mFmd->mProtoFmd.checksum().c_str());
+      mChecksumGroup->ResetInitDefault(0, mOpenSize,
+                                       mFmd->mProtoFmd.checksum().c_str());
+      // TODO: we should inizialize the others from the xattrs
     }
   }
 
@@ -753,7 +756,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // checking.
   if (eos::common::LayoutId::IsRain(mLid) &&
       !(mIsRW && mLayout->IsEntryServer())) {
-    mCheckSum.reset(nullptr);
+    mChecksumGroup->Clear();
   }
 
   // Set the eos lfn as extended attribute
@@ -881,7 +884,8 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   int rc = mLayout->Read(fileOffset, buffer, buffer_size);
-  eos_debug("layout read %d checkSum %d", rc, mCheckSum.get());
+  eos_debug("layout read %d checkSum %d", rc,
+            mChecksumGroup ? nullptr : mChecksumGroup->GetDefault());
 
   if (gOFS.mSimReadDelay) {
     eos_warning("msg=\"apply read delay\" delay=%is fxid=%08llx",
@@ -891,10 +895,10 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 
   /* maintaining a checksum is tricky if there have been writes,
    * but the read + append case can be supported in "Add" */
-  if ((rc > 0) && (mCheckSum) && (!mHasWrite)) {
+  if ((rc > 0) && (mChecksumGroup->HasChecksums()) && (!mHasWrite)) {
     XrdSysMutexHelper cLock(mChecksumMutex);
-    mCheckSum->Add(buffer, static_cast<size_t>(rc),
-                   static_cast<off_t>(fileOffset));
+    mChecksumGroup->Add(buffer, static_cast<size_t>(rc),
+                        static_cast<off_t>(fileOffset));
   }
 
   if (rc > 0) {
@@ -929,12 +933,12 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
             static_cast<unsigned long long>(buffer_size));
 
   if ((fileOffset + buffer_size) >= mOpenSize) {
-    if (mCheckSum && (!mHasWrite)) {
+    if (mChecksumGroup->HasChecksums() && !mHasWrite) {
       /* even if there were only reads up to here the file may still be modified if opened R/W. As
        * VerifyChecksum "finalises" the context, this has to be handled in write anyway;
        * but not finalising now speeds up the slightly less marginal case of "write a lot" +
        * "read a little" + "write a little" (seen in "git") */
-      if (!mCheckSum->NeedsRecalculation()) {
+      if (!mChecksumGroup->NeedsRecalculation()) {
         // If this is the last read of sequential reading, we can verify
         // the checksum now (unless we're writing as well)
         if (VerifyChecksum()) {
@@ -1103,9 +1107,9 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   // if the write position moves the checksum is dirty
-  if (mCheckSum) {
+  if (mChecksumGroup->HasChecksums()) {
     if (mWritePosition != fileOffset) {
-      mCheckSum->SetDirty();
+      mChecksumGroup->SetDirty();
     }
 
     // store next write position
@@ -1133,10 +1137,10 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   // Evt. add checksum
   if (rc > 0) {
-    if (mCheckSum) {
+    if (mChecksumGroup->HasChecksums()) {
       XrdSysMutexHelper cLock(mChecksumMutex);
-      mCheckSum->Add(buffer, static_cast<size_t>(rc),
-                     static_cast<off_t>(fileOffset));
+      mChecksumGroup->Add(buffer, static_cast<size_t>(rc),
+                          static_cast<off_t>(fileOffset));
     }
 
     totalBytes += rc;
@@ -1430,12 +1434,9 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
     return SFS_OK;
   }
 
-  if (fsize != mOpenSize) {
-    if (mCheckSum) {
-      if (mWritePosition != fsize) {
-        mCheckSum->SetDirty();
-      }
-    }
+  if (mChecksumGroup->HasChecksums() &&  fsize != mOpenSize &&
+      mWritePosition != fsize) {
+    mChecksumGroup->SetDirty();
   }
 
   int rc = mLayout->Truncate(fsize);
@@ -1823,7 +1824,7 @@ XrdFstOfsFile::_close_wr()
   }
 
   // Recompute our ETag
-  eos::calculateEtag(mCheckSum != nullptr, mFmd->mProtoFmd, mEtag);
+  eos::calculateEtag(static_cast<bool>(mChecksumGroup), mFmd->mProtoFmd, mEtag);
   int commit_rc = rc; // return of the commit/stat before the layout close
 
   if (mSyncOnClose) {
@@ -2076,7 +2077,7 @@ XrdFstOfsFile::fctl(const int cmd, int alen, const char* args,
     } else if (strncmp(args, "nochecksum", alen) == 0) {
       int retc = SFS_OK;
       eos_warning("Setting nochecksum flag for file %s", mFstPath.c_str());
-      mCheckSum.reset(nullptr);
+      mChecksumGroup->Clear();
 
       // Propagate command to all the replicas/stripes
       if (mLayout) {
@@ -2719,9 +2720,29 @@ XrdFstOfsFile::ProcessMixedOpaque()
 
   // Call the checksum factory function with the selected layout
   if (opaqueCheckSum != "ignore") {
-    mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObject(mLid);
+    // set the default checksum, i.e. the one specified in the layout
+    mChecksumGroup->SetDefault(
+      eos::fst::ChecksumPlugins::GetChecksumObject(mLid),
+      static_cast<eos::common::LayoutId::eChecksum>
+      (eos::common::LayoutId::GetChecksum(mLid))
+    );
     eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\"",
-              mCheckSum.get(), mLid, opaqueCheckSum.c_str());
+              mChecksumGroup->GetDefault(), mLid, opaqueCheckSum.c_str());
+
+    if ((val = mCapOpaque->Get("mgm.altchecksums"))) {
+      std::vector<std::string> alternatives;
+      eos::common::StringConversion::Tokenize(val, alternatives, ",");
+
+      for (const auto& xs : alternatives) {
+        if (xs.empty()) {
+          continue;
+        }
+
+        mChecksumGroup->AddAlternative(eos::fst::ChecksumPlugins::GetXsObj(xs),
+                                       xs);
+        eos_debug("msg=\"alternative checksum requested\" name=\"%s\"", xs);
+      }
+    }
   }
 
   // Handle file system id and local prefix - If we open a replica we have to
@@ -3325,29 +3346,29 @@ XrdFstOfsFile::VerifyChecksum()
   int checksumlen = 0;
 
   // Deal with checksums
-  if (mCheckSum) {
-    mCheckSum->Finalize();
+  if (mChecksumGroup->HasChecksums()) {
+    mChecksumGroup->Finalize();
 
-    if (mCheckSum->NeedsRecalculation()) {
+    if (mChecksumGroup->NeedsRecalculation()) {
       if ((!mIsRW) && ((sFwdBytes + sBwdBytes) ||
-                       (mCheckSum->GetMaxOffset() != mOpenSize))) {
+                       (mChecksumGroup->GetMaxOffset() != mOpenSize))) {
         // We don't rescan files if they are read non-sequential or only
         // partially
         eos_debug("info=\"skipping checksum (re-scan) for non-sequential "
                   "reading ...\"");
-        mCheckSum.reset(nullptr);
+        mChecksumGroup->Clear();
         return false;
       }
     } else {
       eos_debug("isrw=%d max-offset=%lld opensize=%lld", mIsRW,
-                mCheckSum->GetMaxOffset(), mOpenSize);
+                mChecksumGroup->GetMaxOffset(), mOpenSize);
 
       if ((!mIsRW) &&
-          ((mCheckSum->GetMaxOffset() != mOpenSize) ||
-           (mCheckSum->GetMaxOffset() == 0))) {
+          ((mChecksumGroup->GetMaxOffset() != mOpenSize) ||
+           (mChecksumGroup->GetMaxOffset() == 0))) {
         eos_debug("info=\"skipping checksum (re-scan) for access without any IO or "
                   "partial sequential read IO from the beginning...\"");
-        mCheckSum.reset(nullptr);
+        mChecksumGroup->Clear();
         return false;
       }
     }
@@ -3358,20 +3379,20 @@ XrdFstOfsFile::VerifyChecksum()
     // offset were written - however if the file size is diffrent from the max checksum offset, the checksum is dirty
     // because the ending part of a file was not written
     // -------------------------------------------------------------------------------------------------------------------
-    if (mIsRW && mHasWrite && mCheckSum->GetMaxOffset() &&
-        (mCheckSum->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
+    if (mIsRW && mHasWrite && mChecksumGroup->GetMaxOffset() &&
+        (mChecksumGroup->GetMaxOffset() != (off_t)mMaxOffsetWritten)) {
       // If there was a write which was not extending the file the checksum
       // is dirty!
-      mCheckSum->SetDirty();
+      mChecksumGroup->SetDirty();
     }
 
     if (gOFS.openedForWriting.hadMultiOpen(mFsId, mFileId)) {
       // If there were several writers on the file, we should set the checksum dirty
-      mCheckSum->SetDirty();
+      mChecksumGroup->SetDirty();
     }
 
     // If checksum is not completely computed
-    if (mCheckSum->NeedsRecalculation()) {
+    if (mChecksumGroup->NeedsRecalculation()) {
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
 
@@ -3381,57 +3402,58 @@ XrdFstOfsFile::VerifyChecksum()
         cbd.caller = (void*) mLayout.get();
         eos::fst::CheckSum::ReadCallBack cb(LayoutReadCB, cbd);
 
-        if (mCheckSum->ScanFile(cb, scansize, scantime)) {
+        if (mChecksumGroup->ScanFile(cb, scansize, scantime)) {
           XrdOucString sizestring;
           eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %s",
                    eos::common::StringConversion::GetReadableSizeString(sizestring,
                        scansize, "B"),
                    scantime,
                    1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
-                   mCheckSum->GetHexChecksum());
+                   mChecksumGroup->GetDefault()->GetHexChecksum());
         } else {
           eos_err("msg=\"checksum rescanning failed\" fxid=%08llx", mFileId);
-          mCheckSum.reset(nullptr);
+          mChecksumGroup->Clear();
           return false;
         }
       } else {
         eos_err("msg=\"failed to get file descriptor\" fxid=%08llx", mFileId);
-        mCheckSum.reset(nullptr);
+        mChecksumGroup->Clear();
         return false;
       }
     } else {
       // This was prefect streaming I/O
-      if ((!mIsRW) && (mCheckSum->GetMaxOffset() != mOpenSize)) {
+      if ((!mIsRW) && (mChecksumGroup->GetMaxOffset() != mOpenSize)) {
         eos_info("info=\"skipping checksum (re-scan) since file was not read "
-                 "completely %llu %llu...\"", mCheckSum->GetMaxOffset(), mOpenSize);
-        mCheckSum.reset(nullptr);
+                 "completely %llu %llu...\"", mChecksumGroup->GetMaxOffset(), mOpenSize);
+        mChecksumGroup->Clear();
         return false;
       }
     }
 
     if (mIsRW) {
+      auto xs = mChecksumGroup->GetDefault();
       eos_info("(write) checksum type=\"%s\" checksum hex=\"%s\" "
-               "requested-checksum hex=\"%s\"", mCheckSum->GetName(),
-               mCheckSum->GetHexChecksum(),
+               "requested-checksum hex=\"%s\"", xs->GetName(),
+               xs->GetHexChecksum(),
                mOpenOpaque->Get("mgm.checksum") ?
                mOpenOpaque->Get("mgm.checksum") : "-none-");
 
       // Check if the check sum for the file was given at upload time
       if (mOpenOpaque->Get("mgm.checksum")) {
         XrdOucString opaqueChecksum = mOpenOpaque->Get("mgm.checksum");
-        XrdOucString hexChecksum = mCheckSum->GetHexChecksum();
+        XrdOucString hexChecksum = xs->GetHexChecksum();
 
         if ((opaqueChecksum != "disable") && (opaqueChecksum != hexChecksum)) {
           eos_err("requested checksum %s does not match checksum %s of uploaded"
                   " file", opaqueChecksum.c_str(), hexChecksum.c_str());
-          mCheckSum.reset(nullptr);
+          mChecksumGroup->Clear();
           return true;
         }
       }
 
-      mCheckSum->GetBinChecksum(checksumlen);
+      xs->GetBinChecksum(checksumlen);
       // Copy checksum into meta data
-      mFmd->mProtoFmd.set_checksum(mCheckSum->GetHexChecksum());
+      mFmd->mProtoFmd.set_checksum(xs->GetHexChecksum());
 
       if (mHasWrite) {
         // If we have no write, we don't set this attributes (xrd3cp!)
@@ -3442,12 +3464,12 @@ XrdFstOfsFile::VerifyChecksum()
         if (!eos::common::LayoutId::IsRain(mLid)) {
           // Don't put file checksum tags for complex layouts like raid6,readdp, archive
           if (io->attrSet(std::string("user.eos.checksumtype"),
-                          std::string(mCheckSum->GetName()))) {
+                          std::string(xs->GetName()))) {
             eos_err("msg=\"unable to set extended attr <eos.checksumtype>\" "
                     "fxid=%08llx errno=%d", mFileId, errno);
           }
 
-          if (io->attrSet("user.eos.checksum", mCheckSum->GetBinChecksum(checksumlen),
+          if (io->attrSet("user.eos.checksum", xs->GetBinChecksum(checksumlen),
                           checksumlen)) {
             eos_err("msg=\"unable to set extended attr <eos.checksum> \" "
                     "fxid=%08llx errno=%d", mFileId, errno);
@@ -3475,9 +3497,10 @@ XrdFstOfsFile::VerifyChecksum()
         return false;
       }
 
-      std::string computed_xs = mCheckSum->GetHexChecksum();
+      auto xs = mChecksumGroup->GetDefault();
+      std::string computed_xs = xs->GetHexChecksum();
       eos_info("msg=\"read checksum info\" xs_type=%s xs_computed=%s "
-               "xs_local=%s fxid=%08llx fsid=%u", mCheckSum->GetName(),
+               "xs_local=%s fxid=%08llx fsid=%u", xs->GetName(),
                computed_xs.c_str(), mFmd->mProtoFmd.checksum().c_str(),
                mFileId, mFsId);
 
@@ -4269,8 +4292,22 @@ XrdFstOfsFile::CommitToMgm()
       << "&mgm.add.fsid=" << mFmd->mProtoFmd.fsid()
       << "&mgm.logid=" << logId;
 
-  if (mCheckSum) {
-    oss << "&mgm.checksum=" << mCheckSum->GetHexChecksum();
+  if (mChecksumGroup->HasChecksums()) {
+    oss << "&mgm.checksum=" << mChecksumGroup->GetDefault()->GetHexChecksum();
+    const auto alt = mChecksumGroup->GetAlternatives();
+
+    if (alt.size()) {
+      oss << "&mgm.altchecksums=";
+      std::vector<std::string> tkn;
+      tkn.reserve(alt.size());
+
+      for (const auto &[xsType, xs] : alt) {
+        const auto name = eos::fst::LayoutId::GetChecksumString(xsType);
+        tkn.push_back(SSTR(name << ":" << xs->GetHexChecksum()));
+      }
+
+      oss << eos::common::StringConversion::Join(tkn, ",");
+    }
   }
 
   if (mFusex) {
@@ -4308,7 +4345,7 @@ XrdFstOfsFile::CommitToMgm()
       // The entry server commits size and checksum
       oss << "&mgm.commit.size=1";
 
-      if (mCheckSum) {
+      if (mChecksumGroup->HasChecksums()) {
         oss << "&mgm.commit.checksum=1";
       }
     } else {
@@ -4316,7 +4353,7 @@ XrdFstOfsFile::CommitToMgm()
                           mFmd->mProtoFmd.fid()) <= 1);
 
       if (last_writer) {
-        if (mCheckSum) {
+        if (mChecksumGroup->HasChecksums()) {
           // If we computed a checksum, we verify ONLY IF there is a single
           // writer. Otherwise, if there are several writers we have a
           // significant inconsistency window during commit between replicas.
