@@ -41,7 +41,7 @@ const std::vector<std::string> Policy::gBasePolicyKeys = {
   "policy.space",         "policy.layout",           "policy.nstripes",
   "policy.checksum",      "policy.blocksize",        "policy.blockchecksum",
   "policy.localredirect", "policy.updateconversion", "policy.readconversion",
-  "policy.altspaces"
+  "policy.altspaces",     "policy.altchecksums"
 };
 
 const std::vector<std::string> Policy::gBasePolicyRWKeys = {
@@ -90,11 +90,12 @@ Policy::GetSpacePolicyLayout(const char* space)
   std::string iotype;
   bool isrw = false;     // does not matter
   uint64_t atimeage = 0; // does not matter
+  std::vector<std::string> altChecksums; // does not matter
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   GetLayoutAndSpace("/", attrmap, rootvid, layoutid, ret_space, env, forcedfsid,
                     forcedgroup, bandwidth, schedule, iopriority, iotype, isrw,
-                    true, &atimeage);
+                    true, &atimeage, &altChecksums);
   return layoutid;
 }
 
@@ -108,7 +109,7 @@ Policy::GetLayoutAndSpace(const char* path,
                           long& forcedgroup, std::string& bandwidth,
                           bool& schedule, std::string& iopriority,
                           std::string& iotype, bool rw, bool lockview,
-                          uint64_t* atimeage)
+                          uint64_t* atimeage, std::vector<std::string>* altChecksums)
 {
   eos::common::RWMutexReadLock lock;
   // this is for the moment only defaulting or manual selection
@@ -472,6 +473,15 @@ Policy::GetLayoutAndSpace(const char* path,
     } else {
       forcedfsid = eos::common::XrdUtils::GetEnv(env, "eos.force.fsid", 0l);
     }
+  }
+
+  // populate list of alternative checksums
+  if (altChecksums && attrmap.count(SYS_FORCED_ALTCHECKSUMS)) {
+    altChecksums->clear();
+    std::vector<std::string> xs;
+    eos::common::StringConversion::Tokenize(attrmap[SYS_FORCED_ALTCHECKSUMS], xs,
+                                            ",");
+    *altChecksums = std::move(xs);
   }
 
   if (satime.length() && atimeage) {
