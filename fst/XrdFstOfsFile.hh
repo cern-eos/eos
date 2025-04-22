@@ -26,6 +26,7 @@
 #include "fst/Namespace.hh"
 #include "fst/storage/Storage.hh"
 #include "fst/checksum/CheckSum.hh"
+#include "fst/checksum/ChecksumGroup.hh"
 #include "fst/utils/TpcInfo.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
@@ -377,7 +378,7 @@ public:
 
   ///< In-memory file meta data object
   std::unique_ptr<eos::common::FmdHelper> mFmd;
-  std::unique_ptr<eos::fst::CheckSum> mCheckSum; ///< Checksum object
+  std::unique_ptr<eos::fst::ChecksumGroup> mChecksumGroup;
   // @todo(esindril) this is not properly enforced everywhere ...
   std::unique_ptr<Layout> mLayout; ///< Layout object
   std::string mTident; ///< Client identity using the file object
@@ -652,7 +653,11 @@ public:
   //----------------------------------------------------------------------------
   eos::fst::CheckSum* GetChecksum() const
   {
-    return mCheckSum.get();
+    if (!mChecksumGroup->HasChecksums()) {
+      return nullptr;
+    }
+
+    return mChecksumGroup->GetDefault();
   }
 
   //----------------------------------------------------------------------------
