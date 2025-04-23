@@ -9,6 +9,54 @@
 #include "namespace/interface/IFileMD.hh"
 #include <XrdCl/XrdClFileSystem.hh>
 
+namespace
+{
+
+//------------------------------------------------------------------------------
+// Parses a comma-separated string of location IDs and adds them to a FileMdProto object
+//------------------------------------------------------------------------------
+void ParseLocations(std::string locations, eos::ns::FileMdProto& fmd)
+{
+  std::vector<std::string> location_vector;
+  eos::common::StringConversion::Tokenize(locations, location_vector, ",");
+
+  for (const auto& elem : location_vector) {
+    if (elem.empty()) {
+      continue;
+    }
+
+    if (elem[0] == '!') {
+      fmd.add_unlink_locations(std::stoull(elem.c_str() + 1));
+    } else {
+      fmd.add_locations(std::stoull(elem.c_str()));
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Converts a hexadecimal string into its raw binary string representation
+//------------------------------------------------------------------------------
+std::string ParseChecksum(const std::string& hexStr)
+{
+  size_t size;
+  auto xs = eos::common::StringConversion::Hex2BinDataChar(hexStr, size);
+  return std::string(xs.release(), size);
+}
+
+//------------------------------------------------------------------------------
+// Constructs the binary representation of a timestamp
+//------------------------------------------------------------------------------
+std::string ParseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
+{
+  char buff[sizeof(eos::IFileMD::ctime_t)];
+  eos::IFileMD::ctime_t time;
+  time.tv_sec = std::stoul(env.Get(key));
+  time.tv_nsec = std::stoul(env.Get(key_ns));
+  (void) memcpy(buff, &time, sizeof(time));
+  return std::string(buff);
+}
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -30,77 +78,12 @@ FmdMgmHandler::ExcludeUnlinkedLoc(const std::string& slocations)
   return oss.str();
 }
 
-void ParseLocations(std::string locations, eos::ns::FileMdProto& fmd)
-{
-  std::vector<std::string> location_vector;
-  eos::common::StringConversion::Tokenize(locations, location_vector, ",");
-
-  for (const auto& elem : location_vector) {
-    if (elem.empty()) {
-      continue;
-    }
-
-    if (elem[0] == '!') {
-      fmd.add_unlink_locations(strtoul(elem.c_str() + 1, 0, 10));
-    } else {
-      fmd.add_locations(strtoul(elem.c_str(), 0, 10));
-    }
-  }
-}
-
-std::string ParseChecksum(const std::string& hexStr)
-{
-  if (hexStr.length() % 2 != 0) {
-    throw std::invalid_argument("Hex string must have even length");
-  }
-
-  std::string result;
-  result.reserve(hexStr.length() / 2);
-
-  for (size_t i = 0; i < hexStr.length(); i += 2) {
-    auto hexCharToInt = [](char c) -> int {
-      if (c >= '0' && c <= '9')
-      {
-        return c - '0';
-      }
-
-      if (c >= 'a' && c <= 'f')
-      {
-        return c - 'a' + 10;
-      }
-
-      if (c >= 'A' && c <= 'F')
-      {
-        return c - 'A' + 10;
-      }
-
-      throw std::invalid_argument("Invalid hex character");
-    };
-    char highNibble = hexCharToInt(hexStr[i]);
-    char lowNibble = hexCharToInt(hexStr[i + 1]);
-    char byte = (highNibble << 4) | lowNibble;
-    result.push_back(byte);
-  }
-
-  return result;
-}
-
-std::string ParseFileMDTime(XrdOucEnv& env, const char* key, const char* key_ns)
-{
-  char buff[sizeof(eos::IFileMD::ctime_t)];
-  eos::IFileMD::ctime_t time;
-  time.tv_sec = strtoul(env.Get(key), 0, 10);
-  time.tv_nsec = strtoul(env.Get(key_ns), 0, 10);
-  (void) memcpy(buff, &time, sizeof(time));
-  return std::string(buff);
-}
 
 //------------------------------------------------------------------------------
 // Convert an MGM env representation to an Fmd struct
 //------------------------------------------------------------------------------
 bool
-FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd,
-                           const std::vector<std::string>& xattrs)
+FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd)
 {
   // &name=random&id=705&ctime=1738852302&ctime_ns=871468404&mtime=1738852312&
   //mtime_ns=619640000&size=2117825536&cid=90&uid=0&gid=0&lid=543425858&flags=416&link=&location=9,2,1,6,7,3,
@@ -122,28 +105,26 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd,
     return false;
   }
 
-  fmd.set_id(strtoull(env.Get("id"), 0, 10));
-  fmd.set_cont_id(strtoull(env.Get("cid"), 0, 10));
-  fmd.set_uid((uid_t) strtoul(env.Get("uid"), 0, 10));
-  fmd.set_gid((gid_t) strtoul(env.Get("gid"), 0, 10));
-  fmd.set_size(strtoull(env.Get("size"), 0, 10));
-  fmd.set_layout_id(strtoul(env.Get("lid"), 0, 10));
-  fmd.set_name(env.Get("name"));
+  try {
+    fmd.set_id(std::stoull(env.Get("id")));
+    fmd.set_cont_id(std::stoull(env.Get("cid")));
+    fmd.set_uid(std::stoull(env.Get("uid")));
+    fmd.set_gid(std::stoull(env.Get("gid")));
+    fmd.set_size(std::stoull(env.Get("size")));
+    fmd.set_layout_id(std::stoul(env.Get("lid")));
+    fmd.set_name(env.Get("name"));
 
-  if (env.Get("link")) {
-    fmd.set_link_name(env.Get("link"));
-  }
+    if (env.Get("link")) {
+      fmd.set_link_name(env.Get("link"));
+    }
 
-  fmd.set_ctime(ParseFileMDTime(env, "ctime", "ctime_ns"));
-  fmd.set_mtime(ParseFileMDTime(env, "mtime", "mtime_ns"));
-  fmd.set_checksum(ParseChecksum(env.Get("checksum")));
-  ParseLocations(env.Get("location"), fmd);
-  // include the xattrs requested
-
-  for (const auto& key : xattrs) {
-    std::string env_key = "xattr." + key;
-    fmd.mutable_xattrs()->insert(std::pair(std::string(key),
-                                           std::string(env.Get(env_key.c_str()))));
+    fmd.set_ctime(ParseFileMDTime(env, "ctime", "ctime_ns"));
+    fmd.set_mtime(ParseFileMDTime(env, "mtime", "mtime_ns"));
+    fmd.set_checksum(ParseChecksum(env.Get("checksum")));
+    ParseLocations(env.Get("location"), fmd);
+  } catch (...) {
+    // not valid
+    return false;
   }
 
   return true;
@@ -206,7 +187,7 @@ FmdMgmHandler::NsFileProtoToFmd(eos::ns::FileMdProto&& filemd,
 int
 FmdMgmHandler::GetMgmFmd(const std::string& manager,
                          eos::common::FileId::fileid_t fid,
-                         eos::ns::FileMdProto& fmd, const std::vector<std::string>& xattrs)
+                         eos::ns::FileMdProto& fmd)
 {
   if (!fid) {
     return EINVAL;
@@ -219,11 +200,6 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
   std::unique_ptr<XrdCl::Buffer> response;
   XrdCl::Buffer* resp_raw = nullptr;
   XrdCl::XRootDStatus status;
-
-  if (!xattrs.empty()) {
-    query += "&mgm.getfmd.xattrs=" + eos::common::StringConversion::Join(xattrs,
-             ",");
-  }
 
   do {
     mgr = manager;
@@ -305,7 +281,7 @@ FmdMgmHandler::GetMgmFmd(const std::string& manager,
   // Get the remote file meta data into an env hash
   XrdOucEnv fmd_env(sresult.c_str());
 
-  if (!EnvMgmToFmd(fmd_env, fmd, xattrs)) {
+  if (!EnvMgmToFmd(fmd_env, fmd)) {
     int envlen;
     eos_static_err("msg=\"failed to parse metadata info\" data=\"%s\" fxid=%08llx",
                    fmd_env.Env(envlen), fid);

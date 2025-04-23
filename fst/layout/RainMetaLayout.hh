@@ -530,11 +530,11 @@ private:
                             XrdSfsXferSize length);
 
   //----------------------------------------------------------------------------
-  //! Verify stripe checksum
+  //! Prepare stripe checksum
   //!
   //! @return true if ok, otherwise false
   //----------------------------------------------------------------------------
-  bool VerifyStripeChecksum();
+  bool PrepareStripeChecksum();
 
   AssistedThread mParityThread; ///< Thread computing and wrintg parity
   //! Queue holding group offsets to be used for parity computation

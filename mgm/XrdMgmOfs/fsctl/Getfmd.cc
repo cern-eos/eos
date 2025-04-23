@@ -96,20 +96,6 @@ XrdMgmOfs::Getfmd(const char* path,
       safe_name += safepath;
       response.replace(initial_name, safe_name);
     }
-
-    // include requested xattrs
-    const char* xattrs = env.Get("mgm.getfmd.xattrs");
-
-    if (xattrs) {
-      std::vector<std::string> xattrs_vector;
-      eos::common::StringConversion::Tokenize(xattrs, xattrs_vector, ",");
-
-      for (const auto& key : xattrs_vector) {
-        // TODO: the value might conhtain "&"
-        std::string val = fmd->getAttribute(key);
-        response += SSTR("&xattr." << key << "=" << val).c_str();
-      }
-    }
   } else {
     response = "getfmd: retc=";
     response += EINVAL;

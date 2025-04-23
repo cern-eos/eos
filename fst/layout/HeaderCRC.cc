@@ -41,8 +41,8 @@ HeaderCRC::HeaderCRC(int sizeHeader, int sizeBlock) :
   mSizeLastBlock(-1),
   mSizeBlock(sizeBlock),
   mSizeHeader(sizeHeader),
-  mBlockChecksum(nullptr),
-  mBlockChecksumSize(0)
+  mStripeChecksum(nullptr),
+  mStripeChecksumSize(0)
 {
   if (mSizeHeader == 0) {
     mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
@@ -59,8 +59,8 @@ HeaderCRC::HeaderCRC(int sizeHeader, long long numBlocks, int sizeBlock) :
   mSizeLastBlock(-1),
   mSizeBlock(sizeBlock),
   mSizeHeader(sizeHeader),
-  mBlockChecksum(nullptr),
-  mBlockChecksumSize(0)
+  mStripeChecksum(nullptr),
+  mStripeChecksumSize(0)
 {
   (void) memcpy(mTag, msTagName, strlen(msTagName));
 
@@ -112,7 +112,7 @@ HeaderCRC::ReadFromFile(FileIo* pFile, uint16_t timeout)
   offset += sizeof block_xs_size;
   char* block_xs = new char[block_xs_size];
   memcpy(block_xs, buff.get() + offset, block_xs_size);
-  SetBlockChecksum(block_xs, block_xs_size, mChecksumType);
+  SetStripeChecksum(block_xs, block_xs_size, mChecksumType);
   delete[] block_xs;
 
   if (mSizeBlock == 0) {
@@ -154,10 +154,10 @@ HeaderCRC::WriteToFile(FileIo* pFile, uint16_t timeout)
   offset += sizeof mSizeBlock;
   memcpy(buff.get() + offset, &mChecksumType, sizeof mChecksumType);
   offset += sizeof mChecksumType;
-  memcpy(buff.get() + offset, &mBlockChecksumSize, sizeof mBlockChecksumSize);
-  offset += sizeof mBlockChecksumSize;
-  memcpy(buff.get() + offset, mBlockChecksum.get(), mBlockChecksumSize);
-  offset += mBlockChecksumSize;
+  memcpy(buff.get() + offset, &mStripeChecksumSize, sizeof mStripeChecksumSize);
+  offset += sizeof mStripeChecksumSize;
+  memcpy(buff.get() + offset, mStripeChecksum.get(), mStripeChecksumSize);
+  offset += mStripeChecksumSize;
   // TODO: check that offset is not bigger then header size
   memset(buff.get() + offset, 0, mSizeHeader - offset);
 
@@ -181,14 +181,14 @@ HeaderCRC::DumpInfo() const
     return oss.str();
   }
 
-  auto xs = GetBlockChecksum();
+  auto xs = GetStripeChecksum();
   oss << "Stripe index    : " << mIdStripe << std::endl
       << "Num. blocks     : " << mNumBlocks << std::endl
       << "Block size      : " << mSizeBlock << std::endl
       << "Size last block : " << mSizeLastBlock << std::endl
       << "Checksum type   : " << eos::common::LayoutId::GetChecksumString(
         mChecksumType) << std::endl
-      << "Checksum block  : " << xs->GetHexChecksum() << std::endl;
+      << "Checksum stripe  : " << xs->GetHexChecksum() << std::endl;
   return oss.str();
 }
 
