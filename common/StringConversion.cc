@@ -106,6 +106,34 @@ StringConversion::EmptyTokenize(const std::string& str,
   }
 }
 
+std::string StringConversion::Join(const std::vector<std::string>& tokens,
+                                   const std::string& separator)
+{
+  if (tokens.empty()) {
+    return "";
+  }
+
+  // calculate total size needed
+  size_t total = 0;
+
+  for (const auto& tkn : tokens) {
+    total += tkn.size();
+  }
+
+  total += separator.size() * (tokens.size() - 1);
+  std::string joined;
+  joined.reserve(total);
+  // do the actual join
+  joined.append(tokens[0]);
+
+  for (size_t i = 1; i < tokens.size(); ++i) {
+    joined.append(separator);
+    joined.append(tokens[i]);
+  }
+
+  return joined;
+}
+
 //------------------------------------------------------------------------------
 // Convert a long long value into time s,m,h,d,y  scale
 //------------------------------------------------------------------------------
