@@ -396,7 +396,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     }
 
     if (blockSize != 0) {
-      auto xs = mHdrInfo[0]->GetBlockChecksum();
+      auto xs = mHdrInfo[0]->GetStripeChecksum();
 
       if (!xs) {
         mStripeChecksum->SetDirty();
@@ -1082,7 +1082,7 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
 
       // we compute the stripe checksum only on the entry server
       // since for the other stripes this is computed by the other FSTs
-      if (physical_id == 0 && mStripeChecksum && off_local >= mSizeHeader) {
+      if (physical_id == 0 && mStripeChecksum && off_local > mSizeHeader) {
         XrdSysMutexHelper cLock(mChecksumMutex);
         mStripeChecksum->Add(buffer, nwrite, off_local - mSizeHeader);
       }
@@ -1661,7 +1661,7 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   return rc;
 }
 
-bool RainMetaLayout::VerifyStripeChecksum()
+bool RainMetaLayout::PrepareStripeChecksum()
 {
   if (!mStripeChecksum) {
     return false;
@@ -1827,14 +1827,15 @@ RainMetaLayout::Close()
           }
         }
 
-        if (VerifyStripeChecksum()) {
+        if (PrepareStripeChecksum()) {
           eos_err("msg=\"error verifying stripe checksum\"");
           rc = SFS_ERROR;
         } else {
           int checksumSize = 0;
           const char* stripeChecksum = mStripeChecksum->GetBinChecksum(checksumSize);
-          mHdrInfo[0]->SetBlockChecksum(stripeChecksum, checksumSize,
-                                        eos::common::LayoutId::GetChecksum(mLayoutId));
+          mHdrInfo[0]->SetStripeChecksum(stripeChecksum, checksumSize,
+                                         static_cast<eos::common::LayoutId::eChecksum>
+                                         (eos::common::LayoutId::GetChecksum(mLayoutId)));
 
           if (!mHdrInfo[0]->WriteToFile(mStripe[0].get(), mTimeout)) {
             eos_err("msg=\"failed write header\"");

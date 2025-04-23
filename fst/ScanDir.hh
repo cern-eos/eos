@@ -219,8 +219,8 @@ public:
   //!
   //! @return true if no errors, false otherwise
   //----------------------------------------------------------------------------
-  bool ListStripes(eos::common::FileId::fileid_t fid,
-                   std::vector<stripe_s>& stripes, std::string& opaqueInfo);
+  bool GetPioOpenInfo(eos::common::FileId::fileid_t fid,
+                      std::vector<stripe_s>& stripes, std::string& opaqueInfo);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the stripe check
