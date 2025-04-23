@@ -45,6 +45,7 @@ std::string
 CommitHelper::IncrementTsForVersionFn(const std::string& ver_fn)
 {
   size_t pos = ver_fn.find('.');
+
   // No . character or at the end of the string
   if ((pos == std::string::npos) || (pos == ver_fn.length() - 1)) {
     return ver_fn;
@@ -203,6 +204,10 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
   if (env.Get("mgm.checksum")) {
     cgi["checksum"] = env.Get("mgm.checksum");
   }
+
+  if (env.Get("mgm.altchecksums")) {
+    cgi["altchecksums"] = env.Get("mgm.altchecksums");
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -221,7 +226,7 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
 
   if (cgi["checksum"].length()) {
     eos_thread_info("subcmd=commit path=%s size=%s fxid=%s fsid=%s dropfsid=%s "
-                    "checksum=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
+                    "checksum=%s altxs=%s mtime=%s mtime.nsec=%s oc-chunk=%d oc-n=%d "
                     "oc-max=%d oc-uuid=%s",
                     cgi["path"].c_str(),
                     cgi["size"].c_str(),
@@ -229,6 +234,7 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
                     cgi["fsid"].c_str(),
                     cgi["dropfsid"].c_str(),
                     cgi["checksum"].c_str(),
+                    cgi["altchecksums"].c_str(),
                     cgi["mtime"].c_str(),
                     cgi["mtimensec"].c_str(),
                     option["occhunk"],
@@ -749,6 +755,7 @@ CommitHelper::handle_versioning(eos::common::VirtualIdentity& vid,
         // If a file with the same name already exists then we have conflict
         // and the timestamp of the version file needs to be increased
         uint16_t attempt = 0;
+
         while ((versiondir->findFile(paths["version"].GetName()) != nullptr) &&
                (attempt++ < 5)) {
           std::string ver_ppath = paths["version"].GetParentPath();
