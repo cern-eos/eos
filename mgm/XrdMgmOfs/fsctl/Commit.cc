@@ -226,6 +226,24 @@ XrdMgmOfs::Commit(const char* path,
                     "commit file, parent container removed [EIDRM]", "");
       }
 
+      if (cgi["altchecksums"].length()) {
+        std::vector<std::string> tkns;
+        std::vector<std::string> name2xs;
+        eos::common::StringConversion::Tokenize(cgi["altchecksums"], tkns, ",");
+
+        for (const auto& tkn : tkns) {
+          name2xs.clear();
+          eos::common::StringConversion::Tokenize(tkn, name2xs, ":");
+
+          if (name2xs.size() != 2) {
+            // the entry is not valid
+            continue;
+          }
+
+          fmd->setAttribute("sys.checksum." + name2xs[0], name2xs[1]);
+        }
+      }
+
       if (option["fusex"]) {
         std::string fusexstate;
 
