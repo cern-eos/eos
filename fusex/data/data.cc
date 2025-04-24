@@ -911,8 +911,13 @@ data::datax::prefetch(fuse_req_t req, bool lock)
                                       (size_t) mFile->file()->prefetch_size());
       // try to send an async read request
       mPrefetchHandler = proxy->ReadAsyncPrepare(proxy, 0, prefetch_size, false);
-      bool nobuffer = false;
 
+      if (!mPrefetchHandler) {
+        // already have read issued for this offset
+        return false;
+      }
+
+      bool nobuffer = false;
       if (mPrefetchHandler->valid()) {
         status = proxy->PreReadAsync(0, prefetch_size, mPrefetchHandler, 0);
       } else {
