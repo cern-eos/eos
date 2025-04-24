@@ -4020,18 +4020,20 @@ EROFS  pathname refers to a file on a read-only filesystem.
         }
       }
       XrdSysMutexHelper mLock(md->Locker());
+      for(int n=0; md->deleted() && n<3; n++) {
+        // we need to wait that this entry is really gone
+        Instance().mds.wait_flush(req, md);
+        mLock.UnLock();
+        md = Instance().mds.lookup(req, parent, name);
+        mLock.Lock(&md->Locker());
+      }
 
-      if ((*md)()->id() && !md->deleted()) {
+      if ((*md)()->id() || md->deleted()) {
         rc = EEXIST;
       } else {
         if ((*pcap2)()->errc()) {
           rc = (*pcap2)()->errc();
         } else {
-          if (md->deleted()) {
-            // we need to wait that this entry is really gone
-            Instance().mds.wait_flush(req, md);
-          }
-
           (*md)()->set_id(0);
           (*md)()->set_md_ino(0);
           (*md)()->set_err(0);
@@ -5013,15 +5015,16 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           }
         }
         XrdSysMutexHelper mLock(md->Locker());
-
-        if ((*md)()->id() && !md->deleted()) {
+        for(int n=0; md->deleted() && n<3; n++) {
+          // we need to wait that this entry is really gone
+          Instance().mds.wait_flush(req, md);
+          mLock.UnLock();
+          md = Instance().mds.lookup(req, parent, name);
+          mLock.Lock(&md->Locker());
+        }
+        if ((*md)()->id() || md->deleted()) {
           rc = EEXIST;
         } else {
-          if (md->deleted()) {
-            // we need to wait that this entry is really gone
-            Instance().mds.wait_flush(req, md);
-          }
-
           (*md)()->set_id(0);
           (*md)()->set_md_ino(0);
           (*md)()->set_err(0);
@@ -6813,15 +6816,17 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       }
     }
     XrdSysMutexHelper mLock(md->Locker());
+    for(int n=0; md->deleted() && n<3; n++) {
+      // we need to wait that this entry is really gone
+      Instance().mds.wait_flush(req, md);
+      mLock.UnLock();
+      md = Instance().mds.lookup(req, parent, name);
+      mLock.Lock(&md->Locker());
+    }
 
-    if ((*md)()->id() && !md->deleted()) {
+    if ((*md)()->id() || md->deleted()) {
       rc = EEXIST;
     } else {
-      if (md->deleted()) {
-        // we need to wait that this entry is really gone
-        Instance().mds.wait_flush(req, md);
-      }
-
       (*md)()->set_id(0);
       (*md)()->set_md_ino(0);
       (*md)()->set_nlink(1);
