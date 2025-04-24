@@ -1814,7 +1814,6 @@ metad::cleanup(shared_md md)
   (*md)()->set_type((*md)()->MD);
   (*md)()->set_creator(false);
   md->cap_count_reset();
-  (*md)()->set_nchildren(md->local_children().size());
   md->get_todelete().clear();
   md->setop_none();     /* so that wait_flush() returns */
   md->Locker().UnLock();
@@ -1932,8 +1931,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
                            (long) ino, (long) md_ino);
       }
 
-      (*md)()->set_nchildren(md->local_children().size());
-
       if (EOS_LOGS_DEBUG) {
         eos_static_debug("store md for local-ino=%016lx remote-ino=%016lx -",
                          (long) ino, (long) md_ino);
@@ -2039,7 +2036,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               (*md)()->set_mtime_ns(local_mtime_ns);
             }
 
-            (*md)()->set_nchildren(md->local_children().size());
             // if this object was a listing type, keep that
             (*md)()->set_type(mdtype);
           } else {
@@ -2055,7 +2051,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               md->UpdateProtoFrom(map->second);
               md->get_todelete() = todelete;
               (*md)()->set_type((*md)()->MD);
-              (*md)()->set_nchildren(md->local_children().size());
 
               if (!md->get_todelete().size()) {
                 // if there are no local deletions anymore, we can trust the remote value of nchildren
@@ -2078,7 +2073,6 @@ metad::apply(fuse_req_t req, eos::fusex::container& cont, bool listing)
               // keep the listing
               md->get_todelete() = todelete;
               (*md)()->set_type((*md)()->MD);
-              (*md)()->set_nchildren(md->local_children().size());
 
               if (!md->get_todelete().size()) {
                 // if there are no local deletions anymore, we can trust the remote value of nchildren
@@ -2877,9 +2871,12 @@ metad::mdcallback(ThreadAssistant& assistant)
               // as well as remote generated delete this case is possible
               // for after a local create/remove/create cycle, in which case we will
               // incorrectly remove name from local_children of the parent. So
-              // clear any local creator flag so that lookup will need to confirm
-              // with the backend before returning ENOENT.
+              // clear any local creator flag & listing so that lookup or listing
+              // will need to confirm with the backend.
               (*pmd)()->set_creator(false);
+              if ((*pmd)()->type() == (*pmd)()->MDLS)  {
+                (*pmd)()->set_type((*pmd)()->MD);
+              }
 
               pmd->local_children().erase(eos::common::StringConversion::EncodeInvalidUTF8(
                                             name));
