@@ -53,16 +53,20 @@ add_executable(eos-fusex-tests
 target_link_libraries(eos-fusex-tests PRIVATE
   eosxd-objects
   EosFuseAuth
-  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH})
+  ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH}
+  )
 
 set_target_properties(eos-fusex-tests
   PROPERTIES COMPILE_FLAGS ${COMPILE_FLAGS_FOR_TEST_EXECUTABLES})
 
-add_executable(eos-fusex-stress-tests stress/xrdcl-proxy.cc)
+add_executable(eos-fusex-stress-tests
+  stress/xrdcl-proxy.cc
+  ${CMAKE_SOURCE_DIR}/fusex/data/xrdclproxy.cc
+  ${CMAKE_SOURCE_DIR}/fusex/data/xrdclproxy.hh
+  ${CMAKE_SOURCE_DIR}/common/ShellCmd.cc
+  ${CMAKE_SOURCE_DIR}/common/ShellExecutor.cc)
 
 target_link_libraries(eos-fusex-stress-tests PRIVATE
-  eosxd-objects
-  EosFuseAuth
   ${LIBRARIES_TO_LINK_TEST_EXECUTABLES_WITH})
 
 set_target_properties(eos-fusex-stress-tests
