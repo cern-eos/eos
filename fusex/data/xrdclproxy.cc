@@ -421,6 +421,13 @@ XrdCl::Proxy::Read(XrdCl::shared_proxy proxy,
           XrdCl::Proxy::read_handler rahread = ReadAsyncPrepare(proxy, mReadAheadPosition,
                                                XReadAheadNom, false);
 
+          if (!rahread) {
+            // already an entry in ChunkRMap for our offset by the
+            // time we tried to add it.
+            ReadCondVar().Lock();
+            continue;
+          }
+
           if (!rahread->valid()) {
             ReadCondVar().Lock();
             // no buffer available
@@ -1348,9 +1355,11 @@ XrdCl::Proxy::ReadAsyncPrepare(XrdCl::shared_proxy proxy, off_t offset,
 
   XrdSysCondVarHelper lLock(ReadCondVar());
 
-  if (!ChunkRMap().count(src->offset())) {
-    inc_read_chunks_in_flight();
+  if (ChunkRMap().count(src->offset())) {
+    return XrdCl::Proxy::read_handler{};
   }
+  
+  inc_read_chunks_in_flight();
 
   ChunkRMap()[(uint64_t) src->offset()] = src;
   ReadCondVar().Signal();
