@@ -55,33 +55,45 @@ XrdCl::Proxy::Factory(const shared_proxy proxy, bool reconnect)
 {
   fuse_id fid;
   std::string ruser;
-  // If reconnect is true we try to ensure that the new proxy will use a
-  // different connection to the original proxy supplied in the proxy argument.
+  UserCredentials uc;
+  uint64_t connId = 0;
+
+  // If a previous proxy is supplied in the arguments:
+  //
   // If the current login url proposed by the processCache has already changed
-  // from that which the old proxyed used, we use that login url. Otherwise we
-  // request the processCache to change login url and use the new one.
+  // from that which the previous proxyed used, we use the newer login url.
+  // Otherwise if reconnect is true we request the processCache to change login
+  // url and use the new one.
   if (proxy) {
     fid = proxy->fuseid();
     ruser = proxy->mReconUsername;
+    uc = proxy->mUc;
+    connId = proxy->mConnId;
     if (ruser.empty()) {
       XrdCl::URL url(proxy->url());
       ruser = url.GetUserName();
     }
   }
 
-  if (fid.pid != 0 && reconnect) {
-    bool skip = false;
+  if (fid.pid != 0) {
     ProcessSnapshot snapshot = fusexrdlogin::processCache->retrieve(fid.pid, fid.uid, fid.gid, false);
+    bool skip = false;
     if (snapshot) {
       if (snapshot->getBoundIdentity()->getLogin().getStringID() != ruser) {
-        ruser = snapshot->getBoundIdentity()->getLogin().getStringID();
         skip = true;
       }
+      ruser = snapshot->getBoundIdentity()->getLogin().getStringID();
+      connId = snapshot->getBoundIdentity()->getLogin().getConnectionID();
+      uc = snapshot->getBoundIdentity()->getCreds()->getUC();
     }
-    if (!skip) {
+    if (reconnect && !skip) {
       snapshot = fusexrdlogin::processCache->retrieve(fid.pid, fid.uid, fid.gid, true);
       if (snapshot) {
         ruser = snapshot->getBoundIdentity()->getLogin().getStringID();
+        connId = snapshot->getBoundIdentity()->getLogin().getConnectionID();
+        uc = snapshot->getBoundIdentity()->getCreds()->getUC();
+      } else {
+        (void) fusexrdlogin::processCache->remove(fid.uid, fid.gid, uc, connId);
       }
     }
   }
@@ -90,9 +102,14 @@ XrdCl::Proxy::Factory(const shared_proxy proxy, bool reconnect)
   if (proxy) {
     sp->mIno = proxy->id();
     sp->mReq = proxy->req();
+    char lid[64];
+    snprintf(lid, sizeof(lid), "logid:ino:%016lx", sp->mIno);
+    sp->SetLogId(lid);
   }
   sp->mId = fid;
   sp->mReconUsername = ruser;
+  sp->mUc = uc;
+  sp->mConnId = connId;
   return sp;
 }
 
@@ -799,6 +816,9 @@ XrdCl::Proxy::CloseAsyncHandler::HandleResponse(XrdCl::XRootDStatus* status,
     XrdSysCondVarHelper lLock(mProxy->OpenCondVar());
 
     if (!status->IsOK()) {
+      if (status->code == XrdCl::errOperationExpired) {
+        XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(mProxy, true);
+      }
       // if the open failed before, we leave the open failed state here
       if (!mProxy->isDeleted()) {
         if (mProxy->state() != XrdCl::Proxy::FAILED) {

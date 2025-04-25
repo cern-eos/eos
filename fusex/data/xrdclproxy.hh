@@ -296,12 +296,13 @@ public:
   //! creation of a new TCP connection for the underlying XrdC::File object.
   //!
   //! @param proxy     a proxy from which to copy fuseid, ino and req
+  //!                  login url will be set to the current one proposed by
+  //!                  processCache for the id.
   //! @param reconnect if true try to ensure the new proxy will use a different
-  //!                  login url to one used by "proxy", either by using
-  //!                  the current login url proposed by processCache or
-  //!                  otherwise requesting a new one. IF the process pid in
+  //!                  login url to one used by "proxy", requesting a new one
+  //!                  from processCache is needed. If the process pid in
   //!                  fuseid has already exited processCache will likely
-  //!                  not be able update the login url, so no reconnect.
+  //!                  not be able update the login url.
   //!
   //! @return new XrdCl::Proxy object
   //----------------------------------------------------------------------------
@@ -644,10 +645,16 @@ public:
 
   void set_id(uint64_t ino, fuse_req_t req)
   {
+    ProcessSnapshot snapshot;
     mIno = ino;
     mReq = req;
     if (req) {
       mId.init(req);
+      snapshot = fusexrdlogin::processCache->retrieve(mId.pid, mId.uid, mId.gid, false);
+    }
+    if (snapshot) {
+      mUc = snapshot->getBoundIdentity()->getCreds()->getUC();
+      mConnId = snapshot->getBoundIdentity()->getLogin().getConnectionID();
     }
     char lid[64];
     snprintf(lid, sizeof(lid), "logid:ino:%016lx", ino);
@@ -708,6 +715,7 @@ public:
     mRChunksInFlight.store(0, std::memory_order_seq_cst);
     mDeleted = false;
     mReadAheadMaximumPosition = 64 * 1024ll * 1024ll * 1024ll * 1024ll;
+    mConnId = 0;
     sProxy++;
   }
 
@@ -1560,6 +1568,8 @@ private:
   std::string mUrl;
   std::string mLastUrl;
   std::string mReconUsername;
+  UserCredentials mUc;
+  uint64_t mConnId;
 
   OpenFlags::Flags mFlags;
   Access::Mode mMode;
