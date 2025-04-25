@@ -323,3 +323,36 @@ ProcessSnapshot ProcessCache::retrieve(pid_t pid, uid_t uid, gid_t gid,
   //----------------------------------------------------------------------------
   return result;
 }
+
+//------------------------------------------------------------------------------
+// Remove identified user credential from cache. Also removes from unerlying
+// BoundIdentity provider cache if necessary.
+//------------------------------------------------------------------------------
+bool ProcessCache::remove(uid_t uid, gid_t gid, const UserCredentials &uc, uint64_t connId)
+{
+  bool found = false;
+
+  // unless it's a unix style usercred, there will also be an entry in
+  // the BoundIdeneity provider so remove from there
+  if (uc.type != CredentialType::INVALID) {
+    found = boundIdentityProvider.remove(uc, connId);
+  }
+
+  // remove entry from our cache if it matches
+  const size_t ns = cache.num_content_shards();
+  for(size_t i=0;i<ns;i++) {
+    auto &&m = cache.get_shard(i);
+    for(auto it=m.begin(); it!= m.end(); ++it) {
+      const auto &val = it->second;
+      const auto &key = it->first;
+      if (key.uid == uid && key.gid == gid &&
+          val.getBoundIdentity()->getCreds()->getUC() == uc &&
+          val.getBoundIdentity()->getLogin().getConnectionID() == connId) {
+        if (cache.invalidate(key)) {
+          found = true;
+        }
+      }
+    }
+  }
+  return found;
+}

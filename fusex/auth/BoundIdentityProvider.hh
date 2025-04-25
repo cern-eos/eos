@@ -108,6 +108,11 @@ public:
   std::shared_ptr<const BoundIdentity> unixAuth(pid_t pid, uid_t uid, gid_t gid,
       bool reconnect, LogbookScope& scope, const Environment& env);
 
+  //----------------------------------------------------------------------------
+  // Remove the BoundIdentity corresponding to creds & connId from the cache
+  //----------------------------------------------------------------------------
+  bool remove(const UserCredentials& creds, uint64_t connId);
+
 private:
   EnvironmentReader& environmentReader;
   CredentialValidator& validator;

@@ -127,6 +127,11 @@ public:
   //----------------------------------------------------------------------------
   ProcessSnapshot retrieve(pid_t pid, uid_t uid, gid_t gid, bool reconnect);
 
+  //----------------------------------------------------------------------------
+  // Remove identified user credential from cache.
+  //----------------------------------------------------------------------------
+  bool remove(uid_t uid, gid_t gid, const UserCredentials &uc, uint64_t connId);
+
 private:
   //----------------------------------------------------------------------------
   // Discover some bound identity to use matching the given arguments.

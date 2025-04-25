@@ -1248,8 +1248,7 @@ data::datax::recover_ropen(fuse_req_t req)
       mRemoteUrlRO = newurl.GetURL();
     }
 
-    // Issue a new open requesting also a new TCP connection
-    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy, true);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy);
     newproxy->OpenAsync(newproxy, mRemoteUrlRO.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
@@ -1410,8 +1409,7 @@ data::datax::try_ropen(fuse_req_t req, XrdCl::shared_proxy &proxy,
       open_url = newurl.GetURL();
     }
 
-    // Issue a new open requesting also a new TCP connection
-    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy, true);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy);
     newproxy->OpenAsync(newproxy, open_url.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
@@ -1559,8 +1557,7 @@ data::datax::try_wopen(fuse_req_t req, XrdCl::shared_proxy &proxy,
     }
 
     eos_warning("recover reopening file for writing");
-    // Issue a new open requesting also a new TCP connection
-    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy, true);
+    XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy);
     newproxy->OpenAsync(newproxy, open_url.c_str(), targetFlags, mode, 0);
     // wait this time for completion
 
@@ -1740,8 +1737,7 @@ data::datax::recover_write(fuse_req_t req)
                                      "hint='recover from remote file'"));
   }
 
-  // Issue a new open requesting also a new TCP connection
-  XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy, true);
+  XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(proxy);
 
   if (!recover_from_file_cache && !recover_truncate) {
     // we need to open this file because it is not complete locally
@@ -1905,8 +1901,7 @@ data::datax::recover_write(fuse_req_t req)
     }
 
     // upload into identical inode using the drop & replace option (repair flag)
-    // Issue a new open requesting also a new TCP connection
-    XrdCl::shared_proxy uploadproxy = XrdCl::Proxy::Factory(proxy, true);
+    XrdCl::shared_proxy uploadproxy = XrdCl::Proxy::Factory(newproxy);
     uploadproxy->inherit_attached(proxy);
     uploadproxy->inherit_writequeue(uploadproxy, proxy);
 
@@ -3374,8 +3369,7 @@ data::dmap::ioflush(ThreadAssistant& assistant)
 
                     if (fit->second->state() == XrdCl::Proxy::CLOSEFAILED &&
                         fit->second->opening_state().code == XrdCl::errOperationExpired) {
-                      // to trigger new tcp conneciton for next time
-                      XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(fit->second, true);
+                      // CloseAsyncHandler should already have requested new id from processCache
                       canreissue = false;
                     }
 
@@ -3386,14 +3380,13 @@ data::dmap::ioflush(ThreadAssistant& assistant)
                       (status.code == XrdCl::errSocketDisconnected))){
                       eos_static_warning("re-issuing %s request after timeout - ino:%16lx err-code:%d",
                                          opname.c_str(),(*it)->id(), status.code);
-                      // Recover such errors by force creation of a new XrdCl
-                      // File object. Also try to use a new TCP connection for our
-                      // fuseid(), to avoid pilling up requests on a "blocked" TCP due,
-                      // for example, to a slow close operation. A new conneciton may
-                      // not always used for the re-issued open below, e.g. if the
-                      // process identified by the proxy's fuseid() has exited, the
-                      // processCache will not increment the conneciton counter.
-                      XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(fit->second, true);
+                      // Recover by reissue, using a new proxy. If available it will using the latest
+                      // connection identity associated with our fuseid. Specific errors such as close
+                      // timeout will have attempted to associate a new idenenity with the fuseid.
+                      // (If the process associated with the fuseid is already gone we generally
+                      // cannot generate a new connection id for the old process, but new processes
+                      // of the user using the same authentication type will get a new identity).
+                      XrdCl::shared_proxy newproxy = XrdCl::Proxy::Factory(fit->second);
                       // For the open use the url from the ioctx (datax) object rather than
                       // the previous proxy. The previous proxy may have used url options
                       // we don't want here, such as eos.repair.

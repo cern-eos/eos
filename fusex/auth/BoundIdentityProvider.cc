@@ -613,3 +613,14 @@ bool BoundIdentityProvider::checkValidity(const JailInformation& jail,
 
   return validator.checkValidity(jail, *identity.getCreds());
 }
+
+//------------------------------------------------------------------------------
+// Remove the BoundIdentity corresponding to creds & connId from the cache
+//------------------------------------------------------------------------------
+bool BoundIdentityProvider::remove(const UserCredentials& creds, uint64_t connId)
+{
+  std::shared_ptr<const BoundIdentity> cached = credentialCache.retrieve(creds);
+  if (!cached) return false;
+  if (cached->getLogin().getConnectionID() != connId) return false;
+  return credentialCache.invalidate(creds);
+}
