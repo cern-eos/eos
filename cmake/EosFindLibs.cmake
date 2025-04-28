@@ -27,6 +27,7 @@
 option(PACKAGEONLY "Build without dependencies" OFF)
 option(CLIENT "Build only client packages" OFF)
 option(BUILD_XRDCL_RAIN_PLUGIN "Enable XrdCl RAIN plugin" OFF)
+option(BUILD_CSS_PLUGIN "Enable CSS plugin" ON)
 
 # Find default versions of Python with higher priority
 set(Python_FIND_UNVERSIONED_NAMES  "FIRST" CACHE STRING "")
