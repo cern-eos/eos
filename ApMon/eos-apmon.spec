@@ -5,7 +5,7 @@
 
 Summary: eos-apmon package
 Name: eos-apmon
-Version: 1.1.12
+Version: 1.1.13
 Release: 1%{?dist}
 URL: none
 Source0: %{name}-%{version}.tar.gz
@@ -50,6 +50,9 @@ mkdir -p %{buildroot}
 /opt/eos/apmon/run.sh
 
 %changelog
+* Mon Apr 28 2025 Martin Vala <martin.vala@cern.ch> - 1.1.13-1
+- Xrootd version is parsed from eos-xrootd package
+
 * Wed Mar 19 2025 Gianmaria Del Monte <gianmaria.del.monte@cern.ch> - 1.1.12-1
 - Move to systemd service
 
