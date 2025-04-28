@@ -36,6 +36,14 @@ if(BUILD_XRDCL_RAIN_PLUGIN)
 endif()
 
 #-------------------------------------------------------------------------------
+# Add css plugin library only if explicitly requested by using the
+# BUILD_CSS_PLUGIN flag.
+#-------------------------------------------------------------------------------
+if(BUILD_CSS_PLUGIN)
+  add_subdirectory(css_plugin)
+endif()
+
+#-------------------------------------------------------------------------------
 # Gfcomplete objects
 #-------------------------------------------------------------------------------
 set(GFCOMPLETE_SRCS
