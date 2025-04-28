@@ -504,7 +504,7 @@ sub readEosDiskValues {
 
 sub readEosRpmValues {
     my $this = shift;
-    if (open IN, "rpm -qa xrootd | cut -d '-' -f2 |") {
+    if (open IN, "rpm -qa eos-xrootd | cut -d '-' -f3 |") {
         my $all = <IN>;
         if ($all) {
             chomp $all;
