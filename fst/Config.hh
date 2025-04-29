@@ -52,7 +52,7 @@ public:
   XrdOucString FstS3Credentials; // S3 storage credentials <access>:<secret>
   XrdOucString Manager; // <host>:<port>
   XrdOucString KernelVersion; // kernel version of the host
-  std::string ProtoWFEndpoint; // proto wf endpoint (typically CTA frontend)
+  std::string ProtoWFEndpoint; // proto wf SSI endpoint (typically CTA frontend)
   std::string ProtoWFResource; //  proto wf resource (typically CTA frontend)
   int PublishInterval; // Interval after which filesystem information should be published
   XrdOucString StartDate; // Time when daemon was started
@@ -61,6 +61,7 @@ public:
   XrdOucString PortAlias; // alias for the port to use in redirection
   mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
   bool protowfusegrpc; // use the xrootd or the grpc protocol
+  std::string ProtoWFEndpointGrpc; // proto wf gRPC endpoint (typically CTA frontend)
 
   Config() : generator((std::random_device())())
   {

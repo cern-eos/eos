@@ -1620,7 +1620,7 @@ int WFE::Job::HandleProtoMethodEvents(std::string& errorMsg,
     eos_static_info("%s %s %s %s fxid=%08llx mgm.reqid=\"%s\"",
                     mActions[0].mWorkflow.c_str(),
                     eventUpperCase.c_str(),
-                    fullPath.c_str(), gOFS->ProtoWFEndPoint.c_str(), mFid,
+                    fullPath.c_str(), gOFS->protowfusegrpc ? gOFS->ProtoWFEndPoint.c_str() : gOFS->ProtoWFEndPointGrpc.c_str(), mFid,
                     opaqueRequestIdStr.c_str());
   }
 
@@ -2780,18 +2780,28 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   EXEC_TIMING_BEGIN(exec_tag.c_str());
   gOFS->MgmStats.Add(exec_tag.c_str(), 0, 0, 1);
 
-  if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
-    eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-                   "msg=\"You are running proto wf jobs without specifying mgmofs.protowfendpoint or "
-                   "mgmofs.protowfresource in the MGM config file.\"",
-                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
-                   event.c_str());
+  if (!gOFS->protowfusegrpc) {
+    if (gOFS->ProtoWFEndPoint.empty() || gOFS->ProtoWFResource.empty()) {
+      eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                    "msg=\"You are running proto wf jobs without specifying mgmofs.protowfendpoint or "
+                    "mgmofs.protowfresource in the MGM config file.\"",
+                    gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                    event.c_str());
+      jobPtr->MoveWithResults(ENOTCONN);
+      return ENOTCONN;
+    }
+  }
+  else if (gOFS->ProtoWFEndPointGrpc.empty()) {
+    eos_static_err("protoWFEndPointGrpc=\"%s\" fullPath=\"%s\" event=\"%s\" "
+      "msg=\"You are running proto wf jobs without specifying mgmofs.protowfendpointgrpc in the MGM config file.\"",
+      gOFS->ProtoWFEndPointGrpc.c_str(), fullPath.c_str(), event.c_str());
     jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
   }
 
   cta::xrd::Response response;
   // Instantiate service object only once, static is thread-safe
+  // need to update CreateRequestSender
   static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->protowfusegrpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource);
   cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
   // Send the request
@@ -2801,17 +2811,28 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
     const auto receivedAt = std::chrono::steady_clock::now();
     const auto timeSpentMilliseconds =
       std::chrono::duration_cast<std::chrono::milliseconds> (receivedAt - sentAt);
-    eos_static_info("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" timeSpentMs=%ld "
-                    "msg=\"Sent protocol buffer request\"",
+    if (!gOFS->protowfusegrpc)
+      eos_static_info("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" timeSpentMs=%ld "
+                      "msg=\"Sent protocol buffer request\"",
+                      gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                      event.c_str(),
+                      timeSpentMilliseconds.count());
+    else
+      eos_static_info("protoWFEndPointGrpc=\"%s\" fullPath=\"%s\" event=\"%s\" timeSpentMs=%ld "
+        "msg=\"Sent protocol buffer request\"",
+        gOFS->ProtoWFEndPointGrpc.c_str(), fullPath.c_str(), event.c_str(),
+        timeSpentMilliseconds.count());
+  } catch (std::runtime_error& error) {
+    if (!gOFS->protowfusegrpc)
+      eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                    "msg=\"Could not send protocol buffer request to outside service.\" reason=\"%s\"",
                     gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
                     event.c_str(),
-                    timeSpentMilliseconds.count());
-  } catch (std::runtime_error& error) {
-    eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-                  "msg=\"Could not send protocol buffer request to outside service.\" reason=\"%s\"",
-                  gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
-                  event.c_str(),
-                  error.what());
+                    error.what());
+    else
+      eos_static_err("protoWFEndPointGrpc=\"%s\" fullPath=\"%s\" event=\"%s\" "
+        "msg=\"Could not send protocol buffer request to outside service.\" reason=\"%s\"",
+        gOFS->ProtoWFEndPointGrpc.c_str(), fullPath.c_str(), event.c_str(), error.what());
     errorMsg = error.what();
     retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(ENOTCONN);
     return ENOTCONN;
@@ -2832,11 +2853,17 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
 
       if (gOFS->_attr_set(fullPath.c_str(), errInfo, rootvid,
                           nullptr, attrPair.first.c_str(), attrPair.second.c_str()) != 0) {
-        eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-                       "msg=\"Could not set attribute\" attrName=\"%s\" attrValue=\"%s\" reason=\"%s\"",
-                       gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
-                       event.c_str(),
-                       attrPair.first.c_str(), attrPair.second.c_str(), errInfo.getErrText());
+        if (!gOFS->protowfusegrpc)
+          eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                        "msg=\"Could not set attribute\" attrName=\"%s\" attrValue=\"%s\" reason=\"%s\"",
+                        gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                        event.c_str(),
+                        attrPair.first.c_str(), attrPair.second.c_str(), errInfo.getErrText());
+        else
+          eos_static_err("protoWFEndPointGrpc=\"%s\" fullPath=\"%s\" event=\"%s\" "
+            "msg=\"Could not set attribute\" attrName=\"%s\" attrValue=\"%s\" reason=\"%s\"",
+            gOFS->ProtoWFEndPointGrpc.c_str(), fullPath.c_str(), event.c_str(),
+            attrPair.first.c_str(), attrPair.second.c_str(), errInfo.getErrText());
       }
     }
 
@@ -2864,19 +2891,34 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   case cta::xrd::Response::RSP_INVALID:
   default:
     retval = EBADMSG;
-    eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-                   "msg=\"Invalid or unknown response\" response=\"%s\"",
-                   gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
-                   event.c_str(),
-                   response.DebugString().c_str());
+    if (!gOFS->protowfusegrpc)
+      eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                    "msg=\"Invalid or unknown response\" response=\"%s\"",
+                    gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                    event.c_str(),
+                    response.DebugString().c_str());
+    else
+      eos_static_err("protoWFEndPointGrpc=\"%s\" fullPath=\"%s\" event=\"%s\" "
+        "msg=\"Invalid or unknown response\" response=\"%s\"",
+        gOFS->ProtoWFEndPointGrpc.c_str(), fullPath.c_str(),
+        event.c_str(),
+        response.DebugString().c_str());
   }
 
-  eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
-                 "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
-                 gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
-                 event.c_str(),
-                 CtaCommon::ctaResponseCodeToString(response_type).c_str(),
-                 response.message_txt().c_str());
+  if (!gOFS->protowfusegrpc)
+    eos_static_err("protoWFEndPoint=\"%s\" protoWFResource=\"%s\" fullPath=\"%s\" event=\"%s\" "
+                  "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
+                  gOFS->ProtoWFEndPoint.c_str(), gOFS->ProtoWFResource.c_str(), fullPath.c_str(),
+                  event.c_str(),
+                  CtaCommon::ctaResponseCodeToString(response_type).c_str(),
+                  response.message_txt().c_str());
+  else
+    eos_static_err("protoWFEndPointGrpc=\"%s\" fullPath=\"%s\" event=\"%s\" "
+      "msg=\"Received an error response\" response=\"%s\" reason=\"%s\"",
+      gOFS->ProtoWFEndPointGrpc.c_str(), fullPath.c_str(),
+      event.c_str(),
+      CtaCommon::ctaResponseCodeToString(response_type).c_str(),
+      response.message_txt().c_str());
   retry ? jobPtr->MoveToRetry(fullPath) : jobPtr->MoveWithResults(retval);
   errorMsg = response.message_txt();
   return retval;

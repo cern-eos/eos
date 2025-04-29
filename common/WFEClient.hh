@@ -108,9 +108,9 @@ private:
 };
 
 std::unique_ptr<WFEClient>
-CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource) {
+CreateRequestSender(bool protowfusegrpc, std::string ssi_endpoint, std::string ssi_resource, std::string grpc_endpoint) {
   if (protowfusegrpc) {
-    return std::make_unique<WFEGrpcClient>(endpoint);
+    return std::make_unique<WFEGrpcClient>(grpc_endpoint);
   } else {
     XrdSsiPb::Config config;
 
@@ -121,6 +121,6 @@ CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_r
     }
 
     config.set("request_timeout", "120");
-    return std::make_unique<WFEXrdClient>(endpoint, ssi_resource, config);
+    return std::make_unique<WFEXrdClient>(ssi_endpoint, ssi_resource, config);
   }
 }

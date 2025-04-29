@@ -1109,6 +1109,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             Eroute.Say("=====> mgmofs.protowfusegrpc : ", val);
           }
         }
+
+        if (!strcmp("protowfendpointgrpc", var)) {
+          val = Config.GetWord();
+
+          if (val != nullptr) {
+            ProtoWFEndPointGrpc = val;
+          }
+          // if (protowfusegrpc && (val == nullptr || val == "")) {
+          //   Eroute.Emsg("Config", "protowfusegrpc set to true but argument for Protowfendpointgrpc not specified. "
+          //               "Must specify an endpoint for gRPC CTA Frontend!");
+          //   NoGo = 1;
+          // }
+        }
       }
 
       //Get the XrdHttp server port number

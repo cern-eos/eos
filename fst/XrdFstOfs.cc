@@ -634,6 +634,12 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
+        if (!strcmp("protowfendpointgrpc", var)) {
+          if ((val = Config.GetWord())) {
+            gConfig.ProtoWFEndpointGrpc = val;
+          }
+        }
+
         if (!strcmp("metalog", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument 2 for metalog missing");
