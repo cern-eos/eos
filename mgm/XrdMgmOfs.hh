@@ -1775,7 +1775,7 @@ public:
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
   bool protowfusegrpc; ///< use xrootd/ssi or grpc to talk to CTA Frontend?
   std::string
-  ProtoWFEndpointGrpc; ///< host and port of service ot communicate with in case of proto workflows and usage of gRPC specified
+  ProtoWFEndPointGrpc; ///< host and port of service ot communicate with in case of proto workflows and usage of gRPC specified
 
   static XrdSysError* eDest; ///< error routing object
 

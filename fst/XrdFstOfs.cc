@@ -636,7 +636,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
         if (!strcmp("protowfendpointgrpc", var)) {
           if ((val = Config.GetWord())) {
-            gConfig.ProtoWFEndpointGrpc = val;
+            gConfig.ProtoWFEndPointGrpc = val;
           }
         }
 
