@@ -2892,6 +2892,7 @@ allows to send an email notification to a specified recipient and mostly used fo
    ============= =============================================================================================
    bash:shell    run an arbitrary shell command line with template argument substitution
    mail          send an email notification to a provided recipient when such an event is triggered
+   notify        asynchronous workflow sending notification via http,activemq,grpc or qclient(redis) protocol
    ============= =============================================================================================
 
 Configuration
@@ -2950,6 +2951,113 @@ they get deleted.
 Workflow Configuration
 """"""""""""""""""""""
 
+The **notify** workflow
+```````````````````````
+This notification mechanism can be used to inform external service about events on certain files e.g. when a new file is generated to inform a processing service.
+
+The supported notification protocols are:
+
+- http(s) (POST)
+- grpc (Notify rpc)
+- activeMQ (Message)
+- redis (PUBLISH)
+
+The message which is sent upstream contains a JSON document derived from the protobuf defintion of eos::rpc::MDNotification e.g.
+
+.. code-block:: bash
+
+   {
+    "fmd": {
+        "id": "653201",
+        "contId": "12174",
+        "uid": "65534",
+        "gid": "2",
+        "size": "3106",
+        "layoutId": 1048578,
+        "flags": 416,
+        "name": "ei42MA==",
+        "ctime": {
+            "sec": "1745940835",
+            "nSec": "386583069"
+        },
+        "mtime": {
+            "sec": "1745940835",
+            "nSec": "693545000"
+        },
+        "checksum": {
+            "value": "jrQu4gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+            "type": "adler32"
+        },
+        "xattrs": {
+            "sys.utrace": "NWM2MzBjODYtMjUwZi0xMWYwLWI0NzUtZmExNjNlMDdkZTdl",
+            "sys.fs.tracking": "KzU=",
+            "sys.vtrace": "W1R1ZSBBcHIgMjkgMTc6MzM6NTUgMjAyNV0gdWlkOjY1NTM0W25vYm9keV0gZ2lkOjJbZGFlbW9uXSB0aWRlbnQ6cm9vdC4yMjQ5NDE6NTYyQGxvY2FsaG9zdDYgbmFtZTpkYWVtb24gZG46IHByb3Q6c3NzIGFwcDogaG9zdDpsb2NhbGhvc3Q2IGRvbWFpbjpsb2NhbGRvbWFpbiBnZW86IHN1ZG86MCB0cmFjZTogb25iZWhhbGY6",
+            "sys.eos.btime": "MTc0NTk0MDgzNS4zODY1ODMwNjk="
+        },
+        "path": "L2Vvcy9kZXYvcHVibGljL25vdGlmeS96LjYw",
+        "etag": "\"175342308294656:8eb42ee2\"",
+        "inode": "175342308294656"
+    },
+    "role": {
+        "uid": "65534",
+        "gid": "2",
+        "username": "nobody",
+        "groupname": "daemon"
+    }
+   }
+
+
+The notification is configured on parent directories using the ``sys.workflow.*`` syntax.
+
+Here are some example configurations:
+
+.. code-block:: bash
+
+     # general attribute structure
+     #            sys.workflow.<event>.<space> = notify:<protocol>|<uri>|<port>|<queue>|<timeout>
+
+     # HTTP notification - the port and path to do the POST is part of the <uri> tag, <port> & <queue> are empty
+     eos attr set sys.workflow.closew.default=notify:http|localhost:5000/notify|||2000
+
+     # REDIS notification - the port is given as an extra argument
+     eos attr set sys.workflow.closew.default=notify:qclient|localhost|6349|notification|2000
+
+     # GRPC notification - the port is given as an extra argument, <queue> is empty
+     eos attr set sys.workflow.closew.default=notify:grpc|localhost|55100||2000
+
+
+For testing HTTP here is a simple Flask HTTP printing notifications listening on localhost port 5000:
+
+.. code-block:: python
+
+   import json
+
+   from flask import Flask, request, jsonify
+
+   app = Flask(__name__)
+
+   @app.route('/notify', methods=['POST'])
+   def handle_post():
+   data = request.get_json()
+   if not data:
+     return jsonify({'error': 'No JSON payload received'}), 400
+
+   pretty_json = json.dumps(data, indent=4)
+   print(pretty_json)
+   return jsonify({'message': 'Data received successfully'}), 200
+
+   if __name__ == '__main__':
+   app.run(debug=True, port=5000)
+
+For testing REDIS here is a simple CLI listener on the notification queue on localhost for REDIS:
+
+.. code-block:: bash
+
+   #start REDIS
+   systemctl start redis
+
+   redis-cli SUBSCRIBE notification
+
 The **mail** workflow
 `````````````````````
 As an example we want to send an email to a mailing list, whenever a file is deposited. This workflow can be specified like this:
@@ -2957,7 +3065,7 @@ As an example we want to send an email to a mailing list, whenever a file is dep
 .. code-block:: bash
 
    # define a workflow to send when a file is written
-   eos attr set sys.workflow.closew.default="mail:eos-project.cern.ch: a file has been written!" /eos/dev/mail/
+   eos attr set "sys.workflow.closew.default=mail:eos-project.cern.ch: a file has been written!" /eos/dev/mail/
 
    # place a new file
    eos cp /etc/passwd /eos/dev/mail/passwd
@@ -2975,7 +3083,7 @@ As an example consider this simple echo command, which prints the path when a **
 .. code-block:: bash
 
    # define a workflow to echo the full path when a file is written
-   eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:mylog echo <eos::wfe::path>" /eos/dev/echo/
+   eos attr set "sys.workflow.closew.default=sys.workflow.closew.default=bash:shell:mylog echo <eos::wfe::path>" /eos/dev/echo/
 
 The template parameters ``<eos::wfe::path>`` is replaced with the full logical path of the file, which was written. The third parameters ``mylog`` in **bash:shell:mylog** specifies the name of 
 the log file for this workflow which is found on the MGM under ``/var/log/eos/wfe/mylog.log`` 
@@ -3063,7 +3171,7 @@ Here is an  example for a dynamic attribute:
 .. code-block:: bash
 
    # define a workflow to echo the meta blob and the acls of the parent directory when a file is written
-   eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:mylog echo <eos::wfe::base64:metadata> <eos::wfe::cxattr:sys.acl>" /eos/dev/echo/
+   eos attr set "sys.workflow.closew.default=bash:shell:mylog echo <eos::wfe::base64:metadata> <eos::wfe::cxattr:sys.acl>" /eos/dev/echo/
 
 
 Configuring retry policies for  **bash:shell** workflows
@@ -3076,7 +3184,7 @@ The number of retries for a failing workflow can be defined as:
 .. code-block:: bash
 
    # define a workflow to return EAGAIN to be retried
-   eos attr set "sys.workflow.closew.default=sys.workflow.closew.default="bash:shell:fail '(exit 11)'" /eos/dev/echo/
+   eos attr set "sys.workflow.closew.default=bash:shell:fail '(exit 11)'" /eos/dev/echo/
 
    # set the maximum number of retries
    eos attr set "sys.workflow.closew.default.retry.max=3" /eos/dev/echo/
