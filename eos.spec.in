@@ -165,6 +165,7 @@ BuildRequires: libcap-devel
 BuildRequires: gflags gflags-devel
 BuildRequires: systemd
 BuildRequires: fmt-devel
+BuildRequires: activemq-cpp,activemq-cpp-devel
 
 %if %{?rhel:1}%{!?rhel:0} && 0%{?rhel} <= 7
 BuildRequires: openssl-static, ncurses-static

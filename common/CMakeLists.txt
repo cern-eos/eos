@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/)
+include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/ ${CMAKE_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
 # CTA integration related operations
@@ -246,6 +246,7 @@ if (NOT CLIENT AND Linux)
     ShellExecutor.cc
     ShellCmd.cc
     FileSystem.cc
+    WebNotify.cc
     http/HttpServer.cc
     http/HttpRequest.cc
     http/HttpResponse.cc
@@ -255,7 +256,10 @@ if (NOT CLIENT AND Linux)
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
     XROOTD::UTILS
-    PROTOBUF::PROTOBUF)
+    PROTOBUF::PROTOBUF
+    ActiveMQCPP::ActiveMQCPP
+    GRPC::grpc++
+  )
 
   target_compile_definitions(EosCommonServer-Objects PUBLIC
     -DSQLITE_NO_SYNC=1)
@@ -269,6 +273,7 @@ if (NOT CLIENT AND Linux)
   target_link_libraries(EosCommonServer PUBLIC
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
+    EosGrpcProto-Objects
     XrdMqClient)
 
   target_compile_definitions(EosCommonServer PUBLIC

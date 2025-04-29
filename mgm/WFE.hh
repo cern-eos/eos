@@ -164,7 +164,7 @@ public:
       mFid = fid;
       mRetry = 0;
       mVid = vid;
-      mErrorMesssage = errorMessage;
+      mErrorMessage = errorMessage;
     }
 
     ~Job() override = default;
@@ -175,7 +175,7 @@ public:
       mFid = other.mFid;
       mDescription = other.mDescription;
       mRetry = other.mRetry;
-      mErrorMesssage = other.mErrorMesssage;
+      mErrorMessage = other.mErrorMessage;
     }
     // ---------------------------------------------------------------------------
     // Job execution function
@@ -189,6 +189,13 @@ public:
     //! @ininfo original opaque information of the URL that triggered the event
     int  DoIt(bool issync, std::string& errorMsg, const char * const ininfo = nullptr);
 
+    //! @brief Handles "notify" method events
+    //! @param errorMsg out parameter giving the text of any error
+    //! @ininfo original opaque information of the URL that triggered the event
+    //! @args notification args
+    //! @return SFS_OK if success
+    int HandleNotifyEvents(std::string& errorMsg, const char * const ininfo, const std::string& args);
+    
     //! @brief Handles "proto" method events
     //! @param errorMsg out parameter giving the text of any error
     //! @ininfo original opaque information of the URL that triggered the event
@@ -349,7 +356,7 @@ public:
     std::string mDescription;
     eos::common::VirtualIdentity mVid;
     std::string mWorkflowPath;
-    std::string mErrorMesssage;
+    std::string mErrorMessage;
     int mRetry;///! number of retries
 
   private:

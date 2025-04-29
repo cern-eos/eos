@@ -27,9 +27,10 @@
 #include "common/ShellCmd.hh"
 #include "common/StringTokenizer.hh"
 #include "common/Constants.hh"
-#include "mgm/Quota.hh"
 #include "common/CtaCommon.hh"
+#include "mgm/Quota.hh"
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
+#include "common/WebNotify.hh"
 #include "mgm/XattrSet.hh"
 #include "mgm/WFE.hh"
 #include "mgm/Stat.hh"
@@ -41,12 +42,11 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
+#include "namespace/utils/Attributes.hh"
 #include <Xrd/XrdScheduler.hh>
-#include <grpc++/grpc++.h>
-#include "cta_frontend.pb.h"
-#include "cta_frontend.grpc.pb.h"
-#include "common/WFEClient.hh"
-
+#include "proto/Rpc.grpc.pb.h"
+#include <google/protobuf/util/json_util.h>
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
 XrdSysMutex eos::mgm::WFE::gSchedulerMutex;
@@ -443,7 +443,7 @@ WFE::Job::Save(std::string queue, time_t& when, int action, int retry)
     gOFS->eosView->updateContainerStore(cmd.get());
     fmd->setAttribute("sys.action", mActions[0].mAction);
     fmd->setAttribute("sys.vid", vids);
-    fmd->setAttribute("sys.wfe.errmsg", mErrorMesssage);
+    fmd->setAttribute("sys.wfe.errmsg", mErrorMessage);
     fmd->setAttribute("sys.wfe.retry", std::to_string(retry));
     gOFS->eosView->updateFileStore(fmd.get());
   } catch (eos::MDException& ex) {
@@ -525,7 +525,7 @@ WFE::Job::Load(std::string path2entry)
       }
 
       try {
-        mErrorMesssage = fmd->getAttribute("sys.wfe.errmsg");
+        mErrorMessage = fmd->getAttribute("sys.wfe.errmsg");
       } catch (eos::MDException& ex) {
         eos_static_info("msg=\"no error message stored\" path=\"%s\"", f.c_str());
       }
@@ -634,6 +634,21 @@ WFE::Job::Results(std::string queue, int retc, XrdOucString log, time_t when)
                    workflowpath.c_str(),
                    log.c_str());
     return -1;
+  }
+
+  if (!retc) {
+    // we remote the ugly error message, which sticks around even if retc=0
+    if (gOFS->_attr_set(workflowpath.c_str(),
+			lError,
+			rootvid,
+			nullptr,
+			"sys.wfe.errmsg",
+			"")) {
+      eos_static_err("msg=\"failed to store workflow return code\" path=\"%s\" retc=\"%s\"",
+		     workflowpath.c_str(),
+                   sretc.c_str());
+      return -1;
+    }
   }
 
   return SFS_OK;
@@ -1546,6 +1561,8 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
                          mDescription.c_str());
           Move(mActions[0].mQueue, "g", storetime);
         }
+      } else if (method == "notify") {
+	return HandleNotifyEvents(errorMsg, ininfo, args);
       } else if (gOFS->mTapeEnabled && method == "proto") {
         return HandleProtoMethodEvents(errorMsg, ininfo);
       } else {
@@ -1570,6 +1587,133 @@ WFE::Job::DoIt(bool issync, std::string& errorMsg, const char* const ininfo)
   }
 
   return retc;
+}
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief Handles "notify" method events
+ * @param errorMsg out parameter giving the text of any error
+ * @args notification arguments
+ * @return SFS_OK if success
+ */
+/*----------------------------------------------------------------------------*/
+int WFE::Job::HandleNotifyEvents(std::string& errorMsg,
+				 const char* const ininfo,
+				 const std::string &args)
+{
+  const auto event = mActions[0].mEvent;
+  std::string fullPath;
+  std::vector<std::string> tokens;
+
+  // the syntax is: protocol:uri:port:channel:timeout
+  // undefined have to be set empty, we always expect 5 tokens = ::::
+
+  eos::common::StringConversion::EmptyTokenize(args,
+					       tokens,
+					       "|");
+
+  // check notification configuration
+  if (tokens.size() != 5) {
+    eos_static_err("msg=\"invalid notificaiton\" args='%s'", args.c_str());
+    MoveWithResults(EINVAL);
+    return EINVAL;
+  }
+
+  std::string json;
+
+  try {
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFid);
+    eos::common::RWMutexReadLock rlock(gOFS->eosViewRWMutex);
+    auto fmd = gOFS->eosFileService->getFileMD(mFid);
+    fullPath = gOFS->eosView->getUri(fmd.get());
+
+    eos::rpc::MDNotification rpcresponse;
+    rpcresponse.set_type(eos::rpc::FILE);
+
+    eos::rpc::FileMdProto* rpcfmd = rpcresponse.mutable_fmd();
+    eos::rpc::RoleId* rpcrole     = rpcresponse.mutable_role();
+
+    rpcrole->set_uid(mVid.uid);
+    rpcrole->set_gid(mVid.gid);
+    rpcrole->set_username(mVid.uid_string);
+    rpcrole->set_groupname(mVid.gid_string);
+    rpcrole->set_app(mVid.app);
+
+    rpcfmd->set_name(fmd->getName());
+    rpcfmd->set_id(fmd->getId());
+    rpcfmd->set_inode(eos::common::FileId::FidToInode(fmd->getId()));
+    rpcfmd->set_cont_id(fmd->getContainerId());
+    rpcfmd->set_uid(fmd->getCUid());
+    rpcfmd->set_gid(fmd->getCGid());
+    rpcfmd->set_size(fmd->getSize());
+    rpcfmd->set_layout_id(fmd->getLayoutId());
+    rpcfmd->set_flags(fmd->getFlags());
+    rpcfmd->set_link_name(fmd->getLink());
+    eos::IFileMD::ctime_t ctime;
+    eos::IFileMD::ctime_t mtime;
+    fmd->getCTime(ctime);
+    fmd->getMTime(mtime);
+    rpcfmd->mutable_ctime()->set_sec(ctime.tv_sec);
+    rpcfmd->mutable_ctime()->set_n_sec(ctime.tv_nsec);
+    rpcfmd->mutable_mtime()->set_sec(mtime.tv_sec);
+    rpcfmd->mutable_mtime()->set_n_sec(mtime.tv_nsec);
+    rpcfmd->mutable_checksum()->set_value(
+					 fmd->getChecksum().getDataPtr(), fmd->getChecksum().size());
+    rpcfmd->mutable_checksum()->set_type(
+					eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId()));
+    for (const auto& elem : fmd->getAttributes()) {
+      (*rpcfmd->mutable_xattrs())[elem.first] = elem.second;
+    }
+ 
+    std::string etag;
+    eos::calculateEtag(fmd.get(), etag);
+
+    if (fmd->hasAttribute("sys.eos.mdino")) {
+      etag = "hardlink";
+    }
+    
+    rpcfmd->set_etag(etag);
+    rpcfmd->set_path(fullPath);
+
+    google::protobuf::util::JsonPrintOptions options;
+    //   options.add_whitespace = true;         // Pretty print
+    //    options.preserve_proto_field_names = true; // Use proto field names instead of camelCase
+    //    options.always_print_primitive_fields = true;
+    auto status = google::protobuf::util::MessageToJsonString(rpcresponse, &json, options);
+
+    if (!status.ok()) {
+      eos_static_err("msg=\"failed to convert GRPC to JSON\"");
+      MoveWithResults(EFAULT);
+      return EFAULT;
+    }
+  } catch (eos::MDException& e) {
+    eos_static_err("msg=\"could not get metadata for file %u\" reason='%s'", mFid,
+                   e.getMessage().str().c_str());
+    MoveWithResults(ENOENT);
+    return ENOENT;
+  }
+
+  eos_static_info("msg=\"web-notify\" method=%s uri=%s port=%s channel=%s json='%s' timeout=%s",
+		  tokens[0].c_str(),
+		  tokens[1].c_str(),
+		  tokens[2].c_str(),
+		  tokens[3].c_str(),
+		  json.c_str(),
+		  tokens[4].c_str());
+  bool notified = eos::common::WebNotify::Notify(tokens[0],
+						 tokens[1],
+						 tokens[2],
+						 tokens[3],
+						 json,
+						 tokens[4]);
+
+  if (notified) {
+    MoveWithResults(SFS_OK);
+    return 0;
+  } else {
+    MoveWithResults(EFAULT);
+    return EFAULT;
+  }
 }
 
 
@@ -2665,7 +2809,7 @@ WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string& fullPath)
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, "");
     fmd->setAttribute(RETRIEVE_REQTIME_ATTR_NAME, "");
-    fmd->setAttribute(RETRIEVE_ERROR_ATTR_NAME, mErrorMesssage);
+    fmd->setAttribute(RETRIEVE_ERROR_ATTR_NAME, mErrorMessage);
     gOFS->eosView->updateFileStore(fmd.get());
   } catch (eos::MDException& ex) {
     eos_static_err("Could not reset retrieves counter and set retrieve error attribute for file %s.",
@@ -2688,7 +2832,7 @@ WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string& fullPath)
   try {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
-    fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, mErrorMesssage);
+    fmd->setAttribute(ARCHIVE_ERROR_ATTR_NAME, mErrorMessage);
     gOFS->eosView->updateFileStore(fmd.get());
   } catch (eos::MDException& ex) {
     eos_static_err("Could not set archive error attribute for file %s.",
