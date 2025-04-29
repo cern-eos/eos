@@ -1254,6 +1254,19 @@ runtest "### Download" unix 1 "EOSROLE='-r 985 979'" eos cp "/eos/$EOS_TEST_INST
 runtest "### Acl set " unix 0 "" eos acl u:985=rw "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat"
 runtest "### Download" unix 0 "EOSROLE='-r 985 970'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
 runtest "### Download" unix 0 "EOSROLE='-r  ${NOBODY_UID}  ${NOBODY_GID}'" eos cp "/eos/$EOS_TEST_INSTANCE/test/acl/file.dat" -
+# Test the file rename ACL !d
+runtest "### Mkdir   " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src"
+runtest "### Mkdir   " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_dst"
+runtest "### Acl set " unix 0 "" eos acl u:2=rwx!d "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src"
+runtest "### Acl set " unix 0 "" eos acl u:2=rwx!d "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_dst"
+runtest "### Upload  " unix 0 "EOSROLE='-r 2 2'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/uid2.dat"
+runtest "### Upload  " unix 0 "EOSROLE='-r 2 2'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/nobody.dat"
+runtest "### Chown   " unix 0  "" eos chown "${NOBODY_UID}:${NOBODY_GID}" "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/nobody.dat"
+# uid 2 should be able to move their file despite the !d permission as it is their file
+runtest "### Move    " unix 0 "EOSROLE='-r 2 2'" eos file rename "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/uid2.dat" "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_dst/uid2.dat"
+# uid 2 should not be able to move the NOBODY file as they don't own it
+runtest "### Move    " unix 1 "EOSROLE='-r 2 2'" eos file rename "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/nobody.dat" "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_dst/nobody.dat"
+
 runtest "### Rmdir   " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/acl"
 
 ################################################################################

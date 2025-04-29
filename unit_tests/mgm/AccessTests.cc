@@ -307,10 +307,16 @@ TEST_F(MappingTestF, AccessChecker_FileRename)
   int req_mode = W_OK | D_OK;
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1));
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2));
-  // Forbid deletions by user vid1 and allow write(del) by vid2
-  acl.Set("u:5555:!d,u:5556:rwx", "", "", vid1, true);
-  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1));
   // ACL object is interpreted relative to the vid identity
+  // User vid1 (owner of the file) should be able to delete despite ACL saying otherwise
+  acl.Set("u:5555:!d,u:5556:rwx", "", "", vid1, true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1));
+  // vid2 should be able to delete as it has rwx
+  acl.Set("u:5555:!d,u:5556:rwx", "", "", vid2, true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2));
+  // Forbid deletion to vid2
+  acl.Set("u:5555:!d,u:5556:rwx!d", "", "", vid2, true);
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2));
   acl.Set("u:5555:!d,u:5556:rwx", "", "", vid2, true);
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2));
   // Set directory S_ISVTX bit (sticky bit) which means only owner is
@@ -326,14 +332,20 @@ TEST_F(MappingTestF, AccessChecker_FileRename)
   acl.Set("", "", "", vid1, true);
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1) &&
               mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid1));
+  // vid1 is the owner of the file and directory --> can delete despite ACL saying otherwise
   acl.Set("u:5555:!d", "", "", vid1, true);
-  ASSERT_TRUE(!mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1) &&
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid1) &&
                mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid1));
   acl.Set("", "", "", vid2, true);
+  // vid2 cannot delete as they are not the owner of the file nor the container
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2) &&
                mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid2));
   acl.Set("u:5555:!d,u:5556:rwx", "", "", vid2, true);
+  // vid2 is not the owner of the container but has the rwx ACL --> can delete
   ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2) &&
+              mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid2));
+  acl.Set("u:5555:!d,u:5556:rwx!d", "", "", vid2, true);
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2) &&
               mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid2));
   // Set directory S_ISVTX bit (sticky bit) which means only owner is
   // allowed to delete irrespective of the ACLs
@@ -350,6 +362,15 @@ TEST_F(MappingTestF, AccessChecker_FileRename)
   acl.Set("u:5555:!d,u:5556:rwx+d", "", "", vid2, true);
   ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(), acl, req_mode, vid2) &&
                mgm::AccessChecker::checkFile(file.get(), req_mode, cont->getMode(), vid2));
+  // A user owning the file should be able to delete/rename a file regardless of the ACL
+  // provided that the parent container has "w" permission
+  cont->setMode(S_IFDIR | S_IRWXU);
+  acl.Set("u:5555:!d","","",vid1,true);
+  ASSERT_TRUE(mgm::AccessChecker::checkContainer(cont.get(),acl,req_mode,vid1));
+  cont->setMode(S_IFDIR);
+  // Container read-only but no ACL, vid1 cannot delete
+  acl.Set("","","",vid1,true);
+  ASSERT_FALSE(mgm::AccessChecker::checkContainer(cont.get(),acl,req_mode,vid1));
 }
 
 

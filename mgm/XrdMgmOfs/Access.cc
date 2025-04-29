@@ -130,12 +130,26 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
     {
       // In any case, we need to check the container access, read lock it to
       // check its access and release its lock afterwards
-      eos::MDLocking::ContainerReadLock dhLock(dh);
+      eos::MDLocking::ContainerReadLockPtr dhLock = eos::MDLocking::readLock(dh);
       dh_mode = dh->getMode();
 
       if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
-        errno = EPERM;
-        return Emsg(epname, error, EPERM, "access", path);
+        bool deny = true;
+        if((mode & D_OK) && acl.HasAcl() && acl.CanNotDelete()) {
+          // The container cannot be accessed for deletion, however if the acl has !d, we need
+          // to allow the owner of the file to delete it
+          if(fh) {
+            // Unlock the container before calling the file' getter
+            dhLock.reset();
+            if(fh->getCUid() == vid.uid) {
+              deny = false;
+            }
+          }
+        }
+        if(deny) {
+          errno = EPERM;
+          return Emsg(epname, error, EPERM, "access", path);
+        }
       }
     }
 
