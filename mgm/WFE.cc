@@ -2802,7 +2802,7 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   cta::xrd::Response response;
   // Instantiate service object only once, static is thread-safe
   // need to update CreateRequestSender
-  static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->protowfusegrpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource);
+  static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(gOFS->protowfusegrpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource, gOFS->ProtoWFEndPointGrpc);
   cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
   // Send the request
   try {
