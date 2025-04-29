@@ -77,7 +77,7 @@ public:
       lookup_cnt.store(0, std::memory_order_seq_cst);
       opendir_cnt.store(0, std::memory_order_seq_cst);
       lock_remote = true;
-      cap_count_reset();
+      cap_count_set(0);
       clear_refresh();
       rmrf = false;
       inline_size = 0;
@@ -286,9 +286,9 @@ public:
       cap_cnt.fetch_sub(1, std::memory_order_seq_cst);
     }
 
-    void cap_count_reset()
+    void cap_count_set(uint64_t cnt)
     {
-      cap_cnt.store(0, std::memory_order_seq_cst);
+      cap_cnt.store(cnt, std::memory_order_seq_cst);
     }
 
     int cap_count()
@@ -866,22 +866,7 @@ public:
   }
 
   void
-  reset_cap_count(uint64_t ino)
-  {
-    shared_md md;
-
-    if (!mdmap.retrieveTS(ino, md)) {
-      eos_static_err("no cap counter change for ino=%lx", ino);
-      return;
-    }
-
-    XrdSysMutexHelper iLock(md->Locker());
-    md->cap_count_reset();
-    eos_static_err("reset cap counter for ino=%lx", ino);
-  }
-
-  void
-  decrease_cap(uint64_t ino)
+  set_cap_count(uint64_t ino, uint64_t cnt)
   {
     shared_md md;
 
@@ -890,31 +875,8 @@ public:
       return;
     }
 
-    md->cap_dec();
-    eos_static_debug("decrease cap counter for ino=%lx", ino);
-  }
-
-  void
-  increase_cap(uint64_t ino, bool lock = false)
-  {
-    shared_md md;
-
-    if (!mdmap.retrieveTS(ino, md)) {
-      eos_static_err("no cap counter change for ino=%lx", ino);
-      return;
-    }
-
-    if (lock) {
-      md->Locker().Lock();
-    }
-
-    md->cap_inc();
-
-    if (lock) {
-      md->Locker().UnLock();
-    }
-
-    eos_static_err("increase cap counter for ino=%lx", ino);
+    md->cap_count_set(cnt);
+    eos_static_debug("set cap counter for ino=%lx cnt=%lx", ino, cnt);
   }
 
   std::string get_clientuuid() const

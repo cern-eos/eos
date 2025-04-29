@@ -1813,7 +1813,7 @@ metad::cleanup(shared_md md)
   md->Locker().Lock();
   (*md)()->set_type((*md)()->MD);
   (*md)()->set_creator(false);
-  md->cap_count_reset();
+  md->cap_count_set(0);
   md->get_todelete().clear();
   md->setop_none();     /* so that wait_flush() returns */
   md->Locker().UnLock();
