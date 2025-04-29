@@ -425,6 +425,7 @@ public:
 
 private:
 
+  std::map<fuse_ino_t, uint64_t> capcnt;
   cmap capmap;
   cmap capextionsmap;
   qmap quotamap;

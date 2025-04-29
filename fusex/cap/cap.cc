@@ -97,6 +97,10 @@ cap::reset()
   }
 
   capmap.clear();
+  for (auto &p: capcnt) {
+    mds->set_cap_count(p.first, 0);
+  }
+  capcnt.clear();
 }
 
 /* -------------------------------------------------------------------------- */
@@ -241,6 +245,9 @@ cap::store(fuse_req_t req,
   (*cap)()->set_clientid(clientid);
   *cap = icap;
   (*cap)()->set_id(id);
+  if (!capmap.count(cid)) {
+    capcnt[id]++;
+  }
   capmap[cid] = cap;
   eos_static_debug("store inode=[r:%lx l:%lx] capid=%s cap: %s", icap.id(),
                    id, cid.c_str(), capmap[cid]->dump().c_str());
@@ -261,6 +268,13 @@ cap::forget(const std::string& cid)
       shared_cap cap = capmap[cid];
       inode = (*cap)()->id();
       capmap.erase(cid);
+      if (capcnt.count(inode)) {
+        if (capcnt[inode]<=1) {
+          capcnt.erase(inode);
+        } else {
+          capcnt[inode]--;
+        }
+      }
       XrdSysMutexHelper rLock(revocationLock);
       revocationset.insert((*cap)()->authid());
     } else {
@@ -501,10 +515,10 @@ cap::capflush(ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
     {
-      cmap capdelmap;
+      std::map<std::string, fuse_ino_t> capdelmap;
       cinodes capdelinodes;
       cmap flushcaps;
-      // avoid keeping two mutexes
+      // avoid locking a cap while holding capmap lock
       {
         XrdSysMutexHelper capLock(capmap);
         flushcaps = capmap;
@@ -515,14 +529,11 @@ cap::capflush(ThreadAssistant& assistant)
 
         // make a list of caps to timeout
         if (!it->second->valid(false)) {
-          capdelmap[it->first] = it->second;
+          capdelmap[it->first] = (*it->second)()->id();
 
           if (EOS_LOGS_DEBUG) {
             eos_static_debug("expire %s", it->second->dump().c_str());
           }
-
-          mds->decrease_cap((*it->second)()->id());
-          capdelinodes.insert((*it->second)()->id());
         }
       }
 
@@ -530,8 +541,25 @@ cap::capflush(ThreadAssistant& assistant)
         XrdSysMutexHelper capLock(capmap);
 
         for (auto it = capdelmap.begin(); it != capdelmap.end(); ++it) {
-          // remove the expired or invalidated by delete caps
-          capmap.erase(it->first);
+          auto cmit = capmap.find(it->first);
+          // requirement on cap reference count is to avoid removing
+          // an invalid entry while it may be being refresh(); our
+          // capcnt would remain correct but we only notify mds on removal
+          if (cmit != capmap.end() && cmit->second.use_count() == 2) {
+            // remove the expired or invalidated by delete caps
+            capmap.erase(cmit);
+            const fuse_ino_t ino = it->second;
+            uint64_t cnt=0;
+            if (capcnt.count(ino)) {
+              if (capcnt[ino]<=1) {
+                capcnt.erase(ino);
+              } else {
+                cnt = --capcnt[ino];
+              }
+            }
+            mds->set_cap_count(it->second, cnt);
+            capdelinodes.insert(it->second);
+          }
         }
       }
 
