@@ -61,7 +61,7 @@ public:
   XrdOucString PortAlias; // alias for the port to use in redirection
   mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
   bool protowfusegrpc; // use the xrootd or the grpc protocol
-  std::string ProtoWFEndpointGrpc; // proto wf gRPC endpoint (typically CTA frontend)
+  std::string ProtoWFEndPointGrpc; // proto wf gRPC endpoint (typically CTA frontend)
 
   Config() : generator((std::random_device())())
   {

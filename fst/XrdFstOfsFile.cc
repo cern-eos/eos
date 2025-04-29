@@ -3951,10 +3951,16 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     grpcEndPoint = gConfig.ProtoWFEndpointGrpc;
   }
 
-  if (endPoint.empty() || resource.empty()) {
+  if ((ssiEndPoint.empty() || resource.empty()) && !protowfusegrpc) {
     eos_static_err("%s", "msg=\"you are running proto wf jobs without "
                    "specifying fstofs.protowfendpoint or "
                    "fstofs.protowfresource in the FST config file\"");
+    return ENOTCONN;
+  }
+
+  if (protowfusegrpc && grpcEndPoint.empty()) {
+    eos_static_err("%s", "msg=\"you are running proto wf jobs without "
+      "specifying fstofs.protowfendpointgrpc in the FST config file\"");
     return ENOTCONN;
   }
 
