@@ -181,7 +181,7 @@ TEST(WebNotifyTimeoutTests, HttpPostNotification_OK) {
     EXPECT_FALSE(notifier.sendHttpPostNotification(url, message, 250));
     auto response_message = server.GetMessage();  // Blocks until message is received
     std::cerr << to_visible_string(response_message) << std::endl;
-    EXPECT_EQ("POST / HTTP/1.1\r\nHost: localhost:12345\r\nAccept: */*\r\nContent-Type: application/json\r\nContent-Length: 34\r\n\r\n{\"message\": \"{\"event\":\"ok_test\"}\"}",std::string(response_message.begin(), response_message.end()));
+    EXPECT_EQ("POST / HTTP/1.1\r\nHost: localhost:12345\r\nAccept: */*\r\nContent-Type: application/json\r\nContent-Length: 19\r\n\r\n{\"event\":\"ok_test\"}",std::string(response_message.begin(), response_message.end()));
 }
 
 TEST(WebNotifyTimeoutTests, GrpcNotification_TimesOut) {
