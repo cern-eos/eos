@@ -34,4 +34,4 @@
 	url = https://gitlab.cern.ch/eos/eos-protobuf-spec.git
 [submodule "fst/css_plugin"]
 	path = fst/css_plugin
-	url = https://code.ihep.ac.cn/storage/eoscss/css_plugin.git
+	url = https://gitlab.cern.ch/eos/css_plugin.git
