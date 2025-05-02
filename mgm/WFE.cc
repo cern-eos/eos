@@ -46,6 +46,7 @@
 #include "namespace/utils/Attributes.hh"
 #include <Xrd/XrdScheduler.hh>
 #include "proto/Rpc.grpc.pb.h"
+#include "common/WFEClient.hh"
 #include <google/protobuf/util/json_util.h>
 #define EOS_WFE_BASH_PREFIX "/var/eos/wfe/bash/"
 
