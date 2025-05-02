@@ -51,6 +51,15 @@ public:
     return _id;
   }
 
+  void patch()
+  {
+    if (getuid()) {
+      // single user mount, always use this users credentials
+      uid = getuid();
+      gid = getgid();
+    }
+  }
+
   fuse_id()
   {
     uid = gid = pid = 0;
@@ -61,6 +70,7 @@ public:
     uid = fuse_req_ctx(req)->uid;
     gid = fuse_req_ctx(req)->gid;
     pid = fuse_req_ctx(req)->pid;
+    patch();
   }
 
   void init(fuse_req_t req)
@@ -68,6 +78,7 @@ public:
     uid = fuse_req_ctx(req)->uid;
     gid = fuse_req_ctx(req)->gid;
     pid = fuse_req_ctx(req)->pid;
+    patch();
   }
 
   fuse_id(const fuse_id& o)
