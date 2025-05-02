@@ -25,6 +25,12 @@
 #include "cta_frontend.pb.h"
 #include "cta_frontend.grpc.pb.h"
 #include "common/Logging.hh"
+#include "common/Namespace.hh"
+
+#pragma once
+
+EOSCOMMONNAMESPACE_BEGIN;
+
 
 class WFEClient {
 public:
@@ -124,3 +130,5 @@ CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_r
     return std::make_unique<WFEXrdClient>(endpoint, ssi_resource, config);
   }
 }
+
+EOSCOMMONNAMESPACE_END
