@@ -170,7 +170,7 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
 
   for (const auto& queryPrepareResponse :
        queryPrepareResult->getResponse()->responses) {
-    auto& filesFromBulkRequest = bulkRequest->getFilesMap();
+    const auto& filesFromBulkRequest = bulkRequest->getFilesMap();
     auto fileFromBulkRequestItor = filesFromBulkRequest->find(
                                      queryPrepareResponse.path);
 

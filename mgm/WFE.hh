@@ -421,7 +421,7 @@ public:
   //! Return active jobs
   // ---------------------------------------------------------------------------
 
-  inline auto GetActiveJobs() -> decltype(mActiveJobs.load()) const
+  inline uint_least32_t GetActiveJobs()  const
   {
     return mActiveJobs.load();
   }

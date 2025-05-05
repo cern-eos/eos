@@ -42,9 +42,9 @@ public:
    */
   friend class PrepareManager;
   QueryPrepareResult();
-  const bool hasQueryPrepareFinished() const;
+  bool hasQueryPrepareFinished() const;
   std::shared_ptr<QueryPrepareResponse> getResponse() const;
-  const int getReturnCode() const;
+  int getReturnCode() const;
 private:
   void setQueryPrepareFinished();
   void setReturnCode(int returnCode);

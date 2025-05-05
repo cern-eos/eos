@@ -49,8 +49,8 @@ public:
   GetStageBulkRequestResponseModel() {}
   void addFile(std::unique_ptr<File>&& file);
   const std::vector<std::unique_ptr<File>>& getFiles() const;
-  const time_t getCreationTime() const;
-  const std::string getId() const;
+  time_t getCreationTime() const;
+  std::string getId() const;
   void setCreationTime(const time_t& creationTime);
   void setId(const std::string& id);
 private:

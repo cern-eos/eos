@@ -300,7 +300,7 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 // Get file identifier to balance from the given source file system
 //------------------------------------------------------------------------------
-const eos::IFileMD::id_t
+eos::IFileMD::id_t
 FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
                              const std::set<FsBalanceInfo>& set_dsts,
                              FsBalanceInfo& dst)

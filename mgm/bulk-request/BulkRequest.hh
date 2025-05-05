@@ -58,20 +58,20 @@ public:
    * Returns the id of this bulk request
    * @return the id of this bulk request
    */
-  const std::string getId() const;
+  std::string getId() const;
   /**
    * Returns the type of this bulk request
    * @return the type of this bulk request
    */
-  virtual const Type getType() const = 0;
+  virtual Type getType() const = 0;
 
   /**
    * Returns the files contained in this bulk request
    * @return the map containing the files this bulk request contains
    */
-  const std::shared_ptr<FileCollection::Files> getFiles() const;
+  std::shared_ptr<FileCollection::Files> getFiles() const;
 
-  const std::shared_ptr<FileCollection::FilesMap> getFilesMap() const;
+  std::shared_ptr<FileCollection::FilesMap> getFilesMap() const;
 
   /**
    * Adds a File to the bulk-request
@@ -86,13 +86,13 @@ public:
    * @param type the type of the bulk request
    * @return the string representation of the bulk request type passed in parameter
    */
-  static const std::string bulkRequestTypeToString(const Type& bulkRequestType);
+  static std::string bulkRequestTypeToString(const Type& bulkRequestType);
 
   /**
    * Returns the set of files that have an error
    * @return the set of files that have an error
    */
-  const std::shared_ptr<std::set<File>> getAllFilesInError() const;
+  std::shared_ptr<std::set<File>> getAllFilesInError() const;
 private:
   //Id of the bulk request
   std::string mId;

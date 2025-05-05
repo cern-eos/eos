@@ -111,7 +111,7 @@ public:
   //------------------------------------------------------------------------
   //! Get data padded (if we read over the size we get 0 as response)
   //------------------------------------------------------------------------
-  const char getDataPadded(size_t i) const
+  char getDataPadded(size_t i) const
   {
     if (!data) {
       if (i < size()) {

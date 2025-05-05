@@ -37,7 +37,7 @@ class CancellationBulkRequest : public BulkRequest
 {
 public:
   CancellationBulkRequest(const std::string& id);
-  const BulkRequest::Type getType() const override;
+  BulkRequest::Type getType() const override;
 private:
 };
 

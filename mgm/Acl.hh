@@ -301,11 +301,11 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //! Return if enabled to evaluate user acls
   //----------------------------------------------------------------------------
 
-  inline const bool EvalUserAttr()
+  inline bool EvalUserAttr()
   {
     return mEvalDirUserAcl;
   }
-  inline const bool EvalUserAttrFile()
+  inline bool EvalUserAttrFile()
   {
     return mEvalFileUserAcl;
   }

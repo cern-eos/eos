@@ -122,12 +122,12 @@ protected:
    * @param pargsOpts the prepare options given by Xrootd (XrdSfsPrep.opts)
    * @return the Prepare actions to perform from the options given by Xrootd (XrdSfsPrep.opts)
    */
-  const int getPrepareActionsFromOpts(const int pargsOpts) const;
+  int getPrepareActionsFromOpts(const int pargsOpts) const;
 
   /**
    * @return true if this prepare request is a stage one, false otherwise
    */
-  virtual const bool isStagePrepare() const;
+  virtual bool isStagePrepare() const;
 
   /**
    * Triggers the prepare workflow to all the pathsToPrepare passed in parameter

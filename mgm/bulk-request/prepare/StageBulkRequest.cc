@@ -34,7 +34,7 @@ StageBulkRequest::StageBulkRequest(const std::string& id,
                                    const common::VirtualIdentity& issuerVid,
                                    const time_t& creationTime): BulkRequest(id), mIssuerVid(issuerVid),
   mCreationTime(creationTime) {}
-const BulkRequest::Type StageBulkRequest::getType() const
+BulkRequest::Type StageBulkRequest::getType() const
 {
   return BulkRequest::Type::PREPARE_STAGE;
 }
@@ -44,7 +44,7 @@ const common::VirtualIdentity& StageBulkRequest::getIssuerVid() const
   return mIssuerVid;
 }
 
-const time_t StageBulkRequest::getCreationTime() const
+time_t StageBulkRequest::getCreationTime() const
 {
   return mCreationTime;
 }

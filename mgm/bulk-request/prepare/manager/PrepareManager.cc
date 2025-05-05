@@ -485,14 +485,14 @@ void PrepareManager::addFileToBulkRequest(std::unique_ptr<File>&& file)
   // Sub-classes may decide to implement this member function
 }
 
-const int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const
+int PrepareManager::getPrepareActionsFromOpts(const int pargsOpts) const
 {
   const int pargsOptsQoS = Prep_PMASK | Prep_SENDAOK | Prep_SENDERR | Prep_SENDACK
                            | Prep_WMODE | Prep_COLOC | Prep_FRESH;
   return pargsOpts & ~pargsOptsQoS;
 }
 
-const bool PrepareManager::isStagePrepare() const
+bool PrepareManager::isStagePrepare() const
 {
   return mPrepareAction == PrepareAction::STAGE;
 }

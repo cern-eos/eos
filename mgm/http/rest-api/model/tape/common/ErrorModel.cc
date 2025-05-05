@@ -56,22 +56,22 @@ void ErrorModel::setDetail(const std::string& detail)
   mDetail = detail;
 }
 
-const std::optional<std::string> ErrorModel::getType() const
+std::optional<std::string> ErrorModel::getType() const
 {
   return mType;
 }
 
-const std::string ErrorModel::getTitle() const
+std::string ErrorModel::getTitle() const
 {
   return mTitle;
 }
 
-const uint32_t ErrorModel::getStatus() const
+uint32_t ErrorModel::getStatus() const
 {
   return mStatus;
 }
 
-const std::optional<std::string> ErrorModel::getDetail() const
+std::optional<std::string> ErrorModel::getDetail() const
 {
   return mDetail;
 }

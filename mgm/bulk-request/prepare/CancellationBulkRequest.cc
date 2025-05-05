@@ -28,7 +28,7 @@ EOSBULKNAMESPACE_BEGIN
 CancellationBulkRequest::CancellationBulkRequest(const std::string& id):
   BulkRequest(id) {}
 
-const BulkRequest::Type CancellationBulkRequest::getType() const
+BulkRequest::Type CancellationBulkRequest::getType() const
 {
   return BulkRequest::Type::PREPARE_CANCEL;
 }

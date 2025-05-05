@@ -36,12 +36,12 @@ const std::vector<std::unique_ptr<GetStageBulkRequestResponseModel::File>>&
   return mFiles;
 }
 
-const time_t GetStageBulkRequestResponseModel::getCreationTime() const
+time_t GetStageBulkRequestResponseModel::getCreationTime() const
 {
   return mCreationTime;
 }
 
-const std::string GetStageBulkRequestResponseModel::getId() const
+std::string GetStageBulkRequestResponseModel::getId() const
 {
   return mId;
 }

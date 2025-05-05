@@ -252,7 +252,7 @@ private:
   //!
   //! @return string representation of the percentage value
   //----------------------------------------------------------------------------
-  const float
+  float
   GetQuotaPercentage(unsigned long long is, unsigned long long avail);
 
   //----------------------------------------------------------------------------

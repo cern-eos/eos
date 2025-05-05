@@ -32,7 +32,7 @@ BulkRequest::BulkRequest(const std::string& id): mId(id)
 {
 }
 
-const std::string BulkRequest::getId() const
+std::string BulkRequest::getId() const
 {
   return mId;
 }
@@ -42,23 +42,23 @@ void BulkRequest::addFile(std::unique_ptr<File>&& file)
   mFileCollection.addFile(std::move(file));
 }
 
-const std::shared_ptr<FileCollection::Files> BulkRequest::getFiles() const
+std::shared_ptr<FileCollection::Files> BulkRequest::getFiles() const
 {
   return mFileCollection.getAllFiles();
 }
 
-const std::shared_ptr<FileCollection::FilesMap> BulkRequest::getFilesMap()
+std::shared_ptr<FileCollection::FilesMap> BulkRequest::getFilesMap()
 const
 {
   return mFileCollection.getFilesMap();
 }
 
-const std::shared_ptr<std::set<File>> BulkRequest::getAllFilesInError() const
+std::shared_ptr<std::set<File>> BulkRequest::getAllFilesInError() const
 {
   return mFileCollection.getAllFilesInError();
 }
 
-const std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type&
+std::string BulkRequest::bulkRequestTypeToString(const BulkRequest::Type&
     bulkRequestType)
 {
   return BulkRequest::BULK_REQ_TYPE_TO_STRING_MAP.at(bulkRequestType);

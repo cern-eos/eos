@@ -36,13 +36,13 @@ void TapeRestApiConfig::setSiteName(const std::string& siteName)
   mSiteName = siteName;
 }
 
-const std::string TapeRestApiConfig::getSiteName() const
+std::string TapeRestApiConfig::getSiteName() const
 {
   common::RWMutexReadLock rwlock(mConfigMutex);
   return mSiteName;
 }
 
-const bool TapeRestApiConfig::isActivated() const
+bool TapeRestApiConfig::isActivated() const
 {
   return mIsActivated;
 }
@@ -64,7 +64,7 @@ void TapeRestApiConfig::setHostAlias(const std::string& mgmOfsAlias)
   mHostAlias = mgmOfsAlias;
 }
 
-const std::string TapeRestApiConfig::getHostAlias() const
+std::string TapeRestApiConfig::getHostAlias() const
 {
   common::RWMutexReadLock rwlock(mConfigMutex);
   return mHostAlias;
@@ -76,7 +76,7 @@ void TapeRestApiConfig::setEndpointToUrlMapping(const std::map<std::string, std:
   mTapeRestApiEndpointUrlMap = tapeRestApiEndpointUriMap;
 }
 
-const std::map<std::string, std::string> TapeRestApiConfig::getEndpointToUriMapping() const
+std::map<std::string, std::string> TapeRestApiConfig::getEndpointToUriMapping() const
 {
   common::RWMutexReadLock rwlock(mConfigMutex);
   return mTapeRestApiEndpointUrlMap;
@@ -87,12 +87,12 @@ void TapeRestApiConfig::setXrdHttpPort(const uint16_t xrdHttpPort)
   mXrdHttpPort = xrdHttpPort;
 }
 
-const uint16_t TapeRestApiConfig::getXrdHttpPort() const
+uint16_t TapeRestApiConfig::getXrdHttpPort() const
 {
   return mXrdHttpPort;
 }
 
-const bool TapeRestApiConfig::isTapeEnabled() const
+bool TapeRestApiConfig::isTapeEnabled() const
 {
   return mTapeEnabled;
 }
@@ -103,7 +103,7 @@ const std::string& TapeRestApiConfig::getAccessURL() const
   return mAccessURL;
 }
 
-const bool TapeRestApiConfig::isStageEnabled() const
+bool TapeRestApiConfig::isStageEnabled() const
 {
   return mStageEnabled;
 }

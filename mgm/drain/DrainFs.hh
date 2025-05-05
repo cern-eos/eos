@@ -90,7 +90,7 @@ public:
   //---------------------------------------------------------------------------
   //! Get the file system id
   //---------------------------------------------------------------------------
-  inline const eos::common::FileSystem::fsid_t GetFsId() const
+  inline eos::common::FileSystem::fsid_t GetFsId() const
   {
     return mFsId;
   }

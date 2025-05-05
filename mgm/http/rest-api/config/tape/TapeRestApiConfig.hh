@@ -56,7 +56,7 @@ public:
    * Returns true if the tape REST API has been
    * activated, false otherwise
    */
-  const bool isActivated() const;
+  bool isActivated() const;
   /**
    * Enables/disables the tape REST API
    * @param activated is set to true if the tape REST API
@@ -81,7 +81,7 @@ public:
    * @return Gets the DNS alias of the server where the REST API
    * is running
    */
-  const std::string getHostAlias() const;
+  std::string getHostAlias() const;
 
   /**
    * Sets (thus overriding the default values) the mapping between the REST API versions and URIs in the .well-known
@@ -93,7 +93,7 @@ public:
   /**
    * @return Gets the mapping between the REST API versions and URIs
    */
-  const std::map<std::string, std::string> getEndpointToUriMapping() const;
+  std::map<std::string, std::string> getEndpointToUriMapping() const;
 
   /**
    * Sets the port of the XrdHttp server where the tape REST API is running
@@ -104,18 +104,18 @@ public:
   /**
    * @return the port of the XrdHttp server where the tape REST API is running
    */
-  const uint16_t getXrdHttpPort() const;
+  uint16_t getXrdHttpPort() const;
 
   /**
    * Returns the value of the tape enabled flag
    */
-  const bool isTapeEnabled() const;
+  bool isTapeEnabled() const;
 
-  const std::string getSiteName() const;
+  std::string getSiteName() const;
   const std::string& getAccessURL() const;
 
   void setStageEnabled(const bool isStageEnabled);
-  const bool isStageEnabled() const;
+  bool isStageEnabled() const;
 
 private:
   /**

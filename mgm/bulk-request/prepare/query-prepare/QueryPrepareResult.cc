@@ -29,7 +29,7 @@ QueryPrepareResult::QueryPrepareResult(): mHasQueryPrepareFinished(false)
   mResponse.reset(new QueryPrepareResponse());
 }
 
-const bool QueryPrepareResult::hasQueryPrepareFinished() const
+bool QueryPrepareResult::hasQueryPrepareFinished() const
 {
   return mHasQueryPrepareFinished;
 }
@@ -44,7 +44,7 @@ void QueryPrepareResult::setQueryPrepareFinished()
   mHasQueryPrepareFinished = true;
 }
 
-const int QueryPrepareResult::getReturnCode() const
+int QueryPrepareResult::getReturnCode() const
 {
   return mReturnCode;
 }

@@ -129,7 +129,7 @@ SpaceQuota::GetQuotaStatus(unsigned long long is, unsigned long long avail)
 //------------------------------------------------------------------------------
 // Get current quota value as percentage of the available one
 //------------------------------------------------------------------------------
-const float
+float
 SpaceQuota::GetQuotaPercentage(unsigned long long is, unsigned long long avail)
 {
   float fp = avail ? (100.0 * is / avail) : 100.0;

@@ -152,7 +152,7 @@ private:
   //!
   //! @return file identifier or 0ull if no file found
   //----------------------------------------------------------------------------
-  const eos::IFileMD::id_t
+  eos::IFileMD::id_t
   GetFileToBalance(const FsBalanceInfo& src,
                    const std::set<FsBalanceInfo>& set_dsts, FsBalanceInfo& dst);
 };

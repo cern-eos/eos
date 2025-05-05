@@ -44,7 +44,7 @@ public:
   {
     return mAccessURLPattern;
   }
-  inline const common::HttpHandler::Methods getMethod() const
+  inline common::HttpHandler::Methods getMethod() const
   {
     return mMethod;
   }

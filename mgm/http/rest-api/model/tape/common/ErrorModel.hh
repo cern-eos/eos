@@ -49,10 +49,10 @@ public:
   void setTitle(const std::string& title);
   void setStatus(const uint32_t status);
   void setDetail(const std::string& detail);
-  const std::optional<std::string> getType() const;
-  const std::string getTitle() const;
-  const uint32_t getStatus() const;
-  const std::optional<std::string> getDetail() const;
+  std::optional<std::string> getType() const;
+  std::string getTitle() const;
+  uint32_t getStatus() const;
+  std::optional<std::string> getDetail() const;
   virtual ~ErrorModel() {}
 private:
   /**

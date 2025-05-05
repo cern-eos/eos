@@ -29,7 +29,7 @@ EvictBulkRequest::EvictBulkRequest(const std::string& id): BulkRequest(id)
 {
 }
 
-const BulkRequest::Type EvictBulkRequest::getType() const
+BulkRequest::Type EvictBulkRequest::getType() const
 {
   return BulkRequest::Type::PREPARE_EVICT;
 }
