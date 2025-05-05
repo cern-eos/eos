@@ -23,6 +23,7 @@
 
 #include "ProcInterface.hh"
 #include <XrdOuc/XrdOucEnv.hh>
+#include "common/Constants.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
@@ -588,8 +589,8 @@ ProcInterface::Authorize(const char* path, const char* info,
 
     // One has to be part of the virtual users 2(daemon)/3(adm)/4(adm)
     return ((vid.hasUid(DAEMONUID)) ||
-            (vid.hasUid(3)) ||
-            (vid.hasGid(4)));
+            (vid.hasUid(eos::common::ADM_UID)) ||
+            (vid.hasGid(eos::common::ADM_GID)));
   }
 
   // User access

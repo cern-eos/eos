@@ -25,6 +25,7 @@
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/RouteEndpoint.hh"
 #include "mgm/PathRouting.hh"
+#include "common/Constants.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -77,7 +78,7 @@ void
 RouteCmd::LinkSubcmd(const eos::console::RouteProto_LinkProto& link,
                      eos::console::ReplyProto& reply)
 {
-  if ((mVid.uid != 0) && !mVid.hasUid(3) && !mVid.hasGid(4)) {
+  if ((mVid.uid != 0) && !mVid.hasUid(eos::common::ADM_UID) && !mVid.hasGid(eos::common::ADM_GID)) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you don't have the required priviledges to "
                       "execute this command");
@@ -107,7 +108,7 @@ void
 RouteCmd::UnlinkSubcmd(const eos::console::RouteProto_UnlinkProto& unlink,
                        eos::console::ReplyProto& reply)
 {
-  if ((mVid.uid != 0) && !mVid.hasUid(3) && !mVid.hasGid(4)) {
+  if ((mVid.uid != 0) && !mVid.hasUid(eos::common::ADM_UID) && !mVid.hasGid(eos::common::ADM_GID)) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you don't have the required priviledges to "
                       "execute this command");

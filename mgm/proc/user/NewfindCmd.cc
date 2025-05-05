@@ -27,6 +27,7 @@
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
+#include "common/Constants.hh"
 #include "mgm/Acl.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Stat.hh"
@@ -1263,8 +1264,8 @@ NewfindCmd::ProcessRequest() noexcept
   // For general users, cannot return more than 50k dirs and 100k files with one find,
   // unless there is an access rule allowing deeper queries.
   // Special users (like root) have the limit lifted by default.
-  const bool limit_result = ((mVid.uid != 0) && (!mVid.hasUid(3)) &&
-                             (!mVid.hasGid(4)) && (!mVid.sudoer));
+  const bool limit_result = ((mVid.uid != 0) && (!mVid.hasUid(eos::common::ADM_UID)) &&
+                             (!mVid.hasGid(eos::common::ADM_GID)) && (!mVid.sudoer));
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;
   Access::GetFindLimits(mVid, dir_limit, file_limit);
@@ -1623,8 +1624,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   // For general users, cannot return more than 50k dirs and 100k files with one find,
   // unless there is an access rule allowing deeper queries.
   // Special users (like root) have the limit lifted by default.
-  const bool limit_result = ((mVid.uid != 0) && (!mVid.hasUid(3)) &&
-                             (!mVid.hasGid(4)) && (!mVid.sudoer));
+  const bool limit_result = ((mVid.uid != 0) && (!mVid.hasUid(eos::common::ADM_UID)) &&
+                             (!mVid.hasGid(eos::common::ADM_GID)) && (!mVid.sudoer));
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;
   Access::GetFindLimits(mVid, dir_limit, file_limit);

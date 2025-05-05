@@ -29,6 +29,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Recycle.hh"
 #include "common/Path.hh"
+#include "common/Constants.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -209,8 +210,8 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
     }
   }
 
-  if ((!mVid.uid) || mVid.hasUid(3) ||
-      mVid.hasGid(4)) { // @note no.03 before 'vid' was used, using 'mVid' now
+  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) ||
+      mVid.hasGid(eos::common::ADM_GID)) { // @note no.03 before 'vid' was used, using 'mVid' now
     // root and admin can set quota
     canQuota = true;
   } else {
@@ -327,7 +328,7 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
 
   bool canQuota;
 
-  if ((!mVid.uid) || mVid.hasUid(3) || mVid.hasGid(4)) { // @note no.03
+  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) || mVid.hasGid(eos::common::ADM_GID)) { // @note no.03
     // root and admin can set quota
     canQuota = true;
   } else {
@@ -519,7 +520,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
 
   bool canQuota;
 
-  if ((!mVid.uid) || mVid.hasUid(3) || mVid.hasGid(4)) { // @note no.02
+  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) || mVid.hasGid(eos::common::ADM_GID)) { // @note no.02
     // root and admin can set quota
     canQuota = true;
   } else {

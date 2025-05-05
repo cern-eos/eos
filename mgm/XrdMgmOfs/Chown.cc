@@ -86,7 +86,7 @@ XrdMgmOfs::_chown(const char* path,
     eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(),
                      acl.CanChown());
 
-    if (((vid.uid) && (!vid.hasUid(3) && !vid.hasGid(4)) &&
+    if (((vid.uid) && (!vid.hasUid(eos::common::ADM_UID) && !vid.hasGid(eos::common::ADM_GID)) &&
          !acl.CanChown()) ||
         ((vid.uid) && !acl.IsMutable())) {
       errno = EPERM;
@@ -96,7 +96,7 @@ XrdMgmOfs::_chown(const char* path,
         cmd->setCUid(uid);
       }
 
-      if (((!vid.uid) || (vid.uid == 3) || (vid.gid == 4)) &&
+      if (((!vid.uid) || (vid.uid == eos::common::ADM_UID) || (vid.gid == eos::common::ADM_GID)) &&
           ((unsigned int)gid != 0xffffffff)) {
         // Change the group
         cmd->setCGid(gid);
@@ -141,7 +141,7 @@ XrdMgmOfs::_chown(const char* path,
       eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(),
                        acl.CanChown());
 
-      if ((vid.uid) && (!vid.sudoer) && (vid.uid != 3) && (vid.gid != 4) &&
+      if ((vid.uid) && (!vid.sudoer) && (vid.uid != eos::common::ADM_UID) && (vid.gid != eos::common::ADM_GID) &&
           !acl.CanChown()) {
         errno = EPERM;
       } else {

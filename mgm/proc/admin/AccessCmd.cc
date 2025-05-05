@@ -28,6 +28,7 @@
 #include "mgm/Access.hh"
 #include "mgm/Stat.hh"
 #include "common/StringUtils.hh"
+#include "common/Constants.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <cctype>
 
@@ -85,7 +86,7 @@ AccessCmd::ProcessRequest() noexcept
   eos::console::ReplyProto reply;
   eos::console::AccessProto access = mReqProto.access();
 
-  if ((mVid.uid != 0) && (!mVid.hasUid(3)) && (!mVid.hasGid(4)) &&
+  if ((mVid.uid != 0) && (!mVid.hasUid(eos::common::ADM_UID)) && (!mVid.hasGid(eos::common::ADM_GID)) &&
       (!mVid.sudoer)) {
     // root and admins only
     reply.set_std_out("");

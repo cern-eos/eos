@@ -26,6 +26,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
+#include "common/Constants.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -109,7 +110,7 @@ ProcCommand::UserQuota()
 
   bool canQuota = false;
 
-  if ((!vid.uid) || vid.hasUid(3) || vid.hasGid(4)) {
+  if ((!vid.uid) || vid.hasUid(eos::common::ADM_UID) || vid.hasGid(eos::common::ADM_GID)) {
     // root and admin can set quota
     canQuota = true;
   } else {

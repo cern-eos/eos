@@ -24,6 +24,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "common/Constants.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -45,7 +46,7 @@ ProcCommand::Map()
   }
 
   if (mSubCmd == "link") {
-    if ((!pVid->uid) || vid.hasUid(3) || vid.hasGid(4)) {
+    if ((!pVid->uid) || vid.hasUid(eos::common::ADM_UID) || vid.hasGid(eos::common::ADM_GID)) {
       XrdOucString srcpath = pOpaque->Get("mgm.map.src");
       XrdOucString dstpath = pOpaque->Get("mgm.map.dest");
 
@@ -94,8 +95,8 @@ ProcCommand::Map()
     XrdOucString path = pOpaque->Get("mgm.map.src");
 
     if ((!pVid->uid) ||
-        vid.hasUid(3) ||
-        vid.hasGid(4)) {
+        vid.hasUid(eos::common::ADM_UID) ||
+        vid.hasGid(eos::common::ADM_GID)) {
       eos::common::RWMutexWriteLock lock(gOFS->PathMapMutex);
 
       if ((!path.length()) || (!gOFS->PathMap.count(path.c_str()))) {

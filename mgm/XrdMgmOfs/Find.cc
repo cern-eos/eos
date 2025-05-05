@@ -705,7 +705,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   bool limited = false;
   bool fail_if_limited = (out_error.getErrInfo() == E2BIG);
 
-  if ((vid.uid != 0) && (!vid.hasUid(3)) && (!vid.hasGid(4)) && (!vid.sudoer)) {
+  if ((vid.uid != 0) && (!vid.hasUid(eos::common::ADM_UID)) && (!vid.hasGid(eos::common::ADM_GID)) && (!vid.sudoer)) {
     limitresult = true;
   }
 

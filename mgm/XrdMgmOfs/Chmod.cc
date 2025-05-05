@@ -148,8 +148,8 @@ XrdMgmOfs::_chmod(const char* path,
         if (((fmd && (fmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) ||
             ((cmd && (cmd->getCUid() == vid.uid)) && (!acl.CanNotChmod())) ||
             (!vid.uid) || // the root user
-            (vid.uid == 3) || // the admin user
-            (vid.gid == 4) || // the admin group
+            (vid.uid == eos::common::ADM_UID) || // the admin user
+            (vid.gid == eos::common::ADM_GID) || // the admin group
             (acl.CanChmod())
            ) { // a pre-defined mask to apply to the desired modbits
           // the chmod ACL entry

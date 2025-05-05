@@ -471,8 +471,8 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   }
 
   if (global && ((!vid.uid) ||
-                 (vid.hasUid(3)) ||
-                 (vid.hasGid(4)))) {
+                 (vid.hasUid(eos::common::ADM_UID)) ||
+                 (vid.hasGid(eos::common::ADM_GID)))) {
     // add everything found in the recycle directory structure to the printmap
     std::string subdirs;
     XrdMgmOfsDirectory dirl;
@@ -1031,8 +1031,8 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   }
 
   if (vid.uid && !vid.sudoer &&
-      !(vid.hasUid(3)) &&
-      !(vid.hasGid(4))) {
+      !(vid.hasUid(eos::common::ADM_UID)) &&
+      !(vid.hasGid(eos::common::ADM_GID))) {
     std_err = "error: you cannot purge your recycle bin without being a sudor "
       "or having an admin role";
     return EPERM;

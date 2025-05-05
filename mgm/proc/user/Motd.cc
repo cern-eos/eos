@@ -24,6 +24,7 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
+#include "common/Constants.hh"
 #include <fcntl.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -39,7 +40,7 @@ ProcCommand::Motd()
   motdfile += "/motd";
 
   if (motdupload.length() &&
-      ((!pVid->uid) || vid.hasUid(3) || vid.hasGid(4))) {
+      ((!pVid->uid) || vid.hasUid(eos::common::ADM_UID) || vid.hasGid(eos::common::ADM_GID))) {
     // root + admins can set the MOTD
     ssize_t motdlen = 0;
     char* motdout = 0;

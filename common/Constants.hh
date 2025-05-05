@@ -24,6 +24,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include <sys/types.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -83,5 +84,7 @@ static constexpr auto EOS_VTRACE_ATTR = "sys.vtrace";
 static constexpr auto EOS_UTRACE_ATTR = "sys.utrace";
 //! FST heartbeat key marker, the "stat." prefix makes it transient
 static constexpr auto FST_HEARTBEAT_KEY = "stat.heartbeat";
-
+//! ADM uid and gid
+static constexpr uid_t ADM_UID = 3;
+static constexpr gid_t ADM_GID = 4;
 EOSCOMMONNAMESPACE_END
