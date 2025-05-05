@@ -45,7 +45,6 @@ add_compile_options(-Wall
   -Wno-deprecated-declarations
   -Wno-format
   -Wno-format-security
-  -Wno-ignored-qualifiers
   -Wno-int-in-bool-context
   -Wno-maybe-uninitialized
   -Wno-overflow
