@@ -14,6 +14,7 @@ excluded=(
         "silent"
         "test"
         "timing"
+        "tracker"
         "whoami"
         ".q"
         "?"
