@@ -130,11 +130,11 @@ DrainFs::DoIt()
             eos::common::RWMutexWriteLock wr_lock(mJobsMutex);
             mJobsRunning[it_fid->getElement()] = job;
           }
-          mThreadPool.PushTask<void>([ = ] {
+          mThreadPool.PushTask<void>([job, this] {
             job->UpdateMgmStats();
             job->DoIt();
             job->UpdateMgmStats();
-            UpdateFinishedJob(job->GetFileIdentifier());
+            this->UpdateFinishedJob(job->GetFileIdentifier());
           });
         }
 

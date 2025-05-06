@@ -147,9 +147,9 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
     if (conversion_info != nullptr) {
       auto job = std::make_shared<ConversionJob>(fid, *conversion_info.get(),
                  std::get<2>(info));
-      mThreadPool.PushTask<void>([ = ]() {
+      mThreadPool.PushTask<void>([job, this]() {
         job->DoIt();
-        HandlePostJobRun(job);
+        this->HandlePostJobRun(job);
       });
       eos::common::RWMutexWriteLock wlock(mJobsMutex);
       mJobsRunning[job->GetFid()] = job;

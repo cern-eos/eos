@@ -264,11 +264,11 @@ FsBalancer::Balance(ThreadAssistant& assistant) noexcept
         std::shared_ptr<DrainTransferJob> job {
           new DrainTransferJob(fid, src.mFsId, dst.mFsId, {}, {},
           true, "balance", true)};
-        mThreadPool.PushTask<void>([ = ]() {
+        mThreadPool.PushTask<void>([job, fid, src, dst, this]() {
           job->UpdateMgmStats();
           job->DoIt();
           job->UpdateMgmStats();
-          FreeTxSlot(fid, src, dst);
+          this->FreeTxSlot(fid, src, dst);
         });
       }
 
