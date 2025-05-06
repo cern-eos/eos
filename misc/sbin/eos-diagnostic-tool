@@ -60,6 +60,10 @@ error_exit() {
     exit 1
 }
 
+get_timestamp() {
+  date +"%Y%m%dT%H%M%S"
+}
+
 setup_dir_tree()
 {
     mkdir -p "$EXPORT_DIR"
@@ -120,8 +124,10 @@ get_mgm_pid()
 gen_eu_stack()
 {
     local pid=$1
+    log_info "Dumping thread names"
+    ps -T -p $pid -o tid,comm > "${STACKDUMP_DIR}/thread-names-$(get_timestamp)"
     log_info "Generating eu-stack for PID: $pid"
-    eu-stack -p $pid > "${STACKDUMP_DIR}/eu-stack-$(date -Iseconds)"
+    eu-stack -p $pid > "${STACKDUMP_DIR}/eu-stack-$(get_timestamp)"
 }
 
 gen_stacks()
