@@ -28,6 +28,7 @@
 #include "common/Timing.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
+#include "common/CopyProcess.hh"
 /*----------------------------------------------------------------------------*/
 
 #include <XrdCl/XrdClFileSystem.hh>
@@ -554,7 +555,7 @@ int setDirMtime(const std::string& i, eos::common::Path& prefix,
   }
 }
 
-XrdCl::CopyProcess copyProcess;
+eos::common::CopyProcess copyProcess;
 std::vector<XrdCl::PropertyList*> tprops;
 
 XrdCl::PropertyList* copyFile(const std::string& i, eos::common::Path& src,
@@ -592,7 +593,7 @@ XrdCl::PropertyList* copyFile(const std::string& i, eos::common::Path& src,
   result->Set("source", srcurl);
   result->Set("target", dsturl);
 
-  //  props.Set("parallel", 10);
+  //props.Set("parallel", 64);
   if (verbose) {
     std::cout << "[ copy file             ] : srcurl: " << srcurl << " dsturl: " <<
               dsturl << std::endl;
@@ -1353,14 +1354,33 @@ com_rclone(char* arg1)
   class RCloneProgressHandler : public XrdCl::CopyProgressHandler
   {
   public:
+    RCloneProgressHandler() {
+      ext_tot = 0;
+      bp = bt = 0;
+      n = 0;
+    }
+
     virtual void BeginJob(uint16_t   jobNum,
                           uint16_t   jobTotal,
                           const URL* source,
                           const URL* destination)
     {
-      n = jobNum;
-      tot = jobTotal;
+      if (!n) {
+	// do this only once
+	n = jobNum;
+      }
     }
+
+    void Output() {
+      if (verbose) {
+        std::cerr << "[ " << n << "/" << ext_tot << " ] files copied" << std::endl;
+      } else {
+        if (!is_silent) {
+          std::cerr << "[ " << n << "/" << ext_tot << " ] files copied" << "\r";
+        }
+      }
+    }
+
 
     virtual void EndJob(uint16_t            jobNum,
                         const PropertyList* result)
@@ -1391,23 +1411,15 @@ com_rclone(char* arg1)
           }
         }
       }
+      n++;
+      Output();
     };
 
     virtual void JobProgress(uint16_t jobNum,
                              uint64_t bytesProcessed,
                              uint64_t bytesTotal)
     {
-      bp = bytesProcessed;
-      bt = bytesTotal;
-      n  = jobNum;
-
-      if (verbose) {
-        std::cerr << "[ " << jobNum << "/" << tot << " ] files copied" << std::endl;
-      } else {
-        if (!is_silent) {
-          std::cerr << "[ " << jobNum << "/" << tot << " ] files copied" << "\r";
-        }
-      }
+      // we don't want output here
     }
 
     virtual bool ShouldCancel(uint16_t jobNum)
@@ -1419,10 +1431,11 @@ com_rclone(char* arg1)
     std::atomic<uint64_t> bp;
     std::atomic<uint64_t> bt;
     std::atomic<uint16_t> n;
-    std::atomic<uint16_t> tot;
+    std::atomic<uint64_t> ext_tot;
   };
 
   RCloneProgressHandler copyProgress;
+  copyProgress.ext_tot = copyProcess.Jobs();
 
   if (!is_silent && verbose) {
     std::cerr << "# preparing" << std::endl;
