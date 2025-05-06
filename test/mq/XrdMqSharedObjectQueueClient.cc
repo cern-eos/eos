@@ -80,7 +80,7 @@ int main(int argc, char* argv[])
       XrdOucString var = "var";
       var += v;
       queue->OpenTransaction();
-      queue->PushBack(0, var.c_str());
+      queue->PushBack("", var.c_str());
       queue->CloseTransaction();
       XrdOucString out;
       out += "---------------------------\n";
