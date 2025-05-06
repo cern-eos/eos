@@ -25,6 +25,8 @@
 #define EOS_URLBUILDER_HH
 
 #include "mgm/Namespace.hh"
+
+#include <cstdint>
 #include <string>
 #include <memory>
 #include <optional>
