@@ -147,7 +147,7 @@ ioprio_begin(int which, int iopriority, int local_iopriority)
     struct __user_cap_data_struct cap_data;
     cap_header.pid = 0;
     cap_header.version = _LINUX_CAPABILITY_VERSION_1;
-    cap_data.effective = cap_data.permitted = 0x0000001fffffffff;
+    cap_data.effective = cap_data.permitted = ~0u;
     cap_data.inheritable = 0;
     rc |= capset(&cap_header, &cap_data);
   }
@@ -167,7 +167,7 @@ ioprio_end(int which, int iopriority)
     struct __user_cap_data_struct cap_data;
     cap_header.pid = 0;
     cap_header.version = _LINUX_CAPABILITY_VERSION_1;
-    cap_data.permitted = 0x0000001fffffffff;
+    cap_data.permitted = ~0u;
     cap_data.effective = 0;
     cap_data.inheritable = 0;
     capset(&cap_header, &cap_data);

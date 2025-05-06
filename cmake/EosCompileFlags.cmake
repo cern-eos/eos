@@ -47,7 +47,6 @@ add_compile_options(-Wall
   -Wno-format-security
   -Wno-int-in-bool-context
   -Wno-maybe-uninitialized
-  -Wno-overflow
   -Wno-parentheses
   -Wno-pragmas
   -Wno-sign-compare
