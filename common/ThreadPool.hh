@@ -64,7 +64,7 @@ public:
                       unsigned int samplingInterval = 10,
                       unsigned int samplingNumber = 12,
                       unsigned int averageWaitingJobsPerNewThread = 10,
-                      const std::string& identifier = "default"):
+                      const std::string& identifier = "defaulttp"):
     mThreadsMin(threadsMin),
     mThreadsMax(threadsMin > threadsMax ? threadsMin : threadsMax),
     mPoolSize(0ul), mId(identifier)
@@ -102,6 +102,7 @@ public:
     if (mThreadsMax > mThreadsMin) {
       auto maintainerThreadFunc = [this, threadPoolFunc, samplingInterval,
       samplingNumber, averageWaitingJobsPerNewThread] {
+        setSelfThreadName(mId);
         auto rounds = 0u, sumQueueSize = 0u;
         auto signalFuture = mMaintainerSignal.get_future();
 
@@ -313,6 +314,13 @@ public:
   size_t GetQueueSize() const
   {
     return mTasks.size();
+  }
+
+  static void setSelfThreadName(const std::string& name)
+  {
+#ifndef APPLE
+    pthread_setname_np(pthread_self(), name.substr(0,15).c_str());
+#endif
   }
 
   // Disable copy/move constructors and assignment operators
