@@ -16,6 +16,36 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.11 Diopside``
+====================
+
+2025-05-07
+
+Bug
+----
+
+* [EOS-6042] - QDB stuck in publishing
+* [EOS-6358] - MGM: Null group in FsView::mGroupView (segfault in heartbeat check)
+* [EOS-6360] - Removal of xattr not possible via gRPC
+* [EOS-6361] - Propagate update to FSTs when symkey is update on the MGM
+* [EOS-6379] - RAID5 requires 6 stripes
+* [EOS-6383] - eoscp PIO open mode does not work with larger block sizes
+* [EOS-6398] - [MGM] A user should be able to "rename" a file they own regardless of !d ACL
+
+New Feature
+------------
+
+* [EOS-6386] - Add thread names where relevant
+* [EOS-6392] - Force overriding an existing symlink
+
+Improvement
+------------
+
+* [EOS-6359] - On the HTTP interface do not return HTML/CSS formatted
+* [EOS-6363] - Clean up old removed nodes from the global config map
+* [EOS-6399] - MGM: Use ADM_UID and ADM_GID
+
+
 ``v5.3.10 Diopside``
 ====================
 
