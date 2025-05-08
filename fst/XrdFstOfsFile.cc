@@ -783,8 +783,10 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       }
     }
   } else {
-    // For reading of replica file check for xs errors
-    if (eos::common::LayoutId::IsReplica(mLid) &&
+    // For reading of replica file check for xs errors unless this
+    // is a fuse client!
+    if (!mFusex &&
+        eos::common::LayoutId::IsReplica(mLid) &&
         gOFS.mFmdHandler->FileHasXsError(mLayout->GetLocalReplicaPath(), mFsId)) {
       eos_err("msg=\"open failed due to checksum mismatch\" fxid=%08llx "
               "path=\"%s\"", mFileId, mNsPath.c_str());
@@ -3906,9 +3908,11 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
         attrPair.second);
     notification->mutable_file()->mutable_xattr()->insert(attr);
 
-    if (attrPair.first == ARCHIVE_FILE_ID_ATTR_NAME) { // sys.archive.file_id xattr corresponds to archive_file_id first-class attribute
+    if (attrPair.first ==
+        ARCHIVE_FILE_ID_ATTR_NAME) { // sys.archive.file_id xattr corresponds to archive_file_id first-class attribute
       ctaArchiveFileId = attrPair.second;
     }
+
     if (attrPair.first == ARCHIVE_STORAGE_CLASS_ATTR_NAME) {
       storageClass = attrPair.second;
     }
@@ -3916,8 +3920,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
 
   // also make sure to pass the right attribute, don't just use the extended ones (old format), fill in the new ones
   notification->mutable_file()->set_storage_class(storageClass);
-  notification->mutable_file()->set_archive_file_id(std::strtoul(ctaArchiveFileId.c_str(), nullptr, 10));
-
+  notification->mutable_file()->set_archive_file_id(std::strtoul(
+        ctaArchiveFileId.c_str(), nullptr, 10));
   // Build query strings
   std::ostringstream srcStream;
   std::ostringstream reportStream;
@@ -3957,23 +3961,23 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   }
 
   cta::xrd::Response response;
-  cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
-  
+  cta::xrd::Response::ResponseType response_type =
+    cta::xrd::Response::RSP_INVALID;
+
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
-    static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(protowfusegrpc, endPoint, resource);
+    static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(
+          protowfusegrpc, endPoint, resource);
     auto sentAt = std::chrono::steady_clock::now();
-
     response_type = request_sender->send(request, response);
-
     auto receivedAt = std::chrono::steady_clock::now();
     auto timeSpent = std::chrono::duration_cast<std::chrono::milliseconds>
-                      (receivedAt - sentAt);
+                     (receivedAt - sentAt);
     eos_static_info("WFEClient send time for sync::closew=%ld", timeSpent.count());
   } catch (std::runtime_error& err) {
     eos_static_err("Could not send request to outside service. Reason: %s",
-                    err.what());
+                   err.what());
     return ENOTCONN;
   }
 
