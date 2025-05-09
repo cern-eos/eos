@@ -37,12 +37,12 @@
 #include "common/InodeTranslator.hh"
 #include "common/ParseUtils.hh"
 #include "common/StringUtils.hh"
+#include "common/RegexWrapper.hh"
 #include "common/config/ConfigParsing.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
 #include <qclient/QClient.hh>
 #include <qclient/ResponseParsing.hh>
 #include <google/protobuf/util/json_util.h>
-#include <regex>
 #include <json/json.h>
 EOSNSNAMESPACE_BEGIN
 
@@ -165,15 +165,17 @@ static std::string constructPath(const std::string& rootPath, const std::string
 class ExpansionTrim : public ExpansionDecider
 {
 public:
-  ExpansionTrim(std::regex pathsToTrim) : trimRegex(pathsToTrim) {}
+  ExpansionTrim(const std::string& pathsToTrim) :
+    trimRegex(pathsToTrim) {}
+
   virtual bool shouldExpandContainer(const eos::ns::ContainerMdProto& proto,
                                      const eos::IContainerMD::XAttrMap& attrs,
                                      const std::string& fullPath) override
   {
-    return !std::regex_search(fullPath, trimRegex);
+    return !eos::common::eos_regex_search(fullPath, trimRegex);
   }
 private:
-  std::regex trimRegex;
+  std::string trimRegex;
 };
 
 //------------------------------------------------------------------------------
@@ -190,7 +192,7 @@ int Inspector::scan(const std::string& rootPath, bool relative, bool rawPaths,
 
   if (!trimPaths.empty()) {
     try {
-      auto expT = new ExpansionTrim(std::regex(trimPaths));
+      auto expT = new ExpansionTrim(trimPaths);
       explorerOpts.expansionDecider.reset(expT);
     } catch (const std::regex_error& e) {
       std::cout << "regex_error caught: " << e.what() << '\n';

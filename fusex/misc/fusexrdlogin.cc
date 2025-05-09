@@ -26,6 +26,7 @@
 #include "eosxd/eosfuse.hh"
 #include "common/Macros.hh"
 #include "common/SymKeys.hh"
+#include "common/RegexWrapper.hh"
 #include "misc/FuseId.hh"
 #include "auth/Logbook.hh"
 #include "auth/LoginIdentifier.hh"
@@ -36,7 +37,11 @@
 
 std::unique_ptr<AuthenticationGroup> fusexrdlogin::authGroup;
 ProcessCache* fusexrdlogin::processCache = nullptr;
-const std::regex fusexrdlogin::safeReg("[/\\w.]+");
+
+namespace
+{
+const std::string sSafeRegex {"[/\\w.]+"};
+}
 
 void fusexrdlogin::initializeProcessCache(const CredentialConfig& config)
 {
@@ -55,7 +60,7 @@ std::string fusexrdlogin::fillExeName(const std::string& execname)
     exe = base_name(execname);
   }
 
-  if (std::regex_match(exe, safeReg)) {
+  if (eos::common::eos_regex_match(exe, sSafeRegex)) {
     return exe;
   } else {
     std::string base64_string = "base64";

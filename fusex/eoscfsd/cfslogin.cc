@@ -25,6 +25,8 @@
 #include "cfslogin.hh"
 #include "cfsmapping.hh"
 #include "auth/Logbook.hh"
+#include "common/Logging.hh"
+#include "common/RegexWrapper.hh"
 #include <algorithm>
 
 std::unique_ptr<AuthenticationGroup> cfslogin::authGroup;
@@ -33,7 +35,10 @@ std::unique_ptr<cfsmapping> cfslogin::cfsMap;
 ProcessCache* cfslogin::processCache = nullptr;
 std::string cfslogin::k5domain = "@CERN.CH";
 
-const std::regex cfslogin::safeReg("[/\\w.]+");
+namespace
+{
+std::string sSafeRegex {"[/\\w.]+"};
+}
 
 void cfslogin::initializeProcessCache(const CredentialConfig& config)
 {
@@ -53,7 +58,7 @@ std::string cfslogin::fillExeName(const std::string& execname)
     exe = base_name(execname);
   }
 
-  if (std::regex_match(exe, safeReg)) {
+  if (eos::common::eos_regex_match(exe, sSafeRegex)) {
     return exe;
   } else {
     std::string base64_string = "base64";

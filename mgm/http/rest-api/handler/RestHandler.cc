@@ -23,12 +23,16 @@
 
 #include "RestHandler.hh"
 #include "mgm/http/rest-api/exception/RestException.hh"
-#include <common/Logging.hh>
+#include "common/Logging.hh"
+#include "common/RegexWrapper.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 
-EOSMGMRESTNAMESPACE_BEGIN
+namespace
+{
+std::string sEntryPointRegex("^\\/(\\.?[a-z0-9-]+)+\\/$");
+}
 
-const std::regex RestHandler::cEntryPointRegex("^\\/(\\.?[a-z0-9-]+)+\\/$");
+EOSMGMRESTNAMESPACE_BEGIN
 
 RestHandler::RestHandler(const std::string& entryPointURL): mEntryPointURL(
     entryPointURL)
@@ -47,7 +51,7 @@ bool RestHandler::isRestRequest(const std::string& requestUrl,
 void RestHandler::verifyRestApiEntryPoint(const std::string& entryPointURL)
 const
 {
-  if (!std::regex_match(entryPointURL, cEntryPointRegex)) {
+  if (!eos::common::eos_regex_match(entryPointURL, sEntryPointRegex)) {
     std::stringstream ss;
     ss << "The REST API entrypoint provided (" << entryPointURL <<
        ") is malformed. It should have the format: /apientrypoint/.";

@@ -28,7 +28,6 @@
 #include <fcntl.h>
 #include <cstring>
 #include <sstream>
-#include <regex>
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
 #include "grpc/GrpcRestGwServer.hh"
@@ -69,6 +68,7 @@
 #include "common/InstanceName.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
+#include "common/RegexWrapper.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "mq/SharedHashWrapper.hh"
@@ -92,6 +92,11 @@ extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
 extern void xrdmgmofs_stacktrace(int sig);
 extern void xrdmgmofs_coverage(int sig);
+
+namespace
+{
+std::string sVersionRegex {"v[0-9]+(\\.[0-9]+)?"};
+}
 
 USE_EOSMGMNAMESPACE
 
@@ -1103,9 +1108,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                         "Must be <true>, <false>, <1> or <0>!");
           } else {
             protowfusegrpc = false;
+
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
               protowfusegrpc = true;
             }
+
             Eroute.Say("=====> mgmofs.protowfusegrpc : ", val);
           }
         }
@@ -1165,7 +1172,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           } else {
             std::string version(version_ptr_begin, version_ptr_end);
 
-            if (!std::regex_match(version, std::regex("v[0-9]+(\\.[0-9]+)?"))) {
+            if (!eos::common::eos_regex_match(version, sVersionRegex)) {
               auto err_msg = std::string("version ") + version +
                              " in command " + var + " is invalid";
               Eroute.Emsg("Config", err_msg.c_str());

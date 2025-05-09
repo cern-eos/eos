@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "ProcDirBulkRequestFile.hh"
-#include <regex>
 
 EOSBULKNAMESPACE_BEGIN
 

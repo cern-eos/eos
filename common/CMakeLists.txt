@@ -129,6 +129,7 @@ add_library(EosCommon-Objects OBJECT
   Mapping.cc
   MutexLatencyWatcher.cc
   RWMutex.cc
+  RegexWrapper.cc
   SharedMutex.cc
   PthreadRWMutex.cc
   ClockGetTime.cc
