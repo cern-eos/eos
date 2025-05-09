@@ -23,7 +23,7 @@
 #include "gtest/gtest.h"
 #include "Namespace.hh"
 #include "common/StringConversion.hh"
-#include <regex>
+#include "common/RegexWrapper.hh"
 
 EOSCOMMONTESTING_BEGIN
 
@@ -88,9 +88,9 @@ TEST(StringConversion, timebased_uuidstring)
 {
   std::string uuid;
   uuid = eos::common::StringConversion::timebased_uuidstring();
-  std::regex
+  std::string
   regexUuid("[0-9a-fA-F]{8}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{4}\\-[0-9a-fA-F]{12}");
-  ASSERT_TRUE(std::regex_match(uuid, regexUuid));
+  ASSERT_TRUE(eos::common::eos_regex_match(uuid, regexUuid));
 }
 
 TEST(StringConversion, GetSizeFromString)

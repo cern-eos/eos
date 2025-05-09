@@ -20,14 +20,12 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-#include <regex>
-
 #include "NewfindCmd.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
 #include "common/Constants.hh"
+#include "common/RegexWrapper.hh"
 #include "mgm/Acl.hh"
 #include "mgm/FsView.hh"
 #include "mgm/Stat.hh"
@@ -52,9 +50,14 @@ template<typename T>
 static bool eliminateBasedOnFileMatch(const eos::console::FindProto& req,
                                       const T& md)
 {
-  std::string toFilter = md->getName();
-  std::regex filter(req.name(), std::regex_constants::egrep);
-  return (!req.name().empty()) && (!std::regex_search(toFilter, filter));
+  const std::string sregex = req.name();
+
+  if (sregex.empty()) {
+    return false;
+  }
+
+  const std::string to_filter = md->getName();
+  return (!eos::common::eos_regex_search(to_filter, sregex));
 }
 
 //------------------------------------------------------------------------------
@@ -1115,6 +1118,19 @@ NewfindCmd::ProcessRequest() noexcept
     return reply;
   }
 
+  // Shortcut with bad input --name regex filters
+  if (!findRequest.name().empty()) {
+    if (!eos::common::eos_regex_valid(findRequest.name())) {
+      eos_static_err("msg=\"find filter not an accepted regex\" filter=\"%s\"",
+                     findRequest.name().c_str());
+      reply.set_std_err("error: find filter not an accepted regex. "
+                        "Note that -name filters using 'egrep' style "
+                        "regex match!\n");
+      reply.set_retc(EINVAL);
+      return reply;
+    }
+  }
+
   if (!OpenTemporaryOutputFiles()) {
     reply.set_retc(EIO);
     reply.set_std_err(SSTR("error: cannot write find result files on MGM" <<
@@ -1180,32 +1196,6 @@ NewfindCmd::ProcessRequest() noexcept
                      eos::console::FindProto::MAXDEPTH__NOT_SET) ?
                     eos::common::Path::MAX_LEVELS :
                     cPath.GetSubPathSize() + findRequest.maxdepth());
-
-  // @note Shortcut with bad input --name regex filters. Move to client side?
-  // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7
-  // Found by filtering like " newfind --name '*sometext' " (note the '*' prefix!),
-  // which raises <std::regex_constants::error_paren> - although quite misleading.
-  // Is this an opportunity for fuzzing?
-  if (!findRequest.name().empty()) {
-    try {
-      std::regex filter(findRequest.name(), std::regex_constants::egrep);
-    } catch (const std::regex_error& e) {
-      eos_static_info("caught exception %d %s with newfind findRequest.name()=%s\n",
-                      e.code(), e.what(), findRequest.name().c_str());
-      mOfsErrStream << "error(caught exception " << e.code() << ' ' << e.what() <<
-                    " with newfind --name=" << findRequest.name()
-                    << ").\nPlease note that --name filters by 'egrep' style regex match, you may have to sanitize your input\n";
-
-      if (!CloseTemporaryOutputFiles()) {
-        reply.set_retc(EIO);
-        reply.set_std_err("error: cannot save find result files on MGM\n");
-        return reply;
-      } else {
-        return reply;
-      }
-    }
-  }
-
   bool onlydirs = (findRequest.directories() &&
                    !findRequest.files()) | findRequest.count() |
                   findRequest.treecount() | findRequest.childcount();
@@ -1264,7 +1254,8 @@ NewfindCmd::ProcessRequest() noexcept
   // For general users, cannot return more than 50k dirs and 100k files with one find,
   // unless there is an access rule allowing deeper queries.
   // Special users (like root) have the limit lifted by default.
-  const bool limit_result = ((mVid.uid != 0) && (!mVid.hasUid(eos::common::ADM_UID)) &&
+  const bool limit_result = ((mVid.uid != 0) &&
+                             (!mVid.hasUid(eos::common::ADM_UID)) &&
                              (!mVid.hasGid(eos::common::ADM_GID)) && (!mVid.sudoer));
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;
@@ -1510,6 +1501,21 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
     }
   }
 
+  // Shortcut with bad input --name regex filters
+  if (!findRequest.name().empty()) {
+    if (!eos::common::eos_regex_valid(findRequest.name())) {
+      eos_static_err("msg=\"find filter not an accepted regex\" filter=\"%s\"",
+                     findRequest.name().c_str());
+      StreamReply.set_std_out("");
+      StreamReply.set_std_err("error: find filter not an accepted regex. "
+                              "Note that -name filters using 'egrep' style "
+                              "regex match!\n");
+      StreamReply.set_retc(EINVAL);
+      writer->Write(StreamReply);
+      return;
+    }
+  }
+
   // This hash is used to calculate the balance of the found files over the
   // filesystems involved
   eos::BalanceCalculator balanceCalculator;
@@ -1543,29 +1549,6 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   int depthlimit = findRequest.Maxdepth__case() ==
                    eos::console::FindProto::MAXDEPTH__NOT_SET ?
                    eos::common::Path::MAX_LEVELS : cPath.GetSubPathSize() + findRequest.maxdepth();
-
-  // @note Shortcut with bad input --name regex filters. Move to client side?
-  // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7
-  // Found by filtering like " newfind --name '*sometext' " (note the '*' prefix!),
-  // which raises <std::regex_constants::error_paren> - although quite misleading.
-  // Is this an opportunity for fuzzing?
-  if (!findRequest.name().empty()) {
-    try {
-      std::regex filter(findRequest.name(), std::regex_constants::egrep);
-    } catch (const std::regex_error& e) {
-      eos_static_info("caught exception %d %s with newfind findRequest.name()=%s\n",
-                      e.code(), e.what(), findRequest.name().c_str());
-      StreamReply.set_std_out("");
-      StreamReply.set_std_err(
-        "error(caught exception " + std::to_string(e.code()) + " " + e.what() +
-        " with find --name=" + findRequest.name() +
-        ").\nPlease note that --name filters by 'egrep' style regex match, you may have to sanitize your input\n");
-      StreamReply.set_retc(errno);
-      writer->Write(StreamReply);
-      return;
-    }
-  }
-
   bool onlydirs = (findRequest.directories() && !findRequest.files()) ||
                   findRequest.treecount();
 
@@ -1624,7 +1607,8 @@ NewfindCmd::ProcessRequest(grpc::ServerWriter<eos::console::ReplyProto>* writer)
   // For general users, cannot return more than 50k dirs and 100k files with one find,
   // unless there is an access rule allowing deeper queries.
   // Special users (like root) have the limit lifted by default.
-  const bool limit_result = ((mVid.uid != 0) && (!mVid.hasUid(eos::common::ADM_UID)) &&
+  const bool limit_result = ((mVid.uid != 0) &&
+                             (!mVid.hasUid(eos::common::ADM_UID)) &&
                              (!mVid.hasGid(eos::common::ADM_GID)) && (!mVid.sudoer));
   static uint64_t dir_limit = 50000;
   static uint64_t file_limit = 100000;

@@ -21,37 +21,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/**
- * @file   Report.hh
- *
- * @brief  Class to store file transaction reports.
- *
- *
- */
-
 #ifndef __EOSCOMMON_REPORT__
 #define __EOSCOMMON_REPORT__
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
-/*----------------------------------------------------------------------------*/
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucString.hh>
-/*----------------------------------------------------------------------------*/
 #include <vector>
 #include <string>
-/*----------------------------------------------------------------------------*/
 
 class XrdOucEnv;
 class XrdOucString;
 
 EOSCOMMONNAMESPACE_BEGIN
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 //! Class storing file transaction reports constructed by a FST report string
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
 
-class Report {
+class Report
+{
   // ---------------------------------------------------------------------------
   // the creator of the XrdOucEnv input is defined in XrdFstOfsFile.hh MakeReportEnv
   // ---------------------------------------------------------------------------
@@ -115,7 +104,7 @@ public:
   unsigned long long dsize; //< size of a delete file
   unsigned long long dc_ts;  //< timestamp of change time
   unsigned long long dc_tns;  //< timestamp of change time
-  unsigned long long dm_ts;  //< timestamp of access time 
+  unsigned long long dm_ts;  //< timestamp of access time
   unsigned long long dm_tns;  //< timestamp of access time
   unsigned long long da_ts;  //< timestamp of access time
   unsigned long long da_tns;  //< timestamp of access time
@@ -139,7 +128,7 @@ public:
   // ---------------------------------------------------------------------------
   //! Constructor by report env
   // ---------------------------------------------------------------------------
-  Report(XrdOucEnv &report);
+  Report(XrdOucEnv& report);
 
   // ---------------------------------------------------------------------------
   //! Destructor
@@ -151,8 +140,6 @@ public:
   // ---------------------------------------------------------------------------
   void Dump(XrdOucString& out, bool dumpsec = false, bool dumptpc = false);
 };
-
-/*----------------------------------------------------------------------------*/
 
 EOSCOMMONNAMESPACE_END
 

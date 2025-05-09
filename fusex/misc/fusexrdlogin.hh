@@ -26,12 +26,11 @@
 #ifndef FUSE_XRDLOGIN_HH_
 #define FUSE_XRDLOGIN_HH_
 
-#include <memory>
-#include <regex>
 #include <XrdCl/XrdClURL.hh>
 #include "llfusexx.hh"
 #include "auth/AuthenticationGroup.hh"
 #include "auth/ProcessCache.hh"
+#include <memory>
 
 class fusexrdlogin
 {
@@ -62,8 +61,6 @@ public:
   static void initializeProcessCache(const CredentialConfig& config);
   static std::unique_ptr<AuthenticationGroup> authGroup;
   static ProcessCache* processCache; // owned by authGroup
-private:
-  static const std::regex safeReg;
 };
 
 

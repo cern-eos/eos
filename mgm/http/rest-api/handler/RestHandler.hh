@@ -24,16 +24,14 @@
 #ifndef EOS_RESTHANDLER_HH
 #define EOS_RESTHANDLER_HH
 
-#include <regex>
-#include <memory>
-#include <map>
-
 #include "mgm/Namespace.hh"
 #include "common/http/HttpResponse.hh"
 #include "common/http/HttpRequest.hh"
 #include "common/VirtualIdentity.hh"
 #include <XrdHttp/XrdHttpExtHandler.hh>
 #include "mgm/http/rest-api/controllers/ControllerManager.hh"
+#include <memory>
+#include <map>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -73,7 +71,6 @@ protected:
   ControllerManager mControllerManager;
   std::string mEntryPointURL;
 private:
-  static const std::regex cEntryPointRegex;
   void verifyRestApiEntryPoint(const std::string& entryPointURL) const;
 };
 

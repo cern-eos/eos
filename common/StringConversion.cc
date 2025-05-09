@@ -27,7 +27,6 @@
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include "curl/curl.h"
 #include <pthread.h>
-#include <regex.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -927,24 +926,10 @@ StringConversion::IsDecimalNumber(const std::string& str)
 bool
 StringConversion::IsDouble(const std::string& s)
 {
-  static std::string sregex = "[-+]?[0-9]*\\.?[0-9]+([eE][-+]?[0-9]+)?";
-  regex_t regex;
-  int regexErrorCode = regcomp(&regex, sregex.c_str(), REG_EXTENDED);
-
-  if (regexErrorCode) {
-    return false;
-  }
-
-  int result = regexec(&regex, s.c_str(), 0, NULL, 0);
-  regfree(&regex);
-
-  if (result == REG_NOMATCH) {
-    return false;
-  } else {
-    return true;
-  }
+  char* end = nullptr;
+  double val = strtod(s.c_str(), &end);
+  return ((end != s.c_str()) && (*end == '\0') && (val != HUGE_VAL));
 }
-
 
 //------------------------------------------------------------------------------
 // Convert numeric value to string in a pretty way using KB, MB etc. symbols

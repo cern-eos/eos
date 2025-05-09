@@ -22,11 +22,15 @@
  ************************************************************************/
 #include "URLParser.hh"
 #include "common/StringConversion.hh"
+#include "common/RegexWrapper.hh"
 #include <algorithm>
 
-EOSMGMRESTNAMESPACE_BEGIN
+namespace
+{
+std::string sParamRegex("^\\{[a-z]*\\}$");
+}
 
-const std::regex URLParser::cParamRegex("^\\{[a-z]*\\}$");
+EOSMGMRESTNAMESPACE_BEGIN
 
 URLParser::URLParser(const std::string& url)
 {
@@ -77,10 +81,8 @@ bool URLParser::matchesAndExtractParameters(const std::string& urlPattern,
 
     if (urlToken != urlPatternToken) {
       //URL parts do not match, maybe it is a parameter, try to extract it
-      std::smatch urlParamMatch;
-
-      if (std::regex_match(urlPatternToken, urlParamMatch, cParamRegex)) {
-        params[urlParamMatch[0]] = urlToken;
+      if (eos::common::eos_regex_match(urlPatternToken, sParamRegex)) {
+        params[urlPatternToken] = urlToken;
       } else {
         return false;
       }

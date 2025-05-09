@@ -40,9 +40,9 @@
 #include "common/SymKeys.hh"
 #include "common/StringConversion.hh"
 #include "common/Path.hh"
+#include "common/RegexWrapper.hh"
 #include "common/utils/RandUtils.hh"
 #include <errno.h>
-#include <regex>
 #include <iostream>
 #include <XrdOuc/XrdOucEnv.hh>
 
@@ -361,20 +361,10 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
   return -ENODATA;
 }
 
-
 int
 EosTok::Match(const std::string& input, const std::string& regexString)
-
 {
-  try {
-    std::regex re(regexString);
-    bool match = std::regex_match(input, re);
-    return match;
-  } catch (std::regex_error& e) {
-    std::cerr << "error: invalid regex : " << e.what() << " : " << "CODE IS: " <<
-              e.code() << std::endl;
-    return -1;
-  }
+  return eos::common::eos_regex_match(input, regexString);
 }
 
 int

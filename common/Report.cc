@@ -21,11 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "common/Namespace.hh"
 #include "common/Report.hh"
-#include <regex>
-/*----------------------------------------------------------------------------*/
+#include "common/RegexWrapper.hh"
+
+namespace
+{
+std::string sLxplusRegex  {"(lxplus)(.*)(.cern.ch)"};
+std::string sLxbatchRegex {"(b7)(.*)(.cern.ch)"};
+std::string sIPv4Regex {"(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])"};
+}
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -36,12 +41,6 @@ EOSCOMMONNAMESPACE_BEGIN
 //!  @param report
 //!
 //------------------------------------------------------------------------------
-
-static const std::regex lxplus("(lxplus)(.*)(.cern.ch)");
-static const std::regex lxbatch("(b7)(.*)(.cern.ch)");
-static const std::regex
-ipv4("(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])");
-
 Report::Report(XrdOucEnv& report)
 {
   ots = report.Get("ots") ? strtoull(report.Get("ots"), 0, 10) : 0;
@@ -118,16 +117,16 @@ Report::Report(XrdOucEnv& report)
     // ipv6
     sec_domain = "other-ipv6";
   } else {
-    if (regex_match(sec_host, ipv4)) {
+    if (eos_regex_match(sec_host, sIPv4Regex)) {
       // ipv4
       sec_domain = "other-ipv4";
     } else {
-      if (regex_match(sec_host, lxbatch)) {
+      if (eos_regex_match(sec_host, sLxbatchRegex)) {
         // cern-batch
         sec_domain = "cern-batch";
         sec_host.erase(dpos);
       } else {
-        if (regex_match(sec_host, lxplus)) {
+        if (eos_regex_match(sec_host, sLxplusRegex)) {
           // cern-lxplus
           sec_domain = "cern-lxplus";
           sec_host.erase(dpos);
