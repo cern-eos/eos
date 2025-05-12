@@ -65,7 +65,6 @@ XrdMgmOfs::_chown(const char* path,
   std::shared_ptr<eos::IFileMD> fmd;
   errno = 0;
   gOFS->MgmStats.Add("Chown", vid.uid, vid.gid, 1);
-  eos_info("path=%s uid=%u gid=%u", path, uid, gid);
   eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
 
   // try as a directory
@@ -74,6 +73,8 @@ XrdMgmOfs::_chown(const char* path,
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path, !nodereference);
     eos::listAttributes(gOFS->eosView, cmd.get(), attrmap, false);
+    eos_info("path=%s uid=%u gid=%u old_uid=%u old_gid=%d noderef=%d",
+             path, uid, gid, cmd->getCUid(), cmd->getCGid(), nodereference);
     // ACL and permission check
     Acl acl;
 
@@ -86,9 +87,9 @@ XrdMgmOfs::_chown(const char* path,
     eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(),
                      acl.CanChown());
 
-    if (((vid.uid) && (!vid.hasUid(eos::common::ADM_UID) && !vid.hasGid(eos::common::ADM_GID)) &&
-         !acl.CanChown()) ||
-        ((vid.uid) && !acl.IsMutable())) {
+    if ((vid.uid && !vid.hasUid(eos::common::ADM_UID) &&
+         !vid.hasGid(eos::common::ADM_GID) && !acl.CanChown()) ||
+        (vid.uid && !acl.IsMutable())) {
       errno = EPERM;
     } else {
       if ((unsigned int) uid != 0xffffffff) {
@@ -96,7 +97,8 @@ XrdMgmOfs::_chown(const char* path,
         cmd->setCUid(uid);
       }
 
-      if (((!vid.uid) || (vid.uid == eos::common::ADM_UID) || (vid.gid == eos::common::ADM_GID)) &&
+      if (((!vid.uid) || (vid.uid == eos::common::ADM_UID) ||
+           (vid.gid == eos::common::ADM_GID)) &&
           ((unsigned int)gid != 0xffffffff)) {
         // Change the group
         cmd->setCGid(gid);
@@ -141,13 +143,13 @@ XrdMgmOfs::_chown(const char* path,
       eos_static_debug("sys.acl %s acl.CanChown() %d", attrmap["sys.acl"].c_str(),
                        acl.CanChown());
 
-      if ((vid.uid) && (!vid.sudoer) && (vid.uid != eos::common::ADM_UID) && (vid.gid != eos::common::ADM_GID) &&
-          !acl.CanChown()) {
+      if ((vid.uid) && (!vid.sudoer) && (vid.uid != eos::common::ADM_UID) &&
+          (vid.gid != eos::common::ADM_GID) && !acl.CanChown()) {
         errno = EPERM;
       } else {
-        eos_info("dereference %d", nodereference);
         fmd = gOFS->eosView->getFile(path, !nodereference);
-        eos_info("dereference %d", nodereference);
+        eos_info("path=%s uid=%u gid=%u old_uid=%u old_gid=%d noderef=%d",
+                 path, uid, gid, fmd->getCUid(), fmd->getCGid(), nodereference);
 
         // Subtract the file
         if (ns_quota) {
@@ -171,8 +173,8 @@ XrdMgmOfs::_chown(const char* path,
 
         fmd->setCTimeNow();
         eosView->updateFileStore(fmd.get());
-	lock.Release();
-	gOFS->FuseXCastRefresh(fmd->getIdentifier(), cmd->getParentIdentifier());
+        lock.Release();
+        gOFS->FuseXCastRefresh(fmd->getIdentifier(), cmd->getParentIdentifier());
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
