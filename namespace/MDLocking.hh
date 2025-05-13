@@ -24,16 +24,19 @@
 
 #include "namespace/Namespace.hh"
 #include "namespace/interface/LockableNSObject.hh"
+#include "namespace/locking/RawPtr.hh"
 
 EOSNSNAMESPACE_BEGIN
 
 class IContainerMD;
 using IContainerMDPtr = std::shared_ptr<IContainerMD>;
+using IContainerMDRawPtr = raw_ptr<IContainerMD>;
 
 struct FileOrContainerMD;
 
 class IFileMD;
 using IFileMDPtr = std::shared_ptr<IFileMD>;
+using IFileMDRawPtr = raw_ptr<IFileMD>;
 
 template<typename ObjectMDPtr, typename LockType>
 class NSObjectMDLock;
@@ -63,10 +66,10 @@ struct FileOrContainerMDLocked {
  */
 class MDLocking {
 private:
-  using FileReadTryLock = NSObjectMDTryLock<IFileMDPtr,MDReadLock>;
-  using FileWriteTryLock = NSObjectMDTryLock<IFileMDPtr,MDWriteLock>;
-  using ContainerReadTryLock = NSObjectMDTryLock<IContainerMDPtr,MDReadLock>;
-  using ContainerWriteTryLock = NSObjectMDTryLock<IContainerMDPtr,MDWriteLock>;
+  using FileReadTryLock = NSObjectMDTryLock<IFileMDRawPtr ,MDReadLock>;
+  using FileWriteTryLock = NSObjectMDTryLock<IFileMDRawPtr,MDWriteLock>;
+  using ContainerReadTryLock = NSObjectMDTryLock<IContainerMDRawPtr,MDReadLock>;
+  using ContainerWriteTryLock = NSObjectMDTryLock<IContainerMDRawPtr,MDWriteLock>;
   template<typename ContainerMDLocker, typename FileMDLocker>
   static FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker>
   lock(FileOrContainerMD fileOrContMD);

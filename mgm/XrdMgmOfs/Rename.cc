@@ -402,8 +402,8 @@ XrdMgmOfs::_rename(const char* old_name,
             eos::FileIdentifier fid;
             {
               eos::MDLocking::BulkMDWriteLock dirFileLocker;
-              dirFileLocker.add(dir);
-              dirFileLocker.add(file);
+              dirFileLocker.add(dir.get());
+              dirFileLocker.add(file.get());
               auto locks = dirFileLocker.lockAll();
               COMMONTIMING("rename::rename_file_within_same_container_dir_file_write_lock", &tm);
               eosView->renameFile(file.get(), nPath.GetName());
@@ -436,9 +436,9 @@ XrdMgmOfs::_rename(const char* old_name,
             // TODO: deal with conflicts and proper roll-back in case a file
             // with the same name already exists in the destination directory
             eos::MDLocking::BulkMDWriteLock helper;
-            helper.add(dir);
-            helper.add(newdir);
-            helper.add(file);
+            helper.add(dir.get());
+            helper.add(newdir.get());
+            helper.add(file.get());
             auto locks = helper.lockAll();
             COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock", &tm);
             dir->removeFile(oPath.GetName());
@@ -492,8 +492,8 @@ XrdMgmOfs::_rename(const char* old_name,
         if (rdir) {
           {
             eos::MDLocking::BulkMDReadLock containerBulkLocker;
-            containerBulkLocker.add(rdir);
-            containerBulkLocker.add(newdir);
+            containerBulkLocker.add(rdir.get());
+            containerBulkLocker.add(newdir.get());
             auto containerLocks = containerBulkLocker.lockAll();
             COMMONTIMING("rename::rename_dir_first_is_safe_to_rename_all_dirs_read_lock",
                          &tm);
@@ -678,8 +678,8 @@ XrdMgmOfs::_rename(const char* old_name,
             // Rename within a container
             // Lock the containers
             eos::MDLocking::BulkMDWriteLock bulkContainerLocker;
-            bulkContainerLocker.add(rdir);
-            bulkContainerLocker.add(dir);
+            bulkContainerLocker.add(rdir.get());
+            bulkContainerLocker.add(dir.get());
             auto containerLocks = bulkContainerLocker.lockAll();
             COMMONTIMING("rename::rename_dir_within_same_container_dirs_lock_write", &tm);
             eosView->renameContainer(rdir.get(), nPath.GetName());
@@ -703,8 +703,8 @@ XrdMgmOfs::_rename(const char* old_name,
           } else {
             {
               eos::MDLocking::BulkMDReadLock bulkDirLocker;
-              bulkDirLocker.add(rdir);
-              bulkDirLocker.add(newdir);
+              bulkDirLocker.add(rdir.get());
+              bulkDirLocker.add(newdir.get());
               auto dirLocks = bulkDirLocker.lockAll();
               COMMONTIMING("rename::rename_dir_second_is_safe_to_rename_all_dirs_read_lock",
                            &tm);
@@ -729,9 +729,9 @@ XrdMgmOfs::_rename(const char* old_name,
             }
             // Remove from one container to another one
             eos::MDLocking::BulkMDWriteLock bulkContainerLocker;
-            bulkContainerLocker.add(dir);
-            bulkContainerLocker.add(rdir);
-            bulkContainerLocker.add(newdir);
+            bulkContainerLocker.add(dir.get());
+            bulkContainerLocker.add(rdir.get());
+            bulkContainerLocker.add(newdir.get());
             auto containerLocks = bulkContainerLocker.lockAll();
             COMMONTIMING("rename::move_dir_all_dirs_write_lock", &tm);
             int64_t tree_size = static_cast<int64_t>(rdir->getTreeSize());

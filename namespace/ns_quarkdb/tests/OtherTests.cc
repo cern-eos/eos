@@ -228,9 +228,9 @@ TEST(BulkNSObjectLocker, testBulkNSObjectLocker) {
   auto mockContainerMD2 = std::make_shared<eos::MockContainerMD>(2);
   auto mockContainerMD3 = std::make_shared<eos::MockContainerMD>(3);
   eos::MDLocking::BulkContainerReadLock bulkObjectLocker;
-  bulkObjectLocker.add(mockContainerMD1);
-  bulkObjectLocker.add(mockContainerMD2);
-  bulkObjectLocker.add(mockContainerMD3);
+  bulkObjectLocker.add(mockContainerMD1.get());
+  bulkObjectLocker.add(mockContainerMD2.get());
+  bulkObjectLocker.add(mockContainerMD3.get());
   {
     auto locks = bulkObjectLocker.lockAll();
     ASSERT_EQ(3,locks.size());
