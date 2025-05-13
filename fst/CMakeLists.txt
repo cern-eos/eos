@@ -36,6 +36,18 @@ if(BUILD_XRDCL_RAIN_PLUGIN)
 endif()
 
 #-------------------------------------------------------------------------------
+# Add css plugin library only if explicitly requested by using the
+# BUILD_CSS_PLUGIN flag.
+#-------------------------------------------------------------------------------
+if(BUILD_CSS_PLUGIN)
+  add_subdirectory(css_plugin)
+  install(TARGETS EosFstCss
+  LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+endif()
+
+#-------------------------------------------------------------------------------
 # Gfcomplete objects
 #-------------------------------------------------------------------------------
 set(GFCOMPLETE_SRCS
