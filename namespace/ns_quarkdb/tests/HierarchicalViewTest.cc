@@ -774,8 +774,8 @@ TEST_F(HierarchicalViewF, BulkNsObjectLocker)
     auto container = view()->createContainer("/test/", true);
     auto container2 = view()->createContainer("/test/d1", true);
     eos::MDLocking::BulkContainerReadLock locker;
-    locker.add(container2);
-    locker.add(container);
+    locker.add(container2.get());
+    locker.add(container.get());
     auto locks = locker.lockAll();
     // The order of the locks should be by ascending order of the container identifier
     ASSERT_EQ(2, locks.size());
@@ -786,8 +786,8 @@ TEST_F(HierarchicalViewF, BulkNsObjectLocker)
     auto file1 = view()->createFile("/test/f1");
     auto file2 = view()->createFile("/test/d1/f2");
     eos::MDLocking::BulkFileWriteLock locker;
-    locker.add(file2);
-    locker.add(file1);
+    locker.add(file2.get());
+    locker.add(file1.get());
     auto locks = locker.lockAll();
     ASSERT_EQ(2, locks.size());
     ASSERT_EQ("f1", locks[0]->getUnderlyingPtr()->getName());
@@ -818,8 +818,8 @@ TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
     }
 
     eos::MDLocking::BulkContainerWriteLock locker;
-    locker.add(container2);
-    locker.add(container);
+    locker.add(container2.get());
+    locker.add(container.get());
     start = std::chrono::steady_clock::now();
     auto locks = locker.lockAll();
     stop = std::chrono::steady_clock::now();
@@ -855,8 +855,8 @@ TEST_F(HierarchicalViewF, BulkMDLockerTest)
     }
 
     eos::MDLocking::BulkMDWriteLock locker;
-    locker.add(container);
-    locker.add(file);
+    locker.add(container.get());
+    locker.add(file.get());
     start = std::chrono::steady_clock::now();
     auto locks = locker.lockAll();
     stop = std::chrono::steady_clock::now();
@@ -1534,8 +1534,8 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       auto fh = view()->getFile(filePath);
       auto dh = view()->getContainer(dirPath);
       eos::MDLocking::BulkMDWriteLock locker;
-      locker.add(dh);
-      locker.add(fh);
+      locker.add(dh.get());
+      locker.add(fh.get());
       auto locks = locker.lockAll();
       fh->setSize(i);
       dh->addFile(fh.get());
@@ -1548,8 +1548,8 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       auto fh = view()->getFile(filePath);
       auto dh = view()->getContainer(dirPath);
       eos::MDLocking::BulkMDReadLock locker;
-      locker.add(fh);
-      locker.add(dh);
+      locker.add(fh.get());
+      locker.add(dh.get());
       auto locks = locker.lockAll();
       auto fileId = fh->getId();
       auto contId = dh->getId();

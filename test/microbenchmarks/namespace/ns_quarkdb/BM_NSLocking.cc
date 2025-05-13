@@ -83,9 +83,9 @@ BENCHMARK_DEFINE_F(BulkNSObjectLockFixture, BulkNSObjectLocker)(benchmark::State
   }
   for (auto _ : state) {
     eos::MDLocking::BulkMDWriteLock bulkLocker;
-    bulkLocker.add(container1);
-    bulkLocker.add(file);
-    bulkLocker.add(container2);
+    bulkLocker.add(container1.get());
+    bulkLocker.add(file.get());
+    bulkLocker.add(container2.get());
     auto locks = bulkLocker.lockAll();
     // Simulate work while holding the locks.
     simulateWork(500000);
