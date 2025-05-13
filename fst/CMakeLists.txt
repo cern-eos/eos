@@ -45,7 +45,6 @@ if(BUILD_CSS_PLUGIN)
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
-
 endif()
 
 #-------------------------------------------------------------------------------
