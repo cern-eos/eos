@@ -95,7 +95,7 @@ extern void xrdmgmofs_coverage(int sig);
 
 namespace
 {
-std::string sVersionRegex {"v[0-9]+(\\.[0-9]+)?"};
+std::string sVersionRegex {"v[0-9]+(\\.[0-9]+)+"};
 }
 
 USE_EOSMGMNAMESPACE

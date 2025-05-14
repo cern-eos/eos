@@ -24,41 +24,55 @@
 #include "common/Logging.hh"
 #include <mutex>
 #include <iostream>
-#include <regex>
+#include <memory>
+#include <regex.h>
 
 namespace
 {
-std::mutex sRegexMutex;
-
-//------------------------------------------------------------------------------
-//! Wrapper for std::regex_match taking regular expression as std::regex
-//!
-//! @param input input string
-//! @param regex regular expression given as std::regex
-//!
-//! @return true if there is a full match, otherwise false
-//------------------------------------------------------------------------------
-bool eos_regex_match(const std::string& input, const std::regex& regex)
+//! Custom deleter for regex_t std::unique_ptr object
+auto regex_deleter = [](regex_t* ptr)
 {
-  std::unique_lock<std::mutex> lock(sRegexMutex);
-  return std::regex_match(input, regex);
-}
+  regfree(ptr);
+  free(ptr);
+};
+//! unique_regex_t which is a unique pointer to a regex_t object
+using unique_regex_t = std::unique_ptr<regex_t, decltype(regex_deleter)>;
+std::mutex sRegexMutex; ///< Mutex protecting access to the map below
+//! Map string regex to regex_t objects
+std::map<std::string, unique_regex_t> sMapRegex;
 
 //------------------------------------------------------------------------------
-//! Wrapper for std::regex_search taking regular expression as std::regex
+//! Get regex expression based on the input string regex. The result is either
+//! computed on the fly or it's taken from the cache
 //!
-//! @param input input string
-//! @param regex regular expression given as std::regex
+//! @param in_regex input string regex
 //!
-//! @return true if there is any match, otherwise false
+//! @return compiled regex expression or std::null_ptr in case of error
 //------------------------------------------------------------------------------
-bool eos_regex_search(const std::string& input, const std::regex& regex)
+regex_t* eos_get_regex(const std::string& in_regex)
 {
-  std::unique_lock<std::mutex> lock(sRegexMutex);
-  return std::regex_search(input, regex);
-}
-}
+  {
+    // This is the most common code path
+    std::unique_lock<std::mutex> lock(sRegexMutex);
+    auto it = sMapRegex.find(in_regex);
 
+    if (it != sMapRegex.end()) {
+      return it->second.get();
+    }
+  }
+  regex_t* re = static_cast<regex_t*>(malloc(sizeof(regex_t)));
+
+  if (regcomp(re, in_regex.c_str(), REG_EXTENDED | REG_NOSUB) != 0) {
+    eos_static_err("msg=\"failed to compile regex\" sregex=\"%s\"",
+                   in_regex.c_str());
+    return nullptr; // error
+  }
+
+  unique_regex_t uniq_re(re, regex_deleter);
+  std::unique_lock<std::mutex> lock(sRegexMutex);
+  return sMapRegex.emplace(in_regex, std::move(uniq_re)).first->second.get();
+}
+}
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -67,14 +81,29 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 bool eos_regex_match(const std::string& input, const std::string& regex)
 {
-  try {
-    std::regex re(regex);
-    return ::eos_regex_match(input, re);
-  } catch (std::regex_error& e) {
-    std::cerr << "error: invalid regex : " << e.what() << " : "
-              << "CODE IS: " <<  e.code() << std::endl;
+  if (regex.empty()) {
     return false;
   }
+
+  std::string lregex = regex;
+
+  // Make sure the regex pattern asks for a full match!
+  if (*lregex.begin() != '^') {
+    lregex.insert(0, "^");
+  }
+
+  if (*lregex.rbegin() != '$') {
+    lregex.append("$");
+  }
+
+  regex_t* re = eos_get_regex(lregex);
+
+  if ((re == nullptr) ||
+      (regexec(re, input.c_str(), (size_t) 0, nullptr, 0) != 0)) {
+    return false;
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -82,14 +111,24 @@ bool eos_regex_match(const std::string& input, const std::string& regex)
 //------------------------------------------------------------------------------
 bool eos_regex_search(const std::string& input, const std::string& regex)
 {
-  try {
-    std::regex re(regex);
-    return ::eos_regex_search(input, re);
-  } catch (std::regex_error& e) {
-    std::cerr << "error: invalid regex : " << e.what() << " : "
-              << "CODE IS: " <<  e.code() << std::endl;
+  if (regex.empty()) {
     return false;
   }
+
+  regex_t re;
+
+  if (regcomp(&re, regex.c_str(), REG_EXTENDED | REG_NOSUB) != 0) {
+    return false;
+  }
+
+  int status = regexec(&re, input.c_str(), 0, nullptr, 0);
+  regfree(&re);
+
+  if (status != 0) {
+    return false;
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -97,18 +136,14 @@ bool eos_regex_search(const std::string& input, const std::string& regex)
 //------------------------------------------------------------------------------
 bool eos_regex_valid(const std::string& regex)
 {
-  // Looks like std::regex suffers from https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86164#c7
-  // Found by filtering like " newfind --name '*sometext' " (note the '*' prefix!),
-  // which raises <std::regex_constants::error_paren> - although quite misleading.
-  try {
-    std::regex filter(regex, std::regex_constants::egrep);
-    return true;
-  } catch (const std::regex_error& e) {
-    eos_static_err("msg=\"failed regex check\" regex=\"%s\" except_code=%d "
-                   "except_msg=\"%s\"", regex.c_str(), e.code(),
-                   e.what());
+  regex_t re;
+
+  if (regcomp(&re, regex.c_str(), REG_EXTENDED | REG_NOSUB) != 0) {
     return false;
   }
+
+  regfree(&re);
+  return true;
 }
 
 EOSCOMMONNAMESPACE_END

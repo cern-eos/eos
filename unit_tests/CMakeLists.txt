@@ -109,6 +109,7 @@ set(COMMON_UT_SRCS
   common/PathTests.cc
   common/GlobTests.cc
   common/RWMutexTest.cc
+  common/RegexWrapperTests.cc
   common/StringConversionTests.cc
   common/StringTokenizerTests.cc
   common/StringSplitTests.cc
