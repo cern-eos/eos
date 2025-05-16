@@ -144,8 +144,8 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                                                     Quota::gProjectId);
 
         if (!map_quotas.empty()) {
-          unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupBytesIs];
-          unsigned long long maxbytes = map_quotas[SpaceQuota::kGroupBytesTarget];
+          unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
+          unsigned long long maxbytes = map_quotas[SpaceQuota::kGroupLogicalBytesTarget];
           unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
           unsigned long long maxfiles = map_quotas[SpaceQuota::kGroupFilesTarget];
 
@@ -261,7 +261,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                                                               Quota::gProjectId);
 
                   if (!map_quotas.empty()) {
-                    unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupBytesIs];
+                    unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
                     unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
                     eos_static_debug("low-volume=%lld is-volume=%lld low-inodes=%lld is-inodes=%lld",
                                      usedfiles,
@@ -706,8 +706,8 @@ Recycle::Print(std::string& std_out, std::string& std_err,
                                                 Quota::gProjectId);
 
     if (!map_quotas.empty()) {
-      unsigned long long used_bytes = map_quotas[SpaceQuota::kGroupBytesIs];
-      unsigned long long max_bytes = map_quotas[SpaceQuota::kGroupBytesTarget];
+      unsigned long long used_bytes = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
+      unsigned long long max_bytes = map_quotas[SpaceQuota::kGroupLogicalBytesTarget];
       unsigned long long used_inodes = map_quotas[SpaceQuota::kGroupFilesIs];
       unsigned long long max_inodes = map_quotas[SpaceQuota::kGroupFilesTarget];
       char sline[4096];
