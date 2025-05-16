@@ -888,6 +888,30 @@ public:
   {
   public:
 
+    class flushentrywaiter
+    {
+    public:
+      flushentrywaiter() : done(false) { }
+
+      void wait()
+      {
+        std::unique_lock<std::mutex> lck(mtx);
+        cv.wait(lck, [this] { return this->done; });
+      }
+
+      void notify()
+      {
+        std::unique_lock<std::mutex> lck(mtx);
+        done = true;
+        lck.unlock();
+        cv.notify_one();
+      }
+
+      bool done;
+      std::mutex mtx;
+      std::condition_variable cv;
+    };
+
     flushentry(const uint64_t id, const std::string& aid, mdx::md_op o,
                fuse_req_t req = 0) : _id(id), _authid(aid), _op(o)
     {
@@ -902,7 +926,13 @@ public:
       _fuse_id = fuseid;
     };
 
-    ~flushentry() { }
+    ~flushentry()
+    {
+      for(auto &w: _waiters)
+      {
+        w->notify();
+      }
+    }
 
     std::string authid() const
     {
@@ -929,6 +959,11 @@ public:
       _fuse_id.bind();
     }
 
+    void registerwaiter(flushentrywaiter *w)
+    {
+      _waiters.push_back(w);
+    }
+
     static std::deque<flushentry> merge(std::deque<flushentry>& f)
     {
       return f;
@@ -950,6 +985,7 @@ public:
     std::string _authid;
     mdx::md_op _op;
     fuse_id _fuse_id;
+    std::vector<flushentrywaiter*> _waiters;
   };
 
   typedef std::deque<flushentry> flushentry_set_t;

@@ -615,20 +615,28 @@ metad::wait_upstream(fuse_req_t req,
   shared_md md;
 
   if (mdmap.retrieveTS(ino, md)) {
-    if (md && (*md)()->id()) {
-      while (1) {
-        // wait that the entry is leaving the flush queue
-        mdflush.Lock();
+    uint64_t id;
+    if (md && (id = (*md)()->id()) ) {
 
-        if (mdqueue.count((*md)()->id())) {
-          mdflush.UnLock();
-          eos_static_notice("waiting for entry to be synced upstream ino=%#lx",
-                            (*md)()->id());
-          std::this_thread::sleep_for(std::chrono::microseconds(500));
-        } else {
-          mdflush.UnLock();
-          break;
-        }
+      mdflush.Lock();
+      auto lastit = mdflushqueue.rbegin();
+      // find youngest entry
+      if (mdqueue.count(id)) {
+        lastit = mdflushqueue.rend();
+      }
+
+      auto entry = std::find_if(mdflushqueue.rbegin(), lastit,
+                               [id](const flushentry &fe) {
+                      return fe.id() == id;
+                   });
+
+      if (entry != lastit) {
+        flushentry::flushentrywaiter w;
+        entry->registerwaiter(&w);
+        mdflush.UnLock();
+        w.wait();
+      } else {
+        mdflush.UnLock();
       }
     }
   }
@@ -982,19 +990,29 @@ metad::insert(metad::shared_md md, std::string authid)
 int
 metad::wait_flush(fuse_req_t req, metad::shared_md md)
 {
+  uint64_t id = (*md)()->id();
   // logic to wait for a completion of request
   md->Locker().UnLock();
 
-  while (1) {
-    if (md->WaitSync(1)) {
-      if (has_flush((*md)()->id())) {
-        // if a deletion was issued, OP state is (*md)()->RM not (*md)()->NONE
-        // hence we would never leave this loop
-        continue;
-      }
+  mdflush.Lock();
+  auto lastit = mdflushqueue.rbegin();
+  // find youngest entry
+  if (mdqueue.count(id)) {
+    lastit = mdflushqueue.rend();
+  }
 
-      break;
-    }
+  auto entry = std::find_if(mdflushqueue.rbegin(), lastit,
+                            [id](const flushentry &fe) {
+                   return fe.id() == id;
+                 });
+
+  if (entry != lastit) {
+    flushentry::flushentrywaiter w;
+    entry->registerwaiter(&w);
+    mdflush.UnLock();
+    w.wait();
+  } else {
+    mdflush.UnLock();
   }
 
   eos_static_info("waited for sync rc=%d bw=%#lx", (*md)()->err(),
@@ -1043,6 +1061,26 @@ metad::update(fuse_id fuseid, shared_md md, std::string authid,
   mdflush.Lock();
   stat.inodes_backlog_store(mdqueue.size());
   const uint64_t id = (*md)()->id();
+  mdx::md_op op = localstore ? mdx::LSTORE : mdx::UPDATE;
+
+  // if we've already got an update in the queue for for this id
+  // and user don't add it again. the item at start of queue may
+  // be finishing up, so don't count this.
+  if (mdqueue.count(id)) {
+    auto itsecond = mdflushqueue.begin();
+    if (itsecond != mdflushqueue.end()) ++itsecond;
+    if (std::find_if(itsecond, mdflushqueue.end(),
+         [fuseid,op,id](const flushentry &fe) {
+           const fuse_id x =  fe.get_fuse_id();
+           return (fe.id() == id &&
+                   fe.op() == op &&
+                   x.uid   == fuseid.uid &&
+                   x.gid   == fuseid.gid);
+         }) != mdflushqueue.end()) {
+      mdflush.UnLock();
+      return;
+    }
+  }
 
   if (!localstore) {
     // only updates initiated from FUSE limited,
@@ -1050,7 +1088,7 @@ metad::update(fuse_id fuseid, shared_md md, std::string authid,
     wait_backlog(id, 1);
   }
 
-  flushentry fe(id, authid, localstore ? mdx::LSTORE : mdx::UPDATE, fuseid);
+  flushentry fe(id, authid, op, fuseid);
 
   if (!localstore) {
     fe.bind();
@@ -1060,7 +1098,7 @@ metad::update(fuse_id fuseid, shared_md md, std::string authid,
   mdflushqueue.push_back(fe);
   eos_static_info("added ino=%#lx flushentry=%s queue-size=%u local-store=%d",
                   id, flushentry::dump(fe).c_str(), mdqueue.size(), localstore);
-  mdflush.Signal();
+  mdflush.Broadcast();
   mdflush.UnLock();
 }
 
@@ -1120,7 +1158,7 @@ metad::add(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   fep.bind();
   mdqueue[pid]++;
   mdflushqueue.push_back(fep);
-  mdflush.Signal();
+  mdflush.Broadcast();
   mdflush.UnLock();
 }
 
@@ -1220,7 +1258,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   fep.bind();
   mdqueue[pid]++;
   mdflushqueue.push_back(fep);
-  mdflush.Signal();
+  mdflush.Broadcast();
   mdflush.UnLock();
   return 0;
 }
@@ -1345,7 +1383,7 @@ metad::remove(fuse_req_t req, metad::shared_md pmd, metad::shared_md md,
   mdflushqueue.push_back(fe);
   mdflushqueue.push_back(fep);
   stat.inodes_backlog_store(mdqueue.size());
-  mdflush.Signal();
+  mdflush.Broadcast();
   mdflush.UnLock();
 }
 
@@ -1461,7 +1499,7 @@ metad::mv(fuse_req_t req, shared_md p1md, shared_md p2md, shared_md md,
   mdqueue[(*md)()->id()]++;
   mdflushqueue.push_back(fe);
   stat.inodes_backlog_store(mdqueue.size());
-  mdflush.Signal();
+  mdflush.Broadcast();
   mdflush.UnLock();
 }
 
