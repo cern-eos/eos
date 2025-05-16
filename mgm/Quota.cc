@@ -668,9 +668,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserFilesTarget, id), "+l"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "f", "%"));
+                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "f", "%"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
-                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "s"));
+                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "s"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kUserFilesIs, id), GetQuota(kUserFilesTarget, id)), "s"));
       } else {
@@ -690,9 +690,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserFilesTarget, id), "ol"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "of"));
+                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "of"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
-                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "os"));
+                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "os"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kUserFilesIs, id), GetQuota(kUserFilesTarget, id)), "os"));
       }
@@ -762,9 +762,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupFilesTarget, id), "+l"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "f", "%"));
+                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "f", "%"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
-                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "s"));
+                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "s"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kGroupFilesIs, id), GetQuota(kGroupFilesTarget, id)), "s"));
       } else {
@@ -784,9 +784,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupFilesTarget, id), "ol"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "of"));
+                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "of"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
-                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "os"));
+                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "os"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kGroupFilesIs, id), GetQuota(kGroupFilesTarget, id)), "os"));
       }
@@ -833,9 +833,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllUserFilesTarget, 0), "+l"));
       table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "f", "%"));
+                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "f", "%"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
-                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "s"));
+                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "s"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)), "s"));
       table_data.emplace_back();
@@ -853,9 +853,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllGroupFilesTarget, 0), "+l"));
       table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "f", "%"));
+                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "f", "%"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
-                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "s"));
+                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "s"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget, 0)), "s"));
       table_summary.AddRows(table_data);
@@ -894,9 +894,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllUserFilesTarget, 0), "ol"));
       table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "of"));
+                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "of"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
-                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "os"));
+                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "os"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)), "os"));
       table_summary_user.AddRows(table_data);
@@ -934,9 +934,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllGroupFilesTarget, 0), "ol"));
       table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "of"));
+                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "of"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
-                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "os"));
+                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "os"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget, 0)), "os"));
       table_summary_group.AddRows(table_data);
