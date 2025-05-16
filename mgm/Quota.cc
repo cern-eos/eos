@@ -1122,12 +1122,20 @@ const char* SpaceQuota::GetTagAsString(int tag)
     return "userbytes";
   }
 
+  if (tag == kUserLogicalBytesTarget) {
+    return "userlogicalbytes";
+  }
+
   if (tag == kUserFilesTarget) {
     return "userfiles";
   }
 
   if (tag == kGroupBytesTarget) {
     return "groupbytes";
+  }
+
+  if (tag == kGroupLogicalBytesTarget) {
+    return "grouplogicalbytes";
   }
 
   if (tag == kGroupFilesTarget) {
@@ -1138,12 +1146,20 @@ const char* SpaceQuota::GetTagAsString(int tag)
     return "alluserbytes";
   }
 
+  if (tag == kAllUserLogicalBytesTarget) {
+    return "alluserlogicalbytes";
+  }
+
   if (tag == kAllUserFilesTarget) {
     return "alluserfiles";
   }
 
   if (tag == kAllGroupBytesTarget) {
     return "allgroupbytes";
+  }
+
+  if (tag == kAllGroupLogicalBytesTarget) {
+    return "allgrouplogicalbytes";
   }
 
   if (tag == kAllGroupFilesTarget) {
@@ -1162,12 +1178,20 @@ unsigned long SpaceQuota::GetTagFromString(const std::string& tag)
     return kUserBytesTarget;
   }
 
+  if (tag == "userlogicalbytes") {
+    return kUserLogicalBytesTarget;
+  }
+
   if (tag == "userfiles") {
     return kUserFilesTarget;
   }
 
   if (tag == "groupbytes") {
     return kGroupBytesTarget;
+  }
+
+  if (tag == "grouplogicalbytes") {
+    return kGroupLogicalBytesTarget;
   }
 
   if (tag == "groupfiles") {
@@ -1178,12 +1202,20 @@ unsigned long SpaceQuota::GetTagFromString(const std::string& tag)
     return kAllUserBytesTarget;
   }
 
+  if (tag == "alluserlogicalbytes") {
+    return kAllUserLogicalBytesTarget;
+  }
+
   if (tag == "alluserfiles") {
     return kAllUserFilesTarget;
   }
 
   if (tag == "allgroupbytes") {
     return kAllGroupBytesTarget;
+  }
+
+  if (tag == "allgrouplogicalbytes") {
+    return kAllGroupLogicalBytesTarget;
   }
 
   if (tag == "allgroupfiles") {
