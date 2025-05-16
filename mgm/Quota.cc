@@ -1595,7 +1595,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     oss_config << "uid=";
 
     if (quota_type == Type::kVolume) {
-      quota_tag = SpaceQuota::kUserBytesTarget;
+      quota_tag = SpaceQuota::kUserLogicalBytesTarget;
     } else {
       quota_tag = SpaceQuota::kUserFilesTarget;
     }
@@ -1603,7 +1603,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     oss_config << "gid=";
 
     if (quota_type == Type::kVolume) {
-      quota_tag = SpaceQuota::kGroupBytesTarget;
+      quota_tag = SpaceQuota::kGroupLogicalBytesTarget;
     } else {
       quota_tag = SpaceQuota::kGroupFilesTarget;
     }
@@ -1623,6 +1623,24 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   squota->SetQuota(quota_tag, id, value);
   gOFS->ConfEngine->SetConfigValue("quota", oss_config.str().c_str(),
                                    svalue.c_str());
+
+  // When setting logical bytes quota, set also raw bytes for backward compatibility
+  if (quota_type == Type::kVolume) {
+    long long raw_bytes = value * squota->GetLayoutSizeFactor();
+    std::string raw_value = std::to_string(raw_bytes);
+    std::string raw_config = oss_config.str();
+    raw_config.erase(raw_config.find("logical"), 7);
+
+    oss_msg << "updating quota using " << value << "bytes (" << raw_bytes << " raw bytes)\n";
+
+    if (id_type == IdT::kUid)
+      squota->SetQuota(SpaceQuota::kUserBytesTarget, id, raw_bytes);
+    else
+      squota->SetQuota(SpaceQuota::kGroupBytesTarget, id, raw_bytes);
+
+    gOFS->ConfEngine->SetConfigValue("quota", raw_config.c_str(), raw_value.c_str());
+  }
+
   oss_msg << "success: updated "
           << ((quota_type == Type::kVolume) ? "volume" : "inode")
           << " quota for "
