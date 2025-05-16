@@ -633,8 +633,7 @@ public:
              fuse_ino_t ino,
              int nlookup);
 
-  void wait_backlog(uint64_t id,
-                    size_t minfree);
+  void wait_backlog(shared_md md);
 
   void wait_upstream(fuse_req_t req,
                      fuse_ino_t ino);
@@ -884,6 +883,34 @@ public:
     return zmq_clientuuid;
   }
 
+  class mdqwaiter
+  {
+  public:
+
+    mdqwaiter() : done_(false) { }
+
+    void wait()
+    {
+      std::unique_lock<std::mutex> lck(mtx_);
+      cv_.wait(lck, [this] { return this->done_; });
+    }
+
+    void notify()
+    {
+      std::unique_lock<std::mutex> lck(mtx_);
+      done_ = true;
+      lck.unlock();
+      cv_.notify_one();
+    }
+
+    bool done() const { return done_; }
+
+  private:
+    bool done_;
+    std::mutex mtx_;
+    std::condition_variable cv_;
+  };
+
   class flushentry
   {
   public:
@@ -902,11 +929,22 @@ public:
       _fuse_id = fuseid;
     };
 
-    ~flushentry() { }
+    ~flushentry()
+    {
+      for(auto &w: _waiters)
+      {
+        w->notify();
+      }
+    }
 
     std::string authid() const
     {
       return _authid;
+    }
+
+    void updateauthid(const std::string &aid)
+    {
+      _authid = aid;
     }
 
     mdx::md_op op() const
@@ -927,6 +965,11 @@ public:
     void bind()
     {
       _fuse_id.bind();
+    }
+
+    void registerwaiter(mdqwaiter *w)
+    {
+      _waiters.push_back(w);
     }
 
     static std::deque<flushentry> merge(std::deque<flushentry>& f)
@@ -950,6 +993,7 @@ public:
     std::string _authid;
     mdx::md_op _op;
     fuse_id _fuse_id;
+    std::vector<mdqwaiter*> _waiters;
   };
 
   typedef std::deque<flushentry> flushentry_set_t;
@@ -1065,6 +1109,7 @@ private:
 
   std::map<uint64_t, size_t> mdqueue; // inode, counter of mds to flush
   std::deque<flushentry> mdflushqueue; // linear queue with all entries to flush
+  std::deque<const uint64_t*> mdbacklogqueue; // to give order to waiters for mdqueue capacity
   uint64_t mdqueue_current{0}; // ino of entry currently being flushed
 
   typedef std::shared_ptr<eos::fusex::response> shared_response;
