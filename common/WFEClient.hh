@@ -61,11 +61,7 @@ public:
 private:
     grpc::string m_grpcstrToken;
 };
-   
-// to be used as follows prior to making a call
-//    auto call_creds = grpc::MetadataCredentialsFromPlugin(
-//        std::unique_ptr<grpc::MetadataCredentialsPlugin>(
-//            new JWTAuthenticator("super-secret-ticket")));
+
 class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str) {
@@ -74,10 +70,15 @@ public:
     grpc::SslCredentialsOptions ssl_options;
     ssl_options.pem_root_certs = file2string(RootCertificate);
     // Create a channel with SSL credentials
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint, grpc::SslCredentials(ssl_options));
-    std::unique_ptr<cta::xrd::CtaRpc::Stub> client_stub = cta::xrd::CtaRpc::NewStub(channel);
-    // client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials())))
-    grpc::ChannelArguments channel_args;
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
+    client_stub = cta::xrd::CtaRpc::NewStub(channel);
+  }
+
+  // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
+  cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
+    grpc::ClientContext context;
+    grpc::Status status;
+
     std::string token_contents;
     // read the token from the expected place
     std::string token_path("shared/etc/jwt-token-grpc"); // this path will be provided in the config eventually
@@ -86,19 +87,7 @@ public:
     std::shared_ptr<::grpc::CallCredentials> call_credentials =
           ::grpc::MetadataCredentialsFromPlugin(std::unique_ptr<::grpc::MetadataCredentialsPlugin>(
           new JWTAuthenticator(token_contents)));
-    std::shared_ptr<::grpc::ChannelCredentials> spCompositeCredentials = ::grpc::CompositeChannelCredentials(spChannelCreds, spCallCredentials);
-    std::shared_ptr<::grpc::Channel> spChannel {::grpc::CreateChannel(GRPC_SERVER, spCompositeCredentials)};
-    cta::frontend::grpc::client::AsyncClient<cta::xrd::CtaRpcStream> client(log, spChannel);
-    
-    channel_args.SetMetadataCredentialsFactory(std::make_unique<JWTAuthenticator>(token_contents)); // this does not exist in gRPC
-    client_stub = cta::xrd::CtaRpc::NewStub(grpc::CreateCustomChannel(endpoint_str, grpc::InsecureChannelCredentials(), channel_args));
-
-  }
-
-  // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
-  cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
-    grpc::ClientContext context;
-    grpc::Status status;
+    context.set_credentials(call_credentials);
 
     switch (request.notification().wf().event()) {
       // this is prepare
