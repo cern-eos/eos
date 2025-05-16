@@ -561,10 +561,8 @@ XrdMgmOfs::_rename(const char* old_name,
 
                       if (!fmd->isLink()) {
                         // compute quotas to check
-                        user_del_size[fmd->getCUid()] +=
-                          (fmd->getSize() * eos::common::LayoutId::GetSizeFactor(fmd->getLayoutId()));
-                        group_del_size[fmd->getCGid()] +=
-                          (fmd->getSize() * eos::common::LayoutId::GetSizeFactor(fmd->getLayoutId()));
+                        user_del_size[fmd->getCUid()] += fmd->getSize();
+                        group_del_size[fmd->getCGid()] += fmd->getSize();
                       }
                     } else {
                       return Emsg(epname, error, errno,
@@ -581,20 +579,16 @@ XrdMgmOfs::_rename(const char* old_name,
                 bool groupok = true;
 
                 // Either all have user quota therefore userok is true
-                for (auto it = user_del_size.begin(); it != user_del_size.end();
-                     ++it) {
-                  if (!Quota::Check(nP, it->first, Quota::gProjectId,
-                                    it->second, 1)) {
+                for (const auto& [uid, size] : user_del_size) {
+                  if (!Quota::Check(nP, uid, Quota::gProjectId, size, 1)) {
                     userok = false;
                     break;
                   }
                 }
 
                 // or all have group quota therefore groupok is true
-                for (auto it = group_del_size.begin();
-                     it != group_del_size.end(); it++) {
-                  if (!Quota::Check(nP, Quota::gProjectId, it->first,
-                                    it->second, 1)) {
+                for (const auto& [gid, size] : group_del_size) {
+                  if (!Quota::Check(nP, Quota::gProjectId, gid, size, 1)) {
                     groupok = false;
                     break;
                   }
