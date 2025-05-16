@@ -1709,6 +1709,17 @@ Quota::RmQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   if (squota->RmQuota(quota_tag, id)) {
     oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
     gOFS->mConfigEngine->DeleteConfigValue("quota", oss_config.str().c_str());
+
+    // If this is a volume quota, remove also the equivalent logical quota if set
+    if (quota_type == Type::kVolume) {
+      std::string log_config = oss_config.str();
+      log_config.replace(log_config.find("bytes"), 5, "logicalbytes");
+      SpaceQuota::eQuotaTag tag = (id_type == IdT::kUid) ? SpaceQuota::kUserLogicalBytesTarget
+                                                         : SpaceQuota::kGroupLogicalBytesTarget;
+      if (squota->RmQuota(tag, id))
+        gOFS->mConfigEngine->DeleteConfigValue("quota", log_config.c_str());
+    }
+
     oss_msg << "success: removed "
             << ((quota_type == Type::kVolume) ? "volume" : "inode")
             << " quota for "
