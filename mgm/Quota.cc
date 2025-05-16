@@ -635,9 +635,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       });
     }
 
-    for (auto it : uids) {
-      std::string name = it.first.c_str();
-      unsigned int id = it.second;
+    for (const auto& [name, id] : uids) {
       eos_debug("loop with id=%d", id);
       TableData table_data;
       table_data.emplace_back();
@@ -731,9 +729,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       });
     }
 
-    for (auto it : gids) {
-      std::string name = it.first.c_str();
-      unsigned int id = it.second;
+    for (const auto& [name, id] : gids) {
       eos_debug("loop with id=%d", id);
       TableData table_data;
       table_data.emplace_back();
