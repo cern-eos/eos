@@ -52,8 +52,9 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
                                bool force_recovery,
                                off_t targetSize,
                                std::string bookingOpaque,
-                               eos::fst::CheckSum* stripeChecksum) :
-  Layout(file, lid, client, outError, path, timeout),
+                               eos::fst::CheckSum* stripeChecksum,
+                               eos::fst::FmdHandler* fmdHandler) :
+  Layout(file, lid, client, outError, path, fmdHandler, timeout),
   mIsRw(false),
   mIsOpen(false),
   mIsPio(false),
@@ -396,12 +397,12 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     }
 
     if (blockSize != 0) {
-      auto xs = mHdrInfo[0]->GetStripeChecksum();
+      auto xs = GetStripeChecksum();
 
-      if (!xs) {
-        mStripeChecksum->SetDirty();
+      if (xs.has_value()) {
+        mStripeChecksum->ResetInit(0, blockSize, xs.value().c_str());
       } else {
-        mStripeChecksum->ResetInit(0, blockSize, xs->GetHexChecksum());
+        mStripeChecksum->SetDirty();
       }
     }
   }
@@ -409,6 +410,36 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   eos_debug("msg=\"open successful\" file_size=%llu", mFileSize);
   mIsOpen = true;
   return SFS_OK;
+}
+
+std::optional<std::string> RainMetaLayout::GetStripeChecksum()
+{
+  auto [ok, fmd] = mFmdHandler->LocalRetrieveFmd(mOfsFile->mFileId,
+                   mOfsFile->mFsId);
+
+  if (!ok) {
+    return std::nullopt;
+  }
+
+  if (!fmd.mProtoFmd.has_stripechecksum() ||
+      fmd.mProtoFmd.stripechecksum() == "") {
+    return std::nullopt;
+  }
+
+  return fmd.mProtoFmd.stripechecksum();
+}
+
+bool RainMetaLayout::SetStripeChecksum(std::string checksumHex)
+{
+  auto [ok, fmd] = mFmdHandler->LocalRetrieveFmd(mOfsFile->mFileId,
+                   mOfsFile->mFsId);
+
+  if (!ok) {
+    return false;
+  }
+
+  fmd.mProtoFmd.set_stripechecksum(checksumHex);
+  return mFmdHandler->Commit(&fmd);
 }
 
 //------------------------------------------------------------------------------
@@ -1819,27 +1850,15 @@ RainMetaLayout::Close()
     // Close local file
     if (mStripe[0]) {
       if (mIsRw) {
-        // Set stripe checksum
-        if (!mIsEntryServer) {
-          if (!mHdrInfo[0]->ReadFromFile(mStripe[0].get(), mTimeout)) {
-            eos_err("msg=\"failed reading header\"");
-            rc = SFS_ERROR;
-          }
-        }
-
         if (PrepareStripeChecksum()) {
           eos_err("msg=\"error verifying stripe checksum\"");
           rc = SFS_ERROR;
         } else {
-          int checksumSize = 0;
-          const char* stripeChecksum = mStripeChecksum->GetBinChecksum(checksumSize);
-          mHdrInfo[0]->SetStripeChecksum(stripeChecksum, checksumSize,
-                                         static_cast<eos::common::LayoutId::eChecksum>
-                                         (eos::common::LayoutId::GetChecksum(mLayoutId)));
+          const char* stripeChecksum = mStripeChecksum->GetHexChecksum();
 
-          if (!mHdrInfo[0]->WriteToFile(mStripe[0].get(), mTimeout)) {
-            eos_err("msg=\"failed write header\"");
-            rc =  SFS_ERROR;
+          if (!SetStripeChecksum(stripeChecksum)) {
+            eos_err("msg=\"error setting stripe checksum\"");
+            rc = SFS_ERROR;
           }
         }
       }

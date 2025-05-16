@@ -106,7 +106,7 @@ function write_and_check_stripe_checksum()
     
     for fstpath in "$($EOS -j file info $DEST/$FNAME | jq -r '.locations[].fstpath')"; do
         expected_xs=$(eos-checksum adler <(dd if=$fstpath bs=4096 skip=1 status=none | sed -n 's/.*adler32=\([^ ]*\).*/\1/p'))
-        stored_xs=$(eos-fmd-tool inspect --path $fstpath | grep -oP 'unitchecksum: "\K[^"]+')
+        stored_xs=$(eos-fmd-tool inspect --path $fstpath | grep -oP 'stripechecksum: "\K[^"]+')
 
         test "$expected_xs" = "$stored_xs"
         if [[ $? -ne 0 ]]; then

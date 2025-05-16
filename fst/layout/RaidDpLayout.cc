@@ -39,13 +39,14 @@ RaidDpLayout::RaidDpLayout(XrdFstOfsFile* file,
                            const XrdSecEntity* client,
                            XrdOucErrInfo* outError,
                            const char* path,
+                           eos::fst::FmdHandler* fmdHandler,
                            uint16_t timeout,
                            bool storeRecovery,
                            eos::fst::CheckSum* stripeChecksum,
                            off_t targetSize,
                            std::string bookingOpaque) :
   RainMetaLayout(file, lid, client, outError, path, timeout,
-                 storeRecovery, targetSize, bookingOpaque, stripeChecksum)
+                 storeRecovery, targetSize, bookingOpaque, stripeChecksum, fmdHandler)
 {
   mNbDataBlocks = static_cast<int>(pow((double) mNbDataFiles, 2));
   mNbTotalBlocks = mNbDataBlocks + 2 * mNbDataFiles;

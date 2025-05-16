@@ -41,24 +41,25 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
                               const XrdSecEntity* client,
                               XrdOucErrInfo* error,
                               const char* path,
+                              eos::fst::FmdHandler* fmdHandler,
                               uint16_t timeout,
                               bool storeRecovery)
 {
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {
     return static_cast<Layout*>(new PlainLayout(file, layoutId, client, error, path,
-                                timeout));
+                                fmdHandler, timeout));
   }
 
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica) {
     return static_cast<Layout*>(new ReplicaParLayout(file, layoutId, client, error,
-                                path, timeout));
+                                path, fmdHandler, timeout));
   }
 
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP) {
     std::unique_ptr<eos::fst::CheckSum> xs =
       eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
     return static_cast<Layout*>(new RaidDpLayout(file, layoutId, client, error,
-                                path, timeout, storeRecovery, xs.release()));
+                                path, fmdHandler, timeout, storeRecovery, xs.release()));
   }
 
   if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid5) ||
@@ -68,7 +69,7 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
     std::unique_ptr<eos::fst::CheckSum> xs =
       eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
     return static_cast<Layout*>(new ReedSLayout(file, layoutId, client, error, path,
-                                timeout, storeRecovery, xs.release()));
+                                fmdHandler, timeout, storeRecovery, xs.release()));
   }
 
   return 0;

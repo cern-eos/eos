@@ -185,32 +185,6 @@ public:
     return 0;
   }
 
-  inline std::unique_ptr<eos::fst::CheckSum> GetStripeChecksum() const
-  {
-    auto xs = eos::fst::ChecksumPlugins::GetXsObj(mChecksumType);
-
-    if (!xs) {
-      return nullptr;
-    }
-
-    xs->SetBinChecksum(mStripeChecksum.get(), mStripeChecksumSize);
-    return std::unique_ptr<eos::fst::CheckSum> {xs};
-  }
-
-  inline void SetStripeChecksum(const char* checksum, size_t size,
-                                eos::common::LayoutId::eChecksum type)
-  {
-    if (!checksum) {
-      mStripeChecksum.reset(nullptr);
-      return;
-    }
-
-    mStripeChecksum = std::make_unique<char[]>(size);
-    (void) memcpy(mStripeChecksum.get(), checksum, size);
-    mStripeChecksumSize = size;
-    mChecksumType = type;
-  }
-
   //----------------------------------------------------------------------------
   //! Dump header info in readable format
   //----------------------------------------------------------------------------
@@ -224,9 +198,6 @@ private:
   size_t mSizeLastBlock; ///< size of the last block of data
   size_t mSizeBlock; ///< size of a block of data
   int mSizeHeader; ///< size of the header
-  std::unique_ptr<char[]>
-  mStripeChecksum; ///< checksum of the stripe (only data, no header)
-  size_t mStripeChecksumSize; ///< size of the checksum in bytes
   eos::common::LayoutId::eChecksum mChecksumType; ///< checksum type
   static char msTagName[]; ///< default tag name
 };

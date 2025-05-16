@@ -324,11 +324,9 @@ FileEos::ReadPio(Result*& result)
 
       if (eos::common::LayoutId::GetLayoutType(layout) ==
           eos::common::LayoutId::kRaidDP) {
-        file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL,
-                                          "");
+        file = new eos::fst::RaidDpLayout(NULL, layout, NULL, NULL, "", NULL);
       } else if ((eos::common::LayoutId::IsRain(layout))) {
-        file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL,
-                                         "");
+        file = new eos::fst::ReedSLayout(NULL, layout, NULL, NULL, "", NULL);
       } else {
         eos_err("No such supported layout for PIO");
         file = 0;

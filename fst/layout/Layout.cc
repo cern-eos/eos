@@ -30,10 +30,11 @@ EOSFSTNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-Layout::Layout(XrdFstOfsFile* file) :
+Layout::Layout(XrdFstOfsFile* file, eos::fst::FmdHandler* fmdHandler) :
   mIsEntryServer(false), mLayoutId(0), mName(""),
   mLastErrCode(0), mLastErrNo(0), mOfsFile(file), mError(0), mSecEntity(0),
-  mIoType(eos::common::LayoutId::kLocal), mTimeout(0), mFileIO(nullptr)
+  mIoType(eos::common::LayoutId::kLocal), mTimeout(0), mFileIO(nullptr),
+  mFmdHandler(fmdHandler)
 {}
 
 //------------------------------------------------------------------------------
@@ -44,10 +45,11 @@ Layout::Layout(XrdFstOfsFile* file,
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,
                const char* path,
+               eos::fst::FmdHandler* fmdHandler,
                uint16_t timeout) :
   eos::common::LogId(), mIsEntryServer(false), mLayoutId(lid),
   mLastErrCode(0), mLastErrNo(0), mOfsFile(file), mError(outError),
-  mTimeout(timeout)
+  mTimeout(timeout), mFmdHandler(fmdHandler)
 {
   mSecEntity = const_cast<XrdSecEntity*>(client);
   mIoType = eos::common::LayoutId::GetIoType(path);

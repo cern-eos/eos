@@ -25,6 +25,7 @@
 #pragma once
 #include "common/LayoutId.hh"
 #include "fst/Namespace.hh"
+#include "fst/filemd/FmdHandler.hh"
 #include <XrdSec/XrdSecEntity.hh>
 
 EOSFSTNAMESPACE_BEGIN
@@ -70,6 +71,7 @@ public:
                                  const XrdSecEntity* client,
                                  XrdOucErrInfo* error,
                                  const char* path,
+                                 eos::fst::FmdHandler* fmdHandler,
                                  uint16_t timeout = 0,
                                  bool storeRecovery = false);
 };

@@ -61,7 +61,8 @@ public:
                  const XrdSecEntity* client, XrdOucErrInfo* outError,
                  const char* path, uint16_t timeout, bool force_recovery,
                  off_t targetSize, std::string bookingOpaque,
-                 eos::fst::CheckSum* stripeChecksum);
+                 eos::fst::CheckSum* stripeChecksum,
+                 eos::fst::FmdHandler* fmdHandler);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -535,6 +536,10 @@ private:
   //! @return true if ok, otherwise false
   //----------------------------------------------------------------------------
   bool PrepareStripeChecksum();
+
+  std::optional<std::string> GetStripeChecksum();
+
+  bool SetStripeChecksum(std::string checksumHex);
 
   AssistedThread mParityThread; ///< Thread computing and wrintg parity
   //! Queue holding group offsets to be used for parity computation

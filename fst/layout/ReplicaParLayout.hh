@@ -52,6 +52,7 @@ public:
                    const XrdSecEntity* client,
                    XrdOucErrInfo* outError,
                    const char* path,
+                   eos::fst::FmdHandler* fmdHandler,
                    uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------

@@ -52,7 +52,8 @@ public:
   //!
   //----------------------------------------------------------------------------
   PlainLayout(XrdFstOfsFile* file, unsigned long lid, const XrdSecEntity* client,
-              XrdOucErrInfo* outError, const char* path, uint16_t timeout = 0);
+              XrdOucErrInfo* outError, const char* path, eos::fst::FmdHandler* fmdHandler,
+              uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
   //! Destructor
