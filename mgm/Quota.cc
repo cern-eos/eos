@@ -2339,10 +2339,8 @@ Quota::GetStatfs(const std::string& path, unsigned long long& maxbytes,
 
   if (space) {
     space->Refresh(60);
-    maxbytes = space->GetQuota(SpaceQuota::kAllGroupBytesTarget, 0);
-    freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupBytesIs, 0);
-    maxbytes /= space->GetLayoutSizeFactor();
-    freebytes /= space->GetLayoutSizeFactor();
+    maxbytes = space->GetQuota(SpaceQuota::kAllGroupLogicalBytesTarget, 0);
+    freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupLogicalBytesIs, 0);
   } else {
     maxbytes = freebytes = 0;
   }
