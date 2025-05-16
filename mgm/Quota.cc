@@ -1511,16 +1511,30 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
     (void) free_files_usr; // not used - avoid compile warning
     max_files_usr = max_files_grp = max_files_prj = 0;
     (void) max_files_usr; // not used -avoid compile warning
-    max_bytes_usr  = space->GetQuota(SpaceQuota::kUserBytesTarget, m_vid.uid);
-    max_bytes_grp = space->GetQuota(SpaceQuota::kGroupBytesTarget, m_vid.gid);
-    max_bytes_prj = space->GetQuota(SpaceQuota::kGroupBytesTarget,
-                                    Quota::gProjectId);
-    free_bytes_usr = max_bytes_usr - space->GetQuota(
-                       SpaceQuota::kUserBytesIs, m_vid.uid);
-    free_bytes_grp = max_bytes_grp - space->GetQuota(
-                       SpaceQuota::kGroupBytesIs, m_vid.gid);
-    free_bytes_prj = max_bytes_prj - space->GetQuota(
-                       SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+
+    if(logical) {
+      max_bytes_usr  = space->GetQuota(SpaceQuota::kUserLogicalBytesTarget, m_vid.uid);
+      max_bytes_grp = space->GetQuota(SpaceQuota::kGroupLogicalBytesTarget, m_vid.gid);
+      max_bytes_prj = space->GetQuota(SpaceQuota::kGroupLogicalBytesTarget, Quota::gProjectId);
+
+      free_bytes_usr = max_bytes_usr -
+        space->GetQuota(SpaceQuota::kUserLogicalBytesIs, m_vid.uid);
+      free_bytes_grp = max_bytes_grp -
+        space->GetQuota(SpaceQuota::kGroupLogicalBytesIs, m_vid.gid);
+      free_bytes_prj = max_bytes_prj -
+        space->GetQuota(SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
+    } else {
+      max_bytes_usr = space->GetQuota(SpaceQuota::kUserBytesTarget, m_vid.uid);
+      max_bytes_grp = space->GetQuota(SpaceQuota::kGroupBytesTarget, m_vid.gid);
+      max_bytes_prj = space->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
+
+      free_bytes_usr = max_bytes_usr -
+        space->GetQuota(SpaceQuota::kUserBytesIs, m_vid.uid);
+      free_bytes_grp = max_bytes_grp -
+        space->GetQuota(SpaceQuota::kGroupBytesIs, m_vid.gid);
+      free_bytes_prj = max_bytes_prj -
+        space->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+    }
 
     if (free_bytes_usr > free_bytes) {
       free_bytes = free_bytes_usr;
@@ -1544,11 +1558,6 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
 
     if (max_bytes_prj > max_bytes) {
       max_bytes = max_bytes_prj;
-    }
-
-    if (logical && space->GetLayoutSizeFactor()) {
-      free_bytes /= space->GetLayoutSizeFactor();
-      max_bytes /= space->GetLayoutSizeFactor();
     }
   }
 }
