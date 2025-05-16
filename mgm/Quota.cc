@@ -664,7 +664,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
-                                      GetQuota(kUserBytesTarget, id) / mLayoutSizeFactor, "+l", "B"));
+                                      GetQuota(kUserLogicalBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserFilesTarget, id), "+l"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
@@ -686,7 +686,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserBytesTarget, id), "ol"));
         table_data.back().push_back(TableCell(
-                                      GetQuota(kUserBytesTarget, id) / mLayoutSizeFactor, "ol"));
+                                      GetQuota(kUserLogicalBytesTarget, id), "ol"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserFilesTarget, id), "ol"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
@@ -758,7 +758,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
-                                      GetQuota(kGroupBytesTarget, id) / mLayoutSizeFactor, "+l", "B"));
+                                      GetQuota(kGroupLogicalBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupFilesTarget, id), "+l"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
@@ -780,7 +780,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupBytesTarget, id), "ol"));
         table_data.back().push_back(TableCell(
-                                      GetQuota(kGroupBytesTarget, id) / mLayoutSizeFactor, "ol"));
+                                      GetQuota(kGroupLogicalBytesTarget, id), "ol"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupFilesTarget, id), "ol"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
