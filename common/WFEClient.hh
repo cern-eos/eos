@@ -28,6 +28,17 @@
 
 #include <grpcpp/security/credentials.h>
 
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
+static std::string file2string(std::string filename){
+  std::ifstream as_stream(filename);
+  std::ostringstream as_string;
+  as_string << as_stream.rdbuf();
+  return as_string.str();
+}
+
 class WFEClient {
 public:
   virtual cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0;
@@ -59,6 +70,12 @@ class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str) {
     endpoint = endpoint_str;
+    constexpr char RootCertificate[] = "/shared/sslCerts/host-chain.p7b";
+    grpc::SslCredentialsOptions ssl_options;
+    ssl_options.pem_root_certs = file2string(RootCertificate);
+    // Create a channel with SSL credentials
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint, grpc::SslCredentials(ssl_options));
+    std::unique_ptr<cta::xrd::CtaRpc::Stub> client_stub = cta::xrd::CtaRpc::NewStub(channel);
     // client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials())))
     grpc::ChannelArguments channel_args;
     std::string token_contents;
