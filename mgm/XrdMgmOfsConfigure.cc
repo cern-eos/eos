@@ -2053,7 +2053,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mReplicationTracker.reset(ReplicationTracker::Create(
                               MgmProcTrackerPath.c_str()));
   // Configure proc path for devices
-  DeviceTracker->SetDevicesPath(MgmProcDevicesPath.c_str());
+  mDeviceTracker->SetDevicesPath(MgmProcDevicesPath.c_str());
   // Set also the archiver ZMQ endpoint were client requests are sent
   std::ostringstream oss;
   oss << "ipc://" << MgmArchiveDir.c_str() << "archive_frontend.ipc";
@@ -2192,7 +2192,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // Start the device tracking thread
-  if ((mMaster->IsMaster()) && (!DeviceTracker->Start())) {
+  if ((mMaster->IsMaster()) && (!mDeviceTracker->Start())) {
     eos_static_warning("msg=\"cannot start device tracking thread\"");
   }
 

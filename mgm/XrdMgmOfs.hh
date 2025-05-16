@@ -2074,7 +2074,7 @@ public:
   //!  Recycle object running the recycle bin deletion thread
   std::unique_ptr<Recycle> Recycler;
   //!  Device Tracking Thread
-  std::unique_ptr<Devices> DeviceTracker;
+  std::unique_ptr<Devices> mDeviceTracker;
 
   //!  Variable enforcing a globally applied recycle bin policy
   std::atomic<bool> enforceRecycleBin;

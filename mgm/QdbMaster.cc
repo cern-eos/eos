@@ -29,6 +29,7 @@
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/LRU.hh"
 #include "mgm/Recycle.hh"
+#include "mgm/Devices.hh"
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
@@ -437,6 +438,7 @@ QdbMaster::SlaveToMaster()
 
   gOFS->mLRUEngine->Start();
   gOFS->Recycler->Start();
+  gOFS->mDeviceTracker->Start();
   Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
   CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
@@ -473,6 +475,7 @@ QdbMaster::MasterToSlave()
   RemoveStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
   mIsMaster = false;
   UpdateMasterId("");
+  gOFS->mDeviceTracker->Stop();
   gOFS->Recycler->Stop();
   gOFS->mDrainEngine.Stop();
   gOFS->mFsckEngine->Stop();

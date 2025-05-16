@@ -90,11 +90,11 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
 
   if (ls.refresh()) {
     //  force a new extraction
-    gOFS->DeviceTracker->Extract();
+    gOFS->mDeviceTracker->Extract();
   }
 
-  auto extractionTime = gOFS->DeviceTracker->getExtractionTime();
-  auto extractionLocalTime = gOFS->DeviceTracker->getLocalExtractionTime();
+  auto extractionTime = gOFS->mDeviceTracker->getExtractionTime();
+  auto extractionLocalTime = gOFS->mDeviceTracker->getLocalExtractionTime();
 
   if (format_case != DevicesProto::LsProto::MONITORING) {
     std_out += "# ";
@@ -147,9 +147,9 @@ void DevicesCmd::LsSubcmd(const eos::console::DevicesProto_LsProto& ls,
       });
     }
 
-    auto jinfo = gOFS->DeviceTracker->getJson();
-    auto spinfo = gOFS->DeviceTracker->getSpaceMap();
-    auto sminfo = gOFS->DeviceTracker->getSmartMap();
+    auto jinfo = gOFS->mDeviceTracker->getJson();
+    auto spinfo = gOFS->mDeviceTracker->getSpaceMap();
+    auto sminfo = gOFS->mDeviceTracker->getSmartMap();
     std::vector<std::string> smStatus {"OK", "no smartctl", "N/A", "FAILING", "Check", "invalid", "unknown"};
     std::vector<std::string> smHuman {"ok", "noctl", "na", "failing", "check", "inval", "unknown"};
 
