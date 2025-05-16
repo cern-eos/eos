@@ -100,6 +100,9 @@ SpaceQuota::SpaceQuota(const char* path):
         throw;
       }
     }
+
+    UpdateLogicalSizeFactor();
+
   } else {
     eos_crit("Failed to create quota dir=%s", path);
   }
@@ -247,6 +250,16 @@ SpaceQuota::SetQuota(unsigned long tag, unsigned long id,
   XrdSysMutexHelper scope_lock(mMutex);
   mMapIdQuota[Index(tag, id)] = value;
 
+  switch(tag) {
+    case kUserBytesTarget:
+    mMapIdQuota.try_emplace(Index(kUserLogicalBytesTarget, id), value / mLayoutSizeFactor);
+    break;
+
+    case kGroupBytesTarget:
+    mMapIdQuota.try_emplace(Index(kGroupLogicalBytesTarget, id), value / mLayoutSizeFactor);
+    break;
+  }
+
   if ((tag == kUserBytesTarget) ||
       (tag == kGroupBytesTarget) ||
       (tag == kUserFilesTarget) ||
@@ -312,23 +325,26 @@ SpaceQuota::UpdateTargetSums()
   mMapIdQuota[Index(kAllUserLogicalBytesTarget, 0)] = 0;
   mMapIdQuota[Index(kAllGroupLogicalBytesTarget, 0)] = 0;
 
-  for (auto it = mMapIdQuota.begin(); it != mMapIdQuota.end(); it++) {
-    if ((UnIndex(it->first) == kUserBytesTarget)) {
-      AddQuota(kAllUserBytesTarget, 0, it->second);
-      AddQuota(kAllUserLogicalBytesTarget, 0, it->second / mLayoutSizeFactor);
-    }
-
-    if ((UnIndex(it->first) == kUserFilesTarget)) {
-      AddQuota(kAllUserFilesTarget, 0, it->second);
-    }
-
-    if ((UnIndex(it->first) == kGroupBytesTarget)) {
-      AddQuota(kAllGroupBytesTarget, 0, it->second);
-      AddQuota(kAllGroupLogicalBytesTarget, 0, it->second / mLayoutSizeFactor);
-    }
-
-    if ((UnIndex(it->first) == kGroupFilesTarget)) {
-      AddQuota(kAllGroupFilesTarget, 0, it->second);
+  for (const auto& [tag, value] : mMapIdQuota) {
+    switch(UnIndex(tag)) {
+      case kUserBytesTarget:
+        AddQuota(kAllUserBytesTarget, 0, value);
+        break;
+      case kUserLogicalBytesTarget:
+        AddQuota(kAllUserLogicalBytesTarget, 0, value);
+        break;
+      case kUserFilesTarget:
+        AddQuota(kAllUserFilesTarget, 0, value);
+        break;
+      case kGroupBytesTarget:
+        AddQuota(kAllGroupBytesTarget, 0, value);
+        break;
+      case kGroupLogicalBytesTarget:
+        AddQuota(kAllGroupLogicalBytesTarget, 0, value);
+        break;
+      case kGroupFilesTarget:
+        AddQuota(kAllGroupFilesTarget, 0, value);
+        break;
     }
   }
 }
@@ -417,10 +433,6 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
     mMapIdQuota[Index(kUserBytesIs, Quota::gProjectId)] = 0;
     mMapIdQuota[Index(kUserLogicalBytesIs, Quota::gProjectId)] = 0;
     mMapIdQuota[Index(kUserFilesIs, Quota::gProjectId)] = 0;
-    mMapIdQuota[Index(kUserLogicalBytesTarget,
-                      uid)] = mMapIdQuota[Index(kUserBytesTarget, uid)] / mLayoutSizeFactor;
-    mMapIdQuota[Index(kGroupLogicalBytesTarget,
-                      gid)] = mMapIdQuota[Index(kGroupBytesTarget, gid)] / mLayoutSizeFactor;
 
     if (upd_proj_quota) {
       // Recalculate the project quota only every 5 seconds to boost perf.
@@ -442,10 +454,6 @@ SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
         mMapIdQuota[Index(kGroupBytesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupFilesIs, Quota::gProjectId)] = 0;
         mMapIdQuota[Index(kGroupLogicalBytesIs, Quota::gProjectId)] = 0;
-        // update logical target
-        mMapIdQuota[Index(kGroupLogicalBytesTarget,
-                          Quota::gProjectId)] = mMapIdQuota[Index(kGroupBytesTarget,
-                                                Quota::gProjectId)] / mLayoutSizeFactor;
         // Loop over users and fill project quota
         auto uids = mQuotaNode->getUids();
 
@@ -635,9 +643,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       });
     }
 
-    for (auto it : uids) {
-      std::string name = it.first.c_str();
-      unsigned int id = it.second;
+    for (const auto& [name, id] : uids) {
       eos_debug("loop with id=%d", id);
       TableData table_data;
       table_data.emplace_back();
@@ -653,13 +659,13 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
-                                      GetQuota(kUserBytesTarget, id) / mLayoutSizeFactor, "+l", "B"));
+                                      GetQuota(kUserLogicalBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserFilesTarget, id), "+l"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "f", "%"));
+                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "f", "%"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
-                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "s"));
+                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "s"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kUserFilesIs, id), GetQuota(kUserFilesTarget, id)), "s"));
       } else {
@@ -675,13 +681,13 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserBytesTarget, id), "ol"));
         table_data.back().push_back(TableCell(
-                                      GetQuota(kUserBytesTarget, id) / mLayoutSizeFactor, "ol"));
+                                      GetQuota(kUserLogicalBytesTarget, id), "ol"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kUserFilesTarget, id), "ol"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "of"));
+                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "of"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
-                                                GetQuota(kUserBytesIs, id), GetQuota(kUserBytesTarget, id)), "os"));
+                                                GetQuota(kUserLogicalBytesIs, id), GetQuota(kUserLogicalBytesTarget, id)), "os"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kUserFilesIs, id), GetQuota(kUserFilesTarget, id)), "os"));
       }
@@ -731,9 +737,7 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       });
     }
 
-    for (auto it : gids) {
-      std::string name = it.first.c_str();
-      unsigned int id = it.second;
+    for (const auto& [name, id] : gids) {
       eos_debug("loop with id=%d", id);
       TableData table_data;
       table_data.emplace_back();
@@ -749,13 +753,13 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
-                                      GetQuota(kGroupBytesTarget, id) / mLayoutSizeFactor, "+l", "B"));
+                                      GetQuota(kGroupLogicalBytesTarget, id), "+l", "B"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupFilesTarget, id), "+l"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "f", "%"));
+                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "f", "%"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
-                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "s"));
+                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "s"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kGroupFilesIs, id), GetQuota(kGroupFilesTarget, id)), "s"));
       } else {
@@ -771,13 +775,13 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupBytesTarget, id), "ol"));
         table_data.back().push_back(TableCell(
-                                      GetQuota(kGroupBytesTarget, id) / mLayoutSizeFactor, "ol"));
+                                      GetQuota(kGroupLogicalBytesTarget, id), "ol"));
         table_data.back().push_back(TableCell(
                                       GetQuota(kGroupFilesTarget, id), "ol"));
         table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "of"));
+                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "of"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
-                                                GetQuota(kGroupBytesIs, id), GetQuota(kGroupBytesTarget, id)), "os"));
+                                                GetQuota(kGroupLogicalBytesIs, id), GetQuota(kGroupLogicalBytesTarget, id)), "os"));
         table_data.back().push_back(TableCell(GetQuotaStatus(
                                                 GetQuota(kGroupFilesIs, id), GetQuota(kGroupFilesTarget, id)), "os"));
       }
@@ -824,9 +828,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllUserFilesTarget, 0), "+l"));
       table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "f", "%"));
+                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "f", "%"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
-                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "s"));
+                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "s"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)), "s"));
       table_data.emplace_back();
@@ -844,9 +848,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllGroupFilesTarget, 0), "+l"));
       table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "f", "%"));
+                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "f", "%"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
-                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "s"));
+                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "s"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget, 0)), "s"));
       table_summary.AddRows(table_data);
@@ -885,9 +889,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllUserFilesTarget, 0), "ol"));
       table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "of"));
+                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "of"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
-                                              GetQuota(kAllUserBytesIs, 0), GetQuota(kAllUserBytesTarget, 0)), "os"));
+                                              GetQuota(kAllUserLogicalBytesIs, 0), GetQuota(kAllUserLogicalBytesTarget, 0)), "os"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllUserFilesIs, 0), GetQuota(kAllUserFilesTarget, 0)), "os"));
       table_summary_user.AddRows(table_data);
@@ -925,9 +929,9 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
       table_data.back().push_back(TableCell(
                                     GetQuota(kAllGroupFilesTarget, 0), "ol"));
       table_data.back().push_back(TableCell(GetQuotaPercentage(
-                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "of"));
+                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "of"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
-                                              GetQuota(kAllGroupBytesIs, 0), GetQuota(kAllGroupBytesTarget, 0)), "os"));
+                                              GetQuota(kAllGroupLogicalBytesIs, 0), GetQuota(kAllGroupLogicalBytesTarget, 0)), "os"));
       table_data.back().push_back(TableCell(GetQuotaStatus(
                                               GetQuota(kAllGroupFilesIs, 0), GetQuota(kAllGroupFilesTarget, 0)), "os"));
       table_summary_group.AddRows(table_data);
@@ -946,10 +950,10 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
 {
   bool hasquota = false;
   // Update info from the ns quota node - user, group and project quotas
-  UpdateFromQuotaNode(uid, gid, GetQuota(kGroupBytesTarget, Quota::gProjectId)
+  UpdateFromQuotaNode(uid, gid, GetQuota(kGroupLogicalBytesTarget, Quota::gProjectId)
                       ? true : false);
   eos_info("uid=%d gid=%d size=%llu quota=%llu", uid, gid, desired_vol,
-           GetQuota(kUserBytesTarget, uid));
+           GetQuota(kUserLogicalBytesTarget, uid));
   bool userquota = false;
   bool groupquota = false;
   bool projectquota = false;
@@ -961,12 +965,12 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
   bool groupvolumequota = false;
   bool groupinodequota = false;
 
-  if (GetQuota(kUserBytesTarget, uid) > 0) {
+  if (GetQuota(kUserLogicalBytesTarget, uid) > 0) {
     userquota = true;
     uservolumequota = true;
   }
 
-  if (GetQuota(kGroupBytesTarget, gid) > 0) {
+  if (GetQuota(kGroupLogicalBytesTarget, gid) > 0) {
     groupquota = true;
     groupvolumequota = true;
   }
@@ -982,7 +986,7 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
   }
 
   if (uservolumequota) {
-    if ((GetQuota(kUserBytesTarget, uid) - GetQuota(kUserBytesIs,
+    if ((GetQuota(kUserLogicalBytesTarget, uid) - GetQuota(kUserLogicalBytesIs,
          uid)) > (long long)desired_vol) {
       hasuserquota = true;
     } else {
@@ -1004,7 +1008,7 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
   }
 
   if (groupvolumequota) {
-    if ((GetQuota(kGroupBytesTarget, gid) - GetQuota(kGroupBytesIs,
+    if ((GetQuota(kGroupLogicalBytesTarget, gid) - GetQuota(kGroupLogicalBytesIs,
          gid)) > desired_vol) {
       hasgroupquota = true;
     } else {
@@ -1023,8 +1027,8 @@ SpaceQuota::CheckWriteQuota(uid_t uid, gid_t gid, long long desired_vol,
     }
   }
 
-  if (((GetQuota(kGroupBytesTarget, Quota::gProjectId) -
-        GetQuota(kGroupBytesIs, Quota::gProjectId)) > desired_vol)) {
+  if (((GetQuota(kGroupLogicalBytesTarget, Quota::gProjectId) -
+        GetQuota(kGroupLogicalBytesIs, Quota::gProjectId)) > desired_vol)) {
     hasprojectquota = true;
 
     if ((GetQuota(kGroupFilesTarget, Quota::gProjectId)) &&
@@ -1123,12 +1127,20 @@ const char* SpaceQuota::GetTagAsString(int tag)
     return "userbytes";
   }
 
+  if (tag == kUserLogicalBytesTarget) {
+    return "userlogicalbytes";
+  }
+
   if (tag == kUserFilesTarget) {
     return "userfiles";
   }
 
   if (tag == kGroupBytesTarget) {
     return "groupbytes";
+  }
+
+  if (tag == kGroupLogicalBytesTarget) {
+    return "grouplogicalbytes";
   }
 
   if (tag == kGroupFilesTarget) {
@@ -1139,12 +1151,20 @@ const char* SpaceQuota::GetTagAsString(int tag)
     return "alluserbytes";
   }
 
+  if (tag == kAllUserLogicalBytesTarget) {
+    return "alluserlogicalbytes";
+  }
+
   if (tag == kAllUserFilesTarget) {
     return "alluserfiles";
   }
 
   if (tag == kAllGroupBytesTarget) {
     return "allgroupbytes";
+  }
+
+  if (tag == kAllGroupLogicalBytesTarget) {
+    return "allgrouplogicalbytes";
   }
 
   if (tag == kAllGroupFilesTarget) {
@@ -1163,12 +1183,20 @@ unsigned long SpaceQuota::GetTagFromString(const std::string& tag)
     return kUserBytesTarget;
   }
 
+  if (tag == "userlogicalbytes") {
+    return kUserLogicalBytesTarget;
+  }
+
   if (tag == "userfiles") {
     return kUserFilesTarget;
   }
 
   if (tag == "groupbytes") {
     return kGroupBytesTarget;
+  }
+
+  if (tag == "grouplogicalbytes") {
+    return kGroupLogicalBytesTarget;
   }
 
   if (tag == "groupfiles") {
@@ -1179,12 +1207,20 @@ unsigned long SpaceQuota::GetTagFromString(const std::string& tag)
     return kAllUserBytesTarget;
   }
 
+  if (tag == "alluserlogicalbytes") {
+    return kAllUserLogicalBytesTarget;
+  }
+
   if (tag == "alluserfiles") {
     return kAllUserFilesTarget;
   }
 
   if (tag == "allgroupbytes") {
     return kAllGroupBytesTarget;
+  }
+
+  if (tag == "allgrouplogicalbytes") {
+    return kAllGroupLogicalBytesTarget;
   }
 
   if (tag == "allgroupfiles") {
@@ -1475,16 +1511,30 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
     (void) free_files_usr; // not used - avoid compile warning
     max_files_usr = max_files_grp = max_files_prj = 0;
     (void) max_files_usr; // not used -avoid compile warning
-    max_bytes_usr  = space->GetQuota(SpaceQuota::kUserBytesTarget, m_vid.uid);
-    max_bytes_grp = space->GetQuota(SpaceQuota::kGroupBytesTarget, m_vid.gid);
-    max_bytes_prj = space->GetQuota(SpaceQuota::kGroupBytesTarget,
-                                    Quota::gProjectId);
-    free_bytes_usr = max_bytes_usr - space->GetQuota(
-                       SpaceQuota::kUserBytesIs, m_vid.uid);
-    free_bytes_grp = max_bytes_grp - space->GetQuota(
-                       SpaceQuota::kGroupBytesIs, m_vid.gid);
-    free_bytes_prj = max_bytes_prj - space->GetQuota(
-                       SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+
+    if(logical) {
+      max_bytes_usr  = space->GetQuota(SpaceQuota::kUserLogicalBytesTarget, m_vid.uid);
+      max_bytes_grp = space->GetQuota(SpaceQuota::kGroupLogicalBytesTarget, m_vid.gid);
+      max_bytes_prj = space->GetQuota(SpaceQuota::kGroupLogicalBytesTarget, Quota::gProjectId);
+
+      free_bytes_usr = max_bytes_usr -
+        space->GetQuota(SpaceQuota::kUserLogicalBytesIs, m_vid.uid);
+      free_bytes_grp = max_bytes_grp -
+        space->GetQuota(SpaceQuota::kGroupLogicalBytesIs, m_vid.gid);
+      free_bytes_prj = max_bytes_prj -
+        space->GetQuota(SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
+    } else {
+      max_bytes_usr = space->GetQuota(SpaceQuota::kUserBytesTarget, m_vid.uid);
+      max_bytes_grp = space->GetQuota(SpaceQuota::kGroupBytesTarget, m_vid.gid);
+      max_bytes_prj = space->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId);
+
+      free_bytes_usr = max_bytes_usr -
+        space->GetQuota(SpaceQuota::kUserBytesIs, m_vid.uid);
+      free_bytes_grp = max_bytes_grp -
+        space->GetQuota(SpaceQuota::kGroupBytesIs, m_vid.gid);
+      free_bytes_prj = max_bytes_prj -
+        space->GetQuota(SpaceQuota::kGroupBytesIs, Quota::gProjectId);
+    }
 
     if (free_bytes_usr > free_bytes) {
       free_bytes = free_bytes_usr;
@@ -1508,11 +1558,6 @@ Quota::GetIndividualQuota(eos::common::VirtualIdentity& vid,
 
     if (max_bytes_prj > max_bytes) {
       max_bytes = max_bytes_prj;
-    }
-
-    if (logical && space->GetLayoutSizeFactor()) {
-      free_bytes /= space->GetLayoutSizeFactor();
-      max_bytes /= space->GetLayoutSizeFactor();
     }
   }
 }
@@ -1550,7 +1595,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     oss_config << "uid=";
 
     if (quota_type == Type::kVolume) {
-      quota_tag = SpaceQuota::kUserBytesTarget;
+      quota_tag = SpaceQuota::kUserLogicalBytesTarget;
     } else {
       quota_tag = SpaceQuota::kUserFilesTarget;
     }
@@ -1558,7 +1603,7 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     oss_config << "gid=";
 
     if (quota_type == Type::kVolume) {
-      quota_tag = SpaceQuota::kGroupBytesTarget;
+      quota_tag = SpaceQuota::kGroupLogicalBytesTarget;
     } else {
       quota_tag = SpaceQuota::kGroupFilesTarget;
     }
@@ -1578,6 +1623,24 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   squota->SetQuota(quota_tag, id, value);
   gOFS->mConfigEngine->SetConfigValue("quota", oss_config.str().c_str(),
                                       svalue.c_str());
+
+  // When setting logical bytes quota, set also raw bytes for backward compatibility
+  if (quota_type == Type::kVolume) {
+    long long raw_bytes = value * squota->GetLayoutSizeFactor();
+    std::string raw_value = std::to_string(raw_bytes);
+    std::string raw_config = oss_config.str();
+    raw_config.erase(raw_config.find("logical"), 7);
+
+    oss_msg << "updating quota using " << value << "bytes (" << raw_bytes << " raw bytes)\n";
+
+    if (id_type == IdT::kUid)
+      squota->SetQuota(SpaceQuota::kUserBytesTarget, id, raw_bytes);
+    else
+      squota->SetQuota(SpaceQuota::kGroupBytesTarget, id, raw_bytes);
+
+    gOFS->mConfigEngine->SetConfigValue("quota", raw_config.c_str(), raw_value.c_str());
+  }
+
   oss_msg << "success: updated "
           << ((quota_type == Type::kVolume) ? "volume" : "inode")
           << " quota for "
@@ -1660,6 +1723,17 @@ Quota::RmQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   if (squota->RmQuota(quota_tag, id)) {
     oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
     gOFS->mConfigEngine->DeleteConfigValue("quota", oss_config.str().c_str());
+
+    // If this is a volume quota, remove also the equivalent logical quota if set
+    if (quota_type == Type::kVolume) {
+      std::string log_config = oss_config.str();
+      log_config.replace(log_config.find("bytes"), 5, "logicalbytes");
+      SpaceQuota::eQuotaTag tag = (id_type == IdT::kUid) ? SpaceQuota::kUserLogicalBytesTarget
+                                                         : SpaceQuota::kGroupLogicalBytesTarget;
+      if (squota->RmQuota(tag, id))
+        gOFS->mConfigEngine->DeleteConfigValue("quota", log_config.c_str());
+    }
+
     oss_msg << "success: removed "
             << ((quota_type == Type::kVolume) ? "volume" : "inode")
             << " quota for "
@@ -1914,10 +1988,10 @@ Quota::GetGroupStatistics(const std::string& qpath, long id)
   squota->Refresh(60);
   unsigned long long value;
   // Set of all group related quota keys
-  std::set<int> set_keys = {SpaceQuota::kGroupBytesIs, SpaceQuota::kGroupBytesTarget,
+  std::set<int> set_keys = {SpaceQuota::kGroupLogicalBytesIs, SpaceQuota::kGroupLogicalBytesTarget,
                             SpaceQuota::kGroupFilesIs, SpaceQuota::kGroupFilesTarget,
-                            SpaceQuota::kAllGroupBytesTarget,
-                            SpaceQuota::kAllGroupBytesIs
+                            SpaceQuota::kAllGroupLogicalBytesTarget,
+                            SpaceQuota::kAllGroupLogicalBytesIs
                            };
 
   for (auto it = set_keys.begin(); it != set_keys.end(); ++it) {
@@ -2161,23 +2235,16 @@ Quota::GetQuotaInfo(SpaceQuota* squota, uid_t uid, gid_t gid,
   squota->UpdateFromQuotaNode(uid, gid,
                               squota->GetQuota(SpaceQuota::kGroupBytesTarget, Quota::gProjectId)
                               ? true : false);
-  maxbytes_user  = squota->GetQuota(SpaceQuota::kUserBytesTarget, uid);
-  maxbytes_group = squota->GetQuota(SpaceQuota::kGroupBytesTarget, gid);
-  maxbytes_project = squota->GetQuota(SpaceQuota::kGroupBytesTarget,
+  maxbytes_user  = squota->GetQuota(SpaceQuota::kUserLogicalBytesTarget, uid);
+  maxbytes_group = squota->GetQuota(SpaceQuota::kGroupLogicalBytesTarget, gid);
+  maxbytes_project = squota->GetQuota(SpaceQuota::kGroupLogicalBytesTarget,
                                       Quota::gProjectId);
   freebytes_user = maxbytes_user - squota->GetQuota(
-                     SpaceQuota::kUserBytesIs, uid);
+                     SpaceQuota::kUserLogicalBytesIs, uid);
   freebytes_group = maxbytes_group - squota->GetQuota(
-                      SpaceQuota::kGroupBytesIs, gid);
+                      SpaceQuota::kGroupLogicalBytesIs, gid);
   freebytes_project = maxbytes_project - squota->GetQuota(
-                        SpaceQuota::kGroupBytesIs, Quota::gProjectId);
-  // rescale the leftover physical space to the default layout and report the recomputed logical quota
-  maxbytes_user /= squota->GetLayoutSizeFactor();
-  maxbytes_group /= squota->GetLayoutSizeFactor();
-  maxbytes_project /= squota->GetLayoutSizeFactor();
-  freebytes_user /= squota->GetLayoutSizeFactor();
-  freebytes_group /= squota->GetLayoutSizeFactor();
-  freebytes_project /= squota->GetLayoutSizeFactor();
+                        SpaceQuota::kGroupLogicalBytesIs, Quota::gProjectId);
 
   if (freebytes_user > freebytes) {
     freebytes = freebytes_user;
@@ -2272,10 +2339,8 @@ Quota::GetStatfs(const std::string& path, unsigned long long& maxbytes,
 
   if (space) {
     space->Refresh(60);
-    maxbytes = space->GetQuota(SpaceQuota::kAllGroupBytesTarget, 0);
-    freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupBytesIs, 0);
-    maxbytes /= space->GetLayoutSizeFactor();
-    freebytes /= space->GetLayoutSizeFactor();
+    maxbytes = space->GetQuota(SpaceQuota::kAllGroupLogicalBytesTarget, 0);
+    freebytes = maxbytes - space->GetQuota(SpaceQuota::kAllGroupLogicalBytesIs, 0);
   } else {
     maxbytes = freebytes = 0;
   }
