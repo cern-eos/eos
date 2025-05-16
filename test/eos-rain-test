@@ -48,6 +48,9 @@
 
 . /etc/init.d/functions
 
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+source ${SCRIPTPATH}/eos-test-utils
+
 export ERR_MSG1="The provided directory does not have the extended attributes set correctly."
 
 # Set the path to the xrdcp and eos commands, considering it may come from eos-xrootd
@@ -104,15 +107,22 @@ function write_and_check_stripe_checksum()
     # Write the file in EOS
     $XRDCP $SRC/$FNAME $DEST/$FNAME -f
     
-    for fstpath in "$($EOS -j file info $DEST/$FNAME | jq -r '.locations[].fstpath')"; do
-        expected_xs=$(eos-checksum adler <(dd if=$fstpath bs=4096 skip=1 status=none | sed -n 's/.*adler32=\([^ ]*\).*/\1/p'))
-        stored_xs=$(eos-fmd-tool inspect --path $fstpath | grep -oP 'unitchecksum: "\K[^"]+')
+    $EOS -j file info $DEST/$FSNAME | jq -c '.locations[]' | while IFS= read -r line
+    do
+        fsid=$(echo "$line" | jq -r '.fsid')
+        fstpath=$(echo "$line" | jq -r '.fstpath')
+
+        cmd="eos-checksum adler <(dd if=$fstpath bs=4096 skip=1 status=none) | sed -n 's/.*adler=\([^ ]*\).*/\1/p'"
+        expected_xs=$(exec_cmd "eos-fst${fsid}" "$cmd")
+
+        cmd="eos-fmd-tool inspect --path $fstpath | grep -oP 'stripechecksum: \"\K[^\"]+'"
+        stored_xs=$(exec_cmd "eos-fst${fsid}" "$cmd")
 
         test "$expected_xs" = "$stored_xs"
         if [[ $? -ne 0 ]]; then
             echo_failure
             exit 1
-        fi
+        fi 
     done
 }
 

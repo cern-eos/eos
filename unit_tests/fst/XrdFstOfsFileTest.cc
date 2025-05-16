@@ -188,7 +188,7 @@ TEST(FstFileTest, SplitReadVTest)
                             LayoutId::k1M,
                             LayoutId::kCRC32);
   std::unique_ptr<RaidDpLayout> file(new RaidDpLayout(NULL, layout_id, NULL, NULL,
-                                     "root://localhost//dummy"));
+                                     "root://localhost//dummy", NULL));
   // Create readV request
   int num_datasets = 4;
   char* buff = new char[1024 * 1024];

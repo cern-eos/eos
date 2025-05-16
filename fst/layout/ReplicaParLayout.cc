@@ -34,8 +34,9 @@ ReplicaParLayout::ReplicaParLayout(XrdFstOfsFile* file,
                                    const XrdSecEntity* client,
                                    XrdOucErrInfo* outError,
                                    const char* path,
+                                   eos::fst::FmdHandler* fmdHandler,
                                    uint16_t timeout) :
-  Layout(file, lid, client, outError, path, timeout),
+  Layout(file, lid, client, outError, path, fmdHandler, timeout),
   // this 1=0x0 16=0xf :-)
   mNumReplicas(eos::common::LayoutId::GetStripeNumber(lid) + 1),
   mHasWriteErr(false), mDoAsyncWrite(false)

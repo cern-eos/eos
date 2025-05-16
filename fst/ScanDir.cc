@@ -1077,15 +1077,14 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
             scantime,
             1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
             xs->GetHexChecksum());
-  auto stripeChecksum = hd->GetStripeChecksum();
 
-  if (stripeChecksum != nullptr) {
-    eos_debug("msg=\"stripe checksum available in header\" xs=%s path=%s fsid=%d fxid=%08llx",
+  if (fmd->mProtoFmd.has_stripechecksum()) {
+    eos_debug("msg=\"stripe checksum available\" xs=%s path=%s fsid=%d fxid=%08llx",
               xs->GetHexChecksum(), path.c_str(), mFsId, fid);
 
-    if (!xs->Compare(stripeChecksum.get())) {
+    if (xs->GetHexChecksum() != fmd->mProtoFmd.stripechecksum()) {
       eos_debug("msg=\"checksums do not match\" expected_xs=%s computed_xs=%s path=%s fsid=%d fxid=%08llx",
-                stripeChecksum->GetHexChecksum(), xs->GetHexChecksum(), path.c_str(), mFsId,
+                fmd->mProtoFmd.stripechecksum(), xs->GetHexChecksum(), path.c_str(), mFsId,
                 fid);
       invalid_fsid.insert(mFsId);
     }
@@ -1094,12 +1093,8 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     // The stripe checkum is not stored in the file header
     // So we fallback to the old procedure, storing the checksum
     // for the future checks.
-    int size = 0;
-    auto checksum = xs->GetBinChecksum(size);
-    hd->SetStripeChecksum(checksum, size,
-                          static_cast<eos::common::LayoutId::eChecksum>
-                          (eos::common::LayoutId::GetChecksum(fmd->mProtoFmd.lid())));
-    hd->WriteToFile(io, 0);
+    fmd->mProtoFmd.set_stripechecksum(xs->GetHexChecksum());
+    gOFS.mFmdHandler->Commit(fmd);
 
     if (hd->GetIdStripe() != 0) {
       // only run the procedure on the FST storing the first stripe
@@ -1176,11 +1171,11 @@ ScanDir::IsValidStripeCombination(
   if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
     redundancyObj = std::make_unique<RaidDpLayout>
                     (nullptr, layout, nullptr, nullptr,
-                     stripes.front().second.c_str(), 0, false);
+                     stripes.front().second.c_str(), nullptr, 0, false);
   } else {
     redundancyObj = std::make_unique<ReedSLayout>
                     (nullptr, layout, nullptr, nullptr,
-                     stripes.front().second.c_str(), 0, false);
+                     stripes.front().second.c_str(), nullptr, 0, false);
   }
 
   if (redundancyObj->OpenPio(stripes, 0, 0, opaqueInfo.c_str())) {

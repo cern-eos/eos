@@ -50,8 +50,9 @@ public:
   //! Constructor
   //!
   //! @param file file handler
+  //! @param fmdHandler file meta data handler
   //----------------------------------------------------------------------------
-  Layout(XrdFstOfsFile* file);
+  Layout(XrdFstOfsFile* file, eos::fst::FmdHandler* fmdHandler);
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -60,8 +61,8 @@ public:
   //! @param lid layout id
   //! @param client security information
   //! @param outError error information
-  //! @param io access type informatio ( ofs/xrd )
-  //! @param timeout timeout value
+  //! @param path local path
+  //! @param fmdHandler file meta data handler
   //! @param timeout timeout value
   //----------------------------------------------------------------------------
   Layout(XrdFstOfsFile* file,
@@ -69,6 +70,7 @@ public:
          const XrdSecEntity* client,
          XrdOucErrInfo* outError,
          const char* path,
+         eos::fst::FmdHandler* fmdHandler,
          uint16_t timeout = 0);
 
   //----------------------------------------------------------------------------
@@ -326,6 +328,7 @@ protected:
   uint16_t mTimeout; ///< timeout value used for all operations on this file
   XrdSysMutex mExclAccess; ///< mutex to ensure exclusive access
   std::unique_ptr<FileIo> mFileIO; //< IO object as entry server
+  eos::fst::FmdHandler* mFmdHandler; // <File Metadata Handler
 };
 
 EOSFSTNAMESPACE_END

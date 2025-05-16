@@ -56,6 +56,7 @@ public:
                const XrdSecEntity* client,
                XrdOucErrInfo* outError,
                const char* path,
+               eos::fst::FmdHandler* fmdHandler,
                uint16_t timeout = 0,
                bool storeRecovery = false,
                eos::fst::CheckSum* stripeChecksum = nullptr,

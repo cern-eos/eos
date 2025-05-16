@@ -2216,22 +2216,22 @@ main(int argc, char* argv[])
 
         if (replicationType == "raiddp") {
           layout_dst = LayoutId::GetId(LayoutId::kRaidDP,
-                                   1, ndst,
-                                   LayoutId::BlockSizeEnum(stripeWidth),
-                                   LayoutId::OssXsBlockSize,
-                                   0, nparitystripes);
+                                       1, ndst,
+                                       LayoutId::BlockSizeEnum(stripeWidth),
+                                       LayoutId::OssXsBlockSize,
+                                       0, nparitystripes);
           auto xs = eos::fst::ChecksumPlugins::GetChecksumObject(layout_dst);
           redundancyObj = new eos::fst::RaidDpLayout(NULL, layout_dst, NULL, NULL,
-              location.c_str(), 0, doStoreRecovery, xs.release(), isStreamFile);
+              location.c_str(), NULL, 0, doStoreRecovery, xs.release(), isStreamFile);
         } else if (replicationType == "reeds") {
           layout_dst = LayoutId::GetId(LayoutId::GetReedSLayoutByParity(nparitystripes),
-                                   1, ndst,
-                                   LayoutId::BlockSizeEnum(stripeWidth),
-                                   LayoutId::OssXsBlockSize,
-                                   0, nparitystripes);
+                                       1, ndst,
+                                       LayoutId::BlockSizeEnum(stripeWidth),
+                                       LayoutId::OssXsBlockSize,
+                                       0, nparitystripes);
           auto xs = eos::fst::ChecksumPlugins::GetChecksumObject(layout_dst);
           redundancyObj = new eos::fst::ReedSLayout(NULL, layout_dst, NULL, NULL,
-              location.c_str(), 0, doStoreRecovery, xs.release(), isStreamFile);
+              location.c_str(), NULL, 0, doStoreRecovery, xs.release(), isStreamFile);
         }
 
         if (debug) {
