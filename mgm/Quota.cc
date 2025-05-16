@@ -1988,10 +1988,10 @@ Quota::GetGroupStatistics(const std::string& qpath, long id)
   squota->Refresh(60);
   unsigned long long value;
   // Set of all group related quota keys
-  std::set<int> set_keys = {SpaceQuota::kGroupBytesIs, SpaceQuota::kGroupBytesTarget,
+  std::set<int> set_keys = {SpaceQuota::kGroupLogicalBytesIs, SpaceQuota::kGroupLogicalBytesTarget,
                             SpaceQuota::kGroupFilesIs, SpaceQuota::kGroupFilesTarget,
-                            SpaceQuota::kAllGroupBytesTarget,
-                            SpaceQuota::kAllGroupBytesIs
+                            SpaceQuota::kAllGroupLogicalBytesTarget,
+                            SpaceQuota::kAllGroupLogicalBytesIs
                            };
 
   for (auto it = set_keys.begin(); it != set_keys.end(); ++it) {
