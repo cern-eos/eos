@@ -1174,142 +1174,140 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
         networkmib += std::strtoll(network.c_str(), 0, 10);
       }
     }
+  }
+  {
+    eos::MDLocking::ContainerReadLockPtr cmdLock;
+    std::shared_ptr<eos::IContainerMD> cmd;
+    // Prefetch path
+    eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
 
-    {
-      eos::MDLocking::ContainerReadLockPtr cmdLock;
-      std::shared_ptr<eos::IContainerMD> cmd;
-      // Prefetch path
-      eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
-      eos::common::RWMutexReadLock viewlock(ViewMutex);
+    try {
+      cmdLock = gOFS->eosView->getContainerReadLocked(path, false);
+      cmd = cmdLock->getUnderlyingPtr();
+    } catch (eos::MDException& e) {
+      errno = e.getErrno();
+      eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
+              e.getMessage().str().c_str());
+    }
 
+    if (!cmd) {
+      // fall back to instance path
       try {
+        path = instancepath;
         cmdLock = gOFS->eosView->getContainerReadLocked(path, false);
         cmd = cmdLock->getUnderlyingPtr();
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
                 e.getMessage().str().c_str());
+        return "";
       }
-
-      if (!cmd) {
-        // fall back to instance path
-        try {
-          path = instancepath;
-          cmdLock = gOFS->eosView->getContainerReadLocked(path, false);
-          cmd = cmdLock->getUnderlyingPtr();
-        } catch (eos::MDException& e) {
-          errno = e.getErrno();
-          eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
-                  e.getMessage().str().c_str());
-          return "";
-        }
-      }
-
-      i_used = cmd->getTreeSize();
-      sizefactor = Policy::GetDefaultSizeFactor(cmd);
-      files = gOFS->eosFileService->getNumFiles();
-      directories = gOFS->eosDirectoryService->getNumContainers();
-    } // Release container lock
-
-    if (sizefactor) {
-      i_nominal /= sizefactor;
     }
 
-    std::string size = readable ?
-                       eos::common::StringConversion::GetReadableSizeString(i_nominal, si ? "iB" : "B",
-                           si ? 1024 : 1000) :
-                       std::to_string(i_nominal);
-    std::string used = readable ?
-                       eos::common::StringConversion::GetReadableSizeString(i_used, si ? "iB" : "B",
-                           si ? 1024 : 1000) :
-                       std::to_string(i_used);
-    use = (int)(100.0 * i_used / i_nominal);
+    i_used = cmd->getTreeSize();
+    sizefactor = Policy::GetDefaultSizeFactor(cmd);
+    files = gOFS->eosFileService->getNumFiles();
+    directories = gOFS->eosDirectoryService->getNumContainers();
+  } // Release container lock
 
-    if (use > 100) {
-      use = 100;
-    }
+  if (sizefactor) {
+    i_nominal /= sizefactor;
+  }
 
-    std::string suse = std::to_string(use) + (monitoring ? std::string("") :
-                       std::string("%"));
-    std::string sfiles = readable ?
-                         eos::common::StringConversion::GetReadableSizeString(files, "", 1000) :
-                         std::to_string(files);
-    std::string sdirectories = readable ?
-                               eos::common::StringConversion::GetReadableSizeString(directories, "", 1000) :
-                               std::to_string(directories);
-    char _perfratio[1024];
-    double pcr = networkmib / (si ? 1024.0 : 1000.0) / (i_nominal / (si ?
-                 (1024 * 1024 * 1024 * 1024.0) : (1000 * 1000 * 1000 * 1000.0))); // GB/s per TB
+  std::string size = readable ?
+                     eos::common::StringConversion::GetReadableSizeString(i_nominal, si ? "iB" : "B",
+                         si ? 1024 : 1000) :
+                     std::to_string(i_nominal);
+  std::string used = readable ?
+                     eos::common::StringConversion::GetReadableSizeString(i_used, si ? "iB" : "B",
+                         si ? 1024 : 1000) :
+                     std::to_string(i_used);
+  use = (int)(100.0 * i_used / i_nominal);
 
-    if (i_nominal) {
-      snprintf(_perfratio, sizeof(_perfratio), "%.02f", pcr); // GB/s per TB
+  if (use > 100) {
+    use = 100;
+  }
+
+  std::string suse = std::to_string(use) + (monitoring ? std::string("") :
+                     std::string("%"));
+  std::string sfiles = readable ?
+                       eos::common::StringConversion::GetReadableSizeString(files, "", 1000) :
+                       std::to_string(files);
+  std::string sdirectories = readable ?
+                             eos::common::StringConversion::GetReadableSizeString(directories, "", 1000) :
+                             std::to_string(directories);
+  char _perfratio[1024];
+  double pcr = networkmib / (si ? 1024.0 : 1000.0) / (i_nominal / (si ?
+               (1024 * 1024 * 1024 * 1024.0) : (1000 * 1000 * 1000 * 1000.0))); // GB/s per TB
+
+  if (i_nominal) {
+    snprintf(_perfratio, sizeof(_perfratio), "%.02f", pcr); // GB/s per TB
+  } else {
+    snprintf(_perfratio, sizeof(_perfratio), "0.00");
+  }
+
+  std::string sperf = _perfratio;
+  char _sizefactor[1024];
+  snprintf(_sizefactor, sizeof(_sizefactor), "%.02f", sizefactor);
+  std::string ssizefactor = _sizefactor;
+  TableFormatterBase table;
+  TableData table_data;
+  std::string format_s = (!monitoring ? "s" : "os");
+  std::string format_ss = (!monitoring ? "-s" : "os");
+
+  if (json) {
+    Json::Value gjson;
+    gjson["df"]["instance"] = instance;
+    gjson["df"]["size"] = (Json::Value::UInt64)i_nominal;
+    gjson["df"]["used"] = (Json::Value::UInt64)i_used;
+    gjson["df"]["files"] = (Json::Value::UInt64) files;
+    gjson["df"]["directories"] = (Json::Value::UInt64) directories;
+    gjson["df"]["performancecapacityratio-gb-tbs"] = pcr;
+    gjson["df"]["sizefactor"] = sizefactor;
+    gjson["df"]["path"] = path;
+    out += SSTR(gjson).c_str();
+    return out;
+  } else {
+    if (!monitoring) {
+      table.SetHeader({
+        std::make_tuple("Instance", 14, format_ss),
+        std::make_tuple("Size",  8, format_s),
+        std::make_tuple("Used",  8, format_s),
+        std::make_tuple("Files", 8, format_s),
+        std::make_tuple("Directories", 15, format_s),
+        std::make_tuple("PCR GB/TB*s", 12, format_s),
+        std::make_tuple("Use%", 6, format_s),
+        std::make_tuple("Vol-x", 7, format_s),
+        std::make_tuple("Path",  0, format_s)
+      });
     } else {
-      snprintf(_perfratio, sizeof(_perfratio), "0.00");
+      table.SetHeader({
+        std::make_tuple("instance", 14, format_ss),
+        std::make_tuple("size",  8, format_s),
+        std::make_tuple("used",  8, format_s),
+        std::make_tuple("files", 8, format_s),
+        std::make_tuple("directories", 15, format_s),
+        std::make_tuple("performancecapacityratio", 12, format_s),
+        std::make_tuple("usage", 6, format_s),
+        std::make_tuple("spacefactor", 6, format_s),
+        std::make_tuple("path",  0, format_s)
+      });
     }
 
-    std::string sperf = _perfratio;
-    char _sizefactor[1024];
-    snprintf(_sizefactor, sizeof(_sizefactor), "%.02f", sizefactor);
-    std::string ssizefactor = _sizefactor;
-    TableFormatterBase table;
-    TableData table_data;
-    std::string format_s = (!monitoring ? "s" : "os");
-    std::string format_ss = (!monitoring ? "-s" : "os");
-
-    if (json) {
-      Json::Value gjson;
-      gjson["df"]["instance"] = instance;
-      gjson["df"]["size"] = (Json::Value::UInt64)i_nominal;
-      gjson["df"]["used"] = (Json::Value::UInt64)i_used;
-      gjson["df"]["files"] = (Json::Value::UInt64) files;
-      gjson["df"]["directories"] = (Json::Value::UInt64) directories;
-      gjson["df"]["performancecapacityratio-gb-tbs"] = pcr;
-      gjson["df"]["sizefactor"] = sizefactor;
-      gjson["df"]["path"] = path;
-      out += SSTR(gjson).c_str();
-      return out;
-    } else {
-      if (!monitoring) {
-        table.SetHeader({
-          std::make_tuple("Instance", 14, format_ss),
-          std::make_tuple("Size",  8, format_s),
-          std::make_tuple("Used",  8, format_s),
-          std::make_tuple("Files", 8, format_s),
-          std::make_tuple("Directories", 15, format_s),
-          std::make_tuple("PCR GB/TB*s", 12, format_s),
-          std::make_tuple("Use%", 6, format_s),
-          std::make_tuple("Vol-x", 7, format_s),
-          std::make_tuple("Path",  0, format_s)
-        });
-      } else {
-        table.SetHeader({
-          std::make_tuple("instance", 14, format_ss),
-          std::make_tuple("size",  8, format_s),
-          std::make_tuple("used",  8, format_s),
-          std::make_tuple("files", 8, format_s),
-          std::make_tuple("directories", 15, format_s),
-          std::make_tuple("performancecapacityratio", 12, format_s),
-          std::make_tuple("usage", 6, format_s),
-          std::make_tuple("spacefactor", 6, format_s),
-          std::make_tuple("path",  0, format_s)
-        });
-      }
-
-      table_data.emplace_back();
-      TableRow& row = table_data.back();
-      row.emplace_back(instance, format_ss);
-      row.emplace_back(size, format_s);
-      row.emplace_back(used, format_s);
-      row.emplace_back(sfiles, format_s);
-      row.emplace_back(sdirectories, format_s);
-      row.emplace_back(sperf, format_s);
-      row.emplace_back(suse, format_s);
-      row.emplace_back(ssizefactor, format_s);
-      row.emplace_back(path, format_s);
-      table.AddRows(table_data);
-      out += table.GenerateTable(HEADER).c_str();
-      return out;
-    }
+    table_data.emplace_back();
+    TableRow& row = table_data.back();
+    row.emplace_back(instance, format_ss);
+    row.emplace_back(size, format_s);
+    row.emplace_back(used, format_s);
+    row.emplace_back(sfiles, format_s);
+    row.emplace_back(sdirectories, format_s);
+    row.emplace_back(sperf, format_s);
+    row.emplace_back(suse, format_s);
+    row.emplace_back(ssizefactor, format_s);
+    row.emplace_back(path, format_s);
+    table.AddRows(table_data);
+    out += table.GenerateTable(HEADER).c_str();
+    return out;
   }
 }
 
@@ -1374,7 +1372,6 @@ bool FsView::UnderNominalQuota(const std::string& space, bool isroot)
     return usage_ok;
   }
 }
-
 
 //------------------------------------------------------------------------------
 // @brief return's the printout format for a given option
@@ -1494,7 +1491,6 @@ FsView::GetNodeFormat(std::string option)
 
   return format;
 }
-
 //------------------------------------------------------------------------------
 // @brief return's the printout format for a given option
 // @param option see the implementation for valid options
@@ -1653,7 +1649,6 @@ FsView::GetFileSystemFormat(std::string option)
 
   return format;
 }
-
 //------------------------------------------------------------------------------
 // @brief return's the printout format for a given option
 // @param option see the implementation for valid options
@@ -1772,7 +1767,6 @@ FsView::GetSpaceFormat(std::string option)
 
   return format;
 }
-
 //------------------------------------------------------------------------------
 // @brief return's the printout format for a given option
 // @param option see the implementation for valid options
@@ -1848,12 +1842,12 @@ FsView::GetGroupFormat(std::string option)
 
   return format;
 }
-
 //------------------------------------------------------------------------------
 // Register a filesystem object in the filesystem view
 //------------------------------------------------------------------------------
 bool
-FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
+FsView::Register(FileSystem* fs,
+                 const common::FileSystemCoreParams& coreParams,
                  bool registerInGeoTreeEngine)
 {
   if (!fs) {
@@ -1973,7 +1967,6 @@ FsView::Register(FileSystem* fs, const common::FileSystemCoreParams& coreParams,
   mNodeView[coreParams.getFSTQueue()]->SignalRefresh();
   return true;
 }
-
 //------------------------------------------------------------------------------
 // Store the filesystem configuration in the configuration engine
 //------------------------------------------------------------------------------
@@ -1991,7 +1984,6 @@ FsView::StoreFsConfig(FileSystem* fs, bool save_config)
     }
   }
 }
-
 //------------------------------------------------------------------------------
 // Move a filesystem in to a target group
 //------------------------------------------------------------------------------
@@ -2147,7 +2139,6 @@ FsView::MoveGroup(FileSystem* fs, std::string group_name)
 
   return false;
 }
-
 //------------------------------------------------------------------------------
 // Remove a file system
 //------------------------------------------------------------------------------
@@ -2264,7 +2255,6 @@ FsView::UnRegister(FileSystem* fs, bool unreg_from_geo_tree,
   delete fs;
   return true;
 }
-
 //------------------------------------------------------------------------------
 // Checks if a node has already a filesystem registered
 //------------------------------------------------------------------------------
@@ -2285,7 +2275,6 @@ FsView::ExistsQueue(std::string queue, std::string queuepath)
 
   return false;
 }
-
 //------------------------------------------------------------------------------
 // Add view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst
 //------------------------------------------------------------------------------
@@ -2305,7 +2294,6 @@ FsView::RegisterNode(const char* nodename)
     return true;
   }
 }
-
 //------------------------------------------------------------------------------
 // Remove view by nodename (= MQ queue) e.g. /eos/<host>:<port>/fst - we have
 // to remove all the connected filesystems via UnRegister(fs) to keep the
@@ -2341,7 +2329,6 @@ FsView::UnRegisterNode(const char* nodename)
 
   return retc;
 }
-
 //------------------------------------------------------------------------------
 // Add view by spacename (= MQ queue) e.g. /eos/<host>:<port>/fst
 //------------------------------------------------------------------------------
@@ -2360,7 +2347,6 @@ FsView::RegisterSpace(const char* spacename)
     return true;
   }
 }
-
 //------------------------------------------------------------------------------
 // Remove view by spacename (= MQ queue) e.g. /eos/<host>:<port>/fst
 //------------------------------------------------------------------------------
@@ -2402,7 +2388,6 @@ FsView::UnRegisterSpace(const char* spacename)
 
   return retc;
 }
-
 //------------------------------------------------------------------------------
 // Add view by groupname  e.g. default or default.0
 //------------------------------------------------------------------------------
@@ -2421,7 +2406,6 @@ FsView::RegisterGroup(const char* groupname)
     return true;
   }
 }
-
 //------------------------------------------------------------------------------
 // Remove view by groupname e.g. default or default.0
 //------------------------------------------------------------------------------
@@ -2468,7 +2452,6 @@ FsView::UnRegisterGroup(const char* groupname)
 
   return retc;
 }
-
 //------------------------------------------------------------------------------
 // Remove all filesystems by erasing all spaces
 //------------------------------------------------------------------------------
@@ -2498,8 +2481,6 @@ FsView::Reset()
   mNodeView.clear();
   mIdView.clear();
 }
-
-
 //------------------------------------------------------------------------------
 // Clear all maps and delete all filesystem/group/space objects
 //------------------------------------------------------------------------------
@@ -2527,7 +2508,6 @@ FsView::Clear()
   mNodeView.clear();
   mIdView.clear();
 }
-
 //------------------------------------------------------------------------------
 // Find a filesystem specifying a queuepath
 //------------------------------------------------------------------------------
@@ -2543,7 +2523,6 @@ FsView::FindByQueuePath(std::string& queuepath)
 
   return 0;
 }
-
 //------------------------------------------------------------------------------
 // Set global config
 //------------------------------------------------------------------------------
@@ -2573,7 +2552,6 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 
   return true;
 }
-
 //------------------------------------------------------------------------------
 // Get global config
 //------------------------------------------------------------------------------
@@ -2587,7 +2565,6 @@ FsView::GetGlobalConfig(const std::string& key)
 
   return "";
 }
-
 static void setFsStatus(FileSystem* fs,
                         eos::common::ActiveStatus status,
                         eos::common::BootStatus bstatus)
@@ -2602,7 +2579,6 @@ static void setFsStatus(FileSystem* fs,
                                     status,
                                     bstatus);
 }
-
 //------------------------------------------------------------------------------
 // Heart beat checker set's filesystem to down if the heart beat is missing
 //------------------------------------------------------------------------------
@@ -2610,6 +2586,7 @@ void
 FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName("FsViewHB");
+
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(10));
     eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
@@ -2689,7 +2666,6 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
     }
   }
 }
-
 //------------------------------------------------------------------------------
 // Re-apply drain status for file systems to re-trigger draining
 //------------------------------------------------------------------------------
@@ -2710,7 +2686,6 @@ FsView::ReapplyDrainStatus()
     }
   }
 }
-
 //------------------------------------------------------------------------------
 // Return a view member variable
 //------------------------------------------------------------------------------
@@ -2776,7 +2751,6 @@ BaseView::GetMember(const std::string& member) const
 
   return "";
 }
-
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -2796,7 +2770,6 @@ FsNode::FsNode(const char* name) : BaseView(
     mSubscription->attachCallback(std::bind(&FsNode::ProcessUpdateCb, this, _1));
   }
 }
-
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
@@ -2809,7 +2782,6 @@ FsNode::~FsNode()
   eos_static_info("msg=\"FsNode destructor\" name=\"%s\" ptr=%p",
                   mName.c_str(), this);
 }
-
 //------------------------------------------------------------------------------
 // Callback to process update for the shared hash
 //------------------------------------------------------------------------------
@@ -2828,7 +2800,6 @@ FsNode::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
                      "value=\"%s\"", upd.key.c_str(), upd.value.c_str());
   }
 }
-
 //------------------------------------------------------------------------------
 // Set refresh marker for the FSTs
 //------------------------------------------------------------------------------
@@ -2839,7 +2810,6 @@ FsNode::SignalRefresh()
                      (std::chrono::steady_clock::now().time_since_epoch()).count();
   SetConfigMember(msRefreshTag, std::to_string(ts_ms), true);
 }
-
 //------------------------------------------------------------------------------
 // Set the configuration default values for a node
 //------------------------------------------------------------------------------
@@ -2872,7 +2842,6 @@ FsNode::SetNodeConfigDefault()
     SetConfigMember("domain", "MGM", true);
   }
 }
-
 //------------------------------------------------------------------------------
 // Get member
 //------------------------------------------------------------------------------
@@ -2887,7 +2856,6 @@ FsNode::GetMember(const std::string& member) const
     return BaseView::GetMember(member);
   }
 }
-
 //------------------------------------------------------------------------------
 // Get node active status
 //------------------------------------------------------------------------------
@@ -2900,7 +2868,6 @@ FsNode::GetActiveStatus()
     return eos::common::ActiveStatus::kOffline;
   }
 }
-
 //------------------------------------------------------------------------------
 // Set node active status
 //------------------------------------------------------------------------------
@@ -2915,7 +2882,6 @@ FsNode::SetActiveStatus(eos::common::ActiveStatus active)
     return SetConfigMember("stat.active", "offline", true);
   }
 }
-
 //------------------------------------------------------------------------------
 // Check if node has a recent enough heartbeat ie. less then 60 seconds
 //------------------------------------------------------------------------------
@@ -2928,7 +2894,6 @@ FsNode::HasHeartbeat() const
 
   return isHeartbeatRecent(mHeartBeat.load());
 }
-
 //------------------------------------------------------------------------------
 // Set a configuration member variable (stored in the config engine)
 // If 'isstatus'=true we just store the value in the shared hash but don't flush
@@ -2954,7 +2919,6 @@ BaseView::SetConfigMember(std::string key, std::string value,
 
   return success;
 }
-
 //------------------------------------------------------------------------------
 // Get a configuration member variable (stored in the config engine)
 //------------------------------------------------------------------------------
@@ -2963,7 +2927,6 @@ BaseView::GetConfigMember(std::string key) const
 {
   return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).get(key);
 }
-
 //------------------------------------------------------------------------------
 // Get a list of configuration member variables from config engine
 //------------------------------------------------------------------------------
@@ -2974,7 +2937,6 @@ BaseView::GetConfigMembers(const std::vector<std::string>& keys,
   return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(), mLocator).get(keys,
          out);
 }
-
 //------------------------------------------------------------------------------
 // Delete a configuration member variable (stored in the config engine)
 //------------------------------------------------------------------------------
@@ -2995,7 +2957,6 @@ BaseView::DeleteConfigMember(std::string key) const
 
   return deleted;
 }
-
 //------------------------------------------------------------------------------
 // GetConfigKeys
 //------------------------------------------------------------------------------
@@ -3005,11 +2966,9 @@ BaseView::GetConfigKeys(std::vector<std::string>& keys)
   return mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
                                mLocator).getKeys(keys);
 }
-
 //------------------------------------------------------------------------------
 // Class ConfigResetMonitor
 //------------------------------------------------------------------------------
-
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -3018,7 +2977,6 @@ ConfigResetMonitor::ConfigResetMonitor():
 {
   std::swap(mOrigConfEngine, FsView::gFsView.mConfigEngine);
 }
-
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
@@ -3030,11 +2988,9 @@ ConfigResetMonitor::~ConfigResetMonitor()
     std::swap(FsView::gFsView.mConfigEngine, mOrigConfEngine);
   }
 }
-
 //------------------------------------------------------------------------------
 // Class FsView
 //------------------------------------------------------------------------------
-
 //------------------------------------------------------------------------------
 // Add FsChangeListener to all the existing file systems
 //------------------------------------------------------------------------------
@@ -3049,7 +3005,6 @@ FsView::AddFsChangeListener(std::shared_ptr<eos::mq::FsChangeListener> fs_lst,
     fs->AttachFsListener(fs_lst, interests);
   }
 }
-
 //------------------------------------------------------------------------------
 // Creates a new filesystem id based on a uuid
 //------------------------------------------------------------------------------
@@ -3058,16 +3013,15 @@ FsView::CreateMapping(std::string fsuuid)
 {
   return mFilesystemMapper.allocate(fsuuid);
 }
-
 //------------------------------------------------------------------------------
 // Adds a fsid=uuid pair to the mapping
 //------------------------------------------------------------------------------
 bool
-FsView::ProvideMapping(std::string fsuuid, eos::common::FileSystem::fsid_t fsid)
+FsView::ProvideMapping(std::string fsuuid,
+                       eos::common::FileSystem::fsid_t fsid)
 {
   return mFilesystemMapper.injectMapping(fsid, fsuuid);
 }
-
 //------------------------------------------------------------------------------
 // Return a fsid for a uuid
 //------------------------------------------------------------------------------
@@ -3076,7 +3030,6 @@ FsView::GetMapping(std::string fsuuid)
 {
   return mFilesystemMapper.lookup(fsuuid);
 }
-
 //------------------------------------------------------------------------------
 // Removes a mapping entry by fsid
 //------------------------------------------------------------------------------
@@ -3085,16 +3038,15 @@ FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid)
 {
   return mFilesystemMapper.remove(fsid);
 }
-
 //------------------------------------------------------------------------------
 // Removes a mapping entry by providing fsid + uuid
 //------------------------------------------------------------------------------
 bool
-FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid, std::string fsuuid)
+FsView::RemoveMapping(eos::common::FileSystem::fsid_t fsid,
+                      std::string fsuuid)
 {
   return mFilesystemMapper.remove(fsid) | mFilesystemMapper.remove(fsuuid);
 }
-
 //------------------------------------------------------------------------------
 // Print space information
 //------------------------------------------------------------------------------
@@ -3119,7 +3071,6 @@ FsView::PrintSpaces(std::string& out, const std::string& table_format,
 
   out = table.GenerateTable(HEADER, selections);
 }
-
 //----------------------------------------------------------------------------
 // Print group information
 //----------------------------------------------------------------------------
@@ -3144,7 +3095,6 @@ FsView::PrintGroups(std::string& out, const std::string& table_format,
 
   out = table.GenerateTable(HEADER, selections);
 }
-
 //------------------------------------------------------------------------------
 // Print node information
 //------------------------------------------------------------------------------
@@ -3169,7 +3119,6 @@ FsView::PrintNodes(std::string& out, const std::string& table_format,
 
   out = table.GenerateTable(HEADER, selections);
 }
-
 //------------------------------------------------------------------------------
 // Converts a config engine definition for a filesystem into the FsView
 // representation.
@@ -3278,7 +3227,6 @@ FsView::ApplyFsConfig(const char* inkey, const std::string& val,
 
   return true;
 }
-
 //------------------------------------------------------------------------------
 // Converts a config engine definition of a global variable into the FsView
 // representation.
@@ -3340,7 +3288,6 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   hash.releaseLocks();
   return success;
 }
-
 //------------------------------------------------------------------------------
 // Broadcast new manager id to all the FST nodes
 //------------------------------------------------------------------------------
@@ -3354,7 +3301,6 @@ FsView::BroadcastMasterId(const std::string master_id)
     it->second->SetConfigMember("manager", master_id, true);
   }
 }
-
 //------------------------------------------------------------------------------
 // Collect all endpoints (<hostname>:<port>) matching the given queue or pattern
 //------------------------------------------------------------------------------
@@ -3397,7 +3343,6 @@ FsView::CollectEndpoints(const std::string& queue) const
 
   return endpoints;
 }
-
 //------------------------------------------------------------------------------
 // Get set of unbalanced groups given the threshold
 //------------------------------------------------------------------------------
@@ -3428,7 +3373,6 @@ FsView::GetUnbalancedGroups(const std::string& space_name,
 
   return unbalanced;
 }
-
 //------------------------------------------------------------------------------
 // Get sets of file systems from given group which are above/below the average
 // given the threshold
@@ -3480,7 +3424,6 @@ FsView::GetFsToBalance(const std::string& group_name, double threshold) const
 
   return fs_prio;
 }
-
 //----------------------------------------------------------------------------
 // Dump balancer thread pool info for each of the existing spaces
 //----------------------------------------------------------------------------
@@ -3497,7 +3440,6 @@ FsView::DumpBalancerPoolInfo(std::ostringstream& oss,
     }
   }
 }
-
 //------------------------------------------------------------------------------
 // Get space name for the given file system id
 //------------------------------------------------------------------------------
@@ -3525,7 +3467,6 @@ FsView::GetSpaceNameForFses(const eos::IFileMD::id_t fid,
 
   return space_name;
 }
-
 //------------------------------------------------------------------------------
 // Should the provided fsid participate in statistics calculations?
 // Yes, if:
@@ -3554,7 +3495,6 @@ bool BaseView::ConsiderForStatistics(FileSystem* fs)
 
   return true;
 }
-
 //------------------------------------------------------------------------------
 // Computes the sum for <param> as long
 // param="<param>[?<key>=<value] allows to select with matches
@@ -3664,7 +3604,6 @@ BaseView::SumLongLong(const char* param, bool lock,
 
   return sum;
 }
-
 //------------------------------------------------------------------------------
 // Computes the sum for <param> as double
 //------------------------------------------------------------------------------
@@ -3691,7 +3630,6 @@ BaseView::SumDouble(const char* param, bool lock,
 
   return sum;
 }
-
 //------------------------------------------------------------------------------
 // Computes the average for <param>
 //------------------------------------------------------------------------------
@@ -3731,7 +3669,6 @@ BaseView::AverageDouble(const char* param, bool lock,
 
   return (cnt) ? (double)(1.0 * sum / cnt) : 0;
 }
-
 //------------------------------------------------------------------------------
 // Computes the maximum absolute deviation of <param> from the avg of <param>
 //------------------------------------------------------------------------------
@@ -3773,8 +3710,6 @@ BaseView::MaxAbsDeviation(const char* param, bool lock,
 
   return maxabsdev;
 }
-
-
 //------------------------------------------------------------------------------
 // Computes the maximum deviation of <param> from the avg of <param>
 //------------------------------------------------------------------------------
@@ -3816,7 +3751,6 @@ BaseView::MaxDeviation(const char* param, bool lock,
 
   return maxdev;
 }
-
 //------------------------------------------------------------------------------
 // Computes the minimum deviation of <param> from the avg of <param>
 //------------------------------------------------------------------------------
@@ -3858,7 +3792,6 @@ BaseView::MinDeviation(const char* param, bool lock,
 
   return mindev;
 }
-
 //------------------------------------------------------------------------------
 // Computes the sigma for <param>
 //------------------------------------------------------------------------------
@@ -3898,7 +3831,6 @@ BaseView::SigmaDouble(const char* param, bool lock,
   sumsquare = (cnt) ? sqrt(sumsquare / cnt) : 0;
   return sumsquare;
 }
-
 //------------------------------------------------------------------------------
 // Computes the considered count
 //------------------------------------------------------------------------------
@@ -3934,7 +3866,6 @@ BaseView::ConsiderCount(bool lock,
 
   return cnt;
 }
-
 //------------------------------------------------------------------------------
 // Print user defined format to out
 //
@@ -4412,7 +4343,6 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
     }
   }
 }
-
 //------------------------------------------------------------------------------
 // If a filesystem has not yet these parameters defined, we inherit them from
 // the space configuration. This function has to be called with the a read lock
@@ -4514,7 +4444,6 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
 
   return modified;
 }
-
 //------------------------------------------------------------------------------
 // Re-evaluates the draining state in all groups and resets the state
 //------------------------------------------------------------------------------
@@ -4575,7 +4504,6 @@ FsSpace::ResetDraining()
     }
   }
 }
-
 //------------------------------------------------------------------------------
 // Get status of the balancer thread pool
 //------------------------------------------------------------------------------
@@ -4588,5 +4516,4 @@ FsSpace::GetBalancerPoolInfo() const
 
   return std::string();
 }
-
 EOSMGMNAMESPACE_END
