@@ -406,42 +406,48 @@ ProcCommand::FileInfo(const char* path)
               out << "  Clock: " << FileId::Fid2Hex(clock);
             }
 
-            out << "\n  Size: " << fmd_copy->getSize()
-                << "\nStatus: " << FileMDToStatus(fmd_copy);
+            out << std::endl;
+            out << "  Size: " << fmd_copy->getSize() << std::endl
+                << "Status: " << FileMDToStatus(fmd_copy) << std::endl
+                << "Modify: " << eos::common::Timing::ltime(filemtime)
+                << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+                << std::endl
+                << "Change: " << eos::common::Timing::ltime(filectime)
+                << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+                << std::endl
+                << "Access: " << eos::common::Timing::ltime(fileatime)
+                << " Timestamp: " << eos::common::Timing::TimespecToString(atime)
+                << std::endl
+                << " Birth: " << eos::common::Timing::ltime(filebtime)
+                << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
+                << std::endl
+                << "  CUid: " << fmd_copy->getCUid()
+                << " CGid: " << fmd_copy->getCGid()
+                << " Fxid: " << hex_fid
+                << " Fid: " << fmd_copy->getId()
+                << " Pid: " << fmd_copy->getContainerId()
+                << " Pxid: " << hex_pid
+                << std::endl;
+            out << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
+                  fmd_copy->getLayoutId())
+                << "XS: " << xs_spaces
+                << "    ETAGs: " << etag
+                << std::endl;
+            auto altchecksums = fmd_copy->getAlternativeChecksums();
 
-            if (fmd_copy->isLink()) {
-              out << " Target: " << fmd_copy->getLink();
-            } else if (xattrs.count(SYS_HARD_LINK)) {
-              out << " Target: " << fmd_copy->getAttribute(SYS_HARD_LINK);
+            for (auto [type, xs] : altchecksums) {
+              out << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
+                    type)
+                  << "XS: " << xs << std::endl;
             }
 
-            out  << "\n ETAGs: " << etag
-                 << "\nModify: " << Timing::ltime(filemtime)
-                 << " Timestamp: " << Timing::TimespecToString(mtime)
-                 << "\nChange: " << Timing::ltime(filectime)
-                 << " Timestamp: " << Timing::TimespecToString(ctime)
-                 << "\nAccess: " << Timing::ltime(fileatime)
-                 << " Timestamp: " << Timing::TimespecToString(atime)
-                 << "\n Birth: " << Timing::ltime(filebtime)
-                 << " Timestamp: " << Timing::TimespecToString(btime)
-                 << "\n  CUid: " << fmd_copy->getCUid()
-                 << " CGid: " << fmd_copy->getCGid()
-                 << " Fxid: " << hex_fid
-                 << " Fid: " << fmd_copy->getId()
-                 << " Pid: " << fmd_copy->getContainerId()
-                 << " Pxid: " << hex_pid << std::endl;
-
-            if (!fmd_copy->isLink() && !xattrs.count(SYS_HARD_LINK)) {
-              out << "XStype: " << LayoutId::GetChecksumString(lid)
-                  << "    XS: " << xs_spaces
-                  << "\nLayout: " << LayoutId::GetLayoutTypeString(lid)
-                  << " Stripes: " << (LayoutId::GetStripeNumber(lid) + 1)
-                  << " Blocksize: " << LayoutId::GetBlockSizeString(lid)
-                  << " LayoutId: " << FileId::Fid2Hex(lid)
-                  << " Redundancy: " << redundancy
-                  << "\n  #Rep: " << fmd_copy->getNumLocation()
-                  << std::endl;
-            }
+            out << "Layout: " << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
+                << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
+                << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
+                << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
+                << " Redundancy: " << redundancy
+                << std::endl;
+            out << "  #Rep: " << fmd_copy->getNumLocation() << std::endl;
 
             if (fmd_copy->hasLocation(EOS_TAPE_FSID)) {
               std::string storage_class = xattrs["sys.archive.storage_class"];
@@ -503,6 +509,13 @@ ProcCommand::FileInfo(const char* path)
             for (const auto& elem : xattrs) {
               out << "xattrn=" << elem.first
                   << " xattrv=" << elem.second << " ";
+            }
+
+            auto altchecksums = fmd_copy->getAlternativeChecksums();
+
+            for (auto [type, xs] : altchecksums) {
+              out << "altxsn=" << eos::common::LayoutId::GetChecksumString(type)
+                  << " altxsv=" << xs << " ";
             }
           }
 
@@ -995,9 +1008,6 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["nstripes"] = (int)(LayoutId::GetStripeNumber(fmd_copy->getLayoutId())
                              + 1);
     json["checksumtype"] = LayoutId::GetChecksumString(fmd_copy->getLayoutId());
-    std::string cks;
-    eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
-    json["checksumvalue"] = cks;
     json["status"] = FileMDToStatus(fmd_copy);
 
     if (fmd_copy->isLink()) {
@@ -1006,9 +1016,6 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
       json["target"] = fmd_copy->getAttribute(SYS_HARD_LINK);
     }
 
-    std::string etag;
-    eos::calculateEtag(fmd_copy.get(), etag);
-    json["etag"] = etag;
     Json::Value jsonxattr;
 
     for (const auto& elem : xattrs) {
@@ -1056,6 +1063,31 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     }
 
     json["locations"] = jsonfsids;
+    json["checksumtype"] = eos::common::LayoutId::GetChecksumString(
+                             fmd_copy->getLayoutId());
+    std::string cks;
+    eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
+    json["checksumvalue"] = cks;
+    // Add alternative checksums if available
+    auto altchecksums = fmd_copy->getAlternativeChecksums();
+
+    if (!altchecksums.empty()) {
+      Json::Value jsonaltxs;
+
+      for (auto [type, xs] : altchecksums) {
+        Json::Value elem;
+        elem["type"] = eos::common::LayoutId::GetChecksumString(type);
+        elem["value"] = xs;
+        jsonaltxs.append(elem);
+      }
+
+      json["altchecksums"] = jsonaltxs;
+    }
+
+    std::string etag;
+    eos::calculateEtag(fmd_copy.get(), etag);
+    json["etag"] = etag;
+    json["status"] = FileMDToStatus(fmd_copy);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_debug("msg=\"exception during JSON fileinfo\" ec=%d "
