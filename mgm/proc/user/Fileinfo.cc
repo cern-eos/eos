@@ -419,10 +419,19 @@ ProcCommand::FileInfo(const char* path)
                 << " Pid: " << fmd_copy->getContainerId()
                 << " Pxid: " << hex_pid
                 << std::endl;
-            out << "XStype: " << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
-                << "    XS: " << xs_spaces
+            out << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
+                  fmd_copy->getLayoutId())
+                << "XS: " << xs_spaces
                 << "    ETAGs: " << etag
                 << std::endl;
+            auto altchecksums = fmd_copy->getAlternativeChecksums();
+
+            for (auto [type, xs] : altchecksums) {
+              out << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
+                    type)
+                  << "XS: " << xs << std::endl;
+            }
+
             out << "Layout: " << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
                 << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
                 << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
@@ -485,6 +494,13 @@ ProcCommand::FileInfo(const char* path)
             for (const auto& elem : xattrs) {
               out << "xattrn=" << elem.first
                   << " xattrv=" << elem.second << " ";
+            }
+
+            auto altchecksums = fmd_copy->getAlternativeChecksums();
+
+            for (auto [type, xs] : altchecksums) {
+              out << "altxsn=" << eos::common::LayoutId::GetChecksumString(type)
+                  << " altxsv=" << xs << " ";
             }
           }
 
@@ -1034,6 +1050,22 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     std::string cks;
     eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
     json["checksumvalue"] = cks;
+    // Add alternative checksums if available
+    auto altchecksums = fmd_copy->getAlternativeChecksums();
+
+    if (!altchecksums.empty()) {
+      Json::Value jsonaltxs;
+
+      for (auto [type, xs] : altchecksums) {
+        Json::Value elem;
+        elem["type"] = eos::common::LayoutId::GetChecksumString(type);
+        elem["value"] = xs;
+        jsonaltxs.append(elem);
+      }
+
+      json["altchecksums"] = jsonaltxs;
+    }
+
     std::string etag;
     eos::calculateEtag(fmd_copy.get(), etag);
     json["etag"] = etag;
