@@ -22,6 +22,7 @@ message FileMdProto {
   map<string, bytes> xattrs = 15;
   bytes stime = 16; // server sync time
   bytes atime = 17; // server access time
+  map<uint32, bytes> altchecksums = 18; // alternative checksums
   uint64 cloneid = 256;     // transient
   bytes clonefst = 257;     // transient
 }
