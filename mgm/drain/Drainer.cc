@@ -75,6 +75,13 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
   using eos::common::FileSystem;
   FileSystem::fsid_t src_fsid = fs->GetId();
   eos_info("msg=\"start draining\" fsid=%d", src_fsid);
+
+  if (src_fsid == 0) {
+    std::ostringstream ss;
+    ss << "Debug stacktrace: " << eos::common::getStacktrace();
+    eos_static_crit("msg=\"%s\"", ss.str().c_str());
+  }
+
   FileSystem::fs_snapshot_t src_snapshot;
   fs->SnapShotFileSystem(src_snapshot);
 
@@ -142,6 +149,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
   // Start the drain
   std::shared_ptr<DrainFs> dfs(new DrainFs(mThreadPool, gOFS->eosFsView,
                                src_fsid, dst_fsid));
+
   try {
     auto future = std::async(std::launch::async, &DrainFs::DoIt, dfs.get());
     dfs->SetFuture(std::move(future));
@@ -151,6 +159,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
                << e.what());
     return false;
   }
+
   return true;
 }
 
