@@ -627,9 +627,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
             NoGo = 1;
           } else {
             gConfig.protowfusegrpc = false;
+
             if ((!strcmp("true", val) || (!strcmp("1", val)))) {
               gConfig.protowfusegrpc = true;
             }
+
             Eroute.Say("=====> fstofs.protowfusegrpc : ", val);
           }
         }
@@ -2398,13 +2400,14 @@ XrdFstOfs::Query2Delete()
   XrdCl::Buffer arg;
   XrdCl::Buffer* raw_resp {nullptr};
   std::unique_ptr<XrdCl::Buffer> resp;
+  uint16_t timeout = 45;
   int attempts = 5;
 
   do {
     XrdCl::FileSystem fs {url};
     arg.FromString(request);
     XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                          raw_resp);
+                                          raw_resp, timeout);
     resp.reset(raw_resp);
     raw_resp = nullptr;
 
