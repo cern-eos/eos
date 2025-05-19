@@ -59,9 +59,7 @@ eos::console::RequestProto eos::mgm::EvictCmd::convertStagerRmToEvict(
 
     default:
       errStream <<
-                "error: Received a file with neither a path nor an fid, unable to convert stagerrm request to evict request"
-                <<
-                std::endl;
+                "error: Received a file with neither a path nor an fid, unable to convert stagerrm request to evict request";
       ret_c = EINVAL;
       EosCtaReporterEvict eosLog;
       eosLog
@@ -151,7 +149,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       path = file.path();
 
       if (0 == path.length()) {
-        errStream << "error: Received an empty string path" << std::endl;
+        errStream << "error: Received an empty string path";
         ret_c = EINVAL;
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         continue;
@@ -164,8 +162,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       GetPathFromFid(path, file.fid(), err);
 
       if (0 == path.length()) {
-        errStream << "error: Received an unknown fid: value=" << file.fid() <<
-                  std::endl;
+        errStream << "error: Received an unknown fid: value=" << file.fid();
         ret_c = EINVAL;
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         continue;
@@ -175,8 +172,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       break;
 
     default:
-      errStream << "error: Received a file with neither a path nor an fid" <<
-                std::endl;
+      errStream << "error: Received a file with neither a path nor an fid";
       ret_c = EINVAL;
       eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
@@ -188,7 +184,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
     if (gOFS->_access(cPath.GetParentPath(), P_OK, errInfo, mVid, "") != 0) {
       errStream << "error: you don't have 'p' acl flag permission on path '"
-                << cPath.GetParentPath() << "'" << std::endl;
+                << cPath.GetParentPath() << "'";
       ret_c = EPERM;
       eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
@@ -199,20 +195,19 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
     errInfo.clear();
 
     if (gOFS->_exists(path.c_str(), file_exists, errInfo, mVid, nullptr)) {
-      errStream << "error: unable to run exists on path '" << path << "'" <<
-                std::endl;
+      errStream << "error: unable to run exists on path '" << path << "'";
       ret_c = errno;
       eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
     if (file_exists == XrdSfsFileExistNo) {
-      errStream << "error: no such file with path '" << path << "'" << std::endl;
+      errStream << "error: no such file with path '" << path << "'";
       ret_c = ENODATA;
       eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     } else if (file_exists == XrdSfsFileExistIsDirectory) {
-      errStream << "error: given path is a directory '" << path << "'" << std::endl;
+      errStream << "error: given path is a directory '" << path << "'";
       ret_c = EINVAL;
       eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
@@ -222,8 +217,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
     if (gOFS->_stat(path.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
                     false) != 0) {
-      errStream << "error: unable to run stat for replicas on path '" << path << "'"
-                << std::endl;
+      errStream << "error: unable to run stat for replicas on path '" << path << "'";
       ret_c = EINVAL;
       eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
@@ -231,7 +225,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
     // we don't remove anything if it's not on tape
     if ((buf.st_mode & EOS_TAPE_MODE_T) == 0) {
-      errStream << "error: no tape replicas for file '" << path << "'" << std::endl;
+      errStream << "error: no tape replicas for file '" << path << "'";
       ret_c = EINVAL;
       eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
@@ -260,8 +254,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       if (!diskReplicaFound) {
         eos_static_err("msg=\"unable to find disk replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
-        errStream << "error: unable to find disk replica of '" << path << "'" <<
-                  std::endl;
+        errStream << "error: unable to find disk replica of '" << path << "'";
         eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID,  fsid.value());
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
@@ -282,8 +275,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       if (diskReplicaCount == 0) {
         eos_static_err("msg=\"unable to find any disk replica of %s\" reason=\"%s\"",
                        path.c_str(), errInfo.getErrText());
-        errStream << "error: unable to find any disk replica of '" << path << "'" <<
-                  std::endl;
+        errStream << "error: unable to find any disk replica of '" << path << "'";
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
         continue;
@@ -300,8 +292,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
                             ignoreRemovalOnFst) != 0) {
         eos_static_err("msg=\"could not delete replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
-        errStream << "error: could not delete replica of '" << path << "'" <<
-                  std::endl;
+        errStream << "error: could not delete replica of '" << path << "'";
         eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID, fsid.value());
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
@@ -351,8 +342,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       if (gOFS->_dropallstripes(path.c_str(), errInfo, root_vid) != 0) {
         eos_static_err("msg=\"could not delete all disk replicas of %s\" reason=\"%s\"",
                        path.c_str(), errInfo.getErrText());
-        errStream << "error: could not delete all disk replicas of '" << path << "'" <<
-                  std::endl;
+        errStream << "error: could not delete all disk replicas of '" << path << "'";
         eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
       } else {
