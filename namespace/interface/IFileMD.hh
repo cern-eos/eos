@@ -35,6 +35,7 @@
 #include <string>
 #include <sys/time.h>
 #include "namespace/MDLocking.hh"
+#include "common/LayoutId.hh"
 
 EOSNSNAMESPACE_BEGIN
 
@@ -43,7 +44,8 @@ class IFileMDSvc;
 //------------------------------------------------------------------------------
 //! Interface to file metadata
 //------------------------------------------------------------------------------
-class IFileMD : public LockableNSObjMD {
+class IFileMD : public LockableNSObjMD
+{
 public:
   //----------------------------------------------------------------------------
   //! Type definitions
@@ -60,7 +62,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  IFileMD(): LockableNSObjMD(),mIsDeleted(false) {};
+  IFileMD(): LockableNSObjMD(), mIsDeleted(false) {};
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -127,7 +129,6 @@ public:
   //----------------------------------------------------------------------------
   virtual bool setATimeNow(uint64_t olderthan) = 0;
 
-  
   //----------------------------------------------------------------------------
   //! get sync time
   //----------------------------------------------------------------------------
@@ -205,6 +206,12 @@ public:
   //! @param size     size of the checksum in bytes
   //----------------------------------------------------------------------------
   virtual void setChecksum(const void* checksum, uint8_t size) = 0;
+
+  virtual void addAlternativeChecksum(eos::common::LayoutId::eChecksum
+                                      checksumType, const char* checksum, size_t size) = 0;
+
+  virtual std::map<eos::common::LayoutId::eChecksum, std::string>
+  getAlternativeChecksums() const = 0;
 
   //----------------------------------------------------------------------------
   //! Get name
@@ -419,7 +426,7 @@ public:
   //! Check if object is "deleted" - in the sense that it's not valid anymore
   //----------------------------------------------------------------------------
   virtual bool isDeleted() const
-  {    
+  {
     return mIsDeleted;
   }
 
@@ -434,7 +441,8 @@ public:
   //----------------------------------------------------------------------------
   //! Get locality hint for this file.
   //----------------------------------------------------------------------------
-  virtual std::string getLocalityHint() const {
+  virtual std::string getLocalityHint() const
+  {
     return LocalityHint::build(ContainerIdentifier(getContainerId()), getName());
   }
 
@@ -454,21 +462,27 @@ public:
 
   IFileMD& operator=(const IFileMD& other) = delete;
 
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDBaseLock;
+  template<typename ObjectMDPtr, typename LockType> friend class
+    NSObjectMDBaseLock;
   template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDLock;
-  template<typename ObjectMDPtr, typename LockType> friend class NSObjectMDTryLock;
+  template<typename ObjectMDPtr, typename LockType> friend class
+    NSObjectMDTryLock;
   friend class LockableNSObjMD;
 
 protected:
   mutable std::shared_timed_mutex mMutex;
 
 private:
-  std::atomic<bool> mIsDeleted; ///< Mark if object is still in cache but it was deleted
+  std::atomic<bool>
+  mIsDeleted; ///< Mark if object is still in cache but it was deleted
 
   //----------------------------------------------------------------------------
   //! getMutex()
   //----------------------------------------------------------------------------
-  std::shared_timed_mutex & getMutex() const override { return mMutex; }
+  std::shared_timed_mutex& getMutex() const override
+  {
+    return mMutex;
+  }
 };
 
 EOSNSNAMESPACE_END
