@@ -739,6 +739,12 @@ public:
     });
   };
 
+  void addAlternativeChecksum(eos::common::LayoutId::eChecksum
+                              checksumType, const char* checksum, size_t size) override;
+
+  std::map<eos::common::LayoutId::eChecksum, std::string>
+  getAlternativeChecksums() const override;
+
 protected:
   IFileMDSvc* pFileMDSvc;
 
