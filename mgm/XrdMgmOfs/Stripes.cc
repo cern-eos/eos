@@ -75,7 +75,7 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
 
   try {
     auto fmd = gOFS->eosView->getFileMDSvc()->getFileMD(fid);
-    auto fmdLock = eos::MDLocking::readLock(fmd);
+    auto fmdLock = eos::MDLocking::readLock(fmd.get());
     cid = fmd->getContainerId();
     lid = fmd->getLayoutId();
   } catch (eos::MDException& e) {
@@ -92,7 +92,7 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
 
     try {
       cmd = gOFS->eosView->getContainerMDSvc()->getContainerMD(cid);
-      cmd_rlock = eos::MDLocking::readLock(cmd);
+      cmd_rlock = eos::MDLocking::readLock(cmd.get());
     } catch (eos::MDException& e) {
       cmd.reset();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -241,7 +241,7 @@ XrdMgmOfs::_dropstripe(const char* path,
       fmd = gOFS->eosView->getFileMDSvc()->getFileMD(fid);
     } else {
       fmd = gOFS->eosView->getFile(path);
-      fmd_rlock = eos::MDLocking::readLock(fmd);
+      fmd_rlock = eos::MDLocking::readLock(fmd.get());
       fid = fmd->getId(); // set in case we were called by path
     }
 
@@ -274,7 +274,7 @@ XrdMgmOfs::_dropstripe(const char* path,
   try {
     std::string locations;
     eos::IFileMDPtr fmd = gOFS->eosView->getFileMDSvc()->getFileMD(fid);
-    eos::MDLocking::FileWriteLockPtr fmd_wlock = eos::MDLocking::writeLock(fmd);
+    eos::MDLocking::FileWriteLockPtr fmd_wlock = eos::MDLocking::writeLock(fmd.get());
 
     try {
       locations = fmd->getAttribute("sys.fs.tracking");
@@ -358,7 +358,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
   try {
     eos::common::Path cpath(path);
     eos::IContainerMDPtr cont = gOFS->eosView->getContainer(cpath.GetParentPath());
-    auto contLock = eos::MDLocking::readLock(cont);
+    auto contLock = eos::MDLocking::readLock(cont.get());
     errno = 0;
 
     if (!cont->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
@@ -374,7 +374,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
   // Retrieve write locked file and modify it
   try {
     eos::IFileMDPtr fmd = gOFS->eosView->getFile(path);
-    auto fmdLock = eos::MDLocking::writeLock(fmd);
+    auto fmdLock = eos::MDLocking::writeLock(fmd.get());
     eos::IFileMD::id_t fid = fmd->getId();
 
     // If file only on tape then don't touch it

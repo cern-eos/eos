@@ -220,7 +220,7 @@ Devices::Store()
     eos::IFileMDPtr fmd = nullptr;
     try {
       fmd = gOFS->eosView->getFile(storagepath.c_str());
-      fmdLock = eos::MDLocking::writeLock(fmd);
+      fmdLock = eos::MDLocking::writeLock(fmd.get());
       errno = 0;
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -231,7 +231,7 @@ Devices::Store()
       // if it does not exist, create it
       try {
 	fmd = gOFS->eosView->createFile(storagepath.c_str(), 0, 0);
-	fmdLock = eos::MDLocking::writeLock(fmd);
+	fmdLock = eos::MDLocking::writeLock(fmd.get());
 	fmd->setMTimeNow();
 	fmd->setCTimeNow();
 	eos::IFileMD::ctime_t mtime;

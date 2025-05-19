@@ -135,7 +135,7 @@ TEST_F(ContainerMDSvcF, BasicSanity)
 TEST_F(ContainerMDSvcF, getContainerMDWhenContIsLockedShouldNotLock) {
   auto cont = view()->createContainer("/root/");
   auto id = cont->getId();
-  eos::MDLocking::ContainerWriteLock contLock(cont);
+  eos::MDLocking::ContainerWriteLock contLock(cont.get());
 
   std::thread t([this,id](){
     // Here, we just check that the getContainerMD(id) does not lock

@@ -130,7 +130,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
     {
       // In any case, we need to check the container access, read lock it to
       // check its access and release its lock afterwards
-      eos::MDLocking::ContainerReadLockPtr dhLock = eos::MDLocking::readLock(dh);
+      eos::MDLocking::ContainerReadLockPtr dhLock = eos::MDLocking::readLock(dh.get());
       dh_mode = dh->getMode();
 
       if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
@@ -155,7 +155,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
 
     if (fh) {
       // Check the file access, read lock it before and release the lock afterwards
-      eos::MDLocking::FileReadLock fhLock(fh);
+      eos::MDLocking::FileReadLock fhLock(fh.get());
 
       if (!AccessChecker::checkFile(fh.get(), mode, dh_mode, vid)) {
         errno = EPERM;
@@ -281,7 +281,7 @@ XrdMgmOfs::acc_access(const char* path,
 
     std::unique_ptr<Acl> aclPtr;
     {
-      eos::MDLocking::ContainerReadLock dhLock(dh);
+      eos::MDLocking::ContainerReadLock dhLock(dh.get());
 
       for (auto g : gids) {
         if (dh->access(vid.uid, g, R_OK)) {

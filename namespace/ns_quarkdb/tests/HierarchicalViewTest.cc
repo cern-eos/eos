@@ -805,7 +805,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
   uint8_t sleepSeconds = 10;
   auto threadReadLockingContainer = std::thread([&container, &containerLocked,
   sleepSeconds]() {
-    eos::MDLocking::ContainerReadLock containerLocker(container);
+    eos::MDLocking::ContainerReadLock containerLocker(container.get());
     containerLocked = true;
     std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
   });
@@ -842,7 +842,7 @@ TEST_F(HierarchicalViewF, BulkMDLockerTest)
   uint8_t sleepSeconds = 10;
   auto threadReadLockingFile = std::thread([&file, &fileLocked,
   sleepSeconds]() {
-    eos::MDLocking::FileReadLock fileReadLocker(file);
+    eos::MDLocking::FileReadLock fileReadLocker(file.get());
     fileLocked = true;
     std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
   });
@@ -891,7 +891,7 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
     for(int i = 0; i < 100; ++i) {
       workers.emplace_back([this](){
         auto fmd = view()->getFile("/test/file.txt");
-        auto fhLock = eos::MDLocking::writeLock(fmd);
+        auto fhLock = eos::MDLocking::writeLock(fmd.get());
         fmd->setSize(10000);
         view()->updateFileStore(fmd.get());
       });
@@ -899,9 +899,9 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
     for(int i = 0; i < 100; ++i) {
       workers.emplace_back([this](){
         auto cmd =  view()->getContainer("/test/");
-        auto cmdLock = eos::MDLocking::writeLock(cmd);
+        auto cmdLock = eos::MDLocking::writeLock(cmd.get());
         auto fmd = view()->getFile("/test/file.txt");
-        auto fhLock = eos::MDLocking::writeLock(fmd);
+        auto fhLock = eos::MDLocking::writeLock(fmd.get());
         fmd->setSize(10000);
         view()->updateFileStore(fmd.get());
       });
@@ -915,7 +915,7 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
         for(int k = 0; k < 10; ++k) {
           workers.push_back(std::thread([this,i, j, k, dirName]() {
             auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
-            auto fmdLock = eos::MDLocking::writeLock(fmd);
+            auto fmdLock = eos::MDLocking::writeLock(fmd.get());
             if(k % 2 == 0) {
               fmd->setSize(fmd->getSize() + 1);
             } else {
@@ -954,7 +954,7 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
         for(int k = 0; k < 10; ++k) {
           workers.push_back(std::thread([this,i, j, k, dirName]() {
             auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
-            auto fmdLock = eos::MDLocking::writeLock(fmd);
+            auto fmdLock = eos::MDLocking::writeLock(fmd.get());
             if(k % 2 == 0) {
               fmd->setSize(fmd->getSize() + 1);
             } else {
@@ -994,9 +994,9 @@ TEST_F(HierarchicalViewF, fileMDLockedClone)
   ASSERT_EQ(f1->getIdentifier(), eos::FileIdentifier(1));
   eos::IFileMDPtr f2;
   {
-    eos::MDLocking::FileWriteLock fileMDLocked(f1);
+    eos::MDLocking::FileWriteLock fileMDLocked(f1.get());
     f2.reset(fileMDLocked->clone());
-    eos::MDLocking::FileReadLock file2MDLocked(f2);
+    eos::MDLocking::FileReadLock file2MDLocked(f2.get());
     ASSERT_EQ(f1->getIdentifier(), f2->getIdentifier());
   }
   ASSERT_EQ(eos::FileIdentifier(1), f1->getIdentifier());
@@ -1008,7 +1008,7 @@ TEST_F(HierarchicalViewF, fileMDLockedLocation)
   view()->createContainer("/test/", true);
   eos::IFileMDPtr f1 = view()->createFile("/test/f1");
   {
-    eos::MDLocking::FileWriteLock lock(f1);
+    eos::MDLocking::FileWriteLock lock(f1.get());
     f1->addLocation(1);
     ASSERT_EQ(1, f1->getLocation(0));
   }
@@ -1017,7 +1017,7 @@ TEST_F(HierarchicalViewF, fileMDLockedLocation)
     //10 threads, each one adds a location
     for (int i = 0; i < 10; ++i) {
       addLocationWorkers.push_back(std::thread([this, i, &f1]() {
-        eos::MDLocking::FileWriteLock lock(f1);
+        eos::MDLocking::FileWriteLock lock(f1.get());
 
         for (int j = 0; j < 10; ++j) {
           f1->addLocation((i * 10) + j);
@@ -1035,7 +1035,7 @@ TEST_F(HierarchicalViewF, fileMDLockedLocation)
   {
     for (int i = 0; i < 10; ++i) {
       hasLocationWorkers.push_back(std::thread([i, &f1]() {
-        eos::MDLocking::FileWriteLock lock(f1);
+        eos::MDLocking::FileWriteLock lock(f1.get());
 
         for (int j = 0; j < 10; ++j) {
           ASSERT_TRUE(f1->hasLocation((i * 10) + j));
@@ -1048,7 +1048,7 @@ TEST_F(HierarchicalViewF, fileMDLockedLocation)
     t.join();
   });
   {
-    eos::MDLocking::FileWriteLock lock(f1);
+    eos::MDLocking::FileWriteLock lock(f1.get());
     ASSERT_EQ(100, f1->getNumLocation());
     auto locations = f1->getLocations();
     ASSERT_EQ(100, locations.size());
@@ -1058,7 +1058,7 @@ TEST_F(HierarchicalViewF, fileMDLockedLocation)
     //10 threads, each one adds a location
     for (int i = 0; i < 10; ++i) {
       removeLocationWorkers.push_back(std::thread([this, i, &f1]() {
-        eos::MDLocking::FileWriteLock lock(f1);
+        eos::MDLocking::FileWriteLock lock(f1.get());
 
         for (int j = 0; j < 10; ++j) {
           f1->unlinkLocation((i * 10) + j);
@@ -1092,7 +1092,7 @@ TEST_F(HierarchicalViewF, fileMDLockedLocation)
   });
   //Try the removeAllLocation
   {
-    eos::MDLocking::FileWriteLock lock(f1);
+    eos::MDLocking::FileWriteLock lock(f1.get());
     f1->unlinkAllLocations();
     f1->removeAllLocations();
     view()->updateFileStore(f1.get());
@@ -1131,7 +1131,7 @@ TEST_F(HierarchicalViewF, fileMDLockedRemoveLocation)
 
   for (int i = 0; i < 10; ++i) {
     addLocationWorkers.push_back(std::thread([this, i, &f1]() {
-      eos::MDLocking::FileWriteLock lock(f1);
+      eos::MDLocking::FileWriteLock lock(f1.get());
 
       for (int j = 0; j < 10; ++j) {
         f1->addLocation((i * 10) + j);
@@ -1147,7 +1147,7 @@ TEST_F(HierarchicalViewF, fileMDLockedRemoveLocation)
 
   for (int i = 0; i < 10; ++i) {
     removeLocationWorkers.push_back(std::thread([this, i, &f1]() {
-      eos::MDLocking::FileWriteLock lock(f1);
+      eos::MDLocking::FileWriteLock lock(f1.get());
 
       for (int j = 0; j < 10; ++j) {
         f1->unlinkLocation((i * 10) + j);
@@ -1187,7 +1187,7 @@ TEST_F(HierarchicalViewF, containerMDFindItem)
         std::stringstream contName;
         fileName << "f" << i;
         contName << "c" << i;
-        eos::MDLocking::ContainerReadLock containerMDLocker(testCont);
+        eos::MDLocking::ContainerReadLock containerMDLocker(testCont.get());
         {
           auto contOrFile = testCont->findItem(fileName.str()).get();
           ASSERT_TRUE(contOrFile.file != nullptr);
@@ -1201,7 +1201,7 @@ TEST_F(HierarchicalViewF, containerMDFindItem)
   }
 
   {
-    eos::MDLocking::ContainerReadLock containerMDLocker(testCont);
+    eos::MDLocking::ContainerReadLock containerMDLocker(testCont.get());
     {
       auto contOrFile = testCont->findItem("f0").get();
       ASSERT_TRUE(contOrFile.file != nullptr);
@@ -1221,7 +1221,7 @@ TEST_F(HierarchicalViewF, containerMDAddContainerThenRemove)
 {
   auto rootContainer = view()->createContainer("/root/", true);
   auto rootContainerID = rootContainer->getId();
-  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer);
+  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer.get());
   auto testContainer = view()->createContainer("/test/", true);
   auto testContainerID = testContainer->getId();
   rootContainer->addContainer(testContainer.get());
@@ -1238,7 +1238,7 @@ TEST_F(HierarchicalViewF, containerMDAddContainerThenRemove)
 TEST_F(HierarchicalViewF, containerMDaddFileThenRemove)
 {
   auto rootContainer = view()->createContainer("/root/", true);
-  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer);
+  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer.get());
   auto testFile = view()->createFile("/root/test");
   rootContainer->addFile(testFile.get());
   ASSERT_EQ(1, rootContainer->getNumFiles());
@@ -1250,7 +1250,7 @@ TEST_F(HierarchicalViewF, containerMDGetSetName)
 {
   auto rootContainer = view()->createContainer("/root/", true);
   ASSERT_EQ("root", rootContainer->getName());
-  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer);
+  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer.get());
   rootContainer->setName("newname");
   ASSERT_EQ("newname", rootContainer->getName());
 }
@@ -1258,7 +1258,7 @@ TEST_F(HierarchicalViewF, containerMDGetSetName)
 TEST_F(HierarchicalViewF, containerMDBasicGettersSetters)
 {
   auto rootContainer = view()->createContainer("/root/", true);
-  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer);
+  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer.get());
   rootContainer->setCUid(2);
   ASSERT_EQ(2, rootContainer->getCUid());
   rootContainer->setCGid(23);
@@ -1298,7 +1298,7 @@ TEST_F(HierarchicalViewF, containerMDSyncTimeAccounting)
       rootContainerMTimeAfterNotify;
   {
     eos::MDLocking::ContainerWriteLock containerSyncTimeAccountingLocker(
-      containerSyncTimeAccounting);
+      containerSyncTimeAccounting.get());
     containerSyncTimeAccounting->setAttribute("sys.mtime.propagation", "true");
     auto testContainer = view()->getContainer("/root/test/");
     testContainer->setAttribute("sys.mtime.propagation", "true");
@@ -1321,7 +1321,7 @@ TEST_F(HierarchicalViewF, containerMDSyncTimeAccounting)
 TEST_F(HierarchicalViewF, containerMDAttributesOps)
 {
   auto rootContainer = view()->createContainer("/root/", true);
-  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer);
+  eos::MDLocking::ContainerWriteLock rootLocker(rootContainer.get());
   rootContainer->setAttribute("attribute1", "value1");
   rootContainer->setAttribute("attribute2", "value2");
   ASSERT_TRUE(rootContainer->hasAttribute("attribute1"));
@@ -1350,7 +1350,7 @@ TEST_F(HierarchicalViewF, getFileWhileBeingWriteLocked)
   std::atomic<bool> fileLocked = false;
   uint8_t sleepSeconds = 3;
   auto threadWriteLockingFile = std::thread([&file, &fileLocked, sleepSeconds]() {
-    eos::MDLocking::FileWriteLock fileLocker(file);
+    eos::MDLocking::FileWriteLock fileLocker(file.get());
     fileLocked = true;
     std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
   });
@@ -1384,7 +1384,7 @@ TEST_F(HierarchicalViewF, getFileAfterBeingRenamed)
   auto threadWriteLockingFile = std::thread([this, &file, &root, &fileRenamed,
   &threadRenameStarted, sleepSeconds]() {
     threadRenameStarted = true;
-    eos::MDLocking::FileWriteLock fileLocker(file);
+    eos::MDLocking::FileWriteLock fileLocker(file.get());
     view()->renameFile(file.get(), "file2");
     view()->updateContainerStore(root.get());
     fileRenamed = true;
@@ -1401,7 +1401,7 @@ TEST_F(HierarchicalViewF, getFileAfterBeingRenamed)
     ASSERT_THROW(view()->getFile("/root/file1"), eos::MDException);
     start = std::chrono::steady_clock::now();
     auto file2 = view()->getFile("/root/file2");
-    auto file2Lock = eos::MDLocking::readLock(file2);
+    auto file2Lock = eos::MDLocking::readLock(file2.get());
     stop = std::chrono::steady_clock::now();
     ASSERT_EQ("file2", file2->getName());
   });
@@ -1418,7 +1418,7 @@ TEST_F(HierarchicalViewF,
   eos::MDLocking::ContainerWriteLockPtr contLock;
   {
     auto cont = view()->createContainer("/root/", true);
-    contLock = eos::MDLocking::writeLock(cont);
+    contLock = eos::MDLocking::writeLock(cont.get());
     containerSvc()->removeContainer(cont.get());
     cont.reset();
     ASSERT_THROW(view()->getContainer("/root/"), eos::MDException);
@@ -1434,11 +1434,11 @@ TEST_F(HierarchicalViewF, getMDFollowsSymlinks)
   view()->createLink("/eos/dir2/dest_symlink","/eos/dest_symlink/");
 
   auto file = view()->getFile("/eos/dest_symlink/dir1/file.txt");
-  auto fileLock = eos::MDLocking::readLock(file);
+  auto fileLock = eos::MDLocking::readLock(file.get());
   ASSERT_EQ("file.txt",file->getName());
 
   auto container = view()->getContainer("/eos/dest_symlink/dir1/");
-  auto containerReadLock = eos::MDLocking::readLock(container);
+  auto containerReadLock = eos::MDLocking::readLock(container.get());
   auto containerViaSymlink = view()->getContainer("/eos/dir2/dest_symlink/dir1/");
   ASSERT_EQ(container,containerViaSymlink);
 
@@ -1464,7 +1464,7 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
     for(uint16_t i = 0; i < loops; ++i){
       cleanNSCache();
       auto dh = view()->getContainer("/eos/");
-      auto dhLock = eos::MDLocking::writeLock(dh);
+      auto dhLock = eos::MDLocking::writeLock(dh.get());
       dh->setTreeSize(i);
       view()->updateContainerStore(dh.get());
     }
@@ -1473,7 +1473,7 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
     for(uint16_t i = 0; i < loops; ++i){
       cleanNSCache();
       auto dh = view()->getContainer("/eos/dir1/");
-      auto dhLock = eos::MDLocking::writeLock(dh);
+      auto dhLock = eos::MDLocking::writeLock(dh.get());
       dh->setTreeSize(i);
       view()->updateContainerStore(dh.get());
     }
@@ -1481,7 +1481,7 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   workers.emplace_back([this,loops](){
     for(uint16_t i = 0; i < loops; ++i){
       auto dh = view()->getContainer("/eos/dir1/dir2");
-      auto dhLock = eos::MDLocking::writeLock(dh);
+      auto dhLock = eos::MDLocking::writeLock(dh.get());
       dh->setTreeSize(i);
       view()->updateContainerStore(dh.get());
     }
@@ -1489,7 +1489,7 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   workers.emplace_back([this,loops,filePath](){
     for(uint16_t i = 0; i < loops; ++i) {
       auto fh = view()->getFile(filePath);
-      auto fhLock = eos::MDLocking::writeLock(fh);
+      auto fhLock = eos::MDLocking::writeLock(fh.get());
       fh->setSize(i);
       view()->updateFileStore(fh.get());
     }
@@ -1526,12 +1526,12 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       cleanNSCache();
       {
         auto fh = view()->getFileMDSvc()->getFileMD(fileId);
-        eos::MDLocking::FileWriteLockPtr fhLock = eos::MDLocking::writeLock(fh);
+        eos::MDLocking::FileWriteLockPtr fhLock = eos::MDLocking::writeLock(fh.get());
         std::string uri = view()->getUri(fh.get());
       }
       {
         auto dh = view()->getContainerMDSvc()->getContainerMD(dirId);
-        eos::MDLocking::ContainerWriteLockPtr dhLock = eos::MDLocking::writeLock(dh);
+        eos::MDLocking::ContainerWriteLockPtr dhLock = eos::MDLocking::writeLock(dh.get());
         std::string uri = view()->getUri(dh.get());
       }
     }

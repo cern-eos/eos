@@ -228,7 +228,7 @@ DrainTransferJob::GetFileInfo() const
   try {
     eos::IFileMDPtr fmd = gOFS->eosFileService->getFileMD(mFileId);
     fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
-    auto fmdLock = eos::MDLocking::readLock(fmd);
+    auto fmdLock = eos::MDLocking::readLock(fmd.get());
     fdrain.mProto.set_id(fmd->getId());
     fdrain.mProto.set_layout_id(fmd->getLayoutId());
     fdrain.mProto.set_cont_id(fmd->getContainerId());
@@ -675,7 +675,7 @@ DrainTransferJob::DrainZeroSizeFile(const FileDrainInfo& fdrain)
     return Status::Failed;
   }
 
-  eos::MDLocking::FileWriteLock fmdLock(file);
+  eos::MDLocking::FileWriteLock fmdLock(file.get());
 
   // We already have excess replicas just drop the current one
   if (file->getNumLocation() >

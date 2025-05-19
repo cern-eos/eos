@@ -1183,7 +1183,7 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
 
     try {
       cmd = gOFS->eosView->getContainer(path,false);
-      cmdLock = eos::MDLocking::readLock(cmd);
+      cmdLock = eos::MDLocking::readLock(cmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
@@ -1196,7 +1196,7 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
       try {
         path = instancepath;
         cmd = gOFS->eosView->getContainer(path, false);
-        cmdLock = eos::MDLocking::readLock(cmd);
+        cmdLock = eos::MDLocking::readLock(cmd.get());
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),

@@ -149,7 +149,7 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
       for (auto const& elem : batch.mMap) {
         try {
           auto cont = mContainerMDSvc->getContainerMD(elem.first);
-          eos::MDLocking::ContainerWriteLock contLock(cont);
+          eos::MDLocking::ContainerWriteLock contLock(cont.get());
           cont->updateTreeSize(elem.second.dsize);
           cont->updateTreeFiles(elem.second.dtreefiles);
           cont->updateTreeContainers(elem.second.dtreecontainers);

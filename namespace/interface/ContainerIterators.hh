@@ -58,7 +58,7 @@ public:
   }
 
   void next() {
-    eos::MDLocking::ContainerReadLock readLocker(container);
+    eos::MDLocking::ContainerReadLock readLocker(container.get());
 
     // check for a re-sized map
     if (generation() != iGeneration) {
@@ -170,7 +170,7 @@ public:
   }
 
   void next() {
-    eos::MDLocking::ContainerReadLock readLocker(container);
+    eos::MDLocking::ContainerReadLock readLocker(container.get());
 
     // check for a re-sized map
     if (generation() != iGeneration) {

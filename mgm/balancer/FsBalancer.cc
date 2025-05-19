@@ -326,7 +326,7 @@ FsBalancer::GetFileToBalance(const FsBalanceInfo& src,
 
       try {
         auto fmd = gOFS->eosFileService->getFileMD(random_fid);
-        auto fmd_lock = eos::MDLocking::readLock(fmd);
+        auto fmd_lock = eos::MDLocking::readLock(fmd.get());
         auto loc = fmd->getLocations();
         avoid_fsids.insert(loc.cbegin(), loc.cend());
         loc = fmd->getUnlinkedLocations();

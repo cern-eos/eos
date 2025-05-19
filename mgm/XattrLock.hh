@@ -133,7 +133,7 @@ public:
 
     try {
       fmd = gOFS->eosView->getFile(path);
-      fdLock = eos::MDLocking::writeLock(fmd);
+      fdLock = eos::MDLocking::writeLock(fmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -194,7 +194,7 @@ public:
 
     try {
       fmd = gOFS->eosView->getFile(path);
-      fdLock = eos::MDLocking::writeLock(fmd);
+      fdLock = eos::MDLocking::writeLock(fmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),

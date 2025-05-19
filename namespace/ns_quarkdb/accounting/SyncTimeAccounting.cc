@@ -155,7 +155,7 @@ QuarkSyncTimeAccounting::PropagateUpdates(ThreadAssistant* assistant)
 
         try {
           cont = mContainerMDSvc->getContainerMD(id);
-          eos::MDLocking::ContainerWriteLock locker(cont);
+          eos::MDLocking::ContainerWriteLock locker(cont.get());
 
           // Only traverse if there there is an attribute saying so
           if (!cont->hasAttribute("sys.mtime.propagation")) {

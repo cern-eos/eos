@@ -63,7 +63,7 @@ BENCHMARK_DEFINE_F(BulkNSObjectLockFixture, ContainerMDLock)(benchmark::State& s
     container1 = nsTests->view()->createContainer("/test",true);
   }
   for (auto _ : state) {
-    eos::MDLocking::ContainerWriteLock contLock(container1);
+    eos::MDLocking::ContainerWriteLock contLock(container1.get());
     container1->setAttribute("test1","test2");
     nsTests->view()->updateContainerStore(container1.get());
   }

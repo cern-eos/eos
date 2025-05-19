@@ -29,7 +29,7 @@ getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
     try {
       fmd = gOFS->eosFileService->getFileMD(fid);
       std::string fmdUri = gOFS->eosView->getUri(fmd.get());
-      auto fmdLock = eos::MDLocking::readLock(fmd);
+      auto fmdLock = eos::MDLocking::readLock(fmd.get());
       layoutid = fmd->getLayoutId();
       fileid = fmd->getId();
 

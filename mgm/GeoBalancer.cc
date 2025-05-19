@@ -282,7 +282,7 @@ GeoBalancer::getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
       // Don't lock the file before getting its URI
       file_uri = gOFS->eosView->getUri(fmd.get()).c_str();
       // Now we can lock the file
-      eos::MDLocking::FileReadLock fmdLock(fmd);
+      eos::MDLocking::FileReadLock fmdLock(fmd.get());
       layoutid = fmd->getLayoutId();
 
       if ((fmd->getContainerId() == 0) ||

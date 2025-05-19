@@ -1439,8 +1439,8 @@ TEST_F(VariousTests, basicObjectMDLockingOrderTest) {
 
   workers.emplace_back([cont1,file1,loops](){
     for(uint16_t i = 0; i < loops; ++i) {
-      eos::MDLocking::ContainerReadLock contRLock(cont1);
-      eos::MDLocking::FileReadLock fileRLock(file1);
+      eos::MDLocking::ContainerReadLock contRLock(cont1.get());
+      eos::MDLocking::FileReadLock fileRLock(file1.get());
       cont1->getName();
       file1->getName();
     }
@@ -1448,8 +1448,8 @@ TEST_F(VariousTests, basicObjectMDLockingOrderTest) {
 
   workers.emplace_back([cont1,file1,loops](){
     for(uint16_t i = 0; i < loops; ++i) {
-      eos::MDLocking::ContainerReadLock contRLock(cont1);
-      eos::MDLocking::FileReadLock fileRLock(file1);
+      eos::MDLocking::ContainerReadLock contRLock(cont1.get());
+      eos::MDLocking::FileReadLock fileRLock(file1.get());
       cont1->getName();
       file1->getName();
     }
@@ -1457,8 +1457,8 @@ TEST_F(VariousTests, basicObjectMDLockingOrderTest) {
 
   workers.emplace_back([cont1,file1,loops](){
     for(uint16_t i = 0; i < loops; ++i) {
-      eos::MDLocking::ContainerWriteLock contRLock(cont1);
-      eos::MDLocking::FileWriteLock fileRLock(file1);
+      eos::MDLocking::ContainerWriteLock contRLock(cont1.get());
+      eos::MDLocking::FileWriteLock fileRLock(file1.get());
       cont1->getName();
       file1->getName();
     }
@@ -1466,8 +1466,8 @@ TEST_F(VariousTests, basicObjectMDLockingOrderTest) {
 
   workers.emplace_back([cont1,file1,loops](){
     for(uint16_t i = 0; i < loops; ++i) {
-      eos::MDLocking::ContainerWriteLock contRLock(cont1);
-      eos::MDLocking::FileWriteLock fileRLock(file1);
+      eos::MDLocking::ContainerWriteLock contRLock(cont1.get());
+      eos::MDLocking::FileWriteLock fileRLock(file1.get());
       cont1->getName();
       file1->getName();
     }
@@ -1613,13 +1613,13 @@ TEST_F(VariousTests, FileContainerIteratorConcurrentAccess)
     workers.emplace_back([this,cont1](){
       for(auto cit = eos::ContainerMapIterator(cont1); cit.valid(); cit.next()){
         auto cmd = cont1->findContainer(cit.key());
-        eos::MDLocking::ContainerWriteLock cmdLock(cmd);
+        eos::MDLocking::ContainerWriteLock cmdLock(cmd.get());
         cmd->setAttribute("test","test");
         cont1->notifyMTimeChange(containerSvc());
       }
       for(auto fit = eos::FileMapIterator(cont1); fit.valid(); fit.next()) {
         auto fmd = cont1->findFile(fit.key());
-        eos::MDLocking::FileWriteLock fmdLock(fmd);
+        eos::MDLocking::FileWriteLock fmdLock(fmd.get());
         fmd->setAttribute("test","test");
       }
     });

@@ -66,28 +66,28 @@ struct FileOrContainerMDLocked {
  */
 class MDLocking {
 private:
-  using FileReadTryLock = NSObjectMDTryLock<IFileMDRawPtr ,MDReadLock>;
-  using FileWriteTryLock = NSObjectMDTryLock<IFileMDRawPtr,MDWriteLock>;
-  using ContainerReadTryLock = NSObjectMDTryLock<IContainerMDRawPtr,MDReadLock>;
-  using ContainerWriteTryLock = NSObjectMDTryLock<IContainerMDRawPtr,MDWriteLock>;
-  template<typename ContainerMDLocker, typename FileMDLocker>
-  static FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker>
-  lock(FileOrContainerMD fileOrContMD);
+  // Pointer type of ContainerMD
+  using ContainerMDPtr = IContainerMDRawPtr;
+  using FileMDPtr = IFileMDRawPtr;
+  using FileReadTryLock = NSObjectMDTryLock<FileMDPtr ,MDReadLock>;
+  using FileWriteTryLock = NSObjectMDTryLock<FileMDPtr,MDWriteLock>;
+  using ContainerReadTryLock = NSObjectMDTryLock<ContainerMDPtr,MDReadLock>;
+  using ContainerWriteTryLock = NSObjectMDTryLock<ContainerMDPtr,MDWriteLock>;
 
 public:
   // Read lock a container
-  using ContainerReadLock = NSObjectMDLock<IContainerMDPtr,MDReadLock>;
+  using ContainerReadLock = NSObjectMDLock<ContainerMDPtr ,MDReadLock>;
   // Write lock a container
-  using ContainerWriteLock = NSObjectMDLock<IContainerMDPtr,MDWriteLock>;
+  using ContainerWriteLock = NSObjectMDLock<ContainerMDPtr,MDWriteLock>;
 
   // Pointer holding container read/write locks
   using ContainerReadLockPtr = std::unique_ptr<ContainerReadLock>;
   using ContainerWriteLockPtr = std::unique_ptr<ContainerWriteLock>;
 
   //Read lock a file
-  using FileReadLock = NSObjectMDLock<IFileMDPtr,MDReadLock>;
+  using FileReadLock = NSObjectMDLock<FileMDPtr,MDReadLock>;
   // Write lock a file
-  using FileWriteLock = NSObjectMDLock<IFileMDPtr,MDWriteLock>;
+  using FileWriteLock = NSObjectMDLock<FileMDPtr,MDWriteLock>;
 
   // Pointers holding file read/write lock
   using FileReadLockPtr = std::unique_ptr<FileReadLock>;
@@ -110,39 +110,25 @@ public:
    * @param fmd the shared_ptr of the file to read lock
    * @return the pointer to the lock
    */
-  static FileReadLockPtr readLock(IFileMDPtr fmd);
+  static FileReadLockPtr readLock(FileMDPtr fmd);
   /**
    * Write locks a file
    * @param fmd the shared_ptr of the file to write lock
    * @return the pointer to the lock
    */
-  static FileWriteLockPtr writeLock(IFileMDPtr fmd);
+  static FileWriteLockPtr writeLock(FileMDPtr fmd);
   /**
    * Read lock a container
    * @param cmd the shared_ptr of the container to lock
    * @return the pointer to the lock
    */
-  static ContainerReadLockPtr readLock(IContainerMDPtr cmd);
+  static ContainerReadLockPtr readLock(ContainerMDPtr cmd);
   /**
    * Write locks a container
    * @param cmd the shared_ptr of the container to lock
    * @return the pointer to the lock
    */
-  static ContainerWriteLockPtr writeLock(IContainerMDPtr cmd);
-  /**
-   * Read locks the file or the container MD held by the FileOrContainerMD object
-   * @param fileOrContMD the FileOrContainerMD object to lock either the container or the file
-   * Note: if both a container and a file are provided, only the container will be locked.
-   * @return the FileOrContainerMDLocked object holding either the container lock of the file lock
-   */
-  static FileOrContainerMDLocked<ContainerReadLock,FileReadLock> readLock(FileOrContainerMD fileOrContMD);
-  /**
-   * Write locks the file or the container MD held by the FileOrContainerMD object
-   * @param fileOrContMD the FileOrContainerMD object to lock either the container or the file
-   * Note: if both a container and a file are provided, only the container will be locked.
-   * @return the FileOrContainerMDLocked object holding either the container lock of the file lock
-   */
-  static FileOrContainerMDLocked<ContainerWriteLock,FileWriteLock> writeLock(FileOrContainerMD fileOrContMD);
+  static ContainerWriteLockPtr writeLock(ContainerMDPtr cmd);
 };
 
 EOSNSNAMESPACE_END

@@ -165,14 +165,14 @@ XrdMgmOfs::_attr_get(const char* path, XrdOucErrInfo& error,
 
     if (item.file) {
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      eos::MDLocking::FileReadLock fmd_lock(fmd);
+      eos::MDLocking::FileReadLock fmd_lock(fmd.get());
 
       if (!_attr_get(*fmd.get(), skey, value)) {
         errno = ENODATA;
       }
     } else {
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      eos::MDLocking::ContainerReadLock cmd_lock(cmd);
+      eos::MDLocking::ContainerReadLock cmd_lock(cmd.get());
 
       if (!_attr_get(*cmd.get(), skey, value)) {
         errno = ENODATA;
@@ -296,7 +296,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
     if (item.file) { // file
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      auto fmd_lock = eos::MDLocking::writeLock(fmd);
+      auto fmd_lock = eos::MDLocking::writeLock(fmd.get());
 
       if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -336,7 +336,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       }
     } else { // container
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      auto cmd_lock = eos::MDLocking::writeLock(cmd);
+      auto cmd_lock = eos::MDLocking::writeLock(cmd.get());
 
       if ((vid.uid != cmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -435,7 +435,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 
     if (item.file) { // file
       std::shared_ptr<eos::IFileMD> fmd = item.file;
-      auto fmd_lock = eos::MDLocking::writeLock(fmd);
+      auto fmd_lock = eos::MDLocking::writeLock(fmd.get());
 
       if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;
@@ -455,7 +455,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       }
     } else { // container
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      auto cmd_lock = eos::MDLocking::writeLock(cmd);
+      auto cmd_lock = eos::MDLocking::writeLock(cmd.get());
 
       if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && (!vid.sudoer && vid.uid)) {
         errno = EPERM;

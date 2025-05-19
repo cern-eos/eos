@@ -251,10 +251,10 @@ TEST(BulkNSObjectLocker, testBulkNSObjectLocker) {
 TEST(NSObjectLocker, testNoDeadlockNSObjectLocker) {
   auto mockContainerMD1 = std::make_shared<eos::MockContainerMD>(1);
   {
-    eos::MDLocking::ContainerWriteLock writeLock(mockContainerMD1);
-    eos::MDLocking::ContainerReadLock readLock(mockContainerMD1);
-    eos::MDLocking::ContainerReadLock readLock2(mockContainerMD1);
-    eos::MDLocking::ContainerWriteLock writeLock2(mockContainerMD1);
+    eos::MDLocking::ContainerWriteLock writeLock(mockContainerMD1.get());
+    eos::MDLocking::ContainerReadLock readLock(mockContainerMD1.get());
+    eos::MDLocking::ContainerReadLock readLock2(mockContainerMD1.get());
+    eos::MDLocking::ContainerWriteLock writeLock2(mockContainerMD1.get());
     ASSERT_EQ(2,eos::MockContainerMD::getReadLockedContainers().size());
     ASSERT_EQ(2,eos::MockContainerMD::getWriteLockedContainers().size());
   }

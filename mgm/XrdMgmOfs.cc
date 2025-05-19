@@ -1614,7 +1614,7 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
   if (is_dir) {
     try {
       std::shared_ptr<eos::IContainerMD> cont = gOFS->eosDirectoryService->getContainerMD(id);
-      eos::MDLocking::ContainerWriteLock contLock(cont);
+      eos::MDLocking::ContainerWriteLock contLock(cont.get());
 
       if (cont->getParentId()) {
         gOFS->eosDirectoryService->removeContainer(cont.get());
@@ -1652,7 +1652,7 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
       }
 
       // Write lock the file
-      eos::MDLocking::FileWriteLock fileLock(file);
+      eos::MDLocking::FileWriteLock fileLock(file.get());
       // If any of the unlink locations is a file systems that doesn't exist
       // anymore then just remove it
       auto unlink_locs = file->getUnlinkedLocations();

@@ -371,7 +371,7 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
         }
 
         {
-          eos::MDLocking::FileReadLock fmdLock(fmd);
+          eos::MDLocking::FileReadLock fmdLock(fmd.get());
           fname = fmd->getName().c_str();
           fmd->getCTime(fctime);
         }
@@ -672,7 +672,7 @@ LRU::ConvertMatch(const char* dir,
         }
 
         {
-          eos::MDLocking::FileReadLock fmdLock(fmd);
+          eos::MDLocking::FileReadLock fmdLock(fmd.get());
           fname = fmd->getName().c_str();
           fmd->getCTime(fctime);
           fsize = fmd->getSize();

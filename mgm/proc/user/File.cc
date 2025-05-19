@@ -796,7 +796,7 @@ ProcCommand::File()
             fmd = gOFS->eosView->getFile(spath.c_str());
           }
 
-          eos::MDLocking::FileWriteLock fwLock(fmd);
+          eos::MDLocking::FileWriteLock fwLock(fmd.get());
 
           if (do_add && fmd->hasLocation(fsid)) {
             stdErr += "error: file '";

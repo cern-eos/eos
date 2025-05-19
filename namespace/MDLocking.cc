@@ -23,41 +23,19 @@
 
 EOSNSNAMESPACE_BEGIN
 
-MDLocking::FileReadLockPtr MDLocking::readLock(IFileMDPtr fmd){
+MDLocking::FileReadLockPtr MDLocking::readLock(FileMDPtr fmd){
   return std::make_unique<FileReadLock>(fmd);
 }
 
-MDLocking::FileWriteLockPtr MDLocking::writeLock(IFileMDPtr fmd) {
+MDLocking::FileWriteLockPtr MDLocking::writeLock(FileMDPtr fmd) {
   return std::make_unique<FileWriteLock>(fmd);
 }
-MDLocking::ContainerReadLockPtr MDLocking::readLock(IContainerMDPtr cmd) {
+MDLocking::ContainerReadLockPtr MDLocking::readLock(ContainerMDPtr cmd) {
   return std::make_unique<ContainerReadLock>(cmd);
 }
 
-MDLocking::ContainerWriteLockPtr MDLocking::writeLock(IContainerMDPtr cmd) {
+MDLocking::ContainerWriteLockPtr MDLocking::writeLock(ContainerMDPtr cmd) {
   return std::make_unique<ContainerWriteLock>(cmd);
-}
-
-template<typename ContainerMDLocker, typename FileMDLocker>
-FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker> MDLocking::lock(FileOrContainerMD fileOrContMD) {
-  FileOrContainerMDLocked<ContainerMDLocker, FileMDLocker> ret {nullptr, nullptr};
-
-  if (fileOrContMD.container) {
-    ret.containerLock = std::make_unique<ContainerMDLocker>
-        (fileOrContMD.container);
-  } else if (fileOrContMD.file) {
-    ret.fileLock = std::make_unique<FileMDLocker>(fileOrContMD.file);
-  }
-
-  return ret;
-}
-
-FileOrContainerMDLocked<MDLocking::ContainerReadLock,MDLocking::FileReadLock> MDLocking::readLock(FileOrContainerMD fileOrContMD) {
-  return lock<MDLocking::ContainerReadLock,MDLocking::FileReadLock>(fileOrContMD);
-}
-
-FileOrContainerMDLocked<MDLocking::ContainerWriteLock,MDLocking::FileWriteLock> MDLocking::writeLock(FileOrContainerMD fileOrContMD) {
-  return lock<MDLocking::ContainerWriteLock,MDLocking::FileWriteLock>(fileOrContMD);
 }
 
 EOSNSNAMESPACE_END

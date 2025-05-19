@@ -257,7 +257,7 @@ XrdMgmOfs::_rename(const char* old_name,
       // Check if old path is a quota node - this is forbidden
       try {
         auto rdir = eosView->getContainer(oPath.GetPath());
-        eos::MDLocking::ContainerReadLock rdirLocked(rdir);
+        eos::MDLocking::ContainerReadLock rdirLocked(rdir.get());
 
         if (rdir->getFlags() & eos::QUOTA_NODE_FLAG) {
           errno = EACCES;
@@ -557,7 +557,7 @@ XrdMgmOfs::_rename(const char* old_name,
                     }
 
                     if (fmd) {
-                      eos::MDLocking::FileReadLock locker(fmd);
+                      eos::MDLocking::FileReadLock locker(fmd.get());
 
                       if (!fmd->isLink()) {
                         // compute quotas to check
@@ -653,7 +653,7 @@ XrdMgmOfs::_rename(const char* old_name,
                 }
 
                 if (file) {
-                  eos::MDLocking::FileReadLock locker(file);
+                  eos::MDLocking::FileReadLock locker(file.get());
 
                   if (!file->isLink()) {
                     // Get quota nodes from file path and target directory
