@@ -890,17 +890,18 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
     // Tests a deadlock situation with the previous implementation of the accounting
     for(int i = 0; i < 100; ++i) {
       workers.emplace_back([this](){
-        auto fhLock = view()->getFileWriteLocked("/test/file.txt");
-        auto fmd = fhLock->getUnderlyingPtr();
+        auto fmd = view()->getFile("/test/file.txt");
+        auto fhLock = eos::MDLocking::writeLock(fmd);
         fmd->setSize(10000);
         view()->updateFileStore(fmd.get());
       });
     }
     for(int i = 0; i < 100; ++i) {
       workers.emplace_back([this](){
-        auto dhLock = view()->getContainerWriteLocked("/test/");
-        auto fhLock = view()->getFileWriteLocked("/test/file.txt");
-        auto fmd = fhLock->getUnderlyingPtr();
+        auto cmd =  view()->getContainer("/test/");
+        auto cmdLock = eos::MDLocking::writeLock(cmd);
+        auto fmd = view()->getFile("/test/file.txt");
+        auto fhLock = eos::MDLocking::writeLock(fmd);
         fmd->setSize(10000);
         view()->updateFileStore(fmd.get());
       });
@@ -913,8 +914,8 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
       for(int j = 0; j < 10; ++j) {
         for(int k = 0; k < 10; ++k) {
           workers.push_back(std::thread([this,i, j, k, dirName]() {
-            auto fmdLock = view()->getFileWriteLocked(dirName + "/f" + std::to_string(j));
-            auto fmd = fmdLock->getUnderlyingPtr();
+            auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
+            auto fmdLock = eos::MDLocking::writeLock(fmd);
             if(k % 2 == 0) {
               fmd->setSize(fmd->getSize() + 1);
             } else {
@@ -952,8 +953,8 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
       for(int j = 0; j < 10; ++j) {
         for(int k = 0; k < 10; ++k) {
           workers.push_back(std::thread([this,i, j, k, dirName]() {
-            auto fmdLock = view()->getFileWriteLocked(dirName + "/f" + std::to_string(j));
-            auto fmd = fmdLock->getUnderlyingPtr();
+            auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
+            auto fmdLock = eos::MDLocking::writeLock(fmd);
             if(k % 2 == 0) {
               fmd->setSize(fmd->getSize() + 1);
             } else {
@@ -1339,26 +1340,6 @@ TEST_F(HierarchicalViewF, getFileOrContainerLockedShouldThrow)
   ASSERT_THROW(eos::MDLocking::FileWriteLock(nullptr), eos::MDException);
 }
 
-TEST_F(HierarchicalViewF, getFileOrContainerMDLocked)
-{
-  view()->createContainer("/root/", true);
-  auto file = view()->createFile("/root/file1");
-  {
-    auto containerWriteLocked = view()->getContainerWriteLocked("/root/");
-    containerWriteLocked->getUnderlyingPtr()->setAttribute("testKey", "testValue");
-    auto file1WriteLocked = view()->getFileWriteLocked("/root/file1");
-    containerWriteLocked->getUnderlyingPtr()->addFile(
-      file1WriteLocked->getUnderlyingPtr().get());
-  }
-  {
-    auto containerReadLock = view()->getContainerReadLocked("/root/");
-    ASSERT_EQ("testValue",
-              containerReadLock->getUnderlyingPtr()->getAttribute("testKey"));
-    ASSERT_EQ(file->getContainerId(),
-              containerReadLock->getUnderlyingPtr()->getId());
-  }
-}
-
 TEST_F(HierarchicalViewF, getFileWhileBeingWriteLocked)
 {
   using namespace std::chrono_literals;
@@ -1417,11 +1398,12 @@ TEST_F(HierarchicalViewF, getFileAfterBeingRenamed)
 
     while (!fileRenamed) {}
 
-    ASSERT_THROW(view()->getFileReadLocked("/root/file1"), eos::MDException);
+    ASSERT_THROW(view()->getFile("/root/file1"), eos::MDException);
     start = std::chrono::steady_clock::now();
-    auto file2 = view()->getFileReadLocked("/root/file2");
+    auto file2 = view()->getFile("/root/file2");
+    auto file2Lock = eos::MDLocking::readLock(file2);
     stop = std::chrono::steady_clock::now();
-    ASSERT_EQ("file2", file2->getUnderlyingPtr()->getName());
+    ASSERT_EQ("file2", file2->getName());
   });
   threadWriteLockingFile.join();
   threadGetFile.join();
@@ -1430,33 +1412,15 @@ TEST_F(HierarchicalViewF, getFileAfterBeingRenamed)
   ASSERT_EQ(sleepSeconds, diff);
 }
 
-TEST_F(HierarchicalViewF, getFileOrContainerWriteLockedTwiceInSameThread)
-{
-  {
-    view()->createContainer("/root/", true);
-    view()->createFile("/root/file1");
-  }
-  auto cont = view()->getContainerWriteLocked("/root/");
-  auto cont2 = view()->getContainerWriteLocked("/root/");
-  auto cont3 = view()->getContainerReadLocked("/root/");
-  auto file = view()->getFileWriteLocked("/root/file1");
-  auto file2 = view()->getFileWriteLocked("/root/file1");
-  auto file3 = view()->getFileReadLocked("/root/file1");
-  ASSERT_EQ(cont->getUnderlyingPtr().get(), cont2->getUnderlyingPtr().get());
-  ASSERT_EQ(cont->getUnderlyingPtr().get(), cont3->getUnderlyingPtr().get());
-  ASSERT_EQ(file->getUnderlyingPtr().get(), file2->getUnderlyingPtr().get());
-  ASSERT_EQ(file->getUnderlyingPtr().get(), file3->getUnderlyingPtr().get());
-}
-
 TEST_F(HierarchicalViewF,
        NSObjectLockerNoDeadlockIfLockDestroyedAfterOwnedSharedPtr)
 {
   eos::MDLocking::ContainerWriteLockPtr contLock;
   {
     auto cont = view()->createContainer("/root/", true);
-    contLock = view()->getContainerWriteLocked("/root/");
+    contLock = eos::MDLocking::writeLock(cont);
     containerSvc()->removeContainer(cont.get());
-    cont = nullptr;
+    cont.reset();
     ASSERT_THROW(view()->getContainer("/root/"), eos::MDException);
   }
   //If you have a deadlock here in the destructor of the contLock, then something is wrong...
@@ -1469,15 +1433,17 @@ TEST_F(HierarchicalViewF, getMDFollowsSymlinks)
   view()->createContainer("/eos/dir2/");
   view()->createLink("/eos/dir2/dest_symlink","/eos/dest_symlink/");
 
-  auto file = view()->getFileReadLocked("/eos/dest_symlink/dir1/file.txt");
-  ASSERT_EQ("file.txt",file->getUnderlyingPtr()->getName());
+  auto file = view()->getFile("/eos/dest_symlink/dir1/file.txt");
+  auto fileLock = eos::MDLocking::readLock(file);
+  ASSERT_EQ("file.txt",file->getName());
 
-  auto container = view()->getContainerReadLocked("/eos/dest_symlink/dir1/");
+  auto container = view()->getContainer("/eos/dest_symlink/dir1/");
+  auto containerReadLock = eos::MDLocking::readLock(container);
   auto containerViaSymlink = view()->getContainer("/eos/dir2/dest_symlink/dir1/");
-  ASSERT_EQ(container->getUnderlyingPtr(),containerViaSymlink);
+  ASSERT_EQ(container,containerViaSymlink);
 
   auto fileGetItem = view()->getItem("/eos/dest_symlink/dir1/file.txt").get();
-  ASSERT_EQ(file->getUnderlyingPtr(),fileGetItem.file);
+  ASSERT_EQ(file,fileGetItem.file);
 }
 
 TEST_F(HierarchicalViewF, getMDMultiThreaded) {
@@ -1497,8 +1463,8 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   workers.emplace_back([this,loops](){
     for(uint16_t i = 0; i < loops; ++i){
       cleanNSCache();
-      auto dhLock = view()->getContainerWriteLocked("/eos/");
-      auto dh = dhLock->getUnderlyingPtr();
+      auto dh = view()->getContainer("/eos/");
+      auto dhLock = eos::MDLocking::writeLock(dh);
       dh->setTreeSize(i);
       view()->updateContainerStore(dh.get());
     }
@@ -1506,24 +1472,24 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   workers.emplace_back([this,loops](){
     for(uint16_t i = 0; i < loops; ++i){
       cleanNSCache();
-      auto dhLock = view()->getContainerWriteLocked("/eos/dir1/");
-      auto dh = dhLock->getUnderlyingPtr();
+      auto dh = view()->getContainer("/eos/dir1/");
+      auto dhLock = eos::MDLocking::writeLock(dh);
       dh->setTreeSize(i);
       view()->updateContainerStore(dh.get());
     }
   });
   workers.emplace_back([this,loops](){
     for(uint16_t i = 0; i < loops; ++i){
-      auto dhLock = view()->getContainerWriteLocked("/eos/dir1/dir2");
-      auto dh = dhLock->getUnderlyingPtr();
+      auto dh = view()->getContainer("/eos/dir1/dir2");
+      auto dhLock = eos::MDLocking::writeLock(dh);
       dh->setTreeSize(i);
       view()->updateContainerStore(dh.get());
     }
   });
   workers.emplace_back([this,loops,filePath](){
     for(uint16_t i = 0; i < loops; ++i) {
-      auto fhLock = view()->getFileWriteLocked(filePath);
-      auto fh = fhLock->getUnderlyingPtr();
+      auto fh = view()->getFile(filePath);
+      auto fhLock = eos::MDLocking::writeLock(fh);
       fh->setSize(i);
       view()->updateFileStore(fh.get());
     }
@@ -1559,13 +1525,13 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
     for(uint16_t i = 0; i < loops; ++i){
       cleanNSCache();
       {
-        auto fhLock = view()->getFileMDSvc()->getFileMDWriteLocked(fileId);
-        auto fh = fhLock->getUnderlyingPtr();
+        auto fh = view()->getFileMDSvc()->getFileMD(fileId);
+        eos::MDLocking::FileWriteLockPtr fhLock = eos::MDLocking::writeLock(fh);
         std::string uri = view()->getUri(fh.get());
       }
       {
-        auto dhLock = view()->getContainerMDSvc()->getContainerMDWriteLocked(dirId);
-        auto dh = dhLock->getUnderlyingPtr();
+        auto dh = view()->getContainerMDSvc()->getContainerMD(dirId);
+        eos::MDLocking::ContainerWriteLockPtr dhLock = eos::MDLocking::writeLock(dh);
         std::string uri = view()->getUri(dh.get());
       }
     }

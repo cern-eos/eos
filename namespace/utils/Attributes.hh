@@ -74,9 +74,8 @@ populateLinkedAttributes(IView* view, eos::IContainerMD::XAttrMap& out,
       return;
     }
 
-    MDLocking::ContainerReadLockPtr dhLock =
-      view->getContainerReadLocked(linkedPath->second);
-    IContainerMDPtr dh = dhLock->getUnderlyingPtr();
+    IContainerMDPtr dh = view->getContainer(linkedPath->second);
+    MDLocking::ContainerReadLock dhLock(dh);
     populateLinkedAttributes(dh->getAttributes(), out, prefixLinks);
   } catch (eos::MDException& e) {
     // Link does not exist, or is not a directory
@@ -167,8 +166,8 @@ static bool getAttribute(IView* view, T& md, std::string key,
   eos::Prefetcher::prefetchContainerMDAndWait(view, linkedContainer);
 
   try {
-    dhLock = view->getContainerReadLocked(linkedContainer);
-    dh = dhLock->getUnderlyingPtr();
+    dh = view->getContainer(linkedContainer);
+    dhLock = eos::MDLocking::readLock(dh);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_err("msg=\"exception while following linked container\" ec=%d emsg=\"%s\"\n",

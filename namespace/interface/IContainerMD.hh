@@ -171,18 +171,6 @@ public:
   virtual std::shared_ptr<IFileMD> findFile(const std::string& name) = 0;
 
   //----------------------------------------------------------------------------
-  //! Find file and read lock it. Returns nullptr in case the file is not found
-  //----------------------------------------------------------------------------
-  virtual std::unique_ptr<FileReadLock> findFileReadLocked(
-    const std::string& name) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Find file and write lock it. Returns nullptr in case the file is not found
-  //----------------------------------------------------------------------------
-  virtual std::unique_ptr<FileWriteLock> findFileWriteLocked(
-    const std::string& name) = 0;
-
-  //----------------------------------------------------------------------------
   //! Find item
   //----------------------------------------------------------------------------
   virtual folly::Future<FileOrContainerMD> findItem(const std::string& name) = 0;

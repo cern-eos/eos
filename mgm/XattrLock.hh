@@ -128,10 +128,12 @@ public:
     XrdOucErrInfo error;
     std::string value;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+    eos::IFileMDPtr fmd = nullptr;
     eos::MDLocking::FileWriteLockPtr fdLock;
 
     try {
-      fdLock = gOFS->eosView->getFileWriteLocked(path);
+      fmd = gOFS->eosView->getFile(path);
+      fdLock = eos::MDLocking::writeLock(fmd);
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -187,10 +189,12 @@ public:
     XrdOucErrInfo error;
     std::string value;
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, path);
+    eos::IFileMDPtr fmd = nullptr;
     eos::MDLocking::FileWriteLockPtr fdLock;
 
     try {
-      fdLock = gOFS->eosView->getFileWriteLocked(path);
+      fmd = gOFS->eosView->getFile(path);
+      fdLock = eos::MDLocking::writeLock(fmd);
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),

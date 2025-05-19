@@ -413,18 +413,6 @@ QuarkHierarchicalView::getFile(const std::string& uri, bool follow,
   return getFileFut(uri, follow).get();
 }
 
-MDLocking::FileReadLockPtr QuarkHierarchicalView::getFileReadLocked(
-  const std::string& uri, bool follow, size_t* link_depths)
-{
-  return MDLocking::readLock(getFile(uri, follow, link_depths));
-}
-
-MDLocking::FileWriteLockPtr QuarkHierarchicalView::getFileWriteLocked(
-  const std::string& uri, bool follow, size_t* link_depths)
-{
-  return MDLocking::writeLock(getFile(uri, follow, link_depths));
-}
-
 //------------------------------------------------------------------------------
 // Create a file for given uri
 //------------------------------------------------------------------------------
@@ -590,28 +578,6 @@ QuarkHierarchicalView::getContainer(const std::string& uri, bool follow,
                                     size_t* link_depth)
 {
   return getContainerFut(uri, follow).get();
-}
-
-//----------------------------------------------------------------------------
-//! Get a container (directory) and read lock it
-//----------------------------------------------------------------------------
-MDLocking::ContainerReadLockPtr QuarkHierarchicalView::getContainerReadLocked(
-  const std::string& uri,
-  bool follow,
-  size_t* link_depths)
-{
-  return MDLocking::readLock(getContainer(uri, follow, link_depths));
-}
-
-//----------------------------------------------------------------------------
-//! Get a container (directory) and write lock it
-//----------------------------------------------------------------------------
-MDLocking::ContainerWriteLockPtr
-QuarkHierarchicalView::getContainerWriteLocked(const std::string& uri,
-    bool follow,
-    size_t* link_depths)
-{
-  return MDLocking::writeLock(getContainer(uri, follow, link_depths));
 }
 
 //------------------------------------------------------------------------------

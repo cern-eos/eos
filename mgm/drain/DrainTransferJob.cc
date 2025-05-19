@@ -226,9 +226,9 @@ DrainTransferJob::GetFileInfo() const
   eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, mFileId);
 
   try {
-    auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(mFileId);
-    std::shared_ptr<eos::IFileMD> fmd = fmdLock->getUnderlyingPtr();
+    eos::IFileMDPtr fmd = gOFS->eosFileService->getFileMD(mFileId);
     fdrain.mFullPath = gOFS->eosView->getUri(fmd.get());
+    auto fmdLock = eos::MDLocking::readLock(fmd);
     fdrain.mProto.set_id(fmd->getId());
     fdrain.mProto.set_layout_id(fmd->getLayoutId());
     fdrain.mProto.set_cont_id(fmd->getContainerId());

@@ -775,9 +775,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
           Path.c_str(), false, no_files, limitresult, dir_limit, file_limit);
 
       try {
-        eos::MDLocking::ContainerReadLockPtr cmd_lock =
-          gOFS->eosView->getContainerReadLocked(Path.c_str(), false);
-        cmd = cmd_lock->getUnderlyingPtr();
+        cmd = gOFS->eosView->getContainer(Path.c_str(), false);
+        eos::MDLocking::ContainerReadLock cmd_lock(cmd);
         permok = cmd->access(vid.uid, vid.gid, R_OK | X_OK);
         cmd->getCTime(ctime);
       } catch (eos::MDException& e) {
@@ -893,11 +892,11 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
 
         for (auto fit = eos::FileMapIterator(cmd); fit.valid(); fit.next()) {
           fname = fit.key();
-          std::shared_ptr<eos::IFileMD> fmd {nullptr};
-          eos::MDLocking::FileReadLockPtr fmd_lock = cmd->findFileReadLocked(fname);
+          std::shared_ptr<eos::IFileMD> fmd = cmd->findFile(fname);
+          eos::MDLocking::FileReadLockPtr fmd_lock;
 
-          if (fmd_lock) {
-            fmd = fmd_lock->getUnderlyingPtr();
+          if (fmd) {
+            fmd_lock = eos::MDLocking::readLock(fmd);
           }
 
           if (fmd) {

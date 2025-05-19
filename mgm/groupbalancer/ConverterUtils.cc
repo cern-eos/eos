@@ -27,8 +27,9 @@ getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
 
     try {
-      auto fmdLock = gOFS->eosFileService->getFileMDReadLocked(fid);
-      fmd = fmdLock->getUnderlyingPtr();
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      std::string fmdUri = gOFS->eosView->getUri(fmd.get());
+      auto fmdLock = eos::MDLocking::readLock(fmd);
       layoutid = fmd->getLayoutId();
       fileid = fmd->getId();
 
@@ -36,7 +37,7 @@ getFileProcTransferNameAndSize(eos::common::FileId::fileid_t fid,
         return std::string("");
       }
 
-      if (skip_file_fn && skip_file_fn(gOFS->eosView->getUri(fmd.get()))) {
+      if (skip_file_fn && skip_file_fn(fmdUri)) {
         return std::string("");
       }
 

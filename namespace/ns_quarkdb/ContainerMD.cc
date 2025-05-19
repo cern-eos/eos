@@ -320,38 +320,6 @@ QuarkContainerMD::findFile(const std::string& name)
   return this->findItem(name).get().file;
 }
 
-//----------------------------------------------------------------------------
-//! Find file and read lock it. Returns nullptr in case the file is not found
-//----------------------------------------------------------------------------
-MDLocking::FileReadLockPtr QuarkContainerMD::findFileReadLocked(
-  const std::string& name)
-{
-  MDLocking::FileReadLockPtr fhLock = nullptr;
-  auto file = findItem(name).get().file;
-
-  if (file) {
-    fhLock = MDLocking::readLock(file);
-  }
-
-  return fhLock;
-}
-
-//----------------------------------------------------------------------------
-//! Find file and write lock it. Returns nullptr in case the file is not found
-//----------------------------------------------------------------------------
-MDLocking::FileWriteLockPtr QuarkContainerMD::findFileWriteLocked(
-  const std::string& name)
-{
-  MDLocking::FileWriteLockPtr fhLock = nullptr;
-  auto file = findItem(name).get().file;
-
-  if (file) {
-    fhLock = MDLocking::writeLock(file);
-  }
-
-  return fhLock;
-}
-
 //------------------------------------------------------------------------------
 // Find subcontainer, asynchronous API
 //------------------------------------------------------------------------------

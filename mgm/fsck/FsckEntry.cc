@@ -306,9 +306,8 @@ FsckEntry::RepairBestEffort()
 
     while (now <= ts_deadline) {
       try {
-        eos::MDLocking::FileReadLockPtr fmd_lock =
-          gOFS->eosFileService->getFileMDReadLocked(mFid);
-        auto fmd = fmd_lock->getUnderlyingPtr();
+        auto fmd = gOFS->eosFileService->getFileMD(mFid);
+        auto fmd_lock = eos::MDLocking::readLock(fmd);
 
         if ((fmd->getSize() == ref_sz) &&
             (strncmp(fmd->getChecksum().getDataPtr(),

@@ -148,8 +148,8 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
     if(!batch.mMap.empty()){
       for (auto const& elem : batch.mMap) {
         try {
-          auto contLock = mContainerMDSvc->getContainerMDWriteLocked(elem.first);
-          auto cont = contLock->getUnderlyingPtr();
+          auto cont = mContainerMDSvc->getContainerMD(elem.first);
+          eos::MDLocking::ContainerWriteLock contLock(cont);
           cont->updateTreeSize(elem.second.dsize);
           cont->updateTreeFiles(elem.second.dtreefiles);
           cont->updateTreeContainers(elem.second.dtreecontainers);
@@ -201,8 +201,8 @@ void QuarkContainerAccounting::AsyncQueueForUpdate(ThreadAssistant* assistant)
     while ((id > 1) && (deepness < 255)) {
       try {
         idsToUpdate.push_back(id);
-        auto contLock = mContainerMDSvc->getContainerMDReadLocked(id);
-        auto cont = contLock->getUnderlyingPtr();
+        auto cont = mContainerMDSvc->getContainerMD(id);
+        // One operation, no need to lock the container
         id = cont->getParentId();
         ++deepness;
       } catch (const MDException& e) {

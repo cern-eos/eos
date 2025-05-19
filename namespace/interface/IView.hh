@@ -102,22 +102,6 @@ public:
 
 
   //----------------------------------------------------------------------------
-  //! Retrieve a file for given uri and read-lock it
-  //----------------------------------------------------------------------------
-  virtual MDLocking::FileReadLockPtr
-  getFileReadLocked(const std::string& uri,
-                    bool follow = true,
-                    size_t* link_depths = 0) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Retrieve a file for given uri and write-lock it
-  //----------------------------------------------------------------------------
-  virtual MDLocking::FileWriteLockPtr
-  getFileWriteLocked(const std::string& uri,
-                     bool follow = true,
-                     size_t* link_depths = 0) = 0;
-
-  //----------------------------------------------------------------------------
   //! Retrieve an item for given path. Could be either file or container, we
   //! don't know.
   //----------------------------------------------------------------------------
@@ -187,21 +171,6 @@ public:
   virtual std::shared_ptr<IContainerMD> getContainer(const std::string& uri,
       bool follow = true,
       size_t* link_depths = 0) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get a container (directory) and read lock it
-  //----------------------------------------------------------------------------
-  virtual MDLocking::ContainerReadLockPtr
-  getContainerReadLocked(const std::string& uri,
-                         bool follow = true,
-                         size_t* link_depths = 0) = 0;
-  //----------------------------------------------------------------------------
-  //! Get a container (directory) and write lock it
-  //----------------------------------------------------------------------------
-  virtual MDLocking::ContainerWriteLockPtr
-  getContainerWriteLocked(const std::string& uri,
-                          bool follow = true,
-                          size_t* link_depths = 0) = 0;
 
   //----------------------------------------------------------------------------
   //! Get parent container of a file

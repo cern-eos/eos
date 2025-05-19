@@ -132,25 +132,6 @@ TEST_F(ContainerMDSvcF, BasicSanity)
   ASSERT_EQ((uint64_t)0, containerSvc()->getNumContainers());
 }
 
-TEST_F(ContainerMDSvcF, getContainerLocked) {
-  auto cont = view()->createContainer("/root/");
-  auto contId = cont->getId();
-  ASSERT_THROW(containerSvc()->getContainerMDReadLocked(42), eos::MDException);
-  {
-    auto contReadLocked = containerSvc()->getContainerMDReadLocked(contId);
-    ASSERT_NE(nullptr, contReadLocked);
-    ASSERT_EQ(contId, contReadLocked->getUnderlyingPtr()->getId());
-  }
-  ASSERT_THROW(containerSvc()->getContainerMDWriteLocked(42), eos::MDException);
-  {
-    auto contWriteLocked = containerSvc()->getContainerMDWriteLocked(contId);
-    auto contWriteLocked2 = containerSvc()->getContainerMDWriteLocked(contId);
-    ASSERT_NE(nullptr, contWriteLocked);
-    ASSERT_EQ(contId, contWriteLocked->getUnderlyingPtr()->getId());
-    ASSERT_EQ(contWriteLocked->getUnderlyingPtr().get(),contWriteLocked2->getUnderlyingPtr().get());
-  }
-}
-
 TEST_F(ContainerMDSvcF, getContainerMDWhenContIsLockedShouldNotLock) {
   auto cont = view()->createContainer("/root/");
   auto id = cont->getId();

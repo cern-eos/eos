@@ -1613,8 +1613,8 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
 
   if (is_dir) {
     try {
-      auto contLock = gOFS->eosDirectoryService->getContainerMDWriteLocked(id);
-      std::shared_ptr<eos::IContainerMD> cont = contLock->getUnderlyingPtr();
+      std::shared_ptr<eos::IContainerMD> cont = gOFS->eosDirectoryService->getContainerMD(id);
+      eos::MDLocking::ContainerWriteLock contLock(cont);
 
       if (cont->getParentId()) {
         gOFS->eosDirectoryService->removeContainer(cont.get());

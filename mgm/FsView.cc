@@ -1182,20 +1182,21 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
     eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
 
     try {
-      cmdLock = gOFS->eosView->getContainerReadLocked(path, false);
-      cmd = cmdLock->getUnderlyingPtr();
+      cmd = gOFS->eosView->getContainer(path,false);
+      cmdLock = eos::MDLocking::readLock(cmd);
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),
               e.getMessage().str().c_str());
+      cmd = nullptr;
     }
 
     if (!cmd) {
       // fall back to instance path
       try {
         path = instancepath;
-        cmdLock = gOFS->eosView->getContainerReadLocked(path, false);
-        cmd = cmdLock->getUnderlyingPtr();
+        cmd = gOFS->eosView->getContainer(path, false);
+        cmdLock = eos::MDLocking::readLock(cmd);
       } catch (eos::MDException& e) {
         errno = e.getErrno();
         eos_err("msg=\"exception\" ec=%d emsg=\"%s\"", e.getErrno(),

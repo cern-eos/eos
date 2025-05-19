@@ -160,17 +160,6 @@ public:
   virtual std::shared_ptr<IFileMD> getFileMD(IFileMD::id_t id,
       uint64_t* clock) = 0;
 
-  //------------------------------------------------------------------------
-  //! Get the file metadata information for the given file ID and read lock it
-  //! throws MD exception in case the file does not exist
-  //------------------------------------------------------------------------
-  virtual MDLocking::FileReadLockPtr getFileMDReadLocked(IFileMD::id_t id) = 0;
-
-  //------------------------------------------------------------------------
-  //! Get the file metadata information for the given file ID and write lock it
-  //------------------------------------------------------------------------
-  virtual MDLocking::FileWriteLockPtr getFileMDWriteLocked(IFileMD::id_t id) = 0;
-
   //----------------------------------------------------------------------------
   //! Check if a FileMD with a given identifier exists - no caching
   //----------------------------------------------------------------------------

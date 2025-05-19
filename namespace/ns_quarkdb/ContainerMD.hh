@@ -135,16 +135,6 @@ public:
   IFileMDPtr findFile(const std::string& name) override;
 
   //----------------------------------------------------------------------------
-  //! Find file and read lock it. Returns nullptr in case the file is not found
-  //----------------------------------------------------------------------------
-  std::unique_ptr<FileReadLock> findFileReadLocked(const std::string & name) override;
-
-  //----------------------------------------------------------------------------
-  //! Find file and write lock it. Returns nullptr in case the file is not found
-  //----------------------------------------------------------------------------
-  std::unique_ptr<FileWriteLock> findFileWriteLocked(const std::string & name) override;
-
-  //----------------------------------------------------------------------------
   //! Get number of files
   //----------------------------------------------------------------------------
   size_t getNumFiles() override;

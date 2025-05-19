@@ -95,18 +95,6 @@ public:
   getContainerMD(IContainerMD::id_t id) = 0;
 
   //----------------------------------------------------------------------------
-  //! Get the container metadata information for the given ID and read lock it
-  //----------------------------------------------------------------------------
-  virtual MDLocking::ContainerReadLockPtr
-  getContainerMDReadLocked(IContainerMD::id_t id) = 0;
-
-  //----------------------------------------------------------------------------
-  //! Get the container metadata information for the given ID and write lock it
-  //----------------------------------------------------------------------------
-  virtual MDLocking::ContainerWriteLockPtr
-  getContainerMDWriteLocked(IContainerMD::id_t id) = 0;
-
-  //----------------------------------------------------------------------------
   //! Get the container metadata information for the given ID and clock
   //----------------------------------------------------------------------------
   virtual std::shared_ptr<IContainerMD>

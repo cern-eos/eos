@@ -217,10 +217,10 @@ Devices::Store()
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, storagepath.c_str());
 
     eos::MDLocking::FileWriteLockPtr fmdLock;
-    std::shared_ptr<eos::IFileMD> fmd;
+    eos::IFileMDPtr fmd = nullptr;
     try {
-      fmdLock = gOFS->eosView->getFileWriteLocked(storagepath.c_str());
-      fmd = fmdLock->getUnderlyingPtr();
+      fmd = gOFS->eosView->getFile(storagepath.c_str());
+      fmdLock = eos::MDLocking::writeLock(fmd);
       errno = 0;
     } catch (eos::MDException& e) {
       errno = e.getErrno();

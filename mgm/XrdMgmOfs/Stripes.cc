@@ -40,8 +40,7 @@ XrdMgmOfs::_verifystripe(const char* path,
   eos::IFileMD::id_t fid = 0ull;
 
   try {
-    auto fmd_lock = gOFS->eosView->getFileReadLocked(path);
-    auto fmd = fmd_lock->getUnderlyingPtr();
+    auto fmd = gOFS->eosView->getFile(path);
     fid = fmd->getId();
   } catch (eos::MDException& e) {
     int errc = e.getErrno();
@@ -75,10 +74,10 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
   gOFS->MgmStats.Add("VerifyStripe", vid.uid, vid.gid, 1);
 
   try {
-    eos::MDLocking::FileReadLockPtr fmd_rlock =
-      gOFS->eosView->getFileMDSvc()->getFileMDReadLocked(fid);
-    cid = (*fmd_rlock)->getContainerId();
-    lid = (*fmd_rlock)->getLayoutId();
+    auto fmd = gOFS->eosView->getFileMDSvc()->getFileMD(fid);
+    auto fmdLock = eos::MDLocking::readLock(fmd);
+    cid = fmd->getContainerId();
+    lid = fmd->getLayoutId();
   } catch (eos::MDException& e) {
     errc = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -92,8 +91,8 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
     std::shared_ptr<eos::IContainerMD> cmd;
 
     try {
-      cmd_rlock = gOFS->eosView->getContainerMDSvc()->getContainerMDReadLocked(cid);
-      cmd = cmd_rlock->getUnderlyingPtr();
+      cmd = gOFS->eosView->getContainerMDSvc()->getContainerMD(cid);
+      cmd_rlock = eos::MDLocking::readLock(cmd);
     } catch (eos::MDException& e) {
       cmd.reset();
       eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -235,16 +234,18 @@ XrdMgmOfs::_dropstripe(const char* path,
 
   // Retrieve read locked file
   try {
+    eos::IFileMDPtr fmd = nullptr;
     eos::MDLocking::FileReadLockPtr fmd_rlock;
 
     if (fid) {
-      fmd_rlock = gOFS->eosView->getFileMDSvc()->getFileMDReadLocked(fid);
+      fmd = gOFS->eosView->getFileMDSvc()->getFileMD(fid);
     } else {
-      fmd_rlock = gOFS->eosView->getFileReadLocked(path);
-      fid = (*fmd_rlock)->getId(); // set in case we were called by path
+      fmd = gOFS->eosView->getFile(path);
+      fmd_rlock = eos::MDLocking::readLock(fmd);
+      fid = fmd->getId(); // set in case we were called by path
     }
 
-    cid = (*fmd_rlock)->getContainerId();
+    cid = fmd->getContainerId();
   } catch (eos::MDException& e) {
     errc = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
@@ -254,11 +255,10 @@ XrdMgmOfs::_dropstripe(const char* path,
 
   // Retrieve parent container and check permissions
   try {
-    eos::MDLocking::ContainerReadLockPtr cmd_rlock =
-      gOFS->eosView->getContainerMDSvc()->getContainerMDReadLocked(cid);
+    auto cmd = gOFS->eosView->getContainerMDSvc()->getContainerMD(cid);
     errno = 0;
-
-    if (!(*cmd_rlock)->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
+    // only one operation, no need to readlock!
+    if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
       errc = EPERM;
       return Emsg(epname, error, errc, "drop stripe", path);
     }
@@ -273,24 +273,24 @@ XrdMgmOfs::_dropstripe(const char* path,
   // Retrieve write locked file and modify it
   try {
     std::string locations;
-    eos::MDLocking::FileWriteLockPtr fmd_wlock =
-      gOFS->eosView->getFileMDSvc()->getFileMDWriteLocked(fid);
+    eos::IFileMDPtr fmd = gOFS->eosView->getFileMDSvc()->getFileMD(fid);
+    eos::MDLocking::FileWriteLockPtr fmd_wlock = eos::MDLocking::writeLock(fmd);
 
     try {
-      locations = (*fmd_wlock)->getAttribute("sys.fs.tracking");
+      locations = fmd->getAttribute("sys.fs.tracking");
     } catch (...) {
       // ignore missing attribute
     }
 
     if (!forceRemove) {
       // We only unlink the location
-      if ((*fmd_wlock)->hasLocation(fsid)) {
-        (*fmd_wlock)->unlinkLocation(fsid);
+      if (fmd->hasLocation(fsid)) {
+        fmd->unlinkLocation(fsid);
         locations += "-";
         locations += std::to_string(fsid);
-        (*fmd_wlock)->setAttribute("sys.fs.tracking",
+        fmd->setAttribute("sys.fs.tracking",
                                    StringConversion::ReduceString(locations).c_str());
-        gOFS->eosView->updateFileStore(fmd_wlock->getUnderlyingPtr().get());
+        gOFS->eosView->updateFileStore(fmd.get());
         eos_debug("msg=\"unlinking location\" fid=%08llx fsid=%lu", fid, fsid);
       } else {
         errc = ENOENT;
@@ -298,16 +298,16 @@ XrdMgmOfs::_dropstripe(const char* path,
       }
     } else {
       // Unlink and remove location by force
-      if ((*fmd_wlock)->hasLocation(fsid)) {
-        (*fmd_wlock)->unlinkLocation(fsid);
+      if (fmd->hasLocation(fsid)) {
+        fmd->unlinkLocation(fsid);
         locations += "-";
         locations += std::to_string(fsid);
-        (*fmd_wlock)->setAttribute("sys.fs.tracking",
+        fmd->setAttribute("sys.fs.tracking",
                                    StringConversion::ReduceString(locations).c_str());
       }
 
-      (*fmd_wlock)->removeLocation(fsid);
-      gOFS->eosView->updateFileStore(fmd_wlock->getUnderlyingPtr().get());
+      fmd->removeLocation(fsid);
+      gOFS->eosView->updateFileStore(fmd.get());
       eos_debug("msg=\"unlinking and removing location\" fxid=%08llx fsid=%lu",
                 fid, fsid);
       fmd_wlock.reset(nullptr);
@@ -357,11 +357,11 @@ XrdMgmOfs::_dropallstripes(const char* path,
   // Retrieve parent container and check permissions
   try {
     eos::common::Path cpath(path);
-    eos::MDLocking::ContainerReadLockPtr cmd_rlock =
-      gOFS->eosView->getContainerReadLocked(cpath.GetParentPath());
+    eos::IContainerMDPtr cont = gOFS->eosView->getContainer(cpath.GetParentPath());
+    auto contLock = eos::MDLocking::readLock(cont);
     errno = 0;
 
-    if (!(*cmd_rlock)->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
+    if (!cont->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
       errc = EPERM;
       return Emsg(epname, error, errc, "drop stripe", path);
     }
@@ -373,34 +373,34 @@ XrdMgmOfs::_dropallstripes(const char* path,
 
   // Retrieve write locked file and modify it
   try {
-    eos::MDLocking::FileWriteLockPtr fmd_wlock =
-      gOFS->eosView->getFileWriteLocked(path);
-    eos::IFileMD::id_t fid = (*fmd_wlock)->getId();
+    eos::IFileMDPtr fmd = gOFS->eosView->getFile(path);
+    auto fmdLock = eos::MDLocking::writeLock(fmd);
+    eos::IFileMD::id_t fid = fmd->getId();
 
     // If file only on tape then don't touch it
-    if (((*fmd_wlock)->getLocations().size() == 1) &&
-        (*fmd_wlock)->hasLocation(eos::common::TAPE_FS_ID)) {
+    if ((fmd->getLocations().size() == 1) &&
+        fmd->hasLocation(eos::common::TAPE_FS_ID)) {
       return SFS_OK;
     }
 
-    for (auto location : (*fmd_wlock)->getLocations()) {
+    for (auto location : fmd->getLocations()) {
       if (location == eos::common::TAPE_FS_ID) {
         continue;
       }
 
       if (!forceRemove) {
-        (*fmd_wlock)->unlinkLocation(location);
+        fmd->unlinkLocation(location);
         eos_debug("msg=\"unlinking location\" fid=%08llx fsid=%lu",
                   fid, location);
       } else {
-        (*fmd_wlock)->unlinkLocation(location);
-        (*fmd_wlock)->removeLocation(location);
+        fmd->unlinkLocation(location);
+        fmd->removeLocation(location);
         eos_debug("msg=\"unlinking and removing location\" fxid=%08llx fsid=%lu",
                   fid, location);
       }
     }
 
-    gOFS->eosView->updateFileStore(fmd_wlock->getUnderlyingPtr().get());
+    gOFS->eosView->updateFileStore(fmd.get());
   } catch (eos::MDException& e) {
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
               e.getErrno(), e.getMessage().str().c_str());

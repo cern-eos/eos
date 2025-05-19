@@ -787,16 +787,16 @@ ProcCommand::File()
         retc = EINVAL;
         return SFS_OK;
       } else {
-        eos::MDLocking::FileWriteLockPtr fwl;
+        std::shared_ptr<eos::IFileMD> fmd = nullptr;
 
         try {
           if (fid) {
-            fwl = gOFS->eosFileService->getFileMDWriteLocked(fid);
+            fmd = gOFS->eosFileService->getFileMD(fid);
           } else {
-            fwl = gOFS->eosView->getFileWriteLocked(spath.c_str());
+            fmd = gOFS->eosView->getFile(spath.c_str());
           }
 
-          std::shared_ptr<eos::IFileMD> fmd = fwl->getUnderlyingPtr();
+          eos::MDLocking::FileWriteLock fwLock(fmd);
 
           if (do_add && fmd->hasLocation(fsid)) {
             stdErr += "error: file '";
@@ -842,7 +842,7 @@ ProcCommand::File()
                     e.getMessage().str().c_str());
         }
 
-        if (!fwl) {
+        if (!fmd) {
           stdErr += "error: unable to get file meta data of file '";
           stdErr += spath.c_str();
           stdErr += "'";

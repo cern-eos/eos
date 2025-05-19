@@ -153,11 +153,9 @@ XrdMgmOfs::_exists(const char* path,
         cPath.GetParentPath(), false);
 
     try {
-      auto dirLock = eosView->getContainerReadLocked(cPath.GetParentPath(), false);
-      dir = dirLock->getUnderlyingPtr();
-
+      dir = eosView->getContainer(cPath.GetParentPath(), false);
       eos::IContainerMD::XAttrMap::const_iterator it;
-      // get attributes
+      // get attributes, directory will be locked under the _attr_ls() call!
       gOFS->_attr_ls(cPath.GetParentPath(), error, vid, 0, attrmap);
     } catch (eos::MDException& e) {
       dir.reset();

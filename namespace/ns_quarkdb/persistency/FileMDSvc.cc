@@ -171,23 +171,6 @@ QuarkFileMDSvc::getFileMD(IFileMD::id_t id, uint64_t* clock)
   return file;
 }
 
-//------------------------------------------------------------------------
-//! Get the file metadata information for the given file ID and read lock it
-//------------------------------------------------------------------------
-MDLocking::FileReadLockPtr
-QuarkFileMDSvc::getFileMDReadLocked(IFileMD::id_t id) {
-  return MDLocking::readLock(getFileMD(id,0));
-}
-
-
-//------------------------------------------------------------------------
-//! Get the file metadata information for the given file ID and write lock it
-//------------------------------------------------------------------------
-MDLocking::FileWriteLockPtr
-QuarkFileMDSvc::getFileMDWriteLocked(IFileMD::id_t id) {
-  return MDLocking::writeLock(getFileMD(id,0));
-}
-
 //------------------------------------------------------------------------------
 //! Check if a FileMD with a given identifier exists
 //------------------------------------------------------------------------------
