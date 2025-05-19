@@ -80,6 +80,16 @@ ubuntu-noble:
     BUILD_NAME: noble
 
 
+ubuntu-noble-arm:
+  extends: .build-ubuntu
+  image: registry.cern.ch/docker.io/ubuntu:noble
+  variables:
+    BUILD_NAME: noble
+  only:
+    - master
+  tags:
+    - arm64
+
 #-------------------------------------------------------------------------------
 # Ubuntu artifacts publishing
 #-------------------------------------------------------------------------------
