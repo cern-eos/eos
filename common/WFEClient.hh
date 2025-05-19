@@ -69,6 +69,7 @@ public:
     constexpr char RootCertificate[] = "/shared/sslCerts/ca.crt";
     grpc::SslCredentialsOptions ssl_options;
     ssl_options.pem_root_certs = file2string(RootCertificate);
+    eos_static_info("loaded root certificate, it is %s", file2string(RootCertificate).c_str());
     // Create a channel with SSL credentials
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
     client_stub = cta::xrd::CtaRpc::NewStub(channel);
