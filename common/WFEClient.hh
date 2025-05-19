@@ -72,6 +72,7 @@ public:
     // Create a channel with SSL credentials
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
     client_stub = cta::xrd::CtaRpc::NewStub(channel);
+    eos_static_info("successfully created the client stub in EOS");
   }
 
   // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
@@ -88,6 +89,7 @@ public:
           ::grpc::MetadataCredentialsFromPlugin(std::unique_ptr<::grpc::MetadataCredentialsPlugin>(
           new JWTAuthenticator(token_contents)));
     context.set_credentials(call_credentials);
+    eos_static_info("successfully attached call credentials in the send method");
 
     switch (request.notification().wf().event()) {
       // this is prepare
