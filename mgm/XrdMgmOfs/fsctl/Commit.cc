@@ -240,7 +240,10 @@ XrdMgmOfs::Commit(const char* path,
             continue;
           }
 
-          fmd->setAttribute("sys.checksum." + name2xs[0], name2xs[1]);
+          auto checksumType = eos::common::LayoutId::GetChecksumFromString(name2xs[0]);
+          auto xs = name2xs[1];
+          fmd->addAlternativeChecksum(static_cast<eos::common::LayoutId::eChecksum>
+                                      (checksumType), xs.c_str(), xs.size());
         }
       }
 
