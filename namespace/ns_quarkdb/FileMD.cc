@@ -636,5 +636,28 @@ bool QuarkFileMD::hasUnlinkedLocationNoLock(location_t location) const
   return false;
 }
 
+void QuarkFileMD::addAlternativeChecksum(eos::common::LayoutId::eChecksum
+    checksumType, const char* checksum, size_t size)
+{
+  runWriteOp([this, checksumType, checksum, size]() {
+    mFile.mutable_altchecksums()->insert({static_cast<std::uint32_t>(checksumType),
+                                          std::string(checksum, size)});
+  });
+}
+
+std::map<eos::common::LayoutId::eChecksum, std::string>
+QuarkFileMD::getAlternativeChecksums() const
+{
+  return this->runReadOp([this]() {
+    std::map<eos::common::LayoutId::eChecksum, std::string> checksums;
+
+    for (auto [type, val] : mFile.altchecksums()) {
+      checksums.insert({static_cast<eos::common::LayoutId::eChecksum>(type), val});
+    }
+
+    return checksums;
+  });
+}
+
 
 EOSNSNAMESPACE_END
