@@ -2288,7 +2288,7 @@ int
 XrdFstOfs::HandleVerify(XrdOucEnv& env, XrdOucErrInfo& err_obj)
 {
   int envlen = 0;
-  eos_static_info("ms=\"verify opaque\" data=\%s\"", env.Env(envlen));
+  eos_static_info("ms=\"verify opaque\" data=\"%s\"", env.Env(envlen));
   Verify* new_verify = Verify::Create(&env);
 
   if (new_verify) {
