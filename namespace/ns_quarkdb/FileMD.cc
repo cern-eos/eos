@@ -34,6 +34,26 @@
 
 EOSNSNAMESPACE_BEGIN
 
+namespace
+{
+
+std::string StringifyChecksum(std::string xs)
+{
+  std::ostringstream oss;
+
+  for (uint8_t i = 0; i < xs.size(); i++) {
+    char hx[3];
+    hx[0] = 0;
+    snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
+             *(unsigned char*)(xs.data() + i));
+    oss << static_cast<char*>(hx);
+  }
+
+  return oss.str();
+}
+
+}
+
 //------------------------------------------------------------------------------
 // Empty constructor
 //------------------------------------------------------------------------------
@@ -226,21 +246,6 @@ QuarkFileMD::unlinkAllLocations()
       return;
     }
   }
-}
-
-std::string StringifyChecksum(std::string xs)
-{
-  std::ostringstream oss;
-
-  for (uint8_t i = 0; i < xs.size(); i++) {
-    char hx[3];
-    hx[0] = 0;
-    snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
-             *(unsigned char*)(xs.data() + i));
-    oss << static_cast<char*>(hx);
-  }
-
-  return oss.str();
 }
 
 //------------------------------------------------------------------------

@@ -892,7 +892,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   /* maintaining a checksum is tricky if there have been writes,
    * but the read + append case can be supported in "Add" */
   if ((rc > 0) && (mCheckSum) && (!mHasWrite)) {
-    XrdSysMutexHelper cLock(mChecksumMutex);
     mCheckSum->Add(buffer, static_cast<size_t>(rc),
                    static_cast<off_t>(fileOffset));
   }
@@ -1134,7 +1133,6 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   // Evt. add checksum
   if (rc > 0) {
     if (mCheckSum) {
-      XrdSysMutexHelper cLock(mChecksumMutex);
       mCheckSum->Add(buffer, static_cast<size_t>(rc),
                      static_cast<off_t>(fileOffset));
     }

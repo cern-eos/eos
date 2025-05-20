@@ -379,7 +379,6 @@ public:
   std::unique_ptr<eos::common::FmdHelper> mFmd;
   std::unique_ptr<eos::fst::CheckSum> mCheckSum; ///< Checksum object
   // @todo(esindril) this is not properly enforced everywhere ...
-  XrdSysMutex mChecksumMutex; ///< Mutex protecting the checksum class
   std::unique_ptr<Layout> mLayout; ///< Layout object
   std::string mTident; ///< Client identity using the file object
   // File statistics for monitoring purposes

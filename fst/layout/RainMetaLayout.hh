@@ -296,7 +296,6 @@ protected:
   std::map<uint64_t, std::shared_ptr<eos::fst::RainGroup>> mMapGroups;
   std::unique_ptr<eos::fst::CheckSum>
   mStripeChecksum; //< Checksum of the stripe
-  XrdSysMutex mChecksumMutex; ///< Mutex protecting the checksum class
 
   //----------------------------------------------------------------------------
   //! Get group corresponding to the given offset or create one if it doesn't

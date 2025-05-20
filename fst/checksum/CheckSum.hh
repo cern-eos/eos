@@ -34,7 +34,7 @@
 #include <google/sparse_hash_map>
 #include <setjmp.h>
 #include <signal.h>
-
+#include <mutex>
 /*----------------------------------------------------------------------------*/
 
 EOSFSTNAMESPACE_BEGIN
@@ -58,6 +58,7 @@ protected:
   unsigned long long nXSBlocksChecked;
   unsigned long long nXSBlocksWritten;
   unsigned long long nXSBlocksWrittenHoles;
+  std::mutex mMutex;
 
 public:
 

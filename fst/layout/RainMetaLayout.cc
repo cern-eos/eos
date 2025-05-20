@@ -1040,7 +1040,6 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
       // the stripe checksum is only computed for the data part
       // the header part is skipped
       if (mStripeChecksum && offset >= mSizeHeader && write_length > 0) {
-        XrdSysMutexHelper cLock(mChecksumMutex);
         mStripeChecksum->Add(buffer, write_length, offset - mSizeHeader);
       }
 
@@ -1114,7 +1113,6 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
       // we compute the stripe checksum only on the entry server
       // since for the other stripes this is computed by the other FSTs
       if (physical_id == 0 && mStripeChecksum && off_local > mSizeHeader) {
-        XrdSysMutexHelper cLock(mChecksumMutex);
         mStripeChecksum->Add(buffer, nwrite, off_local - mSizeHeader);
       }
 

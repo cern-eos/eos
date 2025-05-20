@@ -311,7 +311,6 @@ RaidDpLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
         // Add the data contained into the buffer to compute the
         // unit checksum, skipping the header
         if (mStripeChecksum && offset_local >= mSizeHeader) {
-          XrdSysMutexHelper cLock(mChecksumMutex);
           mStripeChecksum->Add(data_blocks[stripe_id](), nwrite,
                                offset_local - mSizeHeader);
         }

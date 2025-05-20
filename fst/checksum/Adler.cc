@@ -34,6 +34,8 @@ EOSFSTNAMESPACE_BEGIN
 bool
 Adler::Add(const char* buffer, size_t length, off_t offset)
 {
+  std::lock_guard<std::mutex> lock(mMutex);
+
   if (offset < 0) {
     offset = adleroffset;
   }
