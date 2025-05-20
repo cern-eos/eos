@@ -25,6 +25,7 @@
 #define __XRDFSTOFS_VERIFY_HH__
 #include "fst/Namespace.hh"
 #include "common/FileId.hh"
+#include "common/StringConversion.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <vector>
 
@@ -49,6 +50,7 @@ public:
 
   bool computeChecksum;
   bool commitChecksum;
+  std::vector<eos::common::LayoutId::eChecksum> altchecksums;
   bool commitSize;
   bool commitFmd;
 
@@ -58,7 +60,8 @@ public:
          const char* managerid, const char* inopaque, const char* incontainer,
          unsigned long incid, unsigned long inlid, const char* inpath,
          bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize,
-         bool inCommitFmd, unsigned int inVerifyRate)
+         bool inCommitFmd, unsigned int inVerifyRate,
+         std::vector<eos::common::LayoutId::eChecksum> altchecksums)
   {
     fId = fid;
     fsId = fsid;
@@ -73,6 +76,7 @@ public:
     commitSize = inCommitSize;
     verifyRate = inVerifyRate;
     commitFmd = inCommitFmd;
+    altchecksums = altchecksums;
   }
 
   static Verify*
@@ -97,6 +101,7 @@ public:
     unsigned long cid = 0;
     unsigned long lid = 0;
     unsigned int verifyRate = 0;
+    std::vector<eos::common::LayoutId::eChecksum> altchecksums;
 
     if (!capOpaque) {
       return 0;
@@ -131,6 +136,17 @@ public:
       verifyRate = atoi(capOpaque->Get("mgm.verify.rate"));
     }
 
+    if (capOpaque->Get("mgm.verify.compute.altchecksum")) {
+      std::vector<std::string> list;
+      eos::common::StringConversion::Tokenize(
+        capOpaque->Get("mgm.verify.compute.altchecksum"), list, ",");
+
+      for (auto xs : list) {
+        altchecksums.emplace_back(static_cast<eos::common::LayoutId::eChecksum>
+                                  (eos::common::LayoutId::GetChecksumFromString(xs)));
+      }
+    }
+
     // permission check
     if (access != "verify") {
       return 0;
@@ -147,7 +163,7 @@ public:
     fsid = atoi(sfsid);
     return new Verify(fid, fsid, smanager, capOpaque->Env(envlen),
                       container, cid, lid, path, computeChecksum, commitChecksum, commitSize,
-                      commitFmd, verifyRate);
+                      commitFmd, verifyRate, altchecksums);
   };
 
   ~Verify() { };
