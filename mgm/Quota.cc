@@ -100,6 +100,9 @@ SpaceQuota::SpaceQuota(const char* path):
         throw;
       }
     }
+
+    UpdateLogicalSizeFactor();
+
   } else {
     eos_crit("Failed to create quota dir=%s", path);
   }
