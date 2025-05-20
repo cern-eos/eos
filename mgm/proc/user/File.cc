@@ -32,6 +32,7 @@
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/XattrLock.hh"
+#include "mgm/Constants.hh"
 #include "common/Utils.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
@@ -40,6 +41,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Attributes.hh"
 #include "namespace/Resolver.hh"
 #include <XrdCl/XrdClCopyProcess.hh>
 #include <math.h>
@@ -375,6 +377,17 @@ ProcCommand::File()
                eos::common::LayoutId::kRaid6)
              ) {
             isRAIN = true;
+          }
+
+          if (computechecksum == "1" && commitchecksum == "1") {
+            auto dmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+            eos::IContainerMD::XAttrMap attrmap;
+            eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+
+            if (attrmap.count(SYS_ALTCHECKSUMS)) {
+              option += "&mgm.verify.compute.altchecksum=";
+              option += attrmap[SYS_ALTCHECKSUMS].c_str();
+            }
           }
 
           viewReadLock.Release();
