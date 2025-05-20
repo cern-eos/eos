@@ -38,6 +38,7 @@ static const std::string SYS_HARD_LINK = "sys.eos.mdino";
 static const std::string SYS_NUM_LINK = "sys.eos.nlink";
 static const std::string SYS_OWNER_AUTH = "sys.owner.auth";
 static const std::string SYS_VERSIONING = "sys.versioning";
+static const std::string SYS_ALTCHECKSUMS = "sys.altchecksums";
 static const std::string SYS_FORCED_ATOMIC = "sys.forced.atomic";
 static const std::string SYS_REDIRECT_ENOENT = "sys.redirect.enoent";
 static const std::string SYS_FORCED_MINSIZE = "sys.forced.minsize";
@@ -49,7 +50,6 @@ static const std::string SYS_FORCED_LAYOUT = "sys.forced.layout";
 static const std::string SYS_FORCED_CHECKSUM = "sys.forced.checksum";
 static const std::string SYS_FORCED_BLOCKSIZE = "sys.forced.blocksize";
 static const std::string SYS_FORCED_BLOCKCHECKSUM = "sys.forced.blockchecksum";
-static const std::string SYS_FORCED_ALTCHECKSUMS = "sys.forced.altchecksums";
 static const std::string SYS_FORCED_NSTRIPES = "sys.forced.nstripes";
 
 static const std::string USER_VERSIONING = "user.versioning";
