@@ -66,7 +66,7 @@ class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str) {
     endpoint = endpoint_str;
-    constexpr char RootCertificate[] = "/shared/sslCerts/ca.crt";
+    constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
     grpc::SslCredentialsOptions ssl_options;
     ssl_options.pem_root_certs = file2string(RootCertificate);
     eos_static_info("loaded root certificate, it is %s", file2string(RootCertificate).c_str());
