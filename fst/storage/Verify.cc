@@ -175,7 +175,7 @@ Storage::Verify()
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
       cbd.caller = (void*) io;
       eos::fst::CheckSum::ReadCallBack cb(eos::fst::XrdFstOfsFile::FileIoReadCB, cbd);
-
+  
       if ((checksummer) && verifyfile->computeChecksum &&
           (!checksummer->ScanFile(cb, scansize, scantime, verifyfile->verifyRate))) {
         eos_static_crit("cannot scan file to recalculate the checksum id=%llu on fs=%u path=%s",
