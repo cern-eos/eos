@@ -83,7 +83,7 @@ public:
 
     std::string token_contents;
     // read the token from the expected place
-    std::string token_path("shared/etc/jwt-token-grpc"); // this path will be provided in the config eventually
+    std::string token_path("/etc/grid-security/jwt-token-grpc"); // this path will be provided in the config eventually
     eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
 
     std::shared_ptr<::grpc::CallCredentials> call_credentials =
