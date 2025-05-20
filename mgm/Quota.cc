@@ -250,6 +250,16 @@ SpaceQuota::SetQuota(unsigned long tag, unsigned long id,
   XrdSysMutexHelper scope_lock(mMutex);
   mMapIdQuota[Index(tag, id)] = value;
 
+  switch(tag) {
+    case kUserBytesTarget:
+    mMapIdQuota.try_emplace(Index(kUserLogicalBytesTarget, id), value / mLayoutSizeFactor);
+    break;
+
+    case kGroupBytesTarget:
+    mMapIdQuota.try_emplace(Index(kGroupLogicalBytesTarget, id), value / mLayoutSizeFactor);
+    break;
+  }
+
   if ((tag == kUserBytesTarget) ||
       (tag == kGroupBytesTarget) ||
       (tag == kUserFilesTarget) ||
