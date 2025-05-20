@@ -239,7 +239,10 @@ ScanDir::AccountMissing()
                       eos::FileIdentifier(fid));
           FmdMgmHandler::NsFileProtoToFmd(std::move(file).get(), ns_fmd);
 
-          if (ns_fmd.mProtoFmd.mgmsize() != 0) {
+          // Mark as missing only if this is not a zero size file and if the
+          // file metadata entry at the MGM contains the current fsid as one
+          // of the locations.
+          if ((ns_fmd.mProtoFmd.mgmsize() != 0) && ns_fmd.HasLocation(mFsId)) {
             // Mark as missing and also mark the current fsid
             ns_fmd.mProtoFmd.set_fsid(mFsId);
             ns_fmd.mProtoFmd.set_layouterror(ns_fmd.mProtoFmd.layouterror() |

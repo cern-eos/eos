@@ -91,6 +91,14 @@ public:
   std::set<eos::common::FileSystem::fsid_t> GetLocations() const;
 
   //---------------------------------------------------------------------------
+  //! Check if the given file system identifier is in the list of locations
+  //! for the current file.
+  //!
+  //! @return true if fsid is in the list of locations, otherwise false
+  //---------------------------------------------------------------------------
+  bool HasLocation(eos::common::FileSystem::fsid_t fsid) const;
+
+  //---------------------------------------------------------------------------
   //! Convert fmd object to env representation
   //!
   //! @return XrdOucEnv holding information about current object

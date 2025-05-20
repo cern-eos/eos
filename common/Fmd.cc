@@ -370,6 +370,17 @@ FmdHelper::GetLocations() const
   return location_set;
 }
 
+//------------------------------------------------------------------------------
+// Check if the given file system identifier is in the list of locations
+// for the current file.
+//------------------------------------------------------------------------------
+bool
+FmdHelper::HasLocation(eos::common::FileSystem::fsid_t fsid) const
+{
+  std::set<eos::common::FileSystem::fsid_t> locations = GetLocations();
+  return (locations.find(fsid) != locations.end());
+}
+
 //-------------------------------------------------------------------------------
 // Convert fmd object to env representation
 //-------------------------------------------------------------------------------
