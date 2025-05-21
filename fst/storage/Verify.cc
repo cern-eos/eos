@@ -29,6 +29,7 @@
 #include "fst/XrdFstOss.hh"
 #include "fst/Verify.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/checksum/ChecksumGroup.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "common/Path.hh"
 
@@ -168,14 +169,26 @@ Storage::Verify()
 
       fMd->mProtoFmd.set_lid(verifyfile->lId);
       fMd->mProtoFmd.set_cid(verifyfile->cId);
-      std::unique_ptr<CheckSum> checksummer =
-        ChecksumPlugins::GetChecksumObject(fMd->mProtoFmd.lid());
+      std::unique_ptr<ChecksumGroup> checksummer{ new ChecksumGroup };
+
+      if (verifyfile->computeChecksum) {
+        checksummer->SetDefault(std::move(ChecksumPlugins::GetChecksumObject(
+                                            fMd->mProtoFmd.lid())), static_cast<eos::common::LayoutId::eChecksum>
+                                (eos::common::LayoutId::GetChecksum(fMd->mProtoFmd.lid())));
+
+        for (const auto type : verifyfile->altchecksums) {
+          checksummer->AddAlternative(std::move(ChecksumPlugins::GetXsObj(type)), type);
+        }
+      }
+
+      // std::unique_ptr<CheckSum> checksummer =
+      //   ChecksumPlugins::GetChecksumObject(fMd->mProtoFmd.lid());
       unsigned long long scansize = 0;
       float scantime = 0; // is ms
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
       cbd.caller = (void*) io;
       eos::fst::CheckSum::ReadCallBack cb(eos::fst::XrdFstOfsFile::FileIoReadCB, cbd);
-  
+
       if ((checksummer) && verifyfile->computeChecksum &&
           (!checksummer->ScanFile(cb, scansize, scantime, verifyfile->verifyRate))) {
         eos_static_crit("cannot scan file to recalculate the checksum id=%llu on fs=%u path=%s",
@@ -193,9 +206,8 @@ Storage::Verify()
 
         if (checksummer && verifyfile->computeChecksum) {
           int checksumlen = 0;
-          checksummer->GetBinChecksum(checksumlen);
           bool cxError = false;
-          std::string computedchecksum = checksummer->GetHexChecksum();
+          std::string computedchecksum = checksummer->GetDefault()->GetHexChecksum();
 
           if (fMd->mProtoFmd.checksum() != computedchecksum) {
             cxError = true;
@@ -204,12 +216,34 @@ Storage::Verify()
           // commit the disk checksum in case of differences between the in-memory value
           if (fMd->mProtoFmd.diskchecksum() != computedchecksum) {
             cxError = true;
-            localUpdate = true;
+          }
+
+          // check local checksum alternatives
+          const auto altchecksums = checksummer->GetAlternatives();
+
+          if (altchecksums.size() != fMd->mProtoFmd.altchecksums_size()) {
+            cxError = true;
+          }
+
+          for (auto [type, computed] : altchecksums) {
+            std::string stored{""};
+
+            if (!fMd->mProtoFmd.altchecksums().contains(type)) {
+              cxError = true;
+              break;
+            }
+
+            stored = fMd->mProtoFmd.altchecksums().at(type);
+
+            if (stored != computed->GetHexChecksum()) {
+              cxError = true;
+              break;
+            }
           }
 
           if (cxError) {
             eos_static_err("checksum invalid   : path=%s fxid=%s checksum=%s stored-checksum=%s",
-                           verifyfile->path.c_str(), hex_fid.c_str(), checksummer->GetHexChecksum(),
+                           verifyfile->path.c_str(), hex_fid.c_str(), computedchecksum,
                            fMd->mProtoFmd.checksum().c_str());
             fMd->mProtoFmd.set_checksum(computedchecksum);
             fMd->mProtoFmd.set_diskchecksum(computedchecksum);
@@ -225,11 +259,18 @@ Storage::Verify()
               fMd->mProtoFmd.set_filecxerror(0);
             }
 
+            fMd->mProtoFmd.clear_altchecksums();
+
+            for (auto [type, xs] : altchecksums) {
+              fMd->mProtoFmd.mutable_altchecksums()->emplace(static_cast<std::uint32_t>(type),
+                  xs->GetHexChecksum());
+            }
+
             localUpdate = true;
           } else {
             eos_static_info("checksum OK        : path=%s fxid=%s checksum=%s",
                             verifyfile->path.c_str(), hex_fid.c_str(),
-                            checksummer->GetHexChecksum());
+                            computedchecksum);
 
             // Reset error flags if needed
             if (fMd->mProtoFmd.blockcxerror() || fMd->mProtoFmd.filecxerror()) {
@@ -241,10 +282,10 @@ Storage::Verify()
 
           // Update the extended attributes
           if (io) {
-            const char* ptr = checksummer->GetBinChecksum(checksumlen);
+            const char* ptr = checksummer->GetDefault()->GetBinChecksum(checksumlen);
             (void)io->attrSet("user.eos.checksum", ptr, checksumlen);
-            (void)io->attrSet("user.eos.checksumtype", checksummer->GetName(),
-                              strlen(checksummer->GetName()));
+            (void)io->attrSet("user.eos.checksumtype", checksummer->GetDefault()->GetName(),
+                              strlen(checksummer->GetDefault()->GetName()));
             (void)io->attrSet("user.eos.filecxerror", "0", 1);
             (void)io->attrSet("user.eos.blockcxerror", "0");
           }
@@ -280,10 +321,23 @@ Storage::Verify()
 
           if (checksummer && verifyfile->computeChecksum) {
             capOpaqueFile += "&mgm.checksum=";
-            capOpaqueFile += checksummer->GetHexChecksum();
+            capOpaqueFile += checksummer->GetDefault()->GetHexChecksum();
 
             if (verifyfile->commitChecksum) {
               capOpaqueFile += "&mgm.commit.checksum=1";
+              const auto altchecksums = checksummer->GetAlternatives();
+
+              if (!altchecksums.empty()) {
+                std::vector<std::string> alt;
+
+                for (auto const [type, xs] : altchecksums) {
+                  alt.emplace_back(std::string(eos::common::LayoutId::GetChecksumString(
+                                                 type)) + ":" + xs->GetHexChecksum());
+                }
+
+                capOpaqueFile += "&mgm.altchecksums=";
+                capOpaqueFile += eos::common::StringConversion::Join(alt, ",").c_str();
+              }
             }
           }
 

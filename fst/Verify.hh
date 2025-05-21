@@ -62,7 +62,7 @@ public:
          unsigned long incid, unsigned long inlid, const char* inpath,
          bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize,
          bool inCommitFmd, unsigned int inVerifyRate,
-         std::vector<eos::common::LayoutId::eChecksum> altchecksums)
+         std::vector<eos::common::LayoutId::eChecksum> altChecksums)
   {
     fId = fid;
     fsId = fsid;
@@ -78,7 +78,7 @@ public:
     commitSize = inCommitSize;
     verifyRate = inVerifyRate;
     commitFmd = inCommitFmd;
-    altchecksums = altchecksums;
+    altchecksums = altChecksums;
   }
 
   static Verify*
