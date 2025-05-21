@@ -29,6 +29,7 @@
 #include "fst/layout/RainMetaLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/layout/HeaderCRC.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
 #include "RainMetaLayout.hh"
 
 // Linux compat for Apple
@@ -52,7 +53,6 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
                                bool force_recovery,
                                off_t targetSize,
                                std::string bookingOpaque,
-                               eos::fst::CheckSum* stripeChecksum,
                                eos::fst::FmdHandler* fmdHandler) :
   Layout(file, lid, client, outError, path, fmdHandler, timeout),
   mIsRw(false),
@@ -79,7 +79,8 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
-  mStripeChecksum.reset(stripeChecksum);
+  mStripeChecksum = eos::fst::ChecksumPlugins::GetChecksumObject(
+                      eos::common::LayoutId::eChecksum::kAdler);
 }
 
 //------------------------------------------------------------------------------

@@ -61,7 +61,6 @@ public:
                  const XrdSecEntity* client, XrdOucErrInfo* outError,
                  const char* path, uint16_t timeout, bool force_recovery,
                  off_t targetSize, std::string bookingOpaque,
-                 eos::fst::CheckSum* stripeChecksum,
                  eos::fst::FmdHandler* fmdHandler);
 
   //----------------------------------------------------------------------------

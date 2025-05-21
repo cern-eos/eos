@@ -56,20 +56,16 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
   }
 
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP) {
-    std::unique_ptr<eos::fst::CheckSum> xs =
-      eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
     return static_cast<Layout*>(new RaidDpLayout(file, layoutId, client, error,
-                                path, fmdHandler, timeout, storeRecovery, xs.release()));
+                                path, fmdHandler, timeout, storeRecovery));
   }
 
   if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid5) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kQrain)) {
-    std::unique_ptr<eos::fst::CheckSum> xs =
-      eos::fst::ChecksumPlugins::GetChecksumObject(layoutId);
     return static_cast<Layout*>(new ReedSLayout(file, layoutId, client, error, path,
-                                fmdHandler, timeout, storeRecovery, xs.release()));
+                                fmdHandler, timeout, storeRecovery));
   }
 
   return 0;
