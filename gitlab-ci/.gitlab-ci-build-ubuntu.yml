@@ -89,6 +89,7 @@ ubuntu-noble-arm:
     - master
   tags:
     - arm64
+  when: manual
 
 #-------------------------------------------------------------------------------
 # Ubuntu artifacts publishing
