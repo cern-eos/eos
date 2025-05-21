@@ -16,6 +16,35 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.3.12 Diopside``
+====================
+
+2025-05-21
+
+Note
+-----
+
+* Update eos-xrootd dependency to version 5.8.2 which matches xrootd-5.8.2
+plus an important fix for missing responses in the XRootD client.
+
+
+Bug
+----
+
+* [EOS-6316] - Crash when handling Report regex
+* [EOS-6406] - Fix eoscta report log formatting
+* [EOS-6408] - Potential mutex deadlock while issuing eos df command
+* [EOS-6409] - rapid "rep_missing_n" increase
+
+Improvement
+-----------
+
+* [EOS-6300] - Improve RAIN scanning load by using full stripe checksums or other mechanisms
+* [EOS-6407] - Add possibility to recover QDB backup in raft-mode
+* [EOS-6414] - Use adler32 for stripe checksum
+
+
 ``v5.3.11 Diopside``
 ====================
 
