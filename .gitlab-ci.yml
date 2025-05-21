@@ -1114,14 +1114,6 @@ clean_helm_cluster:
   when: manual
 
 
-eos_nginx_el-7:
-  extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  variables:
-    PKG_MGR: yum
-    BUILD_NAME: el-7
-
-
 eos_nginx_el-8:
   extends: .eos_nginx_build_template
   image: gitlab-registry.cern.ch/linuxsupport/alma8-base
@@ -1164,14 +1156,6 @@ eos_nginx_el-9:
   when: manual
 
 
-eos_apmon_el-7:
-  image: gitlab-registry.cern.ch/linuxsupport/cc7-base
-  variables:
-    PKG_MGR: yum
-    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-7/x86_64
-  extends: .build-apmon-template
-
-
 eos_apmon_el-8:
   image: gitlab-registry.cern.ch/linuxsupport/alma8-base
   variables:
@@ -1207,7 +1191,7 @@ eos_docs:
       allow_failure: true
 
 
-eos_repopackage:
+.eos_repopackage:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/cc7-base
   script:
