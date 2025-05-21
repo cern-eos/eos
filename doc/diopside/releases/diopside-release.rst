@@ -43,6 +43,7 @@ Improvement
 * [EOS-6300] - Improve RAIN scanning load by using full stripe checksums or other mechanisms
 * [EOS-6407] - Add possibility to recover QDB backup in raft-mode
 * [EOS-6414] - Use adler32 for stripe checksum
+* Improved namespace locking for bulk file deletion with recycle-bin policies
 
 
 ``v5.3.11 Diopside``
