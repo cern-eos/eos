@@ -447,7 +447,17 @@ GrpcNsInterface::Filter(std::shared_ptr<eos::IContainerMD> md,
   return false;
 }
 
-
+namespace
+{
+// Add the checksum in the list of checksums in the FileMd object
+void AddChecksum(eos::rpc::FileMdProto* fmd, uint32_t type, const char* xs,
+                 size_t size)
+{
+  auto checksum = fmd->mutable_checksums()->Add();
+  checksum->set_type(eos::common::LayoutId::GetChecksumStringReal(type));
+  checksum->set_value(xs, size);
+}
+}
 
 
 grpc::Status
@@ -554,7 +564,6 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       // create GRPC protobuf object
       eos::rpc::MDResponse gRPCResponse;
       gRPCResponse.set_type(eos::rpc::FILE);
-      eos::rpc::FileMdProto gRPCFmd;
       gRPCResponse.mutable_fmd()->set_name(fmd->getName());
       gRPCResponse.mutable_fmd()->set_id(fmd->getId());
       gRPCResponse.mutable_fmd()->set_inode(eos::common::FileId::FidToInode(
@@ -574,10 +583,20 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       gRPCResponse.mutable_fmd()->mutable_ctime()->set_n_sec(ctime.tv_nsec);
       gRPCResponse.mutable_fmd()->mutable_mtime()->set_sec(mtime.tv_sec);
       gRPCResponse.mutable_fmd()->mutable_mtime()->set_n_sec(mtime.tv_nsec);
+      // keep checksum for backward compatibility
       gRPCResponse.mutable_fmd()->mutable_checksum()->set_value(
         fmd->getChecksum().getDataPtr(), fmd->getChecksum().size());
       gRPCResponse.mutable_fmd()->mutable_checksum()->set_type(
         eos::common::LayoutId::GetChecksumStringReal(fmd->getLayoutId()));
+      // Default checksum
+      AddChecksum(gRPCResponse.mutable_fmd(),
+                  eos::common::LayoutId::GetChecksum(fmd->getLayoutId()),
+                  fmd->getChecksum().getDataPtr(), fmd->getChecksum().size());
+
+      // Alternative checksums
+      for (const auto& [type, xs] : fmd->getAlternativeChecksums()) {
+        AddChecksum(gRPCResponse.mutable_fmd(), type, xs.c_str(), xs.size());
+      }
 
       for (const auto& loca : fmd->getLocations()) {
         gRPCResponse.mutable_fmd()->add_locations(loca);
