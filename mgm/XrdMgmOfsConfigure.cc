@@ -213,6 +213,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // set stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
   MgmQoSEnabled = getenv("EOS_ENABLE_QOS") != nullptr;
+  // Setup the concatenated CA file (done by the XRootD server)
+  if(getenv("XRDADMINPATH")) {
+    std::string adminPath = getenv("XRDADMINPATH");
+    ConcatenatedServerRootCA = adminPath + ".xrdtls/ca_file.pem";
+    Eroute.Say("Concatenated CA file location: ", ConcatenatedServerRootCA->c_str());
+  }
   Shutdown = false;
   setenv("XrdSecPROTOCOL", "sss", 1);
   Eroute.Say("=====> mgmofs enforces SSS authentication for XROOT clients");

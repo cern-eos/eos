@@ -1810,6 +1810,7 @@ public:
   //! /var/log/eos/mgm/error.log
   bool mErrLogEnabled;
   bool MgmQoSEnabled; ///< True if QoS support is enabled
+  std::optional<std::string> ConcatenatedServerRootCA;
 
   //----------------------------------------------------------------------------
   // Namespace variables
