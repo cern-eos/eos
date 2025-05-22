@@ -64,12 +64,16 @@ private:
 
 class WFEGrpcClient : public WFEClient {
 public:
-  WFEGrpcClient(std::string endpoint_str) {
+  WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs) {
     endpoint = endpoint_str;
     constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
     grpc::SslCredentialsOptions ssl_options;
-    ssl_options.pem_root_certs = file2string(RootCertificate);
+    if (root_certs.has_value())
+      ssl_options.pem_root_certs = file2string(root_certs.value());
+    else
+      ssl_options.pem_root_certs = "";
     eos_static_info("loaded root certificate, it is %s", file2string(RootCertificate).c_str());
+    eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str()); // /tmp/mgm/.xrdtls/ca_file.pem
     // Create a channel with SSL credentials
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
     client_stub = cta::xrd::CtaRpc::NewStub(channel);
@@ -159,9 +163,9 @@ private:
 };
 
 std::unique_ptr<WFEClient>
-CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource) {
+CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs) {
   if (protowfusegrpc) {
-    return std::make_unique<WFEGrpcClient>(endpoint);
+    return std::make_unique<WFEGrpcClient>(endpoint, root_certs);
   } else {
     XrdSsiPb::Config config;
 
