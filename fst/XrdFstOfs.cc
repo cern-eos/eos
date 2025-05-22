@@ -966,6 +966,13 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     NoGo = 1;
   }
 
+  // Setup the concatenated CA file (done by the XRootD server)
+  if(getenv("XRDADMINPATH")) {
+    std::string adminPath = getenv("XRDADMINPATH");
+    ConcatenatedServerRootCA = adminPath + ".xrdtls/ca_file.pem";
+    Eroute.Say("Concatenated CA file location: ", ConcatenatedServerRootCA->c_str());
+  }
+
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
              "KEYTABADLER=%s", mHostName, myPort, mHttpdPort, VERSION, RELEASE,
              keytab_xs.c_str());
