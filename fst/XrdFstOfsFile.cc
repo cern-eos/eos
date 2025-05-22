@@ -3959,11 +3959,13 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   cta::xrd::Response::ResponseType response_type =
     cta::xrd::Response::RSP_INVALID;
 
+  auto root_certs = gOFS.ConcatenatedServerRootCA;
+
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
     static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(
-          protowfusegrpc, endPoint, resource);
+          protowfusegrpc, endPoint, resource, root_certs);
     auto sentAt = std::chrono::steady_clock::now();
     response_type = request_sender->send(request, response);
     auto receivedAt = std::chrono::steady_clock::now();
