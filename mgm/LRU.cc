@@ -778,7 +778,6 @@ LRU::ConvertMatch(const char* dir,
       plctplcy = "~" + plctplcy;
     }
 
-    char conversiontagfile[1024];
     std::string space;
 
     if (map.count("user.forced.space")) {

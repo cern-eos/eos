@@ -29,7 +29,8 @@
 #include <thread>
 
 
-namespace eos::common {
+namespace eos::common
+{
 
 constexpr size_t MAX_THREADS = 4096;
 
@@ -87,28 +88,33 @@ constexpr size_t MAX_THREADS = 4096;
 
  */
 
-template <typename ListT = VersionEpochCounter<32>, size_t MaxWriters=1>
-class RCUDomain {
+template <typename ListT = VersionEpochCounter<32>, size_t MaxWriters = 1>
+class RCUDomain
+{
 public:
 
   RCUDomain() = default;
 
   inline uint64_t get_current_epoch(std::memory_order order
-                                    = std::memory_order_acquire) noexcept {
+                                    = std::memory_order_acquire) noexcept
+  {
     return mEpoch.load(order);
   }
 
 
-  inline size_t rcu_read_lock(uint64_t epoch) noexcept {
+  inline size_t rcu_read_lock(uint64_t epoch) noexcept
+  {
     return mReadersCounter.increment(epoch);
   }
 
-  inline size_t rcu_read_lock() noexcept {
+  inline size_t rcu_read_lock() noexcept
+  {
     return rcu_read_lock(mEpoch.load(std::memory_order_acquire));
   }
 
 
-  inline void rcu_read_unlock(uint64_t epoch, uint64_t tag) noexcept {
+  inline void rcu_read_unlock(uint64_t epoch, uint64_t tag) noexcept
+  {
     mReadersCounter.decrement(epoch, tag);
   }
 
@@ -122,41 +128,49 @@ public:
     mReadersCounter.decrement();
   }
 
-  inline void rcu_read_unlock(uint64_t tag) noexcept {
+  inline void rcu_read_unlock(uint64_t tag) noexcept
+  {
     mReadersCounter.decrement(mEpoch.load(std::memory_order_acquire), tag);
   }
 
-  inline void rcu_write_lock() noexcept {
-    auto writers = mWritersCount.load(std::memory_order_acquire);
+  inline void rcu_write_lock() noexcept
+  {
     uint64_t expected_writers = MaxWriters - 1;
     uint64_t counter{0};
-    while (!mWritersCount.compare_exchange_strong(expected_writers, expected_writers + 1,
-                                                  std::memory_order_acq_rel)) {
+
+    while (!mWritersCount.compare_exchange_strong(expected_writers,
+           expected_writers + 1,
+           std::memory_order_acq_rel)) {
       if (expected_writers >= MaxWriters) {
         expected_writers = MaxWriters - 1;
       }
+
       if (counter % 20 == 0) {
         std::this_thread::yield();
       }
     }
   }
 
-  inline void rcu_synchronize() noexcept {
+  inline void rcu_synchronize() noexcept
+  {
     auto curr_epoch = mEpoch.load(std::memory_order_acquire);
 
     while (!mEpoch.compare_exchange_strong(curr_epoch, curr_epoch + 1,
                                            std::memory_order_acq_rel)) ;
 
-    int i=0;
-    while(mReadersCounter.epochHasReaders(curr_epoch)) {
+    int i = 0;
+
+    while (mReadersCounter.epochHasReaders(curr_epoch)) {
       if (i++ % 20 == 0) {
         std::this_thread::yield();
       }
     }
+
     mWritersCount.fetch_sub(1, std::memory_order_release);
   }
 
-  inline void rcu_write_unlock() noexcept {
+  inline void rcu_write_unlock() noexcept
+  {
     rcu_synchronize();
   }
 
@@ -164,17 +178,20 @@ public:
 private:
   ListT mReadersCounter;
   alignas(hardware_destructive_interference_size) std::atomic<uint64_t> mEpoch{0};
-  alignas(hardware_destructive_interference_size) std::atomic<uint64_t> mWritersCount{0};
+  alignas(hardware_destructive_interference_size) std::atomic<uint64_t>
+  mWritersCount{0};
 };
 
 template <typename RCUDomain>
 struct RCUReadLock {
-  RCUReadLock(RCUDomain& _rcu_domain) : rcu_domain(_rcu_domain) {
+  RCUReadLock(RCUDomain& _rcu_domain) : rcu_domain(_rcu_domain)
+  {
     epoch = rcu_domain.get_current_epoch();
     tag = rcu_domain.rcu_read_lock(epoch);
   }
 
-  ~RCUReadLock() {
+  ~RCUReadLock()
+  {
     rcu_domain.rcu_read_unlock(epoch, tag);
   }
 
@@ -185,11 +202,13 @@ struct RCUReadLock {
 
 template <typename RCUDomain>
 struct RCUWriteLock {
-  RCUWriteLock(RCUDomain& _rcu_domain): rcu_domain(_rcu_domain) {
+  RCUWriteLock(RCUDomain& _rcu_domain): rcu_domain(_rcu_domain)
+  {
     rcu_domain.rcu_write_lock();
   }
 
-  ~RCUWriteLock() {
+  ~RCUWriteLock()
+  {
     rcu_domain.rcu_synchronize();
   }
 
@@ -200,12 +219,14 @@ template <typename RCUDomain, typename Ptr>
 struct ScopedRCUWrite {
   ScopedRCUWrite(RCUDomain& _rcu_domain,
                  Ptr& ptr,
-                 typename Ptr::pointer new_val) : rcu_domain(_rcu_domain) {
+                 typename Ptr::pointer new_val) : rcu_domain(_rcu_domain)
+  {
     rcu_domain.rcu_write_lock();
     old_val = ptr.reset(new_val);
   }
 
-  ~ScopedRCUWrite() {
+  ~ScopedRCUWrite()
+  {
     rcu_domain.rcu_synchronize();
     delete old_val;
   }
@@ -214,6 +235,6 @@ struct ScopedRCUWrite {
   typename Ptr::pointer old_val;
 };
 
-using VersionedRCUDomain = RCUDomain<VersionEpochCounter<32>,1>;
-using EpochRCUDomain = RCUDomain<experimental::ThreadEpochCounter,1>;
+using VersionedRCUDomain = RCUDomain<VersionEpochCounter<32>, 1>;
+using EpochRCUDomain = RCUDomain<experimental::ThreadEpochCounter, 1>;
 } // eos::common

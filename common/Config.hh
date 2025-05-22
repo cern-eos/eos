@@ -36,18 +36,23 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // systemd style configuration file support
 //------------------------------------------------------------------------------
-class Config {
+class Config
+{
 public:
   //----------------------------------------------------------------------------
   // Default constructor
   //----------------------------------------------------------------------------
-  Config() : errcode(0) {hostname = eos::common::StringConversion::StringFromShellCmd("hostname -f");hostname.pop_back();}
+  Config() : errcode(0)
+  {
+    hostname = eos::common::StringConversion::StringFromShellCmd("hostname -f");
+    hostname.pop_back();
+  }
 
   //----------------------------------------------------------------------------
   // Loader
   //----------------------------------------------------------------------------
 
-  bool Load(const char* service, const char* name="default", bool reset=true);
+  bool Load(const char* service, const char* name = "default", bool reset = true);
 
   //----------------------------------------------------------------------------
   // Parse and possibly return a chapter entry
@@ -62,28 +67,32 @@ public:
   //----------------------------------------------------------------------------
   // Is status ok?
   //----------------------------------------------------------------------------
-  bool ok() const {
+  bool ok() const
+  {
     return (errcode == 0);
   }
 
   //----------------------------------------------------------------------------
   // Get errorcode
   //----------------------------------------------------------------------------
-  int getErrc() const {
+  int getErrc() const
+  {
     return errcode;
   }
 
   //----------------------------------------------------------------------------
   // Get error message
   //----------------------------------------------------------------------------
-  std::string getMsg() const {
+  std::string getMsg() const
+  {
     return errorMessage;
   }
 
   //----------------------------------------------------------------------------
   // To string, including error code
   //----------------------------------------------------------------------------
-  std::string toString() const {
+  std::string toString() const
+  {
     std::ostringstream ss;
     ss << "(" << errcode << "): " << errorMessage;
     return ss.str();
@@ -92,7 +101,8 @@ public:
   //----------------------------------------------------------------------------
   // Implicit conversion to boolean: Same value as ok()
   //----------------------------------------------------------------------------
-  operator bool() const {
+  operator bool() const
+  {
     return ok();
   }
 
@@ -102,7 +112,8 @@ public:
   //----------------------------------------------------------------------------
   // Overloaded [] operator
   //----------------------------------------------------------------------------
-  ConfigSection &operator[](const char* i) {
+  ConfigSection& operator[](const char* i)
+  {
     if (conf.count(i)) {
       return conf[i];
     } else {
@@ -111,62 +122,69 @@ public:
     }
   }
 
-  std::string ParseVariable(const std::string& s, size_t& start, size_t& stop) {
+  std::string ParseVariable(const std::string& s, size_t& start, size_t& stop)
+  {
     size_t vstart = s.find("$");
+
     if (vstart == std::string::npos) {
       start = stop = 0;
       return "";
     }
+
     size_t vstop = 0;
     std::string v = s;
-    if (s.at(vstart+1) == '{') {
+
+    if (s.at(vstart + 1) == '{') {
       vstop = s.find("}");
+
       if (vstop != std::string::npos) {
-	v.erase(vstop);
-	v.erase(0,vstart+2);
-	start = vstart;
-	stop = vstop+1;
+        v.erase(vstop);
+        v.erase(0, vstart + 2);
+        start = vstart;
+        stop = vstop + 1;
       } else {
-	start = stop = 0;
-	return "";
+        start = stop = 0;
+        return "";
       }
     } else {
-      v.erase(0,vstart+1);
+      v.erase(0, vstart + 1);
       start = vstart;
-      vstop = s.find(" ", vstart+1);
+      vstop = s.find(" ", vstart + 1);
+
       if (vstop == std::string::npos) {
-	stop = v.length()+1;
+        stop = v.length() + 1;
       } else {
-	stop = vstop;
-	v.erase(vstop-vstart-1);
+        stop = vstop;
+        v.erase(vstop - vstart - 1);
       }
     }
+
     return v;
   }
 
   //----------------------------------------------------------------------------
   // Replace variables from a chapter until they are resolved
   //----------------------------------------------------------------------------
-  void ReplaceFromChapter(std::string& s, const char* substitute_chapter) {
+  void ReplaceFromChapter(std::string& s, const char* substitute_chapter)
+  {
     if (Has(substitute_chapter)) {
-
       std::map<std::string, std::string> m = AsMap(substitute_chapter);
       // preset always the EOSHOST variable
       m["EOSHOST"] = hostname;
-
       std::string var;
-      size_t p1,p2;
-      while ( (var=ParseVariable(s,p1,p2)).length() ) {
+      size_t p1, p2;
 
-	if (!p1 && !p2) {
-	  break;
-	}
+      while ((var = ParseVariable(s, p1, p2)).length()) {
+        if (!p1 && !p2) {
+          break;
+        }
 
-	if (m.count(var)) {
-	  s.erase(p1,p2-p1);
-	  s.insert(p1,m[var]);
-	} else {
-	  break;}
+        if (m.count(var)) {
+          s.erase(p1, p2 - p1);
+          s.insert(p1, m[var]);
+        } else {
+          break;
+        }
       }
     } else {
       return;
@@ -177,15 +195,15 @@ public:
   //----------------------------------------------------------------------------
   // Replace a string with a sysconfig definition
   //----------------------------------------------------------------------------
-  std::string Substitute(const std::string& s, bool doit=false, const char* substitute_chapter="sysconfig") {
-
+  std::string Substitute(const std::string& s, bool doit = false,
+                         const char* substitute_chapter = "sysconfig")
+  {
     if (doit) {
       std::string r = s;
-
-      size_t p1,p2;
       ReplaceFromChapter(r, substitute_chapter);
       return r;
     }
+
     return s;
   }
 
@@ -194,33 +212,39 @@ public:
   // Config Dumper
   //----------------------------------------------------------------------------
 
-  std::string Dump(const char* chapter = 0, bool substitute = false, const char* substitute_chapter = "sysconfig") {
+  std::string Dump(const char* chapter = 0, bool substitute = false,
+                   const char* substitute_chapter = "sysconfig")
+  {
     std::string out;
+
     if (chapter) {
       if (conf.count(chapter)) {
-	for ( auto it : conf[chapter] ) {
-	  out += Substitute(it, substitute, substitute_chapter);
-	  out += "\n";
-	}
+        for (auto it : conf[chapter]) {
+          out += Substitute(it, substitute, substitute_chapter);
+          out += "\n";
+        }
       }
     } else {
-      for ( auto c : conf ) {
-	out += "[";
-	out += c.first;;
-	out += "]\n";
-	for ( auto it : c.second ) {
-	  out += Substitute(it, substitute, substitute_chapter);
-	  out += "\n";
-	}
+      for (auto c : conf) {
+        out += "[";
+        out += c.first;;
+        out += "]\n";
+
+        for (auto it : c.second) {
+          out += Substitute(it, substitute, substitute_chapter);
+          out += "\n";
+        }
       }
     }
+
     return out;
   }
 
   //----------------------------------------------------------------------------
   // Test for configuration chapter
   //----------------------------------------------------------------------------
-  bool Has(const char* chapter) const {
+  bool Has(const char* chapter) const
+  {
     return conf.count(chapter);
   }
 

@@ -27,7 +27,8 @@
 #include "common/FileSystem.hh"
 #include <array>
 
-namespace eos::mgm::placement {
+namespace eos::mgm::placement
+{
 
 using fsid_t = eos::common::FileSystem::fsid_t;
 
@@ -50,6 +51,7 @@ inline ActiveStatus getActiveStatus(ActiveStatus status,
       return ActiveStatus::kOffline;
     }
   }
+
   return status;
 }
 
@@ -61,30 +63,31 @@ struct Disk {
   mutable std::atomic<uint8_t> weight{0}; // we really don't need floating point precision
   mutable std::atomic<uint8_t> percent_used{0};
 
-  Disk () : id(0) {}
+  Disk() : id(0) {}
 
   explicit Disk(fsid_t _id) : id(_id) {}
 
   Disk(fsid_t _id, ConfigStatus _config_status,
        ActiveStatus _active_status, uint8_t _weight, uint8_t _percent_used = 0)
-      : id(_id), config_status(_config_status), active_status(_active_status),
-        weight(_weight), percent_used(_percent_used)
+    : id(_id), config_status(_config_status), active_status(_active_status),
+      weight(_weight), percent_used(_percent_used)
   {}
 
   // TODO future: these copy constructors must only be used at construction time
   // explicit copy constructor as atomic types are not copyable
   Disk(const Disk& other)
-      : Disk(other.id, other.config_status.load(std::memory_order_relaxed),
-             other.active_status.load(std::memory_order_relaxed),
-             other.weight.load(std::memory_order_relaxed),
-             other.percent_used.load(std::memory_order_relaxed))
+    : Disk(other.id, other.config_status.load(std::memory_order_relaxed),
+           other.active_status.load(std::memory_order_relaxed),
+           other.weight.load(std::memory_order_relaxed),
+           other.percent_used.load(std::memory_order_relaxed))
   {
   }
 
-  Disk& operator=(const Disk& other) {
+  Disk& operator=(const Disk& other)
+  {
     id = other.id;
     config_status.store(other.config_status.load(std::memory_order_relaxed),
-                 std::memory_order_relaxed);
+                        std::memory_order_relaxed);
     active_status.store(other.active_status.load(std::memory_order_relaxed),
                         std::memory_order_relaxed);
     weight.store(other.weight.load(std::memory_order_relaxed),
@@ -100,17 +103,22 @@ struct Disk {
     return l.id < r.id;
   }
 
-  std::string to_string() const {
+  std::string to_string() const
+  {
     std::stringstream ss;
     ss << "id: " << id << "\n"
        << "ConfigStatus: "
-       << common::FileSystem::GetConfigStatusAsString(config_status.load(std::memory_order_relaxed))
-       <<"\n"
-       << "ActiveStatus: "
-       << common::FileSystem::GetActiveStatusAsString(active_status.load(std::memory_order_relaxed))
+       << common::FileSystem::GetConfigStatusAsString(config_status.load(
+             std::memory_order_relaxed))
        << "\n"
-       << "Weight: " << static_cast<uint16_t>(weight.load(std::memory_order_relaxed)) << "\n"
-       << "UsedPercent: " << static_cast<uint16_t>(percent_used.load(std::memory_order_relaxed));
+       << "ActiveStatus: "
+       << common::FileSystem::GetActiveStatusAsString(active_status.load(
+             std::memory_order_relaxed))
+       << "\n"
+       << "Weight: " << static_cast<uint16_t>(weight.load(std::memory_order_relaxed))
+       << "\n"
+       << "UsedPercent: " << static_cast<uint16_t>(percent_used.load(
+             std::memory_order_relaxed));
     return ss.str();
   }
 };
@@ -119,12 +127,13 @@ static_assert(sizeof(Disk) == 8, "Disk data type not aligned to 8 bytes!");
 
 // some common storage elements, these could be user defined in the future
 enum class StdBucketType : uint8_t {
-  GROUP=0,
+  GROUP = 0,
   RACK,
   ROOM,
   SITE,
   ROOT,
-  COUNT};
+  COUNT
+};
 
 constexpr uint8_t
 get_bucket_type(StdBucketType t)
@@ -132,34 +141,28 @@ get_bucket_type(StdBucketType t)
   return static_cast<uint8_t>(t);
 }
 
-inline std::string BucketTypeToStr(StdBucketType t) {
+inline std::string BucketTypeToStr(StdBucketType t)
+{
   switch (t) {
   case StdBucketType::GROUP:
     return "group";
+
   case StdBucketType::RACK:
     return "rack";
+
   case StdBucketType::ROOM:
     return "room";
+
   case StdBucketType::SITE:
     return "site";
+
   case StdBucketType::ROOT:
     return "root";
+
   default:
     return "unknown";
   }
 }
-
-// Determining placement of replicas for a file
-// We need to understand how many storage elements we select at each level
-// of the hierarchy, for example for a 2 replica file, with 2 sites,
-// we'd select 1 per site, and then going further down the hierarchy, we'd have
-// to select 1 per room etc. until we reach our last abstraction at the group
-// where we'd need to select as many replicas as we have left, in this case 2.
-// we really don't want a tree that's more than 16 levels deep?
-constexpr uint8_t MAX_PLACEMENT_HEIGHT = 16;
-using selection_rules_t = std::array<int8_t, MAX_PLACEMENT_HEIGHT>;
-static selection_rules_t kDefault2Replica =
-   {-1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
 // Constant to offset the group id, so group ids would be starting from this offset
 // in memory they'd be stored at -group_id
@@ -189,7 +192,7 @@ struct Bucket {
   Bucket() = default;
 
   Bucket(item_id_t _id, uint8_t type)
-      : id(_id), total_weight(0), bucket_type(type)
+    : id(_id), total_weight(0), bucket_type(type)
   {
   }
 
@@ -202,13 +205,14 @@ struct Bucket {
   std::string to_string() const
   {
     std::string group_str;
+
     if (bucket_type == get_bucket_type(StdBucketType::GROUP)) {
       group_str = "Group Index: " +
-        std::to_string(BucketIDtoGroupID(id)) + "\n";
+                  std::to_string(BucketIDtoGroupID(id)) + "\n";
     }
 
     std::stringstream ss;
-    ss << "id: " << id <<"\n"
+    ss << "id: " << id << "\n"
        << group_str
        << "Total Weight: " << total_weight << "\n"
        << "Bucket Type: "
@@ -218,6 +222,7 @@ struct Bucket {
     for (const auto& it : items) {
       ss << it << ", ";
     }
+
     return ss.str();
   }
 };
@@ -226,58 +231,71 @@ struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
 
-  bool setDiskStatus(fsid_t id, ConfigStatus status) {
+  bool setDiskStatus(fsid_t id, ConfigStatus status)
+  {
     if (id > disks.size()) {
       return false;
     }
+
     disks[id - 1].config_status.store(status, std::memory_order_release);
     return true;
   }
 
-  bool setDiskStatus(fsid_t id, ActiveStatus status) {
+  bool setDiskStatus(fsid_t id, ActiveStatus status)
+  {
     if (id > disks.size()) {
       return false;
     }
+
     disks[id - 1].active_status.store(status, std::memory_order_release);
     return true;
   }
 
-  bool setDiskWeight(fsid_t id, uint8_t weight) {
+  bool setDiskWeight(fsid_t id, uint8_t weight)
+  {
     if (id > disks.size()) {
       return false;
     }
+
     disks[id - 1].weight.store(weight, std::memory_order_release);
     return true;
   }
 
-  std::string getDisksAsString() const {
+  std::string getDisksAsString() const
+  {
     std::string result_str;
     result_str.append("Total Disks: ");
     result_str.append(std::to_string(disks.size()));
     result_str.append("\n");
-    for (const auto& d: disks) {
+
+    for (const auto& d : disks) {
       result_str.append(d.to_string());
       result_str.append("\n");
     }
+
     return result_str;
   }
 
-  std::string getBucketsAsString() const {
+  std::string getBucketsAsString() const
+  {
     std::string result_str;
-    for (const auto& b: buckets) {
-      if (b.id==0 && b.bucket_type == 0) {
+
+    for (const auto& b : buckets) {
+      if (b.id == 0 && b.bucket_type == 0) {
         continue;
       }
 
       result_str.append(b.to_string());
       result_str.append("\n");
     }
+
     return result_str;
   }
 
 };
 
-inline bool isValidBucketId(item_id_t id, const ClusterData& data) {
+inline bool isValidBucketId(item_id_t id, const ClusterData& data)
+{
   return id < 0 && (-id < data.buckets.size());
 }
 

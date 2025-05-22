@@ -54,7 +54,6 @@ add_compile_options(-Wall
   -Wno-unused-function
   -Wno-unused-parameter
   -Wno-unused-result
-  -Wno-unused-variable
   -Wno-vla
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-class-memaccess>
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-copy>

@@ -967,10 +967,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   }
 
   // Setup the concatenated CA file (done by the XRootD server)
-  if(getenv("XRDADMINPATH")) {
+  if (getenv("XRDADMINPATH")) {
     std::string adminPath = getenv("XRDADMINPATH");
     ConcatenatedServerRootCA = adminPath + ".xrdtls/ca_file.pem";
-    Eroute.Say("Concatenated CA file location: ", ConcatenatedServerRootCA->c_str());
+    Eroute.Say("Concatenated CA file location: ",
+               ConcatenatedServerRootCA->c_str());
   }
 
   eos_notice("FST_HOST=%s FST_PORT=%ld FST_HTTP_PORT=%d VERSION=%s RELEASE=%s "
@@ -1115,7 +1116,6 @@ XrdFstOfs::FAttr(XrdSfsFACtl* faReq,
     {XrdSfsFACtl::RQST::faLst, AOP_Read},
     {XrdSfsFACtl::RQST::faSet, AOP_Update}
   };
-  static const char* epname = "fattr";
 
   // Check if we only need to return support information
   if (!faReq) {

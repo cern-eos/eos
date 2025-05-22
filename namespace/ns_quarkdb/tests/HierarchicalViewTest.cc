@@ -234,7 +234,7 @@ TEST_F(HierarchicalViewF, ZeroSizedFilenames)
   eos::IFileMDPtr file1 = view()->createFile("/file1", true);
   file1->setName("");
   ASSERT_THROW(cont1->addFile(file1.get()), eos::MDException);
-  ASSERT_THROW(cont2->setName(""); , eos::MDException);
+  ASSERT_THROW(cont2->setName("");, eos::MDException);
 }
 
 //------------------------------------------------------------------------------
@@ -428,7 +428,7 @@ TEST_F(HierarchicalViewF, QuotaTest)
   // Remove all the files
   std::list<std::string> paths{path1, path2, path3};
 
-  for (auto && path_elem : paths) {
+  for (auto&& path_elem : paths) {
     for (int i = 0; i < 1000; ++i) {
       std::ostringstream p;
       p << path_elem << "file" << i;
@@ -518,7 +518,7 @@ TEST_F(HierarchicalViewF, LostContainerTest)
       paths.insert(paths.end(), s6.str());
     }
 
-    for (auto && elem : paths) {
+    for (auto&& elem : paths) {
       std::shared_ptr<eos::IFileMD> file = view()->getFile(elem);
       view()->unlinkFile(elem);
       view()->removeFile(fileSvc()->getFileMD(file->getId()).get());
@@ -804,7 +804,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
   std::atomic<bool> containerLocked = false;
   uint8_t sleepSeconds = 10;
   auto threadReadLockingContainer = std::thread([&container, &containerLocked,
-  sleepSeconds]() {
+              sleepSeconds]() {
     eos::MDLocking::ContainerReadLock containerLocker(container.get());
     containerLocked = true;
     std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
@@ -812,7 +812,7 @@ TEST_F(HierarchicalViewF, BulkNsObjectLockerTryLock)
   std::chrono::time_point<std::chrono::steady_clock> start;
   std::chrono::time_point<std::chrono::steady_clock> stop;
   auto threadBulkContainerLock = std::thread([&start, &stop, &container,
-  &container2, &containerLocked]() {
+          &container2, &containerLocked]() {
     while (!containerLocked) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
@@ -841,7 +841,7 @@ TEST_F(HierarchicalViewF, BulkMDLockerTest)
   std::atomic<bool> fileLocked = false;
   uint8_t sleepSeconds = 10;
   auto threadReadLockingFile = std::thread([&file, &fileLocked,
-  sleepSeconds]() {
+         sleepSeconds]() {
     eos::MDLocking::FileReadLock fileReadLocker(file.get());
     fileLocked = true;
     std::this_thread::sleep_for(std::chrono::duration<double>(sleepSeconds + 0.1));
@@ -849,7 +849,7 @@ TEST_F(HierarchicalViewF, BulkMDLockerTest)
   std::chrono::time_point<std::chrono::steady_clock> start;
   std::chrono::time_point<std::chrono::steady_clock> stop;
   auto threadBulkMultiNSObjLock = std::thread([&start, &stop, &container,
-  &container2, &file, &fileLocked]() {
+          &container2, &file, &fileLocked]() {
     while (!fileLocked) {
       std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
@@ -873,31 +873,33 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
   std::vector<std::thread> workers;
   {
     // Create 100 directories with each 10 files
-    for(int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
-      view()->createContainer(dirName,true);
-      for(int j = 0; j < 10; j++) {
+      view()->createContainer(dirName, true);
+
+      for (int j = 0; j < 10; j++) {
         auto fmd = view()->createFile(dirName + "/f" + std::to_string(j));
         fmd->setSize(10000);
         view()->updateFileStore(fmd.get());
       }
     }
+
     auto fmd = view()->createFile("/test/file.txt");
     fmd->setSize(10000);
   }
-
   {
     // Tests a deadlock situation with the previous implementation of the accounting
-    for(int i = 0; i < 100; ++i) {
-      workers.emplace_back([this](){
+    for (int i = 0; i < 100; ++i) {
+      workers.emplace_back([this]() {
         auto fmd = view()->getFile("/test/file.txt");
         auto fhLock = eos::MDLocking::writeLock(fmd.get());
         fmd->setSize(10000);
         view()->updateFileStore(fmd.get());
       });
     }
-    for(int i = 0; i < 100; ++i) {
-      workers.emplace_back([this](){
+
+    for (int i = 0; i < 100; ++i) {
+      workers.emplace_back([this]() {
         auto cmd =  view()->getContainer("/test/");
         auto cmdLock = eos::MDLocking::writeLock(cmd.get());
         auto fmd = view()->getFile("/test/file.txt");
@@ -907,82 +909,97 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
       });
     }
   }
-
   {
-    for(int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
-      for(int j = 0; j < 10; ++j) {
-        for(int k = 0; k < 10; ++k) {
-          workers.push_back(std::thread([this,i, j, k, dirName]() {
+
+      for (int j = 0; j < 10; ++j) {
+        for (int k = 0; k < 10; ++k) {
+          workers.push_back(std::thread([this, i, j, k, dirName]() {
             auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
             auto fmdLock = eos::MDLocking::writeLock(fmd.get());
-            if(k % 2 == 0) {
+
+            if (k % 2 == 0) {
               fmd->setSize(fmd->getSize() + 1);
             } else {
               fmd->setSize(fmd->getSize() - 1);
             }
+
             view()->updateFileStore(fmd.get());
           }));
         }
       }
     }
-    for(auto & worker: workers) {
+
+    for (auto& worker : workers) {
       worker.join();
     }
+
     workers.clear();
     // Sleep 6 seconds the time for the accounting thread to do its job
     ::sleep(6);
 
-    for(int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
-      for(int j = 0; j < 10; ++j) {
+
+      for (int j = 0; j < 10; ++j) {
         auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
-        ASSERT_EQ(10000,fmd->getSize());
+        ASSERT_EQ(10000, fmd->getSize());
       }
+
       auto dmd = view()->getContainer(dirName);
       ASSERT_EQ(10 * 10000, dmd->getTreeSize());
-      ASSERT_EQ(10,dmd->getTreeFiles());
-      ASSERT_EQ(0,dmd->getTreeContainers());
+      ASSERT_EQ(10, dmd->getTreeFiles());
+      ASSERT_EQ(0, dmd->getTreeContainers());
     }
   }
-  ASSERT_EQ(10 * 100 + 1,view()->getContainer("/test/")->getTreeFiles());
-  ASSERT_EQ(100,view()->getContainer("/test/")->getTreeContainers());
+  ASSERT_EQ(10 * 100 + 1, view()->getContainer("/test/")->getTreeFiles());
+  ASSERT_EQ(100, view()->getContainer("/test/")->getTreeContainers());
   {
-    for(int i = 0; i < 100; ++i) {
+    for (int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
-      for(int j = 0; j < 10; ++j) {
-        for(int k = 0; k < 10; ++k) {
-          workers.push_back(std::thread([this,i, j, k, dirName]() {
+
+      for (int j = 0; j < 10; ++j) {
+        for (int k = 0; k < 10; ++k) {
+          workers.push_back(std::thread([this, i, j, k, dirName]() {
             auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
             auto fmdLock = eos::MDLocking::writeLock(fmd.get());
-            if(k % 2 == 0) {
+
+            if (k % 2 == 0) {
               fmd->setSize(fmd->getSize() + 1);
             } else {
               fmd->setSize(fmd->getSize() - 1);
             }
+
             view()->updateFileStore(fmd.get());
           }));
         }
       }
     }
-    for(auto & worker: workers) {
+
+    for (auto& worker : workers) {
       worker.join();
     }
+
     workers.clear();
     // Sleep 6 seconds the time for the accounting thread to do its job
     ::sleep(6);
-    for(int i = 0; i < 100; ++i) {
+
+    for (int i = 0; i < 100; ++i) {
       std::string dirName = "/test/d" + std::to_string(i);
-      for(int j = 0; j < 10; ++j) {
+
+      for (int j = 0; j < 10; ++j) {
         auto fmd = view()->getFile(dirName + "/f" + std::to_string(j));
-        ASSERT_EQ(10000,fmd->getSize());
+        ASSERT_EQ(10000, fmd->getSize());
       }
+
       auto dmd = view()->getContainer(dirName);
       ASSERT_EQ(10 * 10000, dmd->getTreeSize());
     }
   }
   // 100 directories * 10 files * 10000 bytes + test.txt (10000)
-  ASSERT_EQ(100 * 10 * 10000 + 10000, view()->getContainer("/test/")->getTreeSize());
+  ASSERT_EQ(100 * 10 * 10000 + 10000,
+            view()->getContainer("/test/")->getTreeSize());
   ASSERT_EQ(100, view()->getContainer("/test/")->getTreeContainers());
   ASSERT_EQ(1001, view()->getContainer("/test/")->getTreeFiles());
 }
@@ -1382,7 +1399,7 @@ TEST_F(HierarchicalViewF, getFileAfterBeingRenamed)
   std::atomic<bool> threadRenameStarted = false;
   uint8_t sleepSeconds = 3;
   auto threadWriteLockingFile = std::thread([this, &file, &root, &fileRenamed,
-  &threadRenameStarted, sleepSeconds]() {
+        &threadRenameStarted, sleepSeconds]() {
     threadRenameStarted = true;
     eos::MDLocking::FileWriteLock fileLocker(file.get());
     view()->renameFile(file.get(), "file2");
@@ -1393,7 +1410,7 @@ TEST_F(HierarchicalViewF, getFileAfterBeingRenamed)
   std::chrono::time_point<std::chrono::steady_clock> start;
   std::chrono::time_point<std::chrono::steady_clock> stop;
   auto threadGetFile = std::thread([this, &start, &stop, &fileRenamed,
-  &threadRenameStarted]() {
+        &threadRenameStarted]() {
     while (!threadRenameStarted) {}
 
     while (!fileRenamed) {}
@@ -1429,28 +1446,26 @@ TEST_F(HierarchicalViewF,
 TEST_F(HierarchicalViewF, getMDFollowsSymlinks)
 {
   view()->createContainer("/eos/dest_symlink/dir1/", true);
-  view()->createFile("/eos/dest_symlink/dir1/file.txt",true);
+  view()->createFile("/eos/dest_symlink/dir1/file.txt", true);
   view()->createContainer("/eos/dir2/");
-  view()->createLink("/eos/dir2/dest_symlink","/eos/dest_symlink/");
-
+  view()->createLink("/eos/dir2/dest_symlink", "/eos/dest_symlink/");
   auto file = view()->getFile("/eos/dest_symlink/dir1/file.txt");
   auto fileLock = eos::MDLocking::readLock(file.get());
-  ASSERT_EQ("file.txt",file->getName());
-
+  ASSERT_EQ("file.txt", file->getName());
   auto container = view()->getContainer("/eos/dest_symlink/dir1/");
   auto containerReadLock = eos::MDLocking::readLock(container.get());
   auto containerViaSymlink = view()->getContainer("/eos/dir2/dest_symlink/dir1/");
-  ASSERT_EQ(container,containerViaSymlink);
-
+  ASSERT_EQ(container, containerViaSymlink);
   auto fileGetItem = view()->getItem("/eos/dest_symlink/dir1/file.txt").get();
-  ASSERT_EQ(file,fileGetItem.file);
+  ASSERT_EQ(file, fileGetItem.file);
 }
 
-TEST_F(HierarchicalViewF, getMDMultiThreaded) {
+TEST_F(HierarchicalViewF, getMDMultiThreaded)
+{
   std::string dirPath = "/eos/dir1/dir2/dir3/";
   std::string filePath = dirPath + "file.txt";
   uint16_t loops = 100;
-  auto dir = view()->createContainer(dirPath,true);
+  auto dir = view()->createContainer(dirPath, true);
   auto file = view()->createFile(filePath);
   auto fileId = file->getId();
   auto dirId = dir->getId();
@@ -1459,9 +1474,8 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
   // the file might get an eos::MDException
   mdFlusher()->synchronize();
   std::vector<std::thread> workers;
-
-  workers.emplace_back([this,loops](){
-    for(uint16_t i = 0; i < loops; ++i){
+  workers.emplace_back([this, loops]() {
+    for (uint16_t i = 0; i < loops; ++i) {
       cleanNSCache();
       auto dh = view()->getContainer("/eos/");
       auto dhLock = eos::MDLocking::writeLock(dh.get());
@@ -1469,8 +1483,8 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       view()->updateContainerStore(dh.get());
     }
   });
-  workers.emplace_back([this,loops](){
-    for(uint16_t i = 0; i < loops; ++i){
+  workers.emplace_back([this, loops]() {
+    for (uint16_t i = 0; i < loops; ++i) {
       cleanNSCache();
       auto dh = view()->getContainer("/eos/dir1/");
       auto dhLock = eos::MDLocking::writeLock(dh.get());
@@ -1478,24 +1492,24 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       view()->updateContainerStore(dh.get());
     }
   });
-  workers.emplace_back([this,loops](){
-    for(uint16_t i = 0; i < loops; ++i){
+  workers.emplace_back([this, loops]() {
+    for (uint16_t i = 0; i < loops; ++i) {
       auto dh = view()->getContainer("/eos/dir1/dir2");
       auto dhLock = eos::MDLocking::writeLock(dh.get());
       dh->setTreeSize(i);
       view()->updateContainerStore(dh.get());
     }
   });
-  workers.emplace_back([this,loops,filePath](){
-    for(uint16_t i = 0; i < loops; ++i) {
+  workers.emplace_back([this, loops, filePath]() {
+    for (uint16_t i = 0; i < loops; ++i) {
       auto fh = view()->getFile(filePath);
       auto fhLock = eos::MDLocking::writeLock(fh.get());
       fh->setSize(i);
       view()->updateFileStore(fh.get());
     }
   });
-  workers.emplace_back([this,loops,dirId,dirPath,filePath](){
-    for(uint16_t i = 0; i < loops; ++i){
+  workers.emplace_back([this, loops, dirId, dirPath, filePath]() {
+    for (uint16_t i = 0; i < loops; ++i) {
       cleanNSCache();
       auto fh = view()->getFile(filePath);
       auto dh = view()->getContainer(dirPath);
@@ -1509,8 +1523,8 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       view()->updateContainerStore(dh.get());
     }
   });
-  workers.emplace_back([this,loops,dirPath,filePath](){
-    for(uint16_t i = 0; i < loops; ++i){
+  workers.emplace_back([this, loops, dirPath, filePath]() {
+    for (uint16_t i = 0; i < loops; ++i) {
       auto fh = view()->getFile(filePath);
       auto dh = view()->getContainer(dirPath);
       eos::MDLocking::BulkMDReadLock locker;
@@ -1519,10 +1533,12 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       auto locks = locker.lockAll();
       auto fileId = fh->getId();
       auto contId = dh->getId();
+      (void) fileId;
+      (void) contId;
     }
   });
-  workers.emplace_back([this,loops,fileId,dirId](){
-    for(uint16_t i = 0; i < loops; ++i){
+  workers.emplace_back([this, loops, fileId, dirId]() {
+    for (uint16_t i = 0; i < loops; ++i) {
       cleanNSCache();
       {
         auto fh = view()->getFileMDSvc()->getFileMD(fileId);
@@ -1531,12 +1547,14 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded) {
       }
       {
         auto dh = view()->getContainerMDSvc()->getContainerMD(dirId);
-        eos::MDLocking::ContainerWriteLockPtr dhLock = eos::MDLocking::writeLock(dh.get());
+        eos::MDLocking::ContainerWriteLockPtr dhLock = eos::MDLocking::writeLock(
+              dh.get());
         std::string uri = view()->getUri(dh.get());
       }
     }
   });
-  for(auto & worker: workers) {
+
+  for (auto& worker : workers) {
     worker.join();
   }
 }

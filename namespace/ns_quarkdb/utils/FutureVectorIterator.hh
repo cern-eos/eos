@@ -171,7 +171,7 @@ private:
       try {
         processMainFuture();
       } catch (eos::MDException& e) {
-          // ignore not found entry
+        // ignore not found entry
       }
     }
 
@@ -179,6 +179,7 @@ private:
       for (; futureVectorNext < futureVector.size(); futureVectorNext++) {
         try {
           T&& x = std::move(futureVector[futureVectorNext]).get();
+          (void) x;
         } catch (eos::MDException& e) {
           // ignore not found entry
         }

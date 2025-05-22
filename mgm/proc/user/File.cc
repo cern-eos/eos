@@ -630,8 +630,7 @@ ProcCommand::File()
       XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
       XrdOucString forceS = pOpaque->Get("mgm.file.force");
-      const char* cc = forceS.c_str();
-      bool force = forceS == "1";
+      bool force = (forceS == "1");
 
       if (gOFS->symlink(source.c_str(), target.c_str(), *mError, *pVid, 0, 0,
                         force)) {
