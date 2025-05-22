@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-//! @file: IoPriority.hh
-//! @author: Andreas Joachim Peters <andreas.joachim.peters@cern.ch>
+//! @file IoPriority.cc
+//! @author Elvin Sindrilaru <esindril@cern.ch>
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2021 CERN/Switzerland                                  *
+ * Copyright (C) 2025 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -20,6 +20,8 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
+
+#include "fst/utils/IoPriority.hh"
 #include <unistd.h>
 #include <fcntl.h>
 #ifndef __APPLE__
@@ -28,11 +30,12 @@
 #include <sys/capability.h>
 #endif
 
+EOSFSTNAMESPACE_BEGIN
 
-#pragma once
-
-static int
-ioprio_set(int which, int ioprio)
+//------------------------------------------------------------------------------
+// Set IO priority
+//------------------------------------------------------------------------------
+int ioprio_set(int which, int ioprio)
 {
 #ifdef __APPLE__
   return 0;
@@ -41,8 +44,10 @@ ioprio_set(int which, int ioprio)
 #endif
 }
 
-static int
-ioprio_get(int which)
+//------------------------------------------------------------------------------
+// Get IO priority
+//------------------------------------------------------------------------------
+int ioprio_get(int which)
 {
 #ifdef __APPLE__
   return 0;
@@ -51,48 +56,10 @@ ioprio_get(int which)
 #endif
 }
 
-/*
- * Gives us 8 prio classes with 13-bits of data for each class
- */
-
-#define IOPRIO_BITS             (16)
-#define IOPRIO_CLASS_SHIFT      (13)
-#define IOPRIO_PRIO_MASK        ((1UL << IOPRIO_CLASS_SHIFT) - 1)
-
-#define IOPRIO_PRIO_CLASS(mask) ((mask) >> IOPRIO_CLASS_SHIFT)
-#define IOPRIO_PRIO_DATA(mask)  ((mask) & IOPRIO_PRIO_MASK)
-#define IOPRIO_PRIO_VALUE(class, data)  (((class) << IOPRIO_CLASS_SHIFT) | data)
-
-#define ioprio_valid(mask)      (IOPRIO_PRIO_CLASS((mask)) != IOPRIO_CLASS_NONE)
-
-/*                                                                                                     * These are the io priority groups as implemented by CFQ. RT is the realtime
- * class, it always gets premium service. BE is the best-effort scheduling
- * class, the default for any process. IDLE is the idle scheduling class, it
- * is only served when no one else is using the disk.
- */
-
-enum {
-  IOPRIO_CLASS_NONE,
-  IOPRIO_CLASS_RT,
-  IOPRIO_CLASS_BE,
-  IOPRIO_CLASS_IDLE,
-};
-
-/*
- * 8 best effort priority levels are supported
- */
-#define IOPRIO_BE_NR (8)
-
-enum {
-  IOPRIO_WHO_PROCESS = 1,
-  IOPRIO_WHO_PGRP,
-  IOPRIO_WHO_USER,
-};
-
-
-
-static
-int ioprio_class(std::string& c)
+//------------------------------------------------------------------------------
+// Convert string to IO priority class
+//------------------------------------------------------------------------------
+int ioprio_class(const std::string& c)
 {
   if (c == "idle") {
     return IOPRIO_CLASS_IDLE;
@@ -105,7 +72,10 @@ int ioprio_class(std::string& c)
   }
 }
 
-static int ioprio_value(std::string& v)
+//------------------------------------------------------------------------------
+// Convert string to IO priority level (0..7)
+//------------------------------------------------------------------------------
+int ioprio_value(const std::string& v)
 {
   if (v.length()) {
     int level = std::atoi(v.c_str());
@@ -120,8 +90,10 @@ static int ioprio_value(std::string& v)
   }
 }
 
-static int
-ioprio_needs_sysadm(int iopriority)
+//------------------------------------------------------------------------------
+// Check if requested IO priority requires sysadm rights
+//------------------------------------------------------------------------------
+int ioprio_needs_sysadm(int iopriority)
 {
   if ((IOPRIO_PRIO_CLASS(iopriority) == IOPRIO_CLASS_RT) ||
       (IOPRIO_PRIO_CLASS(iopriority) == IOPRIO_CLASS_IDLE)) {
@@ -131,8 +103,10 @@ ioprio_needs_sysadm(int iopriority)
   }
 }
 
-static int
-ioprio_begin(int which, int iopriority, int local_iopriority)
+//------------------------------------------------------------------------------
+// Change IO priority
+//------------------------------------------------------------------------------
+int ioprio_begin(int which, int iopriority, int local_iopriority)
 {
   int rc = 0;
 
@@ -157,8 +131,10 @@ ioprio_begin(int which, int iopriority, int local_iopriority)
   return rc;
 }
 
-static int
-ioprio_end(int which, int iopriority)
+//------------------------------------------------------------------------------
+// Change back to default IO priority to BE 4
+//------------------------------------------------------------------------------
+int ioprio_end(int which, int iopriority)
 {
 #ifndef __APPLE__
 
@@ -179,4 +155,4 @@ ioprio_end(int which, int iopriority)
   return current_iopriority;
 }
 
-
+EOSFSTNAMESPACE_END

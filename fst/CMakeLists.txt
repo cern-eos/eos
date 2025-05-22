@@ -152,7 +152,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/RainMetaLayout.cc       layout/RainMetaLayout.hh
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
   layout/ReedSLayout.cc          layout/ReedSLayout.hh
-  utils/FSPathHandler.cc)
+  utils/FSPathHandler.cc
+  utils/IoPriority.cc)
 
 target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects

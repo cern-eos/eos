@@ -51,7 +51,6 @@ add_compile_options(-Wall
   -Wno-pragmas
   -Wno-sign-compare
   -Wno-type-limits
-  -Wno-unused-function
   -Wno-unused-parameter
   -Wno-vla
   $<$<COMPILE_LANGUAGE:CXX>:-Wno-class-memaccess>

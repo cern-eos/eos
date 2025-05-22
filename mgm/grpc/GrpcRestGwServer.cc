@@ -584,7 +584,7 @@ GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
   char* const addr = const_cast<char*>(bind_address.c_str());
   char* const gwaddr = const_cast<char*>(gw_bind_address.c_str());
   char* path = (char*)"../../../../protos/examplepb";
-  char* network = "tcp";
+  char* network = (char*)"tcp";
   const auto gatewayServer = SpawnGrpcGateway(gwaddr, network, addr, path);
   eos_static_notice("%s", "msg=\"spawning GRPC GATEWAY, REST API available\"");
 
