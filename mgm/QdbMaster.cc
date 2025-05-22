@@ -30,6 +30,7 @@
 #include "mgm/LRU.hh"
 #include "mgm/Recycle.hh"
 #include "mgm/Devices.hh"
+#include "mgm/GeoTreeEngine.hh"
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
@@ -439,6 +440,9 @@ QdbMaster::SlaveToMaster()
   gOFS->mLRUEngine->Start();
   gOFS->Recycler->Start();
   gOFS->mDeviceTracker->Start();
+  // Trigger a geotree refresh to make sure all the file systems are
+  // marked as available in the GeoTree after the failover.
+  gOFS->mGeoTreeEngine->forceRefresh();
   Access::RemoveStallRule("*");
   Access::SetSlaveToMasterRules();
   CreateStatusFile(EOSMGMMASTER_SUBSYS_RW_LOCKFILE);
