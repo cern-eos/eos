@@ -261,8 +261,8 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     return restGwInterface.IoCall(vid, request, reply);
   }
 
-    Status LsRequest(ServerContext* context, const LsProto* request,
-                     ServerWriter<ReplyProto>* writer)
+  Status LsRequest(ServerContext* context, const LsProto* request,
+                   ServerWriter<ReplyProto>* writer)
   {
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
@@ -584,7 +584,8 @@ GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
   char* const addr = const_cast<char*>(bind_address.c_str());
   char* const gwaddr = const_cast<char*>(gw_bind_address.c_str());
   char* path = (char*)"../../../../protos/examplepb";
-  const auto gatewayServer = SpawnGrpcGateway(gwaddr, "tcp", addr, path);
+  char* network = "tcp";
+  const auto gatewayServer = SpawnGrpcGateway(gwaddr, network, addr, path);
   eos_static_notice("%s", "msg=\"spawning GRPC GATEWAY, REST API available\"");
 
   if (mRestGwServer) {
