@@ -1645,6 +1645,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     MgmConfigAutoLoad = getenv("EOS_AUTOLOAD_CONFIG");
   }
 
+  // NoStall Fuse Application Name
+  if (getenv("EOS_MGM_FUSEX_NOSTALL_APP")) {
+    mFuseNoStallApp = getenv("EOS_MGM_FUSEX_NOSTALL_APP");
+  } else {
+    mFuseNoStallApp = "fuse::restic";
+  }
+
   XrdOucString instancepath = "/eos/";
   MgmProcPath = "/eos/";
   XrdOucString subpath = MgmOfsInstanceName;

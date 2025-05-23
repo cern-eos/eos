@@ -220,6 +220,11 @@ namespace eos::mgm::placement
 class FSScheduler;
 }
 
+namespace eos::mgm::FuseServer
+{
+class Server;
+}
+
 enum class NamespaceState {
   kDown = 0,
   kBooting = 1,
@@ -252,6 +257,7 @@ public:
   friend class eos::mgm::SpaceCmd;
   friend class eos::mgm::FsckEntry;
   friend class eos::mgm::NsCmd;
+  friend class eos::mgm::FuseServer::Server;
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -2157,6 +2163,8 @@ private:
   static thread_local eos::common::LogId tlLogId;
   //! Space/quota which is requested when placing a file via FUSE(x)
   uint64_t mFusePlacementBooking;
+  //! NoStall FUSE applicationg name
+  std::string mFuseNoStallApp;
 
   //----------------------------------------------------------------------------
   //! Convert error code to string representation
