@@ -63,7 +63,7 @@ XrdMgmOfs::ShouldStall(const char* function,
   size_t uid_threads = 1;
 
   if (stall) {
-    if ((vid.uid > 3) && (functionname != "stat")  && (vid.app != "fuse::restic")) {
+    if ((vid.uid > 3) && (functionname != "stat")  && (vid.app != gOFS->mFuseNoStallApp)) {
       if ((stalltime = gOFS->mTracker.ShouldStall(vid.uid, saturated, uid_threads))) {
         smsg = SSTR("operate - uid=" << vid.uid << " exceeding the "
                     "thread pool limit");
@@ -129,7 +129,7 @@ XrdMgmOfs::ShouldStall(const char* function,
         std::map<std::string, std::string>::const_iterator it;
 
         if ((functionname != "stat") &&  // never stall stats
-            (vid.app != "fuse::restic")) {
+            (vid.app != gOFS->mFuseNoStallApp)) {
           for (it = Access::gStallRules.begin();
                it != Access::gStallRules.end();
                it++) {
