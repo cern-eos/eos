@@ -44,7 +44,7 @@ XrdMgmOfs::GetFusex(const char* path,
   FUNCTIONMAYSTALL("Eosxd::prot::STAT", vid, error);
   MAYREDIRECT;
   EXEC_TIMING_BEGIN("Eosxd::prot::STAT");
-  gOFS->MgmStats.Add("Eosxd::prot::STAT", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::prot::STAT", vid.uid, vid.gid, 1, vid.app);
   ProcCommand procCommand;
   std::string spath = path;
 
