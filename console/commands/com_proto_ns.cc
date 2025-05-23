@@ -85,6 +85,8 @@ NsHelper::ParseCommand(const char* arg)
 
         if (soption == "-a") {
           stat->set_groupids(true);
+	} else if (soption == "-x") {
+	  stat->set_apps(true);
         } else if (soption == "-m") {
           stat->set_monitor(true);
         } else if (soption == "-n") {
