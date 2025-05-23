@@ -67,15 +67,23 @@ public:
   WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs) {
     endpoint = endpoint_str;
     constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
-    grpc::SslCredentialsOptions ssl_options;
-    if (root_certs.has_value())
-      ssl_options.pem_root_certs = file2string(root_certs.value());
-    else
-      ssl_options.pem_root_certs = "";
+    // grpc::SslCredentialsOptions ssl_options;
+    std::shared_ptr<grpc::ServerCredentials> creds;
+    auto certificate_provider = std::make_shared<grpc::experimental::FileWatcherCertificateProvider>("", "", RootCertificate, 1);
+    grpc::experimental::TlsServerCredentialsOptions tls_options(certificate_provider);
+    tls_options.watch_root_certs();
+    tls_options.set_root_cert_name("Root CA"); // cta-frontend-grpc for key identity name
+    // tls_options.set_identity_cert_name("cta-frontend-grpc");
+
+    creds = grpc::experimental::TlsServerCredentials(tls_options);
+    // if (root_certs.has_value())
+    //   ssl_options.pem_root_certs = file2string(root_certs.value());
+    // else
+    //   ssl_options.pem_root_certs = "";
     eos_static_info("loaded root certificate, it is %s", file2string(RootCertificate).c_str());
-    eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str()); // /tmp/mgm/.xrdtls/ca_file.pem
+    // eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str()); // /tmp/mgm/.xrdtls/ca_file.pem
     // Create a channel with SSL credentials
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, creds);
     client_stub = cta::xrd::CtaRpc::NewStub(channel);
     eos_static_info("successfully created the client stub in EOS");
   }
