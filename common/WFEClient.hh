@@ -45,23 +45,6 @@ public:
   virtual ~WFEClient() = default;
 };
 
-// need to configure call credentials here, add the token
-class JWTAuthenticator : public grpc::MetadataCredentialsPlugin {
-public:
-    JWTAuthenticator(const grpc::string& grpcstrToken) : m_grpcstrToken(grpcstrToken) {}
-
-    grpc::Status GetMetadata(
-        grpc::string_ref serviceUrl, grpc::string_ref methodName,
-        const grpc::AuthContext& channelAuthContext,
-        std::multimap<grpc::string, grpc::string>* metadata) override {
-        metadata->insert(std::make_pair("cta-grpc-jwt-auth-token", m_grpcstrToken));
-        return grpc::Status::OK;
-    }
-
-private:
-    grpc::string m_grpcstrToken;
-};
-
 class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs) {
@@ -90,10 +73,11 @@ public:
     std::string token_path("/etc/grid-security/jwt-token-grpc"); // this path will be provided in the config eventually
     eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
 
-    std::shared_ptr<::grpc::CallCredentials> call_credentials =
-          ::grpc::MetadataCredentialsFromPlugin(std::unique_ptr<::grpc::MetadataCredentialsPlugin>(
-          new JWTAuthenticator(token_contents)));
-    context.set_credentials(call_credentials);
+    // std::shared_ptr<::grpc::CallCredentials> call_credentials =
+    //       ::grpc::MetadataCredentialsFromPlugin(std::unique_ptr<::grpc::MetadataCredentialsPlugin>(
+    //       new JWTAuthenticator(token_contents)));
+    // context.set_credentials(call_credentials);
+    context.AddMetadata("authorization", "Bearer " + token_contents);
     eos_static_info("successfully attached call credentials in the send method");
 
     switch (request.notification().wf().event()) {
