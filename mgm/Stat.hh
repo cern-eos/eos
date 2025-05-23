@@ -500,21 +500,27 @@ public:
   StatsUid;
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, unsigned long long> >
   StatsGid;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<std::string, unsigned long long> >
+  StatsApp;
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatAvg> >
   StatAvgUid;
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatAvg> >
   StatAvgGid;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<std::string, StatAvg> >
+  StatAvgApp;
   google::sparse_hash_map<std::string, google::sparse_hash_map<uid_t, StatExt> >
   StatExtUid;
   google::sparse_hash_map<std::string, google::sparse_hash_map<gid_t, StatExt> >
   StatExtGid;
+  google::sparse_hash_map<std::string, google::sparse_hash_map<std::string, StatExt> >
+  StatExtApp;
   google::sparse_hash_map<std::string, std::deque<float> > StatExec;
   google::sparse_hash_map<std::string, double> CumulativeTimeExec;
 
-  void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val);
+  void Add(const char* tag, uid_t uid, gid_t gid, unsigned long val, const std::string app="");
 
   void AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample,
-              const double& avgv, const double& minv, const double& maxv);
+              const double& avgv, const double& minv, const double& maxv, const std::string app="");
 
   void AddExec(const char* tag, float exectime);
 
@@ -571,7 +577,7 @@ public:
 
 
   void PrintOutTotal(XrdOucString& out, bool details = false,
-                     bool monitoring = false, bool numerical = false);
+                     bool monitoring = false, bool numerical = false, bool apps = false);
 
   void Circulate(ThreadAssistant& assistant) noexcept;
 

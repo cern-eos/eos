@@ -35,23 +35,32 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val)
+Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val, const std::string app)
 {
   XrdSysMutexHelper lock(mMutex);
   StatsUid[tag][uid] += val;
   StatsGid[tag][gid] += val;
+
   StatAvgUid[tag][uid].Add(val);
   StatAvgGid[tag][gid].Add(val);
+
+  if (!app.empty()) {
+    StatsApp[tag][app] += val;
+    StatAvgApp[tag][app].Add(val);
+  }
 }
 
 /*----------------------------------------------------------------------------*/
 void
 Stat::AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample,
-             const double& avgv, const double& minv, const double& maxv)
+             const double& avgv, const double& minv, const double& maxv, const std::string app)
 {
   XrdSysMutexHelper lock(mMutex);
   StatExtUid[tag][uid].Insert(nsample, avgv, minv, maxv);
   StatExtGid[tag][gid].Insert(nsample, avgv, minv, maxv);
+  if (!app.empty()) {
+    StatExtApp[tag][app].Insert(nsample, avgv, minv, maxv);
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -648,10 +657,14 @@ Stat::Clear()
     StatsUid[ittag->first].resize(1000);
     StatsGid[ittag->first].clear();
     StatsGid[ittag->first].resize(1000);
+    StatsApp[ittag->first].clear();
+    StatsApp[ittag->first].resize(1000);
     StatAvgUid[ittag->first].clear();
     StatAvgUid[ittag->first].resize(1000);
     StatAvgGid[ittag->first].clear();
     StatAvgGid[ittag->first].resize(1000);
+    StatAvgApp[ittag->first].clear();
+    StatAvgApp[ittag->first].resize(1000);
     StatExec[ittag->first].clear();
     StatExec[ittag->first].resize(1000);
     CumulativeTimeExec[ittag->first] = 0.0;
@@ -661,8 +674,14 @@ Stat::Clear()
 /*----------------------------------------------------------------------------*/
 void
 Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
-                    bool numerical)
+                    bool numerical, bool apps)
 {
+
+  if (apps) {
+    out += apps;
+    out += "\n";
+    details = true;
+  }
   mMutex.Lock();
   std::vector<std::string> tags, tags_ext;
   std::vector<std::string>::iterator it;
@@ -875,14 +894,17 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     }
   }
 
-  out += table_all.GenerateTable(HEADER).c_str();
+  if (!apps) {
+    out += table_all.GenerateTable(HEADER).c_str();
+  }
 
   if (details) {
     // Collect uids and gids inside the lock and the do the translation outside
     // the lock
     std::set<uid_t> set_uids;
     std::set<gid_t> set_gids;
-
+    std::set<std::string> set_apps;
+    
     for (auto tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
       for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
         set_uids.insert(it->first);
@@ -906,6 +928,19 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
          tgit_ext++) {
       for (auto it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it) {
         set_gids.insert(it->first);
+      }
+    }
+    
+    for (auto tgit = StatAvgApp.begin(); tgit != StatAvgApp.end(); tgit++) {
+      for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
+        set_apps.insert(it->first);
+      }
+    }
+
+    for (auto tgit_ext = StatExtApp.begin(); tgit_ext != StatExtApp.end();
+         tgit_ext++) {
+      for (auto it = tgit_ext->second.begin(); it != tgit_ext->second.end(); ++it) {
+        set_apps.insert(it->first);
       }
     }
 
@@ -1003,7 +1038,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       }
     }
 
-    //! Group statistic
+    //! Group statistic   
     TableFormatterBase table_group;
 
     if (!monitoring) {
@@ -1011,7 +1046,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         std::make_tuple("group", 5, format_ss),
         std::make_tuple("command", 24, format_cmd),
         std::make_tuple("sum", 8, format_l),
-        std::make_tuple("5s", 8, format_f),
+        std::make_tuple("5s", 8, format_f),       
         std::make_tuple("1min", 8, format_f),
         std::make_tuple("5min", 8, format_f),
         std::make_tuple("1h", 8, format_f)
@@ -1073,12 +1108,78 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       }
     }
 
+    //! App statistic-   
+    TableFormatterBase table_app;
+
+    if (!monitoring) {
+      table_app.SetHeader({
+        std::make_tuple("fuse-app", 5, format_ss),
+        std::make_tuple("command", 24, format_cmd),
+        std::make_tuple("sum", 8, format_l),
+        std::make_tuple("5s", 8, format_f),        
+        std::make_tuple("1min", 8, format_f),
+        std::make_tuple("5min", 8, format_f),
+        std::make_tuple("1h", 8, format_f)
+      });
+    } else {
+      table_app.SetHeader({
+        std::make_tuple("fuse-app", 0, format_ss),
+        std::make_tuple("cmd", 0, format_s),
+        std::make_tuple("total", 0, format_l),
+        std::make_tuple("5s", 0, format_f),
+        std::make_tuple("60s", 0, format_f),
+        std::make_tuple("300s", 0, format_f),
+        std::make_tuple("3600s", 0, format_f)
+      });
+    }
+
+    for (auto tapp = StatAvgApp.begin(); tapp != StatAvgApp.end(); tapp++) {
+      for (auto it = tapp->second.begin(); it != tapp->second.end(); ++it) {
+        std::string appname;
+
+        if (numerical) {
+          appname = it->first;
+        } else {
+          appname = it->first;
+        }
+
+        table_data.push_back(std::make_tuple(2, appname, tapp->first.c_str(),
+                                             StatsApp[tapp->first.c_str()][it->first],
+                                             it->second.GetAvg5(), it->second.GetAvg60(),
+                                             it->second.GetAvg300(), it->second.GetAvg3600()));
+      }
+    }
+
+    for (auto tapp_ext = StatExtApp.begin(); tapp_ext != StatExtApp.end();
+         tapp_ext++) {
+      for (auto it = tapp_ext->second.begin(); it != tapp_ext->second.end(); ++it) {
+        std::string appname;
+
+        if (numerical) {
+          appname = it->first;
+        } else {
+          appname = it->first;
+        }
+
+        table_data_ext.push_back(std::make_tuple(
+                                   2, appname, tapp_ext->first.c_str(),
+                                   it->second.GetN5(), it->second.GetAvg5(),
+                                   it->second.GetMin5(), it->second.GetMax5(),
+                                   it->second.GetN60(), it->second.GetAvg60(),
+                                   it->second.GetMin60(), it->second.GetMax60(),
+                                   it->second.GetN300(), it->second.GetAvg300(),
+                                   it->second.GetMin300(), it->second.GetMax300(),
+                                   it->second.GetN3600(), it->second.GetAvg3600(),
+                                   it->second.GetMin3600(), it->second.GetMax3600()));
+      }
+    }
+
     // Data sorting
     std::sort(table_data.begin(), table_data.end());
     std::sort(table_data_ext.begin(), table_data_ext.end());
 
     // Output user and group statistic
-    for (int i = 0; i <= 1; i++) {
+    for (int i = 0; i <= 2; i++) {
       for (auto it : table_data) {
         if (std::get<0>(it) == i) {
           TableData table_data_sorted;
@@ -1095,6 +1196,8 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
             table_user.AddRows(table_data_sorted);
           } else if (i == 1) {
             table_group.AddRows(table_data_sorted);
+          } else if (i == 2) {
+            table_app.AddRows(table_data_sorted);
           }
         }
       }
@@ -1182,13 +1285,22 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
             table_group.AddRows(table_data_min);
             table_group.AddRows(table_data_avg);
             table_group.AddRows(table_data_max);
+          } else if (i == 2) {
+            table_app.AddRows(table_data_spl);
+            table_app.AddRows(table_data_min);
+            table_app.AddRows(table_data_avg);
+            table_app.AddRows(table_data_max);
           }
         }
       }
     }
 
-    out += table_user.GenerateTable(HEADER).c_str();
-    out += table_group.GenerateTable(HEADER).c_str();
+    if (apps) {
+      out += table_app.GenerateTable(HEADER).c_str();
+    } else {
+      out += table_user.GenerateTable(HEADER).c_str();
+      out += table_group.GenerateTable(HEADER).c_str();
+    }
   }
 
   mMutex.UnLock();
@@ -1301,6 +1413,13 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
         it->second.StampZero(now);
       }
     }
+    
+    for (auto tit = StatAvgApp.begin(); tit != StatAvgApp.end(); ++tit) {
+      // loop over vids
+      for (auto it = tit->second.begin(); it != tit->second.end(); ++it) {
+        it->second.StampZero(now);
+      }
+    }
 
     for (auto tit_ext = StatExtGid.begin(); tit_ext != StatExtGid.end();
          ++tit_ext) {
@@ -1311,6 +1430,14 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
     }
 
     for (auto tit_ext = StatExtGid.begin(); tit_ext != StatExtGid.end();
+         ++tit_ext) {
+      // loop over vids
+      for (auto it = tit_ext->second.begin(); it != tit_ext->second.end(); ++it) {
+        it->second.StampZero(now);
+      }
+    }
+
+    for (auto tit_ext = StatExtApp.begin(); tit_ext != StatExtApp.end();
          ++tit_ext) {
       // loop over vids
       for (auto it = tit_ext->second.begin(); it != tit_ext->second.end(); ++it) {
