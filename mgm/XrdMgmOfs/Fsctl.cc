@@ -204,7 +204,6 @@ XrdMgmOfs::FSctl(const int cmd,
   if ((cmd == SFS_FSCTL_PLUGIN) && (args.Arg2Len > 5)) {
     std::string key;
     key.assign(args.Arg2, 6);
-
     if (key == "fusex:") {
       fusexset = true;
     }

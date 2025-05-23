@@ -48,7 +48,7 @@ ProcCommand::FuseX()
   {
     FUNCTIONMAYSTALL("Eosxd::ext::LS-Entry", *pVid, *mError);
   }
-  gOFS->MgmStats.Add("Eosxd::prot::LS", pVid->uid, pVid->gid, 1);
+  gOFS->MgmStats.Add("Eosxd::prot::LS", pVid->uid, pVid->gid, 1, pVid->app);
   EXEC_TIMING_BEGIN("Eosxd::prot::LS");
   // -------------------------------------------------------------------------------------------------------
   // This function returns meta data by inode or if provided first translates a path into an inode.
