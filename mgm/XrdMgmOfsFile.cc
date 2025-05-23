@@ -643,6 +643,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (app_name == "fuse" || app_name == "xrootdfs" ||
         app_name.find("fuse::") == 0) {
       isFuse = true;
+      vid.app = app_name;
     } else if (app_name == "touch") {
       isTouch = true;
       isFuse = true;
@@ -850,7 +851,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   " the requested permissions for that operation (1)", path);
     }
 
-    gOFS->MgmStats.Add("OpenProc", vid.uid, vid.gid, 1);
+    gOFS->MgmStats.Add("OpenProc", vid.uid, vid.gid, 1, vid.app);
 
     if (!ProcInterface::Authorize(path, ininfo, vid, client)) {
       return Emsg(epname, error, EPERM, "execute proc command - you don't have "
@@ -888,7 +889,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  gOFS->MgmStats.Add("Open", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Open", vid.uid, vid.gid, 1, vid.app);
   bool dotFxid = spath.beginswith("/.fxid:");
 
   if (dotFxid) {
@@ -949,7 +950,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       ec = gOFS->_mkdir(cPath.GetParentPath(), Mode, error, vid, ininfo);
 
       if (ec) {
-        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
         return SFS_ERROR;
       }
     }
@@ -1055,7 +1056,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
             // check for O_EXCL here to save some time
             if (open_flags & O_EXCL) {
-              gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
+              gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1, vid.app);
               return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
             }
           }
@@ -1135,7 +1136,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
 
           rcode = SFS_REDIRECT;
-          gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
+          gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1, vid.app);
           XrdOucString predirectionhost = redirectionhost.c_str();
           eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
           eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
@@ -1148,7 +1149,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       // put back original errno
       errno = save_errno;
-      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1, vid.app);
       return Emsg(epname, error, errno, "open file", path);
     }
 
@@ -1182,7 +1183,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                   vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite(),
                   acl.CanNotUpdate());
         errno = EPERM;
-        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
         return Emsg(epname, error, errno, "open file - forbidden by ACL", path);
       }
 
@@ -1195,7 +1196,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           if (acl.CanNotUpdate() || (acl.CanNotWrite() && !acl.CanUpdate())) {
             // the ACL has !u set - we don't allow to do file updates
-            gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
+            gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1, vid.app);
             return Emsg(epname, error, EPERM, "update file - fobidden by ACL",
                         path);
           }
@@ -1222,7 +1223,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (isRW && !acl.IsMutable() && vid.uid && !vid.sudoer) {
       // immutable directory
       errno = EPERM;
-      gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
       return Emsg(epname, error, errno, "open file - directory immutable", path);
     }
 
@@ -1244,7 +1245,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
         // we don't apply this permission check for reconstruction jobs issued via the daemon account
         errno = EPERM;
-        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
         return Emsg(epname, error, errno, "open file", path);
       }
     }
@@ -1344,7 +1345,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (!getenv("EOS_ALLOW_RAIN_RWM") && isRewrite && (vid.uid > 3) &&
         (fmdsize != 0) && (LayoutId::IsRain(fmdlid))) {
       // Unpriviledged users are not allowed to open RAIN files for update
-      gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1, vid.app);
       return Emsg(epname, error, EPERM, "update RAIN layout file - "
                   "you have to be a priviledged user for updates");
     }
@@ -1353,7 +1354,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
         if (acl.CanWriteOnce()) {
-          gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
+          gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1, vid.app);
           // this is a write once user
           return Emsg(epname, error, EEXIST,
                       "overwrite existing file - you are write-once user");
@@ -1390,7 +1391,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos_info("%s", "msg=\"keep attached to existing fmd in chunked upload\"");
       }
 
-      gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1, vid.app);
     } else {
       if (isInjection && !fmd) {
         errno = ENOENT;
@@ -1398,7 +1399,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       if (!(fmd) && ((open_flags & O_CREAT))) {
-        gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1, vid.app);
       } else {
         if (acl.HasAcl()) {
           if (acl.CanWriteOnce()) {
@@ -1413,7 +1414,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         }
 
-        gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1, vid.app);
       }
     }
 
@@ -1456,7 +1457,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               }
 
               if (fmd) {
-                gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
+                gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1, vid.app);
                 return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
               }
             }
@@ -1561,7 +1562,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         if (!fmd) {
           // creation failed
-          gOFS->MgmStats.Add("OpenFailedCreate", vid.uid, vid.gid, 1);
+          gOFS->MgmStats.Add("OpenFailedCreate", vid.uid, vid.gid, 1, vid.app);
           return Emsg(epname, error, errno, "create file", path);
         }
 
@@ -1571,7 +1572,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     } else {
       // we attached to an existing file
       if (open_flags & O_EXCL) {
-        gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1, vid.app);
         return Emsg(epname, error, EEXIST, "create file (O_EXCL)", path);
       }
     }
@@ -1603,11 +1604,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         rcode = SFS_REDIRECT;
-        gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1, vid.app);
         return rcode;
       }
 
-      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1, vid.app);
       return Emsg(epname, error, errno, "open file", path);
     }
 
@@ -1657,9 +1658,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     if (isSharedFile) {
-      gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1, vid.app);
     } else {
-      gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1, vid.app);
     }
 
     // possibly apply an access conversion policy
@@ -1771,7 +1772,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     std::string localhost = "localhost";
 
     if (gOFS->Tried(url, localhost, "*")) {
-      gOFS->MgmStats.Add("OpenFailedRedirectLocal", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenFailedRedirectLocal", vid.uid, vid.gid, 1, vid.app);
       eos_info("msg=\"local-redirect disabled - forwarding to FST\" path=\"%s\" info=\"%s\"",
                path, ininfo);
     } else {
@@ -1813,7 +1814,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         rcode = SFS_REDIRECT;
-        gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1, vid.app);
         eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
         return rcode;
       }
@@ -1854,7 +1855,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         std::string errmsg = e.getMessage().str();
         eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                   e.getErrno(), e.getMessage().str().c_str());
-        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
         return Emsg(epname, error, errno, "open file and update atime for reading",
                     errmsg.c_str());
       }
@@ -2017,7 +2018,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         std::string errmsg = e.getMessage().str();
         eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                   e.getErrno(), e.getMessage().str().c_str());
-        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
         return Emsg(epname, error, errno, "open file", errmsg.c_str());
       }
     }
@@ -2230,7 +2231,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos_err("msg =\"no valid placement found with FlatScheduler\" ret=%d, err_msg=%s",
                 ret.ret_code, ret.error_string().c_str());
         use_geoscheduler = true;
-        gOFS->MgmStats.Add("FScheduler::Placement::Failed", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("FScheduler::Placement::Failed", vid.uid, vid.gid, 1, vid.app);
       }
     }
 
@@ -2281,7 +2282,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (selectedfs.empty()) {
       // this file has not a single existing replica
-      gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1, vid.app);
       // Fire and forget a sync::offline workflow event
       errno = 0;
       workflow.SetFile(path, mFid);
@@ -2477,7 +2478,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         if (stalltime) {
           // stall the client
-          gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1);
+          gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1, vid.app);
           eos_info("attr=sys info=\"stalling file since replica's are down\" path=%s rw=%d",
                    path, isRW);
           return gOFS->Stall(error, stalltime,
@@ -2490,7 +2491,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         if (stalltime) {
           // stall the client
-          gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1);
+          gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1, vid.app);
           eos_info("attr=user info=\"stalling file since replica's are down\" path=%s rw=%d",
                    path, isRW);
           return gOFS->Stall(error, stalltime,
@@ -2519,7 +2520,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         rcode = SFS_REDIRECT;
-        gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1, vid.app);
         return rcode;
       }
 
@@ -2545,11 +2546,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         rcode = SFS_REDIRECT;
-        gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("RedirectENONET", vid.uid, vid.gid, 1, vid.app);
         return rcode;
       }
 
-      gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1, vid.app);
     } else {
       // Remove the created file from the namespace as root since somebody could
       // have a no-delete ACL. Do this only if there are no replicas already
@@ -2579,7 +2580,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       }
 
-      gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
     }
 
     if (isRW) {
@@ -2655,7 +2656,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             std::string errmsg = e.getMessage().str();
             eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                       e.getErrno(), e.getMessage().str().c_str());
-            gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+            gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
             return Emsg(epname, error, errno, "open file", errmsg.c_str());
           }
 
@@ -2692,7 +2693,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             std::string errmsg = e.getMessage().str();
             eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
                       e.getErrno(), e.getMessage().str().c_str());
-            gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+            gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1, vid.app);
             return Emsg(epname, error, errno, "open file", errmsg.c_str());
           }
         }
@@ -3092,7 +3093,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       LogSchedulingInfo(selectedfs, proxys, firewalleps);
 
       if (retc) {
-        gOFS->MgmStats.Add("OpenFailedReconstruct", rootvid.uid, rootvid.gid, 1);
+        gOFS->MgmStats.Add("OpenFailedReconstruct", rootvid.uid, rootvid.gid, 1, vid.app);
         return Emsg(epname, error, retc, "schedule stripes for reconstruction", path);
       }
 
