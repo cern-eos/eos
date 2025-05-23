@@ -23,7 +23,7 @@ struct RetryTracker {
     auto curr_time  = eos::common::SteadyClock::now(clock);
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>
                    (curr_time - last_run_time);
-    return elapsed.count() > retry_interval;
+    return (elapsed.count() > (int64_t)retry_interval);
   }
 
   void update(eos::common::SteadyClock* clock = nullptr)

@@ -900,7 +900,7 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
   }
 
   std::string master_host = master_id;
-  int pos = master_host.find(':');
+  auto pos = master_host.find(':');
 
   if (pos != std::string::npos) {
     master_host.erase(pos);
@@ -908,6 +908,7 @@ bool XrdMqOfs::ShouldRedirectQdb(XrdOucString& host, int& port)
 
   eos_static_debug("master_id=\"%s\" master_host=\"%s\" my_hostname=\"%s\"",
                    master_id.c_str(), master_host.c_str(), mHostname.c_str());
+
   // If we are the current master or there is no master then don't redirect
   if ((master_host == mHostname) || master_id.empty()) {
     return false;

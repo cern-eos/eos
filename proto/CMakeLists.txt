@@ -23,6 +23,14 @@
 # ************************************************************************
 
 #-------------------------------------------------------------------------------
+# Disable -Wsign-compare warnings due to
+# grpcpp/support/proto_buffer_reader.h:157:24: warning: comparison of
+# integer expressions of different signedness: ‘uint64_t’ {aka ‘long
+# unsigned int’} and ‘int’ [-Wsign-compare]
+#-------------------------------------------------------------------------------
+add_compile_options(-Wno-sign-compare)
+
+#-------------------------------------------------------------------------------
 # Generate protocol buffer object for the Namespace
 #-------------------------------------------------------------------------------
 PROTOBUF_GENERATE_CPP(FMD_SRCS FMD_HDRS namespace/ns_quarkdb/FileMd.proto)

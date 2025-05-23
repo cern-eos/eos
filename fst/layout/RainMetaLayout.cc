@@ -1040,7 +1040,8 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
 
       // the stripe checksum is only computed for the data part
       // the header part is skipped
-      if (mStripeChecksum && offset >= mSizeHeader && write_length > 0) {
+      if (mStripeChecksum && (write_length > 0) &&
+          (offset >= (XrdSfsFileOffset)mSizeHeader)) {
         mStripeChecksum->Add(buffer, write_length, offset - mSizeHeader);
       }
 
@@ -1638,7 +1639,7 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   eos::common::Timing tm("truncate");
   COMMONTIMING("begin", &tm);
 
-  if (mStripeChecksum && mLastWriteOffset != offset) {
+  if (mStripeChecksum && ((XrdSfsFileOffset)mLastWriteOffset != offset)) {
     // The Reset is needed since for checksums like adler,
     // the dirty flag can be reset to false, when recomputing it.
     // So, here we completely get rid of it.

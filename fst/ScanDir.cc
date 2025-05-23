@@ -1000,7 +1000,7 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     if (gOFS.openedForReading.isOpen(mFsId, fid) ||
         gOFS.openedForWriting.isOpen(mFsId, fid)) {
       syslog(LOG_ERR, "skipping rain scan rd/wr-open file: localpath=%s fsid=%d "
-             "fxid=%08llx\n", path.c_str(), mFsId, fid);
+             "fxid=%08lx\n", path.c_str(), mFsId, fid);
       eos_warning("msg=\"skipping rain scan of rd/wr-open file\" localpath=%s "
                   "fsid=%d fxid=%08llx", path.c_str(), mFsId, fid);
       return false;

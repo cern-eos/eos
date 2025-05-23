@@ -307,6 +307,14 @@ set(XRDEOSFST_SRCS
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 
+#-------------------------------------------------------------------------------
+# Disable -Wsign-compare warnings due to
+# grpcpp/support/proto_buffer_reader.h:157:24: warning: comparison of
+# integer expressions of different signedness: ‘uint64_t’ {aka ‘long
+# unsigned int’} and ‘int’ [-Wsign-compare
+#-------------------------------------------------------------------------------
+target_compile_options(XrdEosFst-Objects PUBLIC -Wno-sign-compare)
+
 target_link_libraries(XrdEosFst-Objects PUBLIC
   EosFstProto-Objects
   EosCliProto-Objects

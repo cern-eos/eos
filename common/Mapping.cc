@@ -1396,12 +1396,12 @@ Mapping::Print(XrdOucString& stdOut, XrdOucString option)
       // delete all the " characters
       authmethod.erase(std::remove(authmethod.begin(), authmethod.end(), '"'),
                        authmethod.end());
-      int dpos = authmethod.find("@");
+      auto dpos = authmethod.find("@");
 
       if ((dpos != std::string::npos) && (authmethod.length() > dpos + 1)) {
         std::string protocol = authmethod.substr(0, dpos);
         protocol = ((protocol == "*") ? "all" : protocol);
-        int cpos = authmethod.rfind(':');
+        auto cpos = authmethod.rfind(':');
         std::string hostname = authmethod.substr(dpos + 1, cpos - dpos - 1);
         std::ostringstream oss;
         oss << "gateway=" << hostname << " auth=" << protocol

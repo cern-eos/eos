@@ -69,7 +69,8 @@ public:
       return &mVid;
     }
 
-    eos::fusex::cap* operator()() {
+    eos::fusex::cap* operator()()
+    {
       return &proto;
     }
 
@@ -93,7 +94,8 @@ public:
   typedef std::unordered_set<authid_t> authid_set_t;
   typedef std::unordered_map<uint64_t, authid_set_t> ino_map_t;
   typedef std::unordered_set<uint64_t> ino_set_t;
-  typedef std::unordered_map<uint64_t, authid_set_t> notify_set_t; // inode=>set(authid_t)
+  typedef std::unordered_map<uint64_t, authid_set_t>
+  notify_set_t; // inode=>set(authid_t)
   typedef std::unordered_map<clientid_t, authid_set_t> client_set_t;
   typedef std::unordered_map<clientid_t, ino_map_t> client_ino_map_t;
 
@@ -128,11 +130,12 @@ public:
 
     // TODO: C++17 - move initialization inside if
     auto it = mCaps.find(id);
+
     if (it != mCaps.end()) {
       shared_cap cap = it->second;
-      uint64_t now = (uint64_t) time(NULL);
+      int64_t now = (int64_t) time(NULL);
 
-      if (((*cap)()->vtime() + 10) <= now) {
+      if (((*cap)()->vtime() + 10) <= (uint64_t)now) {
         return Remove(cap);
       } else {
         if ((idtime + 10) <= now) {
@@ -157,41 +160,41 @@ public:
   void dropCaps(const std::string& uuid)
   {
     eos_static_info("drop client caps: %s", uuid.c_str());
-
     std::vector<shared_cap> deleteme;
     {
       std::lock_guard lg(mtx);
 
-      for (auto it=mCaps.begin(); it!=mCaps.end(); ++it) {
+      for (auto it = mCaps.begin(); it != mCaps.end(); ++it) {
         if ((*it->second)()->clientuuid() == uuid) {
           deleteme.push_back(it->second);
         }
       }
     }
     {
-      for (auto it=deleteme.begin(); it!=deleteme.end(); ++it) {
+      for (auto it = deleteme.begin(); it != deleteme.end(); ++it) {
         std::lock_guard lg(mtx);
         shared_cap cap = *it;
         Remove(*it);
       }
     }
-
     // cleanup by client ids
     {
       std::lock_guard lg(mtx);
       auto uuid_iter = mClientIds.find(uuid);
+
       if (uuid_iter != mClientIds.end()) {
         for (auto it = uuid_iter->second.begin(); it != uuid_iter->second.end(); ++it) {
           mClientCaps.erase(*it);
           mClientInoCaps.erase(*it);
         }
+
         mClientIds.erase(uuid_iter);
       }
     }
   }
 
   template <typename... Args>
-  bool RemoveTS(Args&&... args)
+  bool RemoveTS(Args&& ... args)
   {
     std::lock_guard lg(mtx);
     return Remove(std::forward<Args>(args)...);
@@ -201,7 +204,6 @@ public:
   {
     // you have to have a write lock for the caps
     bool rc = mCaps.erase((*cap)()->authid());
-
     mInodeCaps[(*cap)()->id()].erase((*cap)()->authid());
 
     if (!mInodeCaps[(*cap)()->id()].size()) {
@@ -214,7 +216,7 @@ public:
       mClientInoCaps[(*cap)()->clientid()].erase((*cap)()->id());
 
       if (!mClientInoCaps[(*cap)()->clientid()].size()) {
-	mClientInoCaps.erase((*cap)()->clientid());
+        mClientInoCaps.erase((*cap)()->clientid());
       }
     }
 
@@ -223,15 +225,17 @@ public:
     if (mClientCaps[(*cap)()->clientid()].size() == 0) {
       mClientCaps.erase((*cap)()->clientid());
     }
+
     return rc;
   }
 
   int Delete(uint64_t id);
 
-  shared_cap Get(const authid_t& id, bool make_default=true);
+  shared_cap Get(const authid_t& id, bool make_default = true);
 
   template <typename... Args>
-  auto GetTS(Args&&... args) {
+  auto GetTS(Args&& ... args)
+  {
     std::lock_guard lg(mtx);
     return Get(std::forward<Args>(args)...);
   }
@@ -244,26 +248,26 @@ public:
   int BroadcastDeletion(uint64_t inode,
                         const eos::fusex::md& md,
                         const std::string& name,
-			struct timespec& p_mtime);
+                        struct timespec& p_mtime);
 
   int BroadcastRefresh(uint64_t
                        inode,
                        const eos::fusex::md& md,
                        uint64_t
                        parent_inode,
-		       bool notprot5 = false
-		       ); // broad cast triggered by fuse network
+                       bool notprot5 = false
+                      ); // broad cast triggered by fuse network
 
   int BroadcastRefreshFromExternal(uint64_t
                                    inode,
                                    uint64_t
                                    parent_inode,
-				   bool notprot5 = false
-				   ); // broad cast triggered non-fuse network
+                                   bool notprot5 = false
+                                  ); // broad cast triggered non-fuse network
 
   int BroadcastDeletionFromExternal(uint64_t inode,
                                     const std::string& name,
-				    struct timespec& p_mtime);
+                                    struct timespec& p_mtime);
 
   int BroadcastMD(const eos::fusex::md& md,
                   uint64_t md_ino,
@@ -279,14 +283,15 @@ public:
     return mCaps;
   }
 
-  auto GetAllCaps() {
-
+  auto GetAllCaps()
+  {
     std::vector<shared_cap> results;
-
     std::lock_guard lg(mtx);
-    for (const auto& kv: mCaps) {
+
+    for (const auto& kv : mCaps) {
       results.push_back(kv.second);
     }
+
     return results;
   }
 
@@ -299,10 +304,12 @@ public:
                   uint64_t id)
   {
     std::lock_guard lg(mtx);
+
     if (auto kv = mClientInoCaps.find(client_id);
         kv != mClientInoCaps.end()) {
       return kv->second.count(id) > 0;
     }
+
     return false;
   }
 
@@ -311,6 +318,7 @@ public:
   {
     authid_set_t results;
     std::lock_guard lg(mtx);
+
     if (auto kv = mClientInoCaps.find(client_id);
         kv != mClientInoCaps.end()) {
       if (auto auth_ids = kv->second.find(id);
@@ -320,6 +328,7 @@ public:
                   std::inserter(results, results.begin()));
       }
     }
+
     return results;
   }
 
@@ -343,22 +352,25 @@ public:
     return mClientIds;
   }
 
-  std::string Dump() {
+  std::string Dump()
+  {
     std::string s;
     std::lock_guard lg(mtx);
-    s = std::to_string(mTimeOrderedCap.size()) + " c: " + std::to_string(mCaps.size()) + " cc: "
-      + std::to_string(mClientCaps.size()) + " cic: " + std::to_string(mClientInoCaps.size()) + " ic: "
-      + std::to_string(mInodeCaps.size());
+    s = std::to_string(mTimeOrderedCap.size()) + " c: " + std::to_string(
+          mCaps.size()) + " cc: "
+        + std::to_string(mClientCaps.size()) + " cic: " + std::to_string(
+          mClientInoCaps.size()) + " ic: "
+        + std::to_string(mInodeCaps.size());
     return s;
   }
 
   // Given a pid, return a vector of shared caps matching this
   // if a reference cap and mdptr are given, these ids are excluded
   std::vector<shared_cap> GetBroadcastCapsTS(uint64_t pid,
-                                             shared_cap refcap = nullptr,
-                                             const eos::fusex::md* mdptr = nullptr,
-                                             bool suppress=false,
-                                             std::string suppress_stat_tag="");
+      shared_cap refcap = nullptr,
+      const eos::fusex::md* mdptr = nullptr,
+      bool suppress = false,
+      std::string suppress_stat_tag = "");
 
 
 

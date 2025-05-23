@@ -30,14 +30,15 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-class ConversionTag {
+class ConversionTag
+{
 public:
   static std::string
   Get(unsigned long long fid, std::string space, unsigned int layoutid,
       std::string plctplcy, bool ctime_update = true)
   {
     char conversion[1024];
-    snprintf(conversion,sizeof(conversion)-1,"%08lx", layoutid);
+    snprintf(conversion, sizeof(conversion) - 1, "%08x", layoutid);
     return Get(fid, space, conversion, plctplcy, ctime_update);
   }
 
@@ -46,17 +47,21 @@ public:
       std::string plctplcy, bool ctime_update = true)
   {
     char conversiontagfile[4096];
+
     if (plctplcy.length()) {
       // requires a ~ separator
       plctplcy.insert(0, "~");
     }
+
     snprintf(conversiontagfile, sizeof(conversiontagfile) - 1,
              "%016llx:%s#%s%s", fid,
              space.c_str(), conversion.c_str(), plctplcy.c_str());
     std::string conv_tag = conversiontagfile;
+
     if (ctime_update) {
       conv_tag += eos::mgm::ConversionInfo::UPDATE_CTIME;
     }
+
     return conv_tag;
   }
 };

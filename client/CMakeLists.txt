@@ -24,6 +24,14 @@
 include_directories(${CMAKE_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
+# Disable -Wsign-compare warnings due to
+# grpcpp/support/proto_buffer_reader.h:157:24: warning: comparison of
+# integer expressions of different signedness: ‘uint64_t’ {aka ‘long
+# unsigned int’} and ‘int’ [-Wsign-compare]
+#-------------------------------------------------------------------------------
+add_compile_options(-Wno-sign-compare)
+
+#-------------------------------------------------------------------------------
 # eos executable
 #-------------------------------------------------------------------------------
 add_library(EosGrpcClient-Objects OBJECT

@@ -296,7 +296,7 @@ struct ClusterData {
 
 inline bool isValidBucketId(item_id_t id, const ClusterData& data)
 {
-  return id < 0 && (-id < data.buckets.size());
+  return id < 0 && (-id < (int)data.buckets.size());
 }
 
 

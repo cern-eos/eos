@@ -21,6 +21,14 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+#-------------------------------------------------------------------------------
+# Disable -Wsign-compare warnings due to
+# grpcpp/support/proto_buffer_reader.h:157:24: warning: comparison of
+# integer expressions of different signedness: ‘uint64_t’ {aka ‘long
+# unsigned int’} and ‘int’ [-Wsign-compare]
+#-------------------------------------------------------------------------------
+add_compile_options(-Wno-sign-compare)
+
 set(EOS_CTA_PB_DIR ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/eos_cta/protobuf/)
 PROTOBUF_GENERATE_CPP(CTA_ADMIN_SRCS CTA_ADMIN_HDRS ${EOS_CTA_PB_DIR}/cta_admin.proto)
 PROTOBUF_GENERATE_CPP(CTA_COMMON_SRCS CTA_COMMON_HDRS ${EOS_CTA_PB_DIR}/cta_common.proto)

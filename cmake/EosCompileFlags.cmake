@@ -42,10 +42,10 @@ add_compile_definitions(EOSCITRINE VERSION="${VERSION}" RELEASE="${RELEASE}")
 #-------------------------------------------------------------------------------
 
 add_compile_options(-Wall
+  # Keeping this in for OpenSSL the new EVP API is still slower the the old
+  # one so there no point in changing it for the moment
+  # https://github.com/openssl/openssl/issues/25858
   -Wno-deprecated-declarations
-  -Wno-format
-  -Wno-format-security
-  -Wno-sign-compare
   -Werror=return-type
 )
 
