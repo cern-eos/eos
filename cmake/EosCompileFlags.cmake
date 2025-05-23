@@ -45,21 +45,7 @@ add_compile_options(-Wall
   -Wno-deprecated-declarations
   -Wno-format
   -Wno-format-security
-  -Wno-int-in-bool-context
-  -Wno-maybe-uninitialized
-  -Wno-parentheses
-  -Wno-pragmas
   -Wno-sign-compare
-  -Wno-type-limits
-  -Wno-unused-parameter
-  -Wno-vla
-  $<$<COMPILE_LANGUAGE:CXX>:-Wno-class-memaccess>
-  $<$<COMPILE_LANGUAGE:CXX>:-Wno-deprecated-copy>
-  $<$<COMPILE_LANGUAGE:CXX>:-Wno-inaccessible-base>
-  $<$<COMPILE_LANGUAGE:CXX>:-Wno-interference-size>
-  $<$<COMPILE_LANGUAGE:CXX>:-Wno-mismatched-new-delete>
-  $<$<COMPILE_LANGUAGE:CXX>:-Wno-redundant-move>
-  $<$<COMPILE_LANGUAGE:CXX>:-Wno-reorder>
   -Werror=return-type
 )
 

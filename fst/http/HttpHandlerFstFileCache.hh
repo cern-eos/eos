@@ -75,7 +75,8 @@ EOSFSTNAMESPACE_BEGIN
  * Removal of entries which are unused (too old) is done by a watcher
  * thread.
  */
-class HttpHandlerFstFileCache {
+class HttpHandlerFstFileCache
+{
 public:
 
   struct EntryGuard;
@@ -83,12 +84,11 @@ public:
   /**
    * Object to represent Entry's Key.
    */
-  struct Key
-  {
+  struct Key {
     Key() : omode_(0) { }
 
-    Key(const std::string &name, const std::string &url,
-        const std::string &query, XrdSfsFileOpenMode omode) :
+    Key(const std::string& name, const std::string& url,
+        const std::string& query, XrdSfsFileOpenMode omode) :
       name_(name), url_(url), query_(query), omode_(omode) { }
 
     void clear()
@@ -112,18 +112,42 @@ public:
              name_  == other.name_;
     }
 
-    bool operator<(const Key &rhs) const
+    bool operator<(const Key& rhs) const
     {
-      if (omode_ < rhs.omode_) return true;
-      if (omode_ > rhs.omode_) return false;
+      if (omode_ < rhs.omode_) {
+        return true;
+      }
+
+      if (omode_ > rhs.omode_) {
+        return false;
+      }
+
       int c = url_.compare(rhs.url_);
-      if (c<0) return true;
-      if (c>0) return false;
+
+      if (c < 0) {
+        return true;
+      }
+
+      if (c > 0) {
+        return false;
+      }
+
       c = query_.compare(rhs.query_);
-      if (c<0) return true;
-      if (c>0) return false;
+
+      if (c < 0) {
+        return true;
+      }
+
+      if (c > 0) {
+        return false;
+      }
+
       c = name_.compare(rhs.name_);
-      if (c<0) return true;
+
+      if (c < 0) {
+        return true;
+      }
+
       return false;
     }
 
@@ -139,19 +163,22 @@ public:
   struct Entry {
     Entry() : itime_(0), fp_(0) { }
 
-    void set(const Key &k, XrdFstOfsFile* const v) {
+    void set(const Key& k, XrdFstOfsFile* const v)
+    {
       key_ = k;
       fp_ = v;
       itime_ = 0;
     }
 
-    void clear() {
+    void clear()
+    {
       key_.clear();
       itime_ = 0;
       fp_ = 0;
     }
 
-    XrdFstOfsFile *getfp() {
+    XrdFstOfsFile* getfp()
+    {
       return fp_;
     }
 
@@ -162,7 +189,7 @@ public:
 
     Key key_;
     uint64_t itime_;
-    XrdFstOfsFile *fp_;
+    XrdFstOfsFile* fp_;
     std::multimap<Key, std::list<EntryGuard>::iterator>::iterator mapitr_;
   };
 
@@ -171,8 +198,12 @@ public:
    * an lifetime guared for the XrdFstOfsFile* part of the entry while it is cached.
    */
   struct EntryGuard {
-    EntryGuard(const Entry &e) : entry_(e), own_(true) { }
-    ~EntryGuard() {
+    EntryGuard(const Entry& e):
+      own_(true), entry_(e)
+    { }
+
+    ~EntryGuard()
+    {
       if (own_ && entry_.fp_) {
         entry_.fp_->close();
         delete entry_.fp_;
@@ -180,19 +211,22 @@ public:
     }
 
     // no copying
-    EntryGuard(const EntryGuard &) = delete;
-    EntryGuard& operator=(const EntryGuard &) = delete;
+    EntryGuard(const EntryGuard&) = delete;
+    EntryGuard& operator=(const EntryGuard&) = delete;
 
-    Entry release() {
+    Entry release()
+    {
       own_ = false;
       return entry_;
     }
 
-    Entry &get() {
+    Entry& get()
+    {
       return entry_;
     }
 
-    const Entry *operator->() const {
+    const Entry* operator->() const
+    {
       return &entry_;
     }
 
@@ -211,12 +245,12 @@ public:
   /**
    * Insert and entry into the cache.
    */
-  bool           insert(const Entry &e);
+  bool           insert(const Entry& e);
 
   /**
    * Remove an entry from the cache.
    */
-  Entry          remove(const Key &k);
+  Entry          remove(const Key& k);
 
   typedef std::list<EntryGuard> GuardList;
   typedef std::multimap<Key, std::list<EntryGuard>::iterator> KeyMap;

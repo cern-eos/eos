@@ -79,7 +79,8 @@ std::map<std::string, gid_t> Mapping::gPhysicalGroupIdCache;
 
 Mapping::ip_cache Mapping::gIpCache(300);
 
-std::unique_ptr<UnixGroupsFetcher> Mapping::gGroupsFetcher(new UnixGroupListFetcher());
+std::unique_ptr<UnixGroupsFetcher> Mapping::gGroupsFetcher(
+  new UnixGroupListFetcher());
 
 OAuth Mapping::gOAuth;
 
@@ -119,10 +120,11 @@ Mapping::Init()
   if (getenv("EOS_SECONDARY_GROUPS") &&
       !strcmp("1", getenv("EOS_SECONDARY_GROUPS"))) {
     gSecondaryGroups = true;
+
     if (getenv("EOS_SECONDARY_GROUPS_GRENT") &&
         !strcmp("1", getenv("EOS_SECONDARY_GROUPS_GRENT"))) {
       gGroupsFetcher.reset(new UnixGrentFetcher());
-      }
+    }
   }
 
   gOAuth.Init();
@@ -2066,8 +2068,8 @@ Mapping::addSecondaryGroups(VirtualIdentity& vid, const std::string& name,
   if (!gSecondaryGroups) {
     return;
   }
-  populateGroups(name,gid,vid, gGroupsFetcher.get());
 
+  populateGroups(name, gid, vid, gGroupsFetcher.get());
 }
 
 
@@ -2425,7 +2427,7 @@ Mapping::PrintJWT(const std::string accesstoken, bool dense)
       ss << "claims:[";
 
       try {
-        for (auto& e : decoded.get_payload_claims()) {
+        for (auto& e : decoded.get_payload_json()) {
           ss << e.first << ":" << e.second << ",";
         }
       } catch (...) {}
@@ -2437,7 +2439,7 @@ Mapping::PrintJWT(const std::string accesstoken, bool dense)
       ss << "{" << std::endl;;
 
       try {
-        for (auto& e : decoded.get_payload_claims()) {
+        for (auto& e : decoded.get_payload_json()) {
           ss << std::left << std::setw(22) << " " << e.first << ":" << e.second << "," <<
              std::endl;
         }

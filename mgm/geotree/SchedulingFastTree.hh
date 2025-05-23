@@ -1161,13 +1161,13 @@ protected:
     } else {
       // in this case all weights are 0 -> uniform probability
       return pBranches[pNodes[node].treeData.firstBranchIdx +
-                       eos::common::getRandom() % nBranches].sonIdx;
+                                                            eos::common::getRandom() % nBranches].sonIdx;
     }
   }
 
   inline bool
   getRandomBranchGeneric(const tFastTreeIdx& brchBegIdx,
-                         const tFastTreeIdx& brchEndIdx, tFastTreeIdx* const& output ,
+                         const tFastTreeIdx& brchEndIdx, tFastTreeIdx* const& output,
                          bool* visitedNode) const
   {
     if (brchBegIdx >= brchEndIdx) {
@@ -1227,7 +1227,7 @@ protected:
               const tFastTreeIdx& modified) const
   {
     __EOSMGM_TREECOMMON_DBG3__ eos_static_debug("findNewRank: %d %d %d\n",
-        (int) left , (int) right , (int) modified);
+        (int) left, (int) right, (int) modified);
 
     if (right == left) {
       return right;
@@ -1315,7 +1315,7 @@ protected:
     {
       tFastTreeIdx newrank = findNewRank(firstBranchIdx,
                                          firstBranchIdx + nbChildren - 1, modifiedBranchIdx);
-      __EOSMGM_TREECOMMON_DBG3__ eos_static_debug("findNewRank returned %d\n" ,
+      __EOSMGM_TREECOMMON_DBG3__ eos_static_debug("findNewRank returned %d\n",
           (int) newrank);
       // in any other case, memory move is involved inside the branches array
       // keep a copy of the branch
@@ -1708,7 +1708,7 @@ public:
 
   inline bool
   _findFreeSlotsAll(tFastTreeIdx*& idxs, tFastTreeIdx& sizeIdxs,
-                    tFastTreeIdx startFrom, bool allowUpRoot , tFastTreeIdx callerNode,
+                    tFastTreeIdx startFrom, bool allowUpRoot, tFastTreeIdx callerNode,
                     const int& statusMask,
                     tFastTreeIdx* upRootLevelsCount, tFastTreeIdx* upRootLevelsIdxs,
                     tFastTreeIdx* upRootLevels, tFastTreeIdx currentUpRootLevel) const
@@ -1942,10 +1942,12 @@ public:
     // adjust the value of some of them
     (*destFastTree) = *this;
     destFastTree->pNodes = (FastTreeNode*)(buffer += sizeof(tSelf));
-    memcpy(destFastTree->pNodes, pNodes, (sizeof(FastTreeNode)) * pNodeCount);
+    memcpy((void*)destFastTree->pNodes, pNodes,
+           (sizeof(FastTreeNode)) * pNodeCount);
     destFastTree->pBranches = (Branch*)(buffer += sizeof(FastTreeNode) *
                                         pNodeCount);
-    memcpy(destFastTree->pBranches, pBranches, (sizeof(Branch)) * pNodeCount);
+    memcpy((void*)destFastTree->pBranches, pBranches,
+           (sizeof(Branch)) * pNodeCount);
     return 0;
   }
 
@@ -2338,9 +2340,9 @@ copyFastTree(FastTree<T1, T2, T3>* dest, const FastTree<T4, T5, T6>* src)
   dest->pTreeInfo = src->pTreeInfo;
   dest->pNodeCount = src->pNodeCount;
   // copy the nodes and the branches
-  memcpy(dest->pNodes, src->pNodes,
+  memcpy((void*)dest->pNodes, src->pNodes,
          (sizeof(typename FastTree<T1, T2>::FastTreeNode)) * src->pNodeCount);
-  memcpy(dest->pBranches, src->pBranches,
+  memcpy((void*)dest->pBranches, src->pBranches,
          (sizeof(typename FastTree<T1, T2>::Branch)) * src->pNodeCount);
   return 0;
 }

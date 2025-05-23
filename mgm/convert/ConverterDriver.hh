@@ -50,7 +50,8 @@ static const std::string kConverterMaxQueueSize {"converter-max-queuesize"};
 class ConverterDriver : public eos::common::LogId
 {
 public:
-  using JobInfoT = std::tuple<eos::IFileMD::id_t, std::string, std::shared_ptr<XrdOucCallBack>>;
+  using JobInfoT =
+    std::tuple<eos::IFileMD::id_t, std::string, std::shared_ptr<XrdOucCallBack>>;
   using JobFailedT = std::pair<std::string, std::string>;
   using JobStatusT = ConversionJobStatus;
   using ObserverT = eos::common::ObserverMgr<JobStatusT, std::string>;
@@ -59,11 +60,11 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   ConverterDriver(const eos::QdbContactDetails& qdb_details) :
-    mQdbHelper(qdb_details), mIsRunning(false),
+    mQdbHelper(qdb_details), mIsRunning(false),  mFailed(0),
     mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
                 10, 5, 3, "converter"),
     mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
-    mMaxQueueSize(cDefaultMaxQueueSize), mTimestamp(), mFailed(0),
+    mMaxQueueSize(cDefaultMaxQueueSize), mTimestamp(),
     mObserverMgr(std::make_unique<ObserverT>(4)),
     mConfigStore(std::make_unique<GlobalConfigStore>(&FsView::gFsView))
   {}

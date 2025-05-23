@@ -294,7 +294,8 @@ extern "C" {
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ConfigFN(0), ConfEngine(0), mCapabilityValidity(3600),
   mMgmMessaging(nullptr), ManagerPort(1094), LinuxStatsStartup{0},
-  HostName(0), HostPref(0), mNamespaceState(NamespaceState::kDown),
+  HostName(0), HostPref(0),   protowfusegrpc(false),
+  mNamespaceState(NamespaceState::kDown),
   mFileInitTime(0), mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)),
   Shutdown(false), mBootFileId(0), mBootContainerId(0), IsRedirect(true),
   IsStall(true), mAuthorize(false), mAuthLib(""), mTapeEnabled(false),
@@ -302,7 +303,8 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   MgmRedirector(false), mErrLogEnabled(true), eosDirectoryService(0),
   eosFileService(0), eosView(0), eosFsView(0), eosContainerAccounting(0),
   eosSyncTimeAccounting(0), mFrontendPort(0), mNumAuthThreads(0),
-  mFrontendLocalhost(1), zMQ(nullptr), mExtAuthz(nullptr),
+  mFrontendLocalhost(1), zMQ(nullptr),
+  mMgmAuthz(nullptr), mTokenAuthz(nullptr), mExtAuthz(nullptr),
   MgmStatsPtr(new eos::mgm::Stat()),  MgmStats(*MgmStatsPtr),
   mFsckEngine(new Fsck()), mMaster(nullptr),
   mRouting(new eos::mgm::PathRouting()), mConverterDriver(),
@@ -316,8 +318,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mBehaviourCfg(new eos::common::BehaviourConfig()),
   mDoneOrderlyShutdown(false),
   mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
-  mJeMallocHandler(new eos::common::JeMallocHandler()),
-  protowfusegrpc(false)
+  mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;
   ConfigFN = 0;
@@ -1613,7 +1614,8 @@ XrdMgmOfs::RemoveDetached(uint64_t id, bool is_dir, bool force,
 
   if (is_dir) {
     try {
-      std::shared_ptr<eos::IContainerMD> cont = gOFS->eosDirectoryService->getContainerMD(id);
+      std::shared_ptr<eos::IContainerMD> cont =
+        gOFS->eosDirectoryService->getContainerMD(id);
       eos::MDLocking::ContainerWriteLock contLock(cont.get());
 
       if (cont->getParentId()) {

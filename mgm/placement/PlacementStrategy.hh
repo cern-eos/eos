@@ -198,7 +198,7 @@ struct PlacementArguments {
                      ConfigStatus status, uint64_t fid,
                      selection_rules_t rules)
     : bucket_id(bucket_id), n_replicas(n_replicas), status(status),
-      fid(fid), rules(rules), default_placement(false)
+      fid(fid), default_placement(false), rules(rules)
   {
   }
 
@@ -212,7 +212,7 @@ struct PlacementArguments {
   PlacementArguments(uint8_t n_replicas, ConfigStatus _status,
                      PlacementStrategyT _strategy)
     : bucket_id(0), n_replicas(n_replicas), status(_status), fid(0),
-      rules(kDefault2Replica), default_placement(true), strategy(_strategy)
+      default_placement(true), rules(kDefault2Replica), strategy(_strategy)
   {
   }
 
@@ -233,7 +233,7 @@ struct PlacementArguments {
 
   PlacementArguments(item_id_t bucket_id, uint8_t n_replicas, ConfigStatus status)
     : bucket_id(bucket_id), n_replicas(n_replicas), status(status),
-      fid(0), rules(kDefault2Replica), default_placement(true)
+      fid(0), default_placement(true), rules(kDefault2Replica)
   {
   }
 

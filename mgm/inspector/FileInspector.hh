@@ -156,6 +156,7 @@ private:
 
     const std::string kFileInspectorStatsKey = "eos-file-inspector-stats";
   };
+
   QdbHelper mQdbHelper; ///< QuarkDB helper object
 };
 

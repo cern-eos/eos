@@ -47,8 +47,9 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 FileInspector::FileInspector(std::string_view space_name,
-                             const eos::QdbContactDetails& qdb_details) : mQdbHelper(qdb_details), nfiles(0),
-  ndirs(0), mSpaceName(space_name)
+                             const eos::QdbContactDetails& qdb_details) :
+  nfiles(0), ndirs(0), mSpaceName(space_name),
+  mQdbHelper(qdb_details)
 {
   mVid = eos::common::VirtualIdentity::Root();
   mThread.reset(&FileInspector::backgroundThread, this);

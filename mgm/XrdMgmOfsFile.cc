@@ -652,7 +652,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // transfer
     const char* ossTask = nullptr;
 
-    if (ossTask = openOpaque->Get("oss.task")) {
+    if ((ossTask = openOpaque->Get("oss.task"))) {
       // We have oss.task opaque, check if it is equal to httptpc
       // (set by XrdTpcTPC)
       if (!strncmp("httptpc", ossTask, 7)) {

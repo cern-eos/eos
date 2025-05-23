@@ -95,41 +95,40 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
     auto audiences = decoded.get_audience();
     auto exp = decoded.get_expires_at();
     auto iss = decoded.get_issuer();
-    
     std::string iss_resource = iss + "/protocol/openid-connect/userinfo";
-    
+
     if (resource.empty()) {
       // if we have a plain token without oauth2:token:resource wrapping, we build the resource from iss
       resource = iss_resource;
     }
-    
+
     expires = std::chrono::system_clock::to_time_t(exp);
     bool audience_match = false;
     std::stringstream s;
-    
-    for (auto& e : decoded.get_payload_claims()) {
+
+    for (auto& e : decoded.get_payload_json()) {
       s << e.first << "=" << e.second << " ";
     }
-    
+
     eos_static_info("token='%s...' claims=[ %s ]",
-		    accesstoken.substr(0, 20).c_str(),
-		    s.str().c_str());
-    
+                    accesstoken.substr(0, 20).c_str(),
+                    s.str().c_str());
+
     if (Mapping::IsOAuth2Resource(resource)) {
       // no audience require
       audience_match = true;
     } else {
       for (auto it = audiences.begin(); it != audiences.end(); ++it) {
-	std::string audience_resource = resource + "@";
-	audience_resource += *it;
-	
-	if (Mapping::IsOAuth2Resource(audience_resource)) {
-	  audience_match = true;
-	  break;
-	}
+        std::string audience_resource = resource + "@";
+        audience_resource += *it;
+
+        if (Mapping::IsOAuth2Resource(audience_resource)) {
+          audience_match = true;
+          break;
+        }
       }
     }
-    
+
     if (!audience_match) {
       eos_static_err("msg=\"rejecing - no audience matches\"");
       return EPERM;
@@ -192,7 +191,9 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
       Json::CharReaderBuilder reader;
       std::unique_ptr<Json::CharReader> jsonReader;
       jsonReader.reset(reader.newCharReader());
-      if (jsonReader->parse((*httpData.get()).c_str(), (*httpData.get()).c_str() + (*httpData.get()).length(), &jsonData, &errs)) {
+
+      if (jsonReader->parse((*httpData.get()).c_str(),
+                            (*httpData.get()).c_str() + (*httpData.get()).length(), &jsonData, &errs)) {
         if (EOS_LOGS_DEBUG) {
           std::cerr << "Successfully parsed JSON data" << std::endl;
           std::cerr << "\nJSON data received:" << std::endl;
@@ -280,15 +281,15 @@ OAuth::Handle(const std::string& info, eos::common::VirtualIdentity& vid)
 
   OAuth::AuthInfo oinfo;
   time_t expires = strtoull(tokens[3].c_str(), 0, 10);
-  
+
   if (!Validate(oinfo, tokens[1], tokens[2], tokens[4], expires)) {
     // valid token, now map the user name
     eos_static_info("username='%s' name='%s' federation='%s' email='%s' expires=%llu",
-		    oinfo["username"].c_str(),
-		    oinfo["name"].c_str(),
-		    oinfo["federation"].c_str(),
-		    oinfo["email"].c_str(),
-		    expires);
+                    oinfo["username"].c_str(),
+                    oinfo["name"].c_str(),
+                    oinfo["federation"].c_str(),
+                    oinfo["email"].c_str(),
+                    expires);
     vid.federation = oinfo["federation"];
     vid.email = oinfo["email"];
     vid.fullname = oinfo["name"];

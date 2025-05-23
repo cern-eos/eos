@@ -35,10 +35,14 @@ EOSMGMNAMESPACE_BEGIN
 
 struct XattrLock {
 public:
-  XattrLock() : valid(false), expires(0), isshared(false), isfuseopen(false) {}
+  XattrLock() :
+    valid(false), isfuseopen(false), isshared(false), expires(0)
+  {}
 
-  XattrLock(eos::IFileMD::XAttrMap& attr) : xattr(attr), valid(false), expires(0),
-    isshared(false), isfuseopen(false)
+  XattrLock(eos::IFileMD::XAttrMap& attr) :
+    xattr(attr), valid(false), isfuseopen(false),
+    isshared(false), expires(0)
+
   {
     auto l = xattr.find(eos::common::EOS_APP_LOCK_ATTR);
 

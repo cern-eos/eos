@@ -29,7 +29,9 @@ class XrdFstOfs;
 class XrdOfsPathHandler final: public FSPathHandler
 {
 public:
-  XrdOfsPathHandler(XrdFstOfs const* pOFS): mOFS(pOFS), FSPathHandler() {}
+  XrdOfsPathHandler(XrdFstOfs const* pOFS):
+    FSPathHandler(), mOFS(pOFS)
+  {}
 
   std::string GetFSPath(eos::common::FileSystem::fsid_t fsid) override;
 
