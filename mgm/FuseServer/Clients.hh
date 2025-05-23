@@ -158,6 +158,17 @@ public:
     return mMap;
   }
 
+
+  std::string client2app (const std::string& clientid) {
+    eos::common::RWMutexReadLock lLock(*this);
+    auto client = map().find(clientid);
+    if (client != map().end()) {
+      return client->second.heartbeat().appname();
+    }
+    // return just generic 'fuse' app if we don't find the client
+    return "fuse";
+  }
+
   client_uuid_t& uuidview()
   {
     return mUUIDView;

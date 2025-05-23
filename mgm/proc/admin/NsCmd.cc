@@ -734,7 +734,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   if (!stat.summary()) {
     XrdOucString stats_out;
     gOFS->MgmStats.PrintOutTotal(stats_out, stat.groupids(), monitoring,
-                                 stat.numericids());
+                                 stat.numericids(), stat.apps());
     oss << stats_out.c_str();
   }
 
