@@ -68,8 +68,10 @@ public:
     endpoint = endpoint_str;
     constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
     // grpc::SslCredentialsOptions ssl_options;
-    auto certificate_provider = std::make_shared<grpc::experimental::FileWatcherCertificateProvider>("", "", RootCertificate, 1);
-    grpc::experimental::TlsChannelCredentialsOptions tls_options(certificate_provider);
+    auto certificate_provider = std::make_shared<grpc::experimental::StaticDataCertificateProvider>(file2string(RootCertificate));
+    // auto certificate_provider = std::make_shared<grpc::experimental::FileWatcherCertificateProvider>("", "", RootCertificate, 1);
+    grpc::experimental::TlsChannelCredentialsOptions tls_options;
+    tls_options.set_certificate_provider(certificate_provider);
     tls_options.watch_root_certs();
     tls_options.set_root_cert_name("Root CA"); // cta-frontend-grpc for key identity name
     // tls_options.set_identity_cert_name("cta-frontend-grpc");
