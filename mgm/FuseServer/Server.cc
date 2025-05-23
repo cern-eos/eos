@@ -380,7 +380,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
 
     if (dir.operation() == dir.LS) {
       // we put a hard-coded listing limit for service protection
-      if (vid.app != "fuse::restic") {
+      if (vid.app != gOFS->mFuseNoStallApp) {
         // no restrictions for restic backups
         if ((uint64_t)dir.nchildren() > c_max_children) {
           // xrootd does not handle E2BIG ... sigh
@@ -1158,7 +1158,7 @@ Server::OpBeginFlush(const std::string& id,
                      std::string* response,
                      uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::BEGINFLUSH", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::BEGINFLUSH", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::BEGINFLUSH");
   // this is a flush begin/end indicator
   Flushs().beginFlush(md.md_ino(), md.clientuuid());
@@ -1180,7 +1180,7 @@ Server::OpEndFlush(const std::string& id,
                    std::string* response,
                    uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::ENDFLUSH", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::ENDFLUSH", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::ENDFLUSH");
   Flushs().endFlush(md.md_ino(), md.clientuuid());
   eos::fusex::response resp;
@@ -1221,10 +1221,10 @@ Server::OpGetLs(const std::string& id,
                       "Eosxd::ext::GET");
 
     if (md.operation() == md.LS) {
-      gOFS->MgmStats.Add("Eosxd::ext::LS", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::LS", vid.uid, vid.gid, 1, vid.app);
       (*parent)[md.md_ino()].set_operation(md.LS);
     } else {
-      gOFS->MgmStats.Add("Eosxd::ext::GET", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::GET", vid.uid, vid.gid, 1, vid.app);
     }
 
     size_t n_attached = 1;
@@ -1246,7 +1246,7 @@ Server::OpGetLs(const std::string& id,
         auto map = (*parent)[md.md_ino()].children();
         auto it = map.begin();
         size_t n_caps = 0;
-        gOFS->MgmStats.Add("Eosxd::ext::LS-Entry", vid.uid, vid.gid, map.size());
+        gOFS->MgmStats.Add("Eosxd::ext::LS-Entry", vid.uid, vid.gid, map.size(), vid.app);
 
         for (; it != map.end(); ++it) {
           // this is a map by inode
@@ -1394,7 +1394,7 @@ Server::OpSet(const std::string& id,
               std::string* response,
               uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::SET", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::SET", vid.uid, vid.gid, 1, vid.app);
 
   if (!ValidateCAP(md, W_OK | SA_OK, vid)) {
     std::string perm = "W";
@@ -1436,7 +1436,7 @@ Server::OpSetDirectory(const std::string& id,
                        std::string* response,
                        uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::SETDIR", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::SETDIR", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETDIR");
   uint64_t md_pino = md.md_pino();
 
@@ -1719,19 +1719,19 @@ Server::OpSetDirectory(const std::string& id,
 
     switch (op) {
     case MOVE:
-      gOFS->MgmStats.Add("Eosxd::ext::MV", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::MV", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case UPDATE:
-      gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case CREATE:
-      gOFS->MgmStats.Add("Eosxd::ext::MKDIR", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::MKDIR", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case RENAME:
-      gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid.uid, vid.gid, 1, vid.app);
       break;
     }
 
@@ -1800,7 +1800,7 @@ Server::OpSetFile(const std::string& id,
                   std::string* response,
                   uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::SETFILE", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::SETFILE", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETFILE");
   enum set_type {
     CREATE, UPDATE, RENAME, MOVE
@@ -2496,19 +2496,19 @@ Server::OpSetFile(const std::string& id,
 
     switch (op) {
     case MOVE:
-      gOFS->MgmStats.Add("Eosxd::ext::MV", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::MV", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case UPDATE:
-      gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case CREATE:
-      gOFS->MgmStats.Add("Eosxd::ext::CREATE", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::CREATE", vid.uid, vid.gid, 1 , vid.app);
       break;
 
     case RENAME:
-      gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid.uid, vid.gid, 1, vid.app);
       break;
     }
 
@@ -2579,7 +2579,7 @@ Server::OpSetLink(const std::string& id,
                   std::string* response,
                   uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::SETLNK", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::SETLNK", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETLNK");
   enum set_type {
     CREATE, UPDATE, RENAME, MOVE
@@ -2720,22 +2720,22 @@ Server::OpSetLink(const std::string& id,
     switch (op) {
     case MOVE:
       s += "M";
-      gOFS->MgmStats.Add("Eosxd::ext::MV", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::MV", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case UPDATE:
       s += "U";
-      gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::UPDATE", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case CREATE:
       s += "C";
-      gOFS->MgmStats.Add("Eosxd::ext::CREATELNK", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::CREATELNK", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case RENAME:
       s += "R";
-      gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid.uid, vid.gid, 1);
+      gOFS->MgmStats.Add("Eosxd::ext::RENAME", vid.uid, vid.gid, 1, vid.app);
       break;
 
     default:
@@ -2842,7 +2842,7 @@ Server::OpDelete(const std::string& id,
                  std::string* response,
                  uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::RM", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::RM", vid.uid, vid.gid, 1, vid.app);
 
   if (!ValidateCAP(md, D_OK, vid)) {
     std::string perm = "D";
@@ -2881,7 +2881,7 @@ Server::OpDeleteDirectory(const std::string& id,
                           std::string* response,
                           uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::RMDIR", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::RMDIR", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::RMDIR");
   eos::fusex::response resp;
   resp.set_type(resp.ACK);
@@ -2970,7 +2970,7 @@ Server::OpDeleteFile(const std::string& id,
                      std::string* response,
                      uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::DELETE", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::DELETE", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::DELETE");
 
   if (!ValidateCAP(md, D_OK, vid)) {
@@ -3197,7 +3197,7 @@ Server::OpDeleteLink(const std::string& id,
                      std::string* response,
                      uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::DELETELNK", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::DELETELNK", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::DELETELNK");
 
   if (!ValidateCAP(md, D_OK, vid)) {
@@ -3295,7 +3295,7 @@ Server::OpGetCap(const std::string& id,
                  std::string* response,
                  uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::GETCAP", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::GETCAP", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::GETCAP");
   eos::fusex::container cont;
   cont.set_type(cont.CAP);
@@ -3345,7 +3345,7 @@ Server::OpGetLock(const std::string& id,
                   std::string* response,
                   uint64_t* clock)
 {
-  gOFS->MgmStats.Add("Eosxd::ext::GETLK", vid.uid, vid.gid, 1);
+  gOFS->MgmStats.Add("Eosxd::ext::GETLK", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::GETLK");
   eos::fusex::response resp;
   resp.set_type(resp.LOCK);
@@ -3402,10 +3402,10 @@ Server::OpSetLock(const std::string& id,
   bool xattr_lock = false;
 
   if (md.operation() == md.SETLKW) {
-    gOFS->MgmStats.Add("Eosxd::ext::SETLKW", vid.uid, vid.gid, 1);
+    gOFS->MgmStats.Add("Eosxd::ext::SETLKW", vid.uid, vid.gid, 1, vid.app);
     sleep = 1;
   } else {
-    gOFS->MgmStats.Add("Eosxd::ext::SETLK", vid.uid, vid.gid, 1);
+    gOFS->MgmStats.Add("Eosxd::ext::SETLK", vid.uid, vid.gid, 1, vid.app);
   }
 
   struct flock lock;
