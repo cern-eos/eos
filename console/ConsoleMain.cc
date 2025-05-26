@@ -46,6 +46,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <list>
+#include <sys/time.h>                                                                                                                                                
+#include <sys/resource.h> 
 #include <XrdCl/XrdClPostMaster.hh>
 
 #ifdef __APPLE__
@@ -92,6 +94,7 @@ extern int com_license(char*);
 extern int com_ln(char*);
 extern int com_ls(char*);
 extern int com_map(char*);
+extern int com_mdcopy(char*);
 extern int com_member(char*);
 extern int com_mkdir(char*);
 extern int com_motd(char*);
@@ -136,7 +139,7 @@ extern int com_accounting(char*);
 extern int com_quota(char*);
 extern int com_daemon(char*);
 extern int com_proto_sched(char*);
-
+extern int com_zip(char*);
 
 //------------------------------------------------------------------------------
 // Command mapping array
@@ -184,6 +187,7 @@ COMMAND commands[] = {
   { (char*) "ls", com_ls, (char*) "List a directory"},
   { (char*) "ln", com_ln, (char*) "Create a symbolic link"},
   { (char*) "map", com_map, (char*) "Path mapping interface"},
+  { (char*) "mdcopy", com_mdcopy, (char*) "Meta-data copy toole"},
   { (char*) "member", com_member, (char*) "Check Egroup membership"},
   { (char*) "mkdir", com_mkdir, (char*) "Create a directory"},
   { (char*) "motd", com_motd, (char*) "Message of the day"},
@@ -222,6 +226,7 @@ COMMAND commands[] = {
   { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
   { (char*) "whoami", com_whoami, (char*) "Determine how we are mapped on server side"},
   { (char*) "who", com_who, (char*) "Statistics about connected users"},
+  { (char*) "zip", com_zip, (char*) "Remote Zip Tools"},
   { (char*) "?", com_help, (char*) "Synonym for 'help'"},
   { (char*) ".q", com_quit, (char*) "Exit from EOS console"},
   { (char*) 0, (int (*)(char*))0, (char*) 0}
@@ -1164,6 +1169,19 @@ Run(int argc, char* argv[])
     execute_line((char*) "version");
   }
 
+// bump up the filedescriptor limits
+  {
+    int fdlimit = 4096;
+    struct rlimit newrlimit;
+    newrlimit.rlim_cur = fdlimit;
+    newrlimit.rlim_max = fdlimit;
+    if ((setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid())) {
+      fprintf(stderr, "warning: unable to set fd limit to %d - errno %d\n",
+	      fdlimit, errno);
+    }
+  }
+
+    
   char prompt[4096];
 
   if (pipemode) {
@@ -1198,8 +1216,11 @@ Run(int argc, char* argv[])
   }
 
   read_history(historyfile.c_str());
+
   // load the last used current working directory
-  read_pwdfile();
+  if (interactive) {
+    read_pwdfile();
+  }
 
   // Loop reading and executing lines until the user quits.
   for (; done == 0;) {
@@ -1547,7 +1568,9 @@ bool RequiresMgm(const std::string& name, const std::string& args)
       (name == "exit") || (name == "help") || (name == "json") ||
       (name == "pwd") || (name == "quit") || (name == "role") ||
       (name == "silent") || (name == "timing") || (name == "?") ||
-      (name == ".q") || (name == "daemon") || (name == "scitoken")) {
+      (name == ".q") || (name == "daemon") || (name == "scitoken") ||
+      (name == "mdcopy"))
+    {
     return false;
   }
 
