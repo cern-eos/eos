@@ -241,8 +241,8 @@ Storage::Verify()
 
           // Update the extended attributes
           if (io) {
-            (void)io->attrSet("user.eos.checksum", checksummer->GetBinChecksum(checksumlen),
-                              checksumlen);
+            const char* ptr = checksummer->GetBinChecksum(checksumlen);
+            (void)io->attrSet("user.eos.checksum", ptr, checksumlen);
             (void)io->attrSet("user.eos.checksumtype", checksummer->GetName(),
                               strlen(checksummer->GetName()));
             (void)io->attrSet("user.eos.filecxerror", "0", 1);

@@ -3442,8 +3442,9 @@ XrdFstOfsFile::VerifyChecksum()
                     "fxid=%08llx errno=%d", mFileId, errno);
           }
 
-          if (io->attrSet("user.eos.checksum", mCheckSum->GetBinChecksum(checksumlen),
-                          checksumlen)) {
+          const char* ptr = mCheckSum->GetBinChecksum(checksumlen);
+
+          if (io->attrSet("user.eos.checksum", ptr, checksumlen)) {
             eos_err("msg=\"unable to set extended attr <eos.checksum> \" "
                     "fxid=%08llx errno=%d", mFileId, errno);
           }
