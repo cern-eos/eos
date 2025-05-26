@@ -17,6 +17,18 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.3.13 Diopside``
+====================
+
+2025-05-26
+
+Bug
+----
+
+* FST: Fix undefinied behaviour due to order of evaluation of the method
+parameters which was leading to files not having the checksum value set.
+
+
 ``v5.3.12 Diopside``
 ====================
 
