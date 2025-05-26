@@ -539,7 +539,7 @@ XrdMgmOfs::_replicatestripe(eos::IFileMD* fmd,
 
   if (!gOFS->mFidTracker.AddEntry(fid, TrackerType::Drain)) {
     eos_err("msg=\"file already tracked\" fxid=%08llx", fid);
-    return Emsg(epname, error, ENOENT, "replicate stripe - file already "
+    return Emsg(epname, error, ETXTBSY, "replicate stripe - file already "
                 "tracked ", std::to_string(fid).c_str());
   } else {
     gOFS->mDrainEngine.GetThreadPool().PushTask<void>([ = ] {
