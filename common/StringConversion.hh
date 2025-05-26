@@ -388,6 +388,28 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Split a comma separated key:val list and fill it into a map
+   *
+   * @param mapstring map string to parse
+   * @param map return map after parsing if ok
+   * @param split separator used to separate key from value default ":"
+   * @param delimiter separator used to separate individual key value pairs
+   * @param keyvector returns optional the order of the keys in a vector
+   * @param pathkey returns the name which indicates the beginning of a path, after which everything is read a s part of the path until stopKey
+   * @param stopKey marks the end of the previous pathkey
+   * @return true if format ok, otherwise false
+   */
+  // ---------------------------------------------------------------------------
+  static bool GetSpecialKeyValueMap(const char* mapstring,
+				    std::map<std::string, std::string>& map,
+				    const char* split,
+				    const char* sdelimiter,
+				    std::vector<std::string>* keyvector,
+				    const char* pathKey = "path",
+				    const char* stopKey = "fstpath");
+
+  // ---------------------------------------------------------------------------
+  /**
    * Replace a key in a string,string map
    *
    * @return true if replaced
