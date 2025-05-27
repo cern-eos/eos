@@ -1130,8 +1130,14 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     rc = buffer_size;
   }
 
+  // In case we have a remote write error for a replica, the local replica is still ok!
+  if ( (rc < 0) && (eos::common::LayoutId::IsReplica(mLid) &&
+		    (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO)) ) {
+    rc = buffer_size;
+  }
+
   // Evt. add checksum
-  if (rc > 0) {
+  if ( (rc > 0) ) {
     if (mCheckSum) {
       mCheckSum->Add(buffer, static_cast<size_t>(rc),
                      static_cast<off_t>(fileOffset));
