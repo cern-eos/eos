@@ -52,6 +52,7 @@ message md {
   string mv_authid = 42; //< indicates the authid applying to the source directory of a mv
   fixed64 bc_time = 43; //< indicates the reception time of a broadcasted md record
   FLAG opflags = 44; //< indicates a flag for an operation
+  fixed64 tmptime = 45   ; //< last time a .tmp file was created
 };
 
 message md_state {	

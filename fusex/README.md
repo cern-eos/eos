@@ -62,7 +62,8 @@ This
     "leasetime" : 300,
     "write-size-flush-interval" : 10,
     "submounts" : 0,
-    "inmemory-inodes" : 16384  
+    "inmemory-inodes" : 16384,
+    "tmp-fake-delete" : false,
   },
   "auth" : {
     "shared-mount" : 1,

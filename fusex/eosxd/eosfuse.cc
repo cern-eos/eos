@@ -1064,6 +1064,13 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       config.options.x_ok = X_OK;
     }
 
+    config.options.fakedelete = false;
+    if (root["options"].isMember("tmp-fake-delete")) {
+      if (root["options"]["tmp-fake-delete"]) {
+	config.options.fakedelete = true;
+      }
+    }
+
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
     config.options.rm_rf_protect_levels =
       root["options"]["rm-rf-protect-levels"].asInt();
@@ -4231,6 +4238,17 @@ EROFS  pathname refers to a file on a read-only filesystem.
             }
           }
 
+
+	  // fake deletion logic for online editing if configured
+	  if (Instance().Config().options.fakedelete && (*pmd)()->tmptime()) {
+	    auto now = time(NULL);
+	    if ( (now - (*pmd)()->tmptime()) < 60 ) {
+	      (*pmd)()->set_tmptime(0);
+	      fuse_reply_err(req, rc);
+	      return ;
+	    }
+	  }
+
           if (!rc) {
             if (attrMap.count(k_mdino)) { /* This is a hard link */
               uint64_t mdino = std::stoull(attrMap[k_mdino]);
@@ -5095,6 +5113,21 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               XrdSysMutexHelper mLockParent(pmd->Locker());
               (*pmd)()->set_mtime(ts.tv_sec);
               (*pmd)()->set_mtime_ns(ts.tv_nsec);
+
+	      auto ends_with = [](const std::string& str, const std::string& suffix) {
+				 return str.size() >= suffix.size() &&
+				   str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+			       };
+
+	      if (ends_with( (*md)()->name(), ".tmp")) {
+		if (Instance().Config().options.fakedelete) {
+		  // set rename creates version attribute on parent
+		  auto map = (*pmd)()->mutable_attr();
+		  (*map)["user.fusex.rename.version"]="1";
+		  // store last tmpe file creation time
+		  (*pmd)()->set_tmptime(time(NULL));
+		}
+	      }
 
               // get file inline size from parent attribute
               if ((*pmd)()->attr().count("sys.file.inline.maxsize")) {
