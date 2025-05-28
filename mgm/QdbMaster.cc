@@ -123,7 +123,7 @@ QdbMaster::BootNamespace()
     namespaceConfig["qclient_rocksdb_options"] = gOFS->mQClientRocksDBOptions;
   }
 
-  FillNsCacheConfig(gOFS->ConfEngine, namespaceConfig);
+  FillNsCacheConfig(gOFS->mConfigEngine, namespaceConfig);
 
   if (!gOFS->namespaceGroup->initialize(&gOFS->eosViewRWMutex, namespaceConfig,
                                         err, &gOFS->mNamespaceStats)) {
@@ -545,11 +545,12 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
   eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
 
   if (gOFS->MgmConfigAutoLoad.length()) {
-    eos_static_info("autoload config=%s", gOFS->MgmConfigAutoLoad.c_str());
+    eos_static_info("msg=\"autoload config\" cfg_name=\"%s\"",
+                    gOFS->MgmConfigAutoLoad.c_str());
     std::string configenv = gOFS->MgmConfigAutoLoad.c_str();
     XrdOucString stdErr = "";
 
-    if (!gOFS->ConfEngine->LoadConfig(configenv, stdErr, apply_stall_rdr)) {
+    if (!gOFS->mConfigEngine->LoadConfig(configenv, stdErr, apply_stall_rdr)) {
       eos_crit("msg=\"failed config autoload\" config=\"%s\" err=\"%s\"",
                gOFS->MgmConfigAutoLoad.c_str(), stdErr.c_str());
     } else {
@@ -760,7 +761,7 @@ void
 QdbMaster::EnableNsCaching()
 {
   std::map<std::string, std::string> map_cfg;
-  FillNsCacheConfig(gOFS->ConfEngine, map_cfg);
+  FillNsCacheConfig(gOFS->mConfigEngine, map_cfg);
   gOFS->eosFileService->configure(map_cfg);
   gOFS->eosDirectoryService->configure(map_cfg);
 }

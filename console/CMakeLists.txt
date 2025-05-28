@@ -123,8 +123,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_proto_df.cc
   commands/com_proto_group.cc
   commands/com_proto_recycle.cc
-  #@todo (esindril) drop com_config when move to 5.0.0
-  commands/com_config.cc
   commands/com_proto_config.cc
   commands/com_proto_register.cc
   commands/com_proto_rm.cc

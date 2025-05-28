@@ -219,9 +219,9 @@ void NodeCmd::RmSubcmd(const eos::console::NodeProto_RmProto& rm,
   // Delete also the entry from the configuration
   eos_info("msg=\"delete from configuration\" node_name=%s",
            nodeLocator.getConfigQueue().c_str());
-  gOFS->ConfEngine->DeleteConfigValueByMatch("global",
+  gOFS->mConfigEngine->DeleteConfigValueByMatch("global",
       nodeLocator.getConfigQueue().c_str());
-  gOFS->ConfEngine->AutoSave();
+  gOFS->mConfigEngine->AutoSave();
 }
 
 //------------------------------------------------------------------------------
@@ -439,7 +439,7 @@ NodeCmd::ConfigFsSpecific(const std::set<std::string>& nodes,
       FsView::gFsView.StoreFsConfig(fs, false);
     }
 
-    gOFS->ConfEngine->AutoSave();
+    gOFS->mConfigEngine->AutoSave();
   }
 }
 

@@ -69,7 +69,7 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
     } else {
       eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(),
                value.c_str());
-      gOFS->ConfEngine->SetConfigValue(0, key.c_str(), value.c_str(), false);
+      gOFS->mConfigEngine->SetConfigValue(0, key.c_str(), value.c_str(), false);
 
       // For fs modification we need to lock for write the FsView::ViewMutex
       if (key.find("fs:") == 0) {
@@ -85,7 +85,7 @@ XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
         eos_info("%s", "msg=\"skip quota update as it might mess with "
                  "the namespace, will reload once we become master\"");
       } else {
-        gOFS->ConfEngine->ApplyEachConfig(key.c_str(), &value, &err);
+        gOFS->mConfigEngine->ApplyEachConfig(key.c_str(), &value, &err);
       }
     }
   }
@@ -314,8 +314,8 @@ XrdMgmOfs::FsConfigListener(ThreadAssistant& assistant) noexcept
         } else {
           eos_static_info("msg=\"handle deletion event\" key=\"%s\"",
                           event.key.c_str());
-          gOFS->ConfEngine->DeleteConfigValue(0, event.key.c_str(), false);
-          gOFS->ConfEngine->ApplyKeyDeletion(event.key.c_str());
+          gOFS->mConfigEngine->DeleteConfigValue(0, event.key.c_str(), false);
+          gOFS->mConfigEngine->ApplyKeyDeletion(event.key.c_str());
         }
       }
     }

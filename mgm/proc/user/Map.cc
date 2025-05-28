@@ -46,7 +46,8 @@ ProcCommand::Map()
   }
 
   if (mSubCmd == "link") {
-    if ((!pVid->uid) || vid.hasUid(eos::common::ADM_UID) || vid.hasGid(eos::common::ADM_GID)) {
+    if ((!pVid->uid) || vid.hasUid(eos::common::ADM_UID) ||
+        vid.hasGid(eos::common::ADM_GID)) {
       XrdOucString srcpath = pOpaque->Get("mgm.map.src");
       XrdOucString dstpath = pOpaque->Get("mgm.map.dest");
 
@@ -74,7 +75,7 @@ ProcCommand::Map()
           stdErr += "' - remove the existing mapping using 'map unlink'!";
         } else {
           gOFS->PathMap[srcpath.c_str()] = dstpath.c_str();
-          gOFS->ConfEngine->SetConfigValue("map", srcpath.c_str(), dstpath.c_str());
+          gOFS->mConfigEngine->SetConfigValue("map", srcpath.c_str(), dstpath.c_str());
           stdOut = "success: added mapping '";
           stdOut += srcpath.c_str();
           stdOut += "'=>'";
@@ -106,7 +107,7 @@ ProcCommand::Map()
         stdErr += "' is not in the path map!";
       } else {
         gOFS->PathMap.erase(path.c_str());
-        gOFS->ConfEngine->DeleteConfigValue("map", path.c_str());
+        gOFS->mConfigEngine->DeleteConfigValue("map", path.c_str());
         stdOut = "success: removed mapping of path '";
         stdOut += path.c_str();
         stdOut += "'";

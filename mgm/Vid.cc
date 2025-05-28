@@ -55,7 +55,7 @@ Vid::Set(const char* value, bool storeConfig)
 
   if (vidcmd == "publicaccesslevel") {
     if (storeConfig) {
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+      gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), value);
     }
 
     if ((val = env.Get("mgm.vid.level"))) {
@@ -66,7 +66,7 @@ Vid::Set(const char* value, bool storeConfig)
 
   if (vidcmd == "tokensudo") {
     if (storeConfig) {
-      gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+      gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), value);
     }
 
     if ((val = env.Get("mgm.vid.tokensudo"))) {
@@ -102,7 +102,7 @@ Vid::Set(const char* value, bool storeConfig)
       eos::common::Mapping::gGeoMap[gkey.c_str()] = val;
 
       if (storeConfig) {
-        gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+        gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), value);
       }
 
       set = true;
@@ -123,8 +123,7 @@ Vid::Set(const char* value, bool storeConfig)
       }) !=
       username.end()) {
         uid = eos::common::Mapping::UserNameToUid(username, errc);
-      }
-      else {
+      } else {
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
@@ -150,7 +149,7 @@ Vid::Set(const char* value, bool storeConfig)
                                               eos::common::Mapping::gUserRoleVector[uid]);
 
       if (storeConfig) {
-        gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
+        gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       }
 
       set = true;
@@ -163,7 +162,7 @@ Vid::Set(const char* value, bool storeConfig)
                                               eos::common::Mapping::gGroupRoleVector[uid]);
 
       if (storeConfig) {
-        gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
+        gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       }
 
       set = true;
@@ -177,7 +176,7 @@ Vid::Set(const char* value, bool storeConfig)
         eos::common::Mapping::gSudoerMap[uid] = 1;
 
         if (storeConfig) {
-          gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), value);
+          gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), value);
         }
 
         return true;
@@ -186,7 +185,7 @@ Vid::Set(const char* value, bool storeConfig)
         eos::common::Mapping::gSudoerMap.erase(uid);
 
         if (storeConfig) {
-          gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+          gOFS->mConfigEngine->DeleteConfigValue("vid", skey.c_str());
         }
 
         return true;
@@ -293,7 +292,7 @@ Vid::Set(const char* value, bool storeConfig)
       };
 
       if (storeConfig) {
-        gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
+        gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       }
     }
 
@@ -322,7 +321,7 @@ Vid::Set(const char* value, bool storeConfig)
       };
 
       if (storeConfig) {
-        gOFS->ConfEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
+        gOFS->mConfigEngine->SetConfigValue("vid", skey.c_str(), svalue.c_str());
       }
     }
   }
@@ -426,8 +425,7 @@ Vid::Rm(XrdOucEnv& env,
       if (errc) {
         uid = eos::common::VirtualIdentity::kNobodyUid;
       }
-    }
-    else {
+    } else {
       try {
         uid = std::stoul(usrname);
       } catch (const std::exception& e) {
@@ -457,8 +455,7 @@ Vid::Rm(XrdOucEnv& env,
       if (errc) {
         uid = eos::common::VirtualIdentity::kNobodyUid;
       }
-    }
-    else {
+    } else {
       try {
         uid = std::stoul(usrname);
       } catch (const std::exception& e) {
@@ -568,7 +565,7 @@ Vid::Rm(XrdOucEnv& env,
         eos::common::Mapping::gVirtualUidMap[skey.c_str()] = muid;
 
         if (storeConfig) {
-          gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+          gOFS->mConfigEngine->DeleteConfigValue("vid", skey.c_str());
         }
 
         nerased++;
@@ -594,7 +591,7 @@ Vid::Rm(XrdOucEnv& env,
         eos::common::Mapping::gVirtualGidMap[skey.c_str()] = mgid;
 
         if (storeConfig) {
-          gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+          gOFS->mConfigEngine->DeleteConfigValue("vid", skey.c_str());
         }
 
         nerased++;
@@ -607,7 +604,7 @@ Vid::Rm(XrdOucEnv& env,
 
   // Delete the entry from the config engine
   if (storeConfig && skey.length()) {
-    gOFS->ConfEngine->DeleteConfigValue("vid", skey.c_str());
+    gOFS->mConfigEngine->DeleteConfigValue("vid", skey.c_str());
   }
 
   if (nerased) {

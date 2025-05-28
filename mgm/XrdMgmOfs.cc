@@ -292,7 +292,7 @@ extern "C" {
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
-  ConfigFN(0), ConfEngine(0), mCapabilityValidity(3600),
+  ConfigFN(0), mConfigEngine(0), mCapabilityValidity(3600),
   mMgmMessaging(nullptr), ManagerPort(1094), LinuxStatsStartup{0},
   HostName(0), HostPref(0),   protowfusegrpc(false),
   mNamespaceState(NamespaceState::kDown),
@@ -435,7 +435,7 @@ XrdMgmOfs::OrderlyShutdown()
 
   stop_fsconfiglistener.join();
   eos_warning("%s", "msg=\"disable configuration engine autosave\"");
-  ConfEngine->SetAutoSave(false);
+  mConfigEngine->SetAutoSave(false);
   FsView::gFsView.SetConfigEngine(nullptr);
   eos_warning("%s", "msg=\"stop routing\"");
 

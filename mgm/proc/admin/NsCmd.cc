@@ -412,9 +412,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       auto* perf_monitor = dynamic_cast<eos::QClPerfMonitor*>
                            (qdb_group->getPerformanceMonitor().get());
       std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
-
       oss << "uid=all gid=all ns.qclient.persistency_type="
           << qdb_group->getMetadataFlusher()->getPersistencyType() << "\n";
+
       if (info.find("rtt_min") != info.end()) {
         oss << "uid=all gid=all ns.qclient.rtt_ms.min="
             << info["rtt_min"] / 1000 << std::endl
@@ -1028,16 +1028,16 @@ NsCmd::CacheSubcmd(const eos::console::NsProto_CacheProto& cache,
     if (cache.max_num() > 100) {
       map_cfg[sMaxNumCacheFiles] = std::to_string(cache.max_num());
       map_cfg[sMaxSizeCacheFiles] = std::to_string(cache.max_size());
-      gOFS->ConfEngine->SetConfigValue("ns", "cache-size-nfiles",
-                                       std::to_string(cache.max_num()).c_str());
+      gOFS->mConfigEngine->SetConfigValue("ns", "cache-size-nfiles",
+                                          std::to_string(cache.max_num()).c_str());
       gOFS->eosFileService->configure(map_cfg);
     }
   } else if (cache.op() == NsProto_CacheProto::SET_DIR) {
     if (cache.max_num() > 100) {
       map_cfg[sMaxNumCacheDirs] = std::to_string(cache.max_num());
       map_cfg[sMaxSizeCacheDirs] = std::to_string(cache.max_size());
-      gOFS->ConfEngine->SetConfigValue("ns", "cache-size-ndirs",
-                                       std::to_string(cache.max_num()).c_str());
+      gOFS->mConfigEngine->SetConfigValue("ns", "cache-size-ndirs",
+                                          std::to_string(cache.max_num()).c_str());
       gOFS->eosDirectoryService->configure(map_cfg);
     }
   } else if (cache.op() == NsProto_CacheProto::DROP_FILE) {

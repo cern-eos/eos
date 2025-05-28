@@ -78,7 +78,8 @@ void
 RouteCmd::LinkSubcmd(const eos::console::RouteProto_LinkProto& link,
                      eos::console::ReplyProto& reply)
 {
-  if ((mVid.uid != 0) && !mVid.hasUid(eos::common::ADM_UID) && !mVid.hasGid(eos::common::ADM_GID)) {
+  if ((mVid.uid != 0) && !mVid.hasUid(eos::common::ADM_UID) &&
+      !mVid.hasGid(eos::common::ADM_GID)) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you don't have the required priviledges to "
                       "execute this command");
@@ -91,8 +92,8 @@ RouteCmd::LinkSubcmd(const eos::console::RouteProto_LinkProto& link,
     std::string str_rep = endpoint.ToString();
 
     if (gOFS->mRouting->Add(link.path(), std::move(endpoint))) {
-      gOFS->ConfEngine->SetConfigValue("route", link.path().c_str(),
-                                       str_rep.c_str());
+      gOFS->mConfigEngine->SetConfigValue("route", link.path().c_str(),
+                                          str_rep.c_str());
     } else {
       reply.set_retc(EINVAL);
       reply.set_std_err(SSTR("error: routing to " << str_rep
@@ -108,7 +109,8 @@ void
 RouteCmd::UnlinkSubcmd(const eos::console::RouteProto_UnlinkProto& unlink,
                        eos::console::ReplyProto& reply)
 {
-  if ((mVid.uid != 0) && !mVid.hasUid(eos::common::ADM_UID) && !mVid.hasGid(eos::common::ADM_GID)) {
+  if ((mVid.uid != 0) && !mVid.hasUid(eos::common::ADM_UID) &&
+      !mVid.hasGid(eos::common::ADM_GID)) {
     reply.set_retc(EPERM);
     reply.set_std_err("error: you don't have the required priviledges to "
                       "execute this command");
@@ -118,7 +120,7 @@ RouteCmd::UnlinkSubcmd(const eos::console::RouteProto_UnlinkProto& unlink,
   std::string path = unlink.path();
 
   if (gOFS->mRouting->Remove(path)) {
-    gOFS->ConfEngine->DeleteConfigValue("route", path.c_str());
+    gOFS->mConfigEngine->DeleteConfigValue("route", path.c_str());
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err(SSTR("error: path \"" << path

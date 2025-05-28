@@ -262,7 +262,6 @@ public:
   int Rtlog();
   int Vid();
   int Access(); // @todo (faluchet) drop when move to 5.0.0
-  int Config(); // @todo (faluchet) drop when move to 5.0.0
   int Group(); // @todo (faluchet) drop when move to 5.0.0
   int AdminQuota(); // @todo (faluchet) drop when move to 5.0.0
 

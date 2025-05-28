@@ -198,10 +198,10 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
 
   if (!monitoring) {
     std_out <<
-      "# ------------------------------------------------------------------------------------\n";
+            "# ------------------------------------------------------------------------------------\n";
     std_out << "# Space Variables\n";
     std_out <<
-      "# ....................................................................................\n";
+            "# ....................................................................................\n";
   }
 
   std::vector <std::string> keylist;
@@ -216,10 +216,10 @@ void SpaceCmd::StatusSubcmd(const eos::console::SpaceProto_StatusProto& status,
       // size printout
       snprintf(line, sizeof(line) - 1, fmtstr, i.c_str(),
                eos::common::StringConversion::GetReadableSizeString(
-                                                                    sizestring,
-                                                                    strtoull(FsView::gFsView.mSpaceView[status.mgmspace()]
-                                                                             ->GetConfigMember(i).c_str(), nullptr, 10),
-                                                                    "B"));
+                 sizestring,
+                 strtoull(FsView::gFsView.mSpaceView[status.mgmspace()]
+                          ->GetConfigMember(i).c_str(), nullptr, 10),
+                 "B"));
     } else {
       snprintf(line, sizeof(line) - 1, fmtstr, i.c_str(),
                FsView::gFsView.mSpaceView[status.mgmspace()]
@@ -450,57 +450,57 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
       ret_c = EINVAL;
     }
   }
-    break;
+  break;
 
   case eos::console::SpaceProto_ResetProto::EGROUP: {
     gOFS->EgroupRefresh->Reset();
     std_out << "\ninfo: clear cached EGroup information ...";
   }
-    break;
+  break;
 
   case eos::console::SpaceProto_ResetProto::NSFILESISTEMVIEW: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: resized namespace filesystem view ...";
   }
-    break;
+  break;
 
   case eos::console::SpaceProto_ResetProto::NSFILEMAP: {
     std_out << "\n info: ns does not support file map resizing";
   }
-    break;
+  break;
 
   case eos::console::SpaceProto_ResetProto::NSDIRECTORYMAP: {
     std_out << "\ninfo: ns does not support directory map resizing";
   }
-    break;
+  break;
 
   case eos::console::SpaceProto_ResetProto::NS: {
     eos::common::RWMutexWriteLock lock(gOFS->eosViewRWMutex);
     gOFS->eosFsView->shrink();
     std_out << "\ninfo: ns does not support map resizing";
   }
-    break;
+  break;
 
   case eos::console::SpaceProto_ResetProto::MAPPING: {
     eos::common::Mapping::Reset();
     std_out << "\ninfo: clear all user/group uid/gid caches ...\n";
   }
-    break;
+  break;
 
   case eos::console::SpaceProto_ResetProto::SCHEDULEDRAIN: {
     gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Drain);
     std_out.str("info: reset drain scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
-    break;
+  break;
 
   case eos::console::SpaceProto_ResetProto::SCHEDULEBALANCE: {
     gOFS->mFidTracker.Clear(eos::mgm::TrackerType::Balance);
     std_out.str("info: reset balance scheduling map in space '" + reset.mgmspace() +
                 '\'');
   }
-    break;
+  break;
 
   default: { // NONE - when NONE, do cases DRAIN and EGROUP and MAPPING
     if (FsView::gFsView.mSpaceView.count(reset.mgmspace())) {
@@ -516,7 +516,7 @@ void SpaceCmd::ResetSubcmd(const eos::console::SpaceProto_ResetProto& reset,
     eos::common::Mapping::Reset();
     std_out << "\ninfo: clear all user/group uid/gid caches ...\n";
   }
-    break;
+  break;
   }
 
   reply.set_std_out(std_out.str());
@@ -648,7 +648,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             //Switch off the tape REST API
             //Also switch off the STAGE resource
             if (!space->SetConfigMember(
-                                        rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
+                  rest::TAPE_REST_API_STAGE_SWITCH_ON_OFF, "off")) {
               ret_c = EIO;
               std_err.str("error: cannot set space config value");
             } else {
@@ -790,7 +790,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       } else {
         applied = true;
         gOFS->mFsScheduler->setPlacementStrategy(space->mName, value);
-        std_out.str("success: configured scheduler.type in space='"+
+        std_out.str("success: configured scheduler.type in space='" +
                     space_name + "' as " + value + "\n");
         ret_c = 0;
       }
@@ -984,20 +984,20 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               if (key == "geo.access.policy.read.exact") {
                 if (value == "on") {
                   std_out <<
-                    "success: geo access policy prefers the exact geo matching replica for reading!";
+                          "success: geo access policy prefers the exact geo matching replica for reading!";
                 } else {
                   std_out <<
-                    "success: geo access policy prefers with a weight the geo matching replica for reading!";
+                          "success: geo access policy prefers with a weight the geo matching replica for reading!";
                 }
               }
 
               if (key == "geo.access.policy.write.exact") {
                 if (value == "on") {
                   std_out <<
-                    "success: geo access policy prefers the exact geo matching replica for placements!";
+                          "success: geo access policy prefers the exact geo matching replica for placements!";
                 } else {
                   std_out <<
-                    "success: geo access policy prefers with a weight the geo matching replica for placements!";
+                          "success: geo access policy prefers with a weight the geo matching replica for placements!";
                 }
               }
 
@@ -1036,7 +1036,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_err.str("error: cannot set space config value");
             } else {
               std::string status = (value == "on") ? "enabled" :
-                (value == "off" ? "disabled" : "paused");
+                                   (value == "off" ? "disabled" : "paused");
               std_out << "success: wfe is " << status << "!";
             }
           }
@@ -1054,7 +1054,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
             errno = 0;
             applied = true;
             unsigned long long size = eos::common::StringConversion::GetSizeFromString(
-                                                                                       value.c_str());
+                                        value.c_str());
 
             if (!errno) {
               if ((key != "balancer.threshold") &&
@@ -1109,7 +1109,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
     key.erase(0, 3);
     // we disable the autosave, do all the updates and then switch back
     // to autosave and evt. save all changes
-    gOFS->ConfEngine->SetAutoSave(false);
+    gOFS->mConfigEngine->SetAutoSave(false);
 
     // Store these as a global parameters of the space
     if ((key == "headroom") || (key == "graceperiod") || (key == "drainperiod") ||
@@ -1122,7 +1122,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         (key == eos::common::SCAN_NS_RATE_NAME) ||
         (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
       unsigned long long size = eos::common::StringConversion::GetSizeFromString(
-                                                                                 value.c_str());
+                                  value.c_str());
       char ssize[1024];
       snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
 
@@ -1186,13 +1186,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         }
       } else {
         std_err << "error: cannot identify the filesystem by <" + space_name
-          + ">\n";
+                + ">\n";
         ret_c = EINVAL;
       }
     }
 
-    gOFS->ConfEngine->SetAutoSave(true);
-    gOFS->ConfEngine->AutoSave();
+    gOFS->mConfigEngine->SetAutoSave(true);
+    gOFS->mConfigEngine->AutoSave();
   }
 
   if (!applied) {
@@ -1231,7 +1231,7 @@ void SpaceCmd::QuotaSubcmd(const eos::console::SpaceProto_QuotaProto& quota,
 
   if (FsView::gFsView.mSpaceView.count(quota.mgmspace())) {
     if (!FsView::gFsView.mSpaceView[quota.mgmspace()]->SetConfigMember(key,
-                                                                       onoff)) {
+        onoff)) {
       reply.set_std_err("error: cannot set space config value");
       reply.set_retc(EIO);
     }
@@ -1309,10 +1309,10 @@ void SpaceCmd::TrackerSubcmd(const eos::console::SpaceProto_TrackerProto&
   std::string tmp;
   gOFS->mReplicationTracker->Scan(2 * 86400, false, &tmp);
   std_out <<
-    "# ------------------------------------------------------------------------------------\n";
+          "# ------------------------------------------------------------------------------------\n";
   std_out << tmp;
   std_out <<
-    "# ------------------------------------------------------------------------------------\n";
+          "# ------------------------------------------------------------------------------------\n";
   reply.set_std_out(std_out.str());
   reply.set_retc(0);
 }
@@ -1431,17 +1431,17 @@ SpaceCmd::GroupDrainerSubCmd(const eos::console::SpaceProto_GroupDrainerProto&
     switch (groupdrainer.status().outformat()) {
     case eos::console::SpaceProto::GroupDrainerStatusProto::MONITORING:
       reply.set_std_out(fs_space->mGroupDrainer->getStatus(
-                                                           GroupDrainer::StatusFormat::MONITORING));
+                          GroupDrainer::StatusFormat::MONITORING));
       break;
 
     case eos::console::SpaceProto::GroupDrainerStatusProto::DETAIL:
       reply.set_std_out(fs_space->mGroupDrainer->getStatus(
-                                                           GroupDrainer::StatusFormat::DETAIL));
+                          GroupDrainer::StatusFormat::DETAIL));
       break;
 
     default:
       reply.set_std_out(fs_space->mGroupDrainer->getStatus(
-                                                           GroupDrainer::StatusFormat::NONE));
+                          GroupDrainer::StatusFormat::NONE));
     }
 
     break;
