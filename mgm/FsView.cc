@@ -51,6 +51,26 @@
 
 using eos::common::RWMutexReadLock;
 
+namespace
+{
+
+//------------------------------------------------------------------------------
+// Helper method to set status for a file system
+//------------------------------------------------------------------------------
+void setFsStatus(FileSystem* fs,
+                 eos::common::ActiveStatus status,
+                 eos::common::BootStatus bstatus)
+{
+  if (fs == nullptr) {
+    return;
+  }
+
+  fs->SetActiveStatus(status);
+  gOFS->mFsScheduler->setDiskStatus(fs->GetSpace(), fs->GetId(),
+                                    status, bstatus);
+}
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 FsView FsView::gFsView;
@@ -1182,7 +1202,7 @@ std::string FsView::Df(bool monitoring, bool si, bool readable,
     eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path, false);
 
     try {
-      cmd = gOFS->eosView->getContainer(path,false);
+      cmd = gOFS->eosView->getContainer(path, false);
       cmdLock = eos::MDLocking::readLock(cmd.get());
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -2530,21 +2550,21 @@ FsView::FindByQueuePath(std::string& queuepath)
 bool
 FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 {
-  if (gOFS != NULL) {
+  if (gOFS) {
     std::string ckey = SSTR(common::InstanceName::getGlobalMgmConfigQueue()
                             << "#" << key);
 
     if (value.empty()) {
       mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).del(key);
-    } else {
-      mq::SharedHashWrapper::makeGlobalMgmHash(gOFS->mMessagingRealm.get()).set(key,
-          value);
-    }
 
-    if (FsView::gFsView.mConfigEngine) {
-      if (value.empty()) {
+      if (FsView::gFsView.mConfigEngine) {
         FsView::gFsView.mConfigEngine->DeleteConfigValue("global", ckey.c_str());
-      } else {
+      }
+    } else {
+      mq::SharedHashWrapper::makeGlobalMgmHash
+      (gOFS->mMessagingRealm.get()).set(key, value);
+
+      if (FsView::gFsView.mConfigEngine) {
         FsView::gFsView.mConfigEngine->SetConfigValue("global", ckey.c_str(),
             value.c_str());
       }
@@ -2559,27 +2579,14 @@ FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 std::string
 FsView::GetGlobalConfig(const std::string& key)
 {
-  if (gOFS != NULL) {
+  if (gOFS) {
     return mq::SharedHashWrapper::makeGlobalMgmHash(
              gOFS->mMessagingRealm.get()).get(key);
   }
 
   return "";
 }
-static void setFsStatus(FileSystem* fs,
-                        eos::common::ActiveStatus status,
-                        eos::common::BootStatus bstatus)
-{
-  if (fs == nullptr) {
-    return;
-  }
 
-  fs->SetActiveStatus(status);
-  gOFS->mFsScheduler->setDiskStatus(fs->GetSpace(),
-                                    fs->GetId(),
-                                    status,
-                                    bstatus);
-}
 //------------------------------------------------------------------------------
 // Heart beat checker set's filesystem to down if the heart beat is missing
 //------------------------------------------------------------------------------
@@ -2984,7 +2991,7 @@ ConfigResetMonitor::ConfigResetMonitor():
 ConfigResetMonitor::~ConfigResetMonitor()
 {
   if (mOrigConfEngine == nullptr) {
-    FsView::gFsView.mConfigEngine = gOFS->ConfEngine;
+    FsView::gFsView.mConfigEngine = gOFS->mConfigEngine;
   } else {
     std::swap(FsView::gFsView.mConfigEngine, mOrigConfEngine);
   }

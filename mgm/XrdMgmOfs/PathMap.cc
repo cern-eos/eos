@@ -56,7 +56,7 @@ XrdMgmOfs::AddPathMap(const char* source, const char* target,
     PathMap[source] = target;
 
     if (store_config) {
-      ConfEngine->SetConfigValue("map", source, target);
+      mConfigEngine->SetConfigValue("map", source, target);
     }
 
     return true;

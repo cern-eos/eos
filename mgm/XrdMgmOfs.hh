@@ -1717,7 +1717,7 @@ public:
   // Configuration variables
   //----------------------------------------------------------------------------
   char* ConfigFN; ///< name of the configuration file
-  IConfigEngine* ConfEngine; ///< storing/restoring configuration
+  IConfigEngine* mConfigEngine; ///< storing/restoring configuration
   std::chrono::seconds mCapabilityValidity; ///< Capability validity duration
   XrdOucString MgmOfsBroker; ///< Url of the message broker without MGM subject
   XrdOucString MgmOfsBrokerUrl; ///< Url of the message broker with MGM subject

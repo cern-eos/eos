@@ -109,7 +109,8 @@ function(eos_enable_sanitizer sanitizer var)
     # Set required flags in parent scope, as some sanitizers can't be used together
     set(CMAKE_REQUIRED_FLAGS ${CMAKE_REQUIRED_FLAGS} PARENT_SCOPE)
     set(CMAKE_REQUIRED_LINK_OPTIONS ${CMAKE_REQUIRED_LINK_OPTIONS} PARENT_SCOPE)
-    add_compile_options(${FLAG})
+    add_compile_options(${FLAG} -fno-omit-frame-pointer)
+
     add_link_options(${FLAG})
   else()
     message(FATAL_ERROR "Could not enable flag '${FLAG}'.\n"

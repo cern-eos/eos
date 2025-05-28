@@ -191,7 +191,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
   } else if (skey.beginswith("ns:")) {
     // internal NS configuration option
     std::map<std::string, std::string> map_cfg;
-    gOFS->mMaster->FillNsCacheConfig(gOFS->ConfEngine, map_cfg);
+    gOFS->mMaster->FillNsCacheConfig(gOFS->mConfigEngine, map_cfg);
     gOFS->eosFileService->configure(map_cfg);
     gOFS->eosDirectoryService->configure(map_cfg);
     return 0;

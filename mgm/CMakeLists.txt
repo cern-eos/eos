@@ -115,7 +115,6 @@ add_library(
   proc/admin/Vid.cc
   proc/admin/Access.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/AccessCmd.cc proc/admin/AccessCmd.hh
-  proc/admin/Config.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/ConfigCmd.cc proc/admin/ConfigCmd.hh
   proc/admin/ConvertCmd.cc proc/admin/ConvertCmd.hh
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
