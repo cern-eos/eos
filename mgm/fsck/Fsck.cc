@@ -170,7 +170,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
               gOFS->mQdbContactDetails.constructOptions());
     } else {
       msg = "error: no qclient configuration for fsck";
-      eos_err("%s", msg.c_str());
+      eos_err("msg=\"%s\"", msg.c_str());
       return false;
     }
   }

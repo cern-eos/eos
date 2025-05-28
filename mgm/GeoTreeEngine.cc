@@ -107,7 +107,7 @@ bool GeoTreeEngine::gUpdaterStarted = false;
 const unsigned char GeoTreeEngine::sntFilesystem = 1,
                                    GeoTreeEngine::sntDataproxy = 4;
 std::map<std::string, unsigned char> GeoTreeEngine::gQueue2NotifType;
-static constexpr auto FS_LISTENER_THREAD_NAME="GeoTreeFsListener";
+static constexpr auto FS_LISTENER_THREAD_NAME = "GeoTreeFsListener";
 
 //------------------------------------------------------------------------------
 // Get the maximum number of placement attempts
@@ -3470,7 +3470,7 @@ void GeoTreeEngine::setConfigValue(const char* prefix,
                                    const char* key,
                                    const char* val)
 {
-  gOFS->ConfEngine->SetConfigValue(prefix, key, val);
+  gOFS->mConfigEngine->SetConfigValue(prefix, key, val);
 }
 
 bool GeoTreeEngine::markPendingBranchDisablings(const std::string& group,

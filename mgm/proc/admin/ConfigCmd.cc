@@ -95,7 +95,7 @@ void ConfigCmd::LsSubcmd(const eos::console::ConfigProto_LsProto& ls,
 {
   XrdOucString listing = "";
 
-  if (!(gOFS->ConfEngine->ListConfigs(listing, ls.showbackup()))) {
+  if (!(gOFS->mConfigEngine->ListConfigs(listing, ls.showbackup()))) {
     reply.set_std_err("error: listing of existing configs failed!");
     reply.set_retc(errno);
   } else {
@@ -111,7 +111,7 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
 {
   XrdOucString sdump = "";
 
-  if (!gOFS->ConfEngine->DumpConfig(sdump, dump.file())) {
+  if (!gOFS->mConfigEngine->DumpConfig(sdump, dump.file())) {
     reply.set_std_err("error: failed to dump configuration");
     reply.set_retc(errno);
   } else {
@@ -124,7 +124,7 @@ void ConfigCmd::DumpSubcmd(const eos::console::ConfigProto_DumpProto& dump,
 //----------------------------------------------------------------------------
 void ConfigCmd::ResetSubcmd(eos::console::ReplyProto& reply)
 {
-  gOFS->ConfEngine->ResetConfig();
+  gOFS->mConfigEngine->ResetConfig();
   reply.set_std_out("success: configuration has been reset(cleaned)!");
 }
 
@@ -147,8 +147,8 @@ void ConfigCmd::SaveSubcmd(const eos::console::ConfigProto_SaveProto& save,
   eos_notice("config save: %s", save.ShortDebugString().c_str());
   XrdOucString std_err;
 
-  if (!gOFS->ConfEngine->SaveConfig(save.file(), save.force(),
-                                    mReqProto.comment(), std_err)) {
+  if (!gOFS->mConfigEngine->SaveConfig(save.file(), save.force(),
+                                       mReqProto.comment(), std_err)) {
     reply.set_std_err(std_err.c_str());
     reply.set_retc(errno);
   } else {
@@ -166,7 +166,7 @@ void ConfigCmd::LoadSubcmd(const eos::console::ConfigProto_LoadProto& load,
   eos::mgm::ConfigResetMonitor fsview_cfg_reset_monitor;
   XrdOucString std_err;
 
-  if (!gOFS->ConfEngine->LoadConfig(load.file(), std_err)) {
+  if (!gOFS->mConfigEngine->LoadConfig(load.file(), std_err)) {
     reply.set_std_err(std_err.c_str());
     reply.set_retc(errno);
   } else {
@@ -182,7 +182,7 @@ void ConfigCmd::ChangelogSubcmd(const eos::console::ConfigProto_ChangelogProto&
                                 eos::console::ReplyProto& reply)
 {
   std::string std_out;
-  gOFS->ConfEngine->Tail(changelog.lines(), std_out);
+  gOFS->mConfigEngine->Tail(changelog.lines(), std_out);
   eos_notice("config changelog");
   reply.set_std_out(std_out);
 }

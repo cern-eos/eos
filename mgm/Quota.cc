@@ -211,8 +211,8 @@ SpaceQuota::RmQuota(unsigned long tag, unsigned long id)
 {
   eos_debug("rm quota tag=%lu id=%lu", tag, id);
   XrdSysMutexHelper scope_lock(mMutex);
-
   bool erased = mMapIdQuota.erase(Index(tag, id));
+
   if (erased) {
     mDirtyTarget = true;
   }
@@ -1576,8 +1576,8 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
   }
 
   squota->SetQuota(quota_tag, id, value);
-  gOFS->ConfEngine->SetConfigValue("quota", oss_config.str().c_str(),
-                                   svalue.c_str());
+  gOFS->mConfigEngine->SetConfigValue("quota", oss_config.str().c_str(),
+                                      svalue.c_str());
   oss_msg << "success: updated "
           << ((quota_type == Type::kVolume) ? "volume" : "inode")
           << " quota for "
@@ -1659,7 +1659,7 @@ Quota::RmQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
 
   if (squota->RmQuota(quota_tag, id)) {
     oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
-    gOFS->ConfEngine->DeleteConfigValue("quota", oss_config.str().c_str());
+    gOFS->mConfigEngine->DeleteConfigValue("quota", oss_config.str().c_str());
     oss_msg << "success: removed "
             << ((quota_type == Type::kVolume) ? "volume" : "inode")
             << " quota for "
@@ -1744,11 +1744,11 @@ Quota::RmSpaceQuota(const std::string& qpath, std::string& msg, int& retc)
     // Remove all configuration entries
     std::string match = path;
     match += ":";
-    gOFS->ConfEngine->DeleteConfigValueByMatch("quota", match.c_str());
+    gOFS->mConfigEngine->DeleteConfigValueByMatch("quota", match.c_str());
     msg = "success: removed space quota for ";
     msg += path;
 
-    if (!gOFS->ConfEngine->AutoSave()) {
+    if (!gOFS->mConfigEngine->AutoSave()) {
       return false;
     }
 
@@ -2018,6 +2018,7 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
   }
 
   bool space_exists = FsView::gFsView.mSpaceGroupView.count(*args->spacename);
+
   if (!space_exists) {
     eos_static_err("msg=\"no filesystem in space\" space=\"%s\"",
                    args->spacename->c_str());
