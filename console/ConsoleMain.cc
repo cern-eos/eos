@@ -94,6 +94,7 @@ extern int com_license(char*);
 extern int com_ln(char*);
 extern int com_ls(char*);
 extern int com_map(char*);
+extern int com_mdcopy(char*);
 extern int com_member(char*);
 extern int com_mkdir(char*);
 extern int com_motd(char*);
@@ -185,6 +186,7 @@ COMMAND commands[] = {
   { (char*) "ls", com_ls, (char*) "List a directory"},
   { (char*) "ln", com_ln, (char*) "Create a symbolic link"},
   { (char*) "map", com_map, (char*) "Path mapping interface"},
+  { (char*) "mdcopy", com_mdcopy, (char*) "Copy command for small file archiving using sparse files"},
   { (char*) "member", com_member, (char*) "Check Egroup membership"},
   { (char*) "mkdir", com_mkdir, (char*) "Create a directory"},
   { (char*) "motd", com_motd, (char*) "Message of the day"},
