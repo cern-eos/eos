@@ -80,6 +80,10 @@ public:
   const char* GetLine();
 
   //----------------------------------------------------------------------------
+  //! Return arg vector
+  //----------------------------------------------------------------------------
+  std::vector<std::string> GetArgs() {return fLineArgs;}
+  //----------------------------------------------------------------------------
   //! Return next parsed space separated token taking into account escaped
   //! blanks and quoted strings.
   //!
