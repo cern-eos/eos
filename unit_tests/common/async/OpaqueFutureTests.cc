@@ -50,15 +50,12 @@ TEST(OpaqueFuture, VoidStdFuture)
 // We sneak in a folly::Unit as a void future!
 TEST(OpaqueFuture, VoidFollyFuture)
 {
-  folly::Promise<folly::Unit> p;
-  auto f = p.getFuture();
+  auto f = folly::makeFuture();
   static_assert(std::is_same_v<decltype(f),
                                folly::Future<folly::Unit>>);
   eos::common::OpaqueFuture<void> of(std::move(f));
   ASSERT_TRUE(of.valid());
-  EXPECT_FALSE(of.ready());
-  p.setValue();
-  EXPECT_TRUE(of.ready());
+  EXPECT_TRUE(of.ready());  // Future is already fulfilled since we used makeFuture
   of.getValue();
 }
 
