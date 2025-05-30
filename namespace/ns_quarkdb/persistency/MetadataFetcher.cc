@@ -30,6 +30,8 @@
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/utils/PathProcessor.hh"
 #include "qclient/QClient.hh"
+#include <folly/Expected.h>
+#include <folly/futures/Future.h>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " \
@@ -855,7 +857,9 @@ public:
   //----------------------------------------------------------------------------
   void set_value(FileOrContainerIdentifier outcome)
   {
-    mPromise.setValue(outcome);
+    // Create the future and move its Try object into the promise
+    auto fut = folly::makeFuture<FileOrContainerIdentifier>(std::move(outcome));
+    mPromise.setTry(std::move(fut.getTry()));
     delete this;
   }
 
