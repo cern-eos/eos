@@ -58,7 +58,7 @@ std::shared_ptr<eos::IFileMD> file;
 
 BENCHMARK_DEFINE_F(BulkNSObjectLockFixture, ContainerMDLock)(benchmark::State& state)
 {
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     nsTests = std::make_unique<eos::ns::testing::NsTests>();
     container1 = nsTests->view()->createContainer("/test",true);
   }
@@ -67,7 +67,7 @@ BENCHMARK_DEFINE_F(BulkNSObjectLockFixture, ContainerMDLock)(benchmark::State& s
     container1->setAttribute("test1","test2");
     nsTests->view()->updateContainerStore(container1.get());
   }
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     nsTests.reset();
   }
 }
@@ -75,7 +75,7 @@ BENCHMARK_DEFINE_F(BulkNSObjectLockFixture, ContainerMDLock)(benchmark::State& s
 
 BENCHMARK_DEFINE_F(BulkNSObjectLockFixture, BulkNSObjectLocker)(benchmark::State& state)
 {
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     nsTests = std::make_unique<eos::ns::testing::NsTests>();
     container1 = nsTests->view()->createContainer("/test",true);
     container2 = nsTests->view()->createContainer("/test/test2",true);
@@ -90,7 +90,7 @@ BENCHMARK_DEFINE_F(BulkNSObjectLockFixture, BulkNSObjectLocker)(benchmark::State
     // Simulate work while holding the locks.
     simulateWork(500000);
   }
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     nsTests.reset();
   }
 }

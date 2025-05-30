@@ -136,7 +136,7 @@ static void BM_MutexRWLock(benchmark::State& state)
   };
 
   std::thread writer;
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     writer = std::thread(writer_fn);
   }
 
@@ -145,7 +145,7 @@ static void BM_MutexRWLock(benchmark::State& state)
     benchmark::DoNotOptimize(x=p.get());
   }
 
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     writer.join();
   }
   state.counters["frequency"] = Counter(state.iterations(),
@@ -165,7 +165,7 @@ static void BM_SharedMutexRWLock(benchmark::State& state)
   };
 
   std::thread writer;
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     writer = std::thread(writer_fn);
   }
 
@@ -174,7 +174,7 @@ static void BM_SharedMutexRWLock(benchmark::State& state)
     benchmark::DoNotOptimize(x=p.get());
   }
 
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     writer.join();
   }
 
@@ -200,7 +200,7 @@ static void BM_RCUVersionedReadWriteLock(benchmark::State& state)
   };
 
   std::thread writer;
-  if (state.thread_index()==0) {
+  if (state.thread_index == 0) {
     writer = std::thread(writer_fn);
   }
 
@@ -209,7 +209,7 @@ static void BM_RCUVersionedReadWriteLock(benchmark::State& state)
     benchmark::DoNotOptimize(x=p.get());
   }
 
-  if (state.thread_index()==0) {
+  if (state.thread_index == 0) {
     if (writer.joinable())
       writer.join();
   }
@@ -236,7 +236,7 @@ static void BM_RCUEpochReadWriteLock(benchmark::State& state)
   };
 
   std::thread writer;
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     writer = std::thread(writer_fn);
   }
 
@@ -245,7 +245,7 @@ static void BM_RCUEpochReadWriteLock(benchmark::State& state)
     benchmark::DoNotOptimize(x=p.get());
   }
 
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     if (writer.joinable())
       writer.join();
   }
@@ -267,7 +267,7 @@ static void BM_EOSReadWriteLock(benchmark::State& state)
   };
 
   std::thread writer;
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     writer = std::thread(writer_fn);
   }
 
@@ -276,7 +276,7 @@ static void BM_EOSReadWriteLock(benchmark::State& state)
     benchmark::DoNotOptimize(x=p.get());
   }
 
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     writer.join();
   }
 
@@ -371,7 +371,7 @@ void BM_Contended(benchmark::State& state) {
     // To achieve this amount of local work is multiplied by number of threads
     // to keep ratio between local work and critical section approximately
     // equal regardless of number of threads.
-    DelayNs(100 * state.threads(), &local);
+    DelayNs(100 * state.range(0), &local);
     RaiiLocker<MutexType> locker(&shared->mu);
     DelayNs(state.range(0), &shared->data);
   }

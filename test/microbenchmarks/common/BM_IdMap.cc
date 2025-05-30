@@ -49,7 +49,7 @@ static void BM_IdMap(benchmark::State& state)
   using namespace eos::common;
   std::atomic<uint64_t> ctr = 0;
 
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     eos::common::Mapping::Reset();
     eos::common::Mapping::Init();
     eos::common::Mapping::gVirtualUidMap["sss:\"<pwd>\":uid"] = 0;
@@ -76,7 +76,7 @@ static void BM_IdMap(benchmark::State& state)
     ctr++;
   }
 
-  if (state.thread_index() == 0) {
+  if (state.thread_index == 0) {
     eos::common::Mapping::Reset();
   }
 }
