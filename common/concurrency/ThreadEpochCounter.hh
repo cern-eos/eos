@@ -24,6 +24,7 @@
 
 #pragma once
 #include "common/concurrency/AlignMacros.hh"
+#include "common/concurrency/AlignedArray.hh"
 #include <array>
 #include <atomic>
 #include <cassert>
@@ -31,6 +32,11 @@
 #include <thread>
 
 namespace eos::common {
+
+// Fixed cache line size for x86_64 and ARM64 architectures (64 bytes)
+// This value matches the typical L1 cache line size and the default
+// value of hardware_destructive_interference_size on modern CPUs.
+constexpr std::size_t THREAD_CACHE_LINE_SIZE = 64;
 
 namespace detail {
 
@@ -84,7 +90,7 @@ public:
   }
 
 private:
-  alignas(hardware_destructive_interference_size) std::array<std::atomic<uint16_t>, kMaxEpochs> mCounter{0};
+  alignas(THREAD_CACHE_LINE_SIZE) std::array<std::atomic<uint16_t>, kMaxEpochs> mCounter{0};
 };
 
 namespace experimental {
@@ -125,7 +131,7 @@ extern thread_local ThreadID tlocalID;
  * thread_local pointers.
  */
 
-struct alignas(hardware_destructive_interference_size) ThreadEpoch {
+struct alignas(THREAD_CACHE_LINE_SIZE) ThreadEpoch {
   auto get(std::memory_order order = std::memory_order_acquire) {
     return epoch_counter.load(order);
   }

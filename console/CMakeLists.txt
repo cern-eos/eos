@@ -58,6 +58,8 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/helpers/NewfindHelper.cc commands/helpers/NewfindHelper.hh
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
+  commands/classes/RClone.cc        commands/classes/RClone.hh
+  commands/classes/Backup.cc        commands/classes/Backup.hh
   commands/com_accounting.cc
   commands/com_archive.cc
   commands/com_attr.cc
@@ -83,6 +85,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_ls.cc
   commands/com_ln.cc
   commands/com_map.cc
+  commands/com_mdcopy.cc
   commands/com_member.cc
   commands/com_mkdir.cc
   commands/com_motd.cc
@@ -178,3 +181,4 @@ install(TARGETS eos
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
+

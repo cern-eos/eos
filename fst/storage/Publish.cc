@@ -378,7 +378,7 @@ static uint32_t GetNumOfKworkerProcs()
 
   if (proc_t** procs = readproctab(PROC_FILLSTAT)) {
     for (int i = 0; procs[i]; ++i) {
-      if (procs[i]->cmd) {
+      if (procs[i]->cmd[0] != '\0') {
         eos_static_debug("msg=\"process cmd line\" cmd=\"%s\"", procs[i]->cmd);
 
         if (strstr(procs[i]->cmd, "kworker") == procs[i]->cmd) {

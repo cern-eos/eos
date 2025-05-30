@@ -1134,7 +1134,9 @@ int gf_w8_table_init(gf_t *gf)
   struct gf_w8_double_table_data *dtd = NULL;
   struct gf_w8_double_table_lazy_data *ltd = NULL;
   struct gf_w8_default_data *dd = NULL;
-  int a, b, c, prod, scase, use_simd;
+  int a, b, c, prod;
+  int scase = -1;  /* Initialize to invalid case */
+  int use_simd;
 
   h = (gf_internal_t *) gf->scratch;
 
@@ -1170,6 +1172,13 @@ int gf_w8_table_init(gf_t *gf)
   } else {
     fprintf(stderr, "Internal error in gf_w8_table_init\n");
     assert(0);
+    return 0;  /* Return error if assertions are disabled */
+  }
+
+  /* Verify scase was set to a valid value */
+  if (scase < 0 || scase > 3) {
+    fprintf(stderr, "Internal error: invalid scase in gf_w8_table_init\n");
+    return 0;
   }
 
   for (a = 1; a < GF_FIELD_SIZE; a++) {

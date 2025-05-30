@@ -27,11 +27,13 @@
 
 #include <atomic>
 #include <thread>
+#include <memory>
 
 
 namespace eos::common
 {
 
+// CACHE_LINE_SIZE is already defined in AlignedArray.hh
 constexpr size_t MAX_THREADS = 4096;
 
 /*
@@ -177,9 +179,8 @@ public:
 
 private:
   ListT mReadersCounter;
-  alignas(hardware_destructive_interference_size) std::atomic<uint64_t> mEpoch{0};
-  alignas(hardware_destructive_interference_size) std::atomic<uint64_t>
-  mWritersCount{0};
+  alignas(CACHE_LINE_SIZE) std::atomic<uint64_t> mEpoch{0};
+  alignas(CACHE_LINE_SIZE) std::atomic<uint64_t> mWritersCount{0};
 };
 
 template <typename RCUDomain>

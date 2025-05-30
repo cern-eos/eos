@@ -72,7 +72,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
   std::string attr_path = cPath.GetPath();
   std::shared_ptr<eos::IFileMD> fh;
   std::shared_ptr<eos::IContainerMD> dh;
-  mode_t dh_mode;
+  mode_t dh_mode = 0;
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
   // Check for existing file

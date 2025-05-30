@@ -82,7 +82,8 @@ Config::Load(const char* service, const char* name, bool reset)
       }
     } else {
       chapter = p;
-      conf[chapter].size();
+      // Create the chapter entry if it doesn't exist
+      conf[chapter];
     }
   }
 

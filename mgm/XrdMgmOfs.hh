@@ -128,6 +128,7 @@
 #include <google/sparse_hash_map>
 #include <chrono>
 #include <mutex>
+#include <optional>
 
 USE_EOSMGMNAMESPACE
 

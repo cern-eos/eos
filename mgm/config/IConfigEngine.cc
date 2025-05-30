@@ -42,6 +42,7 @@
 #include "common/StringTokenizer.hh"
 #include "mq/SharedHashWrapper.hh"
 #include <sstream>
+#include <optional>
 
 EOSMGMNAMESPACE_BEGIN
 
