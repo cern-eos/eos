@@ -187,7 +187,7 @@ XrdMgmOfs::Drop(const char* path,
       std::string deletionreport;
 
       if (eos::common::SymKey::ZDeBase64(deletionreport64, deletionreport)) {
-        gOFS->IoStats->WriteRecord(deletionreport);
+        gOFS->mIoStats->WriteRecord(deletionreport);
       } else {
         eos_thread_err("failed to decode report '%s'", deletionreport64.c_str());
       }

@@ -249,7 +249,7 @@ public:
   //!
   //! @param fsview pointer to FsView object
   //----------------------------------------------------------------------------
-  void ApplyIostatConfig(FsView* fsview);
+  void ApplyConfig(FsView* fsview);
 
   //----------------------------------------------------------------------------
   //! Store IoStat config in the instance level configuration

@@ -211,6 +211,13 @@ public:
   bool RemoveUnusedNodes();
 
   //----------------------------------------------------------------------------
+  //! Remove deprecated configuration keys
+  //!
+  //! @return true if there were any modification, otherwise false
+  //----------------------------------------------------------------------------
+  bool RemoveDeprecatedKeys();
+
+  //----------------------------------------------------------------------------
   //! Filter configuration - display given configuration
   //!
   //! @param out output representation of the configuration after filtering

@@ -73,17 +73,17 @@ void IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat,
 
   // If nothing is selected, we show the summary information
   if (!(stat.apps() || stat.domain() || stat.top() || stat.details())) {
-    gOFS->IoStats->PrintOut(out, true, stat.details(),
-                            monitoring, stat.numerical(),
-                            stat.top(), stat.domain(), stat.apps(),
-                            stat.sample_stat(), stat.time_ago(),
-                            stat.time_interval());
+    gOFS->mIoStats->PrintOut(out, true, stat.details(),
+                             monitoring, stat.numerical(),
+                             stat.top(), stat.domain(), stat.apps(),
+                             stat.sample_stat(), stat.time_ago(),
+                             stat.time_interval());
   } else {
-    gOFS->IoStats->PrintOut(out, stat.summary(), stat.details(),
-                            monitoring, stat.numerical(),
-                            stat.top(), stat.domain(), stat.apps(),
-                            stat.sample_stat(), stat.time_ago(),
-                            stat.time_interval());
+    gOFS->mIoStats->PrintOut(out, stat.summary(), stat.details(),
+                             monitoring, stat.numerical(),
+                             stat.top(), stat.domain(), stat.apps(),
+                             stat.sample_stat(), stat.time_ago(),
+                             stat.time_interval());
   }
 
   if (WantsJsonOutput()) {
@@ -106,7 +106,7 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
   if (enable.switchx()) { // enable
     if ((!enable.reports()) && (!enable.namespacex())) {
       if (enable.upd_address().length()) {
-        if (gOFS->IoStats->AddUdpTarget(enable.upd_address().c_str())) {
+        if (gOFS->mIoStats->AddUdpTarget(enable.upd_address().c_str())) {
           out << "success: enabled IO udp target " << enable.upd_address();
         } else {
           err << "error: IO udp target was not configured " << enable.upd_address();
@@ -116,16 +116,16 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
         if (enable.popularity()) {
           // Always enable collection otherwise we don't get anything for
           // popularity reporting
-          gOFS->IoStats->StartCollection();
+          gOFS->mIoStats->StartCollection();
 
-          if (gOFS->IoStats->StartPopularity()) {
+          if (gOFS->mIoStats->StartPopularity()) {
             out << "success: enabled IO popularity collection";
           } else {
             err << "error: IO popularity collection already enabled";
             ret_c = EINVAL;
           }
         } else {
-          if (gOFS->IoStats->StartCollection()) {
+          if (gOFS->mIoStats->StartCollection()) {
             out << "success: enabled IO report collection";
           } else {
             err << "error: IO report collection already enabled";
@@ -135,7 +135,7 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
       }
     } else { // disable
       if (enable.reports()) {
-        if (gOFS->IoStats->StartReport()) {
+        if (gOFS->mIoStats->StartReport()) {
           out << "success: enabled IO report store";
         } else {
           err << "error: IO report store already enabled";
@@ -144,7 +144,7 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
       }
 
       if (enable.namespacex()) {
-        if (gOFS->IoStats->StartReportNamespace()) {
+        if (gOFS->mIoStats->StartReportNamespace()) {
           out << "success: enabled IO report namespace";
         } else {
           err << "error: IO report namespace already enabled";
@@ -155,7 +155,7 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
   } else {
     if ((!enable.reports()) && (!enable.namespacex())) {
       if (enable.upd_address().length()) {
-        if (gOFS->IoStats->RemoveUdpTarget(enable.upd_address().c_str())) {
+        if (gOFS->mIoStats->RemoveUdpTarget(enable.upd_address().c_str())) {
           out << "success: disabled IO udp target " << enable.upd_address();
         } else {
           err << "error: IO udp target was not configured " << enable.upd_address();
@@ -163,14 +163,14 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
         }
       } else {
         if (enable.popularity()) {
-          if (gOFS->IoStats->StopPopularity()) {
+          if (gOFS->mIoStats->StopPopularity()) {
             out << "success: disabled IO popularity collection";
           } else {
             err << "error: IO popularity collection already disabled";
             ret_c = EINVAL;
           }
         } else {
-          if (gOFS->IoStats->StopCollection()) {
+          if (gOFS->mIoStats->StopCollection()) {
             out << "success: disabled IO report collection";
           } else {
             err << "error: IO report collection already disabled";
@@ -180,7 +180,7 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
       }
     } else {
       if (enable.reports()) {
-        if (gOFS->IoStats->StopReport()) {
+        if (gOFS->mIoStats->StopReport()) {
           out << "success: disabled IO report store";
         } else {
           err << "error: IO report store already disabled";
@@ -189,7 +189,7 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
       }
 
       if (enable.namespacex()) {
-        if (gOFS->IoStats->StopReportNamespace()) {
+        if (gOFS->mIoStats->StopReportNamespace()) {
           out << "success: disabled IO report namespace";
         } else {
           err << "error: IO report namespace already disabled";
@@ -219,8 +219,8 @@ void IoCmd::ReportSubcmd(const eos::console::IoProto_ReportProto& report,
     return;
   }
 
-  if (gOFS->IoStats) {
-    gOFS->IoStats->PrintNsReport(report.path().c_str(), out);
+  if (gOFS->mIoStats) {
+    gOFS->mIoStats->PrintNsReport(report.path().c_str(), out);
   }
 
   reply.set_std_out(out.c_str());
@@ -278,7 +278,7 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
   }
 
   XrdOucString out = "";
-  gOFS->IoStats->PrintNsPopularity(out, option.c_str());
+  gOFS->mIoStats->PrintNsPopularity(out, option.c_str());
 
   if (WantsJsonOutput()) {
     out = ResponseToJsonString(out.c_str()).c_str();

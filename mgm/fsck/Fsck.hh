@@ -43,6 +43,10 @@
 //------------------------------------------------------------------------------
 EOSMGMNAMESPACE_BEGIN
 
+
+//! Forward declaration
+class FsView;
+
 //------------------------------------------------------------------------------
 //! @brief Class implementing the EOS filesystem check.
 //!
@@ -129,8 +133,10 @@ public:
 
   //----------------------------------------------------------------------------
   //! Apply the FSCK configuration stored in the configuration engine
+  //!
+  //! @param fsview pointer to FsView object
   //----------------------------------------------------------------------------
-  void ApplyFsckConfig();
+  void ApplyConfig(FsView* fsview);
 
   //----------------------------------------------------------------------------
   //! Store the FSCK configuration to the configuration engine
@@ -244,7 +250,7 @@ private:
   mutable eos::common::RWMutex mErrMutex; ///< Mutex protecting all map obj
   //! Error detail map storing "<error-name>=><fsid>=>[fid1,fid2,fid3...]"
   using ErrMapT = std::map<std::string,
-        std::map<eos::common::FileId::fileid_t ,
+        std::map<eos::common::FileId::fileid_t,
         std::set <eos::common::FileSystem::fsid_t>>>;
   ErrMapT eFsMap;
   //! Unavailable filesystems map
