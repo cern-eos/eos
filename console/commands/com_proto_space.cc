@@ -361,6 +361,7 @@ bool SpaceHelper::ParseCommand(const char* arg)
       config->set_mgmspace_key(token);
     } else {
       std::string::size_type pos = token.find('=');
+
       // contains 1 and only 1 '='. It expects a token like <key>=<value>
       if ((pos != std::string::npos) &&
           (count(token.begin(), token.end(), '=') == 1)) {
@@ -544,7 +545,6 @@ void com_space_help()
       << "space config <space-name> space.scan_ns_interval=<sec>                : time interval after which the namespace scanner will run, default 3 days\n"
       << "space config <space-name> space.scan_ns_rate=entry/sec                : namespace scan rate in terms of number of stat requests per second done against the local disk\n"
       << "space config <space-name> space.scheduler.type=<type>                 : configure the default scheduler for space, eg. geo, roundrobin, weightedrandom etc\n"
-      << "space config <space-name> space.fsck_refresh_interval=<sec>           : time interval after which fsck inconsistencies are refreshed\n"
       << "space config <space-name> space.drainperiod=<sec>                     : configure the default drain  period if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.graceperiod=<sec>                     : configure the default grace  period if not defined on a filesystem (see fs for details)\n"
       << "space config <space-name> space.filearchivedgc=on|off                 : enable/disable the 'file archived' garbage collector [ default=off ]\n"
