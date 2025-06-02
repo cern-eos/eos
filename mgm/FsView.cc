@@ -900,11 +900,6 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("drainer.node.rate", "25");
     }
 
-    // Set parallel draining streams per node
-    if (GetConfigMember("drainer.node.ntx").empty()) {
-      SetConfigMember("drainer.node.ntx", "2");
-    }
-
     // Set the grace period before drain start on opserror to 1 day
     if (GetConfigMember("graceperiod").empty()) {
       SetConfigMember("graceperiod", "86400");
