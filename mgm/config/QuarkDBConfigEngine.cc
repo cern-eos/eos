@@ -33,6 +33,11 @@
 #include <functional>
 using std::placeholders::_1;
 
+namespace
+{
+const std::string sCleanupEnv {"EOS_MGM_CONFIG_CLEANUP"};
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
@@ -168,15 +173,35 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
     }
   }
 
+  if (RemoveDeprecatedKeys()) {
+    XrdOucString err;
+
+    if (!SaveConfig(filename, true, "", err)) {
+      eos_static_err("msg=\"failed to save config after deprecated keys "
+                     " cleanup\" err_msg=\"%s\"", err.c_str());
+      return false;
+    }
+  }
+
   if (!ApplyConfig(err, apply_stall_redirect))   {
     mChangelog->AddEntry("loaded config", filename,
                          SSTR("with failure : " << err));
     return false;
   } else {
-    mConfigFile = filename.c_str();
+    mConfigFile = filename;
     return true;
   }
 }
+
+//------------------------------------------------------------------------------
+// Remove deprecated configuration keys
+//------------------------------------------------------------------------------
+bool
+QuarkDBConfigEngine::RemoveDeprecatedKeys()
+{
+  return false;
+}
+
 
 //------------------------------------------------------------------------------
 // Remove old unused nodes that are off and have no file systems registered
@@ -302,8 +327,8 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
   auto start = steady_clock::now();
 
   if (filename.empty()) {
-    if (mConfigFile.length()) {
-      filename = mConfigFile.c_str();
+    if (!mConfigFile.empty()) {
+      filename = mConfigFile;
       overwrite = true;
     } else {
       err = "error: you have to specify a configuration name";
@@ -334,7 +359,7 @@ QuarkDBConfigEngine::SaveConfig(std::string filename, bool overwrite,
 
   changeLogValue << " successfully";
   mChangelog->AddEntry("saved config", filename, changeLogValue.str(), comment);
-  mConfigFile = filename.c_str();
+  mConfigFile = filename;
   auto end = steady_clock::now();
   auto duration = end - start;
   eos_notice("msg=\"saved config\" name=\"%s\" comment=\"%s\" force=%d duration=\"%llu ms\"",
@@ -366,7 +391,7 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
     configlist += "name: ";
     configlist += it->c_str();
 
-    if (*it == mConfigFile.c_str()) {
+    if (*it == mConfigFile) {
       configlist += " *";
     }
 
@@ -394,6 +419,7 @@ QuarkDBConfigEngine::ListConfigs(XrdOucString& configlist, bool showbackup)
 void QuarkDBConfigEngine::CleanupThread(ThreadAssistant& assistant)
 {
   ThreadAssistant::setSelfThreadName("QDBConfigCleanup");
+
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::minutes(30));
 
@@ -462,12 +488,11 @@ QuarkDBConfigEngine::FilterConfig(std::ostream& out,
 bool
 QuarkDBConfigEngine::AutoSave()
 {
-  if (gOFS->mMaster->IsMaster() && mAutosave && mConfigFile.length()) {
-    std::string filename = mConfigFile.c_str();
+  if (gOFS->mMaster->IsMaster() && mAutosave && !mConfigFile.empty()) {
     bool overwrite = true;
     XrdOucString err = "";
 
-    if (!SaveConfig(filename, overwrite, "", err)) {
+    if (!SaveConfig(mConfigFile, overwrite, "", err)) {
       eos_static_err("%s\n", err.c_str());
       return false;
     }
@@ -498,22 +523,20 @@ QuarkDBConfigEngine::SetConfigValue(const char* prefix, const char* key,
     sConfigDefinitions[config_key] = val;
   }
 
-  // In case the change is not coming from a broacast we can can broadcast it
-  // and add it to the changelog
+  // In case the change is not coming from a broacast we can can broadcast it,
+  // add it to the changelog and save
   if (from_local) {
     // Make this value visible between MGM's
     PublishConfigChange(config_key.c_str(), val);
     mChangelog->AddEntry("set config", FormFullKey(prefix, key), val);
-  }
 
-  // If the change is not coming from a broacast we can can save it
-  if (from_local && save_config && mConfigFile.length()) {
-    std::string filename = mConfigFile.c_str();
-    bool overwrite = true;
-    XrdOucString err = "";
+    if (save_config) {
+      bool overwrite = true;
+      XrdOucString err = "";
 
-    if (!SaveConfig(filename, overwrite, "", err)) {
-      eos_static_err("%s\n", err.c_str());
+      if (!SaveConfig(mConfigFile, overwrite, "", err)) {
+        eos_static_err("%s", err.c_str());
+      }
     }
   }
 }
@@ -526,35 +549,24 @@ QuarkDBConfigEngine::DeleteConfigValue(const char* prefix, const char* key,
                                        bool from_local)
 {
   std::string config_key = FormFullKey(prefix, key);
-
-  // In case the change is not coming from a broacast we can can broadcast it
-  if (from_local) {
-    // Make this value visible between MGM's
-    PublishConfigDeletion(config_key.c_str());
-  }
-
   {
     std::lock_guard lock(mMutex);
     sConfigDefinitions.erase(config_key);
   }
 
-  // If it's not coming from a broadcast we can add it to the changelog
+  // In case the change is not coming from a broacast we can can broadcast it,
+  // add it to the changelog and save it
   if (from_local) {
+    // Make this value visible between MGM's
+    PublishConfigDeletion(config_key.c_str());
     mChangelog->AddEntry("del config", FormFullKey(prefix, key), "");
-  }
-
-  // If the change is not coming from a broacast we can can save it
-  if (from_local && mConfigFile.length()) {
-    std::string filename = mConfigFile.c_str();
     bool overwrite = true;
     XrdOucString err = "";
 
-    if (!SaveConfig(filename, overwrite, "", err)) {
+    if (!SaveConfig(mConfigFile, overwrite, "", err)) {
       eos_static_err("%s\n", err.c_str());
     }
   }
-
-  eos_static_debug("%s", key);
 }
 
 //------------------------------------------------------------------------------

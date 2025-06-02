@@ -106,7 +106,7 @@ public:
   // static key defining the redirection rules in the global configuration
   // key-value map
   static const char* gRedirectionKey;
- 
+
   // static key defining the hosts which are eligible for stalling (whitelist)
   // set
   static const char* gStallHostsKey;
@@ -114,7 +114,7 @@ public:
   // static key defining the hosts which are not eligible for stalling (blacklist)
   // set
   static const char* gNoStallHostsKey;
-  
+
   // set containing the banned user ID
   static std::set<uid_t> gBannedUsers;
 
@@ -211,7 +211,7 @@ public:
   // retrieve the access configuration from the global shared
   // hash/config engine and fill all static access configuration variables
   // ---------------------------------------------------------------------------
-  static void ApplyAccessConfig(bool applystallandredirection = true);
+  static void EnforceConfig(bool applystallandredirection = true);
 
   // ---------------------------------------------------------------------------
   // store the global access configuration variable into the global

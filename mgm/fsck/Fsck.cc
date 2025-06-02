@@ -77,11 +77,11 @@ void Fsck::Stop()
 // Apply the FSCK configuration stored in the configuration engine
 //------------------------------------------------------------------------------
 void
-Fsck::ApplyFsckConfig()
+Fsck::ApplyConfig(FsView* fsview)
 {
   using eos::common::StringTokenizer;
   // Parse config of the form: key1=val1 key2=val2 etc.
-  std::string config = FsView::gFsView.GetGlobalConfig(sFsckKey);
+  std::string config = fsview->GetGlobalConfig(sFsckKey);
   eos_info("msg=\"apply fsck configuration\" data=\"%s\"", config.c_str());
   std::map<std::string, std::string> kv_map;
   auto pairs = StringTokenizer::split<std::list<std::string>>(config, ' ');
