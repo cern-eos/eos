@@ -349,7 +349,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mRestApiManager = std::make_unique<rest::RestApiManager>();
   eos::common::LogId::SetSingleShotLogId();
   mZmqContext = new zmq::context_t(1);
-  IoStats.reset(new eos::mgm::Iostat());
+  mIoStats.reset(new eos::mgm::Iostat());
   mHttpd.reset(new eos::mgm::HttpServer(mHttpdPort));
 
   if (mGRPCPort) {
@@ -469,9 +469,9 @@ XrdMgmOfs::OrderlyShutdown()
   eos_warning("%s", "msg=\"stopping geotree engine updater\"");
   mGeoTreeEngine->StopUpdater();
 
-  if (IoStats) {
+  if (mIoStats) {
     eos_warning("%s", "msg=\"stopping and deleting IoStats\"");
-    IoStats.reset();
+    mIoStats.reset();
   }
 
   eos_warning("%s", "msg=\"stopping fusex server\"");
@@ -1171,8 +1171,8 @@ XrdMgmOfs::WriteRmRecord(const std::shared_ptr<eos::IFileMD>& fmd,
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
 
-  if (IoStats) {
-    IoStats->WriteRecord(record);
+  if (mIoStats) {
+    mIoStats->WriteRecord(record);
   }
 }
 
@@ -1203,8 +1203,8 @@ XrdMgmOfs::WriteRecycleRecord(const std::shared_ptr<eos::IFileMD>& fmd)
            mtime.tv_sec, mtime.tv_nsec, fmd->getSize());
   std::string record = report;
 
-  if (IoStats) {
-    IoStats->WriteRecord(record);
+  if (mIoStats) {
+    mIoStats->WriteRecord(record);
   }
 }
 

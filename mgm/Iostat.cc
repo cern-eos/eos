@@ -489,7 +489,7 @@ Iostat::OneOffQdbMigration(const std::string& legacy_file)
 // Apply instance level configuration concerning IoStats
 //------------------------------------------------------------------------------
 void
-Iostat::ApplyIostatConfig(FsView* fsview)
+Iostat::ApplyConfig(FsView* fsview)
 {
   std::string iocollect = fsview->GetGlobalConfig(gIostatCollect);
 
@@ -2494,6 +2494,7 @@ void
 Iostat::Circulate(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName("IoStatCirculate");
+
   while (!assistant.terminationRequested()) {
     if (mLegacyMode) {
       static unsigned long long sc = 0ull;

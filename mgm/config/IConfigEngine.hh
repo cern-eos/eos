@@ -100,7 +100,7 @@ public:
   //!         = 0 - the next hash table item is processed
   //!         > 0 - processing stops and the hash table item is returned
   //----------------------------------------------------------------------------
-  static int ApplyEachConfig(const char* key, XrdOucString* val,
+  static int ApplyEachConfig(const char* key, const char* val,
                              XrdOucString* err);
 
   //----------------------------------------------------------------------------
@@ -284,7 +284,7 @@ public:
   //! Protect the static configuration definitions hash
   std::recursive_mutex mMutex;
   bool mAutosave; ///< Create autosave file for each change
-  XrdOucString mConfigFile = "default"; ///< Currently loaded configuration
+  std::string mConfigFile = "default"; ///< Currently loaded configuration
   //! Configuration definitions currently in memory
   std::map<std::string, std::string> sConfigDefinitions;
 

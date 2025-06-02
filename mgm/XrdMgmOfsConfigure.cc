@@ -2222,7 +2222,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   const std::string iostat_file = SSTR(MgmMetaLogDir << "/iostat." << ManagerId
                                        << ".dump");
 
-  if (!IoStats->Init(MgmOfsInstanceName.c_str(), ManagerPort, iostat_file)) {
+  if (!mIoStats->Init(MgmOfsInstanceName.c_str(), ManagerPort, iostat_file)) {
     eos_static_warning("%s", "msg=\"failed to initialize IoStat object\"");
   } else {
     eos_static_notice("%s", "msg=\"successfully initalized IoStat object\"");

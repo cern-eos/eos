@@ -115,8 +115,8 @@ std::string RealMgmFileSystemInterface::get_host()
 void RealMgmFileSystemInterface::writeEosReportRecord(const std::string&
     record)
 {
-  if (mMgmOfs->IoStats) {
-    mMgmOfs->IoStats->WriteRecord(record);
+  if (mMgmOfs->mIoStats) {
+    mMgmOfs->mIoStats->WriteRecord(record);
   }
 }
 

@@ -177,7 +177,7 @@ Access::Reset(bool skip_stall_redirect)
  */
 /*----------------------------------------------------------------------------*/
 void
-Access::ApplyAccessConfig(bool applyredirectandstall)
+Access::EnforceConfig(bool applyredirectandstall)
 {
   Access::Reset(!applyredirectandstall);
   eos::common::RWMutexWriteLock lock(Access::gAccessMutex);

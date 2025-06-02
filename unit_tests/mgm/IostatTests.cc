@@ -101,7 +101,7 @@ TEST_F(IostatTest, StartStop)
   ASSERT_EQ(false, iostat.mRunning);
 }
 
-TEST_F(IostatTest, StoreApplyIostatConfig)
+TEST_F(IostatTest, StoreApplyConfig)
 {
   MockFsView mock_fsview;
   std::string udplist = mock_fsview.GetGlobalConfig(iostat.gIostatUdpTargetList);
@@ -134,7 +134,7 @@ TEST_F(IostatTest, StoreApplyIostatConfig)
   std::string out = iostat.EncodeUdpPopularityTargets();
   ASSERT_EQ("", out);
   //EXPECT_CALL(mock_fsview, mock_fsview::GetGlobalConfig).Times(AtLeast(5));
-  iostat.ApplyIostatConfig(&mock_fsview);
+  iostat.ApplyConfig(&mock_fsview);
   // Start collection should not get called
   ASSERT_EQ(false, iostat.mRunning);
   // AddUdpTarget gets called

@@ -1,7 +1,7 @@
-// -----------------------.qc-----------------------------------------------
+// -----------------------------------------------------------------------------
 // File: proc/admin/Fusex.cc
 // Author: Andreas-Joachim Peters - CERN
-// ----------------------------------------------------------------------
+// -----------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
@@ -40,58 +40,56 @@ ProcCommand::Fusex()
       retc = 0;
     } else if (mSubCmd == "conf") {
       std::string hb = pOpaque->Get("mgm.fusex.hb") ? pOpaque->Get("mgm.fusex.hb") :
-	"";
+                       "";
       std::string qc = pOpaque->Get("mgm.fusex.qc") ? pOpaque->Get("mgm.fusex.qc") :
-	"";
-      std::string bc = pOpaque->Get("mgm.fusex.bc.max") ? pOpaque->Get("mgm.fusex.bc.max") :
-	"";
-
-      std::string bc_match = pOpaque->Get("mgm.fusex.bc.match") ? pOpaque->Get("mgm.fusex.bc.match") :
-	"";
-
-
+                       "";
+      std::string bc = pOpaque->Get("mgm.fusex.bc.max") ?
+                       pOpaque->Get("mgm.fusex.bc.max") :
+                       "";
+      std::string bc_match = pOpaque->Get("mgm.fusex.bc.match") ?
+                             pOpaque->Get("mgm.fusex.bc.match") :
+                             "";
       int i_hb = atoi(hb.c_str());
       int i_qc = atoi(qc.c_str());
       int i_bc = atoi(bc.c_str());
 
-
       if (bc.length()) {
-	gOFS->zMQ->gFuseServer.Client().SetBroadCastMaxAudience(i_bc);
-	stdOut += "info: configure FUSEX broadcast max. client audience to ";
-	stdOut += bc.c_str();
-	stdOut += " listeners";
-	stdOut += "\n";
-	FsView::gFsView.mSpaceView["default"]->SetConfigMember("fusex.bca",
-							       bc.c_str());
-	retc = 0;
+        gOFS->zMQ->gFuseServer.Client().SetBroadCastMaxAudience(i_bc);
+        stdOut += "info: configure FUSEX broadcast max. client audience to ";
+        stdOut += bc.c_str();
+        stdOut += " listeners";
+        stdOut += "\n";
+        FsView::gFsView.mSpaceView["default"]->SetConfigMember("fusex.bca",
+            bc.c_str());
+        retc = 0;
       }
 
       if (bc_match.length()) {
-	gOFS->zMQ->gFuseServer.Client().SetBroadCastAudienceSuppressMatch(bc_match);
-	stdOut += "info: configure FUSEX broadcast audience to suppress match to ";
-	stdOut += bc_match.c_str();
-	stdOut += "\n";
-	FsView::gFsView.mSpaceView["default"]->SetConfigMember("fusex.bca_match",
-							       bc_match.c_str());
-	retc = 0;
+        gOFS->zMQ->gFuseServer.Client().SetBroadCastAudienceSuppressMatch(bc_match);
+        stdOut += "info: configure FUSEX broadcast audience to suppress match to ";
+        stdOut += bc_match.c_str();
+        stdOut += "\n";
+        FsView::gFsView.mSpaceView["default"]->SetConfigMember("fusex.bca_match",
+            bc_match.c_str());
+        retc = 0;
       }
 
       if (!i_bc) {
-	bc = std::to_string(gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience());
-	stdOut += "info: configured FUSEX broadcast max. client audience ";
-	stdOut += bc.c_str();
-	stdOut += " listeners";
-	stdOut += "\n";
-	retc = 0;
+        bc = std::to_string(gOFS->zMQ->gFuseServer.Client().BroadCastMaxAudience());
+        stdOut += "info: configured FUSEX broadcast max. client audience ";
+        stdOut += bc.c_str();
+        stdOut += " listeners";
+        stdOut += "\n";
+        retc = 0;
       }
 
       if (!bc_match.length()) {
-	bc_match = gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
-	stdOut += "info: configured FUSEX broadcast audience to suppress match is '";
-	stdOut += bc_match.c_str();
-	stdOut += "'";
-	stdOut += "\n";
-	retc = 0;
+        bc_match = gOFS->zMQ->gFuseServer.Client().BroadCastAudienceSuppressMatch();
+        stdOut += "info: configured FUSEX broadcast audience to suppress match is '";
+        stdOut += bc_match.c_str();
+        stdOut += "'";
+        stdOut += "\n";
+        retc = 0;
       }
 
       if (!i_hb) {
@@ -113,8 +111,8 @@ ProcCommand::Fusex()
         stdOut += "info: configured FUSEX heartbeat interval is ";
         stdOut += hb.c_str();
         stdOut += " seconds\n";
-	FsView::gFsView.mSpaceView["default"]->SetConfigMember("fusex.hbi",
-							       hb.c_str());
+        FsView::gFsView.mSpaceView["default"]->SetConfigMember("fusex.hbi",
+            hb.c_str());
         retc = 0;
       } else {
         stdErr += "error: hearbeat interval must be [1..15] seconds\n";
@@ -126,8 +124,8 @@ ProcCommand::Fusex()
         stdOut += "info: configured FUSEX quota check interval is ";
         stdOut += qc.c_str();
         stdOut += " seconds\n";
-	FsView::gFsView.mSpaceView["default"]->SetConfigMember("fusex.qti",
-							       qc.c_str());
+        FsView::gFsView.mSpaceView["default"]->SetConfigMember("fusex.qti",
+            qc.c_str());
         retc = 0;
       } else {
         if (i_qc < 0) {
@@ -144,30 +142,32 @@ ProcCommand::Fusex()
       XrdOucString reason;
       eos::common::SymKey::DeBase64(reason64, reason);
       s_reason = reason.c_str();
-
       std::vector<std::string> evicted_out;
 
-      if (gOFS->zMQ->gFuseServer.Client().Evict(uuid, s_reason , &evicted_out ) == ENOENT) {
+      if (gOFS->zMQ->gFuseServer.Client().Evict(uuid, s_reason,
+          &evicted_out) == ENOENT) {
         stdErr += "error: no such client '";
         stdErr += uuid.c_str();
         retc = ENOENT;
         stdErr += "'";
       } else {
-	if (evicted_out.size() == 1) {
-	  stdOut += "info: evicted client '";
-	  stdOut += evicted_out[0].c_str();
-	  stdOut += "'";
-	} else {
-	  if (evicted_out.size() == 0) {
-	    stdOut += "info: no client has been evicted!";
-	  } else {
-	    stdOut += "info: evicted clients:\n";
-	    for (auto it : evicted_out) {
-	      stdOut += it.c_str();
-	      stdOut += "\n";
-	    }
-	  }
-	}
+        if (evicted_out.size() == 1) {
+          stdOut += "info: evicted client '";
+          stdOut += evicted_out[0].c_str();
+          stdOut += "'";
+        } else {
+          if (evicted_out.size() == 0) {
+            stdOut += "info: no client has been evicted!";
+          } else {
+            stdOut += "info: evicted clients:\n";
+
+            for (auto it : evicted_out) {
+              stdOut += it.c_str();
+              stdOut += "\n";
+            }
+          }
+        }
+
         retc = 0;
       }
     } else if (mSubCmd == "droplocks") {

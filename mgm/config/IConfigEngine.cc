@@ -62,7 +62,7 @@ IConfigEngine::IConfigEngine():
 // XrdOucHash callback function to apply a configuration value
 //------------------------------------------------------------------------------
 int
-IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
+IConfigEngine::ApplyEachConfig(const char* key, const char* val,
                                XrdOucString* err)
 {
   if (!key || !val) {
@@ -70,14 +70,14 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
   }
 
   std::ostringstream oss_err;
-  XrdOucString toenv = val->c_str();
+  XrdOucString toenv = val;
 
   while (toenv.replace(" ", "&")) {}
 
   XrdOucEnv envdev(toenv.c_str());
   XrdOucString skey = key;
-  std::string sval = val->c_str();
-  eos_static_debug("key=%s val=%s", skey.c_str(), val->c_str());
+  std::string sval = val;
+  eos_static_debug("key=%s val=%s", skey.c_str(), sval.c_str());
 
   if (skey.beginswith("fs:")) {
     // Set a filesystem definition
@@ -85,7 +85,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
 
     if (!FsView::gFsView.ApplyFsConfig(skey.c_str(), sval)) {
       oss_err << "error: failed to apply config "
-              << key << " => " << val->c_str() << std::endl;
+              << key << " => " << sval.c_str() << std::endl;
     }
   } else if (skey.beginswith("global:")) {
     // Set a global configuration
@@ -93,18 +93,15 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
 
     if (!FsView::gFsView.ApplyGlobalConfig(skey.c_str(), sval)) {
       oss_err << "error: failed to apply config "
-              << key << " => " << val->c_str() << std::endl;
+              << key << " => " << sval.c_str() << std::endl;
     }
-
-    // Apply the access settings but not the redirection rules
-    Access::ApplyAccessConfig(false);
   } else if (skey.beginswith("map:")) {
     // Set a mapping
     skey.erase(0, 4);
 
     if (!gOFS->AddPathMap(skey.c_str(), sval.c_str(), false)) {
       oss_err << "error: failed to apply config "
-              << key << " => " << val->c_str() << std::endl;
+              << key << " => " << sval.c_str() << std::endl;
     }
   } else if (skey.beginswith("route:")) {
     // Set a routing
@@ -112,13 +109,13 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
     RouteEndpoint endpoint;
 
     if (!endpoint.ParseFromString(sval.c_str())) {
-      eos_static_err("failed to parse route config %s => %s", key, val->c_str());
+      eos_static_err("failed to parse route config %s => %s", key, sval.c_str());
       oss_err << "error: failed to parse route config "
-              << key << " => " << val->c_str() << std::endl;
+              << key << " => " << sval.c_str() << std::endl;
     } else {
       if (!gOFS->mRouting->Add(skey.c_str(), std::move(endpoint))) {
         oss_err << "error: failed to apply config "
-                << key << " => " << val->c_str() << std::endl;
+                << key << " => " << sval.c_str() << std::endl;
       }
     }
   } else if (skey.beginswith("quota:")) {
@@ -142,7 +139,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
     XrdOucString ug(skey, ug_offset + 1, ug_equal_offset - 1);
     XrdOucString ugid(skey, ug_equal_offset + 1, tag_offset - 1);
     XrdOucString tag(skey, tag_offset + 1);
-    unsigned long long value = strtoll(val->c_str(), 0, 10);
+    unsigned long long value = strtoll(sval.c_str(), 0, 10);
     long id = strtol(ugid.c_str(), 0, 10);
 
     if (!space.endswith('/')) {
@@ -169,7 +166,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
 
     if (!Vid::Set(envdev.Env(envlen), false)) {
       eos_static_err("failed applying config line key: |%s| => |%s|",
-                     skey.c_str(), val->c_str());
+                     skey.c_str(), sval.c_str());
       oss_err << "error: cannot apply config line key: "
               << skey.c_str() << std::endl;
     }
@@ -178,7 +175,7 @@ IConfigEngine::ApplyEachConfig(const char* key, XrdOucString* val,
 
     if (!gOFS->mGeoTreeEngine->setParameter(skey.c_str(), sval.c_str(), -2)) {
       eos_static_err("failed applying config line key: |geosched:%s| => |%s|",
-                     skey.c_str(), val->c_str());
+                     skey.c_str(), sval.c_str());
       oss_err << "error: failed applying config line key: geosched:"
               << skey.c_str() << std::endl;
     }
@@ -263,18 +260,17 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
     // Disable the defaults in FsSpace
     FsSpace::gDisableDefaults = true;
 
-    for (auto it = sConfigDefinitions.begin(); it != sConfigDefinitions.end();
-         it++) {
-      XrdOucString val(it->second.c_str());
-      ApplyEachConfig(it->first.c_str(), &val, &err);
+    for (auto it = sConfigDefinitions.begin();
+         it != sConfigDefinitions.end(); it++) {
+      ApplyEachConfig(it->first.c_str(), it->second.c_str(), &err);
     }
 
     // Enable the defaults in FsSpace
     FsSpace::gDisableDefaults = false;
   }
-  Access::ApplyAccessConfig(apply_stall_redirect);
-  gOFS->mFsckEngine->ApplyFsckConfig();
-  gOFS->IoStats->ApplyIostatConfig(&FsView::gFsView);
+  Access::EnforceConfig(apply_stall_redirect);
+  gOFS->mFsckEngine->ApplyConfig(&FsView::gFsView);
+  gOFS->mIoStats->ApplyConfig(&FsView::gFsView);
 
   if (err.length()) {
     errno = EINVAL;
@@ -434,7 +430,7 @@ IConfigEngine::Get(const std::string& prefix, const std::string& key,
 void
 IConfigEngine::ResetConfig(bool apply_stall_redirect)
 {
-  mConfigFile = "";
+  mConfigFile.clear();
   (void) Quota::CleanUp();
   {
     eos::common::RWMutexWriteLock wr_lock(eos::common::Mapping::gMapMutex);

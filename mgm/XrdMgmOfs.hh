@@ -1628,11 +1628,6 @@ public:
   void FileSystemMonitorThread(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
-  // Get key from MGM config queue
-  //----------------------------------------------------------------------------
-  bool getMGMConfigValue(const std::string& key, std::string& value);
-
-  //----------------------------------------------------------------------------
   // Process incoming MGM configuration change
   //----------------------------------------------------------------------------
   void processIncomingMgmConfigurationChange(const std::string& key);
@@ -2007,7 +2002,7 @@ public:
   //! Mgm Namespace Statistics
   std::unique_ptr<Stat> MgmStatsPtr;
   Stat& MgmStats;
-  std::unique_ptr<Iostat> IoStats; ///<  Mgm IO Statistics
+  std::unique_ptr<Iostat> mIoStats; ///<  Mgm IO Statistics
 
   //! Mgm IO Report store path by default is /var/tmp/eos/report
   XrdOucString IoReportStorePath;

@@ -28,65 +28,49 @@
 // -----------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Get key from MGM config queue
-//------------------------------------------------------------------------------
-bool XrdMgmOfs::getMGMConfigValue(const std::string& key, std::string& value)
-{
-  return eos::mq::SharedHashWrapper::makeGlobalMgmHash(mMessagingRealm.get()).get(
-           key, value);
-}
-
-//------------------------------------------------------------------------------
 // Process incoming MGM configuration change
 //------------------------------------------------------------------------------
 void
 XrdMgmOfs::processIncomingMgmConfigurationChange(const std::string& key)
 {
-  std::string tmpValue;
+  std::string value = FsView::gFsView.GetGlobalConfig(key);
 
-  if (!getMGMConfigValue(key, tmpValue)) {
-    return;
-  }
+  // Here we might get a change without the namespace, in this
+  // case we add the global namespace
+  if ((key.substr(0, 4) != "map:") &&
+      (key.substr(0, 3) != "fs:") &&
+      (key.substr(0, 6) != "quota:") &&
+      (key.substr(0, 4) != "vid:") &&
+      (key.substr(0, 7) != "policy:")) {
+    eos_info("msg=\"apply access config\" key=\"%s\" val=\"%s\"",
+             key.c_str(), value.c_str());
 
-  XrdOucString err;
-  XrdOucString value = tmpValue.c_str();
-
-  if (value.c_str()) {
-    // Here we might get a change without the namespace, in this
-    // case we add the global namespace
-    if ((key.substr(0, 4) != "map:") &&
-        (key.substr(0, 3) != "fs:") &&
-        (key.substr(0, 6) != "quota:") &&
-        (key.substr(0, 4) != "vid:") &&
-        (key.substr(0, 7) != "policy:")) {
-      eos_info("msg=\"apply access config\" key=\"%s\" val=\"%s\"",
-               key.c_str(), value.c_str());
-      Access::ApplyAccessConfig(false);
-
-      if (key.find("iostat:") == 0) {
-        gOFS->IoStats->ApplyIostatConfig(&FsView::gFsView);
-      }
+    if (key.find("iostat:") == 0) {
+      gOFS->mIoStats->ApplyConfig(&FsView::gFsView);
     } else {
-      eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(),
-               value.c_str());
-      gOFS->mConfigEngine->SetConfigValue(0, key.c_str(), value.c_str(), false);
+      Access::EnforceConfig(false);
+    }
+  } else {
+    eos_info("msg=\"set config value\" key=\"%s\" val=\"%s\"", key.c_str(),
+             value.c_str());
+    gOFS->mConfigEngine->SetConfigValue(0, key.c_str(), value.c_str(), false);
 
-      // For fs modification we need to lock for write the FsView::ViewMutex
-      if (key.find("fs:") == 0) {
-        std::string fs_key = key;
-        fs_key.erase(0, 3);
-        eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
-        // To avoid issues when applying config changes in the slave we need to
-        // unregister the file system first and then apply the new configuration
-        const bool first_unregister = true;
-        FsView::gFsView.ApplyFsConfig(fs_key.c_str(), value.c_str(),
-                                      first_unregister);
-      } else if (key.find("quota:") == 0) {
-        eos_info("%s", "msg=\"skip quota update as it might mess with "
-                 "the namespace, will reload once we become master\"");
-      } else {
-        gOFS->mConfigEngine->ApplyEachConfig(key.c_str(), &value, &err);
-      }
+    // For fs modification we need to lock for write the FsView::ViewMutex
+    if (key.find("fs:") == 0) {
+      std::string fs_key = key;
+      fs_key.erase(0, 3);
+      eos::common::RWMutexWriteLock wr_view_lock(FsView::gFsView.ViewMutex);
+      // To avoid issues when applying config changes in the slave we need to
+      // unregister the file system first and then apply the new configuration
+      const bool first_unregister = true;
+      FsView::gFsView.ApplyFsConfig(fs_key.c_str(), value.c_str(),
+                                    first_unregister);
+    } else if (key.find("quota:") == 0) {
+      eos_info("%s", "msg=\"skip quota update as it might mess with "
+               "the namespace, will reload once we become master\"");
+    } else {
+      XrdOucString err;
+      gOFS->mConfigEngine->ApplyEachConfig(key.c_str(), value.c_str(), &err);
     }
   }
 }
