@@ -508,7 +508,6 @@ void com_space_help()
       << "space config <space-name> space.converter=on|off                      : enable/disable the space converter [ default=off ]\n"
       << "space config <space-name> space.converter.ntx=<#>                     : configure the number of parallel conversions per space                  [ default=2 (streams) ]\n"
       << "space config <space-name> space.drainer.node.rate=<MB/s >             : configure the nominal transfer bandwidth per running transfer on a node [ default=25 (MB/s)   ]\n"
-      << "space config <space-name> space.drainer.node.ntx=<#>                  : configure the number of parallel draining transfers per node            [ default=2 (streams) ]\n"
       << "space config <space-name> space.drainer.node.nfs=<#>                  : configure the number of max draining filesystems per node (Valid only for central drain)  [ default=5 ]\n"
       << "space config <space-name> space.drainer.retries=<#>                   : configure the number of retry for the draining process (Valid only for central drain)     [ default=1 ]\n"
       << "space config <space-name> space.drainer.fs.ntx=<#>                    : configure the number of parallel draining transfers per fs (Valid only for central drain) [ default=5 ]\n"
