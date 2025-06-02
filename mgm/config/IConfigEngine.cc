@@ -459,17 +459,15 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
 bool
 IConfigEngine::IsDeprecated(const std::string& config_key) const
 {
+  static std::set<std::string> deprecated_global {
+    "#drainer.central", "#new_balancer", "#transfer.schedule",
+    "#fsck_refresh_interval"};
+
   if (config_key.find("global:") == 0) {
-    if (config_key.find("#drainer.central") != std::string::npos) {
-      return true;
-    }
-
-    if (config_key.find("#new_balancer") != std::string::npos) {
-      return true;
-    }
-
-    if (config_key.find("#transfer.schedule") != std::string::npos) {
-      return true;
+    for (const auto& key : deprecated_global) {
+      if (config_key.find(key) != std::string::npos) {
+        return true;
+      }
     }
   }
 

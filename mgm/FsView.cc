@@ -945,11 +945,6 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember(eos::common::SCAN_NS_INTERVAL_NAME, "259200");
     }
 
-    // Set the fsck refresh interval by default to 2 hours
-    if (GetConfigMember(eos::common::FSCK_REFRESH_INTERVAL_NAME).empty()) {
-      SetConfigMember(eos::common::FSCK_REFRESH_INTERVAL_NAME, "7200");
-    }
-
     // Disable quota by default
     if (GetConfigMember("quota").empty()) {
       SetConfigMember("quota", "off");
@@ -4413,14 +4408,6 @@ FsSpace::ApplySpaceDefaultParameters(eos::mgm::FileSystem* fs, bool force)
       if (GetConfigMember(eos::common::SCAN_NS_RATE_NAME).length()) {
         fs->SetString(eos::common::SCAN_NS_RATE_NAME,
                       GetConfigMember(eos::common::SCAN_NS_RATE_NAME).c_str());
-        modified = true;
-      }
-    }
-
-    if (force || (!snapshot.mFsckRefreshInterval)) {
-      if (GetConfigMember(eos::common::FSCK_REFRESH_INTERVAL_NAME).length()) {
-        fs->SetString(eos::common::FSCK_REFRESH_INTERVAL_NAME,
-                      GetConfigMember(eos::common::FSCK_REFRESH_INTERVAL_NAME).c_str());
         modified = true;
       }
     }

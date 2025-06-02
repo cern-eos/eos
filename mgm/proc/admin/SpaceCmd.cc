@@ -865,8 +865,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-          (key == eos::common::SCAN_NS_RATE_NAME) ||
-          (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
+          (key == eos::common::SCAN_NS_RATE_NAME)) {
         if ((key == "balancer") ||
             (key == "converter") ||
             (key == "tracker") ||
@@ -1119,8 +1118,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
         (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
         (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-        (key == eos::common::SCAN_NS_RATE_NAME) ||
-        (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) {
+        (key == eos::common::SCAN_NS_RATE_NAME)) {
       unsigned long long size = eos::common::StringConversion::GetSizeFromString(
                                   value.c_str());
       char ssize[1024];
@@ -1168,8 +1166,7 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
                (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
                (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-               (key == eos::common::SCAN_NS_RATE_NAME) ||
-               (key == eos::common::FSCK_REFRESH_INTERVAL_NAME)) && (!errno)) {
+               (key == eos::common::SCAN_NS_RATE_NAME)) && (!errno)) {
             if (value == "remove") {
               fs->RemoveKey(key.c_str());
             } else {
