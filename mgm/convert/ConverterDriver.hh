@@ -28,7 +28,6 @@
 #include "common/ObserverMgr.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/config/GlobalConfigStore.hh"
 #include "mgm/convert/ConversionJob.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
@@ -42,8 +41,6 @@ EOSMGMNAMESPACE_BEGIN
 //! Forward declaration
 class ConversionJob;
 enum class ConversionJobStatus;
-static const std::string kConverterMaxThreads {"converter-max-threads"};
-static const std::string kConverterMaxQueueSize {"converter-max-queuesize"};
 //------------------------------------------------------------------------------
 //! @brief Class running the conversion threadpool
 //------------------------------------------------------------------------------
@@ -60,13 +57,11 @@ public:
   //! Constructor
   //----------------------------------------------------------------------------
   ConverterDriver(const eos::QdbContactDetails& qdb_details) :
-    mQdbHelper(qdb_details), mIsRunning(false),  mFailed(0),
-    mThreadPool(std::thread::hardware_concurrency(), cDefaultMaxThreadPoolSize,
+    mQdbHelper(qdb_details), mIsRunning(false), mFailed(0),
+    mThreadPool(std::thread::hardware_concurrency(), 100,
                 10, 5, 3, "converter"),
-    mMaxThreadPoolSize(cDefaultMaxThreadPoolSize),
-    mMaxQueueSize(cDefaultMaxQueueSize), mTimestamp(),
-    mObserverMgr(std::make_unique<ObserverT>(4)),
-    mConfigStore(std::make_unique<GlobalConfigStore>(&FsView::gFsView))
+    mMaxQueueSize(1000), mTimestamp(),
+    mObserverMgr(std::make_unique<ObserverT>(4))
   {}
 
   //----------------------------------------------------------------------------
@@ -116,14 +111,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Get thread pool max size
-  //----------------------------------------------------------------------------
-  inline uint32_t GetMaxThreadPoolSize() const
-  {
-    return mMaxThreadPoolSize.load();
-  }
-
-  //----------------------------------------------------------------------------
   //! Get number of running jobs
   //----------------------------------------------------------------------------
   inline uint64_t NumRunningJobs() const
@@ -146,37 +133,6 @@ public:
   inline uint64_t NumFailedJobs()
   {
     return mFailed.load();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Get max queue size
-  //----------------------------------------------------------------------------
-  inline uint32_t GetMaxQueueSize() const
-  {
-    return mMaxQueueSize.load();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set maximum size of the converter thread pool
-  //!
-  //! @param max maximum threadpool value
-  //----------------------------------------------------------------------------
-  inline void SetMaxThreadPoolSize(uint32_t max)
-  {
-    mThreadPool.SetMaxThreads(max);
-    mMaxThreadPoolSize = max;
-    mConfigStore->save(kConverterMaxThreads, std::to_string(max));
-  }
-
-  //----------------------------------------------------------------------------
-  //! Set maximum queue size
-  //!
-  //! @param max maximum (submitted) queue size
-  //----------------------------------------------------------------------------
-  inline void SetMaxQueueSize(uint32_t max)
-  {
-    mMaxQueueSize = max;
-    mConfigStore->save(kConverterMaxQueueSize, std::to_string(max));
   }
 
   //----------------------------------------------------------------------------
@@ -204,6 +160,28 @@ public:
   {
     return mObserverMgr.get();
   }
+
+  //----------------------------------------------------------------------------
+  //! Apply global configuration relevant for the converter
+  //----------------------------------------------------------------------------
+  void ApplyConfig();
+
+  //----------------------------------------------------------------------------
+  //! Make configuration change
+  //!
+  //! @param key input key
+  //! @param val input value
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetConfig(const std::string& key, const std::string& val);
+
+  //----------------------------------------------------------------------------
+  //! Serialize converter configuration
+  //!
+  //! @return string representing converter configuration
+  //----------------------------------------------------------------------------
+  std::string SerializeConfig() const;
 
 private:
   struct QdbHelper {
@@ -265,12 +243,6 @@ private:
   };
 
   //----------------------------------------------------------------------------
-  //! Initialize the saved value of config values like max threads/queue size
-  //! from the config store
-  //----------------------------------------------------------------------------
-  void InitConfig();
-
-  //----------------------------------------------------------------------------
   //! Converter engine thread monitoring
   //!
   //! @param assistant converter thread
@@ -295,19 +267,18 @@ private:
   //----------------------------------------------------------------------------
   void HandlePostJobRun(std::shared_ptr<ConversionJob> job);
 
-  //! Wait-time between jobs requests constant
-  static constexpr unsigned int cDefaultRequestIntervalSec{60};
-  //! Default maximum thread pool size constant
-  static constexpr unsigned int cDefaultMaxThreadPoolSize{100};
-  //! Max queue size from the thread pool when we delay new jobs
-  static constexpr unsigned int cDefaultMaxQueueSize{1000};
+  //----------------------------------------------------------------------------
+  //! Store configuration
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StoreConfig();
 
   AssistedThread mThread; ///< Thread controller object
   QdbHelper mQdbHelper; ///< QuarkDB helper object
   std::atomic<bool> mIsRunning; ///< Mark if converter is running
   std::atomic<uint64_t> mFailed; ///< Number of failed jobs
   eos::common::ThreadPool mThreadPool; ///< Thread pool for conversion jobs
-  std::atomic<unsigned int> mMaxThreadPoolSize; ///< Max threadpool size
   std::atomic<unsigned int> mMaxQueueSize; ///< Max submitted queue size
   //! Timestamp of last jobs request
   std::chrono::steady_clock::time_point mTimestamp;
@@ -318,7 +289,6 @@ private:
   //! Pending jobs in memory
   eos::common::ConcurrentQueue<JobInfoT> mPendingJobs;
   std::unique_ptr<ObserverT> mObserverMgr;
-  std::unique_ptr<common::ConfigStore> mConfigStore;
 };
 
 EOSMGMNAMESPACE_END

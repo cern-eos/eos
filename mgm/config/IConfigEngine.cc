@@ -34,6 +34,7 @@
 #include "mgm/RouteEndpoint.hh"
 #include "mgm/PathRouting.hh"
 #include "mgm/fsck/Fsck.hh"
+#include "mgm/convert/ConverterDriver.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
@@ -272,6 +273,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   gOFS->mFsckEngine->ApplyConfig(&FsView::gFsView);
   gOFS->mIoStats->ApplyConfig(&FsView::gFsView);
   gOFS->mDrainEngine.ApplyConfig();
+  gOFS->mConverterDriver->ApplyConfig();
 
   if (err.length()) {
     errno = EINVAL;
@@ -460,19 +462,31 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
 bool
 IConfigEngine::IsDeprecated(const std::string& config_key) const
 {
-  static std::set<std::string> deprecated_global {
+  static std::set<std::string> deprecated_space {
     "#drainer.central", "#new_balancer", "#transfer.schedule",
-    "#fsck_refresh_interval", "#drainer.node.nfs", "#drainer.node.ntx"};
+    "#fsck_refresh_interval", "#drainer.node.nfs", "#drainer.node.ntx",
+    "#conveter.ntx", "#converter"};
+  static std::set<std::string> deprecated_global {
+    "#converter-max-threads"
+  };
 
-  if (config_key.find("global:") == 0) {
-    for (const auto& key : deprecated_global) {
-      if (config_key.find(key) != std::string::npos) {
-        return true;
+  if ((config_key.find("global:") == 0)) {
+    if (config_key.find("/space/") != std::string::npos) {
+      for (const auto& key : deprecated_space) {
+        if (config_key.find(key) != std::string::npos) {
+          return true;
+        }
+      }
+    } else {
+      for (const auto& key : deprecated_global) {
+        if (config_key.find(key) != std::string::npos) {
+          return true;
+        }
       }
     }
   }
 
-  if (common::startsWith(config_key, "comment-")) {
+  if (config_key.find("comment-") == 0) {
     return true;
   }
 

@@ -23,11 +23,20 @@
 
 #include "mgm/convert/ConverterDriver.hh"
 #include "mgm/IMaster.hh"
+#include "mgm/FsView.hh"
+#include "common/StringTokenizer.hh"
 #include "common/Logging.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-constexpr unsigned int ConverterDriver::cDefaultRequestIntervalSec;
+namespace
+{
+const std::string kConvertCfg        = "converter";
+const std::string kConvertStatus     = "status";
+const std::string kConvertMaxThreads = "max-thread-pool-size";
+const std::string kConvertMaxQueueSz = "max-queue-size";
+}
+
 constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
 static constexpr auto CONVERTER_THREAD_NAME = "ConverterMT";
 
@@ -124,9 +133,9 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
   do {
     eos_debug("%s", "msg=\"converter waiting for master MGM\"");
     assistant.wait_for(std::chrono::seconds(10));
-  } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
+  } while (!assistant.terminationRequested() &&
+           (!gOFS->mMaster || !gOFS->mMaster->IsMaster()));
 
-  InitConfig();
   PopulatePendingJobs();
 
   while (!assistant.terminationRequested()) {
@@ -240,17 +249,123 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
 }
 
 //------------------------------------------------------------------------------
-// Initialize converter configuration parameters
+// Apply global configuration relevant for the converter
 //------------------------------------------------------------------------------
 void
-ConverterDriver::InitConfig()
+ConverterDriver::ApplyConfig()
 {
-  unsigned int max_threads = mConfigStore->get(kConverterMaxThreads,
-                             cDefaultMaxThreadPoolSize);
-  unsigned int max_queue_sz = mConfigStore->get(kConverterMaxQueueSize,
-                              cDefaultMaxQueueSize);
-  mMaxThreadPoolSize.store(max_threads, std::memory_order_relaxed);
-  mMaxQueueSize.store(max_queue_sz, std::memory_order_relaxed);
+  using eos::common::StringTokenizer;
+  std::string config = FsView::gFsView.GetGlobalConfig(kConvertCfg);
+  // Parse config of the form: key1=val1 key2=val2 etc.
+  eos_static_info("msg=\"apply converter configuration\" data=\"%s\"",
+                  config.c_str());
+  std::map<std::string, std::string> kv_map;
+  auto pairs = StringTokenizer::split<std::list<std::string>>(config, ' ');
+
+  for (const auto& pair : pairs) {
+    auto kv = StringTokenizer::split<std::vector<std::string>>(pair, '=');
+
+    if (kv.empty()) {
+      eos_static_err("msg=\"unknown converter config data\" data=\"%s\"",
+                     config.c_str());
+      continue;
+    }
+
+    // There is no use-case yet for keys without values!
+    if (kv.size() == 1) {
+      continue;
+    }
+
+    kv_map.emplace(kv[0], kv[1]);
+  }
+
+  for (const auto& [key, val] : kv_map) {
+    SetConfig(key, val);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Make configuration change
+//------------------------------------------------------------------------------
+bool
+ConverterDriver::SetConfig(const std::string& key, const std::string& val)
+{
+  bool config_change = false;
+
+  if (key == kConvertMaxThreads) {
+    int max_threads = 100;
+
+    try {
+      max_threads = std::stoi(val);
+    } catch (...) {
+      eos_static_err("msg=\"failed parsing converter max threads "
+                     "configuration\" data=\"%s\"", val.c_str());
+      return false;
+    }
+
+    if ((max_threads < 5) || (max_threads > 5000)) {
+      eos_static_err("msg=\"max threads limit outside accepted range "
+                     "[5, 5000]\" max_threads=%i", max_threads);
+      return false;
+    }
+
+    if (max_threads != mThreadPool.GetMaxThreads()) {
+      mThreadPool.SetMaxThreads(max_threads);
+      config_change = true;
+    }
+  } else if (key == kConvertMaxQueueSz) {
+    int max_queue_sz = 100;
+
+    try {
+      max_queue_sz = std::stoi(val);
+    } catch (...) {
+      eos_static_err("msg=\"failed parsing converter max queue size\""
+                     "data=\"%s\"", val.c_str());
+      return false;
+    }
+
+    if (max_queue_sz && (max_queue_sz != mMaxQueueSize)) {
+      mMaxQueueSize.store(max_queue_sz);
+      config_change = true;
+    }
+  } else if (key == kConvertStatus) {
+    if ((val == "on") && (mIsRunning == false)) {
+      Start();
+    } else if ((val == "off") && mIsRunning) {
+      Stop();
+    }
+  } else {
+    return false;
+  }
+
+  if (config_change) {
+    if (!StoreConfig()) {
+      eos_static_err("%s", "msg=\"failed to save converter configuration\"");
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Serialize converter configuration
+//------------------------------------------------------------------------------
+std::string
+ConverterDriver::SerializeConfig() const
+{
+  std::ostringstream oss;
+  oss << kConvertMaxThreads << "=" << mThreadPool.GetMaxThreads() << " "
+      << kConvertMaxQueueSz << "=" << mMaxQueueSize;
+  return oss.str();
+}
+
+//----------------------------------------------------------------------------
+// Store configuration
+//----------------------------------------------------------------------------
+bool
+ConverterDriver::StoreConfig()
+{
+  return FsView::gFsView.SetGlobalConfig(kConvertCfg, SerializeConfig());
 }
 
 //------------------------------------------------------------------------------
