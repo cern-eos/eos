@@ -54,7 +54,7 @@ touch ${TEST_FN0}
 dd if=/dev/urandom of=${TEST_FN1} bs=1k count=32 &> /dev/null
 dd if=/dev/urandom of=${TEST_FN2} bs=1M count=5  &> /dev/null
 
-eos space config default space.converter=on
+eos convert config set status=on
 eos space config default space.groupdrainer=on
 eos space config default space.groupdrainer.threshold=0
 eos space config default space.groupdrainer.group_refresh_interval=30
