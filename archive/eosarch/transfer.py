@@ -32,13 +32,14 @@ import zmq
 import ast
 from os.path import join
 from time import sleep
+from random import randrange
 from hashlib import sha256
 from XRootD import client
 from XRootD.client.flags import PrepareFlags, QueryCode, OpenFlags, StatInfoFlags
 from eosarch.archivefile import ArchiveFile
 from eosarch.utils import exec_cmd, is_version_file
 from eosarch.asynchandler import MetaHandler
-from eosarch.exceptions import NoErrorException
+from eosarch.exceptions import NoErrorException, NotOnTapeException
 
 
 class ThreadJob(threading.Thread):
