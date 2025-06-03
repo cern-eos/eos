@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ConverterDriver.cc
+// File: ConverterEngine.cc
 // Author: Mihai Patrascoiu - CERN
 //------------------------------------------------------------------------------
 
@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/IMaster.hh"
 #include "mgm/FsView.hh"
 #include "common/StringTokenizer.hh"
@@ -37,18 +37,18 @@ const std::string kConvertMaxThreads = "max-thread-pool-size";
 const std::string kConvertMaxQueueSz = "max-queue-size";
 }
 
-constexpr unsigned int ConverterDriver::QdbHelper::cBatchSize;
+constexpr unsigned int ConverterEngine::QdbHelper::cBatchSize;
 static constexpr auto CONVERTER_THREAD_NAME = "ConverterMT";
 
 //------------------------------------------------------------------------------
 // Start converter thread
 //------------------------------------------------------------------------------
 void
-ConverterDriver::Start()
+ConverterEngine::Start()
 {
   if (!mIsRunning) {
     mIsRunning = true;
-    mThread.reset(&ConverterDriver::Convert, this);
+    mThread.reset(&ConverterEngine::Convert, this);
   }
 }
 
@@ -56,7 +56,7 @@ ConverterDriver::Start()
 // Stop converter thread and all running conversion jobs
 //------------------------------------------------------------------------------
 void
-ConverterDriver::Stop()
+ConverterEngine::Stop()
 {
   mThread.join();
 }
@@ -65,7 +65,7 @@ ConverterDriver::Stop()
 // Method to collect and queue pending jobs from the QDB backend
 //------------------------------------------------------------------------------
 void
-ConverterDriver::PopulatePendingJobs()
+ConverterEngine::PopulatePendingJobs()
 {
   const auto lst_pending = mQdbHelper.GetPendingJobs();
 
@@ -85,7 +85,7 @@ ConverterDriver::PopulatePendingJobs()
 // Cleanup handle after a job is run - remove the job from the list of
 //------------------------------------------------------------------------------
 void
-ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
+ConverterEngine::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
 {
   const auto fid = job->GetFid();
   {
@@ -122,7 +122,7 @@ ConverterDriver::HandlePostJobRun(std::shared_ptr<ConversionJob> job)
 // Converter engine thread monitoring
 //------------------------------------------------------------------------------
 void
-ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
+ConverterEngine::Convert(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName(CONVERTER_THREAD_NAME);
   JobInfoT info;
@@ -179,7 +179,7 @@ ConverterDriver::Convert(ThreadAssistant& assistant) noexcept
 // Signal all conversion jobs to stop
 //------------------------------------------------------------------------------
 void
-ConverterDriver::JoinAllConversionJobs()
+ConverterEngine::JoinAllConversionJobs()
 {
   eos_notice("%s", "msg=\"stopping all running conversion jobs\"");
   {
@@ -218,7 +218,7 @@ ConverterDriver::JoinAllConversionJobs()
 // Schedule a conversion job with the given ID and conversion string
 //------------------------------------------------------------------------------
 bool
-ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
+ConverterEngine::ScheduleJob(const eos::IFileMD::id_t& id,
                              const std::string& conversion_info,
                              std::shared_ptr<XrdOucCallBack> callback)
 {
@@ -252,7 +252,7 @@ ConverterDriver::ScheduleJob(const eos::IFileMD::id_t& id,
 // Apply global configuration relevant for the converter
 //------------------------------------------------------------------------------
 void
-ConverterDriver::ApplyConfig()
+ConverterEngine::ApplyConfig()
 {
   using eos::common::StringTokenizer;
   std::string config = FsView::gFsView.GetGlobalConfig(kConvertCfg);
@@ -288,7 +288,7 @@ ConverterDriver::ApplyConfig()
 // Make configuration change
 //------------------------------------------------------------------------------
 bool
-ConverterDriver::SetConfig(const std::string& key, const std::string& val)
+ConverterEngine::SetConfig(const std::string& key, const std::string& val)
 {
   bool config_change = false;
 
@@ -351,7 +351,7 @@ ConverterDriver::SetConfig(const std::string& key, const std::string& val)
 // Serialize converter configuration
 //------------------------------------------------------------------------------
 std::string
-ConverterDriver::SerializeConfig() const
+ConverterEngine::SerializeConfig() const
 {
   std::ostringstream oss;
   oss << kConvertMaxThreads << "=" << mThreadPool.GetMaxThreads() << " "
@@ -363,7 +363,7 @@ ConverterDriver::SerializeConfig() const
 // Store configuration
 //----------------------------------------------------------------------------
 bool
-ConverterDriver::StoreConfig()
+ConverterEngine::StoreConfig()
 {
   return FsView::gFsView.SetGlobalConfig(kConvertCfg, SerializeConfig());
 }
@@ -376,7 +376,7 @@ ConverterDriver::StoreConfig()
 // Add conversion job to the queue of pending jobs in QuarkDB
 //------------------------------------------------------------------------------
 bool
-ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
+ConverterEngine::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 {
   try {
     bool hset = mQHashPending.hset(std::to_string(std::get<0>(jobinfo)),
@@ -395,8 +395,8 @@ ConverterDriver::QdbHelper::AddPendingJob(const JobInfoT& jobinfo)
 //------------------------------------------------------------------------------
 // Get list of all pending jobs
 //------------------------------------------------------------------------------
-std::vector<ConverterDriver::JobInfoT>
-ConverterDriver::QdbHelper::GetPendingJobs()
+std::vector<ConverterEngine::JobInfoT>
+ConverterEngine::QdbHelper::GetPendingJobs()
 {
   std::vector<JobInfoT> pending;
   pending.reserve(mQHashPending.hlen());
@@ -415,7 +415,7 @@ ConverterDriver::QdbHelper::GetPendingJobs()
 // Clear list of pending jobs
 //------------------------------------------------------------------------------
 void
-ConverterDriver::QdbHelper::ClearPendingJobs()
+ConverterEngine::QdbHelper::ClearPendingJobs()
 {
   try {
     (void) mQcl->del(kConversionPendingHashKey);
@@ -429,7 +429,7 @@ ConverterDriver::QdbHelper::ClearPendingJobs()
 // Remove conversion job by id from the pending jobs queue in QuarkDB
 //------------------------------------------------------------------------------
 bool
-ConverterDriver::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
+ConverterEngine::QdbHelper::RemovePendingJob(const eos::IFileMD::id_t& id)
 {
   try {
     return mQHashPending.hdel(std::to_string(id));

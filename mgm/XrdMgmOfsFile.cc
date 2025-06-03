@@ -51,6 +51,7 @@
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/utils/AttrHelper.hh"
 #include "mgm/XattrLock.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/Prefetcher.hh"
@@ -61,6 +62,7 @@
 #include <XrdSfs/XrdSfsAio.hh>
 #include "common/Constants.hh"
 #include <XrdOuc/XrdOucPgrwUtils.hh>
+
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -1318,7 +1320,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         auto conversiontag = ConversionTag::Get(
                                byfid, target_space, target_layout, std::string(""), true);
 
-        if (gOFS->mConverterDriver->ScheduleJob(byfid, conversiontag,
+        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
                                                 conversionCb)) {
           eos_info("msg='update conversion started' fxid=%016llx conv='%s'", byfid,
                    conversiontag.c_str());
@@ -1635,7 +1637,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         auto conversiontag = ConversionTag::Get(
                                byfid, target_space, target_layout, std::string(""), true);
 
-        if (gOFS->mConverterDriver->ScheduleJob(byfid, conversiontag,
+        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
                                                 conversionCb)) {
           eos_info("msg='read conversion started' fxid=%016llx conv='%s'", byfid,
                    conversiontag.c_str());
