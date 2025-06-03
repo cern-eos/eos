@@ -304,7 +304,7 @@ void com_convert_help()
   std::ostringstream oss;
   oss << "Usage: convert <subcomand>                         \n"
       << "  convert config list|set [<key>=<value>]          \n"
-      << "    list: list converter configuration parameters  \n"
+      << "    list: list converter configuration parameters and status\n"
       << "    set : set converter configuration parameters. Options:\n"
       << "      max-thread-pool-size: max number of threads in converter pool [default 100]\n"
       << "      max-queue-size      : max number of queued conversion jobs [default 1000]\n"

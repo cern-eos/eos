@@ -133,7 +133,7 @@ ConvertCmd::ConfigList(bool json) const
       builder.newStreamWriter());
     jsonwriter->write(json, &out);
   } else {
-    out << "Config: " << config << " status=" << state << std::endl
+    out << "Configuration: " << config << " status=" << state << std::endl
         << "Threadpool: " << threadpool << std::endl
         << "Running jobs: " << running << std::endl
         << "Pending jobs: " << pending << std::endl
