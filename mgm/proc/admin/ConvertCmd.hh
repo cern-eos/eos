@@ -58,64 +58,53 @@ public:
 
 private:
   //----------------------------------------------------------------------------
-  //! Execute action subcommand
+  //! List current converter configuration
   //!
-  //! @param status status subcommand proto object
-  //! @param reply reply proto object
-  //----------------------------------------------------------------------------
-  void ActionSubcmd(const eos::console::ConvertProto_ActionProto& action,
-                    eos::console::ReplyProto& reply);
-
-  //----------------------------------------------------------------------------
-  //! Execute status subcommand
+  //! @param jons if true return json string representation
   //!
-  //! @param status status subcommand proto object
-  //! @param reply reply proto object
-  //! @param jsonOutput flag to print output in JSON format
+  //! @return string represetation of the converter configuration
   //----------------------------------------------------------------------------
-  void StatusSubcmd(const eos::console::ConvertProto_StatusProto& status,
-                    eos::console::ReplyProto& reply,
-                    bool jsonOutput = false);
+  std::string ConfigList(bool json = false) const;
 
   //----------------------------------------------------------------------------
   //! Execute config subcommand
   //!
   //! @param config config subcommand proto object
   //! @param reply reply proto object
-  //! @param jsonOutput flag to print output in JSON format
+  //! @param json flag to print output in JSON format
   //----------------------------------------------------------------------------
   void ConfigSubcmd(const eos::console::ConvertProto_ConfigProto& config,
-                    eos::console::ReplyProto& reply, bool jsonOutput = false);
+                    eos::console::ReplyProto& reply, bool json = false);
 
   //----------------------------------------------------------------------------
   //! Execute file subcommand
   //!
   //! @param file file subcommand proto object
   //! @param reply reply proto object
-  //! @param jsonOutput flag to print output in JSON format
+  //! @param json flag to print output in JSON format
   //----------------------------------------------------------------------------
   void FileSubcmd(const eos::console::ConvertProto_FileProto& file,
-                  eos::console::ReplyProto& reply, bool jsonOutput = false);
+                  eos::console::ReplyProto& reply, bool json = false);
 
   //----------------------------------------------------------------------------
   //! Execute rule subcommand
   //!
   //! @param rule rule subcommand proto object
   //! @param reply reply proto object
-  //! @param jsonOutput flag to print output in JSON format
+  //! @param json flag to print output in JSON format
   //----------------------------------------------------------------------------
   void RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
-                  eos::console::ReplyProto& reply, bool jsonOutput = false);
+                  eos::console::ReplyProto& reply, bool json = false);
 
   //----------------------------------------------------------------------------
   //! List jobs subcommand
   //!
   //! @param list list subcommand proto object
   //! @param reply reply proto object
-  //! @param jsonOutput flag to print output in JSON format
+  //! @param json flag to print output in JSON format
   //----------------------------------------------------------------------------
   void ListSubcmd(const eos::console::ConvertProto_ListProto& list,
-                  eos::console::ReplyProto& reply, bool jsonOutput = false);
+                  eos::console::ReplyProto& reply, bool json = false);
 
   //----------------------------------------------------------------------------
   //! Clear jobs subcommand

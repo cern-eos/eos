@@ -819,7 +819,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "drainer.node.rate") ||
           //          (key == "drainer.retries") ||
           (key == "drainer.fs.ntx") ||
-          (key == "converter") ||
           (key == "tracker") ||
           (key == "inspector") ||
           (key == "inspector.interval") ||
@@ -831,7 +830,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "wfe") ||
           (key == "wfe.interval") ||
           (key == "wfe.ntx") ||
-          (key == "converter.ntx") ||
           (key == "groupbalancer") ||
           (key == "groupbalancer.ntx") ||
           (key == "groupbalancer.threshold") ||
@@ -865,7 +863,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_RATE_NAME)) {
         if ((key == "balancer") ||
-            (key == "converter") ||
             (key == "tracker") ||
             (key == "inspector") ||
             (key == "lru") ||
@@ -899,14 +896,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                 } else {
                   std_err.str("error: (fs) balancer not initialized for space");
                   ret_c = EIO;
-                }
-              }
-
-              if (key == "converter") {
-                if (value == "on") {
-                  std_out << "success: converter is enabled!";
-                } else {
-                  std_out << "success: converter is disabled!";
                 }
               }
 

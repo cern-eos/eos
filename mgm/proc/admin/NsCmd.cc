@@ -1132,7 +1132,7 @@ NsCmd::DrainSubcmd(const eos::console::NsProto_DrainProto& drain,
     } else {
       if (gOFS) {
         if (!gOFS->mDrainEngine.SetConfig(drain.key(), drain.value())) {
-          reply.set_std_err("error: failed changing drainer configuration");
+          reply.set_std_err("error: failed applying drainer configuration");
           reply.set_retc(EINVAL);
           return;
         }

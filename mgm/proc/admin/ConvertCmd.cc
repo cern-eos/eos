@@ -55,30 +55,27 @@ ConvertCmd::ProcessRequest() noexcept
   eos::console::ReplyProto reply;
   const eos::console::ConvertProto& convert = mReqProto.convert();
   const auto& subcmd = convert.subcmd_case();
-  bool jsonOutput =
+  bool json =
     (mReqProto.format() == eos::console::RequestProto::JSON);
 
   if (!gOFS->mConverterDriver) {
-    reply.set_std_err("error: converter engine is not enabled");
+    reply.set_std_err("error: converter engine is not initialized");
     reply.set_retc(ENOTSUP);
     return reply;
   }
 
-  if (subcmd == eos::console::ConvertProto::kAction) {
-    ActionSubcmd(convert.action(), reply);
-  } else if (subcmd == eos::console::ConvertProto::kStatus) {
-    StatusSubcmd(convert.status(), reply, jsonOutput);
-  } else if (subcmd == eos::console::ConvertProto::kConfig) {
-    ConfigSubcmd(convert.config(), reply, jsonOutput);
+  if (subcmd == eos::console::ConvertProto::kConfig) {
+    ConfigSubcmd(convert.config(), reply, json);
   } else if (subcmd == eos::console::ConvertProto::kFile) {
-    FileSubcmd(convert.file(), reply, jsonOutput);
+    FileSubcmd(convert.file(), reply, json);
   } else if (subcmd == eos::console::ConvertProto::kRule) {
-    RuleSubcmd(convert.rule(), reply, jsonOutput);
+    RuleSubcmd(convert.rule(), reply, json);
   } else if (subcmd == eos::console::ConvertProto::kList) {
-    ListSubcmd(convert.list(), reply, jsonOutput);
+    ListSubcmd(convert.list(), reply, json);
   } else if (subcmd == eos::console::ConvertProto::kClear) {
     // check if vid has admin permissions (root, sudoer, admin user, admin group)
-    if (!vid.uid || vid.sudoer || vid.hasUid(eos::common::ADM_UID) || vid.hasGid(eos::common::ADM_GID)) {
+    if (!vid.uid || vid.sudoer || vid.hasUid(eos::common::ADM_UID) ||
+        vid.hasGid(eos::common::ADM_GID)) {
       ClearSubcmd(convert.clear(), reply);
     } else {
       reply.set_retc(EPERM);
@@ -93,33 +90,10 @@ ConvertCmd::ProcessRequest() noexcept
 }
 
 //------------------------------------------------------------------------------
-// Execute action subcommand
+// List current converter configuration
 //------------------------------------------------------------------------------
-void ConvertCmd::ActionSubcmd(
-  const eos::console::ConvertProto_ActionProto& action,
-  eos::console::ReplyProto& reply)
-{
-  std::ostringstream out;
-  auto converter_action = action.action();
-
-  if (converter_action == eos::console::ConvertProto_ActionProto::ENABLE) {
-    gOFS->mConverterDriver->Start();
-    out << "converter engine started";
-  } else {
-    gOFS->mConverterDriver->Stop();
-    out << "converter engine stopped";
-  }
-
-  reply.set_std_out(out.str());
-}
-
-//------------------------------------------------------------------------------
-// Execute status subcommand
-//------------------------------------------------------------------------------
-void ConvertCmd::StatusSubcmd(
-  const eos::console::ConvertProto_StatusProto& status,
-  eos::console::ReplyProto& reply,
-  bool jsonOutput)
+std::string
+ConvertCmd::ConfigList(bool json) const
 {
   std::ostringstream out;
   // Lambda function to parse threadpool information
@@ -138,17 +112,15 @@ void ConvertCmd::StatusSubcmd(
 
     return json;
   };
-  // Extract Converter Driver parameters
+  // Extract Converter parameters
   std::string threadpool = gOFS->mConverterDriver->GetThreadPoolInfo();
-  std::string config =
-    SSTR("maxthreads=" << gOFS->mConverterDriver->GetMaxThreadPoolSize()
-         << " maxqueuesize=" << gOFS->mConverterDriver->GetMaxQueueSize());
+  std::string config = gOFS->mConverterDriver->SerializeConfig();
   uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
   uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
   int64_t pending = gOFS->mConverterDriver->NumPendingJobs();
-  auto state = gOFS->mConverterDriver->IsRunning() ? "enabled" : "disabled";
+  auto state = (gOFS->mConverterDriver->IsRunning() ? "on" : "off");
 
-  if (jsonOutput) {
+  if (json) {
     Json::Value json;
     json["threadpool"] = parseKeyValueString(threadpool.c_str());
     json["config"] = parseKeyValueString(config.c_str());
@@ -161,72 +133,45 @@ void ConvertCmd::StatusSubcmd(
       builder.newStreamWriter());
     jsonwriter->write(json, &out);
   } else {
-    out << "Status: " << state << std::endl
-        << "Config: " << config << std::endl
+    out << "Config: " << config << " status=" << state << std::endl
         << "Threadpool: " << threadpool << std::endl
         << "Running jobs: " << running << std::endl
         << "Pending jobs: " << pending << std::endl
         << "Failed jobs : " << failed << std::endl;
   }
 
-  reply.set_std_out(out.str());
+  return out.str();
 }
 
 //------------------------------------------------------------------------------
 // Execute config subcommand
 //------------------------------------------------------------------------------
-void ConvertCmd::ConfigSubcmd(
-  const eos::console::ConvertProto_ConfigProto& config,
-  eos::console::ReplyProto& reply,
-  bool jsonOutput)
+void
+ConvertCmd::ConfigSubcmd(const eos::console::ConvertProto_ConfigProto& config,
+                         eos::console::ReplyProto& reply, bool json)
 {
-  using output_map = std::map<std::string, std::string>;
-  std::ostringstream out;
-  std::ostringstream err;
-  output_map output;
-  int retc = 0;
+  using eos::console::ConvertProto_ConfigProto;
 
-  if (config.maxthreads() != 0) {
-    if (config.maxthreads() > 5000) {
-      err << "error: maxthreads value " << config.maxthreads()
-          << " above 5000 limit" << std::endl;
-      retc = EINVAL;
-    } else {
-      gOFS->mConverterDriver->SetMaxThreadPoolSize(config.maxthreads());
-      output["maxthreads"] = std::to_string(config.maxthreads());
+  if (config.op() == ConvertProto_ConfigProto::LIST) {
+    if (gOFS) {
+      reply.set_std_out(ConfigList(json));
     }
-  }
-
-  if (config.maxqueuesize()) {
-    gOFS->mConverterDriver->SetMaxQueueSize(config.maxqueuesize());
-    output["maxqueuesize"] = std::to_string(config.maxqueuesize());
-  }
-
-  if (output.empty()) {
-    err << "error: no config values given" << std::endl;
-    retc = ENODATA;
-  } else if (jsonOutput) {
-    Json::Value json;
-
-    for (auto it = output.begin(); it != output.end(); it++) {
-      json[it->first] = it->second;
+  } else if (config.op() == ConvertProto_ConfigProto::SET) {
+    if (gOFS) {
+      if (!gOFS->mConverterDriver->SetConfig(config.key(), config.value())) {
+        reply.set_std_err("error: failed applying converter configuration");
+        reply.set_retc(EINVAL);
+        return;
+      }
     }
-
-    Json::StreamWriterBuilder builder;
-    std::unique_ptr<Json::StreamWriter> jsonwriter(
-      builder.newStreamWriter());
-    jsonwriter->write(json, &out);
   } else {
-    out << "Config values updated:" << std::endl;
-
-    for (auto it = output.begin(); it != output.end(); it++) {
-      out << it->first << "=" << it->second << std::endl;
-    }
+    reply.set_std_err("error: unknown converter operation");
+    reply.set_retc(EINVAL);
+    return;
   }
 
-  reply.set_std_out(out.str());
-  reply.set_std_err(err.str());
-  reply.set_retc(retc);
+  reply.set_retc(0);
+  return;
 }
 
 //------------------------------------------------------------------------------
@@ -234,7 +179,7 @@ void ConvertCmd::ConfigSubcmd(
 //------------------------------------------------------------------------------
 void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
                             eos::console::ReplyProto& reply,
-                            bool jsonOutput)
+                            bool json)
 {
   using eos::common::LayoutId;
   std::ostringstream out;
@@ -336,7 +281,7 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
     return;
   }
 
-  if (jsonOutput) {
+  if (json) {
     Json::Value json;
     json["conversion_id"] = conversion_id;
     json["path"] = path;
@@ -358,7 +303,7 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
 //------------------------------------------------------------------------------
 void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
                             eos::console::ReplyProto& reply,
-                            bool jsonOutput)
+                            bool json)
 {
   using eos::common::LayoutId;
   auto conversion = rule.conversion();
@@ -428,7 +373,7 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
     return;
   }
 
-  if (jsonOutput) {
+  if (json) {
     Json::Value json;
     json["conversion_rule"] = conversion_rule;
     json["path"] = path;
@@ -449,7 +394,7 @@ void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
 //------------------------------------------------------------------------------
 void
 ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
-                       eos::console::ReplyProto& reply, bool jsonOutput)
+                       eos::console::ReplyProto& reply, bool json)
 {
   std::ostringstream oss;
   auto pending = gOFS->mConverterDriver->GetPendingJobs();
@@ -459,7 +404,7 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
     return;
   }
 
-  if (jsonOutput) {
+  if (json) {
     Json::Value json;
 
     for (const auto& elem : pending) {

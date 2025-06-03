@@ -1549,6 +1549,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eosViewRWMutex.SetBlocking(true);
   // Configure the access mutex to be blocking
   Access::gAccessMutex.SetBlocking(true);
+  // Start the converter engine that can wait until the Master object is
+  // properly initialized.
+  eos_static_info("%s", "msg=\"starting converter engine\"");
+  mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
+  mConverterDriver->Start();
   // Initialize the HA setup
   mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 
@@ -2299,10 +2304,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   mGeoTreeEngine->StartUpdater();
   // Start the drain engine
   mDrainEngine.Start();
-  // Start the Converter driver
-  eos_static_info("%s", "msg=\"starting Converter Engine\"");
-  mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
-  mConverterDriver->Start();
   mFsScheduler->updateClusterData();
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);

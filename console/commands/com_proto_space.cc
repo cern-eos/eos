@@ -505,8 +505,6 @@ void com_space_help()
       << "space config <space-name> space.balancer.max-queue-jobs=<#>           : configure the maximum number of queued jobs allowed in the balancer thread pool [ default=1000 (jobs) ]\n"
       << "space config <space-name> space.balancer.max-thread-pool-size=<#>     : configure the maximum number of threads to be used in the balancer thread pool [ default=100 (threads) ]\n"
       << "space config <space-name> space.balancer.update.interval=<#>          : configure the update interval of the balancing statistics used for spawning transfers [ default=60 (seconds) min=1 max=300]\n"
-      << "space config <space-name> space.converter=on|off                      : enable/disable the space converter [ default=off ]\n"
-      << "space config <space-name> space.converter.ntx=<#>                     : configure the number of parallel conversions per space                  [ default=2 (streams) ]\n"
       << "space config <space-name> space.drainer.node.rate=<MB/s >             : configure the nominal transfer bandwidth per running transfer on a node [ default=25 (MB/s) ]\n"
       //  << "space config <space-name> space.drainer.retries=<#>                   : configure the number of retry for the draining process [ default=1 ]\n"
       << "space config <space-name> space.drainer.fs.ntx=<#>                    : configure the number of parallel draining transfers per fs [ default=5 ]\n"
