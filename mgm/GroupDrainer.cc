@@ -412,7 +412,7 @@ GroupDrainer::Configure(const std::string& spaceName)
   }
 
   bool is_enabled = space->GetConfigMember("groupdrainer") == "on";
-  bool is_conv_enabled = space->GetConfigMember("converter") == "on";
+  bool is_conv_enabled = gOFS->mConverterEngine->IsRunning();
 
   if (!is_enabled || !is_conv_enabled) {
     eos_info("msg=\"group drainer or converter not enabled\""

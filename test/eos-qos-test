@@ -112,8 +112,8 @@ function wait_conversion() {
 
   while true;
   do
-    pending=$(eos -j convert status | jq .pending)
-    running=$(eos -j convert status | jq .running)
+    pending=$(eos -j convert config list | jq .pending)
+    running=$(eos -j convert config list | jq .running)
 
     if [[ ${pending} -eq "0" && ${running} -eq "0" ]]; then
       echo "Conversion finished (${count}s)"
