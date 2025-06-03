@@ -1097,7 +1097,7 @@ class Transfer(object):
                 # Check file is on tape
                 if resp_stat.size != 0 and not (resp_stat.flags & StatInfoFlags.BACKUP_EXISTS):
                     self.logger.debug("File {0} is not yet on tape".format(dst))
-                    timeout = randrange(min_timeout, max_timeou)
+                    timeout = randrange(min_timeout, max_timeout)
                     self.logger.info("Going to sleep for {0} seconds".format(timeout))
                     sleep(timeout)
 
