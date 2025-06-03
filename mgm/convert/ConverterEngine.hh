@@ -1,5 +1,5 @@
 //------------------------------------------------------------------------------
-// File: ConverterDriver.hh
+// File: ConverterEngine.hh
 // Author: Mihai Patrascoiu - CERN
 //------------------------------------------------------------------------------
 
@@ -33,7 +33,6 @@
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"
-
 #include <XrdOuc/XrdOucCallBack.hh>
 
 EOSMGMNAMESPACE_BEGIN
@@ -44,7 +43,7 @@ enum class ConversionJobStatus;
 //------------------------------------------------------------------------------
 //! @brief Class running the conversion threadpool
 //------------------------------------------------------------------------------
-class ConverterDriver : public eos::common::LogId
+class ConverterEngine : public eos::common::LogId
 {
 public:
   using JobInfoT =
@@ -56,7 +55,7 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  ConverterDriver(const eos::QdbContactDetails& qdb_details) :
+  ConverterEngine(const eos::QdbContactDetails& qdb_details) :
     mQdbHelper(qdb_details), mIsRunning(false), mFailed(0),
     mThreadPool(std::thread::hardware_concurrency(), 100,
                 10, 5, 3, "converter"),
@@ -67,7 +66,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ConverterDriver()
+  ~ConverterEngine()
   {
     Stop();
   }
@@ -210,7 +209,7 @@ private:
     //!
     //! @return list of pending jobs
     //--------------------------------------------------------------------------
-    std::vector<ConverterDriver::JobInfoT> GetPendingJobs();
+    std::vector<ConverterEngine::JobInfoT> GetPendingJobs();
 
     //--------------------------------------------------------------------------
     //! Clear list of pending jobs

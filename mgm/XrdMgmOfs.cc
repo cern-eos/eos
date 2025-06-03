@@ -79,7 +79,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/IMaster.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
@@ -307,7 +307,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   mMgmAuthz(nullptr), mTokenAuthz(nullptr), mExtAuthz(nullptr),
   MgmStatsPtr(new eos::mgm::Stat()),  MgmStats(*MgmStatsPtr),
   mFsckEngine(new Fsck()), mMaster(nullptr),
-  mRouting(new eos::mgm::PathRouting()), mConverterDriver(),
+  mRouting(new eos::mgm::PathRouting()), mConverterEngine(),
   mHttpd(nullptr), GRPCd(nullptr), WNCd(nullptr), mRestGrpcSrv(nullptr),
   mLRUEngine(new eos::mgm::LRU()),
   WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), mFstGwHost(""),
@@ -463,7 +463,7 @@ XrdMgmOfs::OrderlyShutdown()
   }
 
   eos_warning("%s", "msg=\"stopping converter engine\"");
-  mConverterDriver->Stop();
+  mConverterEngine->Stop();
   eos_warning("%s", "msg=\"stopping central drainning\"");
   mDrainEngine.Stop();
   eos_warning("%s", "msg=\"stopping geotree engine updater\"");

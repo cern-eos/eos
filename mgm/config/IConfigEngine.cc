@@ -34,7 +34,7 @@
 #include "mgm/RouteEndpoint.hh"
 #include "mgm/PathRouting.hh"
 #include "mgm/fsck/Fsck.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/IMaster.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
@@ -273,7 +273,10 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   gOFS->mFsckEngine->ApplyConfig(&FsView::gFsView);
   gOFS->mIoStats->ApplyConfig(&FsView::gFsView);
   gOFS->mDrainEngine.ApplyConfig();
-  gOFS->mConverterDriver->ApplyConfig();
+
+  if (gOFS->mConverterEngine) {
+    gOFS->mConverterEngine->ApplyConfig();
+  }
 
   if (err.length()) {
     errno = EINVAL;

@@ -29,7 +29,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Stat.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/XattrLock.hh"
 #include "common/Utils.hh"
@@ -1240,7 +1240,7 @@ ProcCommand::File()
                 eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
                 // Push conversion job to QuarkDB
-                if (gOFS->mConverterDriver->ScheduleJob(fmd->getId(), conversiontag)) {
+                if (gOFS->mConverterEngine->ScheduleJob(fmd->getId(), conversiontag)) {
                   stdOut += "success: pushed conversion job '";
                   stdOut += conversiontag.c_str();
                   stdOut += "' to QuarkDB";

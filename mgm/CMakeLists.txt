@@ -197,7 +197,7 @@ add_library(
   FileSystem.cc
   convert/ConversionInfo.cc
   convert/ConversionJob.cc
-  convert/ConverterDriver.cc
+  convert/ConverterEngine.cc
   drain/DrainFs.cc
   drain/DrainTransferJob.cc
   drain/Drainer.cc

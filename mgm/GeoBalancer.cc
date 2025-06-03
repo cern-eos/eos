@@ -24,7 +24,7 @@
 #include "mgm/GeoBalancer.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
@@ -115,7 +115,7 @@ GeoBalancer::clearCachedSizes()
   std::map<std::string, GeotagSize*>::iterator it;
 
   for (it = mGeotagSizes.begin(); it != mGeotagSizes.end(); it++) {
-    delete(*it).second;
+    delete (*it).second;
   }
 
   mGeotagSizes.clear();
@@ -362,7 +362,7 @@ GeoBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   conv_tag += "^geobalancer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
-  if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+  if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag)) {
     eos_static_info("msg=\"geo_balancer scheduled job\" file=\"%s\" "
                     "from_geotag=\"%s\"", conv_tag.c_str(),
                     fromGeotag.c_str());

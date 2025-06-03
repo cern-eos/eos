@@ -51,7 +51,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
@@ -1316,7 +1316,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("Clients", "Mounts");
     g_logging.AddFanOutAlias("ConversionInfo", "Converter");
     g_logging.AddFanOutAlias("ConversionJob", "Converter");
-    g_logging.AddFanOutAlias("ConverterDriver", "Converter");
+    g_logging.AddFanOutAlias("ConverterEngine", "Converter");
   }
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
@@ -1552,8 +1552,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Start the converter engine that can wait until the Master object is
   // properly initialized.
   eos_static_info("%s", "msg=\"starting converter engine\"");
-  mConverterDriver.reset(new eos::mgm::ConverterDriver(mQdbContactDetails));
-  mConverterDriver->Start();
+  mConverterEngine.reset(new eos::mgm::ConverterEngine(mQdbContactDetails));
+  mConverterEngine->Start();
   // Initialize the HA setup
   mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 

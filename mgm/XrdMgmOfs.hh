@@ -179,7 +179,7 @@ class PathRouting;
 class CommitHelper;
 class ReplicationTracker;
 class ConversionJob;
-class ConverterDriver;
+class ConverterEngine;
 }
 
 namespace eos::mgm::tgc
@@ -248,7 +248,7 @@ public:
   friend class eos::mgm::DrainFs;
   friend class eos::mgm::DrainTransferJob;
   friend class eos::mgm::ConversionJob;
-  friend class eos::mgm::ConverterDriver;
+  friend class eos::mgm::ConverterEngine;
   friend class eos::mgm::SpaceCmd;
   friend class eos::mgm::FsckEntry;
   friend class eos::mgm::NsCmd;
@@ -2046,8 +2046,8 @@ public:
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
 
   std::unique_ptr<eos::mq::MessagingRealm> mMessagingRealm;
-  Drainer mDrainEngine; ///< Centralized draining
-  std::unique_ptr<ConverterDriver> mConverterDriver; ///< Converter driver
+  Drainer mDrainEngine; ///< Draining engine
+  std::unique_ptr<ConverterEngine> mConverterEngine; ///< Converter engine
   std::unique_ptr<HttpServer> mHttpd; ///<  Http daemon if available
 
   std::unique_ptr<GrpcServer> GRPCd; ///< GRPC server

@@ -31,7 +31,7 @@
 #include "mgm/Recycle.hh"
 #include "mgm/Devices.hh"
 #include "mgm/GeoTreeEngine.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mq/MessagingRealm.hh"
@@ -433,8 +433,8 @@ QdbMaster::SlaveToMaster()
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   mIsMaster = true;
 
-  if (gOFS->mConverterDriver) {
-    gOFS->mConverterDriver->Start();
+  if (gOFS->mConverterEngine) {
+    gOFS->mConverterEngine->Start();
   }
 
   gOFS->mLRUEngine->Start();
@@ -485,8 +485,8 @@ QdbMaster::MasterToSlave()
   gOFS->mFsckEngine->Stop();
   gOFS->mLRUEngine->Stop();
 
-  if (gOFS->mConverterDriver) {
-    gOFS->mConverterDriver->Stop();
+  if (gOFS->mConverterEngine) {
+    gOFS->mConverterEngine->Stop();
   }
 
   Access::StallInfo old_stall; // to be discarded

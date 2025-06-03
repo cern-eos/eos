@@ -32,7 +32,7 @@
 #include "mgm/LRU.hh"
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/ContainerIterators.hh"
@@ -803,7 +803,7 @@ LRU::ConvertMatch(const char* dir,
     std::string conv_tag = ConversionTag::Get(it->first, space.c_str(), conversion,
                            plctplcy);
 
-    if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+    if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag)) {
       eos_static_info("msg=\"LRU scheduled conversion job\" tag=\"%s\"",
                       conv_tag.c_str());
     } else {

@@ -1,6 +1,6 @@
 #include "mgm/GroupDrainer.hh"
 #include "mgm/convert/ConversionInfo.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/groupbalancer/StdDrainerEngine.hh"
 #include "mgm/groupbalancer/ConverterUtils.hh"
 #include "mgm/XrdMgmOfs.hh"
@@ -69,7 +69,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
       mRefreshGroups = config_status;
     }
 
-    if (!gOFS->mConverterDriver || !config_status) {
+    if (!gOFS->mConverterEngine || !config_status) {
       // wait for a few seconds before trying to see for reconfiguration in order
       // to not simply always check the atomic in an inf loop
       backoff_logger.invoke([this, &config_status]() {
@@ -82,11 +82,11 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     }
 
     if (!observer_tag) {
-      // Safe to access gOFS->mConverterDriver as config_status would've failed
+      // Safe to access gOFS->mConverterEngine as config_status would've failed
       // before this!
-      if (auto mgr = gOFS->mConverterDriver->getObserverMgr()) {
+      if (auto mgr = gOFS->mConverterEngine->getObserverMgr()) {
         observer_tag = mgr->addObserver([this](
-                                          ConverterDriver::JobStatusT status,
+                                          ConverterEngine::JobStatusT status,
         std::string tag) {
           auto info = ConversionInfo::parseConversionString(tag);
 
@@ -97,13 +97,13 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
           }
 
           switch (status) {
-          case ConverterDriver::JobStatusT::DONE:
+          case ConverterEngine::JobStatusT::DONE:
             this->dropTransferEntry(info->mFid);
             eos_info("msg=\"Dropping completed entry\" fid=%lu tag=%s",
                      info->mFid, tag.c_str());
             break;
 
-          case ConverterDriver::JobStatusT::FAILED:
+          case ConverterEngine::JobStatusT::FAILED:
             eos_info("msg=\"Tracking failed transfer\" fid=%lu tag=%s",
                      info->mFid, tag.c_str());
             this->addFailedTransferEntry(info->mFid, std::move(tag));
@@ -317,7 +317,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
 
   uint64_t filesz;
   auto conv_tag = getFileProcTransferNameAndSize(fid, tgt_grp, &filesz,
-                                                 group_balancer::NullFilter);
+                  group_balancer::NullFilter);
 
   if (conv_tag.empty()) {
     eos_err("msg=\"Possibly failed proc file found\" fid=%08llx", fid);
@@ -327,7 +327,7 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   conv_tag += "^groupdrainer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
-  if (gOFS->mConverterDriver->ScheduleJob(fid, conv_tag)) {
+  if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag)) {
     eos_info("msg=\"group drainer scheduled job file=\"%s\" "
              "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
              src_grp.c_str(), tgt_grp.c_str());
@@ -602,7 +602,7 @@ GroupDrainer::getStatus(StatusFormat status_fmt) const
       TableData table_data;
       table_fs_status.SetHeader({
         {"fsid", 10, format_l},
-        {"Drain Progress", 10 , format_f},
+        {"Drain Progress", 10, format_f},
         {"Total Transfers", 10, format_l},
         {"Total files", 10, format_l}
       });
