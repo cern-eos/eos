@@ -72,14 +72,14 @@ public:
     auto threadPoolFunc = [this] {
       bool toContinue = true;
 
-      do {
+      do
+      {
         std::pair<bool, std::shared_ptr<std::function<void(void)>>> task;
         mTasks.wait_pop(task);
         toContinue = task.first;
 
         // Termination is signalled by false
-        if (toContinue)
-        {
+        if (toContinue) {
           (*(task.second))();
         }
       } while (toContinue);
@@ -101,7 +101,7 @@ public:
 
     if (mThreadsMax > mThreadsMin) {
       auto maintainerThreadFunc = [this, threadPoolFunc, samplingInterval,
-      samplingNumber, averageWaitingJobsPerNewThread] {
+            samplingNumber, averageWaitingJobsPerNewThread] {
         setSelfThreadName(mId);
         auto rounds = 0u, sumQueueSize = 0u;
         auto signalFuture = mMaintainerSignal.get_future();
@@ -110,7 +110,7 @@ public:
         {
           if (signalFuture.valid()) {
             if (signalFuture.wait_for(std::chrono::seconds(samplingInterval)) ==
-            std::future_status::ready) {
+                std::future_status::ready) {
               break;
             }
           } else {
@@ -300,6 +300,14 @@ public:
     }
   }
 
+  //---------------------------------------------------------------------------
+  //! Get maximum number of threads in the pool
+  //---------------------------------------------------------------------------
+  unsigned int GetMaxThreads() const
+  {
+    return mThreadsMax;
+  }
+
   //----------------------------------------------------------------------------
   //! Get size of thread pool
   //----------------------------------------------------------------------------
@@ -319,7 +327,7 @@ public:
   static void setSelfThreadName(const std::string& name)
   {
 #ifndef APPLE
-    pthread_setname_np(pthread_self(), name.substr(0,15).c_str());
+    pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
 #endif
   }
 

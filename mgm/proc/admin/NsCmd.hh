@@ -123,13 +123,13 @@ private:
                    eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Update the maximum size of the thread pool used for drain jobs
+  //! Handle ns drain subcommand that can modify global drain parameters
   //!
   //! @param drain drain subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void DrainSizeSubcmd(const eos::console::NsProto_DrainSizeProto& drain,
-                       eos::console::ReplyProto& reply);
+  void DrainSubcmd(const eos::console::NsProto_DrainProto& drain,
+                   eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute reserve ids command

@@ -430,27 +430,35 @@ NsHelper::ParseCommand(const char* arg)
     } else {
       return false;
     }
-  } else if (cmd == "max_drain_threads") {
-    using eos::console::NsProto_DrainSizeProto;
-    NsProto_DrainSizeProto* drain_sz = ns->mutable_drain();
+  } else if (cmd == "drain") {
+    using eos::console::NsProto_DrainProto;
 
     if (!(option = tokenizer.GetToken())) {
       return false;
     } else {
+      NsProto_DrainProto* drain = ns->mutable_drain();
       soption = option;
-      uint64_t max_num_threads {0ull};
 
-      try {
-        max_num_threads = std::stoull(soption);
-
-        if (max_num_threads < 4) {
-          max_num_threads = 4;
+      if (soption == "list") {
+        drain->set_op(eos::console::NsProto_DrainProto::LIST);
+      } else if (soption == "set") {
+        if (!(option = tokenizer.GetToken())) {
+          return false;
         }
-      } catch (const std::exception& e) {
+
+        soption = option;
+        size_t pos = soption.find("=");
+
+        if ((pos == std::string::npos) || (pos == soption.length() - 1)) {
+          return false;
+        }
+
+        drain->set_op(eos::console::NsProto_DrainProto::SET);
+        drain->set_key(soption.substr(0, pos));
+        drain->set_value(soption.substr(pos + 1));
+      } else {
         return false;
       }
-
-      drain_sz->set_max_num(max_num_threads);
     }
   } else if (cmd == "reserve-ids") {
     using eos::console::NsProto_ReserveIdsProto;
@@ -724,16 +732,19 @@ void com_ns_help()
       << "    <max_size> : max size of the cache - not implemented yet"
       << std::endl
       << std::endl
-      << "  ns cache drop-single-file <id of file to drop>" << std::endl
-      << "    force refresh of the given FileMD by dropping it from the cache"
+      << "  ns cache drop-single-file <id of file to drop>\n"
+      << "    force refresh of the given FileMD by dropping it from the cache\n"
       << std::endl
+      << "  ns cache drop-single-container <id of container to drop>\n"
+      << "    force refresh of the given ContainerMD by dropping it from the cache\n"
       << std::endl
-      << "  ns cache drop-single-container <id of container to drop>" << std::endl
-      << "    force refresh of the given ContainerMD by dropping it from the cache"
-      << std::endl
-      << std::endl
-      << "  ns max_drain_threads <num>\n"
-      << "    set the max number of threads in the drain pool, default 400, minimum 4\n"
+      << "  ns drain list|set [<key>=<value>]\n"
+      << "    list : list the global drain configuration parameters\n"
+      << "    set  : set one of the following drain configuration parameters\n"
+      << "           max-thread-pool-size : max number of threads in drain pool\n"
+      << "                                  default 100, minimum 5\n"
+      << "           max-fs-per-node      : max number of file systems per node that\n"
+      << "                                  can be drained in parallel, default 5\n"
       << std::endl
       << "  ns reserve-ids <file id> <container id>\n"
       << "    blacklist file and container IDs below the given threshold. The namespace\n"
