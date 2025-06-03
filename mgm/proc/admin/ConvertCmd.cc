@@ -25,7 +25,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Scheduler.hh"
 #include "mgm/FsView.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -58,7 +58,7 @@ ConvertCmd::ProcessRequest() noexcept
   bool json =
     (mReqProto.format() == eos::console::RequestProto::JSON);
 
-  if (!gOFS->mConverterDriver) {
+  if (!gOFS->mConverterEngine) {
     reply.set_std_err("error: converter engine is not initialized");
     reply.set_retc(ENOTSUP);
     return reply;
@@ -113,12 +113,12 @@ ConvertCmd::ConfigList(bool json) const
     return json;
   };
   // Extract Converter parameters
-  std::string threadpool = gOFS->mConverterDriver->GetThreadPoolInfo();
-  std::string config = gOFS->mConverterDriver->SerializeConfig();
-  uint64_t running = gOFS->mConverterDriver->NumRunningJobs();
-  uint64_t failed = gOFS->mConverterDriver->NumFailedJobs();
-  int64_t pending = gOFS->mConverterDriver->NumPendingJobs();
-  auto state = (gOFS->mConverterDriver->IsRunning() ? "on" : "off");
+  std::string threadpool = gOFS->mConverterEngine->GetThreadPoolInfo();
+  std::string config = gOFS->mConverterEngine->SerializeConfig();
+  uint64_t running = gOFS->mConverterEngine->NumRunningJobs();
+  uint64_t failed = gOFS->mConverterEngine->NumFailedJobs();
+  int64_t pending = gOFS->mConverterEngine->NumPendingJobs();
+  auto state = (gOFS->mConverterEngine->IsRunning() ? "on" : "off");
 
   if (json) {
     Json::Value json;
@@ -158,7 +158,7 @@ ConvertCmd::ConfigSubcmd(const eos::console::ConvertProto_ConfigProto& config,
     }
   } else if (config.op() == ConvertProto_ConfigProto::SET) {
     if (gOFS) {
-      if (!gOFS->mConverterDriver->SetConfig(config.key(), config.value())) {
+      if (!gOFS->mConverterEngine->SetConfig(config.key(), config.value())) {
         reply.set_std_err("error: failed applying converter configuration");
         reply.set_retc(EINVAL);
         return;
@@ -273,7 +273,7 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   eos_info("msg=\"scheduling conversion job\" path=%s conversion_id=%s",
            path.c_str(), conversion_id.c_str());
 
-  if (!gOFS->mConverterDriver->ScheduleJob(file_id, conversion_id)) {
+  if (!gOFS->mConverterEngine->ScheduleJob(file_id, conversion_id)) {
     err << "error: unable to push conversion job '" << conversion_id.c_str()
         << "' to QuarkDB";
     reply.set_std_err(err.str());
@@ -397,7 +397,7 @@ ConvertCmd::ListSubcmd(const eos::console::ConvertProto_ListProto& list,
                        eos::console::ReplyProto& reply, bool json)
 {
   std::ostringstream oss;
-  auto pending = gOFS->mConverterDriver->GetPendingJobs();
+  auto pending = gOFS->mConverterEngine->GetPendingJobs();
 
   if (pending.empty()) {
     reply.set_std_out("info: no pending conversions");
@@ -446,7 +446,7 @@ void
 ConvertCmd::ClearSubcmd(const eos::console::ConvertProto_ClearProto& clear,
                         eos::console::ReplyProto& reply)
 {
-  gOFS->mConverterDriver->ClearPendingJobs();
+  gOFS->mConverterEngine->ClearPendingJobs();
   reply.set_std_out("info: list cleared");
 }
 

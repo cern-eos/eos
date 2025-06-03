@@ -24,7 +24,7 @@
 #include "mgm/GroupBalancer.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/FsView.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "namespace/interface/IFsView.hh"
 #include "common/StringConversion.hh"
 #include "common/FileId.hh"
@@ -118,7 +118,7 @@ GroupBalancer::scheduleTransfer(const FileInfo& file_info,
   conv_tag += "^groupbalancer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
 
-  if (gOFS->mConverterDriver->ScheduleJob(file_info.fid, conv_tag)) {
+  if (gOFS->mConverterEngine->ScheduleJob(file_info.fid, conv_tag)) {
     eos_static_info("msg=\"group balancer scheduled job\" file=\"%s\" "
                     "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
                     sourceGroup->mName.c_str(), targetGroup->mName.c_str());
@@ -331,7 +331,8 @@ GroupBalancer::Status(bool detail, bool monitoring) const
 bool
 GroupBalancer::is_valid_engine(std::string_view engine_name)
 {
-  return engine_name == "std" || engine_name == "minmax" || engine_name == "freespace";
+  return engine_name == "std" || engine_name == "minmax" ||
+         engine_name == "freespace";
 }
 
 //------------------------------------------------------------------------------
@@ -397,10 +398,10 @@ GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
   }
 
   auto blocklisted_groups = space->GetConfigMember("groupbalancer.blocklist");
-
   mEngineConf.insert_or_assign("min_threshold", std::move(min_threshold_str));
   mEngineConf.insert_or_assign("max_threshold", std::move(max_threshold_str));
-  mEngineConf.insert_or_assign("blocklisted_groups", std::move(blocklisted_groups));
+  mEngineConf.insert_or_assign("blocklisted_groups",
+                               std::move(blocklisted_groups));
   return true;
 }
 
@@ -435,13 +436,13 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     if (assistant.terminationRequested()) {
       return;
     }
-    
+
     FsView::gFsView.ViewMutex.LockRead();
-    
+
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
       FsView::gFsView.ViewMutex.UnLockRead();
       eos_static_debug("msg=\"no groups to balance\" space=\"%s\"",
-                         mSpaceName.c_str());
+                       mSpaceName.c_str());
       break;
     }
 
@@ -456,7 +457,7 @@ GroupBalancer::GroupBalance(ThreadAssistant& assistant) noexcept
     // Update tracker for scheduled jobs
     gOFS->mFidTracker.DoCleanup(TrackerType::Convert);
 
-    if (!gOFS->mConverterDriver || !config_status) {
+    if (!gOFS->mConverterEngine || !config_status) {
       continue;
     }
 

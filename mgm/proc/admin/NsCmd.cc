@@ -44,7 +44,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Stat.hh"
 #include "mgm/ZMQ.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include <sstream>
 
@@ -446,8 +446,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all "
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << "uid=all gid=all "
-        << (gOFS->mConverterDriver ?
-            gOFS->mConverterDriver->GetThreadPoolInfo() :
+        << (gOFS->mConverterEngine ?
+            gOFS->mConverterEngine->GetThreadPoolInfo() :
             "info=\"converter driver not running\"")
         << std::endl;
     FsView::gFsView.DumpBalancerPoolInfo(oss, "uid=all gid=all ");
@@ -658,8 +658,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "ALL      fsck info                        "
         << gOFS->mFsckEngine->GetThreadPoolInfo() << std::endl
         << "ALL      converter info                   "
-        << (gOFS->mConverterDriver ?
-            gOFS->mConverterDriver->GetThreadPoolInfo() :
+        << (gOFS->mConverterEngine ?
+            gOFS->mConverterEngine->GetThreadPoolInfo() :
             "info=\"converter driver not running\"")
         << std::endl;
     std::string_view prefix {"ALL      balancer info                    "};

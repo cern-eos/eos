@@ -24,7 +24,7 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/convert/ConverterDriver.hh"
+#include "mgm/convert/ConversionInfo.hh"
 
 #include <string>
 
