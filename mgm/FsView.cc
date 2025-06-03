@@ -2540,7 +2540,7 @@ FsView::FindByQueuePath(std::string& queuepath)
 bool
 FsView::SetGlobalConfig(const std::string& key, const std::string& value)
 {
-  if (gOFS) {
+  if (gOFS && gOFS->mMaster->IsMaster()) {
     std::string ckey = SSTR(common::InstanceName::getGlobalMgmConfigQueue()
                             << "#" << key);
 

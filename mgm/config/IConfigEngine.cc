@@ -271,6 +271,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   Access::EnforceConfig(apply_stall_redirect);
   gOFS->mFsckEngine->ApplyConfig(&FsView::gFsView);
   gOFS->mIoStats->ApplyConfig(&FsView::gFsView);
+  gOFS->mDrainEngine.ApplyConfig();
 
   if (err.length()) {
     errno = EINVAL;
@@ -461,7 +462,7 @@ IConfigEngine::IsDeprecated(const std::string& config_key) const
 {
   static std::set<std::string> deprecated_global {
     "#drainer.central", "#new_balancer", "#transfer.schedule",
-    "#fsck_refresh_interval"};
+    "#fsck_refresh_interval", "#drainer.node.nfs", "#drainer.node.ntx"};
 
   if (config_key.find("global:") == 0) {
     for (const auto& key : deprecated_global) {

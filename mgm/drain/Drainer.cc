@@ -26,8 +26,19 @@
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/FsView.hh"
 #include "mgm/IMaster.hh"
+#include "common/StringTokenizer.hh"
 #include "common/StacktraceHere.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
+
+namespace
+{
+//! Drainer configuration key in the global map
+std::string kDrainerCfg = "drainer";
+//! Max number of file systems that can be drained in parallel per node
+std::string kDrainerMaxFs      = "max-fs-per-node";
+//! Max number of threads that the drainer can spawn
+std::string kDrainerMaxThreads = "max-thread-pool-size";
+}
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -35,7 +46,8 @@ EOSMGMNAMESPACE_BEGIN
 // Constructor
 //------------------------------------------------------------------------------
 Drainer::Drainer():
-  mThreadPool(10, 100, 10, 6, 5, "drain")
+  mThreadPool(10, 100, 10, 6, 5, "drain"),
+  mMaxFsInParallel(5)
 {}
 
 //------------------------------------------------------------------------------
@@ -74,7 +86,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
 {
   using eos::common::FileSystem;
   FileSystem::fsid_t src_fsid = fs->GetId();
-  eos_info("msg=\"start draining\" fsid=%d", src_fsid);
+  eos_static_info("msg=\"start draining\" fsid=%d", src_fsid);
 
   if (src_fsid == 0) {
     std::ostringstream ss;
@@ -137,8 +149,7 @@ Drainer::StartFsDrain(eos::mgm::FileSystem* fs,
       }
 
       // Check if we have reached the max fs per node for this node
-      if (it_drainfs->second.size() >=
-          MaxDrainFsInParallel(src_snapshot.mSpace)) {
+      if (it_drainfs->second.size() >= mMaxFsInParallel) {
         fs->SetDrainStatus(eos::common::DrainStatus::kDrainWait);
         mPending.push_back(std::make_pair(src_fsid, dst_fsid));
         return true;
@@ -170,7 +181,7 @@ bool
 Drainer::StopFsDrain(eos::mgm::FileSystem* fs, std::string& err)
 {
   eos::common::FileSystem::fsid_t fsid = fs->GetId();
-  eos_notice("msg=\"stop draining\" fsid=%d ", fsid);
+  eos_static_notice("msg=\"stop draining\" fsid=%d ", fsid);
 
   if (fsid == 0) {
     std::ostringstream ss;
@@ -222,7 +233,7 @@ Drainer::GetJobsInfo(std::string& out, const DrainHdrInfo& hdr_info,
                      unsigned int fsid, bool only_failed, bool monitor_fmt) const
 {
   if (hdr_info.empty()) {
-    eos_err("msg=\"drain info header is empty\"");
+    eos_static_err("%s", "msg=\"drain info header is empty\"");
     return false;
   }
 
@@ -290,7 +301,7 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
 
   // Wait that current MGM becomes a master
   do {
-    eos_debug("%s", "msg=\"drain waiting for master MGM\"");
+    eos_static_debug("%s", "msg=\"drain waiting for master MGM\"");
     assistant.wait_for(std::chrono::seconds(10));
   } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
 
@@ -298,7 +309,6 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
   FsView::gFsView.ReapplyDrainStatus();
 
   while (!assistant.terminationRequested()) {
-    UpdateFromSpaceConfig();
     HandleQueued();
     gOFS->mFidTracker.DoCleanup(TrackerType::Drain);
     assistant.wait_for(std::chrono::seconds(5));
@@ -328,7 +338,7 @@ Drainer::Drain(ThreadAssistant& assistant) noexcept
 void
 Drainer::WaitForAllDrainToStop()
 {
-  eos_notice("%s", "msg=\"stop all ongoing drain\"");
+  eos_static_notice("%s", "msg=\"stop all ongoing drain\"");
   {
     eos::common::RWMutexReadLock rd_lock(mDrainMutex);
 
@@ -370,50 +380,112 @@ Drainer::WaitForAllDrainToStop()
 }
 
 //------------------------------------------------------------------------------
-// Update drain relevant configuration from the space view
+// Apply global configuration relevant for the drainer
 //------------------------------------------------------------------------------
 void
-Drainer::UpdateFromSpaceConfig()
+Drainer::ApplyConfig()
 {
-  using namespace std::chrono;
-  static auto last_update = steady_clock::now();
+  using eos::common::StringTokenizer;
+  std::string config = FsView::gFsView.GetGlobalConfig(kDrainerCfg);
+  // Parse config of the form: key1=val1 key2=val2 etc.
+  eos_static_info("msg=\"apply drainer configuration\" data=\"%s\"",
+                  config.c_str());
+  std::map<std::string, std::string> kv_map;
+  auto pairs = StringTokenizer::split<std::list<std::string>>(config, ' ');
 
-  // Update every minute
-  if (duration_cast<seconds>(steady_clock::now() - last_update).count() > 60) {
-    last_update = std::chrono::steady_clock::now();
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+  for (const auto& pair : pairs) {
+    auto kv = StringTokenizer::split<std::vector<std::string>>(pair, '=');
 
-    for (const auto& space : FsView::gFsView.mSpaceView) {
-      int max_drain_fs = 5;
-
-      if (space.second->GetConfigMember("drainer.node.nfs") != "") {
-        max_drain_fs = atoi(space.second->GetConfigMember("drainer.node.nfs").c_str());
-      } else {
-        space.second->SetConfigMember("drainer.node.nfs", "5");
-      }
-
-      // Set the space configuration
-      XrdSysMutexHelper scope_lock(mCfgMutex);
-      mCfgMap[space.first] = max_drain_fs;
+    if (kv.empty()) {
+      eos_static_err("msg=\"unknown drainer config data\" data=\"%s\"",
+                     config.c_str());
+      continue;
     }
+
+    // There is no use-case yet for keys without values!
+    if (kv.size() == 1) {
+      continue;
+    }
+
+    kv_map.emplace(kv[0], kv[1]);
+  }
+
+  for (const auto& [key, val] : kv_map) {
+    SetConfig(key, val);
   }
 }
 
 //------------------------------------------------------------------------------
-// Get the maximum number of file systems that can be drained in parallel
-// on the same node.
+// Serialize drainer configuration
 //------------------------------------------------------------------------------
-unsigned int
-Drainer::MaxDrainFsInParallel(const std::string& space) const
+std::string
+Drainer::SerializeConfig() const
 {
-  XrdSysMutexHelper scope_lock(mCfgMutex);
-  const auto it = mCfgMap.find(space);
+  std::ostringstream oss;
+  oss << kDrainerMaxThreads << "=" << mThreadPool.GetMaxThreads() << " "
+      << kDrainerMaxFs << "=" << mMaxFsInParallel;
+  return oss.str();
+}
 
-  if (it != mCfgMap.end()) {
-    return it->second;
+//------------------------------------------------------------------------------
+// Store configuration
+//------------------------------------------------------------------------------
+bool
+Drainer::StoreConfig()
+{
+  return FsView::gFsView.SetGlobalConfig(kDrainerCfg, SerializeConfig());
+}
+
+//------------------------------------------------------------------------------
+// Make configuration change
+//------------------------------------------------------------------------------
+bool
+Drainer::SetConfig(const std::string& key, const std::string& val)
+{
+  bool config_change = false;
+
+  if (key == kDrainerMaxThreads) {
+    int max_threads = 100;
+
+    try {
+      max_threads = std::stoi(val);
+    } catch (...) {
+      eos_static_err("msg=\"failed parsing drainer max threads configuration\" "
+                     "data=\"%s\"", val.c_str());
+      return false;
+    }
+
+    if ((max_threads >= 5) &&
+        (max_threads != mThreadPool.GetMaxThreads())) {
+      mThreadPool.SetMaxThreads(max_threads);
+      config_change = true;
+    }
+  } else if (key == kDrainerMaxFs) {
+    unsigned int max_fs_parallel = 5;
+
+    try {
+      max_fs_parallel = std::stoi(val);
+    } catch (...) {
+      eos_static_err("msg=\"failed parsing drainer max fs in parallel\" "
+                     "data=\"%s\"", val.c_str());
+      return false;
+    }
+
+    if (max_fs_parallel && (max_fs_parallel != mMaxFsInParallel.load())) {
+      mMaxFsInParallel.store(max_fs_parallel);
+      config_change = true;
+    }
+  } else {
+    return false;
   }
 
-  return 0u;
+  if (config_change) {
+    if (!StoreConfig()) {
+      eos_static_err("%s", "msg=\"failed to save drainer configuration\"");
+    }
+  }
+
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -436,8 +508,8 @@ Drainer::HandleQueued()
     FileSystem* fs = FsView::gFsView.mIdView.lookupByID(pair.first);
 
     if (fs && !StartFsDrain(fs, pair.second, msg)) {
-      eos_err("msg=\"failed to start pending drain src_fsid=%lu\""
-              " msg=\"%s\"", pair.first, msg.c_str());
+      eos_static_err("msg=\"failed to start pending drain src_fsid=%lu\""
+                     " msg=\"%s\"", pair.first, msg.c_str());
     }
   }
 }

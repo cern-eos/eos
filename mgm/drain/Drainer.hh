@@ -147,16 +147,37 @@ public:
                    bool monitor_fmt = false) const;
 
   //----------------------------------------------------------------------------
-  //! Get the maximum number of file systems that can be drained in parallel
-  //! on the same node.
-  //!
-  //! @return max number of file systems to be drained in parallel per node
+  //! Apply global configuration relevant for the drainer
   //----------------------------------------------------------------------------
-  unsigned int MaxDrainFsInParallel(const std::string& space) const;
+  void ApplyConfig();
+
+  //----------------------------------------------------------------------------
+  //! Make configuration change
+  //!
+  //! @param key input key
+  //! @param val input value
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool SetConfig(const std::string& key, const std::string& val);
+
+  //----------------------------------------------------------------------------
+  //! Serialize drainer configuration
+  //!
+  //! @return string representing drainer configuration
+  //----------------------------------------------------------------------------
+  std::string SerializeConfig() const;
 
 private:
   using ListPendingT = std::list<std::pair<eos::common::FileSystem::fsid_t,
         eos::common::FileSystem::fsid_t>>;
+
+  //----------------------------------------------------------------------------
+  //! Store configuration
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool StoreConfig();
 
   //----------------------------------------------------------------------------
   //! Method doing the drain monitoring
@@ -175,19 +196,14 @@ private:
   //----------------------------------------------------------------------------
   void WaitForAllDrainToStop();
 
-  //----------------------------------------------------------------------------
-  //! Update drain relevant configuration from the space view
-  //----------------------------------------------------------------------------
-  void UpdateFromSpaceConfig();
-
   AssistedThread mThread; ///< Thread updating the drain configuration
-  //! Contains per space the max allowed fs draining per node
-  std::map<std::string, int> mCfgMap;
   DrainMap mDrainFs; ///< Map of nodes to file systems draining
   mutable eos::common::RWMutex mDrainMutex; ///< Mutex protecting the drain map
-  mutable XrdSysMutex mCfgMutex; ///< Mutex for drain config updates
-  eos::common::ThreadPool mThreadPool; ///< Thread pool for drain jobs
+  mutable std::mutex mCfgMutex; ///< Mutex for drain config updates
   ListPendingT mPending; ///< Queue of pending file systems to be drained
+  eos::common::ThreadPool mThreadPool; ///< Thread pool for drain jobs
+  //! Max number of file system per node in draining in parallel
+  std::atomic_uint mMaxFsInParallel;
 };
 
 EOSMGMNAMESPACE_END

@@ -76,7 +76,7 @@ NsCmd::ProcessRequest() noexcept
   } else if (subcmd == eos::console::NsProto::kQuota) {
     QuotaSizeSubcmd(ns.quota(), reply);
   } else if (subcmd == eos::console::NsProto::kDrain) {
-    DrainSizeSubcmd(ns.drain(), reply);
+    DrainSubcmd(ns.drain(), reply);
   } else if (subcmd == eos::console::NsProto::kReserve) {
     ReserveIdsSubCmd(ns.reserve(), reply);
   } else if (subcmd == eos::console::NsProto::kBenchmark) {
@@ -1115,11 +1115,37 @@ NsCmd::BreadthFirstSearchContainers(eos::IContainerMD* cont,
 // Update the maximum size of the thread pool used for drain jobs
 //------------------------------------------------------------------------------
 void
-NsCmd::DrainSizeSubcmd(const eos::console::NsProto_DrainSizeProto& drain,
-                       eos::console::ReplyProto& reply)
+NsCmd::DrainSubcmd(const eos::console::NsProto_DrainProto& drain,
+                   eos::console::ReplyProto& reply)
 {
-  gOFS->mDrainEngine.SetMaxThreadPoolSize(drain.max_num());
+  using eos::console::NsProto_DrainProto;
+
+  if (drain.op() == NsProto_DrainProto::LIST) {
+    if (gOFS) {
+      reply.set_std_out(gOFS->mDrainEngine.SerializeConfig());
+    }
+  } else if (drain.op() == NsProto_DrainProto::SET) {
+    if (drain.key().empty() || drain.value().empty()) {
+      reply.set_std_err("error: both key and value need to be specified");
+      reply.set_retc(EINVAL);
+      return;
+    } else {
+      if (gOFS) {
+        if (!gOFS->mDrainEngine.SetConfig(drain.key(), drain.value())) {
+          reply.set_std_err("error: failed changing drainer configuration");
+          reply.set_retc(EINVAL);
+          return;
+        }
+      }
+    }
+  } else {
+    reply.set_std_err("error: unknown drainer operation");
+    reply.set_retc(EINVAL);
+    return;
+  }
+
   reply.set_retc(0);
+  return;
 }
 
 //------------------------------------------------------------------------------
