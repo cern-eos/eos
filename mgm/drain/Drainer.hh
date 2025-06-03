@@ -98,16 +98,6 @@ public:
   bool StopFsDrain(eos::mgm::FileSystem* fs, std::string& err);
 
   //----------------------------------------------------------------------------
-  //! Set max size of thread pool used for draining
-  //!
-  //! @param max max value
-  //----------------------------------------------------------------------------
-  void SetMaxThreadPoolSize(unsigned int max)
-  {
-    mThreadPool.SetMaxThreads(max);
-  }
-
-  //----------------------------------------------------------------------------
   //! Get thread pool info
   //!
   //! @return string summary for the thread pool

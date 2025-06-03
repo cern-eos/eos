@@ -738,13 +738,13 @@ void com_ns_help()
       << "  ns cache drop-single-container <id of container to drop>\n"
       << "    force refresh of the given ContainerMD by dropping it from the cache\n"
       << std::endl
-      << "  ns drain list|set [<key>=<value>]\n"
-      << "    list : list the global drain configuration parameters\n"
-      << "    set  : set one of the following drain configuration parameters\n"
+      << "  ns drain list|set [<key>=<value>]                                 \n"
+      << "    list : list the global drain configuration parameters           \n"
+      << "    set  : set one of the following drain configuration parameters  \n"
       << "           max-thread-pool-size : max number of threads in drain pool\n"
-      << "                                  default 100, minimum 5\n"
+      << "                                  [default 100, minimum 5]          \n"
       << "           max-fs-per-node      : max number of file systems per node that\n"
-      << "                                  can be drained in parallel, default 5\n"
+      << "                                  can be drained in parallel [default 5]\n"
       << std::endl
       << "  ns reserve-ids <file id> <container id>\n"
       << "    blacklist file and container IDs below the given threshold. The namespace\n"

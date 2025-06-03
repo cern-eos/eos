@@ -60,7 +60,7 @@ private:
   //! Parse identifier string and construct identifier proto object.
   //----------------------------------------------------------------------------
   eos::console::ConvertProto_IdentifierProto*
-  ParseIdentifier(XrdOucString path);
+  ParseIdentifier(std::string path);
 
   //----------------------------------------------------------------------------
   //! Parse conversion string and construct conversion proto object.
@@ -76,81 +76,46 @@ private:
 bool
 ConvertHelper::ParseCommand(const char* arg)
 {
+  using eos::console::ConvertProto_ConfigProto;
   eos::console::ConvertProto* convert = mReq.mutable_convert();
   eos::common::StringTokenizer tokenizer(arg);
   tokenizer.GetLine();
-  XrdOucString token;
+  std::string token;
 
   if (!tokenizer.NextToken(token)) {
     return false;
   }
 
-  if (token == "enable" || token == "disable") {
-    auto action = (token == "enable") ?
-                  eos::console::ConvertProto_ActionProto::ENABLE :
-                  eos::console::ConvertProto_ActionProto::DISABLE;
-    convert->mutable_action()->set_action(action);
-  } else if (token == "status") {
-    convert->mutable_status();
-  } else if (token == "config") {
-    eos::console::ConvertProto_ConfigProto* config = convert->mutable_config();
-    bool option = false;
+  if (token == "config") {
+    ConvertProto_ConfigProto* config = convert->mutable_config();
 
-    while (tokenizer.NextToken(token)) {
-      if (token.beginswith("--maxthreads")) {
-        uint32_t maxthreads = 0ul;
-
-        if (token.beginswith("--maxthreads=")) {
-          token.replace("--maxthreads=", "");
-        } else {
-          tokenizer.NextToken(token);
-        }
-
-        try {
-          maxthreads = std::stoul(token.c_str());
-
-          if (maxthreads == 0) {
-            throw std::invalid_argument("value zero not allowed");
-          }
-        } catch (...) {
-          std::cerr << "error: invalid value for <maxthreads>='"
-                    << token << "'" << std::endl;
-          return false;
-        }
-
-        config->set_maxthreads(maxthreads);
-        option = true;
-      } else if (token.beginswith("--maxqueuesize")) {
-        uint32_t max_queue_size = 0ul;
-
-        if (token.beginswith("--maxqueuesize=")) {
-          token.replace("--maxqueuesize=", "");
-        } else {
-          tokenizer.NextToken(token);
-        }
-
-        try {
-          max_queue_size = std::stoul(token.c_str());
-
-          if (max_queue_size == 0) {
-            throw std::invalid_argument("value zero not allowed");
-          }
-        } catch (...) {
-          std::cerr << "error: invalid value for <maxqueuesize>='"
-                    << token << "'" << std::endl;
-          return false;
-        }
-
-        config->set_maxqueuesize(max_queue_size);
-        option = true;
-      } else {
-        std::cerr << "warning: unknown config option '"
-                  << token << "'" << std::endl;
-      }
+    if (!tokenizer.NextToken(token)) {
+      return false;
     }
 
-    if (!option) {
-      std::cerr << "error: no valid config option given" << std::endl;
+    if (token == "list") {
+      config->set_op(ConvertProto_ConfigProto::LIST);
+    } else if (token == "set") {
+      if (!tokenizer.NextToken(token)) {
+        std::cerr << "error: config set takes a parameter" << std::endl;
+        return false;
+      }
+
+      size_t pos = token.find("=");
+
+      if ((pos == std::string::npos) ||
+          (pos == token.length() - 1)) {
+        std::cerr << "error: config set takes a key=value parameter"
+                  << std::endl;
+        return false;
+      }
+
+      config->set_op(ConvertProto_ConfigProto::SET);
+      config->set_key(token.substr(0, pos));
+      config->set_value(token.substr(pos + 1));
+    } else {
+      std::cerr << "error: unknown config option '"
+                << token << "'" << std::endl;
       return false;
     }
   } else if (token == "file") {
@@ -200,8 +165,9 @@ ConvertHelper::ParseCommand(const char* arg)
 // Parse string identifier and construct identifier proto object
 //----------------------------------------------------------------------------
 eos::console::ConvertProto_IdentifierProto*
-ConvertHelper::ParseIdentifier(XrdOucString path)
+ConvertHelper::ParseIdentifier(std::string spath)
 {
+  XrdOucString path = spath.c_str();
   auto identifier = new eos::console::ConvertProto_IdentifierProto{};
   auto id = 0ull;
 
@@ -210,8 +176,7 @@ ConvertHelper::ParseIdentifier(XrdOucString path)
   } else if (Path2ContainerDenominator(path, id)) {
     identifier->set_containerid(id);
   } else {
-    path = abspath(path.c_str());
-    identifier->set_path(path.c_str());
+    identifier->set_path(abspath(path.c_str()));
   }
 
   return identifier;
@@ -337,34 +302,27 @@ int com_convert(char* arg)
 void com_convert_help()
 {
   std::ostringstream oss;
-  oss << "Usage: convert <subcomand>                         " << std::endl
-      << "  convert enable/disable                           " << std::endl
-      << "    enable or disable the converter engine         " << std::endl
+  oss << "Usage: convert <subcomand>                         \n"
+      << "  convert config list|set [<key>=<value>]          \n"
+      << "    list: list converter configuration parameters  \n"
+      << "    set : set converter configuration parameters. Options:\n"
+      << "      max-thread-pool-size: max number of threads in converter pool [default 100]\n"
+      << "      max-queue-size      : max number of queued conversion jobs [default 1000]\n"
       << std::endl
-      << "  convert status                                   " << std::endl
-      << "    print converter engine statistics              " << std::endl
+      << "  convert list                                     \n"
+      << "    list conversion jobs                           \n"
       << std::endl
-      << "  convert config <option> [<option>]               " << std::endl
-      << "    set converter engine configuration option      " << std::endl
-      << "    --maxthreads=<#>   : max threadpool size (default 100)" << std::endl
-      << "    --maxqueuesize=<#> : max queue size (default 1000)" << std::endl
+      << "  convert clear                                    \n"
+      << "    clear list of jobs stored in the backend       \n"
       << std::endl
-      << "  convert list                                     " << std::endl
-      << "    list conversion jobs                           " << std::endl
+      << "  convert file <identifier> <conversion>           \n"
+      << "    schedule a file conversion                     \n"
+      << "    <identifier> = fid|fxid|path                   \n"
+      << "    <conversion> = <layout:replica> [space] [placement] [checksum]\n"
       << std::endl
-      << "  convert clear                                    " << std::endl
-      << "    clear list of jobs stored in the backend       " << std::endl
-      << std::endl
-      << "  convert file <identifier> <conversion>           " << std::endl
-      << "    schedule a file conversion                     " << std::endl
-      << "    <identifier> = fid|fxid|path                   " << std::endl
-      << "    <conversion> = <layout:replica> [space] [placement] [checksum]"
-      << std::endl
-      << std::endl
-      << "  convert rule <identifier> <conversion>           " << std::endl
-      << "    apply a conversion rule on the given directory " << std::endl
-      << "    <identifier> = cid|cxid|path                   " << std::endl
-      << "    <conversion> = <layout:replica> [space] [placement] [checksum]"
-      << std::endl;
+      << "  convert rule <identifier> <conversion>           \n"
+      << "    apply a conversion rule on the given directory \n"
+      << "    <identifier> = cid|cxid|path                   \n"
+      << "    <conversion> = <layout:replica> [space] [placement] [checksum]\n";
   std::cerr << oss.str() << std::endl;
 }
