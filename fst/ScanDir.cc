@@ -651,7 +651,7 @@ ScanDir::CheckFile(const std::string& fpath)
   struct stat info;
 
   if ((io->fileOpen(0, 0)) || io->fileStat(&info)) {
-    LogMsg(LOG_ERR, "msg=\"open/stat failed\" path=%s\"", fpath.c_str());
+    LogMsg(LOG_ERR, "msg=\"open/stat failed\" path=\"%s\"", fpath.c_str());
     return false;
   }
 
@@ -668,9 +668,17 @@ ScanDir::CheckFile(const std::string& fpath)
     }
   }
 
-  auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId);
+  auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
 
   if (!fmd) {
+    if (info.st_size == 0) {
+      // The file doesn't have an attached fmd object and the size is 0
+      // It might be a leftover from an Open with create flag: EOS-6423
+      if (io->fileRemove()) {
+        LogMsg(LOG_ERR, "msg=\"failed to remove file\" path=\"%s\"", fpath.c_str());
+      }
+    }
+
     return false;
   }
 
