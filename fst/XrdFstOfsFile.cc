@@ -555,6 +555,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       // Clean-up before re-bouncing
       if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
         DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
+        mDelOnClose = true;
       }
     }
 
@@ -1131,13 +1132,13 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   // In case we have a remote write error for a replica, the local replica is still ok!
-  if ( (rc < 0) && (eos::common::LayoutId::IsReplica(mLid) &&
-		    (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO)) ) {
+  if ((rc < 0) && (eos::common::LayoutId::IsReplica(mLid) &&
+                   (mLayout->GetErrObj()->getErrInfo() == EREMOTEIO))) {
     rc = buffer_size;
   }
 
   // Evt. add checksum
-  if ( (rc > 0) ) {
+  if ((rc > 0)) {
     if (mCheckSum) {
       mCheckSum->Add(buffer, static_cast<size_t>(rc),
                      static_cast<off_t>(fileOffset));
@@ -1526,6 +1527,14 @@ XrdFstOfsFile::_close()
   // This must be done after the TPC cleanup no to leak tpc keys
   if (mIsDevNull) {
     eos_debug("%s", "msg=\"closing sink file i.e. /dev/null\"");
+    mClosed = true;
+    return SFS_OK;
+  }
+
+  if (!mOpened && mDelOnClose && !mClosed) {
+    eos_debug("msg=\"cleaning up eventual files created on failed open\" fxid=%08llx",
+              mFileId);
+    mLayout->Remove();
     mClosed = true;
     return SFS_OK;
   }
