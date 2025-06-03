@@ -141,7 +141,7 @@ public:
   //----------------------------------------------------------------------------
   //! Store the FSCK configuration to the configuration engine
   //----------------------------------------------------------------------------
-  bool StoreFsckConfig();
+  bool StoreConfig();
 
   //----------------------------------------------------------------------------
   //! Method collecting errors from the FSTS

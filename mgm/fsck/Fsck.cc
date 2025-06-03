@@ -133,7 +133,7 @@ Fsck::ApplyConfig(FsView* fsview)
 // Store the current running FSCK configuration in the config engine
 //------------------------------------------------------------------------------
 bool
-Fsck::StoreFsckConfig()
+Fsck::StoreConfig()
 {
   using namespace std::chrono;
   uint32_t collect_interval_min = duration_cast<minutes>
@@ -216,7 +216,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       }
     }
 
-    if (!StoreFsckConfig()) {
+    if (!StoreConfig()) {
       msg = "error: failed to store fsck configuration changes";
       return false;
     }
@@ -242,7 +242,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       mRepairThread.reset(&Fsck::RepairErrs, this);
     }
 
-    if (!StoreFsckConfig()) {
+    if (!StoreConfig()) {
       msg = "error: failed to store fsck configuration changes";
       return false;
     }
@@ -255,7 +255,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       mDoBestEffort = (value == "1");
     }
 
-    if (!StoreFsckConfig()) {
+    if (!StoreConfig()) {
       msg = "error: failed to store fsck configuration changes";
       return false;
     }
@@ -273,7 +273,7 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       }
     }
 
-    if (!StoreFsckConfig()) {
+    if (!StoreConfig()) {
       msg = "error: failed to store fsck configuration changes";
       return false;
     }
