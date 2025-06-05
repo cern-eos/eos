@@ -61,6 +61,7 @@ public:
   XrdOucString PortAlias; // alias for the port to use in redirection
   mutable XrdSysMutex Mutex; // lock for dynamic updates like 'Manager'
   bool protowfusegrpc; // use the xrootd or the grpc protocol
+  std::string JwtTokenPath; // where to find the JWT to be used in WFE calls for authentication when gRPC is used
 
   Config() : generator((std::random_device())())
   {

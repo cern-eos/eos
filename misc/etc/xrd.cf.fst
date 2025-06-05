@@ -36,6 +36,7 @@ fstofs.metalog /var/eos/md/
 #fstofs.qdbpassword_file /etc/eos.keytab
 # Use gRPC?
 #fstofs.protowfusegrpc true
+#fstofs.jwttokenpath /etc/grid-security/jwt-token-grpc
 
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000
