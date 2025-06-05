@@ -45,34 +45,18 @@ public:
   virtual ~WFEClient() = default;
 };
 
-// need to configure call credentials here, add the token
-class JWTAuthenticator : public grpc::MetadataCredentialsPlugin {
-public:
-    JWTAuthenticator(const grpc::string& grpcstrToken) : m_grpcstrToken(grpcstrToken) {}
-
-    grpc::Status GetMetadata(
-        grpc::string_ref serviceUrl, grpc::string_ref methodName,
-        const grpc::AuthContext& channelAuthContext,
-        std::multimap<grpc::string, grpc::string>* metadata) override {
-        metadata->insert(std::make_pair("cta-grpc-jwt-auth-token", m_grpcstrToken));
-        return grpc::Status::OK;
-    }
-
-private:
-    grpc::string m_grpcstrToken;
-};
-
 class WFEGrpcClient : public WFEClient {
 public:
-  WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs) {
+  WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs, std::string token_path) {
     endpoint = endpoint_str;
-    constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
+    token_path = token_path;
+    // constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
     grpc::SslCredentialsOptions ssl_options;
     if (root_certs.has_value())
       ssl_options.pem_root_certs = file2string(root_certs.value());
     else
       ssl_options.pem_root_certs = "";
-    eos_static_info("loaded root certificate, it is %s", file2string(RootCertificate).c_str());
+    // eos_static_info("loaded root certificate, it is %s", file2string(RootCertificate).c_str());
     eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str()); // /tmp/mgm/.xrdtls/ca_file.pem
     // Create a channel with SSL credentials
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
@@ -87,13 +71,10 @@ public:
 
     std::string token_contents;
     // read the token from the expected place
-    std::string token_path("/etc/grid-security/jwt-token-grpc"); // this path will be provided in the config eventually
+    // std::string token_path("/etc/grid-security/jwt-token-grpc"); // this path will be provided in the config eventually
     eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
 
-    std::shared_ptr<::grpc::CallCredentials> call_credentials =
-          ::grpc::MetadataCredentialsFromPlugin(std::unique_ptr<::grpc::MetadataCredentialsPlugin>(
-          new JWTAuthenticator(token_contents)));
-    context.set_credentials(call_credentials);
+    context.AddMetadata("authorization", "Bearer " + token_contents);
     eos_static_info("successfully attached call credentials in the send method");
 
     switch (request.notification().wf().event()) {
@@ -148,6 +129,7 @@ public:
 private:
   std::string endpoint;
   std::unique_ptr<cta::xrd::CtaRpc::Stub> client_stub;
+  std::string token_path;
 };
 
 class WFEXrdClient : public WFEClient {
@@ -168,9 +150,9 @@ private:
 };
 
 std::unique_ptr<WFEClient>
-CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs) {
+CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs, std::string token_path) {
   if (protowfusegrpc) {
-    return std::make_unique<WFEGrpcClient>(endpoint, root_certs);
+    return std::make_unique<WFEGrpcClient>(endpoint, root_certs, token_path);
   } else {
     XrdSsiPb::Config config;
 
