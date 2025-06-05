@@ -1125,6 +1125,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             Eroute.Say("=====> mgmofs.protowfusegrpc : ", val);
           }
         }
+
+        if (!strcmp("jwttokenpath", var)) {
+          val = Config.GetWord();
+
+          if (val != nullptr) {
+            JwtTokenPath = val;
+          }
+          Eroute.Say("=====> mgmofs.jwttokenpath : ", val);
+        }
       }
 
       //Get the XrdHttp server port number
