@@ -3982,6 +3982,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
+    eos_static_info("In XrdFstOfsFile.cc, value of gConifg.JwtTokenPath is %s ", tokenPath.c_str());
     static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(
           protowfusegrpc, endPoint, resource, root_certs, tokenPath);
     auto sentAt = std::chrono::steady_clock::now();

@@ -645,6 +645,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           } else {
               gConfig.JwtTokenPath = val;
           }
+          Eroute.Say("=====> fstofs.jwttokenpath : ", val);
         }
 
         if (!strcmp("metalog", var)) {
