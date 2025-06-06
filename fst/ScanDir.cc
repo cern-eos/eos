@@ -1081,13 +1081,13 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   float scantime = 0; // is ms
 
   if (!xs->ScanFile(path.c_str(), scansize, scantime, 0, hd->GetSize())) {
-    eos_err("msg=\"checksum scanning failed\" path=%s", path);
+    eos_err("msg=\"checksum scanning failed\" path=%s", path.c_str());
     return false;
   }
 
   XrdOucString sizestring;
   eos_debug("info=\"scanned checksum\" path=%s size=%s time=%.02f ms rate=%.02f MB/s %s",
-            path,
+            path.c_str(),
             eos::common::StringConversion::GetReadableSizeString(sizestring,
                 scansize, "B"),
             scantime,
@@ -1100,7 +1100,8 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
 
     if (xs->GetHexChecksum() != fmd->mProtoFmd.stripechecksum()) {
       eos_debug("msg=\"checksums do not match\" expected_xs=%s computed_xs=%s path=%s fsid=%d fxid=%08llx",
-                fmd->mProtoFmd.stripechecksum(), xs->GetHexChecksum(), path.c_str(), mFsId,
+                fmd->mProtoFmd.stripechecksum().c_str(), xs->GetHexChecksum(), path.c_str(),
+                mFsId,
                 fid);
       invalid_fsid.insert(mFsId);
     }
