@@ -160,10 +160,6 @@ class WncService final : public EosWnc::Service
       command = "Space";
       break;
 
-    case eos::console::RequestProto::kStagerRm:
-      command = "StagerRm";
-      break;
-
     case eos::console::RequestProto::kStat:
       command = "Stat";
       break;

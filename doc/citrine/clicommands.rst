@@ -62,7 +62,6 @@ Client Commands
   clicommands/silent
   clicommands/space
   clicommands/squash
-  clicommands/stagerrm
   clicommands/stat
   clicommands/test
   clicommands/timing
