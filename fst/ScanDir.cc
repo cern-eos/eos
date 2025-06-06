@@ -1137,8 +1137,13 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   return true;
 }
 
-bool ScanDir::ShouldSkipAfterCheck(eos::fst::FileIo* io,
-                                   eos::common::FileId::fileid_t fid, const struct stat& stat_before)
+//------------------------------------------------------------------------------
+// Check if the file was open or update during the scan
+//------------------------------------------------------------------------------
+bool
+ScanDir::ShouldSkipAfterCheck(eos::fst::FileIo* io,
+                              eos::common::FileId::fileid_t fid,
+                              const struct stat& stat_before)
 {
   if (mBgThread) {
     if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
@@ -1160,9 +1165,13 @@ bool ScanDir::ShouldSkipAfterCheck(eos::fst::FileIo* io,
   return false;
 }
 
-void ScanDir::ReportInvalidFsid(eos::fst::FileIo* io,
-                                eos::common::FileId::fileid_t fid,
-                                const std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
+//------------------------------------------------------------------------------
+// Update local fmd with info from the stripe check
+//------------------------------------------------------------------------------
+void
+ScanDir::ReportInvalidFsid(eos::fst::FileIo* io,
+                           eos::common::FileId::fileid_t fid,
+                           const std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
 {
   if (io->attrSet("user.eos.rain_timestamp", GetTimestampSmearedSec(true))) {
     eos_static_err("msg=\"failed to set xattr rain_timestamp\" path=\"%s\"",

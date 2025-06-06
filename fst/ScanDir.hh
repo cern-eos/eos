@@ -220,7 +220,8 @@ public:
   //! @return true if no errors, false otherwise
   //----------------------------------------------------------------------------
   bool GetPioOpenInfo(eos::common::FileId::fileid_t fid,
-                      std::vector<stripe_s>& stripes, std::string& opaqueInfo);
+                      std::vector<stripe_s>& stripes,
+                      std::string& opaqueInfo);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the stripe check
@@ -245,7 +246,8 @@ public:
   //! @return true if file was updated/opened after the scan
   //----------------------------------------------------------------------------
   bool ShouldSkipAfterCheck(eos::fst::FileIo* io,
-                            eos::common::FileId::fileid_t fid, const struct stat& stat_before);
+                            eos::common::FileId::fileid_t fid,
+                            const struct stat& stat_before);
 
   //----------------------------------------------------------------------------
   //! Check each stripe to verify if they can reconstruct the original file
