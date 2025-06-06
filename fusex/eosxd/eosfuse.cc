@@ -5109,6 +5109,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
             (*md)()->set_creator(true);
             // avoid lock-order violation
             {
+              const std::string fn = (*md)()->name();
               mLock.UnLock();
               XrdSysMutexHelper mLockParent(pmd->Locker());
               (*pmd)()->set_mtime(ts.tv_sec);
@@ -5119,7 +5120,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 				   str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
 			       };
 
-	      if (ends_with( (*md)()->name(), ".tmp")) {
+	      if (ends_with(fn, ".tmp")) {
 		if (Instance().Config().options.fakedelete) {
 		  // set rename creates version attribute on parent
 		  auto map = (*pmd)()->mutable_attr();
