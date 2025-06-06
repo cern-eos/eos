@@ -47,10 +47,10 @@ public:
 
 class WFEGrpcClient : public WFEClient {
 public:
-  WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs, std::string token_path) {
+  WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs, std::string token_path_str) {
     eos_static_info("In WFEGrpcClient, the value of token_path is %s ", token_path.c_str());
     endpoint = endpoint_str;
-    token_path = token_path;
+    token_path = token_path_str;
     // constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
     grpc::SslCredentialsOptions ssl_options;
     if (root_certs.has_value())
@@ -117,6 +117,8 @@ public:
           return cta::xrd::Response::RSP_ERR_USER;
         case grpc::StatusCode::FAILED_PRECONDITION:
           return cta::xrd::Response::RSP_ERR_CTA;
+        case grpc::StatusCode::UNAUTHENTICATED:
+          return cta::xrd::Response::RSP_ERR_USER;
         // something went wrong in the gRPC code, throw an exception
         default:
           throw std::runtime_error("gRPC call failed internally. Error code: " + std::to_string(status.error_code()) + " Error message: " + status.error_message());
