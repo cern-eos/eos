@@ -44,7 +44,7 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   XROOTD::POSIX
   XROOTD::PRIVATE
   SCITOKENS::SCITOKENS
-  stdc++fs 
+  stdc++fs
   )
 
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES
@@ -115,7 +115,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_proto_fs.cc
   commands/com_proto_qos.cc
   commands/com_proto_route.cc
-  commands/com_stagerrm.cc
   commands/com_evict.cc
   commands/com_proto_ns.cc
   commands/com_proto_debug.cc
@@ -166,7 +165,7 @@ target_link_libraries(
   XROOTD::POSIX
   SCITOKENS::SCITOKENS
   EosFstIo-Static
-  stdc++fs 
+  stdc++fs
   )
 
 install(PROGRAMS eosadmin eos-iam-mapfile

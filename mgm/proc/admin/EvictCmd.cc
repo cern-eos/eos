@@ -33,51 +33,6 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-eos::console::RequestProto eos::mgm::EvictCmd::convertStagerRmToEvict(
-  const eos::console::RequestProto& req, std::ostringstream& errStream,
-  int& ret_c)
-{
-  struct timespec ts_now;
-  ts_now.tv_sec = 0;
-  ts_now.tv_nsec = 0;
-  
-  eos::console::RequestProto new_req;
-  auto req_evict = new_req.mutable_evict();
-  auto req_stagerrm = req.stagerrm();
-
-  for (int i = 0; i < req_stagerrm.file_size(); i++) {
-    const auto& file_stagerrm = req_stagerrm.file(i);
-
-    switch (file_stagerrm.File_case()) {
-    case eos::console::StagerRmProto::FileProto::kPath:
-      req_evict->add_file()->set_path(file_stagerrm.path());
-      break;
-
-    case eos::console::StagerRmProto::FileProto::kFid:
-      req_evict->add_file()->set_fid(file_stagerrm.fid());
-      break;
-
-    default:
-      errStream <<
-                "error: Received a file with neither a path nor an fid, unable to convert stagerrm request to evict request";
-      ret_c = EINVAL;
-      EosCtaReporterEvict eosLog;
-      eosLog
-      .addParam(EosCtaReportParam::SEC_APP, "tape_evict")
-      .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
-      .addParam(EosCtaReportParam::RUID, mVid.uid)
-      .addParam(EosCtaReportParam::RGID, mVid.gid)
-      .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
-      .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
-      .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec)
-      .addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
-      break;
-    }
-  }
-
-  return new_req;
-}
-
 eos::console::ReplyProto
 eos::mgm::EvictCmd::ProcessRequest() noexcept
 {
@@ -86,14 +41,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   std::ostringstream outStream;
   bool allReplicasRemoved = false;
   int ret_c = 0;
-  // TODO: Remove this segment of code when the StagerRm command is deprecated, and replace by the line bellow
-  eos::console::RequestProto req;
-
-  if (mReqProto.command_case() == eos::console::RequestProto::kStagerRm) {
-    req = convertStagerRmToEvict(mReqProto, errStream, ret_c);
-  } else {
-    req = mReqProto;
-  }
+  eos::console::RequestProto req = mReqProto;
 
   const auto& evict = req.evict();
   // TODO: Replace the code removed above by this line
@@ -287,7 +235,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
     if (fsid.has_value() && ignoreEvictCounter) {
       // Drop single stripe
 #pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized" 
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
       if (gOFS->_dropstripe(path.c_str(), 0, errInfo, root_vid, fsid.value(),
                             ignoreRemovalOnFst) != 0) {
         eos_static_err("msg=\"could not delete replica of %s\" fsid=\"%u\" reason=\"%s\"",

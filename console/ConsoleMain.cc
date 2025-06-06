@@ -46,8 +46,8 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <list>
-#include <sys/time.h>                                                                                                                                                
-#include <sys/resource.h> 
+#include <sys/time.h>
+#include <sys/resource.h>
 #include <XrdCl/XrdClPostMaster.hh>
 
 #ifdef __APPLE__
@@ -120,7 +120,6 @@ extern int com_status(char*);
 extern int com_silent(char*);
 extern int com_proto_devices(char*);
 extern int com_proto_space(char*);
-extern int com_stagerrm(char*);
 extern int com_evict(char*);
 extern int com_stat(char*);
 extern int com_squash(char*);
@@ -209,7 +208,6 @@ COMMAND commands[] = {
   { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
   { (char*) "status", com_status, (char*) "Display status information on an MGM"},
   { (char*) "space", com_proto_space, (char*) "Space configuration"},
-  { (char*) "stagerrm", com_stagerrm, (char*) "Remove disk replicas of a file if it has tape replicas"},
   { (char*) "evict", com_evict, (char*) "Evict disk replicas of a file if it has tape replicas"},
   { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
   { (char*) "squash", com_squash, (char*) "Run 'squashfs' utility function"},
@@ -1177,7 +1175,7 @@ Run(int argc, char* argv[])
     }
   }
 
-    
+
   char prompt[4096];
 
   if (pipemode) {
