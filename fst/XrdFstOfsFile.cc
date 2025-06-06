@@ -3891,6 +3891,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     std::string& errmsg_wfe,
     std::string& archive_req_id)
 {
+  eos_static_info("In NotifyProtoWfEndPointClosew");
   using namespace eos::common;
   cta::xrd::Request request;
   auto notification = request.mutable_notification();
