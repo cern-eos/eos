@@ -1060,7 +1060,8 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   // The old method will only be run by the replica 0 file, and the unitcheckusm
   // computation will be triggered.
   // Compute the checksum of the stripe
-  auto xs = ChecksumPlugins::GetXsObj(eos::common::LayoutId::eChecksum::kAdler);
+  std::unique_ptr<eos::fst::CheckSum>
+  xs {ChecksumPlugins::GetXsObj(eos::common::LayoutId::eChecksum::kAdler)};
   unsigned long long scansize = 0;
   float scantime = 0; // is ms
 
