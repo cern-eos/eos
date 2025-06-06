@@ -56,7 +56,7 @@
 namespace
 {
 std::chrono::seconds getScanTimestamp(eos::fst::FileIo* io,
-                                      const std::string key)
+                                      const std::string& key)
 {
   std::string scan_ts_sec = "0";
   io->attrGet(key, scan_ts_sec);
@@ -583,6 +583,9 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
 #endif
 }
 
+//------------------------------------------------------------------------------
+// Check the given RAIN file
+//------------------------------------------------------------------------------
 bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
                                eos::common::FileId::fileid_t fid,
                                time_t mtime)
@@ -600,7 +603,11 @@ bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
   return ScanFile(io, io->GetPath(), fid, last_scan, mtime);
 }
 
+
 #ifndef _NOOFS
+//------------------------------------------------------------------------------
+// Check the given replica file
+//------------------------------------------------------------------------------
 bool ScanDir::CheckRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd)
 {
   auto last_scan = getScanTimestamp(io, "user.eos.rain_timestamp");
@@ -638,7 +645,7 @@ ScanDir::CheckFile(const std::string& fpath)
     return false;
   }
 
-  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath.c_str()));
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
   auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
   if (!fid) {

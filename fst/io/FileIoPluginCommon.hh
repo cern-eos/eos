@@ -79,10 +79,10 @@ public:
       return static_cast<FileIo*>(new DavixIo(path));
 #endif // HAVE_DAVIX
       eos_static_warning("%s", "msg=\"EOS has been compiled without DAVIX support\"");
-      return NULL;
+      return nullptr;
     }
 
-    return 0;
+    return nullptr;
   }
 };
 
