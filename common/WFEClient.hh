@@ -73,6 +73,7 @@ public:
     // read the token from the expected place
     // std::string token_path("/etc/grid-security/jwt-token-grpc"); // this path will be provided in the config eventually
     eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
+    eos_static_info("value of token is %s", token_contents.c_str());
 
     context.AddMetadata("authorization", "Bearer " + token_contents);
     eos_static_info("successfully attached call credentials in the send method");
