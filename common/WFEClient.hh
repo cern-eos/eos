@@ -48,6 +48,7 @@ public:
 class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs, std::string token_path) {
+    eos_static_info("In WFEGrpcClient, the value of token_path is %s ", token_path.c_str());
     endpoint = endpoint_str;
     token_path = token_path;
     // constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
@@ -147,6 +148,7 @@ private:
 
 std::unique_ptr<WFEClient>
 CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs, std::string token_path) {
+  eos_static_info("passed in token_path is %s ", token_path.c_str());
   if (protowfusegrpc) {
     return std::make_unique<WFEGrpcClient>(endpoint, root_certs, token_path);
   } else {
