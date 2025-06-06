@@ -53,10 +53,6 @@ public:
   //! asynchronous thread
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
-
-private:
-  // TODO: Remove this function once StagerRm command is deprecated
-  eos::console::RequestProto convertStagerRmToEvict(const eos::console::RequestProto & req, std::ostringstream & errStream, int & ret_c);
 };
 
 EOSMGMNAMESPACE_END

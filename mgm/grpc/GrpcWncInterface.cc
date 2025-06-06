@@ -199,10 +199,6 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     return Space();
     break;
 
-  case eos::console::RequestProto::kStagerRm:
-    return Evict();
-    break;
-
   case eos::console::RequestProto::kStat:
     return Stat();
     break;

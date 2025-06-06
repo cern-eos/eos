@@ -239,10 +239,6 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new TokenCmd(std::move(req), vid));
     break;
 
-  case RequestProto::kStagerRm:
-    cmd.reset(new EvictCmd(std::move(req), vid));
-    break;
-
   case RequestProto::kEvict:
     cmd.reset(new EvictCmd(std::move(req), vid));
     break;
@@ -455,7 +451,6 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
 
   // always true
   case RequestProto::kRm:
-  case RequestProto::kStagerRm:
   case RequestProto::kEvict:
   default:
     return true;
