@@ -48,7 +48,7 @@ public:
 class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs, std::string token_path_str) {
-    eos_static_info("In WFEGrpcClient, the value of token_path is %s ", token_path.c_str());
+    eos_static_info("In WFEGrpcClient, the value of token_path is %s ", token_path_str.c_str());
     endpoint = endpoint_str;
     token_path = token_path_str;
     // constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
