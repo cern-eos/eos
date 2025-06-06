@@ -48,21 +48,17 @@ public:
 class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs, std::string token_path_str) {
-    eos_static_info("In WFEGrpcClient, the value of token_path is %s ", token_path_str.c_str());
     endpoint = endpoint_str;
     token_path = token_path_str;
-    // constexpr char RootCertificate[] = "/etc/grid-security/certificates/ca.crt";
     grpc::SslCredentialsOptions ssl_options;
     if (root_certs.has_value())
       ssl_options.pem_root_certs = file2string(root_certs.value());
     else
       ssl_options.pem_root_certs = "";
-    // eos_static_info("loaded root certificate, it is %s", file2string(RootCertificate).c_str());
     eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str()); // /tmp/mgm/.xrdtls/ca_file.pem
     // Create a channel with SSL credentials
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
     client_stub = cta::xrd::CtaRpc::NewStub(channel);
-    eos_static_info("successfully created the client stub in EOS");
   }
 
   // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
@@ -71,10 +67,8 @@ public:
     grpc::Status status;
 
     std::string token_contents;
-    // read the token from the expected place
-    // std::string token_path("/etc/grid-security/jwt-token-grpc"); // this path will be provided in the config eventually
+    // read the token from the path
     eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
-    eos_static_info("value of token is %s", token_contents.c_str());
 
     context.AddMetadata("authorization", "Bearer " + token_contents);
     eos_static_info("successfully attached call credentials in the send method");
@@ -150,7 +144,6 @@ private:
 
 std::unique_ptr<WFEClient>
 CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs, std::string token_path) {
-  eos_static_info("passed in token_path is %s ", token_path.c_str());
   if (protowfusegrpc) {
     return std::make_unique<WFEGrpcClient>(endpoint, root_certs, token_path);
   } else {
