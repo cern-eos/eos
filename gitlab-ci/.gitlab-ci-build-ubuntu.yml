@@ -78,6 +78,8 @@ ubuntu-noble:
   image: registry.cern.ch/docker.io/ubuntu:noble
   variables:
     BUILD_NAME: noble
+  only:
+    - master
 
 
 ubuntu-noble-arm:
@@ -87,6 +89,7 @@ ubuntu-noble-arm:
     BUILD_NAME: noble
   only:
     - master
+    - tags
   tags:
     - arm64
   when: manual
