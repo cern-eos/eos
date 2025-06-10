@@ -32,15 +32,6 @@
 #include <iostream>
 #include <sstream>
 
-static std::string file2string(std::string filename){
-  if (filename.empty())
-    return "";
-  std::ifstream as_stream(filename);
-  std::ostringstream as_string;
-  as_string << as_stream.rdbuf();
-  return as_string.str();
-}
-
 class WFEClient {
 public:
   virtual cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0;
@@ -53,7 +44,13 @@ public:
     endpoint = endpoint_str;
     token_path = token_path_str;
     grpc::SslCredentialsOptions ssl_options;
-    ssl_options.pem_root_certs = file2string(root_certs.value_or(""));
+    if (root_certs.has_value()) {
+      std::string root_certs_contents;
+      eos::common::StringConversion::LoadFileIntoString(root_certs.value().c_str(), root_certs_contents);
+      ssl_options.pem_root_certs = root_certs_contents;
+    } else {
+      ssl_options.pem_root_certs = "";
+    }
     eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str());
     // Create a channel with SSL credentials
     std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
