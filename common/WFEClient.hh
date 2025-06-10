@@ -102,12 +102,16 @@ public:
       switch (status.error_code()) {
         // user-code (CTA) generated errors,
         case grpc::StatusCode::INVALID_ARGUMENT:
+          response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_PROTOBUF;
         case grpc::StatusCode::ABORTED:
+          response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_USER;
         case grpc::StatusCode::FAILED_PRECONDITION:
+          response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_CTA;
         case grpc::StatusCode::UNAUTHENTICATED:
+          response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_USER;
         // something went wrong in the gRPC code, throw an exception
         default:
