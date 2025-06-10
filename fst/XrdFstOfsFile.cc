@@ -3604,7 +3604,7 @@ XrdFstOfsFile::DoTpcTransfer()
   eos_info("sync-url=%s sync-cgi=%s", src_url.c_str(), src_cgi.c_str());
 
   if (tpcIO.fileOpen(0, 0, src_cgi)) {
-    eos_err("msg=\"TPC open failed for url=%s cgi=%s\"", src_url.c_str(),
+    eos_err("msg=\"TPC open failed\" src_url=%s src_cgi=%s", src_url.c_str(),
             src_cgi.c_str());
     XrdSysMutexHelper scope_lock(mTpcJobMutex);
     mTpcState = kTpcDone;
