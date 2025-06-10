@@ -284,7 +284,7 @@ public:
   void
   SetSingleShotLogId(const char* td = "<single-exec>")
   {
-    snprintf(logId, sizeof(logId), "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
+    snprintf(logId, sizeof(logId), "%s", "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
     snprintf(cident, sizeof(cident), "%s", td);
   }
 
@@ -295,7 +295,7 @@ public:
   SetLogId(const char* newlogid)
   {
     if (newlogid && (strncmp(newlogid, logId, sizeof(logId) - 1) != 0)) {
-      snprintf(logId, sizeof(logId), newlogid);
+      snprintf(logId, sizeof(logId), "%s", newlogid);
     }
   }
 
@@ -306,11 +306,11 @@ public:
   SetLogId(const char* newlogid, const char* td)
   {
     if (newlogid && (newlogid != logId)) {
-      snprintf(logId, sizeof(logId) , newlogid);
+      snprintf(logId, sizeof(logId), "%s", newlogid);
     }
 
     if (td) {
-      snprintf(cident, sizeof(cident) , "%s", td);
+      snprintf(cident, sizeof(cident), "%s", td);
     }
   }
 
@@ -348,7 +348,7 @@ public:
       snprintf(logId, sizeof(logId), "%s", vid.token->Voucher().c_str());
     } else {
       if (newlogid != logId) {
-        snprintf(logId, sizeof(logId), newlogid);
+        snprintf(logId, sizeof(logId), "%s", newlogid);
       }
     }
   }
