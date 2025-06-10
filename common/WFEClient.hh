@@ -113,6 +113,7 @@ public:
           response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_CTA;
         case grpc::StatusCode::UNAUTHENTICATED:
+          response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_USER;
         // something went wrong in the gRPC code, throw an exception
         default:
