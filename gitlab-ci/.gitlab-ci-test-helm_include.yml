@@ -128,7 +128,7 @@
     #       - eos-cli1 eos-user's environment, to set KRB5CCNAME and make it source-able from his HOME : use exec_cmd (but we shall get rid of it)
     - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
     # enable converter and prepare eoshome folder, cernbox alike
-    - kubectl exec eos-mgm-0 -- eos space config default space.converter=on
+    - kubectl exec eos-mgm-0 -- eos convert config set status=on
     - kubectl exec eos-mgm-0 -- ./eos_create_userhome.sh eos-user
     # the eos-user user gets his keytab ...
     - kubectl exec $client1_pod -- su eos-user -c "echo $TEST_ADMINPRINC_PASSWORD | kadmin -r $TEST_REALM -p $TEST_ADMINPRINC_NAME/admin ktadd -k /tmp/eos-user.keytab eos-user"
