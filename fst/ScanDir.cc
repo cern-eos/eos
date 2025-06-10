@@ -1086,8 +1086,8 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   }
 
   XrdOucString sizestring;
-  eos_debug("info=\"scanned checksum\" path=%s size=%s time=%.02f ms rate=%.02f MB/s %s",
-            path.c_str(),
+  eos_debug("info=\"scanned checksum\" path=%s size=%s time=%.02fms "
+            "rate=%.02fMB/s comp_xs=%s", path.c_str(),
             eos::common::StringConversion::GetReadableSizeString(sizestring,
                 scansize, "B"),
             scantime,
@@ -1241,7 +1241,9 @@ ScanDir::IsValidStripeCombination(
 // Return the list of stripes for the file
 //------------------------------------------------------------------------------
 bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
-                             std::vector<stripe_s>& stripes, std::string& opaqueInfo)
+                             std::vector<stripe_s>& stripes,
+                             std::string& opaqueInfo,
+                             uint32_t num_locations)
 {
   const std::string mgr = gConfig.GetManager();
 
@@ -1308,11 +1310,12 @@ bool ScanDir::GetPioOpenInfo(eos::common::FileId::fileid_t fid,
   std::string pio;
   std::string tag;
 
-  for (unsigned long i = 0; ; ++i) {
+  for (unsigned long i = 0; i < num_locations; ++i) {
     tag = SSTR("pio." << i);
 
+    // Skip files with missing replicas, they will be detected elsewhere.
     if (!openOpaque->Get(tag.c_str())) {
-      break;
+      return false;
     }
 
     pio = openOpaque->Get(tag.c_str());
@@ -1368,9 +1371,12 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
   const auto nParityStripes = LayoutId::GetRedundancyStripeNumber(layout);
   const auto nDataStripes = nStripes - nParityStripes;
   std::vector<stripe_s> stripes;
+  stripes.reserve(num_locations);
   std::string opaqueInfo;
 
-  if (!GetPioOpenInfo(fid, stripes, opaqueInfo)) {
+  if (!GetPioOpenInfo(fid, stripes, opaqueInfo, num_locations)) {
+    eos_static_err("msg=\"skip rain file scan due to missing open info\" "
+                   "fxid=%08llx", fid);
     return false;
   }
 

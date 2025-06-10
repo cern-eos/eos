@@ -216,12 +216,14 @@ public:
   //! @param fid file id
   //! @param stripes list of stripes
   //! @param opaqueInfo opaque information
+  //! @param num_locations expected number of stripes
   //!
   //! @return true if no errors, false otherwise
   //----------------------------------------------------------------------------
   bool GetPioOpenInfo(eos::common::FileId::fileid_t fid,
                       std::vector<stripe_s>& stripes,
-                      std::string& opaqueInfo);
+                      std::string& opaqueInfo,
+                      uint32_t num_locations);
 
   //----------------------------------------------------------------------------
   //! Update local fmd with info from the stripe check
