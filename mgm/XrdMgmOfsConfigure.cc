@@ -2302,8 +2302,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // if there is no FST sending update
   mGeoTreeEngine->forceRefresh();
   mGeoTreeEngine->StartUpdater();
-  // Start the drain engine
-  mDrainEngine.Start();
   mFsScheduler->updateClusterData();
   {
     eos::common::RWMutexReadLock vlock(FsView::gFsView.ViewMutex);

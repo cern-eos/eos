@@ -59,6 +59,7 @@ void
 ConverterEngine::Stop()
 {
   mThread.join();
+  mIsRunning = false;
 }
 
 //------------------------------------------------------------------------------
@@ -330,8 +331,10 @@ ConverterEngine::SetConfig(const std::string& key, const std::string& val)
     }
   } else if (key == kConvertStatus) {
     if ((val == "on") && (mIsRunning == false)) {
+      config_change = true;
       Start();
     } else if ((val == "off") && mIsRunning) {
+      config_change = true;
       Stop();
     }
   } else {
@@ -353,8 +356,10 @@ ConverterEngine::SetConfig(const std::string& key, const std::string& val)
 std::string
 ConverterEngine::SerializeConfig() const
 {
+  const std::string status = (mIsRunning ? "on" : "off");
   std::ostringstream oss;
-  oss << kConvertMaxThreads << "=" << mThreadPool.GetMaxThreads() << " "
+  oss << kConvertStatus << "=" << status << " "
+      << kConvertMaxThreads << "=" << mThreadPool.GetMaxThreads() << " "
       << kConvertMaxQueueSz << "=" << mMaxQueueSize;
   return oss.str();
 }
