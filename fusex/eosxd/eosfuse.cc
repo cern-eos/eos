@@ -1065,9 +1065,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     config.options.fakedelete = false;
+
     if (root["options"].isMember("tmp-fake-delete")) {
       if (root["options"]["tmp-fake-delete"]) {
-	config.options.fakedelete = true;
+        config.options.fakedelete = true;
       }
     }
 
@@ -1492,10 +1493,10 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       lockpfx.clear();
     } else {
       std::string mk_lockdir = "mkdir -m 0755 -p " + lockpfx;
-      system(mk_lockdir.c_str());
+      (void) system(mk_lockdir.c_str());
       lockpfx += "fusex/";
       mk_lockdir = "mkdir -m 0755 -p " + lockpfx;
-      system(mk_lockdir.c_str());
+      (void) system(mk_lockdir.c_str());
       XrdOucString id = mountpoint.c_str();
 
       while (id.replace("//", "/"));
@@ -1532,7 +1533,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (config.mdcachedir.length()) {
-      system(mk_cachedir.c_str());
+      (void) system(mk_cachedir.c_str());
       size_t slashes = std::count(config.mdcachedir.begin(), config.mdcachedir.end(),
                                   '/');
 
@@ -1544,15 +1545,15 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     if (cconfig.journal.length()) {
-      system(mk_journaldir.c_str());
+      (void) system(mk_journaldir.c_str());
     }
 
     if (cconfig.location.length()) {
-      system(mk_locationdir.c_str());
+      (void) system(mk_locationdir.c_str());
     }
 
     if (config.auth.credentialStore.length()) {
-      system(mk_credentialdir.c_str());
+      (void) system(mk_credentialdir.c_str());
     }
 
     // make the cache directories private to root
@@ -1618,7 +1619,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
             std::string systemline = "umount -l ";
             systemline += mountpoint;
             fprintf(stderr, "# dead mount detected - forcing '%s'\n", systemline.c_str());
-            system(systemline.c_str());
+            (void) system(systemline.c_str());
           }
 
           if (stat(mountpoint.c_str(), &d_stat)) {
@@ -2199,7 +2200,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
         // clean rocksdb directory
         std::string rmline = "rm -rf ";
         rmline += config.mdcachedir_unlink.c_str();
-        system(rmline.c_str());
+        (void) system(rmline.c_str());
       }
     } else {
       fprintf(stderr, "error: failed to daemonize\n");
@@ -2207,8 +2208,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     return err ? 1 : 0;
-  }
-  catch (Json::Exception const&) {
+  } catch (Json::Exception const&) {
     fprintf(stderr, "error: catched json config exception");
     exit(-1);
   }
@@ -2236,12 +2236,12 @@ EosFuse::umounthandler(int sig, siginfo_t* si, void* ctx)
   sprintf(systemline, "fusermount3 -u -z %s",
           EosFuse::Instance().Config().localmountdir.c_str());;
 #endif
-  system(systemline);
+  (void) system(systemline);
   fprintf(stderr, "# umounthandler: executing %s\n", systemline);
   fprintf(stderr,
           "# umounthandler: sighandler received signal %d - emitting signal %d again\n",
           sig, sig);
-  system(systemline);
+  (void) system(systemline);
   signal(SIGSEGV, SIG_DFL);
   signal(SIGABRT, SIG_DFL);
   signal(SIGTERM, SIG_DFL);
@@ -2728,7 +2728,6 @@ EosFuse::getattr(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
       rc = md->deleted() ? ENOENT : (*md)()->err();
     } else {
       fuse_ino_t cap_ino = S_ISDIR((*md)()->mode()) ? ino : (*md)()->pid();
-
       // for consistentcy with EosFuse::lookup do not check for x-permission
       cap::shared_cap pcap = Instance().caps.acquire(req, cap_ino ? cap_ino : 1,
                              S_IFDIR);
@@ -4027,7 +4026,8 @@ EROFS  pathname refers to a file on a read-only filesystem.
         }
       }
       XrdSysMutexHelper mLock(md->Locker());
-      for(int n=0; md->deleted() && n<3; n++) {
+
+      for (int n = 0; md->deleted() && n < 3; n++) {
         // we need to wait that this entry is really gone
         Instance().mds.wait_flush(req, md);
         mLock.UnLock();
@@ -4238,16 +4238,16 @@ EROFS  pathname refers to a file on a read-only filesystem.
             }
           }
 
+          // fake deletion logic for online editing if configured
+          if (Instance().Config().options.fakedelete && (*pmd)()->tmptime()) {
+            auto now = time(NULL);
 
-	  // fake deletion logic for online editing if configured
-	  if (Instance().Config().options.fakedelete && (*pmd)()->tmptime()) {
-	    auto now = time(NULL);
-	    if ( (now - (*pmd)()->tmptime()) < 60 ) {
-	      (*pmd)()->set_tmptime(0);
-	      fuse_reply_err(req, rc);
-	      return ;
-	    }
-	  }
+            if ((now - (*pmd)()->tmptime()) < 60) {
+              (*pmd)()->set_tmptime(0);
+              fuse_reply_err(req, rc);
+              return ;
+            }
+          }
 
           if (!rc) {
             if (attrMap.count(k_mdino)) { /* This is a hard link */
@@ -5033,13 +5033,15 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           }
         }
         XrdSysMutexHelper mLock(md->Locker());
-        for(int n=0; md->deleted() && n<3; n++) {
+
+        for (int n = 0; md->deleted() && n < 3; n++) {
           // we need to wait that this entry is really gone
           Instance().mds.wait_flush(req, md);
           mLock.UnLock();
           md = Instance().mds.lookup(req, parent, name);
           mLock.Lock(&md->Locker());
         }
+
         if ((*md)()->id() || md->deleted()) {
           rc = EEXIST;
         } else {
@@ -5114,21 +5116,20 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
               XrdSysMutexHelper mLockParent(pmd->Locker());
               (*pmd)()->set_mtime(ts.tv_sec);
               (*pmd)()->set_mtime_ns(ts.tv_nsec);
+              auto ends_with = [](const std::string & str, const std::string & suffix) {
+                return str.size() >= suffix.size() &&
+                       str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+              };
 
-	      auto ends_with = [](const std::string& str, const std::string& suffix) {
-				 return str.size() >= suffix.size() &&
-				   str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-			       };
-
-	      if (ends_with(fn, ".tmp")) {
-		if (Instance().Config().options.fakedelete) {
-		  // set rename creates version attribute on parent
-		  auto map = (*pmd)()->mutable_attr();
-		  (*map)["user.fusex.rename.version"]="1";
-		  // store last tmpe file creation time
-		  (*pmd)()->set_tmptime(time(NULL));
-		}
-	      }
+              if (ends_with(fn, ".tmp")) {
+                if (Instance().Config().options.fakedelete) {
+                  // set rename creates version attribute on parent
+                  auto map = (*pmd)()->mutable_attr();
+                  (*map)["user.fusex.rename.version"] = "1";
+                  // store last tmpe file creation time
+                  (*pmd)()->set_tmptime(time(NULL));
+                }
+              }
 
               // get file inline size from parent attribute
               if ((*pmd)()->attr().count("sys.file.inline.maxsize")) {
@@ -6746,7 +6747,8 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
         std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
                                   md));
         rc = Instance().Mounter().mount(target, localpath, env);
-        if (rc<0) {
+
+        if (rc < 0) {
           rc = EINVAL;
         }
       }
@@ -6757,7 +6759,8 @@ EosFuse::readlink(fuse_req_t req, fuse_ino_t ino)
         std::string localpath = Instance().Prefix(Instance().mds.calculateLocalPath(
                                   md));
         rc = Instance().Mounter().squashfuse(target, localpath, env);
-        if (rc<0) {
+
+        if (rc < 0) {
           rc = EINVAL;
         }
       }
@@ -6850,7 +6853,8 @@ EosFuse::symlink(fuse_req_t req, const char* link, fuse_ino_t parent,
       }
     }
     XrdSysMutexHelper mLock(md->Locker());
-    for(int n=0; md->deleted() && n<3; n++) {
+
+    for (int n = 0; md->deleted() && n < 3; n++) {
       // we need to wait that this entry is really gone
       Instance().mds.wait_flush(req, md);
       mLock.UnLock();
@@ -7375,7 +7379,7 @@ EosFuse::TrackMgm(const std::string& lasturl)
   newmgm += eos::common::StringConversion::GetSizeString(sport,
             (unsigned long long) lastUrl.GetPort());
   eos_static_info("current-mgm:%s last-url:%s", currentmgm.c_str(),
-                   newmgm.c_str());
+                  newmgm.c_str());
 
   if (currentmgm != newmgm) {
     // for the first call currentmgm is an empty string, so we assume there is no failover needed
