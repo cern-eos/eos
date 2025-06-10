@@ -27,6 +27,7 @@ Bug
 
 * FST: Fix memory leak when scanning RAIN files
 * FST: Fix possible crash (ABRT) when wrong type of object is being printed
+* FST: Fix crash when scanning RAIN files with less than the expected number of stripes
 * [EOS-6423] - Avoid creating orphan leftovers on open with create flag fails
 
 
