@@ -717,7 +717,7 @@ el9_asan_docker_image:
     - .dock8s_after_script_template
   script:
     # enable converter and prepare eoshome folder, cernbox alike
-    - exec_cmd eos-mgm1 'eos space config default space.converter=on'
+    - exec_cmd eos-mgm1 'eos convert config set status=on'
     - exec_cmd eos-mgm1 './eos_create_userhome.sh eos-user'
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos/ && mount -t fuse eosxd -ofsname=eosdockertest /eos/"'
