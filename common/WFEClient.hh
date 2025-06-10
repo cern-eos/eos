@@ -40,7 +40,7 @@ public:
 
 class WFEGrpcClient : public WFEClient {
 public:
-  WFEGrpcClient(std::string endpoint_str, std::optional<std::string> root_certs, std::string token_path_str) {
+  WFEGrpcClient(const std::string& endpoint_str, std::optional<std::string> root_certs, const std::string& token_path_str) {
     endpoint = endpoint_str;
     token_path = token_path_str;
     grpc::SslCredentialsOptions ssl_options;
