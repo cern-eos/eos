@@ -432,11 +432,6 @@ QdbMaster::SlaveToMaster()
   // Notify all the nodes about the new master identity
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   mIsMaster = true;
-
-  if (gOFS->mConverterEngine) {
-    gOFS->mConverterEngine->Start();
-  }
-
   gOFS->mLRUEngine->Start();
   gOFS->Recycler->Start();
   gOFS->mDeviceTracker->Start();
