@@ -17,6 +17,19 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.3.14 Diopside``
+====================
+
+2025-06-10
+
+Bug
+----
+
+* FST: Fix memory leak when scanning RAIN files
+* FST: Fix possible crash (ABRT) when wrong type of object is being printed
+* [EOS-6423] - Avoid creating orphan leftovers on open with create flag fails
+
+
 ``v5.3.13 Diopside``
 ====================
 
