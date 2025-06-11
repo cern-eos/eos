@@ -122,7 +122,7 @@
 
 .helm_cbox_test_template:
   stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: *helm_before_script_template
   script:
     # @note need to distinguish between:
@@ -157,7 +157,7 @@ helm_cbox:
 
 helm_cnvrt_fsck:
   stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: *helm_before_script_template
   script:
     - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
@@ -186,7 +186,7 @@ helm_cnvrt_fsck:
 
 .helm_fusex_test_template:
   stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: *helm_before_script_template
   script:
     - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
@@ -265,7 +265,7 @@ helm_fusex:
 
 helm_rtb_clone:
   stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: *helm_before_script_template
   script:
     - source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE
@@ -293,7 +293,7 @@ helm_rtb_clone:
 
 helm_stress:
   stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: *helm_before_script_template
   script:
     - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
@@ -315,7 +315,7 @@ helm_stress:
 
 .helm_system_test_template:
   stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: *helm_before_script_template
   script:
     - kubectl exec eos-mgm-0 -- eos-instance-test-ci localhost
@@ -337,9 +337,10 @@ helm_system:
 
 helm_groupdrainer:
   stage: test
-  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   variables:
     OS_TAG: ".el9"
+    FF_SCRIPT_SECTIONS: "true"
   <<: *helm_groups_before_script_template
   script:
     - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
