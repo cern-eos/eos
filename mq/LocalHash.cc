@@ -47,18 +47,25 @@ LocalHash::set(const qclient::UpdateBatch& batch)
   promise.set_value(qclient::redisReplyPtr());
   std::unique_lock<std::mutex> lock(mMutex);
 
-  for (auto it = batch.localBegin(); it != batch.localEnd(); ++it) {
-    mMap[it->first] = it->second;
-  }
+  for (const auto& batch_map : {
+         batch.getLocal(),
+         batch.getTransient(),
+         batch.getPersistent()
+       }) {
+    for (auto it = batch_map.cbegin(); it != batch_map.cend(); ++it) {
+      // This is actually a delete key
+      if (it->second.empty()) {
+        auto it_main = mMap.find(it->first);
 
-  for (auto it = batch.transientBegin(); it != batch.transientEnd(); ++it) {
-    mMap[it->first] = it->second;
+        if (it_main != mMap.end()) {
+          mMap.erase(it_main);
+        }
+      } else {
+        // This is a real set key=val
+        mMap[it->first] = it->second;
+      }
+    }
   }
-
-  for (auto it = batch.durableBegin(); it != batch.durableEnd(); ++it) {
-    mMap[it->first] = it->second;
-  }
-
   return future;
 }
 
