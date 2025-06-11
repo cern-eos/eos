@@ -1053,7 +1053,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     vid.scope = path;
     // ACL and permission check
     Acl acl(attrmap, vid);
-    eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
+    eos_debug("acl=%d r=%d w=%d wo=%d x=%d egroup=%d mutable=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.CanBrowse(), acl.HasEgroup(), acl.IsMutable());
@@ -1210,7 +1210,7 @@ Server::OpGetLs(const std::string& id,
   eos::fusex::container cont;
 
   if (!eos::common::FileId::IsFileInode(md.md_ino())) {
-    eos_info("ino=%lx get-dir", (long) md.md_ino());
+    eos_debug("ino=%lx msg=\"get-dir\"", (long) md.md_ino());
     cont.set_type(cont.MDMAP);
     cont.set_ref_inode_(md.md_ino());
     eos::fusex::md_map* mdmap = cont.mutable_md_map_();
@@ -1883,7 +1883,7 @@ Server::OpSetFile(const std::string& id,
           cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
 
           if (cpcmd->findContainer(vdir)) {
-            eos_static_info("%s has version", vdir.c_str());
+            eos_static_debug("%s has version", vdir.c_str());
             hasVersion = true;
           }
 

@@ -1168,7 +1168,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
-    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
+    eos_debug("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
              acl.HasEgroup(), isSharedFile, acl.IsMutable(),
              acl.EvalUserAttrFile());
