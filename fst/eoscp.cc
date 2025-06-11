@@ -1285,7 +1285,7 @@ main(int argc, char* argv[])
 
   int stat_failed = 0;
   struct stat st[MAXSRCDST];
-  LayoutId::layoutid_t layout_src;
+  LayoutId::layoutid_t layout_src {0};
 
   //.............................................................................
   // Get sources access type
