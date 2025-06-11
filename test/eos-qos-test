@@ -162,7 +162,8 @@ check_preconditions ${N_FSTS_INITIAL}
 TEST_FILE=/tmp/1mb.dat
 dd if=/dev/urandom of=${TEST_FILE} bs=1k count=1000 &> /dev/null
 
-# Setup EOS qos directory
+# Setup EOS qos directory and enable conversion
+eos convert config set status=on
 eos mkdir /eos/${EOS_INSTANCE_NAME}/qos/
 eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/qos/ &> /dev/null
 eos attr set default=replica /eos/${EOS_INSTANCE_NAME}/qos/
