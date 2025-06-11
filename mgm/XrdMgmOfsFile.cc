@@ -614,7 +614,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
       bypid = fmd->getContainerId();
-      eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
+      eos_info("msg=\"access by inode\" fxid=%08llx ino=%s path=%s", byfid, path, spath.c_str());
       path = spath.c_str();
     } catch (eos::MDException& e) {
       eos_debug("caught exception %d %s\n", e.getErrno(),
@@ -898,7 +898,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       fmd = gOFS->eosFileService->getFileMD(byfid);
       spath = gOFS->eosView->getUri(fmd.get()).c_str();
       bypid = fmd->getContainerId();
-      eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
+      eos_info("msg=\"access by inode\" fxid=%08llx ino=%s path=%s", byfid, path, spath.c_str());
       path = spath.c_str();
     } catch (eos::MDException& e) {
       eos_debug("caught exception %d %s\n", e.getErrno(),
