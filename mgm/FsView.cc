@@ -2941,6 +2941,11 @@ BaseView::GetConfigMembers(const std::vector<std::string>& keys,
 bool
 BaseView::DeleteConfigMember(std::string key) const
 {
+  // If key already deleted then return false
+  if (GetConfigMember(key).empty()) {
+    return false;
+  }
+  
   bool deleted = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
                                        mLocator).del(key);
 
