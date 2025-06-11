@@ -539,7 +539,7 @@ ProcCommand::Find()
                             // @todo (esindril) this should be printed using the fxid tag
                             // But to avoid breaking scripts we won't change this for the
                             // moment.
-                            fprintf(fstdout, " fxid=%08llx", (unsigned long long) fmd->getId());
+                            fprintf(fstdout, " fid=%08llx", (unsigned long long) fmd->getId());
                           }
                         }
 
