@@ -2197,7 +2197,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eos_static_info("%s", "msg=\"starting converter engine\"");
   mConverterEngine.reset(new eos::mgm::ConverterEngine(mQdbContactDetails));
 
-  if (mMaster->IsMaster) {
+  if (mMaster->IsMaster()) {
     mConverterEngine->ApplyConfig();
   }
 
