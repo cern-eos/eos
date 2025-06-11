@@ -78,10 +78,11 @@
       K8S_NAMESPACE=$(echo ${CI_JOB_NAME}-${CI_JOB_ID}-${CI_PIPELINE_ID} | tr '_' '-' | tr '[:upper:]' '[:lower:]')
       kubectl config set-context --current --namespace=$K8S_NAMESPACE
       IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
-      CLI_IMAGE_TAG="${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}" # may be different from the server image (eg ubuntu)
+      # Client image may be different from the server image (eg. ubuntu)
+      CLI_IMAGE_TAG="${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
     - |
       helm repo add eos https://registry.cern.ch/chartrepo/eos
-      HELM_EOS_SERVER_VERSION=0.1.7
+      HELM_EOS_SERVER_VERSION=0.9.2
     - |
       echo "Clone eos-on-k8s repository for helper scripts"
       git clone https://gitlab.cern.ch/eos/eos-on-k8s.git
@@ -94,7 +95,7 @@
         --atomic --create-namespace --namespace $K8S_NAMESPACE \
         --set-string global.tag=$IMAGE_TAG
     - |
-      # allow backward compatibility with our legacy k8s utilities functions
+      # Allow backward compatibility with our legacy k8s utilities functions
       for i in $(seq 1 15); do kubectl label pod eos-fst-$((i -1)) app=eos-fst${i}; done
       kubectl label pod eos-mgm-0 app=eos-mgm1
       kubectl label pod eos-qdb-0 app=eos-qdb
