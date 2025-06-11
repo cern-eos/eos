@@ -9,4 +9,4 @@ export IMAGE_REPO="gitlab-registry.cern.ch/dss/eos/eos-ci"
 export IMAGE_TAG="${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
 export CLI_IMAGE_TAG="${CLI_BASETAG}${CI_COMMIT_TAG:-$CI_COMMIT_SHORT_SHA}${OS_TAG}"
 
-./eos-on-k8s/create-all.sh -b ${IMAGE_REPO} -i ${IMAGE_TAG} -u ${CLI_IMAGE_TAG} -n ${K8S_NAMESPACE} -q -k ${KRB5:-"mit"}
+./eos-on-k8s/create-all.sh -b ${IMAGE_REPO} -i ${IMAGE_TAG} -u ${CLI_IMAGE_TAG} -n ${K8S_NAMESPACE} -k ${KRB5:-"mit"}
