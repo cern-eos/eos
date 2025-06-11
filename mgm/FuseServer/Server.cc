@@ -417,7 +417,7 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     return 0;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_err("caught exception %d %s\n", e.getErrno(),
+    eos_err("msg=\"caught exception %d %s\"\n", e.getErrno(),
             e.getMessage().str().c_str());
     dir.set_err(errno);
     return errno;
@@ -550,7 +550,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     return true;
   } catch (eos::MDException& e) {
     errno = e.getErrno();
-    eos_err("caught exception %d %s\n", e.getErrno(),
+    eos_err("msg=\"caught exception %d %s\"\n", e.getErrno(),
             e.getMessage().str().c_str());
     file.set_err(errno);
     return false;
@@ -3465,7 +3465,7 @@ Server::OpSetLock(const std::string& id,
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
-      eos_err("caught exception %d %s\n", e.getErrno(),
+      eos_err("msg=\"caught exception %d %s\"\n", e.getErrno(),
               e.getMessage().str().c_str());
       // we go on, if don't find the file here ...
     }
