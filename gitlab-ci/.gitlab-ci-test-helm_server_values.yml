@@ -14,15 +14,15 @@ global:
     privileged: true
     allowPrivilegeEscalation: true
 
-
 qdb:
   replicaCount: 1
 
 fst:
-  replicaCount: 8
+  replicaCount: 15
+  minFsSizeGb: 1
   selfRegister:
-    groupsize: 8
-    groupmod: 1
+    groupsize: 7
+    groupmod: 2
   extraEnv:
     - name: EOS_FST_TESTING
       value: "1"
