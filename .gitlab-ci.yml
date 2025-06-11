@@ -912,10 +912,9 @@ notify_cta_project:
     - XROOTD_VERSION=$(grep '^%define xrootd_version_min' eos.spec.in | awk '{print $3}')
     # Fetch the latest tag from the CTA project
     - LATEST_CTA_TAG=$(curl --silent "$CTA_PROJECT_API/repository/tags?order_by=updated&sort=desc" | jq -r '.[0].name')
-    - echo "Latest tag from the CTA project: $LATEST_CTA_TAG"
-    - |
-      if [ "$EOS_TAG_NAME" == "not-a-tag" ]; then
-        echo "Invalid EOS_TAG_NAME to test against: $EOS_TAG_NAME"
+    - echo "Latest tag from the CTA project is $LATEST_CTA_TAG"
+    - if [ "$EOS_TAG_NAME" == "not-a-tag" ]; then
+        echo "Invalid EOS_TAG_NAME to test against $EOS_TAG_NAME"
         exit 1
       fi
     # Trigger the external CTA pipeline using the latest CTA and EOS tags
