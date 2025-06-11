@@ -173,6 +173,7 @@ QuarkDBConfigEngine::LoadConfig(const std::string& filename, XrdOucString& err,
     }
   }
 
+  // Remove deprecated keys - not used for the moment
   if (RemoveDeprecatedKeys()) {
     XrdOucString err;
 
@@ -284,7 +285,7 @@ QuarkDBConfigEngine::RemoveUnusedNodes()
 
     if (ptr && (strncmp(ptr, "1", 1) == 0)) {
       eos_static_info("%s", "msg=\"perform config cleanup\"");
-      // The remaining nodes needs to be removed from the global configuration as
+      // The remaining nodes need to be removed from the global configuration as
       // they don't have any file system registered
       it_lower = sConfigDefinitions.lower_bound(global_prefix);
 

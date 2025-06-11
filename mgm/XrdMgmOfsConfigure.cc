@@ -1549,11 +1549,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   eosViewRWMutex.SetBlocking(true);
   // Configure the access mutex to be blocking
   Access::gAccessMutex.SetBlocking(true);
-  // Start the converter engine that can wait until the Master object is
-  // properly initialized.
-  eos_static_info("%s", "msg=\"starting converter engine\"");
-  mConverterEngine.reset(new eos::mgm::ConverterEngine(mQdbContactDetails));
-  mConverterEngine->Start();
   // Initialize the HA setup
   mMaster.reset(new eos::mgm::QdbMaster(mQdbContactDetails, ManagerId.c_str()));
 
@@ -2197,6 +2192,15 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     tapeRestApiConfig->setXrdHttpPort(XrdHttpPort);
     tapeRestApiConfig->setStageEnabled(restApiStageEnabled);
   }
+  // Start the converter engine that can wait until the Master object is
+  // properly initialized.
+  eos_static_info("%s", "msg=\"starting converter engine\"");
+  mConverterEngine.reset(new eos::mgm::ConverterEngine(mQdbContactDetails));
+
+  if (mMaster->IsMaster) {
+    mConverterEngine->ApplyConfig();
+  }
+
   // start the LRU daemon
   mLRUEngine->Start();
 
