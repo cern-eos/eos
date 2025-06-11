@@ -72,7 +72,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
   std::string attr_path = cPath.GetPath();
   std::shared_ptr<eos::IFileMD> fh;
   std::shared_ptr<eos::IContainerMD> dh;
-  mode_t dh_mode;
+  mode_t dh_mode {0};
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
   // Check for existing file
@@ -130,23 +130,27 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
     {
       // In any case, we need to check the container access, read lock it to
       // check its access and release its lock afterwards
-      eos::MDLocking::ContainerReadLockPtr dhLock = eos::MDLocking::readLock(dh.get());
+      eos::MDLocking::ContainerReadLockPtr dhLock = eos::MDLocking::readLock(
+            dh.get());
       dh_mode = dh->getMode();
 
       if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
         bool deny = true;
-        if((mode & D_OK) && acl.HasAcl() && acl.CanNotDelete()) {
+
+        if ((mode & D_OK) && acl.HasAcl() && acl.CanNotDelete()) {
           // The container cannot be accessed for deletion, however if the acl has !d, we need
           // to allow the owner of the file to delete it
-          if(fh) {
+          if (fh) {
             // Unlock the container before calling the file' getter
             dhLock.reset();
-            if(fh->getCUid() == vid.uid) {
+
+            if (fh->getCUid() == vid.uid) {
               deny = false;
             }
           }
         }
-        if(deny) {
+
+        if (deny) {
           errno = EPERM;
           return Emsg(epname, error, EPERM, "access", path);
         }
