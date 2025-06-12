@@ -25,6 +25,7 @@
 #define __EOSFST_CHECKSUM_GROUP_HH__
 
 #include "fst/checksum/CheckSum.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -111,6 +112,11 @@ public:
     auto t = static_cast<eos::common::LayoutId::eChecksum>
              (eos::common::LayoutId::GetChecksumFromString(xsType));
     mChecksums[t] = std::move(xs);
+  }
+
+  void AddAlternative(eos::common::LayoutId::eChecksum xs)
+  {
+    AddAlternative(ChecksumPlugins::GetXsObj(xs), xs);
   }
 
   //----------------------------------------------------------------------------
