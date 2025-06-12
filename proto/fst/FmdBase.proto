@@ -27,5 +27,4 @@ message FmdBase {
   optional string locations = 23; //< fsid list with locations e.g. 1,2,3,4,10
   repeated sint64 stripeerror = 24; //< fsid of broken stripes
   optional string stripechecksum = 25; //< checksum of the stripe (if RAIN file)
-  map<uint32, bytes> altchecksums = 26; // alternative checksums
 }
