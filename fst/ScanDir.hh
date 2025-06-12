@@ -51,6 +51,9 @@ struct stripe_s {
 constexpr uint64_t DEFAULT_RAIN_RESCAN_INTERVAL = 4 * 7 * 24 * 3600;
 constexpr uint64_t DEFAULT_DISK_INTERVAL = 4 * 3600;
 constexpr uint64_t DEFAULT_NS_INTERVAL = 3 * 24 * 3600;
+constexpr uint64_t DEFAULT_ALT_XS_INTERVAL = 30 * 24 * 60 * 60; // 30 days
+constexpr uint64_t DEFAULT_ALT_XS_RATE = 20;
+
 //------------------------------------------------------------------------------
 //! Class ScanDir
 //! @brief Scan a directory tree and checks checksums (and blockchecksums if
@@ -94,15 +97,26 @@ public:
   //! @param assistant thread running the job
   //------------------------------------------------------------------------------
   void RunNsScan(ThreadAssistant& assistant) noexcept;
+
+  //------------------------------------------------------------------------------
+  //! Infinite loop doing the computation of alternative checksums
+  //!
+  //! @param assistant thread running the job
+  //------------------------------------------------------------------------------
+  void RunAltXsScan(ThreadAssistant& assistant) noexcept;
 #endif
 
+  using ScanFunc = std::function<void(const std::string&)>;
+
   //----------------------------------------------------------------------------
-  //! Method traversing all the files in the subtree and potentially rescanning
-  //! some of them
+  //! Method traversing all the files in the subtree
   //!
   //! @param assistant thread running the job
   //----------------------------------------------------------------------------
-  void ScanSubtree(ThreadAssistant& assistant) noexcept;
+  void ScanFsTree(ThreadAssistant& assistant, ScanFunc f,
+                  bool skip_internal = true) noexcept;
+
+  void CheckTree(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Decide if a rescan is needed based on the timestamp provided and the
@@ -402,6 +416,10 @@ public:
   //! Time interval after which the scanner will run again, default 3 days
   std::atomic<uint64_t> mNsIntervalSec;
 
+  // Configuration for alternative checksums computation
+  //! Time interval after which the thread for alternative checksyms will run again, default 30 days
+  std::atomic<uint64_t> mAltXsIntervalSec;
+
   // Configuration variable to track changes in disk scan intervals
   uint64_t mConfDiskIntervalSec;
 
@@ -417,10 +435,13 @@ public:
   bool mBgThread; ///< If true running as background thread inside the FST
   AssistedThread mDiskThread; ///< Thread doing the scanning of the disk
   AssistedThread mNsThread; ///< Thread doing the scanning of NS entries
+  AssistedThread mAltXsThread; ///< Thread computing the alternative checksums
   eos::common::SteadyClock mClock; ///< Clock wrapper used for testing
   //! Rate limiter for ns scanning which actually limits the number of stat
   //! requests send across the disks in one FSTs.
   std::unique_ptr<eos::common::IRateLimit> mRateLimit;
+  //! Rate limiter for alternative checksum computation
+  std::unique_ptr<eos::common::IRateLimit> mAltXsRateLimit;
 };
 
 EOSFSTNAMESPACE_END
