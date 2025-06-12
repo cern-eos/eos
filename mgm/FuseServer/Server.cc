@@ -1016,12 +1016,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   }
 
   try {
-    if (S_ISDIR(md.mode())) {
-      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino(), &clock);
-    } else {
-      cmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino(), &clock);
-    }
-
+    cmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino(), &clock);
     path = gOFS->eosView->getUri(cmd.get());
     // for performance reasons we implement a seperate access control check here, because
     // we want to avoid another id=path translation and unlock lock of the namespace
