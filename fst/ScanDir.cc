@@ -120,6 +120,9 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
     mRateLimit.reset(new eos::common::RequestRateLimit());
     mRateLimit->SetRatePerSecond(sDefaultNsScanRate);
     mNsThread.reset(&ScanDir::RunNsScan, this);
+    mAltXsRateLimit.reset(new eos::common::RequestRateLimit());
+    mAltXsRateLimit->SetRatePerSecond(DEFAULT_ALT_XS_RATE);
+    mAltXsThread.reset(&ScanDir::RunAltXsScan, this);
 #endif
   }
 }
@@ -176,6 +179,9 @@ ScanDir::SetConfig(const std::string& key, long long value)
 #endif
   } else if (key == eos::common::SCAN_NS_RATE_NAME) {
     mRateLimit->SetRatePerSecond(value);
+  } else if (key == eos::common::SCAN_ALT_XS_RATE_NAME) {
+    mAltXsRateLimit->SetRatePerSecond(value);
+  } else if (key == eos::common::SCAN_ALT_XS_INTERVAL_NAME) {
   }
 }
 
@@ -220,6 +226,14 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
     CleanupUnlinked();
     assistant.wait_for(seconds(mNsIntervalSec.load(std::memory_order_relaxed)));
   }
+}
+
+//------------------------------------------------------------------------------
+// Infinite loop doing the computation of alternative checksums
+//------------------------------------------------------------------------------
+void RunAltXsScan(ThreadAssistant& assistant) noexcept
+{
+  // TODO: wait that the FS booted
 }
 
 //----------------------------------------------------------------------------
@@ -481,7 +495,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
     auto start_ts = std::chrono::system_clock::now();
     // Do the heavy work
-    ScanSubtree(assistant);
+    CheckTree(assistant);
     auto finish_ts = std::chrono::system_clock::now();
     seconds duration = duration_cast<seconds>(finish_ts - start_ts);
     // Check if there was a config update before we sleep
@@ -513,14 +527,11 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   eos_notice("msg=\"done disk scan\" pid=%u fsid=%lu", tid, mFsId);
 }
 
-//------------------------------------------------------------------------------
-// Method traversing all the files in the subtree and potentially rescanning
-// some of them.
-//------------------------------------------------------------------------------
-void
-ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
+void ScanDir::ScanFsTree(ThreadAssistant& assistant, ScanFunc f,
+                         bool skip_internal) noexcept
 {
-  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(mDirPath.c_str()));
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(
+                               mDirPath.c_str()));
 
   if (!io) {
     LogMsg(LOG_ERR, "msg=\"no IO plug-in available\" url=\"%s\"",
@@ -536,13 +547,47 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
   }
 
   std::string fpath;
-  eos::common::FsckErrsPerFsMap errs_map;
 
   while ((fpath = io->ftsRead(handle.get())) != "") {
     if (!mBgThread) {
       fprintf(stderr, "[ScanDir] processing file %s\n", fpath.c_str());
     }
 
+    if (assistant.terminationRequested()) {
+      if (io->ftsClose(handle.get())) {
+        LogMsg(LOG_ERR, "msg=\"fts_close failed\" dir=%s", mDirPath.c_str());
+      }
+
+      return;
+    }
+
+    if (skip_internal) {
+      // Skip scanning orphan files
+      if (fpath.find("/.eosorphans") != std::string::npos) {
+        eos_debug("msg=\"skip orphan file\" path=\"%s\"", fpath.c_str());
+        continue;
+      }
+
+      // Skip scanning our scrub files (/scrub.write-once.X, /scrub.re-write.X)
+      if ((fpath.find("/scrub.") != std::string::npos) ||
+          (fpath.find(".xsmap") != std::string::npos)) {
+        eos_debug("msg=\"skip scrub/xs file\" path=\"%s\"", fpath.c_str());
+        continue;
+      }
+    }
+
+    f(fpath);
+  }
+
+  if (io->ftsClose(handle.get())) {
+    LogMsg(LOG_ERR, "msg=\"fts_close failed\" dir=%s", mDirPath.c_str());
+  }
+}
+
+void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
+{
+  eos::common::FsckErrsPerFsMap errs_map;
+  auto scan_func = [this, &errs_map](const std::string & fpath) {
     if (CheckFile(fpath)) {
 #ifndef _NOOFS
       // Collect fsck errors and save them to be sent later on to QDB
@@ -551,7 +596,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
       if (!fid) {
         eos_static_info("msg=\"skip file which is not a eos data file\", "
                         "path=\"%s\"", fpath.c_str());
-        continue;
+        return;
       }
 
       auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
@@ -566,13 +611,9 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
     if (assistant.terminationRequested()) {
       break; // make sure to close the FTS handle!
     }
-  }
-
-  if (io->ftsClose(handle.get())) {
-    LogMsg(LOG_ERR, "msg=\"fts_close failed\" dir=%s", mDirPath.c_str());
-  }
-
+  };
 #ifndef _NOOFS
+  ScanFsTree(assistant, scan_func);
 
   // Push collected errors to QDB
   if (!gOFS.Storage->PushToQdb(mFsId, errs_map)) {
@@ -602,12 +643,12 @@ bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
   return ScanFile(io, io->GetPath(), fid, last_scan, mtime);
 }
 
-
 #ifndef _NOOFS
 //------------------------------------------------------------------------------
 // Check the given replica file
 //------------------------------------------------------------------------------
-bool ScanDir::CheckRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd)
+bool ScanDir::CheckRainFile(eos::fst::FileIo* io,
+                            eos::common::FmdHelper* fmd)
 {
   auto last_scan = getScanTimestamp(io, "user.eos.rain_timestamp");
 
@@ -630,20 +671,6 @@ ScanDir::CheckFile(const std::string& fpath)
 {
   using eos::common::LayoutId;
   eos_debug("msg=\"start file check\" path=\"%s\"", fpath.c_str());
-
-  // Skip scanning orphan files
-  if (fpath.find("/.eosorphans") != std::string::npos) {
-    eos_debug("msg=\"skip orphan file\" path=\"%s\"", fpath.c_str());
-    return false;
-  }
-
-  // Skip scanning our scrub files (/scrub.write-once.X, /scrub.re-write.X)
-  if ((fpath.find("/scrub.") != std::string::npos) ||
-      (fpath.find(".xsmap") != std::string::npos)) {
-    eos_debug("msg=\"skip scrub/xs file\" path=\"%s\"", fpath.c_str());
-    return false;
-  }
-
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
   auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
