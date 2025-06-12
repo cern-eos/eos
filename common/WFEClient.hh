@@ -64,10 +64,11 @@ public:
 
     std::string token_contents;
     // read the token from the path
+    eos_static_info("JWT token path is %s", token_path.c_str());
     eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
 
     context.AddMetadata("authorization", "Bearer " + token_contents);
-    eos_static_info("successfully attached call credentials in the send method");
+    eos_static_info("successfully attached call credentials in the send method, token contents are %s", token_contents.c_str());
 
     switch (request.notification().wf().event()) {
       // this is prepare
