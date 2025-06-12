@@ -221,26 +221,6 @@ Storage::Verify()
           // check local checksum alternatives
           const auto altchecksums = checksummer->GetAlternatives();
 
-          if (altchecksums.size() != fMd->mProtoFmd.altchecksums_size()) {
-            cxError = true;
-          }
-
-          for (auto [type, computed] : altchecksums) {
-            std::string stored{""};
-
-            if (!fMd->mProtoFmd.altchecksums().contains(type)) {
-              cxError = true;
-              break;
-            }
-
-            stored = fMd->mProtoFmd.altchecksums().at(type);
-
-            if (stored != computed->GetHexChecksum()) {
-              cxError = true;
-              break;
-            }
-          }
-
           if (cxError) {
             eos_static_err("checksum invalid   : path=%s fxid=%s checksum=%s stored-checksum=%s",
                            verifyfile->path.c_str(), hex_fid.c_str(), computedchecksum,
@@ -257,13 +237,6 @@ Storage::Verify()
               fMd->mProtoFmd.set_mgmchecksum(computedchecksum);
               fMd->mProtoFmd.set_blockcxerror(0);
               fMd->mProtoFmd.set_filecxerror(0);
-            }
-
-            fMd->mProtoFmd.clear_altchecksums();
-
-            for (auto [type, xs] : altchecksums) {
-              fMd->mProtoFmd.mutable_altchecksums()->emplace(static_cast<std::uint32_t>(type),
-                  xs->GetHexChecksum());
             }
 
             localUpdate = true;
