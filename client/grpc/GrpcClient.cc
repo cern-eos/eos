@@ -178,7 +178,7 @@ GrpcClient::Md(const std::string& path,
 
 std::string
 GrpcClient::Find(const std::string& path,
-                 const std::string& filter,
+                 const std::list<std::string>& filters,
                  uint64_t id,
                  uint64_t ino,
                  bool files,
@@ -216,7 +216,7 @@ GrpcClient::Find(const std::string& path,
 
   request.set_authkey(token());
 
-  if (filter.length()) {
+  for (const auto& filter : filters) {
     // enable filtering
     request.mutable_selection()->set_select(true);
     std::map<std::string, std::string> filtermap;
@@ -400,7 +400,7 @@ GrpcClient::FileInsert(const std::vector<std::string>& paths)
     if (it.substr(0, 4) == "ino:") {
       // the format is ino:xxxxxxxxxxxxxxxx:<path> where xxxxxxxxxxxxxxxx is a 64bit hex string of the inode
       path = it.substr(21);
-      inode = std::strtol(it.substr(4, 20).c_str() , 0, 16);
+      inode = std::strtol(it.substr(4, 20).c_str(), 0, 16);
     }
 
     if (inode) {
@@ -477,7 +477,7 @@ GrpcClient::ContainerInsert(const std::vector<std::string>& paths)
     if (it.substr(0, 4) == "ino:") {
       // the format is ino:xxxxxxxxxxxxxxxx:<path> where xxxxxxxxxxxxxxxx is a 64bit hex string of the inode
       path = it.substr(21);
-      inode = std::strtol(it.substr(4, 20).c_str() , 0, 16);
+      inode = std::strtol(it.substr(4, 20).c_str(), 0, 16);
     }
 
     ContainerMdProto* container = request.add_container();

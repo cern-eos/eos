@@ -26,6 +26,7 @@
 /*----------------------------------------------------------------------------*/
 #include "client/Namespace.hh"
 #include "common/AssistedThread.hh"
+#include <list>
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 #ifdef EOS_GRPC
@@ -64,17 +65,19 @@ public:
   std::string Md(const std::string& path, uint64_t id = 0, uint64_t ino = 0,
                  bool list = false, bool printonly = false);
 
-  std::string Find(const std::string& path, const std::string& find_options, uint64_t id = 0, uint64_t ino = 0,
-		   bool files = true, bool dirs = true, uint64_t depth=0, bool printonly = false, 
-		   const std::string& exportfs="");
+  std::string Find(const std::string& path,
+                   const std::list<std::string>& find_options, uint64_t id = 0, uint64_t ino = 0,
+                   bool files = true, bool dirs = true, uint64_t depth = 0, bool printonly = false,
+                   const std::string& exportfs = "");
 
   int NsStat(const eos::rpc::NsStatRequest& request,
              eos::rpc::NsStatResponse& reply);
 
   int Exec(const eos::rpc::NSRequest& request,
-	    eos::rpc::NSResponse& reply);
+           eos::rpc::NSResponse& reply);
 
-  std::string ExportFs(const eos::rpc::MDResponse& response, const std::string& exportfs);
+  std::string ExportFs(const eos::rpc::MDResponse& response,
+                       const std::string& exportfs);
 
   int FileInsert(const std::vector<std::string>& paths);
   int ContainerInsert(const std::vector<std::string>& paths);
