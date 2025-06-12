@@ -434,8 +434,8 @@ LRU::CacheExpire(const char* dir, std::string& lowmark, std::string& highmark)
 
   // Check for project quota
   auto map_quotas = Quota::GetGroupStatistics(dir, Quota::gProjectId);
-  long long target_volume = map_quotas[SpaceQuota::kGroupBytesTarget];
-  long long is_volume = map_quotas[SpaceQuota::kGroupBytesIs];
+  long long target_volume = map_quotas[SpaceQuota::kGroupLogicalBytesTarget];
+  long long is_volume = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
 
   if (target_volume <= 0) {
     return;
