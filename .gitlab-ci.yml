@@ -925,11 +925,11 @@ notify_cta_project:
           -F ref=$CTA_BRANCH
           -F "variables[CUSTOM_EOS_IMAGE_TAG]=$EOS_IMAGE_TAG"
           -F "variables[CUSTOM_CTA_VERSION]=$LATEST_CTA_TAG"
-          -F "variables[PIPELINE_TYPE]=REGR_AGAINST_CTA_TAG"
+          -F "variables[PIPELINE_TYPE]=REGR_AGAINST_CTA_VERSION"
           $TRIGGER_URL
     # Against the CTA main branch, we can also test the client EOS and XRootD versions if we are on a tag
     # If we are not on a tag, so the EOS RPMs are not accessible by the CTA pipeline, so we only test against the image
-    - |
+    - >
       if [[ -z "$CI_COMMIT_TAG" ]]; then
         curl -X POST
             -F token=$CTA_TRIGGER_TOKEN
