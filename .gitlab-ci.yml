@@ -902,41 +902,53 @@ notify_cta_project:
   variables:
     CTA_BRANCH: main
   script:
-    - dnf install --nogpg -y git curl gawk jq
-    # Variables
-    - EOS_TAG_NAME=$(git describe --tags --exact-match || echo "not-a-tag")
+    - dnf install --nogpg -y curl gawk jq
     - CTA_PROJECT_ID="139306"
     - CTA_PROJECT_API="https://gitlab.cern.ch/api/v4/projects/$CTA_PROJECT_ID"
     - TRIGGER_URL="$CTA_PROJECT_API/trigger/pipeline"
-    # Extract versions from eos.spec.in
+    # Construct EOS versions
+    - |
+      if [[ -z "$CI_COMMIT_TAG" ]]; then
+        EOS_IMAGE_TAG="$CI_COMMIT_SHORT_SHA.el9";
+      else
+        EOS_IMAGE_TAG="$CI_COMMIT_TAG.el9";
+        EOS_VERSION="$CI_COMMIT_TAG";
+      fi
+    # Extract XRootD version from eos.spec.in
     - XROOTD_VERSION=$(grep '^%define xrootd_version_min' eos.spec.in | awk '{print $3}')
     # Fetch the latest tag from the CTA project
     - LATEST_CTA_TAG=$(curl --silent "$CTA_PROJECT_API/repository/tags?order_by=updated&sort=desc" | jq -r '.[0].name')
     - echo "Latest tag from the CTA project is $LATEST_CTA_TAG"
-    - if [ "$EOS_TAG_NAME" == "not-a-tag" ]; then
-        echo "Invalid EOS_TAG_NAME to test against $EOS_TAG_NAME"
-        exit 1
+    # Against an existing CTA tag, we can only trigger a pipeline where a different EOS image is used
+    - curl -X POST
+          -F token=$CTA_TRIGGER_TOKEN
+          -F ref=$CTA_BRANCH
+          -F "variables[CUSTOM_EOS_IMAGE_TAG]=$EOS_IMAGE_TAG"
+          -F "variables[CUSTOM_CTA_VERSION]=$LATEST_CTA_TAG"
+          -F "variables[PIPELINE_TYPE]=REGR_AGAINST_CTA_TAG"
+          $TRIGGER_URL
+    # Against the CTA main branch, we can also test the client EOS and XRootD versions if we are on a tag
+    # If we are not on a tag, so the EOS RPMs are not accessible by the CTA pipeline, so we only test against the image
+    - |
+      if [[ -z "$CI_COMMIT_TAG" ]]; then
+        curl -X POST
+            -F token=$CTA_TRIGGER_TOKEN
+            -F ref=$CTA_BRANCH
+            -F "variables[CUSTOM_EOS_IMAGE_TAG]=$EOS_TAG_NAME"
+            -F "variables[CUSTOM_XROOTD_VERSION]=$XROOTD_VERSION"
+            -F "variables[PIPELINE_TYPE]=REGR_AGAINST_CTA_MAIN"
+            $TRIGGER_URL
+      else
+        curl -X POST
+            -F token=$CTA_TRIGGER_TOKEN
+            -F ref=$CTA_BRANCH
+            -F "variables[CUSTOM_EOS_IMAGE_TAG]=$EOS_TAG_NAME"
+            -F "variables[CUSTOM_EOS_VERSION]=$EOS_TAG_NAME"
+            -F "variables[CUSTOM_XROOTD_VERSION]=$XROOTD_VERSION"
+            -F "variables[PIPELINE_TYPE]=REGR_AGAINST_CTA_MAIN"
+            $TRIGGER_URL
       fi
-    # Trigger the external CTA pipeline using the latest CTA and EOS tags
-    - curl -X POST
-        -F token=$CTA_TRIGGER_TOKEN
-        -F ref=$CTA_BRANCH
-        -F "variables[CUSTOM_EOS_VERSION]=$EOS_TAG_NAME"
-        -F "variables[CUSTOM_XROOTD_VERSION]=$XROOTD_VERSION"
-        -F "variables[CUSTOM_CTA_VERSION]=$LATEST_CTA_TAG"
-        -F "variables[PIPELINE_TYPE]=REGR_AGAINST_CTA_VERSION"
-        $TRIGGER_URL
-    # Trigger the external CTA pipeline using the latest EOS tag and latest CTA commit on main
-    - curl -X POST
-        -F token=$CTA_TRIGGER_TOKEN
-        -F ref=$CTA_BRANCH
-        -F "variables[CUSTOM_EOS_VERSION]=$EOS_TAG_NAME"
-        -F "variables[CUSTOM_XROOTD_VERSION]=$XROOTD_VERSION"
-        -F "variables[PIPELINE_TYPE]=REGR_AGAINST_CTA_MAIN"
-        $TRIGGER_URL
   when: manual
-  #only:
-  #  - tags
 
 rpm_commit_artifacts:
   stage: publish
