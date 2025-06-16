@@ -32,20 +32,24 @@ Vcs-Browser: https://gitlab.cern.ch/dss/eos
 
 Package: eos-client
 Architecture: any
+Multi-Arch: same
 Depends: ${shlibs:Depends}, systemd, eos-grpc, libeosxrootd-client-dev (>= _XRD_DEB_VER_), eos-xrootd-plugins (>= _XRD_DEB_VER_)
 Description: EOS client package
 
 Package: eos-fusex
 Architecture: any
+Multi-Arch: same
 Depends: ${shlibs:Depends}, eos-grpc, eos-client (=${binary:Version}), fuse, fuse3, libeosxrootd-client-dev (>= _XRD_DEB_VER_)
 Replaces: eos-fuse
 Description: The new EOS fuse client bundle
 
 Package: eos-test
 Architecture: any
+Multi-Arch: same
 Depends: ${shlibs:Depends}, eos-grpc, bc, davix, jq
 Description: The EOS test package
 
 Package: eos-testkeytab
 Architecture: any
+Multi-Arch: same
 Description: The EOS testkeytab package
