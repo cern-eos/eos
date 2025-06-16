@@ -108,12 +108,14 @@ publish_debian:
   needs:
     - job: ubuntu-jammy
     - job: ubuntu-noble
+    - job: ubuntu-noble-arm
   tags:
     - docker_node
     - publish
   only:
     - schedules
     - tags
+    - master
 
 
 .clean_debian_artifacts:
