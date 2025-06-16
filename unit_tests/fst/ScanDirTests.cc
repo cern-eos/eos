@@ -132,15 +132,15 @@ TEST_F(TmpDirTree, ScanDirSetConfig)
   eos::fst::ScanDir sd(TMP_DIR_ROOT.c_str(), fsid, &load, false, 0, 100, true);
   ASSERT_EQ(TMP_DIR_ROOT, "/tmp/fstest");
   ASSERT_EQ(sd.mDirPath, TMP_DIR_ROOT);
-  ASSERT_EQ(sd.mDiskIntervalSec, eos::fst::DEFAULT_DISK_INTERVAL);
+  ASSERT_EQ(sd.mDiskInterval.get(), eos::fst::DEFAULT_DISK_INTERVAL);
 #ifdef _NOOFS
   sd.SetConfig(eos::common::SCAN_DISK_INTERVAL_NAME, 3000);
-  ASSERT_EQ(sd.mDiskIntervalSec, 3000);
+  ASSERT_EQ(sd.mDiskInterval.get(), 3000);
   // This toggle logic is to ensure that CAS functions correctly
   sd.SetConfig(eos::common::SCAN_DISK_INTERVAL_NAME,
                eos::fst::DEFAULT_DISK_INTERVAL);
-  ASSERT_EQ(sd.mDiskIntervalSec, eos::fst::DEFAULT_DISK_INTERVAL);
+  ASSERT_EQ(sd.mDiskInterval.get(), eos::fst::DEFAULT_DISK_INTERVAL);
   sd.SetConfig(eos::common::SCAN_DISK_INTERVAL_NAME, 2500);
-  ASSERT_EQ(sd.mDiskIntervalSec, 2500);
+  ASSERT_EQ(sd.mDiskInterval.get(), 2500);
 #endif
 }
