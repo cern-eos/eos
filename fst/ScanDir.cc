@@ -88,10 +88,12 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
                  long int file_rescan_interval, int ratebandwidth,
                  bool fake_clock) :
   mFstLoad(fstload), mFsId(fsid), mDirPath(dirpath),
-  mRateBandwidth(ratebandwidth), mEntryIntervalSec(file_rescan_interval),
-  mRainEntryIntervalSec(DEFAULT_RAIN_RESCAN_INTERVAL),
-  mDiskIntervalSec(DEFAULT_DISK_INTERVAL), mNsIntervalSec(DEFAULT_NS_INTERVAL),
-  mConfDiskIntervalSec(DEFAULT_DISK_INTERVAL),
+  mRateBandwidth(ratebandwidth),
+  mNsInterval(DEFAULT_NS_INTERVAL),
+  mDiskInterval(DEFAULT_DISK_INTERVAL),
+  mEntryInterval(file_rescan_interval),
+  mRainEntryInterval(DEFAULT_RAIN_RESCAN_INTERVAL),
+  mAltXsInterval(DEFAULT_ALT_XS_INTERVAL),
   mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
@@ -157,33 +159,21 @@ ScanDir::SetConfig(const std::string& key, long long value)
   if (key == eos::common::SCAN_IO_RATE_NAME) {
     mRateBandwidth.store(static_cast<int>(value), std::memory_order_relaxed);
   } else if (key == eos::common::SCAN_ENTRY_INTERVAL_NAME) {
-    mEntryIntervalSec.store(value, std::memory_order_release);
+    mEntryInterval.store(value, std::memory_order_relaxed);
   } else if (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) {
-    mRainEntryIntervalSec.store(value, std::memory_order_release);
+    mRainEntryInterval.store(value, std::memory_order_relaxed);
   } else if (key == eos::common::SCAN_DISK_INTERVAL_NAME) {
-    if (mDiskIntervalSec.compare_exchange_strong(mConfDiskIntervalSec,
-        static_cast<uint64_t>(value),
-        std::memory_order_acq_rel)) {
-      // Move the following line after join if you want to prevent a toggle until join
-      mConfDiskIntervalSec = static_cast<uint64_t>(value);
-      mDiskThread.join();
-      mDiskThread.reset(&ScanDir::RunDiskScan, this);
-    }
+    mDiskInterval.set(value);
   } else if (key == eos::common::SCAN_NS_INTERVAL_NAME) {
 #ifndef _NOOFS
-
-    if (mNsIntervalSec != static_cast<uint64_t>(value)) {
-      mNsIntervalSec.store(value, std::memory_order_relaxed);
-      mNsThread.join();
-      mNsThread.reset(&ScanDir::RunNsScan, this);
-    }
-
+    mNsInterval.set(value);
 #endif
   } else if (key == eos::common::SCAN_NS_RATE_NAME) {
     mRateLimit->SetRatePerSecond(value);
   } else if (key == eos::common::SCAN_ALT_XS_RATE_NAME) {
     mAltXsRateLimit->SetRatePerSecond(value);
   } else if (key == eos::common::SCAN_ALT_XS_INTERVAL_NAME) {
+    mAltXsInterval.set(value);
   }
 }
 
@@ -197,8 +187,7 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
   using namespace std::chrono;
   using eos::common::FileId;
   eos_info("msg=\"started the ns scan thread\" fsid=%lu dirpath=\"%s\" "
-           "ns_scan_interval_sec=%llu", mFsId, mDirPath.c_str(),
-           mNsIntervalSec.load(std::memory_order_relaxed));
+           "ns_scan_interval_sec=%llu", mFsId, mDirPath.c_str(), mNsInterval.get());
 
   if (gOFS.mFsckQcl == nullptr) {
     eos_notice("%s", "msg=\"no qclient present, skipping ns scan\"");
@@ -217,8 +206,7 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
   }
 
   // Get a random smearing and avoid that all start at the same time
-  size_t sleep_sec = (1.0 * mNsIntervalSec.load(std::memory_order_relaxed) *
-                      random() / RAND_MAX);
+  size_t sleep_sec = (1.0 * mNsInterval.get() * random() / RAND_MAX);
   eos_info("msg=\"delay ns scan thread by %llu seconds\" fsid=%lu dirpath=\"%s\"",
            sleep_sec, mFsId, mDirPath.c_str());
   assistant.wait_for(seconds(sleep_sec));
@@ -226,7 +214,7 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     AccountMissing();
     CleanupUnlinked();
-    assistant.wait_for(seconds(mNsIntervalSec.load(std::memory_order_relaxed)));
+    mNsInterval.wait(assistant);
   }
 }
 
@@ -286,7 +274,6 @@ void CommitAlternativeChecksums(uint64_t fid,
 //------------------------------------------------------------------------------
 void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
 {
-  // TODO: wait that the FS booted
   auto compute_alt_xs = [this](const std::string & fpath) {
     auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
@@ -365,11 +352,29 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     auto alt_xs = xs->GetAlternatives();
     CommitAlternativeChecksums(fid, alt_xs);
   };
+  eos_info("msg=\"started the alt xs scan thread\" fsid=%lu dirpath=\"%s\" "
+           "altxs_scan_interval_sec=%llu", mFsId, mDirPath.c_str(),
+           mAltXsInterval.get());
+
+  if (gOFS.mFsckQcl == nullptr) {
+    eos_notice("%s", "msg=\"no qclient present, skipping ns scan\"");
+    return;
+  }
+
+  // Wait for the corresponding file system to boot before starting
+  while ((gOFS.Storage->ExistsFs(mFsId) == false) ||
+         gOFS.Storage->IsFsBooting(mFsId)) {
+    assistant.wait_for(std::chrono::seconds(5));
+
+    if (assistant.terminationRequested()) {
+      eos_info("%s", "msg=\"stopping alt xs scan thread\"");
+      return;
+    }
+  }
 
   while (!assistant.terminationRequested()) {
     ScanFsTree(assistant, compute_alt_xs);
-    assistant.wait_for(std::chrono::seconds(mAltXsIntervalSec.load(
-        std::memory_order_relaxed)));
+    mAltXsInterval.wait(assistant);
   }
 }
 
@@ -617,7 +622,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 #endif
   // If there is a reconfiguration of Disk/Fsck Interval, reload these only
   // after current run
-  uint64_t disk_interval_sec = mDiskIntervalSec.load(std::memory_order_acquire);
+  uint64_t disk_interval_sec = mDiskInterval.get();
 
   if (mBgThread) {
     // Get a random smearing and avoid that all start at the same time! 0-4 hours
@@ -636,7 +641,6 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     auto finish_ts = std::chrono::system_clock::now();
     seconds duration = duration_cast<seconds>(finish_ts - start_ts);
     // Check if there was a config update before we sleep
-    disk_interval_sec = mDiskIntervalSec.load(std::memory_order_acquire);
     std::string log_msg =
       SSTR("[ScanDir] Directory: " << mDirPath << " files=" << mNumTotalFiles
            << " scanduration=" << duration.count() << " [s] scansize="
@@ -644,7 +648,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
            << " MB ] scannedfiles=" << mNumScannedFiles << " corruptedfiles="
            << mNumCorruptedFiles << " hwcorrupted=" << mNumHWCorruptedFiles
            << " skippedfiles=" << mNumSkippedFiles
-           << " disk_scan_interval_sec=" << disk_interval_sec);
+           << " disk_scan_interval_sec=" << mDiskInterval.get());
 
     if (mBgThread) {
       syslog(LOG_ERR, "%s\n", log_msg.c_str());
@@ -654,8 +658,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     }
 
     if (mBgThread) {
-      // Run again after (default) 4 hours
-      assistant.wait_for(std::chrono::seconds(disk_interval_sec));
+      mDiskInterval.wait(assistant);
     } else {
       break;
     }
@@ -915,9 +918,8 @@ bool
 ScanDir::DoRescan(std::chrono::seconds last_scan, bool rain_ts) const
 {
   using namespace std::chrono;
-  uint64_t rescan_interval = rain_ts ?
-                             mRainEntryIntervalSec.load(std::memory_order_acquire) :
-                             mEntryIntervalSec.load(std::memory_order_acquire);
+  uint64_t rescan_interval = rain_ts ? mRainEntryInterval.load() :
+                             mEntryInterval.load();
 
   if (rescan_interval == 0) {
     // scan is disabled when this setting is 0
@@ -1766,9 +1768,9 @@ ScanDir::GetTimestampSmearedSec(bool rain_ts) const
   uint64_t entry_interval_sec;
 
   if (rain_ts) {
-    entry_interval_sec = mRainEntryIntervalSec.load(std::memory_order_relaxed);
+    entry_interval_sec = mRainEntryInterval.load();
   } else {
-    entry_interval_sec = mEntryIntervalSec.load(std::memory_order_relaxed);
+    entry_interval_sec = mEntryInterval.load();
   }
 
   int64_t smearing =
