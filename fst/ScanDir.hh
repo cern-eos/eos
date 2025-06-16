@@ -30,6 +30,7 @@
 #include "common/SteadyClock.hh"
 #include "common/RateLimit.hh"
 #include "common/LayoutId.hh"
+#include "common/WaitInterval.hh"
 #include "common/Fmd.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
@@ -405,23 +406,21 @@ public:
   eos::common::FileSystem::fsid_t mFsId; ///< Corresponding file system id
   std::string mDirPath; ///< Root directory used by the scanner
   std::atomic<int> mRateBandwidth; ///< Max scan IO rate in MB/s
+
+  //! Time interval after which the scanner will run again, default 3 days
+  WaitInterval mNsInterval;
+  //! Time interval after which the disk scanner will run again, default 4h
+  WaitInterval mDiskInterval;
   //! Time interval after which a file is rescanned in seconds, if 0 then
   //! rescanning is completely disabled
-  std::atomic<uint64_t> mEntryIntervalSec;
+  std::atomic<uint64_t> mEntryInterval;
   //! Time interval after which a rain file is rescanned in seconds, if 0 then
   //! rescanning is completely disabled
-  std::atomic<uint64_t> mRainEntryIntervalSec;
-  //! Time interval after which the disk scanner will run again, default 4h
-  std::atomic<uint64_t> mDiskIntervalSec;
-  //! Time interval after which the scanner will run again, default 3 days
-  std::atomic<uint64_t> mNsIntervalSec;
+  std::atomic<uint64_t> mRainEntryInterval;
 
   // Configuration for alternative checksums computation
   //! Time interval after which the thread for alternative checksyms will run again, default 30 days
-  std::atomic<uint64_t> mAltXsIntervalSec;
-
-  // Configuration variable to track changes in disk scan intervals
-  uint64_t mConfDiskIntervalSec;
+  WaitInterval mAltXsInterval;
 
   // Statistics
   long int mNumScannedFiles;
