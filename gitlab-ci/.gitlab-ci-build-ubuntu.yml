@@ -34,10 +34,10 @@
     - apt-get update
     - git submodule update --init -f --recursive
     # Priority >= 1000 causes a version to be installed even if this constitutes a downgrade of the package
-    - XROOTD_VERSION=$(grep "define xrootd_version_min" eos.spec.in | awk -F ':' '{print $2;}')
-    - echo -e "Package:"" xrootd* libxrd* libxrootd*\nPin:"" version $XROOTD_VERSION\nPin-Priority:"" 1000" > /etc/apt/preferences.d/xrootd.pref
-    - if [[ "${BUILD_NAME}" == "jammy" ]]; then PROCPS_LIB="libprocps-dev"; else PROCPS_LIB=libproc2-dev; fi
-    - sed -e "s/_XRD_DEB_VER_/$XROOTD_VERSION/g; s/_PROCPS_TAG_/${PROCPS_LIB}/g" debian/control.template > debian/control
+    - EOS_XROOTD_VERSION=$(grep "define eos_xrootd_version_min" eos.spec.in | awk -F ':' '{print $2;}')
+    - echo -e "Package:"" eos-xrootd* libeosxrd* libeosxrootd*\nPin:"" version $EOS_XROOTD_VERSION\nPin-Priority:"" 1000" > /etc/apt/preferences.d/eos-xrootd.pref
+    - if [[ "${BUILD_NAME}" == "jammy" ]]; then PROCPS_LIB="libprocps-dev"; else PROCPS_LIB="libproc2-dev"; fi
+    - sed -e "s/_XRD_DEB_VER_/$EOS_XROOTD_VERSION/g; s/_PROCPS_TAG_/${PROCPS_LIB}/g" debian/control.template > debian/control
     - mk-build-deps --build-dep debian/control
     - gdebi --n eos-build-deps-depends*.deb
     - EOS_VERSION="$(./genversion.sh)"; echo "${EOS_VERSION}"
@@ -64,8 +64,9 @@
   only:
     - schedules
     - tags
+    - master
 
-    
+
 ubuntu-jammy:
   extends: .build-ubuntu
   image: registry.cern.ch/docker.io/ubuntu:jammy
@@ -78,8 +79,6 @@ ubuntu-noble:
   image: registry.cern.ch/docker.io/ubuntu:noble
   variables:
     BUILD_NAME: noble
-  only:
-    - master
 
 
 ubuntu-noble-arm:
@@ -87,12 +86,8 @@ ubuntu-noble-arm:
   image: registry.cern.ch/docker.io/ubuntu:noble
   variables:
     BUILD_NAME: noble
-  only:
-    - master
-    - tags
   tags:
     - arm64
-  when: manual
 
 #-------------------------------------------------------------------------------
 # Ubuntu artifacts publishing
