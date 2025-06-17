@@ -25,6 +25,7 @@ cleanup
 
 # Prepare the instance for the tests
 eos convert clear
+eos convert config set status=on
 eos space config default space.lru=on
 eos space config default space.lru.interval=5
 
