@@ -896,8 +896,8 @@ FsSpace::FsSpace(const char* name)
     }
 
     // Set drain rate per drain stream
-    if (GetConfigMember("drain.node.rate").empty()) {
-      SetConfigMember("drainer.node.rate", "25");
+    if (GetConfigMember("drainer.tx.minrate").empty()) {
+      SetConfigMember("drainer.tx.minrate", "25");
     }
 
     // Set the grace period before drain start on opserror to 1 day

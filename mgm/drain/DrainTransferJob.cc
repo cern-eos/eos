@@ -34,23 +34,24 @@
 #include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
 #include "namespace/Prefetcher.hh"
 
-namespace {
+namespace
+{
 
-  //----------------------------------------------------------------------------
-  // Check if container id exists
-  //----------------------------------------------------------------------------
-  bool ContainerExists(const eos::IContainerMD::id_t cid)
-  {
-    eos::IContainerMDPtr cont = nullptr;
+//----------------------------------------------------------------------------
+// Check if container id exists
+//----------------------------------------------------------------------------
+bool ContainerExists(const eos::IContainerMD::id_t cid)
+{
+  eos::IContainerMDPtr cont = nullptr;
 
-    try {
-      cont = gOFS->eosDirectoryService->getContainerMD(cid, 0);
-    } catch (eos::MDException &e) {
-      cont = nullptr;
-    }
-
-    return (cont != nullptr);
+  try {
+    cont = gOFS->eosDirectoryService->getContainerMD(cid, 0);
+  } catch (eos::MDException& e) {
+    cont = nullptr;
   }
+
+  return (cont != nullptr);
+}
 }
 
 EOSMGMNAMESPACE_BEGIN
@@ -162,7 +163,7 @@ DrainTransferJob::DoIt() noexcept
     properties.Set("chunkSize", (uint32_t)(4 * 1024 * 1024));
     properties.Set("parallelChunks", (uint8_t) 1);
     properties.Set("tpcTimeout", eos::common::FileId::EstimateTpcTimeout
-                   (fdrain.mProto.size()).count());
+                   (fdrain.mProto.size(), mMinTxRate.load()).count());
 
     // Non-empty files run with TPC only
     if (fdrain.mProto.size()) {
@@ -245,7 +246,7 @@ DrainTransferJob::GetFileInfo() const
 
     auto vect_unlinked_loc = fmd->getUnlinkedLocations();
 
-    for (const auto uloc: vect_unlinked_loc) {
+    for (const auto uloc : vect_unlinked_loc) {
       fdrain.mProto.add_unlink_locations(uloc);
     }
   } catch (eos::MDException& e) {
