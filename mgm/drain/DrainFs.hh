@@ -236,6 +236,7 @@ private:
   std::atomic<bool> mDrainStop; ///< Flag to cancel an ongoing draining
   std::atomic<std::uint32_t> mMaxJobs; ///< Max number of drain jobs
   std::chrono::seconds mDrainPeriod; ///< Allowed time for file system to drain
+  std::atomic<std::uint64_t> mMinTxRate; ///< Min transfer rate per job
   std::chrono::time_point<std::chrono::steady_clock> mDrainStart;
   std::chrono::time_point<std::chrono::steady_clock> mDrainEnd;
   //! Collection of failed drain jobs

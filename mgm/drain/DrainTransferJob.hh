@@ -226,6 +226,16 @@ public:
     return mFileId.load();
   }
 
+  //----------------------------------------------------------------------------
+  //! Set minimum transfer rate used for estimating the timeout of the TPC
+  //!
+  //! @param min_rate minimum transfer rate
+  //----------------------------------------------------------------------------
+  void SetMinTransferRate(const uint64_t min_rate)
+  {
+    mMinTxRate.store(min_rate);
+  }
+
 
 #ifdef IN_TEST_HARNESS
 public:
@@ -307,7 +317,10 @@ private:
   bool mDropSrc; ///< Mark if source replicas should be dropped
   //! In balance mode the source and destination file systems are enforced
   bool mBalanceMode;
-  bool mRepairExcluded; ///< Mark if mTriedSrcs should be included in recfs for rain layouts
+  //! Mark if mTriedSrcs should be included in recfs for rain layouts
+  bool mRepairExcluded;
+  //! Minimum transfer rate for the TPC process, default 25 MB/s
+  std::atomic<std::uint64_t> mMinTxRate {25};
   DrainProgressHandler mProgressHandler; ///< TPC progress handler
   eos::common::VirtualIdentity mVid; /// VID triggering the job
 };

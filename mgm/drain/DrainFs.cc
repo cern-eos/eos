@@ -43,9 +43,9 @@ DrainFs::DrainFs(eos::common::ThreadPool& thread_pool, eos::IFsView* fs_view,
                  eos::common::FileSystem::fsid_t dst_fsid):
   mNsFsView(fs_view), mFsId(src_fsid), mTargetFsId(dst_fsid),
   mStatus(eos::common::DrainStatus::kNoDrain), mDidRerun(false),
-  mDrainStop(false), mMaxJobs(10), mDrainPeriod(0), mThreadPool(thread_pool),
-  mTotalFiles(0ull), mPending(0ull), mLastPending(0ull),
-  mLastProgressTime(steady_clock::now()),
+  mDrainStop(false), mMaxJobs(10), mDrainPeriod(0), mMinTxRate(25),
+  mThreadPool(thread_pool), mTotalFiles(0ull), mPending(0ull),
+  mLastPending(0ull), mLastProgressTime(steady_clock::now()),
   mLastUpdateTime(steady_clock::now())
 {}
 
@@ -67,12 +67,34 @@ DrainFs::GetSpaceConfiguration(const std::string& space_name)
     auto space = FsView::gFsView.mSpaceView[space_name];
 
     if (space) {
-      if (space->GetConfigMember("drainer.fs.ntx") != "") {
-        mMaxJobs.store(std::stoul(space->GetConfigMember("drainer.fs.ntx")));
-        eos_static_debug("msg=\"per fs max parallel jobs=%u\"", mMaxJobs.load());
+      std::string value = space->GetConfigMember("drainer.fs.ntx");
+
+      if (!value.empty()) {
+        try {
+          mMaxJobs.store(std::stoul(value));
+          eos_static_debug("msg=\"per fs max parallel jobs=%u\"",
+                           mMaxJobs.load());
+        } catch (...) {
+          eos_static_warning("msg=\"failed to convert drainer.fs.ntx\" "
+                             "space=\"%s\"", space_name.c_str());
+        }
+      }
+
+      value = space->GetConfigMember("drainer.tx.minrate");
+
+      if (!value.empty()) {
+        try {
+          mMinTxRate.store(std::stoull(value));
+          eos_static_debug("msg=\"drain transfer min rate set to %lluMB/s\"",
+                           mMinTxRate.load());
+        } catch (...) {
+          eos_static_warning("msg=\"failed to convert drainer.tx.minrate\" "
+                             "space=\"%s\"", space_name.c_str());
+        }
       }
     } else {
-      eos_warning("msg=\"space %s not yet initialized\"", space_name.c_str());
+      eos_static_warning("msg=\"space %s not yet initialized\"",
+                         space_name.c_str());
     }
   } else {
     // Use some sensible default values for testing
@@ -118,6 +140,7 @@ DrainFs::DoIt()
       if (NumRunningJobs() <= mMaxJobs) {
         std::shared_ptr<DrainTransferJob> job {
           new DrainTransferJob(it_fid->getElement(), mFsId, mTargetFsId)};
+        job->SetMinTransferRate(mMinTxRate);
 
         if (!gOFS->mFidTracker.AddEntry(it_fid->getElement(), TrackerType::Drain)) {
           job->ReportError(SSTR("msg=\"skip currently scheduled drain\" "

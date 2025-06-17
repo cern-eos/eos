@@ -816,8 +816,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == "balancer.max-queue-jobs") ||
           (key == "balancer.max-thread-pool-size") ||
           (key == "balancer.update.interval") ||
-          (key == "drainer.node.rate") ||
-          //          (key == "drainer.retries") ||
+          (key == "drainer.tx.minrate") ||
+          (key == "drainer.retries") ||
           (key == "drainer.fs.ntx") ||
           (key == "tracker") ||
           (key == "inspector") ||

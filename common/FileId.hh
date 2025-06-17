@@ -65,17 +65,18 @@ public:
   //----------------------------------------------------------------------------
   //! Determine which inode encoding to use
   //----------------------------------------------------------------------------
-  static bool useNewInodes() {
+  static bool useNewInodes()
+  {
     static bool initialized = false;
     static bool useNew = false;
 
-    if(initialized) {
-        return useNew;
+    if (initialized) {
+      return useNew;
     }
 
-    useNew = getenv("EOS_USE_NEW_INODES") != nullptr && getenv("EOS_USE_NEW_INODES")[0] == '1';
+    useNew = getenv("EOS_USE_NEW_INODES") != nullptr &&
+             getenv("EOS_USE_NEW_INODES")[0] == '1';
     initialized = true;
-
     return useNew;
   }
 
@@ -85,7 +86,7 @@ public:
   //----------------------------------------------------------------------------
   static unsigned long long FidToInode(unsigned long long fid)
   {
-    if(useNewInodes()) {
+    if (useNewInodes()) {
       return NewFidToInode(fid);
     }
 
@@ -103,7 +104,7 @@ public:
 
   static bool IsFileInode(unsigned long long ino)
   {
-    if(useNewInodes()) {
+    if (useNewInodes()) {
       return NewIsFileInode(ino);
     }
 
@@ -196,18 +197,23 @@ public:
   //! 30 min.
   //!
   //! @param fsize file size
-  //! @param avg_tx average transfer speed in MB/s, default 30 MB/s
+  //! @param min_tx average transfer speed in MB/s, default 25 MB/s,
+  //!        if 0 then return the default XRootD 30 min timeout
   //!
   //! @return timeout value in seconds
   //----------------------------------------------------------------------------
   static std::chrono::seconds
-  EstimateTpcTimeout(const uint64_t fsize, uint64_t avg_tx = 30)
+  EstimateTpcTimeout(const uint64_t fsize, uint64_t min_tx = 25)
   {
     const uint64_t default_timeout = 1800;
-    uint64_t timeout = fsize / (avg_tx * std::pow(2, 20));
+    uint64_t timeout = default_timeout;
 
-    if (timeout < default_timeout) {
-      timeout = default_timeout;
+    if (min_tx) {
+      timeout = fsize / (min_tx * std::pow(2, 20));
+
+      if (timeout < default_timeout) {
+        timeout = default_timeout;
+      }
     }
 
     return std::chrono::seconds(timeout);
