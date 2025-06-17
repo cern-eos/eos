@@ -46,7 +46,10 @@
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <list>
-#include <sys/time.h>                                                                                                                                                
+#include <sys/time.h>
+#include <unistd.h>
+#include <cstdio>
+
 #include <sys/resource.h> 
 #include <XrdCl/XrdClPostMaster.hh>
 
@@ -848,7 +851,7 @@ Run(int argc, char* argv[])
   XrdOucString grole = "";
   bool selectedrole = false;
   int argindex = 1;
-  int retc = system("test -t 0 && test -t 1");
+  int retc = isatty(fileno(stdin)) && isatty(fileno(stdout));
 
   if (getenv("EOS_ENABLE_PIPEMODE")) {
     runpipe = true;
