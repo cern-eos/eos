@@ -227,10 +227,12 @@ XrdMgmOfs::acc_access(const char* path,
   std::shared_ptr<eos::IContainerMD> dh;
   std::shared_ptr<eos::IFileMD> fh;
   std::string attr_path = cPath.GetPath();
+  uid_t dhCuid;
   bool r_ok = false;
   bool w_ok = false;
   bool x_ok = false;
   bool d_ok = false;
+  bool d_perm_ok = false;
   // ---------------------------------------------------------------------------
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
@@ -282,7 +284,7 @@ XrdMgmOfs::acc_access(const char* path,
     std::unique_ptr<Acl> aclPtr;
     {
       eos::MDLocking::ContainerReadLock dhLock(dh.get());
-
+      dhCuid = dh->getCUid();
       for (auto g : gids) {
         if (dh->access(vid.uid, g, R_OK)) {
           r_ok = true;
@@ -291,6 +293,7 @@ XrdMgmOfs::acc_access(const char* path,
         if (dh->access(vid.uid, g, W_OK)) {
           w_ok = true;
           d_ok = true;
+          d_perm_ok = true;
         }
 
         if (dh->access(vid.uid, g, X_OK)) {
@@ -323,6 +326,12 @@ XrdMgmOfs::acc_access(const char* path,
       // deletion might be overwritten/forbidden
       if (acl.CanNotDelete()) {
         d_ok = false;
+        // The user was probably allowed to delete from above logic, but the ACL prevents them to do so
+        // however if this user is the owner of the directory, they should
+        // be able to delete if the permissions of the directory allow it
+        if(dhCuid == vid.uid && d_perm_ok) {
+          d_ok = true;
+        }
       }
 
       // the r/x are added to the posix permissions already set
