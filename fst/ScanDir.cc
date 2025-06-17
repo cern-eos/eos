@@ -139,6 +139,7 @@ ScanDir::~ScanDir()
   if (mBgThread) {
     mDiskThread.join();
     mNsThread.join();
+    mAltXsThread.join();
     closelog();
   }
 
@@ -351,6 +352,7 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     xs->Finalize();
     auto alt_xs = xs->GetAlternatives();
     CommitAlternativeChecksums(fid, alt_xs);
+    mAltXsRateLimit->Allow();
   };
   eos_info("msg=\"started the alt xs scan thread\" fsid=%lu dirpath=\"%s\" "
            "altxs_scan_interval_sec=%llu", mFsId, mDirPath.c_str(),
