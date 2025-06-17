@@ -233,8 +233,9 @@ BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
 
 %if "%{compiler}" == "clang"
 BuildRequires: clang
+BuildRequires: compiler-rt
 BuildRequires: libatomic
-BuildRequires: gcc-toolset-13-libatomic-devel
+BuildRequires: gcc-toolset-14-libatomic-devel
 Requires: libatomic
 %if 0%{?rhel} == 7
 BuildRequires: llvm-toolset-7.0
@@ -294,6 +295,7 @@ cd build
     source  /opt/rh/llvm-toolset-7.0/enable
     env QA_RPATHS=3 CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH=/lib64/:/usr/lib64/ -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true -DXROOTD_ROOT=/opt/eos/xrootd/ %{build_flags}
   %else
+    source /opt/rh/gcc-toolset-14/enable
     CC=clang CXX=clang++ %{cmake} ../ -DRELEASE=@CPACK_PACKAGE_RELEASE@ -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=true %{build_flags}
   %endif
 %endif

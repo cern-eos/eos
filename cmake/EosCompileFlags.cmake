@@ -69,7 +69,8 @@ endif ()
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Clang requires linking with libatomic
-  link_libraries(atomic)
+  find_package(Atomic REQUIRED)
+  link_libraries(${ATOMIC_LIBRARIES})
 
   add_compile_options(
     -Wno-bitwise-instead-of-logical
