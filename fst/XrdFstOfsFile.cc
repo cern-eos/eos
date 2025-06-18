@@ -278,7 +278,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
       eos_err("msg=\"forbid replica open for synchronization, file %s "
               "opened in RW mode\"", mNsPath.c_str());
-      return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot synchronize "
+      return gOFS.Emsg(epname, error, EBUSY, "open - cannot synchronize "
                        "file opened in RW mode", mNsPath.c_str());
     }
   }
