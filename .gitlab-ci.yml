@@ -76,6 +76,7 @@ workflow:
       when: always
     - when: never
 
+
 .prebuild-template: &prebuild-template_definition
   stage: prebuild
   image:
@@ -91,11 +92,6 @@ workflow:
     variables:
       - $PREBUILD_TRIGGER
 
-prebuild-cc7:
-  extends: .prebuild-template
-  variables:
-    PREBUILD_NAME: cc7
-
 
 prebuild-el8:
   extends: .prebuild-template
@@ -109,6 +105,12 @@ prebuild-el9:
     PREBUILD_NAME: el9
 
 
+prebuild-el10:
+  extends: .prebuild-template
+  variables:
+    PREBUILD_NAME: el10
+
+
 prebuild-el9-arm64:
   extends: .prebuild-template
   variables:
@@ -117,10 +119,10 @@ prebuild-el9-arm64:
     - k8s-arm
 
 
-.prebuild-cc7_coverage:
+.prebuild-el9_coverage:
   extends: .prebuild-template
   variables:
-    PREBUILD_NAME: cc7_coverage
+    PREBUILD_NAME: el9_coverage
   only:
     variables:
       - $COVERAGE_SCHEDULE
@@ -178,15 +180,6 @@ clone_docker:
       - ${BUILD_NAME}_artifacts/
 
 
-.build_cc7:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
-  variables:
-    PKG_MGR: yum
-    BUILD_NAME: cc7
-    CMAKE_BIN: cmake3
-  extends: .build-template
-
-
 build_el8:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el8-${CODENAME}
   variables:
@@ -201,6 +194,13 @@ build_el9:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
     BUILD_NAME: el-9
+  extends: .build-template
+
+
+build_el10:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el10-${CODENAME}
+  variables:
+    BUILD_NAME: el-10
   extends: .build-template
 
 
@@ -354,37 +354,6 @@ build_fedora_rawhide:
   allow_failure: true
 
 
-.build_cc7_asan:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
-  variables:
-    PKG_MGR: yum
-    BUILD_NAME: cc7_asan
-    CMAKE_OPTIONS: "-DASAN=1"
-    RPMBUILD_OPTIONS: "--with server --with asan"
-    CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
-  before_script:
-    - ${PKG_MGR} install -y cmake3 centos-release-scl libasan5
-    - ${PKG_MGR} install -y devtoolset-9-gcc-c++ devtoolset-9-libasan-devel
-  extends: .build_exotic-template
-  when: manual
-
-
-build_client_cc7_tsan:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
-  variables:
-    PKG_MGR: yum
-    BUILD_NAME: cc7_tsan
-    CMAKE_OPTIONS: "-DTSAN=1"
-    RPMBUILD_OPTIONS: "--with tsan"
-    CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
-  before_script:
-    - ${PKG_MGR} install -y cmake3 centos-release-scl
-    - ${PKG_MGR} install -y libtsan --disablerepo=* --enablerepo=centos-sclo-rh
-    - ${PKG_MGR} install -y devtoolset-9-gcc-c++ devtoolset-9-libtsan-devel
-  extends: .build_exotic-template
-  when: manual
-
-
 build_el9_asan:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
@@ -441,11 +410,10 @@ build_cc7_opt_xrootd:
   when: manual
 
 
-build_cc7_coverage:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
+build_el9_coverage:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
-    PKG_MGR: yum
-    BUILD_NAME: cc7_coverage
+    BUILD_NAME: el9_coverage
     RPMBUILD_OPTIONS: "--with coverage"
   only:
     variables:
@@ -481,29 +449,6 @@ build_cc7_coverage:
   retry: 1
 
 
-.cc7_docker_image:
-  extends: .build_dockerimage-template
-  variables:
-    DOCKERFILE: eos-docker/Dockerfile
-    OS_TAG: ".el7"
-  needs:
-    - job: clone_docker
-    - job: build_cc7
-
-
-.cc7_asan_docker_image:
-  extends: .build_dockerimage-template
-  variables:
-    DOCKERFILE: eos-docker/Dockerfile_cc7_asan
-    EXTRA_TAG: "_asan"
-    OS_TAG: ".el7"
-  needs:
-    - job: clone_docker
-    - job: build_cc7_asan
-  when: manual
-  allow_failure: true
-
-
 el9_docker_image:
   extends: .build_dockerimage-template
   variables:
@@ -512,6 +457,15 @@ el9_docker_image:
   needs:
     - job: clone_docker
     - job: build_el9
+
+el10_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DOCKERFILE: eos-docker/Dockerfile_el10
+    OS_TAG: ".el10"
+  needs:
+    - job: clone_docker
+    - job: build_el10
 
 
 el9_asan_docker_image:
@@ -527,15 +481,15 @@ el9_asan_docker_image:
   allow_failure: true
 
 
-.cc7_coverage_docker_image:
+.el9_coverage_docker_image:
   extends: .build_dockerimage-template
   variables:
     DOCKERFILE: eos-docker/Dockerfile_coverage
     EXTRA_TAG: "_coverage"
-    OS_TAG: ".el7"
+    OS_TAG: ".el9"
   needs:
     - job: clone_docker
-    - job: build_cc7_coverage
+    - job: build_el9_coverage
   only:
     variables:
       - $COVERAGE_SCHEDULE
@@ -827,15 +781,6 @@ unit_test_asan:
     - docker_node
     - publish
   when: manual
-
-
-.publish_koji_cc7:
-  <<: *publish_koji_template_definition
-  variables:
-    TARGET: "eos7"
-    BUILD_NAME: "cc7"
-  dependencies:
-    - build_cc7
 
 
 publish_koji_al8:

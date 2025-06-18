@@ -17,7 +17,7 @@ BRANCH=$1
 PATH_PREFIX=$2
 TAG=$3
 
-for arch in "el-7" "el-8" "fc-36" "fc-37" "fc-38"; do
+for arch in "el-8" "el-9" "el-10" "fc-38"; do
   # Find all the srpms matching the required tag
   YUM_REPO_DIR=""
   SEARCH_PREFIX="${PATH_PREFIX}/${BRANCH}/tag/testing/${arch}"
