@@ -278,7 +278,9 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
       eos_err("msg=\"forbid replica open for synchronization, file %s "
               "opened in RW mode\"", mNsPath.c_str());
-      return gOFS.Emsg(epname, error, EBUSY, "open - cannot synchronize "
+      // Return resource temporarily unavailable as EBUSY cannot be used due to XRootD hack
+      // in Emsg() that returns the integer "5" (proxy hack)
+      return gOFS.Emsg(epname, error, EAGAIN, "open - cannot synchronize "
                        "file opened in RW mode", mNsPath.c_str());
     }
   }
