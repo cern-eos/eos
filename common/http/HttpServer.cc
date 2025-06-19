@@ -373,7 +373,7 @@ HttpServer::HttpError(const char* errorText, int errorCode)
     response->SetResponseCode(response->UNPROCESSABLE_ENTITY);
   } else if (errorCode == EPERM || errorCode == EACCES) {
     response->SetResponseCode(response->FORBIDDEN);
-  } else if (errorCode == EBUSY) {
+  } else if (errorCode == EAGAIN) {
     response->SetResponseCode(response->CONFLICT);
   } else {
     response->SetResponseCode(response->INTERNAL_SERVER_ERROR);
