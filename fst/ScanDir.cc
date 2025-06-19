@@ -97,7 +97,8 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
-  mBufferSize(0), mBgThread(bgthread), mClock(fake_clock), mRateLimit(nullptr)
+  mBufferSize(0), mBgThread(bgthread), mClock(fake_clock), mRateLimit(nullptr),
+  mAltXsRateLimit(nullptr)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
                             _PC_REC_XFER_ALIGN);
@@ -276,6 +277,8 @@ void CommitAlternativeChecksums(uint64_t fid,
 void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
 {
   auto compute_alt_xs = [this](const std::string & fpath) {
+    eos_debug("msg=\"running alt xs scan for file '%s'\" fsid=%d", fpath.c_str(),
+              mFsId);
     auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
     if (!fid) {
@@ -284,10 +287,11 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
       return;
     }
 
-    auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId);
+    auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true);
 
     if (!fmd) {
-      // TODO: error
+      eos_warning("msg=\"cannot find fmd object on file '%s' fsid=%d\"",
+                  fpath.c_str(), mFsId);
       return;
     }
 
@@ -300,13 +304,16 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     eos::ns::ContainerMdProto container = std::move(container_fut).get();
     eos::ns::FileMdProto file = std::move(file_fut).get();
     auto cfg = GetAlternativeChecksumsConfig(container);
-    std::vector<eos::common::LayoutId::eChecksum> missing;
+    std::set<eos::common::LayoutId::eChecksum> missing;
 
     for (auto xs : cfg) {
       if (!file.altchecksums().contains(xs)) {
-        missing.emplace_back(xs);
+        missing.emplace(xs);
       }
     }
+
+    eos_debug("msg=\"%d missing alt xs from file '%s' fsid=%d\"", missing.size(),
+              fpath.c_str(), mFsId);
 
     if (missing.size() == 0) {
       // nothing to compute
@@ -319,36 +326,50 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
       xs->AddAlternative(m);
     }
 
-    std::unique_ptr<eos::fst::Layout> layout{eos::fst::LayoutPlugin::GetLayoutObject(nullptr, fmd->mProtoFmd.lid(), nullptr, nullptr, file.name().c_str(), nullptr)};
+    auto parentpath_fut = eos::MetadataFetcher::resolveFullPath(
+                            *gOFS.mFsckQcl.get(),
+                            eos::ContainerIdentifier(fmd->mProtoFmd.cid()));
+    std::string parentpath = std::move(parentpath_fut).get();
+    std::string fullpath = "root://";
+    {
+      XrdSysMutexHelper lock(gConfig.Mutex);
+      fullpath += gConfig.Manager.c_str();
+    }
+    fullpath += "/" + parentpath + "/" + file.name() + "?xrd.wantprot=sss";
+    auto f = std::make_unique<XrdCl::File>();
+    auto status = f->Open(fullpath, XrdCl::OpenFlags::Read);
 
-    if (layout->Open(SFS_O_RDONLY, 0, nullptr)) {
-      eos_static_err("msg=\"\"");
+    if (!status.IsOK()) {
+      eos_err("msg=\"error opening file\" fullpath='%s'\" fsid=%d error='%s'",
+              fullpath.c_str(),
+              mFsId, status.GetErrorMessage().c_str());
       return;
     }
 
-    off_t offset = 0;
+    uint64_t offset = 0;
     constexpr size_t buff_size = 256 * 1024;
     std::unique_ptr<char[]> buffer = std::make_unique<char[]>(buff_size);
-    int64_t nread = 0;
+    uint32_t nread = 0;
 
     while (true) {
-      nread = layout->Read(offset, buffer.get(), buff_size);
+      status = f->Read(offset, buff_size, buffer.get(), nread);
 
-      if (nread == 0) {
-        break; // end of file
+      if (!status.IsOK()) {
+        eos_err("msg=\"error reading file\" fullpath='%s'\" fsid=%d error='%s'",
+                fullpath.c_str(),
+                mFsId, status.GetErrorMessage().c_str());
+        return;
       }
 
-      if (nread < 0) {
-        //error
-        layout->Close();
-        return;
+      if (nread == 0) {
+        // end of file
+        break;
       }
 
       xs->Add(buffer.get(), nread, offset);
       offset += nread;
     }
 
-    layout->Close();
     xs->Finalize();
     auto alt_xs = xs->GetAlternatives();
     CommitAlternativeChecksums(fid, alt_xs);
