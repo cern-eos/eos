@@ -376,6 +376,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
             (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
             (key == eos::common::SCAN_NS_RATE_NAME) ||
+            (key == eos::common::SCAN_ALT_XS_RATE_NAME) ||
+            (key == eos::common::SCAN_ALT_XS_INTERVAL_NAME) ||
             (key == "max.ropen" || (key == "max.wopen")) ||
             (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod") || (key == "proxygroup") ||
@@ -422,6 +424,8 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
             (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
             (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
             (key == eos::common::SCAN_NS_RATE_NAME) ||
+            (key == eos::common::SCAN_ALT_XS_RATE_NAME) ||
+            (key == eos::common::SCAN_ALT_XS_INTERVAL_NAME) ||
             (key == "headroom") || (key == "graceperiod") ||
             (key == "drainperiod")) {
           fs->SetLongLong(key.c_str(),
