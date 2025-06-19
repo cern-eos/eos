@@ -114,9 +114,18 @@ public:
     mChecksums[t] = std::move(xs);
   }
 
+  //----------------------------------------------------------------------------
+  //! Add an alternative checksum to the group
+  //!
+  //! @param xs checksum type
+  //----------------------------------------------------------------------------
   void AddAlternative(eos::common::LayoutId::eChecksum xs)
   {
-    AddAlternative(ChecksumPlugins::GetXsObj(xs), xs);
+    auto obj = ChecksumPlugins::GetXsObj(xs);
+
+    if (obj) {
+      AddAlternative(obj, xs);
+    }
   }
 
   //----------------------------------------------------------------------------
