@@ -404,6 +404,64 @@ XrdMgmOfs::Commit(const char* path,
                     "atomic upload - discarding atomic upload [EREMCHG]", "");
       }
     }
+  } else if (CommitHelper::check_altchecksums_commit_params(cgi)) {
+    unsigned long long fid = std::stoull(cgi["fid"], 0, 16);
+    {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
+      eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+      std::shared_ptr<eos::IFileMD> fmd;
+      std::string emsg;
+
+      try {
+        fmd = gOFS->eosFileService->getFileMD(fid);
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        eos_thread_debug("msg=\"exception\" ec=%d emsg=\"%s\"",
+                         e.getErrno(), e.getMessage().str().c_str());
+        emsg = "retc=";
+        emsg += e.getErrno();
+        emsg += " msg=";
+        emsg += e.getMessage().str().c_str();
+      }
+
+      if (!fmd) {
+        if (errno == ENOENT) {
+          return Emsg(epname, error, ENOENT,
+                      "commit - file is already removed [EIDRM]", "");
+        }
+
+        emsg.insert(0, "commit filesize change [EIO]");
+        return Emsg(epname, error, errno, emsg.c_str(), cgi["path"].c_str());
+      }
+
+      std::vector<std::string> tkns;
+      std::vector<std::string> name2xs;
+      eos::common::StringConversion::Tokenize(cgi["altchecksums"], tkns, ",");
+
+      for (const auto& tkn : tkns) {
+        name2xs.clear();
+        eos::common::StringConversion::Tokenize(tkn, name2xs, ":");
+
+        if (name2xs.size() != 2) {
+          // the entry is not valid
+          continue;
+        }
+
+        auto checksumType = eos::common::LayoutId::GetChecksumFromString(name2xs[0]);
+        auto xs = name2xs[1];
+        fmd->addAlternativeChecksum(static_cast<eos::common::LayoutId::eChecksum>
+                                    (checksumType), xs.c_str(), xs.size());
+      }
+
+      eos::ContainerIdentifier p_ident;
+
+      if (!CommitHelper::commit_fmd(vid, fmd->getContainerId(), fmd, fmd->getSize(),
+                                    option, emsg, p_ident)) {
+        return Emsg(epname, error, errno, "commit filesize change", emsg.c_str());
+      }
+
+      eos_info("msg=\"committed alternative checksums\" fid=%08llx", fid);
+    }
   } else {
     int envlen = 0;
     eos_thread_err("commit message does not contain all meta information: %s",
