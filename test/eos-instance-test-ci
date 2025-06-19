@@ -42,6 +42,7 @@ function run_test_script() {
 run_test_script "MQ" eos-mq-tests "${1:-'eos-mq.eoscluster.cern.ch'}"
 run_test_script "drain" eos-drain-test localhost
 run_test_script "balance" eos-balance-test localhost
+run_test_script "altxs" eos-altxs-test localhost
 
 if [[ $(eos qos list) ]]; then
   run_test_script "qos" eos-qos-test dockertest
