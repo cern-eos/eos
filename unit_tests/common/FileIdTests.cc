@@ -32,8 +32,8 @@ TEST(FileId, EstimateTpcTimeout)
 {
   using eos::common::FileId;
   ASSERT_EQ(FileId::EstimateTpcTimeout(1).count(), 1800);
-  ASSERT_EQ(FileId::EstimateTpcTimeout(50 * GB).count(), 1800);
-  ASSERT_EQ(FileId::EstimateTpcTimeout(60 * GB).count(), 2048);
+  ASSERT_EQ(FileId::EstimateTpcTimeout(50 * GB).count(), 2048);
+  ASSERT_EQ(FileId::EstimateTpcTimeout(60 * GB, 30).count(), 2048);
   ASSERT_EQ(FileId::EstimateTpcTimeout(100 * GB, 100).count(), 1800);
   ASSERT_EQ(FileId::EstimateTpcTimeout(250 * GB, 100).count(), 2560);
 }
