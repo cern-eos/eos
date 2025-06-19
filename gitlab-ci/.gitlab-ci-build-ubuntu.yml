@@ -64,7 +64,6 @@
   only:
     - schedules
     - tags
-    - master
 
 
 ubuntu-jammy:
@@ -115,7 +114,6 @@ publish_debian:
   only:
     - schedules
     - tags
-    - master
 
 
 .clean_debian_artifacts:
