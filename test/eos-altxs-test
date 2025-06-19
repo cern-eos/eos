@@ -1,0 +1,127 @@
+#!/bin/bash
+
+#------------------------------------------------------------------------------
+# File: eos-altxs-test
+# Author: Gianmaria Del Monte - CERN
+#------------------------------------------------------------------------------
+
+#/************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2025 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************/
+
+set -x
+
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+source ${SCRIPTPATH}/eos-test-utils
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $0 <eos_mgm_hostname>"
+  exit 1
+fi
+
+function compute_xs() {
+  local type=$1
+  local file=$2
+
+  case $type in
+    md5)
+      md5sum "${file}" | awk '{print $1}'
+      ;;
+
+    sha)
+      sha1sum "${file}" | awk '{print $1}'
+      ;;
+
+    sha256)
+      sha256sum "${file}" | awk '{print $1}'
+      ;;
+
+    adler)
+      eos-adler32 "${file}" | awk -F'adler32=' '{print $2}'
+      ;;
+
+    *)
+      echo "Checksum type not recognised"
+      exit 1
+      ;;
+  esac
+}
+
+function check_checksums() {
+  local eos_file=$1
+  local local_file=$2
+  local checksums=($3)
+
+  altchecksums=$(eos -j root://$EOS_MGM_HOSTNAME file info "$eos_file" | jq '.altchecksums')
+  if [[ $(jq 'length' <<< $altchecksums) -ne "${#checksums[@]}" ]]; then
+    return 1    
+  fi
+
+  for xs in "${altchecksums[@]}"; do
+    stored=$(jq ".[] | select(.type==\"${xs}\") | .value" <<< $altchecksums)
+    if [ -z "${stored}" ]; then
+      echo "$xs checksum expected to be stored, but not found"
+      return 1
+    fi
+
+    computed=$(compute_xs $xs "${local_file}")
+    if [[ "${stored}" != "${computed}" ]]; then
+      echo "$xs checksums differ: stored=\"$stored\" computed=\"$computed\""
+      return 1
+    fi
+  done
+
+  return 0
+}
+
+EOS_MGM_HOSTNAME=$1
+EOS_ALTXS_TEST=/eos/dockertest/altxs_test
+
+# Create dummy test files
+TEST_FILE=/var/tmp/file_altxs.dat
+
+dd if=/dev/urandom of=${TEST_FILE} bs=1M count=16 &> /dev/null
+
+# Test 1
+# Disable ScanDir thread for computing alternative checksums and
+# enable on the EOS directory the alternative checksums and check
+# if they were computed
+
+for fsid in $(eos -j fs ls | jq '.result[].id'); do
+  eos fs config ${fsod} scan_alt_xs_interval=0
+done
+
+eos mkdir -p ${EOS_ALTXS_TEST}/enabled
+eos attr set sys.altchecksums="md5,sha1" ${EOS_ALTXS_TEST}/enabled
+xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/enabled/altxs.dat
+sleep 5 # Wait the FST to commit the alt checksums
+if ! check_checksums "${EOS_ALTXS_TEST}/enabled/altxs.dat" "${TEST_FILE}" "md5 sha1"; then
+  exit 1
+fi
+
+# Test 2
+# Enable alternative checksums after having uplaoded the file
+eos mkdir -p ${EOS_ALTXS_TEST}/disabled
+eos attr rm sys.altchecksums ${EOS_ALTXS_TEST}/disabled
+xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/disabled/altxs.dat
+eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/disabled
+
+for fsid in $(eos -j fs ls | jq '.result[].id'); do
+  eos fs config ${fsod} scan_alt_xs_interval=5
+done
+
+check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/disabled/altxs.dat\" \"${TEST_FILE}\" \"md5 sha1 sha256\""
