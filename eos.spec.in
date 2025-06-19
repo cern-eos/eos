@@ -187,8 +187,8 @@ Requires: bzip2-devel
 BuildRequires: elfutils-devel
 Requires: elfutils-devel
 
-BuildRequires: procps-ng-devel >= 3.3.10, procps-ng-devel < 4.0.0
-Requires: procps-ng >= 3.3.10, procps-ng < 4.0.0
+BuildRequires: procps-ng-devel >= 3.3.10
+Requires: procps-ng >= 3.3.10
 
 BuildRequires: zlib-static,
 BuildRequires: libcurl, libcurl-devel
