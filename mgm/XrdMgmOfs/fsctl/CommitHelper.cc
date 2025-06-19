@@ -208,6 +208,10 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
   if (env.Get("mgm.altchecksums")) {
     cgi["altchecksums"] = env.Get("mgm.altchecksums");
   }
+
+  if (env.Get("mgm.commit.altchecksums")) {
+    cgi["commit_altxs"] = env.Get("mgm.commit.altchecksums");
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -333,6 +337,16 @@ CommitHelper::check_commit_params(CommitHelper::cgi_t& cgi)
 {
   return cgi["size"].length() && cgi["fid"].length() && cgi["path"].length() &&
          cgi["fsid"].length() && cgi["mtime"].length() && cgi["mtimensec"].length();
+}
+
+//------------------------------------------------------------------------------
+// check proper altchecksums commit parameter
+//------------------------------------------------------------------------------
+
+bool CommitHelper::check_altchecksums_commit_params(CommitHelper::cgi_t& cgi)
+{
+  return cgi["commit_altxs"].length() && cgi["altchecksums"].length() &&
+         cgi["fid"].length();
 }
 
 //------------------------------------------------------------------------------
