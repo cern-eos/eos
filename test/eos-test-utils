@@ -85,3 +85,28 @@ function cp_file_with_xattr_cmd_local() {
 function get_podname () {
   kubectl get pods -n "$K8S_NAMESPACE" --no-headers -o custom-columns=":metadata.name" -l app="${1}"
 }
+
+function check_until_no_errors() {
+  local func=$1
+  local max_delay=$2
+
+  local start_time=$(date +%s)
+
+  while
+    local current_time=$(date +%s)
+    if ! eval "${func}"; then
+       if (( $((${current_time} - ${start_time})) >= ${max_delay} )); then
+        echo "error: failed to check"
+        exit 1
+      else
+        echo "info: sleep for 5 seconds, `secs_to_human $((${current_time} - ${start_time}))` passed"
+        sleep 5
+      fi
+    else
+      echo "info: test passed"
+      false # to end the loop
+    fi
+  do
+    :
+  done
+}
