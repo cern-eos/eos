@@ -205,6 +205,9 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 
     ApplyRule(rule_map, acl_pos);
     new_acl_val = GenerateAclString(rule_map);
+    std::ostringstream oss;
+    oss << "msg=\"ACL change from " << dir_acls << " to " << new_acl_val << "\" path=\"" << acl.path() << "\"";
+    eos_info(oss.str().c_str());
 
     // Set xattr taking the namespace lock
     if (gOFS->_attr_set(elem.c_str(), error, mVid, 0, acl_key.c_str(),
