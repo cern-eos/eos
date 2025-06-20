@@ -115,7 +115,7 @@ public:
   //! @param assistant thread running the job
   //----------------------------------------------------------------------------
   void ScanFsTree(ThreadAssistant& assistant, ScanFunc f,
-                  bool skip_internal = true) noexcept;
+                  bool skip_internal = true, const WaitInterval* interval = nullptr) noexcept;
 
   void CheckTree(ThreadAssistant& assistant) noexcept;
 
