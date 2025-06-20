@@ -43,7 +43,9 @@ std::set<std::string> FileSystem::sFsUpdateKeys {
   eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME,
   eos::common::SCAN_DISK_INTERVAL_NAME,
   eos::common::SCAN_NS_INTERVAL_NAME,
-  eos::common::SCAN_NS_RATE_NAME };
+  eos::common::SCAN_NS_RATE_NAME,
+  eos::common::SCAN_ALT_XS_RATE_NAME,
+  eos::common::SCAN_ALT_XS_INTERVAL_NAME };
 
 //------------------------------------------------------------------------------
 // Constructor

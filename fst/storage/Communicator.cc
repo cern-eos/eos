@@ -508,7 +508,9 @@ Storage::FsConfigUpdate(ThreadAssistant& assistant) noexcept
         (upd.key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
         (upd.key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
         (upd.key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-        (upd.key == eos::common::SCAN_NS_RATE_NAME)) {
+        (upd.key == eos::common::SCAN_NS_RATE_NAME) ||
+        (upd.key == eos::common::SCAN_ALT_XS_RATE_NAME) ||
+        (upd.key == eos::common::SCAN_ALT_XS_INTERVAL_NAME)) {
       try {
         long long val = std::stoll(upd.value);
 

@@ -398,10 +398,14 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
   if (!mAltXsInterval.wait_if_zero(assistant)) {
     // Get a random smearing and avoid that all start at the same time
     size_t sleep_time = (1.0 * mAltXsInterval.get() * random() / RAND_MAX);
+    eos_info("msg=\"pausing alt xs scan thread\" time=%d fsid=%d", sleep_time,
+             mFsId);
     assistant.wait_for(std::chrono::seconds(sleep_time));
   }
 
   while (!assistant.terminationRequested()) {
+    eos_info("msg=\"starting alternative checksum computation cycle\" fsid=%d",
+             mFsId);
     ScanFsTree(assistant, compute_alt_xs, true, &mAltXsInterval);
     mAltXsInterval.wait(assistant, true);
   }
