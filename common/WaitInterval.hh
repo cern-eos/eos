@@ -81,6 +81,19 @@ public:
     }
   }
 
+  //------------------------------------------------------------------------------
+  //! wait pauses the execution of the current thread until an amout of <interval>
+  //! seconds has passed or the thread has been terminated.
+  //! The wait time <interval> can be changed while one thread is sleeping. If
+  //! this happens, the wait time will change accordingly.
+  //! If the <interval> value is zero and the flag <zero_forever> is true
+  //! the thread will sleep forever. If the flag is false (default bahaviour),
+  //! the thread will not sleep.
+  //!
+  //! @param assistant thread running the job
+  //! @param zero_forever if true indicates that if the <interval> value is 0
+  //!                     the sleep time is forever
+  //------------------------------------------------------------------------------
   void wait(ThreadAssistant& assistant, bool zero_forever = false) const
   {
     registerNotifyCallback(assistant);
@@ -121,6 +134,14 @@ public:
     }
   }
 
+  //------------------------------------------------------------------------------
+  //! wait_if_zero pauses the execution of the current thread forever. The only
+  //! way of resuming the thread is to set a value for the interval different
+  //! from zero, or requesting the termination of the thread.
+  //!
+  //! @param assistant thread running the job
+  //! @return true if the thread waited, false if it didn't wait
+  //------------------------------------------------------------------------------
   bool wait_if_zero(ThreadAssistant& assistant) const
   {
     registerNotifyCallback(assistant);
