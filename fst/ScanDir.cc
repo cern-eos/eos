@@ -52,6 +52,7 @@
 #ifndef __APPLE__
 #include <sys/syscall.h>
 #include <asm/unistd.h>
+#include <algorithm>
 #endif
 
 
@@ -222,7 +223,7 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
 
 namespace
 {
-std::vector<eos::common::LayoutId::eChecksum> GetAlternativeChecksumsConfig(
+std::set<eos::common::LayoutId::eChecksum> GetAlternativeChecksumsConfig(
   const eos::ns::ContainerMdProto& container)
 {
   if (!container.xattrs().contains(eos::mgm::SYS_ALTCHECKSUMS)) {
@@ -232,19 +233,55 @@ std::vector<eos::common::LayoutId::eChecksum> GetAlternativeChecksumsConfig(
   std::vector<std::string> tokens;
   auto xs_str = container.xattrs().at(eos::mgm::SYS_ALTCHECKSUMS);
   eos::common::StringConversion::Tokenize(xs_str, tokens, ",");
-  std::vector<eos::common::LayoutId::eChecksum> alt_xs;
-  alt_xs.resize(tokens.size());
+  std::set<eos::common::LayoutId::eChecksum> alt_xs;
 
   for (const auto& tkn : tokens) {
     auto xs = eos::common::LayoutId::GetChecksumFromString(tkn);
-    alt_xs.emplace_back(static_cast<eos::common::LayoutId::eChecksum>(xs));
+    alt_xs.emplace(static_cast<eos::common::LayoutId::eChecksum>(xs));
   }
 
   return alt_xs;
 }
 
+std::set<eos::common::LayoutId::eChecksum> ExtractAltXsOnFile(
+  eos::ns::FileMdProto& file)
+{
+  std::set<eos::common::LayoutId::eChecksum> alt_xs;
+
+  for (const auto& [xs, _] : file.altchecksums()) {
+    alt_xs.emplace(static_cast<eos::common::LayoutId::eChecksum>(xs));
+  }
+
+  return alt_xs;
+}
+
+std::map<eos::common::LayoutId::eChecksum, std::string>
+PrepareAltXsResponse(eos::fst::ChecksumGroup* xs, eos::ns::FileMdProto& file,
+                     const std::set<eos::common::LayoutId::eChecksum> from_file)
+{
+  std::map<eos::common::LayoutId::eChecksum, std::string> altxs;
+  auto computed = xs->GetAlternatives();
+
+  for (const auto& [type, xs] : computed) {
+    altxs.insert({type, xs->GetHexChecksum()});
+  }
+
+  for (const auto xs : from_file) {
+    auto it = file.altchecksums().find(xs);
+
+    if (it == file.altchecksums().end()) {
+      // This should never happen
+      continue;
+    }
+
+    altxs.insert({xs, it->second});
+  }
+
+  return altxs;
+}
+
 void CommitAlternativeChecksums(uint64_t fid,
-                                std::map<eos::common::LayoutId::eChecksum, eos::fst::CheckSum*> alt_xs)
+                                std::map<eos::common::LayoutId::eChecksum, std::string> alt_xs)
 {
   XrdOucString capOpaqueFile = "";
   XrdOucString mTimeString = "";
@@ -255,9 +292,9 @@ void CommitAlternativeChecksums(uint64_t fid,
   capOpaqueFile += "&mgm.commit.altchecksums=1";
   std::vector<std::string> alt;
 
-  for (auto const [type, xs] : alt_xs) {
+  for (auto const& [type, xs] : alt_xs) {
     alt.emplace_back(std::string(eos::common::LayoutId::GetChecksumString(
-                                   type)) + ":" + xs->GetHexChecksum());
+                                   type)) + ":" + xs);
   }
 
   capOpaqueFile += "&mgm.altchecksums=";
@@ -305,25 +342,46 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     eos::ns::ContainerMdProto container = std::move(container_fut).get();
     eos::ns::FileMdProto file = std::move(file_fut).get();
     auto cfg = GetAlternativeChecksumsConfig(container);
-    std::set<eos::common::LayoutId::eChecksum> missing;
-
-    for (auto xs : cfg) {
-      if (!file.altchecksums().contains(xs)) {
-        missing.emplace(xs);
-      }
-    }
-
-    eos_debug("msg=\"%d missing alt xs from file '%s' fsid=%d\"", missing.size(),
+    auto on_file = ExtractAltXsOnFile(file);
+    std::set<eos::common::LayoutId::eChecksum> to_compute;
+    std::set<eos::common::LayoutId::eChecksum> common;
+    std::set_intersection(cfg.begin(), cfg.end(), on_file.begin(), on_file.end(),
+                          std::inserter(common, common.begin()));
+    std::set_difference(cfg.begin(), cfg.end(), common.begin(), common.end(),
+                        std::inserter(to_compute, to_compute.begin()));
+    eos_debug("msg=\"%d alt xs to compute for file '%s' fsid=%d\"",
+              to_compute.size(),
               fpath.c_str(), mFsId);
 
-    if (missing.size() == 0) {
+    if (to_compute.size() == 0) {
       // nothing to compute
+      if (on_file.size() != cfg.size()) {
+        eos_debug("msg=\"on_file size=%d cfg size=%d fsid=%d\"", on_file.size(),
+                  cfg.size(), mFsId);
+        // we just have to hold the ones from the config
+        // these are already available on the file
+        std::map<eos::common::LayoutId::eChecksum, std::string> to_commit;
+
+        for (const auto& type : cfg) {
+          auto it = file.altchecksums().find(type);
+
+          if (it == file.altchecksums().end()) {
+            // This should never happen
+            continue;
+          }
+
+          to_commit.insert({static_cast<eos::common::LayoutId::eChecksum>(type), it->second});
+        }
+
+        CommitAlternativeChecksums(fid, to_commit);
+      }
+
       return;
     }
 
     std::unique_ptr<eos::fst::ChecksumGroup> xs{new eos::fst::ChecksumGroup};
 
-    for (auto m : missing) {
+    for (auto m : to_compute) {
       xs->AddAlternative(m);
     }
 
@@ -372,7 +430,7 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     }
 
     xs->Finalize();
-    auto alt_xs = xs->GetAlternatives();
+    auto alt_xs = PrepareAltXsResponse(xs.get(), file, common);
     CommitAlternativeChecksums(fid, alt_xs);
   };
   eos_info("msg=\"started the alt xs scan thread\" fsid=%lu dirpath=\"%s\" "
