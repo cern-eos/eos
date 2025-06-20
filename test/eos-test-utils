@@ -110,3 +110,10 @@ function check_until_no_errors() {
     :
   done
 }
+
+function fail_on_error() {
+  "$@"
+  if [[ $? -ne 0 ]]; then
+    exit 1
+  fi
+}
