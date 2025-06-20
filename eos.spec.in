@@ -843,6 +843,7 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-rain-test
 %{_sbindir}/eos-drain-test
 %{_sbindir}/eos-balance-test
+%{_sbindir}/eos-altxs-test
 %{_sbindir}/eos-convert-test
 %{_sbindir}/eos-test-utils
 %{_sbindir}/eos-fsck-test
