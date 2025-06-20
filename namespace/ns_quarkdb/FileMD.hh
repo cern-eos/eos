@@ -745,6 +745,8 @@ public:
   std::map<eos::common::LayoutId::eChecksum, std::string>
   getAlternativeChecksums() const override;
 
+  void clearAlternativeChecksums() override;
+
 protected:
   IFileMDSvc* pFileMDSvc;
 

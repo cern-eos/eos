@@ -213,6 +213,8 @@ public:
   virtual std::map<eos::common::LayoutId::eChecksum, std::string>
   getAlternativeChecksums() const = 0;
 
+  virtual void clearAlternativeChecksums() = 0;
+
   //----------------------------------------------------------------------------
   //! Get name
   //----------------------------------------------------------------------------

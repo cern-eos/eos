@@ -645,6 +645,13 @@ void QuarkFileMD::addAlternativeChecksum(eos::common::LayoutId::eChecksum
   });
 }
 
+void QuarkFileMD::clearAlternativeChecksums()
+{
+  runWriteOp([this]() {
+    mFile.mutable_altchecksums()->clear();
+  });
+}
+
 std::map<eos::common::LayoutId::eChecksum, std::string>
 QuarkFileMD::getAlternativeChecksums() const
 {
