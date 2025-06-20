@@ -178,7 +178,7 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
   eos-udp-dumper eos-mmap eos-io-tool
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
 
-install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci
+install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
   fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test eos-accounting-test
   eos-file-cont-detached-test eos-lru-test eos-oc-test eos-drain-test eos-groupdrain-test eos-mq-tests
   eos-http-upload-test eos-https-functional-test eos-token-test
