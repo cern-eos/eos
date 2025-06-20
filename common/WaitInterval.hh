@@ -100,22 +100,21 @@ public:
     std::unique_lock lock(mMutex);
 
     while (true) {
-      if (zero_forever && mIntervalSec == 0) {
-        mCv.wait(lock);
+      if (mIntervalSec == 0) {
+        if (zero_forever) {
+          mCv.wait(lock);
+        } else {
+          return;
+        }
       }
 
       const auto start = std::chrono::steady_clock::now();
       uint64_t remaining = mIntervalSec;
 
       while (remaining > 0) {
-        if (mCv.wait_for(lock, std::chrono::seconds(remaining), [this, &start,
-              &assistant]() {
-        const auto elapsed = std::chrono::steady_clock::now() - start;
-          return assistant.terminationRequested() ||
-                 elapsed >= std::chrono::seconds(mIntervalSec);
-        })) {
-          // either the thread has been cancelled or the thread
-          // waited enough time
+        auto status = mCv.wait_for(lock, std::chrono::seconds(remaining));
+
+        if (status == std::cv_status::timeout || assistant.terminationRequested()) {
           return;
         }
 
