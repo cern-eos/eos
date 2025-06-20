@@ -404,9 +404,9 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
   }
 
   while (!assistant.terminationRequested()) {
-    eos_info("msg=\"starting alternative checksum computation cycle\" fsid=%d",
-             mFsId);
+    eos_info("msg=\"starting alt xs scan thread loop\" fsid=%d", mFsId);
     ScanFsTree(assistant, compute_alt_xs, true, &mAltXsInterval);
+    eos_info("msg=\"finished alt xs scan thread loop\" fsid=%d", mFsId);
     mAltXsInterval.wait(assistant, true);
   }
 }
