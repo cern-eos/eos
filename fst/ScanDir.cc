@@ -402,7 +402,7 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
   }
 
   while (!assistant.terminationRequested()) {
-    ScanFsTree(assistant, compute_alt_xs);
+    ScanFsTree(assistant, compute_alt_xs, true, &mAltXsInterval);
     mAltXsInterval.wait(assistant, true);
   }
 }
