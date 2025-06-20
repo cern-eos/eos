@@ -74,36 +74,64 @@ public:
   void set(const uint64_t new_value_sec)
   {
     const std::lock_guard lock(mMutex);
-    mIntervalSec = new_value_sec;
-    mCv.notify_all();
+
+    if (mIntervalSec != new_value_sec) {
+      mIntervalSec = new_value_sec;
+      mCv.notify_all();
+    }
   }
 
-  void wait(ThreadAssistant& assistant) const
+  void wait(ThreadAssistant& assistant, bool zero_forever = false) const
   {
-    std::call_once(mRegistered, [this](ThreadAssistant & assistant) {
-      assistant.registerCallback([this]() {
-        mCv.notify_all();
-      });
-    }, assistant);
-    const auto start = std::chrono::steady_clock::now();
-    uint64_t remaining = mIntervalSec;
+    registerNotifyCallback(assistant);
     std::unique_lock lock(mMutex);
 
-    while (remaining > 0) {
-      if (mCv.wait_for(lock, std::chrono::seconds(remaining), [this, &start,
-            &assistant]() {
-      const auto elapsed = std::chrono::steady_clock::now() - start;
-        return assistant.terminationRequested() ||
-               elapsed >= std::chrono::seconds(mIntervalSec);
-      })) {
-        // either the thread has been cancelled or the thread
-        // waited enough time
+    while (true) {
+      if (zero_forever && mIntervalSec == 0) {
+        mCv.wait(lock);
+      }
+
+      const auto start = std::chrono::steady_clock::now();
+      uint64_t remaining = mIntervalSec;
+
+      while (remaining > 0) {
+        if (mCv.wait_for(lock, std::chrono::seconds(remaining), [this, &start,
+              &assistant]() {
+        const auto elapsed = std::chrono::steady_clock::now() - start;
+          return assistant.terminationRequested() ||
+                 elapsed >= std::chrono::seconds(mIntervalSec);
+        })) {
+          // either the thread has been cancelled or the thread
+          // waited enough time
+          return;
+        }
+
+        if (mIntervalSec == 0) {
+          break;
+        }
+
+        const auto elapsed = std::chrono::steady_clock::now() - start;
+        remaining =  mIntervalSec - std::chrono::duration_cast<std::chrono::seconds>
+                     (elapsed).count();
+      }
+
+      if (mIntervalSec > 0) {
         return;
       }
-      const auto elapsed = std::chrono::steady_clock::now() - start;
-      remaining =  mIntervalSec - std::chrono::duration_cast<std::chrono::seconds>
-                   (elapsed).count();
     }
+  }
+
+  bool wait_if_zero(ThreadAssistant& assistant) const
+  {
+    registerNotifyCallback(assistant);
+    std::unique_lock lock(mMutex);
+
+    if (mIntervalSec == 0) {
+      mCv.wait(lock);
+      return true;
+    }
+
+    return false;
   }
 
 private:
@@ -111,4 +139,13 @@ private:
   mutable std::condition_variable mCv;
   mutable std::mutex mMutex;
   mutable std::once_flag mRegistered;
+
+  void registerNotifyCallback(ThreadAssistant& assistant) const
+  {
+    std::call_once(mRegistered, [this](ThreadAssistant & assistant) {
+      assistant.registerCallback([this]() {
+        mCv.notify_all();
+      });
+    }, assistant);
+  }
 };
