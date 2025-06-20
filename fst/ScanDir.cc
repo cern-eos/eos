@@ -277,6 +277,7 @@ void CommitAlternativeChecksums(uint64_t fid,
 void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
 {
   auto compute_alt_xs = [this](const std::string & fpath) {
+    mAltXsRateLimit->Allow();
     eos_debug("msg=\"running alt xs scan for file '%s'\" fsid=%d", fpath.c_str(),
               mFsId);
     auto fid = eos::common::FileId::PathToFid(fpath.c_str());
@@ -373,7 +374,6 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     xs->Finalize();
     auto alt_xs = xs->GetAlternatives();
     CommitAlternativeChecksums(fid, alt_xs);
-    mAltXsRateLimit->Allow();
   };
   eos_info("msg=\"started the alt xs scan thread\" fsid=%lu dirpath=\"%s\" "
            "altxs_scan_interval_sec=%llu", mFsId, mDirPath.c_str(),
@@ -395,9 +395,15 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     }
   }
 
+  if (!mAltXsInterval.wait_if_zero(assistant)) {
+    // Get a random smearing and avoid that all start at the same time
+    size_t sleep_time = (1.0 * mAltXsInterval.get() * random() / RAND_MAX);
+    assistant.wait_for(std::chrono::seconds(sleep_time));
+  }
+
   while (!assistant.terminationRequested()) {
     ScanFsTree(assistant, compute_alt_xs);
-    mAltXsInterval.wait(assistant);
+    mAltXsInterval.wait(assistant, true);
   }
 }
 
@@ -691,7 +697,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 }
 
 void ScanDir::ScanFsTree(ThreadAssistant& assistant, ScanFunc f,
-                         bool skip_internal) noexcept
+                         bool skip_internal, const WaitInterval* interval) noexcept
 {
   std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(
                                mDirPath.c_str()));
@@ -714,6 +720,10 @@ void ScanDir::ScanFsTree(ThreadAssistant& assistant, ScanFunc f,
   while ((fpath = io->ftsRead(handle.get())) != "") {
     if (!mBgThread) {
       fprintf(stderr, "[ScanDir] processing file %s\n", fpath.c_str());
+    }
+
+    if (interval) {
+      interval->wait_if_zero(assistant);
     }
 
     if (assistant.terminationRequested()) {
