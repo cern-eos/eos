@@ -130,8 +130,6 @@ SymKey::HmacSha256(const std::string& key,
   unsigned char* pData = (unsigned char*)data.data();
   result.resize(resultSize);
   unsigned char* presult = (unsigned char*)result.c_str();
-  ENGINE_load_builtin_engines();
-  ENGINE_register_all_complete();
   HMAC_Init_ex(ctx, pKey, key_len, EVP_sha256(), NULL);
 
   while (data_len > blockSize) {
@@ -644,7 +642,7 @@ SymKey::ProtobufBase64Encode(const google::protobuf::Message* msg,
 #else
   auto sz = msg->ByteSizeLong();
 #endif
-  std::string buffer(sz , '\0');
+  std::string buffer(sz, '\0');
   google::protobuf::io::ArrayOutputStream aos((void*)buffer.data(), sz);
 
   if (!msg->SerializeToZeroCopyStream(&aos)) {
