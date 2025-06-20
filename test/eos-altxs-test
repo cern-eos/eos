@@ -71,8 +71,8 @@ function check_checksums() {
     return 1    
   fi
 
-  for xs in "${altchecksums[@]}"; do
-    stored=$(jq ".[] | select(.type==\"${xs}\") | .value" <<< $altchecksums)
+  for xs in "${checksums[@]}"; do
+    stored=$(jq -r ".[] | select(.type==\"${xs}\") | .value" <<< $altchecksums)
     if [ -z "${stored}" ]; then
       echo "$xs checksum expected to be stored, but not found"
       return 1
@@ -88,40 +88,82 @@ function check_checksums() {
   return 0
 }
 
+function enable_altxs_scan() {
+  local time=$1
+  for fsid in $(eos -j fs ls | jq '.result[].id'); do
+    eos fs config ${fsid} scan_alt_xs_interval=${time}
+  done
+}
+
+function disable_altxs_scan() {
+  enable_altxs_scan 0
+}
+
 EOS_MGM_HOSTNAME=$1
 EOS_ALTXS_TEST=/eos/dockertest/altxs_test
 
 # Create dummy test files
 TEST_FILE=/var/tmp/file_altxs.dat
+TEST_FILE2=/var/tmp/file_altxs.dat
 
 dd if=/dev/urandom of=${TEST_FILE} bs=1M count=16 &> /dev/null
+dd if=/dev/urandom of=${TEST_FILE2} bs=1M count=64 &> /dev/null
 
 # Test 1
 # Disable ScanDir thread for computing alternative checksums and
 # enable on the EOS directory the alternative checksums and check
 # if they were computed
-
-for fsid in $(eos -j fs ls | jq '.result[].id'); do
-  eos fs config ${fsod} scan_alt_xs_interval=0
-done
-
+disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/enabled
 eos attr set sys.altchecksums="md5,sha1" ${EOS_ALTXS_TEST}/enabled
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/enabled/altxs.dat
 sleep 5 # Wait the FST to commit the alt checksums
-if ! check_checksums "${EOS_ALTXS_TEST}/enabled/altxs.dat" "${TEST_FILE}" "md5 sha1"; then
-  exit 1
-fi
+fail_on_error check_checksums "${EOS_ALTXS_TEST}/enabled/altxs.dat" "${TEST_FILE}" "md5 sha"
 
 # Test 2
 # Enable alternative checksums after having uplaoded the file
 eos mkdir -p ${EOS_ALTXS_TEST}/disabled
-eos attr rm sys.altchecksums ${EOS_ALTXS_TEST}/disabled
+eos attr rm sys.altchecksums ${EOS_ALTXS_TEST}/disabled || true
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/disabled/altxs.dat
 eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/disabled
+enable_altxs_scan 5
+check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/disabled/altxs.dat\" \"${TEST_FILE}\" \"md5 sha sha256\"" 300
 
-for fsid in $(eos -j fs ls | jq '.result[].id'); do
-  eos fs config ${fsod} scan_alt_xs_interval=5
-done
+# Test 3
+# Check if updating the file, the alternative checksums are updated accordingly
+disable_altxs_scan
+eos mkdir -p ${EOS_ALTXS_TEST}/updated
+eos attr set sys.altchecksums="sha1,sha256" ${EOS_ALTXS_TEST}/updated
+xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/updated/altxs.dat
+xrdcp -f --nopbar ${TEST_FILE2} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/updated/altxs.dat
+fail_on_error check_checksums "${EOS_ALTXS_TEST}/updated/altxs.dat" "${TEST_FILE2}" "sha sha256"
 
-check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/disabled/altxs.dat\" \"${TEST_FILE}\" \"md5 sha1 sha256\""
+# Test 4
+# Check that triggering the verify command, the alternative checksums are computed and committed
+disable_altxs_scan
+eos mkdir -p ${EOS_ALTXS_TEST}/triggered
+eos attr rm sys.altchecksums ${EOS_ALTXS_TEST}/triggered || true
+xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/triggered/altxs.dat
+eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/triggered
+eos file verify ${EOS_ALTXS_TEST}/triggered/altxs.dat -checksum -commitchecksum
+check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/triggered/altxs.dat\" \"${TEST_FILE}\" \"md5 sha sha256\"" 300
+
+# Test 5
+# Check that if there are already alternative checksums, adding others will compute the new ones
+disable_altxs_scan
+eos mkdir -p ${EOS_ALTXS_TEST}/added
+eos attr set sys.altchecksums="md5" ${EOS_ALTXS_TEST}/added
+xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/added/altxs.dat
+eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/added
+enable_altxs_scan 5
+check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/added/altxs.dat\" \"${TEST_FILE}\" \"md5 sha sha256\"" 300
+
+# Test 6
+# Check that removing alternative checksums, the removal is reflected on namespace
+disable_altxs_scan
+eos mkdir -p ${EOS_ALTXS_TEST}/removed
+eos attr set sys.altchecksums="md5,sha1" ${EOS_ALTXS_TEST}/removed
+xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/removed/altxs.dat
+eos attr -r set sys.altchecksums="sha1" ${EOS_ALTXS_TEST}/removed
+enable_altxs_scan 5
+check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/removed/altxs.dat\" \"${TEST_FILE}\" \"sha\"" 300
