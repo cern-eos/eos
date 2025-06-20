@@ -102,15 +102,18 @@ Requires: libtsan
 %endif
 %endif
 
+# Initialize to empty, might be overwritten later
+%define xrootd_requires_exclude %{nil}
+
 # Select xrootd package
 %if %{?_with_eos_xrootd_rh:1}%{!?_with_eos_xrootd_rh:0}
 # Install eos-xrootd
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
+%if 0%{?rhel} >= 7 && 0%{?rhel} <= 10
 BuildRequires: eos-xrootd = %{eos_xrootd_version_min}
 # Don't put an explicit dependency on xrootd because eos-xrootd hides the
 # shared libraries from provide. Make sure we don't exclude any EOS specific
 # libraries.
-%global __requires_exclude ^libXrdCl.*$|^libXrdHttp.*$|^libXrdPosix.*$|^libXrdServer.*$|^libXrdSsiLib.*$|^libXrdUtils.*$|^libXrdXml.*$|^libXrdCrypto.*$
+%define xrootd_requires_exclude ^libXrdCl.*$|^libXrdHttp.*$|^libXrdPosix.*$|^libXrdServer.*$|^libXrdSsiLib.*$|^libXrdUtils.*$|^libXrdXml.*$|^libXrdCrypto.*$
 %else
 # Add default xrootd dependencies
 BuildRequires: xrootd >= %{xrootd_version_min}
@@ -133,7 +136,8 @@ BuildRequires: eos-grpc-plugins = %{eos_grpc_version}
 
 # Don't put an explicit dependency on libraries provided by eos-grpc because
 # the package hides shared libraries from the list of provided capabilities.
-%global __requires_exclude %{__requires_exclude}|^libprot.*$|^libabsl.*$|^libgrpc.*$|^libaddress_sorting.*$|^libre2.*$|^libgpr.*$|^libupb.*$
+%define grpc_requires_exclude ^libprot.*$|^libabsl.*$|^libgrpc.*$|^libaddress_sorting.*$|^libre2.*$|^libgpr.*$|^libupb.*$
+%define __requires_exclude %{grpc_requires_exclude}|%{xrootd_requires_exclude}
 
 %if %{?_with_eos_grpc_gateway:1}%{!?_with_eos_grpc_gateway:0}
 BuildRequires: eos-grpc-gateway = %{eos_grpc_gateway_version}
@@ -853,6 +857,7 @@ Group: Applications/File
 ExclusiveArch: x86_64 aarch64
 
 BuildRequires: python%{python3_pkgversion}-devel
+BuildRequires: python%{python3_pkgversion}-setuptools
 
 %description -n eos-scitokenapi
 The EOS scitoken API for C,C++ and PYTHON.
