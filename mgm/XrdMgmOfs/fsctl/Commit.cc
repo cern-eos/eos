@@ -230,6 +230,7 @@ XrdMgmOfs::Commit(const char* path,
         std::vector<std::string> tkns;
         std::vector<std::string> name2xs;
         eos::common::StringConversion::Tokenize(cgi["altchecksums"], tkns, ",");
+        fmd->clearAlternativeChecksums();
 
         for (const auto& tkn : tkns) {
           name2xs.clear();
@@ -437,6 +438,7 @@ XrdMgmOfs::Commit(const char* path,
       std::vector<std::string> tkns;
       std::vector<std::string> name2xs;
       eos::common::StringConversion::Tokenize(cgi["altchecksums"], tkns, ",");
+      fmd->clearAlternativeChecksums();
 
       for (const auto& tkn : tkns) {
         name2xs.clear();
