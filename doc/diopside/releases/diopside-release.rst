@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.15 Diopside``
+====================
+
+2025-06-23
+
+Improvements
+------------
+
+* [EOS-6434] - MGM: PROPFIND - Display D flag if ACL forbids deletion but user is owner
+* [EOS-4720] - FST: Return EAGAIN instead of EBUSY in case a file is opened for writing via HTTP
+* [EOS-6436] - MGM: Acl - Log the ACL modification that took place
+* [EOS-6432] - MGM: Remove unnecessary if statement
 
 ``v5.3.14 Diopside``
 ====================
