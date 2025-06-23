@@ -148,6 +148,13 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     return reply;
   }
 
+  if (mVid.token) {
+    // a token authenticated user cannot issue another token
+    reply.set_retc(EPERM);
+    reply.set_std_err("error: a token authorized user cannot issue another token");
+    return reply;
+  }
+  
   eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.hasUid(0), mVid.sudoer,
                   mVid.uid, mVid.gid);
 

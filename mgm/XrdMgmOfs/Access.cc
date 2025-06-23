@@ -300,21 +300,24 @@ XrdMgmOfs::acc_access(const char* path,
     std::unique_ptr<Acl> aclPtr;
     {
       eos::MDLocking::ContainerReadLock dhLock(dh.get());
+
       dhCuid = dh->getCUid();
-      for (auto g : gids) {
-        if (dh->access(vid.uid, g, R_OK)) {
-          r_ok = true;
-        }
-
-        if (dh->access(vid.uid, g, W_OK)) {
-          w_ok = true;
-          d_ok = true;
-          d_perm_ok = true;
-        }
-
-        if (dh->access(vid.uid, g, X_OK)) {
-          x_ok = true;
-        }
+      if (!vid.token) {
+	for (auto g : gids) {
+	  if (dh->access(vid.uid, g, R_OK)) {
+	    r_ok = true;
+	  }
+	  
+	  if (dh->access(vid.uid, g, W_OK)) {
+	    w_ok = true;
+	    d_ok = true;
+	    d_perm_ok = true;
+	  }
+	  
+	  if (dh->access(vid.uid, g, X_OK)) {
+	    x_ok = true;
+	  }
+	}   
       }
 
       //We prevent releasing the directory lock before calling the ACL constructor that will do

@@ -777,7 +777,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       try {
         cmd = gOFS->eosView->getContainer(Path.c_str(), false);
         eos::MDLocking::ContainerReadLock cmd_lock(cmd.get());
-        permok = cmd->access(vid.uid, vid.gid, R_OK | X_OK);
+        permok = (!vid.token)?cmd->access(vid.uid, vid.gid, R_OK | X_OK): false;
         cmd->getCTime(ctime);
       } catch (eos::MDException& e) {
         cmd.reset();

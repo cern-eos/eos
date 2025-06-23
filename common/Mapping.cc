@@ -842,13 +842,20 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         eos_static_err("failed to decode token tident='%s' token='%s' errno=%d", tident,
                        authz.c_str(), -rc);
       } else {
-        // if owner or group is specified, adjust this
-        if (!vid.token->Owner().empty()) {
+	bool validated = true;
+	if (path.length()) {
+	  if (!vid.token->ValidatePath(path)) {
+	    validated = false;
+	  }
+	}
+
+        // if the path is screened we change owner/group
+        if (validated && !vid.token->Owner().empty()) {
           token_sudo = true;
           ruid = vid.token->Owner().c_str();
         }
 
-        if (!vid.token->Group().empty()) {
+        if (validated && !vid.token->Group().empty()) {
           token_sudo = true;
           rgid = vid.token->Group().c_str();
         }

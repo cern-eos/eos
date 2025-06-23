@@ -163,6 +163,10 @@ XrdMgmOfs::_mkdir(const char* path,
         stdpermcheck = true;
       }
 
+      if (vid.token) {
+	stdpermcheck = false;
+      }
+      
       // Admin can always create a directory
       if (!nopermissioncheck && stdpermcheck &&
           (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
@@ -278,6 +282,10 @@ XrdMgmOfs::_mkdir(const char* path,
         stdpermcheck = true;
       }
 
+      if (vid.token) {
+	stdpermcheck = false;
+      }
+      
       if (!nopermissioncheck && stdpermcheck &&
           (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
         errno = EPERM;
