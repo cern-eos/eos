@@ -770,7 +770,7 @@ Server::FillContainerCAP(uint64_t id,
         // the owner can always delete
         if ((vid.uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
           mode &= ~D_OK;
-        }
+        }	
       } else {
         // For immutable directories we allow reading and browsing permissions
         // if these are specified
@@ -785,6 +785,11 @@ Server::FillContainerCAP(uint64_t id,
         } else if (acl.CanNotBrowse()) {/* denials override mode bits */
           mode &= ~X_OK;
         }
+      }
+      // scope the token to the valid path
+      if (vid.token && !vid.token->ValidatePath(dir.fullpath())) {
+	// token dictate the scope and we revoke all grants
+	mode = dir.mode() & S_IFDIR;
       }
     }
 
@@ -1029,18 +1034,20 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
       gids.insert(vid.gid);
     }
 
-    for (auto g : gids) {
-      if (cmd->access(vid.uid, g, R_OK)) {
-        r_ok = true;
-      }
-
-      if (cmd->access(vid.uid, g, W_OK)) {
-        w_ok = true;
-        d_ok = true;
-      }
-
-      if (cmd->access(vid.uid, g, X_OK)) {
-        x_ok = true;
+    if (!vid.token) {
+      for (auto g : gids) {
+	if (cmd->access(vid.uid, g, R_OK)) {
+	  r_ok = true;
+	}
+	
+	if (cmd->access(vid.uid, g, W_OK)) {
+	  w_ok = true;
+	  d_ok = true;
+	}
+	
+	if (cmd->access(vid.uid, g, X_OK)) {
+	  x_ok = true;
+	}
       }
     }
 

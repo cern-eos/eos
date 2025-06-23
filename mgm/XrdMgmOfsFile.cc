@@ -1234,6 +1234,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     int taccess = -1;
 
+    // when tokens are used, UNIX permissions are disabled
+    if (vid.token) {
+      stdpermcheck = false;
+    }
+    
     if ((!isSharedFile || isRW) && stdpermcheck
         && (!(taccess = dmd->access(vid.uid, vid.gid,
                                     (isRW) ? W_OK | X_OK : R_OK | X_OK)))) {

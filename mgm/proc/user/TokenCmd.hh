@@ -41,7 +41,8 @@ public:
   //----------------------------------------------------------------------------
   TokenCmd(eos::console::RequestProto&& req,
         eos::common::VirtualIdentity& vid):
-    IProcCommand(std::move(req), vid, true) {}
+    IProcCommand(std::move(req), vid, true) {
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor

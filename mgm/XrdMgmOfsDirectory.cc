@@ -184,7 +184,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     cacheentry = getCacheName(dh->getId(), mtime.tv_sec, mtime.tv_nsec,
                               env.Get("ls.skip.files"), env.Get("ls.skip.directories"));
     lock.Release();
-    permok = dh->access(vid.uid, vid.gid, R_OK | X_OK);
+    permok = (!vid.token)?dh->access(vid.uid, vid.gid, R_OK | X_OK):false;
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     // ACL and permission check
     Acl acl(cPath.GetPath(), error, vid, attrmap);
@@ -253,9 +253,9 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     return Emsg(epname, error, errno, "open directory", cPath.GetPath());
   }
 
-  eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o",
-            vid.uid, vid.gid, (dh->access(vid.uid, vid.gid, R_OK | X_OK)),
-            dh->getMode());
+  eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o token=%d",
+            vid.uid, vid.gid, !vid.token?(dh->access(vid.uid, vid.gid, R_OK | X_OK)):false,
+            dh->getMode(), vid.token);
 
   if (!permok) {
     errno = EPERM;
