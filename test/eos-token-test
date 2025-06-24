@@ -1,112 +1,125 @@
 #!/bin/bash
-set -x #echo on
+
 prefix=$1
 host=${2-"localhost"}
 url=root://$host
 
-test -z "$1" && exit -1
+GREEN="\033[0;32m✅"
+RED="\033[0;31m❌"
+NC="\033[0m"
 
-# cleanup
-eos rm -r $prefix/t_token/
+function run_step() {
+    local description="$1"
+    shift
+    echo -ne "⏳ $description... $@"
+    if "$@"; then
+        echo -e "${GREEN} SUCCESS${NC}"
+    else
+        echo -e "${RED} FAIL${NC}"
+        exit 1
+    fi
+}
 
+test -z "$prefix" && { echo -e "${RED}Prefix not provided. Exiting.${NC}"; exit 1; }
 
-# make a private token test directory
-eos mkdir -p $prefix/t_token/
-eos chown 99:99 $prefix/
-eos chown 11:11 $prefix/t_token/
-eos chmod 700 $prefix/t_token/
-eos chmod 700 $prefix/
+now=$(date +%s)
+later=$((now + 300))
 
-now=`date +%s`
-let later=$now+300
+echo -e "Starting EOS token tests for prefix: $prefix on host: $host"
 
+### Cleanup
+run_step "Cleaning up test directory" true
+eos rm -r $prefix/t_token/ 2>&/dev/null
 
-###############################################################################################
-# dis-/en-able token generation
-eos space config default space.token.generation=0
-eos token --path $prefix/t_token/file.1 --expires $later && exit -1
-eos space config default space.token.generation=1
-###############################################################################################
-# test origin regexp test
-eos token --path $prefix/t_token/file.1 --expires $later --origin \*:\*:\* || exit -1
-eos token --path $prefix/t_token/file.1 --expires $later --origin \.*:\.*:\.* || exit -1
-###############################################################################################
-# single file token - test 1
-FILETOKEN=`eos token --path $prefix/t_token/file.1 --expires $later`
-# fail because of read-only permission
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1" && exit -1
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1?authz=$FILETOKEN" && exit -1
-FILETOKEN=`eos token --path $prefix/t_token/file.1 --expires $later --permission rwx`
-# fail because of path mismatch in token
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.wrong?authz=$FILETOKEN" && exit -1
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/?authz=$FILETOKEN" && exit -1
+### Disable token generation and test failure
+run_step "Disabling token generation" eos space config default space.token.generation=0
+! eos token --path $prefix/t_token/file.1 --expires $later && echo -e "${GREEN}Expected failure on disabled token generation${NC}"
 
-# succeed upload with CGI token
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1?authz=$FILETOKEN" || exit -1
-# succeed overwrite with CGI token
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1?authz=$FILETOKEN" -f || exit -1
-# succeed upload with token path
-xrdcp /etc/passwd "root://localhost//$FILETOKEN" -f || exit -1
-# cleanup token test directory
-#eos rm -r $prefix/t_token/
+### Re-enable token generation
+run_step "Enabling token generation" eos space config default space.token.generation=1
 
-###############################################################################################
-# single file token for a specific user- test 2
+### Origin regexp tests
+run_step "Testing wildcard origin" eos token --path $prefix/t_token/file.1 --expires $later --origin \*:\*:\*
+run_step "Testing regex origin" eos token --path $prefix/t_token/file.1 --expires $later --origin \.*:\.*:\.*
 
-FILETOKEN=`eos token --path $prefix/t_token/file.2 --expires $later --owner nobody --group nobody --permission rwx`
-# succeed upload with CGI token
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.1?authz=$FILETOKEN" && exit -2
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.2?authz=$FILETOKEN" || exit -2
-# succeed upload with token path
-xrdcp /etc/passwd "root://localhost//$FILETOKEN" -f || exit -2
+### Test 1: Single file token
+FILETOKEN=$(eos token --path $prefix/t_token/file.1 --expires $later)
+! xrdcp /etc/passwd "$url/$prefix/t_token/file.1?authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to read-only token${NC}"
 
-eos ls -la $prefix/t_token/
-echo OK all passed
+FILETOKEN=$(eos token --path $prefix/t_token/file.1 --expires $later --permission rwx)
+! xrdcp /etc/passwd "$url/$prefix/t_token/file.wrong?authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to path mismatch${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/?authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to path mismatch${NC}"
 
+run_step "Upload file using CGI token" xrdcp /etc/passwd "$url/$prefix/t_token/file.1?authz=$FILETOKEN"
+run_step "Overwrite file using CGI token" xrdcp /etc/passwd "$url/$prefix/t_token/file.1?authz=$FILETOKEN" -f
+run_step "Upload using token as path" xrdcp /etc/passwd "$url//$FILETOKEN" -f
 
-###############################################################################################
-# directory token - test 3
-DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later`
-# fail because of wrong path
-xrdcp /etc/passwd "root://localhost/$prefix/file.3?authz=$DIRTOKEN" -f && exit -3
-# fail becuase of missing tree flag
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.3?authz=$DIRTOKEN" -f && exit -3
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.1/file.3?authz=$DIRTOKEN" -f && exit -3
-DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later --tree`
+### Test 2: Single file token with specific user
+FILETOKEN=$(eos token --path $prefix/t_token/file.2 --expires $later --owner nobody --group nobody --permission rwx)
+run_step "Remove file.1" eos rm $prefix/t_token/file.1
+! xrdcp /etc/passwd "$url/$prefix/t_token/file.1?authz=$FILETOKEN" && echo -e "${GREEN}Expected failure on wrong file${NC}"
+run_step "Upload file.2 using CGI token" xrdcp /etc/passwd "$url/$prefix/t_token/file.2?authz=$FILETOKEN"
+run_step "Upload file.2 using token path" xrdcp /etc/passwd "$url//$FILETOKEN" -f
+
+run_step "List contents" eos ls -la $prefix/t_token/
+
+### Test 3: Directory token
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later)
+! xrdcp /etc/passwd "$url/$prefix/file.3?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected path failure${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/file.3?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected tree flag failure${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/dir.1/file.3?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected tree flag failure${NC}"
+
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --tree)
 eos token --token $DIRTOKEN
-# succeed with tree flag
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.3?authz=$DIRTOKEN" -f || exit -3
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.1/file.3?authz=$DIRTOKEN" -f || exit -3
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.2/dir.2.1/file.4?authz=$DIRTOKEN" -f || exit -3
 
-###############################################################################################
-# directory token for a specific user - test 4
-DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later --owner nobody --group nobody`
-# succeed because of unix permissions
-xrdcp /etc/passwd "root://localhost/$prefix/file.4?authz=$DIRTOKEN" -f || exit -4
-# fail becuase of missing tree flag
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.4?authz=$DIRTOKEN" -f && exit -4
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.3/file.4?authz=$DIRTOKEN" -f && exit -4
-DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later --tree --owner nobody --group nobody`
+run_step "Upload file.3 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/file.3?authz=$DIRTOKEN" -f
+run_step "Upload nested file.3 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/dir.1/file.3?authz=$DIRTOKEN" -f
+run_step "Upload deep nested file.4 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/dir.2/dir.2.1/file.4?authz=$DIRTOKEN" -f
+
+### Test 4: Directory token for specific user
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --owner nobody --group nobody)
+! xrdcp /etc/passwd "$url/$prefix/file.4?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected permission fail${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/file.4?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected tree flag fail${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/dir.3/file.4?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected tree flag fail${NC}"
+
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --tree --owner nobody --group nobody)
 eos token --token $DIRTOKEN
-# succeed with tree flag
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/file.5?authz=$DIRTOKEN" -f || exit -4
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.3/file.5?authz=$DIRTOKEN" -f || exit -4
-xrdcp /etc/passwd "root://localhost/$prefix/t_token/dir.4/dir.2.1/file.6?authz=$DIRTOKEN" -f || exit -4
 
-eos find  $prefix/t_token/
+run_step "Upload file.5" xrdcp /etc/passwd "$url/$prefix/t_token/file.5?authz=$DIRTOKEN" -f
+run_step "Upload dir.3/file.5" xrdcp /etc/passwd "$url/$prefix/t_token/dir.3/file.5?authz=$DIRTOKEN" -f
+run_step "Upload dir.4/dir.2.1/file.6" xrdcp /etc/passwd "$url/$prefix/t_token/dir.4/dir.2.1/file.6?authz=$DIRTOKEN" -f
+
+eos find $prefix/t_token/
 eos ls -la $prefix/t_token/
 eos ls -la $prefix/t_token/dir.1/
 eos ls -la $prefix/t_token/dir.2/
 eos ls -la $prefix/t_token/dir.3/
-eos ls -la $prefix/t_token/dir.4
+eos ls -la $prefix/t_token/dir.4/
 
+### Test 5: Directory token for mkdir/ls/rmdir
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rx --expires $later --owner nobody --group nobody --tree)
+! env EOSAUTHZ=$DIRTOKEN eos mkdir -p $prefix/t_token/tree.1/tree.2 && echo -e "${GREEN}Expected mkdir permission fail${NC}"
 
-###############################################################################################
-# directory token for mkdir/rmdir operations - test 5
-DIRTOKEN=`eos token --path $prefix/t_token/ --permission rwx --expires $later`
-env EOSAUTHZ=$DIRTOKEN eos mkdir -p $prefix/t_token/tree.1/tree.2 || exit -5
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --owner nobody --group nobody --tree)
+run_step "Create tree.1/tree.2" env EOSAUTHZ=$DIRTOKEN eos mkdir -p $prefix/t_token/tree.1/tree.2
 
+DIRTOKEN=$(eos token --path $prefix/t_token/tree.1/ --permission rx --expires $later --owner nobody --group nobody)
+! env EOSAUTHZ=$DIRTOKEN eos ls -l $prefix/t_token/ && echo -e "${GREEN}Expected list fail at base${NC}"
+run_step "List tree.1" env EOSAUTHZ=$DIRTOKEN eos ls -l $prefix/t_token/tree.1
+! env EOSAUTHZ=$DIRTOKEN eos ls -l $prefix/t_token/tree.1/tree.2 && echo -e "${GREEN}Expected list fail deeper${NC}"
 
-# cleanup
-eos rm -r $prefix/t_token/
+DIRTOKEN=$(eos token --path $prefix/t_token/tree.1/ --permission rx --expires $later --owner nobody --group nobody --tree)
+! env EOSAUTHZ=$DIRTOKEN eos ls -l $prefix/t_token/ && echo -e "${GREEN}Expected list fail parent${NC}"
+run_step "Recursive list inside tree.1" env EOSAUTHZ=$DIRTOKEN eos ls -l $prefix/t_token/tree.1
+run_step "Recursive list tree.2" env EOSAUTHZ=$DIRTOKEN eos ls -l $prefix/t_token/tree.1/tree.2
+
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rx --expires $later --owner nobody --group nobody --tree)
+! env EOSAUTHZ=$DIRTOKEN eos rmdir $prefix/t_token/tree.1/tree.2 && echo -e "${GREEN}Expected rmdir fail with rx only${NC}"
+
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --owner nobody --group nobody --tree)
+run_step "Remove directory tree.2" env EOSAUTHZ=$DIRTOKEN eos rmdir $prefix/t_token/tree.1/tree.2
+
+### Cleanup
+run_step "Final cleanup of test directory" eos rm -r $prefix/t_token/
+
+echo -e "${GREEN}All tests passed successfully.${NC}"
