@@ -48,13 +48,14 @@ The JSON representation of an EOS token looks like this:
 
 
 Essentially this token gives the bearer the permission to `rwx` for the
-file /eos/dev/token. The token does not bear any owner or group
+file /eos/dev/token. The token might not bear any owner or group
 information, which means that the creations will be accounted on the
 mapped authenticated user using this token or an enforced
 `sys.owner.auth` entry. If the token should map the authenticated user,
 one can add `owner` and `group` fields. In practical terms the token
 removes existing user and system ACL entries and places the token
-user/group/permission entries as a system ACL.
+user/group/permission entries as a system ACL. If a user creates a token,
+the `owner` and `group` fields are always added. To have 'dynamic' user tokens, you need to take the `root` role.
 
 Tokens are signed, zlib compressed, base64url encoded with a replacement
 of the `+` and `/` characters with `-` and `_` and a URL
@@ -232,6 +233,20 @@ regex is invalid, the command will return with an error message.
 .. index::
    pair: EOS Tokens; GRPC
 
+Token Mapping
+^^^^^^^^^^^^^
+
+The `tokensudo` functionality can be configured on space level. The purpose is to define, which connections are allowed to use tokens and apply the owner/group information (if embebbed in the token). The default is `always`. 
+
+.. code-block:: bash
+
+   eos vid tokensudo always|strong|encrypted|never`
+
+- `always` - identity in the token is always taken into account (all auth protocols)
+- `strong` - identity in the token is not taken into account for unix authenticated clients (all but linux))
+- `encrypted` - identity in the token is only taken into account for encrypted connections (https,grpc,ztn,sss)
+- `never` - identity in the token is never taken into account (never assimilate the identity from the token)
+   
 Token via GRPC
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
