@@ -1234,23 +1234,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     int taccess = -1;
 
-    // when tokens are used, UNIX permissions are disabled
-    if (vid.token) {
-      stdpermcheck = false;
-    }
-    
-    if ((!isSharedFile || isRW) && stdpermcheck
-        && (!(taccess = dmd->access(vid.uid, vid.gid,
-                                    (isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
-      eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
-                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
-                stdpermcheck, taccess);
-
-      if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
-        // we don't apply this permission check for reconstruction jobs issued via the daemon account
+    if ((!isSharedFile || isRW) && stdpermcheck) {
+      // when tokens are used, UNIX permissions are disabled
+      if (vid.token) {
         errno = EPERM;
-        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+        gOFS->MgmStats.Add("OpenFailedToken", vid.uid, vid.gid, 1);
         return Emsg(epname, error, errno, "open file", path);
+      }
+
+      if (!(taccess = dmd->access(vid.uid, vid.gid,
+				  (isRW) ? W_OK | X_OK : R_OK | X_OK))) {
+	eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
+		  fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
+		  stdpermcheck, taccess);
+
+	if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
+	  // we don't apply this permission check for reconstruction jobs issued via the daemon account
+	  errno = EPERM;
+	  gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+	  return Emsg(epname, error, errno, "open file", path);
+	}
       }
     }
 
