@@ -202,6 +202,9 @@ build_el10:
   variables:
     BUILD_NAME: el-10
   extends: .build-template
+  only:
+    - schedules
+    - tag
 
 
 build_el9_arm64:
@@ -466,6 +469,9 @@ el10_docker_image:
   needs:
     - job: clone_docker
     - job: build_el10
+  only:
+    - schedules
+    - tags
 
 
 el9_asan_docker_image:
