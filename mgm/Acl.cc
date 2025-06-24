@@ -535,6 +535,11 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
     }
   }
 
+  if (tokenacl.length()) {
+    // for tokens we adverties always to have an ACL
+    mHasAcl = true;
+  }
+  
   if (EOS_LOGS_DEBUG) {
     eos_static_debug(
       "mCanRead %d mCanNotRead %d mCanWrite %d mCanNotWrite %d mCanWriteOnce %d mCanUpdate %d mCanNotUpdate %d "
@@ -734,7 +739,7 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
         tokenacl += vid.uid_string;
         tokenacl += ":";
         tokenacl += vid.token->Permission();
-	eos_static_debug("msg=\"validated path\" tokenacl=\"%s\"", tokenacl.c_str());
+	eos_static_info("msg=\"validated path\" tokenacl=\"%s\"", tokenacl.c_str());
         return tokenacl;
       } else {
         eos_static_err("%s", "msg=\"path outside token scope\"");
