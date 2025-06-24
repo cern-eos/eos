@@ -844,7 +844,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       } else {
 	bool validated = true;
 	if (path.length()) {
-	  if (!vid.token->ValidatePath(path)) {
+	  if (vid.token->ValidatePath(path)) {
+	    eos_static_err("token:validatepath msg=\"path validation failed for '%s'\"", path.c_str());
 	    validated = false;
 	  }
 	}
@@ -863,7 +864,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         if (EOS_LOGS_INFO) {
           std::string dump;
           vid.token->Dump(dump, true, true);
-          eos_static_info("%s", dump.c_str());
+          eos_static_info("%s {tokensudo:%d (%d)}", dump.c_str(), token_sudo, gTokenSudo.load());
         }
       }
     } else {
