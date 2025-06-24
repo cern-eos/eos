@@ -475,7 +475,7 @@ eos_grpc() {
 }
 
 eos_token() {
-   echo eos-token-test $1 ; eval eos-token-test $1 >> $EOSCERTLOG 2>&1
+   echo eos-token-test $1 ; eval eos-token-test $1 ${EOS_TEST_FULL_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
 eos_squash() {
@@ -1314,6 +1314,12 @@ runtest "### Vid      " unix 0 "" eos vid publicaccesslevel 1024
 runtest "### Ls       " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Find     " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Rmdir    " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
+
+
+################################################################################
+# eos token
+################################################################################
+runtest "### Token    " sss  0 "" eos_token /eos/$EOS_TEST_INSTANCE/test/instancetest/tokens/
 
 ################################################################################
 # eosnobody
