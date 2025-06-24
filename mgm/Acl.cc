@@ -725,12 +725,15 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
         tokenacl += vid.uid_string;
         tokenacl += ":";
         tokenacl += vid.token->Permission();
+	eos_static_debug("msg=\"validated path\" tokenacl=\"%s\"", tokenacl.c_str());
         return tokenacl;
       } else {
-        eos_static_err("%s", "msg=\"invald path token\"");
+        eos_static_err("%s", "msg=\"path outside token scope\"");
+	return "u:root:rx";
       }
     } else {
       eos_static_err("%s", "msg=\"invalid token\"");
+      return "u:root:rx";
     }
   } else {
     eos_static_debug("%s", "msg=\"no token\"");
