@@ -103,8 +103,8 @@ ProcCommand::FileMDToStatus(std::shared_ptr<eos::IFileMD> fmd)
 
       if (eos::common::LayoutId::GetLayoutType(fmd->getLayoutId()) ==
           eos::common::LayoutId::kReplica) {
-        if (ncommits < fmd->getNumLocation()) {
-          return "fuse::missingcommmits";
+        if (fmd->getSize() && (ncommits < fmd->getNumLocation())) {
+          return "fuse::missingcommits";
         }
       }
     }
