@@ -163,16 +163,15 @@ XrdMgmOfs::_mkdir(const char* path,
         stdpermcheck = true;
       }
 
-      if (vid.token) {
-	stdpermcheck = false;
-      }
-      
       // Admin can always create a directory
-      if (!nopermissioncheck && stdpermcheck &&
-          (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
-        errno = EPERM;
-        return Emsg(epname, error, EPERM, "access(XW) parent directory",
-                    cPath.GetParentPath());
+      if (!nopermissioncheck) {
+
+	if (stdpermcheck &&
+	    (vid.token || (!dir->access(vid.uid, vid.gid, X_OK | W_OK)))) {
+	  errno = EPERM;
+	  return Emsg(epname, error, EPERM, "access(XW) parent directory",
+		      cPath.GetParentPath());
+	}
       }
 
       // Check for sys.owner.auth entries, which let users operate as
@@ -282,15 +281,13 @@ XrdMgmOfs::_mkdir(const char* path,
         stdpermcheck = true;
       }
 
-      if (vid.token) {
-	stdpermcheck = false;
-      }
-      
-      if (!nopermissioncheck && stdpermcheck &&
-          (!dir->access(vid.uid, vid.gid, X_OK | W_OK))) {
-        errno = EPERM;
-        return Emsg(epname, error, EPERM, "create parent directory",
-                    cPath.GetParentPath());
+      if (!nopermissioncheck && stdpermcheck) {
+
+	if (vid.token || !dir->access(vid.uid, vid.gid, X_OK | W_OK)) {
+	  errno = EPERM;
+	  return Emsg(epname, error, EPERM, "create parent directory",
+		      cPath.GetParentPath());
+	}
       }
 
       // Check for sys.owner.auth entries, which let users operate as

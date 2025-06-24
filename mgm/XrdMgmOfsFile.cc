@@ -504,15 +504,22 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   {
     EXEC_TIMING_BEGIN("IdMap");
 
+    std::string validation_path = spath.c_str();
+    
     if (spath.beginswith("/zteos64:")) {
       sinfo += "&authz=";
       sinfo += spath.c_str() + 1;
       ininfo = sinfo.c_str();
+      validation_path = "";
     }
 
+    if (ProcInterface::IsProcAccess(spath.c_str())) {
+      validation_path = "";
+    }
+    
     if (!invid) {
       eos::common::Mapping::IdMap(client, ininfo, tident, vid,
-                                  gOFS->mTokenAuthz, acc_op, spath.c_str());
+                                  gOFS->mTokenAuthz, acc_op,  validation_path.c_str());
     } else {
       vid = *invid;
     }
@@ -1236,7 +1243,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if ((!isSharedFile || isRW) && stdpermcheck) {
       // when tokens are used, UNIX permissions are disabled
-      if (vid.token) {
+      if (vid.token && vid.uid) {
         errno = EPERM;
         gOFS->MgmStats.Add("OpenFailedToken", vid.uid, vid.gid, 1);
         return Emsg(epname, error, errno, "open file", path);
