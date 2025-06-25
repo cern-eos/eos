@@ -639,6 +639,8 @@ runtest "### Cleanup   " unix 2 "" eos attr rm sys.versioning /eos/$EOS_TEST_INS
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Quota     " unix 1 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1G -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Quota     " unix 1 "" eos quota set -u 65534 -p /eos/$EOS_TEST_INSTANCE/test -v 1G -i 1M
+runtest "### Quota     " unix 0 "" eos quota set -u 65534 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 11 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 100 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 2 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
