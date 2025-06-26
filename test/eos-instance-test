@@ -506,6 +506,16 @@ testout () {
     if [ $failed -gt 0 ]; then touch $FAILFILE; fi
 }
 ################################################################################
+# Count total number of runtest calls in this script
+if [ "$1" != "list" ]; then
+  echo "Counting total number of tests..."
+  total_tests=$(grep -c "^runtest " "$0")
+  echo "Total tests found: $total_tests"
+  echo
+else
+  total_tests=0
+fi
+
 testcnt=0;
 runtest () {
     testcnt=$((testcnt+1));
@@ -532,7 +542,11 @@ runtest () {
         fi
 
         START=$(date +%s.%N)
-        echo $testcnt | awk '{printf("%04d ",$1);}'
+        if [ $total_tests -gt 0 ]; then
+          printf "%04d/%04d " $testcnt $total_tests
+        else
+          printf "%04d " $testcnt
+        fi
         echo -n $(date +"%x %X") "$1"
         auth=$2
         res=$3
