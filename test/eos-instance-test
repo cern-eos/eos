@@ -576,14 +576,60 @@ runtest () {
         fi
 
         if [ $skip = 0 ] ; then
+          # Record the current size of the log file before running the test
+          log_size_before=0
+          if [ -f "$EOSCERTLOG" ]; then
+            log_size_before=$(wc -l < "$EOSCERTLOG")
+          fi
+
           if [ $auth = "krb5" ] ; then ( eval export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
           if [ $auth = "gsi"  ] ; then ( eval export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
           if [ $auth = "unix" ] ; then ( eval export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
           if [ $auth = "sss"  ] ; then ( eval export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
           echo
-          if [ $res -eq 0 ] ; then if [ $ret -eq 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
-          if [ $res -eq 1 ] ; then if [ $ret -ne 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+
+          # Check if test failed unexpectedly and print output
+          test_failed=0
+          if [ $res -eq 0 ] ; then 
+            if [ $ret -eq 0 ]; then 
+              success; ((success++))
+            else 
+              failure ; ((failed++)); echo ; test_failed=1
+            fi
+          fi
+          if [ $res -eq 1 ] ; then 
+            if [ $ret -ne 0 ]; then 
+              success; ((success++))
+            else 
+              failure ; ((failed++)); echo ; test_failed=1
+            fi
+          fi
           if [ $res -eq 2 ] ; then success; ((success++)); fi
+          
+          # Print full output for failed tests in indented block with red text on white background
+          if [ $test_failed -eq 1 ]; then
+            echo
+            # ANSI color codes: red text (31m), white background (47m), reset (0m)
+            # Keep indentation transparent, only color the text content
+            echo -e "    \033[31;47mFull test output:\033[0m"
+            echo -e "    \033[31;47m===================\033[0m"
+            if [ -f "$EOSCERTLOG" ]; then
+              log_size_after=$(wc -l < "$EOSCERTLOG")
+              if [ $log_size_after -gt $log_size_before ]; then
+                # Extract the lines added during this test
+                tail -n +$((log_size_before + 1)) "$EOSCERTLOG" | while IFS= read -r line; do
+                  echo -e "    \033[31;47m$line\033[0m"
+                done
+              else
+                echo -e "    \033[31;47m(No new output in log file)\033[0m"
+              fi
+            else
+              echo -e "    \033[31;47m(Log file not found)\033[0m"
+            fi
+            echo -e "    \033[31;47m===================\033[0m"
+            echo
+          fi
+          
           END=$(date +%s.%N)
           DIFF=$(echo "$END - $START" | bc)
           echo "                         in $DIFF seconds ($ret)"
