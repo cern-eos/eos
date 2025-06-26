@@ -488,106 +488,79 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 {
   using eos::common::LayoutId;
   static const char* epname = "open";
+  
+  // Reset open state at the beginning of each open call
+  mOpenState.Reset();
+  
   const char* tident = error.getErrUser();
   eos::IFileMD::XAttrMap attrmapF;
   errno = 0;
   eos::common::Timing tm("Open");
   COMMONTIMING("begin", &tm);
   EXEC_TIMING_BEGIN("Open");
-  XrdOucString spath = inpath;
-  XrdOucString sinfo = ininfo;
+  
+  // Initialize open state
+  mOpenState.spath = inpath;
+  mOpenState.sinfo = ininfo;
   SetLogId(logId, tident);
-  int open_flags = GetPosixOpenFlags(open_mode);
-  bool isRW = ((open_flags == O_RDONLY) ? false : true);
-  bool isRewrite = ((open_flags & O_CREAT) ? false : true);
-  Access_Operation acc_op = GetXrdAccessOperation(open_flags);
-  {
-    EXEC_TIMING_BEGIN("IdMap");
+  mOpenState.open_flags = GetPosixOpenFlags(open_mode);
+  mOpenState.isRW = ((mOpenState.open_flags == O_RDONLY) ? false : true);
+  mOpenState.isRewrite = ((mOpenState.open_flags & O_CREAT) ? false : true);
+  mOpenState.acc_op = GetXrdAccessOperation(mOpenState.open_flags);
+      {
+      EXEC_TIMING_BEGIN("IdMap");
 
-    if (spath.beginswith("/zteos64:")) {
-      sinfo += "&authz=";
-      sinfo += spath.c_str() + 1;
-      ininfo = sinfo.c_str();
+      if (mOpenState.spath.beginswith("/zteos64:")) {
+        mOpenState.sinfo += "&authz=";
+        mOpenState.sinfo += mOpenState.spath.c_str() + 1;
+        ininfo = mOpenState.sinfo.c_str();
+      }
+
+      if (!invid) {
+        eos::common::Mapping::IdMap(client, ininfo, tident, vid,
+                                    gOFS->mTokenAuthz, mOpenState.acc_op, mOpenState.spath.c_str());
+      } else {
+        vid = *invid;
+      }
+
+      EXEC_TIMING_END("IdMap");
     }
-
-    if (!invid) {
-      eos::common::Mapping::IdMap(client, ininfo, tident, vid,
-                                  gOFS->mTokenAuthz, acc_op, spath.c_str());
-    } else {
-      vid = *invid;
-    }
-
-    EXEC_TIMING_END("IdMap");
-  }
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   COMMONTIMING("IdMap", &tm);
   SetLogId(logId, vid, tident);
   NAMESPACEMAP;
   BOUNCE_ILLEGAL_NAMES;
   BOUNCE_NOT_ALLOWED;
-  spath = path;
+  mOpenState.spath = path;
   COMMONTIMING("Bounce", &tm);
 
-  if (!spath.beginswith("/proc/") && spath.endswith("/")) {
+  if (!mOpenState.spath.beginswith("/proc/") && mOpenState.spath.endswith("/")) {
     return Emsg(epname, error, EISDIR,
                 "open - you specified a directory as target file name", path);
   }
 
-  bool isCreation = false;
-  // flag indicating parallel IO access
-  bool isPio = false;
-  // flag indicating access with reconstruction
-  bool isPioReconstruct = false;
-  // flag indicating FUSE file access
-  bool isFuse = false;
-  // flag indiciating an atomic upload where a file get's a hidden unique name and is renamed when it is closed
-  bool isAtomicUpload = false;
-  // flag indicating an atomic file name
-  bool isAtomicName = false;
-  // flag indicating a new injection - upload of a file into a stub without physical location
-  bool isInjection = false;
-  // flag indicating to drop the current disk replica in the policy space
-  bool isRepair = false;
-  // flag indicating a read for repair (meaningfull only on the FST)
-  bool isRepairRead = false;
-  // flag indicationg a TPC action
-  bool isTpc = false;
-  // flag indicating a file touch
-  bool isTouch = false;
-  // chunk upload ID
-  XrdOucString ocUploadUuid = "";
-  // Set of filesystem IDs to reconstruct
-  std::set<unsigned int> pio_reconstruct_fs;
-  // list of filesystem IDs usable for replacement of RAIN file
-  std::vector<unsigned int> pio_replacement_fs;
-  // tried hosts CGI
-  std::string tried_cgi;
-  // versioning CGI
-  std::string versioning_cgi;
-  // file size
-  uint64_t fmdsize = 0;
-  // io priority string
-  std::string ioPriority;
-  XrdOucString pinfo = (ininfo ? ininfo : "");
-  eos::common::StringConversion::MaskTag(pinfo, "cap.msg");
-  eos::common::StringConversion::MaskTag(pinfo, "cap.sym");
-  eos::common::StringConversion::MaskTag(pinfo, "authz");
+  // All boolean flags are now in mOpenState and initialized by Reset()
+  
+  mOpenState.pinfo = (ininfo ? ininfo : "");
+  eos::common::StringConversion::MaskTag(mOpenState.pinfo, "cap.msg");
+  eos::common::StringConversion::MaskTag(mOpenState.pinfo, "cap.sym");
+  eos::common::StringConversion::MaskTag(mOpenState.pinfo, "authz");
 
-  if (isRW) {
+  if (mOpenState.isRW) {
     eos_info("op=write trunc=%d path=%s info=%s",
-             open_mode & SFS_O_TRUNC, path, pinfo.c_str());
+             open_mode & SFS_O_TRUNC, path, mOpenState.pinfo.c_str());
   } else {
-    eos_info("op=read path=%s info=%s", path, pinfo.c_str());
+    eos_info("op=read path=%s info=%s", path, mOpenState.pinfo.c_str());
   }
 
   ACCESSMODE_R;
 
-  if (isRW) {
+  if (mOpenState.isRW) {
     SET_ACCESSMODE_W;
   }
 
   if (ProcInterface::IsProcAccess(path)) {
-    if (ProcInterface::IsWriteAccess(path, pinfo.c_str())) {
+    if (ProcInterface::IsWriteAccess(path, mOpenState.pinfo.c_str())) {
       SET_ACCESSMODE_W;
     }
   } else {
@@ -598,26 +571,23 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   MAYSTALL;
   MAYREDIRECT;
-  XrdOucString currentWorkflow = "default";
-  unsigned long long byfid = 0;
-  unsigned long long bypid = 0;
   COMMONTIMING("fid::fetch", &tm);
 
   /* check paths starting with fid: fxid: ino: ... */
-  if (spath.beginswith("fid:") || spath.beginswith("fxid:") ||
-      spath.beginswith("ino:")) {
+  if (mOpenState.spath.beginswith("fid:") || mOpenState.spath.beginswith("fxid:") ||
+      mOpenState.spath.beginswith("ino:")) {
     WAIT_BOOT;
     // reference by fid+fsid
-    byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+    mOpenState.byfid = eos::Resolver::retrieveFileIdentifier(mOpenState.spath).getUnderlyingUInt64();
 
     try {
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mOpenState.byfid);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      fmd = gOFS->eosFileService->getFileMD(byfid);
-      spath = gOFS->eosView->getUri(fmd.get()).c_str();
-      bypid = fmd->getContainerId();
-      eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
-      path = spath.c_str();
+      fmd = gOFS->eosFileService->getFileMD(mOpenState.byfid);
+      mOpenState.spath = gOFS->eosView->getUri(fmd.get()).c_str();
+      mOpenState.bypid = fmd->getContainerId();
+      eos_info("msg=\"access by inode\" ino=%s path=%s", path, mOpenState.spath.c_str());
+      path = mOpenState.spath.c_str();
     } catch (eos::MDException& e) {
       eos_debug("caught exception %d %s\n", e.getErrno(),
                 e.getMessage().str().c_str());
@@ -632,20 +602,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   openOpaque = new XrdOucEnv(ininfo);
 
   // Handle (delegated) tpc redirection for writes
-  if (isRW && RedirectTpcAccess()) {
+  if (mOpenState.isRW && RedirectTpcAccess()) {
     return SFS_REDIRECT;
   }
 
-  std::string app_name = GetClientApplicationName(openOpaque, client);
+  mOpenState.app_name = GetClientApplicationName(openOpaque, client);
 
   // Decide if this is a FUSE access
-  if (!app_name.empty()) {
-    if (app_name == "fuse" || app_name == "xrootdfs" ||
-        app_name.find("fuse::") == 0) {
-      isFuse = true;
-    } else if (app_name == "touch") {
-      isTouch = true;
-      isFuse = true;
+  if (!mOpenState.app_name.empty()) {
+    if (mOpenState.app_name == "fuse" || mOpenState.app_name == "xrootdfs" ||
+        mOpenState.app_name.find("fuse::") == 0) {
+      mOpenState.isFuse = true;
+    } else if (mOpenState.app_name == "touch") {
+      mOpenState.isTouch = true;
+      mOpenState.isFuse = true;
     }
   } else {
     // App name is empty, check for the presence of oss.task
@@ -658,12 +628,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // We have oss.task opaque, check if it is equal to httptpc
       // (set by XrdTpcTPC)
       if (!strncmp("httptpc", ossTask, 7)) {
-        if (isRW) {
+        if (mOpenState.isRW) {
           // Open for write --> HTTP TPC PULL
-          app_name += "http/tpcpull";
+          mOpenState.app_name += "http/tpcpull";
         } else {
           // HTTP TPC PUSH
-          app_name += "http/tpcpush";
+          mOpenState.app_name += "http/tpcpush";
         }
       }
     }
@@ -676,7 +646,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if ((val = openOpaque->Get("eos.iopriority"))) {
       if (vid.hasUid(11)) {  // operator role
         // admin members can set iopriority
-        ioPriority = val;
+        mOpenState.ioPriority = val;
       } else {
         eos_info("msg=\"suppressing IO priority setting '%s', no operator role\"",
                  val);
@@ -710,7 +680,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     const char* val = 0;
 
     if ((val = openOpaque->Get("oc-chunk-uuid"))) {
-      ocUploadUuid = val;
+      mOpenState.ocUploadUuid = val;
     }
   }
 
@@ -719,8 +689,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     const char* val = 0;
 
     if ((val = openOpaque->Get("tried"))) {
-      tried_cgi = val;
-      tried_cgi += ",";
+      mOpenState.tried_cgi = val;
+      mOpenState.tried_cgi += ",";
     }
   }
 
@@ -729,7 +699,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     const char* val = 0;
 
     if ((val = openOpaque->Get("eos.workflow"))) {
-      currentWorkflow = val;
+      mOpenState.currentWorkflow = val;
     }
   }
 
@@ -738,7 +708,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     const char* val = 0;
 
     if ((val = openOpaque->Get("eos.versioning"))) {
-      versioning_cgi = val;
+      mOpenState.versioning_cgi = val;
     }
   }
 
@@ -747,18 +717,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     const char* val = 0;
 
     if ((val = openOpaque->Get("tpc.stage"))) {
-      isTpc = true;
+      mOpenState.isTpc = true;
     }
   }
 
-  if (!isFuse && isRW) {
+  if (!mOpenState.isFuse && mOpenState.isRW) {
     // resolve symbolic links
     try {
       std::string s_path = path;
-      spath = gOFS->eosView->getRealPath(s_path).c_str();
+      mOpenState.spath = gOFS->eosView->getRealPath(s_path).c_str();
       eos_info("msg=\"rewrote symlinks\" sym-path=%s realpath=%s", s_path.c_str(),
-               spath.c_str());
-      path = spath.c_str();
+               mOpenState.spath.c_str());
+      path = mOpenState.spath.c_str();
     } catch (eos::MDException& e) {
       eos_debug("caught exception %d %s\n",
                 e.getErrno(),
@@ -787,7 +757,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   XrdOucString sPio = (openOpaque) ? openOpaque->Get("eos.cli.access") : "";
 
   if (sPio == "pio") {
-    isPio = true;
+    mOpenState.isPio = true;
   }
 
   // Discover PIO reconstruction mode
@@ -795,7 +765,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                              openOpaque->Get("eos.pio.action") : "";
 
   if (sPioRecover == "reconstruct") {
-    isPioReconstruct = true;
+    mOpenState.isPioReconstruct = true;
   }
 
   {
@@ -824,7 +794,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       // store in the reconstruction filesystem list
-      pio_reconstruct_fs.insert(rfs);
+      mOpenState.pio_reconstruct_fs.insert(rfs);
     }
   }
 
@@ -834,8 +804,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int targetport = atoi(gOFS->MgmOfsTargetPort.c_str());
   int targethttpport = gOFS->mHttpdPort;
   int ecode = 0;
-  unsigned long fmdlid = 0;
-  unsigned long long cid = 0;
   eos::IFileMD::LocationVector vect_loc;
 
   // Proc filter
@@ -889,19 +857,19 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   gOFS->MgmStats.Add("Open", vid.uid, vid.gid, 1);
-  bool dotFxid = spath.beginswith("/.fxid:");
+  bool dotFxid = mOpenState.spath.beginswith("/.fxid:");
 
   if (dotFxid) {
-    byfid = eos::Resolver::retrieveFileIdentifier(spath).getUnderlyingUInt64();
+    mOpenState.byfid = eos::Resolver::retrieveFileIdentifier(mOpenState.spath).getUnderlyingUInt64();
 
     try {
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, byfid);
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mOpenState.byfid);
       eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      fmd = gOFS->eosFileService->getFileMD(byfid);
-      spath = gOFS->eosView->getUri(fmd.get()).c_str();
-      bypid = fmd->getContainerId();
-      eos_info("msg=\"access by inode\" ino=%s path=%s", path, spath.c_str());
-      path = spath.c_str();
+      fmd = gOFS->eosFileService->getFileMD(mOpenState.byfid);
+      mOpenState.spath = gOFS->eosView->getUri(fmd.get()).c_str();
+      mOpenState.bypid = fmd->getContainerId();
+      eos_info("msg=\"access by inode\" ino=%s path=%s", path, mOpenState.spath.c_str());
+      path = mOpenState.spath.c_str();
     } catch (eos::MDException& e) {
       eos_debug("caught exception %d %s\n", e.getErrno(),
                 e.getMessage().str().c_str());
@@ -911,16 +879,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   COMMONTIMING("authorize", &tm);
-  AUTHORIZE(client, openOpaque, acc_op,
-            ((acc_op == AOP_Create) ? "create" : "open"), inpath, error);
+  AUTHORIZE(client, openOpaque, mOpenState.acc_op,
+            ((mOpenState.acc_op == AOP_Create) ? "create" : "open"), inpath, error);
   COMMONTIMING("authorized", &tm);
   eos::common::Path cPath(path);
   // indicate the scope for a possible token
   TOKEN_SCOPE;
-  isAtomicName = cPath.isAtomicFile();
+  mOpenState.isAtomicName = cPath.isAtomicFile();
 
   // prevent any access to a recycling bin for writes
-  if (isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
+  if (mOpenState.isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
     return Emsg(epname, error, EPERM,
                 "open file - nobody can write to a recycling bin",
                 cPath.GetParentPath());
@@ -974,8 +942,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   {
     // This is probably one of the hottest code paths in the MGM, we definitely
     // want prefetching here.
-    if (!byfid) {
-      if (!(open_flags & O_EXCL)) {
+    if (!mOpenState.byfid) {
+      if (!(mOpenState.open_flags & O_EXCL)) {
         // if we want to create, why would we prefetch file md?
         eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, cPath.GetPath());
       } else {
@@ -987,8 +955,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
-      if (byfid) {
-        dmd = gOFS->eosDirectoryService->getContainerMD(bypid);
+          if (mOpenState.byfid) {
+      dmd = gOFS->eosDirectoryService->getContainerMD(mOpenState.bypid);
       } else if (!dmd) {
         dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
       }
@@ -1003,9 +971,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           std::string filePath = cPath.GetPath();
           std::string fileName = cPath.GetName();
 
-          if (ocUploadUuid.length()) {
+          if (mOpenState.ocUploadUuid.length()) {
             eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
-                                    ocUploadUuid));
+                                    mOpenState.ocUploadUuid));
             filePath = aPath.GetPath();
             fileName = aPath.GetName();
           }
@@ -1038,7 +1006,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             uint64_t dmd_id = fmd->getContainerId();
-            byfid = fmd->getId();
+            mOpenState.byfid = fmd->getId();
 
             // If fmd is resolved via a symbolic link, we have to find the
             // 'real' parent directory
@@ -1054,7 +1022,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             // check for O_EXCL here to save some time
-            if (open_flags & O_EXCL) {
+            if (mOpenState.open_flags & O_EXCL) {
               gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
               return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
             }
@@ -1071,10 +1039,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         } else {
           mFid = fmd->getId();
-          fmdlid = fmd->getLayoutId();
-          vect_loc = fmd->getLocations();
-          cid = fmd->getContainerId();
-          fmdsize = fmd->getSize();
+          mOpenState.fmdlid = fmd->getLayoutId();
+          mOpenState.vect_loc = fmd->getLocations();
+          mOpenState.cid = fmd->getContainerId();
+          mOpenState.fmdsize = fmd->getSize();
         }
 
         if (dmd) {
@@ -1139,7 +1107,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           XrdOucString predirectionhost = redirectionhost.c_str();
           eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
           eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
-          eos::common::StringConversion::MaskTag(pinfo, "authz");
+          eos::common::StringConversion::MaskTag(mOpenState.pinfo, "authz");
           eos_info("info=\"redirecting\" hostport=%s:%d", predirectionhost.c_str(),
                    ecode);
           return rcode;
@@ -1176,19 +1144,19 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
              acl.EvalUserAttrFile());
 
     if (acl.HasAcl() && (vid.uid != 0)) {
-      if ((vid.uid != 0) && (!vid.sudoer) &&
-          (isRW ? (acl.CanNotWrite() && acl.CanNotUpdate()) : acl.CanNotRead())) {
-        eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d CanNotUpdate %d",
-                  vid.uid, vid.sudoer, isRW, acl.CanNotRead(), acl.CanNotWrite(),
-                  acl.CanNotUpdate());
+              if ((vid.uid != 0) && (!vid.sudoer) &&
+           (mOpenState.isRW ? (acl.CanNotWrite() && acl.CanNotUpdate()) : acl.CanNotRead())) {
+          eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d CanNotUpdate %d",
+                   vid.uid, vid.sudoer, mOpenState.isRW, acl.CanNotRead(), acl.CanNotWrite(),
+                   acl.CanNotUpdate());
         errno = EPERM;
         gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
         return Emsg(epname, error, errno, "open file - forbidden by ACL", path);
       }
 
-      if (isRW) {
+      if (mOpenState.isRW) {
         // Update case - unless SFS_O_TRUNC is specified then this is a normal write
-        if (fmd && ((open_flags & O_TRUNC) == 0)) {
+        if (fmd && ((mOpenState.open_flags & O_TRUNC) == 0)) {
           eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
                     acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
                     fmd->getCGid());
@@ -1219,7 +1187,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       stdpermcheck = true;
     }
 
-    if (isRW && !acl.IsMutable() && vid.uid && !vid.sudoer) {
+    if (mOpenState.isRW && !acl.IsMutable() && vid.uid && !vid.sudoer) {
       // immutable directory
       errno = EPERM;
       gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
@@ -1234,14 +1202,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     int taccess = -1;
 
-    if ((!isSharedFile || isRW) && stdpermcheck
+    if ((!isSharedFile || mOpenState.isRW) && stdpermcheck
         && (!(taccess = dmd->access(vid.uid, vid.gid,
-                                    (isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
+                                    (mOpenState.isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
       eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
-                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
+                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, mOpenState.isRW,
                 stdpermcheck, taccess);
 
-      if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
+      if (!((vid.uid == DAEMONUID) && (mOpenState.isPioReconstruct))) {
         // we don't apply this permission check for reconstruction jobs issued via the daemon account
         errno = EPERM;
         gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
@@ -1264,23 +1232,23 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
   // check for versioning depth, cgi overrides sys & user attributes
-  versioning = attr::getVersioning(attrmap, versioning_cgi);
+    versioning = attr::getVersioning(attrmap, mOpenState.versioning_cgi);
   // check for atomic uploads only in non fuse clients
-  isAtomicUpload = !isFuse &&
-                   attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
+  mOpenState.isAtomicUpload = !mOpenState.isFuse &&
+                    attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
   // check for injection in non fuse clients with cgi
-  isInjection = !isFuse && openOpaque->Get("eos.injection");
+  mOpenState.isInjection = !mOpenState.isFuse && openOpaque->Get("eos.injection");
 
   if (openOpaque->Get("eos.repair")) {
-    isRepair = true;
+    mOpenState.isRepair = true;
   }
 
   if (openOpaque->Get("eos.repairread")) {
-    isRepairRead = true;
+    mOpenState.isRepairRead = true;
   }
 
   // Short-cut to block multi-source access to EC files
-  if (IsRainRetryWithExclusion(isRW, fmdlid)) {
+  if (IsRainRetryWithExclusion(mOpenState.isRW, mOpenState.fmdlid)) {
     return Emsg(epname, error, ENETUNREACH,  "open file - "
                 "multi-source reading on EC file blocked for ", path);
   }
@@ -1290,20 +1258,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // ---------------------------------------------------------------------------
   XattrLock alock(attrmapF);
 
-  if (alock.foreignLock(vid, isRW)) {
+  if (alock.foreignLock(vid, mOpenState.isRW)) {
     return Emsg(epname, error, EBUSY,
                 "open file - file has a valid extended attribute lock ", path);
   }
 
-  if (isRW) {
+  if (mOpenState.isRW) {
     if (fmd && Policy::HasUpdConversion(attrmap) && (vid.prot != "https") &&
-        !isInjection && !isTpc && !isRepair) {
+        !mOpenState.isInjection && !mOpenState.isTpc && !mOpenState.isRepair) {
       // Get space that file belongs to
-      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);
+      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, mOpenState.vect_loc);
       std::string source_space = (space_name.empty() ? "default" : space_name);
       std::string target_space;
       unsigned long target_layout;
-      auto conversion = Policy::UpdateConversion(path, attrmap, vid, fmdlid,
+      auto conversion = Policy::UpdateConversion(path, attrmap, vid, mOpenState.fmdlid,
                         source_space, *openOpaque,
                         target_layout, target_space);
 
@@ -1318,11 +1286,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         conversionCb->Init(&error);
         error.setErrInfo(1800, "delay client up to 30 minutes for update conversion");
         auto conversiontag = ConversionTag::Get(
-                               byfid, target_space, target_layout, std::string(""), true);
+                               mOpenState.byfid, target_space, target_layout, std::string(""), true);
 
-        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
+        if (gOFS->mConverterEngine->ScheduleJob(mOpenState.byfid, conversiontag,
                                                 conversionCb)) {
-          eos_info("msg='update conversion started' fxid=%016llx conv='%s'", byfid,
+          eos_info("msg='update conversion started' fxid=%016llx conv='%s'", mOpenState.byfid,
                    conversiontag.c_str());
           return SFS_STARTED;
         } else {
@@ -1331,7 +1299,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           error.setErrArg(0);
           error.setErrInfo(60, "please retry after 60 seconds for update conversion");
           eos_info("msg='stalling client for update conversion' fxid=%016llx conv='%s'",
-                   byfid, conversiontag.c_str());
+                   mOpenState.byfid, conversiontag.c_str());
           return SFS_STALL;
         }
       } else {
@@ -1341,15 +1309,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     // Allow updates of 0-size RAIN files so that we are able to write from the
     // FUSE mount with lazy-open mode enabled.
-    if (!getenv("EOS_ALLOW_RAIN_RWM") && isRewrite && (vid.uid > 3) &&
-        (fmdsize != 0) && (LayoutId::IsRain(fmdlid))) {
+    if (!getenv("EOS_ALLOW_RAIN_RWM") && mOpenState.isRewrite && (vid.uid > 3) &&
+        (mOpenState.fmdsize != 0) && (LayoutId::IsRain(mOpenState.fmdlid))) {
       // Unpriviledged users are not allowed to open RAIN files for update
       gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
       return Emsg(epname, error, EPERM, "update RAIN layout file - "
                   "you have to be a priviledged user for updates");
     }
 
-    if (!isInjection && (open_flags & O_TRUNC) && fmd) {
+    if (!mOpenState.isInjection && (mOpenState.open_flags & O_TRUNC) && fmd) {
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
         if (acl.CanWriteOnce()) {
@@ -1366,7 +1334,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       if (versioning) {
-        if (isAtomicUpload) {
+        if (mOpenState.isAtomicUpload) {
           // atomic uploads need just to purge version to max-1, the version is created on commit
           // purge might return an error if the file was not yet existing/versioned
           gOFS->PurgeVersion(cPath.GetVersionDirectory(), error, versioning - 1);
@@ -1379,12 +1347,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       } else {
         // drop the old file (for non atomic uploads) and create a new truncated one
-        if ((!isAtomicUpload) && gOFS->_rem(path, error, vid, ininfo, false, false)) {
+        if ((!mOpenState.isAtomicUpload) && gOFS->_rem(path, error, vid, ininfo, false, false)) {
           return Emsg(epname, error, errno, "remove file for truncation", path);
         }
       }
 
-      if (!ocUploadUuid.length()) {
+      if (!mOpenState.ocUploadUuid.length()) {
         fmd.reset();
       } else {
         eos_info("%s", "msg=\"keep attached to existing fmd in chunked upload\"");
@@ -1392,12 +1360,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
     } else {
-      if (isInjection && !fmd) {
+      if (mOpenState.isInjection && !fmd) {
         errno = ENOENT;
         return Emsg(epname, error, errno, "inject into a non-existing file", path);
       }
 
-      if (!(fmd) && ((open_flags & O_CREAT))) {
+      if (!(fmd) && ((mOpenState.open_flags & O_CREAT))) {
         gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
       } else {
         if (acl.HasAcl()) {
@@ -1421,7 +1389,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // write case
     // -------------------------------------------------------------------------
     if (!fmd) {
-      if (!(open_flags & O_CREAT)) {
+      if (!(mOpenState.open_flags & O_CREAT)) {
         // Open for write for non existing file without creation flag
         return Emsg(epname, error, ENOENT, "open file without creation flag", path);
       } else {
@@ -1434,8 +1402,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           try {
             // we create files with the uid/gid of the parent directory
-            if (isAtomicUpload) {
-              creation_path = cPath.GetAtomicPath(versioning, ocUploadUuid);
+            if (mOpenState.isAtomicUpload) {
+              creation_path = cPath.GetAtomicPath(versioning, mOpenState.ocUploadUuid);
               eos_info("atomic-path=%s", creation_path.c_str());
 
               try {
@@ -1446,8 +1414,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             // Avoid any race condition when opening for creation O_EXCL
-            if (open_flags & O_EXCL) {
-              if (isAtomicUpload) {
+            if (mOpenState.open_flags & O_EXCL) {
+              if (mOpenState.isAtomicUpload) {
                 try {
                   fmd = gOFS->eosView->getFile(creation_path);
                 } catch (eos::MDException& e1) {
@@ -1497,7 +1465,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               attrmapF["user.obfuscate.key"] = skey;
             }
 
-            if (ocUploadUuid.length()) {
+            if (mOpenState.ocUploadUuid.length()) {
               fmd->setFlags(0);
             } else {
               fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
@@ -1530,9 +1498,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             mFid = fmd->getId();
-            fmdlid = fmd->getLayoutId();
+            mOpenState.fmdlid = fmd->getLayoutId();
             // oc chunks start with flags=0
-            cid = fmd->getContainerId();
+            mOpenState.cid = fmd->getContainerId();
             auto cmd = dmd; // we have this already
             cmd->setMTimeNow();
             eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
@@ -1565,12 +1533,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           return Emsg(epname, error, errno, "create file", path);
         }
 
-        isCreation = true;
+        mOpenState.isCreation = true;
         // -------------------------------------------------------------------------
       }
     } else {
       // we attached to an existing file
-      if (open_flags & O_EXCL) {
+      if (mOpenState.open_flags & O_EXCL) {
         gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
         return Emsg(epname, error, EEXIST, "create file (O_EXCL)", path);
       }
@@ -1614,12 +1582,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     eos_static_debug("has-read-conversion: %d", Policy::HasReadConversion(attrmap));
 
     if (Policy::HasReadConversion(attrmap) && (vid.prot != "https") &&
-        !isTpc && !isRepair && !isRepairRead && !isPio && !isPioReconstruct) {
-      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, vect_loc);
+        !mOpenState.isTpc && !mOpenState.isRepair && !mOpenState.isRepairRead && !mOpenState.isPio && !mOpenState.isPioReconstruct) {
+      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, mOpenState.vect_loc);
       std::string source_space = (space_name.empty() ? "default" : space_name);
       std::string target_space;
       unsigned long target_layout;
-      auto conversion = Policy::ReadConversion(path, attrmap, vid, fmdlid,
+      auto conversion = Policy::ReadConversion(path, attrmap, vid, mOpenState.fmdlid,
                         source_space, *openOpaque,
                         target_layout, target_space);
 
@@ -1635,11 +1603,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         conversionCb->Init(&error);
         error.setErrInfo(1800, "delay client up to 30 minutes for read conversion");
         auto conversiontag = ConversionTag::Get(
-                               byfid, target_space, target_layout, std::string(""), true);
+                               mOpenState.byfid, target_space, target_layout, std::string(""), true);
 
-        if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
+        if (gOFS->mConverterEngine->ScheduleJob(mOpenState.byfid, conversiontag,
                                                 conversionCb)) {
-          eos_info("msg='read conversion started' fxid=%016llx conv='%s'", byfid,
+          eos_info("msg='read conversion started' fxid=%016llx conv='%s'", mOpenState.byfid,
                    conversiontag.c_str());
           return SFS_STARTED;
         } else {
@@ -1648,7 +1616,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           error.setErrArg(0);
           error.setErrInfo(60, "please retry after 60 seconds for read conversion");
           eos_info("msg='stalling client for read conversion' fxid=%016llx conv='%s'",
-                   byfid, conversiontag.c_str());
+                   mOpenState.byfid, conversiontag.c_str());
           return SFS_STALL;
         }
       } else {
@@ -1684,11 +1652,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += "&tapeenabled=1";
   }
 
-  if (isPioReconstruct) {
+  if (mOpenState.isPioReconstruct) {
     capability += "&mgm.access=update";
   } else {
-    if (isRW) {
-      if (isRewrite) {
+    if (mOpenState.isRW) {
+      if (mOpenState.isRewrite) {
         capability += "&mgm.access=update";
       } else {
         capability += "&mgm.access=create";
@@ -1707,7 +1675,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         eos_debug("file %s cloneid %ld cloneFST %s trunc %d", path, fmd->getCloneId(),
-                  fmd->getCloneFST().c_str(), open_flags & O_TRUNC);
+                  fmd->getCloneFST().c_str(), mOpenState.open_flags & O_TRUNC);
         snprintf(sbuff, sizeof(sbuff), "&mgm.cloneid=%ld&mgm.cloneFST=%s", cloneId,
                  fmd->getCloneFST().c_str());
         capability += sbuff;
@@ -1717,7 +1685,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (mEosObfuscate && !isFuse) {
+  if (mEosObfuscate && !mOpenState.isFuse) {
     // add obfuscation key to redirection capability
     if (attrmapF.count("user.obfuscate.key")) {
       capability += "&mgm.obfuscate.key=";
@@ -1734,7 +1702,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // ---------------------------------------------------------------------------
   // forward some allowed user opaque tags
   // ---------------------------------------------------------------------------
-  unsigned long layoutId = (isCreation) ? LayoutId::kPlain : fmdlid;
+  unsigned long layoutId = (mOpenState.isCreation) ? LayoutId::kPlain : mOpenState.fmdlid;
   // the client can force to read a file on a defined file system
   unsigned long forcedFsId = 0;
   // the client can force to place a file in a specified group of a space
@@ -1756,12 +1724,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   COMMONTIMING("Policy::begin", &tm);
   Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
                             forcedFsId, forced_group, bandwidth, schedule,
-                            ioprio, iotype, isRW, true, &atimeage);
+                            ioprio, iotype, mOpenState.isRW, true, &atimeage);
   COMMONTIMING("Policy::end", &tm);
   Policy::RedirectStatus rs;
 
   // do a local redirect here if there is only one replica attached and this is not an HTTPS request
-  if (vid.prot != "https" && !isRW && !isFuse && !isPio &&
+  if (vid.prot != "https" && !mOpenState.isRW && !mOpenState.isFuse && !mOpenState.isPio &&
       (fmd->getNumLocation() == 1) &&
       (rs = Policy::RedirectLocal(path, attrmap, vid, layoutId, space,
                                   *openOpaque)) != Policy::eNever) {
@@ -1784,11 +1752,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos_info("sharedfs='%s'", local_fs->getSharedFs().c_str());
       }
       std::string anchor = "#";
-      std::string appanchor = app_name;
-      auto hpos = app_name.find("#");
+      std::string appanchor = mOpenState.app_name;
+      auto hpos = mOpenState.app_name.find("#");
 
       if (hpos != std::string::npos) {
-        appanchor = app_name.substr(hpos);
+        appanchor = mOpenState.app_name.substr(hpos);
       }
 
       anchor += local_snapshot.mSharedFs;
@@ -1820,10 +1788,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (ioPriority.length()) {
-    ioprio = ioPriority;
+  if (mOpenState.ioPriority.length()) {
+    ioprio = mOpenState.ioPriority;
     capability += "&mgm.iopriority=";
-    capability += ioPriority.c_str();
+    capability += mOpenState.ioPriority.c_str();
   } else {
     if (ioprio.length()) {
       capability += "&mgm.iopriority=";
@@ -1843,7 +1811,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (fmd && atimeage) {
     static std::set<std::string> skip_tag {"balancer", "groupdrainer", "groupbalancer", "geobalancer", "drainer", "converter", "fsck"};
 
-    if (app_name.empty() || (skip_tag.find(app_name) == skip_tag.end())) {
+    if (mOpenState.app_name.empty() || (skip_tag.find(mOpenState.app_name) == skip_tag.end())) {
       // do a potential atime update, we don't need a name
       try {
         if (fmd->setATimeNow(atimeage)) {
@@ -1912,17 +1880,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if ((!isInjection) && (isCreation || (open_flags & O_TRUNC))) {
+  if ((!mOpenState.isInjection) && (mOpenState.isCreation || (mOpenState.open_flags & O_TRUNC))) {
     eos_info("blocksize=%llu lid=%x", LayoutId::GetBlocksize(new_lid), new_lid);
     layoutId = new_lid;
     {
       std::shared_ptr<eos::IFileMD> fmdnew;
 
-      if (!byfid) {
+      if (!mOpenState.byfid) {
         try {
           fmdnew = dmd->findFile(fileName);
         } catch (eos::MDException& e) {
-          if ((!isAtomicUpload) && (fmdnew != fmd)) {
+          if ((!mOpenState.isAtomicUpload) && (fmdnew != fmd)) {
             // file has been recreated in the meanwhile
             return Emsg(epname, error, EEXIST, "open file (file recreated)", path);
           }
@@ -1932,7 +1900,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // Set the layout and commit new meta data
       fmd->setLayoutId(layoutId);
 
-      if (isFuse && (open_flags & O_TRUNC)) {
+      if (mOpenState.isFuse && (mOpenState.open_flags & O_TRUNC)) {
         std::string s;
 
         if (fmd->hasAttribute("sys.fusex.state")) {
@@ -1961,7 +1929,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fmd->setCTime(ctime);
       }
 
-      if (isCreation) {
+      if (mOpenState.isCreation) {
         // store the birth time as an extended attribute
         eos::IFileMD::ctime_t ctime;
         fmd->getCTime(ctime);
@@ -1991,12 +1959,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
         eos::FileIdentifier fmd_id = fmd->getIdentifier();
         std::shared_ptr<eos::IContainerMD> cmd =
-          gOFS->eosDirectoryService->getContainerMD(cid);
+          gOFS->eosDirectoryService->getContainerMD(mOpenState.cid);
         eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
         eos::ContainerIdentifier pcmd_id = cmd->getParentIdentifier();
         cmd->setMTimeNow();
 
-        if (isCreation || (!fmd->getNumLocation())) {
+        if (mOpenState.isCreation || (!fmd->getNumLocation())) {
           eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
 
           if (ns_quota) {
@@ -2025,8 +1993,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // 0-size files can be read from the MGM if this is not FUSE access
   // atomic files are only served from here and also rain files are skipped
-  if (!isRW && !fmd->getSize() && (!isFuse || isAtomicName)) {
-    if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
+  if (!mOpenState.isRW && !fmd->getSize() && (!mOpenState.isFuse || mOpenState.isAtomicName)) {
+          if (mOpenState.isAtomicName || (!LayoutId::IsRain(layoutId))) {
       eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
       mIsZeroSize = true;
       return SFS_OK;
@@ -2044,7 +2012,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += "&mgm.path=";
   {
     // an '&' will create a failure on the FST
-    XrdOucString safepath = spath.c_str();
+    XrdOucString safepath = mOpenState.spath.c_str();
     eos::common::StringConversion::SealXrdPath(safepath);
     capability += safepath;
   }
@@ -2053,7 +2021,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += "&mgm.fid=";
   std::string hex_fid;
 
-  if (!isRW) {
+  if (!mOpenState.isRW) {
     const char* val;
 
     if ((val = openOpaque->Get("eos.clonefst")) && (strlen(val) < 32)) {
@@ -2073,10 +2041,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += hex_fid.c_str();
   XrdOucString sizestring;
   capability += "&mgm.cid=";
-  capability += eos::common::StringConversion::GetSizeString(sizestring, cid);
+  capability += eos::common::StringConversion::GetSizeString(sizestring, mOpenState.cid);
   // add the mgm.sec information to the capability
   capability += "&mgm.sec=";
-  capability += eos::common::SecEntity::ToKey(client, app_name.c_str()).c_str();
+  capability += eos::common::SecEntity::ToKey(client, mOpenState.app_name.c_str()).c_str();
 
   if (attrmap.count("user.tag")) {
     capability += "&mgm.container=";
@@ -2152,7 +2120,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool isRecreation = false;
 
   // Place a new file
-  if (isCreation || (!fmd->getNumLocation()) || isInjection) {
+  if (mOpenState.isCreation || (!fmd->getNumLocation()) || mOpenState.isInjection) {
     const char* containertag = 0;
 
     if (attrmap.count("user.tag")) {
@@ -2166,10 +2134,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     Scheduler::PlacementArguments plctargs;
     plctargs.alreadyused_filesystems = &selectedfs;
 
-    if (isRepair) {
+    if (mOpenState.isRepair) {
       plctargs.bookingsize = bookingsize ? bookingsize : gOFS->getFuseBookingSize();
     } else {
-      plctargs.bookingsize = isFuse ? (isTouch ? 0 : gOFS->getFuseBookingSize()) :
+      plctargs.bookingsize = mOpenState.isFuse ? (mOpenState.isTouch ? 0 : gOFS->getFuseBookingSize()) :
                              bookingsize;
     }
 
@@ -2185,7 +2153,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     plctargs.exclude_filesystems = &excludefs;
     plctargs.selected_filesystems = &selectedfs;
     plctargs.spacename = &space;
-    plctargs.truncate = open_flags & O_TRUNC;
+    plctargs.truncate = mOpenState.open_flags & O_TRUNC;
     plctargs.vid = &vid;
 
     if (!plctargs.isValid()) {
@@ -2315,11 +2283,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     acsargs.forcedfsid = forcedFsId;
     acsargs.forcedspace = space.c_str();
     acsargs.fsindex = &fsIndex;
-    acsargs.isRW = isPioReconstruct ? false : isRW;
+    acsargs.isRW = mOpenState.isPioReconstruct ? false : mOpenState.isRW;
     acsargs.lid = layoutId;
     acsargs.inode = (ino64_t) fmd->getId();
     acsargs.locationsfs = &selectedfs;
-    acsargs.tried_cgi = &tried_cgi;
+    acsargs.tried_cgi = &mOpenState.tried_cgi;
     acsargs.unavailfs = &unavailfs;
     acsargs.vid = &vid;
 
@@ -2350,8 +2318,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
 
-    if ((retc == ENETUNREACH) || (retc == EROFS) || isRepair) {
-      if (isRW && ((((fmd->getSize() == 0) && (bookingsize == 0)) || isRepair))) {
+    if ((retc == ENETUNREACH) || (retc == EROFS) || mOpenState.isRepair) {
+      if (mOpenState.isRW && ((((fmd->getSize() == 0) && (bookingsize == 0)) || mOpenState.isRepair))) {
         // File-recreation due to offline/full file systems
         const char* containertag = 0;
 
@@ -2359,7 +2327,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           containertag = attrmap["user.tag"].c_str();
         }
 
-        isCreation = true;
+        mOpenState.isCreation = true;
         /// ###############
         // if the client should go through a firewall entrypoint, try to get it
         // if the scheduled fs need to be accessed through a dataproxy, try to get it
@@ -2379,7 +2347,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         plctargs.exclude_filesystems = &excludefs;
         plctargs.selected_filesystems = &selectedfs;
         plctargs.spacename = &space;
-        plctargs.truncate = open_flags & O_TRUNC;
+        plctargs.truncate = mOpenState.open_flags & O_TRUNC;
         plctargs.vid = &vid;
 
         if (!plctargs.isValid()) {
@@ -2478,8 +2446,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         if (stalltime) {
           // stall the client
           gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1);
-          eos_info("attr=sys info=\"stalling file since replica's are down\" path=%s rw=%d",
-                   path, isRW);
+                  eos_info("attr=sys info=\"stalling file since replica's are down\" path=%s rw=%d",
+                 path, mOpenState.isRW);
           return gOFS->Stall(error, stalltime,
                              "Required filesystems are currently unavailable!");
         }
@@ -2492,7 +2460,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           // stall the client
           gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1);
           eos_info("attr=user info=\"stalling file since replica's are down\" path=%s rw=%d",
-                   path, isRW);
+                   path, mOpenState.isRW);
           return gOFS->Stall(error, stalltime,
                              "Required filesystems are currently unavailable!");
         }
@@ -2556,7 +2524,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // attached to the file md entry. If there are, this means the current
       // thread was blocked in scheduling and a retry of the client went
       // through successfully. If we delete the entry we end up with data lost.
-      if (isCreation) {
+      if (mOpenState.isCreation) {
         bool do_remove = false;
 
         try {
@@ -2564,11 +2532,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
           auto tmp_fmd = gOFS->eosView->getFile(creation_path.c_str());
 
-          if (isAtomicUpload || (tmp_fmd->getNumLocation() == 0)) {
+          if (mOpenState.isAtomicUpload || (tmp_fmd->getNumLocation() == 0)) {
             do_remove = true;
           }
         } catch (eos::MDException& e) {
-          if (isAtomicUpload) {
+          if (mOpenState.isAtomicUpload) {
             do_remove = true;
           }
         }
@@ -2582,8 +2550,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
     }
 
-    if (isRW) {
-      if (retc == ENOSPC) {
+      if (mOpenState.isRW) {
+    if (retc == ENOSPC) {
         return Emsg(epname, error, retc, "get free physical space", path);
       }
 
@@ -2597,10 +2565,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, retc, "open file ", path);
     }
   } else {
-    if (isRW) {
+    if (mOpenState.isRW) {
       // we want to define the order of chunks during creation, so we attach also rain layouts
-      if (isCreation && hasClientBookingSize && ((bookingsize == 0) ||
-          ocUploadUuid.length() || (LayoutId::IsRain(layoutId)))) {
+      if (mOpenState.isCreation && hasClientBookingSize && ((bookingsize == 0) ||
+          mOpenState.ocUploadUuid.length() || (LayoutId::IsRain(layoutId)))) {
         // ---------------------------------------------------------------------
         // if this is a creation we commit the scheduled replicas NOW
         // we do the same for chunked/parallel uploads
@@ -2664,13 +2632,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         mIsZeroSize = true;
       }
 
-      if (isFuse && !isCreation) {
+      if (mOpenState.isFuse && !mOpenState.isCreation) {
         // ---------------------------------------------------------------------
         // if we come from fuse for an update
         // consistently redirect to the highest fsid having if possible the same
         // geotag as the client
         // ---------------------------------------------------------------------
-        if (byfid) {
+        if (mOpenState.byfid) {
           // the new FUSE client needs to have the replicas attached after the
           // first open call
           std::string locations;
@@ -2756,7 +2724,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (!fmd->getSize()) {
         // 0-size files can be read from the MGM if this is not FUSE access and
         // also if this is not a rain file
-        if (!isFuse && !LayoutId::IsRain(layoutId)) {
+        if (!mOpenState.isFuse && !LayoutId::IsRain(layoutId)) {
           mIsZeroSize = true;
           return SFS_OK;
         }
@@ -2766,7 +2734,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // If this is a RAIN layout, we want a nice round-robin for the entry
   // server since it  has the burden of encoding and traffic fan-out
-  if (isRW && LayoutId::IsRain(layoutId)) {
+      if (mOpenState.isRW && LayoutId::IsRain(layoutId)) {
     fsIndex = mFid % selectedfs.size();
     eos_static_info("msg=\"selecting entry-server\" fsIndex=%lu fsid=%lu "
                     "fxid=%97llx mod=%lu", fsIndex, selectedfs[fsIndex],
@@ -2915,15 +2883,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // ---------------------------------------------------------------------------
   // Get the unique set of file systems
   std::set<unsigned int> ufs(selectedfs.begin(), selectedfs.end());
-  ufs.insert(pio_reconstruct_fs.begin(), pio_reconstruct_fs.end());
+  ufs.insert(mOpenState.pio_reconstruct_fs.begin(), mOpenState.pio_reconstruct_fs.end());
   // If file system 0 sentinel is present then it must be removed
   ufs.erase(0u);
   new_lid = LayoutId::GetId(
-              isPio ? LayoutId::kPlain :
+              mOpenState.isPio ? LayoutId::kPlain :
               LayoutId::GetLayoutType(layoutId),
-              (isPio ? LayoutId::kNone :
+                              (mOpenState.isPio ? LayoutId::kNone :
                LayoutId::GetChecksum(layoutId)),
-              isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
+                             mOpenState.isPioReconstruct ? static_cast<int>(ufs.size()) : static_cast<int>
               (selectedfs.size()),
               LayoutId::GetBlocksizeType(layoutId),
               LayoutId::GetBlockChecksum(layoutId));
@@ -2940,7 +2908,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // space to be prebooked/allocated
   capability += "&mgm.bookingsize=";
 
-  if (isPioReconstruct) {
+  if (mOpenState.isPioReconstruct) {
     // For pio reconstruct the booking size needs to be 0,
     // the recovery will fail on non xfs filesystem otherwise.
     capability += "0";
@@ -2973,7 +2941,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += (int) fs_id;
   }
 
-  if (isRepairRead) {
+  if (mOpenState.isRepairRead) {
     capability += "&mgm.repairread=1";
   }
 
@@ -2982,12 +2950,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   // Add the store flag for RAIN reconstruct jobs
-  if (isPioReconstruct) {
+  if (mOpenState.isPioReconstruct) {
     capability += "&mgm.rain.store=1";
     // Append also the mgm.rain.size since we can't deduce at the FST during
     // the recovery step and we need it for the stat information
     capability += "&mgm.rain.size=";
-    capability += std::to_string(fmdsize).c_str();
+    capability += std::to_string(mOpenState.fmdsize).c_str();
   }
 
   if (bandwidth.length() && (bandwidth != "0")) {
@@ -3004,7 +2972,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     // If replacement has been specified try to get new locations for
     // reconstruction or for missing stripes
-    if (isPioReconstruct && !(pio_reconstruct_fs.empty())) {
+    if (mOpenState.isPioReconstruct && !(mOpenState.pio_reconstruct_fs.empty())) {
       const char* containertag = 0;
 
       if (attrmap.count("user.tag")) {
@@ -3038,11 +3006,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // scheduled in the file placement routine
       unsigned long plain_lid = new_lid;
 
-      if (pio_reconstruct_fs.find(0) != pio_reconstruct_fs.end()) {
+      if (mOpenState.pio_reconstruct_fs.find(0) != mOpenState.pio_reconstruct_fs.end()) {
         LayoutId::SetStripeNumber(plain_lid, stripe_diff - 1);
       } else {
         LayoutId::SetStripeNumber(plain_lid,
-                                  pio_reconstruct_fs.size() - 1 + stripe_diff);
+                                  mOpenState.pio_reconstruct_fs.size() - 1 + stripe_diff);
       }
 
       eos_info("msg=\"nominal stripes:%d reconstructed stripes=%d group_idx=%d\"",
@@ -3074,7 +3042,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       plctargs.plctTrgGeotag = &targetgeotag;
       plctargs.plctpolicy = plctplcy;
       plctargs.exclude_filesystems = &excludefs;
-      plctargs.selected_filesystems = &pio_replacement_fs;
+      plctargs.selected_filesystems = &mOpenState.pio_replacement_fs;
       plctargs.spacename = &space;
       plctargs.truncate = false;
       plctargs.vid = &rootvid;
@@ -3096,9 +3064,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         return Emsg(epname, error, retc, "schedule stripes for reconstruction", path);
       }
 
-      for (const auto& elem : pio_replacement_fs) {
+      for (const auto& elem : mOpenState.pio_replacement_fs) {
         eos_debug("msg=\"reconstruction scheduled on new fs\" fsid=%lu num=%lu",
-                  elem, pio_replacement_fs.size());
+                                      elem, mOpenState.pio_replacement_fs.size());
       }
 
       auto selection_diff = (LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1)
@@ -3108,16 +3076,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                selectedfs.size(), selection_diff);
 
       // If there are stripes missing then fill them in from the replacements
-      if (pio_replacement_fs.size() < selection_diff) {
+      if (mOpenState.pio_replacement_fs.size() < selection_diff) {
         eos_err("msg=\"not enough replacement fs\" need=%lu have=%lu",
-                selection_diff, pio_replacement_fs.size());
+                selection_diff, mOpenState.pio_replacement_fs.size());
         return Emsg(epname, error, retc, "schedule enough stripes for reconstruction",
                     path);
       }
 
       for (size_t i = 0; i < selection_diff; ++i) {
-        selectedfs.push_back(pio_replacement_fs.back());
-        pio_replacement_fs.pop_back();
+        selectedfs.push_back(mOpenState.pio_replacement_fs.back());
+        mOpenState.pio_replacement_fs.pop_back();
       }
     }
 
@@ -3135,20 +3103,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // Logic to discover filesystems to be reconstructed
         bool replace = false;
 
-        if (isPioReconstruct) {
-          replace = (pio_reconstruct_fs.find(selectedfs[i]) != pio_reconstruct_fs.end());
+        if (mOpenState.isPioReconstruct) {
+          replace = (mOpenState.pio_reconstruct_fs.find(selectedfs[i]) != mOpenState.pio_reconstruct_fs.end());
         }
 
         if (replace) {
           // If we don't find any replacement
-          if (pio_replacement_fs.empty()) {
+          if (mOpenState.pio_replacement_fs.empty()) {
             return Emsg(epname, error, EIO, "get replacement file system", path);
           }
 
           // Take one replacement filesystem from the replacement list
           replacedfs[i] = selectedfs[i];
-          selectedfs[i] = pio_replacement_fs.back();
-          pio_replacement_fs.pop_back();
+          selectedfs[i] = mOpenState.pio_replacement_fs.back();
+          mOpenState.pio_replacement_fs.pop_back();
           eos_info("msg=\"replace fs\" old-fsid=%u new-fsid=%u", replacedfs[i],
                    selectedfs[i]);
         } else {
@@ -3289,7 +3257,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         }
 
-        if (isPio) {
+        if (mOpenState.isPio) {
           if (replacedfs[i]) {
             // Add the drop message to the replacement capability
             capability += "&mgm.drainfsid";
@@ -3337,7 +3305,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   std::unique_ptr<XrdOucEnv> capabilityenv(capabilityenvRaw);
   int caplen = 0;
 
-  if (isPio) {
+  if (mOpenState.isPio) {
     redirectionhost = piolist;
     redirectionhost += "mgm.lid=";
     redirectionhost += static_cast<int>(layoutId);
@@ -3353,7 +3321,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       redirectionhost += "&mgm.blockchecksum=";
       redirectionhost += openOpaque->Get("eos.blockchecksum");
     } else {
-      if ((!isRW) && (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)) {
+      if ((!mOpenState.isRW) && (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)) {
         redirectionhost += "&mgm.blockchecksum=ignore";
       }
     }
@@ -3393,10 +3361,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   redirectionhost += "&mgm.id=";
   redirectionhost += hex_fid.c_str();
 
-  if (isFuse) {
+  if (mOpenState.isFuse) {
     redirectionhost += "&mgm.mtime=0";
   } else {
-    if (!isRW)  {
+    if (!mOpenState.isRW)  {
       eos::IFileMD::ctime_t mtime;
 
       try {
@@ -3411,7 +3379,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   // Also trigger synchronous create workflow event if it's defined
-  if (isCreation) {
+  if (mOpenState.isCreation) {
     errno = 0;
     workflow.SetFile(path, mFid);
     auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
@@ -3444,10 +3412,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // add workflow cgis, has to come after create workflow
   workflow.SetFile(path, mFid);
 
-  if (isRW) {
-    redirectionhost += workflow.getCGICloseW(currentWorkflow.c_str(), vid).c_str();
+  if (mOpenState.isRW) {
+    redirectionhost += workflow.getCGICloseW(mOpenState.currentWorkflow.c_str(), vid).c_str();
   } else {
-    redirectionhost += workflow.getCGICloseR(currentWorkflow.c_str()).c_str();
+    redirectionhost += workflow.getCGICloseR(mOpenState.currentWorkflow.c_str()).c_str();
   }
 
   // Notify tape garbage collector if tape support is enabled
@@ -3459,7 +3427,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       tgc_ns_rd_lock.Release();
 
       if (isATapeFile) {
-        if (isRW) {
+        if (mOpenState.isRW) {
           const std::string tgcSpace = nullptr != space.c_str() ? space.c_str() : "";
           gOFS->mTapeGc->fileOpenedForWrite(tgcSpace, mFid);
         } else {
@@ -3485,13 +3453,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
 
-  if (isRW) {
+  if (mOpenState.isRW) {
     eos_info("op=write path=%s info=%s %s redirection=%s xrd_port=%d "
-             "http_port=%d", path, pinfo.c_str(), infolog.c_str(),
+             "http_port=%d", path, mOpenState.pinfo.c_str(), infolog.c_str(),
              predirectionhost.c_str(), targetport, targethttpport);
   } else {
     eos_info("op=read path=%s info=%s %s redirection=%s xrd_port=%d "
-             "http_port=%d", path, pinfo.c_str(), infolog.c_str(),
+             "http_port=%d", path, mOpenState.pinfo.c_str(), infolog.c_str(),
              predirectionhost.c_str(), targetport, targethttpport);
   }
 

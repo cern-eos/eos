@@ -437,6 +437,103 @@ private:
   //! Flag to toggle obfuscation (-1 take directory default, 0 disable, 1 enable)
   int mEosObfuscate { -1};
   bool mIsZeroSize {false}; //< Mark if file is zero size
+
+  //----------------------------------------------------------------------------
+  //! Structure to hold all open state variables
+  //----------------------------------------------------------------------------
+  struct OpenState {
+    // Basic open parameters
+    bool isCreation = false;
+    bool isPio = false;              // parallel IO access
+    bool isPioReconstruct = false;   // access with reconstruction
+    bool isFuse = false;             // FUSE file access
+    bool isAtomicUpload = false;     // atomic upload with hidden name
+    bool isAtomicName = false;       // atomic file name
+    bool isInjection = false;        // new injection upload
+    bool isRepair = false;           // drop current disk replica
+    bool isRepairRead = false;       // read for repair
+    bool isTpc = false;              // TPC action
+    bool isTouch = false;            // file touch
+    bool isRW = false;               // read/write flag
+    bool isRewrite = false;          // rewrite flag
+    
+    // CGI and opaque information
+    XrdOucString ocUploadUuid;       // chunk upload ID
+    std::string tried_cgi;           // tried hosts CGI
+    std::string versioning_cgi;      // versioning CGI
+    std::string ioPriority;          // IO priority string
+    std::string app_name;            // application name
+    
+    // File system and placement info
+    std::set<unsigned int> pio_reconstruct_fs;     // filesystem IDs to reconstruct
+    std::vector<unsigned int> pio_replacement_fs;  // replacement filesystem IDs
+    
+    // File metadata
+    uint64_t fmdsize = 0;            // file size
+    unsigned long fmdlid = 0;        // file layout ID
+    unsigned long long byfid = 0;    // file ID for access by fid
+    unsigned long long bypid = 0;    // parent ID
+    unsigned long long cid = 0;      // container ID
+    eos::IFileMD::LocationVector vect_loc; // file locations
+    
+    // Workflow and processing
+    XrdOucString currentWorkflow = "default";
+    
+    // Paths and names
+    XrdOucString spath;              // sanitized path
+    XrdOucString sinfo;              // sanitized info
+    XrdOucString pinfo;              // processed info
+    
+    // Access control
+    int open_flags = 0;              // POSIX open flags
+    Access_Operation acc_op;         // XRootD access operation
+    
+    //--------------------------------------------------------------------------
+    //! Reset all state variables to their default values
+    //--------------------------------------------------------------------------
+    void Reset() {
+      isCreation = false;
+      isPio = false;
+      isPioReconstruct = false;
+      isFuse = false;
+      isAtomicUpload = false;
+      isAtomicName = false;
+      isInjection = false;
+      isRepair = false;
+      isRepairRead = false;
+      isTpc = false;
+      isTouch = false;
+      isRW = false;
+      isRewrite = false;
+      
+      ocUploadUuid = "";
+      tried_cgi.clear();
+      versioning_cgi.clear();
+      ioPriority.clear();
+      app_name.clear();
+      
+      pio_reconstruct_fs.clear();
+      pio_replacement_fs.clear();
+      
+      fmdsize = 0;
+      fmdlid = 0;
+      byfid = 0;
+      bypid = 0;
+      cid = 0;
+      vect_loc.clear();
+      
+      currentWorkflow = "default";
+      
+      spath = "";
+      sinfo = "";
+      pinfo = "";
+      
+      open_flags = 0;
+      acc_op = AOP_Any;
+    }
+  };
+  
+  OpenState mOpenState; ///< Open state structure
 };
 
 #endif
