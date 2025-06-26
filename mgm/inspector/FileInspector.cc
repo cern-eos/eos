@@ -1346,7 +1346,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
 void FileInspector::QdbHelper::Store(const FileInspectorStats& stats)
 {
   mQHashStats.hmset({
-    SCAN_STATS_KEY, Marshal(stats.FaultyFiles),
+    SCAN_STATS_KEY, Marshal(stats.ScanStats),
     FAULTY_FILES_KEY, Marshal(stats.FaultyFiles),
     ACCESS_TIME_FILES_KEY, Marshal(stats.AccessTimeFiles),
     ACCESS_TIME_VOLUME_KEY, Marshal(stats.AccessTimeVolume),
