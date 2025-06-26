@@ -110,9 +110,6 @@ struct FileInspectorStats {
   uint64_t NumFaultyFiles = 0;
 
   time_t TimeScan;
-
-private:
-  const std::string kFileInspectorStats = "eos-file-inspector-stats";
 };
 
 
