@@ -843,7 +843,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
                        authz.c_str(), -rc);
       } else {
 	bool validated = true;
-	if (path.length() >= 6 && path.substr(6) != "/proc/") {
+	if (path.substr(0,6) != "/proc/") {
 	  if (vid.token->ValidatePath(path)) {
 	    eos_static_err("token:validatepath msg=\"path validation failed for '%s'\"", path.c_str());
 	    validated = false;
