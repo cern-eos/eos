@@ -516,6 +516,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (ProcInterface::IsProcAccess(spath.c_str())) {
       validation_path = "";
     }
+
+    if (spath == "/fusex-open") {
+      validation_path = "";
+    }
     
     if (!invid) {
       eos::common::Mapping::IdMap(client, ininfo, tident, vid,
