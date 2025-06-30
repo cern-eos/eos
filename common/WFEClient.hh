@@ -26,6 +26,9 @@
 #include "cta_frontend.grpc.pb.h"
 #include "common/Logging.hh"
 
+#include <condition_variable>
+#include <mutex>
+
 class WFEClient {
 public:
   virtual cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0;
@@ -41,32 +44,60 @@ public:
     grpc::ClientContext context;
     grpc::Status status;
 
-    switch (request.notification().wf().event()) {
-      // this is prepare
-      case cta::eos::Workflow::CREATE:
-        status = client_stub->Create(&context, request, &response);
-        break;
-      case cta::eos::Workflow::CLOSEW:
-        status = client_stub->Archive(&context, request, &response);
-        break;
-      case cta::eos::Workflow::PREPARE:
-        status = client_stub->Retrieve(&context, request, &response);
-        break;
-      case cta::eos::Workflow::ABORT_PREPARE:
-        status = client_stub->CancelRetrieve(&context, request, &response);
-        break;
-      case cta::eos::Workflow::DELETE:
-        status = client_stub->Delete(&context, request, &response);
-        break;
-      case cta::eos::Workflow::OPENW:
-        // this does nothing and we don't have a gRPC method for it
-        /* fallthrough */
-      case cta::eos::Workflow::UPDATE_FID:
-        /* fallthrough */
-      default:
-        // should probably have an error here that we don't have a gRPC method for this
-        status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED, "gRPC method not implemented for " + cta::eos::Workflow_EventType_Name(request.notification().wf().event()));
-        break;
+    std::mutex mu;
+    std::condition_variable cv;
+    bool done = false;
+
+    auto callback_lambda =
+        [&mu, &cv, &done, &status](grpc::Status s) {
+          status = std::move(s);
+          std::lock_guard<std::mutex> lock(mu);
+          done = true;
+          cv.notify_one();
+        };
+
+    auto event = request.notification().wf().event();
+    if (!(event == cta::eos::Workflow::CREATE ||
+          event == cta::eos::Workflow::CLOSEW ||
+          event == cta::eos::Workflow::PREPARE ||
+          event == cta::eos::Workflow::ABORT_PREPARE ||
+          event == cta::eos::Workflow::DELETE)) {
+      status = grpc::Status(grpc::StatusCode::UNIMPLEMENTED,
+                            "gRPC method not implemented for " +
+                                cta::eos::Workflow_EventType_Name(
+                                    request.notification().wf().event()));
+    }
+    // this is prepare
+    else if (event == cta::eos::Workflow::CREATE) {
+      status = client_stub->async()->Create(&context, request, &response, callback_lambda);
+      std::unique_lock<std::mutex> lock(mu);
+      while (!done) {
+        cv.wait(lock);
+      }
+    } else if (event == cta::eos::Workflow::CLOSEW) {
+      status = client_stub->async()->Archive(&context, request, &response, callback_lambda);
+      std::unique_lock<std::mutex> lock(mu);
+      while (!done) {
+        cv.wait(lock);
+      }
+    } else if (event == cta::eos::Workflow::PREPARE) {
+      status = client_stub->async()->Retrieve(&context, request, &response, callback_lambda);
+      std::unique_lock<std::mutex> lock(mu);
+      while (!done) {
+        cv.wait(lock);
+      }
+    } else if (event == cta::eos::Workflow::ABORT_PREPARE) {
+      status = client_stub->async()->CancelRetrieve(&context, request, &response, callback_lambda);
+      std::unique_lock<std::mutex> lock(mu);
+      while (!done) {
+        cv.wait(lock);
+      }
+    } else if (event == cta::eos::Workflow::DELETE) {
+      status = client_stub->async()->Delete(&context, request, &response, callback_lambda);
+      std::unique_lock<std::mutex> lock(mu);
+      while (!done) {
+        cv.wait(lock);
+      }
     }
     if (status.ok()){
       return cta::xrd::Response::RSP_SUCCESS;
