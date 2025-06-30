@@ -48,13 +48,13 @@ public:
     std::condition_variable cv;
     bool done = false;
 
-    auto callback_lambda =
-        [&mu, &cv, &done, &status](grpc::Status s) {
-          status = std::move(s);
-          std::lock_guard<std::mutex> lock(mu);
-          done = true;
-          cv.notify_one();
-        };
+    auto callback_func = std::function<void(::grpc::Status)>{};
+    callback_func = [&mu, &cv, &done, &status](grpc::Status s) {
+      status = std::move(s);
+      std::lock_guard<std::mutex> lock(mu);
+      done = true;
+      cv.notify_one();
+    };
 
     auto event = request.notification().wf().event();
     if (!(event == cta::eos::Workflow::CREATE ||
@@ -69,31 +69,31 @@ public:
     }
     // this is prepare
     else if (event == cta::eos::Workflow::CREATE) {
-      status = client_stub->async()->Create(&context, request, &response, callback_lambda);
+      status = client_stub->async()->Create(&context, request, &response, callback_func);
       std::unique_lock<std::mutex> lock(mu);
       while (!done) {
         cv.wait(lock);
       }
     } else if (event == cta::eos::Workflow::CLOSEW) {
-      status = client_stub->async()->Archive(&context, request, &response, callback_lambda);
+      status = client_stub->async()->Archive(&context, request, &response, callback_func);
       std::unique_lock<std::mutex> lock(mu);
       while (!done) {
         cv.wait(lock);
       }
     } else if (event == cta::eos::Workflow::PREPARE) {
-      status = client_stub->async()->Retrieve(&context, request, &response, callback_lambda);
+      status = client_stub->async()->Retrieve(&context, request, &response, callback_func);
       std::unique_lock<std::mutex> lock(mu);
       while (!done) {
         cv.wait(lock);
       }
     } else if (event == cta::eos::Workflow::ABORT_PREPARE) {
-      status = client_stub->async()->CancelRetrieve(&context, request, &response, callback_lambda);
+      status = client_stub->async()->CancelRetrieve(&context, request, &response, callback_func);
       std::unique_lock<std::mutex> lock(mu);
       while (!done) {
         cv.wait(lock);
       }
     } else if (event == cta::eos::Workflow::DELETE) {
-      status = client_stub->async()->Delete(&context, request, &response, callback_lambda);
+      status = client_stub->async()->Delete(&context, request, &response, callback_func);
       std::unique_lock<std::mutex> lock(mu);
       while (!done) {
         cv.wait(lock);
