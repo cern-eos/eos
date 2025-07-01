@@ -2438,6 +2438,7 @@ WFE::Job::HandleProtoMethodCloseEvent(const std::string& event,
                                       const std::string& fullPath,
                                       const char* const ininfo)
 {
+  eos_static_info("In HandleProtoMethodCloseEvent");
   EXEC_TIMING_BEGIN("Proto::Close");
   gOFS->MgmStats.Add("Proto::Close", 0, 0, 1);
 
@@ -2510,6 +2511,7 @@ WFE::Job::HandleProtoMethodArchivedEvent(const std::string& event,
     const std::string& fullPath,
     const char* const ininfo)
 {
+  eos_static_info("In HandleProtoMethodArchivedEvent!");
   EXEC_TIMING_BEGIN("Proto::Archive");
   gOFS->MgmStats.Add("Proto::Archive", 0, 0, 1);
   std::string xattrCtaArchiveFileId;
@@ -2682,6 +2684,7 @@ WFE::Job::HandleProtoMethodRetrieveFailedEvent(const std::string& fullPath)
 int
 WFE::Job::HandleProtoMethodArchiveFailedEvent(const std::string& fullPath)
 {
+  eos_static_info("In HandleProtoMethodArchiveFailedEvent!");
   EXEC_TIMING_BEGIN("Proto::Archive::Failed");
   gOFS->MgmStats.Add("Proto::Archive::Failed", 0, 0, 1);
 
