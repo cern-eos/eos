@@ -507,31 +507,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   mOpenState.isRW = ((mOpenState.open_flags == O_RDONLY) ? false : true);
   mOpenState.isRewrite = ((mOpenState.open_flags & O_CREAT) ? false : true);
   mOpenState.acc_op = GetXrdAccessOperation(mOpenState.open_flags);
-      {
-      EXEC_TIMING_BEGIN("IdMap");
-
-      if (mOpenState.spath.beginswith("/zteos64:")) {
-        mOpenState.sinfo += "&authz=";
-        mOpenState.sinfo += mOpenState.spath.c_str() + 1;
-        ininfo = mOpenState.sinfo.c_str();
-      }
-
-      if (!invid) {
-        eos::common::Mapping::IdMap(client, ininfo, tident, vid,
-                                    gOFS->mTokenAuthz, mOpenState.acc_op, mOpenState.spath.c_str());
-      } else {
-        vid = *invid;
-      }
-
-      EXEC_TIMING_END("IdMap");
-    }
-  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  
+  // Process identity and path mapping
+  std::string pathstring;
+  if (ProcessIdentityAndPath(invid, inpath, ininfo, tident, client, mOpenState.acc_op, vid, pathstring) != 0) {
+    return SFS_ERROR;
+  }
+  const char* path = pathstring.c_str();
+  
   COMMONTIMING("IdMap", &tm);
-  SetLogId(logId, vid, tident);
-  NAMESPACEMAP;
-  BOUNCE_ILLEGAL_NAMES;
-  BOUNCE_NOT_ALLOWED;
-  mOpenState.spath = path;
   COMMONTIMING("Bounce", &tm);
 
   if (!mOpenState.spath.beginswith("/proc/") && mOpenState.spath.endswith("/")) {
@@ -573,29 +557,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   MAYREDIRECT;
   COMMONTIMING("fid::fetch", &tm);
 
-  /* check paths starting with fid: fxid: ino: ... */
-  if (mOpenState.spath.beginswith("fid:") || mOpenState.spath.beginswith("fxid:") ||
-      mOpenState.spath.beginswith("ino:")) {
-    WAIT_BOOT;
-    // reference by fid+fsid
-    mOpenState.byfid = eos::Resolver::retrieveFileIdentifier(mOpenState.spath).getUnderlyingUInt64();
-
-    try {
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mOpenState.byfid);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      fmd = gOFS->eosFileService->getFileMD(mOpenState.byfid);
-      mOpenState.spath = gOFS->eosView->getUri(fmd.get()).c_str();
-      mOpenState.bypid = fmd->getContainerId();
-      eos_info("msg=\"access by inode\" ino=%s path=%s", path, mOpenState.spath.c_str());
-      path = mOpenState.spath.c_str();
-    } catch (eos::MDException& e) {
-      eos_debug("caught exception %d %s\n", e.getErrno(),
-                e.getMessage().str().c_str());
+  // Handle file ID access
+  int fid_ret = HandleFidAccess(mOpenState.spath.c_str(), fmd);
+  if (fid_ret != 0) {
+    if (fid_ret == -ENOENT) {
       MAYREDIRECT_ENOENT;
       MAYSTALL_ENOENT;
       return Emsg(epname, error, ENOENT,
                   "open - you specified a not existing inode number", path);
     }
+    return SFS_ERROR;
+  }
+  
+  // Update path if FID access resolved it
+  if (mOpenState.byfid) {
+    path = mOpenState.spath.c_str();
   }
 
   COMMONTIMING("fid::fetched", &tm);
@@ -3854,4 +3830,81 @@ XrdMgmOfsFile::GetExcludedFsids() const
   }
 
   return fsids;
+}
+
+//------------------------------------------------------------------------------
+// Process identity and path information
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::ProcessIdentityAndPath(eos::common::VirtualIdentity* invid,
+                                      const char* inpath, const char* ininfo, const char* tident,
+                                      const XrdSecEntity* client, Access_Operation acc_op,
+                                      eos::common::VirtualIdentity& vid, std::string& outpath)
+{
+  EXEC_TIMING_BEGIN("IdMap");
+
+  if (mOpenState.spath.beginswith("/zteos64:")) {
+    mOpenState.sinfo += "&authz=";
+    mOpenState.sinfo += mOpenState.spath.c_str() + 1;
+    ininfo = mOpenState.sinfo.c_str();
+  }
+
+  if (!invid) {
+    eos::common::Mapping::IdMap(client, ininfo, tident, vid,
+                                gOFS->mTokenAuthz, acc_op, mOpenState.spath.c_str());
+  } else {
+    vid = *invid;
+  }
+
+  EXEC_TIMING_END("IdMap");
+  
+  gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
+  SetLogId(logId, vid, tident);
+  
+  // Apply namespace mapping and security checks
+  const char* epname = "open";
+  XrdOucString spath = mOpenState.spath.c_str();
+  XrdOucString sinfo = mOpenState.sinfo.c_str();
+  
+  NAMESPACEMAP;
+  BOUNCE_ILLEGAL_NAMES;
+  BOUNCE_NOT_ALLOWED;
+  
+  mOpenState.spath = path;
+  outpath = path;
+  
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle file ID access
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleFidAccess(const std::string& spath, std::shared_ptr<eos::IFileMD>& fmd)
+{
+  XrdOucString ospath = spath.c_str();
+  const char* path = spath.c_str();
+
+  /* check paths starting with fid: fxid: ino: ... */
+  if (ospath.beginswith("fid:") || ospath.beginswith("fxid:") ||
+      ospath.beginswith("ino:")) {
+    WAIT_BOOT;
+    // reference by fid+fsid
+    mOpenState.byfid = eos::Resolver::retrieveFileIdentifier(ospath).getUnderlyingUInt64();
+
+    try {
+      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mOpenState.byfid);
+      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+      fmd = gOFS->eosFileService->getFileMD(mOpenState.byfid);
+      mOpenState.spath = gOFS->eosView->getUri(fmd.get()).c_str();
+      mOpenState.bypid = fmd->getContainerId();
+      eos_info("msg=\"access by inode\" ino=%s path=%s", path, mOpenState.spath.c_str());
+    } catch (eos::MDException& e) {
+      eos_debug("caught exception %d %s\n", e.getErrno(),
+                e.getMessage().str().c_str());
+      return -ENOENT;
+    }
+  }
+  
+  return 0;
 }

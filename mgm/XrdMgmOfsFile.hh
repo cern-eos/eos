@@ -57,9 +57,16 @@
 
 USE_EOSMGMNAMESPACE
 
-//! Forward declaration
+//! Forward declarations
 class XrdSfsAio;
 class XrdSecEntity;
+
+//! Forward declaration from MGM namespace
+namespace eos {
+namespace mgm {
+class Acl;
+}
+}
 
 //------------------------------------------------------------------------------
 //! Class implementing files and operations
@@ -345,6 +352,206 @@ public:
 #else
 private:
 #endif
+  //----------------------------------------------------------------------------
+  //! Helper functions for the refactored open() method
+  //----------------------------------------------------------------------------
+  
+  //----------------------------------------------------------------------------
+  //! Process identity and path information
+  //!
+  //! @param invid virtual identity pointer
+  //! @param inpath input path
+  //! @param ininfo input opaque information  
+  //! @param tident thread identifier
+  //! @param client XRD security entity
+  //! @param acc_op access operation
+  //! @param vid virtual identity output
+  //! @param path processed path output
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+    int ProcessIdentityAndPath(eos::common::VirtualIdentity* invid,
+                              const char* inpath, const char* ininfo, const char* tident,
+                              const XrdSecEntity* client, Access_Operation acc_op,
+                              eos::common::VirtualIdentity& vid, std::string& outpath);
+
+  //----------------------------------------------------------------------------
+  //! Handle file ID access
+  //!
+  //! @param spath path string
+  //! @param fmd file metadata output
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleFidAccess(const std::string& spath, std::shared_ptr<eos::IFileMD>& fmd);
+
+  //----------------------------------------------------------------------------
+  //! Process opaque parameters
+  //!
+  //! @param openOpaque opaque environment
+  //! @param client XRD security entity
+  //! @param ininfo input opaque information
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int ProcessOpaqueParameters(XrdOucEnv* openOpaque,
+                              const XrdSecEntity* client, const char* ininfo);
+
+  //----------------------------------------------------------------------------
+  //! Handle container and permissions
+  //!
+  //! @param path file path
+  //! @param vid virtual identity
+  //! @param isRW read-write flag
+  //! @param isSharedFile shared file flag  
+  //! @param stdpermcheck standard permission check flag
+  //! @param dmd container metadata output
+  //! @param fmd file metadata output
+  //! @param attrmap container attributes output
+  //! @param attrmapF file attributes output
+  //! @param acl access control list output
+  //! @param mFid file ID output
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+    int HandleContainerAndPermissions(const std::string& path,
+                                     const eos::common::VirtualIdentity& vid,
+                                     bool isRW, bool isSharedFile, bool stdpermcheck,
+                                     std::shared_ptr<eos::IContainerMD>& dmd,
+                                     std::shared_ptr<eos::IFileMD>& fmd,
+                                     eos::IContainerMD::XAttrMap& attrmap,
+                                     eos::IFileMD::XAttrMap& attrmapF,
+                                     eos::mgm::Acl& acl, unsigned long long& mFid);
+
+  //----------------------------------------------------------------------------
+  //! Handle file creation
+  //!
+  //! @param creation_path creation path
+  //! @param path file path
+  //! @param vid virtual identity
+  //! @param Mode creation mode
+  //! @param dmd container metadata
+  //! @param fmd file metadata output
+  //! @param attrmap container attributes
+  //! @param attrmapF file attributes
+  //! @param isCreation creation flag
+  //! @param isAtomicUpload atomic upload flag
+  //! @param ocUploadUuid upload UUID
+  //! @param versioning versioning parameter
+  //! @param mFid file ID output
+  //! @param acl access control list
+  //! @param open_flags open flags
+  //! @param mEosKey encryption key
+  //! @param mEosObfuscate obfuscation setting
+  //! @param logId log identifier
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleFileCreation(const std::string& creation_path,
+                         const std::string& path, const eos::common::VirtualIdentity& vid,
+                         mode_t Mode, std::shared_ptr<eos::IContainerMD>& dmd,
+                         std::shared_ptr<eos::IFileMD>& fmd,
+                         const eos::IContainerMD::XAttrMap& attrmap,
+                         const eos::IFileMD::XAttrMap& attrmapF,
+                         bool isCreation, bool isAtomicUpload, const std::string& ocUploadUuid,
+                         int versioning, unsigned long long& mFid,
+                         const eos::mgm::Acl& acl, int open_flags,
+                         const std::string& mEosKey, int mEosObfuscate,
+                         const std::string& logId);
+
+  //----------------------------------------------------------------------------
+  //! Handle file scheduling
+  //!
+  //! @param path file path
+  //! @param vid virtual identity
+  //! @param fmd file metadata
+  //! @param isRW read-write flag
+  //! @param isCreation creation flag
+  //! @param isPioReconstruct PIO reconstruct flag
+  //! @param isPio PIO flag
+  //! @param isRepair repair flag
+  //! @param isFuse FUSE flag
+  //! @param space storage space
+  //! @param layoutId layout identifier
+  //! @param bookingsize booking size
+  //! @param forced_group forced group
+  //! @param targetgeotag target geo tag
+  //! @param excludefs excluded filesystems
+  //! @param pio_reconstruct_fs PIO reconstruct filesystems
+  //! @param selectedfs selected filesystems output
+  //! @param unavailfs unavailable filesystems output
+  //! @param replacedfs replaced filesystems output
+  //! @param pio_replacement_fs PIO replacement filesystems output
+  //! @param proxys proxy endpoints output
+  //! @param firewalleps firewall endpoints output
+  //! @param fsIndex filesystem index output
+  //! @param tried_cgi tried CGI
+  //! @param retc return code output
+  //! @param isRecreation recreation flag output
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleFileScheduling(const std::string& path,
+                           const eos::common::VirtualIdentity& vid,
+                           std::shared_ptr<eos::IFileMD>& fmd,
+                           bool isRW, bool isCreation, bool isPioReconstruct,
+                           bool isPio, bool isRepair, bool isFuse,
+                           const std::string& space, unsigned long layoutId,
+                           uint64_t bookingsize, long forced_group,
+                           const std::string& targetgeotag,
+                           const std::vector<unsigned int>& excludefs,
+                           const std::set<unsigned int>& pio_reconstruct_fs,
+                           std::vector<unsigned int>& selectedfs,
+                           std::vector<unsigned int>& unavailfs,
+                           std::vector<unsigned int>& replacedfs,
+                           std::vector<unsigned int>& pio_replacement_fs,
+                           std::vector<std::string>& proxys,
+                           std::vector<std::string>& firewalleps,
+                           unsigned long& fsIndex, const std::string& tried_cgi,
+                           int& retc, bool& isRecreation);
+
+  //----------------------------------------------------------------------------
+  //! Construct redirection URL
+  //!
+  //! @param path file path
+  //! @param vid virtual identity
+  //! @param selectedfs selected filesystems
+  //! @param proxys proxy endpoints
+  //! @param firewalleps firewall endpoints
+  //! @param fsIndex filesystem index
+  //! @param isRW read-write flag
+  //! @param isPio PIO flag
+  //! @param isPioReconstruct PIO reconstruct flag
+  //! @param isFuse FUSE flag
+  //! @param app_name application name
+  //! @param ioPriority IO priority
+  //! @param capability capability string
+  //! @param hex_fid hexadecimal file ID
+  //! @param logId log identifier
+  //! @param openOpaque opaque environment
+  //! @param fmd file metadata
+  //! @param redirectionhost redirection host output
+  //! @param targethost target host output
+  //! @param targetport target port output
+  //! @param targethttpport target HTTP port output
+  //! @param ecode error code output
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int ConstructRedirectionUrl(const std::string& path,
+                              const eos::common::VirtualIdentity& vid,
+                              const std::vector<unsigned int>& selectedfs,
+                              const std::vector<std::string>& proxys,
+                              const std::vector<std::string>& firewalleps,
+                              unsigned long fsIndex, bool isRW, bool isPio,
+                              bool isPioReconstruct, bool isFuse,
+                              const std::string& app_name, const std::string& ioPriority,
+                              const std::string& capability, const std::string& hex_fid,
+                              const std::string& logId, XrdOucEnv* openOpaque,
+                              std::shared_ptr<eos::IFileMD>& fmd,
+                              XrdOucString& redirectionhost, XrdOucString& targethost,
+                              int& targetport, int& targethttpport, int& ecode);
+
   //----------------------------------------------------------------------------
   //! Check if this is a client retry with exclusion of some diskserver. This
   //! happens usually for CMS workflows. To distinguish such a scenario from
