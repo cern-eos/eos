@@ -1680,6 +1680,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
       if (!mOpenState.byfid) {
         try {
+          std::string fileName = cPath.GetName();
           fmdnew = dmd->findFile(fileName);
         } catch (eos::MDException& e) {
           if ((!mOpenState.isAtomicUpload) && (fmdnew != fmd)) {
@@ -1843,6 +1844,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += attrmap["user.tag"].c_str();
   }
 
+  // File systems which are unavailable during a read operation
+  std::vector<unsigned int> unavailfs;
+  // File systems which have been replaced with a new reconstructed stripe
+  std::vector<unsigned int> replacedfs;
+  std::vector<unsigned int> selectedfs;
+  std::vector<std::string> proxys;
+  std::vector<std::string> firewalleps;
+  bool isRecreation = false;
+  int retc = 0;
+  
   // Size which will be reserved with a placement of one replica for the file
   unsigned long long bookingsize = 0;
   bool hasClientBookingSize = false;
@@ -1900,16 +1911,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool use_geoscheduler = strategy ==
                           placement::PlacementStrategyT::kGeoScheduler;
   //eos::mgm::FileSystem* filesystem = 0;
-  std::vector<unsigned int> selectedfs;
   std::vector<unsigned int> excludefs = GetExcludedFsids();
-  std::vector<std::string> proxys;
-  std::vector<std::string> firewalleps;
-  // file systems which are unavailable during a read operation
-  std::vector<unsigned int> unavailfs;
-  // file systems which have been replaced with a new reconstructed stripe
-  std::vector<unsigned int> replacedfs;
-  int retc = 0;
-  bool isRecreation = false;
 
   // Place a new file
   if (mOpenState.isCreation || (!fmd->getNumLocation()) || mOpenState.isInjection) {
@@ -2160,8 +2162,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             args.forced_group_index = forced_group;
           }
 
-          auto ret = gOFS->mFsScheduler->schedule(space,
-                                                  args);
+          auto ret = gOFS->mFsScheduler->schedule(space, args);
           COMMONTIMING("PlctScheduler::FilePlaced", &tm);
 
           if (ret.is_valid_placement(n_replicas)) {
@@ -3908,3 +3909,5 @@ XrdMgmOfsFile::ProcessOpaqueParameters(XrdOucEnv*& openOpaque, const XrdSecEntit
 
   return 0;
 }
+
+

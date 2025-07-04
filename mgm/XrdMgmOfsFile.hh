@@ -426,25 +426,7 @@ private:
                          eos::IFileMD::XAttrMap& attrmapF,
                          const Acl& acl, int versioning);
 
-  //----------------------------------------------------------------------------
-  //! Handle file scheduling
-  //!
-  //! @param path file path
-  //! @param fmd file metadata
-  //! @param attrmap container attributes
-  //! @param space space name
-  //! @param selectedfs selected filesystems output
-  //! @param proxys proxy endpoints output
-  //! @param firewalleps firewall endpoints output
-  //!
-  //! @return 0 on success, error code on failure
-  //----------------------------------------------------------------------------
-  int HandleFileScheduling(const char* path, std::shared_ptr<eos::IFileMD>& fmd,
-                           const eos::IContainerMD::XAttrMap& attrmap,
-                           const std::string& space,
-                           std::vector<unsigned int>& selectedfs,
-                           std::vector<std::string>& proxys,
-                           std::vector<std::string>& firewalleps);
+
 
   //----------------------------------------------------------------------------
   //! Construct redirection URL
