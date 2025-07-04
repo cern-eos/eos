@@ -94,7 +94,7 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mDiskInterval(DEFAULT_DISK_INTERVAL),
   mEntryInterval(file_rescan_interval),
   mRainEntryInterval(DEFAULT_RAIN_RESCAN_INTERVAL),
-  mAltXsInterval(DEFAULT_ALT_XS_INTERVAL),
+  mAltXsInterval(0), // by default it's disabled
   mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
