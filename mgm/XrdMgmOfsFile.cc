@@ -1253,189 +1253,33 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // construct capability
   // ---------------------------------------------------------------------------
   XrdOucString capability = "";
-
-  if (gOFS->mTapeEnabled) {
-    capability += "&tapeenabled=1";
-  }
-
-  if (mOpenState.isPioReconstruct) {
-    capability += "&mgm.access=update";
-  } else {
-    if (mOpenState.isRW) {
-      if (mOpenState.isRewrite) {
-        capability += "&mgm.access=update";
-      } else {
-        capability += "&mgm.access=create";
-      }
-
-      uint64_t cloneId;
-
-      if (fmd && (cloneId = fmd->getCloneId()) != 0) {
-        char sbuff[1024];
-        std::string cloneFST = fmd->getCloneFST();
-
-        if (cloneFST == "") {      /* This triggers the copy-on-write */
-          if (int rc = create_cow(cowUpdate, dmd, fmd, vid, error)) {
-            return rc;
-          }
-        }
-
-        eos_debug("file %s cloneid %ld cloneFST %s trunc %d", path, fmd->getCloneId(),
-                  fmd->getCloneFST().c_str(), mOpenState.open_flags & O_TRUNC);
-        snprintf(sbuff, sizeof(sbuff), "&mgm.cloneid=%ld&mgm.cloneFST=%s", cloneId,
-                 fmd->getCloneFST().c_str());
-        capability += sbuff;
-      }
-    } else {
-      capability += "&mgm.access=read";
-    }
-  }
-
-  if (mEosObfuscate && !mOpenState.isFuse) {
-    // add obfuscation key to redirection capability
-    if (attrmapF.count("user.obfuscate.key")) {
-      capability += "&mgm.obfuscate.key=";
-      capability += attrmapF["user.obfuscate.key"].c_str();
-    }
-
-    // add encryption key to redirection capability
-    if (mEosKey.length()) {
-      capability += "&mgm.encryption.key=";
-      capability += mEosKey.c_str();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // forward some allowed user opaque tags
-  // ---------------------------------------------------------------------------
+  
+  // Variables needed by both capability creation and later code
   unsigned long layoutId = (mOpenState.isCreation) ? LayoutId::kPlain : mOpenState.fmdlid;
-  // the client can force to read a file on a defined file system
   unsigned long forcedFsId = 0;
-  // the client can force to place a file in a specified group of a space
   long forced_group = -1;
-  // this is the filesystem defining the client access point in the selection
-  // vector - for writes it is always 0, for reads it comes out of the
-  // FileAccess function
   unsigned long fsIndex = 0;
   std::string space = "default";
   unsigned long new_lid = 0;
-  eos::mgm::Scheduler::tPlctPolicy plctplcy;
   std::string targetgeotag;
   std::string bandwidth;
   std::string ioprio;
   std::string iotype;
   bool schedule = false;
-  uint64_t atimeage = 0;
-  // select space and layout according to policies
-  COMMONTIMING("Policy::begin", &tm);
-  Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
-                            forcedFsId, forced_group, bandwidth, schedule,
-                            ioprio, iotype, mOpenState.isRW, true, &atimeage);
-  COMMONTIMING("Policy::end", &tm);
-  Policy::RedirectStatus rs;
-
-  // do a local redirect here if there is only one replica attached and this is not an HTTPS request
-  if (vid.prot != "https" && !mOpenState.isRW && !mOpenState.isFuse && !mOpenState.isPio &&
-      (fmd->getNumLocation() == 1) &&
-      (rs = Policy::RedirectLocal(path, attrmap, vid, layoutId, space,
-                                  *openOpaque)) != Policy::eNever) {
-    XrdCl::URL url(std::string("root://localhost//") + std::string(
-                     path ? path : "/dummy/") + std::string("?") + std::string(
-                     ininfo ? ininfo : ""));
-    std::string localhost = "localhost";
-
-    if (gOFS->Tried(url, localhost, "*")) {
-      gOFS->MgmStats.Add("OpenFailedRedirectLocal", vid.uid, vid.gid, 1);
-      eos_info("msg=\"local-redirect disabled - forwarding to FST\" path=\"%s\" info=\"%s\"",
-               path, ininfo);
-    } else {
-      eos::common::FileSystem::fs_snapshot_t local_snapshot;
-      unsigned int local_id = fmd->getLocation(0);
-      {
-        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-        eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
-        local_fs->SnapShotFileSystem(local_snapshot);
-        eos_info("sharedfs='%s'", local_fs->getSharedFs().c_str());
-      }
-      std::string anchor = "#";
-      std::string appanchor = mOpenState.app_name;
-      auto hpos = mOpenState.app_name.find("#");
-
-      if (hpos != std::string::npos) {
-        appanchor = mOpenState.app_name.substr(hpos);
-      }
-
-      anchor += local_snapshot.mSharedFs;
-      eos_debug("app-anchor='%s' anchor='%s' redirect-policy=%d", appanchor.c_str(),
-                anchor.c_str(), rs);
-
-      if ((rs == Policy::eAlways) ||
-          ((rs == Policy::eOptional) && (appanchor == anchor))) {
-        // compute the local path
-        std::string local_path = eos::common::FileId::FidPrefix2FullPath(
-                                   eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
-                                   local_snapshot.mPath.c_str());
-        eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"",
-                 local_path.c_str(), path, ininfo);
-        redirectionhost = "file://localhost";
-        redirectionhost += local_path.c_str();
-        ecode = -1;
-
-        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-          return SFS_ERROR;
-        }
-
-        rcode = SFS_REDIRECT;
-        gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
-        eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
-        return rcode;
-      }
-    }
-  }
-
-  if (mOpenState.ioPriority.length()) {
-    ioprio = mOpenState.ioPriority;
-    capability += "&mgm.iopriority=";
-    capability += mOpenState.ioPriority.c_str();
-  } else {
-    if (ioprio.length()) {
-      capability += "&mgm.iopriority=";
-      capability += ioprio.c_str();
-    }
-  }
-
-  if (schedule) {
-    capability += "&mgm.schedule=1";
-  }
-
-  if (iotype.length()) {
-    capability += "&mgm.iotype=";
-    capability += iotype.c_str();
-  }
-
-  if (fmd && atimeage) {
-    static std::set<std::string> skip_tag {"balancer", "groupdrainer", "groupbalancer", "geobalancer", "drainer", "converter", "fsck"};
-
-    if (mOpenState.app_name.empty() || (skip_tag.find(mOpenState.app_name) == skip_tag.end())) {
-      // do a potential atime update, we don't need a name
-      try {
-        if (fmd->setATimeNow(atimeage)) {
-          gOFS->eosView->updateFileStore(fmd.get());
-        }
-      } catch (eos::MDException& e) {
-        errno = e.getErrno();
-        std::string errmsg = e.getMessage().str();
-        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                  e.getErrno(), e.getMessage().str().c_str());
-        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
-        return Emsg(epname, error, errno, "open file and update atime for reading",
-                    errmsg.c_str());
-      }
-    }
+  
+  // Make a non-const copy of attrmap for the helper function
+  eos::IContainerMD::XAttrMap attrmap_copy = attrmap;
+  
+  if (int rc = HandleCapabilityCreation(path, ininfo, vid, dmd, fmd, attrmap_copy, 
+                                        attrmapF, openOpaque, capability,
+                                        layoutId, forcedFsId, forced_group, fsIndex,
+                                        space, new_lid, targetgeotag, bandwidth,
+                                        ioprio, iotype, schedule)) {
+    return rc;
   }
 
   // get placement policy
+  eos::mgm::Scheduler::tPlctPolicy plctplcy;
   Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;
@@ -1719,7 +1563,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if ((strategy_cstr = openOpaque->Get("eos.schedulingstrategy"))) {
     strategy = placement::strategy_from_str(strategy_cstr);
     eos_debug("msg=\"using scheduling strategy\" strategy=%s",
-              strategy_to_str(strategy).c_str());
+              eos::mgm::placement::strategy_to_str(strategy).c_str());
   }
 
   bool use_geoscheduler = strategy ==
@@ -1779,7 +1623,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       uint8_t n_replicas = static_cast<uint8_t>(n_replicas_);
-      placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
+      placement::PlacementArguments args(n_replicas, placement::ConfigStatus::kRW, strategy);
 
       if (!excludefs.empty()) {
         args.excludefs = excludefs;
@@ -1966,7 +1810,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         if (!use_geoscheduler) {
           COMMONTIMING("PlctScheduler::FilePlacement", &tm);
           uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
-          placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
+          placement::PlacementArguments args(n_replicas, placement::ConfigStatus::kRW, strategy);
 
           if (!excludefs.empty()) {
             args.excludefs = excludefs;
@@ -3990,6 +3834,206 @@ XrdMgmOfsFile::HandleAclAndPermissions(const char* path, eos::common::VirtualIde
   if (fmd != nullptr && fmd->hasAttribute("sys.proc")) {
     // Return special code to indicate sys.proc redirection
     return 999; // Special return code for sys.proc handling
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle capability creation and policy evaluation
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleCapabilityCreation(const char* path, const char* ininfo,
+                                         eos::common::VirtualIdentity& vid,
+                                         std::shared_ptr<eos::IContainerMD>& dmd,
+                                         std::shared_ptr<eos::IFileMD>& fmd,
+                                         eos::IContainerMD::XAttrMap& attrmap,
+                                         const eos::IFileMD::XAttrMap& attrmapF,
+                                         XrdOucEnv* openOpaque,
+                                         XrdOucString& capability,
+                                         unsigned long& layoutId,
+                                         unsigned long& forcedFsId,
+                                         long& forced_group,
+                                         unsigned long& fsIndex,
+                                         std::string& space,
+                                         unsigned long& new_lid,
+                                         std::string& targetgeotag,
+                                         std::string& bandwidth,
+                                         std::string& ioprio,
+                                         std::string& iotype,
+                                         bool& schedule)
+{
+  static const char* epname = "open";
+  eos::common::Timing tm("CapabilityCreation");
+  
+  // ---------------------------------------------------------------------------
+  // construct capability
+  // ---------------------------------------------------------------------------
+  capability = "";
+
+  if (gOFS->mTapeEnabled) {
+    capability += "&tapeenabled=1";
+  }
+
+  if (mOpenState.isPioReconstruct) {
+    capability += "&mgm.access=update";
+  } else {
+    if (mOpenState.isRW) {
+      if (mOpenState.isRewrite) {
+        capability += "&mgm.access=update";
+      } else {
+        capability += "&mgm.access=create";
+      }
+
+      uint64_t cloneId;
+
+      if (fmd && (cloneId = fmd->getCloneId()) != 0) {
+        char sbuff[1024];
+        std::string cloneFST = fmd->getCloneFST();
+
+        if (cloneFST == "") {      /* This triggers the copy-on-write */
+          if (int rc = create_cow(cowUpdate, dmd, fmd, vid, error)) {
+            return rc;
+          }
+        }
+
+        eos_debug("file %s cloneid %ld cloneFST %s trunc %d", path, fmd->getCloneId(),
+                  fmd->getCloneFST().c_str(), mOpenState.open_flags & O_TRUNC);
+        snprintf(sbuff, sizeof(sbuff), "&mgm.cloneid=%ld&mgm.cloneFST=%s", cloneId,
+                 fmd->getCloneFST().c_str());
+        capability += sbuff;
+      }
+    } else {
+      capability += "&mgm.access=read";
+    }
+  }
+
+  if (mEosObfuscate && !mOpenState.isFuse) {
+    // add obfuscation key to redirection capability
+    if (attrmapF.count("user.obfuscate.key")) {
+      capability += "&mgm.obfuscate.key=";
+      capability += attrmapF.at("user.obfuscate.key").c_str();
+    }
+
+    // add encryption key to redirection capability
+    if (mEosKey.length()) {
+      capability += "&mgm.encryption.key=";
+      capability += mEosKey.c_str();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // forward some allowed user opaque tags
+  // ---------------------------------------------------------------------------
+  uint64_t atimeage = 0;
+  
+  // select space and layout according to policies
+  COMMONTIMING("Policy::begin", &tm);
+  Policy::GetLayoutAndSpace(path, attrmap, vid, new_lid, space, *openOpaque,
+                            forcedFsId, forced_group, bandwidth, schedule,
+                            ioprio, iotype, mOpenState.isRW, true, &atimeage);
+  COMMONTIMING("Policy::end", &tm);
+  Policy::RedirectStatus rs;
+
+  // do a local redirect here if there is only one replica attached and this is not an HTTPS request
+  if (vid.prot != "https" && !mOpenState.isRW && !mOpenState.isFuse && !mOpenState.isPio &&
+      (fmd->getNumLocation() == 1) &&
+      (rs = Policy::RedirectLocal(path, attrmap, vid, layoutId, space,
+                                  *openOpaque)) != Policy::eNever) {
+    XrdCl::URL url(std::string("root://localhost//") + std::string(
+                     path ? path : "/dummy/") + std::string("?") + std::string(
+                     ininfo ? ininfo : ""));
+    std::string localhost = "localhost";
+
+    if (gOFS->Tried(url, localhost, "*")) {
+      gOFS->MgmStats.Add("OpenFailedRedirectLocal", vid.uid, vid.gid, 1);
+      eos_info("msg=\"local-redirect disabled - forwarding to FST\" path=\"%s\" info=\"%s\"",
+               path, ininfo);
+    } else {
+      eos::common::FileSystem::fs_snapshot_t local_snapshot;
+      unsigned int local_id = fmd->getLocation(0);
+      {
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        eos::mgm::FileSystem* local_fs = FsView::gFsView.mIdView.lookupByID(local_id);
+        local_fs->SnapShotFileSystem(local_snapshot);
+        eos_info("sharedfs='%s'", local_fs->getSharedFs().c_str());
+      }
+      std::string anchor = "#";
+      std::string appanchor = mOpenState.app_name;
+      auto hpos = mOpenState.app_name.find("#");
+
+      if (hpos != std::string::npos) {
+        appanchor = mOpenState.app_name.substr(hpos);
+      }
+
+      anchor += local_snapshot.mSharedFs;
+      eos_debug("app-anchor='%s' anchor='%s' redirect-policy=%d", appanchor.c_str(),
+                anchor.c_str(), rs);
+
+      if ((rs == Policy::eAlways) ||
+          ((rs == Policy::eOptional) && (appanchor == anchor))) {
+        // compute the local path
+        std::string local_path = eos::common::FileId::FidPrefix2FullPath(
+                                   eos::common::FileId::Fid2Hex(fmd->getId()).c_str(),
+                                   local_snapshot.mPath.c_str());
+        eos_info("msg=\"local-redirect screening - forwarding to local\" local-path=\"%s\" path=\"%s\" info=\"%s\"",
+                 local_path.c_str(), path, ininfo);
+        
+        XrdOucString redirectionhost = "file://localhost";
+        redirectionhost += local_path.c_str();
+        int ecode = -1;
+
+        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+          return SFS_ERROR;
+        }
+
+        gOFS->MgmStats.Add("OpenRedirectLocal", vid.uid, vid.gid, 1);
+        eos_info("local-redirect=\"%s\"", redirectionhost.c_str());
+        return SFS_REDIRECT;
+      }
+    }
+  }
+
+  if (mOpenState.ioPriority.length()) {
+    ioprio = mOpenState.ioPriority;
+    capability += "&mgm.iopriority=";
+    capability += mOpenState.ioPriority.c_str();
+  } else {
+    if (ioprio.length()) {
+      capability += "&mgm.iopriority=";
+      capability += ioprio.c_str();
+    }
+  }
+
+  if (schedule) {
+    capability += "&mgm.schedule=1";
+  }
+
+  if (iotype.length()) {
+    capability += "&mgm.iotype=";
+    capability += iotype.c_str();
+  }
+
+  if (fmd && atimeage) {
+    static std::set<std::string> skip_tag {"balancer", "groupdrainer", "groupbalancer", "geobalancer", "drainer", "converter", "fsck"};
+
+    if (mOpenState.app_name.empty() || (skip_tag.find(mOpenState.app_name) == skip_tag.end())) {
+      // do a potential atime update, we don't need a name
+      try {
+        if (fmd->setATimeNow(atimeage)) {
+          gOFS->eosView->updateFileStore(fmd.get());
+        }
+      } catch (eos::MDException& e) {
+        errno = e.getErrno();
+        std::string errmsg = e.getMessage().str();
+        eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                  e.getErrno(), e.getMessage().str().c_str());
+        gOFS->MgmStats.Add("OpenFailedQuota", vid.uid, vid.gid, 1);
+        return Emsg(epname, error, errno, "open file and update atime for reading",
+                    errmsg.c_str());
+      }
+    }
   }
 
   return 0;

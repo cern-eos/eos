@@ -532,6 +532,52 @@ private:
                               bool sticky_owner, bool dotFxid);
 
   //----------------------------------------------------------------------------
+  //! Handle capability creation and policy evaluation
+  //!
+  //! @param path file path
+  //! @param ininfo input opaque information
+  //! @param vid virtual identity
+  //! @param dmd container metadata
+  //! @param fmd file metadata
+  //! @param attrmap container attributes
+  //! @param attrmapF file attributes
+  //! @param openOpaque opaque environment
+  //! @param capability capability string (output)
+  //! @param layoutId layout ID (input/output)
+  //! @param forcedFsId forced filesystem ID (output)
+  //! @param forced_group forced group (output)
+  //! @param fsIndex filesystem index (output)
+  //! @param space space name (output)
+  //! @param new_lid new layout ID (output)
+  //! @param targetgeotag target geotag (output)
+  //! @param bandwidth bandwidth (output)
+  //! @param ioprio IO priority (output)
+  //! @param iotype IO type (output)
+  //! @param schedule schedule flag (output)
+  //!
+  //! @return 0 on success, SFS_REDIRECT for local redirect, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleCapabilityCreation(const char* path, const char* ininfo,
+                                eos::common::VirtualIdentity& vid,
+                                std::shared_ptr<eos::IContainerMD>& dmd,
+                                std::shared_ptr<eos::IFileMD>& fmd,
+                                eos::IContainerMD::XAttrMap& attrmap,
+                                const eos::IFileMD::XAttrMap& attrmapF,
+                                XrdOucEnv* openOpaque,
+                                XrdOucString& capability,
+                                unsigned long& layoutId,
+                                unsigned long& forcedFsId,
+                                long& forced_group,
+                                unsigned long& fsIndex,
+                                std::string& space,
+                                unsigned long& new_lid,
+                                std::string& targetgeotag,
+                                std::string& bandwidth,
+                                std::string& ioprio,
+                                std::string& iotype,
+                                bool& schedule);
+
+  //----------------------------------------------------------------------------
   //! Handle container and permissions
   //!
   //! @param path file path
