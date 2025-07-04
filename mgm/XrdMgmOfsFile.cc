@@ -1133,54 +1133,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // get placement policy
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
   Policy::GetPlctPolicy(path, mOpenState.attrmap, vid, *openOpaque, plctplcy, targetgeotag);
+  
+  // Parse external timestamps and attributes
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;
   unsigned long long ext_ctime_sec = 0;
   unsigned long long ext_ctime_nsec = 0;
   std::string ext_etag;
   std::map<std::string, std::string> ext_xattr_map;
-
-  if (openOpaque->Get("eos.ctime")) {
-    std::string str_ctime = openOpaque->Get("eos.ctime");
-    size_t pos = str_ctime.find('.');
-
-    if (pos == std::string::npos) {
-      ext_ctime_sec = strtoull(str_ctime.c_str(), 0, 10);
-      ext_ctime_nsec = 0;
-    } else {
-      ext_ctime_sec = strtoull(str_ctime.substr(0, pos).c_str(), 0, 10);
-      ext_ctime_nsec = strtoull(str_ctime.substr(pos + 1).c_str(), 0, 10);
-    }
-  }
-
-  if (openOpaque->Get("eos.mtime")) {
-    std::string str_mtime = openOpaque->Get("eos.mtime");
-    size_t pos = str_mtime.find('.');
-
-    if (pos == std::string::npos) {
-      ext_mtime_sec = strtoull(str_mtime.c_str(), 0, 10);
-      ext_mtime_nsec = 0;
-    } else {
-      ext_mtime_sec = strtoull(str_mtime.substr(0, pos).c_str(), 0, 10);
-      ext_mtime_nsec = strtoull(str_mtime.substr(pos + 1).c_str(), 0, 10);
-    }
-  }
-
-  if (openOpaque->Get("eos.etag")) {
-    ext_etag = openOpaque->Get("eos.etag");
-  }
-
-  if (openOpaque->Get("eos.xattr")) {
-    std::vector<std::string> xattr_keys;
-    eos::common::StringConversion::GetKeyValueMap(openOpaque->Get("eos.xattr"),
-        ext_xattr_map, "=", "#", &xattr_keys);
-
-    for (auto it = xattr_keys.begin(); it != xattr_keys.end(); ++it) {
-      if (it->substr(0, 5) != "user.") {
-        ext_xattr_map.erase(*it);
-      }
-    }
-  }
+  
+  ParseExternalTimestampsAndAttributes(openOpaque, ext_mtime_sec, ext_mtime_nsec,
+                                       ext_ctime_sec, ext_ctime_nsec, ext_etag, ext_xattr_map);
 
   if ((!mOpenState.isInjection) && (mOpenState.isCreation || (mOpenState.open_flags & O_TRUNC))) {
     eos_info("blocksize=%llu lid=%x", LayoutId::GetBlocksize(new_lid), new_lid);
@@ -4073,6 +4036,66 @@ XrdMgmOfsFile::HandleEnoentRedirection(const char* path,
   }
 
   return 0; // No redirection, continue processing
+}
+
+//------------------------------------------------------------------------------
+// Parse external timestamp and attribute parameters from opaque
+//------------------------------------------------------------------------------
+void
+XrdMgmOfsFile::ParseExternalTimestampsAndAttributes(XrdOucEnv* openOpaque,
+                                                     unsigned long long& ext_mtime_sec,
+                                                     unsigned long long& ext_mtime_nsec,
+                                                     unsigned long long& ext_ctime_sec,
+                                                     unsigned long long& ext_ctime_nsec,
+                                                     std::string& ext_etag,
+                                                     std::map<std::string, std::string>& ext_xattr_map)
+{
+  // Parse external creation time
+  if (openOpaque->Get("eos.ctime")) {
+    std::string str_ctime = openOpaque->Get("eos.ctime");
+    size_t pos = str_ctime.find('.');
+
+    if (pos == std::string::npos) {
+      ext_ctime_sec = strtoull(str_ctime.c_str(), 0, 10);
+      ext_ctime_nsec = 0;
+    } else {
+      ext_ctime_sec = strtoull(str_ctime.substr(0, pos).c_str(), 0, 10);
+      ext_ctime_nsec = strtoull(str_ctime.substr(pos + 1).c_str(), 0, 10);
+    }
+  }
+
+  // Parse external modification time
+  if (openOpaque->Get("eos.mtime")) {
+    std::string str_mtime = openOpaque->Get("eos.mtime");
+    size_t pos = str_mtime.find('.');
+
+    if (pos == std::string::npos) {
+      ext_mtime_sec = strtoull(str_mtime.c_str(), 0, 10);
+      ext_mtime_nsec = 0;
+    } else {
+      ext_mtime_sec = strtoull(str_mtime.substr(0, pos).c_str(), 0, 10);
+      ext_mtime_nsec = strtoull(str_mtime.substr(pos + 1).c_str(), 0, 10);
+    }
+  }
+
+  // Parse external etag
+  if (openOpaque->Get("eos.etag")) {
+    ext_etag = openOpaque->Get("eos.etag");
+  }
+
+  // Parse external extended attributes
+  if (openOpaque->Get("eos.xattr")) {
+    std::vector<std::string> xattr_keys;
+    eos::common::StringConversion::GetKeyValueMap(openOpaque->Get("eos.xattr"),
+        ext_xattr_map, "=", "#", &xattr_keys);
+
+    // Only allow user.* attributes for security
+    for (auto it = xattr_keys.begin(); it != xattr_keys.end(); ++it) {
+      if (it->substr(0, 5) != "user.") {
+        ext_xattr_map.erase(*it);
+      }
+    }
+  }
 }
 
 

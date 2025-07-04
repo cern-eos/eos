@@ -621,6 +621,25 @@ private:
                               std::shared_ptr<eos::IContainerMD>& dmd);
 
   //----------------------------------------------------------------------------
+  //! Parse external timestamp and attribute parameters from opaque
+  //!
+  //! @param openOpaque opaque environment
+  //! @param ext_mtime_sec external modification time seconds (output)
+  //! @param ext_mtime_nsec external modification time nanoseconds (output)
+  //! @param ext_ctime_sec external creation time seconds (output)
+  //! @param ext_ctime_nsec external creation time nanoseconds (output)
+  //! @param ext_etag external ETag (output)
+  //! @param ext_xattr_map external extended attributes (output)
+  //----------------------------------------------------------------------------
+  void ParseExternalTimestampsAndAttributes(XrdOucEnv* openOpaque,
+                                            unsigned long long& ext_mtime_sec,
+                                            unsigned long long& ext_mtime_nsec,
+                                            unsigned long long& ext_ctime_sec,
+                                            unsigned long long& ext_ctime_nsec,
+                                            std::string& ext_etag,
+                                            std::map<std::string, std::string>& ext_xattr_map);
+
+  //----------------------------------------------------------------------------
   //! Handle container and permissions
   //!
   //! @param path file path
