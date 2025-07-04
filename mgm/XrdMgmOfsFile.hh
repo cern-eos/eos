@@ -67,6 +67,9 @@ namespace mgm {
 class Acl;
 class Workflow;
 }
+namespace common {
+class Path;
+}
 }
 
 //------------------------------------------------------------------------------
@@ -573,9 +576,51 @@ private:
                                 unsigned long& new_lid,
                                 std::string& targetgeotag,
                                 std::string& bandwidth,
-                                std::string& ioprio,
-                                std::string& iotype,
-                                bool& schedule);
+                                                                 std::string& ioprio,
+                                 std::string& iotype,
+                                 bool& schedule);
+
+  //----------------------------------------------------------------------------
+  //! Handle namespace metadata retrieval and file lookup
+  //!
+  //! @param path file path
+  //! @param vid virtual identity
+  //! @param cPath path object
+  //! @param dmd container metadata (output)
+  //! @param fmd file metadata (output)
+  //! @param attrmap container attributes (output)
+  //! @param workflow workflow object
+  //! @param d_uid directory uid (output)
+  //! @param d_gid directory gid (output)
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleNamespaceMetadataRetrieval(const char* path,
+                                       eos::common::VirtualIdentity& vid,
+                                       eos::common::Path& cPath,
+                                       std::shared_ptr<eos::IContainerMD>& dmd,
+                                       std::shared_ptr<eos::IFileMD>& fmd,
+                                       eos::IContainerMD::XAttrMap& attrmap,
+                                       eos::mgm::Workflow& workflow,
+                                       uid_t& d_uid,
+                                       gid_t& d_gid);
+
+  //----------------------------------------------------------------------------
+  //! Handle ENOENT redirection logic
+  //!
+  //! @param path file path
+  //! @param vid virtual identity
+  //! @param cPath path object
+  //! @param dmd container metadata (input/output)
+  //! @param attrmap container attributes (input/output)
+  //!
+  //! @return SFS_REDIRECT if redirected, SFS_ERROR on error, 0 to continue
+  //----------------------------------------------------------------------------
+  int HandleEnoentRedirection(const char* path,
+                              eos::common::VirtualIdentity& vid,
+                              eos::common::Path& cPath,
+                              std::shared_ptr<eos::IContainerMD>& dmd,
+                              eos::IContainerMD::XAttrMap& attrmap);
 
   //----------------------------------------------------------------------------
   //! Handle container and permissions

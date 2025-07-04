@@ -660,110 +660,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
-    try {
-          if (mOpenState.byfid) {
-      dmd = gOFS->eosDirectoryService->getContainerMD(mOpenState.bypid);
-      } else if (!dmd) {
-        dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
-      }
-
-      // get the attributes out
-      eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
-      // extract workflows
-      workflow.Init(&attrmap);
-
-      if (dmd) {
-        try {
-          std::string filePath = cPath.GetPath();
-          std::string fileName = cPath.GetName();
-
-          if (mOpenState.ocUploadUuid.length()) {
-            eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
-                                    mOpenState.ocUploadUuid));
-            filePath = aPath.GetPath();
-            fileName = aPath.GetName();
-          }
-
-          if ((fmd = dmd->findFile(fileName))) {
-            /* in case of a hard link, may need to switch to target */
-            /* A hard link to another file */
-            if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
-              std::shared_ptr<eos::IFileMD> gmd;
-              uint64_t mdino;
-
-              if (eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),
-                                               mdino)) {
-                gmd = gOFS->eosFileService->getFileMD(
-                        eos::common::FileId::InodeToFid(mdino));
-                eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
-                         fmd->getName().c_str(), fmd->getId(),
-                         gmd->getName().c_str(), gmd->getId());
-                fmd = gmd;
-              } else {
-                //Conversion from string to inode number failed, log the error and return an error to the client
-                return Emsg(epname, error, ENOENT,
-                            "convert the inode extended attribute to a number", path);
-              }
-            }
-
-            if (fmd->isLink()) {
-              // we have to get it by path
-              fmd = gOFS->eosView->getFile(filePath);
-            }
-
-            uint64_t dmd_id = fmd->getContainerId();
-            mOpenState.byfid = fmd->getId();
-
-            // If fmd is resolved via a symbolic link, we have to find the
-            // 'real' parent directory
-            if (dmd_id != dmd->getId()) {
-              // retrieve the 'real' parent
-              try {
-                dmd = gOFS->eosDirectoryService->getContainerMD(dmd_id);
-              } catch (const eos::MDException& e) {
-                // this looks like corruption, but will return in ENOENT for the parent
-                dmd.reset();
-                errno = ENOENT;
-              }
-            }
-
-            // check for O_EXCL here to save some time
-            if (mOpenState.open_flags & O_EXCL) {
-              gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
-              return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
-            }
-          }
-        } catch (eos::MDException& e) {
-          fmd.reset();
-        }
-
-        if (!fmd) {
-          if (dmd && dmd->findContainer(cPath.GetName())) {
-            errno = EISDIR;
-          } else {
-            errno = ENOENT;
-          }
-        } else {
-          mFid = fmd->getId();
-          mOpenState.fmdlid = fmd->getLayoutId();
-          mOpenState.vect_loc = fmd->getLocations();
-          mOpenState.cid = fmd->getContainerId();
-          mOpenState.fmdsize = fmd->getSize();
-        }
-
-        if (dmd) {
-          d_uid = dmd->getCUid();
-          d_gid = dmd->getCGid();
-        }
-      } else {
-        fmd.reset();
-      }
-    } catch (eos::MDException& e) {
-      dmd.reset();
-      errno = e.getErrno();
-      eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                e.getErrno(), e.getMessage().str().c_str());
-    };
+    // Handle namespace metadata retrieval and file lookup
+    if (int rc = HandleNamespaceMetadataRetrieval(path, vid, cPath, dmd, fmd, 
+                                                  attrmap, workflow, d_uid, d_gid)) {
+      return rc;
+    }
 
     COMMONTIMING("container::fetched", &tm);
 
@@ -772,52 +673,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       int save_errno = errno;
       MAYREDIRECT_ENOENT;
 
-      if (cPath.GetSubPath(2)) {
-        eos_info("info=\"checking l2 path\" path=%s", cPath.GetSubPath(2));
-
-        // Check if we have a redirection setting at level 2 in the namespace
-        try {
-          dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
-          // get the attributes out
-          eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
-        } catch (eos::MDException& e) {
-          dmd.reset();
-          errno = e.getErrno();
-          eos_debug("msg=\"exception\" ec=%d emsg=%s\n",
-                    e.getErrno(), e.getMessage().str().c_str());
-        }
-
-        // ---------------------------------------------------------------------
-        if (attrmap.count("sys.redirect.enoent")) {
-          // there is a redirection setting here
-          redirectionhost = "";
-          redirectionhost = attrmap["sys.redirect.enoent"].c_str();
-          int portpos = 0;
-
-          if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
-            XrdOucString port = redirectionhost;
-            port.erase(0, portpos + 1);
-            ecode = atoi(port.c_str());
-            redirectionhost.erase(portpos);
-          } else {
-            ecode = 1094;
-          }
-
-          if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-            eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-            return SFS_ERROR;
-          }
-
-          rcode = SFS_REDIRECT;
-          gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
-          XrdOucString predirectionhost = redirectionhost.c_str();
-          eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
-          eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
-          eos::common::StringConversion::MaskTag(mOpenState.pinfo, "authz");
-          eos_info("info=\"redirecting\" hostport=%s:%d", predirectionhost.c_str(),
-                   ecode);
-          return rcode;
-        }
+      // Handle ENOENT redirection if configured
+      if (int redirect_rc = HandleEnoentRedirection(path, vid, cPath, dmd, attrmap)) {
+        return redirect_rc;
       }
 
       // put back original errno
@@ -4037,6 +3895,195 @@ XrdMgmOfsFile::HandleCapabilityCreation(const char* path, const char* ininfo,
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle namespace metadata retrieval and file lookup
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleNamespaceMetadataRetrieval(const char* path,
+                                                 eos::common::VirtualIdentity& vid,
+                                                 eos::common::Path& cPath,
+                                                 std::shared_ptr<eos::IContainerMD>& dmd,
+                                                 std::shared_ptr<eos::IFileMD>& fmd,
+                                                 eos::IContainerMD::XAttrMap& attrmap,
+                                                 eos::mgm::Workflow& workflow,
+                                                 uid_t& d_uid,
+                                                 gid_t& d_gid)
+{
+  static const char* epname = "open";
+  
+  try {
+    if (mOpenState.byfid) {
+      dmd = gOFS->eosDirectoryService->getContainerMD(mOpenState.bypid);
+    } else if (!dmd) {
+      dmd = gOFS->eosView->getContainer(cPath.GetParentPath());
+    }
+
+    // get the attributes out
+    eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+    // extract workflows
+    workflow.Init(&attrmap);
+
+    if (dmd) {
+      try {
+        std::string filePath = cPath.GetPath();
+        std::string fileName = cPath.GetName();
+
+        if (mOpenState.ocUploadUuid.length()) {
+          eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
+                                  mOpenState.ocUploadUuid));
+          filePath = aPath.GetPath();
+          fileName = aPath.GetName();
+        }
+
+        if ((fmd = dmd->findFile(fileName))) {
+          /* in case of a hard link, may need to switch to target */
+          /* A hard link to another file */
+          if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
+            std::shared_ptr<eos::IFileMD> gmd;
+            uint64_t mdino;
+
+            if (eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),
+                                             mdino)) {
+              gmd = gOFS->eosFileService->getFileMD(
+                      eos::common::FileId::InodeToFid(mdino));
+              eos_info("hlnk switched from %s (%#lx) to file %s (%#lx)",
+                       fmd->getName().c_str(), fmd->getId(),
+                       gmd->getName().c_str(), gmd->getId());
+              fmd = gmd;
+            } else {
+              //Conversion from string to inode number failed, log the error and return an error to the client
+              return Emsg(epname, error, ENOENT,
+                          "convert the inode extended attribute to a number", path);
+            }
+          }
+
+          if (fmd->isLink()) {
+            // we have to get it by path
+            fmd = gOFS->eosView->getFile(filePath);
+          }
+
+          uint64_t dmd_id = fmd->getContainerId();
+          mOpenState.byfid = fmd->getId();
+
+          // If fmd is resolved via a symbolic link, we have to find the
+          // 'real' parent directory
+          if (dmd_id != dmd->getId()) {
+            // retrieve the 'real' parent
+            try {
+              dmd = gOFS->eosDirectoryService->getContainerMD(dmd_id);
+            } catch (const eos::MDException& e) {
+              // this looks like corruption, but will return in ENOENT for the parent
+              dmd.reset();
+              errno = ENOENT;
+            }
+          }
+
+          // check for O_EXCL here to save some time
+          if (mOpenState.open_flags & O_EXCL) {
+            gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
+            return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
+          }
+        }
+      } catch (eos::MDException& e) {
+        fmd.reset();
+      }
+
+      if (!fmd) {
+        if (dmd && dmd->findContainer(cPath.GetName())) {
+          errno = EISDIR;
+        } else {
+          errno = ENOENT;
+        }
+      } else {
+        mFid = fmd->getId();
+        mOpenState.fmdlid = fmd->getLayoutId();
+        mOpenState.vect_loc = fmd->getLocations();
+        mOpenState.cid = fmd->getContainerId();
+        mOpenState.fmdsize = fmd->getSize();
+      }
+
+      if (dmd) {
+        d_uid = dmd->getCUid();
+        d_gid = dmd->getCGid();
+      }
+    } else {
+      fmd.reset();
+    }
+  } catch (eos::MDException& e) {
+    dmd.reset();
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle ENOENT redirection logic
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleEnoentRedirection(const char* path,
+                                       eos::common::VirtualIdentity& vid,
+                                       eos::common::Path& cPath,
+                                       std::shared_ptr<eos::IContainerMD>& dmd,
+                                       eos::IContainerMD::XAttrMap& attrmap)
+{
+  XrdOucString redirectionhost;
+  int ecode;
+  int rcode;
+  
+  if (cPath.GetSubPath(2)) {
+    eos_info("info=\"checking l2 path\" path=%s", cPath.GetSubPath(2));
+
+    // Check if we have a redirection setting at level 2 in the namespace
+    try {
+      dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
+      // get the attributes out
+      eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+    } catch (eos::MDException& e) {
+      dmd.reset();
+      errno = e.getErrno();
+      eos_debug("msg=\"exception\" ec=%d emsg=%s\n",
+                e.getErrno(), e.getMessage().str().c_str());
+    }
+
+    // ---------------------------------------------------------------------
+    if (attrmap.count("sys.redirect.enoent")) {
+      // there is a redirection setting here
+      redirectionhost = "";
+      redirectionhost = attrmap["sys.redirect.enoent"].c_str();
+      int portpos = 0;
+
+      if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
+        XrdOucString port = redirectionhost;
+        port.erase(0, portpos + 1);
+        ecode = atoi(port.c_str());
+        redirectionhost.erase(portpos);
+      } else {
+        ecode = 1094;
+      }
+
+      if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+        eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+        return SFS_ERROR;
+      }
+
+      rcode = SFS_REDIRECT;
+      gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
+      XrdOucString predirectionhost = redirectionhost.c_str();
+      eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
+      eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
+      eos::common::StringConversion::MaskTag(mOpenState.pinfo, "authz");
+      eos_info("info=\"redirecting\" hostport=%s:%d", predirectionhost.c_str(),
+               ecode);
+      return rcode;
+    }
+  }
+
+  return 0; // No redirection, continue processing
 }
 
 
