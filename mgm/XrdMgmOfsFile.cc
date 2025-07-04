@@ -829,116 +829,24 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     bool sticky_owner;
     attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
 
-    // -------------------------------------------------------------------------
-    // ACL and permission check
-    // -------------------------------------------------------------------------
-    if (dotFxid and (not vid.sudoer) and (vid.uid != 0)) {
-      /* restricted: this could allow access to a file hidden by the hierarchy */
-      eos_debug(".fxid=%d uid %d sudoer %d", dotFxid, vid.uid, vid.sudoer);
-      errno = EPERM;
-      return Emsg(epname, error, errno, "open file - open by fxid denied", path);
-    }
-
-    if (fmd) {
-      eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
-    }
-
-    acl.SetFromAttrMap(attrmap, vid, &attrmapF);
-    eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
-             acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-                                  acl.HasEgroup(), mOpenState.isSharedFile, acl.IsMutable(),
-             acl.EvalUserAttrFile());
-
-    if (acl.HasAcl() && (vid.uid != 0)) {
-              if ((vid.uid != 0) && (!vid.sudoer) &&
-           (mOpenState.isRW ? (acl.CanNotWrite() && acl.CanNotUpdate()) : acl.CanNotRead())) {
-          eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d CanNotUpdate %d",
-                   vid.uid, vid.sudoer, mOpenState.isRW, acl.CanNotRead(), acl.CanNotWrite(),
-                   acl.CanNotUpdate());
-        errno = EPERM;
-        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
-        return Emsg(epname, error, errno, "open file - forbidden by ACL", path);
-      }
-
-      if (mOpenState.isRW) {
-        // Update case - unless SFS_O_TRUNC is specified then this is a normal write
-        if (fmd && ((mOpenState.open_flags & O_TRUNC) == 0)) {
-          eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
-                    acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
-                    fmd->getCGid());
-
-          if (acl.CanNotUpdate() || (acl.CanNotWrite() && !acl.CanUpdate())) {
-            // the ACL has !u set - we don't allow to do file updates
-            gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
-            return Emsg(epname, error, EPERM, "update file - fobidden by ACL",
-                        path);
-          }
-
-          stdpermcheck = (!acl.CanUpdate());
-        } else {
-          // Write case
-          if (!(acl.CanWrite() || acl.CanWriteOnce())) {
-            // We have to check the standard permissions
-            stdpermcheck = true;
-          }
-        }
+    // Handle ACL and permission checks
+    int acl_rc = HandleAclAndPermissions(path, vid, dmd, fmd, attrmap, attrmapF, 
+                                         acl, stdpermcheck, d_uid, d_gid, 
+                                         sticky_owner, dotFxid);
+    if (acl_rc != 0) {
+      if (acl_rc == 999) {
+        // sys.proc redirection - handle specially
+        ns_rd_lock.Release();
+        return open("/proc/user/", open_mode, Mode, client,
+                    fmd->getAttribute("sys.proc").c_str());
       } else {
-        // read case
-        if (!acl.CanRead()) {
-          // we have to check the standard permissions
-          stdpermcheck = true;
-        }
+        // Error case
+        return acl_rc;
       }
-    } else {
-      stdpermcheck = true;
-    }
-
-    if (mOpenState.isRW && !acl.IsMutable() && vid.uid && !vid.sudoer) {
-      // immutable directory
-      errno = EPERM;
-      gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
-      return Emsg(epname, error, errno, "open file - directory immutable", path);
-    }
-
-    // check publicaccess level
-    if (!gOFS->allow_public_access(path, vid)) {
-      return Emsg(epname, error, EACCES, "access - public access level restriction",
-                  path);
-    }
-
-    int taccess = -1;
-
-          if ((!mOpenState.isSharedFile || mOpenState.isRW) && stdpermcheck
-        && (!(taccess = dmd->access(vid.uid, vid.gid,
-                                    (mOpenState.isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
-      eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
-                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, mOpenState.isSharedFile, mOpenState.isRW,
-                stdpermcheck, taccess);
-
-      if (!((vid.uid == DAEMONUID) && (mOpenState.isPioReconstruct))) {
-        // we don't apply this permission check for reconstruction jobs issued via the daemon account
-        errno = EPERM;
-        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
-        return Emsg(epname, error, errno, "open file", path);
-      }
-    }
-
-    if (sticky_owner) {
-      eos_info("msg=\"client acting as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
-               path, vid.uid, vid.gid, d_uid, d_gid);
-      vid.uid = d_uid;
-      vid.gid = d_gid;
-    }
-
-    // If a file has the sys.proc attribute, it will be redirected as a command
-    if (fmd != nullptr && fmd->hasAttribute("sys.proc")) {
-      ns_rd_lock.Release();
-      return open("/proc/user/", open_mode, Mode, client,
-                  fmd->getAttribute("sys.proc").c_str());
     }
   }
   // check for versioning depth, cgi overrides sys & user attributes
-    versioning = attr::getVersioning(attrmap, mOpenState.versioning_cgi);
+  versioning = attr::getVersioning(attrmap, mOpenState.versioning_cgi);
   // check for atomic uploads only in non fuse clients
   mOpenState.isAtomicUpload = !mOpenState.isFuse &&
                     attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
@@ -3957,6 +3865,131 @@ XrdMgmOfsFile::HandlePathProcessing(const char* path, mode_t Mode,
 
   if (gOFS->is_squashfs_access(path, vid)) {
     mOpenState.isSharedFile = true;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle ACL and permission checks
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleAclAndPermissions(const char* path, eos::common::VirtualIdentity& vid,
+                                       std::shared_ptr<eos::IContainerMD>& dmd,
+                                       std::shared_ptr<eos::IFileMD>& fmd,
+                                       const eos::IContainerMD::XAttrMap& attrmap,
+                                       eos::IFileMD::XAttrMap& attrmapF,
+                                       Acl& acl, bool& stdpermcheck,
+                                       uid_t d_uid, gid_t d_gid,
+                                       bool sticky_owner, bool dotFxid)
+{
+  static const char* epname = "open";
+  
+  // -------------------------------------------------------------------------
+  // ACL and permission check
+  // -------------------------------------------------------------------------
+  if (dotFxid and (not vid.sudoer) and (vid.uid != 0)) {
+    /* restricted: this could allow access to a file hidden by the hierarchy */
+    eos_debug(".fxid=%d uid %d sudoer %d", dotFxid, vid.uid, vid.sudoer);
+    errno = EPERM;
+    return Emsg(epname, error, errno, "open file - open by fxid denied", path);
+  }
+
+  if (fmd) {
+    eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+  }
+
+  acl.SetFromAttrMap(attrmap, vid, &attrmapF);
+  eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
+           acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
+           acl.HasEgroup(), mOpenState.isSharedFile, acl.IsMutable(),
+           acl.EvalUserAttrFile());
+
+  if (acl.HasAcl() && (vid.uid != 0)) {
+    if ((vid.uid != 0) && (!vid.sudoer) &&
+        (mOpenState.isRW ? (acl.CanNotWrite() && acl.CanNotUpdate()) : acl.CanNotRead())) {
+      eos_debug("uid %d sudoer %d isRW %d CanNotRead %d CanNotWrite %d CanNotUpdate %d",
+               vid.uid, vid.sudoer, mOpenState.isRW, acl.CanNotRead(), acl.CanNotWrite(),
+               acl.CanNotUpdate());
+      errno = EPERM;
+      gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+      return Emsg(epname, error, errno, "open file - forbidden by ACL", path);
+    }
+
+    if (mOpenState.isRW) {
+      // Update case - unless SFS_O_TRUNC is specified then this is a normal write
+      if (fmd && ((mOpenState.open_flags & O_TRUNC) == 0)) {
+        eos_debug("CanUpdate %d CanNotUpdate %d stdpermcheck %d file uid/gid = %d/%d",
+                  acl.CanUpdate(), acl.CanNotUpdate(), stdpermcheck, fmd->getCUid(),
+                  fmd->getCGid());
+
+        if (acl.CanNotUpdate() || (acl.CanNotWrite() && !acl.CanUpdate())) {
+          // the ACL has !u set - we don't allow to do file updates
+          gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
+          return Emsg(epname, error, EPERM, "update file - fobidden by ACL",
+                      path);
+        }
+
+        stdpermcheck = (!acl.CanUpdate());
+      } else {
+        // Write case
+        if (!(acl.CanWrite() || acl.CanWriteOnce())) {
+          // We have to check the standard permissions
+          stdpermcheck = true;
+        }
+      }
+    } else {
+      // read case
+      if (!acl.CanRead()) {
+        // we have to check the standard permissions
+        stdpermcheck = true;
+      }
+    }
+  } else {
+    stdpermcheck = true;
+  }
+
+  if (mOpenState.isRW && !acl.IsMutable() && vid.uid && !vid.sudoer) {
+    // immutable directory
+    errno = EPERM;
+    gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+    return Emsg(epname, error, errno, "open file - directory immutable", path);
+  }
+
+  // check publicaccess level
+  if (!gOFS->allow_public_access(path, vid)) {
+    return Emsg(epname, error, EACCES, "access - public access level restriction",
+                path);
+  }
+
+  int taccess = -1;
+
+  if ((!mOpenState.isSharedFile || mOpenState.isRW) && stdpermcheck
+      && (!(taccess = dmd->access(vid.uid, vid.gid,
+                                  (mOpenState.isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
+    eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
+              fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, mOpenState.isSharedFile, mOpenState.isRW,
+              stdpermcheck, taccess);
+
+    if (!((vid.uid == DAEMONUID) && (mOpenState.isPioReconstruct))) {
+      // we don't apply this permission check for reconstruction jobs issued via the daemon account
+      errno = EPERM;
+      gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+      return Emsg(epname, error, errno, "open file", path);
+    }
+  }
+
+  if (sticky_owner) {
+    eos_info("msg=\"client acting as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
+             path, vid.uid, vid.gid, d_uid, d_gid);
+    vid.uid = d_uid;
+    vid.gid = d_gid;
+  }
+
+  // If a file has the sys.proc attribute, it will be redirected as a command
+  if (fmd != nullptr && fmd->hasAttribute("sys.proc")) {
+    // Return special code to indicate sys.proc redirection
+    return 999; // Special return code for sys.proc handling
   }
 
   return 0;

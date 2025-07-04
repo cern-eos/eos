@@ -505,6 +505,33 @@ private:
                            std::shared_ptr<eos::IContainerMD>& dmd);
 
   //----------------------------------------------------------------------------
+  //! Handle ACL and permission checks
+  //!
+  //! @param path file path
+  //! @param vid virtual identity
+  //! @param dmd container metadata
+  //! @param fmd file metadata
+  //! @param attrmap container attributes
+  //! @param attrmapF file attributes (output)
+  //! @param acl ACL object (output)
+  //! @param stdpermcheck standard permission check flag (output)
+  //! @param d_uid directory uid
+  //! @param d_gid directory gid
+  //! @param sticky_owner sticky owner flag
+  //! @param dotFxid fxid access flag
+  //!
+  //! @return 0 on success, error code on failure, special return for sys.proc redirection
+  //----------------------------------------------------------------------------
+  int HandleAclAndPermissions(const char* path, eos::common::VirtualIdentity& vid,
+                              std::shared_ptr<eos::IContainerMD>& dmd,
+                              std::shared_ptr<eos::IFileMD>& fmd,
+                              const eos::IContainerMD::XAttrMap& attrmap,
+                              eos::IFileMD::XAttrMap& attrmapF,
+                              Acl& acl, bool& stdpermcheck,
+                              uid_t d_uid, gid_t d_gid,
+                              bool sticky_owner, bool dotFxid);
+
+  //----------------------------------------------------------------------------
   //! Handle container and permissions
   //!
   //! @param path file path
