@@ -615,21 +615,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool dotFxid = mOpenState.spath.beginswith("/.fxid:");
 
   if (dotFxid) {
-    mOpenState.byfid = eos::Resolver::retrieveFileIdentifier(mOpenState.spath).getUnderlyingUInt64();
-
-    try {
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mOpenState.byfid);
-      eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-      fmd = gOFS->eosFileService->getFileMD(mOpenState.byfid);
-      mOpenState.spath = gOFS->eosView->getUri(fmd.get()).c_str();
-      mOpenState.bypid = fmd->getContainerId();
-      eos_info("msg=\"access by inode\" ino=%s path=%s", path, mOpenState.spath.c_str());
-      path = mOpenState.spath.c_str();
-    } catch (eos::MDException& e) {
-      eos_debug("caught exception %d %s\n", e.getErrno(),
-                e.getMessage().str().c_str());
-      return Emsg(epname, error, ENOENT,
-                  "open - you specified a not existing fxid", path);
+    int rc = HandleFxidAccess(path, fmd);
+    if (rc) {
+      return rc;
     }
   }
 
@@ -637,52 +625,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   AUTHORIZE(client, openOpaque, mOpenState.acc_op,
             ((mOpenState.acc_op == AOP_Create) ? "create" : "open"), inpath, error);
   COMMONTIMING("authorized", &tm);
-  eos::common::Path cPath(path);
-  // indicate the scope for a possible token
-  TOKEN_SCOPE;
-  mOpenState.isAtomicName = cPath.isAtomicFile();
-
-  // prevent any access to a recycling bin for writes
-  if (mOpenState.isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
-    return Emsg(epname, error, EPERM,
-                "open file - nobody can write to a recycling bin",
-                cPath.GetParentPath());
-  }
-
+  
   std::shared_ptr<eos::IContainerMD> dmd;
-
-  // check if we have to create the full path
-  if (Mode & SFS_O_MKPTH) {
-    eos_debug("%s", "msg=\"SFS_O_MKPTH was requested\"");
-    XrdSfsFileExistence file_exists;
-    std::shared_ptr<eos::IFileMD> _fmd;
-    int ec = gOFS->_exists(cPath.GetParentPath(), file_exists,
-                           error, vid, dmd, _fmd, 0);
-
-    // check if that is a file
-    if ((!ec) && (file_exists != XrdSfsFileExistNo) &&
-        (file_exists != XrdSfsFileExistIsDirectory)) {
-      return Emsg(epname, error, ENOTDIR,
-                  "open file - parent path is not a directory",
-                  cPath.GetParentPath());
-    }
-
-    // if it does not exist try to create the path!
-    if ((!ec) && (file_exists == XrdSfsFileExistNo)) {
-      ec = gOFS->_mkdir(cPath.GetParentPath(), Mode, error, vid, ininfo);
-
-      if (ec) {
-        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
-        return SFS_ERROR;
-      }
-    }
+  
+  int rc = HandlePathProcessing(path, Mode, vid, ininfo, openOpaque, dmd);
+  if (rc) {
+    return rc;
   }
-
-  bool isSharedFile = gOFS->VerifySharePath(path, openOpaque);
-
-  if (gOFS->is_squashfs_access(path, vid)) {
-    isSharedFile = true;
-  }
+  
+  eos::common::Path cPath(path);  // Needed for later use in the function
 
   COMMONTIMING("path-computed", &tm);
   // Get the directory meta data if it exists
@@ -895,7 +846,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);
     eos_info("acl=%d r=%d w=%d wo=%d egroup=%d shared=%d mutable=%d facl=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(), acl.CanWriteOnce(),
-             acl.HasEgroup(), isSharedFile, acl.IsMutable(),
+                                  acl.HasEgroup(), mOpenState.isSharedFile, acl.IsMutable(),
              acl.EvalUserAttrFile());
 
     if (acl.HasAcl() && (vid.uid != 0)) {
@@ -957,11 +908,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     int taccess = -1;
 
-    if ((!isSharedFile || mOpenState.isRW) && stdpermcheck
+          if ((!mOpenState.isSharedFile || mOpenState.isRW) && stdpermcheck
         && (!(taccess = dmd->access(vid.uid, vid.gid,
                                     (mOpenState.isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
       eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
-                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, mOpenState.isRW,
+                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, mOpenState.isSharedFile, mOpenState.isRW,
                 stdpermcheck, taccess);
 
       if (!((vid.uid == DAEMONUID) && (mOpenState.isPioReconstruct))) {
@@ -1371,7 +1322,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
 
-    if (isSharedFile) {
+    if (mOpenState.isSharedFile) {
       gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1);
     } else {
       gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
@@ -3922,6 +3873,93 @@ XrdMgmOfsFile::HandleProcAccess(const char* path, const char* ininfo,
                   path);
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Handle file access by file identifier (.fxid:)
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleFxidAccess(const char*& path, std::shared_ptr<eos::IFileMD>& fmd)
+{
+  static const char* epname = "open";
+  
+  mOpenState.byfid = eos::Resolver::retrieveFileIdentifier(mOpenState.spath).getUnderlyingUInt64();
+
+  try {
+    eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mOpenState.byfid);
+    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    fmd = gOFS->eosFileService->getFileMD(mOpenState.byfid);
+    mOpenState.spath = gOFS->eosView->getUri(fmd.get()).c_str();
+    mOpenState.bypid = fmd->getContainerId();
+    eos_info("msg=\"access by inode\" ino=%s path=%s", path, mOpenState.spath.c_str());
+    path = mOpenState.spath.c_str();
+  } catch (eos::MDException& e) {
+    eos_debug("caught exception %d %s\n", e.getErrno(),
+              e.getMessage().str().c_str());
+    return Emsg(epname, error, ENOENT,
+                "open - you specified a not existing fxid", path);
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle path processing and validation
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandlePathProcessing(const char* path, mode_t Mode,
+                                    eos::common::VirtualIdentity& vid,
+                                    const char* ininfo, XrdOucEnv* openOpaque,
+                                    std::shared_ptr<eos::IContainerMD>& dmd)
+{
+  static const char* epname = "open";
+  
+  eos::common::Path cPath(path);
+  // indicate the scope for a possible token
+  TOKEN_SCOPE;
+  mOpenState.isAtomicName = cPath.isAtomicFile();
+
+  // prevent any access to a recycling bin for writes
+  if (mOpenState.isRW && cPath.GetFullPath().beginswith(Recycle::gRecyclingPrefix.c_str())) {
+    return Emsg(epname, error, EPERM,
+                "open file - nobody can write to a recycling bin",
+                cPath.GetParentPath());
+  }
+
+  // check if we have to create the full path
+  if (Mode & SFS_O_MKPTH) {
+    eos_debug("%s", "msg=\"SFS_O_MKPTH was requested\"");
+    XrdSfsFileExistence file_exists;
+    std::shared_ptr<eos::IFileMD> _fmd;
+    int ec = gOFS->_exists(cPath.GetParentPath(), file_exists,
+                           error, vid, dmd, _fmd, 0);
+
+    // check if that is a file
+    if ((!ec) && (file_exists != XrdSfsFileExistNo) &&
+        (file_exists != XrdSfsFileExistIsDirectory)) {
+      return Emsg(epname, error, ENOTDIR,
+                  "open file - parent path is not a directory",
+                  cPath.GetParentPath());
+    }
+
+    // if it does not exist try to create the path!
+    if ((!ec) && (file_exists == XrdSfsFileExistNo)) {
+      ec = gOFS->_mkdir(cPath.GetParentPath(), Mode, error, vid, ininfo);
+
+      if (ec) {
+        gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+        return SFS_ERROR;
+      }
+    }
+  }
+
+  mOpenState.isSharedFile = gOFS->VerifySharePath(path, openOpaque);
+
+  if (gOFS->is_squashfs_access(path, vid)) {
+    mOpenState.isSharedFile = true;
+  }
+
+  return 0;
 }
 
 

@@ -478,6 +478,33 @@ private:
                        const char* tident, const std::string& logId);
 
   //----------------------------------------------------------------------------
+  //! Handle file access by file identifier (.fxid:)
+  //!
+  //! @param path file path (will be updated)
+  //! @param fmd file metadata (output)
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleFxidAccess(const char*& path, std::shared_ptr<eos::IFileMD>& fmd);
+
+  //----------------------------------------------------------------------------
+  //! Handle path processing and validation
+  //!
+  //! @param path file path
+  //! @param Mode file mode
+  //! @param vid virtual identity
+  //! @param ininfo input opaque information
+  //! @param openOpaque opaque environment
+  //! @param dmd container metadata (output)
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandlePathProcessing(const char* path, mode_t Mode,
+                           eos::common::VirtualIdentity& vid,
+                           const char* ininfo, XrdOucEnv* openOpaque,
+                           std::shared_ptr<eos::IContainerMD>& dmd);
+
+  //----------------------------------------------------------------------------
   //! Handle container and permissions
   //!
   //! @param path file path
@@ -743,6 +770,7 @@ private:
     bool isTouch = false;            // file touch
     bool isRW = false;               // read/write flag
     bool isRewrite = false;          // rewrite flag
+    bool isSharedFile = false;       // shared file flag
     
     // CGI and opaque information
     XrdOucString ocUploadUuid;       // chunk upload ID
@@ -792,6 +820,7 @@ private:
       isTouch = false;
       isRW = false;
       isRewrite = false;
+      isSharedFile = false;
       
       ocUploadUuid = "";
       tried_cgi.clear();
