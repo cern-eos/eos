@@ -640,6 +640,29 @@ private:
                                             std::map<std::string, std::string>& ext_xattr_map);
 
   //----------------------------------------------------------------------------
+  //! Handle read operation processing
+  //!
+  //! @param path file path
+  //! @param vid virtual identity
+  //! @param fmd file metadata
+  //! @param openOpaque opaque environment
+  //! @param redirectionhost redirection host (output)
+  //! @param ecode error code (output)
+  //! @param rcode return code (output)
+  //! @param ininfo input opaque information
+  //!
+  //! @return 0 on success, SFS_ERROR/SFS_REDIRECT/SFS_STARTED/SFS_STALL on special cases
+  //----------------------------------------------------------------------------
+  int HandleReadOperation(const char* path,
+                          eos::common::VirtualIdentity& vid,
+                          std::shared_ptr<eos::IFileMD>& fmd,
+                          XrdOucEnv* openOpaque,
+                          XrdOucString& redirectionhost,
+                          int& ecode,
+                          int& rcode,
+                          const char* ininfo);
+
+  //----------------------------------------------------------------------------
   //! Handle container and permissions
   //!
   //! @param path file path

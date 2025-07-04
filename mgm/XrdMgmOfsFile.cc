@@ -1002,94 +1002,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
   } else {
-    if (!fmd) {
-      // check if there is a redirect or stall for missing entries
-      MAYREDIRECT_ENOENT;
-      MAYSTALL_ENOENT;
-
-      if (auto redirect_kv = mOpenState.attrmap.find("sys.redirect.enoent");
-          redirect_kv != mOpenState.attrmap.end()) {
-        // there is a redirection setting here
-        redirectionhost = "";
-        redirectionhost = redirect_kv->second.c_str();
-        int portpos = 0;
-
-        if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
-          XrdOucString port = redirectionhost;
-          port.erase(0, portpos + 1);
-          ecode = atoi(port.c_str());
-          redirectionhost.erase(portpos);
-        } else {
-          ecode = 1094;
-        }
-
-        if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
-          eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
-          return SFS_ERROR;
-        }
-
-        rcode = SFS_REDIRECT;
-        gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
-        return rcode;
-      }
-
-      gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
-      return Emsg(epname, error, errno, "open file", path);
+    // Handle read operation
+    if (int rc = HandleReadOperation(path, vid, fmd, openOpaque, redirectionhost, ecode, rcode, ininfo)) {
+      return rc;
     }
-
-    eos_static_debug("has-read-conversion: %d", Policy::HasReadConversion(mOpenState.attrmap));
-
-    if (Policy::HasReadConversion(mOpenState.attrmap) && (vid.prot != "https") &&
-        !mOpenState.isTpc && !mOpenState.isRepair && !mOpenState.isRepairRead && !mOpenState.isPio && !mOpenState.isPioReconstruct) {
-      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, mOpenState.vect_loc);
-      std::string source_space = (space_name.empty() ? "default" : space_name);
-      std::string target_space;
-      unsigned long target_layout;
-      auto conversion = Policy::ReadConversion(path, mOpenState.attrmap, vid, mOpenState.fmdlid,
-                        source_space, *openOpaque,
-                        target_layout, target_space);
-
-      if (conversion == Policy::eFail) {
-        return Emsg(
-                 epname, error, EINVAL,
-                 "open file for read - invalid read conversion policy found!", path);
-      }
-
-      if (conversion == Policy::eAsync) {
-        error.setErrCode(0);
-        auto conversionCb = std::make_shared<XrdOucCallBack>();
-        conversionCb->Init(&error);
-        error.setErrInfo(1800, "delay client up to 30 minutes for read conversion");
-        auto conversiontag = ConversionTag::Get(
-                               mOpenState.byfid, target_space, target_layout, std::string(""), true);
-
-        if (gOFS->mConverterEngine->ScheduleJob(mOpenState.byfid, conversiontag,
-                                                conversionCb)) {
-          eos_info("msg='read conversion started' fxid=%016llx conv='%s'", mOpenState.byfid,
-                   conversiontag.c_str());
-          return SFS_STARTED;
-        } else {
-          // remove the callback from the error object
-          error.setErrCB(0);
-          error.setErrArg(0);
-          error.setErrInfo(60, "please retry after 60 seconds for read conversion");
-          eos_info("msg='stalling client for read conversion' fxid=%016llx conv='%s'",
-                   mOpenState.byfid, conversiontag.c_str());
-          return SFS_STALL;
-        }
-      } else {
-        // no conversion to be run
-      }
-    }
-
-    if (mOpenState.isSharedFile) {
-      gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1);
-    } else {
-      gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
-    }
-
-    // possibly apply an access conversion policy
-    gOFS->mReplicationTracker->Access(fmd);
   }
 
   // ---------------------------------------------------------------------------
@@ -4096,6 +4012,116 @@ XrdMgmOfsFile::ParseExternalTimestampsAndAttributes(XrdOucEnv* openOpaque,
       }
     }
   }
+}
+
+//------------------------------------------------------------------------------
+// Handle read operation processing
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleReadOperation(const char* path,
+                                   eos::common::VirtualIdentity& vid,
+                                   std::shared_ptr<eos::IFileMD>& fmd,
+                                   XrdOucEnv* openOpaque,
+                                   XrdOucString& redirectionhost,
+                                   int& ecode,
+                                   int& rcode,
+                                   const char* ininfo)
+{
+  static const char* epname = "open";
+
+  // Handle file not found case
+  if (!fmd) {
+    // check if there is a redirect or stall for missing entries
+    MAYREDIRECT_ENOENT;
+    MAYSTALL_ENOENT;
+
+    if (auto redirect_kv = mOpenState.attrmap.find("sys.redirect.enoent");
+        redirect_kv != mOpenState.attrmap.end()) {
+      // there is a redirection setting here
+      redirectionhost = "";
+      redirectionhost = redirect_kv->second.c_str();
+      int portpos = 0;
+
+      if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
+        XrdOucString port = redirectionhost;
+        port.erase(0, portpos + 1);
+        ecode = atoi(port.c_str());
+        redirectionhost.erase(portpos);
+      } else {
+        ecode = 1094;
+      }
+
+      if (!gOFS->SetRedirectionInfo(error, redirectionhost.c_str(), ecode)) {
+        eos_err("msg=\"failed setting redirection\" path=\"%s\"", path);
+        return SFS_ERROR;
+      }
+
+      rcode = SFS_REDIRECT;
+      gOFS->MgmStats.Add("RedirectENOENT", vid.uid, vid.gid, 1);
+      return rcode;
+    }
+
+    gOFS->MgmStats.Add("OpenFailedENOENT", vid.uid, vid.gid, 1);
+    return Emsg(epname, error, errno, "open file", path);
+  }
+
+  // Handle read conversion policy
+  eos_static_debug("has-read-conversion: %d", Policy::HasReadConversion(mOpenState.attrmap));
+
+  if (Policy::HasReadConversion(mOpenState.attrmap) && (vid.prot != "https") &&
+      !mOpenState.isTpc && !mOpenState.isRepair && !mOpenState.isRepairRead && 
+      !mOpenState.isPio && !mOpenState.isPioReconstruct) {
+    std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, mOpenState.vect_loc);
+    std::string source_space = (space_name.empty() ? "default" : space_name);
+    std::string target_space;
+    unsigned long target_layout;
+    auto conversion = Policy::ReadConversion(path, mOpenState.attrmap, vid, mOpenState.fmdlid,
+                      source_space, *openOpaque,
+                      target_layout, target_space);
+
+    if (conversion == Policy::eFail) {
+      return Emsg(epname, error, EINVAL,
+               "open file for read - invalid read conversion policy found!", path);
+    }
+
+    if (conversion == Policy::eAsync) {
+      error.setErrCode(0);
+      auto conversionCb = std::make_shared<XrdOucCallBack>();
+      conversionCb->Init(&error);
+      error.setErrInfo(1800, "delay client up to 30 minutes for read conversion");
+      auto conversiontag = ConversionTag::Get(
+                             mOpenState.byfid, target_space, target_layout, std::string(""), true);
+
+      if (gOFS->mConverterEngine->ScheduleJob(mOpenState.byfid, conversiontag,
+                                              conversionCb)) {
+        eos_info("msg='read conversion started' fxid=%016llx conv='%s'", mOpenState.byfid,
+                 conversiontag.c_str());
+        return SFS_STARTED;
+      } else {
+        // remove the callback from the error object
+        error.setErrCB(0);
+        error.setErrArg(0);
+        error.setErrInfo(60, "please retry after 60 seconds for read conversion");
+        eos_info("msg='stalling client for read conversion' fxid=%016llx conv='%s'",
+                 mOpenState.byfid, conversiontag.c_str());
+        return SFS_STALL;
+      }
+    } else {
+      // no conversion to be run
+    }
+  }
+
+  // Update statistics and access tracking
+  if (mOpenState.isSharedFile) {
+    gOFS->MgmStats.Add("OpenShared", vid.uid, vid.gid, 1);
+  } else {
+    gOFS->MgmStats.Add("OpenRead", vid.uid, vid.gid, 1);
+  }
+
+  // possibly apply an access conversion policy
+  gOFS->mReplicationTracker->Access(fmd);
+
+  return 0; // Success, continue processing
 }
 
 
