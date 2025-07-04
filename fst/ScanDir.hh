@@ -52,7 +52,6 @@ struct stripe_s {
 constexpr uint64_t DEFAULT_RAIN_RESCAN_INTERVAL = 4 * 7 * 24 * 3600;
 constexpr uint64_t DEFAULT_DISK_INTERVAL = 4 * 3600;
 constexpr uint64_t DEFAULT_NS_INTERVAL = 3 * 24 * 3600;
-constexpr uint64_t DEFAULT_ALT_XS_INTERVAL = 30 * 24 * 60 * 60; // 30 days
 constexpr uint64_t DEFAULT_ALT_XS_RATE = 20;
 
 //------------------------------------------------------------------------------
