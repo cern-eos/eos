@@ -52,8 +52,14 @@
 #include "common/Logging.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/proc/IProcCommand.hh"
+#include "mgm/Acl.hh"
+#include "mgm/Workflow.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include <XrdSfs/XrdSfsInterface.hh>
+#include <string>
+#include <map>
+#include <vector>
+#include <set>
 
 USE_EOSMGMNAMESPACE
 
@@ -70,6 +76,8 @@ class Workflow;
 namespace common {
 class Path;
 }
+class IContainerMD;
+class IFileMD;
 }
 
 //------------------------------------------------------------------------------
@@ -588,10 +596,6 @@ private:
   //! @param cPath path object
   //! @param dmd container metadata (output)
   //! @param fmd file metadata (output)
-  //! @param attrmap container attributes (output)
-  //! @param workflow workflow object
-  //! @param d_uid directory uid (output)
-  //! @param d_gid directory gid (output)
   //!
   //! @return 0 on success, error code on failure
   //----------------------------------------------------------------------------
@@ -599,11 +603,7 @@ private:
                                        eos::common::VirtualIdentity& vid,
                                        eos::common::Path& cPath,
                                        std::shared_ptr<eos::IContainerMD>& dmd,
-                                       std::shared_ptr<eos::IFileMD>& fmd,
-                                       eos::IContainerMD::XAttrMap& attrmap,
-                                       eos::mgm::Workflow& workflow,
-                                       uid_t& d_uid,
-                                       gid_t& d_gid);
+                                       std::shared_ptr<eos::IFileMD>& fmd);
 
   //----------------------------------------------------------------------------
   //! Handle ENOENT redirection logic
@@ -612,15 +612,13 @@ private:
   //! @param vid virtual identity
   //! @param cPath path object
   //! @param dmd container metadata (input/output)
-  //! @param attrmap container attributes (input/output)
   //!
   //! @return SFS_REDIRECT if redirected, SFS_ERROR on error, 0 to continue
   //----------------------------------------------------------------------------
   int HandleEnoentRedirection(const char* path,
                               eos::common::VirtualIdentity& vid,
                               eos::common::Path& cPath,
-                              std::shared_ptr<eos::IContainerMD>& dmd,
-                              eos::IContainerMD::XAttrMap& attrmap);
+                              std::shared_ptr<eos::IContainerMD>& dmd);
 
   //----------------------------------------------------------------------------
   //! Handle container and permissions
@@ -921,6 +919,16 @@ private:
     int open_flags = 0;              // POSIX open flags
     Access_Operation acc_op;         // XRootD access operation
     
+    // Namespace and permission variables
+    eos::IContainerMD::XAttrMap attrmap;    // container attributes
+    Acl acl;                               // access control list
+    Workflow workflow;                     // workflow object
+    bool stdpermcheck = false;             // standard permission check flag
+    int versioning = 0;                    // versioning flag
+    uid_t d_uid = 0;                       // effective user ID
+    gid_t d_gid = 0;                       // effective group ID
+    std::string creation_path;             // original path for creation
+    
     //--------------------------------------------------------------------------
     //! Reset all state variables to their default values
     //--------------------------------------------------------------------------
@@ -964,6 +972,16 @@ private:
       
       open_flags = 0;
       acc_op = AOP_Any;
+      
+      // Reset new namespace and permission variables
+      attrmap.clear();
+      acl = Acl();
+      workflow.Reset();
+      stdpermcheck = false;
+      versioning = 0;
+      d_uid = 0;
+      d_gid = 0;
+      creation_path.clear();
     }
   };
   

@@ -636,15 +636,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   eos::common::Path cPath(path);  // Needed for later use in the function
 
   COMMONTIMING("path-computed", &tm);
-  // Get the directory meta data if it exists
-  eos::IContainerMD::XAttrMap attrmap;
-  Acl acl;
-  Workflow workflow;
-  bool stdpermcheck = false;
-  int versioning = 0;
-  uid_t d_uid = vid.uid;
-  gid_t d_gid = vid.gid;
-  std::string creation_path = path;
+  // Initialize namespace and permission variables in OpenState
+  mOpenState.d_uid = vid.uid;
+  mOpenState.d_gid = vid.gid;
+  mOpenState.creation_path = path;
   {
     // This is probably one of the hottest code paths in the MGM, we definitely
     // want prefetching here.
@@ -661,8 +656,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     // Handle namespace metadata retrieval and file lookup
-    if (int rc = HandleNamespaceMetadataRetrieval(path, vid, cPath, dmd, fmd, 
-                                                  attrmap, workflow, d_uid, d_gid)) {
+    if (int rc = HandleNamespaceMetadataRetrieval(path, vid, cPath, dmd, fmd)) {
       return rc;
     }
 
@@ -674,7 +668,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       MAYREDIRECT_ENOENT;
 
       // Handle ENOENT redirection if configured
-      if (int redirect_rc = HandleEnoentRedirection(path, vid, cPath, dmd, attrmap)) {
+      if (int redirect_rc = HandleEnoentRedirection(path, vid, cPath, dmd)) {
         return redirect_rc;
       }
 
@@ -685,11 +679,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     bool sticky_owner;
-    attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
+    attr::checkDirOwner(mOpenState.attrmap, mOpenState.d_uid, mOpenState.d_gid, vid, sticky_owner, path);
 
     // Handle ACL and permission checks
-    int acl_rc = HandleAclAndPermissions(path, vid, dmd, fmd, attrmap, attrmapF, 
-                                         acl, stdpermcheck, d_uid, d_gid, 
+    int acl_rc = HandleAclAndPermissions(path, vid, dmd, fmd, mOpenState.attrmap, attrmapF, 
+                                         mOpenState.acl, mOpenState.stdpermcheck, mOpenState.d_uid, mOpenState.d_gid, 
                                          sticky_owner, dotFxid);
     if (acl_rc != 0) {
       if (acl_rc == 999) {
@@ -704,10 +698,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
   // check for versioning depth, cgi overrides sys & user attributes
-  versioning = attr::getVersioning(attrmap, mOpenState.versioning_cgi);
+  mOpenState.versioning = attr::getVersioning(mOpenState.attrmap, mOpenState.versioning_cgi);
   // check for atomic uploads only in non fuse clients
   mOpenState.isAtomicUpload = !mOpenState.isFuse &&
-                    attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
+                    attr::checkAtomicUpload(mOpenState.attrmap, openOpaque->Get("eos.atomic"));
   // check for injection in non fuse clients with cgi
   mOpenState.isInjection = !mOpenState.isFuse && openOpaque->Get("eos.injection");
 
@@ -728,14 +722,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (mOpenState.isRW) {
-    if (fmd && Policy::HasUpdConversion(attrmap) && (vid.prot != "https") &&
+    if (fmd && Policy::HasUpdConversion(mOpenState.attrmap) && (vid.prot != "https") &&
         !mOpenState.isInjection && !mOpenState.isTpc && !mOpenState.isRepair) {
       // Get space that file belongs to
       std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, mOpenState.vect_loc);
       std::string source_space = (space_name.empty() ? "default" : space_name);
       std::string target_space;
       unsigned long target_layout;
-      auto conversion = Policy::UpdateConversion(path, attrmap, vid, mOpenState.fmdlid,
+      auto conversion = Policy::UpdateConversion(path, mOpenState.attrmap, vid, mOpenState.fmdlid,
                         source_space, *openOpaque,
                         target_layout, target_space);
 
@@ -783,29 +777,29 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     if (!mOpenState.isInjection && (mOpenState.open_flags & O_TRUNC) && fmd) {
       // check if this directory is write-once for the mapped user
-      if (acl.HasAcl()) {
-        if (acl.CanWriteOnce()) {
+      if (mOpenState.acl.HasAcl()) {
+        if (mOpenState.acl.CanWriteOnce()) {
           gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
           // this is a write once user
           return Emsg(epname, error, EEXIST,
                       "overwrite existing file - you are write-once user");
         } else {
-          if ((!stdpermcheck) && (!acl.CanWrite())) {
+          if ((!mOpenState.stdpermcheck) && (!mOpenState.acl.CanWrite())) {
             return Emsg(epname, error, EPERM,
                         "overwrite existing file - you have no write permission");
           }
         }
       }
 
-      if (versioning) {
+      if (mOpenState.versioning) {
         if (mOpenState.isAtomicUpload) {
           // atomic uploads need just to purge version to max-1, the version is created on commit
           // purge might return an error if the file was not yet existing/versioned
-          gOFS->PurgeVersion(cPath.GetVersionDirectory(), error, versioning - 1);
+          gOFS->PurgeVersion(cPath.GetVersionDirectory(), error, mOpenState.versioning - 1);
           errno = 0;
         } else {
           // handle the versioning for a specific file ID
-          if (gOFS->Version(mFid, error, vid, versioning)) {
+          if (gOFS->Version(mFid, error, vid, mOpenState.versioning)) {
             return Emsg(epname, error, errno, "version file", path);
           }
         }
@@ -832,13 +826,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (!(fmd) && ((mOpenState.open_flags & O_CREAT))) {
         gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
       } else {
-        if (acl.HasAcl()) {
-          if (acl.CanWriteOnce()) {
+        if (mOpenState.acl.HasAcl()) {
+          if (mOpenState.acl.CanWriteOnce()) {
             // this is a write once user
             return Emsg(epname, error, EEXIST,
                         "overwrite existing file - you are write-once user");
           } else {
-            if ((!stdpermcheck) && (!acl.CanWrite()) && (!acl.CanUpdate())) {
+            if ((!mOpenState.stdpermcheck) && (!mOpenState.acl.CanWrite()) && (!mOpenState.acl.CanUpdate())) {
               return Emsg(epname, error, EPERM,
                           "overwrite existing file - you have no write permission");
             }
@@ -867,8 +861,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           try {
             // we create files with the uid/gid of the parent directory
             if (mOpenState.isAtomicUpload) {
-              creation_path = cPath.GetAtomicPath(versioning, mOpenState.ocUploadUuid);
-              eos_info("atomic-path=%s", creation_path.c_str());
+              mOpenState.creation_path = cPath.GetAtomicPath(mOpenState.versioning, mOpenState.ocUploadUuid);
+              eos_info("atomic-path=%s", mOpenState.creation_path.c_str());
 
               try {
                 ref_fmd = gOFS->eosView->getFile(path);
@@ -881,7 +875,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             if (mOpenState.open_flags & O_EXCL) {
               if (mOpenState.isAtomicUpload) {
                 try {
-                  fmd = gOFS->eosView->getFile(creation_path);
+                  fmd = gOFS->eosView->getFile(mOpenState.creation_path);
                 } catch (eos::MDException& e1) {
                   // empty
                 }
@@ -898,11 +892,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               auto file = gOFS->eosFileService->createFile(0);
 
               if (!file) {
-                eos_static_crit("File creation failed for %s", creation_path.c_str());
+                eos_static_crit("File creation failed for %s", mOpenState.creation_path.c_str());
                 throw_mdexception(EIO, "File creation failed");
               }
 
-              eos::common::Path cPath(creation_path.c_str());
+              eos::common::Path cPath(mOpenState.creation_path.c_str());
               std::string fileName = cPath.GetName();
               file->setName(fileName);
               file->setCUid(vid.uid);
@@ -916,8 +910,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             if ((mEosObfuscate > 0) ||
-                (attrmap.count("sys.file.obfuscate") &&
-                 (attrmap["sys.file.obfuscate"] == "1"))) {
+                (mOpenState.attrmap.count("sys.file.obfuscate") &&
+                 (mOpenState.attrmap["sys.file.obfuscate"] == "1"))) {
               std::string skey = eos::common::SymKey::RandomCipher(mEosKey);
               // attach an obfucation key
               fmd->setAttribute("user.obfuscate.key", skey);
@@ -936,7 +930,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             // For versions copy xattrs over from the original file
-            if (versioning) {
+            if (mOpenState.versioning) {
               static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR, "sys.tmp.atomic"};
 
               for (const auto& xattr : attrmapF) {
@@ -954,9 +948,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               // on a temporary attribute
               ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
 
-              if (acl.EvalUserAttrFile()) {
+              if (mOpenState.acl.EvalUserAttrFile()) {
                 // we inherit existing ACLs during (atomic) versioning
-                ref_fmd->setAttribute("user.acl", acl.UserAttrFile());
+                ref_fmd->setAttribute("user.acl", mOpenState.acl.UserAttrFile());
                 ref_fmd->setAttribute("sys.eval.useracl", "1");
               }
             }
@@ -1013,8 +1007,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       MAYREDIRECT_ENOENT;
       MAYSTALL_ENOENT;
 
-      if (auto redirect_kv = attrmap.find("sys.redirect.enoent");
-          redirect_kv != attrmap.end()) {
+      if (auto redirect_kv = mOpenState.attrmap.find("sys.redirect.enoent");
+          redirect_kv != mOpenState.attrmap.end()) {
         // there is a redirection setting here
         redirectionhost = "";
         redirectionhost = redirect_kv->second.c_str();
@@ -1043,15 +1037,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, errno, "open file", path);
     }
 
-    eos_static_debug("has-read-conversion: %d", Policy::HasReadConversion(attrmap));
+    eos_static_debug("has-read-conversion: %d", Policy::HasReadConversion(mOpenState.attrmap));
 
-    if (Policy::HasReadConversion(attrmap) && (vid.prot != "https") &&
+    if (Policy::HasReadConversion(mOpenState.attrmap) && (vid.prot != "https") &&
         !mOpenState.isTpc && !mOpenState.isRepair && !mOpenState.isRepairRead && !mOpenState.isPio && !mOpenState.isPioReconstruct) {
       std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, mOpenState.vect_loc);
       std::string source_space = (space_name.empty() ? "default" : space_name);
       std::string target_space;
       unsigned long target_layout;
-      auto conversion = Policy::ReadConversion(path, attrmap, vid, mOpenState.fmdlid,
+      auto conversion = Policy::ReadConversion(path, mOpenState.attrmap, vid, mOpenState.fmdlid,
                         source_space, *openOpaque,
                         target_layout, target_space);
 
@@ -1126,7 +1120,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   bool schedule = false;
   
   // Make a non-const copy of attrmap for the helper function
-  eos::IContainerMD::XAttrMap attrmap_copy = attrmap;
+  eos::IContainerMD::XAttrMap attrmap_copy = mOpenState.attrmap;
   
   if (int rc = HandleCapabilityCreation(path, ininfo, vid, dmd, fmd, attrmap_copy, 
                                         attrmapF, openOpaque, capability,
@@ -1138,7 +1132,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // get placement policy
   eos::mgm::Scheduler::tPlctPolicy plctplcy;
-  Policy::GetPlctPolicy(path, attrmap, vid, *openOpaque, plctplcy, targetgeotag);
+  Policy::GetPlctPolicy(path, mOpenState.attrmap, vid, *openOpaque, plctplcy, targetgeotag);
   unsigned long long ext_mtime_sec = 0;
   unsigned long long ext_mtime_nsec = 0;
   unsigned long long ext_ctime_sec = 0;
@@ -1258,9 +1252,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fmd->setAttribute(it->first, it->second);
       }
 
-      if (acl.EvalUserAttrFile()) {
-        // we inherit existing ACLs during (atomic) versioning
-        fmd->setAttribute("user.acl", acl.UserAttrFile());
+              if (mOpenState.acl.EvalUserAttrFile()) {
+          // we inherit existing ACLs during (atomic) versioning
+          fmd->setAttribute("user.acl", mOpenState.acl.UserAttrFile());
         fmd->setAttribute("sys.eval.useracl", "1");
       }
 
@@ -1355,9 +1349,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += "&mgm.sec=";
   capability += eos::common::SecEntity::ToKey(client, mOpenState.app_name.c_str()).c_str();
 
-  if (attrmap.count("user.tag")) {
+  if (mOpenState.attrmap.count("user.tag")) {
     capability += "&mgm.container=";
-    capability += attrmap["user.tag"].c_str();
+    capability += mOpenState.attrmap["user.tag"].c_str();
   }
 
   // File systems which are unavailable during a read operation
@@ -1377,12 +1371,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long long minimumsize = 0;
   unsigned long long maximumsize = 0;
 
-  if (attrmap.count("sys.forced.bookingsize")) {
+  if (mOpenState.attrmap.count("sys.forced.bookingsize")) {
     // we allow only a system attribute not to get fooled by a user
-    bookingsize = strtoull(attrmap["sys.forced.bookingsize"].c_str(), 0, 10);
+    bookingsize = strtoull(mOpenState.attrmap["sys.forced.bookingsize"].c_str(), 0, 10);
   } else {
-    if (attrmap.count("user.forced.bookingsize")) {
-      bookingsize = strtoull(attrmap["user.forced.bookingsize"].c_str(), 0, 10);
+    if (mOpenState.attrmap.count("user.forced.bookingsize")) {
+      bookingsize = strtoull(mOpenState.attrmap["user.forced.bookingsize"].c_str(), 0, 10);
     } else {
       bookingsize = 1024ll; // 1k as default
 
@@ -1398,12 +1392,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (attrmap.count("sys.forced.minsize")) {
-    minimumsize = strtoull(attrmap["sys.forced.minsize"].c_str(), 0, 10);
+  if (mOpenState.attrmap.count("sys.forced.minsize")) {
+    minimumsize = strtoull(mOpenState.attrmap["sys.forced.minsize"].c_str(), 0, 10);
   }
 
-  if (attrmap.count("sys.forced.maxsize")) {
-    maximumsize = strtoull(attrmap["sys.forced.maxsize"].c_str(), 0, 10);
+  if (mOpenState.attrmap.count("sys.forced.maxsize")) {
+    maximumsize = strtoull(mOpenState.attrmap["sys.forced.maxsize"].c_str(), 0, 10);
   }
 
   if (openOpaque->Get("oss.asize")) {
@@ -1433,8 +1427,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (mOpenState.isCreation || (!fmd->getNumLocation()) || mOpenState.isInjection) {
     const char* containertag = 0;
 
-    if (attrmap.count("user.tag")) {
-      containertag = attrmap["user.tag"].c_str();
+    if (mOpenState.attrmap.count("user.tag")) {
+      containertag = mOpenState.attrmap["user.tag"].c_str();
     }
 
     /// ###############
@@ -1562,11 +1556,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       gOFS->MgmStats.Add("OpenFileOffline", vid.uid, vid.gid, 1);
       // Fire and forget a sync::offline workflow event
       errno = 0;
-      workflow.SetFile(path, mFid);
+      mOpenState.workflow.SetFile(path, mFid);
       const auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
                                 openOpaque->Get("eos.workflow") : "default";
       std::string workflowErrorMsg;
-      const auto ret_wfe = workflow.Trigger("sync::offline", std::string{workflowType},
+      const auto ret_wfe = mOpenState.workflow.Trigger("sync::offline", std::string{workflowType},
                                             vid,
                                             ininfo, workflowErrorMsg);
 
@@ -1633,8 +1627,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // File-recreation due to offline/full file systems
         const char* containertag = 0;
 
-        if (attrmap.count("user.tag")) {
-          containertag = attrmap["user.tag"].c_str();
+        if (mOpenState.attrmap.count("user.tag")) {
+          containertag = mOpenState.attrmap["user.tag"].c_str();
         }
 
         mOpenState.isCreation = true;
@@ -1732,10 +1726,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if ((retc != ENOSPC) && (retc != EDQUOT)) {
       // INLINE Workflows
       int stalltime = 0;
-      workflow.SetFile(path, fmd->getId());
+      mOpenState.workflow.SetFile(path, fmd->getId());
       std::string errorMsg;
 
-      if ((stalltime = workflow.Trigger("open", "enonet", vid, ininfo,
+      if ((stalltime = mOpenState.workflow.Trigger("open", "enonet", vid, ininfo,
                                         errorMsg)) > 0) {
         eos_info("msg=\"triggered ENOENT workflow\" path=%s", path);
         return gOFS->Stall(error, stalltime, ""
@@ -1749,8 +1743,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       MAYSTALL_ENETUNREACH;
 
       // check if the dir attributes tell us to let clients rebounce
-      if (attrmap.count("sys.stall.unavailable")) {
-        int stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
+      if (mOpenState.attrmap.count("sys.stall.unavailable")) {
+        int stalltime = atoi(mOpenState.attrmap["sys.stall.unavailable"].c_str());
 
         if (stalltime) {
           // stall the client
@@ -1762,8 +1756,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       }
 
-      if (attrmap.count("user.stall.unavailable")) {
-        int stalltime = atoi(attrmap["user.stall.unavailable"].c_str());
+      if (mOpenState.attrmap.count("user.stall.unavailable")) {
+        int stalltime = atoi(mOpenState.attrmap["user.stall.unavailable"].c_str());
 
         if (stalltime) {
           // stall the client
@@ -1775,10 +1769,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       }
 
-      if ((attrmap.count("sys.redirect.enonet"))) {
+      if ((mOpenState.attrmap.count("sys.redirect.enonet"))) {
         // there is a redirection setting here if files are unaccessible
         redirectionhost = "";
-        redirectionhost = attrmap["sys.redirect.enonet"].c_str();
+        redirectionhost = mOpenState.attrmap["sys.redirect.enonet"].c_str();
         int portpos = 0;
 
         if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
@@ -1837,9 +1831,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         bool do_remove = false;
 
         try {
-          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, creation_path.c_str());
+          eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, mOpenState.creation_path.c_str());
           eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-          auto tmp_fmd = gOFS->eosView->getFile(creation_path.c_str());
+                      auto tmp_fmd = gOFS->eosView->getFile(mOpenState.creation_path.c_str());
 
           if (mOpenState.isAtomicUpload || (tmp_fmd->getNumLocation() == 0)) {
             do_remove = true;
@@ -1852,7 +1846,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         if (do_remove) {
           eos::common::VirtualIdentity vidroot = eos::common::VirtualIdentity::Root();
-          gOFS->_rem(creation_path.c_str(), error, vidroot, 0, false, false, false);
+          gOFS->_rem(mOpenState.creation_path.c_str(), error, vidroot, 0, false, false, false);
         }
       }
 
@@ -2284,8 +2278,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (mOpenState.isPioReconstruct && !(mOpenState.pio_reconstruct_fs.empty())) {
       const char* containertag = 0;
 
-      if (attrmap.count("user.tag")) {
-        containertag = attrmap["user.tag"].c_str();
+      if (mOpenState.attrmap.count("user.tag")) {
+        containertag = mOpenState.attrmap["user.tag"].c_str();
       }
 
       // Get the scheduling group of one of the stripes
@@ -2690,11 +2684,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // Also trigger synchronous create workflow event if it's defined
   if (mOpenState.isCreation) {
     errno = 0;
-    workflow.SetFile(path, mFid);
+    mOpenState.workflow.SetFile(path, mFid);
     auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
                         openOpaque->Get("eos.workflow") : "default";
     std::string errorMsg;
-    auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid,
+    auto ret_wfe = mOpenState.workflow.Trigger("sync::create", std::string{workflowType}, vid,
                                     ininfo, errorMsg);
 
     if (ret_wfe < 0 && errno == ENOKEY) {
@@ -2719,12 +2713,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   // add workflow cgis, has to come after create workflow
-  workflow.SetFile(path, mFid);
+  mOpenState.workflow.SetFile(path, mFid);
 
   if (mOpenState.isRW) {
-    redirectionhost += workflow.getCGICloseW(mOpenState.currentWorkflow.c_str(), vid).c_str();
+    redirectionhost += mOpenState.workflow.getCGICloseW(mOpenState.currentWorkflow.c_str(), vid).c_str();
   } else {
-    redirectionhost += workflow.getCGICloseR(mOpenState.currentWorkflow.c_str()).c_str();
+    redirectionhost += mOpenState.workflow.getCGICloseR(mOpenState.currentWorkflow.c_str()).c_str();
   }
 
   // Notify tape garbage collector if tape support is enabled
@@ -3681,12 +3675,12 @@ XrdMgmOfsFile::HandleAclAndPermissions(const char* path, eos::common::VirtualIde
     }
   }
 
-  if (sticky_owner) {
-    eos_info("msg=\"client acting as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
-             path, vid.uid, vid.gid, d_uid, d_gid);
-    vid.uid = d_uid;
-    vid.gid = d_gid;
-  }
+        if (sticky_owner) {
+        eos_info("msg=\"client acting as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
+                 path, vid.uid, vid.gid, mOpenState.d_uid, mOpenState.d_gid);
+        vid.uid = mOpenState.d_uid;
+        vid.gid = mOpenState.d_gid;
+      }
 
   // If a file has the sys.proc attribute, it will be redirected as a command
   if (fmd != nullptr && fmd->hasAttribute("sys.proc")) {
@@ -3905,11 +3899,7 @@ XrdMgmOfsFile::HandleNamespaceMetadataRetrieval(const char* path,
                                                  eos::common::VirtualIdentity& vid,
                                                  eos::common::Path& cPath,
                                                  std::shared_ptr<eos::IContainerMD>& dmd,
-                                                 std::shared_ptr<eos::IFileMD>& fmd,
-                                                 eos::IContainerMD::XAttrMap& attrmap,
-                                                 eos::mgm::Workflow& workflow,
-                                                 uid_t& d_uid,
-                                                 gid_t& d_gid)
+                                                 std::shared_ptr<eos::IFileMD>& fmd)
 {
   static const char* epname = "open";
   
@@ -3921,9 +3911,9 @@ XrdMgmOfsFile::HandleNamespaceMetadataRetrieval(const char* path,
     }
 
     // get the attributes out
-    eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+    eos::listAttributes(gOFS->eosView, dmd.get(), mOpenState.attrmap, false);
     // extract workflows
-    workflow.Init(&attrmap);
+    mOpenState.workflow.Init(&mOpenState.attrmap);
 
     if (dmd) {
       try {
@@ -3931,7 +3921,7 @@ XrdMgmOfsFile::HandleNamespaceMetadataRetrieval(const char* path,
         std::string fileName = cPath.GetName();
 
         if (mOpenState.ocUploadUuid.length()) {
-          eos::common::Path aPath(cPath.GetAtomicPath(attrmap.count("sys.versioning"),
+          eos::common::Path aPath(cPath.GetAtomicPath(mOpenState.attrmap.count("sys.versioning"),
                                   mOpenState.ocUploadUuid));
           filePath = aPath.GetPath();
           fileName = aPath.GetName();
@@ -4005,8 +3995,8 @@ XrdMgmOfsFile::HandleNamespaceMetadataRetrieval(const char* path,
       }
 
       if (dmd) {
-        d_uid = dmd->getCUid();
-        d_gid = dmd->getCGid();
+        mOpenState.d_uid = dmd->getCUid();
+        mOpenState.d_gid = dmd->getCGid();
       }
     } else {
       fmd.reset();
@@ -4026,10 +4016,9 @@ XrdMgmOfsFile::HandleNamespaceMetadataRetrieval(const char* path,
 //------------------------------------------------------------------------------
 int
 XrdMgmOfsFile::HandleEnoentRedirection(const char* path,
-                                       eos::common::VirtualIdentity& vid,
-                                       eos::common::Path& cPath,
-                                       std::shared_ptr<eos::IContainerMD>& dmd,
-                                       eos::IContainerMD::XAttrMap& attrmap)
+                                        eos::common::VirtualIdentity& vid,
+                                        eos::common::Path& cPath,
+                                        std::shared_ptr<eos::IContainerMD>& dmd)
 {
   XrdOucString redirectionhost;
   int ecode;
@@ -4042,7 +4031,7 @@ XrdMgmOfsFile::HandleEnoentRedirection(const char* path,
     try {
       dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
       // get the attributes out
-      eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+      eos::listAttributes(gOFS->eosView, dmd.get(), mOpenState.attrmap, false);
     } catch (eos::MDException& e) {
       dmd.reset();
       errno = e.getErrno();
@@ -4051,10 +4040,10 @@ XrdMgmOfsFile::HandleEnoentRedirection(const char* path,
     }
 
     // ---------------------------------------------------------------------
-    if (attrmap.count("sys.redirect.enoent")) {
+    if (mOpenState.attrmap.count("sys.redirect.enoent")) {
       // there is a redirection setting here
       redirectionhost = "";
-      redirectionhost = attrmap["sys.redirect.enoent"].c_str();
+      redirectionhost = mOpenState.attrmap["sys.redirect.enoent"].c_str();
       int portpos = 0;
 
       if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
