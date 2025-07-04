@@ -461,6 +461,23 @@ private:
                               const XrdSecEntity* client, const char* ininfo);
 
   //----------------------------------------------------------------------------
+  //! Handle proc interface access
+  //!
+  //! @param path file path
+  //! @param ininfo opaque information
+  //! @param vid virtual identity
+  //! @param client XRD security entity
+  //! @param tident thread identifier
+  //! @param logId log identifier
+  //!
+  //! @return SFS_OK/SFS_REDIRECT/SFS_STALL on success, SFS_ERROR on failure
+  //----------------------------------------------------------------------------
+  int HandleProcAccess(const char* path, const char* ininfo,
+                       eos::common::VirtualIdentity& vid,
+                       const XrdSecEntity* client,
+                       const char* tident, const std::string& logId);
+
+  //----------------------------------------------------------------------------
   //! Handle container and permissions
   //!
   //! @param path file path

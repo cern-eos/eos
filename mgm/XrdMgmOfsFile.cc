@@ -608,52 +608,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // Proc filter
   if (ProcInterface::IsProcAccess(path)) {
-    if (gOFS->mExtAuthz &&
-        (vid.prot != "sss") &&
-        (vid.prot != "gsi") &&
-        (vid.prot != "krb5") &&
-        (vid.host != "localhost") &&
-        (vid.host != "localhost.localdomain")) {
-      return Emsg(epname, error, EPERM, "execute proc command - you don't have"
-                  " the requested permissions for that operation (1)", path);
-    }
-
-    gOFS->MgmStats.Add("OpenProc", vid.uid, vid.gid, 1);
-
-    if (!ProcInterface::Authorize(path, ininfo, vid, client)) {
-      return Emsg(epname, error, EPERM, "execute proc command - you don't have "
-                  "the requested permissions for that operation (2)", path);
-    } else {
-      mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo, logId);
-
-      if (mProcCmd) {
-        eos_static_info("proccmd=%s", mProcCmd->GetCmd(ininfo).c_str());
-        mProcCmd->SetLogId(logId, vid, tident);
-        mProcCmd->SetError(&error);
-        rcode = mProcCmd->open(path, ininfo, vid, &error);
-
-        // If we need to stall the client then save the IProcCommand object and
-        // add it to the map for when the client comes back.
-        if (rcode > 0) {
-          if (mProcCmd->GetCmd(ininfo) != "proto") {
-            return rcode;
-          }
-
-          if (!ProcInterface::SaveSubmittedCmd(tident, std::move(mProcCmd))) {
-            eos_err("failed to save submitted command object");
-            return Emsg(epname, error, EINVAL, "save sumitted command object "
-                        "for path ", path);
-          }
-
-          // Now the mProcCmd object is null and moved to the global map
-        }
-
-        return rcode;
-      } else {
-        return Emsg(epname, error, ENOMEM, "allocate proc command object for ",
-                    path);
-      }
-    }
+    return HandleProcAccess(path, ininfo, vid, client, tident, logId);
   }
 
   gOFS->MgmStats.Add("Open", vid.uid, vid.gid, 1);
@@ -3908,6 +3863,65 @@ XrdMgmOfsFile::ProcessOpaqueParameters(XrdOucEnv*& openOpaque, const XrdSecEntit
   }
 
   return 0;
+}
+
+//------------------------------------------------------------------------------
+// Handle proc interface access
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleProcAccess(const char* path, const char* ininfo,
+                                eos::common::VirtualIdentity& vid,
+                                const XrdSecEntity* client,
+                                const char* tident, const std::string& logId)
+{
+  static const char* epname = "open";
+  
+  if (gOFS->mExtAuthz &&
+      (vid.prot != "sss") &&
+      (vid.prot != "gsi") &&
+      (vid.prot != "krb5") &&
+      (vid.host != "localhost") &&
+      (vid.host != "localhost.localdomain")) {
+    return Emsg(epname, error, EPERM, "execute proc command - you don't have"
+                " the requested permissions for that operation (1)", path);
+  }
+
+  gOFS->MgmStats.Add("OpenProc", vid.uid, vid.gid, 1);
+
+  if (!ProcInterface::Authorize(path, ininfo, vid, client)) {
+    return Emsg(epname, error, EPERM, "execute proc command - you don't have "
+                "the requested permissions for that operation (2)", path);
+  } else {
+    mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo, logId.c_str());
+
+    if (mProcCmd) {
+      eos_static_info("proccmd=%s", mProcCmd->GetCmd(ininfo).c_str());
+      mProcCmd->SetLogId(logId.c_str(), vid, tident);
+      mProcCmd->SetError(&error);
+      int rcode = mProcCmd->open(path, ininfo, vid, &error);
+
+      // If we need to stall the client then save the IProcCommand object and
+      // add it to the map for when the client comes back.
+      if (rcode > 0) {
+        if (mProcCmd->GetCmd(ininfo) != "proto") {
+          return rcode;
+        }
+
+        if (!ProcInterface::SaveSubmittedCmd(tident, std::move(mProcCmd))) {
+          eos_err("failed to save submitted command object");
+          return Emsg(epname, error, EINVAL, "save sumitted command object "
+                      "for path ", path);
+        }
+
+        // Now the mProcCmd object is null and moved to the global map
+      }
+
+      return rcode;
+    } else {
+      return Emsg(epname, error, ENOMEM, "allocate proc command object for ",
+                  path);
+    }
+  }
 }
 
 
