@@ -334,13 +334,21 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     }
 
     // Get fmd from namespace
-    auto container_fut = eos::MetadataFetcher::getContainerFromId(
-                           *gOFS.mFsckQcl.get(),
-                           eos::ContainerIdentifier(fmd->mProtoFmd.cid()));
-    auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
-                    eos::FileIdentifier(fid));
-    eos::ns::ContainerMdProto container = std::move(container_fut).get();
-    eos::ns::FileMdProto file = std::move(file_fut).get();
+    eos::ns::ContainerMdProto container;
+    eos::ns::FileMdProto file;
+
+    try {
+      auto container_fut = eos::MetadataFetcher::getContainerFromId(
+                             *gOFS.mFsckQcl.get(),
+                             eos::ContainerIdentifier(fmd->mProtoFmd.cid()));
+      auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
+                      eos::FileIdentifier(fid));
+      container = std::move(container_fut).get();
+      file = std::move(file_fut).get();
+    } catch (const eos::MDException& e) {
+      return;
+    }
+
     auto cfg = GetAlternativeChecksumsConfig(container);
     auto on_file = ExtractAltXsOnFile(file);
     std::set<eos::common::LayoutId::eChecksum> to_compute;
