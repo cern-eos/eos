@@ -575,126 +575,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   COMMONTIMING("fid::fetched", &tm);
-  openOpaque = new XrdOucEnv(ininfo);
-
-  // Handle (delegated) tpc redirection for writes
-  if (mOpenState.isRW && RedirectTpcAccess()) {
-    return SFS_REDIRECT;
-  }
-
-  mOpenState.app_name = GetClientApplicationName(openOpaque, client);
-
-  // Decide if this is a FUSE access
-  if (!mOpenState.app_name.empty()) {
-    if (mOpenState.app_name == "fuse" || mOpenState.app_name == "xrootdfs" ||
-        mOpenState.app_name.find("fuse::") == 0) {
-      mOpenState.isFuse = true;
-    } else if (mOpenState.app_name == "touch") {
-      mOpenState.isTouch = true;
-      mOpenState.isFuse = true;
-    }
-  } else {
-    // App name is empty, check for the presence of oss.task
-    // as XRootD's XrdTpcTPC can set this opaque information
-    // to indicate that the open() is due to an HTTP TPC
-    // transfer
-    const char* ossTask = nullptr;
-
-    if ((ossTask = openOpaque->Get("oss.task"))) {
-      // We have oss.task opaque, check if it is equal to httptpc
-      // (set by XrdTpcTPC)
-      if (!strncmp("httptpc", ossTask, 7)) {
-        if (mOpenState.isRW) {
-          // Open for write --> HTTP TPC PULL
-          mOpenState.app_name += "http/tpcpull";
-        } else {
-          // HTTP TPC PUSH
-          mOpenState.app_name += "http/tpcpush";
-        }
-      }
-    }
-  }
-
-  {
-    // handle io priority
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("eos.iopriority"))) {
-      if (vid.hasUid(11)) {  // operator role
-        // admin members can set iopriority
-        mOpenState.ioPriority = val;
-      } else {
-        eos_info("msg=\"suppressing IO priority setting '%s', no operator role\"",
-                 val);
-      }
-    }
-  }
-
-  {
-    // Handle obfuscation and encryption
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("eos.obfuscate"))) {
-      try {
-        mEosObfuscate = std::strtoul(val, 0, 10);
-      } catch (...) {
-        eos_warning("msg=\"ignore invalid eos.obfuscate\" value=\"%s\"", val);
-      }
-    }
-
-    if ((val = openOpaque->Get("eos.key"))) {
-      mEosKey = val;
-
-      if (mEosObfuscate == 0) {
-        mEosObfuscate = 1;
-      }
-    }
-  }
-
-  {
-    // figure out if this is an OC upload
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("oc-chunk-uuid"))) {
-      mOpenState.ocUploadUuid = val;
-    }
-  }
-
-  {
-    // populate tried hosts from the CGI
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("tried"))) {
-      mOpenState.tried_cgi = val;
-      mOpenState.tried_cgi += ",";
-    }
-  }
-
-  {
-    // extract the workflow name from the CGI
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("eos.workflow"))) {
-      mOpenState.currentWorkflow = val;
-    }
-  }
-
-  {
-    // populate versioning cgi from the CGI
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("eos.versioning"))) {
-      mOpenState.versioning_cgi = val;
-    }
-  }
-
-  {
-    // are we a TPC transfer?
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("tpc.stage"))) {
-      mOpenState.isTpc = true;
-    }
+  
+  // Process opaque parameters
+  int opaque_ret = ProcessOpaqueParameters(openOpaque, client, ininfo);
+  if (opaque_ret != 0) {
+    return opaque_ret;
   }
 
   if (!mOpenState.isFuse && mOpenState.isRW) {
@@ -710,67 +595,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                 e.getErrno(),
                 e.getMessage().str().c_str());
       // will throw the error later
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // PIO MODE CONFIGURATION
-  // ---------------------------------------------------------------------------
-  // PIO mode return's a vector of URLs to a client and the client contact's
-  // directly these machines and run's the RAIN codec on client side.
-  // The default mode return's one gateway machine and this machine run's the
-  // RAIN codec.
-  // On the fly reconstruction is done using PIO mode when the reconstruction
-  // action is defined ('eos.pio.action=reconstruct'). The client can specify
-  // a list of filesystem's which should be excluded. In case they are used
-  // in the layout the stripes on the explicitly referenced filesystems and
-  // all other unavailable filesystems get reconstructed into stripes on
-  // new machines.
-  // ---------------------------------------------------------------------------
-  // ---------------------------------------------------------------------------
-  // discover PIO mode
-  // ---------------------------------------------------------------------------
-  XrdOucString sPio = (openOpaque) ? openOpaque->Get("eos.cli.access") : "";
-
-  if (sPio == "pio") {
-    mOpenState.isPio = true;
-  }
-
-  // Discover PIO reconstruction mode
-  XrdOucString sPioRecover = (openOpaque) ?
-                             openOpaque->Get("eos.pio.action") : "";
-
-  if (sPioRecover == "reconstruct") {
-    mOpenState.isPioReconstruct = true;
-  }
-
-  {
-    // Discover PIO reconstruction filesystems (stripes to be replaced)
-    std::string sPioRecoverFs = (openOpaque) ?
-                                (openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs") : "")
-                                : "";
-    std::vector<std::string> fsToken;
-    eos::common::StringConversion::Tokenize(sPioRecoverFs, fsToken, ",");
-
-    if (openOpaque->Get("eos.pio.recfs") && fsToken.empty()) {
-      return Emsg(epname, error, EINVAL, "open - you specified a list of"
-                  " reconstruction filesystems but the list is empty", path);
-    }
-
-    for (size_t i = 0; i < fsToken.size(); i++) {
-      errno = 0;
-      unsigned int rfs = (unsigned int) strtol(fsToken[i].c_str(), 0, 10);
-      XrdOucString srfs = "";
-      srfs += (int) rfs;
-
-      if (errno || (srfs != fsToken[i].c_str())) {
-        return Emsg(epname, error, EINVAL, "open - you specified a list of "
-                    "reconstruction filesystems but the list contains non "
-                    "numerical or illegal id's", path);
-      }
-
-      // store in the reconstruction filesystem list
-      mOpenState.pio_reconstruct_fs.insert(rfs);
     }
   }
 
@@ -1214,14 +1038,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                     attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
   // check for injection in non fuse clients with cgi
   mOpenState.isInjection = !mOpenState.isFuse && openOpaque->Get("eos.injection");
-
-  if (openOpaque->Get("eos.repair")) {
-    mOpenState.isRepair = true;
-  }
-
-  if (openOpaque->Get("eos.repairread")) {
-    mOpenState.isRepairRead = true;
-  }
 
   // Short-cut to block multi-source access to EC files
   if (IsRainRetryWithExclusion(mOpenState.isRW, mOpenState.fmdlid)) {
@@ -3906,5 +3722,189 @@ XrdMgmOfsFile::HandleFidAccess(const std::string& spath, std::shared_ptr<eos::IF
     }
   }
   
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Process opaque parameters
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::ProcessOpaqueParameters(XrdOucEnv*& openOpaque, const XrdSecEntity* client, const char* ininfo)
+{
+  openOpaque = new XrdOucEnv(ininfo ? ininfo : "");
+
+  // Handle (delegated) tpc redirection for writes
+  if (mOpenState.isRW && RedirectTpcAccess()) {
+    return SFS_REDIRECT;
+  }
+
+  mOpenState.app_name = GetClientApplicationName(openOpaque, client);
+
+  // Decide if this is a FUSE access
+  if (!mOpenState.app_name.empty()) {
+    if (mOpenState.app_name == "fuse" || mOpenState.app_name == "xrootdfs" ||
+        mOpenState.app_name.find("fuse::") == 0) {
+      mOpenState.isFuse = true;
+    } else if (mOpenState.app_name == "touch") {
+      mOpenState.isTouch = true;
+      mOpenState.isFuse = true;
+    }
+  } else {
+    // App name is empty, check for the presence of oss.task
+    const char* ossTask = nullptr;
+
+    if ((ossTask = openOpaque->Get("oss.task"))) {
+      // We have oss.task opaque, check if it is equal to httptpc
+      if (!strncmp("httptpc", ossTask, 7)) {
+        if (mOpenState.isRW) {
+          // Open for write --> HTTP TPC PULL
+          mOpenState.app_name += "http/tpcpull";
+        } else {
+          // HTTP TPC PUSH
+          mOpenState.app_name += "http/tpcpush";
+        }
+      }
+    }
+  }
+
+  {
+    // handle io priority
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("eos.iopriority"))) {
+      if (vid.hasUid(11)) {  // operator role
+        // admin members can set iopriority
+        mOpenState.ioPriority = val;
+      } else {
+        eos_info("msg=\"suppressing IO priority setting '%s', no operator role\"",
+                 val);
+      }
+    }
+  }
+
+  {
+    // Handle obfuscation and encryption
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("eos.obfuscate"))) {
+      try {
+        mEosObfuscate = std::strtoul(val, 0, 10);
+      } catch (...) {
+        eos_warning("msg=\"ignore invalid eos.obfuscate\" value=\"%s\"", val);
+      }
+    }
+
+    if ((val = openOpaque->Get("eos.key"))) {
+      mEosKey = val;
+
+      if (mEosObfuscate == 0) {
+        mEosObfuscate = 1;
+      }
+    }
+  }
+
+  {
+    // figure out if this is an OC upload
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("oc-chunk-uuid"))) {
+      mOpenState.ocUploadUuid = val;
+    }
+  }
+
+  {
+    // populate tried hosts from the CGI
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("tried"))) {
+      mOpenState.tried_cgi = val;
+      mOpenState.tried_cgi += ",";
+    }
+  }
+
+  {
+    // extract the workflow name from the CGI
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("eos.workflow"))) {
+      mOpenState.currentWorkflow = val;
+    }
+  }
+
+  {
+    // populate versioning cgi from the CGI
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("eos.versioning"))) {
+      mOpenState.versioning_cgi = val;
+    }
+  }
+
+  {
+    // are we a TPC transfer?
+    const char* val = 0;
+
+    if ((val = openOpaque->Get("tpc.stage"))) {
+      mOpenState.isTpc = true;
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // PIO MODE CONFIGURATION
+  // ---------------------------------------------------------------------------
+  
+  // discover PIO mode
+  XrdOucString sPio = (openOpaque) ? openOpaque->Get("eos.cli.access") : "";
+
+  if (sPio == "pio") {
+    mOpenState.isPio = true;
+  }
+
+  // Discover PIO reconstruction mode
+  XrdOucString sPioRecover = (openOpaque) ?
+                             openOpaque->Get("eos.pio.action") : "";
+
+  if (sPioRecover == "reconstruct") {
+    mOpenState.isPioReconstruct = true;
+  }
+
+  {
+    // Discover PIO reconstruction filesystems (stripes to be replaced)
+    std::string sPioRecoverFs = (openOpaque) ?
+                                (openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs") : "")
+                                : "";
+    std::vector<std::string> fsToken;
+    eos::common::StringConversion::Tokenize(sPioRecoverFs, fsToken, ",");
+
+    if (openOpaque->Get("eos.pio.recfs") && fsToken.empty()) {
+      return Emsg("open", error, EINVAL, "open - you specified a list of"
+                  " reconstruction filesystems but the list is empty", mOpenState.spath.c_str());
+    }
+
+    for (size_t i = 0; i < fsToken.size(); i++) {
+      errno = 0;
+      unsigned int rfs = (unsigned int) strtol(fsToken[i].c_str(), 0, 10);
+      XrdOucString srfs = "";
+      srfs += (int) rfs;
+
+      if (errno || (srfs != fsToken[i].c_str())) {
+        return Emsg("open", error, EINVAL, "open - you specified a list of "
+                    "reconstruction filesystems but the list contains non "
+                    "numerical or illegal id's", mOpenState.spath.c_str());
+      }
+
+      // store in the reconstruction filesystem list
+      mOpenState.pio_reconstruct_fs.insert(rfs);
+    }
+  }
+
+  if (openOpaque->Get("eos.repair")) {
+    mOpenState.isRepair = true;
+  }
+
+  if (openOpaque->Get("eos.repairread")) {
+    mOpenState.isRepairRead = true;
+  }
+
   return 0;
 }

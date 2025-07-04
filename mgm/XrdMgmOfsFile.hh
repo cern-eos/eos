@@ -65,6 +65,7 @@ class XrdSecEntity;
 namespace eos {
 namespace mgm {
 class Acl;
+class Workflow;
 }
 }
 
@@ -385,16 +386,96 @@ private:
   //----------------------------------------------------------------------------
   int HandleFidAccess(const std::string& spath, std::shared_ptr<eos::IFileMD>& fmd);
 
+
+
+  //----------------------------------------------------------------------------
+  //! Handle container and permissions
+  //!
+  //! @param path file path
+  //! @param dmd container metadata output
+  //! @param fmd file metadata output
+  //! @param attrmap container attributes output
+  //! @param attrmapF file attributes output
+  //! @param acl ACL object output
+  //! @param workflow workflow object output
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleContainerAndPermissions(const char* path, std::shared_ptr<eos::IContainerMD>& dmd,
+                                    std::shared_ptr<eos::IFileMD>& fmd,
+                                    eos::IContainerMD::XAttrMap& attrmap,
+                                    eos::IFileMD::XAttrMap& attrmapF,
+                                    Acl& acl, Workflow& workflow);
+
+  //----------------------------------------------------------------------------
+  //! Handle file creation
+  //!
+  //! @param path file path
+  //! @param dmd container metadata
+  //! @param fmd file metadata output
+  //! @param attrmap container attributes
+  //! @param attrmapF file attributes output
+  //! @param acl ACL object
+  //! @param versioning versioning depth
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleFileCreation(const char* path, std::shared_ptr<eos::IContainerMD>& dmd,
+                         std::shared_ptr<eos::IFileMD>& fmd,
+                         const eos::IContainerMD::XAttrMap& attrmap,
+                         eos::IFileMD::XAttrMap& attrmapF,
+                         const Acl& acl, int versioning);
+
+  //----------------------------------------------------------------------------
+  //! Handle file scheduling
+  //!
+  //! @param path file path
+  //! @param fmd file metadata
+  //! @param attrmap container attributes
+  //! @param space space name
+  //! @param selectedfs selected filesystems output
+  //! @param proxys proxy endpoints output
+  //! @param firewalleps firewall endpoints output
+  //!
+  //! @return 0 on success, error code on failure
+  //----------------------------------------------------------------------------
+  int HandleFileScheduling(const char* path, std::shared_ptr<eos::IFileMD>& fmd,
+                           const eos::IContainerMD::XAttrMap& attrmap,
+                           const std::string& space,
+                           std::vector<unsigned int>& selectedfs,
+                           std::vector<std::string>& proxys,
+                           std::vector<std::string>& firewalleps);
+
+  //----------------------------------------------------------------------------
+  //! Construct redirection URL
+  //!
+  //! @param path file path
+  //! @param fmd file metadata
+  //! @param selectedfs selected filesystems
+  //! @param proxys proxy endpoints
+  //! @param firewalleps firewall endpoints
+  //! @param capability capability string
+  //! @param workflow workflow object
+  //!
+  //! @return constructed redirection URL
+  //----------------------------------------------------------------------------
+  std::string ConstructRedirectionUrl(const char* path, std::shared_ptr<eos::IFileMD>& fmd,
+                                      const std::vector<unsigned int>& selectedfs,
+                                      const std::vector<std::string>& proxys,
+                                      const std::vector<std::string>& firewalleps,
+                                      const std::string& capability,
+                                      const Workflow& workflow);
+
   //----------------------------------------------------------------------------
   //! Process opaque parameters
   //!
-  //! @param openOpaque opaque environment
+  //! @param openOpaque opaque environment (output)
   //! @param client XRD security entity
   //! @param ininfo input opaque information
   //!
   //! @return 0 on success, error code on failure
   //----------------------------------------------------------------------------
-  int ProcessOpaqueParameters(XrdOucEnv* openOpaque,
+  int ProcessOpaqueParameters(XrdOucEnv*& openOpaque,
                               const XrdSecEntity* client, const char* ininfo);
 
   //----------------------------------------------------------------------------
