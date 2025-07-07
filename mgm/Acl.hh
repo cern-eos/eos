@@ -47,13 +47,13 @@ public:         // [+] prevents '+' interpreted as "one or more"
     "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p|t))+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
     "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
+    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p|t))+)[,]?)*$";
 
   //----------------------------------------------------------------------------
   //! Use regex to check ACL format / syntax
@@ -91,17 +91,18 @@ public:         // [+] prevents '+' interpreted as "one or more"
     mCanNotBrowse(false),
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
-    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
+    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false),
+    mCanIssueToken(false)
   {}
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param sysacl system acl definition string
-  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}
+  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxomt(!d)(+d)(!u)(+u)}
   //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param useracl user acl definition string
-  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}
+  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxomt(!d)(+d)(!u)(+u)}
   //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate also the user acl for the permissions
@@ -269,6 +270,14 @@ public:         // [+] prevents '+' interpreted as "one or more"
   }
 
   //----------------------------------------------------------------------------
+  //! Has the 't' flag - token issuer permission
+  //----------------------------------------------------------------------------
+  inline bool CanIssueToken() const
+  {
+    return mCanIssueToken;
+  }
+
+  //----------------------------------------------------------------------------
   //! Extract an ACL from a token
   //----------------------------------------------------------------------------
 
@@ -331,6 +340,7 @@ private:
   bool mIsMutable; ///< acl does not contain the immutable flag
   bool mCanArchive; ///< acl which allows archiving
   bool mCanPrepare; ///< acl which allows triggering workflows
+  bool mCanIssueToken; ///< acl which allows to issue tokens
 
   std::string sysattr;
   std::string userattr;
