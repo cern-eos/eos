@@ -29,6 +29,7 @@
 #include "mgm/Macros.hh"
 #include "mgm/Access.hh"
 #include "common/Path.hh"
+#include "common/Definitions.hh"
 #include "common/token/EosTok.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
@@ -149,7 +150,8 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
 
   eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.hasUid(0), mVid.sudoer,
                   mVid.uid, mVid.gid);
-  int mode = R_OK;
+
+  int mode = R_OK | T_OK;
 
   if (token.permission().find("x") != std::string::npos) {
     mode |= X_OK;
@@ -185,7 +187,6 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
 	reply.set_std_err("error: the maximum lifetime for a user token is one year!");
 	return reply;
       }
-      struct stat buf;
 
       XrdOucErrInfo error;
 
@@ -197,18 +198,11 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       // we verify that mVid owns the path in the token
       if (token.path().back() == '/') {
         if (token.allowtree()) {
-          // tree token only allowed if owner or empty tree
-          if (gOFS->_stat(token.path().c_str(), &buf, error, mVid, "", 0, false, 0) ||
-              ((buf.st_uid != mVid.uid) && (buf.st_blksize))) {
+	  if (gOFS->_access(token.path().c_str(), mode, error, mVid, "")) {
             if (error.getErrInfo()) {
               // stat error
               reply.set_retc(error.getErrInfo());
               reply.set_std_err(error.getErrText());
-              return reply;
-            } else {
-              // owner error
-              reply.set_retc(EACCES);
-              reply.set_std_err("error: you are not the owner of the path given in your request and you are not a sudoer or root!");
               return reply;
             }
           }
@@ -233,7 +227,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
         eos::common::Path cPath(token.path().c_str());
         errno = 0;
 
-        if (gOFS->_access(token.path().c_str(), R_OK, error, mVid, "")) {
+        if (gOFS->_access(token.path().c_str(), mode, error, mVid, "")) {
           if (errno) {
             // return errno
             reply.set_retc(errno);

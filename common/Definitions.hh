@@ -34,4 +34,4 @@
 #define U_OK   128 ///< Flag for update permission
 #define SU_OK  256 ///< Flag for utime permission
 #define P_OK   512 ///< Flag for workflow/prepare permission
-
+#define T_OK  1024 ///< Flag for token issuing permission

@@ -73,6 +73,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
   std::shared_ptr<eos::IFileMD> fh;
   std::shared_ptr<eos::IContainerMD> dh;
   mode_t dh_mode {0};
+  bool is_owner=false;
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
   // Check for existing file
@@ -133,7 +134,18 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
       eos::MDLocking::ContainerReadLockPtr dhLock = eos::MDLocking::readLock(
             dh.get());
       dh_mode = dh->getMode();
+      is_owner = (dh->getCUid() == vid.uid);
 
+      if (fh) {
+	is_owner = (fh->getCUid() == vid.uid);
+      }
+
+      // check if people who don't own a file or directory can issue token
+      if (!is_owner && (mode & T_OK) && !acl.CanIssueToken()) {
+	errno = EPERM;
+	return Emsg(epname, error, EPERM, "access - you cannot issue tokens", path);
+      }
+      
       if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
         bool deny = true;
 
