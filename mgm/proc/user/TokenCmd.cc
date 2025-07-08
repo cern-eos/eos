@@ -225,6 +225,8 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       } else {
         // file path
         mode |= F_OK;
+	// now tree permission for files
+	token.set_allowtree(false);
         eos::common::Path cPath(token.path().c_str());
         errno = 0;
 
