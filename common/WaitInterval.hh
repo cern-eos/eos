@@ -56,13 +56,17 @@
 class WaitInterval
 {
 public:
-  WaitInterval(const uint64_t interval_sec): mIntervalSec(
-      interval_sec) {};
+  WaitInterval(const uint64_t interval_sec) : mIntervalSec(
+      interval_sec)
+  {
+  };
 
   WaitInterval(const WaitInterval&) = delete;
+
   WaitInterval(WaitInterval&&) noexcept = delete;
 
   WaitInterval& operator=(const WaitInterval&) = delete;
+
   WaitInterval& operator=(WaitInterval&&) noexcept = delete;
 
   uint64_t get() const
@@ -94,43 +98,11 @@ public:
   //! @param zero_forever if true indicates that if the <interval> value is 0
   //!                     the sleep time is forever
   //------------------------------------------------------------------------------
-  void wait(ThreadAssistant& assistant, bool zero_forever = false) const
+  void wait(ThreadAssistant& assistant, const bool zero_forever = false) const
   {
     registerNotifyCallback(assistant);
     std::unique_lock lock(mMutex);
-
-    while (true) {
-      if (mIntervalSec == 0) {
-        if (zero_forever) {
-          mCv.wait(lock);
-        } else {
-          return;
-        }
-      }
-
-      const auto start = std::chrono::steady_clock::now();
-      uint64_t remaining = mIntervalSec;
-
-      while (remaining > 0) {
-        auto status = mCv.wait_for(lock, std::chrono::seconds(remaining));
-
-        if (status == std::cv_status::timeout || assistant.terminationRequested()) {
-          return;
-        }
-
-        if (mIntervalSec == 0) {
-          break;
-        }
-
-        const auto elapsed = std::chrono::steady_clock::now() - start;
-        remaining =  mIntervalSec - std::chrono::duration_cast<std::chrono::seconds>
-                     (elapsed).count();
-      }
-
-      if (mIntervalSec > 0) {
-        return;
-      }
-    }
+    wait_time(assistant, lock, mIntervalSec, zero_forever);
   }
 
   //------------------------------------------------------------------------------
@@ -154,6 +126,33 @@ public:
     return false;
   }
 
+  //------------------------------------------------------------------------------
+  //! random_wait is like wait, but it waits a random time from 1 to <interval>
+  //! seconds.
+  //!
+  //! @param assistant thread running the job
+  //! @param zero_forever if true indicates that if the <interval> value is 0
+  //!                     the sleep time is forever
+  //------------------------------------------------------------------------------
+  void random_wait(ThreadAssistant& assistant,
+                   const bool zero_forever = false,
+                   const std::function<void(uint64_t)> callback = nullptr) const
+  {
+    registerNotifyCallback(assistant);
+    uint64_t random_sleep_time = 0;
+    std::unique_lock lock(mMutex);
+
+    if (mIntervalSec != 0) {
+      random_sleep_time = rand() % mIntervalSec + 1;
+    }
+
+    if (callback) {
+      callback(random_sleep_time);
+    }
+
+    wait_time(assistant, lock, random_sleep_time, zero_forever);
+  }
+
 private:
   uint64_t mIntervalSec;
   mutable std::condition_variable mCv;
@@ -167,5 +166,48 @@ private:
         mCv.notify_all();
       });
     }, assistant);
+  }
+
+  void wait_time(ThreadAssistant& assistant, std::unique_lock<std::mutex>& lock,
+                 uint64_t time,
+                 bool zero_forever = false) const
+  {
+    while (true) {
+      if (time == 0) {
+        if (zero_forever) {
+          mCv.wait(lock);
+          time = mIntervalSec;
+        } else {
+          return;
+        }
+      }
+
+      const auto start = std::chrono::steady_clock::now();
+      uint64_t remaining = time;
+
+      while (remaining > 0) {
+        auto status = mCv.wait_for(lock, std::chrono::seconds(remaining));
+
+        if (status == std::cv_status::timeout || assistant.terminationRequested()) {
+          return;
+        }
+
+        // At this time the internal value mIntervalSec was changed
+        // by another thread
+        time = mIntervalSec;
+
+        if (time == 0) {
+          break;
+        }
+
+        const auto elapsed = std::chrono::steady_clock::now() - start;
+        remaining = time - std::chrono::duration_cast<std::chrono::seconds>
+                    (elapsed).count();
+      }
+
+      if (time > 0) {
+        return;
+      }
+    }
   }
 };
