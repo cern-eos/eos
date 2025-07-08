@@ -119,6 +119,14 @@ DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rx --expires $later --
 DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --owner nobody --group nobody --tree)
 run_step "Remove directory tree.2" env EOSAUTHZ=$DIRTOKEN eos rmdir $prefix/t_token/tree.1/tree.2
 
+### Test 6: TokenACL
+run_step "TokenAcl Directory" eos mkdir -p $prefix/t_token/tokenacl/
+run_step "TokenAcl Permission" eos chmod 700 $prefix/t_token/tokenacl/
+! env XrdSecPROTOCOL=unix eos token --path $prefix/t_token/tokenacl/ --permission rx && echo -e "${GREEN}Expected token creation failure without ACL entry${NC}"
+run_step "TokenAcl Setting" eos attr set sys.acl=u:65534:trx $prefix/t_token/tokenacl/
+! env XrdSecPROTOCOL=unix eos token --path $prefix/t_token/tokenacl/ --permission rwx && echo -e "${GREEN}Expected token creation failure due to missing write permission ${NC}"
+run_step "TokenAcl GetToken" env XrdSecPROTOCOL=unix eos token --path $prefix/t_token/tokenacl/
+
 ### Cleanup
 run_step "Final cleanup of test directory" eos rm -r $prefix/t_token/
 
