@@ -218,6 +218,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
               } else {
                 reply.set_std_err("error: no permission!");
               }
+	      return reply;
             }
           }
         }

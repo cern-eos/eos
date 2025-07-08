@@ -124,10 +124,10 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
     }
 
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d "
-             "mutable=%d can_not_delete=%d",
+             "mutable=%d can_not_delete=%d token-issuer=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(),
              acl.CanWriteOnce(), acl.CanBrowse(), acl.HasEgroup(),
-             acl.IsMutable(), acl.CanNotDelete());
+             acl.IsMutable(), acl.CanNotDelete(), acl.CanIssueToken());
     {
       // In any case, we need to check the container access, read lock it to
       // check its access and release its lock afterwards
