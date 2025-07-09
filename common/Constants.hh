@@ -76,9 +76,6 @@ static constexpr auto SCAN_NS_INTERVAL_NAME = "scan_ns_interval";
 static constexpr auto SCAN_ALT_XS_RATE_NAME = "scan_alt_xs_rate";
 //! Time interval after which the alternative checksum computing thread will rerun
 static constexpr auto SCAN_ALT_XS_INTERVAL_NAME = "scan_alt_xs_interval";
-//! Time interval after which fsck inconsistencies are refreshed on each
-//! file system.
-static constexpr auto FSCK_REFRESH_INTERVAL_NAME = "fsck_refresh_interval";
 //! Special EOS scheduling group space
 static constexpr auto EOS_SPARE_GROUP = "spare";
 //! Application lock attribute
