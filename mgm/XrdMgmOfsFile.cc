@@ -212,8 +212,8 @@ XrdMgmOfsFile::create_cow(int cowType,
     eos::IFileMD::XAttrMap xattrs = dmd->getAttributes();
 
     for (const auto& a : xattrs) {
-      if (a.first == "sys.acl" || a.first == "user.acl" ||
-          a.first == "sys.eval.useracl") {
+      if (a.first == eos::common::SYS_ACL_ATTR || a.first == eos::common::USER_ACL_ATTR ||
+          a.first == eos::common::SYS_EVAL_USERACL_ATTR) {
         dirMd->setAttribute(a.first, a.second);
       }
     }
@@ -234,7 +234,7 @@ XrdMgmOfsFile::create_cow(int cowType,
     tlen = strlen(sbuff);
     snprintf(sbuff + tlen, sizeof(sbuff) - tlen, "/%lx", fmd->getId());
     gmd = gOFS->eosView->createFile(sbuff, vid.uid, vid.gid);
-    gmd->setAttribute("sys.clone.targetFid", sbuff + tlen + 1);
+    gmd->setAttribute(eos::common::SYS_CLONE_TARGET_FID_ATTR, sbuff + tlen + 1);
     gmd->setSize(fmd->getSize());
 
     if (cowType ==
@@ -690,7 +690,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // sys.proc redirection - handle specially
         ns_rd_lock.Release();
         return open("/proc/user/", open_mode, Mode, client,
-                    fmd->getAttribute("sys.proc").c_str());
+                    fmd->getAttribute(eos::common::SYS_PROC_ATTR).c_str());
       } else {
         // Error case
         return acl_rc;
@@ -810,12 +810,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if (mOpenState.isFuse && (mOpenState.open_flags & O_TRUNC)) {
         std::string s;
 
-        if (fmd->hasAttribute("sys.fusex.state")) {
-          s = fmd->getAttribute("sys.fusex.state");
+        if (fmd->hasAttribute(eos::common::SYS_FUSEX_STATE_ATTR)) {
+          s = fmd->getAttribute(eos::common::SYS_FUSEX_STATE_ATTR);
         }
 
         s += "T";
-        fmd->setAttribute("sys.fusex.state",
+        fmd->setAttribute(eos::common::SYS_FUSEX_STATE_ATTR,
                           eos::common::StringConversion::ReduceString(s).c_str());
       }
 
@@ -842,14 +842,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         fmd->getCTime(ctime);
         char btime[256];
         snprintf(btime, sizeof(btime), "%lu.%lu", ctime.tv_sec, ctime.tv_nsec);
-        fmd->setAttribute("sys.eos.btime", btime);
+        fmd->setAttribute(eos::common::EOS_BTIME, btime);
       } else {
         fmd->setATimeNow(0);
       }
 
       // if specified set an external temporary ETAG
       if (ext_etag.length()) {
-        fmd->setAttribute("sys.tmp.etag", ext_etag);
+        fmd->setAttribute(eos::common::SYS_TMP_ETAG_ATTR, ext_etag);
       }
 
       for (auto it = ext_xattr_map.begin(); it != ext_xattr_map.end(); ++it) {
@@ -858,8 +858,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
               if (mOpenState.acl.EvalUserAttrFile()) {
           // we inherit existing ACLs during (atomic) versioning
-          fmd->setAttribute("user.acl", mOpenState.acl.UserAttrFile());
-        fmd->setAttribute("sys.eval.useracl", "1");
+          fmd->setAttribute(eos::common::USER_ACL_ATTR, mOpenState.acl.UserAttrFile());
+        fmd->setAttribute(eos::common::SYS_EVAL_USERACL_ATTR, "1");
       }
 
       try {
@@ -953,9 +953,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += "&mgm.sec=";
   capability += eos::common::SecEntity::ToKey(client, mOpenState.app_name.c_str()).c_str();
 
-  if (mOpenState.attrmap.count("user.tag")) {
+  if (mOpenState.attrmap.count(eos::common::USER_TAG_ATTR)) {
     capability += "&mgm.container=";
-    capability += mOpenState.attrmap["user.tag"].c_str();
+    capability += mOpenState.attrmap[eos::common::USER_TAG_ATTR].c_str();
   }
 
   // File systems which are unavailable during a read operation
@@ -975,12 +975,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long long minimumsize = 0;
   unsigned long long maximumsize = 0;
 
-  if (mOpenState.attrmap.count("sys.forced.bookingsize")) {
+  if (mOpenState.attrmap.count(eos::common::SYS_FORCED_BOOKINGSIZE_ATTR)) {
     // we allow only a system attribute not to get fooled by a user
-    bookingsize = strtoull(mOpenState.attrmap["sys.forced.bookingsize"].c_str(), 0, 10);
+    bookingsize = strtoull(mOpenState.attrmap[eos::common::SYS_FORCED_BOOKINGSIZE_ATTR].c_str(), 0, 10);
   } else {
-    if (mOpenState.attrmap.count("user.forced.bookingsize")) {
-      bookingsize = strtoull(mOpenState.attrmap["user.forced.bookingsize"].c_str(), 0, 10);
+    if (mOpenState.attrmap.count(eos::common::USER_FORCED_BOOKINGSIZE_ATTR)) {
+      bookingsize = strtoull(mOpenState.attrmap[eos::common::USER_FORCED_BOOKINGSIZE_ATTR].c_str(), 0, 10);
     } else {
       bookingsize = 1024ll; // 1k as default
 
@@ -996,12 +996,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (mOpenState.attrmap.count("sys.forced.minsize")) {
-    minimumsize = strtoull(mOpenState.attrmap["sys.forced.minsize"].c_str(), 0, 10);
+  if (mOpenState.attrmap.count(eos::common::SYS_FORCED_MINSIZE_ATTR)) {
+    minimumsize = strtoull(mOpenState.attrmap[eos::common::SYS_FORCED_MINSIZE_ATTR].c_str(), 0, 10);
   }
 
-  if (mOpenState.attrmap.count("sys.forced.maxsize")) {
-    maximumsize = strtoull(mOpenState.attrmap["sys.forced.maxsize"].c_str(), 0, 10);
+  if (mOpenState.attrmap.count(eos::common::SYS_FORCED_MAXSIZE_ATTR)) {
+    maximumsize = strtoull(mOpenState.attrmap[eos::common::SYS_FORCED_MAXSIZE_ATTR].c_str(), 0, 10);
   }
 
   if (openOpaque->Get("oss.asize")) {
@@ -1031,8 +1031,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (mOpenState.isCreation || (!fmd->getNumLocation()) || mOpenState.isInjection) {
     const char* containertag = 0;
 
-    if (mOpenState.attrmap.count("user.tag")) {
-      containertag = mOpenState.attrmap["user.tag"].c_str();
+    if (mOpenState.attrmap.count(eos::common::USER_TAG_ATTR)) {
+      containertag = mOpenState.attrmap[eos::common::USER_TAG_ATTR].c_str();
     }
 
     /// ###############
@@ -1231,8 +1231,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // File-recreation due to offline/full file systems
         const char* containertag = 0;
 
-        if (mOpenState.attrmap.count("user.tag")) {
-          containertag = mOpenState.attrmap["user.tag"].c_str();
+        if (mOpenState.attrmap.count(eos::common::USER_TAG_ATTR)) {
+          containertag = mOpenState.attrmap[eos::common::USER_TAG_ATTR].c_str();
         }
 
         mOpenState.isCreation = true;
@@ -1347,8 +1347,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       MAYSTALL_ENETUNREACH;
 
       // check if the dir attributes tell us to let clients rebounce
-      if (mOpenState.attrmap.count("sys.stall.unavailable")) {
-        int stalltime = atoi(mOpenState.attrmap["sys.stall.unavailable"].c_str());
+      if (mOpenState.attrmap.count(eos::common::SYS_STALL_UNAVAILABLE_ATTR)) {
+        int stalltime = atoi(mOpenState.attrmap[eos::common::SYS_STALL_UNAVAILABLE_ATTR].c_str());
 
         if (stalltime) {
           // stall the client
@@ -1360,8 +1360,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       }
 
-      if (mOpenState.attrmap.count("user.stall.unavailable")) {
-        int stalltime = atoi(mOpenState.attrmap["user.stall.unavailable"].c_str());
+      if (mOpenState.attrmap.count(eos::common::USER_STALL_UNAVAILABLE_ATTR)) {
+        int stalltime = atoi(mOpenState.attrmap[eos::common::USER_STALL_UNAVAILABLE_ATTR].c_str());
 
         if (stalltime) {
           // stall the client
@@ -1373,10 +1373,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
       }
 
-      if ((mOpenState.attrmap.count("sys.redirect.enonet"))) {
+      if ((mOpenState.attrmap.count(eos::common::SYS_REDIRECT_ENONET_ATTR))) {
         // there is a redirection setting here if files are unaccessible
         redirectionhost = "";
-        redirectionhost = mOpenState.attrmap["sys.redirect.enonet"].c_str();
+        redirectionhost = mOpenState.attrmap[eos::common::SYS_REDIRECT_ENONET_ATTR].c_str();
         int portpos = 0;
 
         if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
@@ -1494,8 +1494,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           try {
             std::string locations;
 
-            if (fmd->hasAttribute("sys.fs.tracking")) {
-              locations = fmd->getAttribute("sys.fs.tracking");
+            if (fmd->hasAttribute(eos::common::SYS_FS_TRACKING_ATTR)) {
+              locations = fmd->getAttribute(eos::common::SYS_FS_TRACKING_ATTR);
             }
 
             if (isRecreation) {
@@ -1506,12 +1506,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             if (isRecreation) {
               std::string s;
 
-              if (fmd->hasAttribute("sys.fusex.state")) {
-                s = fmd->getAttribute("sys.fusex.state");
+              if (fmd->hasAttribute(eos::common::SYS_FUSEX_STATE_ATTR)) {
+                s = fmd->getAttribute(eos::common::SYS_FUSEX_STATE_ATTR);
               }
 
               s += "Z";
-              fmd->setAttribute("sys.fusex.state",
+              fmd->setAttribute(eos::common::SYS_FUSEX_STATE_ATTR,
                                 eos::common::StringConversion::ReduceString(s).c_str());
             }
 
@@ -1521,7 +1521,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               locations += std::to_string(fsid);
             }
 
-            fmd->setAttribute("sys.fs.tracking",
+            fmd->setAttribute(eos::common::SYS_FS_TRACKING_ATTR,
                               eos::common::StringConversion::ReduceString(locations).c_str());
             fmd->setChecksum(cx);
             gOFS->eosView->updateFileStore(fmd.get());
@@ -1551,8 +1551,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           std::string locations;
 
           try {
-            if (fmd->hasAttribute("sys.fs.tracking")) {
-              locations = fmd->getAttribute("sys.fs.tracking");
+            if (fmd->hasAttribute(eos::common::SYS_FS_TRACKING_ATTR)) {
+              locations = fmd->getAttribute(eos::common::SYS_FS_TRACKING_ATTR);
             }
 
             for (auto& fsid : selectedfs) {
@@ -1882,8 +1882,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (mOpenState.isPioReconstruct && !(mOpenState.pio_reconstruct_fs.empty())) {
       const char* containertag = 0;
 
-      if (mOpenState.attrmap.count("user.tag")) {
-        containertag = mOpenState.attrmap["user.tag"].c_str();
+      if (mOpenState.attrmap.count(eos::common::USER_TAG_ATTR)) {
+        containertag = mOpenState.attrmap[eos::common::USER_TAG_ATTR].c_str();
       }
 
       // Get the scheduling group of one of the stripes
@@ -2330,7 +2330,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     try {
       eos::common::RWMutexReadLock tgc_ns_rd_lock(gOFS->eosViewRWMutex);
       const auto tgcFmd = gOFS->eosFileService->getFileMD(mFid);
-      const bool isATapeFile = tgcFmd->hasAttribute("sys.archive.file_id");
+      const bool isATapeFile = tgcFmd->hasAttribute(eos::common::ARCHIVE_FILE_ID_ATTR_NAME);
       tgc_ns_rd_lock.Release();
 
       if (isATapeFile) {
@@ -3287,7 +3287,7 @@ XrdMgmOfsFile::HandleAclAndPermissions(const char* path, eos::common::VirtualIde
       }
 
   // If a file has the sys.proc attribute, it will be redirected as a command
-  if (fmd != nullptr && fmd->hasAttribute("sys.proc")) {
+  if (fmd != nullptr && fmd->hasAttribute(eos::common::SYS_PROC_ATTR)) {
     // Return special code to indicate sys.proc redirection
     return 999; // Special return code for sys.proc handling
   }
@@ -3366,9 +3366,9 @@ XrdMgmOfsFile::HandleCapabilityCreation(const char* path, const char* ininfo,
 
   if (mEosObfuscate && !mOpenState.isFuse) {
     // add obfuscation key to redirection capability
-    if (attrmapF.count("user.obfuscate.key")) {
+    if (attrmapF.count(eos::common::USER_OBFUSCATE_KEY_ATTR)) {
       capability += "&mgm.obfuscate.key=";
-      capability += attrmapF.at("user.obfuscate.key").c_str();
+      capability += attrmapF.at(eos::common::USER_OBFUSCATE_KEY_ATTR).c_str();
     }
 
     // add encryption key to redirection capability
@@ -3644,10 +3644,10 @@ XrdMgmOfsFile::HandleEnoentRedirection(const char* path,
     }
 
     // ---------------------------------------------------------------------
-    if (mOpenState.attrmap.count("sys.redirect.enoent")) {
+    if (mOpenState.attrmap.count(eos::common::SYS_REDIRECT_ENOENT_ATTR)) {
       // there is a redirection setting here
       redirectionhost = "";
-      redirectionhost = mOpenState.attrmap["sys.redirect.enoent"].c_str();
+      redirectionhost = mOpenState.attrmap[eos::common::SYS_REDIRECT_ENOENT_ATTR].c_str();
       int portpos = 0;
 
       if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
@@ -3838,7 +3838,7 @@ XrdMgmOfsFile::HandleWriteOperation(const char* path, const char* ininfo,
         try {
           // we create files with the uid/gid of the parent directory
           if (mOpenState.isAtomicUpload) {
-            mOpenState.creation_path = cPath.GetAtomicPath(mOpenState.versioning, mOpenState.ocUploadUuid);
+            mOpenState.creation_path = cPath.GetAtomicPath(mOpenState.attrmap.count(eos::common::SYS_VERSIONING_ATTR), mOpenState.ocUploadUuid);
             eos_info("atomic-path=%s", mOpenState.creation_path.c_str());
 
             try {
@@ -3887,17 +3887,17 @@ XrdMgmOfsFile::HandleWriteOperation(const char* path, const char* ininfo,
           }
 
           if ((mEosObfuscate > 0) ||
-              (mOpenState.attrmap.count("sys.file.obfuscate") &&
-               (mOpenState.attrmap["sys.file.obfuscate"] == "1"))) {
+                    (mOpenState.attrmap.count(eos::common::SYS_FILE_OBFUSCATE_ATTR) &&
+       (mOpenState.attrmap[eos::common::SYS_FILE_OBFUSCATE_ATTR] == "1"))) {
             std::string skey = eos::common::SymKey::RandomCipher(mEosKey);
             // attach an obfucation key
-            fmd->setAttribute("user.obfuscate.key", skey);
+                          fmd->setAttribute(eos::common::USER_OBFUSCATE_KEY_ATTR, skey);
 
             if (mEosKey.length()) {
-              fmd->setAttribute("user.encrypted", "1");
+              fmd->setAttribute(eos::common::USER_ENCRYPTED_ATTR, "1");
             }
 
-            attrmapF["user.obfuscate.key"] = skey;
+                          attrmapF[eos::common::USER_OBFUSCATE_KEY_ATTR] = skey;
           }
 
           if (mOpenState.ocUploadUuid.length()) {
@@ -3908,7 +3908,7 @@ XrdMgmOfsFile::HandleWriteOperation(const char* path, const char* ininfo,
 
           // For versions copy xattrs over from the original file
           if (mOpenState.versioning) {
-            static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR, "sys.tmp.atomic"};
+            static std::set<std::string> skip_tag {eos::common::EOS_BTIME, eos::common::SYS_FS_TRACKING_ATTR, eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR, eos::common::SYS_TMP_ATOMIC_ATTR};
 
             for (const auto& xattr : attrmapF) {
               if (skip_tag.find(xattr.first) == skip_tag.end()) {
@@ -3917,18 +3917,18 @@ XrdMgmOfsFile::HandleWriteOperation(const char* path, const char* ininfo,
             }
           }
 
-          fmd->setAttribute("sys.utrace", logId);
-          fmd->setAttribute("sys.vtrace", vid.getTrace());
+                      fmd->setAttribute(eos::common::EOS_UTRACE_ATTR, logId);
+                      fmd->setAttribute(eos::common::EOS_VTRACE_ATTR, vid.getTrace());
 
           if (ref_fmd) {
             // If we have a target file we tag the latest atomic upload name
             // on a temporary attribute
-            ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
+                          ref_fmd->setAttribute(eos::common::SYS_TMP_ATOMIC_ATTR, fmd->getName());
 
             if (mOpenState.acl.EvalUserAttrFile()) {
               // we inherit existing ACLs during (atomic) versioning
-              ref_fmd->setAttribute("user.acl", mOpenState.acl.UserAttrFile());
-              ref_fmd->setAttribute("sys.eval.useracl", "1");
+                              ref_fmd->setAttribute(eos::common::USER_ACL_ATTR, mOpenState.acl.UserAttrFile());
+                              ref_fmd->setAttribute(eos::common::SYS_EVAL_USERACL_ATTR, "1");
             }
           }
 
@@ -4063,7 +4063,7 @@ XrdMgmOfsFile::HandleReadOperation(const char* path,
     MAYREDIRECT_ENOENT;
     MAYSTALL_ENOENT;
 
-    if (auto redirect_kv = mOpenState.attrmap.find("sys.redirect.enoent");
+    if (auto redirect_kv = mOpenState.attrmap.find(eos::common::SYS_REDIRECT_ENOENT_ATTR);
         redirect_kv != mOpenState.attrmap.end()) {
       // there is a redirection setting here
       redirectionhost = "";
