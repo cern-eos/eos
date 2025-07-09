@@ -79,6 +79,29 @@ static constexpr auto EOS_APP_LOCK_ATTR = "sys.app.lock";
 static constexpr auto EOS_DTRACE_ATTR = "sys.dtrace";
 static constexpr auto EOS_VTRACE_ATTR = "sys.vtrace";
 static constexpr auto EOS_UTRACE_ATTR = "sys.utrace";
+//! Extended attribute names for file and container metadata
+static constexpr auto SYS_ACL_ATTR = "sys.acl";
+static constexpr auto SYS_EVAL_USERACL_ATTR = "sys.eval.useracl";
+static constexpr auto SYS_CLONE_TARGET_FID_ATTR = "sys.clone.targetFid";
+static constexpr auto SYS_REDIRECT_ENOENT_ATTR = "sys.redirect.enoent";
+static constexpr auto SYS_REDIRECT_ENONET_ATTR = "sys.redirect.enonet";
+static constexpr auto SYS_PROC_ATTR = "sys.proc";
+static constexpr auto SYS_FILE_OBFUSCATE_ATTR = "sys.file.obfuscate";
+static constexpr auto SYS_FS_TRACKING_ATTR = "sys.fs.tracking";
+static constexpr auto SYS_TMP_ATOMIC_ATTR = "sys.tmp.atomic";
+static constexpr auto SYS_TMP_ETAG_ATTR = "sys.tmp.etag";
+static constexpr auto SYS_FORCED_BOOKINGSIZE_ATTR = "sys.forced.bookingsize";
+static constexpr auto SYS_FORCED_MINSIZE_ATTR = "sys.forced.minsize";
+static constexpr auto SYS_FORCED_MAXSIZE_ATTR = "sys.forced.maxsize";
+static constexpr auto SYS_STALL_UNAVAILABLE_ATTR = "sys.stall.unavailable";
+static constexpr auto SYS_FUSEX_STATE_ATTR = "sys.fusex.state";
+static constexpr auto SYS_VERSIONING_ATTR = "sys.versioning";
+static constexpr auto USER_ACL_ATTR = "user.acl";
+static constexpr auto USER_TAG_ATTR = "user.tag";
+static constexpr auto USER_FORCED_BOOKINGSIZE_ATTR = "user.forced.bookingsize";
+static constexpr auto USER_STALL_UNAVAILABLE_ATTR = "user.stall.unavailable";
+static constexpr auto USER_OBFUSCATE_KEY_ATTR = "user.obfuscate.key";
+static constexpr auto USER_ENCRYPTED_ATTR = "user.encrypted";
 //! FST heartbeat key marker, the "stat." prefix makes it transient
 static constexpr auto FST_HEARTBEAT_KEY = "stat.heartbeat";
 //! ADM uid and gid
