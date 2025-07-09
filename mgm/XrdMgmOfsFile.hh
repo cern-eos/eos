@@ -663,6 +663,32 @@ private:
                           const char* ininfo);
 
   //----------------------------------------------------------------------------
+  //! Handle write operation processing
+  //!
+  //! @param path file path
+  //! @param ininfo input opaque information
+  //! @param vid virtual identity
+  //! @param dmd container metadata
+  //! @param fmd file metadata (input/output)
+  //! @param attrmapF file attributes (input/output)
+  //! @param openOpaque opaque environment
+  //! @param cPath path object
+  //! @param Mode creation mode
+  //! @param logId log identifier
+  //!
+  //! @return 0 on success, SFS_ERROR/SFS_REDIRECT/SFS_STARTED/SFS_STALL on special cases
+  //----------------------------------------------------------------------------
+  int HandleWriteOperation(const char* path, const char* ininfo,
+                           eos::common::VirtualIdentity& vid,
+                           std::shared_ptr<eos::IContainerMD>& dmd,
+                           std::shared_ptr<eos::IFileMD>& fmd,
+                           eos::IFileMD::XAttrMap& attrmapF,
+                           XrdOucEnv* openOpaque,
+                           eos::common::Path& cPath,
+                           mode_t Mode,
+                           const std::string& logId);
+
+  //----------------------------------------------------------------------------
   //! Handle container and permissions
   //!
   //! @param path file path

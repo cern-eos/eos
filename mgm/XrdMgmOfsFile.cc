@@ -722,284 +722,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (mOpenState.isRW) {
-    if (fmd && Policy::HasUpdConversion(mOpenState.attrmap) && (vid.prot != "https") &&
-        !mOpenState.isInjection && !mOpenState.isTpc && !mOpenState.isRepair) {
-      // Get space that file belongs to
-      std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, mOpenState.vect_loc);
-      std::string source_space = (space_name.empty() ? "default" : space_name);
-      std::string target_space;
-      unsigned long target_layout;
-      auto conversion = Policy::UpdateConversion(path, mOpenState.attrmap, vid, mOpenState.fmdlid,
-                        source_space, *openOpaque,
-                        target_layout, target_space);
-
-      if (conversion == Policy::eFail) {
-        return Emsg(epname, error, EINVAL, "open file for update - invalid "
-                    "update conversion policy found!", path);
-      }
-
-      if (conversion == Policy::eAsync) {
-        error.setErrCode(0);
-        auto conversionCb = std::make_shared<XrdOucCallBack>();
-        conversionCb->Init(&error);
-        error.setErrInfo(1800, "delay client up to 30 minutes for update conversion");
-        auto conversiontag = ConversionTag::Get(
-                               mOpenState.byfid, target_space, target_layout, std::string(""), true);
-
-        if (gOFS->mConverterEngine->ScheduleJob(mOpenState.byfid, conversiontag,
-                                                conversionCb)) {
-          eos_info("msg='update conversion started' fxid=%016llx conv='%s'", mOpenState.byfid,
-                   conversiontag.c_str());
-          return SFS_STARTED;
-        } else {
-          // remove the callback from the error object
-          error.setErrCB(0);
-          error.setErrArg(0);
-          error.setErrInfo(60, "please retry after 60 seconds for update conversion");
-          eos_info("msg='stalling client for update conversion' fxid=%016llx conv='%s'",
-                   mOpenState.byfid, conversiontag.c_str());
-          return SFS_STALL;
-        }
-      } else {
-        // no conversion to be run
-      }
-    }
-
-    // Allow updates of 0-size RAIN files so that we are able to write from the
-    // FUSE mount with lazy-open mode enabled.
-    if (!getenv("EOS_ALLOW_RAIN_RWM") && mOpenState.isRewrite && (vid.uid > 3) &&
-        (mOpenState.fmdsize != 0) && (LayoutId::IsRain(mOpenState.fmdlid))) {
-      // Unpriviledged users are not allowed to open RAIN files for update
-      gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
-      return Emsg(epname, error, EPERM, "update RAIN layout file - "
-                  "you have to be a priviledged user for updates");
-    }
-
-    if (!mOpenState.isInjection && (mOpenState.open_flags & O_TRUNC) && fmd) {
-      // check if this directory is write-once for the mapped user
-      if (mOpenState.acl.HasAcl()) {
-        if (mOpenState.acl.CanWriteOnce()) {
-          gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
-          // this is a write once user
-          return Emsg(epname, error, EEXIST,
-                      "overwrite existing file - you are write-once user");
-        } else {
-          if ((!mOpenState.stdpermcheck) && (!mOpenState.acl.CanWrite())) {
-            return Emsg(epname, error, EPERM,
-                        "overwrite existing file - you have no write permission");
-          }
-        }
-      }
-
-      if (mOpenState.versioning) {
-        if (mOpenState.isAtomicUpload) {
-          // atomic uploads need just to purge version to max-1, the version is created on commit
-          // purge might return an error if the file was not yet existing/versioned
-          gOFS->PurgeVersion(cPath.GetVersionDirectory(), error, mOpenState.versioning - 1);
-          errno = 0;
-        } else {
-          // handle the versioning for a specific file ID
-          if (gOFS->Version(mFid, error, vid, mOpenState.versioning)) {
-            return Emsg(epname, error, errno, "version file", path);
-          }
-        }
-      } else {
-        // drop the old file (for non atomic uploads) and create a new truncated one
-        if ((!mOpenState.isAtomicUpload) && gOFS->_rem(path, error, vid, ininfo, false, false)) {
-          return Emsg(epname, error, errno, "remove file for truncation", path);
-        }
-      }
-
-      if (!mOpenState.ocUploadUuid.length()) {
-        fmd.reset();
-      } else {
-        eos_info("%s", "msg=\"keep attached to existing fmd in chunked upload\"");
-      }
-
-      gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
-    } else {
-      if (mOpenState.isInjection && !fmd) {
-        errno = ENOENT;
-        return Emsg(epname, error, errno, "inject into a non-existing file", path);
-      }
-
-      if (!(fmd) && ((mOpenState.open_flags & O_CREAT))) {
-        gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
-      } else {
-        if (mOpenState.acl.HasAcl()) {
-          if (mOpenState.acl.CanWriteOnce()) {
-            // this is a write once user
-            return Emsg(epname, error, EEXIST,
-                        "overwrite existing file - you are write-once user");
-          } else {
-            if ((!mOpenState.stdpermcheck) && (!mOpenState.acl.CanWrite()) && (!mOpenState.acl.CanUpdate())) {
-              return Emsg(epname, error, EPERM,
-                          "overwrite existing file - you have no write permission");
-            }
-          }
-        }
-
-        gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1);
-      }
-    }
-
-    // -------------------------------------------------------------------------
-    // write case
-    // -------------------------------------------------------------------------
-    if (!fmd) {
-      if (!(mOpenState.open_flags & O_CREAT)) {
-        // Open for write for non existing file without creation flag
-        return Emsg(epname, error, ENOENT, "open file without creation flag", path);
-      } else {
-        // creation of a new file or isOcUpload
-        COMMONTIMING("write::begin", &tm);
-        {
-          // -------------------------------------------------------------------
-          std::shared_ptr<eos::IFileMD> ref_fmd;
-          eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
-
-          try {
-            // we create files with the uid/gid of the parent directory
-            if (mOpenState.isAtomicUpload) {
-              mOpenState.creation_path = cPath.GetAtomicPath(mOpenState.versioning, mOpenState.ocUploadUuid);
-              eos_info("atomic-path=%s", mOpenState.creation_path.c_str());
-
-              try {
-                ref_fmd = gOFS->eosView->getFile(path);
-              } catch (eos::MDException& e) {
-                // empty
-              }
-            }
-
-            // Avoid any race condition when opening for creation O_EXCL
-            if (mOpenState.open_flags & O_EXCL) {
-              if (mOpenState.isAtomicUpload) {
-                try {
-                  fmd = gOFS->eosView->getFile(mOpenState.creation_path);
-                } catch (eos::MDException& e1) {
-                  // empty
-                }
-              }
-
-              if (fmd) {
-                gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
-                return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
-              }
-            }
-
-            {
-              // a faster replacement for createFile view view
-              auto file = gOFS->eosFileService->createFile(0);
-
-              if (!file) {
-                eos_static_crit("File creation failed for %s", mOpenState.creation_path.c_str());
-                throw_mdexception(EIO, "File creation failed");
-              }
-
-              eos::common::Path cPath(mOpenState.creation_path.c_str());
-              std::string fileName = cPath.GetName();
-              file->setName(fileName);
-              file->setCUid(vid.uid);
-              file->setCGid(vid.gid);
-              file->setCTimeNow();
-              file->setATimeNow(0);
-              file->setMTimeNow();
-              file->clearChecksum(0);
-              dmd->addFile(file.get());
-              fmd = file;
-            }
-
-            if ((mEosObfuscate > 0) ||
-                (mOpenState.attrmap.count("sys.file.obfuscate") &&
-                 (mOpenState.attrmap["sys.file.obfuscate"] == "1"))) {
-              std::string skey = eos::common::SymKey::RandomCipher(mEosKey);
-              // attach an obfucation key
-              fmd->setAttribute("user.obfuscate.key", skey);
-
-              if (mEosKey.length()) {
-                fmd->setAttribute("user.encrypted", "1");
-              }
-
-              attrmapF["user.obfuscate.key"] = skey;
-            }
-
-            if (mOpenState.ocUploadUuid.length()) {
-              fmd->setFlags(0);
-            } else {
-              fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
-            }
-
-            // For versions copy xattrs over from the original file
-            if (mOpenState.versioning) {
-              static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR, "sys.tmp.atomic"};
-
-              for (const auto& xattr : attrmapF) {
-                if (skip_tag.find(xattr.first) == skip_tag.end()) {
-                  fmd->setAttribute(xattr.first, xattr.second);
-                }
-              }
-            }
-
-            fmd->setAttribute("sys.utrace", logId);
-            fmd->setAttribute("sys.vtrace", vid.getTrace());
-
-            if (ref_fmd) {
-              // If we have a target file we tag the latest atomic upload name
-              // on a temporary attribute
-              ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
-
-              if (mOpenState.acl.EvalUserAttrFile()) {
-                // we inherit existing ACLs during (atomic) versioning
-                ref_fmd->setAttribute("user.acl", mOpenState.acl.UserAttrFile());
-                ref_fmd->setAttribute("sys.eval.useracl", "1");
-              }
-            }
-
-            mFid = fmd->getId();
-            mOpenState.fmdlid = fmd->getLayoutId();
-            // oc chunks start with flags=0
-            mOpenState.cid = fmd->getContainerId();
-            auto cmd = dmd; // we have this already
-            cmd->setMTimeNow();
-            eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
-            eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
-            gOFS->mReplicationTracker->Create(fmd);
-            ns_wr_lock.Release();
-            cmd->notifyMTimeChange(gOFS->eosDirectoryService);
-            gOFS->eosView->updateContainerStore(cmd.get());
-            gOFS->eosView->updateFileStore(fmd.get());
-
-            if (ref_fmd) {
-              gOFS->eosView->updateFileStore(ref_fmd.get());
-            }
-
-            gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
-          } catch (eos::MDException& e) {
-            fmd.reset();
-            errno = e.getErrno();
-            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-                      e.getErrno(), e.getMessage().str().c_str());
-          };
-
-          // -------------------------------------------------------------------
-        } // end ns_lock
-        COMMONTIMING("write::end", &tm);
-
-        if (!fmd) {
-          // creation failed
-          gOFS->MgmStats.Add("OpenFailedCreate", vid.uid, vid.gid, 1);
-          return Emsg(epname, error, errno, "create file", path);
-        }
-
-        mOpenState.isCreation = true;
-        // -------------------------------------------------------------------------
-      }
-    } else {
-      // we attached to an existing file
-      if (mOpenState.open_flags & O_EXCL) {
-        gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
-        return Emsg(epname, error, EEXIST, "create file (O_EXCL)", path);
-      }
+    // Handle write operation
+    if (int rc = HandleWriteOperation(path, ininfo, vid, dmd, fmd, attrmapF, openOpaque, cPath, Mode, logId)) {
+      return rc;
     }
   } else {
     // Handle read operation
@@ -3952,6 +3677,309 @@ XrdMgmOfsFile::HandleEnoentRedirection(const char* path,
   }
 
   return 0; // No redirection, continue processing
+}
+
+//------------------------------------------------------------------------------
+// Handle write operation processing
+//------------------------------------------------------------------------------
+int
+XrdMgmOfsFile::HandleWriteOperation(const char* path, const char* ininfo,
+                                    eos::common::VirtualIdentity& vid,
+                                    std::shared_ptr<eos::IContainerMD>& dmd,
+                                    std::shared_ptr<eos::IFileMD>& fmd,
+                                    eos::IFileMD::XAttrMap& attrmapF,
+                                    XrdOucEnv* openOpaque,
+                                    eos::common::Path& cPath,
+                                    mode_t Mode,
+                                    const std::string& logId)
+{
+  using eos::common::LayoutId;
+  static const char* epname = "open";
+  eos::common::Timing tm("Write");
+  
+  // Handle update conversion policy
+  if (fmd && Policy::HasUpdConversion(mOpenState.attrmap) && (vid.prot != "https") &&
+      !mOpenState.isInjection && !mOpenState.isTpc && !mOpenState.isRepair) {
+    // Get space that file belongs to
+    std::string space_name = FsView::gFsView.GetSpaceNameForFses(mFid, mOpenState.vect_loc);
+    std::string source_space = (space_name.empty() ? "default" : space_name);
+    std::string target_space;
+    unsigned long target_layout;
+    auto conversion = Policy::UpdateConversion(path, mOpenState.attrmap, vid, mOpenState.fmdlid,
+                      source_space, *openOpaque,
+                      target_layout, target_space);
+
+    if (conversion == Policy::eFail) {
+      return Emsg(epname, error, EINVAL, "open file for update - invalid "
+                  "update conversion policy found!", path);
+    }
+
+    if (conversion == Policy::eAsync) {
+      error.setErrCode(0);
+      auto conversionCb = std::make_shared<XrdOucCallBack>();
+      conversionCb->Init(&error);
+      error.setErrInfo(1800, "delay client up to 30 minutes for update conversion");
+      auto conversiontag = ConversionTag::Get(
+                             mOpenState.byfid, target_space, target_layout, std::string(""), true);
+
+      if (gOFS->mConverterEngine->ScheduleJob(mOpenState.byfid, conversiontag,
+                                              conversionCb)) {
+        eos_info("msg='update conversion started' fxid=%016llx conv='%s'", mOpenState.byfid,
+                 conversiontag.c_str());
+        return SFS_STARTED;
+      } else {
+        // remove the callback from the error object
+        error.setErrCB(0);
+        error.setErrArg(0);
+        error.setErrInfo(60, "please retry after 60 seconds for update conversion");
+        eos_info("msg='stalling client for update conversion' fxid=%016llx conv='%s'",
+                 mOpenState.byfid, conversiontag.c_str());
+        return SFS_STALL;
+      }
+    } else {
+      // no conversion to be run
+    }
+  }
+
+  // Allow updates of 0-size RAIN files so that we are able to write from the
+  // FUSE mount with lazy-open mode enabled.
+  if (!getenv("EOS_ALLOW_RAIN_RWM") && mOpenState.isRewrite && (vid.uid > 3) &&
+      (mOpenState.fmdsize != 0) && (LayoutId::IsRain(mOpenState.fmdlid))) {
+    // Unpriviledged users are not allowed to open RAIN files for update
+    gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
+    return Emsg(epname, error, EPERM, "update RAIN layout file - "
+                "you have to be a priviledged user for updates");
+  }
+
+  // Handle truncation and versioning
+  if (!mOpenState.isInjection && (mOpenState.open_flags & O_TRUNC) && fmd) {
+    // check if this directory is write-once for the mapped user
+    if (mOpenState.acl.HasAcl()) {
+      if (mOpenState.acl.CanWriteOnce()) {
+        gOFS->MgmStats.Add("OpenFailedNoUpdate", vid.uid, vid.gid, 1);
+        // this is a write-once user
+        return Emsg(epname, error, EEXIST,
+                    "overwrite existing file - you are write-once user");
+      } else {
+        if ((!mOpenState.stdpermcheck) && (!mOpenState.acl.CanWrite())) {
+          return Emsg(epname, error, EPERM,
+                      "overwrite existing file - you have no write permission");
+        }
+      }
+    }
+
+    if (mOpenState.versioning) {
+      if (mOpenState.isAtomicUpload) {
+        // atomic uploads need just to purge version to max-1, the version is created on commit
+        // purge might return an error if the file was not yet existing/versioned
+        gOFS->PurgeVersion(cPath.GetVersionDirectory(), error, mOpenState.versioning - 1);
+        errno = 0;
+      } else {
+        // handle the versioning for a specific file ID
+        if (gOFS->Version(mFid, error, vid, mOpenState.versioning)) {
+          return Emsg(epname, error, errno, "version file", path);
+        }
+      }
+    } else {
+      // drop the old file (for non atomic uploads) and create a new truncated one
+      if ((!mOpenState.isAtomicUpload) && gOFS->_rem(path, error, vid, ininfo, false, false)) {
+        return Emsg(epname, error, errno, "remove file for truncation", path);
+      }
+    }
+
+    if (!mOpenState.ocUploadUuid.length()) {
+      fmd.reset();
+    } else {
+      eos_info("%s", "msg=\"keep attached to existing fmd in chunked upload\"");
+    }
+
+    gOFS->MgmStats.Add("OpenWriteTruncate", vid.uid, vid.gid, 1);
+  } else {
+    if (mOpenState.isInjection && !fmd) {
+      errno = ENOENT;
+      return Emsg(epname, error, errno, "inject into a non-existing file", path);
+    }
+
+    if (!(fmd) && ((mOpenState.open_flags & O_CREAT))) {
+      gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1);
+    } else {
+      if (mOpenState.acl.HasAcl()) {
+        if (mOpenState.acl.CanWriteOnce()) {
+          // this is a write once user
+          return Emsg(epname, error, EEXIST,
+                      "overwrite existing file - you are write-once user");
+        } else {
+          if ((!mOpenState.stdpermcheck) && (!mOpenState.acl.CanWrite()) && (!mOpenState.acl.CanUpdate())) {
+            return Emsg(epname, error, EPERM,
+                        "overwrite existing file - you have no write permission");
+          }
+        }
+      }
+
+      gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // write case - file creation
+  // -------------------------------------------------------------------------
+  if (!fmd) {
+    if (!(mOpenState.open_flags & O_CREAT)) {
+      // Open for write for non existing file without creation flag
+      return Emsg(epname, error, ENOENT, "open file without creation flag", path);
+    } else {
+      // creation of a new file or isOcUpload
+      COMMONTIMING("write::begin", &tm);
+      {
+        // -------------------------------------------------------------------
+        std::shared_ptr<eos::IFileMD> ref_fmd;
+        eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
+
+        try {
+          // we create files with the uid/gid of the parent directory
+          if (mOpenState.isAtomicUpload) {
+            mOpenState.creation_path = cPath.GetAtomicPath(mOpenState.versioning, mOpenState.ocUploadUuid);
+            eos_info("atomic-path=%s", mOpenState.creation_path.c_str());
+
+            try {
+              ref_fmd = gOFS->eosView->getFile(path);
+            } catch (eos::MDException& e) {
+              // empty
+            }
+          }
+
+          // Avoid any race condition when opening for creation O_EXCL
+          if (mOpenState.open_flags & O_EXCL) {
+            if (mOpenState.isAtomicUpload) {
+              try {
+                fmd = gOFS->eosView->getFile(mOpenState.creation_path);
+              } catch (eos::MDException& e1) {
+                // empty
+              }
+            }
+
+            if (fmd) {
+              gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
+              return Emsg(epname, error, EEXIST, "create file - (O_EXCL)", path);
+            }
+          }
+
+          {
+            // a faster replacement for createFile view view
+            auto file = gOFS->eosFileService->createFile(0);
+
+            if (!file) {
+              eos_static_crit("File creation failed for %s", mOpenState.creation_path.c_str());
+              throw_mdexception(EIO, "File creation failed");
+            }
+
+            eos::common::Path cPath(mOpenState.creation_path.c_str());
+            std::string fileName = cPath.GetName();
+            file->setName(fileName);
+            file->setCUid(vid.uid);
+            file->setCGid(vid.gid);
+            file->setCTimeNow();
+            file->setATimeNow(0);
+            file->setMTimeNow();
+            file->clearChecksum(0);
+            dmd->addFile(file.get());
+            fmd = file;
+          }
+
+          if ((mEosObfuscate > 0) ||
+              (mOpenState.attrmap.count("sys.file.obfuscate") &&
+               (mOpenState.attrmap["sys.file.obfuscate"] == "1"))) {
+            std::string skey = eos::common::SymKey::RandomCipher(mEosKey);
+            // attach an obfucation key
+            fmd->setAttribute("user.obfuscate.key", skey);
+
+            if (mEosKey.length()) {
+              fmd->setAttribute("user.encrypted", "1");
+            }
+
+            attrmapF["user.obfuscate.key"] = skey;
+          }
+
+          if (mOpenState.ocUploadUuid.length()) {
+            fmd->setFlags(0);
+          } else {
+            fmd->setFlags(Mode & (S_IRWXU | S_IRWXG | S_IRWXO));
+          }
+
+          // For versions copy xattrs over from the original file
+          if (mOpenState.versioning) {
+            static std::set<std::string> skip_tag {"sys.eos.btime", "sys.fs.tracking", eos::common::EOS_DTRACE_ATTR, eos::common::EOS_VTRACE_ATTR, "sys.tmp.atomic"};
+
+            for (const auto& xattr : attrmapF) {
+              if (skip_tag.find(xattr.first) == skip_tag.end()) {
+                fmd->setAttribute(xattr.first, xattr.second);
+              }
+            }
+          }
+
+          fmd->setAttribute("sys.utrace", logId);
+          fmd->setAttribute("sys.vtrace", vid.getTrace());
+
+          if (ref_fmd) {
+            // If we have a target file we tag the latest atomic upload name
+            // on a temporary attribute
+            ref_fmd->setAttribute("sys.tmp.atomic", fmd->getName());
+
+            if (mOpenState.acl.EvalUserAttrFile()) {
+              // we inherit existing ACLs during (atomic) versioning
+              ref_fmd->setAttribute("user.acl", mOpenState.acl.UserAttrFile());
+              ref_fmd->setAttribute("sys.eval.useracl", "1");
+            }
+          }
+
+          mFid = fmd->getId();
+          mOpenState.fmdlid = fmd->getLayoutId();
+          // oc chunks start with flags=0
+          mOpenState.cid = fmd->getContainerId();
+          auto cmd = dmd; // we have this already
+          cmd->setMTimeNow();
+          eos::ContainerIdentifier cmd_id = cmd->getIdentifier();
+          eos::ContainerIdentifier cmd_pid = cmd->getParentIdentifier();
+          gOFS->mReplicationTracker->Create(fmd);
+          ns_wr_lock.Release();
+          cmd->notifyMTimeChange(gOFS->eosDirectoryService);
+          gOFS->eosView->updateContainerStore(cmd.get());
+          gOFS->eosView->updateFileStore(fmd.get());
+
+          if (ref_fmd) {
+            gOFS->eosView->updateFileStore(ref_fmd.get());
+          }
+
+          gOFS->FuseXCastRefresh(cmd_id, cmd_pid);
+        } catch (eos::MDException& e) {
+          fmd.reset();
+          errno = e.getErrno();
+          eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                    e.getErrno(), e.getMessage().str().c_str());
+        };
+
+        // -------------------------------------------------------------------
+      } // end ns_lock
+      COMMONTIMING("write::end", &tm);
+
+      if (!fmd) {
+        // creation failed
+        gOFS->MgmStats.Add("OpenFailedCreate", vid.uid, vid.gid, 1);
+        return Emsg(epname, error, errno, "create file", path);
+      }
+
+      mOpenState.isCreation = true;
+      // -------------------------------------------------------------------------
+    }
+  } else {
+    // we attached to an existing file
+    if (mOpenState.open_flags & O_EXCL) {
+      gOFS->MgmStats.Add("OpenFailedExists", vid.uid, vid.gid, 1);
+      return Emsg(epname, error, EEXIST, "create file (O_EXCL)", path);
+    }
+  }
+
+  return 0;
 }
 
 //------------------------------------------------------------------------------
