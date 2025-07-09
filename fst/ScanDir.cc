@@ -156,8 +156,8 @@ ScanDir::~ScanDir()
 void
 ScanDir::SetConfig(const std::string& key, long long value)
 {
-  eos_info("msg=\"update scanner configuration\" key=\"%s\" value=\"%s\"",
-           key.c_str(), std::to_string(value).c_str());
+  eos_info("msg=\"update scanner configuration\" key=\"%s\" value=\"%s\" fsid=%lu",
+           key.c_str(), std::to_string(value).c_str(), mFsId);
 
   if (key == eos::common::SCAN_IO_RATE_NAME) {
     mRateBandwidth.store(static_cast<int>(value), std::memory_order_relaxed);
@@ -208,11 +208,10 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
     }
   }
 
-  // Get a random smearing and avoid that all start at the same time
-  size_t sleep_sec = (1.0 * mNsInterval.get() * random() / RAND_MAX);
-  eos_info("msg=\"delay ns scan thread by %llu seconds\" fsid=%lu dirpath=\"%s\"",
-           sleep_sec, mFsId, mDirPath.c_str());
-  assistant.wait_for(seconds(sleep_sec));
+  mNsInterval.random_wait(assistant, true, [this](uint64_t sleep_time) {
+    eos_info("msg=\"delay ns scan thread by %llu seconds\" fsid=%lu dirpath=\"%s\"",
+             sleep_time, mFsId, mDirPath.c_str());
+  });
 
   while (!assistant.terminationRequested()) {
     AccountMissing();
@@ -461,13 +460,10 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     }
   }
 
-  if (!mAltXsInterval.wait_if_zero(assistant)) {
-    // Get a random smearing and avoid that all start at the same time
-    size_t sleep_time = (1.0 * mAltXsInterval.get() * random() / RAND_MAX);
+  mAltXsInterval.random_wait(assistant, true, [this](uint64_t sleep_time) {
     eos_info("msg=\"pausing alt xs scan thread\" time=%d fsid=%d", sleep_time,
              mFsId);
-    assistant.wait_for(std::chrono::seconds(sleep_time));
-  }
+  });
 
   while (!assistant.terminationRequested()) {
     eos_info("msg=\"starting alt xs scan thread loop\" fsid=%d", mFsId);
@@ -684,6 +680,8 @@ ScanDir::CollectNsFids(const std::string& type) const
 void
 ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
 {
+  eos_info("msg=\"started the disk scan thread\" fsid=%lu dirpath=\"%s\" "
+           "disk_scan_interval_sec=%llu", mFsId, mDirPath.c_str(), mDiskInterval.get());
   using namespace std::chrono;
   pid_t tid = 0;
 
@@ -719,16 +717,12 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   }
 
 #endif
-  // If there is a reconfiguration of Disk/Fsck Interval, reload these only
-  // after current run
-  uint64_t disk_interval_sec = mDiskInterval.get();
 
   if (mBgThread) {
-    // Get a random smearing and avoid that all start at the same time! 0-4 hours
-    size_t sleeper = (1.0 * disk_interval_sec * random() / RAND_MAX);
-    eos_info("msg=\"start scanning\" fsid=%lu disk_scan_interval_sec=%llu "
-             "init_delay_sec=%llu", mFsId, disk_interval_sec, sleeper);
-    assistant.wait_for(seconds(sleeper));
+    mDiskInterval.random_wait(assistant, true, [this](uint64_t sleep_time) {
+      eos_info("msg=\"pausing disk scanning\" fsid=%lu init_delay_sec=%llu", mFsId,
+               sleep_time);
+    });
   }
 
   while (!assistant.terminationRequested()) {
