@@ -166,8 +166,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   COMMONTIMING("begin", &tm);
   
   // ═══════════════════════════════════════════════════════════════════════════
-  // Initialize core variables and logging
-  // ═══════════════════════════════════════════════════════════════════════════
   const char* tident = error.getErrUser();
   SetLogId(ExtractLogId(opaque).c_str(), client, tident);
   mTident = error.getErrUser();
@@ -178,6 +176,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   gettimeofday(&openTime, &tz);
   bool hasCreationMode = (open_mode & (SFS_O_CREAT | SFS_O_TRUNC));
   bool isRepairRead = false;
+  eos::common::VirtualIdentity vid;
   
   // Mask some opaque parameters to shorten the logging
   XrdOucString maskOpaque = opaque ? opaque : "";
@@ -190,12 +189,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // ═══════════════════════════════════════════════════════════════════════════
   // Process TPC and capability information
   // ═══════════════════════════════════════════════════════════════════════════
-  std::string in_opaque = (opaque ? opaque : "");
-  in_opaque += "&mgm.path=";
-  in_opaque += mNsPath.c_str();
+  std::string opaque_copy = (opaque ? opaque : "");
+  opaque_copy += "&mgm.path=";
+  opaque_copy += mNsPath.c_str();
   
   int tpc_retc = 0;
-  if ((retc = ProcessTpcAndCapabilities(in_opaque, client, tpc_retc)) != SFS_OK) {
+  if ((retc = ProcessTpcAndCapabilities(opaque_copy, client, open_mode, isRepairRead, vid, tpc_retc)) != SFS_OK) {
     if (retc == SFS_ERROR) {
       eos_err("msg=\"failed while processing TPC/open opaque\" "
               "path=\"%s\"", path);
@@ -254,7 +253,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // ═══════════════════════════════════════════════════════════════════════════
   // Get and synchronize file metadata
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = GetAndSyncFileMetadata(isRepairRead, hasCreationMode, path, epname)) != SFS_OK) {
+  if ((retc = GetAndSyncFileMetadata(isRepairRead, hasCreationMode, path, epname, vid)) != SFS_OK) {
     return retc;
   }
 
@@ -4047,6 +4046,9 @@ XrdFstOfsFile::sync(XrdSfsAio* aiop)
 int
 XrdFstOfsFile::ProcessTpcAndCapabilities(const std::string& in_opaque,
                                          const XrdSecEntity* client,
+                                         XrdSfsFileOpenMode& open_mode,
+                                         bool& isRepairRead,
+                                         eos::common::VirtualIdentity& vid,
                                          int& tpc_retc)
 {
   // ═══════════════════════════════════════════════════════════════════════════
@@ -4075,9 +4077,6 @@ XrdFstOfsFile::ProcessTpcAndCapabilities(const std::string& in_opaque,
   // ═══════════════════════════════════════════════════════════════════════════
   // Process Capability Opaque Information
   // ═══════════════════════════════════════════════════════════════════════════
-  eos::common::VirtualIdentity vid;
-  bool isRepairRead = false;
-
   if (ProcessCapOpaque(isRepairRead, vid)) {
     eos_err("msg=\"failed while processing cap opaque info\" "
             "path=\"%s\"", mNsPath.c_str());
@@ -4103,6 +4102,7 @@ XrdFstOfsFile::ProcessTpcAndCapabilities(const std::string& in_opaque,
   if (mCapOpaque && (val = mCapOpaque->Get("mgm.rain.store"))) {
     if (strncmp(val, "1", 1) == 0) {
       eos_info("msg=\"enabling RAIN store recovery\" fxid=%08llx", mFileId);
+      open_mode = SFS_O_RDWR;
       mRainReconstruct = true;
       mHasWrite = true;
 
@@ -4118,6 +4118,11 @@ XrdFstOfsFile::ProcessTpcAndCapabilities(const std::string& in_opaque,
                     "fxid=%08llx", mFileId);
       }
     }
+  }
+
+  // Set mIsRW flag based on open_mode flags (must be done after RAIN recovery logic)
+  if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC))) {
+    mIsRW = true;
   }
 
   return SFS_OK;
@@ -4566,14 +4571,9 @@ int
 XrdFstOfsFile::GetAndSyncFileMetadata(bool isRepairRead,
                                       bool hasCreationMode,
                                       const char* path,
-                                      const char* epname)
+                                      const char* epname,
+                                      eos::common::VirtualIdentity& vid)
 {
-  eos::common::VirtualIdentity vid;
-  
-  // Get virtual identity from capability processing
-  if (ProcessCapOpaque(isRepairRead, vid)) {
-    return SFS_ERROR;
-  }
 
   mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
                                        vid.uid, vid.gid, mLid);

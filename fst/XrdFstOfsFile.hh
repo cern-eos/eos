@@ -959,6 +959,9 @@ public:
   //----------------------------------------------------------------------------
   int ProcessTpcAndCapabilities(const std::string& in_opaque,
                                 const XrdSecEntity* client,
+                                XrdSfsFileOpenMode& open_mode,
+                                bool& isRepairRead,
+                                eos::common::VirtualIdentity& vid,
                                 int& tpc_retc);
 
   //----------------------------------------------------------------------------
@@ -1045,7 +1048,8 @@ public:
   int GetAndSyncFileMetadata(bool isRepairRead,
                              bool hasCreationMode,
                              const char* path,
-                             const char* epname);
+                             const char* epname,
+                             eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
   //! Handle space management and file allocation
