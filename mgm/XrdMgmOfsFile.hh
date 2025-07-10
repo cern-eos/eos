@@ -21,29 +21,110 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
-/**
+/*
+ * ═══════════════════════════════════════════════════════════════════════════════════════════
+ * EOS MGM FILE INTERFACE - HEADER DOCUMENTATION
+ * ═══════════════════════════════════════════════════════════════════════════════════════════
+ *
  * @file   XrdMgmOfsFile.hh
+ * @brief  XRootD OFS plugin class implementing file metadata handling in EOS
+ * @author Andreas-Joachim Peters - CERN
  *
- * @brief  XRootD OFS plugin class implementing file meta data handling of EOS
+ * OVERVIEW:
+ * =========
+ * This header defines the XrdMgmOfsFile class, which serves as the core file interface
+ * for the EOS (CERN Disk Storage System) Manager (MGM). The MGM is responsible for
+ * metadata management, access control, and coordinating file operations across a
+ * distributed storage infrastructure.
  *
- * Many functions in the MgmOfs interface take CGI parameters. The supported
- * CGI parameter are:
- * "eos.ruid" - uid role the client wants
- * "eos.rgid" - gid role the client wants
- * "eos.space" - space a user wants to use for scheduling a write
- * "eos.checksum" - checksum a file should have
- * "eos.lfn" - use this name as path name not the path parameter (used by prefix
- * redirector MGM's ...
- * "eos.bookingsize" - reserve the requested bytes in a file placement
- * "eos.cli.access=pio" - ask for a parallel open (changes the response of an
- * open for RAIN layouts)
- * "eos.app" - set the application name reported by monitoring
- * "eos.targetsize" - expected size of a file to be uploaded
- * "eos.blockchecksum=ignore" - disable block checksum verification
+ * ARCHITECTURAL ROLE:
+ * ===================
+ * The MGM acts as a central coordinator that:
+ * - Manages file and directory metadata through the EOS namespace
+ * - Handles authentication, authorization, and access control
+ * - Schedules file placement across storage nodes (FSTs)
+ * - Generates capability tokens for secure client-FST communication
+ * - Coordinates advanced features like versioning, workflows, and reconstruction
  *
+ * SUPPORTED OPERATIONS:
+ * =====================
+ * 1. FILE ACCESS OPERATIONS
+ *    - Standard POSIX operations (open, read, write, close, stat, etc.)
+ *    - Advanced operations (versioning, atomic uploads, reconstruction)
+ *    - Special interfaces (/proc/ commands, workflow triggers)
+ *
+ * 2. ACCESS CONTROL MECHANISMS
+ *    - Unix-style permissions (user, group, other)
+ *    - Extended ACLs with fine-grained control
+ *    - Virtual identity mapping and sudo capabilities
+ *    - Quota enforcement and space management
+ *
+ * 3. STORAGE ORCHESTRATION
+ *    - Intelligent file placement across storage nodes
+ *    - Data redundancy and fault tolerance (RAID, erasure coding)
+ *    - Load balancing and performance optimization
+ *    - Network topology awareness
+ *
+ * CGI PARAMETERS:
+ * ===============
+ * The file interface accepts various CGI parameters for operation control:
+ *
+ * IDENTITY & SECURITY:
+ * - "eos.ruid"          - Override user ID for the operation
+ * - "eos.rgid"          - Override group ID for the operation
+ * - "eos.app"           - Application name for monitoring/auditing
+ *
+ * STORAGE & PLACEMENT:
+ * - "eos.space"         - Target storage space for file placement
+ * - "eos.bookingsize"   - Pre-reserve space for file upload
+ * - "eos.targetsize"    - Expected final size of uploaded file
+ * - "eos.checksum"      - Expected file checksum for verification
+ *
+ * SPECIAL OPERATIONS:
+ * - "eos.lfn"           - Use logical filename instead of path parameter
+ * - "eos.cli.access=pio" - Request parallel I/O access for RAIN layouts
+ * - "eos.blockchecksum=ignore" - Disable block-level checksum verification
+ * - "eos.atomic"        - Enable atomic upload semantics
+ * - "eos.injection"     - Enable injection mode for data migration
+ * - "eos.reconstruction" - Access file for reconstruction/repair
+ *
+ * WORKFLOW & AUTOMATION:
+ * - "eos.workflow"      - Specify workflow type for processing
+ * - "eos.event"         - Trigger specific workflow events
+ *
+ * ERROR HANDLING:
+ * ===============
+ * The interface provides comprehensive error handling with:
+ * - Detailed error codes and messages
+ * - Retry mechanisms with exponential backoff
+ * - Graceful degradation for partial failures
+ * - Client redirection for load balancing
+ * - Stalling mechanisms for temporary unavailability
+ *
+ * PERFORMANCE CONSIDERATIONS:
+ * ===========================
+ * - Asynchronous operations where possible
+ * - Intelligent caching of metadata and capabilities
+ * - Network topology optimization for client redirection
+ * - Bulk operations for efficiency
+ * - Resource pooling and connection reuse
+ *
+ * THREAD SAFETY:
+ * ==============
+ * - All operations are thread-safe through namespace locking
+ * - Read operations use shared locks for concurrency
+ * - Write operations use exclusive locks for consistency
+ * - Lock ordering prevents deadlocks in complex operations
+ *
+ * RECENT REFACTORING:
+ * ===================
+ * The implementation has been significantly refactored from a monolithic
+ * design to a modular architecture with specialized helper functions:
+ * - Improved code organization and maintainability
+ * - Enhanced testability and debugging capabilities
+ * - Better error handling and recovery mechanisms
+ * - Clearer separation of concerns and responsibilities
  */
-/*----------------------------------------------------------------------------*/
 
 #ifndef __EOSMGM_MGMOFSFILE__HH__
 #define __EOSMGM_MGMOFSFILE__HH__
