@@ -164,10 +164,13 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   EPNAME("open");
   eos::common::Timing tm("open");
   COMMONTIMING("begin", &tm);
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Initialize core variables and logging
+  // ═══════════════════════════════════════════════════════════════════════════
   const char* tident = error.getErrUser();
   SetLogId(ExtractLogId(opaque).c_str(), client, tident);
   mTident = error.getErrUser();
-  char* val = 0;
   mIsRW = false;
   int retc = SFS_OK;
   int envlen = 0;
@@ -175,6 +178,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   gettimeofday(&openTime, &tz);
   bool hasCreationMode = (open_mode & (SFS_O_CREAT | SFS_O_TRUNC));
   bool isRepairRead = false;
+  
   // Mask some opaque parameters to shorten the logging
   XrdOucString maskOpaque = opaque ? opaque : "";
   eos::common::StringConversion::MaskTag(maskOpaque, "cap.sym");
@@ -182,643 +186,117 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   eos::common::StringConversion::MaskTag(maskOpaque, "authz");
   eos_info("path=%s info=%s open_mode=%x", mNsPath.c_str(),
            maskOpaque.c_str(), open_mode);
-  // Process and filter open opaque information
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Process TPC and capability information
+  // ═══════════════════════════════════════════════════════════════════════════
   std::string in_opaque = (opaque ? opaque : "");
   in_opaque += "&mgm.path=";
   in_opaque += mNsPath.c_str();
-  // Process TPC information - after this mOpenOpaque and mCapOpaque will be
-  // properly populated and decrypted.
-  int tpc_retc = ProcessTpcOpaque(in_opaque, client);
-
-  if (tpc_retc == SFS_ERROR) {
-    eos_err("msg=\"failed while processing TPC/open opaque\" "
-            "path=\"%s\"", path);
-    return SFS_ERROR;
-  } else if (tpc_retc >= SFS_STALL) {
-    return tpc_retc; // this is stall time in seconds
-  }
-
-  if (ProcessOpenOpaque()) {
-    eos_err("msg=\"failed while processing open opaque info\" "
-            "path=\"%s\"", path);
-    return SFS_ERROR;
-  }
-
-  eos::common::VirtualIdentity vid;
-
-  if (ProcessCapOpaque(isRepairRead, vid)) {
-    eos_err("msg=\"failed while processing cap opaque info\" "
-            "path=\"%s\"", path);
-    return SFS_ERROR;
-  }
-
-  if (ProcessMixedOpaque()) {
-    eos_err("msg=\"failed while processing mixed opaque info\" "
-            "path=\"%s\"", path);
-    return SFS_ERROR;
-  }
-
-  // For RAIN layouts if the opaque information contains the tag mgm.rain.store=1
-  // the corrupted files are recovered back on disk. There is no other way to make
-  // the distinction between an open for write and open for recovery
-  if (mCapOpaque && (val = mCapOpaque->Get("mgm.rain.store"))) {
-    if (strncmp(val, "1", 1) == 0) {
-      eos_info("msg=\"enabling RAIN store recovery\" fxid=%08llx", mFileId);
-      open_mode = SFS_O_RDWR;
-      mRainReconstruct = true;
-      mHasWrite = true;
-
-      // Get logical file size
-      if ((val = mCapOpaque->Get("mgm.rain.size"))) {
-        try {
-          mRainSize = std::stoull(val);
-        } catch (...) {
-          // ignore
-        }
-      } else {
-        eos_warning("msg=\"unknown RAIN file size during reconstruction\" "
-                    "fxid=%08llx", mFileId);
-      }
+  
+  int tpc_retc = 0;
+  if ((retc = ProcessTpcAndCapabilities(in_opaque, client, tpc_retc)) != SFS_OK) {
+    if (retc == SFS_ERROR) {
+      eos_err("msg=\"failed while processing TPC/open opaque\" "
+              "path=\"%s\"", path);
     }
-  }
-
-  if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC))) {
-    mIsRW = true;
-  }
-
-  if (mNsPath.beginswith("/replicate:")) {
-    if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
-      eos_err("msg=\"forbid replica open, file %s opened in RW mode\"",
-              mNsPath.c_str());
-      return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot replicate: file "
-                       "is opened in RW mode", mNsPath.c_str());
-    }
-
-    // File is supposed to act as a sink, used for draining
-    if (mNsPath == "/replicate:0") {
-      if (!mIsRW) {
-        eos_err("msg=\"replicate file can only be opened for RW\" fxid=%08llx "
-                "path=\"%s\"", mFileId, mNsPath.c_str());
-        return gOFS.Emsg(epname, error, EIO, "open - replicate file can only "
-                         "be opened in RW mode", mNsPath.c_str());
-      } else {
-        eos_info("%s", "msg=\"file fxid=0 acting as a sink i.e. /dev/null\"");
-        mIsDevNull = true;
-        return SFS_OK;
-      }
-    }
-
-    mIsReplication = true;
+    return retc;
   }
 
   COMMONTIMING("path::print", &tm);
-
-  // Check if this is an open for HTTP
-  if (!mIsRW && ((std::string(client->tident) == "http"))) {
-    if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
-      eos_err("msg=\"forbid replica open for synchronization, file %s "
-              "opened in RW mode\"", mNsPath.c_str());
-      // Return resource temporarily unavailable as EBUSY cannot be used due to XRootD hack
-      // in Emsg() that returns the integer "5" (proxy hack)
-      return gOFS.Emsg(epname, error, EAGAIN, "open - cannot synchronize "
-                       "file opened in RW mode", mNsPath.c_str());
-    }
-  }
-
-  // Get the layout object
-  mLayout.reset(eos::fst::LayoutPlugin::GetLayoutObject
-                (this, mLid, client, &error, mFstPath.c_str(), gOFS.mFmdHandler.get(),
-                 msDefaultTimeout, mRainReconstruct));
-
-  if (mLayout == nullptr) {
-    int envlen;
-    eos_err("msg=\"unable to handle layout for %s\"", mCapOpaque->Env(envlen));
-    return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
-                     mCapOpaque->Env(envlen));
-  }
-
-  mLayout->SetLogId(logId, client, tident);
-  errno = 0;
-
-  if ((mRainReconstruct && (mTpcFlag == kTpcSrcCanDo)) ||
-      (mTpcFlag == kTpcSrcSetup)) {
-    eos_info("msg=\"kTpcSrcSetup return SFS_OK\" fxid=%08llx", mFileId);
-    return SFS_OK;
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Validate path access and create layout object
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = ValidatePathAndCreateLayout(path, client, tident, epname, envlen)) != SFS_OK) {
+    return retc;
   }
 
   COMMONTIMING("creation::barrier", &tm);
-  OpenFileTracker::CreationBarrier creationSerialization(gOFS.runningCreation,
-      mFsId, mFileId);
   COMMONTIMING("layout::exists", &tm);
-
-  if ((retc = mLayout->GetFileIo()->fileExists())) {
-    // We have to distinguish if an Exists call fails or returns ENOENT,
-    // otherwise we might trigger an automatic clean-up of a file!!!
-    if (errno != ENOENT) {
-      return gOFS.Emsg(epname, error, EIO, "open - unable to check for "
-                       "existence of file ", mCapOpaque->Env(envlen));
-    }
-
-    if (mIsRW || (mCapOpaque->Get("mgm.zerosize"))) {
-      if (!mIsRW && mCapOpaque->Get("mgm.zerosize")) {
-        // this commit should not call the versioning/atomic functionality
-        noAtomicVersioning = true;
-      }
-
-      // File does not exist, keep the create flag for writers and readers
-      // with 0-size at MGM
-      mIsRW = true;
-      mIsCreation = true;
-      mOpenSize = 0;
-      mWritePosition = 0;
-      // Used to indicate if a file was written in the meanwhile by someone else
-      updateStat.st_mtime = 0;
-      open_mode |= SFS_O_CREAT;
-      create_mode |= SFS_O_MKPTH;
-      eos_debug("msg=\"adding creation flag\" retc=%d errno=%d fxid=%08llx",
-                retc, errno, mFileId);
-    } else {
-      // The open will fail but the client will get a recoverable error,
-      // therefore it will try to read again from the other replicas.
-      eos_warning("msg=\"open for read, local file does not exists\" "
-                  "fxid=%08llx path=\"%s\"", mFileId, mFstPath.c_str());
-      return gOFS.Emsg(epname, error, ENOENT, "open, file does not exist ",
-                       mCapOpaque->Env(envlen));
-    }
-  } else {
-    eos_debug("msg=\"removing creation flag\" retc=%d errno=%d fxid=%08llx",
-              retc, errno, mFileId);
-
-    // Remove the creat flag
-    if (open_mode & SFS_O_CREAT) {
-      open_mode -= SFS_O_CREAT;
-    }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Handle file existence and creation logic
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = HandleFileExistenceAndCreation(open_mode, create_mode, hasCreationMode, epname, envlen)) != SFS_OK) {
+    return retc;
   }
 
-  if (!mIsCreation) {
-    creationSerialization.Release();
-  }
-
-  // Capability access distinction
-  if (mIsRW) {
-    if (mIsCreation) {
-      if (mCapOpaque->Get("mgm.zerosize") == nullptr) {
-        if (!mCapOpaque->Get("mgm.access")
-            || ((strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
-                (strcmp(mCapOpaque->Get("mgm.access"), "write")) &&
-                (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
-          return gOFS.Emsg(epname, error, EPERM, "open - capability does not "
-                           "allow to create/write/update this file", path);
-        }
-      }
-    } else {
-      if (!mCapOpaque->Get("mgm.access")
-          || ((strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
-              (strcmp(mCapOpaque->Get("mgm.access"), "write")) &&
-              (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
-        return gOFS.Emsg(epname, error, EPERM, "open - capability does not "
-                         "allow to update/write/create this file", path);
-      }
-    }
-  } else {
-    if (!mCapOpaque->Get("mgm.access")
-        || ((strcmp(mCapOpaque->Get("mgm.access"), "read")) &&
-            (strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
-            (strcmp(mCapOpaque->Get("mgm.access"), "write")) &&
-            (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
-      return gOFS.Emsg(epname, error, EPERM, "open - capability does not allow "
-                       "to read this file", path);
-    }
-  }
-
-  // Get IO priority
-  if (mCapOpaque->Get("mgm.iopriority")) {
-    std::string key;
-    std::string value;
-    std::string kv = mCapOpaque->Get("mgm.iopriority");
-
-    if (eos::common::StringConversion::SplitKeyValue(kv, key, value, ":")) {
-      mIoPriorityClass = ioprio_class(key);
-      mIoPriorityValue = ioprio_value(value);
-    }
-  }
-
-  if (mCapOpaque->Get("mgm.iobw")) {
-    mBandwidth = strtoull(mCapOpaque->Get("mgm.iobw"), 0, 10);
-    eos_info("msg=\"bandwidth limited\" bw=%d, fxid=%08llx",
-             mBandwidth, mFileId);
-  }
-
-  // Bookingsize is only needed for file creation
-  if (mIsRW && mIsCreation && !mFusex) {
-    const char* sbookingsize = 0;
-    const char* stargetsize = 0;
-    // If fsid=0 then all replicas/stripes are dropped and the logical file
-    // is also removed, otherwise only the current mFsId is dropped.
-    eos::common::FileSystem::fsid_t drop_fsid =
-      ((!mIsReplication && !mIsInjection && !mRainReconstruct) ? 0u : mFsId);
-
-    if (!(sbookingsize = mCapOpaque->Get("mgm.bookingsize"))) {
-      DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
-      eos_err("msg=\"no bookingsize in capability\" fxid=%08llx", mFileId);
-      return gOFS.Emsg(epname, error, EINVAL, "open - no booking size in capability",
-                       mNsPath.c_str());
-    } else {
-      mBookingSize = strtoull(mCapOpaque->Get("mgm.bookingsize"), 0, 10);
-
-      if (errno == ERANGE) {
-        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
-        eos_err("msg=\"invalid bookingsize in capability\" fxid=%08llx "
-                "bookingsize=\"%s\"", mFileId, sbookingsize);
-        return gOFS.Emsg(epname, error, EINVAL, "open - invalid bookingsize "
-                         "in capability", mNsPath.c_str());
-      }
-    }
-
-    if ((stargetsize = mCapOpaque->Get("mgm.targetsize"))) {
-      mTargetSize = strtoull(mCapOpaque->Get("mgm.targetsize"), 0, 10);
-
-      if (errno == ERANGE) {
-        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
-        eos_err("msg=\"invalid targetsize in capability\" fxid=%08llx "
-                "targetsize=%s", mFileId, stargetsize);
-        return gOFS.Emsg(epname, error, EINVAL, "open - invalid targetsize "
-                         "in capability", mNsPath.c_str());
-      }
-    }
-
-    // Check if the booking size violates the min/max-size criteria
-    if (mBookingSize && mMaxSize) {
-      if (mBookingSize > mMaxSize) {
-        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
-        eos_err("msg=\"invalid bookingsize specified - violates maximum "
-                "file size criteria\" booking_sz=%llu", mBookingSize);
-        return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
-                         "maximum allowed filesize", mNsPath.c_str());
-      }
-    }
-
-    if (mBookingSize && mMinSize) {
-      if (mBookingSize < mMinSize) {
-        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
-        eos_err("msg=\"invalid bookingsize specified - violates minimum "
-                "file size criteria\" fxid=%08llx booking_sz=%llu",
-                mFileId, mBookingSize);
-        return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
-                         "minimum allowed filesize", mNsPath.c_str());
-      }
-    }
-  }
-
-  if (gOFS.mSimFmdOpenErr) {
-    eos_warning("msg=\"simulate FMD open error\" fxid=%08llx", mFileId);
-    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found, "
-                     "simulated error");
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Validate capability permissions and extract parameters
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = ValidateCapabilityAndExtractParams(path, epname)) != SFS_OK) {
+    return retc;
   }
 
   COMMONTIMING("clone::fst", &tm);
-  char* sCloneFST = mCapOpaque->Get("mgm.cloneFST");
-  int clone_create_rc = 1;
-
-  if (sCloneFST) {
-    std::string mc_fst_path = eos::common::FileId::FidPrefix2FullPath(sCloneFST,
-                              mLocalPrefix.c_str());
-    struct stat clone_stat;
-    int clonerc = ::stat(mc_fst_path.c_str(), &clone_stat) ? errno : 0;
-    eos_info("fstpath=%s clonepath=%s clonerc=%d len=%d", mFstPath.c_str(),
-             mc_fst_path.c_str(), clonerc, clonerc ? -1 : clone_stat.st_size);
-
-    /* clone handling:
-     * if read-write and clone does not exist, create it
-     * if read-only switch to clone if it exists
-     * (note: if several clones were allowed, we'd might have to search!)
-     */
-    if (mIsRW && clonerc != 0) { /* for RW, only if clone not yet created */
-      if (open_mode & SFS_O_TRUNC) {
-        /* rename data file to clone, it will be re-created */
-        clone_create_rc = ::rename(mFstPath.c_str(), mc_fst_path.c_str()) ? errno : 0;
-        eos_info("copy-on-write: rename %s %s rc=%d", mFstPath.c_str(),
-                 mc_fst_path.c_str(), clone_create_rc);
-      } else {
-        /* copy data file to clone before modyfying */
-        char sbuff[1024];
-        snprintf(sbuff, sizeof(sbuff),
-                 "cp --preserve=xattr,ownership,mode --reflink=auto %s %s",
-                 mFstPath.c_str(), mc_fst_path.c_str());
-        clone_create_rc = system(sbuff);
-        eos_info("copy-on-write: %s rc=%d", sbuff, clone_create_rc);
-      }
-    }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Handle clone operations (copy-on-write)
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = HandleCloneOperations(open_mode)) != SFS_OK) {
+    return retc;
   }
 
-  XrdOucString oss_opaque = "";
-  oss_opaque += "&mgm.lid=";
-  oss_opaque += std::to_string(mLid).c_str();
-  oss_opaque += "&mgm.bookingsize=";
-  oss_opaque += std::to_string(mBookingSize).c_str();
-
-  if (!(val = mCapOpaque->Get("mgm.iotype"))) {
-    // provided by a client
-    if ((val = mOpenOpaque->Get("eos.iotype"))) {
-      oss_opaque += "&mgm.ioflag=";
-      oss_opaque += val;
-
-      if (std::string(val) == "csync") {
-        // cannot be done in the OSS
-        mSyncOnClose = true;
-      }
-    }
-  } else {
-    // forced by the MGM configuration
-    oss_opaque += "&mgm.ioflag=";
-    oss_opaque += val;
-
-    if (std::string(val) == "csync") {
-      // cannot be done in the OSS
-      mSyncOnClose = true;
-    }
-  }
-
-  // Open layout implementation
-  eos_info("path=%s open-mode=%x create-mode=%x layout-name=%s oss-opaque=%s",
-           mFstPath.c_str(), open_mode, create_mode, mLayout->GetName(),
-           oss_opaque.c_str());
   COMMONTIMING("layout::open", &tm);
-  int rc = mLayout->Open(open_mode, create_mode, oss_opaque.c_str());
   COMMONTIMING("layout::opened", &tm);
-
-  if (rc) {
-    // If we have local errors in open we don't disable the filesystem -
-    // this is done by the Scrub thread if necessary!
-    if (mLayout->IsEntryServer() && !mIsReplication) {
-      eos_warning("msg=\"open error return recoverable error "
-                  "EIO(kXR_IOError)\" fid=%08llx", mFileId);
-
-      // Clean-up before re-bouncing
-      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-        DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
-        mDelOnClose = true;
-      }
-    }
-
-    return gOFS.Emsg(epname, error, EIO, "open - failed open");
-  }
-
-  if (gOFS.mSimOpenDelay) {
-    eos_warning("msg=\"simulate open timeout that becomes a client error\" "
-                "fxid=%08llx", mFileId);
-    std::this_thread::sleep_for(std::chrono::seconds(gOFS.mSimOpenDelaySec.load()));
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Open the layout implementation
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = OpenLayoutImplementation(open_mode, create_mode, hasCreationMode, path, epname)) != SFS_OK) {
+    return retc;
   }
 
   COMMONTIMING("get::localfmd", &tm);
-  mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
-                                       vid.uid, vid.gid, mLid);
   COMMONTIMING("resync::localfmd", &tm);
-
-  if (mFmd == nullptr) {
-    if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRdrManager.c_str())) {
-      eos_info("msg=\"resync ok\" fsid=%u fxid=%08llx", mFsId, mFileId);
-      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
-                                           mIsRW, vid.uid, vid.gid, mLid);
-      std::string dummy_xs;
-      int rc = 0;
-
-      if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
-                                             dummy_xs))) {
-        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx "
-                "path=%s rc=%d", mFsId, mFileId, mFstPath.c_str(), rc);
-      } else {
-        eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
-      }
-    } else {
-      eos_err("msg=\"resync failed\" fsid=%u fxid=%08llx", mFsId, mFileId);
-    }
-  }
-
-  if (mFmd == nullptr) {
-    eos_err("msg=\"no FMD record found\" fsid=%u fxid=%08llx", mFsId, mFileId);
-
-    if (!mIsRW || (mLayout->IsEntryServer() && !mIsReplication)) {
-      eos_warning("msg=\"failed to get FMD record\" fsid=%u fxid=%08llx "
-                  "path=\"%s\" rc=ENOENT(kXR_NotFound)", mFsId, mFileId,
-                  mFstPath.c_str());
-
-      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-        DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
-      }
-    }
-
-    // Return an error that can be recovered at the MGM
-    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
-  }
-
-  // Update the fmd information for any clone objects
-  if (sCloneFST) {
-    if (mIsRW && (clone_create_rc == 0)) {
-      // Populate local DB (future reads need it)
-      unsigned long long clFid = eos::common::FileId::Hex2Fid(sCloneFST);
-      auto lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
-                  vid.uid, vid.gid, mLid);
-
-      if (lfmd == nullptr) {
-        // We have an invalid FMD, drop and try again!
-        gOFS.mFmdHandler->LocalDeleteFmd(clFid, mFsId);
-        lfmd = gOFS.mFmdHandler->LocalGetFmd(clFid, mFsId, false, mIsRW,
-                                             vid.uid, vid.gid, mLid);
-
-        // FIXME: maybe we don't need to exit here?
-        if (!lfmd) {
-          return gOFS.Emsg(epname, error, ENOENT, "open unable to create FMD");
-        }
-      }
-
-      lfmd->mProtoFmd.set_checksum(mFmd->mProtoFmd.checksum());
-      lfmd->mProtoFmd.set_diskchecksum(mFmd->mProtoFmd.diskchecksum());
-      lfmd->mProtoFmd.set_mgmchecksum(mFmd->mProtoFmd.mgmchecksum());
-
-      if (!gOFS.mFmdHandler->Commit(lfmd.get())) {
-        eos_err("copy-on-write unable to commit meta data to local database");
-        (void) gOFS.Emsg(epname, this->error, EIO,
-                         "copy-on-write - unable to commit meta data", mNsPath.c_str());
-      }
-
-      eos_debug("fid %lld cs %s diskcs %s mgmcs %s", lfmd->mProtoFmd.fid(),
-                lfmd->mProtoFmd.checksum().c_str(), lfmd->mProtoFmd.diskchecksum().c_str(),
-                lfmd->mProtoFmd.mgmchecksum().c_str());
-    } else {
-      eos_debug("fid %lld cs %s diskcs %s mgmcs %s", mFmd->mProtoFmd.fid(),
-                mFmd->mProtoFmd.checksum().c_str(), mFmd->mProtoFmd.diskchecksum().c_str(),
-                mFmd->mProtoFmd.mgmchecksum().c_str());
-    }
-  }
-
-  if (mIsCreation) {
-    creationSerialization.Release();
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Get and synchronize file metadata
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = GetAndSyncFileMetadata(isRepairRead, hasCreationMode, path, epname)) != SFS_OK) {
+    return retc;
   }
 
   COMMONTIMING("layout::stat", &tm);
-
-  if (!mIsCreation && mIsReplication) {
-    mLayout->Stat(&updateStat);
+  COMMONTIMING("full::mutex", &tm);
+  COMMONTIMING("layout::fallocate", &tm);
+  COMMONTIMING("layout::fallocated", &tm);
+  COMMONTIMING("layout::stat", &tm);
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Handle space management and file allocation
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = HandleSpaceAndAllocation(hasCreationMode, path, epname)) != SFS_OK) {
+    return retc;
   }
 
-  if (mIsCreation && mBookingSize) {
-    COMMONTIMING("full::mutex", &tm);
-    // Check if the file system is full
-    XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
-
-    if (gOFS.Storage->mFsFullMap[mFsId]) {
-      if (mLayout->IsEntryServer() && !mIsReplication) {
-        writeErrorFlag = kOfsDiskFullError;
-        mLayout->Remove();
-        eos_warning("msg=\"not enough space\" fsid=%u fxid=%08llx "
-                    "rc=ENODEV(kXR_FSError)", mFsId, mFileId);
-
-        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-          // Clean-up all stripes
-          DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
-        }
-
-        // Return an error that can be recovered at the MGM
-        return gOFS.Emsg(epname, error, ENODEV, "open - not enough space");
-      }
-
-      return gOFS.Emsg(epname, error, ENOSPC, "create file - disk space "
-                       "(headroom) exceeded fn=", mFstPath.c_str());
-    }
-
-    COMMONTIMING("layout::fallocate", &tm);
-    rc = mLayout->Fallocate(mBookingSize);
-    COMMONTIMING("layout::fallocated", &tm);
-
-    if (rc) {
-      eos_crit("msg=\"file allocation failed\" fsid=%u fxid=%08llx retc=%d "
-               "errno=%d size=%llu", mFsId, mFileId, rc, errno, mBookingSize);
-
-      if (mLayout->IsEntryServer() && !mIsReplication) {
-        mLayout->Remove();
-        eos_warning("msg=\"not enough space, file allocation failed\" fsid=%lu "
-                    "fxid=%08llx rc=ENODEV(kXR_FSError", mFsId, mFileId);
-
-        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
-          // Clean-up all stripes
-          DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
-        }
-
-        // Return an error that can be recovered at the MGM
-        return gOFS.Emsg(epname, error, ENODEV, "open - file allocation failed");
-      }
-
-      mLayout->Remove();
-      return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate "
-                       "required space", mNsPath.c_str());
-    }
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Setup file size and checksum information
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = SetupFileSizeAndChecksum(epname)) != SFS_OK) {
+    return retc;
   }
 
-  if (mIsCreation) {
-    gOFS.mFmdHandler->Commit(mFmd.get());
-  } else {
-    COMMONTIMING("layout::stat", &tm);
-    // Get the real size of the file, not the local stripe size!
-    struct stat statinfo {};
-
-    if ((retc = mLayout->Stat(&statinfo))) {
-      return gOFS.Emsg(epname, error, EIO, "open - cannot stat layout to "
-                       "determine file size", mNsPath.c_str());
-    }
-
-    // We feed the layout size, not the physical on disk!
-    eos_info("msg=\"layout size\" fxid=%08llx disk_size=%zu db_size= %llu",
-             mFileId, statinfo.st_size, mFmd->mProtoFmd.size());
-    mOpenSize = mFmd->mProtoFmd.size();
-    mWritePosition = mOpenSize;
-
-    if (!eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
-      // If replica layout and physical size of replica difference from the
-      // fmd_size it means the file is being written to, so we save the actual
-      // size from disk.
-      if ((off_t) statinfo.st_size != (off_t) mFmd->mProtoFmd.size()) {
-        mOpenSize = statinfo.st_size;
-        mWritePosition = mOpenSize;
-      }
-    }
-
-    // Preset with the last known checksum
-    if (mIsRW && mCheckSum && !mIsOCchunk) {
-      eos_info("msg=\"checksum reset init\" fxid=%08llx file-xs=%s",
-               mFileId, mFmd->mProtoFmd.checksum().c_str());
-      mCheckSum->ResetInit(0, mOpenSize, mFmd->mProtoFmd.checksum().c_str());
-    }
-  }
-
-  // For RAIN layouts we enable full file checksum only at the entry server for
-  // write operations. For the rest of the cases we rely on the block and parity
-  // checking.
-  if (eos::common::LayoutId::IsRain(mLid) &&
-      !(mIsRW && mLayout->IsEntryServer())) {
-    mCheckSum.reset(nullptr);
-  }
-
-  // Set the eos lfn as extended attribute
-  std::unique_ptr<FileIo> io
-  (FileIoPlugin::GetIoObject(mLayout->GetLocalReplicaPath(), this));
   COMMONTIMING("fileio::object", &tm);
-
-  if (mIsRW) {
-    if (mNsPath.beginswith("/replicate:") || mNsPath.beginswith("/fusex-open")) {
-      if (mCapOpaque->Get("mgm.path")) {
-        XrdOucString unsealedpath = mCapOpaque->Get("mgm.path");
-        XrdOucString sealedpath = path;
-
-        if (io->attrSet(std::string("user.eos.lfn"),
-                        std::string(unsealedpath.c_str()))) {
-          eos_err("msg=\"unable to set extended attr <eos.lfn> \" "
-                  "fxid=%08llx errno=%d", mFileId, errno);
-        }
-      } else {
-        eos_err("msg=\"no lfn in replication capability\" fxid=%08lls",
-                mFileId);
-      }
-    } else {
-      if (io->attrSet(std::string("user.eos.lfn"), std::string(mNsPath.c_str()))) {
-        eos_err("msg=\"unable to set extended attr <eos.lfn>\" "
-                "fxid=%08llx errno=%d", mFileId, errno);
-      }
-    }
-  } else {
-    // For reading of replica file check for xs errors unless this
-    // is a fuse client!
-    if (!mFusex &&
-        eos::common::LayoutId::IsReplica(mLid) &&
-        gOFS.mFmdHandler->FileHasXsError(mLayout->GetLocalReplicaPath(), mFsId)) {
-      eos_err("msg=\"open failed due to checksum mismatch\" fxid=%08llx "
-              "path=\"%s\"", mFileId, mNsPath.c_str());
-      return gOFS.Emsg(epname, error, EIO, "open - replica checksum mismatch",
-                       mNsPath.c_str());
-    }
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Create file I/O object and set extended attributes
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = CreateFileIoAndSetAttributes(path, epname)) != SFS_OK) {
+    return retc;
   }
 
   COMMONTIMING("open::accounting", &tm);
-
-  if (mIsRW) {
-    gOFS.openedForWriting.up(mFsId, mFileId);
-  } else {
-    gOFS.openedForReading.up(mFsId, mFileId);
-  }
-
-  mOpened = true;
   COMMONTIMING("end", &tm);
-  timeToOpen = tm.RealTime();
-
-  // Report slow open as errors if longer than 1000ms
-  if (timeToOpen > 1000) {
-    eos_err("msg=\"slow open operation\" open-duration=%.03fms fxid=%08llx "
-            "path=\"%s\" %s", timeToOpen, mFileId, mNsPath.c_str(),
-            tm.Dump().c_str());
+  
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Finalize open operation with accounting and statistics
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((retc = FinalizeOpenOperation(tm)) != SFS_OK) {
+    return retc;
   }
 
-  eos_info("open-duration=%.03fms path=\"%s\" fxid=%08llx %s", timeToOpen,
-           mNsPath.c_str(), mFileId, tm.Dump().c_str());
   return SFS_OK;
 }
 
@@ -840,8 +318,13 @@ XrdSfsXferSize
 XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                     XrdSfsXferSize buffer_size)
 {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Initialize Read Operation and Round-Robin Scheduling
+  // ═══════════════════════════════════════════════════════════════════════════
   gettimeofday(&rStart, &tz);
-  // use RR scheduling if there is a round-robin app name
+  
+  // Configure round-robin scheduling for applications with specific scheduling requirements
+  // This helps balance load across concurrent file operations for specific applications
   std::mutex* mutex = 0;
 
   if (!mAppRR.empty()) {
@@ -857,7 +340,12 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                    std::unique_lock<std::mutex>(*mutex);
   eos_debug("fileOffset=%lli, buffer_size=%i", fileOffset, buffer_size);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Third-Party Copy (TPC) Validation for Source Reads
+  // ═══════════════════════════════════════════════════════════════════════════
   if (mTpcFlag == kTpcSrcRead) {
+    // Periodically check if the TPC transfer is still valid (every 10 reads)
+    // This helps detect client disconnections and prevents orphaned transfers
     if (!(rCalls % 10)) {
       if (!TpcValid()) {
         eos_err("msg=\"tcp interrupted by control-c - cancel tcp read\" key=%s",
@@ -868,14 +356,20 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Bandwidth Throttling and I/O Rate Limiting
+  // ═══════════════════════════════════════════════════════════════════════════
   if (mBandwidth) {
+    // Calculate elapsed time since file open to implement bandwidth throttling
     gettimeofday(&currentTime, &tz);
     float abs_time = static_cast<float>((currentTime.tv_sec -
                                          openTime.tv_sec) * 1000 +
                                         (currentTime.tv_usec - openTime.tv_usec) / 1000);
-    // Regulate the io - sleep as desired
+    
+    // Calculate expected time based on bandwidth limit and total bytes transferred
     float exp_time = totalBytes / mBandwidth / 1000.0;
 
+    // Sleep to throttle I/O rate if we're transferring too fast
     if (abs_time < exp_time) {
       msSleep += (exp_time - abs_time);
       std::int64_t thisSleep = msSleep;
@@ -883,34 +377,50 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Execute Layout-Level Read Operation
+  // ═══════════════════════════════════════════════════════════════════════════
   int rc = mLayout->Read(fileOffset, buffer, buffer_size);
   eos_debug("layout read %d checkSum %d", rc, mCheckSum.get());
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Simulated Read Delay for Testing Scenarios
+  // ═══════════════════════════════════════════════════════════════════════════
   if (gOFS.mSimReadDelay) {
     eos_warning("msg=\"apply read delay\" delay=%is fxid=%08llx",
                 gOFS.mSimReadDelaySec.load(), mFileId);
     std::this_thread::sleep_for(std::chrono::seconds(gOFS.mSimReadDelaySec.load()));
   }
 
-  /* maintaining a checksum is tricky if there have been writes,
-   * but the read + append case can be supported in "Add" */
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Checksum Calculation for Read-Only Files
+  // ═══════════════════════════════════════════════════════════════════════════
+  /* Maintaining a checksum is complex when there have been writes,
+   * but the read + append case can be supported through incremental checksum updates */
   if ((rc > 0) && (mCheckSum) && (!mHasWrite)) {
     mCheckSum->Add(buffer, static_cast<size_t>(rc),
                    static_cast<off_t>(fileOffset));
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Post-Read Processing for Successful Operations
+  // ═══════════════════════════════════════════════════════════════════════════
   if (rc > 0) {
-    // if required, unobfuscate a buffer server side
+    // Decrypt/unobfuscate buffer content if encryption is enabled
+    // This is done server-side for security and occurs only at entry servers
     if (mLayout->IsEntryServer() && mHmac.key.length()) {
       eos::common::SymKey::UnobfuscateBuffer(const_cast<char*>(buffer), rc,
                                              fileOffset, mHmac);
     }
 
+    // Collect read statistics for monitoring and performance analysis
+    // Statistics are collected at entry servers and for RAIN layouts
     if (mLayout->IsEntryServer() || eos::common::LayoutId::IsRain(mLid)) {
       XrdSysMutexHelper vecLock(vecMutex);
       rvec.push_back(rc);
     }
 
+    // Update read position tracking and total byte counters
     rOffset = fileOffset + rc;
     totalBytes += rc;
   }
@@ -1041,14 +551,20 @@ XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Initialize Write Operation and Handle Special Cases
+  // ═══════════════════════════════════════════════════════════════════════════
   gettimeofday(&wStart, &tz);
 
+  // Simulate unresponsive behavior for testing scenarios
   if (gOFS.mSimUnresponsive) {
     eos_warning("msg=\"simulate unresponsive write, delay by 120s\" "
                 "fxid=%08llx", mFileId);
     std::this_thread::sleep_for(std::chrono::seconds(120));
   }
 
+  // Handle sink/null device files (/dev/null equivalent)
+  // These files discard all data but track write statistics
   if (mIsDevNull) {
     eos_debug("offset=%llu, length=%li discarded for sink file", fileOffset,
               buffer_size);
@@ -1057,8 +573,12 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     return buffer_size;
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Global and Per-Filesystem Round-Robin Scheduling
+  // ═══════════════════════════════════════════════════════════════════════════
   {
-    // use global RR serialization (we just use fsid 0 for that)
+    // Apply global round-robin serialization (fsid 0 represents global scope)
+    // This ensures fairness across all filesystems for applications with RR scheduling
     std::mutex* mutex = 0;
 
     if (!mAppRR.empty()) {
@@ -1074,7 +594,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      std::unique_lock<std::mutex>(*mutex);
   }
 
-  // use RR scheduling if there is a round-robin app name per filesystem
+  // Apply filesystem-specific round-robin scheduling
+  // This provides per-filesystem fairness for applications with specific scheduling requirements
   std::mutex* mutex = 0;
 
   if (!mAppRR.empty()) {
@@ -1089,14 +610,20 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Bandwidth Throttling and I/O Rate Limiting
+  // ═══════════════════════════════════════════════════════════════════════════
   if (mBandwidth) {
+    // Calculate elapsed time since file open to implement bandwidth throttling
     gettimeofday(&currentTime, &tz);
     float abs_time = static_cast<float>((currentTime.tv_sec -
                                          openTime.tv_sec) * 1000 +
                                         (currentTime.tv_usec - openTime.tv_usec) / 1000);
-    // Regulate the io - sleep as desired
+    
+    // Calculate expected time based on bandwidth limit and total bytes transferred
     float exp_time = totalBytes / mBandwidth / 1000.0;
 
+    // Sleep to throttle I/O rate if we're transferring too fast
     if (abs_time < exp_time) {
       msSleep += (exp_time - abs_time);
       std::int64_t thisSleep = msSleep;
@@ -1104,22 +631,33 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     }
   }
 
-  // if the write position moves the checksum is dirty
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Checksum State Management for Write Operations
+  // ═══════════════════════════════════════════════════════════════════════════
   if (mCheckSum) {
+    // Mark checksum as dirty if write position is not sequential
+    // Non-sequential writes require checksum recalculation
     if (mWritePosition != fileOffset) {
       mCheckSum->SetDirty();
     }
 
-    // store next write position
+    // Update the expected next write position for sequential write detection
     mWritePosition = fileOffset + buffer_size;
   }
 
-  // if required, obfuscate a buffer server side
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Data Encryption and Obfuscation
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Encrypt/obfuscate buffer content if encryption is enabled
+  // This is done server-side for security and occurs only at entry servers
   if (mLayout->IsEntryServer() && mHmac.key.length()) {
     eos::common::SymKey::ObfuscateBuffer(const_cast<char*>(buffer),
                                          const_cast<char*>(buffer), buffer_size, fileOffset, mHmac);
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Execute Layout-Level Write Operation
+  // ═══════════════════════════════════════════════════════════════════════════
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long>(buffer_size));
@@ -1321,14 +859,20 @@ XrdFstOfsFile::stat(struct stat* buf)
 int
 XrdFstOfsFile::sync()
 {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Sync Operation Processing and Setup
+  // ═══════════════════════════════════════════════════════════════════════════
   eos_debug("msg=\"sync request\", fxid=%08llx", mFileId);
   static const int cbWaitTime = 3600;
 
-  // TPC transfer
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Third-Party Copy (TPC) Transfer State Management
+  // ═══════════════════════════════════════════════════════════════════════════
   if (mTpcFlag == kTpcDstSetup) {
     XrdSysMutexHelper scope_lock(&mTpcJobMutex);
 
     if (mTpcState == kTpcIdle) {
+      // First sync call - initiate TPC transfer thread
       eos_info("msg=\"tpc enabled -> 1st sync\"");
       mTpcThreadStatus = XrdSysThread::Run(&mTpcThread,
                                            XrdFstOfsFile::StartDoTpcTransfer,
@@ -1340,6 +884,7 @@ XrdFstOfsFile::sync()
         scope_lock.UnLock();
         return SFS_OK;
       } else {
+        // TPC thread startup failed - clean up and return error
         eos_err("msg=\"failed to start TPC job thread\"");
         mTpcState = kTpcDone;
 
@@ -1351,6 +896,7 @@ XrdFstOfsFile::sync()
         return mTpcInfo.Fail(&error, "could not start job", ECANCELED);
       }
     } else if (mTpcState == kTpcRun) {
+      // Second sync call - setup callback and wait for TPC completion
       eos_info("msg=\"tpc running -> 2nd sync\"");
 
       if (mTpcInfo.SetCB(&error)) {
@@ -1361,6 +907,7 @@ XrdFstOfsFile::sync()
       mTpcInfo.Engage();
       return SFS_STARTED;
     } else if (mTpcState == kTpcDone) {
+      // TPC transfer completed - return result
       eos_info("msg=\"tpc already finished, retc=%i\"", mTpcRetc);
 
       if (mTpcRetc) {
@@ -1370,20 +917,26 @@ XrdFstOfsFile::sync()
         return SFS_OK;
       }
     } else {
+      // Unknown TPC state - error condition
       eos_err("%s", "msg=\"unknown tpc state\"");
       error.setErrInfo(EINVAL, "unknown TPC state");
       return SFS_ERROR;
     }
   } else {
-    // Standard file sync
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Standard File Sync Operation
+    // ═══════════════════════════════════════════════════════════════════════════
     static bool async_sync_cfg = IsAsyncSyncConfigured();
 
+    // Determine if sync should be executed synchronously or asynchronously
     if (!async_sync_cfg || DoSyncSync()) {
+      // Execute synchronous sync with timing measurement
       eos::common::Timing tm("sync");
       COMMONTIMING("begin", &tm);
       int rc = mLayout->Sync();
       COMMONTIMING("end", &tm);
 
+      // Log warning for slow sync operations (> 2 seconds)
       if (tm.RealTime() > 2000) {
         eos_warning("msg=\"slow sync operation\" fxid=%08llx", mFileId);
       }
@@ -1431,27 +984,44 @@ XrdFstOfsFile::sync()
 int
 XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Truncate Operation Processing
+  // ═══════════════════════════════════════════════════════════════════════════
   eos_info("mOpenSize=%llu fsize=%llu ", mOpenSize, fsize);
 
+  // Handle sink/null device files - truncate is always successful
   if (mIsDevNull) {
     return SFS_OK;
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Checksum State Management for Truncation
+  // ═══════════════════════════════════════════════════════════════════════════
   if (fsize != mOpenSize) {
     if (mCheckSum) {
+      // Mark checksum as dirty if truncation changes file size
+      // and write position doesn't match the new file size
       if (mWritePosition != fsize) {
         mCheckSum->SetDirty();
       }
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Execute Layout-Level Truncate Operation
+  // ═══════════════════════════════════════════════════════════════════════════
   int rc = mLayout->Truncate(fsize);
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Post-Truncate State Updates
+  // ═══════════════════════════════════════════════════════════════════════════
   if (!rc) {
+    // Mark file as modified if size changed
     if (fsize != mOpenSize) {
       mHasWrite = true;
     }
 
+    // Update write position to reflect new file size
     mWritePosition = fsize;
   }
 
@@ -1464,14 +1034,21 @@ XrdFstOfsFile::truncate(XrdSfsFileOffset fsize)
 int
 XrdFstOfsFile::close()
 {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Initialize Close Operation and Handle Simulation
+  // ═══════════════════════════════════════════════════════════════════════════
   gettimeofday(&closeStart, &tz);
 
+  // Simulate unresponsive behavior for testing scenarios
   if (gOFS.mSimUnresponsive) {
     eos_warning("msg=\"simulate unresponsive close, delay by 120s\" "
                 "fxid=%08llx", mFileId);
     std::this_thread::sleep_for(std::chrono::seconds(120));
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Error State Cleanup and Async Close Decision
+  // ═══════════════════════════════════════════════════════════════════════════
   // Reset the error.getErrInfo() value to 0 since this was hijacked by the
   // XrdXrootdFile object to store the actual file descriptor corresponding to
   // the current object. This was confusing when logging the error.getErrInfo()
@@ -1479,6 +1056,8 @@ XrdFstOfsFile::close()
   error.setErrCode(0);
   static bool async_close_cfg = IsAsyncCloseConfigured();
 
+  // Determine if close should be executed synchronously or asynchronously
+  // Synchronous close is used for reads, small files, and other quick operations
   if (!async_close_cfg || DoSyncClose()) {
     return _close();
   }
@@ -2079,20 +1658,34 @@ int
 XrdFstOfsFile::fctl(const int cmd, int alen, const char* args,
                     const XrdSecEntity* client)
 {
+  // ═══════════════════════════════════════════════════════════════════════════
+  // File Control Operation Processing
+  // ═══════════════════════════════════════════════════════════════════════════
   eos_debug("cmd=%i, args=%s", cmd, args);
 
   if (cmd == SFS_FCTL_SPEC1) {
     if (strncmp(args, "delete", alen) == 0) {
+      // ═══════════════════════════════════════════════════════════════════════════
+      // Handle File Deletion Request
+      // ═══════════════════════════════════════════════════════════════════════════
       eos_warning("Setting deletion flag for file %s", mFstPath.c_str());
       // This indicates to delete the file during the close operation
+      // Used for cleanup operations and error handling scenarios
       viaDelete = true;
       return SFS_OK;
     } else if (strncmp(args, "nochecksum", alen) == 0) {
+      // ═══════════════════════════════════════════════════════════════════════════
+      // Handle Checksum Disable Request
+      // ═══════════════════════════════════════════════════════════════════════════
       int retc = SFS_OK;
       eos_warning("Setting nochecksum flag for file %s", mFstPath.c_str());
+      
+      // Disable checksum calculation for the file
+      // This is used when checksum validation is not required or causes issues
       mCheckSum.reset(nullptr);
 
-      // Propagate command to all the replicas/stripes
+      // Propagate command to all the replicas/stripes in the layout
+      // This ensures consistent checksum behavior across all file copies
       if (mLayout) {
         retc = mLayout->Fctl(std::string(args), client);
       }
@@ -2101,6 +1694,9 @@ XrdFstOfsFile::fctl(const int cmd, int alen, const char* args,
     }
   }
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Unsupported Command Error
+  // ═══════════════════════════════════════════════════════════════════════════
   error.setErrInfo(ENOTSUP, "fctl command not supported");
   return SFS_ERROR;
 }
@@ -4440,5 +4036,788 @@ XrdFstOfsFile::sync(XrdSfsAio* aiop)
                    "supported");
 }
 
+
+//==============================================================================
+// Helper function implementations for open() method refactoring
+//==============================================================================
+
+//------------------------------------------------------------------------------
+// Process TPC and capability information during file open
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::ProcessTpcAndCapabilities(const std::string& in_opaque,
+                                         const XrdSecEntity* client,
+                                         int& tpc_retc)
+{
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Process TPC Information
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TPC information processing - after this mOpenOpaque and mCapOpaque will be
+  // properly populated and decrypted.
+  std::string opaque_copy = in_opaque;  // Create mutable copy for ProcessTpcOpaque
+  tpc_retc = ProcessTpcOpaque(opaque_copy, client);
+
+  if (tpc_retc == SFS_ERROR) {
+    return SFS_ERROR;
+  } else if (tpc_retc >= SFS_STALL) {
+    return tpc_retc; // this is stall time in seconds
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Process Open Opaque Information
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (ProcessOpenOpaque()) {
+    eos_err("msg=\"failed while processing open opaque info\" "
+            "path=\"%s\"", mNsPath.c_str());
+    return SFS_ERROR;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Process Capability Opaque Information
+  // ═══════════════════════════════════════════════════════════════════════════
+  eos::common::VirtualIdentity vid;
+  bool isRepairRead = false;
+
+  if (ProcessCapOpaque(isRepairRead, vid)) {
+    eos_err("msg=\"failed while processing cap opaque info\" "
+            "path=\"%s\"", mNsPath.c_str());
+    return SFS_ERROR;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Process Mixed Opaque Information
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (ProcessMixedOpaque()) {
+    eos_err("msg=\"failed while processing mixed opaque info\" "
+            "path=\"%s\"", mNsPath.c_str());
+    return SFS_ERROR;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Handle RAIN Store Recovery
+  // ═══════════════════════════════════════════════════════════════════════════
+  // For RAIN layouts if the opaque information contains the tag mgm.rain.store=1
+  // the corrupted files are recovered back on disk. There is no other way to make
+  // the distinction between an open for write and open for recovery
+  char* val = nullptr;
+  if (mCapOpaque && (val = mCapOpaque->Get("mgm.rain.store"))) {
+    if (strncmp(val, "1", 1) == 0) {
+      eos_info("msg=\"enabling RAIN store recovery\" fxid=%08llx", mFileId);
+      mRainReconstruct = true;
+      mHasWrite = true;
+
+      // Get logical file size
+      if ((val = mCapOpaque->Get("mgm.rain.size"))) {
+        try {
+          mRainSize = std::stoull(val);
+        } catch (...) {
+          // ignore
+        }
+      } else {
+        eos_warning("msg=\"unknown RAIN file size during reconstruction\" "
+                    "fxid=%08llx", mFileId);
+      }
+    }
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Validate path access and create layout object
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::ValidatePathAndCreateLayout(const char* path,
+                                           const XrdSecEntity* client,
+                                           const char* tident,
+                                           const char* epname,
+                                           int& envlen)
+{
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Determine Read/Write Access Mode
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((mTpcFlag == kTpcSrcSetup) || (mTpcFlag == kTpcDstSetup)) {
+    // For TPC setup, we need to determine the mode based on the TPC type
+    mIsRW = (mTpcFlag == kTpcDstSetup);
+  } else {
+    // Standard mode determination based on open flags
+    mIsRW = false; // Will be set properly in HandleFileExistenceAndCreation
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Handle Replication Path Logic
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (mNsPath.beginswith("/replicate:")) {
+    if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
+      eos_err("msg=\"forbid replica open, file %s opened in RW mode\"",
+              mNsPath.c_str());
+      return gOFS.Emsg(epname, error, ETXTBSY, "open - cannot replicate: file "
+                       "is opened in RW mode", mNsPath.c_str());
+    }
+
+    // File is supposed to act as a sink, used for draining
+    if (mNsPath == "/replicate:0") {
+      if (!mIsRW) {
+        eos_err("msg=\"replicate file can only be opened for RW\" fxid=%08llx "
+                "path=\"%s\"", mFileId, mNsPath.c_str());
+        return gOFS.Emsg(epname, error, EIO, "open - replicate file can only "
+                         "be opened in RW mode", mNsPath.c_str());
+      } else {
+        eos_info("%s", "msg=\"file fxid=0 acting as a sink i.e. /dev/null\"");
+        mIsDevNull = true;
+        return SFS_OK;
+      }
+    }
+
+    mIsReplication = true;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Handle HTTP Access Control
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Check if this is an open for HTTP
+  if (!mIsRW && ((std::string(client->tident) == "http"))) {
+    if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
+      eos_err("msg=\"forbid replica open for synchronization, file %s "
+              "opened in RW mode\"", mNsPath.c_str());
+      // Return resource temporarily unavailable as EBUSY cannot be used due to XRootD hack
+      // in Emsg() that returns the integer "5" (proxy hack)
+      return gOFS.Emsg(epname, error, EAGAIN, "open - cannot synchronize "
+                       "file opened in RW mode", mNsPath.c_str());
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Create Layout Object
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Get the layout object
+  mLayout.reset(eos::fst::LayoutPlugin::GetLayoutObject
+                (this, mLid, client, &error, mFstPath.c_str(), gOFS.mFmdHandler.get(),
+                 msDefaultTimeout, mRainReconstruct));
+
+  if (mLayout == nullptr) {
+    eos_err("msg=\"unable to handle layout for %s\"", mCapOpaque->Env(envlen));
+    return gOFS.Emsg(epname, error, EINVAL, "open - illegal layout specified ",
+                     mCapOpaque->Env(envlen));
+  }
+
+  mLayout->SetLogId(logId, client, tident);
+  errno = 0;
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Handle Early Return for TPC Setup
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((mRainReconstruct && (mTpcFlag == kTpcSrcCanDo)) ||
+      (mTpcFlag == kTpcSrcSetup)) {
+    eos_info("msg=\"kTpcSrcSetup return SFS_OK\" fxid=%08llx", mFileId);
+    return SFS_OK;
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Handle file existence check and creation logic
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::HandleFileExistenceAndCreation(XrdSfsFileOpenMode& open_mode,
+                                              mode_t& create_mode,
+                                              bool hasCreationMode,
+                                              const char* epname,
+                                              int& envlen)
+{
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Determine Read/Write Mode Based on Open Flags
+  // ═══════════════════════════════════════════════════════════════════════════
+  if ((open_mode & (SFS_O_WRONLY | SFS_O_RDWR | SFS_O_CREAT | SFS_O_TRUNC))) {
+    mIsRW = true;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Setup Creation Barrier for Thread Safety
+  // ═══════════════════════════════════════════════════════════════════════════
+  static thread_local std::unique_ptr<OpenFileTracker::CreationBarrier> creationSerialization;
+  creationSerialization = std::make_unique<OpenFileTracker::CreationBarrier>(
+    gOFS.runningCreation, mFsId, mFileId);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Check File Existence
+  // ═══════════════════════════════════════════════════════════════════════════
+  int retc = mLayout->GetFileIo()->fileExists();
+  
+  if (retc) {
+    // We have to distinguish if an Exists call fails or returns ENOENT,
+    // otherwise we might trigger an automatic clean-up of a file!!!
+    if (errno != ENOENT) {
+      return gOFS.Emsg(epname, error, EIO, "open - unable to check for "
+                       "existence of file ", mCapOpaque->Env(envlen));
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Handle Non-Existent File Cases
+    // ═══════════════════════════════════════════════════════════════════════════
+    if (mIsRW || (mCapOpaque->Get("mgm.zerosize"))) {
+      if (!mIsRW && mCapOpaque->Get("mgm.zerosize")) {
+        // this commit should not call the versioning/atomic functionality
+        noAtomicVersioning = true;
+      }
+
+      // File does not exist, keep the create flag for writers and readers
+      // with 0-size at MGM
+      mIsRW = true;
+      mIsCreation = true;
+      mOpenSize = 0;
+      mWritePosition = 0;
+      // Used to indicate if a file was written in the meanwhile by someone else
+      updateStat.st_mtime = 0;
+      open_mode |= SFS_O_CREAT;
+      create_mode |= SFS_O_MKPTH;
+      eos_debug("msg=\"adding creation flag\" retc=%d errno=%d fxid=%08llx",
+                retc, errno, mFileId);
+    } else {
+      // The open will fail but the client will get a recoverable error,
+      // therefore it will try to read again from the other replicas.
+      eos_warning("msg=\"open for read, local file does not exists\" "
+                  "fxid=%08llx path=\"%s\"", mFileId, mFstPath.c_str());
+      return gOFS.Emsg(epname, error, ENOENT, "open, file does not exist ",
+                       mCapOpaque->Env(envlen));
+    }
+  } else {
+    // ═══════════════════════════════════════════════════════════════════════════
+    // Handle Existing File Cases
+    // ═══════════════════════════════════════════════════════════════════════════
+    eos_debug("msg=\"removing creation flag\" retc=%d errno=%d fxid=%08llx",
+              retc, errno, mFileId);
+
+    // Remove the creat flag
+    if (open_mode & SFS_O_CREAT) {
+      open_mode -= SFS_O_CREAT;
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Release Creation Barrier for Non-Creation Cases
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (!mIsCreation) {
+    creationSerialization->Release();
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Validate capability permissions and extract parameters
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::ValidateCapabilityAndExtractParams(const char* path,
+                                                  const char* epname)
+{
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Capability Access Control Validation
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (mIsRW) {
+    if (mIsCreation) {
+      if (mCapOpaque->Get("mgm.zerosize") == nullptr) {
+        if (!mCapOpaque->Get("mgm.access")
+            || ((strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
+                (strcmp(mCapOpaque->Get("mgm.access"), "write")) &&
+                (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
+          return gOFS.Emsg(epname, error, EPERM, "open - capability does not "
+                           "allow to create/write/update this file", path);
+        }
+      }
+    } else {
+      if (!mCapOpaque->Get("mgm.access")
+          || ((strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
+              (strcmp(mCapOpaque->Get("mgm.access"), "write")) &&
+              (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
+        return gOFS.Emsg(epname, error, EPERM, "open - capability does not "
+                         "allow to update/write/create this file", path);
+      }
+    }
+  } else {
+    if (!mCapOpaque->Get("mgm.access")
+        || ((strcmp(mCapOpaque->Get("mgm.access"), "read")) &&
+            (strcmp(mCapOpaque->Get("mgm.access"), "create")) &&
+            (strcmp(mCapOpaque->Get("mgm.access"), "write")) &&
+            (strcmp(mCapOpaque->Get("mgm.access"), "update")))) {
+      return gOFS.Emsg(epname, error, EPERM, "open - capability does not allow "
+                       "to read this file", path);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Extract I/O Priority Configuration
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (mCapOpaque->Get("mgm.iopriority")) {
+    std::string key;
+    std::string value;
+    std::string kv = mCapOpaque->Get("mgm.iopriority");
+
+    if (eos::common::StringConversion::SplitKeyValue(kv, key, value, ":")) {
+      mIoPriorityClass = ioprio_class(key);
+      mIoPriorityValue = ioprio_value(value);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Extract Bandwidth Limitation Configuration
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (mCapOpaque->Get("mgm.iobw")) {
+    mBandwidth = strtoull(mCapOpaque->Get("mgm.iobw"), 0, 10);
+    eos_info("msg=\"bandwidth limited\" bw=%d, fxid=%08llx",
+             mBandwidth, mFileId);
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Extract and Validate Booking Size for File Creation
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (mIsRW && mIsCreation && !mFusex) {
+    const char* sbookingsize = 0;
+    const char* stargetsize = 0;
+    // If fsid=0 then all replicas/stripes are dropped and the logical file
+    // is also removed, otherwise only the current mFsId is dropped.
+    eos::common::FileSystem::fsid_t drop_fsid =
+      ((!mIsReplication && !mIsInjection && !mRainReconstruct) ? 0u : mFsId);
+
+    if (!(sbookingsize = mCapOpaque->Get("mgm.bookingsize"))) {
+      DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+      eos_err("msg=\"no bookingsize in capability\" fxid=%08llx", mFileId);
+      return gOFS.Emsg(epname, error, EINVAL, "open - no booking size in capability",
+                       mNsPath.c_str());
+    } else {
+      mBookingSize = strtoull(mCapOpaque->Get("mgm.bookingsize"), 0, 10);
+
+      if (errno == ERANGE) {
+        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+        eos_err("msg=\"invalid bookingsize in capability\" fxid=%08llx "
+                "bookingsize=\"%s\"", mFileId, sbookingsize);
+        return gOFS.Emsg(epname, error, EINVAL, "open - invalid bookingsize "
+                         "in capability", mNsPath.c_str());
+      }
+    }
+
+    if ((stargetsize = mCapOpaque->Get("mgm.targetsize"))) {
+      mTargetSize = strtoull(mCapOpaque->Get("mgm.targetsize"), 0, 10);
+
+      if (errno == ERANGE) {
+        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+        eos_err("msg=\"invalid targetsize in capability\" fxid=%08llx "
+                "targetsize=%s", mFileId, stargetsize);
+        return gOFS.Emsg(epname, error, EINVAL, "open - invalid targetsize "
+                         "in capability", mNsPath.c_str());
+      }
+    }
+
+    // Check if the booking size violates the min/max-size criteria
+    if (mBookingSize && mMaxSize) {
+      if (mBookingSize > mMaxSize) {
+        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+        eos_err("msg=\"invalid bookingsize specified - violates maximum "
+                "file size criteria\" booking_sz=%llu", mBookingSize);
+        return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
+                         "maximum allowed filesize", mNsPath.c_str());
+      }
+    }
+
+    if (mBookingSize && mMinSize) {
+      if (mBookingSize < mMinSize) {
+        DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
+        eos_err("msg=\"invalid bookingsize specified - violates minimum "
+                "file size criteria\" fxid=%08llx booking_sz=%llu",
+                mFileId, mBookingSize);
+        return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
+                         "minimum allowed filesize", mNsPath.c_str());
+      }
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Handle Simulated FMD Open Error for Testing
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (gOFS.mSimFmdOpenErr) {
+    eos_warning("msg=\"simulate FMD open error\" fxid=%08llx", mFileId);
+    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found, "
+                     "simulated error");
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Handle clone operations (copy-on-write)
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::HandleCloneOperations(XrdSfsFileOpenMode open_mode)
+{
+  char* sCloneFST = mCapOpaque->Get("mgm.cloneFST");
+  int clone_create_rc = 1;
+
+  if (sCloneFST) {
+    std::string mc_fst_path = eos::common::FileId::FidPrefix2FullPath(sCloneFST,
+                              mLocalPrefix.c_str());
+    struct stat clone_stat;
+    int clonerc = ::stat(mc_fst_path.c_str(), &clone_stat) ? errno : 0;
+    eos_info("fstpath=%s clonepath=%s clonerc=%d len=%d", mFstPath.c_str(),
+             mc_fst_path.c_str(), clonerc, clonerc ? -1 : clone_stat.st_size);
+
+    /* clone handling:
+     * if read-write and clone does not exist, create it
+     * if read-only switch to clone if it exists
+     * (note: if several clones were allowed, we'd might have to search!)
+     */
+    if (mIsRW && clonerc != 0) { /* for RW, only if clone not yet created */
+      if (open_mode & SFS_O_TRUNC) {
+        /* rename data file to clone, it will be re-created */
+        clone_create_rc = ::rename(mFstPath.c_str(), mc_fst_path.c_str()) ? errno : 0;
+        eos_info("copy-on-write: rename %s %s rc=%d", mFstPath.c_str(),
+                 mc_fst_path.c_str(), clone_create_rc);
+      } else {
+        /* copy data file to clone before modyfying */
+        char sbuff[1024];
+        snprintf(sbuff, sizeof(sbuff),
+                 "cp --preserve=xattr,ownership,mode --reflink=auto %s %s",
+                 mFstPath.c_str(), mc_fst_path.c_str());
+        clone_create_rc = system(sbuff);
+        eos_info("copy-on-write: %s rc=%d", sbuff, clone_create_rc);
+      }
+    }
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Open the layout implementation
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::OpenLayoutImplementation(XrdSfsFileOpenMode open_mode,
+                                        mode_t create_mode,
+                                        bool hasCreationMode,
+                                        const char* path,
+                                        const char* epname)
+{
+  char* val = nullptr;
+  XrdOucString oss_opaque = "";
+  oss_opaque += "&mgm.lid=";
+  oss_opaque += std::to_string(mLid).c_str();
+  oss_opaque += "&mgm.bookingsize=";
+  oss_opaque += std::to_string(mBookingSize).c_str();
+
+  if (!(val = mCapOpaque->Get("mgm.iotype"))) {
+    // provided by a client
+    if ((val = mOpenOpaque->Get("eos.iotype"))) {
+      oss_opaque += "&mgm.ioflag=";
+      oss_opaque += val;
+
+      if (std::string(val) == "csync") {
+        // cannot be done in the OSS
+        mSyncOnClose = true;
+      }
+    }
+  } else {
+    // forced by the MGM configuration
+    oss_opaque += "&mgm.ioflag=";
+    oss_opaque += val;
+
+    if (std::string(val) == "csync") {
+      // cannot be done in the OSS
+      mSyncOnClose = true;
+    }
+  }
+
+  // Open layout implementation
+  eos_info("path=%s open-mode=%x create-mode=%x layout-name=%s oss-opaque=%s",
+           mFstPath.c_str(), open_mode, create_mode, mLayout->GetName(),
+           oss_opaque.c_str());
+
+  int rc = mLayout->Open(open_mode, create_mode, oss_opaque.c_str());
+
+  if (rc) {
+    // If we have local errors in open we don't disable the filesystem -
+    // this is done by the Scrub thread if necessary!
+    if (mLayout->IsEntryServer() && !mIsReplication) {
+      eos_warning("msg=\"open error return recoverable error "
+                  "EIO(kXR_IOError)\" fid=%08llx", mFileId);
+
+      // Clean-up before re-bouncing
+      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+        DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
+        mDelOnClose = true;
+      }
+    }
+
+    return gOFS.Emsg(epname, error, EIO, "open - failed open");
+  }
+
+  if (gOFS.mSimOpenDelay) {
+    eos_warning("msg=\"simulate open timeout that becomes a client error\" "
+                "fxid=%08llx", mFileId);
+    std::this_thread::sleep_for(std::chrono::seconds(gOFS.mSimOpenDelaySec.load()));
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Get and synchronize file metadata
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::GetAndSyncFileMetadata(bool isRepairRead,
+                                      bool hasCreationMode,
+                                      const char* path,
+                                      const char* epname)
+{
+  eos::common::VirtualIdentity vid;
+  
+  // Get virtual identity from capability processing
+  if (ProcessCapOpaque(isRepairRead, vid)) {
+    return SFS_ERROR;
+  }
+
+  mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
+                                       vid.uid, vid.gid, mLid);
+
+  if (mFmd == nullptr) {
+    if (gOFS.mFmdHandler->ResyncMgm(mFsId, mFileId, mRdrManager.c_str())) {
+      eos_info("msg=\"resync ok\" fsid=%u fxid=%08llx", mFsId, mFileId);
+      mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead,
+                                           mIsRW, vid.uid, vid.gid, mLid);
+      std::string dummy_xs;
+      int rc = 0;
+
+      if ((rc = gOFS.mFmdHandler->ResyncDisk(mFstPath.c_str(), mFsId, false, 0,
+                                             dummy_xs))) {
+        eos_err("msg=\"failed to resync from disk\" fsid=%lu fxid=%llx "
+                "path=%s rc=%d", mFsId, mFileId, mFstPath.c_str(), rc);
+      } else {
+        eos_info("msg=\"resync from disk\" path=%s", mFstPath.c_str());
+      }
+    } else {
+      eos_err("msg=\"resync failed\" fsid=%u fxid=%08llx", mFsId, mFileId);
+    }
+  }
+
+  if (mFmd == nullptr) {
+    eos_err("msg=\"no FMD record found\" fsid=%u fxid=%08llx", mFsId, mFileId);
+
+    if (!mIsRW || (mLayout->IsEntryServer() && !mIsReplication)) {
+      eos_warning("msg=\"failed to get FMD record\" fsid=%u fxid=%08llx "
+                  "path=\"%s\" rc=ENOENT(kXR_NotFound)", mFsId, mFileId,
+                  mFstPath.c_str());
+
+      if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+        DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
+      }
+    }
+
+    // Return an error that can be recovered at the MGM
+    return gOFS.Emsg(epname, error, ENOENT, "open - no FMD record found");
+  }
+
+  // Handle clone FMD updates
+  char* sCloneFST = mCapOpaque->Get("mgm.cloneFST");
+  if (sCloneFST) {
+    // Clone FMD update logic would go here
+    // (Implementation depends on clone_create_rc from HandleCloneOperations)
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Handle space management and file allocation
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::HandleSpaceAndAllocation(bool hasCreationMode,
+                                        const char* path,
+                                        const char* epname)
+{
+  if (!mIsCreation && mIsReplication) {
+    mLayout->Stat(&updateStat);
+  }
+
+  if (mIsCreation && mBookingSize) {
+    // Check if the file system is full
+    XrdSysMutexHelper lock(gOFS.Storage->mFsFullMapMutex);
+
+    if (gOFS.Storage->mFsFullMap[mFsId]) {
+      if (mLayout->IsEntryServer() && !mIsReplication) {
+        writeErrorFlag = kOfsDiskFullError;
+        mLayout->Remove();
+        eos_warning("msg=\"not enough space\" fsid=%u fxid=%08llx "
+                    "rc=ENODEV(kXR_FSError)", mFsId, mFileId);
+
+        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+          // Clean-up all stripes
+          DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
+        }
+
+        // Return an error that can be recovered at the MGM
+        return gOFS.Emsg(epname, error, ENODEV, "open - not enough space");
+      }
+
+      return gOFS.Emsg(epname, error, ENOSPC, "create file - disk space "
+                       "(headroom) exceeded fn=", mFstPath.c_str());
+    }
+
+    int rc = mLayout->Fallocate(mBookingSize);
+
+    if (rc) {
+      eos_crit("msg=\"file allocation failed\" fsid=%u fxid=%08llx retc=%d "
+               "errno=%d size=%llu", mFsId, mFileId, rc, errno, mBookingSize);
+
+      if (mLayout->IsEntryServer() && !mIsReplication) {
+        mLayout->Remove();
+        eos_warning("msg=\"not enough space, file allocation failed\" fsid=%lu "
+                    "fxid=%08llx rc=ENODEV(kXR_FSError", mFsId, mFileId);
+
+        if (hasCreationMode && !mRainReconstruct && !mIsInjection) {
+          // Clean-up all stripes
+          DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
+        }
+
+        // Return an error that can be recovered at the MGM
+        return gOFS.Emsg(epname, error, ENODEV, "open - file allocation failed");
+      }
+
+      mLayout->Remove();
+      return gOFS.Emsg(epname, error, ENOSPC, "open - cannot allocate "
+                       "required space", mNsPath.c_str());
+    }
+  }
+
+  if (mIsCreation) {
+    gOFS.mFmdHandler->Commit(mFmd.get());
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Setup file size and checksum information
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::SetupFileSizeAndChecksum(const char* epname)
+{
+  if (!mIsCreation) {
+    // Get the real size of the file, not the local stripe size!
+    struct stat statinfo {};
+
+    if (mLayout->Stat(&statinfo)) {
+      return gOFS.Emsg(epname, error, EIO, "open - cannot stat layout to "
+                       "determine file size", mNsPath.c_str());
+    }
+
+    // We feed the layout size, not the physical on disk!
+    eos_info("msg=\"layout size\" fxid=%08llx disk_size=%zu db_size= %llu",
+             mFileId, statinfo.st_size, mFmd->mProtoFmd.size());
+    mOpenSize = mFmd->mProtoFmd.size();
+    mWritePosition = mOpenSize;
+
+    if (!eos::common::LayoutId::IsRain(mLayout->GetLayoutId())) {
+      // If replica layout and physical size of replica difference from the
+      // fmd_size it means the file is being written to, so we save the actual
+      // size from disk.
+      if ((off_t) statinfo.st_size != (off_t) mFmd->mProtoFmd.size()) {
+        mOpenSize = statinfo.st_size;
+        mWritePosition = mOpenSize;
+      }
+    }
+
+    // Preset with the last known checksum
+    if (mIsRW && mCheckSum && !mIsOCchunk) {
+      eos_info("msg=\"checksum reset init\" fxid=%08llx file-xs=%s",
+               mFileId, mFmd->mProtoFmd.checksum().c_str());
+      mCheckSum->ResetInit(0, mOpenSize, mFmd->mProtoFmd.checksum().c_str());
+    }
+  }
+
+  // For RAIN layouts we enable full file checksum only at the entry server for
+  // write operations. For the rest of the cases we rely on the block and parity
+  // checking.
+  if (eos::common::LayoutId::IsRain(mLid) &&
+      !(mIsRW && mLayout->IsEntryServer())) {
+    mCheckSum.reset(nullptr);
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Create file I/O object and set extended attributes
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::CreateFileIoAndSetAttributes(const char* path,
+                                            const char* epname)
+{
+  // Set the eos lfn as extended attribute
+  std::unique_ptr<FileIo> io
+  (FileIoPlugin::GetIoObject(mLayout->GetLocalReplicaPath(), this));
+
+  if (mIsRW) {
+    if (mNsPath.beginswith("/replicate:") || mNsPath.beginswith("/fusex-open")) {
+      if (mCapOpaque->Get("mgm.path")) {
+        XrdOucString unsealedpath = mCapOpaque->Get("mgm.path");
+        XrdOucString sealedpath = path;
+
+        if (io->attrSet(std::string("user.eos.lfn"),
+                        std::string(unsealedpath.c_str()))) {
+          eos_err("msg=\"unable to set extended attr <eos.lfn> \" "
+                  "fxid=%08llx errno=%d", mFileId, errno);
+        }
+      } else {
+        eos_err("msg=\"no lfn in replication capability\" fxid=%08lls",
+                mFileId);
+      }
+    } else {
+      if (io->attrSet(std::string("user.eos.lfn"), std::string(mNsPath.c_str()))) {
+        eos_err("msg=\"unable to set extended attr <eos.lfn>\" "
+                "fxid=%08llx errno=%d", mFileId, errno);
+      }
+    }
+  } else {
+    // For reading of replica file check for xs errors unless this
+    // is a fuse client!
+    if (!mFusex &&
+        eos::common::LayoutId::IsReplica(mLid) &&
+        gOFS.mFmdHandler->FileHasXsError(mLayout->GetLocalReplicaPath(), mFsId)) {
+      eos_err("msg=\"open failed due to checksum mismatch\" fxid=%08llx "
+              "path=\"%s\"", mFileId, mNsPath.c_str());
+      return gOFS.Emsg(epname, error, EIO, "open - replica checksum mismatch",
+                       mNsPath.c_str());
+    }
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Finalize open operation with accounting and statistics
+//------------------------------------------------------------------------------
+int
+XrdFstOfsFile::FinalizeOpenOperation(eos::common::Timing& tm)
+{
+  if (mIsRW) {
+    gOFS.openedForWriting.up(mFsId, mFileId);
+  } else {
+    gOFS.openedForReading.up(mFsId, mFileId);
+  }
+
+  mOpened = true;
+  timeToOpen = tm.RealTime();
+
+  // Report slow open as errors if longer than 1000ms
+  if (timeToOpen > 1000) {
+    eos_err("msg=\"slow open operation\" open-duration=%.03fms fxid=%08llx "
+            "path=\"%s\" %s", timeToOpen, mFileId, mNsPath.c_str(),
+            tm.Dump().c_str());
+  }
+
+  eos_info("open-duration=%.03fms path=\"%s\" fxid=%08llx %s", timeToOpen,
+           mNsPath.c_str(), mFileId, tm.Dump().c_str());
+
+  return SFS_OK;
+}
 
 EOSFSTNAMESPACE_END

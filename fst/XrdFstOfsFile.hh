@@ -30,6 +30,7 @@
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "common/SymKeys.hh"
+#include "common/Timing.hh"
 #include <XrdVersion.hh>
 #include <XrdOfs/XrdOfs.hh>
 #include <XrdOfs/XrdOfsTPCInfo.hh>
@@ -112,13 +113,31 @@ public:
            const char* opaque = 0) override;
 
   //----------------------------------------------------------------------------
-  //! Read from file
+  //! Read from file with comprehensive I/O management
+  //!
+  //! Performs file read operations with support for:
+  //! - Round-robin scheduling for application fairness
+  //! - Bandwidth throttling and I/O rate limiting
+  //! - Third-party copy (TPC) transfer validation
+  //! - Checksum calculation for read-only files
+  //! - Data decryption/unobfuscation for encrypted files
+  //! - Performance monitoring and statistics collection
+  //!
+  //! @param fileOffset starting offset for the read operation
+  //! @param buffer destination buffer for read data
+  //! @param buffer_size number of bytes to read
+  //! @return number of bytes read on success, SFS_ERROR on failure
   //----------------------------------------------------------------------------
   XrdSfsXferSize read(XrdSfsFileOffset fileOffset, char* buffer,
                       XrdSfsXferSize buffer_size) override;
 
   //----------------------------------------------------------------------------
   //! Read AIO - not supported
+  //!
+  //! Asynchronous I/O read operations are not currently supported.
+  //!
+  //! @param aioparm asynchronous I/O parameters
+  //! @return SFS_ERROR indicating operation not supported
   //----------------------------------------------------------------------------
   int read(XrdSfsAio* aioparm) override;
 
@@ -174,7 +193,21 @@ public:
   XrdSfsXferSize readv(XrdOucIOVec* readV, int readCount) override;
 
   //----------------------------------------------------------------------------
-  //! Write to file
+  //! Write to file with comprehensive I/O management and error handling
+  //!
+  //! Performs file write operations with support for:
+  //! - Global and per-filesystem round-robin scheduling
+  //! - Bandwidth throttling and I/O rate limiting
+  //! - Checksum state management for write operations
+  //! - Data encryption/obfuscation for secure storage
+  //! - Error detection and recovery mechanisms
+  //! - Performance monitoring and statistics collection
+  //! - Special handling for sink/null device files
+  //!
+  //! @param fileOffset starting offset for the write operation
+  //! @param buffer source buffer containing data to write
+  //! @param buffer_size number of bytes to write
+  //! @return number of bytes written on success, SFS_ERROR on failure
   //----------------------------------------------------------------------------
   XrdSfsXferSize write(XrdSfsFileOffset fileOffset, const char* buffer,
                        XrdSfsXferSize buffer_size) override;
@@ -910,6 +943,151 @@ public:
   //! @return 0 if successful, other != 0
   //----------------------------------------------------------------------------
   int TriggerEventOnClose(const std::string& archive_req_id);
+
+  //============================================================================
+  // Helper functions for open() method refactoring
+  //============================================================================
+
+  //----------------------------------------------------------------------------
+  //! Process TPC and capability information during file open
+  //!
+  //! @param in_opaque input opaque string containing TPC and capability info
+  //! @param client client security entity
+  //! @param tpc_retc output parameter for TPC return code
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int ProcessTpcAndCapabilities(const std::string& in_opaque,
+                                const XrdSecEntity* client,
+                                int& tpc_retc);
+
+  //----------------------------------------------------------------------------
+  //! Validate path access and create layout object
+  //!
+  //! @param path file path
+  //! @param client client security entity
+  //! @param tident client identity
+  //! @param epname error prefix name
+  //! @param envlen environment length
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int ValidatePathAndCreateLayout(const char* path,
+                                  const XrdSecEntity* client,
+                                  const char* tident,
+                                  const char* epname,
+                                  int& envlen);
+
+  //----------------------------------------------------------------------------
+  //! Handle file existence check and creation logic
+  //!
+  //! @param open_mode file open mode
+  //! @param create_mode file creation mode
+  //! @param hasCreationMode flag indicating if creation mode is set
+  //! @param epname error prefix name
+  //! @param envlen environment length
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int HandleFileExistenceAndCreation(XrdSfsFileOpenMode& open_mode,
+                                     mode_t& create_mode,
+                                     bool hasCreationMode,
+                                     const char* epname,
+                                     int& envlen);
+
+  //----------------------------------------------------------------------------
+  //! Validate capability permissions and extract parameters
+  //!
+  //! @param path file path
+  //! @param epname error prefix name
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int ValidateCapabilityAndExtractParams(const char* path,
+                                         const char* epname);
+
+  //----------------------------------------------------------------------------
+  //! Handle clone file system operations (copy-on-write)
+  //!
+  //! @param open_mode file open mode
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int HandleCloneOperations(XrdSfsFileOpenMode open_mode);
+
+  //----------------------------------------------------------------------------
+  //! Open the layout implementation
+  //!
+  //! @param open_mode file open mode
+  //! @param create_mode file creation mode
+  //! @param hasCreationMode flag indicating if creation mode is set
+  //! @param path file path
+  //! @param epname error prefix name
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int OpenLayoutImplementation(XrdSfsFileOpenMode open_mode,
+                               mode_t create_mode,
+                               bool hasCreationMode,
+                               const char* path,
+                               const char* epname);
+
+  //----------------------------------------------------------------------------
+  //! Get and synchronize file metadata (FMD)
+  //!
+  //! @param isRepairRead flag indicating if this is a repair read
+  //! @param hasCreationMode flag indicating if creation mode is set
+  //! @param path file path
+  //! @param epname error prefix name
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int GetAndSyncFileMetadata(bool isRepairRead,
+                             bool hasCreationMode,
+                             const char* path,
+                             const char* epname);
+
+  //----------------------------------------------------------------------------
+  //! Handle space management and file allocation
+  //!
+  //! @param hasCreationMode flag indicating if creation mode is set
+  //! @param path file path
+  //! @param epname error prefix name
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int HandleSpaceAndAllocation(bool hasCreationMode,
+                               const char* path,
+                               const char* epname);
+
+  //----------------------------------------------------------------------------
+  //! Setup file size and checksum information
+  //!
+  //! @param epname error prefix name
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int SetupFileSizeAndChecksum(const char* epname);
+
+  //----------------------------------------------------------------------------
+  //! Create file I/O object and set extended attributes
+  //!
+  //! @param path file path
+  //! @param epname error prefix name
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int CreateFileIoAndSetAttributes(const char* path,
+                                   const char* epname);
+
+  //----------------------------------------------------------------------------
+  //! Finalize open operation with accounting and statistics
+  //!
+  //! @param tm timing object for performance measurement
+  //!
+  //! @return 0 if successful, otherwise error code
+  //----------------------------------------------------------------------------
+  int FinalizeOpenOperation(eos::common::Timing& tm);
 };
 
 //------------------------------------------------------------------------------
