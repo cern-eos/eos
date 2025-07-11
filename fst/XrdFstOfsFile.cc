@@ -114,27 +114,11 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
   mTpcCancel(false), mIsHttp(false)
 {
-  rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
-                                = sXlBwdBytes = rOffset = wOffset = 0;
-  rStart.tv_sec = wStart.tv_sec = rvStart.tv_sec = rTime.tv_sec = lrTime.tv_sec =
-                                    rvTime.tv_sec = lrvTime.tv_sec = 0;
-  rStart.tv_usec = wStart.tv_usec = rvStart.tv_usec = rTime.tv_usec =
-                                      lrTime.tv_usec = rvTime.tv_usec = lrvTime.tv_usec = 0;
-  wTime.tv_sec = lwTime.tv_sec = cTime.tv_sec = 0;
-  wTime.tv_usec = lwTime.tv_usec = cTime.tv_usec = 0;
-  rCalls = wCalls = nFwdSeeks = nBwdSeeks = nXlFwdSeeks = nXlBwdSeeks = 0;
-  closeTime.tv_sec = closeTime.tv_usec = 0;
-  cacheITime.tv_sec = cacheITime.tv_usec = 0;
-  currentTime.tv_sec = openTime.tv_usec = 0;
-  openTime.tv_sec = openTime.tv_usec = 0;
-  totalBytes = 0;
-  msSleep = 0;
+  // Initialize FileStatistics structure using Reset method
+  mStats.Reset();
+  
+  // Initialize other non-FileStatistics members  
   mBandwidth = 0;
-  timeToOpen = 0;
-  timeToClose = 0;
-  timeToRead = 0;
-  timeToReadV = 0;
-  timeToWrite = 0;
   tz.tz_dsttime = tz.tz_minuteswest = 0;
   mIoPriorityValue = 0;
   mIoPriorityClass = IOPRIO_CLASS_NONE;
@@ -173,7 +157,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   int retc = SFS_OK;
   int envlen = 0;
   mNsPath = path;
-  gettimeofday(&openTime, &tz);
+  gettimeofday(&mStats.timing.file_open, &tz);
   bool hasCreationMode = (open_mode & (SFS_O_CREAT | SFS_O_TRUNC));
   bool isRepairRead = false;
   eos::common::VirtualIdentity vid;
@@ -280,16 +264,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   COMMONTIMING("end", &tm);
-  timeToOpen = tm.RealTime();
+  mStats.timing.open_duration = tm.RealTime();
 
   // Report slow open as errors if longer than 1000ms
-  if (timeToOpen > 1000) {
+  if (mStats.timing.open_duration > 1000) {
     eos_err("msg=\"slow open operation\" open-duration=%.03fms fxid=%08llx "
-            "path=\"%s\" %s", timeToOpen, mFileId, mNsPath.c_str(),
+            "path=\"%s\" %s", mStats.timing.open_duration, mFileId, mNsPath.c_str(),
             tm.Dump().c_str());
   }
 
-  eos_info("open-duration=%.03fms path=\"%s\" fxid=%08llx %s", timeToOpen,
+  eos_info("open-duration=%.03fms path=\"%s\" fxid=%08llx %s", mStats.timing.open_duration,
            mNsPath.c_str(), mFileId, tm.Dump().c_str());
 
   return SFS_OK;
@@ -316,7 +300,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   // ═══════════════════════════════════════════════════════════════════════════
   // Initialize Read Operation and Round-Robin Scheduling
   // ═══════════════════════════════════════════════════════════════════════════
-  gettimeofday(&rStart, &tz);
+  gettimeofday(&mStats.timing.read_start, &tz);
   
   // Configure round-robin scheduling for applications with specific scheduling requirements
   // This helps balance load across concurrent file operations for specific applications
@@ -341,7 +325,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   if (mTpcFlag == kTpcSrcRead) {
     // Periodically check if the TPC transfer is still valid (every 10 reads)
     // This helps detect client disconnections and prevents orphaned transfers
-    if (!(rCalls % 10)) {
+    if (!(mStats.operations.read_ops % 10)) {
       if (!TpcValid()) {
         eos_err("msg=\"tcp interrupted by control-c - cancel tcp read\" key=%s",
                 mTpcKey.c_str());
@@ -356,18 +340,18 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   // ═══════════════════════════════════════════════════════════════════════════
   if (mBandwidth) {
     // Calculate elapsed time since file open to implement bandwidth throttling
-    gettimeofday(&currentTime, &tz);
-    float abs_time = static_cast<float>((currentTime.tv_sec -
-                                         openTime.tv_sec) * 1000 +
-                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
+    gettimeofday(&mStats.timing.current, &tz);
+    float abs_time = static_cast<float>((mStats.timing.current.tv_sec -
+                                         mStats.timing.file_open.tv_sec) * 1000 +
+                                        (mStats.timing.current.tv_usec - mStats.timing.file_open.tv_usec) / 1000);
     
     // Calculate expected time based on bandwidth limit and total bytes transferred
-    float exp_time = totalBytes / mBandwidth / 1000.0;
+    float exp_time = mStats.bytes.total_io / mBandwidth / 1000.0;
 
     // Sleep to throttle I/O rate if we're transferring too fast
     if (abs_time < exp_time) {
-      msSleep += (exp_time - abs_time);
-      std::int64_t thisSleep = msSleep;
+      mStats.monitoring.sleep_ms += (exp_time - abs_time);
+      std::int64_t thisSleep = mStats.monitoring.sleep_ms;
       std::this_thread::sleep_for(std::chrono::milliseconds(thisSleep));
     }
   }
@@ -411,13 +395,13 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     // Collect read statistics for monitoring and performance analysis
     // Statistics are collected at entry servers and for RAIN layouts
     if (mLayout->IsEntryServer() || eos::common::LayoutId::IsRain(mLid)) {
-      XrdSysMutexHelper vecLock(vecMutex);
-      rvec.push_back(rc);
+      XrdSysMutexHelper vecLock(mStats.monitoring.vectors_mutex);
+      mStats.monitoring.read_sizes.push_back(rc);
     }
 
     // Update read position tracking and total byte counters
-    rOffset = fileOffset + rc;
-    totalBytes += rc;
+    mStats.position.read_offset = fileOffset + rc;
+    mStats.bytes.total_io += rc;
   }
 
   if (rc < 0) {
@@ -484,7 +468,7 @@ XrdSfsXferSize
 XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 {
   eos_debug("msg=\"readv request\" count=%i", readCount);
-  gettimeofday(&rvStart, &tz);
+  gettimeofday(&mStats.timing.readv_start, &tz);
   std::string output_init, output_final;
   auto print_readv_request = [](XrdOucIOVec * readv, int num_chunks) {
     std::ostringstream oss;
@@ -518,7 +502,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
   }
 
   int64_t rv = mLayout->ReadV(chunkList, total_read);
-  totalBytes += rv;
+  mStats.bytes.total_io += rv;
 
   if (EOS_LOGS_DEBUG) {
     output_final = print_readv_request(readV, readCount);
@@ -549,7 +533,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   // ═══════════════════════════════════════════════════════════════════════════
   // Initialize Write Operation and Handle Special Cases
   // ═══════════════════════════════════════════════════════════════════════════
-  gettimeofday(&wStart, &tz);
+  gettimeofday(&mStats.timing.write_start, &tz);
 
   // Simulate unresponsive behavior for testing scenarios
   if (gOFS.mSimUnresponsive) {
@@ -610,18 +594,18 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   // ═══════════════════════════════════════════════════════════════════════════
   if (mBandwidth) {
     // Calculate elapsed time since file open to implement bandwidth throttling
-    gettimeofday(&currentTime, &tz);
-    float abs_time = static_cast<float>((currentTime.tv_sec -
-                                         openTime.tv_sec) * 1000 +
-                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
+    gettimeofday(&mStats.timing.current, &tz);
+    float abs_time = static_cast<float>((mStats.timing.current.tv_sec -
+                                         mStats.timing.file_open.tv_sec) * 1000 +
+                                        (mStats.timing.current.tv_usec - mStats.timing.file_open.tv_usec) / 1000);
     
     // Calculate expected time based on bandwidth limit and total bytes transferred
-    float exp_time = totalBytes / mBandwidth / 1000.0;
+    float exp_time = mStats.bytes.total_io / mBandwidth / 1000.0;
 
     // Sleep to throttle I/O rate if we're transferring too fast
     if (abs_time < exp_time) {
-      msSleep += (exp_time - abs_time);
-      std::int64_t thisSleep = msSleep;
+      mStats.monitoring.sleep_ms += (exp_time - abs_time);
+      std::int64_t thisSleep = mStats.monitoring.sleep_ms;
       std::this_thread::sleep_for(std::chrono::milliseconds(thisSleep));
     }
   }
@@ -679,7 +663,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      static_cast<off_t>(fileOffset));
     }
 
-    totalBytes += rc;
+    mStats.bytes.total_io += rc;
 
     if (static_cast<unsigned long long>(fileOffset + buffer_size) >
         static_cast<unsigned long long>(mMaxOffsetWritten)) {
@@ -703,8 +687,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
     mHasWrite = true;
 
     if (mLayout->IsEntryServer() || mIsReplication) {
-      XrdSysMutexHelper lock(vecMutex);
-      wvec.push_back(rc);
+      XrdSysMutexHelper lock(mStats.monitoring.vectors_mutex);
+      mStats.monitoring.write_sizes.push_back(rc);
     }
   }
 
@@ -1032,7 +1016,7 @@ XrdFstOfsFile::close()
   // ═══════════════════════════════════════════════════════════════════════════
   // Initialize Close Operation and Handle Simulation
   // ═══════════════════════════════════════════════════════════════════════════
-  gettimeofday(&closeStart, &tz);
+  gettimeofday(&mStats.timing.file_close_start, &tz);
 
   // Simulate unresponsive behavior for testing scenarios
   if (gOFS.mSimUnresponsive) {
@@ -1142,23 +1126,23 @@ XrdFstOfsFile::_close()
     // stage actually uses the opaque info from kTpcSrcSetup and that's
     // why we also generate a report at this stage.
     XrdOucString report = "";
-    gettimeofday(&closeStop, &tz);
+    gettimeofday(&mStats.timing.file_close_stop, &tz);
     CloseTime();
-    gettimeofday(&closeTime, &tz);
+    gettimeofday(&mStats.timing.file_close, &tz);
 
     // if we were kept in a cache (e.g. HttpHandlerFstFileCache)
     // use the last time we put placed in the cache as the closetime
     // (as this was the last time the user sent a request) for the
     // purpose of the stats
-    if (cacheITime.tv_sec != 0) {
-      closeTime = cacheITime;
-      const unsigned long mus = timeToClose * 1000.0;
-      closeTime.tv_sec += (mus / 1000000);
-      closeTime.tv_usec += (mus % 1000000);
+    if (mStats.timing.cache_insert.tv_sec != 0) {
+      mStats.timing.file_close = mStats.timing.cache_insert;
+      const unsigned long mus = mStats.timing.close_duration * 1000.0;
+      mStats.timing.file_close.tv_sec += (mus / 1000000);
+      mStats.timing.file_close.tv_usec += (mus % 1000000);
 
-      if (closeTime.tv_usec >= 1000000) {
-        closeTime.tv_sec++;
-        closeTime.tv_usec -= 1000000;
+      if (mStats.timing.file_close.tv_usec >= 1000000) {
+        mStats.timing.file_close.tv_sec++;
+        mStats.timing.file_close.tv_usec -= 1000000;
       }
     }
 
@@ -1326,10 +1310,10 @@ XrdFstOfsFile::_close_wr()
   // any read errors or we read less then the full file size it means the
   // recovery failed. This can also be a side effect of a timeout.
   if (mRainReconstruct && mLayout->IsEntryServer()) {
-    if (mHasReadErr || (rOffset != mRainSize)) {
+    if (mHasReadErr || (mStats.position.read_offset != mRainSize)) {
       eos_warning("msg=\"failed RAIN reconstruct trigger delete on close\" "
                   "mHasReadErr=%i rd_off=%llu fsize=%llu fxid=%08llx",
-                  mHasReadErr, rOffset, mRainSize, mFileId);
+                  mHasReadErr, mStats.position.read_offset, mRainSize, mFileId);
       mDelOnClose = true;
     }
   }
@@ -1726,8 +1710,8 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
                        XrdSfsXferSize buffer_size)
 {
   //  EPNAME("read");
-  gettimeofday(&cTime, &tz);
-  rCalls++;
+  gettimeofday(&mStats.timing.current, &tz);
+  mStats.operations.read_ops++;
 
   if (!getenv("EOS_FST_NO_IOPRIORITY")) {
     if (ioprio_begin(IOPRIO_WHO_PROCESS, IOPRIO_PRIO_VALUE(mIoPriorityClass,
@@ -1764,30 +1748,30 @@ XrdFstOfsFile::readofs(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   // Account seeks for monitoring
-  if (rOffset != static_cast<unsigned long long>(fileOffset)) {
-    if (rOffset < static_cast<unsigned long long>(fileOffset)) {
-      nFwdSeeks++;
-      sFwdBytes += (fileOffset - rOffset);
+  if (mStats.position.read_offset != static_cast<unsigned long long>(fileOffset)) {
+    if (mStats.position.read_offset < static_cast<unsigned long long>(fileOffset)) {
+      mStats.operations.seek_forward_ops++;
+      mStats.bytes.seek_forward += (fileOffset - mStats.position.read_offset);
     } else {
-      nBwdSeeks++;
-      sBwdBytes += (rOffset - fileOffset);
+      mStats.operations.seek_backward_ops++;
+      mStats.bytes.seek_backward += (mStats.position.read_offset - fileOffset);
     }
 
-    if ((rOffset + (EOS_FSTOFS_LARGE_SEEKS)) < (static_cast<unsigned long long>
+    if ((mStats.position.read_offset + (EOS_FSTOFS_LARGE_SEEKS)) < (static_cast<unsigned long long>
         (fileOffset))) {
-      sXlFwdBytes += (fileOffset - rOffset);
-      nXlFwdSeeks++;
+      mStats.bytes.seek_forward_large += (fileOffset - mStats.position.read_offset);
+      mStats.operations.seek_forward_large_ops++;
     }
 
-    if ((static_cast<unsigned long long>(rOffset) > (EOS_FSTOFS_LARGE_SEEKS)) &&
-        (rOffset - (EOS_FSTOFS_LARGE_SEEKS)) > (static_cast<unsigned long long>
+    if ((static_cast<unsigned long long>(mStats.position.read_offset) > (EOS_FSTOFS_LARGE_SEEKS)) &&
+        (mStats.position.read_offset - (EOS_FSTOFS_LARGE_SEEKS)) > (static_cast<unsigned long long>
             (fileOffset))) {
-      sXlBwdBytes += (rOffset - fileOffset);
-      nXlBwdSeeks++;
+      mStats.bytes.seek_backward_large += (mStats.position.read_offset - fileOffset);
+      mStats.operations.seek_backward_large_ops++;
     }
   }
 
-  gettimeofday(&lrTime, &tz);
+  gettimeofday(&mStats.timing.read_last, &tz);
   AddReadTime();
   return rc;
 }
@@ -1799,21 +1783,21 @@ XrdSfsXferSize
 XrdFstOfsFile::readvofs(XrdOucIOVec* readV, uint32_t readCount)
 {
   eos_debug("read count=%i", readCount);
-  gettimeofday(&cTime, &tz);
+  gettimeofday(&mStats.timing.current, &tz);
   XrdSfsXferSize sz = XrdOfsFile::readv(readV, readCount);
-  gettimeofday(&lrvTime, &tz);
+  gettimeofday(&mStats.timing.readv_last, &tz);
   AddReadVTime();
 
   // Collect monitoring info only if sz is > 0
   if (sz > 0) {
-    XrdSysMutexHelper scope_lock(vecMutex);
+    XrdSysMutexHelper scope_lock(mStats.monitoring.vectors_mutex);
 
     for (uint32_t i = 0; i < readCount; ++i) {
-      monReadSingleBytes.push_back(readV[i].size);
+      mStats.monitoring.readv_single_sizes.push_back(readV[i].size);
     }
 
-    monReadvBytes.push_back(sz);
-    monReadvCount.push_back(readCount);
+    mStats.monitoring.readv_sizes.push_back(sz);
+    mStats.monitoring.readv_counts.push_back(readCount);
   }
 
   return sz;
@@ -1878,8 +1862,8 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
     }
   }
 
-  gettimeofday(&cTime, &tz);
-  wCalls++;
+  gettimeofday(&mStats.timing.current, &tz);
+  mStats.operations.write_ops++;
   int rc;
 
   if (!getenv("EOS_FST_NO_IOPRIORITY")) {
@@ -1914,34 +1898,34 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   // Account seeks for monitoring
-  if (wOffset != static_cast<unsigned long long>(fileOffset)) {
-    if (wOffset < static_cast<unsigned long long>(fileOffset)) {
-      nFwdSeeks++;
-      sFwdBytes += (fileOffset - wOffset);
+  if (mStats.position.write_offset != static_cast<unsigned long long>(fileOffset)) {
+    if (mStats.position.write_offset < static_cast<unsigned long long>(fileOffset)) {
+      mStats.operations.seek_forward_ops++;
+      mStats.bytes.seek_forward += (fileOffset - mStats.position.write_offset);
     } else {
-      nBwdSeeks++;
-      sBwdBytes += (wOffset - fileOffset);
+      mStats.operations.seek_backward_ops++;
+      mStats.bytes.seek_backward += (mStats.position.write_offset - fileOffset);
     }
 
-    if ((wOffset + (EOS_FSTOFS_LARGE_SEEKS)) < (static_cast<unsigned long long>
+    if ((mStats.position.write_offset + (EOS_FSTOFS_LARGE_SEEKS)) < (static_cast<unsigned long long>
         (fileOffset))) {
-      sXlFwdBytes += (fileOffset - wOffset);
-      nXlFwdSeeks++;
+      mStats.bytes.seek_forward_large += (fileOffset - mStats.position.write_offset);
+      mStats.operations.seek_forward_large_ops++;
     }
 
-    if ((static_cast<unsigned long long>(wOffset) > (EOS_FSTOFS_LARGE_SEEKS)) &&
-        (wOffset - (EOS_FSTOFS_LARGE_SEEKS)) > (static_cast<unsigned long long>
+    if ((static_cast<unsigned long long>(mStats.position.write_offset) > (EOS_FSTOFS_LARGE_SEEKS)) &&
+        (mStats.position.write_offset - (EOS_FSTOFS_LARGE_SEEKS)) > (static_cast<unsigned long long>
             (fileOffset))) {
-      sXlBwdBytes += (wOffset - fileOffset);
-      nXlBwdSeeks++;
+      mStats.bytes.seek_backward_large += (mStats.position.write_offset - fileOffset);
+      mStats.operations.seek_backward_large_ops++;
     }
   }
 
   if (rc > 0) {
-    wOffset = fileOffset + rc;
+    mStats.position.write_offset = fileOffset + rc;
   }
 
-  gettimeofday(&lwTime, &tz);
+  gettimeofday(&mStats.timing.write_last, &tz);
   AddWriteTime();
   return rc;
 }
@@ -2630,9 +2614,9 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
 void
 XrdFstOfsFile::CloseTime()
 {
-  unsigned long mus = (closeStop.tv_sec - closeStart.tv_sec) * 1000000 +
-                      (closeStop.tv_usec - closeStart.tv_usec);
-  timeToClose = mus / 1000.0;
+  unsigned long mus = (mStats.timing.file_close_stop.tv_sec - mStats.timing.file_close_start.tv_sec) * 1000000 +
+                      (mStats.timing.file_close_stop.tv_usec - mStats.timing.file_close_start.tv_usec);
+  mStats.timing.close_duration = mus / 1000.0;
 }
 //------------------------------------------------------------------------------
 // Account for total read time
@@ -2640,10 +2624,10 @@ XrdFstOfsFile::CloseTime()
 void
 XrdFstOfsFile::AddReadTime()
 {
-  unsigned long mus = (lrTime.tv_sec - cTime.tv_sec) * 1000000 +
-                      (lrTime.tv_usec - cTime.tv_usec);
-  rTime.tv_sec += (mus / 1000000);
-  rTime.tv_usec += (mus % 1000000);
+  unsigned long mus = (mStats.timing.read_last.tv_sec - mStats.timing.current.tv_sec) * 1000000 +
+                      (mStats.timing.read_last.tv_usec - mStats.timing.current.tv_usec);
+  mStats.timing.read_total.tv_sec += (mus / 1000000);
+  mStats.timing.read_total.tv_usec += (mus % 1000000);
 }
 
 void
@@ -2651,8 +2635,8 @@ XrdFstOfsFile::AddLayoutReadTime()
 {
   struct timeval nowtime;
   gettimeofday(&nowtime, &tz);
-  timeToRead += ((nowtime.tv_sec - rStart.tv_sec) * 1000) + ((
-                  nowtime.tv_usec - rStart.tv_usec) / 1000.0);
+  mStats.timing.read_duration += ((nowtime.tv_sec - mStats.timing.read_start.tv_sec) * 1000) + ((
+                  nowtime.tv_usec - mStats.timing.read_start.tv_usec) / 1000.0);
 }
 
 //------------------------------------------------------------------------------
@@ -2661,10 +2645,10 @@ XrdFstOfsFile::AddLayoutReadTime()
 void
 XrdFstOfsFile::AddReadVTime()
 {
-  unsigned long mus = (lrvTime.tv_sec - cTime.tv_sec) * 1000000 +
-                      (lrvTime.tv_usec - cTime.tv_usec);
-  rvTime.tv_sec += (mus / 1000000);
-  rvTime.tv_usec += (mus % 1000000);
+  unsigned long mus = (mStats.timing.readv_last.tv_sec - mStats.timing.current.tv_sec) * 1000000 +
+                      (mStats.timing.readv_last.tv_usec - mStats.timing.current.tv_usec);
+  mStats.timing.readv_total.tv_sec += (mus / 1000000);
+  mStats.timing.readv_total.tv_usec += (mus % 1000000);
 }
 
 void
@@ -2672,8 +2656,8 @@ XrdFstOfsFile::AddLayoutReadVTime()
 {
   struct timeval nowtime;
   gettimeofday(&nowtime, &tz);
-  timeToReadV += ((nowtime.tv_sec - rvStart.tv_sec) * 1000) + ((
-                   nowtime.tv_usec - rvStart.tv_usec) / 1000.0);
+  mStats.timing.readv_duration += ((nowtime.tv_sec - mStats.timing.readv_start.tv_sec) * 1000) + ((
+                   nowtime.tv_usec - mStats.timing.readv_start.tv_usec) / 1000.0);
 }
 
 //------------------------------------------------------------------------------
@@ -2682,10 +2666,10 @@ XrdFstOfsFile::AddLayoutReadVTime()
 void
 XrdFstOfsFile::AddWriteTime()
 {
-  unsigned long mus = ((lwTime.tv_sec - cTime.tv_sec) * 1000000) +
-                      lwTime.tv_usec - cTime.tv_usec;
-  wTime.tv_sec += (mus / 1000000);
-  wTime.tv_usec += (mus % 1000000);
+  unsigned long mus = ((mStats.timing.write_last.tv_sec - mStats.timing.current.tv_sec) * 1000000) +
+                      mStats.timing.write_last.tv_usec - mStats.timing.current.tv_usec;
+  mStats.timing.write_total.tv_sec += (mus / 1000000);
+  mStats.timing.write_total.tv_usec += (mus % 1000000);
 }
 
 void
@@ -2693,8 +2677,8 @@ XrdFstOfsFile::AddLayoutWriteTime()
 {
   struct timeval nowtime;
   gettimeofday(&nowtime, &tz);
-  timeToWrite += ((nowtime.tv_sec - wStart.tv_sec) * 1000) + ((
-                   nowtime.tv_usec - wStart.tv_usec) / 1000.0);
+  mStats.timing.write_duration += ((nowtime.tv_sec - mStats.timing.write_start.tv_sec) * 1000) + ((
+                   nowtime.tv_usec - mStats.timing.write_start.tv_usec) / 1000.0);
 }
 
 //------------------------------------------------------------------------------
@@ -2712,21 +2696,21 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
   double rsigma, rvsigma, rssigma, rcsigma, wsigma;
   bool ioprio_default = false;
   {
-    XrdSysMutexHelper vecLock(vecMutex);
-    ComputeStatistics(rvec, rmin, rmax, rsum, rsigma);
-    ComputeStatistics(wvec, wmin, wmax, wsum, wsigma);
-    ComputeStatistics(monReadvBytes, rvmin, rvmax, rvsum, rvsigma);
-    ComputeStatistics(monReadSingleBytes, rsmin, rsmax, rssum, rssigma);
-    ComputeStatistics(monReadvCount, rcmin, rcmax, rcsum, rcsigma);
+    XrdSysMutexHelper vecLock(mStats.monitoring.vectors_mutex);
+    ComputeStatistics(mStats.monitoring.read_sizes, rmin, rmax, rsum, rsigma);
+    ComputeStatistics(mStats.monitoring.write_sizes, wmin, wmax, wsum, wsigma);
+    ComputeStatistics(mStats.monitoring.readv_sizes, rvmin, rvmax, rvsum, rvsigma);
+    ComputeStatistics(mStats.monitoring.readv_single_sizes, rsmin, rsmax, rssum, rssigma);
+    ComputeStatistics(mStats.monitoring.readv_counts, rcmin, rcmax, rcsum, rcsigma);
     bool sec_tpc = ((mTpcFlag == kTpcDstSetup) || (mTpcFlag == kTpcSrcRead));
     char report[16384];
-    float iot = (float)(((closeTime.tv_sec - openTime.tv_sec) * 1000.0) + ((
-                          closeTime.tv_usec - openTime.tv_usec) / 1000.0));
-    float rt = ((rTime.tv_sec * 1000.0) + (rTime.tv_usec / 1000.0));
-    float rvt = ((rvTime.tv_sec * 1000.0) + (rvTime.tv_usec / 1000.0));
-    float wt = ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0));
-    float idt = iot - timeToOpen - timeToClose - timeToRead - timeToReadV -
-                timeToWrite;
+    float iot = (float)(((mStats.timing.file_close.tv_sec - mStats.timing.file_open.tv_sec) * 1000.0) + ((
+                          mStats.timing.file_close.tv_usec - mStats.timing.file_open.tv_usec) / 1000.0));
+    float rt = ((mStats.timing.read_total.tv_sec * 1000.0) + (mStats.timing.read_total.tv_usec / 1000.0));
+    float rvt = ((mStats.timing.readv_total.tv_sec * 1000.0) + (mStats.timing.readv_total.tv_usec / 1000.0));
+    float wt = ((mStats.timing.write_total.tv_sec * 1000.0) + (mStats.timing.write_total.tv_usec / 1000.0));
+    float idt = iot - mStats.timing.open_duration - mStats.timing.close_duration - mStats.timing.read_duration - mStats.timing.readv_duration -
+                mStats.timing.write_duration;
     float usage = 100.0 - (100.0 * idt / iot);
 
     if (rmin == 0xffffffff) {
@@ -2768,33 +2752,33 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , mFstPath.c_str()
              , this->vid.uid, this->vid.gid, mTident.c_str()
              , gOFS.mHostName, mLid, mFileId, mFsId
-             , openTime.tv_sec, (unsigned long) openTime.tv_usec / 1000
-             , closeTime.tv_sec, (unsigned long) closeTime.tv_usec / 1000
-             , rCalls, wCalls
+             , mStats.timing.file_open.tv_sec, (unsigned long) mStats.timing.file_open.tv_usec / 1000
+             , mStats.timing.file_close.tv_sec, (unsigned long) mStats.timing.file_close.tv_usec / 1000
+             , mStats.operations.read_ops, mStats.operations.write_ops
              , rsum, rmin, rmax, rsigma
-             , (unsigned long long)monReadvBytes.size(), rvmin, rvmax, rvsum, rvsigma
-             , (unsigned long long)monReadSingleBytes.size(), rsmin, rsmax, rssum, rssigma
+             , (unsigned long long)mStats.monitoring.readv_sizes.size(), rvmin, rvmax, rvsum, rvsigma
+             , (unsigned long long)mStats.monitoring.readv_single_sizes.size(), rsmin, rsmax, rssum, rssigma
              , rcmin, rcmax, rcsum, rcsigma
              , wsum
              , wmin
              , wmax
              , wsigma
-             , sFwdBytes
-             , sBwdBytes
-             , sXlFwdBytes
-             , sXlBwdBytes
-             , nFwdSeeks
-             , nBwdSeeks
-             , nXlFwdSeeks
-             , nXlBwdSeeks
+             , mStats.bytes.seek_forward
+             , mStats.bytes.seek_backward
+             , mStats.bytes.seek_forward_large
+             , mStats.bytes.seek_backward_large
+             , mStats.operations.seek_forward_ops
+             , mStats.operations.seek_backward_ops
+             , mStats.operations.seek_forward_large_ops
+             , mStats.operations.seek_backward_large_ops
              , usage
              , iot
              , idt
-             , timeToRead
-             , timeToReadV
-             , timeToWrite
-             , timeToOpen
-             , timeToClose
+             , mStats.timing.read_duration
+             , mStats.timing.readv_duration
+             , mStats.timing.write_duration
+             , mStats.timing.open_duration
+             , mStats.timing.close_duration
              , rt
              , rvt
              , wt
@@ -2805,7 +2789,7 @@ XrdFstOfsFile::MakeReportEnv(XrdOucString& reportString)
              , mIoPriorityValue
              , ioprio_default
              , mBandwidth
-             , msSleep
+             , mStats.monitoring.sleep_ms
              , mHasReadErr
              , mHasWriteErr
              , eos::common::SecEntity::ToEnv(mSecString.c_str(),
@@ -2934,7 +2918,7 @@ XrdFstOfsFile::VerifyChecksum()
     mCheckSum->Finalize();
 
     if (mCheckSum->NeedsRecalculation()) {
-      if ((!mIsRW) && ((sFwdBytes + sBwdBytes) ||
+      if ((!mIsRW) && ((mStats.bytes.seek_forward + mStats.bytes.seek_backward) ||
                        (mCheckSum->GetMaxOffset() != mOpenSize))) {
         // We don't rescan files if they are read non-sequential or only
         // partially

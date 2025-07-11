@@ -65,6 +65,124 @@ EOSFSTNAMESPACE_BEGIN;
 class Layout;
 class CheckSum;
 
+//------------------------------------------------------------------------------
+//! Structure to organize file I/O statistics and monitoring data
+//! with consistent naming conventions
+//------------------------------------------------------------------------------
+struct FileStatistics {
+  //============================================================================
+  // Timing Information
+  //============================================================================
+  struct {
+    struct timeval file_open;       ///< Time when file was opened
+    struct timeval file_close_start; ///< Time when file close started  
+    struct timeval file_close_stop;  ///< Time when file close stopped
+    struct timeval file_close;      ///< Time when file was closed
+    struct timeval cache_insert;    ///< Time when object was put into cache
+    struct timeval current;         ///< Current time during operations
+    
+    // Operation start times
+    struct timeval read_start;       ///< Start of last read operation
+    struct timeval readv_start;      ///< Start of last readv operation  
+    struct timeval write_start;      ///< Start of last write operation
+    
+    // Last operation completion times
+    struct timeval read_last;        ///< Last read completion time
+    struct timeval readv_last;       ///< Last readv completion time
+    struct timeval write_last;       ///< Last write completion time
+    
+    // Cumulative operation times
+    struct timeval read_total;       ///< Sum time to serve read requests
+    struct timeval readv_total;      ///< Sum time to serve readv requests
+    struct timeval write_total;      ///< Sum time to serve write requests
+    
+    // High-level operation durations
+    double open_duration;            ///< Time the open call took
+    double close_duration;           ///< Time the close call took
+    double read_duration;            ///< Time of all layout reads
+    double readv_duration;           ///< Time of all layout readvs
+    double write_duration;           ///< Time of all layout writes
+  } timing;
+  
+  //============================================================================
+  // Byte Counters
+  //============================================================================
+  struct {
+    unsigned long long total_io;     ///< Total bytes for all I/O operations
+    unsigned long long read_total;   ///< Sum of all bytes read
+    unsigned long long write_total;  ///< Sum of all bytes written
+    
+    // Seek statistics
+    unsigned long long seek_forward;    ///< Sum bytes seeked forward
+    unsigned long long seek_backward;   ///< Sum bytes seeked backward  
+    unsigned long long seek_forward_large; ///< Sum bytes with large forward seeks
+    unsigned long long seek_backward_large; ///< Sum bytes with large backward seeks
+  } bytes;
+  
+  //============================================================================
+  // Operation Call Counters
+  //============================================================================
+  struct {
+    unsigned long read_ops;          ///< Number of read calls
+    unsigned long write_ops;         ///< Number of write calls
+    unsigned long seek_forward_ops;  ///< Number of forward seeks
+    unsigned long seek_backward_ops; ///< Number of backward seeks
+    unsigned long seek_forward_large_ops; ///< Number of large forward seeks
+    unsigned long seek_backward_large_ops; ///< Number of large backward seeks
+  } operations;
+  
+  //============================================================================
+  // Position Tracking
+  //============================================================================
+  struct {
+    unsigned long long read_offset;  ///< Offset since last read operation
+    unsigned long long write_offset; ///< Offset since last write operation
+  } position;
+  
+  //============================================================================
+  // Performance Monitoring
+  //============================================================================
+  struct {
+    unsigned long long sleep_ms;     ///< Total milliseconds sleeping during I/O
+    
+    // Detailed operation size tracking for statistics computation
+    std::vector<unsigned long long> read_sizes;        ///< All read operation sizes
+    std::vector<unsigned long long> write_sizes;       ///< All write operation sizes
+    std::vector<unsigned long long> readv_sizes;       ///< All readv operation sizes
+    std::vector<unsigned long long> readv_single_sizes; ///< Individual read sizes within readv
+    std::vector<unsigned long> readv_counts;           ///< Number of reads per readv call
+    
+    XrdSysMutex vectors_mutex;       ///< Mutex protecting the size vectors
+  } monitoring;
+  
+  //============================================================================
+  // Constructors and utilities
+  //============================================================================
+  FileStatistics() { 
+    Reset();
+  }
+  
+  //! Reset all statistics to initial state
+  void Reset() {
+    // Initialize all timing structures to zero
+    memset(&timing, 0, sizeof(timing));
+    
+    // Initialize counters to zero
+    memset(&bytes, 0, sizeof(bytes));
+    memset(&operations, 0, sizeof(operations));  
+    memset(&position, 0, sizeof(position));
+    
+    // Initialize monitoring struct properly (contains non-trivial objects)
+    monitoring.sleep_ms = 0;
+    monitoring.read_sizes.clear();
+    monitoring.write_sizes.clear();
+    monitoring.readv_sizes.clear();
+    monitoring.readv_single_sizes.clear();
+    monitoring.readv_counts.clear();
+    // Mutex initializes itself properly via its default constructor
+  }
+};
+
 #if XrdMajorVNUM( XrdVNUMBER ) > 4
 #define XrdOfsFileBase XrdOfsFileFull
 #else
@@ -329,7 +447,7 @@ public:
   //----------------------------------------------------------------------------
   void OnCacheInsert()
   {
-    gettimeofday(&cacheITime, &tz);
+    gettimeofday(&mStats.timing.cache_insert, &tz);
   }
 
 private:
@@ -421,62 +539,15 @@ public:
   long long mWritePosition;
   long long mOpenSize; //! file size when the file was opened
   long long mCloseSize; //! file size when the file was closed
-  struct timeval openTime; //! time when a file was opened
-  struct timeval currentTime; //! time when a write occurs
-  unsigned long long totalBytes; //! total bytes IO
-  unsigned long long msSleep; //! total ms sleeping during io
-  struct timeval closeTime; //! time when a file was closed
-  struct timeval closeStart; //! time when a file close started
-  struct timeval closeStop; //! time when a file close stopped
-  struct timeval cacheITime; //! time when object was put into a cache
   struct timezone tz; //! timezone
   int mBandwidth; //! bandwidth limitation setting
-  XrdSysMutex vecMutex; //! mutex protecting the rvec/wvec variables
-  //! vector with all read  sizes -> to compute sigma,min,max,total
-  std::vector<unsigned long long> rvec;
-  //! vector with all write sizes -> to compute sigma,min,max,total
-  std::vector<unsigned long long> wvec;
-  unsigned long long rBytes; //! sum bytes read
-  unsigned long long wBytes; //! sum bytes written
-  unsigned long long sFwdBytes; //! sum bytes seeked forward
-  unsigned long long sBwdBytes; //! sum bytes seeked backward
-  //! sum bytes with large forward seeks (> EOS_FSTOFS_LARGE_SEEKS)
-  unsigned long long sXlFwdBytes;
-  //! sum bytes with large backward seeks (> EOS_FSTOFS_LARGE_SEEKS)
-  unsigned long long sXlBwdBytes;
-  unsigned long rCalls; //! number of read calls
-  unsigned long wCalls; //! number of write calls
-  unsigned long nFwdSeeks; //! number of seeks forward
-  unsigned long nBwdSeeks; //! number of seeks backward
-  unsigned long nXlFwdSeeks; //! number of seeks forward
-  unsigned long nXlBwdSeeks; //! number of seeks backward
-  unsigned long long rOffset; //! offset since last read operation on this file
-  unsigned long long wOffset; //! offset since last write operation on this file
-  //! Vector with all readv sizes -> to compute min,max,etc.
-  std::vector<unsigned long long> monReadvBytes;
-  //! Size of each read call coming from readv requests -> to compute min,max, etc.
-  std::vector<unsigned long long> monReadSingleBytes;
-  //! Number of individual read op. in each readv call -> to compute min,max, etc.
-  std::vector<unsigned long> monReadvCount;
-
-  struct timeval cTime; ///< current time
-  struct timeval rStart; ///< start of last read (layout)
-  struct timeval rvStart; ///< start of last readv (layout)
-  struct timeval wStart; ///< start of last read (layout)
-  struct timeval lrTime; ///< last read time
-  struct timeval lrvTime; ///< last readv time
-  struct timeval lwTime; ///< last write time
-  struct timeval rTime; ///< sum time to serve read requests in ms
-  struct timeval rvTime; ///< sum time to server readv requests in ms
-  struct timeval wTime; ///< sum time to serve write requests in ms
   //! Stat struct to check if a file is updated between open-close
   struct stat updateStat;
 
-  double timeToOpen; ///< time the open call took
-  double timeToClose; ///< time the close call took
-  double timeToRead; ///< time of all layout reads
-  double timeToReadV; ///< time of all layout readvs
-  double timeToWrite; ///< time of all layout writes
+  //============================================================================
+  //! Organized file I/O statistics and monitoring data
+  //============================================================================
+  FileStatistics mStats;
   //! TPC related types and variables
   enum TpcType_t {
     kTpcNone = 0, ///< No TPC access
