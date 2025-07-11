@@ -25,6 +25,7 @@
 #pragma once
 #include "fst/layout/Layout.hh"
 #include "fst/layout/RainGroup.hh"
+#include "fst/checksum/Adler.hh"
 #include "common/AssistedThread.hh"
 #include "common/ConcurrentQueue.hh"
 #include <vector>
@@ -274,6 +275,7 @@ protected:
   unsigned int mNbDataBlocks; ///< no. data blocks in a group
   unsigned int mNbTotalBlocks; ///< no. data and parity blocks in a group
   uint64_t mLastWriteOffset; ///< offset of the last write request
+  uint64_t mStripeSize; ///< current size of the stripe (header + data)
   uint64_t mStripeWidth; ///< stripe width
   uint64_t mSizeHeader; ///< size of header = 4KB
   uint64_t mFileSize; ///< total size of current file
@@ -293,8 +295,7 @@ protected:
   mutable std::mutex mMutexGroups;
   std::condition_variable mCvGroups;
   std::map<uint64_t, std::shared_ptr<eos::fst::RainGroup>> mMapGroups;
-  //! Checksum of the stripe
-  std::unique_ptr<eos::fst::CheckSum> mStripeChecksum;
+  std::unique_ptr<eos::fst::Adler> mStripeChecksum; //< Checksum of the stripe
 
   //----------------------------------------------------------------------------
   //! Get group corresponding to the given offset or create one if it doesn't
@@ -442,6 +443,18 @@ protected:
   //----------------------------------------------------------------------------
   virtual uint64_t GetGlobalOff(int stripe_id, uint64_t local_off) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Add the data contained in the buffer to the stripe checksum.
+  //! The function takes in consideration the fact that the buffer might
+  //! contain the header, that is then skipped and not added to the
+  //! stripe checksum.
+  //!
+  //! @param buffer buffer containing the data
+  //! @param size size of the buffer
+  //! @param file_offset offset in the file
+  //----------------------------------------------------------------------------
+  void AddDataToStripeChecksum(char* buffer, size_t size, size_t file_offset);
+
 private:
   //----------------------------------------------------------------------------
   //! Disable copy/move assign/constructor operators
@@ -560,6 +573,7 @@ private:
   std::set<uint64_t> mRecoveredGrpIndx;
   //! Mutex protecting the set of recovered groups
   std::mutex mMtxRecoveredGrps;
+  bool mIsTruncated; ///< flag indicating that the file has been truncated
 };
 
 EOSFSTNAMESPACE_END
