@@ -980,7 +980,8 @@ public:
                                   const XrdSecEntity* client,
                                   const char* tident,
                                   const char* epname,
-                                  int& envlen);
+                                  int& envlen,
+                                  eos::common::Timing& tm);
 
   //----------------------------------------------------------------------------
   //! Handle file existence check and creation logic
@@ -998,7 +999,8 @@ public:
                                      bool hasCreationMode,
                                      const char* epname,
                                      int& envlen,
-                                     OpenFileTracker::CreationBarrier& creationSerialization);
+                                     OpenFileTracker::CreationBarrier& creationSerialization,
+                                     eos::common::Timing& tm);
 
   //----------------------------------------------------------------------------
   //! Validate capability permissions and extract parameters
@@ -1018,7 +1020,8 @@ public:
   //!
   //! @return 0 if successful, otherwise error code
   //----------------------------------------------------------------------------
-  int HandleCloneOperations(XrdSfsFileOpenMode open_mode);
+  int HandleCloneOperations(XrdSfsFileOpenMode open_mode,
+                             eos::common::Timing& tm);
 
   //----------------------------------------------------------------------------
   //! Open the layout implementation
@@ -1035,7 +1038,8 @@ public:
                                mode_t create_mode,
                                bool hasCreationMode,
                                const char* path,
-                               const char* epname);
+                               const char* epname,
+                               eos::common::Timing& tm);
 
   //----------------------------------------------------------------------------
   //! Get and synchronize file metadata (FMD)
@@ -1051,7 +1055,8 @@ public:
                              bool hasCreationMode,
                              const char* path,
                              const char* epname,
-                             eos::common::VirtualIdentity& vid);
+                             eos::common::VirtualIdentity& vid,
+                             eos::common::Timing& tm);
 
   //----------------------------------------------------------------------------
   //! Handle space management and file allocation
@@ -1064,7 +1069,8 @@ public:
   //----------------------------------------------------------------------------
   int HandleSpaceAndAllocation(bool hasCreationMode,
                                const char* path,
-                               const char* epname);
+                               const char* epname,
+                               eos::common::Timing& tm);
 
   //----------------------------------------------------------------------------
   //! Setup file size and checksum information
@@ -1084,7 +1090,8 @@ public:
   //! @return 0 if successful, otherwise error code
   //----------------------------------------------------------------------------
   int CreateFileIoAndSetAttributes(const char* path,
-                                   const char* epname);
+                                   const char* epname,
+                                   eos::common::Timing& tm);
 
   //----------------------------------------------------------------------------
   //! Finalize open operation with accounting and statistics

@@ -202,17 +202,12 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return retc;
   }
 
-  COMMONTIMING("path::print", &tm);
-  
   // ═══════════════════════════════════════════════════════════════════════════
   // Validate path access and create layout object
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = ValidatePathAndCreateLayout(path, client, tident, epname, envlen)) != SFS_OK) {
+  if ((retc = ValidatePathAndCreateLayout(path, client, tident, epname, envlen, tm)) != SFS_OK) {
     return retc;
   }
-
-  COMMONTIMING("creation::barrier", &tm);
-  COMMONTIMING("layout::exists", &tm);
   
   // ═══════════════════════════════════════════════════════════════════════════
   // Create thread-safe creation barrier for file synchronization
@@ -224,7 +219,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // ═══════════════════════════════════════════════════════════════════════════
   // Handle file existence and creation logic
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = HandleFileExistenceAndCreation(open_mode, create_mode, hasCreationMode, epname, envlen, creationSerialization)) != SFS_OK) {
+  if ((retc = HandleFileExistenceAndCreation(open_mode, create_mode, hasCreationMode, epname, envlen, creationSerialization, tm)) != SFS_OK) {
     return retc;
   }
 
@@ -235,45 +230,31 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return retc;
   }
 
-  COMMONTIMING("clone::fst", &tm);
-  
   // ═══════════════════════════════════════════════════════════════════════════
   // Handle clone operations (copy-on-write)
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = HandleCloneOperations(open_mode)) != SFS_OK) {
+  if ((retc = HandleCloneOperations(open_mode, tm)) != SFS_OK) {
     return retc;
   }
 
-  COMMONTIMING("layout::open", &tm);
-  COMMONTIMING("layout::opened", &tm);
-  
   // ═══════════════════════════════════════════════════════════════════════════
   // Open the layout implementation
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = OpenLayoutImplementation(open_mode, create_mode, hasCreationMode, path, epname)) != SFS_OK) {
+  if ((retc = OpenLayoutImplementation(open_mode, create_mode, hasCreationMode, path, epname, tm)) != SFS_OK) {
     return retc;
   }
 
-  COMMONTIMING("get::localfmd", &tm);
-  COMMONTIMING("resync::localfmd", &tm);
-  
   // ═══════════════════════════════════════════════════════════════════════════
   // Get and synchronize file metadata
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = GetAndSyncFileMetadata(isRepairRead, hasCreationMode, path, epname, vid)) != SFS_OK) {
+  if ((retc = GetAndSyncFileMetadata(isRepairRead, hasCreationMode, path, epname, vid, tm)) != SFS_OK) {
     return retc;
   }
 
-  COMMONTIMING("layout::stat", &tm);
-  COMMONTIMING("full::mutex", &tm);
-  COMMONTIMING("layout::fallocate", &tm);
-  COMMONTIMING("layout::fallocated", &tm);
-  COMMONTIMING("layout::stat", &tm);
-  
   // ═══════════════════════════════════════════════════════════════════════════
   // Handle space management and file allocation
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = HandleSpaceAndAllocation(hasCreationMode, path, epname)) != SFS_OK) {
+  if ((retc = HandleSpaceAndAllocation(hasCreationMode, path, epname, tm)) != SFS_OK) {
     return retc;
   }
 
@@ -284,24 +265,32 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     return retc;
   }
 
-  COMMONTIMING("fileio::object", &tm);
-  
   // ═══════════════════════════════════════════════════════════════════════════
   // Create file I/O object and set extended attributes
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = CreateFileIoAndSetAttributes(path, epname)) != SFS_OK) {
+  if ((retc = CreateFileIoAndSetAttributes(path, epname, tm)) != SFS_OK) {
     return retc;
   }
 
-  COMMONTIMING("open::accounting", &tm);
-  COMMONTIMING("end", &tm);
-  
   // ═══════════════════════════════════════════════════════════════════════════
   // Finalize open operation with accounting and statistics
   // ═══════════════════════════════════════════════════════════════════════════
   if ((retc = FinalizeOpenOperation(tm)) != SFS_OK) {
     return retc;
   }
+
+  COMMONTIMING("end", &tm);
+  timeToOpen = tm.RealTime();
+
+  // Report slow open as errors if longer than 1000ms
+  if (timeToOpen > 1000) {
+    eos_err("msg=\"slow open operation\" open-duration=%.03fms fxid=%08llx "
+            "path=\"%s\" %s", timeToOpen, mFileId, mNsPath.c_str(),
+            tm.Dump().c_str());
+  }
+
+  eos_info("open-duration=%.03fms path=\"%s\" fxid=%08llx %s", timeToOpen,
+           mNsPath.c_str(), mFileId, tm.Dump().c_str());
 
   return SFS_OK;
 }
@@ -4143,7 +4132,8 @@ XrdFstOfsFile::ValidatePathAndCreateLayout(const char* path,
                                            const XrdSecEntity* client,
                                            const char* tident,
                                            const char* epname,
-                                           int& envlen)
+                                           int& envlen,
+                                           eos::common::Timing& tm)
 {
   // ═══════════════════════════════════════════════════════════════════════════
   // Determine Read/Write Access Mode
@@ -4225,6 +4215,7 @@ XrdFstOfsFile::ValidatePathAndCreateLayout(const char* path,
     return SFS_OK;
   }
 
+  COMMONTIMING("path::print", &tm);
   return SFS_OK;
 }
 
@@ -4237,7 +4228,8 @@ XrdFstOfsFile::HandleFileExistenceAndCreation(XrdSfsFileOpenMode& open_mode,
                                               bool hasCreationMode,
                                               const char* epname,
                                               int& envlen,
-                                              OpenFileTracker::CreationBarrier& creationSerialization)
+                                              OpenFileTracker::CreationBarrier& creationSerialization,
+                                              eos::common::Timing& tm)
 {
   // ═══════════════════════════════════════════════════════════════════════════
   // Determine Read/Write Mode Based on Open Flags
@@ -4253,6 +4245,7 @@ XrdFstOfsFile::HandleFileExistenceAndCreation(XrdSfsFileOpenMode& open_mode,
   // ═══════════════════════════════════════════════════════════════════════════
   // Check File Existence
   // ═══════════════════════════════════════════════════════════════════════════
+  COMMONTIMING("layout::exists", &tm);
   int retc = mLayout->GetFileIo()->fileExists();
   
   if (retc) {
@@ -4458,8 +4451,10 @@ XrdFstOfsFile::ValidateCapabilityAndExtractParams(const char* path,
 // Handle clone operations (copy-on-write)
 //------------------------------------------------------------------------------
 int
-XrdFstOfsFile::HandleCloneOperations(XrdSfsFileOpenMode open_mode)
+XrdFstOfsFile::HandleCloneOperations(XrdSfsFileOpenMode open_mode,
+                                     eos::common::Timing& tm)
 {
+  COMMONTIMING("clone::fst", &tm);
   char* sCloneFST = mCapOpaque->Get("mgm.cloneFST");
   int clone_create_rc = 1;
 
@@ -4505,8 +4500,10 @@ XrdFstOfsFile::OpenLayoutImplementation(XrdSfsFileOpenMode open_mode,
                                         mode_t create_mode,
                                         bool hasCreationMode,
                                         const char* path,
-                                        const char* epname)
+                                        const char* epname,
+                                        eos::common::Timing& tm)
 {
+  COMMONTIMING("layout::open", &tm);
   char* val = nullptr;
   XrdOucString oss_opaque = "";
   oss_opaque += "&mgm.lid=";
@@ -4542,6 +4539,7 @@ XrdFstOfsFile::OpenLayoutImplementation(XrdSfsFileOpenMode open_mode,
            oss_opaque.c_str());
 
   int rc = mLayout->Open(open_mode, create_mode, oss_opaque.c_str());
+  COMMONTIMING("layout::opened", &tm);
 
   if (rc) {
     // If we have local errors in open we don't disable the filesystem -
@@ -4577,9 +4575,10 @@ XrdFstOfsFile::GetAndSyncFileMetadata(bool isRepairRead,
                                       bool hasCreationMode,
                                       const char* path,
                                       const char* epname,
-                                      eos::common::VirtualIdentity& vid)
+                                      eos::common::VirtualIdentity& vid,
+                                      eos::common::Timing& tm)
 {
-
+  COMMONTIMING("get::localfmd", &tm);
   mFmd = gOFS.mFmdHandler->LocalGetFmd(mFileId, mFsId, isRepairRead, mIsRW,
                                        vid.uid, vid.gid, mLid);
 
@@ -4602,6 +4601,8 @@ XrdFstOfsFile::GetAndSyncFileMetadata(bool isRepairRead,
       eos_err("msg=\"resync failed\" fsid=%u fxid=%08llx", mFsId, mFileId);
     }
   }
+  
+  COMMONTIMING("resync::localfmd", &tm);
 
   if (mFmd == nullptr) {
     eos_err("msg=\"no FMD record found\" fsid=%u fxid=%08llx", mFsId, mFileId);
@@ -4636,11 +4637,16 @@ XrdFstOfsFile::GetAndSyncFileMetadata(bool isRepairRead,
 int
 XrdFstOfsFile::HandleSpaceAndAllocation(bool hasCreationMode,
                                         const char* path,
-                                        const char* epname)
+                                        const char* epname,
+                                        eos::common::Timing& tm)
 {
+  COMMONTIMING("layout::stat", &tm);
   if (!mIsCreation && mIsReplication) {
     mLayout->Stat(&updateStat);
   }
+  
+  COMMONTIMING("full::mutex", &tm);
+  COMMONTIMING("layout::fallocate", &tm);
 
   if (mIsCreation && mBookingSize) {
     // Check if the file system is full
@@ -4667,6 +4673,7 @@ XrdFstOfsFile::HandleSpaceAndAllocation(bool hasCreationMode,
     }
 
     int rc = mLayout->Fallocate(mBookingSize);
+    COMMONTIMING("layout::fallocated", &tm);
 
     if (rc) {
       eos_crit("msg=\"file allocation failed\" fsid=%u fxid=%08llx retc=%d "
@@ -4696,6 +4703,7 @@ XrdFstOfsFile::HandleSpaceAndAllocation(bool hasCreationMode,
     gOFS.mFmdHandler->Commit(mFmd.get());
   }
 
+  COMMONTIMING("layout::stat", &tm);
   return SFS_OK;
 }
 
@@ -4754,8 +4762,10 @@ XrdFstOfsFile::SetupFileSizeAndChecksum(const char* epname)
 //------------------------------------------------------------------------------
 int
 XrdFstOfsFile::CreateFileIoAndSetAttributes(const char* path,
-                                            const char* epname)
+                                            const char* epname,
+                                            eos::common::Timing& tm)
 {
+  COMMONTIMING("fileio::object", &tm);
   // Set the eos lfn as extended attribute
   std::unique_ptr<FileIo> io
   (FileIoPlugin::GetIoObject(mLayout->GetLocalReplicaPath(), this));
@@ -4803,6 +4813,7 @@ XrdFstOfsFile::CreateFileIoAndSetAttributes(const char* path,
 int
 XrdFstOfsFile::FinalizeOpenOperation(eos::common::Timing& tm)
 {
+  COMMONTIMING("open::accounting", &tm);
   if (mIsRW) {
     gOFS.openedForWriting.up(mFsId, mFileId);
   } else {
@@ -4810,17 +4821,6 @@ XrdFstOfsFile::FinalizeOpenOperation(eos::common::Timing& tm)
   }
 
   mOpened = true;
-  timeToOpen = tm.RealTime();
-
-  // Report slow open as errors if longer than 1000ms
-  if (timeToOpen > 1000) {
-    eos_err("msg=\"slow open operation\" open-duration=%.03fms fxid=%08llx "
-            "path=\"%s\" %s", timeToOpen, mFileId, mNsPath.c_str(),
-            tm.Dump().c_str());
-  }
-
-  eos_info("open-duration=%.03fms path=\"%s\" fxid=%08llx %s", timeToOpen,
-           mNsPath.c_str(), mFileId, tm.Dump().c_str());
 
   return SFS_OK;
 }
