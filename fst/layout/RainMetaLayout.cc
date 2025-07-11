@@ -68,9 +68,11 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mNbDataBlocks(0),
   mNbTotalBlocks(0),
   mLastWriteOffset(0),
+  mStripeSize(0),
   mFileSize(0),
   mSizeLine(0),
-  mSizeGroup(0)
+  mSizeGroup(0),
+  mIsTruncated(false)
 {
   mStripeWidth = eos::common::LayoutId::GetBlocksize(lid);
   mNbTotalFiles = eos::common::LayoutId::GetStripeNumber(lid) + 1;
@@ -79,11 +81,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
-  //@note (esindril): Disabled until optimization for double checksum
-  // computation in close is done!
-  //mStripeChecksum = eos::fst::ChecksumPlugins::GetChecksumObject(
-  //                    eos::common::LayoutId::eChecksum::kAdler);
-  mStripeChecksum = nullptr;
+  mStripeChecksum = std::make_unique<eos::fst::Adler>();
 }
 
 //------------------------------------------------------------------------------
@@ -392,7 +390,7 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   }
 
   // Initialize stripe checksum
-  if (mIsRw && mStripeChecksum) {
+  if (mIsRw) {
     struct stat info;
     size_t blockSize = 0;
 
@@ -408,6 +406,8 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       } else {
         mStripeChecksum->SetDirty();
       }
+
+      mStripeSize = blockSize;
     }
   }
 
@@ -1023,6 +1023,34 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
   return (uint64_t)len;
 }
 
+
+void RainMetaLayout::AddDataToStripeChecksum(char* buffer, size_t size,
+    size_t stripe_offset)
+{
+  // In the stripe checksum computation the header part is removed.
+  // This means that the actual offset the checksum object is aware
+  // of, is actually the current file offset - size of the header.
+  //
+  // During the first write, the buffer can contain the header segment
+  // and this should be removed from the buffer.
+  if (stripe_offset < mSizeHeader) {
+    const size_t padding = mSizeHeader - stripe_offset;
+
+    if (size <= padding) {
+      // There is no data to give to the checksum obj
+      return;
+    }
+
+    buffer += padding;
+    size -= padding;
+    stripe_offset = padding > stripe_offset ? 0 : stripe_offset - padding;
+  } else {
+    stripe_offset -= mSizeHeader;
+  }
+
+  mStripeChecksum->Add(buffer, size, stripe_offset);
+}
+
 //------------------------------------------------------------------------------
 // Write to file
 //------------------------------------------------------------------------------
@@ -1046,14 +1074,9 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
     // Non-entry server doing only local operations
     if (mStripe[0]) {
       write_length = mStripe[0]->fileWrite(offset, buffer, length, mTimeout);
-
-      // the stripe checksum is only computed for the data part
-      // the header part is skipped
-      if (mStripeChecksum && (write_length > 0) &&
-          (offset >= (XrdSfsFileOffset)mSizeHeader)) {
-        mStripeChecksum->Add(buffer, write_length, offset - mSizeHeader);
-      }
-
+      AddDataToStripeChecksum((char*)buffer, write_length, offset);
+      mStripeSize = offset + (uint64_t)write_length < mStripeSize ? mStripeSize :
+                    offset + (uint64_t)write_length;
       mLastWriteOffset += length;
     }
   } else {
@@ -1123,8 +1146,10 @@ RainMetaLayout::Write(XrdSfsFileOffset offset,
 
       // we compute the stripe checksum only on the entry server
       // since for the other stripes this is computed by the other FSTs
-      if (physical_id == 0 && mStripeChecksum && off_local > mSizeHeader) {
-        mStripeChecksum->Add(buffer, nwrite, off_local - mSizeHeader);
+      if (physical_id == 0) {
+        AddDataToStripeChecksum((char*)buffer, nwrite, off_local);
+        mStripeSize = off_local + nwrite < mStripeSize ? mStripeSize : off_local +
+                      nwrite;
       }
 
       AddPiece(offset, nwrite);
@@ -1648,10 +1673,7 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   eos::common::Timing tm("truncate");
   COMMONTIMING("begin", &tm);
 
-  if (mStripeChecksum && ((XrdSfsFileOffset)mLastWriteOffset != offset)) {
-    // The Reset is needed since for checksums like adler,
-    // the dirty flag can be reset to false, when recomputing it.
-    // So, here we completely get rid of it.
+  if (truncate_offset < mStripeSize) {
     mStripeChecksum->Reset();
     mStripeChecksum->SetDirty();
   }
@@ -1693,6 +1715,8 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   eos_info("msg=\"done truncate\" %s", tm.Dump().c_str());
   // *!!!* Reset the mMaxOffsetWritten from XrdFstOfsFile to logical offset
   mFileSize = offset;
+  mStripeSize = truncate_offset;
+  mIsTruncated = true;
 
   if (!mIsPio) {
     mOfsFile->mMaxOffsetWritten = offset;
@@ -1703,11 +1727,22 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
 
 bool RainMetaLayout::PrepareStripeChecksum()
 {
-  if (!mStripeChecksum) {
-    return false;
+  // If the stripe file has been extended (using Truncate())
+  // we need to account this is the checksum calculation.
+  if (mIsTruncated &&
+      mStripeChecksum->GetLastOffset() + mSizeHeader < mStripeSize &&
+      !mStripeChecksum->NeedsRecalculation()) {
+    // If the file has been extended, the extended part is filled
+    // with 0s bytes, meaning that we need to add this extended part
+    // to the stripe checksum calculation.
+    const size_t buff_size = mStripeSize - mStripeChecksum->GetLastOffset() -
+                             mSizeHeader;
+    std::unique_ptr<char[]> buff = std::make_unique<char[]>(buff_size);
+    std::memset(buff.get(), 0, buff_size);
+    AddDataToStripeChecksum(buff.get(), buff_size,
+                            mStripeChecksum->GetLastOffset() + mSizeHeader);
   }
 
-  // Update unit checksum if it needs recalculation
   if (mStripeChecksum->NeedsRecalculation()) {
     eos_debug("msg=\"unit checksum needs recalculation\" fxid=%08llx",
               mOfsFile->GetFileId());
@@ -1717,8 +1752,9 @@ bool RainMetaLayout::PrepareStripeChecksum()
     if (mStripeChecksum->ScanFile(mOfsFile->GetFstPath().c_str(), scansize,
                                   scantime, 0, mSizeHeader)) {
       XrdOucString sizestring;
-      eos_info("msg=\"rescanned unit checksum\" fxid=%08llx size=%s time=%.02f ms rate=%.02f MB/s %s",
-               mOfsFile->GetFileId(), eos::common::StringConversion::GetReadableSizeString(
+      eos_info("msg=\"rescanned unit checksum\" path=%s fxid=%08llx size=%s time=%.02f ms rate=%.02f MB/s %s",
+               mLocalPath.c_str(), mOfsFile->GetFileId(),
+               eos::common::StringConversion::GetReadableSizeString(
                  sizestring,
                  scansize, "B"),
                scantime,
@@ -1727,11 +1763,12 @@ bool RainMetaLayout::PrepareStripeChecksum()
     } else {
       eos_err("msg=\"unit checksum rescanning failed\" fxid=%08llx",
               mOfsFile->GetFileId());
-      mStripeChecksum.reset(nullptr);
+      mStripeChecksum->Reset();
       return true;
     }
   } else {
     mStripeChecksum->Finalize();
+    eos_debug("msg=\"unit checksum finalized\" fxid=%08llx", mOfsFile->GetFileId());
   }
 
   return false;

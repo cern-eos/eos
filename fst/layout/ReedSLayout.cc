@@ -325,10 +325,9 @@ ReedSLayout::RecoverPiecesInGroup(XrdCl::ChunkList& grp_errs)
 
       // Add the data contained into the buffer to compute the
       // unit checksum, skipping the header
-      if (mStripeChecksum && offset_local >= mSizeHeader) {
-        mStripeChecksum->Add(data_blocks[stripe_id](), nwrite,
-                             offset_local - mSizeHeader);
-      }
+      AddDataToStripeChecksum(data_blocks[stripe_id](), nwrite, offset_local);
+      mStripeSize = offset_local + nwrite < mStripeSize ? mStripeSize : offset_local +
+                    nwrite;
     }
 
     // Write the correct block to the reading buffer, if it is not parity info
