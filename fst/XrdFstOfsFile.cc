@@ -215,9 +215,16 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   COMMONTIMING("layout::exists", &tm);
   
   // ═══════════════════════════════════════════════════════════════════════════
+  // Create thread-safe creation barrier for file synchronization
+  // ═══════════════════════════════════════════════════════════════════════════
+  COMMONTIMING("creation::barrier", &tm);
+  OpenFileTracker::CreationBarrier creationSerialization(gOFS.runningCreation,
+      mFsId, mFileId);
+  
+  // ═══════════════════════════════════════════════════════════════════════════
   // Handle file existence and creation logic
   // ═══════════════════════════════════════════════════════════════════════════
-  if ((retc = HandleFileExistenceAndCreation(open_mode, create_mode, hasCreationMode, epname, envlen)) != SFS_OK) {
+  if ((retc = HandleFileExistenceAndCreation(open_mode, create_mode, hasCreationMode, epname, envlen, creationSerialization)) != SFS_OK) {
     return retc;
   }
 
@@ -4229,7 +4236,8 @@ XrdFstOfsFile::HandleFileExistenceAndCreation(XrdSfsFileOpenMode& open_mode,
                                               mode_t& create_mode,
                                               bool hasCreationMode,
                                               const char* epname,
-                                              int& envlen)
+                                              int& envlen,
+                                              OpenFileTracker::CreationBarrier& creationSerialization)
 {
   // ═══════════════════════════════════════════════════════════════════════════
   // Determine Read/Write Mode Based on Open Flags
@@ -4239,11 +4247,8 @@ XrdFstOfsFile::HandleFileExistenceAndCreation(XrdSfsFileOpenMode& open_mode,
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // Setup Creation Barrier for Thread Safety
+  // Creation Barrier is now passed as parameter from main open() function
   // ═══════════════════════════════════════════════════════════════════════════
-  static thread_local std::unique_ptr<OpenFileTracker::CreationBarrier> creationSerialization;
-  creationSerialization = std::make_unique<OpenFileTracker::CreationBarrier>(
-    gOFS.runningCreation, mFsId, mFileId);
 
   // ═══════════════════════════════════════════════════════════════════════════
   // Check File Existence
@@ -4304,7 +4309,7 @@ XrdFstOfsFile::HandleFileExistenceAndCreation(XrdSfsFileOpenMode& open_mode,
   // Release Creation Barrier for Non-Creation Cases
   // ═══════════════════════════════════════════════════════════════════════════
   if (!mIsCreation) {
-    creationSerialization->Release();
+    creationSerialization.Release();
   }
 
   return SFS_OK;

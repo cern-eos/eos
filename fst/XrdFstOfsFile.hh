@@ -27,6 +27,7 @@
 #include "fst/storage/Storage.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/utils/TpcInfo.hh"
+#include "fst/utils/OpenFileTracker.hh"
 #include "common/Fmd.hh"
 #include "common/FileId.hh"
 #include "common/SymKeys.hh"
@@ -996,7 +997,8 @@ public:
                                      mode_t& create_mode,
                                      bool hasCreationMode,
                                      const char* epname,
-                                     int& envlen);
+                                     int& envlen,
+                                     OpenFileTracker::CreationBarrier& creationSerialization);
 
   //----------------------------------------------------------------------------
   //! Validate capability permissions and extract parameters
