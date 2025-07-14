@@ -56,6 +56,14 @@ ProcCommand::FileMDToStatus(std::shared_ptr<eos::IFileMD> fmd)
   }
 
   if (fmd->getNumLocation() == 0) {
+    if (fmd->getSize() == 0) {
+      return "healthy";
+    }
+
+    if (fmd->getNumUnlinkedLocation()) {
+      return "pending_deletion";
+    }
+
     return "locations::uncommitted";
   }
 
