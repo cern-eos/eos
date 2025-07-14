@@ -83,7 +83,7 @@ Storage::Verify()
     }
 
     mVerifyMutex.UnLock();
-    eos_static_debug("verifying File Id=%x on Fs=%u", verifyfile->fId,
+    eos_static_debug("msg=\"verifying file\" fxid=%08llx fsid=%u", verifyfile->fId,
                      verifyfile->fsId);
     // verify the file
     const std::string hex_fid = FileId::Fid2Hex(verifyfile->fId);
