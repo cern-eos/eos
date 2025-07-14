@@ -228,6 +228,7 @@ FsckEntry::RepairBestEffort()
     return false;
   }
 
+  eos_info("msg=\"attempt best effort repair\" fxid=%08llx", mFid);
   // Find the best replica candidate that should be considered the reference
   eos::common::FileSystem::fsid_t ref_fsid = 0ul;
   uint64_t ref_sz = 0ull;
@@ -1055,7 +1056,7 @@ FsckEntry::RepairReplicaInconsistencies()
         if (repair_job->GetStatus() != FsckRepairJob::Status::OK) {
           eos_err("msg=\"replica inconsistency repair failed\" fxid=%08llx "
                   "src_fsid=%lu", mFid, good_fsid);
-          return false;
+          return RepairBestEffort();
         } else {
           eos_info("msg=\"replica inconsistency repair successful\" fxid=%08llx "
                    "src_fsid=%lu", mFid, good_fsid);
