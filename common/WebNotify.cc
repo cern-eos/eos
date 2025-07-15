@@ -233,7 +233,8 @@ bool WebNotify::sendQClientNotification(const std::string& hostname, int port,
         QClient client{hostname, port, {}};
    
         // Send PUBLISH command
-	auto publish = client.exec(push?"RPUSH":"PUBLISH", channel, message);
+	std::string method = push ?"RPUSH":"PUBLISH";
+	auto publish = client.exec(method, channel, message);
 	qclient::redisReplyPtr reply = publish.get();
 	if (reply && reply->type == REDIS_REPLY_INTEGER && reply->integer != 0) {
 	  eos_static_debug("msg=\"published\" subscribers=%d", reply->integer);
