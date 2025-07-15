@@ -89,9 +89,9 @@ bool WebNotify::Notify(const std::string& protocol,
     if (protocol == "grpc")
       return notify.sendGrpcNotification(uri, message, timeoutMs);
     if (protocol == "redis")
-      return notify.sendQClientNotification(uri, port, channel, message, timeoutMs);
+      return notify.sendQClientNotification(uri, port, channel, message, timeoutMs, true);
     if (protocol == "qclient")
-      return notify.sendQClientNotification(uri, port, channel, message, timeoutMs);
+      return notify.sendQClientNotification(uri, port, channel, message, timeoutMs, false);
     if (protocol == "amq")
       return notify.sendActiveMQNotification(uri, channel, message, timeoutMs);
     eos_static_err("msg=\"unsupported notification protocol specified\" protocol=\"%s\"", protocol.c_str());
@@ -224,7 +224,8 @@ bool WebNotify::sendGrpcNotification(const std::string& target, const std::strin
 bool WebNotify::sendQClientNotification(const std::string& hostname, int port,
                                         const std::string& channel,
                                         const std::string& message,
-                                        int timeoutMs) {
+                                        int timeoutMs,
+					bool push) {
   using namespace qclient;
 
     try {
@@ -232,7 +233,7 @@ bool WebNotify::sendQClientNotification(const std::string& hostname, int port,
         QClient client{hostname, port, {}};
    
         // Send PUBLISH command
-	auto publish = client.exec("PUBLISH", channel, message);
+	auto publish = client.exec(push?"RPUSH":"PUBLISH", channel, message);
 	qclient::redisReplyPtr reply = publish.get();
 	if (reply && reply->type == REDIS_REPLY_INTEGER && reply->integer != 0) {
 	  eos_static_debug("msg=\"published\" subscribers=%d", reply->integer);

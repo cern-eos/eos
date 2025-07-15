@@ -3019,8 +3019,11 @@ Here are some example configurations:
      # HTTP notification - the port and path to do the POST is part of the <uri> tag, <port> & <queue> are empty
      eos attr set sys.workflow.closew.default=notify:http|localhost:5000/notify|||2000
 
-     # REDIS notification - the port is given as an extra argument
+     # REDIS pub/sub notification - the port is given as an extra argument
      eos attr set sys.workflow.closew.default=notify:qclient|localhost|6349|notification|2000
+
+     # REDIS rpush notification - the port is given as an extra argument
+     eos attr set sys.workflow.closew.default=notify:redis|localhost|6349|notification|2000
 
      # GRPC notification - the port is given as an extra argument, <queue> is empty
      eos attr set sys.workflow.closew.default=notify:grpc|localhost|55100||2000

@@ -58,7 +58,7 @@ public:
   bool sendHttpPostNotification(const std::string& url, const std::string& message, long timeoutMs = 2000);
   bool sendActiveMQNotification(const std::string& brokerURI, const std::string& queueName, const std::string& messageText, int timeoutMs = 2000);
   bool sendGrpcNotification(const std::string& target, const std::string& message, int timeoutMs = 2000);
-  bool sendQClientNotification(const std::string& hostname, int port, const std::string& channel, const std::string& message, int timeoutMs = 2000);
+  bool sendQClientNotification(const std::string& hostname, int port, const std::string& channel, const std::string& message, int timeoutMs = 2000, bool push=false);
   
 private:
 };
