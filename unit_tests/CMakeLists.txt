@@ -137,6 +137,7 @@ set(COMMON_UT_SRCS
   common/concurrency/RCUTests.cc
   common/RandTests.cc
   common/SciTokensTests.cc
+  common/WebNotifyTests.cc
 )
 
 set(FUSEX_UT_SRCS
