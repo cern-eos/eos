@@ -68,6 +68,7 @@ if(NOT PACKAGEONLY)
   find_package(libproc2)
   find_package(Scitokens REQUIRED)
   find_package(Protobuf3 REQUIRED)
+  find_package(ActiveMQCPP REQUIRED)
 
   if(NOT (PROCPS_FOUND OR LIBPROC2_FOUND))
     message(FATAL_ERROR "Could not find either procps 3.x or libproc2 (procps 4.x). "
@@ -174,4 +175,5 @@ else()
   add_library(JEMALLOC::JEMALLOC           INTERFACE IMPORTED)
   add_library(EosGrpcGateway::EosGrpcGateway INTERFACE IMPORTED)
   add_library(fmt::fmt-header-only         INTERFACE IMPORTED)
+  add_library(ActiveMQCPP::ActiveMQCPP     INTERFACE IMPORTED)
 endif()
