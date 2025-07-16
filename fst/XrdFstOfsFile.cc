@@ -2720,6 +2720,7 @@ XrdFstOfsFile::ProcessMixedOpaque()
   using eos::common::FileId;
   // Handle checksum request
   std::string opaqueCheckSum;
+  std::string opaqueCheckSumTypeReq;
   char* val = nullptr;
 
   if (mOpenOpaque == nullptr || mCapOpaque == nullptr) {
@@ -2734,8 +2735,18 @@ XrdFstOfsFile::ProcessMixedOpaque()
   // Call the checksum factory function with the selected layout
   if (opaqueCheckSum != "ignore") {
     mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObject(mLid);
-    eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\"",
-              mCheckSum.get(), mLid, opaqueCheckSum.c_str());
+    if(!opaqueCheckSum.empty() && (val = mOpenOpaque->Get("mgm.checksumtypereq"))) {
+      // the mgm.checksum has been set and the user requested a checksum type
+      opaqueCheckSumTypeReq = val;
+      mCheckSum = eos::fst::ChecksumPlugins::GetXsObj(opaqueCheckSumTypeReq);
+      if(!mCheckSum) {
+        // The checksum type was requested but does not exist, return an error to the client instead of copying the file without the checksum check
+        return gOFS.Emsg(epname, error, EINVAL,
+                         "open - the checksum type requested does not exist", opaqueCheckSumTypeReq.c_str());
+      }
+    }
+    eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\" mgm.checksumtypereq=\"%s\"",
+              mCheckSum.get(), mLid, opaqueCheckSum.c_str(), opaqueCheckSumTypeReq.c_str());
   }
 
   // Handle file system id and local prefix - If we open a replica we have to
