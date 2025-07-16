@@ -88,9 +88,8 @@ void QuotaCmd::LsuserSubcmd(const eos::console::QuotaProto_LsuserProto& lsuser,
     XrdOucErrInfo mError;
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf {};
-
     eos::common::Path cPath(space.c_str());
-    std::string sspace = cPath.GetPath(); 
+    std::string sspace = cPath.GetPath();
 
     if (sspace != "/" && sspace.back() != '/') {
       sspace += "/";
@@ -191,15 +190,14 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
   if (!space.empty()) {
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf {};
-    
     eos::common::Path cPath(space.c_str());
-    std::string sspace = cPath.GetPath(); 
+    std::string sspace = cPath.GetPath();
 
     if (sspace != "/" && sspace.back() != '/') {
       sspace += "/";
     }
 
-    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) { // @note no.01
+    if (!gOFS->_stat(sspace.c_str(), &buf, mError, mVid, nullptr)) {
       space = sspace;
     } else {
       if (ls.exists()) {
@@ -210,8 +208,9 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
     }
   }
 
-  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) ||
-      mVid.hasGid(eos::common::ADM_GID)) { // @note no.03 before 'vid' was used, using 'mVid' now
+  if ((!mVid.uid) ||
+      mVid.hasUid(eos::common::ADM_UID) ||
+      mVid.hasGid(eos::common::ADM_GID)) {
     // root and admin can set quota
     canQuota = true;
   } else {
@@ -315,8 +314,8 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf {};
     eos::common::Path cPath(space.c_str());
-    std::string sspace = cPath.GetPath(); 
- 
+    std::string sspace = cPath.GetPath();
+
     if (sspace != "/" && sspace.back() != '/') {
       sspace += "/";
     }
@@ -328,7 +327,8 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
 
   bool canQuota;
 
-  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) || mVid.hasGid(eos::common::ADM_GID)) { // @note no.03
+  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) ||
+      mVid.hasGid(eos::common::ADM_GID)) { // @note no.03
     // root and admin can set quota
     canQuota = true;
   } else {
@@ -415,24 +415,27 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
   {
     XrdOucString spath =
       space.c_str();
+
     if (spath.beginswith(Recycle::gRecyclingPrefix.c_str())) {
       if (mVid.isLocalhost()) {
-	std_err << "warning: better use 'recycle config --size' to modify the size of the recycle bin!\n";
-	if ( (id_type != Quota::IdT::kGid) ||
-	     (id != Quota::gProjectId ) ) {
-	  std_err << "warning: you have modified a user or group quota in the recycle bin, which is not the project quota - hopefully you know\
+        std_err <<
+                "warning: better use 'recycle config --size' to modify the size of the recycle bin!\n";
+
+        if ((id_type != Quota::IdT::kGid) ||
+            (id != Quota::gProjectId)) {
+          std_err <<
+                  "warning: you have modified a user or group quota in the recycle bin, which is not the project quota - hopefully you know\
  what you are doing!\n";
-	}
+        }
       } else {
-	std_err << "error: please use 'recycle config --size' to modify the size of the recycle bin!";
-	reply.set_retc(EINVAL);
-	reply.set_std_err(std_err.str());
-	return;
+        std_err <<
+                "error: please use 'recycle config --size' to modify the size of the recycle bin!";
+        reply.set_retc(EINVAL);
+        reply.set_std_err(std_err.str());
+        return;
       }
     }
   }
-
-  
   // Deal with volume quota
   unsigned long long size = eos::common::StringConversion::GetDataSizeFromString(
                               set.maxbytes());
@@ -444,7 +447,9 @@ void QuotaCmd::SetSubcmd(const eos::console::QuotaProto_SetProto& set,
   } else if (set.maxbytes().length()) {
     if (size < gOFS->getFuseBookingSize()) {
       reply.set_retc(EINVAL);
-      std_err << "error: the volume quota has to be offset by the minimum booking size for mounted filesystem acccess : min(quota) >> " << gOFS->getFuseBookingSize() << " bytes";
+      std_err <<
+              "error: the volume quota has to be offset by the minimum booking size for mounted filesystem acccess : min(quota) >> "
+              << gOFS->getFuseBookingSize() << " bytes";
       reply.set_std_err(std_err.str());
       return ;
     }
@@ -507,7 +512,7 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
     // evt. correct the space variable to be a directory path (+/)
     struct stat buf {};
     eos::common::Path cPath(space.c_str());
-    std::string sspace = cPath.GetPath(); 
+    std::string sspace = cPath.GetPath();
 
     if (sspace != "/" && sspace.back() != '/') {
       sspace += "/";
@@ -520,7 +525,8 @@ void QuotaCmd::RmSubcmd(const eos::console::QuotaProto_RmProto& rm,
 
   bool canQuota;
 
-  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) || mVid.hasGid(eos::common::ADM_GID)) { // @note no.02
+  if ((!mVid.uid) || mVid.hasUid(eos::common::ADM_UID) ||
+      mVid.hasGid(eos::common::ADM_GID)) { // @note no.02
     // root and admin can set quota
     canQuota = true;
   } else {
