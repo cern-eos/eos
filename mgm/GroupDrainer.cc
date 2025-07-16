@@ -407,7 +407,7 @@ GroupDrainer::Configure(const std::string& spaceName)
   }
 
   if (space == nullptr) {
-    eos_err("msg=\"No such space found\" space=%s", spaceName.c_str());
+    eos_err("msg=\"no such space found\" space=%s", spaceName.c_str());
     return false;
   }
 
