@@ -1274,7 +1274,7 @@ An example configuration who move the file to **flash** with a single replica la
 
 .. code-block:: bash
 
-   attr set sys.forced.space.policy.readconversion=flash:00650012
+   attr set sys.forced.readconversion=flash:00650012
 
 This can be combined with an **LRU** policy which moves files of certain sizes and access times to the **disk** tier.
 As a result you have a dynamic tiering setup where **active** files are on the **flash** space, while
@@ -1292,7 +1292,7 @@ files get updated there. Also this policy is defined on the parent directory via
 
 .. code-block:: bash
 
-   attr set sys.forced.space.policy.updateconversion=flash:00650012
+   attr set sys.forced.updateconversion=flash:00650012
 
 This can be again combined with an **LRU** policy which move certain files (based on size, extension, access time) to
 an erasure coded **disk** space.
