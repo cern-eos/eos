@@ -636,6 +636,34 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
+        if (!strcmp("protowfusegrpctls", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument for protowfusegrpctls is invalid. "
+                        "Must be <true>, <false>, <1> or <0>!");
+            NoGo = 1;
+          } else {
+            /* false already set when declared */
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              gConfig.protowfusegrpctls = true;
+            }
+
+            Eroute.Say("=====> fstofs.protowfusegrpctls : ", val);
+          }
+        }
+
+        if (!strcmp("jwttokenpath", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument 2 for JwtTokenPath missing. Should be "
+                        "an absolute path like /etc/grid-security/jwt-token-grpc");
+            NoGo = 1;
+          } else {
+              gConfig.JwtTokenPath = val;
+          }
+          Eroute.Say("=====> fstofs.jwttokenpath : ", val);
+        }
+
         if (!strcmp("metalog", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument 2 for metalog missing");
