@@ -1125,6 +1125,29 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             Eroute.Say("=====> mgmofs.protowfusegrpc : ", val);
           }
         }
+
+        if (!strcmp("jwttokenpath", var)) {
+          val = Config.GetWord();
+
+          if (val != nullptr) {
+            JwtTokenPath = val;
+          }
+          Eroute.Say("=====> mgmofs.jwttokenpath : ", val);
+        }
+      }
+
+      if (!strcmp("protowfusegrpctls", var)) {
+        if ((!(val = Config.GetWord())) ||
+            (strcmp("true", val) && strcmp("false", val) &&
+              strcmp("1", val) && strcmp("0", val))) {
+          Eroute.Emsg("Config", "argument for protowfusegrpctls is invalid. "
+                      "Must be <true>, <false>, <1> or <0>!");
+        } else {
+          /* false already set when declared */
+          if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+            protowfusegrpctls = true;
+          }
+        }
       }
 
       //Get the XrdHttp server port number
@@ -1201,6 +1224,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     Config.Close();
+  }
+
+  if (protowfusegrpc) {
+    Eroute.Say("=====> mgmofs.protowfusegrpc : true");
+  } else {
+    Eroute.Say("=====> mgmofs.protowfusegrpc : false");
+  }
+  if (protowfusegrpctls) {
+    Eroute.Say("=====> mgmofs.protowfusegrpctls : true");
+  } else {
+    Eroute.Say("=====> mgmofs.protowfusegrpctls : false");
   }
 
   if (!mQdbContactDetails.members.empty() &&
