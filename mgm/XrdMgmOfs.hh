@@ -1775,6 +1775,7 @@ public:
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
   bool protowfusegrpc; ///< use xrootd/ssi or grpc to talk to CTA Frontend?
   std::string JwtTokenPath; ///< path to the JWT to be used for authenticating gRPC WFE calls to CTA Frontend
+  bool protowfusegrpctls; // use TLS encrypted connections or plaintext connections for grpc
 
   static XrdSysError* eDest; ///< error routing object
 

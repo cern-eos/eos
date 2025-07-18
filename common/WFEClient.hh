@@ -40,20 +40,28 @@ public:
 
 class WFEGrpcClient : public WFEClient {
 public:
-  WFEGrpcClient(const std::string& endpoint_str, std::optional<std::string> root_certs, const std::string& token_path_str) {
+  WFEGrpcClient(const std::string& endpoint_str, std::optional<std::string> root_certs, const std::string& token_path_str, bool protowfusegrpctls) {
     endpoint = endpoint_str;
     token_path = token_path_str;
+
+    std::shared_ptr<grpc::ChannelCredentials> credentials;
     grpc::SslCredentialsOptions ssl_options;
-    if (root_certs.has_value()) {
-      std::string root_certs_contents;
-      eos::common::StringConversion::LoadFileIntoString(root_certs.value().c_str(), root_certs_contents);
-      ssl_options.pem_root_certs = root_certs_contents;
+
+    if (protowfusegrpctls) {
+      if (root_certs.has_value()) {
+        std::string root_certs_contents;
+        eos::common::StringConversion::LoadFileIntoString(root_certs.value().c_str(), root_certs_contents);
+        ssl_options.pem_root_certs = root_certs_contents;
+      } else {
+        ssl_options.pem_root_certs = "";
+      }
+      eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str());
+      credentials = grpc::SslCredentials(ssl_options);
     } else {
-      ssl_options.pem_root_certs = "";
+      credentials = grpc::InsecureChannelCredentials();
     }
-    eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str());
     // Create a channel with SSL credentials
-    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, credentials);
     client_stub = cta::xrd::CtaRpc::NewStub(channel);
   }
 
@@ -146,9 +154,9 @@ private:
 };
 
 std::unique_ptr<WFEClient>
-CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs, std::string token_path) {
+CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs, std::string token_path, bool protowfusegrpctls) {
   if (protowfusegrpc) {
-    return std::make_unique<WFEGrpcClient>(endpoint, root_certs, token_path);
+    return std::make_unique<WFEGrpcClient>(endpoint, root_certs, token_path, protowfusegrpctls);
   } else {
     XrdSsiPb::Config config;
 

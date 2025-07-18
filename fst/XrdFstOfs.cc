@@ -636,7 +636,24 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
-        // Use gRPC calls instead of xrootd notifications?
+        if (!strcmp("protowfusegrpctls", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) &&
+               strcmp("1", val) && strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument for protowfusegrpctls is invalid. "
+                        "Must be <true>, <false>, <1> or <0>!");
+            NoGo = 1;
+          } else {
+            gConfig.protowfusegrpctls = false;
+
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              gConfig.protowfusegrpctls = true;
+            }
+
+            Eroute.Say("=====> fstofs.protowfusegrpctls : ", val);
+          }
+        }
+
         if (!strcmp("jwttokenpath", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument 2 for JwtTokenPath missing. Should be "

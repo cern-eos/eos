@@ -1133,6 +1133,23 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
       }
 
+      if (!strcmp("protowfusegrpctls", var)) {
+        if ((!(val = Config.GetWord())) ||
+            (strcmp("true", val) && strcmp("false", val) &&
+              strcmp("1", val) && strcmp("0", val))) {
+          Eroute.Emsg("Config", "argument for protowfusegrpctls is invalid. "
+                      "Must be <true>, <false>, <1> or <0>!");
+        } else {
+          protowfusegrpctls = false;
+
+          if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+            protowfusegrpctls = true;
+          }
+
+          Eroute.Say("=====> mgmofs.protowfusegrpctls : ", val);
+        }
+      }
+
       //Get the XrdHttp server port number
       if (!strcmp("xrd.protocol", var)) {
         val = Config.GetWord();
