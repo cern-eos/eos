@@ -26,6 +26,12 @@
 #include "cta_frontend.grpc.pb.h"
 #include "common/Logging.hh"
 
+#include <grpcpp/security/credentials.h>
+
+#include <fstream>
+#include <iostream>
+#include <sstream>
+
 class WFEClient {
 public:
   virtual cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) = 0;
@@ -34,12 +40,35 @@ public:
 
 class WFEGrpcClient : public WFEClient {
 public:
-  WFEGrpcClient(std::string endpoint_str) : endpoint(endpoint_str), client_stub(cta::xrd::CtaRpc::NewStub(grpc::CreateChannel(endpoint_str, grpc::InsecureChannelCredentials()))) {}
+  WFEGrpcClient(const std::string& endpoint_str, std::optional<std::string> root_certs, const std::string& token_path_str) {
+    endpoint = endpoint_str;
+    token_path = token_path_str;
+    grpc::SslCredentialsOptions ssl_options;
+    if (root_certs.has_value()) {
+      std::string root_certs_contents;
+      eos::common::StringConversion::LoadFileIntoString(root_certs.value().c_str(), root_certs_contents);
+      ssl_options.pem_root_certs = root_certs_contents;
+    } else {
+      ssl_options.pem_root_certs = "";
+    }
+    eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str());
+    // Create a channel with SSL credentials
+    std::shared_ptr<grpc::Channel> channel = grpc::CreateChannel(endpoint_str, grpc::SslCredentials(ssl_options));
+    client_stub = cta::xrd::CtaRpc::NewStub(channel);
+  }
 
   // for gRPC the default is to retry a failed request (see GRPC_ARG_ENABLE_RETRIES)
   cta::xrd::Response::ResponseType send(const cta::xrd::Request& request, cta::xrd::Response& response) override {
     grpc::ClientContext context;
     grpc::Status status;
+
+    std::string token_contents;
+    // read the token from the path
+    eos_static_info("JWT token path is %s", token_path.c_str());
+    eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
+
+    context.AddMetadata("authorization", "Bearer " + token_contents);
+    eos_static_info("successfully attached call credentials in the send method, token contents are %s", token_contents.c_str());
 
     switch (request.notification().wf().event()) {
       // this is prepare
@@ -73,12 +102,20 @@ public:
     } else {
       switch (status.error_code()) {
         // user-code (CTA) generated errors,
+        // we need to do response.set_message_txt here because apparently, gRPC does not
+        // guarantee that the protobuf fields will be filled in, in case of error
         case grpc::StatusCode::INVALID_ARGUMENT:
+          response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_PROTOBUF;
         case grpc::StatusCode::ABORTED:
+          response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_USER;
         case grpc::StatusCode::FAILED_PRECONDITION:
+          response.set_message_txt(status.error_message());
           return cta::xrd::Response::RSP_ERR_CTA;
+        case grpc::StatusCode::UNAUTHENTICATED:
+          response.set_message_txt(status.error_message());
+          return cta::xrd::Response::RSP_ERR_USER;
         // something went wrong in the gRPC code, throw an exception
         default:
           throw std::runtime_error("gRPC call failed internally. Error code: " + std::to_string(status.error_code()) + " Error message: " + status.error_message());
@@ -88,6 +125,7 @@ public:
 private:
   std::string endpoint;
   std::unique_ptr<cta::xrd::CtaRpc::Stub> client_stub;
+  std::string token_path;
 };
 
 class WFEXrdClient : public WFEClient {
@@ -108,9 +146,9 @@ private:
 };
 
 std::unique_ptr<WFEClient>
-CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource) {
+CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs, std::string token_path) {
   if (protowfusegrpc) {
-    return std::make_unique<WFEGrpcClient>(endpoint);
+    return std::make_unique<WFEGrpcClient>(endpoint, root_certs, token_path);
   } else {
     XrdSsiPb::Config config;
 

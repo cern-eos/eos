@@ -127,3 +127,4 @@ mgmofs.nslib /usr/lib64/libEosNsQuarkdb.so
 
 # Use gRPC?
 #mgmofs.protowfusegrpc true
+#mgmofs.jwttokenpath /etc/grid-security/jwt-token-grpc
