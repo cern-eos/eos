@@ -392,9 +392,23 @@ XrdMgmOfs::_rem(const char* path,
                          &vid, fmd->getCUid(), fmd->getCGid(),
                          fmd->getId());
 
+	Workflow workflow;
+	// eventually trigger a workflow
+	workflow.Init(&attrmap, path, fmd->getId());
+	errno = 0;
+
+	auto ret_wfe = workflow.Trigger("sync::recycle", "default", vid, ininfo, errMsg);
+
+	if (ret_wfe < 0 && errno == ENOKEY) {
+	  eos_info("msg=\"no workflow defined for recycle\"");
+	} else {
+	  eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+	}
+
         if ((rc = lRecycle.ToGarbage(epname, error, fusexcast))) {
           return rc;
         } else {
+
           if (container) {
             if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowUnlink, container, fmd, vid,
                                           error) > -1) {

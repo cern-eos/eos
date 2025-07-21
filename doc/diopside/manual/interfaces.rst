@@ -2877,6 +2877,7 @@ The workflow engine allows to create chained workflows: E.g. one workflow can tr
    sync::closew         event is triggered via the FST when a write-open file is closed (it has priority over the asynchronous one)
    closew               event is triggered via the MGM when a write-open file is closed on an FST
    sync::delete         event is triggered at the MGM when a file has been deleted (synchronous event)
+   sync::recycle        event is triggered at the MGM when a file has been moved to the recycle bin (synchronous event)
    ==================== ==================================================================================================
 
 Currently the workflow engine implements two action targets. The **bash:shell** target is a powerful target.
