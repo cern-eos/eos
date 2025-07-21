@@ -1666,6 +1666,9 @@ int WFE::Job::HandleNotifyEvents(std::string& errorMsg,
       (*rpcfmd->mutable_xattrs())[elem.first] = elem.second;
     }
 
+    // store the event type as an extended attribute
+    (*rpcfmd->mutable_xattrs())["notify::event"] = event;
+
     std::string etag;
     eos::calculateEtag(fmd.get(), etag);
 
