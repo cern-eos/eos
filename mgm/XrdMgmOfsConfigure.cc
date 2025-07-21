@@ -1145,8 +1145,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           if ((!strcmp("true", val) || (!strcmp("1", val)))) {
             protowfusegrpctls = true;
           }
-
-          Eroute.Say("=====> mgmofs.protowfusegrpctls : ", val);
         }
       }
 
@@ -1224,6 +1222,17 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     Config.Close();
+  }
+
+  if (protowfusegrpc) {
+    Eroute.Say("=====> mgmofs.protowfusegrpc : true");
+  } else {
+    Eroute.Say("=====> mgmofs.protowfusegrpc : false");
+  }
+  if (protowfusegrpctls) {
+    Eroute.Say("=====> mgmofs.protowfusegrpctls : true");
+  } else {
+    Eroute.Say("=====> mgmofs.protowfusegrpctls : false");
   }
 
   if (!mQdbContactDetails.members.empty() &&
