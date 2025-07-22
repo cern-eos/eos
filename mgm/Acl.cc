@@ -193,6 +193,8 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   mIsMutable = true;
   mCanArchive = false;
   mCanPrepare = false;
+  mCanSysAcl = false;
+  mCanXAttr = false;
 
   // no acl definition
   if (!acl.length()) {
@@ -353,6 +355,10 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
             mCanArchive = !deny;
             break;
 
+	  case 'A': // 'A' defines sys ACL modification permission
+	    mCanSysAcl = !deny;
+	    break;
+
           case 'r': // 'r' defines read permission
             mCanRead = !deny;
             break;
@@ -360,6 +366,10 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
           case 'x': // 'x' defines browsing permission
             mCanBrowse = !deny;
             break;
+
+	  case 'X': // 'X' defines sys attribute modification permission
+	    mCanXAttr = !deny;
+	    break;
 
           case 'p': // 'p' defines workflow permission
             mCanPrepare = !deny;
@@ -473,6 +483,10 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
       mCanArchive = is_allowed;
       break;
 
+    case 'A':
+      mCanSysAcl = is_allowed;
+      break;
+
     case 'r':
       mCanRead = is_allowed;
       mCanNotRead = !is_allowed;
@@ -481,6 +495,10 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
     case 'x':
       mCanBrowse = is_allowed;
       mCanNotBrowse = !is_allowed;
+      break;
+
+    case 'X':
+      mCanXAttr = is_allowed;
       break;
 
     case 'p':

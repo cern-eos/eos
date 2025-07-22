@@ -253,9 +253,28 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   const std::string skey = key;
 
+  bool acl_allows = false;
+
   if ((skey.find("sys.") == 0) && (!vid.sudoer && vid.uid)) {
-    errno = EPERM;
-    return Emsg(epname, error, errno, "set attribute", path);
+    eos::IContainerMD::XAttrMap attrmap;
+    Acl acl(path, error, vid, attrmap);
+    if (skey == "sys.acl") {
+      // check 'A' acl
+      if (!acl.CanSysAcl()) {
+	errno = EPERM;
+	return Emsg(epname, error, errno, "set sys.acl attribute", path);
+      } else {
+	acl_allows = true;
+      }
+    } else {
+      // check 'X' acl
+      if (!acl.CanXAttr()) {
+	errno = EPERM;
+	return Emsg(epname, error, errno, "set sys.* attribute", path);
+      } else {
+	acl_allows = true;
+      }
+    }
   }
 
   // Never put any attribute on version directories
@@ -298,7 +317,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       std::shared_ptr<eos::IFileMD> fmd = item.file;
       auto fmd_lock = eos::MDLocking::writeLock(fmd.get());
 
-      if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
+      if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid) && (!acl_allows)) {
         errno = EPERM;
       } else {
         if (exclusive && fmd->hasAttribute(skey)) {
@@ -338,7 +357,7 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
       auto cmd_lock = eos::MDLocking::writeLock(cmd.get());
 
-      if ((vid.uid != cmd->getCUid()) && (!vid.sudoer && vid.uid)) {
+      if ((vid.uid != cmd->getCUid()) && (!vid.sudoer && vid.uid) && (!acl_allows)) {
         errno = EPERM;
       } else {
         if (exclusive && cmd->hasAttribute(skey)) {
@@ -422,10 +441,29 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   }
 
   const std::string skey = key;
+  bool acl_allows = false;
 
   if ((skey.find("sys.") == 0) && (!vid.sudoer && vid.uid)) {
-    errno = EPERM;
-    return Emsg(epname, error, errno, "set attribute", path);
+    eos::IContainerMD::XAttrMap attrmap;
+    Acl acl(path, error, vid, attrmap);
+
+    if (skey == "sys.acl") {
+      // check 'A' acl
+      if (!acl.CanSysAcl()) {
+	errno = EPERM;
+        return Emsg(epname, error, errno, "remove sys.acl attribute", path);
+      } else {
+	acl_allows = true;
+      }
+    } else {
+      // check 'X' acl
+      if (!acl.CanXAttr()) {
+        errno = EPERM;
+        return Emsg(epname, error, errno, "remote sys.* attribute", path);
+      } else {
+	acl_allows = true;
+      }
+    }
   }
 
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
@@ -437,7 +475,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       std::shared_ptr<eos::IFileMD> fmd = item.file;
       auto fmd_lock = eos::MDLocking::writeLock(fmd.get());
 
-      if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid)) {
+      if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid) && (!acl_allows)) {
         errno = EPERM;
       } else {
         if (!fmd->hasAttribute(skey)) {
@@ -457,7 +495,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
       auto cmd_lock = eos::MDLocking::writeLock(cmd.get());
 
-      if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && (!vid.sudoer && vid.uid)) {
+      if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && (!vid.sudoer && vid.uid && (!acl_allows))) {
         errno = EPERM;
       } else {
         if (!cmd->hasAttribute(skey)) {

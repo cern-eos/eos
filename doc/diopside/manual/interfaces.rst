@@ -1891,7 +1891,7 @@ ACLs are defined on the directory or file level via the extended attributes.
 
    For efficiency, file-level ACLs should only be used sparingly, in favour of directory-level ACLs.
 
-The sys.acl attribute can only be defined by SUDO members. 
+The sys.acl attribute can only be defined by SUDO members or by users which have an 'A' grant in the existing ACL of the same directory/file.
 The user.acl attribute can be defined by the **owner** or SUDO members. It is only evaluated if the sys.eval.useracl attribute is set.
 
 The sys.acl/user.acl attributes are inherited from the parent at the time a directory is created. Subsequent changes to a directory's ACL
@@ -1907,7 +1907,7 @@ A rule is defined in the following way:
 
 .. code-block:: bash
 
-   <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z::{rwxomqcia(!d)(+d)(!u)(+u)}
+   <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z::{rwxXomqciaA(!d)(+d)(!u)(+u)}
 
 A rule has three colon-separated fields. It starts with the type of rule: 
 User (u), Group (g), eGroup (egroup) or all (z). The second field specifies the name or 
@@ -1939,6 +1939,8 @@ The following tags compose a rule:
    c   grant 'change owner' permission on directory children
    i   set the immutable flag    
    a   grant archiving permission
+   A   grant sys.acl modification permissions
+   X   grant sys.* modification permissions (does not include sys.acl!)
    === =========================================================================
 
 

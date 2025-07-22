@@ -36,7 +36,7 @@ EOSMGMNAMESPACE_BEGIN
 //! Class implementing access control list interpretation.
 //! ACL rules used in the constructor or in the Set function are strings with
 //! the following format:
-//! rule= 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{arw[o]ximc(!u)
+//! rule= 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{Aarw[o]Xximc(!u)
 //!        (+u)(!d)(+d)q}|z:xmc(!u)(+u)(!d)(+d)q}'
 //------------------------------------------------------------------------------
 class Acl
@@ -44,20 +44,19 @@ class Acl
 public:         // [+] prevents '+' interpreted as "one or more"
   static constexpr auto sRegexUsrGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
+    "(!?(A|a|r|w|wo|X|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysGenericAcl =
     "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
+    "(!?(A|a|r|w|wo|X|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p|t))+)[,]?)*$";
   static constexpr auto sRegexUsrNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
+    "(!?(A|a|r|w|wo|X|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
   static constexpr auto sRegexSysNumericAcl =
     "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(a|r|w|wo|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p))+)[,]?)*$";
-
+    "(!?(A|a|r|w|wo|X|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p|t))+)[,]?)*$";
   //----------------------------------------------------------------------------
   //! Use regex to check ACL format / syntax
-  //!
+  //!a
   //! @param value value to check
   //! @param error error datastructure
   //! @param is_sys_acl boolean indicating a sys acl entry which might have a
@@ -91,7 +90,8 @@ public:         // [+] prevents '+' interpreted as "one or more"
     mCanNotBrowse(false),
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
-    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false)
+    mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false),
+    mCanSysAcl(false),mCanXAttr(false)
   {}
 
   //----------------------------------------------------------------------------
@@ -269,6 +269,22 @@ public:         // [+] prevents '+' interpreted as "one or more"
   }
 
   //----------------------------------------------------------------------------
+  //! Has the 'A' flag - sys acl modification permission
+  //----------------------------------------------------------------------------
+  inline bool CanSysAcl() const
+  {
+    return mCanSysAcl;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Has the 'X' flag - sys attribute permission
+  //----------------------------------------------------------------------------
+  inline bool CanXAttr() const
+  {
+    return mCanXAttr;
+  }
+
+  //----------------------------------------------------------------------------
   //! Extract an ACL from a token
   //----------------------------------------------------------------------------
 
@@ -331,7 +347,8 @@ private:
   bool mIsMutable; ///< acl does not contain the immutable flag
   bool mCanArchive; ///< acl which allows archiving
   bool mCanPrepare; ///< acl which allows triggering workflows
-
+  bool mCanSysAcl; ///< acl which allows to modify sys acls
+  bool mCanXAttr; ///< acl which allows to modify sys attributes
   std::string sysattr;
   std::string userattr;
   bool mEvalDirUserAcl;
