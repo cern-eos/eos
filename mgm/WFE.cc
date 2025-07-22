@@ -1965,7 +1965,7 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
     try {
       bool isFirstPrepare = prepareReqIds.values.empty();
 
-      if (prepareReqIds.values.count(prepareRequestId.c_str() == 0) {
+      if (prepareReqIds.values.count(prepareRequestId.c_str()) == 0) {
         prepareReqIds.values.insert(prepareRequestId.c_str());
         fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
       }
