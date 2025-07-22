@@ -1962,16 +1962,18 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
       prepareReqIds.deserialize(fmd->getAttribute(RETRIEVE_REQID_ATTR_NAME));
     }
 
-    bool isFirstPrepare = prepareReqIds.values.empty();
-
-    prepareReqIds.values.insert(prepareRequestId.c_str());
-    eosLog
-    .addParam(EosCtaReportParam::PREP_WFE_FIRSTPREPARE, isFirstPrepare)
-    .addParam(EosCtaReportParam::PREP_WFE_REQID, prepareRequestId)
-    .addParam(EosCtaReportParam::PREP_WFE_REQCOUNT, prepareReqIds.values.size());
-
     try {
-      fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
+      bool isFirstPrepare = prepareReqIds.values.empty();
+
+      if (!prepareReqIds.values.contains(prepareRequestId.c_str()) {
+        prepareReqIds.values.insert(prepareRequestId.c_str());
+        fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
+      }
+
+      eosLog
+      .addParam(EosCtaReportParam::PREP_WFE_FIRSTPREPARE, isFirstPrepare)
+      .addParam(EosCtaReportParam::PREP_WFE_REQID, prepareRequestId)
+      .addParam(EosCtaReportParam::PREP_WFE_REQCOUNT, prepareReqIds.values.size());
 
       // if we are the first to retrieve the file
       if (isFirstPrepare) {
