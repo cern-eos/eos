@@ -280,6 +280,14 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl)
       rule_int = rule_int | AclCmd::A;
       break;
 
+    case 'A':
+      rule_int = rule_int | AclCmd::SysAcl;
+      break;
+
+    case 'X':
+      rule_int = rule_int | AclCmd::SysAttr;
+      break;
+
     case '+' :
       // There are only two + flags in current acl permissions +d and +u
       i++;
@@ -459,6 +467,16 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
 
     if (*flag == 'a') {
       curr_lambda(AclCmd::A);
+      continue;
+    }
+
+    if (*flag == 'A') {
+      curr_lambda(AclCmd::SysAcl);
+      continue;
+    }
+
+    if (*flag == 'X') {
+      curr_lambda(AclCmd::SysAttr);
       continue;
     }
 
@@ -715,6 +733,14 @@ AclCmd::AclBitmaskToString(const unsigned short int in)
 
   if (in & AclCmd::X) {
     ret.append("x");
+  }
+
+  if (in & AclCmd::SysAcl) {
+    ret.append("A");
+  }
+
+  if (in & AclCmd::SysAttr) {
+    ret.append("X");
   }
 
   if (in & AclCmd::M) {

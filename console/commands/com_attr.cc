@@ -575,7 +575,7 @@ com_attr_usage:
   fprintf(stdout,
           "               => <acllist> = <rule1>,<rule2>...<ruleN> is a comma separated list of rules\n");
   fprintf(stdout,
-          "               => <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z:{irwxomqc(!d)(+d)(!u)(+u)} \n\n");
+          "               => z:{u:<uid|username>|g:<gid|groupname>|egroup:<name>:{Aarw[o]Xximc(!u)");
   fprintf(stdout,
           "               e.g.: <acllist=\"u:300:rw,g:z2:rwo:egroup:eos-dev:rwx,u:500:rwm!d:u:600:rwqc\"\n\n");
   fprintf(stdout, "               => user id 300 can read + write\n");

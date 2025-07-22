@@ -211,22 +211,24 @@ public:
 private:
   //! Enumerator defining which bit represents which acl flag.
   enum ACLPos {
-    R  = 1 << 0,   // 1    -  r
-    W  = 1 << 1,   // 2    -  w
-    X  = 1 << 2,   // 4    -  x
-    M  = 1 << 3,   // 8    -  m
-    nM = 1 << 4,   // 16   - !m
-    nD = 1 << 5,   // 32   - !d
-    pD = 1 << 6,   // 64   - +d
-    nU = 1 << 7,   // 128  - !u
-    pU = 1 << 8,   // 256  - +u
-    Q  = 1 << 9,   // 512  -  q
-    C  = 1 << 10,  // 1024 -  c
-    WO = 1 << 11,  // 2048 - wo
-    nR = 1 << 12,  // 4096 - !r
-    nW = 1 << 13,  // 8192 - !w
-    nX = 1 << 14,  //16384 - !x
-    A  = 1 << 15   //32768 -  a
+    R  = 1 << 0,       // 1    -  r
+    W  = 1 << 1,       // 2    -  w
+    X  = 1 << 2,       // 4    -  x
+    M  = 1 << 3,       // 8    -  m
+    nM = 1 << 4,       // 16   - !m
+    nD = 1 << 5,       // 32   - !d
+    pD = 1 << 6,       // 64   - +d
+    nU = 1 << 7,       // 128  - !u
+    pU = 1 << 8,       // 256  - +u
+    Q  = 1 << 9,       // 512  -  q
+    C  = 1 << 10,      // 1024 -  c
+    WO = 1 << 11,      // 2048 - wo
+    nR = 1 << 12,      // 4096 - !r
+    nW = 1 << 13,      // 8192 - !w
+    nX = 1 << 14,      //16384 - !x
+    A  = 1 << 15,      //32768 -  a
+    SysAcl  = 1 << 16, //65536  -  A
+    SysAttr = 1 << 17  //131072 -  X
   };
 
   std::string mId; ///< Rule identifier extracted from command line
