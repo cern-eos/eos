@@ -237,7 +237,7 @@ bool WebNotify::sendQClientNotification(const std::string& hostname, int port,
 	auto publish = client.exec(method, channel, message);
 	qclient::redisReplyPtr reply = publish.get();
 	if (reply && reply->type == REDIS_REPLY_INTEGER && reply->integer != 0) {
-	  eos_static_debug("msg=\"published\" subscribers=%d", reply->integer);
+	  eos_static_debug("msg=\"%s\" %s=%d", push ? "pushed to list" : "published", push ? "length" : "subscribers", reply->integer);
 	  return true;
 	} else {
 	  eos_static_err("msg=\"unexpected or null reply from QuarkDB/REDIS")
