@@ -293,8 +293,8 @@ protected:
   mutable std::mutex mMutexGroups;
   std::condition_variable mCvGroups;
   std::map<uint64_t, std::shared_ptr<eos::fst::RainGroup>> mMapGroups;
-  std::unique_ptr<eos::fst::CheckSum>
-  mStripeChecksum; //< Checksum of the stripe
+  //! Checksum of the stripe
+  std::unique_ptr<eos::fst::CheckSum> mStripeChecksum;
 
   //----------------------------------------------------------------------------
   //! Get group corresponding to the given offset or create one if it doesn't
@@ -535,8 +535,20 @@ private:
   //----------------------------------------------------------------------------
   bool PrepareStripeChecksum();
 
+  //----------------------------------------------------------------------------
+  //! Get stripe checksum value
+  //!
+  //! @return checksum value in hex if it exists
+  //----------------------------------------------------------------------------
   std::optional<std::string> GetStripeChecksum();
 
+  //----------------------------------------------------------------------------
+  //! Set stripe checksum value in the FMD object attached to this physical file
+  //!
+  //! @param checkumHex checksum in hex
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
   bool SetStripeChecksum(std::string checksumHex);
 
   AssistedThread mParityThread; ///< Thread computing and wrintg parity

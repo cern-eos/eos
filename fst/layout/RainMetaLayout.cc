@@ -79,8 +79,11 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
-  mStripeChecksum = eos::fst::ChecksumPlugins::GetChecksumObject(
-                      eos::common::LayoutId::eChecksum::kAdler);
+  //@note (esindril): Disabled until optimization for double checksum
+  // computation in close is done!
+  //mStripeChecksum = eos::fst::ChecksumPlugins::GetChecksumObject(
+  //                    eos::common::LayoutId::eChecksum::kAdler);
+  mStripeChecksum = nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -413,6 +416,9 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Get stripe checksum value
+//------------------------------------------------------------------------------
 std::optional<std::string> RainMetaLayout::GetStripeChecksum()
 {
   auto [ok, fmd] = mFmdHandler->LocalRetrieveFmd(mOfsFile->mFileId,
@@ -430,6 +436,9 @@ std::optional<std::string> RainMetaLayout::GetStripeChecksum()
   return fmd.mProtoFmd.stripechecksum();
 }
 
+//------------------------------------------------------------------------------
+// Set stripe checksum value in the FMD object attached to this physical file
+//------------------------------------------------------------------------------
 bool RainMetaLayout::SetStripeChecksum(std::string checksumHex)
 {
   auto [ok, fmd] = mFmdHandler->LocalRetrieveFmd(mOfsFile->mFileId,
@@ -1854,11 +1863,13 @@ RainMetaLayout::Close()
           eos_err("msg=\"error verifying stripe checksum\"");
           rc = SFS_ERROR;
         } else {
-          const char* stripeChecksum = mStripeChecksum->GetHexChecksum();
+          if (mStripeChecksum) {
+            const char* stripeChecksum = mStripeChecksum->GetHexChecksum();
 
-          if (!SetStripeChecksum(stripeChecksum)) {
-            eos_err("msg=\"error setting stripe checksum\"");
-            rc = SFS_ERROR;
+            if (!SetStripeChecksum(stripeChecksum)) {
+              eos_err("msg=\"error setting stripe checksum\"");
+              rc = SFS_ERROR;
+            }
           }
         }
       }
