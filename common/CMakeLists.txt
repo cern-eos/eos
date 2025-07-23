@@ -257,7 +257,7 @@ if (NOT CLIENT AND Linux)
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
     XROOTD::UTILS
-    PROTOBUF::PROTOBUF
+    EosCliProto-Objects
     ActiveMQCPP::ActiveMQCPP
     GRPC::grpc++
   )
@@ -274,6 +274,7 @@ if (NOT CLIENT AND Linux)
   target_link_libraries(EosCommonServer PUBLIC
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
+    EosCliProto-Objects
     EosGrpcProto-Objects
     XrdMqClient)
 
