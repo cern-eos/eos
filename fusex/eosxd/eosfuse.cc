@@ -1067,7 +1067,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     config.options.fakedelete = false;
 
     if (root["options"].isMember("tmp-fake-delete")) {
-      if (root["options"]["tmp-fake-delete"]) {
+      if (root["options"]["tmp-fake-delete"].asInt()) {
         config.options.fakedelete = true;
       }
     }
