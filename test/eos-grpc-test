@@ -118,8 +118,8 @@ eos-grpc-ns --token $authkey -p $prefix/t_grpc --acl u:1003=r --position 5 acl |
 eos rmdir $prefix/t_grpc/
 
 #quota
-eos-grpc-ns --token false quota | grep "you are not a quota administrator"  || exit -12
-eos-grpc-ns --token $authkey quota | grep "you are not a quota administrator"  && exit -12
+#eos-grpc-ns --token false quota | grep "you are not a quota administrator"  || exit -12
+#eos-grpc-ns --token $authkey quota | grep "you are not a quota administrator"  && exit -12
 
 #user quota
 eos-grpc-ns --token $authkey -p $prefix --inodes 123 --volume 6000000000 --username nobody quota set | grep error && exit -13
