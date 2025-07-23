@@ -179,7 +179,6 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
                         eos::console::ReplyProto& reply)
 {
   std::ostringstream std_out, std_err;
-  bool canQuota;
   int ret_c = 0;
   XrdOucErrInfo mError;
   int errc;
@@ -208,33 +207,6 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
     }
   }
 
-  if ((!mVid.uid) ||
-      mVid.hasUid(eos::common::ADM_UID) ||
-      mVid.hasGid(eos::common::ADM_GID)) {
-    // root and admin can set quota
-    canQuota = true;
-  } else {
-    // figure out if the authenticated user is a quota admin
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
-    eos::IContainerMD::XAttrMap attrmap;
-
-    if (space[0] != '/') {
-      // take the proc directory
-      space = gOFS->MgmProcPath.c_str();
-    } else {
-      // effectively check ACLs on the quota node directory if it can be retrieved
-      std::string quota_node_path = Quota::GetResponsibleSpaceQuotaPath(space);
-
-      if (quota_node_path.length()) {
-        space = quota_node_path;
-      }
-    }
-
-    // ACL and permission check
-    Acl acl(space.c_str(), mError, mVid, attrmap); // @note no.01
-    canQuota = acl.CanSetQuota();
-  }
-
   if (ls.quotanode()) {
     eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
     // check if this is a quotanode
@@ -247,12 +219,6 @@ void QuotaCmd::LsSubcmd(const eos::console::QuotaProto_LsProto& ls,
       reply.set_std_err("error: the given path is not a quotanode!");
       return;
     }
-  }
-
-  if (!canQuota) {
-    reply.set_retc(EPERM);
-    reply.set_std_err("error: you are not a quota administrator!\"");
-    return;
   }
 
   eos_notice("msg=\"quota ls\" space=%s", space.c_str());
