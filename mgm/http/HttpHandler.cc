@@ -31,6 +31,9 @@
 #include "common/ErrnoToString.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
+#include "common/http/HttpUtils.hh"
+#include "common/SymKeys.hh"
+#include "common/StringUtils.hh"
 #include "namespace/utils/Mode.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
@@ -569,6 +572,25 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         }
 
         query += "eos.bookingsize=0";
+      }
+
+      if(request->GetHeaders().count("repr-digest")) {
+        // TODO: Delegate the parsing to XRootD
+        std::map<std::string,std::string> reprDigest;
+        common::HttpUtils::parseReprDigest(request->GetHeaders()["repr-digest"],reprDigest);
+        auto element = reprDigest.begin();
+        if(element != reprDigest.end()) {
+          //We take the first element of the map for now
+          const std::string & digestName = element->first;
+          std::string decodedDigestValue;
+          common::SymKey::Base64Decode(element->second.c_str(),decodedDigestValue);
+          // Strip invisible chars (\n...) as it can cause issue in the query URL
+          common::stripInvisibleChars(decodedDigestValue);
+          if (query.length()) {
+            query += "&";
+          }
+          query += "eos.checksumtype=" + digestName + "&eos.checksum=" + decodedDigestValue;
+        }
       }
 
       if (request->GetHeaders().count("x-oc-mtime")) {
