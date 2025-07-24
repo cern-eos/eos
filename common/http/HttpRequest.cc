@@ -35,17 +35,36 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
-HttpRequest::HttpRequest (HeaderMap          headers,
-                          const std::string &method,
-                          const std::string &url,
-                          const std::string &query,
-                          const std::string &body,
-                          size_t            *bodySize,
-                          HeaderMap          cookies, 
-			  bool               xrdhttp) :
-  mRequestHeaders(headers), mRequestMethod(method), mRequestUrl(url),
-  mRequestQuery(query), mRequestBody(body), mRequestBodySize(bodySize),
-  mRequestCookies(cookies),mXrdHttp(xrdhttp) {}
+HttpRequest::HttpRequest(HeaderMap headers, const std::string& method,
+                         const std::string& url, const std::string& query,
+                         const std::string& body, size_t* bodySize, HeaderMap cookies,
+                         bool xrdhttp)
+    : mRequestHeaders(headers)
+    , mRequestMethod(method)
+    , mRequestUrl(url)
+    , mRequestQuery(query)
+    , mRequestBody(body)
+    , mRequestBodySize(bodySize)
+    , mRequestCookies(cookies)
+    , mXrdHttp(xrdhttp)
+{
+}
+
+HttpRequest::HttpRequest(HeaderMap headers, const std::string& method,
+                         const std::string& url, const std::string& query,
+                         const std::string& body, size_t* bodySize, HeaderMap cookies,
+                         ReprDigestMap reprDigest, bool xrdhttp)
+    : mRequestHeaders(headers)
+    , mRequestMethod(method)
+    , mRequestUrl(url)
+    , mRequestQuery(query)
+    , mRequestBody(body)
+    , mRequestBodySize(bodySize)
+    , mRequestCookies(cookies)
+    , mReprDigest(std::move(reprDigest))
+    , mXrdHttp(xrdhttp)
+{
+}
 
 /*----------------------------------------------------------------------------*/
 std::string
@@ -67,7 +86,7 @@ HttpRequest::ToString()
  * @return the client request URL
  */
 const std::string
-HttpRequest::GetUrl (bool orig) 
+HttpRequest::GetUrl(bool orig)
 {
   std::string ocurl;
   if (orig)

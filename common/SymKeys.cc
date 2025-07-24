@@ -290,6 +290,40 @@ SymKey::HmacSha1(std::string& data, const char* key)
   return result;
 }
 
+std::string SymKey::Base64Encode(const std::vector<uint8_t> & input) {
+  if(input.empty()) {
+    return {};
+  }
+
+  BIO* b64 = BIO_new(BIO_f_base64());
+
+  if (b64 == nullptr) {
+    return {};
+  }
+
+  BIO_set_flags(b64, BIO_FLAGS_BASE64_NO_NL);
+  BIO* bmem = BIO_new(BIO_s_mem());
+
+  if (bmem == nullptr) {
+    BIO_free_all(b64);
+    return {};
+  }
+
+  BIO_push(b64, bmem);
+
+  if ((BIO_write(b64, input.data(), input.size()) != static_cast<int>(input.size())) ||
+      (BIO_flush(b64) <= 0)) {
+    BIO_free_all(b64);
+    return {};
+  }
+
+  BUF_MEM* bptr = nullptr;
+  BIO_get_mem_ptr(b64, &bptr);
+  std::string result{bptr->data, bptr->length};
+  BIO_free_all(b64);
+  return result;
+}
+
 //------------------------------------------------------------------------------
 // Base64 encoding function - base function
 //------------------------------------------------------------------------------

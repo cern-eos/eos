@@ -84,6 +84,39 @@ TEST(StringConversion, ChecksumTranslations)
   ASSERT_TRUE(StringConversion::BinData2HexString(&buff[0], 4, 4) == "2a38174b");
 }
 
+TEST(StringConversion, Hex2BinData)
+{
+  using eos::common::StringConversion;
+  // Regular conversion
+  auto bytes = StringConversion::Hex2BinData("0fadf00d");
+  ASSERT_TRUE(bytes.has_value());
+  ASSERT_EQ(4u, bytes->size());
+  ASSERT_EQ(0x0f, (*bytes)[0]);
+  ASSERT_EQ(0xad, (*bytes)[1]);
+  ASSERT_EQ(0xf0, (*bytes)[2]);
+  ASSERT_EQ(0x0d, (*bytes)[3]);
+  // Upper case input
+  bytes = StringConversion::Hex2BinData("ABCD");
+  ASSERT_TRUE(bytes.has_value());
+  ASSERT_EQ(2u, bytes->size());
+  ASSERT_EQ(0xab, (*bytes)[0]);
+  ASSERT_EQ(0xcd, (*bytes)[1]);
+  // Leading zeros must be preserved (e.g. adler 00000001 of a 0-size file)
+  bytes = StringConversion::Hex2BinData("00000001");
+  ASSERT_TRUE(bytes.has_value());
+  ASSERT_EQ(4u, bytes->size());
+  ASSERT_EQ(0x00, (*bytes)[0]);
+  ASSERT_EQ(0x01, (*bytes)[3]);
+  // Empty input gives an empty vector
+  bytes = StringConversion::Hex2BinData("");
+  ASSERT_TRUE(bytes.has_value());
+  ASSERT_TRUE(bytes->empty());
+  // Odd length and non-hex characters cannot be converted
+  ASSERT_FALSE(StringConversion::Hex2BinData("abc").has_value());
+  ASSERT_FALSE(StringConversion::Hex2BinData("zz11").has_value());
+  ASSERT_FALSE(StringConversion::Hex2BinData("11 2").has_value());
+}
+
 TEST(StringConversion, timebased_uuidstring)
 {
   std::string uuid;

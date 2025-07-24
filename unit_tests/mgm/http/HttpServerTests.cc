@@ -26,6 +26,9 @@
 #define IN_TEST_HARNESS
 #include "mgm/http/HttpServer.hh"
 #undef IN_TEST_HARNESS
+#include "common/http/HttpResponse.hh"
+#include <cerrno>
+#include <memory>
 
 //------------------------------------------------------------------------------
 // Test parsing for HTTP requests where path might contain opaque data which
@@ -118,4 +121,32 @@ TEST(HttpServer, ExtractOpaqueWithoutAuthz) {
     eos::mgm::HttpServer::extractOpaqueWithoutAuthz(fullpath,extractedOpaque);
     ASSERT_EQ(opaque,extractedOpaque);
   }
+}
+
+//------------------------------------------------------------------------------
+// Test the errno to HTTP status code translation. Only errnos with an
+// unambiguous HTTP meaning are mapped, everything else - EINVAL in particular -
+// stays a server side error. Handlers that know a specific request was
+// malformed report the client error themselves with an explicit status code.
+//------------------------------------------------------------------------------
+TEST(HttpServer, HttpErrorCodeTranslation)
+{
+  using eos::common::HttpResponse;
+  auto response_code = [](int errcode) {
+    std::unique_ptr<HttpResponse> resp{
+        eos::common::HttpServer::HttpError("error text", errcode)};
+    return resp->GetResponseCode();
+  };
+  ASSERT_EQ(HttpResponse::NOT_FOUND, response_code(ENOENT));
+  ASSERT_EQ(HttpResponse::FORBIDDEN, response_code(EACCES));
+  ASSERT_EQ(HttpResponse::FORBIDDEN, response_code(EPERM));
+  ASSERT_EQ(HttpResponse::UNPROCESSABLE_ENTITY, response_code(EILSEQ));
+  ASSERT_EQ(HttpResponse::CONFLICT, response_code(EAGAIN));
+  ASSERT_EQ(HttpResponse::INSUFFICIENT_STORAGE, response_code(ENOSPC));
+  ASSERT_EQ(HttpResponse::INTERNAL_SERVER_ERROR, response_code(EINVAL));
+  ASSERT_EQ(HttpResponse::INTERNAL_SERVER_ERROR, response_code(EIO));
+  // An explicit HTTP status code is passed through unchanged
+  ASSERT_EQ(HttpResponse::BAD_REQUEST, response_code(HttpResponse::BAD_REQUEST));
+  ASSERT_EQ(HttpResponse::PRECONDITION_FAILED,
+            response_code(HttpResponse::PRECONDITION_FAILED));
 }

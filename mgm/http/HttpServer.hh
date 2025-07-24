@@ -132,7 +132,8 @@ public:
                  std::string& body,
                  const XrdSecEntity& client,
                  XrdAccAuthorize* authz_obj,
-                 std::string& err_msg);
+                 std::string& err_msg,
+                 XrdHttpExtReq & req);
 
   //----------------------------------------------------------------------------
   //! Extract opaque query from the full path passed in parameter

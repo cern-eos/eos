@@ -284,6 +284,39 @@ TEST(SharedHashLocator, Parsing)
   ASSERT_EQ(locator.getQDBKey(), "eos-global-config-hash");
 }
 
+TEST(LayoutId, ChecksumFromString)
+{
+  using eos::common::LayoutId;
+  // EOS internal names
+  ASSERT_EQ(LayoutId::kAdler, LayoutId::GetChecksumFromString("adler"));
+  ASSERT_EQ(LayoutId::kSHA1, LayoutId::GetChecksumFromString("sha1"));
+  ASSERT_EQ(LayoutId::kSHA256, LayoutId::GetChecksumFromString("sha256"));
+  ASSERT_EQ(LayoutId::kMD5, LayoutId::GetChecksumFromString("md5"));
+  ASSERT_EQ(LayoutId::kCRC32C, LayoutId::GetChecksumFromString("crc32c"));
+  // RFC 9530 / HTTP digest registry aliases
+  ASSERT_EQ(LayoutId::kAdler, LayoutId::GetChecksumFromString("adler32"));
+  ASSERT_EQ(LayoutId::kSHA1, LayoutId::GetChecksumFromString("sha"));
+  ASSERT_EQ(LayoutId::kSHA256, LayoutId::GetChecksumFromString("sha-256"));
+  // Unknown types
+  ASSERT_EQ(-1, LayoutId::GetChecksumFromString("sha-512"));
+  ASSERT_EQ(-1, LayoutId::GetChecksumFromString("does_not_exist"));
+  ASSERT_EQ(-1, LayoutId::GetChecksumFromString(""));
+}
+
+TEST(LayoutId, HttpDigestName)
+{
+  using eos::common::LayoutId;
+  // Types with a registered HTTP digest name (RFC 9530 registry)
+  ASSERT_STREQ("adler32", LayoutId::GetHttpDigestNameFromXsType(LayoutId::kAdler));
+  ASSERT_STREQ("sha", LayoutId::GetHttpDigestNameFromXsType(LayoutId::kSHA1));
+  ASSERT_STREQ("sha-256", LayoutId::GetHttpDigestNameFromXsType(LayoutId::kSHA256));
+  ASSERT_STREQ("md5", LayoutId::GetHttpDigestNameFromXsType(LayoutId::kMD5));
+  ASSERT_STREQ("crc32c", LayoutId::GetHttpDigestNameFromXsType(LayoutId::kCRC32C));
+  // Types without a registered name keep the EOS name
+  ASSERT_STREQ("crc64", LayoutId::GetHttpDigestNameFromXsType(LayoutId::kCRC64));
+  ASSERT_STREQ("none", LayoutId::GetHttpDigestNameFromXsType(LayoutId::kNone));
+}
+
 TEST(LayoutId, RainStripeSize)
 {
   using eos::common::LayoutId;
