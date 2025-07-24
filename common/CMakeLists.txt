@@ -252,6 +252,7 @@ if (NOT CLIENT AND Linux)
     http/HttpRequest.cc
     http/HttpResponse.cc
     http/s3/S3Handler.cc
+    http/HttpUtils.cc
     stringencoders/modp_numtoa.c)
 
   target_link_libraries(EosCommonServer-Objects PUBLIC
