@@ -254,6 +254,11 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
     if (is_chunked) {
       if (!HandleChunkUpload(req, handler.get(), normalized_headers, cookies,
                              query)) {
+        HttpResponse * response = handler->GetResponse();
+        if(response) {
+          return req.SendSimpleResp(response->GetResponseCode(),response->GetResponseCodeDescription().c_str(), nullptr,
+                                    response->GetBody().c_str(), response->GetBody().length());
+        }
         return req.SendSimpleResp(500, "fatal internal error", "during chunk upload",
                                   nullptr, 0);
       }

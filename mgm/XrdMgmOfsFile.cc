@@ -463,6 +463,31 @@ XrdMgmOfsFile::GetXrdAccessOperation(int open_flags)
   return op;
 }
 
+//------------------------------------------------------------------------------
+// Get checksum from opaque
+//------------------------------------------------------------------------------
+void XrdMgmOfsFile::getCksumFromOpaque(std::string & cksumType, std::string & cksumValue)
+{
+  cksumType.clear();
+  cksumValue.clear();
+
+  auto getFirst = [this](std::initializer_list<const char *> keys) -> const char *{
+    for (const auto & k: keys) {
+      if (char * value = openOpaque->Get(k)) {
+        return value;
+      }
+    }
+    return nullptr;
+  };
+
+  if(const char * cksumtype = getFirst({"eos.checksumtype", "cks.type"})) {
+    cksumType = cksumtype;
+  }
+  if(const char * cksumvalue = getFirst({"eos.checksum","cks.value"})) {
+    cksumValue = cksumvalue;
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 /*
  * @brief open a given file with the indicated mode
@@ -3397,9 +3422,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
 
-    if (openOpaque->Get("eos.checksum") || openOpaque->Get("eos.cloneid")) {
-      redirectionhost += "&mgm.checksum=";
-      redirectionhost += openOpaque->Get("eos.checksum");
+    if (openOpaque->Get("eos.checksum") || (openOpaque->Get("cks.type") && openOpaque->Get("cks.value")) || openOpaque->Get("eos.cloneid")) {
+      std::string checksumType;
+      std::string checksumValue;
+
+      getCksumFromOpaque(checksumType,checksumValue);
+      if(!checksumType.empty()) {
+        redirectionhost += "&mgm.checksum=";
+        redirectionhost += checksumValue.c_str();
+        if(!checksumValue.empty()) {
+          // User sets the checksum type corresponding to the checksum type specified
+          redirectionhost += "&mgm.checksumtypereq=";
+          redirectionhost += checksumType.c_str();
+        }
+      }
     }
 
     if (openOpaque->Get("eos.mtime")) {
