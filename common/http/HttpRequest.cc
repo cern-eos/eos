@@ -47,6 +47,19 @@ HttpRequest::HttpRequest (HeaderMap          headers,
   mRequestQuery(query), mRequestBody(body), mRequestBodySize(bodySize),
   mRequestCookies(cookies),mXrdHttp(xrdhttp) {}
 
+HttpRequest::HttpRequest (HeaderMap          headers,
+                         const std::string &method,
+                         const std::string &url,
+                         const std::string &query,
+                         const std::string &body,
+                         size_t            *bodySize,
+                         HeaderMap          cookies,
+                         ReprDigestMap      reprDigest,
+                         bool               xrdhttp) :
+  mRequestHeaders(headers), mRequestMethod(method), mRequestUrl(url),
+  mRequestQuery(query), mRequestBody(body), mRequestBodySize(bodySize),
+  mRequestCookies(cookies),mReprDigest(reprDigest),mXrdHttp(xrdhttp) {}
+
 /*----------------------------------------------------------------------------*/
 std::string
 HttpRequest::ToString()
