@@ -307,6 +307,14 @@ public:
     gettimeofday(&cacheITime, &tz);
   }
 
+  bool HasChecksumValidationError() const {
+      return mChecksumErr.has_value();
+  }
+
+  const std::string & GetChecksumErrText() const {
+    return mChecksumErr.value();
+  }
+
 private:
 #ifdef IN_TEST_HARNESS
 public:
@@ -387,6 +395,8 @@ public:
   ///< In-memory file meta data object
   std::unique_ptr<eos::common::FmdHelper> mFmd;
   std::unique_ptr<eos::fst::ChecksumGroup> mChecksumGroup;
+  std::unique_ptr<eos::fst::CheckSum> mCheckSum; ///< Checksum object
+  std::optional<std::string> mChecksumErr; ///< Checksum error string object, to be used by other layers (HTTP for example)
   // @todo(esindril) this is not properly enforced everywhere ...
   std::unique_ptr<Layout> mLayout; ///< Layout object
   std::string mTident; ///< Client identity using the file object

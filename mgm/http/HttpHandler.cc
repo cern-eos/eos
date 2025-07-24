@@ -576,6 +576,16 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         query += "eos.bookingsize=0";
       }
 
+      if(request->GetReprDigest().size()) {
+        // We take the first ReprDigest from the map as
+        // there is no way for the user to give their preference
+        const auto & [cksumType,cksumValue] = *request->GetReprDigest().begin();
+        if (query.length()) {
+          query += "&";
+        }
+        query += "eos.checksumtype=" + cksumType + "&eos.checksum=" + cksumValue;
+      }
+
       if (request->GetHeaders().count("x-oc-mtime")) {
         // there is an X-OC-Mtime header to force the mtime for that file
         query += "&eos.mtime=";

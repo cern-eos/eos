@@ -448,6 +448,14 @@ private:
   static Access_Operation
   GetXrdAccessOperation(int open_flags);
 
+  //----------------------------------------------------------------------------
+  //! Get Checksum type and value information from the oppenOpaque object
+  //!
+  //! @param cksumType, output parameter containing the checksum type (can be empty if no such information)
+  //! @param cksumValue, output parameter containg the checksum value (can be empty if no such information)
+  //----------------------------------------------------------------------------
+  void getCksumFromOpaque(std::string & cksumType, std::string & cksumValue);
+
   int oh {0}; //< file handle
   std::string fileName; //< file name
   XrdOucEnv* openOpaque {nullptr}; //< opaque info given with 'open'

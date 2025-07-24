@@ -214,6 +214,11 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   if (ProcessMixedOpaque()) {
+    if(mChecksumErr) {
+      // In case there is a checksum error, delete the file from the
+      // MGM otherwise it would leave a 0-size file on it!
+      DropFromMgm(mFileId, 0ul, path, mRdrManager.c_str());
+    }
     eos_err("msg=\"failed while processing mixed opaque info\" "
             "path=\"%s\"", path);
     return SFS_ERROR;
@@ -1795,8 +1800,12 @@ XrdFstOfsFile::_close_wr()
       // It is closed by the destructor e.g. no proper close
       // or the specified checksum does not match the computed one
       if (viaDelete) {
-        eos_info("msg=\"(unpersist) deleting file\" reason=\"client disconnect\""
-                 " fxid=%08llx fsid=%u", mFileId, mFsId);
+        std::string reason = "client disconnect";
+        if(HasChecksumValidationError()) {
+          reason = GetChecksumErrText();
+        }
+        eos_info("msg=\"(unpersist) deleting file\" reason=\"%s\""
+                 " fxid=%08llx fsid=%u", reason.c_str(),mFileId, mFsId);
       }
 
       if (mWrDelete) {
@@ -2074,10 +2083,15 @@ XrdFstOfsFile::_close_wr()
       eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
                   "\"minimum file size criteria\"", mNsPath.c_str(),
                   mFstPath.c_str());
-    } else if (checksum_err) {
+    } else if (checksum_err || HasChecksumValidationError()) {
       // Checksum error
-      gOFS.Emsg(epname, error, EIO, "store file - file has been cleaned "
-                "because of a checksum error ", mNsPath.c_str());
+      std::stringstream errMsg;
+      errMsg << "store file - file has been cleaned "
+                "because of a checksum validation error";
+      if(HasChecksumValidationError()) {
+        errMsg << ": " << GetChecksumErrText() << " ";
+      }
+      gOFS.Emsg(epname, error, EIO, errMsg.str().c_str(), mNsPath.c_str());
       eos_warning("info=\"deleting on close\" fn=%s fstpath=%s reason="
                   "\"checksum error\"", mNsPath.c_str(), mFstPath.c_str());
     } else if (writeErrorFlag == kOfsSimulatedIoError) {
@@ -2836,7 +2850,8 @@ XrdFstOfsFile::ProcessMixedOpaque()
   EPNAME("open");
   using eos::common::FileId;
   // Handle checksum request
-  std::string opaqueCheckSum, opaqueCheckSumTypeReq;
+  std::string opaqueCheckSum;
+  std::string opaqueCheckSumTypeReq;
   char* val = nullptr;
 
   if (mOpenOpaque == nullptr || mCapOpaque == nullptr) {
@@ -2852,30 +2867,39 @@ XrdFstOfsFile::ProcessMixedOpaque()
 
   // Call the checksum factory function with the selected layout
   if (opaqueCheckSum != "ignore") {
-    if (!opaqueCheckSum.empty() &&
-        (val = mOpenOpaque->Get("mgm.checksumtypereq"))) {
+    mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObject(mLid);
+    if(!opaqueCheckSum.empty() && (val = mOpenOpaque->Get("mgm.checksumtypereq"))) {
       // the mgm.checksum has been set and the user requested a checksum type
       opaqueCheckSumTypeReq = val;
-      mCheckSum = eos::fst::ChecksumPlugins::GetXsObj(opaqueCheckSumTypeReq);
-
-      if (!mCheckSum) {
+      // Get the checksum that was requested by the user
+      auto requestedCksum = eos::fst::ChecksumPlugins::GetXsObj(opaqueCheckSumTypeReq);
+      if(!requestedCksum) {
         // The checksum type was requested but does not exist, return an error to the client instead of copying the file without the checksum check
+        mChecksumErr = "the checksum type requested does not exist: " + opaqueCheckSumTypeReq;
         return gOFS.Emsg(epname, error, EINVAL,
-                         "open - the checksum type requested does not exist",
-                         opaqueCheckSumTypeReq.c_str());
+                         (std::string("open - ") + *mChecksumErr).c_str());
       }
-    } else {
-      mCheckSum = eos::fst::ChecksumPlugins::GetChecksumObject(mLid);
+      if(!mCheckSum) {
+        // Add the case where a user requested a checksum but the filesystem layout does not have any checksum configured
+        mChecksumErr = "the filesystem layout does not have checksum configured, requested checksum was: " + opaqueCheckSumTypeReq;
+        return gOFS.Emsg(epname, error, EINVAL,
+                         (std::string("open - ") + *mChecksumErr).c_str());
+      }
+      // The checksum was found, ensure it matches the one that was retrieved from the layout ID
+      if(requestedCksum && mCheckSum && strcmp(requestedCksum->GetName(),mCheckSum->GetName()) != 0){
+        // We don't want to copy a file with a checksum that is different from the EOS configured one
+        std::ostringstream cksumErr;
+        cksumErr << "the checksum type requested (" << val << ") does not match the one supported by the filesystem layout (" << mCheckSum->GetName() << ")";
+        mChecksumErr = cksumErr.str();
+        return gOFS.Emsg(epname, error, EINVAL,
+                         (std::string("open - ") + *mChecksumErr).c_str());
+      }
     }
-
-    eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\" mgm.checksumtypereq=\"%s\"",
-              mCheckSum.get(), mLid, opaqueCheckSum.c_str(), opaqueCheckSumTypeReq.c_str());
-    // set the default checksum, i.e. the one specified in the layout
-    mChecksumGroup->SetDefault(std::move(mCheckSum),
-                               static_cast<eos::common::LayoutId::eChecksum>
-                               (eos::common::LayoutId::GetChecksum(mLid)));
-    eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\"",
-              mChecksumGroup->GetDefault(), mLid, opaqueCheckSum.c_str());
+    // All good, add the debug log
+    if(mCheckSum) {
+      eos_debug("msg=\"will apply checksum\" xs_ptr=%p lid=%u cksum_type=\"%s\" mgm.checksum=\"%s\" mgm.checksumtypereq=\"%s\"",
+                mCheckSum.get(), mLid, mCheckSum->GetName(), opaqueCheckSum.c_str(), opaqueCheckSumTypeReq.c_str());
+    }
   }
 
   // Handle file system id and local prefix - If we open a replica we have to
@@ -3606,9 +3630,12 @@ XrdFstOfsFile::VerifyChecksum()
         XrdOucString hexChecksum = xs->GetHexChecksum();
 
         if ((opaqueChecksum != "disable") && (opaqueChecksum != hexChecksum)) {
-          eos_err("requested checksum %s does not match checksum %s of uploaded"
-                  " file", opaqueChecksum.c_str(), hexChecksum.c_str());
-          mChecksumGroup->Clear();
+          std::stringstream cksumErr;
+          cksumErr << "requested checksum " << opaqueChecksum << " does not match checksum " <<
+              hexChecksum << " of uploaded file";
+          mChecksumErr = cksumErr.str();
+          eos_err(cksumErr.str().c_str());
+          mCheckSum.reset(nullptr);
           return true;
         }
       }

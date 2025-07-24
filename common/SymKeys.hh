@@ -192,6 +192,17 @@ public:
   static std::string HexSha1(const std::string& data);
 
   //----------------------------------------------------------------------------
+  //! Base64 encode bytes - base function
+  //!
+  //! @param decoded_bytes input data
+  //! @param decoded_length input data length
+  //! @param out encoded data in std::string
+  //!
+  //! @return true if succesful, otherwise false
+  //----------------------------------------------------------------------------
+  static std::string Base64Encode(const std::vector<uint8_t> & input) ;
+
+  //----------------------------------------------------------------------------
   //! Base64 encode a string - base function
   //!
   //! @param decoded_bytes input data

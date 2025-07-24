@@ -868,8 +868,13 @@ runtest "### backward  " unix SUCCESS "" backward  /eos/$EOS_TEST_INSTANCE/test/
 runtest "### downrnd   " unix SUCCESS "" downloadrandom  /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
 runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes"
 # --------------------------
+
 runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.checksum=adler /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### UploadCks " unix SUCCESS "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K"
+runtest "### UploadCks " unix SUCCESS "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum="
+runtest "### UploadCks " unix SUCCESS "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K\&eos.checksumtype=adler"
+runtest "### UploadCks " unix ERROR "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=bliblablo\&eos.checksumtype=adler"
+runtest "### UploadCks " unix ERROR "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K\&eos.checksumtype=does_not_exist"
 runtest "### FileInfo  " unix SUCCESS "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=1"
 runtest "### UploadCks " unix SUCCESS "" upload    "$TESTSYSFILE0K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/good-checksum0k" "-ODeos.checksum=00000001"
 runtest "### Rem       " unix SUCCESS "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/good-checksum0k"
