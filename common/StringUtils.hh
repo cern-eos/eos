@@ -88,6 +88,34 @@ static inline void trim(std::string& s)
 }
 
 //------------------------------------------------------------------------------
+//! Trim from both ends in-place (stringview version)
+//------------------------------------------------------------------------------
+static inline void trim(std::string_view & sv) {
+  const auto toTrim = [](char c) { return std::isspace(c); };
+  size_t start = 0;
+  size_t end = sv.size();
+
+  while (start < end && toTrim(sv[start])) ++start;
+  while (end > start && toTrim(sv[end - 1])) --end;
+
+  sv = sv.substr(start, end - start);
+}
+
+//------------------------------------------------------------------------------
+//! Removes non-visible chars (isgraph) from a string
+//------------------------------------------------------------------------------
+static inline void stripInvisibleChars(std::string & s) {
+  const auto toTrim = [](char c) { return !std::isgraph(c); };
+  size_t start = 0;
+  size_t end = s.size();
+
+  while (start < end && toTrim(s[start])) ++start;
+  while (end > start && toTrim(s[end - 1])) --end;
+
+  s = s.substr(start, end - start);
+}
+
+//------------------------------------------------------------------------------
 //! Bool to string
 //------------------------------------------------------------------------------
 static inline std::string boolToString(bool b)

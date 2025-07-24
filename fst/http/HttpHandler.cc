@@ -475,7 +475,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       } else if (mRc == SFS_ERROR) {
         mErrCode = mFile->error.getErrInfo();
         mErrText = mFile->error.getErrText();
-        response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
+       if(mFile->HasChecksumValidationError()) {
+         // A cksum validation error with HTTP is 412 precondition failed
+         mErrCode = common::HttpResponse::PRECONDITION_FAILED;
+         mErrText = mFile->GetChecksumErrText();
+       }
+       response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       } else if (mRc == SFS_DATA) {
         response = HttpServer::HttpData(mFile->error.getErrText(),
                                         mFile->error.getErrInfo());
@@ -661,8 +666,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           eos_static_debug("enabled checksum lastchunk=%d checksum=%x", mLastChunk,
                            mFile->GetChecksum());
           // Call explicitly the checksum verification
-          mFile->VerifyChecksum();
-
+          checksumError = mFile->VerifyChecksum();
           if (mFile->GetChecksum()) {
             std::string checksum_name = mFile->GetChecksum()->GetName();
             std::string checksum_val = mFile->GetChecksum()->GetHexChecksum();
@@ -713,9 +717,10 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         }
       }
 
-      if (checksumError) {
+      if (checksumError || mFile->HasChecksumValidationError()) {
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(eos::common::HttpResponse::PRECONDITION_FAILED);
+        response->SetBody(mFile->HasChecksumValidationError() ? mFile->GetChecksumErrText() : "checksum validation error");
         delete mFile;
         mFile = 0;
         return response;
