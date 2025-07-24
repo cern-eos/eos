@@ -76,7 +76,7 @@ Storage::MgmSyncer()
       gOFS.WrittenFilesQueue.pop();
       gOFS.WrittenFilesQueueMutex.unlock();
       // Guarantee that we delay the check by atleast 60 seconds to wait
-      // for the commit of all recplias
+      // for the commit of all replicas
       time_t delay = fmd.mProtoFmd.mtime() + 60 - now;
 
       if ((delay > 0) && (delay <= 60)) {
