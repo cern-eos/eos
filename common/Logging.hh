@@ -295,7 +295,7 @@ public:
   SetLogId(const char* newlogid)
   {
     if (newlogid && (strncmp(newlogid, logId, sizeof(logId) - 1) != 0)) {
-      snprintf(logId, sizeof(logId), "%39s", newlogid);
+      snprintf(logId, sizeof(logId), "%s", newlogid);
     }
   }
 
@@ -306,11 +306,11 @@ public:
   SetLogId(const char* newlogid, const char* td)
   {
     if (newlogid && (newlogid != logId)) {
-      snprintf(logId, sizeof(logId), "%39s", newlogid);
+      snprintf(logId, sizeof(logId), "%s", newlogid);
     }
 
     if (td) {
-      snprintf(cident, sizeof(cident), "%39s", td);
+      snprintf(cident, sizeof(cident), "%s", td);
     }
   }
 
@@ -341,14 +341,14 @@ public:
            const char* td = "")
   {
     vid = vid_in;
-    snprintf(cident, sizeof(cident), "%39s", td);
+    snprintf(cident, sizeof(cident), "%s", td);
 
     if (vid.token && vid.token->Valid()) {
       // use the voucher as logging ID
-      snprintf(logId, sizeof(logId), "%39s", vid.token->Voucher().c_str());
+      snprintf(logId, sizeof(logId), "%s", vid.token->Voucher().c_str());
     } else {
       if (newlogid != logId) {
-        snprintf(logId, sizeof(logId), "%39s", newlogid);
+        snprintf(logId, sizeof(logId), "%s", newlogid);
       }
     }
   }
