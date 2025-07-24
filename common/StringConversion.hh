@@ -46,6 +46,7 @@
 #include <fstream>
 #include <sstream>
 #include <openssl/sha.h>
+#include <optional>
 
 typedef void CURL;
 
@@ -181,6 +182,21 @@ public:
   static std::unique_ptr<char[]>
   Hex2BinDataChar(const std::string& shex, size_t& out_size,
                   const size_t nominal_len = SHA_DIGEST_LENGTH);
+
+  /**
+   * Converts a char character into an integer
+   * @param ch
+   * @return
+   */
+  static int char_to_int(char ch);
+
+  /**
+   * Converts checksum hex representation to
+   * @param hex
+   * @return the vector of bytes from the hexadecimal string passed in parameter
+   * nullopt if the conversion could not have been done
+   */
+  static std::optional<std::vector<uint8_t>> Hex2BinData(const std::string & hex);
 
   // ---------------------------------------------------------------------------
   /**

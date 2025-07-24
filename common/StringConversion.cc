@@ -419,6 +419,36 @@ StringConversion::Hex2BinDataChar(const std::string& shex, size_t& out_size,
   return buf;
 }
 
+int StringConversion::char_to_int(char ch) {
+  unsigned char c = static_cast<unsigned char>(ch);
+  if (std::isdigit(c)) {
+    return c - '0';
+  } else {
+    c = ::tolower(c);
+    if (c >= 'a' && c <= 'f') {
+      return c - 'a' + 10;
+    }
+    return -1;
+  }
+}
+
+std::optional<std::vector<uint8_t>> StringConversion::Hex2BinData(const std::string& hex) {
+  if(hex.size() % 2 != 0) {
+    return std::nullopt;
+  }
+
+  std::vector<std::uint8_t> result;
+  result.reserve(hex.size() / 2);
+
+  for(size_t i = 0; i < hex.size(); i += 2) {
+    int upper = char_to_int(hex[i]);
+    int lower = char_to_int(hex[i + 1]);
+    if (upper < 0 || lower < 0) return std::nullopt;
+    result.push_back(static_cast<uint8_t>((upper << 4) + lower));
+  }
+  return result;
+}
+
 //----------------------------------------------------------------------------
 //! Get size from the given string, return true if parsing was successful,
 //! false otherwise

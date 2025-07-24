@@ -465,8 +465,6 @@ XrdMgmOfsFile::GetXrdAccessOperation(int open_flags)
   return op;
 }
 
-
-
 XrdMgmOfsFile::targetParams
 XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
                                      const std::vector<std::string>& proxys,
@@ -474,7 +472,6 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
                                      std::string_view fs_hostport,
                                      std::string_view fs_prefix)
 {
-
   bool hasFirewall = fsIndex < firewalleps.size() &&
                    !firewalleps[fsIndex].empty();
   bool hasProxy = fsIndex < proxys.size() && !proxys[fsIndex].empty();
@@ -483,55 +480,80 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
   }
 
   targetParams out;
-    // Set the FST gateway for clients who are geo-tagged with default
-    // Do this with forwarding proxy syntax only if the firewall entrypoint is
-    // different from the endpoint
-    if (hasFirewall &&
-        ((hasProxy && firewalleps[fsIndex] != proxys[fsIndex]) ||
-        (firewalleps[fsIndex] != fs_hostport))) {
-      // Build the URL for the forwarding proxy and must have the following
-      // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
-      if (auto idx = firewalleps[fsIndex].rfind(':');
-        idx != std::string::npos) {
-        out.targethost = firewalleps[fsIndex].substr(0, idx);
-        out.targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
-                          std::string::npos).c_str());
-        out.targethttpport = 8001;
+  // Set the FST gateway for clients who are geo-tagged with default
+  // Do this with forwarding proxy syntax only if the firewall entrypoint is
+  // different from the endpoint
+  if (hasFirewall &&
+      ((hasProxy && firewalleps[fsIndex] != proxys[fsIndex]) ||
+      (firewalleps[fsIndex] != fs_hostport))) {
+    // Build the URL for the forwarding proxy and must have the following
+    // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
+    if (auto idx = firewalleps[fsIndex].rfind(':');
+      idx != std::string::npos) {
+      out.targethost = firewalleps[fsIndex].substr(0, idx);
+      out.targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
+                        std::string::npos).c_str());
+      out.targethttpport = 8001;
       } else {
         out.targethost = firewalleps[fsIndex].c_str();
         out.targetport = 0;
         out.targethttpport = 8001;
       }
 
-      out.redirectionhost = out.targethost + ":" +
-                            std::to_string(out.targetport) + "?eos.fstfrw=";
-      if (hasProxy) {
-        out.redirectionhost += proxys[fsIndex];
-      } else {
-        out.redirectionhost += fs_hostport;
-      }
-    } else if (hasProxy) {
+    out.redirectionhost = out.targethost + ":" +
+                          std::to_string(out.targetport) + "?eos.fstfrw=";
+    if (hasProxy) {
+      out.redirectionhost += proxys[fsIndex];
+    } else {
+      out.redirectionhost += fs_hostport;
+    }
+      } else if (hasProxy) {
         if (auto idx = proxys[fsIndex].rfind(':');
             idx != std::string::npos) {
           out.targethost = proxys[fsIndex].substr(0, idx);
           out.targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
           out.targethttpport = 8001;
-        } else {
-          out.targethost = proxys[fsIndex];
-          out.targetport = 0;
-          out.targethttpport = 0;
-        }
-      out.redirectionhost = out.targethost;
-    }
+            } else {
+              out.targethost = proxys[fsIndex];
+              out.targetport = 0;
+              out.targethttpport = 0;
+            }
+        out.redirectionhost = out.targethost;
+      }
 
-    if (hasProxy && !fs_prefix.empty()) {
-      std::string _s = "mgm.fsprefix=";
-      _s.append(fs_prefix);
-      eos::common::replace_all(_s, ":", "#COL#");
-      out.redirectionhost += _s;
-      out.redirectionsuffix = std::move(_s);
-    }
+  if (hasProxy && !fs_prefix.empty()) {
+    std::string _s = "mgm.fsprefix=";
+    _s.append(fs_prefix);
+    eos::common::replace_all(_s, ":", "#COL#");
+    out.redirectionhost += _s;
+    out.redirectionsuffix = std::move(_s);
+  }
   return out;
+}
+
+//------------------------------------------------------------------------------
+// Get checksum from opaque
+//------------------------------------------------------------------------------
+void XrdMgmOfsFile::getCksumFromOpaque(std::string & cksumType, std::string & cksumValue)
+{
+  cksumType.clear();
+  cksumValue.clear();
+
+  auto getFirst = [this](std::initializer_list<const char *> keys) -> const char *{
+    for (const auto & k: keys) {
+      if (char * value = openOpaque->Get(k)) {
+        return value;
+      }
+    }
+    return nullptr;
+  };
+
+  if(const char * cksumtype = getFirst({"eos.checksumtype", "cks.type"})) {
+    cksumType = cksumtype;
+  }
+  if(const char * cksumvalue = getFirst({"eos.checksum","cks.value"})) {
+    cksumValue = cksumvalue;
+  }
 }
 
 /*----------------------------------------------------------------------------*/
@@ -3282,9 +3304,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
 
-    if (openOpaque->Get("eos.checksum") || openOpaque->Get("eos.cloneid")) {
-      redirectionhost += "&mgm.checksum=";
-      redirectionhost += openOpaque->Get("eos.checksum");
+    if (openOpaque->Get("eos.checksum") || (openOpaque->Get("cks.type") && openOpaque->Get("cks.value")) || openOpaque->Get("eos.cloneid")) {
+      std::string checksumType;
+      std::string checksumValue;
+
+      getCksumFromOpaque(checksumType,checksumValue);
+      if(!checksumType.empty()) {
+        redirectionhost += "&mgm.checksum=";
+        redirectionhost += checksumValue.c_str();
+        if(!checksumValue.empty()) {
+          // User sets the checksum type corresponding to the checksum type specified
+          redirectionhost += "&mgm.checksumtypereq=";
+          redirectionhost += checksumType.c_str();
+        }
+      }
     }
 
     if (openOpaque->Get("eos.mtime")) {

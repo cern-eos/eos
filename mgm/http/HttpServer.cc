@@ -308,7 +308,8 @@ HttpServer::XrdHttpHandler(std::string& method,
                            std::string& body,
                            const XrdSecEntity& client,
                            XrdAccAuthorize* authz_obj,
-                           std::string& err_msg)
+                           std::string& err_msg,
+                           XrdHttpExtReq & req)
 {
   using namespace eos::common;
   WAIT_BOOT;
@@ -447,7 +448,7 @@ HttpServer::XrdHttpHandler(std::string& method,
   std::unique_ptr<eos::common::HttpRequest> request {
     new eos::common::HttpRequest(headers, method, uri,
     (query.c_str() ? query : ""),
-    body, &bodySize, cookies)};
+    body, &bodySize, cookies, req.mReprDigest)};
   eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
                    request->GetBody().c_str());
   handler->HandleRequest(request.get());
