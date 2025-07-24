@@ -340,9 +340,9 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   std::string err_msg;
   std::map<std::string, std::string> cookies;
   std::unique_ptr<eos::common::ProtocolHandler> handler =
-    mMgmOfsHandler->mHttpd->XrdHttpHandler
-    (req.verb, req.resource, normalized_headers, cookies, body, req.GetSecEntity(),
-     mTokenAuthzHandler, err_msg);
+      mMgmOfsHandler->mHttpd->XrdHttpHandler(req.verb, req.resource, normalized_headers,
+                                             cookies, body, req.GetSecEntity(),
+                                             mTokenAuthzHandler, err_msg, req);
 
   if (handler == nullptr) {
     return req.SendSimpleResp(500, err_msg.c_str(), "", err_msg.c_str(),

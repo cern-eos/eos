@@ -868,7 +868,7 @@ public:
       return kSHA1;
     } else if (checksum == "crc64") {
       return kCRC64;
-    } else if (checksum == "sha256") {
+    } else if ((checksum == "sha256") || (checksum == "sha-256")) {
       return kSHA256;
     } else if (checksum == "xxhash64") {
       return kXXHASH64;
@@ -932,6 +932,33 @@ public:
     }
 
     return "none";
+  }
+
+  //--------------------------------------------------------------------------
+  //! Return the HTTP digest field name (RFC 9530 hash algorithm registry)
+  //! for the given checksum type - used e.g. in Repr-Digest headers.
+  //! Types without a registered name keep the EOS checksum name.
+  //!
+  //! @param xstype checksum type (eChecksum), NOT a layout id
+  //--------------------------------------------------------------------------
+  static const char*
+  GetHttpDigestNameFromXsType(unsigned long xstype)
+  {
+    if (xstype == kAdler) {
+      return "adler32";
+    }
+
+    if (xstype == kSHA1) {
+      return "sha";
+    }
+
+    if (xstype == kSHA256) {
+      return "sha-256";
+    }
+
+    // No registered digest name for the other types - reuse the EOS name
+    // which GetChecksumStringReal() derives from a layout id
+    return GetChecksumStringReal(GetId(kPlain, xstype));
   }
 
   //--------------------------------------------------------------------------

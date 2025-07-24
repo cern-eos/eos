@@ -22,18 +22,20 @@
  ************************************************************************/
 
 #include "fst/http/HttpHandler.hh"
-#include "fst/http/HttpServer.hh"
-#include "fst/checksum/Adler.hh"
+#include "common/LayoutId.hh"
 #include "common/Path.hh"
+#include "common/StringUtils.hh"
 #include "common/Timing.hh"
 #include "common/http/HttpResponse.hh"
+#include "common/http/MimeTypes.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/http/PlainHttpResponse.hh"
-#include "common/http/MimeTypes.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include <XrdSys/XrdSysPthread.hh>
+#include "fst/checksum/Adler.hh"
+#include "fst/http/HttpServer.hh"
 #include <XrdSfs/XrdSfsInterface.hh>
+#include <XrdSys/XrdSysPthread.hh>
 #include <algorithm>
 
 EOSFSTNAMESPACE_BEGIN
@@ -366,6 +368,10 @@ HttpHandler::Get(eos::common::HttpRequest* request)
         if (mFile->GetChecksum()) {
           std::string checksum_name = mFile->GetChecksum()->GetName();
           std::string checksum_val = mFile->GetFmdChecksum();
+          // Keep the full-width hex value before the leading zeros get
+          // stripped for the OC-Checksum/Digest headers below - a digest
+          // value must preserve them
+          const std::string full_checksum_val = checksum_val;
 
           while (checksum_val[0] == '0') {
             checksum_val.erase(0, 1);
@@ -385,6 +391,25 @@ HttpHandler::Get(eos::common::HttpRequest* request)
             std::replace(checksum_string.begin(), checksum_string.end(),
                          ':', '=');
             response->AddHeader("Digest", checksum_string);
+          }
+
+          it = hdrs.find("want-repr-digest");
+          if (it != hdrs.end()) {
+            // According to RFC 9530, the server MAY ignore the content of this header
+            // and return whatever digest it wants, so we return the checksum we have.
+            // The digest name must be the one registered in the RFC 9530 hash
+            // algorithm registry (e.g. adler32, sha-256) and the value is the
+            // base64 encoding of the full-width binary checksum
+            const int xs_type = common::LayoutId::GetChecksumFromString(checksum_name);
+            auto digestToBytes = common::StringConversion::Hex2BinData(full_checksum_val);
+            if ((xs_type >= 0) && digestToBytes && !digestToBytes->empty()) {
+              std::string encodedCksumVal = common::SymKey::Base64Encode(*digestToBytes);
+              std::string reprDigest =
+                  std::string(common::LayoutId::GetHttpDigestNameFromXsType(xs_type)) +
+                  "=:" + encodedCksumVal + ":";
+              response->AddHeader("Repr-Digest", reprDigest);
+            }
+            // In case of a failure we don't set this header
           }
         }
       }
@@ -484,6 +509,11 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       } else if (mRc == SFS_ERROR) {
         mErrCode = mFile->error.getErrInfo();
         mErrText = mFile->error.getErrText();
+        if (mFile->HasChecksumValidationError()) {
+          // A cksum validation error with HTTP is 412 precondition failed
+          mErrCode = common::HttpResponse::PRECONDITION_FAILED;
+          mErrText = mFile->GetChecksumErrText();
+        }
         response = HttpServer::HttpError(mErrText.c_str(), mErrCode);
       } else if (mRc == SFS_DATA) {
         response = HttpServer::HttpData(mFile->error.getErrText(),
@@ -670,8 +700,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           eos_static_debug("enabled checksum lastchunk=%d checksum=%x", mLastChunk,
                            mFile->GetChecksum());
           // Call explicitly the checksum verification
-          mFile->VerifyChecksum();
-
+          checksumError = mFile->VerifyChecksum();
           if (mFile->GetChecksum()) {
             std::string checksum_name = mFile->GetChecksum()->GetName();
             std::string checksum_val = mFile->GetChecksum()->GetHexChecksum();
@@ -722,9 +751,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         }
       }
 
-      if (checksumError) {
+      if (checksumError || mFile->HasChecksumValidationError()) {
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(eos::common::HttpResponse::PRECONDITION_FAILED);
+        response->SetBody(mFile->HasChecksumValidationError()
+                              ? mFile->GetChecksumErrText()
+                              : "checksum validation error");
         delete mFile;
         mFile = 0;
         return response;

@@ -255,6 +255,17 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
     if (is_chunked) {
       if (!HandleChunkUpload(req, handler.get(), normalized_headers, cookies,
                              query)) {
+        // Forward the error the handler produced e.g. a checksum validation
+        // error is a 412. Only an error response is meaningful here, the last
+        // response can also be the 201 of the previously written chunk or the
+        // 0 code set at open time when the upload failed at the transport
+        // level, in which case we report a generic server error
+        HttpResponse* response = handler->GetResponse();
+        if (response && (response->GetResponseCode() >= 400)) {
+          return req.SendSimpleResp(
+              response->GetResponseCode(), response->GetResponseCodeDescription().c_str(),
+              nullptr, response->GetBody().c_str(), response->GetBody().length());
+        }
         return req.SendSimpleResp(500, "fatal internal error", "during chunk upload",
                                   nullptr, 0);
       }

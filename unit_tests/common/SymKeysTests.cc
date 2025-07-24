@@ -95,3 +95,20 @@ TEST(SymKeys, Base64Test)
     free(decoded_bytes);
   }
 }
+
+//------------------------------------------------------------------------------
+// Base64 encoding of raw bytes (used for RFC 9530 Repr-Digest values)
+//------------------------------------------------------------------------------
+TEST(SymKeys, Base64EncodeBytes)
+{
+  using eos::common::SymKey;
+  // Empty input gives an empty string
+  ASSERT_TRUE(SymKey::Base64Encode(std::vector<uint8_t>{}).empty());
+  // Known vectors, same expectations as the string based Base64 encoding
+  ASSERT_EQ("Zg==", SymKey::Base64Encode(std::vector<uint8_t>{'f'}));
+  ASSERT_EQ("Zm9vYmFy",
+            SymKey::Base64Encode(std::vector<uint8_t>{'f', 'o', 'o', 'b', 'a', 'r'}));
+  // Binary data with leading zero byte (adler 00000001 of a 0-size file)
+  ASSERT_EQ("AAAAAQ==",
+            SymKey::Base64Encode(std::vector<uint8_t>{0x00, 0x00, 0x00, 0x01}));
+}

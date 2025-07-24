@@ -540,6 +540,32 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
   return out;
 }
 
+//------------------------------------------------------------------------------
+// Get checksum from opaque
+//------------------------------------------------------------------------------
+void
+XrdMgmOfsFile::getCksumFromOpaque(std::string& cksumType, std::string& cksumValue)
+{
+  cksumType.clear();
+  cksumValue.clear();
+
+  auto getFirst = [this](std::initializer_list<const char*> keys) -> const char* {
+    for (const auto& k : keys) {
+      if (char* value = openOpaque->Get(k)) {
+        return value;
+      }
+    }
+    return nullptr;
+  };
+
+  if (const char* cksumtype = getFirst({"eos.checksumtype", "cks.type"})) {
+    cksumType = cksumtype;
+  }
+  if (const char* cksumvalue = getFirst({"eos.checksum", "cks.value"})) {
+    cksumValue = cksumvalue;
+  }
+}
+
 /*----------------------------------------------------------------------------*/
 #include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"
@@ -1340,6 +1366,62 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (IsRainRetryWithExclusion(isRW, fmdlid)) {
     return Emsg(epname, error, ENETUNREACH,  "open file - "
                 "multi-source reading on EC file blocked for ", path);
+  }
+
+  // ---------------------------------------------------------------------------
+  // If the client requested a given checksum type (e.g. HTTP Repr-Digest or
+  // cks.type coming from HTTP TPC), validate it against the layout checksum
+  // type before any namespace entry is created. This way a request that can
+  // never pass the checksum verification neither leaves a 0-size file behind
+  // nor needs any cleanup on the FST side.
+  // ---------------------------------------------------------------------------
+  if (isRW) {
+    std::string cksumType, cksumValue;
+    getCksumFromOpaque(cksumType, cksumValue);
+
+    if (!cksumType.empty()) {
+      const int req_xs = LayoutId::GetChecksumFromString(cksumType);
+
+      if (req_xs < 0) {
+        return Emsg(epname, error, EINVAL,
+                    "open file - the requested "
+                    "checksum type does not exist: ",
+                    cksumType.c_str());
+      }
+
+      unsigned long target_lid = fmdlid;
+
+      if (!fmd) {
+        // New file: do a dry-run of the layout selection to learn the
+        // checksum type the policy would assign. The result is discarded,
+        // the effective layout is computed later at the usual place.
+        std::string tmp_space = "default";
+        unsigned long tmp_lid = 0;
+        unsigned long tmp_fsid = 0;
+        long tmp_group = -1;
+        std::string tmp_bw, tmp_ioprio, tmp_iotype;
+        bool tmp_sched = false;
+        Policy::GetLayoutAndSpace(path, attrmap, vid, tmp_lid, tmp_space, *openOpaque,
+                                  tmp_fsid, tmp_group, tmp_bw, tmp_sched, tmp_ioprio,
+                                  tmp_iotype, isRW, true);
+        target_lid = tmp_lid;
+      }
+
+      if (LayoutId::GetChecksum(target_lid) == LayoutId::kNone) {
+        return Emsg(epname, error, EINVAL,
+                    "open file - a checksum type was "
+                    "requested but the layout has no checksum configured ",
+                    path);
+      }
+
+      if (static_cast<unsigned long>(req_xs) != LayoutId::GetChecksum(target_lid)) {
+        std::ostringstream oss;
+        oss << "open file - the requested checksum type (" << cksumType
+            << ") does not match the one configured on the layout ("
+            << LayoutId::GetChecksumStringReal(target_lid) << ") for ";
+        return Emsg(epname, error, EINVAL, oss.str().c_str(), path);
+      }
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -3352,9 +3434,25 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
 
-    if (openOpaque->Get("eos.checksum") || openOpaque->Get("eos.cloneid")) {
+    // A checksum value alone is enough to trigger the verification, it is done
+    // against the layout checksum type - cks.value behaves like eos.checksum
+    if (openOpaque->Get("eos.checksum") || openOpaque->Get("cks.value") ||
+        openOpaque->Get("eos.cloneid")) {
+      std::string checksumType;
+      std::string checksumValue;
+
+      getCksumFromOpaque(checksumType, checksumValue);
+      // Legacy behavior: always forward the expected checksum value, the FST
+      // verifies it against the layout checksum at close time
       redirectionhost += "&mgm.checksum=";
-      redirectionhost += openOpaque->Get("eos.checksum");
+      redirectionhost += checksumValue.c_str();
+
+      // Only write opens verify a client-requested checksum type - the type
+      // was already validated against the layout above
+      if (isRW && !checksumType.empty() && !checksumValue.empty()) {
+        redirectionhost += "&mgm.checksumtypereq=";
+        redirectionhost += checksumType.c_str();
+      }
     }
 
     if (openOpaque->Get("eos.mtime")) {

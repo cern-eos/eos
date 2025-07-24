@@ -45,6 +45,7 @@ class HttpRequest
 
 public:
   typedef std::map<std::string, std::string> HeaderMap;
+  typedef std::map<std::string, std::string> ReprDigestMap;
 
 private:
   HeaderMap         mRequestHeaders;  //!< the map of client request headers
@@ -54,6 +55,8 @@ private:
   const std::string mRequestBody;     //!< the client request body
   size_t           *mRequestBodySize; //!< the size of the client request body
   HeaderMap         mRequestCookies;  //!< the client request cookie header map
+  ReprDigestMap mReprDigest; //!< the map containing the XrdHttp-parsed client Repr-Digest
+                             //!< header values
   bool              mXrdHttp;         //!< the request came with XrdHttp
 
 public:
@@ -70,14 +73,26 @@ public:
    * @param cookies  the map of cookie headers
    * @param xrdhttp  indicate an xrdhttp request
    */
-  HttpRequest (HeaderMap          headers,
-               const std::string &method,
-               const std::string &url,
-               const std::string &query,
-               const std::string &uploadData,
-               size_t            *uploadDataSize,
-               HeaderMap          cookies, 
-	       bool               xrdhttp = false);
+  HttpRequest(HeaderMap headers, const std::string& method, const std::string& url,
+              const std::string& query, const std::string& uploadData,
+              size_t* uploadDataSize, HeaderMap cookies, bool xrdhttp = false);
+
+  /**
+   * Constructor
+   *
+   * @param headers  the map of request headers sent by the client
+   * @param method   the request verb used by the client (GET, PUT, etc)
+   * @param url      the URL requested by the client
+   * @param query    the GET request query string (if any)
+   * @param body     the request body data sent by the client
+   * @param bodySize the size of the request body
+   * @param cookies  the map of cookie headers
+   * @param reprDigest the map of Repr-Digest sent by the client and parsed by XrdHttp
+   * @param xrdhttp  indicate an xrdhttp request
+   */
+  HttpRequest(HeaderMap headers, const std::string& method, const std::string& url,
+              const std::string& query, const std::string& body, size_t* bodySize,
+              HeaderMap cookies, ReprDigestMap reprDigest, bool xrdhttp = false);
 
   /**
    * Destructor
@@ -125,7 +140,16 @@ public:
    */
   inline HeaderMap&
   GetCookies () { return mRequestCookies; }
-  
+
+  /**
+   * @return the map of client repr-digest parsed by XrdHttp
+   */
+  inline ReprDigestMap&
+  GetReprDigest()
+  {
+    return mReprDigest;
+  }
+
   /**
    * @return true if xrdhttp request
    */

@@ -125,14 +125,11 @@ public:
   //! @return protocol handler or null in case of failure
   //----------------------------------------------------------------------------
   virtual std::unique_ptr<eos::common::ProtocolHandler>
-  XrdHttpHandler(std::string& method,
-                 std::string& uri,
+  XrdHttpHandler(std::string& method, std::string& uri,
                  std::map<std::string, std::string>& headers,
-                 std::map<std::string, std::string>& cookies,
-                 std::string& body,
-                 const XrdSecEntity& client,
-                 XrdAccAuthorize* authz_obj,
-                 std::string& err_msg);
+                 std::map<std::string, std::string>& cookies, std::string& body,
+                 const XrdSecEntity& client, XrdAccAuthorize* authz_obj,
+                 std::string& err_msg, XrdHttpExtReq& req);
 
   //----------------------------------------------------------------------------
   //! Extract opaque query from the full path passed in parameter

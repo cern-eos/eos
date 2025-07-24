@@ -576,6 +576,23 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         query += "eos.bookingsize=0";
       }
 
+      // A checksum type requested by the client can be rejected by the open
+      // with EINVAL when it cannot be verified for this file. Remember such a
+      // request to report a client error instead of the generic server error
+      // EINVAL is mapped to.
+      bool has_repr_digest = false;
+
+      if (request->GetReprDigest().size()) {
+        // We take the first ReprDigest from the map as
+        // there is no way for the user to give their preference
+        const auto& [cksumType, cksumValue] = *request->GetReprDigest().begin();
+        if (query.length()) {
+          query += "&";
+        }
+        query += "eos.checksumtype=" + cksumType + "&eos.checksum=" + cksumValue;
+        has_repr_digest = true;
+      }
+
       if (request->GetHeaders().count("x-oc-mtime")) {
         // there is an X-OC-Mtime header to force the mtime for that file
         query += "&eos.mtime=";
@@ -660,9 +677,14 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         } else if (rc == SFS_ERROR) {
           if (file->error.getErrInfo() == ENOENT) {
             response = HttpServer::HttpError(file->error.getErrText(), 409);
-          } else
+          } else if ((file->error.getErrInfo() == EINVAL) && has_repr_digest) {
+            // The checksum type requested by the client was rejected
             response = HttpServer::HttpError(file->error.getErrText(),
-                                             file->error.getErrInfo());
+                                             eos::common::HttpResponse::BAD_REQUEST);
+          } else {
+            response =
+                HttpServer::HttpError(file->error.getErrText(), file->error.getErrInfo());
+          }
         } else if (rc == SFS_DATA) {
           response = HttpServer::HttpData(file->error.getErrText(),
                                           file->error.getErrInfo());
