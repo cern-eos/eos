@@ -3381,12 +3381,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (openOpaque->Get("eos.checksum") || openOpaque->Get("eos.cloneid")) {
       redirectionhost += "&mgm.checksum=";
       redirectionhost += openOpaque->Get("eos.checksum");
-
-      if(openOpaque->Get("eos.checksumtype")) {
-        // User sets the checksum type corresponding to the eos.checksum specified
-        redirectionhost += "&mgm.checksumtypereq=";
-        redirectionhost += openOpaque->Get("eos.checksumtype");
-      }
     }
 
     if (openOpaque->Get("eos.mtime")) {
