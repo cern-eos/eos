@@ -204,7 +204,7 @@ build_el10:
   extends: .build-template
   only:
     - schedules
-    - tag
+    - tags
 
 
 build_el9_arm64:
