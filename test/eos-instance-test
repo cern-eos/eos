@@ -604,22 +604,22 @@ runtest () {
 
           # Check if test failed unexpectedly and print output
           test_failed=0
-          if [ $res -eq 0 ] ; then 
-            if [ $ret -eq 0 ]; then 
+          if [ $res -eq 0 ] ; then
+            if [ $ret -eq 0 ]; then
               success; ((success++))
-            else 
+            else
               failure ; ((failed++)); echo ; test_failed=1
             fi
           fi
-          if [ $res -eq 1 ] ; then 
-            if [ $ret -ne 0 ]; then 
+          if [ $res -eq 1 ] ; then
+            if [ $ret -ne 0 ]; then
               success; ((success++))
-            else 
+            else
               failure ; ((failed++)); echo ; test_failed=1
             fi
           fi
           if [ $res -eq 2 ] ; then success; ((success++)); fi
-          
+
           # Print full output for failed tests in indented block with red text on white background
           if [ $test_failed -eq 1 ]; then
             echo
@@ -643,7 +643,7 @@ runtest () {
             echo -e "    \033[31;47m===================\033[0m"
             echo
           fi
-          
+
           END=$(date +%s.%N)
           DIFF=$(echo "$END - $START" | bc)
           echo "                         in $DIFF seconds ($ret)"
