@@ -32,6 +32,7 @@
 #include <condition_variable>
 #include <atomic>
 #include <cstring>
+#include <chrono>
 #include <unistd.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -43,6 +44,7 @@ public:
     running_(false)
   {
     Start();
+    std::this_thread::sleep_for(std::chrono::seconds(2));
   }
 
   ~SimpleTCPServer()
