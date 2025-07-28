@@ -220,6 +220,7 @@ void ConversionJob::DoIt() noexcept
   std::ostringstream url_params;
   url_params << "eos.ruid=" << DAEMONUID
              << "&eos.rgid=" << DAEMONGID
+             << "&eos.encodepath=curl"
              << "&eos.app=" + app_tag;
   url_src.SetParams(url_params.str());
   url_src.SetPath(eos::common::StringConversion::curl_escaped(mSourcePath));
