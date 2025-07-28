@@ -171,6 +171,13 @@ bool RandomCheckFsXattrConverted(const std::string& fs_path)
 bool
 CheckFsXattrConverted(std::string fs_path)
 {
+  // Skip xattr conversion check for non-local filesystems (with protocol prefixes)
+  if (fs_path.find("://") != std::string::npos || fs_path[0] != '/') {
+    eos_static_info("msg=\"skipping xattr conversion check for non-local filesystem\" "
+                    "path=\"%s\"", fs_path.c_str());
+    return true;
+  }
+
   const std::string xattr_conv_marker = ".eosattrconverted";
   const std::string xattr_path = fs_path + "/" + xattr_conv_marker;
   struct stat info;

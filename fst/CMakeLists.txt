@@ -131,6 +131,7 @@ add_library(EosFstIo-Objects OBJECT
   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
   io/davix/DavixIo.cc            io/davix/DavixIo.hh
+  io/nfs/NfsIo.cc                io/nfs/NfsIo.hh
   io/xrd/XrdIo.cc                io/xrd/XrdIo.hh
   io/xrd/ResponseCollector.cc    io/xrd/ResponseCollector.hh
   io/AsyncMetaHandler.cc         io/AsyncMetaHandler.hh
@@ -159,7 +160,8 @@ target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
   EosCommon
   DAVIX::DAVIX
-  XROOTD::PRIVATE)
+  XROOTD::PRIVATE
+  NFS::NFS)
 
 target_compile_definitions(EosFstIo-Objects PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)
@@ -180,7 +182,8 @@ target_link_libraries(EosFstIo PUBLIC
   EosBlake3-Objects
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
-  XXHASH::XXHASH)
+  XXHASH::XXHASH
+  NFS::NFS)
 
 set_target_properties(EosFstIo PROPERTIES
   VERSION ${VERSION}
@@ -205,7 +208,8 @@ target_link_libraries(EosFstIo-Static PUBLIC
   EosBlake3-Objects
   ISAL::ISAL
   ISAL::ISAL_CRYPTO
-  XXHASH::XXHASH)
+  XXHASH::XXHASH
+  NFS::NFS)
 
 target_compile_definitions(EosFstIo-Static PRIVATE
   -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64)

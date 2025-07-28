@@ -28,6 +28,7 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/io/local/LocalIo.hh"
 #include "fst/io/davix/DavixIo.hh"
+#include "fst/io/nfs/NfsIo.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -62,7 +63,9 @@ FileIoPlugin::GetIoObject(std::string path,
 #endif // HAVE_DAVIX
     eos_static_warning("EOS has been compiled without DAVIX support.");
     return NULL;
-  } else {
+  } else if (ioType == LayoutId::kNfs) {
+    return static_cast<FileIo*>(new NfsIo(path, file, client));
+  } else { 
     return FileIoPluginHelper::GetIoObject(path, file, client);
   }
 }

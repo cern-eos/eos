@@ -157,7 +157,8 @@ set(FST_UT_SRCS
   fst/MonitorVarPartitionTest.cc
   fst/ResponseCollectorTests.cc
   fst/WalkDirTreeTests.cc
-  fst/HttpHandlerFstFileCacheTests.cc)
+  fst/HttpHandlerFstFileCacheTests.cc
+  fst/NfsIoTests.cc)
 
 #-------------------------------------------------------------------------------
 # unit tests source files
@@ -213,7 +214,8 @@ add_executable(eos-unit-tests-with-instance
   fst/main_fst.cc
   fst/TestEnv.cc
   fst/XrdFstOfsFileTest.cc
-  fst/XrdIoTests.cc)
+  fst/XrdIoTests.cc
+  fst/NfsIoTests.cc)
 
 target_link_libraries(eos-unit-tests-with-instance PRIVATE
   GTest::GTest

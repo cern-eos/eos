@@ -325,6 +325,7 @@ FileSystem::GetFileIOStats(std::map<std::string, std::string>& map)
 
   // Avoid querying IO stats attributes for certain storage types
   if (mFileIO->GetIoType() == "DavixIo" ||
+      mFileIO->GetIoType() == "NfsIo" ||
       mFileIO->GetIoType() == "XrdIo") {
     return false;
   }
@@ -347,12 +348,14 @@ FileSystem::GetHealthInfo(std::map<std::string, std::string>& map)
 
   // Avoid querying Health attributes for certain storage types
   if (mFileIO->GetIoType() == "DavixIo" ||
+      mFileIO->GetIoType() == "NfsIo" ||
       mFileIO->GetIoType() == "XrdIo") {
     return false;
   }
 
   // Avoid querying Health attributes for certain storage types
   if (mFileIO->GetIoType() == "DavixIo" ||
+      mFileIO->GetIoType() == "NfsIo" ||
       mFileIO->GetIoType() == "XrdIo") {
     return false;
   }

@@ -97,6 +97,7 @@ public:
   enum eIoType {
     kLocal = 0x0,
     kXrdCl = 0x1,
+    kNfs = 0x2,
     kDavix = 0x4
   };
 
@@ -128,6 +129,10 @@ public:
 
     if (spath.beginswith("s3s:")) {
       return kDavix;
+    }
+
+    if (spath.beginswith("nfs:")) {
+      return kNfs;
     }
 
     return kLocal;
