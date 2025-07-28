@@ -1631,9 +1631,7 @@ ProcCommand::File()
               } else {
                 // We got a new replication vector
                 for (unsigned int i = 0; i < selectedfs.size(); ++i) {
-                  {
-                    errno = Scheduler::FileAccess(&acsargs);
-                  }
+                  errno = Scheduler::FileAccess(&acsargs);
 
                   if (!errno) {
                     // This is now our source filesystem
@@ -1642,9 +1640,10 @@ ProcCommand::File()
                     if (gOFS->_replicatestripe(fmd.get(), spath.c_str(),
                                                *mError, *pVid, src_fsid,
                                                selectedfs[i], false)) {
-                      retc = errno;
+                      retc = mError->getErrInfo();
                       stdErr = SSTR("error: unable to replicate stripe "
                                     << src_fsid << " => " << selectedfs[i]
+                                    << " msg=" << mError->getErrText()
                                     << std::endl).c_str();
 
                       // Add message from previous successful replication job
