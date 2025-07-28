@@ -124,7 +124,8 @@ EOSMGMNAMESPACE_BEGIN
 ConversionJob::ConversionJob(const eos::IFileMD::id_t fid,
                              const ConversionInfo& conversion_info,
                              std::shared_ptr<XrdOucCallBack> callback) :
-  mFid(fid), mConversionInfo(conversion_info), mCallback(callback), mStatus(Status::PENDING)
+  mFid(fid), mConversionInfo(conversion_info), mCallback(callback),
+  mStatus(Status::PENDING)
 {
   mConversionPath = conversion_info.ConversionPath();
 }
@@ -221,7 +222,7 @@ void ConversionJob::DoIt() noexcept
              << "&eos.rgid=" << DAEMONGID
              << "&eos.app=" + app_tag;
   url_src.SetParams(url_params.str());
-  url_src.SetPath(mSourcePath);
+  url_src.SetPath(eos::common::StringConversion::curl_escaped(mSourcePath));
   XrdCl::URL url_dst = NewUrl();
   url_dst.SetParams(dst_cgi.str());
   url_dst.SetPath(mConversionPath);
@@ -370,6 +371,7 @@ void ConversionJob::DoIt() noexcept
     eos_static_info("[tpc]: notifying callback with 'cancel' after successfull tpc jobs");
     mCallback->Cancel();
   }
+
   return;
 }
 
@@ -396,7 +398,7 @@ void ConversionJob::HandleError(const std::string& emsg,
 
   if (mCallback) {
     eos_static_info("[tpc]: notifying callback with 'cancel' after error='%s' details-'%s'",
-    emsg.c_str(), details.c_str());
+                    emsg.c_str(), details.c_str());
     mCallback->Cancel();
   }
 }
