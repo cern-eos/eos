@@ -91,7 +91,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
     mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false),
-    mCanIssueToken(false)
+    mCanIssueToken(false),
     mCanSysAcl(false),mCanXAttr(false)
   {}
 
@@ -291,7 +291,6 @@ public:         // [+] prevents '+' interpreted as "one or more"
   inline bool CanXAttr() const
   {
     return mCanXAttr;
->>>>>>> bef9c50e1 (MGM: add 'X' (modify xattr as non sudoer) and 'A' (modify sys.acl as non sudoer) ruleset)
   }
 
   //----------------------------------------------------------------------------
