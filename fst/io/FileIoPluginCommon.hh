@@ -29,6 +29,7 @@
 #include "fst/io/local/FsIo.hh"
 #include "fst/io/xrd/XrdIo.hh"
 #include "fst/io/davix/DavixIo.hh"
+#include "fst/io/nfs/NfsIo.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 
@@ -79,6 +80,12 @@ public:
       return static_cast<FileIo*>(new DavixIo(path));
 #endif // HAVE_DAVIX
       eos_static_warning("%s", "msg=\"EOS has been compiled without DAVIX support\"");
+      return nullptr;
+    } else if (ioType == LayoutId::kNfs) {
+#ifdef HAVE_NFS
+      return static_cast<FileIo*>(new NfsIo(path, file, client));
+#endif // HAVE_NFS
+      eos_static_warning("%s", "msg=\"EOS has been compiled without NFS support\"");
       return nullptr;
     }
 

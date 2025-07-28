@@ -160,6 +160,10 @@ BuildRequires: systemd
 BuildRequires: fmt-devel
 BuildRequires: activemq-cpp, activemq-cpp-devel
 
+# NFS support dependencies
+BuildRequires: libnfs, libnfs-devel
+Requires: libnfs
+
 %if %{?rhel:1}%{!?rhel:0} && 0%{?rhel} <= 7
 BuildRequires: openssl-static, ncurses-static
 %endif

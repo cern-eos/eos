@@ -130,6 +130,8 @@ FileSystemLocator::StorageType FileSystemLocator::parseStorageType(
     return StorageType::HTTP;
   } else if (storagepath.find("https://") == 0) {
     return StorageType::HTTPS;
+  } else if (storagepath.find("nfs://") == 0) {
+    return StorageType::NFS;
   } else {
     return StorageType::Unknown;
   }

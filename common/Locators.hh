@@ -50,6 +50,7 @@ public:
     WebDav,
     HTTP,
     HTTPS,
+    NFS,
     Unknown
   };
 
