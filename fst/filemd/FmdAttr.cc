@@ -23,7 +23,7 @@
 
 #include "FmdAttr.hh"
 #include "FmdHandler.hh"
-#include "fst/io/local/FsIo.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/utils/FTSWalkTree.hh"
 #include "fst/utils/FSPathHandler.hh"
@@ -60,9 +60,9 @@ FmdAttrHandler::LocalRetrieveFmd(eos::common::FileId::fileid_t fid,
 std::pair<bool, eos::common::FmdHelper>
 FmdAttrHandler::LocalRetrieveFmd(const std::string& path)
 {
-  FsIo localIo {path};
   std::string attrval;
-  int result = localIo.attrGet(gFmdAttrName, attrval);
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(path));
+  int result = io->attrGet(gFmdAttrName, attrval);
 
   if (result != 0) {
     eos_debug("msg=\"failed to retrieve fmd attribute\" path=\"%s\" errno=%d",
@@ -103,17 +103,17 @@ bool
 FmdAttrHandler::LocalPutFmd(const eos::common::FmdHelper& fmd,
                             const std::string& path)
 {
-  FsIo localio {path};
   struct stat info;
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(path));
 
-  if (localio.fileStat(&info)) {
+  if (io->fileStat(&info)) {
     eos_err("msg=\"file not existing\" path=\"%s\"", path.c_str());
     return false;
   }
 
   std::string attrval;
   fmd.mProtoFmd.SerializePartialToString(&attrval);
-  int rc = localio.attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
+  int rc = io->attrSet(gFmdAttrName, attrval.c_str(), attrval.length());
 
   if (rc != 0) {
     eos_err("msg=\"failed to set xattr\" path=\"%s\" errno=%d",
@@ -140,10 +140,10 @@ FmdAttrHandler::LocalDeleteFmd(eos::common::FileId::fileid_t fid,
 void
 FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
 {
-  FsIo localio {path};
+  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(path));
 
   if (drop_file) {
-    int rc = localio.fileRemove();
+    int rc = io->fileRemove();
 
     if (rc && errno != ENOENT) {
       eos_err("Failed to drop file at path=%s, errno=%d", path.c_str(), errno)
@@ -152,7 +152,7 @@ FmdAttrHandler::LocalDeleteFmd(const std::string& path, bool drop_file)
     return;
   }
 
-  if (int rc = localio.attrDelete(gFmdAttrName);
+  if (int rc = io->attrDelete(gFmdAttrName);
       rc != 0) {
     if (errno == ENOATTR || errno == ENOENT) {
       return;
