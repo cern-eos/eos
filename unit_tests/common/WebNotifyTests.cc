@@ -24,8 +24,6 @@
 #include "Namespace.hh"
 #include "common/WebNotify.hh"
 #include "gtest/gtest.h"
-#include <algorithm>
-#include <execution>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -276,10 +274,8 @@ TEST(WebNotifyTimeoutTests, ActiveMQNotification_Ok)
     server.GetMessage();  // Blocks until message is received
   auto containsActiveMQ = [](const std::vector<char>& response) {
     const std::string target = "ActiveMQ";
-    return std::search(std::execution::seq,
-                       response.begin(), response.end(),
-                       target.begin(), target.end()
-                      ) != response.end();
+    std::string sresponse(response.begin(), response.end());
+    return (sresponse.find(target) != std::string::npos);
   };
   EXPECT_TRUE(containsActiveMQ(response_message));
 }
