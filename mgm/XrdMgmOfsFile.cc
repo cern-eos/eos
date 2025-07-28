@@ -505,7 +505,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     EXEC_TIMING_BEGIN("IdMap");
 
     std::string validation_path = spath.c_str();
-    
+
     if (spath.beginswith("/zteos64:")) {
       sinfo += "&authz=";
       sinfo += spath.c_str() + 1;
@@ -520,7 +520,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (spath == "/fusex-open") {
       validation_path = "";
     }
-    
+
     if (!invid) {
       eos::common::Mapping::IdMap(client, ininfo, tident, vid,
                                   gOFS->mTokenAuthz, acc_op,  validation_path.c_str());

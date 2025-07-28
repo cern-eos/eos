@@ -59,7 +59,7 @@ public:
   //! Method storing a token
   //----------------------------------------------------------------------------
   int StoreToken(const std::string& token, const std::string& voucherid, std::string& token_path, uid_t uid, gid_t gid);
-  
+
   //----------------------------------------------------------------------------
   //! Method getting a token storage prefix path
   //----------------------------------------------------------------------------

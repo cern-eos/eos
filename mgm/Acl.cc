@@ -232,7 +232,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   } else {
     gids.insert(vid.gid);
   }
-    
+
   for (const auto& chk_gid : gids) {
     // Only check non-system groups
     if (chk_gid == 0) {
@@ -557,7 +557,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
     // for tokens we adverties always to have an ACL
     mHasAcl = true;
   }
-  
+
   if (EOS_LOGS_DEBUG) {
     eos_static_debug(
       "mCanRead %d mCanNotRead %d mCanWrite %d mCanNotWrite %d mCanWriteOnce %d mCanUpdate %d mCanNotUpdate %d "

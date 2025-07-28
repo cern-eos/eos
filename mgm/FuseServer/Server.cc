@@ -772,7 +772,7 @@ Server::FillContainerCAP(uint64_t id,
         // the owner can always delete
         if ((vid.uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
           mode &= ~D_OK;
-        }	
+        }
       } else {
         // For immutable directories we allow reading and browsing permissions
         // if these are specified
@@ -1036,12 +1036,12 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
 	if (cmd->access(vid.uid, g, R_OK)) {
 	  r_ok = true;
 	}
-	
+
 	if (cmd->access(vid.uid, g, W_OK)) {
 	  w_ok = true;
 	  d_ok = true;
 	}
-	
+
 	if (cmd->access(vid.uid, g, X_OK)) {
 	  x_ok = true;
 	}

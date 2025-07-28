@@ -41,7 +41,7 @@ eos::mgm::TokenCmd::StoreToken(const std::string& token,  const std::string& vou
 {
   XrdOucErrInfo info;
   std::shared_ptr<eos::IFileMD> fmd;
-  
+
   if (!GetTokenPrefix(info, uid, gid, tokenpath)) {
     tokenpath += voucherid;
     // create file with voucherid name
@@ -154,7 +154,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
     reply.set_std_err("error: a token authorized user cannot issue another token");
     return reply;
   }
-  
+
   eos_static_info("root=%d sudoer=%d uid=%u gid=%u", mVid.hasUid(0), mVid.sudoer,
                   mVid.uid, mVid.gid);
 

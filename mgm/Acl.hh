@@ -277,7 +277,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
     return mCanIssueToken;
   }
 
-  //----------------------------------------------------------------------------  
+  //----------------------------------------------------------------------------
   //! Has the 'A' flag - sys acl modification permission
   //----------------------------------------------------------------------------
   inline bool CanSysAcl() const

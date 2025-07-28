@@ -145,7 +145,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
 	errno = EPERM;
 	return Emsg(epname, error, EPERM, "access - you cannot issue tokens", path);
       }
-      
+
       if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
         bool deny = true;
 
@@ -307,17 +307,17 @@ XrdMgmOfs::acc_access(const char* path,
 	  if (dh->access(vid.uid, g, R_OK)) {
 	    r_ok = true;
 	  }
-	  
+
 	  if (dh->access(vid.uid, g, W_OK)) {
 	    w_ok = true;
 	    d_ok = true;
 	    d_perm_ok = true;
 	  }
-	  
+
 	  if (dh->access(vid.uid, g, X_OK)) {
 	    x_ok = true;
 	  }
-	}   
+	}
       }
 
       //We prevent releasing the directory lock before calling the ACL constructor that will do

@@ -78,7 +78,7 @@ To enable issuing of tokens, the space configuration value
 .. code-block:: bash
 
    eos space config default space.token.generation=1
- 
+
 
 By default the signing key is derived from the instance sss keytab. If
 you want to define your own signature key, you can point to a file
@@ -155,15 +155,15 @@ A file token can be used in two ways:
 * as a filename
 * via CGI ```?authz=$TOKEN```
 
-.. code-block:: bash 
+.. code-block:: bash
 
 
    # as a filename
-   xrdcp root://myeos//zteos64:MDAwMDAwNzR4nONS4WIuKq8Q-Dlz-ltWI3H91Pxi_cSsAv2S_OzUPP2SeAgtpMAY7f1e31Ts-od-rgcLZ_a2_bhwcZO9cracy /tmp/ 
- 
+   xrdcp root://myeos//zteos64:MDAwMDAwNzR4nONS4WIuKq8Q-Dlz-ltWI3H91Pxi_cSsAv2S_OzUPP2SeAgtpMAY7f1e31Ts-od-rgcLZ_a2_bhwcZO9cracy /tmp/
+
    # via CGI
    xrdcp "root://myeos//eos/myfile?authz=zteos64:MDAwMDAwNzR4nONS4WIuKq8Q-Dlz-ltWI3H91Pxi_cSsAv2S_OzUPP2SeAgtpMAY7f1e31Ts-od+rgcLZ_a2_bhwcZO9cracy" /tmp/
-  
+
 
 If a token contains a subtree permission, the only way to use it for
 file access is to use the CGI form. The filename form is practical to
@@ -198,10 +198,10 @@ Tokens are issued with a generation entry. The generation value is a
 globally configured 64-bit unsigned number. In case of emergency all
 tokens can be revoked by increasing the generation value. The generation
 value is configured via the key `token.generation` in the default space.
-  
+
 .. code-block:: bash
 
-   # change the generation value 
+   # change the generation value
    eos config default space.token.generation=256
 
    # show the generation value
@@ -217,15 +217,15 @@ Token Origin Restrictions
 The client location from where a token can be used can be restricted by
 using the `origins` entries.
 
-.. code-block:: bash 
+.. code-block:: bash
 
    # general syntax is a regexp for origin like <regexp hostname>:<regexp username>:<regexp auth protocol>
-   # all machines at CERN authenticating via kerberos as user nobody        
+   # all machines at CERN authenticating via kerberos as user nobody
    eos token --path /eos/myfile --origin ".*.cern.ch:nobody:krb5"
 
    # all machines at CERN authenticating via unix as user kubernetes from machine k8s.cern.ch
    eos token --path /eos/myfile --origin "k8s.cern.ch:kubernetes:unix"
-  
+
 
 The default origin regexp is `.*:.*:.*` accepting all origins. If the
 regex is invalid, the command will return with an error message.
@@ -236,7 +236,7 @@ regex is invalid, the command will return with an error message.
 Token Mapping
 ^^^^^^^^^^^^^
 
-The `tokensudo` functionality can be configured on space level. The purpose is to define, which connections are allowed to use tokens and apply the owner/group information (if embebbed in the token). The default is `always`. 
+The `tokensudo` functionality can be configured on space level. The purpose is to define, which connections are allowed to use tokens and apply the owner/group information (if embebbed in the token). The default is `always`.
 
 .. code-block:: bash
 
@@ -246,7 +246,7 @@ The `tokensudo` functionality can be configured on space level. The purpose is t
 - `strong` - identity in the token is not taken into account for unix authenticated clients (all but linux))
 - `encrypted` - identity in the token is only taken into account for encrypted connections (https,grpc,ztn,sss)
 - `never` - identity in the token is never taken into account (never assimilate the identity from the token)
-   
+
 Token via GRPC
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -257,7 +257,7 @@ and `permission` should be defined.
 .. code-block:: bash
 
     [root@dev mgm]# eos-grpc-ns --acl rwx -p /eos/dev/xrootd token
-    request: 
+    request:
     {
     "authkey": "",
     "token": {
@@ -280,7 +280,7 @@ and `permission` should be defined.
     }
     }
 
-    reply: 
+    reply:
     {
     "error": {
       "code": "0",
@@ -293,11 +293,11 @@ and `permission` should be defined.
 
 To verify a token, the `vtoken` field should hold the token to decode.
 
-.. code-block:: bash 
+.. code-block:: bash
 
 
     [root@dev mgm]# eos-grpc-ns --ztoken zteos64:MDAwMDAwODR4nOPS4WIuKq8QaOqa85ZVii0vPyk_pVIJShvx66fmF-snZhXoVxTl55ekCCk8KMu4qK4Z7_jNTmF5u0_z5hP1J97v3K3G29cid0O4gv-5FEnmKUyavGstGwCiYjHe token
-    request: 
+    request:
     {
     "authkey": "",
     "token": {
@@ -320,18 +320,18 @@ To verify a token, the `vtoken` field should hold the token to decode.
     }
     }
 
-    reply: 
+    reply:
     {
     "error": {
     "code": "0",
     "msg": "{\n \"token\": {\n  \"permission\": \"rwx\",\n  \"expires\": \"1571321093\",\n  \"owner\": \"root\",\n  \"group\": \"root\",\n  \"generation\": \"0\",\n  \"path\": \"/eos/dev/xrootd\",\n  \"allowtree\": false,\n  \"vtoken\": \"\",\n  \"voucher\": \"6496c338-f0e6-11e9-b81d-fa163eb6b6cf\",\n  \"requester\": \"[Thu Oct 17 15:59:53 2019] uid:99[nobody] gid:99[nobody] tident:.1:46602@[:1] name: dn: prot:grpc host:[:1] domain:localdomain geo:cern sudo:0\",\n  \"origins\": []\n },\n \"signature\": \"2B8qIUfJ6rTusI2NFXKH70AoXZ55wKUUDijFCK3e2bY=\",\n \"serialized\": \"CgNyd3gQheqh7QUaBm5vYm9keSIGbm9ib2R5Mg8vZW9zL2FqcC94cm9vdGRKJDY0OTZjMzM4LWYwZTYtMTFlOS1iODFkLWZhMTYzZWI2YjZjZlKNAVtUaHUgT2N0IDE3IDE1OjU5OjUzIDIwMTldIHVpZDo5OVtub2JvZHldIGdpZDo5OVtub2JvZHldIHRpZGVudDouMTo0NjYwMkBbOjFdIG5hbWU6IGRuOiBwcm90OmdycGMgaG9zdDpbOjFdIGRvbWFpbjpsb2NhbGRvbWFpbiBnZW86YWpwIHN1ZG86MA==\",\n \"seed\": 844966647\n}\n"
     }
     }
-    
+
 
 The possible return codes are:
 
-.. epigraph:: 
+.. epigraph::
 
    ============== ============================================================
    Error          Meaning
@@ -344,7 +344,7 @@ The possible return codes are:
    ============== ============================================================
 
 .. index::
-   pair: EOS Tokens; Tokens over SSS 
+   pair: EOS Tokens; Tokens over SSS
 
 Using tokens with SSS security
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -405,9 +405,9 @@ not authorized to use the instance e.g.
       "origins": []
     },
     }
-  
+
 .. index::
-   pair: EOS Tokens; Token /eos access 
+   pair: EOS Tokens; Token /eos access
 
 Using tokens for scoped eosxd access
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -417,7 +417,7 @@ webservices etc. if the EOS instance is configured to issue tokens.
 
 To create a token as a user you do:
 
-.. code-block:: bash 
+.. code-block:: bash
 
    eos token --path /eos/user/f/foo/ci/ --expires 1654328760 --perm rwx --tree
 
@@ -429,7 +429,7 @@ You can inspect your token to verify that it contains what you want
 using:
 
 .. code-block:: bash
-     
+
    eos token --token zteos64:...
 
 
@@ -443,7 +443,7 @@ variable:
 
     # you should now have rwx permission on this tree
     ls /eos/user/f/foo/ci/
-    
+
 
 .. index::
    pair: EOS Tokens; Token ZTN auth
@@ -494,13 +494,13 @@ If you want to use a local account which is mapped in the instance to a local ui
    # remap the sub '7aa5167f-9c28-4336-8a66-af9145ea847d' to the local user id 1000
    eos vid set map -oauth2 sub:7aa5167f-9c28-4336-8a66-af9145ea847d vuid:1000
 
-   
+
 All XRootD based clients can add the OAUTH2 token in the endorsement environment variable for sss authentication.
-   
+
 .. code-block:: bash
 
    XrdSecsssENDORSEMENT=oauth2:<access_token>:<oauth-resource>
- 
+
 OAUTH2 is enabled by default, but can be explicitly enabled or disabled:
 
 .. code-block:: bash
@@ -512,15 +512,15 @@ OAUTH2 is enabled by default, but can be explicitly enabled or disabled:
 
    # eosxd config file parameter
 
-   "auth" : { 
+   "auth" : {
      "oauth2" : 1, #default
      "ssskeytab" : "/etc/eos/fuse.sss.keytab", #default
     }
 
     export OAUTH2_TOKEN=FILE:/tmp/oauthtk_1000
     # /tmp/oauthtk_1000 contains oauth2:<token>:<oauth-url>
-    ls /eos/ 
-   
+    ls /eos/
+
 One has to supply an sss key for this communication, however the sss key user should be banned on the instance as a security precaution.
 Client and server should share an sss key for a user, which is actually not authorized to use the instance e.g.
 
@@ -544,11 +544,11 @@ Client and server should share an sss key for a user, which is actually not auth
 
    # server bans user nfsnobody or maybe uses already user allow, which bans this user by default
    eos access ban user nfsnobody
-  
+
    ############################
    # client
    ############################
-   
+
    # exports the token in the environment
    export XrdSecsssENDORSEMENT=oauth2:.....:auth.cern.ch/auth/realms/cern/protocol/openid-connect/userinfo
 
@@ -669,7 +669,7 @@ Versions are kept in a hidden directory (visible with ``ls -la``) which is compo
 
 .. code-block:: bash
 
-   eos ls -la 
+   eos ls -la
    drwxrwxrwx   1 root     root                0 Aug 29 15:33 .sys.v#.myfile
    -rw-r-----   1 root     root             1824 Aug 29 15:33 myfile
 
@@ -708,7 +708,7 @@ Configure each directory which should apply versioning using the extended attrib
 
    # force 10 versions (FIFO)
    eos attr set sys.versioning=10 version-dir
-  
+
    # upload initial file
    eos cp /tmp/file /eos/version-dir/file
 
@@ -720,16 +720,16 @@ Configure each directory which should apply versioning using the extended attrib
 
 
 .. index::
-   pair: Versioning; Creating 
+   pair: Versioning; Creating
 
 Creating new versions
 ^^^^^^^^^^^^^^^^^^^^^
 
 .. code-block:: bash
 
-   # force a new version 
+   # force a new version
    eos file version myfile
- 
+
    # force a new version with max 5 versions
    eos file version myfile 5
 
@@ -808,7 +808,7 @@ The default layout can be defined using default space policies.
 FUSE - mounting EOS with eosxd
 ------------------------------
 
-**eosxd** is the executable responsible for running the EOS FUSE mount. FUSE (Filesystem in Userspace) is a software interface for Unix and Unix-like computer operating systems that lets non-privileged users create their own file systems without editing kernel code. This is achieved by running file system code in user space while the FUSE module provides only a bridge to the actual kernel interfaces. 
+**eosxd** is the executable responsible for running the EOS FUSE mount. FUSE (Filesystem in Userspace) is a software interface for Unix and Unix-like computer operating systems that lets non-privileged users create their own file systems without editing kernel code. This is achieved by running file system code in user space while the FUSE module provides only a bridge to the actual kernel interfaces.
 
 EOS supports **eosxd** based on `libfuse2` and `libfuse3`. `libfuse3` has some additional bulk interfaces and performance improvements compared to `libfuse`.
 The executable for `libfuse3` is called **eosxd3**.
@@ -818,10 +818,10 @@ The executable for `libfuse3` is called **eosxd3**.
 
 There are two FUSEx client modes available:
 
-.. epigraph:: 
+.. epigraph::
 
    =========== ================ ===============================================================
-    daemon     daemon user-id   description                                                    
+    daemon     daemon user-id   description
    =========== ================ ===============================================================
    eosxd       !root            An end-user private mount which is not shared between users
    eosxd       root             A system-wide mount shared between users
@@ -929,7 +929,7 @@ The default configuration parameters are shown here:
         "leasetime" : 300,
         "write-size-flush-interval" : 10,
         "submounts" : 0,
-        "inmemory-inodes" : 16384  
+        "inmemory-inodes" : 16384
       },
       "auth" : {
         "shared-mount" : 1,
@@ -957,7 +957,7 @@ The default configuration parameters are shown here:
         "read-async-submit" : 0
       }
     }
-    
+
 You also need to define a local cache directory (location) where small files are cached and an optional journal directory to improve the write speed (journal):
 
 .. code-block:: bash
@@ -1003,16 +1003,16 @@ You can modify some of the XrdCl variables, however it is recommended not to cha
 The recovery settings are defined in the following section:
 
 .. code-block:: bash
-    
+
     "recovery" : {
       "read-open" : 1,
       "read-open-noserver" : 1,
       "read-open-noserver-retrywindow" : 15,
       "write-open" : 1,
       "write-open-noserver" : 1,
-      "write-open-noserver-retrywindow" : 15,     
+      "write-open-noserver-retrywindow" : 15,
     }
-  
+
 
 It is possible to overwrite the settings of any standard config files using a second configuration file: /etc/eos/fuse.local.conf or/etc/eos/fuse.<name>.local.conf. This is useful to ship a standard configuration via a package and gives users the opportunity to change individual parameters.
 
@@ -1039,11 +1039,11 @@ One can avoid using configuration files if the defaults are fine providing the r
 
     root> eosxd -ofsname=eos.cern.ch:/eos/ $HOME/eos                  # mounts the /eos/ directory from eos.cern.ch shared under $HOME/eos/
     user> eosxd -ofsname=user@eos.cern.ch:/eos/user/u/user/ $home/eos # mounts /eos/user/u/user from eos.cern.ch private under $HOME/eos/
-    
+
 
 If this is a user-private mount the syntax `foo@cern.ch` should be used to distinguish private mounts of individual users in the `df` output.
 
-.. NOTE:: Please note, that root mounts are by default shared mounts with kerberos configuration, user mounts are private mounts with kerberos configuration! 
+.. NOTE:: Please note, that root mounts are by default shared mounts with kerberos configuration, user mounts are private mounts with kerberos configuration!
 
 .. index::
    pair: FUSE; Log FIles
@@ -1069,42 +1069,42 @@ Here is an example:
 
     ALL     Execution Time                   5.06 +- 16.69 = 5.01s (1270 ops)
     # -----------------------------------------------------------------------------------------------------------------------
-    who     command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)  = cumul(s)  
+    who     command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)  = cumul(s)
     # -----------------------------------------------------------------------------------------------------------------------
-    ALL     :sum                                     1271     0.00     0.05     0.01     0.00     -NA- +- -NA-       = 0.00      
-    ALL     access                                      4     0.00     0.00     0.00     0.00  1.82825 +- 1.64279    = 0.01      
-    ALL     create                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     flush                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     forget                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     fsync                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     getattr                                    17     0.00     0.02     0.00     0.00  1.91859 +- 6.93590    = 0.03      
-    ALL     getxattr                                   58     0.00     0.03     0.01     0.00  2.42547 +- 18.15372   = 0.14      
-    ALL     link                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     listxattr                                   0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     lookup                                    342     0.00     0.00     0.00     0.00  0.78381 +- 3.70048    = 0.27      
-    ALL     mkdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     mknod                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     open                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     opendir                                   215     0.00     0.00     0.00     0.00 20.56853 +- 26.64452   = 4.42      
-    ALL     read                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     readdir                                   416     0.00     0.00     0.00     0.00  0.05781 +- 0.07550    = 0.02      
-    ALL     readlink                                    1     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     release                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     releasedir                                215     0.00     0.00     0.00     0.00  0.00896 +- 0.00425    = 0.00      
-    ALL     removexattr                                 0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     rename                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     rm                                          0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     rmdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     setattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     setattr:chmod                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     setattr:chown                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     setattr:truncate                            0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     setattr:utimes                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     setxattr                                    1     0.00     0.00     0.00     0.00  0.08500 +- -NA-       = 0.00      
-    ALL     statfs                                      2     0.00     0.00     0.00     0.00 57.74450 +- 48.80550   = 0.12      
-    ALL     symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-    ALL     write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+    ALL     :sum                                     1271     0.00     0.05     0.01     0.00     -NA- +- -NA-       = 0.00
+    ALL     access                                      4     0.00     0.00     0.00     0.00  1.82825 +- 1.64279    = 0.01
+    ALL     create                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     flush                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     forget                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     fsync                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     getattr                                    17     0.00     0.02     0.00     0.00  1.91859 +- 6.93590    = 0.03
+    ALL     getxattr                                   58     0.00     0.03     0.01     0.00  2.42547 +- 18.15372   = 0.14
+    ALL     link                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     listxattr                                   0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     lookup                                    342     0.00     0.00     0.00     0.00  0.78381 +- 3.70048    = 0.27
+    ALL     mkdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     mknod                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     open                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     opendir                                   215     0.00     0.00     0.00     0.00 20.56853 +- 26.64452   = 4.42
+    ALL     read                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     readdir                                   416     0.00     0.00     0.00     0.00  0.05781 +- 0.07550    = 0.02
+    ALL     readlink                                    1     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     release                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     releasedir                                215     0.00     0.00     0.00     0.00  0.00896 +- 0.00425    = 0.00
+    ALL     removexattr                                 0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     rename                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     rm                                          0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     rmdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     setattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     setattr:chmod                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     setattr:chown                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     setattr:truncate                            0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     setattr:utimes                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     setxattr                                    1     0.00     0.00     0.00     0.00  0.08500 +- -NA-       = 0.00
+    ALL     statfs                                      2     0.00     0.00     0.00     0.00 57.74450 +- 48.80550   = 0.12
+    ALL     symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+    ALL     write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
     # -----------------------------------------------------------------------------------------------------------
     ALL        inodes              := 375
     ALL        inodes stack        := 0
@@ -1150,28 +1150,28 @@ Here is an example:
     ALL        automounted         := 0
     ALL        max-inode-lock-ms   := 0.00
     # -----------------------------------------------------------------------------------------------------------
-    
+
 
 The first block contains global averages/sums for total IO time and IO
 operations:
 
-.. epigraph:: 
+.. epigraph::
 
    =========== ================= ================= =================== ==============
-   tag         description       avg/dev in ms     cumulative time     sum IOPS     
+   tag         description       avg/dev in ms     cumulative time     sum IOPS
    =========== ================= ================= =================== ==============
-   ALL         Execution Time    4.80 +- 15.56     4.87s               (1267 ops)   
-   =========== ================= ================= =================== ==============  
+   ALL         Execution Time    4.80 +- 15.56     4.87s               (1267 ops)
+   =========== ================= ================= =================== ==============
 
 The second block contains counts for each filesystem operation, the
 average rates in 5s, 1min, 5min and 1h windows, the average execution
 time and standard deviation for a given filesystem operation, and
 cumulative seconds spent in each operation.
 
-.. epigraph:: 
+.. epigraph::
 
     ====== ========================== ============= ========= ========= ========== ========== =========== =============== ===============
-    who    filesystem counter name    sum of ops    5s avg    1m avg    5m avg   | 1h avg     avg(ms)     sigma(ms)       cumulative(s)     
+    who    filesystem counter name    sum of ops    5s avg    1m avg    5m avg   | 1h avg     avg(ms)     sigma(ms)       cumulative(s)
     ====== ========================== ============= ========= ========= ========== ========== =========== =============== ===============
     ALL    :sum                       1268          0.00      0.00      0.00       0.00       -NA-        +- -NA-         0.00
     ALL    access                     4             0.00      0.00      0.00       0.00       1.82825     +- 1.64279      0.01
@@ -1212,7 +1212,7 @@ cumulative seconds spent in each operation.
 The third block displays inode related counts, which are explained
 inline.
 
- .. epigraph:: 
+ .. epigraph::
 
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
     |    who   | counter name          | value            | description                                                                |
@@ -1225,7 +1225,7 @@ inline.
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
     |    ALL   | inodes-backlog        | 0                | inodes which still have to be updated upstream                             |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
-    |    ALL   | inodes-ever           | 3051             | inodes ever seen by this mount                                             | 
+    |    ALL   | inodes-ever           | 3051             | inodes ever seen by this mount                                             |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
     |    ALL   | inodes-ever-deleted   | 0                | inodes ever deleted by this mount                                          |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
@@ -1339,11 +1339,11 @@ The following shows all the defined attributes and their meaning:
                         eos.btime <path>                   : show inode birth time
                         eos.ttime <path>                   : show lastest mtime in tree
                         eos.tsize <path>                   : show size of directory tree
-                        eos.dsize <path>                   : show total size of files inside a directory 
-                        eos.dcount <path>                  : show total number of directories inside a directory 
+                        eos.dsize <path>                   : show total size of files inside a directory
+                        eos.dcount <path>                  : show total number of directories inside a directory
                         eos.fcount <path>                  : show total number of files inside a directory
                         eos.name <path>                    : show EOS instance name for given path
-                        eos.md_ino <path>                  : show inode number valid on MGM 
+                        eos.md_ino <path>                  : show inode number valid on MGM
                         eos.hostport <path>                : show MGM connection host + port for given path
                         eos.mgmurl <path>                  : show MGM URL for a given path
                         eos.stats <path>                   : show mount statistics
@@ -1359,7 +1359,7 @@ The following shows all the defined attributes and their meaning:
                         system.eos.cap <path>              : dump cap for given path
                         system.eos.caps <mount>            : dump all caps
                         system.eos.vmap <mount>            : dump virtual inode translation table
-    
+
 
 
 Virtual Attribute Setters
@@ -1379,11 +1379,11 @@ The following shows all attributes, which can be set to trigger internal functio
                         system.eos.log <mode> <mount>      : make logfile public or private with <mode>=public|private
                         system.eos.fuzz all|config <mount> : enabling fuzzing in all modes with scaler 1 (all) or switch back to the initial configuration (config)
 
-    
+
 
 .. index::
    pair: FUSE; Serverce-side Configuration
-   
+
 Server Side Configuration
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -1397,7 +1397,7 @@ be shown or modified using **eos fusex conf**
     info: configured FUSEX broadcast audience to suppress match is '@b[67]'
     info: configured FUSEX heartbeat interval is 10 seconds
     info: configured FUSEX quota check interval is 10 seconds
-    
+
 
 The default heartbeat interval is 10 seconds, upon which each
 **eosxd** process sends a heartbeat message to the MGM server. The quota
@@ -1436,7 +1436,7 @@ available via the **access** command in the CLI.
 
     # limit the access for meta-data updates to 1 kHz per user
     eos access set limit 1000 rate:user:\*:Eosxd::prot::SET
-    
+
 
 LS, STAT and SET limits are applied by the corresponding server side
 protocol methods. LS-Entry is applied when another LS call is requested.
@@ -1460,7 +1460,7 @@ longer lease time defined.
     [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/
     [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/user/
     [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/user/f
-    
+
 
 .. index::
    pair: FUSE; File State Tracking
@@ -1519,7 +1519,7 @@ Example:
                 ...
                 sys.fusex.state="CU±+2sc|+1v|U±+2sc|+1v|U±+2sc|+1v|"
                 ...
-    
+
 
 This examples show the creation \"C\", the file size update \"U±\", a
 commit from filesystem 2 with checksum and size \"+2sc\", a commit from
@@ -1537,7 +1537,7 @@ truncation is indicated with a leading *\|\|* in the attribute.
 
 Possible indicators are:
 
-.. epigraph:: 
+.. epigraph::
 
    ========= ========================================================
    indicator description
@@ -1546,7 +1546,7 @@ Possible indicators are:
    -fsid     a replica/stripe has been unlinked for filesystem fsid
     fsid     a replica/stripe has been deleted on filesystem fsid
    ========= ========================================================
-   
+
 Example:
 
 .. code-block:: bash
@@ -1555,7 +1555,7 @@ Example:
                   ...
                   sys.fs.tracking="+1+2+3+4-1-2/1/2"
                   ...
-    
+
 
 This examples shows the how replicas are attached on filesystems
 1,2,3,4, then unlinked on 1,2 and finally deleted on 1,2.
@@ -1855,8 +1855,8 @@ If filesystems are already registered or the filesystem name has changed one can
 Extended attribute locks
 ------------------------
 
-An extended attribute lock is a simple mechanism to block file opens on locked files to foreigners. Foreigners are not owners. The owner is defined by the username and the application name. 
-So if any of these differ a client is considered a foreigner. 
+An extended attribute lock is a simple mechanism to block file opens on locked files to foreigners. Foreigners are not owners. The owner is defined by the username and the application name.
+So if any of these differ a client is considered a foreigner.
 
 We define two types of locks:
 
@@ -1875,12 +1875,12 @@ To create an exclusive extended attribute lock:
 
    # the owner can read
    eos -r 100 100 -a myapp cp /eos/dev/lockedfile      - # will succeed
-  
+
    # a foreigner can not read
    eos -r 101 101 -a myapp cp /eos/dev/lockedfile      - # will fail
-   eos -r 100 100 -a anotherapp cp /eos/dev/lockedfile - # will fail 
+   eos -r 100 100 -a anotherapp cp /eos/dev/lockedfile - # will fail
 
-   # create a lock with a given liftime e.g. 1000s 
+   # create a lock with a given liftime e.g. 1000s
    eos -r 100 100 -a myapp file touch -l /eos/dev/lockedfile 1000
 
    # create a lock which only requires the same user to be used
@@ -2023,12 +2023,12 @@ To enable obfuscation for all new files created in in a directory use:
 
 
 Obfuscated files are accessible with any protocol. For remote access protocols like xrdcp,eoscp,http files are unobfuscated by the FST gateway node. For FUSE mounts files are unobfuscated by the FUSE client.
-		
+
 
 .. NOTE:: Only new files are obfuscated when the obfuscation attribute was (re-)defined. Existing files will stay unobfuscated. You can use `eos convert --rewrite filename` to rewrite an existing file obfuscated.
 
 
-Encryption requires obfuscation to be enabled! This is done by defining on the target directory: 
+Encryption requires obfuscation to be enabled! This is done by defining on the target directory:
 
 .. code-block:: bash
 
@@ -2082,39 +2082,39 @@ An authentication front-end allows one to configure a subset of authentication m
 To enable a standard MGM to allow connections from an authentication front-end use the following MGM configuration variables:
 
 .. code-block:: bash
-		
+
 		#-------------------------------------------------------------------------------
 		# Configuration for the authentication plugin EosAuth
 		#-------------------------------------------------------------------------------
 		# Set the number of authentication worker threads running on the MGM
 		mgmofs.auththreads 64
-		
+
 		# Set the front end port number for incoming authentication requests
 		mgmofs.authport 15555
-		
+
 		# Only listen on localhost connections
 		mgmofs.authlocal 1
 
 
-If you want to run your authentication front-end on a separate machine from the MGM service, you can use ```mgm.authlocal 0```. 
-Be aware that you have to protect the given port from 'unwanted' access. There is no authentication involved in the communication from 
-front-end to back-end MGM. 
+If you want to run your authentication front-end on a separate machine from the MGM service, you can use ```mgm.authlocal 0```.
+Be aware that you have to protect the given port from 'unwanted' access. There is no authentication involved in the communication from
+front-end to back-end MGM.
 
 An example configuration file for a front-end server on the back-end MGM node looks like this:
 
 .. code-block:: bash
-		
+
 		# ------------------------------------------------------------ #
 		[mgm:xrootd:auth]
 		# ------------------------------------------------------------ #
 		xrd.port 2094
 		all.export /
-		
+
 		# the back-end server - localhost in our case
 		eosauth.mgm localhost:15555
 		# number of socket connections - should match thread-pool size if only one front-end exists
 		eosauth.numsockets 64
-		# loglevel 
+		# loglevel
 		eosauth.loglevel info
 
 		xrootd.fslib /usr/lib64/libEosAuthOfs.so
@@ -2124,18 +2124,18 @@ An example configuration file for a front-end server on the back-end MGM node lo
 		# UNIX authentication + any other type of authentication wanted
 		sec.protocol unix
 		sec.protbind localhost.localdomain unix
-		sec.protbind localhost unix 
+		sec.protbind localhost unix
 		sec.protbind * only unix
 
 
-If an authentication front-end receives a redirection e.g. from a passive to an active MGM due to HA changes, 
+If an authentication front-end receives a redirection e.g. from a passive to an active MGM due to HA changes,
 the front-end server uses redirect-collapse and redirects on the same port as the accessed front-end service - in case of this example this is port 2094!
 
 One can overwrite the port used for a collapsing redirection using:
 
 
 .. code-block:: bash
-		
+
 		eosauth.collapseport 3094
 
 

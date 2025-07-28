@@ -206,7 +206,7 @@ XrdMgmOfs::_rem(const char* path,
     if (vid.token) {
       stdpermcheck = false;
     }
-    
+
     if (container_vtx) {
       if (
         (container_owner_uid == vid.uid) ||
