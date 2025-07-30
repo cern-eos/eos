@@ -1100,6 +1100,37 @@ Examples to define these are shown here:
    access stallhosts remove nostall foo*.bar      : Remove foo*.bar from the list of hosts which are never stalled by limit rules (black list)
 
 
+.. index::
+   pair: Interfaces; Space Attributes
+
+
+ Space Attributes
+-----------------
+
+Space attributes allow to define a set of exteneded attributes which appear in attribute listing of any directory linked to a given space. A directory reference space attributes by *sys.forced.space* or if not defined it will reference attributes in the *default* space. Space attributes allow to reduce the directory-meta data size because attributes have not to be stored with each directory individually. A specialized space attribute is *sys.acl*, which is explained in detail in the permission (ACL) system section. *sys.acl* attributes are syntax checked and provide left- and right-positioned ACL extensions. All other space attributes can either overwrite/define attributes appearing in each space referencing directory or they can be defined as optional default attribute, which is used only if a directory does not define the attribute.
+
+Space attributes are defined like:
+
+.. code-block:: bash
+
+		# define adler32 for all directories in that space
+		eos space config default space.attr.sys.forced.checksum=adler32
+
+Space attribute are removed like:
+
+.. code-block:: bash
+
+		# remove checksum settings in the default space
+		eos sapce config rm default space.attr.sys.forced.checksum
+
+Space attributes are listed in the usual manner:
+
+.. code-block:: bash
+
+		# show configuration of the default space
+		eos space status default
+
+
 
 .. index::
    pair: Interfaces; Space policies
@@ -2171,7 +2202,7 @@ and/or the parent directory ACL rules grant the 'm' right.
 Directory ACL Modification
 """"""""""""""""""""""""""
 
-A user can modify a directory's system ACL, if they are a member of the SUDO group. 
+A user can modify a directory's system ACL, if they are a member of the SUDO group or the have an A grant.
 A user can modify a directory's user ACL, if they are the owner of the directory or 
 a member of the SUDO group.
 
@@ -2281,7 +2312,44 @@ When the mask attribute is set the !m flag is automatically disabled even if it 
 .. index::
    pair: Permissions; eos acl 
 
+Space ACLs
+""""""""""
 
+It is possible to define an extra set of ACLs on the space level, which applies to all directories referencing this space via *sys.forced.space*. If no space is referenced in a directory, ACLs from the default space will be added.
+
+ACLs have 4 add-on modes:
+* '=<' first evaluated (position left)
+* '=>' last evaluated (position right)
+* '=|'use if no other sys.acl is present in a directory
+* '=' always overwrite directory sys.acl
+  
+For example ACLs are configured in a space like:
+
+.. code-block:: bash
+
+		# insert space ACL on the left position (first evaluated)
+		space config default space.attr.sys.acl=<u:poweruser:rwxqmcXA
+		# insert space ACL on the right position (last evalutated)
+		space config default space.attr.sys.acl=>u:poweruser:rwxqmcXA
+		# user space ACL if there is no sys.acl on the referenced directory
+		space config default space.attr.sys.acl=|u:poweruser:rwxqmcXA
+		# overwrite all directory ACLs with the space ACL
+		space config default space.attr.sys.acl=u:poweruser:rwxqmxcXA
+
+Space ACLs are removed in the usual manner:
+
+.. code-block:: bash
+
+		# remove space ACL
+		space config rm default space.attr.sys.acl
+
+Space ACLs are shown using:
+
+.. code-block:: bash
+
+		# show space configuration
+		space status default 
+		
 ACL CLI
 """""""
 

@@ -704,6 +704,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         std_out.str("success: removed space config '" + key + "'\n");
       }
 
+      if (key.substr(0,9) == std::string("attr.sys.")) {
+	// remove attribute in gOFS map
+	std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
+	std::string mkey=key.substr(5);
+	gOFS->mSpaceAttributes[space_name].erase(mkey);
+      }
+
       reply.set_std_out(std_out.str());
       reply.set_std_err(std_err.str());
       reply.set_retc(ret_c);

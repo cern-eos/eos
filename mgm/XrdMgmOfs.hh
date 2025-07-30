@@ -2149,7 +2149,7 @@ public:
   //! List Attributes high-level function merging space and namespace attributes
   //----------------------------------------------------------------------------
 
-  void mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix=false);
+  void mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix=false, bool existing=false);
   
   void
   listAttributes(eos::IView* view, eos::IContainerMD* target,
@@ -2161,6 +2161,10 @@ public:
   listAttributes(eos::IView* view, eos::FileOrContainerMD target,
 		 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
 
+  template<typename T>
+  bool getAttribute(eos::IView* view, T& md, std::string key,
+			       std::string& rvalue);
+  
 protected:
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 

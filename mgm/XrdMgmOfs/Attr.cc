@@ -120,7 +120,7 @@ bool
 XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
                      std::string& rvalue)
 {
-  return getAttribute(gOFS->eosView, cmd, key, rvalue);
+  return gOFS->getAttribute(gOFS->eosView, cmd, key, rvalue);
 }
 
 //------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
 bool
 XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
 {
-  return getAttribute(gOFS->eosView, fmd, key, rvalue);
+  return gOFS->getAttribute(gOFS->eosView, fmd, key, rvalue);
 }
 
 //------------------------------------------------------------------------------
@@ -532,7 +532,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 //----------------------------------------------------------------------------
 
 void
-XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix){
+XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix, bool existing){
   std::string space = "default";
   if (out.count("sys.forced.space")) {
     space = out["sys.forced.space"];
@@ -548,6 +548,10 @@ XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix){
       if (x.first == "sys.forced.space") {
 	// we ignore this
       } else {
+	if (existing && !out.count(x.first)) {
+	  // merge only existing attributes
+	  continue;
+	}
 	std::string inkey=x.first;
 	std::string outkey=prefix?(std::string("sys.space.") + x.first): x.first;
 	if (x.first == "sys.acl") {
@@ -611,4 +615,24 @@ XrdMgmOfs::listAttributes(eos::IView* view, eos::FileOrContainerMD target,
                           eos::IContainerMD::XAttrMap& out, bool prefixLinks){
   eos::listAttributes(view, target, out, prefixLinks);
   mergeSpaceAttributes(out);
+}
+
+template<typename T>
+bool XrdMgmOfs::getAttribute(eos::IView* view, T& md, std::string key,
+		  std::string& rvalue)
+{
+  auto result = eos::getAttribute(view, md, key, rvalue);
+  eos::IContainerMD::XAttrMap attr;
+  if (!result) {
+    attr[key]="";
+  } else {
+    attr[key] = rvalue;
+  }
+  mergeSpaceAttributes(attr,false,true);
+  rvalue = attr[key];
+  if (!result) {
+    return attr[key].length();
+  } else {
+    return true;
+  }
 }
