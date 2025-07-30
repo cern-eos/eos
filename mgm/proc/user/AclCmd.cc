@@ -46,18 +46,34 @@ AclCmd::ProcessRequest() noexcept
 
   if (acl.op() == AclProto::LIST) {
     std::string acl_val;
-    GetAcls(acl.path(), acl_val, acl.sys_acl(), acl.user_acl());
 
-    if (acl_val.empty()) {
-      mErr = "error: ";
-      mErr += eos::common::ErrnoToString(ENODATA);
-      reply.set_std_err(mErr);
-      reply.set_retc(ENODATA);
-    } else {
-      // Convert to username if possible, ignore errors
-      (void) Acl::ConvertIds(acl_val, true);
-      reply.set_std_out(acl_val);
-      reply.set_retc(0);
+    try {
+      eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, acl.path());
+      eos::FileOrContainerMD item = gOFS->eosView->getItem(acl.path()).get();
+      eos::FileOrContReadLocked item_rlock;
+
+      if (item.file) {
+        item_rlock.fileLock = eos::MDLocking::readLock(item.file.get());
+      } else {
+        item_rlock.containerLock = eos::MDLocking::readLock(item.container.get());
+      }
+
+      GetAcls(item, acl_val, acl.sys_acl(), acl.user_acl());
+
+      if (acl_val.empty()) {
+        reply.set_std_err(SSTR("error: " <<
+                               eos::common::ErrnoToString(ENODATA)));
+        reply.set_retc(ENODATA);
+      } else {
+        // Convert to username if possible, ignore errors
+        (void) Acl::ConvertIds(acl_val, true);
+        reply.set_std_out(acl_val);
+        reply.set_retc(0);
+      }
+    } catch (const eos::MDException& e) {
+      reply.set_std_err(SSTR("error: " <<
+                             eos::common::ErrnoToString(e.getErrno())));
+      reply.set_retc(e.getErrno());
     }
   } else if (acl.op() == AclProto::MODIFY) {
     int retc = ModifyAcls(acl);
@@ -79,43 +95,44 @@ AclCmd::ProcessRequest() noexcept
 // Get sys.acl and user.acl for a given path
 //------------------------------------------------------------------------------
 void
-AclCmd::GetAcls(const std::string& path, std::string& acl, bool sys, bool user,
-                bool take_lock)
+AclCmd::GetAcls(eos::FileOrContainerMD& item, std::string& acl, bool sys,
+                bool user)
 {
-  XrdOucErrInfo error;
   bool header = sys && user;
 
   if (sys) {
     std::string sys_acl;
-    gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.acl", sys_acl);
 
-    if (!sys_acl.empty()) {
-      if (header) {
-        acl += "# sys.acl\n";
+    if (gOFS->_attr_get(item, "sys.acl", sys_acl)) {
+      if (!sys_acl.empty()) {
+        if (header) {
+          acl += "# sys.acl\n";
+        }
+
+        acl += sys_acl;
       }
-
-      acl += sys_acl;
     }
   }
 
   if (user) {
     std::string user_acl;
-    gOFS->_attr_get(path.c_str(), error, mVid, 0, "user.acl", user_acl);
 
-    if (!user_acl.empty()) {
-      if (header) {
-        std::string eval_acl;
-        gOFS->_attr_get(path.c_str(), error, mVid, 0, "sys.eval.useracl", eval_acl);
-        acl += "\n# user.acl";
+    if (gOFS->_attr_get(item, "user.acl", user_acl)) {
+      if (!user_acl.empty()) {
+        if (header) {
+          std::string eval_acl;
+          gOFS->_attr_get(item, "sys.eval.useracl", eval_acl);
+          acl += "\n# user.acl";
 
-        if (eval_acl != "1") {
-          acl += " (ignored)";
+          if (eval_acl != "1") {
+            acl += " (ignored)";
+          }
+
+          acl += "\n";
         }
 
-        acl += "\n";
+        acl += user_acl;
       }
-
-      acl += user_acl;
     }
   }
 }
@@ -149,14 +166,8 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
     }
   }
 
-  bool fine_grained_write = !acl.sync_write();
   std::list<std::string> paths;
   eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, acl.path(), false);
-  eos::common::RWMutexWriteLock ns_wr_lock;
-
-  if (!fine_grained_write) {
-    ns_wr_lock.Grab(gOFS->eosViewRWMutex);
-  }
 
   if (acl.recursive()) {
     std::map<std::string, std::set<std::string>> dirs;
@@ -173,10 +184,10 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
       paths.push_back(acl.path());
     }
 
-    // Save all the directories in the current subtree
+    // Save all the directories in the current subtree skipping version dirs
     for (const auto& elem : dirs) {
-      // skip version directories
-      if (elem.first.find(EOS_COMMON_PATH_VERSION_PREFIX) == std::string::npos) {
+      if (elem.first.find(EOS_COMMON_PATH_VERSION_PREFIX) ==
+          std::string::npos) {
         paths.push_back(elem.first);
       }
     }
@@ -185,44 +196,75 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   }
 
   RuleMap rule_map;
-  std::string dir_acls, new_acl_val;
+  std::string old_acls, new_acl;
   int ret = 0;
 
-  for (const auto& elem : paths) {
-    // Clear the dir_acls variable for each pass
-    // as GetAcl() takes the dir_acls variable and append to it
-    dir_acls.clear();
+  // If we only have one path this can be either a file or a container
+  if (paths.size() == 1) {
+    eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, paths.front());
+  }
 
-    GetAcls(elem, dir_acls, acl.sys_acl(), acl.user_acl(), false);
-    GenerateRuleMap(dir_acls, rule_map);
-    // ACL position is 1-indexed as 0 is the default numeric protobuf val
-    auto [err, acl_pos] = GetRulePosition(rule_map.size(), acl.position());
+  for (const auto& dpath : paths) {
+    eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, dpath);
+    // Clear the old_acls variable for each path
+    old_acls.clear();
+    // Fuse notifications must be sent after the metadata lock is released
+    eos::mgm::FusexCastBatch fuse_batch;
 
-    if (err) {
-      mErr = "error: rule position cannot be met!";
-      return err;
-    }
+    try {
+      eos::FileOrContainerMD item;
+      eos::FileOrContWriteLocked item_wlock;
 
-    ApplyRule(rule_map, acl_pos);
-    new_acl_val = GenerateAclString(rule_map);
-    std::ostringstream oss;
-    oss << "msg=\"ACL change from " << dir_acls << " to " << new_acl_val << "\" path=\"" << acl.path() << "\"";
-    eos_info(oss.str().c_str());
+      // This could be either a file or a container
+      if (paths.size() == 1) {
+        item = gOFS->eosView->getItem(dpath).get();
 
-    // Set xattr taking the namespace lock
-    if (gOFS->_attr_set(elem.c_str(), error, mVid, 0, acl_key.c_str(),
-                        new_acl_val.c_str())) {
-      mErr = "error: failed to set new acl for path=";
-      mErr += elem.c_str();
-      eos_err("%s", mErr.c_str());
-      // The returned errno will correspond to the first errno encountered during the application
-      // of the ACL recursively
-      ret = errno;
+        if (item.file) {
+          item_wlock.fileLock = eos::MDLocking::writeLock(item.file.get());
+        } else {
+          item_wlock.containerLock = eos::MDLocking::writeLock(item.container.get());
+        }
+      } else {
+        // This is for sure a container
+        item.container = gOFS->eosView->getContainer(dpath);
+        item_wlock.containerLock = eos::MDLocking::writeLock(item.container.get());
+      }
 
-      if (acl.recursive() && ret == ENOENT) {
+      GetAcls(item, old_acls, acl.sys_acl(), acl.user_acl());
+      GenerateRuleMap(old_acls, rule_map);
+      // ACL position is 1-indexed as 0 is the default numeric protobuf val
+      auto [err, acl_pos] = GetRulePosition(rule_map.size(), acl.position());
+
+      if (err) {
+        mErr = "error: rule position cannot be met!";
+        return err;
+      }
+
+      ApplyRule(rule_map, acl_pos);
+      new_acl = GenerateAclString(rule_map);
+      eos_info("msg=\"ACL update\" old_acl=\"%s\" new_acl=\"%s\" path=\"%s\"",
+               old_acls.c_str(), new_acl.c_str(), acl.path().c_str());
+
+      if (!gOFS->_attr_set(item, acl_key, new_acl, false, mVid, fuse_batch)) {
+        mErr = "error: failed to set new acl for path=";
+        mErr += dpath.c_str();
+        eos_err("msg=\"failed to set acl\" path=\"%s", dpath.c_str());
+        // The returned errno will correspond to the first errno encountered
+        // during the application of the ACL recursively
+        ret = errno;
+        return ret;
+      }
+    } catch (const eos::MDException& e) {
+      if (acl.recursive() && (e.getErrno() == ENOENT) && (paths.size() > 1)) {
+        eos_err("msg=\"skip acl update for missing directoy\" path=\"%s\"",
+                dpath.c_str());
         continue;
       }
 
+      mErr = "error: failed to set new acl for path=";
+      mErr += dpath.c_str();
+      eos_err("msg=\"failed to set acl\" path=\"%s", dpath.c_str());
+      ret = e.getErrno();
       return ret;
     }
   }

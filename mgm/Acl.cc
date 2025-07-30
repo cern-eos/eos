@@ -29,7 +29,7 @@
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Constructor
+//! Constructor
 //------------------------------------------------------------------------------
 Acl::Acl(std::string sysacl, std::string useracl,
          const eos::common::VirtualIdentity& vid, bool allowUserAcl)
@@ -38,17 +38,12 @@ Acl::Acl(std::string sysacl, std::string useracl,
   Set(sysacl, useracl, tokenacl, vid, allowUserAcl);
 }
 
-
-
 //------------------------------------------------------------------------------
-//!
 //! Constructor
 //!
 //! @param attr map containing all extended attributes
 //! @param vid virtual id to match ACL
-//!
 //------------------------------------------------------------------------------
-
 Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
          const eos::common::VirtualIdentity& vid)
 {
@@ -57,7 +52,7 @@ Acl::Acl(const eos::IContainerMD::XAttrMap& attrmap,
 }
 
 //------------------------------------------------------------------------------
-// Constructor by path
+//! Constructor by path
 //------------------------------------------------------------------------------
 Acl::Acl(const char* path, XrdOucErrInfo& error,
          const eos::common::VirtualIdentity& vid,
@@ -224,14 +219,14 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   char denials[256], reallows[256];
   memset(denials, 0, sizeof(denials));        /* start with no denials */
   memset(reallows, 0, sizeof(reallows));      /* nor reallows */
-
   std::set<gid_t> gids;
+
   if (eos::common::Mapping::gSecondaryGroups) {
-    gids=vid.allowed_gids;
+    gids = vid.allowed_gids;
   } else {
     gids.insert(vid.gid);
   }
-    
+
   for (const auto& chk_gid : gids) {
     // Only check non-system groups
     if (chk_gid == 0) {
@@ -355,9 +350,9 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
             mCanArchive = !deny;
             break;
 
-	  case 'A': // 'A' defines sys ACL modification permission
-	    mCanSysAcl = !deny;
-	    break;
+          case 'A': // 'A' defines sys ACL modification permission
+            mCanSysAcl = !deny;
+            break;
 
           case 'r': // 'r' defines read permission
             mCanRead = !deny;
@@ -367,9 +362,9 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
             mCanBrowse = !deny;
             break;
 
-	  case 'X': // 'X' defines sys attribute modification permission
-	    mCanXAttr = !deny;
-	    break;
+          case 'X': // 'X' defines sys attribute modification permission
+            mCanXAttr = !deny;
+            break;
 
           case 'p': // 'p' defines workflow permission
             mCanPrepare = !deny;
@@ -727,11 +722,9 @@ Acl::ConvertIds(std::string& acl_val, bool to_string)
   return 0;
 }
 
-
 //------------------------------------------------------------------------------
 // Extract an ACL rule from a token
 //------------------------------------------------------------------------------
-
 std::string
 Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
 {
@@ -757,5 +750,31 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
   return "";
 }
 
+//------------------------------------------------------------------------------
+// Check if current ACLs allow the modification of system (sys.) extended
+// attribute - method only evaluates the ACLs for this decision. This can be a
+// modification of the ACLs themselves.
+//------------------------------------------------------------------------------
+bool
+Acl::AllowXAttrUpdate(std::string_view xattr_key,
+                      eos::common::VirtualIdentity& vid) const
+{
+  bool allow = false;
+
+  if (vid.sudoer || (vid.uid == 0)) {
+    allow = true;
+  } else {
+    // Check xattr update permissions for non-owning user
+    if (xattr_key == "sys.acl") {
+      // Check 'A' acl
+      allow = CanSysAcl();
+    } else {
+      // Check 'X' acl
+      allow = CanXAttr();
+    }
+  }
+
+  return allow;
+}
 
 EOSMGMNAMESPACE_END

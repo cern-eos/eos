@@ -91,7 +91,7 @@ public:         // [+] prevents '+' interpreted as "one or more"
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
     mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false),
-    mCanSysAcl(false),mCanXAttr(false)
+    mCanSysAcl(false), mCanXAttr(false)
   {}
 
   //----------------------------------------------------------------------------
@@ -316,15 +316,28 @@ public:         // [+] prevents '+' interpreted as "one or more"
   //----------------------------------------------------------------------------
   //! Return if enabled to evaluate user acls
   //----------------------------------------------------------------------------
-
   inline bool EvalUserAttr()
   {
     return mEvalDirUserAcl;
   }
+
   inline bool EvalUserAttrFile()
   {
     return mEvalFileUserAcl;
   }
+
+  //----------------------------------------------------------------------------
+  //! Check if current ACLs allow the modification of the given extended
+  //! attribute - method only evaluates the ACLs for this decision. This can
+  //! be a modification of the ACLs themselves.
+  //!
+  //! @param xattr extended attribute key
+  //! @param vid client virtual identity
+  //!
+  //! @return true if allowed, otherwise false
+  //----------------------------------------------------------------------------
+  bool AllowXAttrUpdate(std::string_view xattr_key,
+                        eos::common::VirtualIdentity& vid) const;
 
 private:
   bool mCanRead; ///< acl allows read access

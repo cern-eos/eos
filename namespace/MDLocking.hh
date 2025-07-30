@@ -50,44 +50,35 @@ class BulkNsObjectLocker;
 template<typename ContainerTryLockerType, typename FileTryLockerType>
 class BulkMultiNsObjectLocker;
 
-    //------------------------------------------------------------------------------
-//! Holds either a FileMD locked or a ContainerMD locked. Only one of these are ever filled,
-//! the other will be nullptr. Both might be nullptr as well.
-//------------------------------------------------------------------------------
-template<typename ContainerMDLock, typename FileMDLock>
-struct FileOrContainerMDLocked {
-  std::unique_ptr<ContainerMDLock> containerLock = nullptr;
-  std::unique_ptr<FileMDLock> fileLock = nullptr;
-};
-
 /**
  * Convenient class where developers can use the type extracted from it to perform NS file
  * or container locking
  */
-class MDLocking {
+class MDLocking
+{
 private:
   // Pointer type of ContainerMD
   using ContainerMDPtr = IContainerMDRawPtr;
   using FileMDPtr = IFileMDRawPtr;
-  using FileReadTryLock = NSObjectMDTryLock<FileMDPtr ,MDReadLock>;
-  using FileWriteTryLock = NSObjectMDTryLock<FileMDPtr,MDWriteLock>;
-  using ContainerReadTryLock = NSObjectMDTryLock<ContainerMDPtr,MDReadLock>;
-  using ContainerWriteTryLock = NSObjectMDTryLock<ContainerMDPtr,MDWriteLock>;
+  using FileReadTryLock = NSObjectMDTryLock<FileMDPtr, MDReadLock>;
+  using FileWriteTryLock = NSObjectMDTryLock<FileMDPtr, MDWriteLock>;
+  using ContainerReadTryLock = NSObjectMDTryLock<ContainerMDPtr, MDReadLock>;
+  using ContainerWriteTryLock = NSObjectMDTryLock<ContainerMDPtr, MDWriteLock>;
 
 public:
   // Read lock a container
-  using ContainerReadLock = NSObjectMDLock<ContainerMDPtr ,MDReadLock>;
+  using ContainerReadLock = NSObjectMDLock<ContainerMDPtr, MDReadLock>;
   // Write lock a container
-  using ContainerWriteLock = NSObjectMDLock<ContainerMDPtr,MDWriteLock>;
+  using ContainerWriteLock = NSObjectMDLock<ContainerMDPtr, MDWriteLock>;
 
   // Pointer holding container read/write locks
   using ContainerReadLockPtr = std::unique_ptr<ContainerReadLock>;
   using ContainerWriteLockPtr = std::unique_ptr<ContainerWriteLock>;
 
   //Read lock a file
-  using FileReadLock = NSObjectMDLock<FileMDPtr,MDReadLock>;
+  using FileReadLock = NSObjectMDLock<FileMDPtr, MDReadLock>;
   // Write lock a file
-  using FileWriteLock = NSObjectMDLock<FileMDPtr,MDWriteLock>;
+  using FileWriteLock = NSObjectMDLock<FileMDPtr, MDWriteLock>;
 
   // Pointers holding file read/write lock
   using FileReadLockPtr = std::unique_ptr<FileReadLock>;
@@ -102,8 +93,10 @@ public:
   using BulkFileWriteLock = BulkNsObjectLocker<FileWriteTryLock>;
 
   // Bulk MD object (file and container) read/write locks
-  using BulkMDReadLock = BulkMultiNsObjectLocker<ContainerReadTryLock,FileReadTryLock>;
-  using BulkMDWriteLock = BulkMultiNsObjectLocker<ContainerWriteTryLock,FileWriteTryLock>;
+  using BulkMDReadLock =
+    BulkMultiNsObjectLocker<ContainerReadTryLock, FileReadTryLock>;
+  using BulkMDWriteLock =
+    BulkMultiNsObjectLocker<ContainerWriteTryLock, FileWriteTryLock>;
 
   /**
    * Read locks a file
@@ -131,6 +124,22 @@ public:
   static ContainerWriteLockPtr writeLock(ContainerMDPtr cmd);
 };
 
+//------------------------------------------------------------------------------
+//! Holds either a FileMD locked or a ContainerMD locked. Only one of these are ever filled,
+//! the other will be nullptr. Both might be nullptr as well.
+//------------------------------------------------------------------------------
+template<typename ContainerMDLock, typename FileMDLock>
+struct FileOrContainerMDLocked {
+  std::unique_ptr<ContainerMDLock> containerLock = nullptr;
+  std::unique_ptr<FileMDLock> fileLock = nullptr;
+};
+
+using FileOrContReadLocked =
+  FileOrContainerMDLocked<eos::MDLocking::ContainerReadLock,
+  eos::MDLocking::FileReadLock>;
+using FileOrContWriteLocked =
+  FileOrContainerMDLocked<eos::MDLocking::ContainerWriteLock,
+  eos::MDLocking::FileWriteLock>;
 EOSNSNAMESPACE_END
 
 #endif // EOS_MDLOCKING_HH

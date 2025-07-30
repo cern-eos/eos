@@ -115,6 +115,7 @@
 #include "mgm/qos/QoSConfig.hh"
 #include "mgm/qos/QoSClass.hh"
 #include "mgm/IMaster.hh"
+#include "mgm/FuseServer/FusexCastBatch.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
@@ -996,6 +997,25 @@ public:
                 bool exclusive = false);
 
   //----------------------------------------------------------------------------
+  //! Set an extended attribute for a given metadata object - low-level API.
+  //! @note Metadata object must be properly write locked prior to calling
+  //! this method.
+  //!
+  //! @param item metadata object
+  //! @param key attribute key
+  //! @param value attribute value
+  //! @param exclussive flag to mark exclusive set of ACLs
+  //! @param vid virtual identity of the client
+  //! @param fuse_batch fusex batch of notifications
+  //!
+  //! @return SFS_OK if successful, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  bool _attr_set(eos::FileOrContainerMD& item, std::string_view key,
+                 std::string_view value, bool exclusive,
+                 eos::common::VirtualIdentity& vid,
+                 eos::mgm::FusexCastBatch& fuse_batch);
+
+  //----------------------------------------------------------------------------
   //! Get an extended attribute for a given entry by key - high-level API.
   //! @note Normal POSIX R_OK & X_OK permissions are required to retrieve a key
   //!
@@ -1029,9 +1049,21 @@ public:
                 const char* key, std::string& value);
 
   //----------------------------------------------------------------------------
-  //! Get an extended attribute for a given ContainerMD - low-level API.
+  //! Get an extended attribute for a given metadata object - low-level API.
   //!
-  //! @param cmd directory to get attribute
+  //! @param item metadata object
+  //! @param key key to get
+  //! @param value value returned
+  //!
+  //! @return true if attribute was found, false otherwise
+  //----------------------------------------------------------------------------
+  bool _attr_get(eos::FileOrContainerMD& item, std::string key,
+                 std::string& rvalue);
+
+  //----------------------------------------------------------------------------
+  //! Get an extended attribute for a given container - low-level API.
+  //!
+  //! @param cmd container metadata object
   //! @param key key to get
   //! @param value value returned
   //!
@@ -1040,9 +1072,9 @@ public:
   bool _attr_get(eos::IContainerMD& cmd, std::string key, std::string& rvalue);
 
   //----------------------------------------------------------------------------
-  //! Get an extended attribute for a given FileMD - low-level API.
+  //! Get an extended attribute for a given file - low-level API.
   //!
-  //! @param fmd file to get attribute
+  //! @param file file metadata object
   //! @param key key to get
   //! @param value value returned
   //!
@@ -1775,9 +1807,10 @@ public:
   char* HostName; ///< our hostname as derived in XrdOfs
   char* HostPref; ///< our hostname as derived in XrdOfs without domain
   bool protowfusegrpc; ///< use xrootd/ssi or grpc to talk to CTA Frontend?
-  std::string JwtTokenPath; ///< path to the JWT to be used for authenticating gRPC WFE calls to CTA Frontend
-  bool protowfusegrpctls = false; // use TLS encrypted connections or plaintext connections for grpc
-
+  //! Path to the JWT to be used for authenticating gRPC WFE calls to CTA Frontend
+  std::string JwtTokenPath;
+  //! Use TLS encrypted connections or plaintext connections for grpc
+  bool protowfusegrpctls = false;
   static XrdSysError* eDest; ///< error routing object
 
   //----------------------------------------------------------------------------

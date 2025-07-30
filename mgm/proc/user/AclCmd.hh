@@ -237,16 +237,15 @@ private:
   bool mSet; ///< Rule is set operations i.e contains =
 
   //----------------------------------------------------------------------------
-  //! Get sys.acl and user.acl for a given path
+  //! Get sys.acl and user.acl for a given namespace entry
   //!
-  //! @param path path to get the ACLs for
+  //! @param item file or container metadata object
   //! @param acls ACL VALUE
   //! @param sys if true return sys.acls
   //! @param user if true return user.acls
-  //! @param take_lock if true take namespace lock, otherwise don't
   //----------------------------------------------------------------------------
-  void GetAcls(const std::string& path, std::string& acls, bool sys = true,
-               bool user = true, bool take_lock = true);
+  void GetAcls(eos::FileOrContainerMD& item, std::string& acls,
+               bool sys = true, bool user = true);
 
   //----------------------------------------------------------------------------
   //! Modify the acls for a path

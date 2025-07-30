@@ -114,22 +114,38 @@ XrdMgmOfs::attr_get(const char* inpath, XrdOucErrInfo& error,
 }
 
 //------------------------------------------------------------------------------
-// Get extended attribute for a given cmd - low-level API.
+// Get extended attribute for a given metadata object - low-level API.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::_attr_get(eos::FileOrContainerMD& item, std::string key,
+                     std::string& rvalue)
+{
+  if (item.file) {
+    return getAttribute(gOFS->eosView, *item.file.get(), key, rvalue);
+  } else if (item.container) {
+    return getAttribute(gOFS->eosView, *item.container.get(), key, rvalue);
+  }
+
+  return false;
+}
+
+//------------------------------------------------------------------------------
+// Get extended attribute for a given file - low-level API.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
+{
+  return getAttribute(gOFS->eosView, fmd, key, rvalue);
+}
+
+//------------------------------------------------------------------------------
+// Get extended attribute for a given container - low-level API.
 //------------------------------------------------------------------------------
 bool
 XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
                      std::string& rvalue)
 {
   return gOFS->getAttribute(gOFS->eosView, cmd, key, rvalue);
-}
-
-//------------------------------------------------------------------------------
-// Get extended attribute for a given fmd - low-level API.
-//------------------------------------------------------------------------------
-bool
-XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
-{
-  return gOFS->getAttribute(gOFS->eosView, fmd, key, rvalue);
 }
 
 //------------------------------------------------------------------------------
@@ -253,30 +269,6 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   const std::string skey = key;
 
-  bool acl_allows = false;
-
-  if ((skey.find("sys.") == 0) && (!vid.sudoer && vid.uid)) {
-    eos::IContainerMD::XAttrMap attrmap;
-    Acl acl(path, error, vid, attrmap);
-    if (skey == "sys.acl") {
-      // check 'A' acl
-      if (!acl.CanSysAcl()) {
-	errno = EPERM;
-	return Emsg(epname, error, errno, "set sys.acl attribute", path);
-      } else {
-	acl_allows = true;
-      }
-    } else {
-      // check 'X' acl
-      if (!acl.CanXAttr()) {
-	errno = EPERM;
-	return Emsg(epname, error, errno, "set sys.* attribute", path);
-      } else {
-	acl_allows = true;
-      }
-    }
-  }
-
   // Never put any attribute on version directories
   if ((strstr(path, EOS_COMMON_PATH_VERSION_PREFIX) != 0) &&
       ((skey.find("sys.forced") == 0) ||
@@ -308,77 +300,26 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
     }
   }
 
+  eos::mgm::FusexCastBatch fuse_batch;
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
   try {
     eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
+    eos::FileOrContWriteLocked item_wlock;
 
-    if (item.file) { // file
-      std::shared_ptr<eos::IFileMD> fmd = item.file;
-      auto fmd_lock = eos::MDLocking::writeLock(fmd.get());
+    if (item.file) {
+      item_wlock.fileLock = eos::MDLocking::writeLock(item.file.get());
+    } else {
+      item_wlock.containerLock = eos::MDLocking::writeLock(item.container.get());
+    }
 
-      if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid) && (!acl_allows)) {
-        errno = EPERM;
-      } else {
-        if (exclusive && fmd->hasAttribute(skey)) {
-          errno = EEXIST;
-          return Emsg(epname, error, errno, "set attribute (exclusive set "
-                      "for existing attribute)", path);
-        }
-
-        // Handle attribute for application locks
-        if (skey == eos::common::EOS_APP_LOCK_ATTR) {
-          errno = 0;
-          eos::IContainerMD::XAttrMap xattr_map = fmd->getAttributes();
-          XattrLock app_lock(xattr_map);
-
-          if (app_lock.foreignLock(vid, true)) {
-            errno = EBUSY;
-            return Emsg(epname, error, errno, "set attribute "
-                        "(foreign attribute lock existing)", path);
-          }
-        }
-
-        fmd->setAttribute(skey, raw_val);
-
-        if (skey != eos::kAttrTmpEtagKey) {
-          fmd->setCTimeNow();
-        }
-
-        const eos::FileIdentifier f_id(fmd->getIdentifier());
-        const eos::ContainerIdentifier c_id(fmd->getContainerId());
-        eosView->updateFileStore(fmd.get());
-        // Release the current lock on the object before broadcasting to fuse
-        fmd_lock.reset(nullptr);
-        gOFS->FuseXCastRefresh(f_id, c_id);
-        errno = 0;
-      }
-    } else { // container
-      std::shared_ptr<eos::IContainerMD> cmd = item.container;
-      auto cmd_lock = eos::MDLocking::writeLock(cmd.get());
-
-      if ((vid.uid != cmd->getCUid()) && (!vid.sudoer && vid.uid) && (!acl_allows)) {
-        errno = EPERM;
-      } else {
-        if (exclusive && cmd->hasAttribute(skey)) {
-          errno = EEXIST;
-          return Emsg(epname, error, errno, "set attribute (exclusive set "
-                      "for existing attribute)", path);
-        }
-
-        cmd->setAttribute(skey, raw_val);
-
-        if (skey != eos::kAttrTmpEtagKey) {
-          cmd->setCTimeNow();
-        }
-
-        const eos::ContainerIdentifier d_id(cmd->getIdentifier());
-        const eos::ContainerIdentifier d_pid(cmd->getParentIdentifier());
-        eosView->updateContainerStore(cmd.get());
-        // Release the current lock on the object before broadcasting to fuse
-        cmd_lock.reset(nullptr);
-        gOFS->FuseXCastRefresh(d_id, d_pid);
-        errno = 0;
+    if (!_attr_set(item, skey, raw_val, exclusive, vid, fuse_batch)) {
+      if (errno == EEXIST) {
+        return Emsg(epname, error, errno, "set attribute (exclusive set for"
+                    " existing attribute)", path);
+      } else if (errno == EBUSY) {
+        return Emsg(epname, error, errno, "set attribute (foreign attribute"
+                    " lock existing)", path);
       }
     }
   } catch (eos::MDException& e) {
@@ -396,6 +337,83 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
   return SFS_OK;
 }
 
+//------------------------------------------------------------------------------
+// Set an extended attribute for a given ContainerMD - low-level API.
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::_attr_set(eos::FileOrContainerMD& item, std::string_view key,
+                     std::string_view value, bool exclusive,
+                     eos::common::VirtualIdentity& vid,
+                     eos::mgm::FusexCastBatch& fuse_batch)
+{
+  eos::IContainerMD::XAttrMap attr_map;
+  bool has_attribute = false;
+  uid_t cuid;
+
+  if (item.file) {
+    cuid = item.file->getCUid();
+    attr_map = item.file->getAttributes();
+    has_attribute = item.file->hasAttribute(key.data());
+  } else {
+    cuid = item.container->getCUid();
+    attr_map = item.container->getAttributes();
+    has_attribute = item.container->hasAttribute(key.data());
+  }
+
+  Acl acl(attr_map, vid);
+
+  if ((vid.uid != cuid) && !acl.AllowXAttrUpdate(key, vid)) {
+    errno = EPERM;
+    return false;
+  }
+
+  if (exclusive && has_attribute) {
+    errno = EEXIST;
+    return false;
+  }
+
+  if (item.file) {
+    // Handle attribute for application locks
+    if (key == eos::common::EOS_APP_LOCK_ATTR) {
+      errno = 0;
+      XattrLock app_lock(attr_map);
+
+      if (app_lock.foreignLock(vid, true)) {
+        errno = EBUSY;
+        return false;
+      }
+    }
+
+    item.file->setAttribute(key.data(), value.data());
+
+    if (key != eos::kAttrTmpEtagKey) {
+      item.file->setCTimeNow();
+    }
+
+    const eos::FileIdentifier f_id(item.file->getIdentifier());
+    const eos::ContainerIdentifier c_id(item.file->getContainerId());
+    eosView->updateFileStore(item.file.get());
+    fuse_batch.Register([&, f_id, c_id]() {
+      gOFS->FuseXCastRefresh(f_id, c_id);
+    });
+  } else {
+    item.container->setAttribute(key.data(), value.data());
+
+    if (key != eos::kAttrTmpEtagKey) {
+      item.container->setCTimeNow();
+    }
+
+    const eos::ContainerIdentifier d_id(item.container->getIdentifier());
+    const eos::ContainerIdentifier d_pid(item.container->getParentIdentifier());
+    eosView->updateContainerStore(item.container.get());
+    fuse_batch.Register([&, d_id, d_pid]() {
+      gOFS->FuseXCastRefresh(d_id, d_pid);
+    });
+  }
+
+  errno = 0;
+  return true;
+}
 
 //------------------------------------------------------------------------------
 // Remove an extended attribute for a given entry - high-level API.
@@ -441,31 +459,6 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   }
 
   const std::string skey = key;
-  bool acl_allows = false;
-
-  if ((skey.find("sys.") == 0) && (!vid.sudoer && vid.uid)) {
-    eos::IContainerMD::XAttrMap attrmap;
-    Acl acl(path, error, vid, attrmap);
-
-    if (skey == "sys.acl") {
-      // check 'A' acl
-      if (!acl.CanSysAcl()) {
-	errno = EPERM;
-        return Emsg(epname, error, errno, "remove sys.acl attribute", path);
-      } else {
-	acl_allows = true;
-      }
-    } else {
-      // check 'X' acl
-      if (!acl.CanXAttr()) {
-        errno = EPERM;
-        return Emsg(epname, error, errno, "remote sys.* attribute", path);
-      } else {
-	acl_allows = true;
-      }
-    }
-  }
-
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, path);
 
   try {
@@ -474,8 +467,11 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
     if (item.file) { // file
       std::shared_ptr<eos::IFileMD> fmd = item.file;
       auto fmd_lock = eos::MDLocking::writeLock(fmd.get());
+      eos::IContainerMD::XAttrMap attr_map = fmd->getAttributes();
+      Acl acl(attr_map, vid);
 
-      if ((vid.uid != fmd->getCUid()) && (!vid.sudoer && vid.uid) && (!acl_allows)) {
+      if ((vid.uid != fmd->getCUid()) &&
+          !acl.AllowXAttrUpdate(skey, vid)) {
         errno = EPERM;
       } else {
         if (!fmd->hasAttribute(skey)) {
@@ -494,8 +490,11 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
     } else { // container
       std::shared_ptr<eos::IContainerMD> cmd = item.container;
       auto cmd_lock = eos::MDLocking::writeLock(cmd.get());
+      eos::IContainerMD::XAttrMap attr_map = cmd->getAttributes();
+      Acl acl(attr_map, vid);
 
-      if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && (!vid.sudoer && vid.uid && (!acl_allows))) {
+      if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) &&
+          !acl.AllowXAttrUpdate(skey, vid)) {
         errno = EPERM;
       } else {
         if (!cmd->hasAttribute(skey)) {

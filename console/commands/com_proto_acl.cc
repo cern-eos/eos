@@ -69,9 +69,6 @@ void com_acl_help()
       << "  -l, --list      : list ACL rules" << std::endl
       << "  -p, --position  : add the acl rule at specified position" << std::endl
       << "  -f, --front     : add the acl rule at the front position" << std::endl
-      << "  --with-synchronous-write-lock: Acquire a write lock on the directory\n"
-         "                    when walking the tree, can cause extreme slowness\n"
-         "                    on large directory trees" << std::endl
       << "      --user      : handle user.acl rules on directory" << std::endl
       << "      --sys       : handle sys.acl rules on directory - admin only\n"
       << std::endl
