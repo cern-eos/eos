@@ -2470,7 +2470,6 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
   }
 
   req.mutable_acl()->set_rule(request->rule());
-  req.mutable_acl()->set_sync_write(request->sync_write());
   eos::mgm::AclCmd aclcmd(std::move(req), vid);
   eos::console::ReplyProto preply = aclcmd.ProcessRequest();
 
