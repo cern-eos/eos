@@ -28,6 +28,7 @@
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/LRU.hh"
+#include "mgm/Acl.hh"
 #include "common/Path.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
@@ -703,6 +704,13 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         std_out.str("success: removed space config '" + key + "'\n");
       }
 
+      if (key.substr(0,9) == std::string("attr.sys.")) {
+	// remove attribute in gOFS map
+	std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
+	std::string mkey=key.substr(5);
+	gOFS->mSpaceAttributes[space_name].erase(mkey);
+      }
+
       reply.set_std_out(std_out.str());
       reply.set_std_err(std_err.str());
       reply.set_retc(ret_c);
@@ -861,7 +869,8 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
           (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
           (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-          (key == eos::common::SCAN_NS_RATE_NAME)) {
+          (key == eos::common::SCAN_NS_RATE_NAME) ||
+	  (key.substr(0,9) == std::string("attr.sys."))) {
         if ((key == "balancer") ||
             (key == "tracker") ||
             (key == "inspector") ||
@@ -1026,65 +1035,123 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
               std_out << "success: wfe is " << status << "!";
             }
           }
-        } else {
-          if (value == "remove") {
-            applied = true;
-
-            if (!space->DeleteConfigMember(key)) {
-              ret_c = ENOENT;
-              std_err.str("error: key has not been deleted");
-            } else {
-              std_out.str("success: deleted space config : " + key);
-            }
-          } else {
-            errno = 0;
-            applied = true;
-            unsigned long long size = eos::common::StringConversion::GetSizeFromString(
-                                        value.c_str());
-
-            if (!errno) {
-              if ((key != "balancer.threshold") &&
-                  (key != "geobalancer.threshold") &&
-                  (key != "groupbalancer.threshold") &&
-                  (key != "groupbalancer.min_threshold") &&
-                  (key != "groupbalancer.max_threshold") &&
-                  (key != "groupdrainer.threshold")) {
-                // Threshold is allowed to be decimal!
-                char ssize[1024];
-                snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
-                value = ssize;
-              }
-
-              if (!space->SetConfigMember(key, value)) {
-                ret_c = EIO;
-                std_err.str("error: cannot set space config value");
-              } else {
-                std_out.str("success: setting " + key + "=" + value);
-
-                if ((key == "token.generation")) {
-                  eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
-                }
-
-                if (key == "lru.interval") {
-                  gOFS->mLRUEngine->RefreshOptions();
-                }
-
-                if (eos::common::startsWith(key, GROUPBALANCER_KEY_PREFIX)) {
-                  space->mGroupBalancer->reconfigure();
-                } else if (eos::common::startsWith(key, GROUPDRAINER_KEY_PREFIX)) {
-                  space->mGroupDrainer->reconfigure();
-                } else if (eos::common::startsWith(key, BALANCER_KEY_PREFIX)) {
-                  if (space->mFsBalancer) {
-                    space->mFsBalancer->SignalConfigUpdate();
-                  }
-                }
-              }
-            } else {
-              ret_c = EINVAL;
-              std_err.str("error: value has to be a positive number");
-            }
-          }
-        }
+        } else if (value == "remove") {
+	  applied = true;
+	  
+	  if (key.substr(0,9) == std::string("attr.sys.")) {
+	    // remove attribute in gOFS map
+	    std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
+	    std::string mkey=key.substr(5);
+	    gOFS->mSpaceAttributes[space_name].erase(mkey);
+	  }
+	  
+	  if (!space->DeleteConfigMember(key)) {
+	    ret_c = ENOENT;
+	    std_err.str("error: key has not been deleted");
+	  } else {
+	    std_out.str("success: deleted space config : " + key);
+	  }
+	} else if (key.substr(0,9) == std::string("attr.sys.")) {
+	  if (key == "attr.sys.acl") {
+	    // screen if this is a valid ACL
+	    Acl acl;
+	    std::string scal = value;
+	    bool replace=true;
+	    if ( value.front() == '>' ||
+		 value.front() == '<' ||
+	         value.front() == '|' ){
+	      scal.erase(0,1);
+	      replace=false;
+	    }
+	    XrdOucErrInfo error;
+	    if (!acl.IsValid(scal, error, true, false) &&
+		!acl.IsValid(scal, error, true, true) ) {
+	      ret_c = EINVAL;
+	      std_err.str("error: the ACL is not valid");
+	      reply.set_std_out(std_out.str());
+	      reply.set_std_err(std_err.str());
+	      reply.set_retc(ret_c);
+	      return;
+	    } else {
+	      if (Acl::ConvertIds(scal)) {
+		ret_c = EINVAL;
+		std_err.str("error: cannot convert to numerical IDs");
+		reply.set_std_out(std_out.str());
+		reply.set_std_err(std_err.str());
+		reply.set_retc(ret_c);
+		return;
+	      }
+	      if (!replace) {
+		value.erase(1);
+		value += scal;
+	      } else {
+		value = scal;
+	      }
+	      std_out.str("success: setting " + key + "=" + value);
+	    }
+	  }
+	  {
+	    // set attribute in gOFS map
+	    std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
+	    std::string mkey=key.substr(5);
+	    gOFS->mSpaceAttributes[space_name][mkey] = value;
+	  }
+	  applied = true;
+	  // setting space attributes
+	  if (!space->SetConfigMember(key, value)) {
+	    ret_c = EIO;
+	    std_err.str("error: cannot set space config value");
+	  } else {
+	    std_out.str("success: setting " + key + "=" + value);
+	  }
+	} else {
+	  errno = 0;
+	  applied = true;
+	  unsigned long long size = eos::common::StringConversion::GetSizeFromString(
+										     value.c_str());
+	  
+	  if (!errno) {
+	    if ((key != "balancer.threshold") &&
+		(key != "geobalancer.threshold") &&
+		(key != "groupbalancer.threshold") &&
+		(key != "groupbalancer.min_threshold") &&
+		(key != "groupbalancer.max_threshold") &&
+		(key != "groupdrainer.threshold")) {
+	      // Threshold is allowed to be decimal!
+	      char ssize[1024];
+	      snprintf(ssize, sizeof(ssize) - 1, "%llu", size);
+	      value = ssize;
+	    }
+	    
+	    if (!space->SetConfigMember(key, value)) {
+	      ret_c = EIO;
+	      std_err.str("error: cannot set space config value");
+	    } else {
+	      std_out.str("success: setting " + key + "=" + value);
+	      
+	      if ((key == "token.generation")) {
+		eos::common::EosTok::sTokenGeneration = strtoull(value.c_str(), 0, 0);
+	      }
+	      
+	      if (key == "lru.interval") {
+		gOFS->mLRUEngine->RefreshOptions();
+	      }
+	      
+	      if (eos::common::startsWith(key, GROUPBALANCER_KEY_PREFIX)) {
+		space->mGroupBalancer->reconfigure();
+	      } else if (eos::common::startsWith(key, GROUPDRAINER_KEY_PREFIX)) {
+		space->mGroupDrainer->reconfigure();
+	      } else if (eos::common::startsWith(key, BALANCER_KEY_PREFIX)) {
+		if (space->mFsBalancer) {
+		  space->mFsBalancer->SignalConfigUpdate();
+		}
+	      }
+	    }
+	  } else {
+	    ret_c = EINVAL;
+	    std_err.str("error: value has to be a positive number");
+	  }
+	}
       }
     }
   }

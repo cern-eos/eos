@@ -2049,6 +2049,10 @@ public:
   //! Global QoS Classes map
   std::map<std::string, eos::mgm::QoSClass> mQoSClassMap;
 
+  //! Global Attrbute Map Space=>map(key,val)
+  std::mutex mSpaceAttributesMutex; ///< Mutex protecting space attributes
+  std::map<std::string, std::map<std::string,std::string>> mSpaceAttributes;
+  
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
@@ -2141,6 +2145,26 @@ public:
     return mFusePlacementBooking;
   }
 
+  //----------------------------------------------------------------------------
+  //! List Attributes high-level function merging space and namespace attributes
+  //----------------------------------------------------------------------------
+
+  void mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix=false, bool existing=false);
+  
+  void
+  listAttributes(eos::IView* view, eos::IContainerMD* target,
+		 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
+  void
+  listAttributes(eos::IView* view, eos::IFileMD* target,
+		 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
+  void
+  listAttributes(eos::IView* view, eos::FileOrContainerMD target,
+		 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
+
+  template<typename T>
+  bool getAttribute(eos::IView* view, T& md, std::string key,
+			       std::string& rvalue);
+  
 protected:
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 

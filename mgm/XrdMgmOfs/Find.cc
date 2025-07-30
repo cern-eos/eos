@@ -144,7 +144,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
         j["mt"] = (Json::Value::UInt64) ts.tv_sec;
         cmd->getCTime(ts);
         j["ct"] = (Json::Value::UInt64) ts.tv_sec;
-        eos::listAttributes(gOFS->eosView, cmd.get(), attrmap, false);
+        gOFS->listAttributes(gOFS->eosView, cmd.get(), attrmap, false);
         eos::IContainerMD::ctime_t ctime, mtime;
         cmd->getCTime(ctime);
         cmd->getMTime(mtime);
@@ -234,7 +234,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
         j["mt"] = (Json::Value::UInt64) ts.tv_sec;
         fmd->getCTime(ts);
         j["ct"] = (Json::Value::UInt64) ts.tv_sec;
-        eos::listAttributes(gOFS->eosView, fmd.get(), attrmap, false);
+        gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmap, false);
         eos::IContainerMD::ctime_t ctime, mtime;
         cmd->getCTime(ctime);
         cmd->getMTime(mtime);

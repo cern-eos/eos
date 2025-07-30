@@ -120,7 +120,7 @@ bool
 XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
                      std::string& rvalue)
 {
-  return getAttribute(gOFS->eosView, cmd, key, rvalue);
+  return gOFS->getAttribute(gOFS->eosView, cmd, key, rvalue);
 }
 
 //------------------------------------------------------------------------------
@@ -129,7 +129,7 @@ XrdMgmOfs::_attr_get(eos::IContainerMD& cmd, std::string key,
 bool
 XrdMgmOfs::_attr_get(eos::IFileMD& fmd, std::string key, std::string& rvalue)
 {
-  return getAttribute(gOFS->eosView, fmd, key, rvalue);
+  return gOFS->getAttribute(gOFS->eosView, fmd, key, rvalue);
 }
 
 //------------------------------------------------------------------------------
@@ -525,4 +525,114 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
   }
 
   return SFS_OK;
+}
+
+//----------------------------------------------------------------------------
+//! List Attributes high-level function merging space and namespace attributes
+//----------------------------------------------------------------------------
+
+void
+XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix, bool existing){
+  std::string space = "default";
+  if (out.count("sys.forced.space")) {
+    space = out["sys.forced.space"];
+  }
+  std::map<std::string,std::string> attr;
+  if (gOFS->mSpaceAttributes.count(space)) {
+      // retrieve space arguments
+      std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
+      attr = gOFS->mSpaceAttributes[space];
+    }
+    // loop over arguments
+    for ( auto x:attr ) {
+      if (x.first == "sys.forced.space") {
+	// we ignore this
+      } else {
+	if (existing && !out.count(x.first)) {
+	  // merge only existing attributes
+	  continue;
+	}
+	std::string inkey=x.first;
+	std::string outkey=prefix?(std::string("sys.space.") + x.first): x.first;
+	if (x.first == "sys.acl") {
+	  // ACL handling
+	  if (x.second.substr(0,1) == ">") {
+	    if (out["sys.acl"].length()) {
+	      // append rule
+	      out[outkey] = out["sys.acl"] + std::string(",") + x.second.substr(1);
+	    } else {
+	      out[outkey] = x.second.substr(1);
+	    }
+	  } else if (x.second.substr(0,1) == "<") {
+	    if (out["sys.acl"].length()) {
+	      // prepend rule
+	      out[outkey] = x.second.substr(1) + std::string(",") + out["sys.acl"];
+	    } else {
+	      out[outkey] = x.second.substr(1);
+	    }
+	  } else if (x.second.substr(0,1) == "|") {
+	    if (!out["sys.acl"].length()) {
+	      // if not set rule
+	      out[outkey] = x.second.substr(1);
+	    }
+	  } else {
+	    // overwrite rule
+	    out[outkey] = x.second;
+	  }
+	} else {
+	  // normal attribute handling
+	  if (x.second.substr(0,1) == "|") {
+	    // if not set rule
+	    if (!out[x.first].length()) {
+	      out[outkey] = x.second.substr(1);
+	    }
+	  } else {
+	    // overwrite rule
+	    out[outkey] = x.second;
+	  }
+	}
+      }
+    }
+}
+
+
+void
+XrdMgmOfs::listAttributes(eos::IView* view, eos::IContainerMD* target,
+                          eos::IContainerMD::XAttrMap& out, bool prefixLinks){
+  eos::listAttributes(view, target, out, prefixLinks);
+  mergeSpaceAttributes(out);
+}
+
+void
+XrdMgmOfs::listAttributes(eos::IView* view, eos::IFileMD* target,
+                          eos::IContainerMD::XAttrMap& out, bool prefixLinks){
+  eos::listAttributes(view, target, out, prefixLinks);
+  mergeSpaceAttributes(out);
+}
+
+void
+XrdMgmOfs::listAttributes(eos::IView* view, eos::FileOrContainerMD target,
+                          eos::IContainerMD::XAttrMap& out, bool prefixLinks){
+  eos::listAttributes(view, target, out, prefixLinks);
+  mergeSpaceAttributes(out);
+}
+
+template<typename T>
+bool XrdMgmOfs::getAttribute(eos::IView* view, T& md, std::string key,
+		  std::string& rvalue)
+{
+  auto result = eos::getAttribute(view, md, key, rvalue);
+  eos::IContainerMD::XAttrMap attr;
+  if (!result) {
+    attr[key]="";
+  } else {
+    attr[key] = rvalue;
+  }
+  mergeSpaceAttributes(attr,false,true);
+  rvalue = attr[key];
+  if (!result) {
+    return attr[key].length();
+  } else {
+    return true;
+  }
 }

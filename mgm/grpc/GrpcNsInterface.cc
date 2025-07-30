@@ -493,7 +493,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       try {
         fmd = gOFS->eosFileService->getFileMD(fid, &clock);
         path = gOFS->eosView->getUri(fmd.get());
-        eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+        gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
 
         if (check_perms) {
           pmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
@@ -517,7 +517,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       try {
         fmd = gOFS->eosView->getFile(request->id().path());
         path = gOFS->eosView->getUri(fmd.get());
-        eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+        gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
 
         if (check_perms) {
           pmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());

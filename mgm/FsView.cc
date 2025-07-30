@@ -2913,6 +2913,9 @@ BaseView::SetConfigMember(std::string key, std::string value,
     std::string confval = value;
     FsView::gFsView.mConfigEngine->SetConfigValue("global", node_cfg_name.c_str(),
         confval.c_str());
+
+    
+    
   }
 
   return success;
@@ -3256,6 +3259,10 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     return false;
   }
 
+  // extract space name
+  std::string space = tokens[0];
+  space.erase(0,space.rfind("/")+1);
+  
   // apply a new token generation value
   if (tokens[1] == "token.generation") {
     eos_static_info("token-generation := %s", val.c_str());
@@ -3276,6 +3283,12 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     gOFS->zMQ->gFuseServer.Client().SetBroadCastMaxAudience(atoi(val.c_str()));
   } else if (tokens[1] == "fusex.bca_match") {
     gOFS->zMQ->gFuseServer.Client().SetBroadCastAudienceSuppressMatch(val.c_str());
+  } else if (tokens[1].substr(0,9) == "attr.sys.") {
+    std::string key=tokens[1].substr(5);
+    eos_static_info("Setting global attribute space:%s %s=%s\n", space.c_str(), key.c_str(), val.c_str());
+    // this is a space attribute
+    std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
+    gOFS->mSpaceAttributes[space][key] = val;
   }
 
   common::SharedHashLocator locator;

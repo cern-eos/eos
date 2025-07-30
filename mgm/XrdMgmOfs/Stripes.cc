@@ -121,7 +121,7 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
     if (cmd) {
       eos::FileOrContainerMD item;
       item.container = cmd;
-      listAttributes(gOFS->eosView, item, attrmap, true);
+      gOFS->listAttributes(gOFS->eosView, item, attrmap, true);
     }
   }
 
