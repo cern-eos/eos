@@ -2291,7 +2291,7 @@ Server::OpSetFile(const std::string& id,
       unsigned long forcedFsId = 0;
       long forcedGroup = 0;
       std::string space;
-      eos::listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
+      gOFS->listAttributes(gOFS->eosView, &(*pcmd), attrmap, false);
       XrdOucEnv env;
       std::string bandwidth;
       bool schedule = false;
@@ -3450,7 +3450,7 @@ Server::OpSetLock(const std::string& id,
 
       if (fmd) {
         eos::IFileMD::XAttrMap attrmapF;
-        eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+        gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
         XattrLock alock(attrmapF);
 
         if (alock.foreignLock(vid, (lock.l_type == F_WRLCK))) {

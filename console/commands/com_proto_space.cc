@@ -497,6 +497,12 @@ void com_space_help()
       << "\t    --io : print IO statistics\n"
       << "\t  --fsck : print filesystem check statistics\n"
       << std::endl
+      << "space config <space-name> space.attr.<key> =[<>|]<value>               : configure a space extended attribute which is added to all directories referencing this space via sys.forced.space"
+      << "                                                                        space.attr.sys.acl=<u:1000:rwx (the < sign indicates to add to the acl on the left side"
+      << "                                                                        space.attr.sys.acl=>u:1000:rwx (the > sign indicates to add to the acl on the right side"
+      << "                                                                        space.attr.sys.acl=|u:1000:rwx (the | sign indicates to set the acl if there is none defined"
+      << "                                                                        space.attr.sys.foo=bar ( the sys.foo attribute is overwriting the local sys.foo attribute"
+      << "                                                                        space.attr.sys.foo=|bar ( the sys.foo attribute is set only if there is no local sys.foo attribute"
       << "space config <space-name> space.nominalsize=<value>                   : configure the nominal size for this space\n"
       << "space config <space-name> space.balancer=on|off                       : enable/disable the space balancer [ default=off ]\n"
       << "space config <space-name> space.balancer.threshold=<percent>          : configure the used bytes deviation which triggers balancing             [ default=20 (%%)     ] \n"

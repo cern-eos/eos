@@ -995,7 +995,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       // get the attributes out
-      eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+      gOFS->listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
       // extract workflows
       workflow.Init(&attrmap);
 
@@ -1106,7 +1106,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         try {
           dmd = gOFS->eosView->getContainer(cPath.GetSubPath(2));
           // get the attributes out
-          eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+          gOFS->listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
         } catch (eos::MDException& e) {
           dmd.reset();
           errno = e.getErrno();
@@ -1167,7 +1167,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     if (fmd) {
-      eos::listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
+      gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
     }
 
     acl.SetFromAttrMap(attrmap, vid, &attrmapF);

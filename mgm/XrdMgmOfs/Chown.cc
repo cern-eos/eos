@@ -72,7 +72,7 @@ XrdMgmOfs::_chown(const char* path,
     eos::IContainerMD::XAttrMap attrmap;
     eos::common::Path cPath(path);
     cmd = gOFS->eosView->getContainer(path, !nodereference);
-    eos::listAttributes(gOFS->eosView, cmd.get(), attrmap, false);
+    gOFS->listAttributes(gOFS->eosView, cmd.get(), attrmap, false);
     eos_info("path=%s uid=%u gid=%u old_uid=%u old_gid=%d noderef=%d",
              path, uid, gid, cmd->getCUid(), cmd->getCGid(), nodereference);
     // ACL and permission check
