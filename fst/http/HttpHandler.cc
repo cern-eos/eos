@@ -30,6 +30,7 @@
 #include "common/http/OwnCloud.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/MimeTypes.hh"
+#include "common/StringUtils.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/XrdFstOfsFile.hh"
 #include <XrdSys/XrdSysPthread.hh>
@@ -376,6 +377,19 @@ HttpHandler::Get(eos::common::HttpRequest* request)
             std::replace(checksum_string.begin(), checksum_string.end(),
                          ':', '=');
             response->AddHeader("Digest", checksum_string);
+          }
+
+          it = hdrs.find("want-repr-digest");
+          if(it != hdrs.end()) {
+            // According to RFC 9530, the server MAY ignore the content of this header
+            // and return whatever digest it wants. That's very good news for the lazy person I am,
+            // let's return what we have without checking what is the value of this header.
+            std::string encodedCksumVal;
+            common::SymKey::Base64Encode(checksum_val.c_str(),checksum_val.size(),encodedCksumVal);
+            // Strip invisible chars (\n...) should there be some
+            common::stripInvisibleChars(encodedCksumVal);
+            std::string reprDigest = checksum_name + "=:" + encodedCksumVal + ":";
+            response->AddHeader("Repr-Digest",reprDigest);
           }
         }
       }
