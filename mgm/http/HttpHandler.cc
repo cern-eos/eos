@@ -582,8 +582,19 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         if(element != reprDigest.end()) {
           //We take the first element of the map for now
           const std::string & digestName = element->first;
+          auto bytesFromBase64 = common::SymKey::Base64Decode(element->second);
           std::string decodedDigestValue;
-          common::SymKey::Base64Decode(element->second.c_str(),decodedDigestValue);
+          if(bytesFromBase64) {
+            static const char* hex_chars = "0123456789abcdef";
+            decodedDigestValue.reserve(bytesFromBase64->size() * 2);
+            for (uint8_t byte : *bytesFromBase64) {
+              decodedDigestValue.push_back(hex_chars[byte >> 4]);
+              decodedDigestValue.push_back(hex_chars[byte & 0x0F]);
+            }
+          } else {
+            // TODO: Put an error?
+            // TODO: DELEGATE TO XROOTD!!!!
+          }
           // Strip invisible chars (\n...) as it can cause issue in the query URL
           common::stripInvisibleChars(decodedDigestValue);
           if (query.length()) {
