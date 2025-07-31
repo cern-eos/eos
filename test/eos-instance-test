@@ -470,6 +470,10 @@ eos_rename() {
    echo eos-rename-test $1 $EOS_TEST_REDIRECTOR; eval eos-rename-test $1 $EOS_TEST_REDIRECTOR >> $EOSCERTLOG 2>&1
 }
 
+eos_acl_concurrent() {
+   echo eos-acl-concurrent $1; eval eos-acl-concurrent $1 >> $EOSCERTLOG 2>&1
+}
+
 eos_grpc() {
    echo eos-grpc-test $1 ; eval eos-grpc-test $1 >> $EOSCERTLOG 2>&1
 }
@@ -1284,6 +1288,10 @@ runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/n
 runtest "### SpaceACL" unix 0 "" eos space config rm default "space.attr.sys.acl"
 runtest "### SpaceACL" unix 1 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep u:1000:rwx"
 runtest "### Rmdir   " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/acl"
+# Test concurrent ACL recursive modifications
+runtest "### Mkdir   " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl_concurrent"
+runtest "### Acl rec " unix 0 "" eos_acl_concurrent "/eos/$EOS_TEST_INSTANCE/test/acl_concurrent"
+runtest "### Rmdir   " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/acl_concurrent"
 
 ################################################################################
 # CHECKSUMS

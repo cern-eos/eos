@@ -1,0 +1,124 @@
+#!/bin/bash
+set -x
+
+#-------------------------------------------------------------------------------
+# File: eos-acl-concurrent
+# Author: Elvin-Alin Sindrilaru - CERN
+#-------------------------------------------------------------------------------
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2025 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+
+#------------------------------------------------------------------------------
+# Description: Script testing concurrent recurssive modifications of ACLs
+#
+# Usage:
+# eos-acl-concurrent <eos_directory>
+#------------------------------------------------------------------------------
+
+# Helper cleanup method
+cleanup() {
+  for i in {1..5}; do
+    for j in {1..10}; do
+      eos rmdir ${EOS_ACL_DIR}/level1_$i/level2_$j &
+    done
+
+    wait
+    eos rmdir ${EOS_ACL_DIR}/level1_$i
+  done
+
+  eos rmdir ${EOS_ACL_DIR}
+}
+
+# Create directory structure used for testing
+function create_hierarchy() {
+  local EOS_DIR=$1
+
+  for i in {1..5}; do
+    for j in {1..10}; do
+      eos mkdir -p ${EOS_DIR}/level1_$i/level2_$j; eos chmod 2777 ${EOS_DIR}/level1_$i/level2_$j &
+    done
+
+    wait
+  done
+}
+
+# Method doing recursive ACL modifcations
+function acl_recursive_modify() {
+  local EOS_DIR=$1
+  local ACL_RULE=$2
+  eos acl --recursive ${ACL_RULE} ${EOS_DIR}
+}
+
+# Method doing recursive ACL modifcations
+function acl_check_expectations() {
+  local EOS_DIR=$1
+
+  for i in {1..5}; do
+    #ACTUAL_ACLS=$(eos acl -l ${EOS_DIR}/level1_$i | grep -v "^#")
+    ACTUAL_ACLS=$(eos attr get sys.acl ${EOS_DIR}/level1_$i)
+
+    for acl in "${EXPECTED_ACLS[@]}"; do
+      echo ${ACTUAL_ACLS} | grep ${acl}
+
+      if [[ $? -ne 0 ]]; then
+        echo "error: directory ${EOS_DIR}/level1_$i unexpected ACLs"
+        exit 1
+      fi
+    done
+
+    for j in {1..10}; do
+      #ACTUAL_ACLS=$(eos acl -l ${EOS_DIR}/level1_$i/level2_$j | grep -v "^#")
+      ACTUAL_ACLS=$(eos attr get sys.acl ${EOS_DIR}/level1_$i/level2_$j)
+
+      for acl in "${EXPECTED_ACLS[@]}"; do
+        echo ${ACTUAL_ACLS} | grep ${acl}
+
+        if [[ $? -ne 0 ]]; then
+          echo "error: directory ${EOS_DIR}/level1_$i/level2_$j unexpected ACLs"
+          exit 1
+        fi
+      done
+    done
+  done
+}
+
+if [[ $# -ne 1 ]]; then
+  echo "Usage: $0 <eos_dir>"
+  exit 1
+fi
+
+trap cleanup EXIT
+EOS_ACL_DIR=$1
+create_hierarchy ${EOS_ACL_DIR}
+VECT_PIDS=()
+EXPECTED_ACLS=()
+
+# Launch 4 jobs in parallel
+for i in {1..8}; do
+  acl_recursive_modify ${EOS_ACL_DIR} "u:1000${i}=rwx" &
+  VECT_PIDS+=($!)
+  EXPECTED_ACLS+=("u:1000${i}:rwx")
+done
+
+# Wait for all subrpcessed to finish
+for pid in "${VECT_PIDS[@]}"; do
+  wait $pid
+done
+
+acl_check_expectations ${EOS_ACL_DIR}
+exit 0
