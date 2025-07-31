@@ -194,6 +194,17 @@ public:
   //!
   //! @return true if succesful, otherwise false
   //----------------------------------------------------------------------------
+  static std::string Base64Encode(const std::vector<uint8_t> & input) ;
+
+  //----------------------------------------------------------------------------
+  //! Base64 encode a string - base function
+  //!
+  //! @param decoded_bytes input data
+  //! @param decoded_length input data length
+  //! @param out encoded data in std::string
+  //!
+  //! @return true if succesful, otherwise false
+  //----------------------------------------------------------------------------
   static bool Base64Encode(const char* decoded_bytes, ssize_t decoded_length,
                            std::string& out);
 
@@ -217,6 +228,8 @@ public:
   //----------------------------------------------------------------------------
   static bool Base64Decode(const char* encoded_bytes, char*& decoded_bytes,
                            ssize_t& decoded_length);
+
+  static std::optional<std::vector<uint8_t>> Base64Decode(const std::string & base64);
 
   //----------------------------------------------------------------------------
   //! Base64 decode data, output as string
