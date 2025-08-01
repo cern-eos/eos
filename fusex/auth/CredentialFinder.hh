@@ -80,6 +80,8 @@ public:
   bool ignore_containerization;
   //! Encryption Key
   std::string encryptionKey;
+  //! Static token
+  std::string sssEndorsement;
 };
 
 //------------------------------------------------------------------------------

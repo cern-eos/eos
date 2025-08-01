@@ -221,6 +221,10 @@ BoundIdentityProvider::sssEnvToBoundIdentity(const JailInformation& jail,
   std::string endorsement = env.get("XrdSecsssENDORSEMENT");
   std::string key = env.get("EOS_FUSE_SECRET");
 
+  if (credConfig.sssEndorsement.length()) {
+    endorsement = credConfig.sssEndorsement;
+  }
+
   if (key.empty() && credConfig.encryptionKey.length()) {
     key = credConfig.encryptionKey;
   }
@@ -286,12 +290,11 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
         return output;
       }
     }
-
     //----------------------------------------------------------------------------
     // Try to use SSS if available.
     //----------------------------------------------------------------------------
     if (credConfig.use_user_sss && ((!skip_sss) ||
-                                    (!env.get("XrdSecsssENDORSEMENT").empty()))) {
+                                    (!env.get("XrdSecsssENDORSEMENT").empty() || !credConfig.sssEndorsement.empty()))) {
       output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
       if (output) {
@@ -342,7 +345,7 @@ BoundIdentityProvider::environmentToBoundIdentity(const JailInformation& jail,
   // Try to use SSS if available.
   //----------------------------------------------------------------------------
   if (credConfig.use_user_sss && (!skip_sss ||
-                                  !env.get("XrdSecsssENDORSEMENT").empty())) {
+                                  (!env.get("XrdSecsssENDORSEMENT").empty() || !credConfig.sssEndorsement.empty()))) {
     output = sssEnvToBoundIdentity(jail, env, uid, gid, reconnect, scope);
 
     if (output) {
@@ -532,8 +535,14 @@ BoundIdentityProvider::defaultPathsToBoundIdentity(const JailInformation& jail,
                                << uid)));
   // attach secret key and endorsement
   defaultEnv.push_back("EOS_FUSE_SECRET=" + pidEnv.get("EOS_FUSE_SECRET"));
-  defaultEnv.push_back("XrdSecsssENDORSEMENT=" +
-                       pidEnv.get("XrdSecsssENDORSEMENT"));
+
+  if (credConfig.sssEndorsement.length()) {
+    defaultEnv.push_back("XrdSecsssENDROSEMENT=" + credConfig.sssEndorsement);
+  } else {
+    defaultEnv.push_back("XrdSecsssENDORSEMENT=" +
+			 pidEnv.get("XrdSecsssENDORSEMENT"));
+  }
+
   return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect,
                                     subscope, false);
 }
@@ -558,8 +567,12 @@ BoundIdentityProvider::globalBindingToBoundIdentity(const JailInformation& jail,
                           SSTR("Attempting to produce BoundIdentity out of eosfusebind " <<
                                "global binding for uid=" << uid)));
   defaultEnv.push_back("EOS_FUSE_SECRET=" + pidEnv.get("EOS_FUSE_SECRET"));
-  defaultEnv.push_back("XrdSecsssENDORSEMENT=" +
-                       pidEnv.get("XrdSecsssENDORSEMENT"));
+  if (credConfig.sssEndorsement.length()) {
+    defaultEnv.push_back("XrdSecsssENDORSEMENT=" + credConfig.sssEndorsement);
+  } else {
+    defaultEnv.push_back("XrdSecsssENDORSEMENT=" +
+			 pidEnv.get("XrdSecsssENDORSEMENT"));
+  }
   return environmentToBoundIdentity(jail, defaultEnv, uid, gid, reconnect,
                                     subscope, true);
 }

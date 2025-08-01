@@ -71,6 +71,7 @@ This
     "gsi-first" : 0,
     "sss" : 1,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
+    "sssEndorsement" : "",
     "oauth2" : 1,
     "ztn" : 1,    	     
     "unix" : 0,
@@ -306,7 +307,7 @@ Use these authentication directives in the config file:
   }
 ```
 The mount daemon uses /etc/fuse/fuse.sss.keytab as default keytab when running as a shared mount. The user mount default is $HOME/.eos/fuse.sss.keytab. Unlike Kerberos it is not possible in XRootD to use different keytabs for individual users. If you want to create a 'trusted' mount mapping local users to their local username, you have to create an sss keytab entry for user **anybody** and group **anygroup**. Otherwise you can create an sss keytab for a given application user.
-The mount also supports to forward sss endorsements, which are forwarded to the server. These endorsement can be used server-side to define an ACL entry by key e.g. sys.acl="k:9c2bd333-5331-4095-8fcd-28726404742f:rwx". This would provide access to all sss clients having this key in their environment even if the mapped sss user/group wouldn't have access.
+The mount also supports to forward sss endorsements, which are forwarded to the server. These endorsement can be used server-side to define an ACL entry by key e.g. sys.acl="k:9c2bd333-5331-4095-8fcd-28726404742f:rwx". This would provide access to all sss clients having this key in their environment even if the mapped sss user/group wouldn't have access. Another type of endorsement can be EosToken, which are read from XrdSecsssENDORSEMENT environemnt variables. You can also configure a mount with a static endorsement using "auth":"sssEndorsement" : zteos:... which will be used by all users on this mount using sss authentication.
 
 
 Mounting for UNIX gateways

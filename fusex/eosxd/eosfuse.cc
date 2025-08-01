@@ -1144,6 +1144,7 @@ EosFuse::run(int argc, char* argv[], void* userdata)
       root["auth"]["ignore-containerization"].asInt();
     config.auth.use_user_gsiproxy = root["auth"]["gsi"].asInt();
     config.auth.use_user_sss = root["auth"]["sss"].asInt();
+    config.auth.sssEndorsement = root["auth"]["sssEndorsement"].asString();
     config.auth.credentialStore = root["auth"]["credential-store"].asString();
     config.auth.encryptionKey = config.encryptionkey;
 

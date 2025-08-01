@@ -52,6 +52,7 @@
     "gsi-first" : 0,
     "sss" : 1,
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
+    "sssEndorsement" : "",
     "oauth2" : 1,
     "unix" : 0,
     "environ-deadlock-timeout" : 100,
