@@ -16,29 +16,40 @@ Introduction
 
 This release is based on XRootD V5.
 
+
 ``v5.3.16 Diopside``
 ====================
 
-2025-07-25
+2025-08-01
 
 Bug
-------------
+----
+
 * [EOS-6283] - non-default "max_drain_threads" not persisted over MGM restarts
 * [EOS-6433] - FUSEX "touch" causes "Status: fuse::missingcommmits"
 * [EOS-6440] - left-behind namespace entry with "Container #0 not found", for deleted file
 * [EOS-6445] - Repair failed due to unscanned replica
-
-Task
-------------
-* [EOS-6454] - MGM,FST: Add jwt to grpc WFE calls
+* [EOS-6456] - Converter uses filename internally, fails on '?' '&'
+* [EOS-6457] - drainfailure: wrong (=empty) MGM+FST1 checksum prevents drain
+* [EOS-6460] - Race condition in EOS set ACL
+* FST: Disable individual stripe checksums for RAIN files until existing
+  performance limitations are addressed.
 
 Improvement
 ------------
+
+* [EOS-6100] - "file adjustreplica" says "No such file or directory", should say "file already tracked"
 * [EOS-6257] - RFE: "quota ls" without need for 'adm' membership or 'q' ACL
 * [EOS-6313] - RFE: auto-retry draining for files with "Operation expired"
 * [EOS-6396] - One replica to be fixed by fsck best effort
 * [EOS-6446] - fsck best effort fix one replica existing when mgm believes is xs 0
 * [EOS-6455] - MGM: WFE - prepare - don't update the requestID if it does not change
+* [EOS-6454] - MGM,FST: Add jwt to grpc WFE calls
+
+New Feature
+------------
+
+* MGM: Add support for space level extended attributes
 
 
 ``v5.3.15 Diopside``
