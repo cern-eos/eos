@@ -163,6 +163,7 @@ clone_docker:
     - |
       if [[ -n "$CI_COMMIT_TAG" ]]; then
         export CCACHE_DISABLE=1;
+        ${PKG_MGR} install -y gnupg2;
       else
         source gitlab-ci/setup_ccache.sh;
       fi
