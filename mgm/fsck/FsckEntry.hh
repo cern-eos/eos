@@ -38,11 +38,11 @@ EOSMGMNAMESPACE_BEGIN
 //! Types of errors that come up on the FST side
 //------------------------------------------------------------------------------
 enum class FstErr {
-  None = 0x00,
-  NoContact = 0x01,
-  NotOnDisk = 0x02,
-  NoFmdInfo = 0x03,
-  NotExist  = 0x04
+  None       = 0x00,
+  NoContact  = 0x01,
+  NotOnDisk  = 0x02,
+  NoFmdInfo  = 0x03,
+  NotExistFs = 0x04
 };
 
 //------------------------------------------------------------------------------
@@ -71,7 +71,7 @@ using RepairFactoryFnT =
   std::function<std::shared_ptr<FsckRepairJob>
   (eos::common::FileId::fileid_t fid,
    eos::common::FileSystem::fsid_t fsid_src,
-   eos::common::FileSystem::fsid_t fsid_trg ,
+   eos::common::FileSystem::fsid_t fsid_trg,
    std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
    std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
    bool drop_src,

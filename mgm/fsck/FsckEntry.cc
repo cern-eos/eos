@@ -155,7 +155,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
   if (host_port.empty() || fst_local_path.empty()) {
     eos_err("msg=\"missing or misconfigured file system\" fsid=%lu", fsid);
     mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
-                         FstErr::NotExist));
+                         FstErr::NotExistFs));
     return;
   }
 
@@ -399,9 +399,15 @@ FsckEntry::RepairMgmXsSzDiff()
   std::string xs_val;
   bool mgm_xs_sz_match = false; // one of the disk xs matches the mgm one
   bool disk_xs_sz_match = true; // flag to mark that all disk xs match
+  // Mark if all replicas are not on disk - use case of 0-size files
+  bool all_not_on_disk = true;
 
   for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
     auto& finfo = it->second;
+
+    if (finfo->mFstErr != FstErr::NotOnDisk) {
+      all_not_on_disk = false;
+    }
 
     if (finfo->mFstErr != FstErr::None) {
       eos_err("msg=\"unavailable replica info\" fxid=%08llx fsid=%lu",
@@ -551,7 +557,14 @@ FsckEntry::RepairMgmXsSzDiff()
     eos_info("msg=\"mgm xs/size repair successful\" fxid=%08llx old_mgm_xs=\"%s\" "
              "new_mgm_xs=\"%s\"", mFid, mgm_xs_val.c_str(), xs_val.c_str());
   } else {
-    eos_err("msg=\"mgm xs/size repair failed - not all disk xs/size match\" "
+    // Handle 0-size files with no replicas on disk which is legitimate
+    if ((mMgmFmd.size() == 0) && all_not_on_disk) {
+      eos_info("msg=\"repair successful for 0-size file with no replicas "
+               "on disk\" fxid=%08llx", mFid);
+      return true;
+    }
+
+    eos_err("msg=\"mgm xs/size repair failed, not all disk xs/size match\" "
             "fxid=%08llx", mFid);
     return RepairBestEffort();
   }
@@ -921,12 +934,12 @@ FsckEntry::RepairReplicaInconsistencies()
 
     if (found) {
       if ((finfo->mFstErr == FstErr::NotOnDisk) ||
-          (finfo->mFstErr == FstErr::NotExist)) {
+          (finfo->mFstErr == FstErr::NotExistFs)) {
         to_drop.insert(elem.first);
       }
     } else {
       // The file system id does not exist
-      if (finfo->mFstErr == FstErr::NotExist) {
+      if (finfo->mFstErr == FstErr::NotExistFs) {
         to_drop.insert(elem.first);
       } else {
         // Make sure the FST size/xs match the MGM ones
