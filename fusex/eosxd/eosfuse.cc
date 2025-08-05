@@ -95,6 +95,12 @@ const char* k_nlink = "sys.eos.nlink";
 const char* k_fifo = "sys.eos.fifo";
 EosFuse* EosFuse::sEosFuse = 0;
 
+namespace
+{
+std::string s_obfuscate_key = "user.obfuscate.key";
+std::string s_encrypted_fp  = "user.encrypted.fp";
+}
+
 /* -------------------------------------------------------------------------- */
 static int
 /* -------------------------------------------------------------------------- */
@@ -4591,23 +4597,24 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
     if (!rc) {
       // fake rename logic for online editing if configured
       if (Instance().Config().options.fakerename && (*p1md)()->tmptime()) {
-	auto ends_with = [](const std::string & str, const std::string & suffix) {
-			   return str.size() >= suffix.size() &&
-			     str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
-			 };
+        auto ends_with = [](const std::string & str, const std::string & suffix) {
+          return str.size() >= suffix.size() &&
+                 str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+        };
 
-	// this applies only to M documents
-	if ( ends_with(newname, ".tmp")  &&
-	     (ends_with(name, ".xlsx") ||
-	      ends_with(name, ".docx") ||
-	      ends_with(name, ".pptx")) ) {
-	  auto now = time(NULL);
-	  if ((now - (*p1md)()->tmptime()) < 10) {
-	    (*p1md)()->set_tmptime(0);
-	    fuse_reply_err(req, rc);
-	    return ;
-	  }
-	}
+        // this applies only to M documents
+        if (ends_with(newname, ".tmp")  &&
+            (ends_with(name, ".xlsx") ||
+             ends_with(name, ".docx") ||
+             ends_with(name, ".pptx"))) {
+          auto now = time(NULL);
+
+          if ((now - (*p1md)()->tmptime()) < 10) {
+            (*p1md)()->set_tmptime(0);
+            fuse_reply_err(req, rc);
+            return ;
+          }
+        }
       }
 
       Track::Monitor mone("rename", "fs", Instance().Tracker(), req, md_ino, true);
@@ -6109,7 +6116,8 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                 }
               } else
 #endif /*HAVE_RICHACL*/
-                if (!map.count(key)) {
+                if ((key == s_obfuscate_key) || (key == s_encrypted_fp) ||
+                    !map.count(key)) {
                   rc = ENOATTR;
                 } else {
                   value = map[key];
@@ -6494,6 +6502,12 @@ EosFuse::listxattr(fuse_req_t req, fuse_ino_t ino, size_t size)
       attrlist = "";
 
       for (auto it = map.begin(); it != map.end(); ++it) {
+        // Never display the obfuscate or the encrypted fingerprint
+        if ((it->first == s_obfuscate_key) ||
+            (it->first == s_encrypted_fp)) {
+          continue;
+        }
+
         if (it->first.substr(0, 4) == "sys.") {
           if (Instance().Config().options.no_eos_xattr_listing) {
             continue;
