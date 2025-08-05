@@ -813,13 +813,13 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       }
 
       oss << "timestamp=" << eTimeStamp << " tag=\"" << elem_map.first << "\"";
-      uint64_t count = 0ull;
+      std::set<unsigned long long> fids;
 
       for (const auto& elem : elem_map.second) {
-        count += elem.second.size();
+        fids.insert(elem.first);
       }
 
-      oss << " count=" << count;
+      oss << " count=" << fids.size();
 
       if (display_fxid) {
         oss << " fxid=";
@@ -828,12 +828,6 @@ Fsck::ReportMonitorFormat(std::ostringstream& oss,
       } else {
         oss << std::endl;
         continue;
-      }
-
-      std::set<unsigned long long> fids;
-
-      for (const auto& elem : elem_map.second) {
-        fids.insert(elem.first);
       }
 
       for (auto it = fids.begin(); it != fids.end(); ++it) {
