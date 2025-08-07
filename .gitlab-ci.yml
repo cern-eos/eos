@@ -1150,7 +1150,7 @@ eos_apmon_el-9:
 
 eos_docs:
   stage: build:manual
-  image: gitlab-registry.cern.ch/linuxsupport/alma8-base
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
     - yum install --nogpg -y make python3-sphinx sssd-client sudo which git
     - cd doc
@@ -1166,6 +1166,7 @@ eos_docs:
   rules:
     - if: '$CI_COMMIT_TAG'
       when: on_success
+      allow_failure: true
     - when: manual
       allow_failure: true
 
