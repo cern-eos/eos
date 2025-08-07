@@ -191,7 +191,7 @@ AsyncIoOpenHandler::HandleResponseWithHosts(XrdCl::XRootDStatus* status,
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-XrdIo::XrdIo(std::string path) :
+XrdIo::XrdIo(std::string path, bool add_url_validity) :
   FileIo(path, "XrdIo"),
   mDoReadahead(sReadahead),
   mNumRdAheadBlocks(sNumRdAheadBlocks),
@@ -201,7 +201,8 @@ XrdIo::XrdIo(std::string path) :
   mXrdIdHelper(nullptr),
   mPrefetchOffset(0ull),
   mPrefetchHits(0ull),
-  mPrefetchBlocks(0ull)
+  mPrefetchBlocks(0ull),
+  mAddUrlValidity(add_url_validity)
 {
   // Set the TimeoutResolution to 1
   XrdCl::Env* env = XrdCl::DefaultEnv::GetEnv();
@@ -1706,21 +1707,35 @@ std::string
 XrdIo::BuildRequestUrl() const
 {
   using namespace std::chrono;
-  // Add extra capability expiration time based on the XRD_STREAMTIMEOUT value
-  uint64_t xrdcl_streamtimeout = XrdCl::DefaultStreamTimeout;
-  std::string env_val;
+  std::ostringstream oss;
+  oss << mFilePath;
 
-  if (XrdCl::DefaultEnv::GetEnv()->GetString("StreamTimeout", env_val)) {
-    try {
-      xrdcl_streamtimeout = std::stoull(env_val);
-    } catch (...) {}
+  if (!mOpaque.empty()) {
+    oss << "?" << mOpaque;
   }
 
-  auto now = system_clock::now();
-  auto valid_sec = time_point_cast<seconds>(now).time_since_epoch().count()
-                   + xrdcl_streamtimeout - 1;
-  std::ostringstream oss;
-  oss << mFilePath << "?" << "fst.valid=" << valid_sec << "&" << mOpaque;
+  if (mAddUrlValidity) {
+    // Add extra capability expiration time based on the XRD_STREAMTIMEOUT value
+    uint64_t xrdcl_streamtimeout = XrdCl::DefaultStreamTimeout;
+    std::string env_val;
+
+    if (XrdCl::DefaultEnv::GetEnv()->GetString("StreamTimeout", env_val)) {
+      try {
+        xrdcl_streamtimeout = std::stoull(env_val);
+      } catch (...) {}
+    }
+
+    auto now = system_clock::now();
+    auto valid_sec = time_point_cast<seconds>(now).time_since_epoch().count()
+                     + xrdcl_streamtimeout - 1;
+
+    if (mOpaque.empty()) {
+      oss << "?fst.valid=" << valid_sec;
+    } else {
+      oss << "&fst.valid=" << valid_sec;
+    }
+  }
+
   return oss.str();
 }
 

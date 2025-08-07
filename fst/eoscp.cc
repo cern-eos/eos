@@ -2271,7 +2271,7 @@ main(int argc, char* argv[])
       }
 
       location += opaque.str();
-      eos::fst::XrdIo* file = new eos::fst::XrdIo(location.c_str());
+      eos::fst::XrdIo* file = new eos::fst::XrdIo(location.c_str(), false);
 
       if (appendmode || nooverwrite) {
         XrdCl::URL url(dst_location[i].first);
@@ -2700,7 +2700,7 @@ main(int argc, char* argv[])
           uint16_t error_type = ptr_handler->WaitOK();
 
           if (error_type != XrdCl::errNone) {
-            fprintf(stderr, "Error while doing the async writing.\n");
+            fprintf(stderr, "Error while doing the async writing.");
             write_error = true;
           }
         }

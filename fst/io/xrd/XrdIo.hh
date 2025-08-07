@@ -141,8 +141,10 @@ public:
   //! Constructor
   //!
   //! @param path path or URI for the file
+  //! @param add_url_validity if true add fst.validity opaque info to the built
+  //!        URL, otherwise skip it
   //----------------------------------------------------------------------------
-  XrdIo(std::string path);
+  XrdIo(std::string path, bool add_url_validity = true);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -570,6 +572,7 @@ private:
   uint64_t mPrefetchOffset; ///< Last block offset of a prefetch hit
   uint64_t mPrefetchHits; ///< Number of prefetch hits
   uint64_t mPrefetchBlocks; ///< Number of prefetched blocks
+  bool mAddUrlValidity; ///< If true append fst.validity to built URL
 
   //----------------------------------------------------------------------------
   //! Method used to prefetch the next block using the readahead mechanism
