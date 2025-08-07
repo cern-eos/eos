@@ -16,6 +16,29 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.17 Diopside``
+====================
+
+2025-08-07
+
+Bug
+----
+
+* [EOS-6467] -  EOS file encryption : easy to lose content when using file encryption
+* [EOS-6468] - "eos fsck report --error ..." mis-counts entries
+* [EOS-6471] - FST validity expires after stalls of more than 60 seconds
+
+
+New Feature
+------------
+
+* [EOS-6458] - RFE: "EOS token" file per FUSEX mountpoint
+
+Improvement
+------------
+
+* [EOS-6466] - RFE: "best effort" repair to recreate replicas for empty files (missing all replicas)
+
 
 ``v5.3.16 Diopside``
 ====================
