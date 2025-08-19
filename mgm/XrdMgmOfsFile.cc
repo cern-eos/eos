@@ -1398,7 +1398,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         return Emsg(epname, error, errno, "inject into a non-existing file", path);
       }
 
-      if (!(fmd) && ((open_flags & O_CREAT))) {
+      if (!fmd && ((open_flags & O_CREAT))) {
         gOFS->MgmStats.Add("OpenWriteCreate", vid.uid, vid.gid, 1, vid.app);
       } else {
         if (acl.HasAcl()) {
@@ -2231,7 +2231,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         eos_err("msg =\"no valid placement found with FlatScheduler\" ret=%d, err_msg=%s",
                 ret.ret_code, ret.error_string().c_str());
         use_geoscheduler = true;
-        gOFS->MgmStats.Add("FScheduler::Placement::Failed", vid.uid, vid.gid, 1, vid.app);
+        gOFS->MgmStats.Add("FScheduler::Placement::Failed", vid.uid, vid.gid, 1,
+                           vid.app);
       }
     }
 
@@ -3093,7 +3094,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       LogSchedulingInfo(selectedfs, proxys, firewalleps);
 
       if (retc) {
-        gOFS->MgmStats.Add("OpenFailedReconstruct", rootvid.uid, rootvid.gid, 1, vid.app);
+        gOFS->MgmStats.Add("OpenFailedReconstruct", rootvid.uid, rootvid.gid, 1,
+                           vid.app);
         return Emsg(epname, error, retc, "schedule stripes for reconstruction", path);
       }
 

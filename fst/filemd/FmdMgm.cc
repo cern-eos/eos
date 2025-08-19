@@ -40,7 +40,12 @@ std::string ParseChecksum(const std::string& hexStr)
 {
   size_t size;
   auto xs = eos::common::StringConversion::Hex2BinDataChar(hexStr, size);
-  return std::string(xs.release(), size);
+
+  if (xs) {
+    return std::string(xs.release(), size);
+  }
+
+  return std::string();
 }
 
 //------------------------------------------------------------------------------

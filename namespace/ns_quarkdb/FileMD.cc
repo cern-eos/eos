@@ -26,6 +26,7 @@
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/utils/DataHelper.hh"
+#include "namespace/utils/Checksum.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "google/protobuf/io/zero_copy_stream_impl_lite.h"
 #include <optional>
@@ -33,26 +34,6 @@
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
 EOSNSNAMESPACE_BEGIN
-
-namespace
-{
-
-std::string StringifyChecksum(std::string xs)
-{
-  std::ostringstream oss;
-
-  for (uint8_t i = 0; i < xs.size(); i++) {
-    char hx[3];
-    hx[0] = 0;
-    snprintf(static_cast<char*>(hx), sizeof(hx), "%02x",
-             *(unsigned char*)(xs.data() + i));
-    oss << static_cast<char*>(hx);
-  }
-
-  return oss.str();
-}
-
-}
 
 //------------------------------------------------------------------------------
 // Empty constructor
@@ -296,7 +277,7 @@ QuarkFileMD::getEnv(std::string& env, bool escapeAnd)
     }
 
     env += "&checksum=";
-    env += StringifyChecksum(mFile.checksum());
+    eos::appendChecksumOnStringProtobuf(mFile, env);
   });
 }
 
