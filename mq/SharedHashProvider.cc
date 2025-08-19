@@ -83,7 +83,7 @@ SharedHashProvider::Delete(const eos::common::SharedHashLocator& locator,
     qclient::QClient* qcl = mSharedManager->getQClient();
 
     if (qcl) {
-      qcl->exec("DEL", qdb_key);
+      qcl->del(qdb_key);
     }
   }
 }

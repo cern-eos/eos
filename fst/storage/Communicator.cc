@@ -568,6 +568,8 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
     for (auto it = mLastRoundFilesystems.begin();
          it != mLastRoundFilesystems.end(); ++it) {
       if (new_filesystems.find(*it) == new_filesystems.end()) {
+        eos_static_info("msg=\"unregister file system\" queuepath=\"%s\"",
+                        it->c_str());
         UnregisterFileSystem(*it);
       }
     }
