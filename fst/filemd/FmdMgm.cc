@@ -88,9 +88,8 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd)
   // &name=random&id=705&ctime=1738852302&ctime_ns=871468404&mtime=1738852312&
   //mtime_ns=619640000&size=2117825536&cid=90&uid=0&gid=0&lid=543425858&flags=416&link=&location=9,2,1,6,7,3,
   //&checksum=0e27ecd900000000000000000000000000000000000000000000000000000000&container=/eos/dev/rain/
-  // Check that all tags are present
-  if (!env.Get("name") ||
-      !env.Get("id") ||
+  // Check that all tags are present - except name which could be empty
+  if (!env.Get("id") ||
       !env.Get("cid") ||
       !env.Get("ctime") ||
       !env.Get("ctime_ns") ||
@@ -106,18 +105,20 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd)
   }
 
   try {
+    if (env.Get("name")) {
+      fmd.set_name(env.Get("name"));
+    }
+
+    if (env.Get("link")) {
+      fmd.set_link_name(env.Get("link"));
+    }
+
     fmd.set_id(std::stoull(env.Get("id")));
     fmd.set_cont_id(std::stoull(env.Get("cid")));
     fmd.set_uid(std::stoull(env.Get("uid")));
     fmd.set_gid(std::stoull(env.Get("gid")));
     fmd.set_size(std::stoull(env.Get("size")));
     fmd.set_layout_id(std::stoul(env.Get("lid")));
-    fmd.set_name(env.Get("name"));
-
-    if (env.Get("link")) {
-      fmd.set_link_name(env.Get("link"));
-    }
-
     fmd.set_ctime(ParseFileMDTime(env, "ctime", "ctime_ns"));
     fmd.set_mtime(ParseFileMDTime(env, "mtime", "mtime_ns"));
     fmd.set_checksum(ParseChecksum(env.Get("checksum")));
