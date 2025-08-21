@@ -75,7 +75,7 @@ Storage::MgmSyncer()
       eos::common::FmdHelper fmd = gOFS.WrittenFilesQueue.front();
       gOFS.WrittenFilesQueue.pop();
       gOFS.WrittenFilesQueueMutex.unlock();
-      // Guarantee that we delay the check by atleast 60 seconds to wait
+      // Guarantee that we delay the check by at least 60 seconds to wait
       // for the commit of all replicas
       time_t delay = fmd.mProtoFmd.mtime() + 60 - now;
 

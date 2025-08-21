@@ -38,7 +38,7 @@ By default, all outbound connections from the FST daemon to any other endpoint
 have the **SSS** authentication mechanism enforced. Due to this, a TPC transfer
 between EOS instances that don't share the same SSS key is impossible. On the
 other hand, TPC transfers within the same instance will always work and this
-functionality is heavily used internaly for draining, balancing and other
+functionality is heavily used internally for draining, balancing and other
 maintenance operations. To relax this constraint and allow non-secure connection
 from the FSTs nodes to other endpoints, the service manager can set the following
 environment variable to disable **SSS** enforcement.
@@ -73,11 +73,11 @@ EOS instances work out of the box without any configuration changes.
 
 On the other hand, for TPC transfers with delegated credentials to be supported
 by an EOS instance there are several modifications needed. All these changes are
-need to accomodate the fact that there is no actual authentication of the client
+need to accommodate the fact that there is no actual authentication of the client
 on the FST side, therefore there is no credential information to be delegated.
 
 First of all, the EOS service manager will need to deploy a new XRootD Proxy
-service that will act as a gatway for incoming TPC traffic. As mentioned in the
+service that will act as a gateway for incoming TPC traffic. As mentioned in the
 previous section, TPC transfers where EOS is the source work perfectly fine
 without any configuration changes. The gateway is a vanilla **XRootD PSS**
 service with the following reference configuration:
@@ -98,14 +98,14 @@ service with the following reference configuration:
    ofs.tpc  autorm fcreds gsi =X509_USER_PROXY ttl 60 60 xfr 9 pgm /usr/local/bin/xrootd-third-party-copy.sh
 
 
-The only configuratino option to be modified for new setups is the **pss.origin**
+The only configuration option to be modified for new setups is the **pss.origin**
 that needs to point to the EOS MGM node. Particular care should be taken when
 typing the **ofs.tpc** directive to follow the exact format of the options present
-in the example above. Support for delegated credentials also requires subtile
+in the example above. Support for delegated credentials also requires subtle
 changes to the **sec.protocol** directive that are clearly explained in the
 XRootD documentation and already present in the provided example.
 
-.. The :ref:`helper script <xrootd-third-party-copy>` refereced in the configuration
+.. The :ref:`helper script <xrootd-third-party-copy>` referenced in the configuration
 The ``xrootd-third-party-copy.sh`` referenced in the configuration
 makes use of specific environment variables exported by the XRootD PSS service
 in the context of the TPC process doing the transfer.
@@ -159,7 +159,7 @@ package.
    timeleft  : 11:53:16
 
 To make sure we enforce GSI authentication and trigger the delegation of
-credentians we can also set the **XrdSecPROTOCOL** environment variable together
+credentials we can also set the **XrdSecPROTOCOL** environment variable together
 with the following options for the xrdcp command:
 
 .. code-block:: bash
@@ -384,7 +384,7 @@ HTTP transfers with Macaroon authentication
 
 To trigger a HTTP transfer using a Macaroon token, we first need to acquire a
 Macaroon from the EOS MGM endpoint using our X509 certificate and then use this
-macarron to authenticate/authorize the transfer. The macaroon token will embed
+macaroon to authenticate/authorize the transfer. The macaroon token will embed
 the username from the X509 certificate (or the mapped identity from the
 "grid map file)" so that when the token request is issued the client identity
 on the server side will be mapped to this username.

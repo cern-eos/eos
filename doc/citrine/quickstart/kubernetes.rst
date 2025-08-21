@@ -38,7 +38,7 @@ Checkout the eos-on-k8s project:
    cd eos-on-k8s
 
 
-To start a small instance with 8 storage servers (**FST**), 1 namespace server (**MGM**), 1 messaging borker (**MQ**), 1 client and 1 Kerberos **KDC** Kubernetes Pod ready to use, all you have to do is to use the `create-all.sh <https://gitlab.cern.ch/faluchet/eos-on-k8s/blob/master/create-all.sh>`_ script. It is recommended to provide a <namespace> argument, via the -n flag, representing the virtual cluster name the resources will live in. Each EOS entities ("roles") will reside on the same network knowing about each other and are configured to be working out-of-the-box.
+To start a small instance with 8 storage servers (**FST**), 1 namespace server (**MGM**), 1 messaging worker (**MQ**), 1 client and 1 Kerberos **KDC** Kubernetes Pod ready to use, all you have to do is to use the `create-all.sh <https://gitlab.cern.ch/faluchet/eos-on-k8s/blob/master/create-all.sh>`_ script. It is recommended to provide a <namespace> argument, via the -n flag, representing the virtual cluster name the resources will live in. Each EOS entities ("roles") will reside on the same network knowing about each other and are configured to be working out-of-the-box.
 We refer the courious reader to the `official documentation <https://kubernetes.io/docs/home/>`_ to deepen his knowledge about Kubernetes concepts. 
 
 .. code-block:: bash
@@ -65,7 +65,7 @@ To connect to EOS using the eos shell CLI running in the MGM container you can d
 
    kubectl exec -n tutorial -it <mgm_pod_name> -- eos  
 
-It is a bit verbose though very easy getting the name of a Pod of your interest, through the use of easy-to-remeber labels:
+It is a bit verbose though very easy getting the name of a Pod of your interest, through the use of easy-to-remember labels:
 
 .. code-block:: bash
 
