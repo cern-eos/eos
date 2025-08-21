@@ -9,7 +9,7 @@ Getting Started
 =================
 
 Our recommended way to install a production ready EOS instance is using RPM configuration.
-A Kubernetes-based demonstrator is avilable for testing purposes.
+A Kubernetes-based demonstrator is available for testing purposes.
 
 EOS installation with Kubernetes and Helm for test / demonstration
 -----------------------------------------------------------------
@@ -66,7 +66,7 @@ The resulting cluster will consist of 8 pods:
 
 EOS up in few minutes
 ---------------------
-We will start setting up a complete EOS installation on a single physical machine using the EOS5 configuration method. Later we will demonstrate the steps to add high-availablity to MGMs/QDBs and how to scale-out FST nodes. All commands have to be issued using the `root` account!
+We will start setting up a complete EOS installation on a single physical machine using the EOS5 configuration method. Later we will demonstrate the steps to add high-availability to MGMs/QDBs and how to scale-out FST nodes. All commands have to be issued using the `root` account!
 
 Grab a machine preferably with Alma9 (or Alma8 or CentOS7). Only the repository setup differs for these platforms (shown is the Alma9 installation, just replace 9 with 7,8 in the URLs :
 
@@ -94,7 +94,7 @@ The command will create a local file `/etc/eos.keytab` storing the instance-spec
 Start Services
 --------------
 
-We will startup thre services in a manual way to get a better understanding about the procedure and the used configuration.
+We will startup three services in a manual way to get a better understanding about the procedure and the used configuration.
 
 To shorten the setup we disable the firewall for the moment. The ports to open in the firewall are explained later.
 
@@ -717,7 +717,7 @@ Optionally delete *QDB* database files on foo.bar:7777 (don't run this on the LE
 
   3 [ @drainnode ] : rm -rf /var/lib/qdb/
 
-Now run the _join_ procedure from the previous section on the node, which should replace the decomissioned member!
+Now run the _join_ procedure from the previous section on the node, which should replace the decommissioned member!
 
 Backup your QDB database
 ------------------------

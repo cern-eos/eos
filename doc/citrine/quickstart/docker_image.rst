@@ -40,7 +40,7 @@ Checkout the `eos-docker <https://gitlab.cern.ch/eos/eos-docker>`_ project:
    git clone https://gitlab.cern.ch/eos/eos-docker.git
    cd eos-docker
 
-To start a small instance with 6 storage servers (**FST**), 1 namespace server (**MGM**), 1 messaging borker (**MQ**), 1 client and 1 Kerberos **KDC** containers ready to use,
+To start a small instance with 6 storage servers (**FST**), 1 namespace server (**MGM**), 1 messaging worker (**MQ**), 1 client and 1 Kerberos **KDC** containers ready to use,
 all you have to do is to use the `start_services <https://gitlab.cern.ch/eos/eos-docker/blob/master/scripts/start_services.sh>`_ script.
 
 The arguments to provide are the name of the image to use with the **-i** and the number of FST containers (default is 6) with the **-n** flag.

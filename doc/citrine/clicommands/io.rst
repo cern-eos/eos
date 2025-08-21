@@ -22,12 +22,12 @@ io
   	              -r : enable collection of io reports
   	              -p : enable popularity accounting
   	              -n : enable report namespace
-  	 --udp <address> : add a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)
+  	 --udp <address> : add a UDP message target for io UDP packets (the configured targets are shown by 'io stat -l)
   io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io statistics
   	              -r : disable collection of io reports
   	              -p : disable popularity accounting
   	              -n : disable report namespace
-  	 --udp <address> : remove a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)
+  	 --udp <address> : remove a UDP message target for io UDP packets (the configured targets are shown by 'io stat -l)
   io report <path> : show contents of report namespace for <path>
   io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w] [-f] : show namespace IO ranking (popularity)
   	      -a :  don't limit the output list

@@ -521,7 +521,7 @@ Improvement
 
 * [EOS-6182] - GRPC: extend all requests to improve traceability
 * [EOS-6248] - Persist last run of inspector
-* [EOS-6271] - RFE: log "banned" identitiy
+* [EOS-6271] - RFE: log "banned" identity
 * [EOS-6288] - RFE: align GRPC to other clients when dealing with hardlinks and tombstones
 * [EOS-6301] - RFE: "eos find --purge atomic" should bypass recycle bin
 * [EOS-6303] - Clients.log: review logline "::open   acl= r= w= wo= egroup= shared= mutable= facl="

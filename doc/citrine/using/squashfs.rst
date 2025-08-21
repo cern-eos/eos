@@ -5,7 +5,8 @@
 Using SquashFS images for software distribution
 ===============================================
 
-EOS provides support for SquashFS image files, which can be automatically mounted when the image path is traversed. This functioality requires an appropriate automount configuration.
+EOS provides support for SquashFS image files, which can be automatically mounted when the image path is traversed.
+This functionality requires an appropriate automount configuration.
 
 To create SquashFS images a client needs the EOS shell and a local mount with an identical path prefix as inside the client shell.
 This means e.g. both commands as shown here point to the same directory:
@@ -73,7 +74,7 @@ Pack a new package
    # pack the new package
    [root@dev ]# eos squash pack /eos/dev/squash/mypackage
 
-   # see what happend - the symlink in EOS with the package pathname points to an encoded loction for the hidden package file .mypackage.sqsh
+   # see what happened - the symlink in EOS with the package pathname points to an encoded location for the hidden package file .mypackage.sqsh
    [root@dev ]# eos ls -la /eos/ajp/squash/
    drwxrwxrw+   1 root     root             4161 May 27 13:38 .
    drwxrwxrw+   1 root     root       4751235753 May 27 13:32 ..

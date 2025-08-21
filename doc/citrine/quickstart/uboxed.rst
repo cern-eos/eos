@@ -29,10 +29,10 @@ Preparation
 The setup scripts will install all required packages. 
 
 .. note::
-   Make sure you have no other web server listening on the standard ports. Make sure you have atleast 30GB of free space under ``/var/lib/docker/``.
+   Make sure you have no other web server listening on the standard ports. Make sure you have at least 30GB of free space under ``/var/lib/docker/``.
 
 .. note::
-   The installation requires atleast docker version 17.03 - if you have an older one we recommend to uninstall it let
+   The installation requires at least docker version 17.03 - if you have an older one we recommend to uninstall it let
    the setup script take care of pulling a newer version.
    
 .. note::

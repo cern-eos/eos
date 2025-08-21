@@ -12,7 +12,8 @@ Namespace in QuarkDB configuration
    :scale: 40%
    :align: left
 
-The following steps assume we are configuring an MGM node together with a QuarkDB cluster on the same machine. The QuarkDB cluster will consist of three instances running on different ports. The operating system is **CentOS7**.
+The following steps assume we are configuring an MGM node together with a QuarkDB cluster on the same machine.
+The QuarkDB cluster will consist of three instances running on different ports. The operating system is **CentOS7**.
 
 |
 
@@ -228,9 +229,10 @@ The first step in converting an in-memory namespace to QuarkDB is to compact the
   eos-log-compact /var/eos/md/file.mdlog /var/eos/md/compacted_file.mdlog
   eos-log-compact /var/eos/md/directory.mdlog /var/eos/md/compacted_directory.mdlog
 
-The conversion process requires that the entire namespace is loaded into memory, just like the normal booting of the namespace. Therefore, one must ensure that the machine used for the conversion has enough RAM to hold the namespace data structures. To achive optimum performance, it is recommended that both the changelog files and the ``/var/lib/quarkdb/`` directory are stored on an **SSD** backed partition.
+The conversion process requires that the entire namespace is loaded into memory, just like the normal booting of the namespace. Therefore, one must ensure that the machine used for the conversion has enough RAM to hold the namespace data structures.
+To achieve optimum performance, it is recommended that both the changelog files and the ``/var/lib/quarkdb/`` directory are stored on an **SSD** backed partition.
 
-To speed up the initial import, QuarkDB has a special **bulkload** configuration mode in which we're expected to do only write operations towards the backend. In this case the compaction of the data stored in QuarkDB happends only at the end, therefore minimising the number of I/O operations and thus speeding up the entire process. Create the usual QuarkDB directory structure by using the **quarkdb-create** tool. Below is an example of a QurkDB configuration file that uses the **bulkload** mode:
+To speed up the initial import, QuarkDB has a special **bulkload** configuration mode in which we're expected to do only write operations towards the backend. In this case the compaction of the data stored in QuarkDB happens only at the end, therefore minimising the number of I/O operations and thus speeding up the entire process. Create the usual QuarkDB directory structure by using the **quarkdb-create** tool. Below is an example of a QuarkDB configuration file that uses the **bulkload** mode:
 
   .. code-block:: bash
 
