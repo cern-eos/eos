@@ -98,7 +98,7 @@ public:
   void FreeTxSlot(const std::string& src_node, const std::string& dst_node);
 
   //----------------------------------------------------------------------------
-  //! Check if node still has avilable transfer slots
+  //! Check if node still has available transfer slots
   //!
   //! @param node_id node identifier <host>:<port>
   //! @param tx_per_node max number of transfers per node

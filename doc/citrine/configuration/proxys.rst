@@ -9,14 +9,14 @@ Proxys and firewall entrypoints
 Overview
 --------
 
-In EOS, it is possible to configure filsystems so that they require to be accessed by clients through some FSTs acting as proxys.
+In EOS, it is possible to configure filesystems so that they require to be accessed by clients through some FSTs acting as proxys.
 Such *node* are called *proxy*, short for data-proxy.
 Some nodes can also act as firewall entrypoints (fwep) to allow access to data nodes behind a firewall. 
 
 Configuring a proxy
 -------------------
 
-A proxy *node* is just a normal FST daemon running on some machine. It can host standard FST filesystems or no filsystem at all as
+A proxy *node* is just a normal FST daemon running on some machine. It can host standard FST filesystems or no filesystem at all as
 they are not needed for the purpose of acting as a *proxy*.
 
 *Proxys* are grouped into *proxygroups* whose the name may designate the capacity of the *proxys* in the group. For instance, the *proxygroup* 
@@ -93,7 +93,7 @@ A filesystem can be:
 
 .. note::
 
-  As of today, supported imported filsystems can be of the following types:
+  As of today, supported imported filesystems can be of the following types:
   
   - XRootd filesystem (another EOS instance for example)
   
@@ -144,7 +144,7 @@ Here follows an example (partial output).
    
 Note that if proxygroup is not define, it is equivalent to proxygroup having the value <none>.
               
-Firewall entrypoints and direct acess
+Firewall entrypoints and direct access
 -------------------------------------
 
 
@@ -205,7 +205,7 @@ This can be done using the command
           `----------site2 [site2 => ep2]
                     `----------rack2 [site2::rack2 => ep22]
 
-| Note, that the seleciton of the rule to apply works the same as for the direct access rules.
+| Note, that the selection of the rule to apply works the same as for the direct access rules.
 | It means that in our example, a non direct access to a filesystem tagged ``site2`` or ``site2::rack1`` will go through a fwep taken from proxygroup ``ep2``.
 | A non direct access to a filesystem tagged ``site2::rack2`` or ``site2::rack2::whatever`` will go through a fwep taken from proxygroup ``ep22``.
 | A non direct access to a filesystem tagged ``site1`` will FAIL because no proxygroup to find a fwep from can be deduced from the available rules.

@@ -232,7 +232,7 @@ Bug
 Improvement
 ------------
 
-* [EOS-5469] - Allow to select secondary groups with kerberos authentication and implement AC checks for secondorary groups
+* [EOS-5469] - Allow to select secondary groups with kerberos authentication and implement AC checks for secondary groups
 * [EOS-5471] - Add atime to EOS
 * [EOS-5458] - Setting a namespace xattr might fail for wopi
 
@@ -245,7 +245,7 @@ Improvement
 Bug
 ----
 
-* [EOS-5467] - Inspector aggregates results instead of reseting the current scan
+* [EOS-5467] - Inspector aggregates results instead of resetting the current scan
 
 Improvement
 ------------
@@ -735,7 +735,7 @@ Note
 Bug
 ----
 
-* FUSEX: never keep the deletion mutex when distroying an upload proxy because
+* FUSEX: never keep the deletion mutex when destroying an upload proxy because
   the destructor still needs a free call back thread to use HandleResponse
 * [EOS-5153] - EC file written via FUSEx - mismatching checksum
 * [EOS-5167] - MGM segv in a non-tape enabled instance

@@ -13,7 +13,7 @@ EOS - Open Storage Documentation
 
 .. epigraph::
    
-   **EOS** is an open-source storage software solution to manage multi PB storage for the CERN Large Hadron Collidor `LHC <https://home.cern/topics/large-hadron-collider>`_. Core of the implementation is the `XRootD <http://xrootd.org>`_ framework providing a feature-rich remote access protocol. 
+   **EOS** is an open-source storage software solution to manage multi PB storage for the CERN Large Hadron Collider `LHC <https://home.cern/topics/large-hadron-collider>`_. Core of the implementation is the `XRootD <http://xrootd.org>`_ framework providing a feature-rich remote access protocol.
 
 
 .. toctree::

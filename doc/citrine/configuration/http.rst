@@ -101,7 +101,7 @@ their authentication token enable HTTPS mapping in the virtual identity interfac
 
 Log Files
 ---------
-If you didn't modifiy the NGINX configuration file, NGINX will produce two log information
+If you didn't modify the NGINX configuration file, NGINX will produce two log information
 files with the access and error log ``/var/log/nginx/access.log`` and ``/var/log/nginx/error.log``.
 
 The **MGM** writes a HTTP related log file under ``/var/log/eos/mgm/Http.log``.

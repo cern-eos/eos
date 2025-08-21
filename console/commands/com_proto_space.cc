@@ -524,7 +524,7 @@ void com_space_help()
       << "space config <space-name> space.groupbalancer.threshold=<threshold>   : [Deprecated use <..>.min/max_threshold (see above)] configure the threshold when a group is balanced\n"
       << "space config <space-name> space.groupbalancer.blocklist=<list>        : comma list eg. group1, group2 of groups blocklisted (only available for freespace engine)\n"
       << "space config <space-name> space.geobalancer=on|off                    : enable/disable the geo balancer [ default=off ]\n"
-      << "space config <space-name> space.geobalancer.ntx=<ntx>                 : configure the numebr of parallel geobalancer jobs [ default=0 ]\n"
+      << "space config <space-name> space.geobalancer.ntx=<ntx>                 : configure the number of parallel geobalancer jobs [ default=0 ]\n"
       << "space config <space-name> space.geobalancer.threshold=<threshold>     : configure the threshold when a geotag is balanced [ default=0 ] \n"
       << "space config <space-name> space.groupdrainer=on|off                   : enable/disable the group drainer [ default=on ]\n"
       << "space config <space-name> space.groupdrainer.threshold=<threshold>    : configure the threshold(%) for picking target groups\n"

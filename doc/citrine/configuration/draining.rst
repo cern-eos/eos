@@ -16,9 +16,8 @@ filesystems under certain error conditions. A file system drain is triggered
 by an IO error on a file system or manually by an operator setting a
 filesystem in drain mode.
 
-The drain engine makes use of the GeoTreeEngine component to decide where
-to move the drained replicas. The drain proccesses are spawned on the MGM and
-represent simple XRootD third-party-copy transfers.
+The drain engine makes use of the GeoTreeEngine component to decide where to move the drained replicas.
+The drain processes are spawned on the MGM and represent simple XRootD third-party-copy transfers.
 
 FST Scrubber
 ------------

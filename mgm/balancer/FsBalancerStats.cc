@@ -152,7 +152,7 @@ FsBalancerStats::GetTxEndpoints()
 }
 
 //------------------------------------------------------------------------------
-// Check if node still has avilable transfer slots
+// Check if node still has available transfer slots
 //------------------------------------------------------------------------------
 bool
 FsBalancerStats::HasTxSlot(const std::string& node_id,

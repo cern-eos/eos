@@ -5,7 +5,7 @@
 IO Priorities
 =============
 
-IO priorities are currently ony suported by devices using the CFQ (CentOS7) or BFQ (Centos8s) scheduler for reads and direct writes.
+IO priorities are currently ony supported by devices using the CFQ (CentOS7) or BFQ (Centos8s) scheduler for reads and direct writes.
 You can figure out which scheduler is used by inspecting:
 
 .. code-block:: bash

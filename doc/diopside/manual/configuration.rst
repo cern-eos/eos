@@ -319,7 +319,7 @@ The configuration file syntax allows, that they can work on several hosts withou
 
 Unshare Section
 """""""""""""""""""""""""""""
-The `unshare` section can be used to create a private mount namespace *inside* the environment of any XRootD process. This is useful if you want to mount a remote filesystem for FSTs, which are only visible to the FST process mount namespace, but to nobody else on the machine itself. A `df` as root will not show this external mount. You just write the needed `mount` commmand into the `init` section and it will be executed on daemon startup. It is possible also to encrypt commands in the `init` section, in case you have to use a mount key. To get an encrypted command for init sections you use:
+The `unshare` section can be used to create a private mount namespace *inside* the environment of any XRootD process. This is useful if you want to mount a remote filesystem for FSTs, which are only visible to the FST process mount namespace, but to nobody else on the machine itself. A `df` as root will not show this external mount. You just write the needed `mount` command into the `init` section and it will be executed on daemon startup. It is possible also to encrypt commands in the `init` section, in case you have to use a mount key. To get an encrypted command for init sections you use:
 
 .. code-block:: bash
         

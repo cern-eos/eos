@@ -785,7 +785,7 @@ QuarkContainerMD::serialize(Buffer& buffer)
       throw ex;
     }
 
-    // Compute the CRC32C checkusm
+    // Compute the CRC32C checksum
     uint32_t cksum = DataHelper::computeCRC32C((void*)ptr, align_size);
     cksum = DataHelper::finalizeCRC32C(cksum);
     // Point to the beginning to fill in the checksum and size of useful data

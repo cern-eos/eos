@@ -44,7 +44,7 @@ Define your EOS instance name
 
    export EOS_INSTANCE_NAME=eostest
 
-Adjust the following variables according to your MGM hostanme
+Adjust the following variables according to your MGM hostname
 
 .. code-block:: bash
 
@@ -91,7 +91,7 @@ The `default` space name is **default**. Groups in the **default** space are num
 
 .. note::
 
-   You should have atleast as many scheduling groups as the number of filesystems per storage node. The maximum number of
+   You should have at least as many scheduling groups as the number of filesystems per storage node. The maximum number of
    filesystems in one EOS instance is limited to 64k.
 
 If you have 20 disks on storage nodes you create 20 groups in space **default**

@@ -185,7 +185,7 @@ TEST_F(SimpleClusterF, RoundRobinBasicLoop)
 
 
 
-  // Check SITE1 ctr, atleast 1; initial disks would be twice as filled as latter
+  // Check SITE1 ctr, at least 1; initial disks would be twice as filled as latter
   for (int i=1; i <=20; i++) {
     ASSERT_GE(disk_id_ctr[i], 1);
   }
@@ -258,7 +258,7 @@ TEST_F(SimpleClusterF, TLRoundRobinBasicLoop)
   ASSERT_EQ(disk_ids_vec.size(), 60);
   ASSERT_EQ(disk_id_ctr.size(), 30);
 
-  // Check SITE1 ctr, atleast 1; initial disks would be twice as filled as latter
+  // Check SITE1 ctr, at least 1; initial disks would be twice as filled as latter
   for (int i=1; i <=20; i++) {
     ASSERT_GE(disk_id_ctr[i], 1);
   }
@@ -325,7 +325,7 @@ TEST_F(SimpleClusterF, FlatSchedulerBasicLoop)
   ASSERT_EQ(disk_ids_vec.size(), 60);
   ASSERT_EQ(disk_id_ctr.size(), 30);
 
-  // Check SITE1 ctr, atleast 1; initial disks would be twice as filled as latter
+  // Check SITE1 ctr, at least 1; initial disks would be twice as filled as latter
   for (int i=1; i <=20; i++) {
     ASSERT_GE(disk_id_ctr[i], 1);
   }
@@ -367,7 +367,7 @@ TEST_F(SimpleClusterF, TLFlatSchedulerBasicLoop)
   ASSERT_EQ(disk_ids_vec.size(), 60);
   ASSERT_EQ(disk_id_ctr.size(), 30);
 
-  // Check SITE1 ctr, atleast 1; initial disks would be twice as filled as latter
+  // Check SITE1 ctr, at least 1; initial disks would be twice as filled as latter
   for (int i=1; i <=20; i++) {
     ASSERT_GE(disk_id_ctr[i], 1);
   }
@@ -871,7 +871,7 @@ TEST(FlatScheduler, TLNoSiteWeightedRR)
     EXPECT_EQ(cluster_data->buckets.at(-it).items.size(), n_disks_per_group);
   }
   std::map<int, int> weight_counter;
-  // with Interleaved Weighted RR, you'd need atleast weight*n_items to show the
+  // with Interleaved Weighted RR, you'd need at least weight*n_items to show the
   // distribution at lower numbers below the full wt of a category, you'd end up
   // with uniform ie. for the previous case of 1024 schedulings, you'd end up
   // with equal distribution as you've not finished a full round of each weights yet

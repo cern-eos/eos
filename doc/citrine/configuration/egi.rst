@@ -6,7 +6,7 @@
 EGI scripts
 ============
 
-EOS provides a couple of scripts that generate the required space acconting information [https://wiki.egi.eu/wiki/APEL/Storage] and info provider data. These scrips are available in the `eos-server` package starting with release 5.0.15.
+EOS provides a couple of scripts that generate the required space accounting information [https://wiki.egi.eu/wiki/APEL/Storage] and info provider data. These scrips are available in the `eos-server` package starting with release 5.0.15.
 
 Storage accounting
 ------------------
