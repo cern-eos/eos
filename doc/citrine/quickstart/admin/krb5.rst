@@ -14,7 +14,7 @@ To start install krb5 packages
    
    yum install krb5-workstation
 
-Then you need to ask kerberos admin to create "host/<mgm hostname>@EXAMPLE.COM", where EXAMPE.COM is your REALM (like CERN.CH, SASKE.SK, ...) and create 
+Then you need to ask kerberos admin to create "host/<mgm hostname>@EXAMPLE.COM", where EXAMPLE.COM is your REALM (like CERN.CH, SASKE.SK, ...) and create
 a keytab file, for example krb5.keytab. The keytab file is stored under /etc/krb5.keytab on the MGM node. To test it you can use ktutil command. The following example is showing keytab contents to be used on MGM host eosfoo.bar.ch@BAR.CH
 
 .. code-block:: text

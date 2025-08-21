@@ -154,7 +154,7 @@ FuseServer::Clients::MonitorHeartBeat()
     if (!evictversionmap.empty()) {
       for (auto it = evictversionmap.begin(); it != evictversionmap.end(); ++it) {
         std::string versionerror =
-          "Server supports PROTOCOLV4 and requires atleast PROTOCOLV2";
+          "Server supports PROTOCOLV4 and requires at least PROTOCOLV2";
         std::string uuid = it->first;
         Evict(uuid, versionerror);
         eos::common::RWMutexWriteLock lLock(*this);

@@ -15,7 +15,7 @@ If you need to rename an FST host or change the port number, you can use the `eo
 
 1. *Shutdown* your MGM
 
-2. *Modify* the configuration of each concerned filesystem by filesytem id
+2. *Modify* the configuration of each concerned filesystem by filesystem id
 
 To relocate filesystem 1 to foo.bar:1095 having QDB on `localhost:7777` you do:
 

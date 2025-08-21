@@ -4,7 +4,7 @@
    pair: Console message Broadcasts; TTY
 
 
-Important Messgages Broadcasts on Terminals
+Important Messages Broadcasts on Terminals
 ===========================================
 
 You can enable console broadcasts on MGM nodes for all desired messages by defining the two following

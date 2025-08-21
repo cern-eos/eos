@@ -76,7 +76,7 @@ One can see the same settings and the number of active conversion transfers
    spaceview           default           22           22    202       123          2.91 T       339.38 T      245.53 T          0.00     on        off        0.00          on 100.00     0.00         off
 
 .. warning::
-   You have to configure geo mapping for clients, atleast for the MGM machine,
+   You have to configure geo mapping for clients, at least for the MGM machine,
    otherwise EOS does not apply the geoplacement/scheduling algorithm and GEO
    Balancing does not give the expected results!
 
