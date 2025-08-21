@@ -6,7 +6,7 @@
 Quota System
 ============
 
-The EOS quota system provides user, group and project quota similiar to 
+The EOS quota system provides user, group and project quota similar to
 filesystems like EXT4, XFS ... e.g. quota is expressed as max. number of 
 inodes(=files) and maximum volume. The implementation of EOS quota uses the 
 given inode limit as hard quota, while volume is applied as soft quota e.g. 

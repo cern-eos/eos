@@ -72,7 +72,7 @@ If you want to configure the size of the recycle bin you run
 
 <size> can be e.g. just a number 100000000000, 100000M (mega byte) or 100G (giga byte), 1T (one terra) aso.
 
-The size has to be atleast 100G !
+The size has to be at least 100G !
 
 
 Define the inode size of the recycle bin 
