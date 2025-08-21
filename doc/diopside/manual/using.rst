@@ -1502,7 +1502,7 @@ Possible state flags are:
 
 -   s := File size has been committed
 
--   v := Replica has been verified for the checkusm
+-   v := Replica has been verified for the checksum
 
 -   V := Replica has been verified for the size
 

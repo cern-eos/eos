@@ -30,7 +30,7 @@ The end user mount supports the strong authentication methods in EOS:
 
 The shared mount supports these authentication methods only in the CITRINE branch.
 
-Mouting
+Mounting
 +++++++
 
 You can mount an EOS instance using the EOS client:
@@ -526,7 +526,7 @@ To export FUSE via Samba you have only to enable a mode overlay to avoid message
    export EOS_FUSE_MODE_OVERLAY=077
 
 
-The rest of the CIFS server configuration is idential to a local filesystem Samba export.
+The rest of the CIFS server configuration is identical to a local filesystem Samba export.
 
 
 

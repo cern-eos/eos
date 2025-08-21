@@ -59,7 +59,7 @@ ZMQ files are stored.
 Another variable that needs to be set for the **MGM** node is the location where
 all the archived directories are saved. Care should be taken so that the user
 name under which the **eosarchived** daemon runs, has the proper rights to read
-and write files to this remote location. This envrionment variables can be set in
+and write files to this remote location. This environment variables can be set in
 the ``/etc/sysconfig/eos`` file as follows:
 
 .. code-block:: bash
@@ -105,8 +105,8 @@ Some important notes about the **eos-archive.keytab** file:
 - the permissions on this keytab file must match the identity under which the
   eoarchived daemon is running
 
-Futhermore, the **eosarchi** user needs to be added to the **sudoers** list in
-EOS so that it can perform any type of operation while creating or transfering
+Furthermore, the **eosarchi** user needs to be added to the **sudoers** list in
+EOS so that it can perform any type of operation while creating or transferring
 archives.
 
 .. code-block:: console

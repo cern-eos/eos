@@ -6,7 +6,7 @@ eosxd
 eosxd log file
 --------------
 
-eosxd writes a log file into the fusex log direcotory ```/var/log/eos/fusex/fuse.<instancename>-<mountdir>.log```. The default verbosity is **warning** level.
+eosxd writes a log file into the fusex log directory ```/var/log/eos/fusex/fuse.<instancename>-<mountdir>.log```. The default verbosity is **warning** level.
 
 eosxd statistics file
 ----------------------
@@ -273,7 +273,7 @@ Possible state flags are:
 * +fs    := File replica/stripe has been committed ( multiple entries possible, fs is the filesystem id in decimal)
 * c      := File checksum has been committed
 * s      := File size has been committed
-* v      := Replica has been verified for the checkusm
+* v      := Replica has been verified for the checksum
 * V      := Replica has been verified for the size
 * |      := Terminates a commit sequence started with +fs
 * |>     := tracked operations exceeded 127 and the attribute has been truncated
