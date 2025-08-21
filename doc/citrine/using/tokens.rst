@@ -34,7 +34,7 @@ The JSON representation of an EOS token looks like shown here:
 Essentially this token gives the bearer the permission to ``rwx`` for the file /eos/dev/token. The token does not bear an
 owner and group information, which means, that the creations will be accounted on the mapped authenticated user using this token or an enforced ``sys.owner.auth`` entry. If the token should map the authenticated user, one can add ``owner`` and ``group`` fields. In practical terms the token removes existing user and system ACL entries and places the token user/group/permission entries as a system ACL.
 
-Tokens are signed, zlib compressed, base64url encoded with a replacement of the '+' and '/' characters with '-' and '_'  and a URL encodign of the '=' character to avoid interferences/confusion with directory and file names.
+Tokens are signed, zlib compressed, base64url encoded with a replacement of the '+' and '/' characters with '-' and '_'  and a URL encoding of the '=' character to avoid interferences/confusion with directory and file names.
 
 The ``voucher`` field is tagged on the file when a file has been created and is also used as the logging id for this file upload. The ``requester`` field reports when, by whom and how a token has been generated.
 

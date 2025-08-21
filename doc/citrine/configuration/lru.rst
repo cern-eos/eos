@@ -2,7 +2,7 @@
 
 .. index::
    single:: LRU Policies
-   see: Polcies; LRU Policies
+   see: Policies; LRU Policies
 
 LRU Engine
 ==========

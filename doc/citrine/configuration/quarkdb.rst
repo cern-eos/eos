@@ -21,7 +21,7 @@ The EOS CITRINE version allows to persist the namespace in QuarkDB avoiding the 
 Preparation
 -----------
 
-QuarkDB has the best performance when storing KV data on an SSD. To guarantee high-availability with predictable performance you should have atleast three homogeneous nodes. 
+QuarkDB has the best performance when storing KV data on an SSD. To guarantee high-availability with predictable performance you should have at least three homogeneous nodes.
 
 Installation
 ------------

@@ -77,8 +77,8 @@ There is convenience command defined in the console:
 Log Files
 ---------
 The Replication Tracker has a dedicated log file under ``/var/log/eos/mgm/ReplicationTracker.log``
-which shows the tracking entires and related cleanup activities. To get more
-verbose information you can change the log level:
+which shows the tracking entries and related cleanup activities.
+To get more verbose information you can change the log level:
 
 .. code-block:: bash
 

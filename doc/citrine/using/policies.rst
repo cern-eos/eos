@@ -232,7 +232,7 @@ You can define a minimum or maximum size criteria to apply automatic policy conv
 
 .. code-block:: bash
 
-   # convert files on creation only if they are atleast 100MB
+   # convert files on creation only if they are at least 100MB
    eos space config ssd space.policy.conversion.creation.size=>100000000
 
    # convert files on creation only if they are smaller than 1024 bytes

@@ -200,7 +200,7 @@ Bug Fixes
 
 - FUSE: fix shutdown crash by properly canceling/joining the cache cleaner thread
 - NS: fix gcc 4.4. compilation problem
-- MGM: reschedule empty files if current replicas are unavilable
+- MGM: reschedule empty files if current replicas are unavailable
 - MGM: add authentication front-end (backport from CITRINE)
 
 
@@ -1694,7 +1694,7 @@ Bug Fixes
 
 Bug Fixes
 +++++++++
-- update Drain/Balancer configuration atleast every minute to allow following master/slave failover and slot reconfiguration
+- update Drain/Balancer configuration at least every minute to allow following master/slave failover and slot reconfiguration
 
 New Features
 ++++++++++++
