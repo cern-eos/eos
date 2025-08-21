@@ -216,7 +216,7 @@ Here is an  example for a dynamic attribute:
 Configuring retry policies for  **bash:shell** workflows
 ````````````````````````````````````````````````````````
 
-If a **bash:shell** workflow failes e.g. the command returns rc!=0 and no retry policy is defined, the workflow job ends up in the **failed** queue. For each 
+If a **bash:shell** workflow fails e.g. the command returns rc!=0 and no retry policy is defined, the workflow job ends up in the **failed** queue. For each
 workflow the number of retries and the delay for retry can be defined via extended attributes. To reschedule a workflow after a failure the shell command has to return **EAGAIN** e.g. ``exit(11)``.
 The number of retries for a failing workflow can be defined as:
 

@@ -186,7 +186,7 @@ This is where the instance availability gets affected:
    yum remove eos-scitokens
 
 
-Upgrade `scitokens-cpp` package (will be having strict dependency in EOS releases > 5.0.19 where this shoudl not be necessary to be done explicitly):
+Upgrade `scitokens-cpp` package (will be having strict dependency in EOS releases > 5.0.19 where this should not be necessary to be done explicitly):
 
 
 .. code-block:: text
@@ -236,6 +236,6 @@ Check the service status and other usual checks
 
 
 
-One needs to run `yum reinstall eos-grpc` on all headnodes and FSTs before proceeding with the usual proceedure.  
+One needs to run `yum reinstall eos-grpc` on all headnodes and FSTs before proceeding with the usual procedure.
 
 
