@@ -16,6 +16,24 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.18 Diopside``
+====================
+
+2025-08-21
+
+Note
+-----
+
+* Update dependency eos-xrootd/xrootd to version 5.8.4.
+
+Bug
+----
+
+* [EOS-6473] - FST "failed to parse metadata info" for corrupted namespace entries
+* [EOS-6474] - FST "failed to parse metadata info" for "checksum=none"
+* [EOS-6478] - Filesystem setup fails to create .eosfsid file
+
+
 ``v5.3.17 Diopside``
 ====================
 
