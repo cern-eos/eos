@@ -789,7 +789,7 @@ com_find_usage:
   fprintf(stdout,
           "                                                               --maxdepth <n> :  descend only <n> levels\n");
   fprintf(stdout,
-          "                                                                           -1 :  find files which are atleast 1 hour old\n");
+          "                                                                           -1 :  find files which are at least 1 hour old\n");
   fprintf(stdout,
           "                                                                 --stripediff :  find files which have not the nominal number of stripes(replicas)\n");
   fprintf(stdout,

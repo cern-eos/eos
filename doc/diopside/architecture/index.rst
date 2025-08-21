@@ -36,7 +36,7 @@ EOS is composed of four core services
 * **FST** - providing file storage service
 * **QDB** - providing a high-available KV store to persiste meta-data of the MGM 
 
-EOS provides additional native access protocols using a protocol plugin for **HTTP(S)** (XrdHttp) or via gateways for **S3** (MiniO), **CIFS** (Samba) and **SFTP** (sshfs) using a FUSE client implementation (eosxd). FUSE allows to mount EOS as a filesystem preserving the aforementioned feature set of **XRootD**. In particular, all strong authentication protocols and token authorization are supported also by the FUSE implementation. For user and adminstrator interaction EOS provides a command-line interface invoked using the EOS shell
+EOS provides additional native access protocols using a protocol plugin for **HTTP(S)** (XrdHttp) or via gateways for **S3** (MiniO), **CIFS** (Samba) and **SFTP** (sshfs) using a FUSE client implementation (eosxd). FUSE allows to mount EOS as a filesystem preserving the aforementioned feature set of **XRootD**. In particular, all strong authentication protocols and token authorization are supported also by the FUSE implementation. For user and administrator interaction EOS provides a command-line interface invoked using the EOS shell
 `eos`
 Besides the shell the following native XRootD clients are usable:
 
@@ -122,7 +122,7 @@ Each EOS system contains a set of configurable microservices.
    * Group Balancer - Balancing usage between groups within a space
    * Geo Balancer   - Balancing usage between geographic locations
 * **Converter Engine** - a queue system to execute jobs to change how a file is stored e.g. change from single to two-fold replication
-* **Lifecycle Management** - automatisation for disk/node replacement e.g. empty a disk which should go out of production
+* **Lifecycle Management** - automation for disk/node replacement e.g. empty a disk which should go out of production
 * **LRU Engine** - a service to trigger clean-up or conversion policies by scanning the EOS namespace e.g. create a temporary space where files get automatically cleaned up after 30 days
 * **Inspector** - an accounting service reporting statistics how files are stored in an EOS instance e.g. to see how much data in an instance is stored with replication or erasure coding
 * **Storage Consistency Check and Repair** - a distributed service to identify inconsistencies in data and meta-data and to run automatic repair actions to achieve consistency

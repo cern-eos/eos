@@ -1074,7 +1074,7 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   // enough information to get the invalid fsid.
   // The fast method is run by each FSTs, where each of them is checking
   // the stripe that is storing.
-  // The old method will only be run by the replica 0 file, and the unitcheckusm
+  // The old method will only be run by the replica 0 file, and the unitchecksum
   // computation will be triggered.
   // Compute the checksum of the stripe
   std::unique_ptr<eos::fst::CheckSum>

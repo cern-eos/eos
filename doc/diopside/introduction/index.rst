@@ -14,7 +14,7 @@ Introduction
    :width: 800px
    :align: center
 
-The `EOS <https://eos.web.cern.ch>`_ storage system was created for the extreme computing requirements at the Large Hardon Collider (`LHC <https://lhc.web.cern.ch>`_) at CERN. EOS stands for EOS Open Storage and started as a disk-only storage system developed since 2010 at CERN. EOS is deployed as storage service at CERN and in dozens of other installations in the Worldwide LHC Computing GRID community (WLCG), at the Joint Research Centre of the European Commission and the Australian Academic and Research Network.
+The `EOS <https://eos.web.cern.ch>`_ storage system was created for the extreme computing requirements at the Large Hadron Collider (`LHC <https://lhc.web.cern.ch>`_) at CERN. EOS stands for EOS Open Storage and started as a disk-only storage system developed since 2010 at CERN. EOS is deployed as storage service at CERN and in dozens of other installations in the Worldwide LHC Computing GRID community (WLCG), at the Joint Research Centre of the European Commission and the Australian Academic and Research Network.
 
 
 .. image:: intro-page.png

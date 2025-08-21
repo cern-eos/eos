@@ -346,7 +346,7 @@ data::datax::flush_nolock(fuse_req_t req, bool wait_open, bool wait_writes)
     ssize_t truncate_size = mFile->journal()->get_truncatesize();
 
     if (wait_open) {
-      // wait atleast that we could open that file
+      // wait at least that we could open that file
       mFile->xrdiorw(req)->WaitOpen();
       // set again the shared url now, since we know where we are
       set_shared_url();

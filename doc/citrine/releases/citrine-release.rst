@@ -506,7 +506,7 @@ Bug
 
 * FST: Make sure the async write implementation does not exhaust the system
   memory in case the client(s) are pushing in more data than the machine can
-  distribute futher in the cluster for replica layouts.
+  distribute further in the cluster for replica layouts.
 * [EOS-5090] - convert clear is not a admin command
 * [EOS-5122] - MD and Find calls via GRPC don't obey ACLs
 
@@ -701,7 +701,7 @@ Bug
 ----
 
 * [EOS-4934] - ASAN: fusex: enoent use after free
-* [EOS-4941] - FSCK toogle-repair multiple time crashes MGM
+* [EOS-4941] - FSCK toggle-repair multiple time crashes MGM
 * [EOS-4952] - Unify the various string split interfaces
 * [EOS-4963] - FST returns 200 status code for Partial Content request instead of 206
 * [EOS-4976] - Fix activity field passed from EOS to CTA

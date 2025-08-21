@@ -1483,7 +1483,7 @@ policy conversion depending on the file size.
 
 .. code-block:: bash
 
-   # convert files on creation only if they are atleast 100MB
+   # convert files on creation only if they are at least 100MB
    eos space config ssd space.policy.conversion.creation.size=>100000000
 
    # convert files on creation only if they are smaller than 1024 bytes
@@ -2719,7 +2719,7 @@ If you want to configure the size of the recycle bin you run
 
 <size> can be e.g. just a number 100000000000, 100000M (mega byte) or 100G (giga byte), 1T (one terra) aso.
 
-The size has to be atleast 100G !
+The size has to be at least 100G !
 
 
 Define the inode size of the recycle bin 

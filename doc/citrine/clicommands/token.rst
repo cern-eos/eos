@@ -12,7 +12,7 @@ token
     --path <path>                 : define the namespace restriction - if ending with '/' this is a directory or tree, otherwise it references a file
     --permission <perm>           : define the token bearer permissions e.g 'rx' 'rwx' 'rwx!d' 'rwxq' - see acl command for permissions
     --owner <owner>               : identify the bearer with as user <owner>
-    --group <group>               : identify the beaere with a group <group>
+    --group <group>               : identify the bearer with a group <group>
     --tree                        : request a subtree token granting permissions for the whole tree under <path>
     --origin <origin>            : restrict token usage to <origin> - multiple origin parameters can be provided
     <origin> := <regexp:hostname>:<regex:username>:<regex:protocol>

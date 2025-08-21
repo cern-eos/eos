@@ -79,7 +79,7 @@ Displaying current links
 ------------------------
 
 The `route ls` command shows current active links. An asterix is displayed in
-front of the MGM node which acts as a master for that paricular mapping.
+front of the MGM node which acts as a master for that particular mapping.
 
 .. code-block:: bash
 
