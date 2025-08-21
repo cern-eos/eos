@@ -118,7 +118,7 @@ protected:
     fmd.set_uid(1001);
     fmd.set_gid(2002);
     fmd.set_size(kFileSize);
-    // Layout with two replicas, adler checkusm
+    // Layout with two replicas, adler checksum
     fmd.set_layout_id(std::stoul("0x0100112", nullptr, 16));
     fmd.set_name("test_file.dat");
     // Date: 06/12/2019 @ 9:16am

@@ -17,7 +17,7 @@ find
     -ctime -<n> :  find files younger than <n> days
     -layoutstripes <n> :  apply new layout with <n> stripes to all files found
     --maxdepth <n> :  descend only <n> levels
-    -1 :  find files which are atleast 1 hour old
+    -1 :  find files which are at least 1 hour old
     --stripediff :  find files which have not the nominal number of stripes(replicas)
     --faultyacl :  find directories with illegal ACLs
     --count :  just print global counters for files/dirs found

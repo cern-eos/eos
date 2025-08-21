@@ -24,7 +24,7 @@ In order to safely archive an EOS subtree to tape (CTA) the following steps deta
 be performed. Assume we want to archive the EOS subtree rooted at /eos/dir/archive/test. First of all,
 the user needs to make sure that he/she has the necessary permissions to submit archiving commands.
 The permissions check is enforced at directory level by using the **sys.acl** extended attribute
-and it allows setting permissions at user, group or egroup level. The **ACL flag** for achiving
+and it allows setting permissions at user, group or egroup level. The **ACL flag** for achieving
 is **'a'**.
 
 .. code-block:: bash
@@ -49,12 +49,12 @@ data or the metadata. Transferring the data to tape (CTA) is done using the **ar
 At any point during a transfer the user can retrieve the current status of the transfer by issuing an
 **archive transfers** command. Once the transfer finishes there will be two additional files saved at
 the root of the archived subtree: the **.archive.log** file with contains the logs of the last transfer
-(note the 'dot' in the begining of the filename - so to list it use **ls -la** in the *EOS Console*)
+(note the 'dot' in the beginning of the filename - so to list it use **ls -la** in the *EOS Console*)
 and another file called **.archive.<operation>.<outcome>** where operation is one of the following:
 get/put/purge and the outcome can either be **done** or **err**.
 
 While an archive operation is ongoing the file stored in EOS is marked with the **err** tag. For
-example, an ongoig **put** operation, which can take serveral hours depending on the size of the
+example, an ongoing **put** operation, which can take server hours depending on the size of the
 sub-tree being archived to tape, will appear in the **eos ls -la** output as **.archive.put.err**.
 Once the put operation is successful, this file will be renamed to **.archive.put.done**. Therefore,
 it's important to check the output of the **eos archive transfers** command which is listing the
@@ -85,6 +85,6 @@ command.
 
 In case the user wants to permanently delete the data saved on **tape (CTA)**, then unless he has root
 privileges on the EOS instance he will need to contact one of the administrators to perform this operation.
-Permanently deleting the achive will not delete any data from EOS, but only the data saved in CTA.
+Permanently deleting the archive will not delete any data from EOS, but only the data saved in CTA.
 Therefore, it is the **user's responsibility** to make sure he/she first gets the data back to EOS before
 requesting the deletion of the archive.

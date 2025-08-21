@@ -7,7 +7,7 @@
 Fsck
 =====
 
-This section describles how the internal file system consystency checks (FSCK) are configured and work.
+This section describes how the internal file system consistency checks (FSCK) are configured and work.
 
 Enable FST Scan
 ---------------
