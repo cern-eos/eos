@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.19 Diopside``
+====================
+
+2025-08-22
+
+Bug
+----
+
+* FST: Make sure that during RAIN file recovery also the newly created stripes
+  are properly registered in the namespace.
+
+
 ``v5.3.18 Diopside``
 ====================
 
