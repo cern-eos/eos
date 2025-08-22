@@ -36,10 +36,6 @@ EOSFSTNAMESPACE_BEGIN
 
 #define NFS_QUOTA_FILE ".nfs.quota"
 
-struct nfs_context* NfsIo::gContext = nullptr;
-std::mutex NfsIo::gContextMutex;
-std::string NfsIo::gMountedPath = "";
-
 namespace
 {
 std::string getAttrPath(std::string path)
@@ -64,30 +60,17 @@ NfsIo::NfsIo(std::string path, XrdFstOfsFile* file, const XrdSecEntity* client)
 {
   eos_debug("NfsIo::NfsIo called with path=%s", path.c_str());
   
-  // Initialize NFS context
-  std::lock_guard<std::mutex> guard(gContextMutex);
-  if (gContext == nullptr) {
-    gContext = nfs_init_context();
-    if (gContext == nullptr) {
-      eos_err("msg=\"failed to initialize NFS context\"");
-    } else {
-      eos_info("msg=\"NFS context initialized successfully\"");
-    }
-  }
-  
   //............................................................................
   // Prepare the file path
   //............................................................................
-  if (path.find("nfs:") == 0) {
-    mFilePath = path.substr(4); // Remove "nfs:" prefix
-  } else if (path.find("/nfs") == 0) {
-    mFilePath = path;
+  if (path.find("nfs:/") == 0) {
+    mFilePath = path.substr(5); // Remove "nfs:/" prefix
   } else {
     eos_warning("msg=\"NFS path does not start with 'nfs:' or '/nfs'\" path=\"%s\"", path.c_str());
     mFilePath = path;
   }
 
-  eos_info("msg=\"NfsIo initialized\" original_path=%s, parsed_path=%s", path.c_str(), mFilePath.c_str());
+  eos_debug("msg=\"NfsIo initialized\" original_path=%s, parsed_path=%s", path.c_str(), mFilePath.c_str());
 
   // Standard initialization
   mFd = -1;
@@ -132,6 +115,19 @@ NfsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque
   }
   
   int pflags = 0;
+
+  XrdOucEnv openEnv(opaque.c_str());
+  const char *val;
+
+  if ((val = openEnv.Get("mgm.ioflag"))) {
+    if (!strcmp(val, "direct")) {
+      pflags |= O_DIRECT;
+    } else if (!strcmp(val, "sync")) {
+        pflags |= O_SYNC;
+    } else if (!strcmp(val, "dsync")) {
+        pflags |= O_DSYNC;
+    }
+  }
 
   if (flags & SFS_O_CREAT) {
     pflags |= (O_CREAT | O_RDWR);
@@ -193,6 +189,7 @@ NfsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque
 std::future<XrdCl::XRootDStatus>
 NfsIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque, uint16_t timeout)
 {
+  eos_info("msg=\"opening file asynchronously\" path=\"%s\"", mFilePath.c_str());
   std::promise<XrdCl::XRootDStatus> open_promise;
   std::future<XrdCl::XRootDStatus> open_future = open_promise.get_future();
 
@@ -435,9 +432,15 @@ int
 NfsIo::fileRemove(uint16_t timeout)
 {
   eos_debug("");
+  eos_info("msg=\"fileRemove called\" path=\"%s\"", mFilePath.c_str());
 
   std::string attrPath = xattrPath();
-  unlink(attrPath.c_str());
+  int attr_rc = unlink(attrPath.c_str());
+  if (attr_rc == 0) {
+    eos_info("msg=\"deleted attribute file\" path=\"%s\"", attrPath.c_str());
+  } else if (errno != ENOENT) {
+    eos_warning("msg=\"failed to delete attribute file\" path=\"%s\" errno=%d error=\"%s\"", attrPath.c_str(), errno, strerror(errno));
+  }
   
   int rc = unlink(mFilePath.c_str());
   if (-1 == rc) {
@@ -473,7 +476,17 @@ int
 NfsIo::fileDelete(const char* path)
 {
   eos_debug("");
-  eos_info("path=\"%s\"", path);
+  
+  // Delete xattr file
+  std::string attrPath = getAttrPath(std::string(path));
+  int attr_rc = unlink(attrPath.c_str());
+  if (attr_rc == 0) {
+    eos_info("msg=\"deleted attribute file\" path=\"%s\"", attrPath.c_str());
+  } else if (errno != ENOENT) {
+    eos_warning("msg=\"failed to delete attribute file\" path=\"%s\" errno=%d error=\"%s\"", attrPath.c_str(), errno, strerror(errno));
+  }
+  
+  // Delete the main file
   int rc = unlink(path);
   
   if (-1 == rc) {
@@ -636,6 +649,14 @@ NfsIo::flushAttrFile()
 {  
   if (!mAttrDirty) {
     eos_debug("msg=\"no attributes to flush\" path=\"%s\"", mFilePath.c_str());
+    return 0;
+  }
+
+  // Skip flush if main file is missing
+  struct stat stMain;
+  if (stat(mFilePath.c_str(), &stMain) != 0 && errno == ENOENT) {
+    mAttrDirty = false;
+    mAttrLoaded = false;
     return 0;
   }
 
