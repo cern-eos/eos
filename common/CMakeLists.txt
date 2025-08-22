@@ -256,6 +256,7 @@ if (NOT CLIENT AND Linux)
 
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
+    JSONCPP::JSONCPP
     XROOTD::UTILS
     EosCliProto-Objects
     ActiveMQCPP::ActiveMQCPP
