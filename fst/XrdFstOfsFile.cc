@@ -1904,7 +1904,7 @@ XrdFstOfsFile::_close_wr()
   }
 
   // Commit to MGM in case of rain reconstruction and not del on close
-  if (mRainReconstruct && mLayout->IsEntryServer() && !mDelOnClose) {
+  if (mRainReconstruct && !mDelOnClose) {
     if ((rc = CommitToMgm())) {
       if ((error.getErrInfo() == EIDRM) ||
           (error.getErrInfo() == EBADE) ||
@@ -3980,7 +3980,6 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   cta::xrd::Response response;
   cta::xrd::Response::ResponseType response_type =
     cta::xrd::Response::RSP_INVALID;
-
   auto root_certs = gOFS.ConcatenatedServerRootCA;
 
   try {
