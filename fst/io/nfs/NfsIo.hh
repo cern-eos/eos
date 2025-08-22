@@ -25,10 +25,10 @@
 #pragma once
 
 #ifdef HAVE_NFS
-#include <string>
-#include <mutex>
 #include "fst/io/FileIo.hh"
 #include "common/FileMap.hh"
+#include <string>
+#include <mutex>
 #include <nfsc/libnfs.h>
 
 EOSFSTNAMESPACE_BEGIN
@@ -435,9 +435,10 @@ public:
 
   int Statfs(struct statfs* statFs);
 
-  static struct nfs_context* gContext;
-  static std::mutex gContextMutex; ///< mutex for thread-safe context initialization
-  static std::string gMountedPath; ///< path where NFS is mounted
+  // NFS context used when you have a NFS Server configuration - not supported
+  // static struct nfs_context* gContext;
+  // static std::mutex gContextMutex; ///< mutex for thread-safe context initialization
+  // static std::string gMountedPath; ///< path where NFS is mounted
 
 private:
   std::string xattrPath() const; //< path to xattr file
