@@ -271,6 +271,16 @@ public:
   int fileDelete(const char* path);
 
   //--------------------------------------------------------------------------
+  //! Rename file
+  //!
+  //! @param old_name old file name
+  //! @param new_name new file name
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  static int fileRename(const char* old_name, const char* new_name);
+
+  //--------------------------------------------------------------------------
   //! Check for the existence of a file
   //!
   //! @return 0 on success, -1 otherwise and error code is set

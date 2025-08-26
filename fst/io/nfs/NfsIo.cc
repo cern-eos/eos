@@ -444,6 +444,10 @@ NfsIo::fileRemove(uint16_t timeout)
   
   int rc = unlink(mFilePath.c_str());
   if (-1 == rc) {
+    if (errno == ENOENT) {
+      eos_info("msg=\"file not found, skipping delete\" path=\"%s\"", mFilePath.c_str());
+      return 0;
+    }
     eos_err("path=\"%s\" msg=\"%s\"", mFilePath.c_str(), strerror(errno));
     return -1;
   }
@@ -476,9 +480,14 @@ int
 NfsIo::fileDelete(const char* path)
 {
   eos_debug("");
-  
+
+  std::string path_str = std::string(path);
+  if (path_str.find("nfs:/") == 0) {
+      path_str = path_str.substr(5); // Remove "nfs:/" prefix
+  }
+
   // Delete xattr file
-  std::string attrPath = getAttrPath(std::string(path));
+  std::string attrPath = getAttrPath(path_str);
   int attr_rc = unlink(attrPath.c_str());
   if (attr_rc == 0) {
     eos_info("msg=\"deleted attribute file\" path=\"%s\"", attrPath.c_str());
@@ -494,6 +503,53 @@ NfsIo::fileDelete(const char* path)
     return -1;
   }
   
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Rename by path
+//------------------------------------------------------------------------------
+int
+NfsIo::fileRename(const char* old_name, const char* new_name)
+{
+  eos_static_debug("");
+  // eos_static_info("msg=\"fileRename called\" old_name=\"%s\" new_name=\"%s\"", old_name, new_name);
+  
+  std::string oldPath = old_name;
+  std::string newPath = new_name;
+  
+  if (oldPath.find("nfs:/") == 0) {
+    oldPath = oldPath.substr(5); // Remove "nfs:/" prefix  
+  }
+  
+  if (newPath.find("nfs:/") == 0) {
+    newPath = newPath.substr(5); // Remove "nfs:/" prefix  
+  }
+  
+  // Rename the main file
+  int rc = rename(oldPath.c_str(), newPath.c_str());
+  
+  if (-1 == rc) {
+    eos_static_err("msg=\"failed to rename main file\" old_path=\"%s\" new_path=\"%s\" errno=%d error=\"%s\"", 
+            oldPath.c_str(), newPath.c_str(), errno, strerror(errno));
+    return -1;
+  }
+  
+  // Rename the attribute files
+  std::string oldAttrPath = getAttrPath(oldPath);
+  std::string newAttrPath = getAttrPath(newPath);
+  
+  struct stat st;
+  if (stat(oldAttrPath.c_str(), &st) == 0) {
+    int attr_rc = rename(oldAttrPath.c_str(), newAttrPath.c_str());
+    if (attr_rc != 0) {
+      eos_static_err("msg=\"failed to rename attribute file\" old_path=\"%s\" new_path=\"%s\" errno=%d error=\"%s\"", 
+                  oldAttrPath.c_str(), newAttrPath.c_str(), errno, strerror(errno));
+      return -1;
+    }
+  }
+
+  eos_static_info("msg=\"renamed attribute file\" old_path=\"%s\" new_path=\"%s\"", oldAttrPath.c_str(), newAttrPath.c_str());
   return 0;
 }
 

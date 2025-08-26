@@ -33,6 +33,9 @@
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/utils/XrdOfsPathHandler.hh"
+#ifdef HAVE_NFS
+#include "fst/io/nfs/NfsIo.hh"
+#endif
 #include "common/Utils.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
@@ -1762,9 +1765,21 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       std::string old_path =
         FileId::FidPrefix2FullPath(FileId::Fid2Hex(old_fid).c_str(),
                                    fs_prefix.c_str());
+      std::string old_path_for_fmd = old_path;
+
+      if (old_path.find("nfs:/") == 0) {
+          old_path = old_path.substr(5); // Remove "nfs:/" prefix
+      }
+
       std::string new_path =
         FileId::FidPrefix2FullPath(FileId::Fid2Hex(new_fid).c_str(),
                                    fs_prefix.c_str());
+      std::string new_path_for_fmd = new_path;
+
+      if (new_path.find("nfs:/") == 0) {
+          new_path = new_path.substr(5); // Remove "nfs:/" prefix
+      }
+
       // Check that new path doesn't exist already
       struct stat info;
 
@@ -1789,15 +1804,24 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
       }
 
-      if (::rename(old_path.c_str(), new_path.c_str())) {
+      int rename_result = -1;
+      if (old_path_for_fmd.find("nfs:") == 0 || new_path_for_fmd.find("nfs:") == 0) {
+#ifdef HAVE_NFS
+        rename_result = eos::fst::NfsIo::fileRename(old_path_for_fmd.c_str(), new_path_for_fmd.c_str());
+#endif
+      } else {
+        rename_result = ::rename(old_path.c_str(), new_path.c_str());
+      }
+
+      if (rename_result != 0) {
         eos_static_err("msg=\"rename failed\" old_path=%s new_path=%s errno=%d",
                        old_path.c_str(), new_path.c_str(), errno);
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
       } else {
         // Update the filemd info to point to the origianl file identifier
-        if (!mFmdHandler->UpdateFmd(new_path, new_fid)) {
+        if (!mFmdHandler->UpdateFmd(new_path_for_fmd, new_fid)) {
           eos_static_err("msg=\"failed to update fid for the fmd object\" "
-                         "path=%s new_fid=%08llx", new_path.c_str(), new_fid);
+                         "path=%s new_fid=%08llx", new_path_for_fmd.c_str(), new_fid);
           // Clean up the file on disk
           (void) unlink(new_path.c_str());
           return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
