@@ -8,7 +8,7 @@
 
 # By default we build the eos client SRPMS, if the entire build is required
 # then pass the "--with server" flag to the rpmbuild command
-%bcond_without server
+%bcond_with server
 
 # By default we build without clang. To enable it,
 # then pass the "--with clang" flag to the rpmbuild command
@@ -28,9 +28,6 @@
 
 # By default we don't use eosxrootd for EL7
 %bcond_with eos_xrootd_rh
-
-# By default we allow sse instruction set
-%bcond_with no_sse
 
 # By default build without eos-grpc-gateway support
 %bcond_with eos_grpc_gateway
@@ -58,7 +55,7 @@
 #-------------------------------------------------------------------------------
 %define compiler gcc
 
-%if %{?_with_clang:1}%{!?_with_clang:0}
+%if %{with clang}
   %define compiler clang
 %endif
 
@@ -128,7 +125,7 @@ BuildRequires: eos-grpc-plugins = %{eos_grpc_version}
 %define grpc_requires_exclude ^libprot.*$|^libabsl.*$|^libgrpc.*$|^libaddress_sorting.*$|^libre2.*$|^libgpr.*$|^libupb.*$
 %define __requires_exclude %{grpc_requires_exclude}|%{xrootd_requires_exclude}
 
-%if %{?_with_eos_grpc_gateway:1}%{!?_with_eos_grpc_gateway:0}
+%if %{with eos_grpc_gateway}
 BuildRequires: eos-grpc-gateway = %{eos_grpc_gateway_version}
 Requires: eos-grpc-gateway = %{eos_grpc_gateway_version}
 %endif
@@ -168,7 +165,7 @@ Requires: libnfs
 BuildRequires: openssl-static, ncurses-static
 %endif
 
-%if %{?_with_server:1}%{!?_with_server:0}
+%if %{with server}
 BuildRequires: eos-rocksdb = %{eos_rocksdb_version}
 BuildRequires: openldap-devel
 BuildRequires: e2fsprogs-devel
@@ -237,23 +234,19 @@ The EOS software package.
 %setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 %global build_type RelWithDebInfo
 %global build_flags -DBUILD_MANPAGES=1
-%if %{?_with_server:0}%{!?_with_server:1}
+%if %{without server}
 %global build_flags %{build_flags} -DCLIENT=1
 %endif
-%if %{?_with_asan:1}%{!?_with_asan:0}
+%if %{with asan}
 %global build_flags %{build_flags} -DASAN=1
 %endif
-%if %{?_with_tsan:1}%{!?_with_tsan:0}
+%if %{with tsan}
 %global build_flags %{build_flags} -DTSAN=1
 %endif
-%if %{?_with_coverage:1}%{!?_with_coverage:0}
+%if %{with coverage}
 %global build_type Debug
 %global build_flags %{build_flags} -DCOVERAGE=1 -DCOV_CROSS_PROFILE=1
 %endif
-%if %{?_with_no_sse:1}%{!?_with_no_sse:0}
-%global build_flags %{build_flags} -DNO_SSE=1
-%endif
-
 
 %build
 test -e $RPM_BUILD_ROOT && rm -r $RPM_BUILD_ROOT
@@ -654,7 +647,7 @@ The new EOS client filesystem daemon
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/cfsd/
 
-%if %{?_with_server:1}%{!?_with_server:0}
+%if %{with server}
 
 #-------------------------------------------------------------------------------
 # Package eos-quarkdb
