@@ -202,6 +202,11 @@ XrdMgmOfs::_rem(const char* path,
       stdpermcheck = true;
     }
 
+    // when tokens are used UNIX permissions are disabled
+    if (vid.token) {
+      stdpermcheck = false;
+    }
+
     if (container_vtx) {
       if (
         (container_owner_uid == vid.uid) ||

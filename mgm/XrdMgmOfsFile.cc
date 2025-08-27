@@ -504,15 +504,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   {
     EXEC_TIMING_BEGIN("IdMap");
 
+    std::string validation_path = spath.c_str();
+
     if (spath.beginswith("/zteos64:")) {
       sinfo += "&authz=";
       sinfo += spath.c_str() + 1;
       ininfo = sinfo.c_str();
+      validation_path = "";
+    }
+
+    if (ProcInterface::IsProcAccess(spath.c_str())) {
+      validation_path = "";
+    }
+
+    if (spath == "/fusex-open") {
+      validation_path = "";
     }
 
     if (!invid) {
       eos::common::Mapping::IdMap(client, ininfo, tident, vid,
-                                  gOFS->mTokenAuthz, acc_op, spath.c_str());
+                                  gOFS->mTokenAuthz, acc_op,  validation_path.c_str());
     } else {
       vid = *invid;
     }
@@ -1235,18 +1246,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
     int taccess = -1;
 
-    if ((!isSharedFile || isRW) && stdpermcheck
-        && (!(taccess = dmd->access(vid.uid, vid.gid,
-                                    (isRW) ? W_OK | X_OK : R_OK | X_OK)))) {
-      eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
-                fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
-                stdpermcheck, taccess);
-
-      if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
-        // we don't apply this permission check for reconstruction jobs issued via the daemon account
+    if ((!isSharedFile || isRW) && stdpermcheck) {
+      // when tokens are used, UNIX permissions are disabled
+      if (vid.token && vid.uid) {
         errno = EPERM;
         gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1, vid.app);
         return Emsg(epname, error, errno, "open file", path);
+      }
+
+      if (!(taccess = dmd->access(vid.uid, vid.gid,
+				  (isRW) ? W_OK | X_OK : R_OK | X_OK))) {
+	eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
+		  fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
+		  stdpermcheck, taccess);
+
+	if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
+	  // we don't apply this permission check for reconstruction jobs issued via the daemon account
+	  errno = EPERM;
+	  gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+	  return Emsg(epname, error, errno, "open file", path);
+	}
       }
     }
 

@@ -91,17 +91,18 @@ public:         // [+] prevents '+' interpreted as "one or more"
     mCanChmod(false), mCanChown(false), mCanNotDelete(false),
     mCanNotChmod(false), mCanDelete(false), mCanSetQuota(false), mHasAcl(false),
     mHasEgroup(false), mIsMutable(false), mCanArchive(false), mCanPrepare(false),
-    mCanSysAcl(false), mCanXAttr(false)
+    mCanIssueToken(false),
+    mCanSysAcl(false),mCanXAttr(false)
   {}
 
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param sysacl system acl definition string
-  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}
+  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxomt(!d)(+d)(!u)(+u)}
   //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param useracl user acl definition string
-  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxom(!d)(+d)(!u)(+u)}
+  //! 'u:<uid|username>|g:<gid|groupname>|egroup:<name>:{rwxomt(!d)(+d)(!u)(+u)}
   //! |z:{rw[o]xmc(!u)(+u)(!d)(+d)q}'
   //! @param vid virtual id to match ACL
   //! @param allowUserAcl if true evaluate also the user acl for the permissions
@@ -269,6 +270,14 @@ public:         // [+] prevents '+' interpreted as "one or more"
   }
 
   //----------------------------------------------------------------------------
+  //! Has the 't' flag - token issuer permission
+  //----------------------------------------------------------------------------
+  inline bool CanIssueToken() const
+  {
+    return mCanIssueToken;
+  }
+
+  //----------------------------------------------------------------------------
   //! Has the 'A' flag - sys acl modification permission
   //----------------------------------------------------------------------------
   inline bool CanSysAcl() const
@@ -360,6 +369,7 @@ private:
   bool mIsMutable; ///< acl does not contain the immutable flag
   bool mCanArchive; ///< acl which allows archiving
   bool mCanPrepare; ///< acl which allows triggering workflows
+  bool mCanIssueToken; ///< acl which allows to issue tokens
   bool mCanSysAcl; ///< acl which allows to modify sys acls
   bool mCanXAttr; ///< acl which allows to modify sys attributes
   std::string sysattr;

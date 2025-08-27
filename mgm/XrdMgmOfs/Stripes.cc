@@ -102,7 +102,7 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
     // Check permissions
     errno = 0;
 
-    if (cmd && (!cmd->access(vid.uid, vid.gid, X_OK | W_OK))) {
+    if (cmd && (vid.token || (!cmd->access(vid.uid, vid.gid, X_OK | W_OK)))) {
       if (!errno) {
         errc = EPERM;
       }
@@ -258,7 +258,7 @@ XrdMgmOfs::_dropstripe(const char* path,
     auto cmd = gOFS->eosView->getContainerMDSvc()->getContainerMD(cid);
     errno = 0;
     // only one operation, no need to readlock!
-    if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
+    if (vid.token || (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && !errno)) {
       errc = EPERM;
       return Emsg(epname, error, errc, "drop stripe", path);
     }
@@ -361,7 +361,7 @@ XrdMgmOfs::_dropallstripes(const char* path,
     auto contLock = eos::MDLocking::readLock(cont.get());
     errno = 0;
 
-    if (!cont->access(vid.uid, vid.gid, X_OK | W_OK) && !errno) {
+    if (vid.token || (!cont->access(vid.uid, vid.gid, X_OK | W_OK) && !errno)) {
       errc = EPERM;
       return Emsg(epname, error, errc, "drop stripe", path);
     }
@@ -478,7 +478,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
     // check permissions
     errno = 0;
 
-    if (dh && (!dh->access(vid.uid, vid.gid, X_OK | W_OK))) {
+    if (dh && (vid.token ||(!dh->access(vid.uid, vid.gid, X_OK | W_OK)))) {
       if (!errno) {
         errc = EPERM;
       }

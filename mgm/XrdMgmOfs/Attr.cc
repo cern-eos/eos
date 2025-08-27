@@ -493,8 +493,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       eos::IContainerMD::XAttrMap attr_map = cmd->getAttributes();
       Acl acl(attr_map, vid);
 
-      if (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) &&
-          !acl.AllowXAttrUpdate(skey, vid)) {
+	if (vid.token || (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) &&
+			  !acl.AllowXAttrUpdate(skey, vid))) {
         errno = EPERM;
       } else {
         if (!cmd->hasAttribute(skey)) {

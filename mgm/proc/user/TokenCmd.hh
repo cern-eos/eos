@@ -41,7 +41,8 @@ public:
   //----------------------------------------------------------------------------
   TokenCmd(eos::console::RequestProto&& req,
         eos::common::VirtualIdentity& vid):
-    IProcCommand(std::move(req), vid, true) {}
+    IProcCommand(std::move(req), vid, true) {
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -58,7 +59,7 @@ public:
   //! Method storing a token
   //----------------------------------------------------------------------------
   int StoreToken(const std::string& token, const std::string& voucherid, std::string& token_path, uid_t uid, gid_t gid);
-  
+
   //----------------------------------------------------------------------------
   //! Method getting a token storage prefix path
   //----------------------------------------------------------------------------

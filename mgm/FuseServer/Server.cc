@@ -638,64 +638,66 @@ Server::FillContainerCAP(uint64_t id,
     // grant all permissions
     dir.mutable_capability()->set_mode(0xff | mode);
   } else {
-    if (vid.sudoer) {
-      mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
-              ; // chown + chmod permission + all the rest
-    }
-
-    if (vid.uid == (uid_t) dir.uid()) {
-      // we don't apply a mask if we are the owner
-      if (dir.mode() & S_IRUSR) {
-        mode |= R_OK | M_OK | SU_OK;
+    if (!vid.token) {
+      if (vid.sudoer) {
+	mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
+	  ; // chown + chmod permission + all the rest
       }
 
-      if (dir.mode() & S_IWUSR) {
-        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+      if (vid.uid == (uid_t) dir.uid()) {
+	// we don't apply a mask if we are the owner
+	if (dir.mode() & S_IRUSR) {
+	  mode |= R_OK | M_OK | SU_OK;
+	}
+
+	if (dir.mode() & S_IWUSR) {
+	  mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+	}
+
+	if (dir.mode() & mask & S_IXUSR) {
+	  mode |= X_OK;
+	}
       }
 
-      if (dir.mode() & mask & S_IXUSR) {
-        mode |= X_OK;
+      bool same_group = false;
+
+      if (vid.gid == (gid_t) dir.gid()) {
+	same_group = true;
+      } else {
+	if (eos::common::Mapping::gSecondaryGroups) {
+	  if (vid.allowed_gids.count(dir.gid())) {
+	    same_group = true;
+	  }
+	}
       }
-    }
 
-    bool same_group = false;
-
-    if (vid.gid == (gid_t) dir.gid()) {
-      same_group = true;
-    } else {
-      if (eos::common::Mapping::gSecondaryGroups) {
-        if (vid.allowed_gids.count(dir.gid())) {
-          same_group = true;
-        }
-      }
-    }
-
-    if (same_group) {
-      // we apply a mask if we are in the same group
-      if (dir.mode() & mask & S_IRGRP) {
+      if (same_group) {
+	// we apply a mask if we are in the same group
+	if (dir.mode() & mask & S_IRGRP) {
         mode |= R_OK;
+	}
+
+	if (dir.mode() & mask & S_IWGRP) {
+	  mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+	}
+
+	if (dir.mode() & mask & S_IXGRP) {
+	  mode |= X_OK;
+	}
       }
 
-      if (dir.mode() & mask & S_IWGRP) {
-        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+      // we apply a mask if we are matching other permissions
+      if (dir.mode() & mask & S_IROTH) {
+	mode |= R_OK;
       }
 
-      if (dir.mode() & mask & S_IXGRP) {
-        mode |= X_OK;
+      if (dir.mode() & mask & S_IWOTH) {
+	mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
       }
-    }
 
-    // we apply a mask if we are matching other permissions
-    if (dir.mode() & mask & S_IROTH) {
-      mode |= R_OK;
-    }
-
-    if (dir.mode() & mask & S_IWOTH) {
-      mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
-    }
-
-    if (dir.mode() & mask & S_IXOTH) {
-      mode |= X_OK;
+      if (dir.mode() & mask & S_IXOTH) {
+	mode |= X_OK;
+      }
     }
 
     // look at ACLs
@@ -1031,18 +1033,20 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
       gids.insert(vid.gid);
     }
 
-    for (auto g : gids) {
-      if (cmd->access(vid.uid, g, R_OK)) {
-        r_ok = true;
-      }
+    if (!vid.token) {
+      for (auto g : gids) {
+	if (cmd->access(vid.uid, g, R_OK)) {
+	  r_ok = true;
+	}
 
-      if (cmd->access(vid.uid, g, W_OK)) {
-        w_ok = true;
-        d_ok = true;
-      }
+	if (cmd->access(vid.uid, g, W_OK)) {
+	  w_ok = true;
+	  d_ok = true;
+	}
 
-      if (cmd->access(vid.uid, g, X_OK)) {
-        x_ok = true;
+	if (cmd->access(vid.uid, g, X_OK)) {
+	  x_ok = true;
+	}
       }
     }
 

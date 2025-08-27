@@ -1003,7 +1003,7 @@ GrpcNsInterface::Access(eos::common::VirtualIdentity& vid, int mode,
                         eos::IFileMD::XAttrMap* attrmapF)
 {
   // UNIX permissions
-  if (cmd->access(vid.uid, vid.gid, mode)) {
+  if (!vid.token && cmd->access(vid.uid, vid.gid, mode)) {
     return true;
   }
 

@@ -2493,6 +2493,7 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("OpenFailedENOENT", 0, 0, 0);
   MgmStats.Add("OpenFailedExists", 0, 0, 0);
   MgmStats.Add("OpenFailedPermission", 0, 0, 0);
+  MgmStats.Add("OpenFailedToken", 0, 0, 0);
   MgmStats.Add("OpenFailedQuota", 0, 0, 0);
   MgmStats.Add("OpenFailedNoUpdate", 0, 0, 0);
   MgmStats.Add("OpenFailedReconstruct", 0, 0, 0);

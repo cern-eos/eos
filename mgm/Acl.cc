@@ -188,6 +188,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
   mIsMutable = true;
   mCanArchive = false;
   mCanPrepare = false;
+  mCanIssueToken = false;
   mCanSysAcl = false;
   mCanXAttr = false;
 
@@ -370,6 +371,10 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
             mCanPrepare = !deny;
             break;
 
+	  case 't': // 't' defines token issuing
+	    mCanIssueToken = !deny;
+	    break;
+
           case 'm': // 'm' defines mode change permission
             if (deny) {
               mCanNotChmod = true;
@@ -500,6 +505,10 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
       mCanPrepare = is_allowed;
       break;
 
+    case 't':
+      mCanIssueToken = is_allowed;
+      break;
+
     case 'm':
       mCanNotChmod = !is_allowed;
       break;
@@ -539,16 +548,21 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
     }
   }
 
+  if (tokenacl.length()) {
+    // for tokens we adverties always to have an ACL
+    mHasAcl = true;
+  }
+
   if (EOS_LOGS_DEBUG) {
     eos_static_debug(
       "mCanRead %d mCanNotRead %d mCanWrite %d mCanNotWrite %d mCanWriteOnce %d mCanUpdate %d mCanNotUpdate %d "
       "mCanBrowse %d mCanNotBrowse %d mCanChmod %d mCanChown %d mCanNotDelete %d mCanNotChmod %d "
-      "mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d",
+      "mCanDelete %d mCanSetQuota %d mHasAcl %d mHasEgroup %d mIsMutable %d mCanArchive %d mCanPrepare %d mCanIssueToken %d",
       mCanRead, mCanNotRead, mCanWrite, mCanNotWrite, mCanWriteOnce, mCanUpdate,
       mCanNotUpdate,
       mCanBrowse, mCanNotBrowse, mCanChmod, mCanChown, mCanNotDelete, mCanNotChmod,
       mCanDelete, mCanSetQuota, mHasAcl, mHasEgroup, mIsMutable, mCanArchive,
-      mCanPrepare);
+      mCanPrepare, mCanIssueToken);
   }
 }
 
@@ -736,12 +750,15 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
         tokenacl += vid.uid_string;
         tokenacl += ":";
         tokenacl += vid.token->Permission();
+	eos_static_info("msg=\"validated path\" tokenacl=\"%s\"", tokenacl.c_str());
         return tokenacl;
       } else {
-        eos_static_err("%s", "msg=\"invald path token\"");
+        eos_static_err("%s", "msg=\"path outside token scope\"");
+	return "u:root:rx";
       }
     } else {
       eos_static_err("%s", "msg=\"invalid token\"");
+      return "u:root:rx";
     }
   } else {
     eos_static_debug("%s", "msg=\"no token\"");

@@ -479,7 +479,7 @@ eos_grpc() {
 }
 
 eos_token() {
-   echo eos-token-test $1 ; eval eos-token-test $1 >> $EOSCERTLOG 2>&1
+   echo eos-token-test $1 ; eval eos-token-test $1 ${EOS_TEST_FULL_REDIRECTOR} >> $EOSCERTLOG 2>&1
 }
 
 eos_squash() {
@@ -510,6 +510,16 @@ testout () {
     if [ $failed -gt 0 ]; then touch $FAILFILE; fi
 }
 ################################################################################
+# Count total number of runtest calls in this script
+if [ "$1" != "list" ]; then
+  echo "Counting total number of tests..."
+  total_tests=$(grep -c "^runtest " "$0")
+  echo "Total tests found: $total_tests"
+  echo
+else
+  total_tests=0
+fi
+
 testcnt=0;
 runtest () {
     testcnt=$((testcnt+1));
@@ -536,7 +546,11 @@ runtest () {
         fi
 
         START=$(date +%s.%N)
-        echo $testcnt | awk '{printf("%04d ",$1);}'
+        if [ $total_tests -gt 0 ]; then
+          printf "%04d/%04d " $testcnt $total_tests
+        else
+          printf "%04d " $testcnt
+        fi
         echo -n $(date +"%x %X") "$1"
         auth=$2
         res=$3
@@ -580,14 +594,60 @@ runtest () {
         fi
 
         if [ $skip = 0 ] ; then
+          # Record the current size of the log file before running the test
+          log_size_before=0
+          if [ -f "$EOSCERTLOG" ]; then
+            log_size_before=$(wc -l < "$EOSCERTLOG")
+          fi
+
           if [ $auth = "krb5" ] ; then ( eval export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
           if [ $auth = "gsi"  ] ; then ( eval export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
           if [ $auth = "unix" ] ; then ( eval export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
           if [ $auth = "sss"  ] ; then ( eval export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
           echo
-          if [ $res -eq 0 ] ; then if [ $ret -eq 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
-          if [ $res -eq 1 ] ; then if [ $ret -ne 0 ]; then success; ((success++));else failure ; ((failed++)); echo ; fi; fi
+
+          # Check if test failed unexpectedly and print output
+          test_failed=0
+          if [ $res -eq 0 ] ; then
+            if [ $ret -eq 0 ]; then
+              success; ((success++))
+            else
+              failure ; ((failed++)); echo ; test_failed=1
+            fi
+          fi
+          if [ $res -eq 1 ] ; then
+            if [ $ret -ne 0 ]; then
+              success; ((success++))
+            else
+              failure ; ((failed++)); echo ; test_failed=1
+            fi
+          fi
           if [ $res -eq 2 ] ; then success; ((success++)); fi
+
+          # Print full output for failed tests in indented block with red text on white background
+          if [ $test_failed -eq 1 ]; then
+            echo
+            # ANSI color codes: red text (31m), white background (47m), reset (0m)
+            # Keep indentation transparent, only color the text content
+            echo -e "    \033[31;47mFull test output:\033[0m"
+            echo -e "    \033[31;47m===================\033[0m"
+            if [ -f "$EOSCERTLOG" ]; then
+              log_size_after=$(wc -l < "$EOSCERTLOG")
+              if [ $log_size_after -gt $log_size_before ]; then
+                # Extract the lines added during this test
+                tail -n +$((log_size_before + 1)) "$EOSCERTLOG" | while IFS= read -r line; do
+                  echo -e "    \033[31;47m$line\033[0m"
+                done
+              else
+                echo -e "    \033[31;47m(No new output in log file)\033[0m"
+              fi
+            else
+              echo -e "    \033[31;47m(Log file not found)\033[0m"
+            fi
+            echo -e "    \033[31;47m===================\033[0m"
+            echo
+          fi
+
           END=$(date +%s.%N)
           DIFF=$(echo "$END - $START" | bc)
           echo "                         in $DIFF seconds ($ret)"
@@ -641,8 +701,8 @@ runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.space /eos/$EOS_TEST_I
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.forced.atomic /eos/$EOS_TEST_INSTANCE/test/
 runtest "### Cleanup   " unix 2 "" eos attr rm sys.versioning /eos/$EOS_TEST_INSTANCE/test
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
-runtest "### Quota     " unix 1 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1G -i 1M
-runtest "### Quota     " unix 0 "" eos quota set -u 99 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Quota     " unix 0 "" eos quota set -u ${NOBODY_UID} -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
+runtest "### Quota     " unix 1 "" eos quota set -u ${NOBODY_UID} /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 11 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 100 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix 0 "" eos quota set -u 2 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
@@ -1337,6 +1397,12 @@ runtest "### Vid      " unix 0 "" eos vid publicaccesslevel 1024
 runtest "### Ls       " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Find     " unix 0 "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos find "/eos/$EOS_TEST_INSTANCE/test/"
 runtest "### Rmdir    " unix 0 "" eos rmdir /eos/$EOS_TEST_INSTANCE/test/instancetest/public
+
+
+################################################################################
+# eos token
+################################################################################
+runtest "### Token    " sss  0 "" eos_token /eos/$EOS_TEST_INSTANCE/test/instancetest/tokens/
 
 ################################################################################
 # eosnobody

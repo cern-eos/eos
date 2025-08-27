@@ -73,6 +73,7 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
   std::shared_ptr<eos::IFileMD> fh;
   std::shared_ptr<eos::IContainerMD> dh;
   mode_t dh_mode {0};
+  bool is_owner=false;
   eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, cPath.GetPath());
 
   // Check for existing file
@@ -123,16 +124,27 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
     }
 
     eos_info("acl=%d r=%d w=%d wo=%d x=%d egroup=%d "
-             "mutable=%d can_not_delete=%d",
+             "mutable=%d can_not_delete=%d token-issuer=%d",
              acl.HasAcl(), acl.CanRead(), acl.CanWrite(),
              acl.CanWriteOnce(), acl.CanBrowse(), acl.HasEgroup(),
-             acl.IsMutable(), acl.CanNotDelete());
+             acl.IsMutable(), acl.CanNotDelete(), acl.CanIssueToken());
     {
       // In any case, we need to check the container access, read lock it to
       // check its access and release its lock afterwards
       eos::MDLocking::ContainerReadLockPtr dhLock = eos::MDLocking::readLock(
             dh.get());
       dh_mode = dh->getMode();
+      is_owner = (dh->getCUid() == vid.uid);
+
+      if (fh) {
+	is_owner = (fh->getCUid() == vid.uid);
+      }
+
+      // check if people who don't own a file or directory can issue token
+      if (!is_owner && (mode & T_OK) && !acl.CanIssueToken()) {
+	errno = EPERM;
+	return Emsg(epname, error, EPERM, "access - you cannot issue tokens", path);
+      }
 
       if (!AccessChecker::checkContainer(dh.get(), acl, mode, vid)) {
         bool deny = true;
@@ -288,21 +300,24 @@ XrdMgmOfs::acc_access(const char* path,
     std::unique_ptr<Acl> aclPtr;
     {
       eos::MDLocking::ContainerReadLock dhLock(dh.get());
+
       dhCuid = dh->getCUid();
-      for (auto g : gids) {
-        if (dh->access(vid.uid, g, R_OK)) {
-          r_ok = true;
-        }
+      if (!vid.token) {
+	for (auto g : gids) {
+	  if (dh->access(vid.uid, g, R_OK)) {
+	    r_ok = true;
+	  }
 
-        if (dh->access(vid.uid, g, W_OK)) {
-          w_ok = true;
-          d_ok = true;
-          d_perm_ok = true;
-        }
+	  if (dh->access(vid.uid, g, W_OK)) {
+	    w_ok = true;
+	    d_ok = true;
+	    d_perm_ok = true;
+	  }
 
-        if (dh->access(vid.uid, g, X_OK)) {
-          x_ok = true;
-        }
+	  if (dh->access(vid.uid, g, X_OK)) {
+	    x_ok = true;
+	  }
+	}
       }
 
       //We prevent releasing the directory lock before calling the ACL constructor that will do

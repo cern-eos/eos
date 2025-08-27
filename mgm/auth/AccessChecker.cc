@@ -94,7 +94,7 @@ AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
       if (acl.HasAcl() && acl.CanNotDelete()) {
         // There's a !d ACL for that vid, we grant the deletion if the owner of the container is the vid provided
         // and has write permission on it
-        if((cont->getCUid() == vid.uid) && (cont->access(vid.uid,vid.gid,W_OK))) {
+        if((cont->getCUid() == vid.uid) && (!vid.token?cont->access(vid.uid,vid.gid,W_OK):false)) {
           return true;
         }
         return false;
@@ -103,7 +103,7 @@ AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
   }
 
   // Basic permission check
-  bool basicCheck = cont->access(vid.uid, vid.gid, mode);
+  bool basicCheck = !vid.token?cont->access(vid.uid, vid.gid, mode):false;
 
   // Access granted, or we have no Acls? We're done.
   if (basicCheck || !acl.HasAcl()) {
@@ -113,7 +113,7 @@ AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
   // Basic check denied us access... let's see if we can recover through Acls
   if ((mode & W_OK) &&
       (acl.CanNotWrite() ||
-       (!acl.CanWrite() && !cont->access(vid.uid, vid.gid, W_OK)))) {
+       (!acl.CanWrite() && (!vid.token?!cont->access(vid.uid, vid.gid, W_OK):true)))) {
     // Asking for write permission, and neither basic check, nor Acls grant us
     // write. Deny.
     return false;
@@ -121,7 +121,7 @@ AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
 
   if ((mode & R_OK) &&
       (acl.CanNotRead() ||
-       (!acl.CanRead() && !cont->access(vid.uid, vid.gid, R_OK)))) {
+       (!acl.CanRead() && (!vid.token?!cont->access(vid.uid, vid.gid, R_OK):true)))) {
     // Asking for read permission, and neither basic check, nor Acls grant us
     // read. Deny.
     return false;
@@ -129,7 +129,7 @@ AccessChecker::checkContainer(IContainerMD* cont, const Acl& acl,
 
   if ((mode & X_OK) &&
       (acl.CanNotBrowse() ||
-       (!acl.CanBrowse() && !cont->access(vid.uid, vid.gid, X_OK)))) {
+       (!acl.CanBrowse() && ( !vid.token?!cont->access(vid.uid, vid.gid, X_OK):true)))) {
     // Asking for browse permission, and neither basic check, nor Acls grant us
     // browse. Deny.
     return false;

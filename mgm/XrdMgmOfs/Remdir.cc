@@ -195,7 +195,12 @@ XrdMgmOfs::_remdir(const char* path,
     stdpermcheck = true;
   }
 
-  // Check permissions
+  // When tokens are used, UNIX permissions are disabled
+  if (vid.token) {
+    stdpermcheck = false;
+  }
+
+    // Check permissions
   bool permok = stdpermcheck ? (dhpar ? (dhpar->access(vid.uid, vid.gid,
                                          X_OK | W_OK)) : false) : aclok;
 
