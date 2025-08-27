@@ -355,7 +355,8 @@ Server::FillContainerMD(uint64_t id, eos::fusex::md& dir,
     dir.set_nlink(2);
     dir.set_name(cmd->getName());
     dir.set_fullpath(fullpath);
-    eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
+    eos::IFileMD::XAttrMap xattrs;
+    gOFS->listAttributes(gOFS->eosView, &(*cmd), xattrs, false);
 
     for (const auto& elem : xattrs) {
       if ((elem.first) == "sys.vtrace") {
@@ -1020,7 +1021,8 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
     path = gOFS->eosView->getUri(cmd.get());
     // for performance reasons we implement a seperate access control check here, because
     // we want to avoid another id=path translation and unlock lock of the namespace
-    eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+    eos::IContainerMD::XAttrMap attrmap;
+    gOFS->listAttributes(gOFS->eosView, &(*cmd), attrmap, false);
     std::set<gid_t> gids;
 
     if (eos::common::Mapping::gSecondaryGroups) {
@@ -1575,7 +1577,7 @@ Server::OpSetDirectory(const std::string& id,
         vid.scope = gOFS->eosView->getUri(cmd.get());
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
-        attrmap = cmd->getAttributes();
+	gOFS->listAttributes(gOFS->eosView, &(*cmd), attrmap, false);
 
         if (EOS_LOGS_DEBUG) {
           eos_debug("sysacl '%s' useracl '%s' evaluseracl %d (ignored)",
