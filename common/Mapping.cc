@@ -1143,7 +1143,6 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
   }
 }
 
-
 //------------------------------------------------------------------------------
 // Handle HTTPS authz keys mapping
 //------------------------------------------------------------------------------
