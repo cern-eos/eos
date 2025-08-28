@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.20 Diopside``
+====================
+
+2025-08-28
+
+Bug
+----
+
+* [EOS-6480] - FuseServer needs to use Space ACLs in FillContainerCAP & ValidatePERM
+* [EOS-6481] - Listing file names longer than 4k crashes the MGM
+
+
 ``v5.3.19 Diopside``
 ====================
 
