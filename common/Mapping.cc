@@ -842,13 +842,15 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         eos_static_err("failed to decode token tident='%s' token='%s' errno=%d", tident,
                        authz.c_str(), -rc);
       } else {
-	bool validated = true;
-	if (path.length() && path.substr(0,6) != "/proc/") {
-	  if (vid.token->ValidatePath(path)) {
-	    eos_static_err("token:validatepath msg=\"path validation failed for '%s'\"", path.c_str());
-	    validated = false;
-	  }
-	}
+        bool validated = true;
+
+        if (path.length() && path.substr(0, 6) != "/proc/") {
+          if (vid.token->ValidatePath(path)) {
+            eos_static_err("token:validatepath msg=\"path validation failed for '%s'\"",
+                           path.c_str());
+            validated = false;
+          }
+        }
 
         // if the path is screened we change owner/group
         if (validated && !vid.token->Owner().empty()) {
@@ -864,7 +866,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         if (EOS_LOGS_INFO) {
           std::string dump;
           vid.token->Dump(dump, true, true);
-          eos_static_info("%s {tokensudo:%d (%d)}", dump.c_str(), token_sudo, gTokenSudo.load());
+          eos_static_info("%s {tokensudo:%d (%d)}", dump.c_str(), token_sudo,
+                          gTokenSudo.load());
         }
       }
     } else {
@@ -1136,7 +1139,6 @@ Mapping::HandleVOMS(const XrdSecEntity* client, VirtualIdentity& vid)
     vid.allowed_gids.insert(vid.gid);
   }
 }
-
 
 //------------------------------------------------------------------------------
 // Handle HTTPS authz keys mapping
