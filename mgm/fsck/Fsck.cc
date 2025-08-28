@@ -40,14 +40,15 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-const std::string Fsck::sFsckKey {
-  "fsck"
-};
-const std::string Fsck::sCollectKey {"toggle-collect"};
+const std::string Fsck::sOldCollectKey {"toggle-collect"};
+const std::string Fsck::sOldRepairKey {"toggle-repair"};
+const std::string Fsck::sOldBestEffortKey {"toggle-best-effort"};
+const std::string Fsck::sFsckKey {"fsck"};
+const std::string Fsck::sCollectKey {"collect"};
+const std::string Fsck::sRepairKey {"repair"};
+const std::string Fsck::sBestEffortKey {"best-effort"};
 const std::string Fsck::sCollectIntervalKey {"collect-interval-min"};
-const std::string Fsck::sRepairKey {"toggle-repair"};
 const std::string Fsck::sRepairCategory {"repair-category"};
-const std::string Fsck::sBestEffort {"toggle-best-effort"};
 
 using eos::common::FsckErr;
 using eos::common::ConvertToFsckErr;
@@ -104,28 +105,34 @@ Fsck::ApplyConfig(FsView* fsview)
   // Apply the configuration to the fsck engine
   std::string msg;
 
-  if (kv_map.count(sCollectKey) && kv_map.count(sCollectIntervalKey)) {
-    bool enable_collect = (kv_map[sCollectKey] == "1");
+  if (kv_map.count(sOldCollectKey)) {
+    if (kv_map.count(sOldCollectKey) && kv_map.count(sCollectIntervalKey)) {
+      bool enable_collect = (kv_map[sOldCollectKey] == "1");
 
-    // Make fsck config enforcement idempotent. Note the value in the Config
-    // call is overloaded with the "off" string marking the fact that fsck
-    // collection should be disabled.
-    if (enable_collect != mCollectEnabled) {
-      Config(sCollectKey, (enable_collect ? kv_map[sCollectIntervalKey] : "off"),
-             msg);
+      // Make fsck config enforcement idempotent. Note the value in the Config
+      // call is overloaded with the "off" string marking the fact that fsck
+      // collection should be disabled.
+      if (enable_collect != mCollectEnabled) {
+        Config(sOldCollectKey, (enable_collect ? kv_map[sCollectIntervalKey] : "off"),
+               msg);
+      }
     }
-  }
 
-  if (kv_map.count(sRepairKey)) {
-    Config(sRepairKey, kv_map[sRepairKey], msg);
-  }
+    if (kv_map.count(sOldRepairKey)) {
+      Config(sOldRepairKey, kv_map[sOldRepairKey], msg);
+    }
 
-  if (kv_map.count(sBestEffort)) {
-    Config(sBestEffort, kv_map[sBestEffort], msg);
-  }
+    if (kv_map.count(sOldBestEffortKey)) {
+      Config(sOldBestEffortKey, kv_map[sOldBestEffortKey], msg);
+    }
 
-  if (kv_map.count(sRepairCategory)) {
-    Config(sRepairCategory, kv_map[sRepairCategory], msg);
+    if (kv_map.count(sRepairCategory)) {
+      Config(sRepairCategory, kv_map[sRepairCategory], msg);
+    }
+  } else { // We're dealing only with new key vlaues
+    for (const auto& [key, value] : kv_map) {
+      Config(key, value, msg);
+    }
   }
 }
 
@@ -145,10 +152,10 @@ Fsck::StoreConfig()
   }
 
   std::ostringstream oss;
-  oss << sCollectKey << "=" << mCollectEnabled << " "
-      << sCollectIntervalKey << "=" << collect_interval_min << " "
-      << sRepairKey << "=" << mRepairEnabled << " "
-      << sBestEffort << "=" << mDoBestEffort << " "
+  oss << sCollectIntervalKey << "=" << collect_interval_min << " "
+      << sCollectKey << "=" << (mCollectEnabled ? "on" : "off") << " "
+      << sRepairKey << "=" << (mRepairEnabled ? "on" : "off")  << " "
+      << sBestEffortKey << "=" << (mDoBestEffort ? "on" : "off") << " "
       << sRepairCategory  << "=" << eos::common::FsckErrToString(mRepairCategory);
   return FsView::gFsView.SetGlobalConfig(sFsckKey, oss.str());
 }
@@ -161,6 +168,10 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
 {
   // Make sure only one config runs at a time
   static std::mutex mutex;
+  static std::set<std::string> old_keys {sOldCollectKey, sOldRepairKey,
+                                         sOldBestEffortKey};
+  static std::set<std::string> new_keys {sCollectKey, sRepairKey,
+                                         sBestEffortKey};
   std::unique_lock<std::mutex> serialize_lock(mutex);
 
   if (mQcl == nullptr) {
@@ -175,84 +186,148 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
     }
   }
 
-  if (key == sCollectKey) {
-    if (value == "off") {
-      mCollectEnabled = false;
-    } else {
-      mCollectEnabled = !mCollectEnabled;
-    }
+  if (key == sCollectIntervalKey) {
+    // If value is present then it represents the collection interval
+    if (!value.empty()) {
+      try {
+        float fval = std::stof(value);
 
-    if (mCollectEnabled == false) {
-      mRepairEnabled = false;
-
-      // Stop the collection and repair
-      if (mRepairRunning) {
-        mRepairThread.join();
+        if (fval == 0) {
+          mCollectInterval = std::chrono::seconds(60);
+        } else if (fval < 1) {
+          mCollectInterval = std::chrono::seconds((long)std::ceil(fval * 60));
+        } else {
+          mCollectInterval = std::chrono::seconds((long)fval * 60);
+        }
+      } catch (...) {
+        mCollectInterval = std::chrono::seconds(30 * 60);
       }
 
       if (mCollectRunning) {
-        mCollectorThread.join();
-      }
-    } else {
-      // If value is present then it represents the collection interval
-      if (!value.empty()) {
-        try {
-          float fval = std::stof(value);
-
-          if (fval == 0) {
-            mCollectInterval = std::chrono::seconds(60);
-          } else if (fval < 1) {
-            mCollectInterval = std::chrono::seconds((long)std::ceil(fval * 60));
-          } else {
-            mCollectInterval = std::chrono::seconds((long)fval * 60);
-          }
-        } catch (...) {
-          mCollectInterval = std::chrono::seconds(30 * 60);
-        }
-      }
-
-      if (!mCollectRunning) {
         mCollectorThread.reset(&Fsck::CollectErrs, this);
       }
+    } else {
+      return false;
+    }
+  } else if (new_keys.find(key) != new_keys.end()) {
+    if ((value != "on") && (value != "off")) {
+      msg = "error: unknown configuration value";
+      return false;
+    }
+
+    if (key == sBestEffortKey) {
+      mDoBestEffort = (value == "on");
+    } else if (key == sRepairKey) {
+      mRepairEnabled = (value == "on");
+
+      // We need to do a transition
+      if (mRepairRunning != mRepairEnabled) {
+        if (mRepairEnabled) {
+          if (!mCollectEnabled) {
+            mRepairEnabled = false;
+            msg = "error: repair can not be enabled without error collection";
+            return false;
+          }
+
+          mRepairThread.reset(&Fsck::RepairErrs, this);
+        } else {
+          mRepairThread.join();
+        }
+      }
+    } else if (key == sCollectKey) {
+      mCollectEnabled = (value == "on");
+
+      // We need to do a transition
+      if (mCollectRunning != mCollectEnabled) {
+        if (mCollectEnabled) {
+          mCollectorThread.reset(&Fsck::CollectErrs, this);
+        } else {
+          // Stop the collection and repair
+          if (mRepairEnabled) {
+            mRepairEnabled = false;
+            mRepairThread.join();
+          }
+
+          mCollectorThread.join();
+        }
+      }
     }
 
     if (!StoreConfig()) {
       msg = "error: failed to store fsck configuration changes";
       return false;
     }
-  } else if (key == sRepairKey) {
-    if (value.empty()) {
-      // User triggered repair toggle
-      mRepairEnabled = !mRepairRunning;
-    } else {
-      // Mandatory config coming from the stored configuration
-      mRepairEnabled = (value == "1");
-    }
-
-    if (mRepairEnabled == false) {
-      if (mRepairRunning) {
-        mRepairThread.join();
-      }
-    } else {
-      if (!mCollectEnabled) {
-        msg = "error: repair can not be enabled without error collection";
-        return false;
+  } else if (old_keys.find(key) != old_keys.end()) {
+    // Handling old keys for compatibility
+    if (key == sOldCollectKey) {
+      if (value == "off") {
+        mCollectEnabled = false;
+      } else {
+        mCollectEnabled = !mCollectEnabled;
       }
 
-      mRepairThread.reset(&Fsck::RepairErrs, this);
-    }
+      if (mCollectEnabled == false) {
+        mRepairEnabled = false;
 
-    if (!StoreConfig()) {
-      msg = "error: failed to store fsck configuration changes";
-      return false;
-    }
-  } else if (key == sBestEffort) {
-    if (value.empty()) {
-      // User triggered best-effort toggle
-      mDoBestEffort = !mDoBestEffort;
-    } else {
-      // Mandatory config coming from the stored configuration
-      mDoBestEffort = (value == "1");
+        // Stop the collection and repair
+        if (mRepairRunning) {
+          mRepairThread.join();
+        }
+
+        if (mCollectRunning) {
+          mCollectorThread.join();
+        }
+      } else {
+        // If value is present then it represents the collection interval
+        if (!value.empty()) {
+          try {
+            float fval = std::stof(value);
+
+            if (fval == 0) {
+              mCollectInterval = std::chrono::seconds(60);
+            } else if (fval < 1) {
+              mCollectInterval = std::chrono::seconds((long)std::ceil(fval * 60));
+            } else {
+              mCollectInterval = std::chrono::seconds((long)fval * 60);
+            }
+          } catch (...) {
+            mCollectInterval = std::chrono::seconds(30 * 60);
+          }
+        }
+
+        if (!mCollectRunning) {
+          mCollectorThread.reset(&Fsck::CollectErrs, this);
+        }
+      }
+    } else if (key == sOldRepairKey) {
+      if (value.empty()) {
+        // User triggered repair toggle
+        mRepairEnabled = !mRepairRunning;
+      } else {
+        // Mandatory config coming from the stored configuration
+        mRepairEnabled = (value == "1");
+      }
+
+      if (mRepairEnabled == false) {
+        if (mRepairRunning) {
+          mRepairThread.join();
+        }
+      } else {
+        if (!mCollectEnabled) {
+          msg = "error: repair can not be enabled without error collection";
+          return false;
+        }
+
+        mRepairThread.reset(&Fsck::RepairErrs, this);
+      }
+    } else if (key == sOldBestEffortKey) {
+      if (value.empty()) {
+        // User triggered best-effort toggle
+        mDoBestEffort = !mDoBestEffort;
+      } else {
+        // Mandatory config coming from the stored configuration
+        mDoBestEffort = (value == "1");
+      }
     }
 
     if (!StoreConfig()) {
@@ -278,11 +353,11 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
       return false;
     }
   } else if (key == "show-dark-files") {
-    mShowDarkFiles = (value == "yes");
+    mShowDarkFiles = (value == "on");
   } else if (key == "show-offline") {
-    mShowOffline = (value == "yes");
+    mShowOffline = (value == "on");
   } else if (key == "show-no-replica") {
-    mShowNoReplica = (value == "yes");
+    mShowNoReplica = (value == "on");
   } else if (key == "max-queued-jobs") {
     try {
       mMaxQueuedJobs = std::stoull(value);
@@ -576,24 +651,24 @@ Fsck::PrintOut(std::string& out, bool monitor_fmt) const
     static time_t current_time;
     time(&current_time);
     oss << "timestamp=" << current_time << std::endl
-        << "collection_thread=" << (mCollectEnabled ? "enabled" : "disabled")
+        << "collection_thread=" << (mCollectEnabled ? "on" : "off")
         << std::endl
-        << "repair_thread=" << (mRepairEnabled ? "enabled" : "disabled")
+        << "repair_thread=" << (mRepairEnabled ? "on" : "off")
         << std::endl
         << "repair_category=" <<
         ((mRepairCategory == FsckErr::None) ?
          "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl
-        << "best_effort=" << (mDoBestEffort ? "true" : "false") << std::endl;
+        << "best_effort=" << (mDoBestEffort ? "on" : "off") << std::endl;
   } else {
     oss << "Info: collection thread status -> "
-        << (mCollectEnabled ? "enabled" : "disabled") << std::endl
+        << (mCollectEnabled ? "on" : "off") << std::endl
         << "Info: repair thread status     -> "
-        << (mRepairEnabled ? "enabled" : "disabled") << std::endl
+        << (mRepairEnabled ? "on" : "off") << std::endl
         << "Info: repair category          -> "
         << ((mRepairCategory == FsckErr::None) ?
             "all" : eos::common::FsckErrToString(mRepairCategory)) << std::endl
         << "Info: best effort              -> "
-        << (mDoBestEffort ? "true" : "false") << std::endl;
+        << (mDoBestEffort ? "on" : "off") << std::endl;
   }
 
   {
