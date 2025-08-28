@@ -445,7 +445,8 @@ function configure_fsck() {
   done
 
   # Reduce the interval when the fsck collection thread runs
-  exec_cmd eos-cli1  "eos -r 0 0 fsck config toggle-collect 0.25;"
+  exec_cmd eos-cli1  "eos -r 0 0 fsck config collect-interval-min 0.25;"
+  exec_cmd eos-cli1  "eos -r 0 0 fsck config collect on;"
 }
 
 # Check that we collected all the errors that we expect
@@ -523,7 +524,7 @@ function cleanup() {
                      eos -r 0 0 rm -rF \"${EOS_RAIN_DIR}/*\" &&
                      eos -r 0 0 rmdir  ${EOS_RAIN_DIR}/"
 
-  exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-collect"
+  exec_cmd eos-cli1 "eos -r 0 0 fsck config collect off"
 }
 
 
@@ -620,8 +621,8 @@ corrupt_rain_invalid_header
 check_all_errors_collected $MAX_DELAY
 
 # Enable the repair thread
-exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-best-effort"
-exec_cmd eos-cli1 "eos -r 0 0 fsck config toggle-repair"
+exec_cmd eos-cli1 "eos -r 0 0 fsck config best-effort on"
+exec_cmd eos-cli1 "eos -r 0 0 fsck config repair on"
 
 # Cleanup the orphan entries
 exec_cmd eos-cli1 "eos -r 0 0 fsck clean_orphans"
