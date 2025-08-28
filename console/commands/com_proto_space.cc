@@ -561,6 +561,7 @@ void com_space_help()
       << "space config <space-name> space.policy.[layout|nstripes|checksum|blockchecksum|blocksize|bw|schedule|iopriority|iotype]=<value>      \n"
       << "                                                                      : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n"
       << std::endl
+      << "space config <space-name> space.altxs=on|off                          : enable/disable the alternative checksums computation when the file is uploaded\n"
       << "space config <space-name> space.policy.recycle=on\n"
       << "                                                                      : globally enforce using always a recycle bin\n"
       << std::endl
