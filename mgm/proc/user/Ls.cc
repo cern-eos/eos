@@ -107,7 +107,6 @@ ProcCommand::Ls()
   bool showbackendstatus = false;
   bool longlisting = false;
   bool noglobbing = false;
-
   XrdOucString filter = "";
 
   if (!spath.length()) {
@@ -117,14 +116,13 @@ ProcCommand::Ls()
     XrdMgmOfsDirectory dir;
     struct stat buf;
     int listrc = 0;
-
     eos::common::Glob glob;
     eos::common::Path cPath(spath.c_str());
-
     // Allow users to pass `--no-globbing` with ls.
-    option.replace("no-globbing",'N');
+    option.replace("no-globbing", 'N');
+
     // Deactivate globbing
-    if(option.find("N") != STR_NPOS) {
+    if (option.find("N") != STR_NPOS) {
       noglobbing = true;
     }
 
@@ -306,7 +304,8 @@ ProcCommand::Ls()
               }
 
               std::string t_creat = eos::common::Timing::ToLsFormat(t_tm);
-              char lsline[4096];
+              constexpr size_t lsline_sz = 4096;
+              char lsline[lsline_sz];
               XrdOucString dirmarker = "";
 
               if ((option.find("F")) != STR_NPOS) {
@@ -324,33 +323,33 @@ ProcCommand::Ls()
                 snprintf(sinode, 16, "%llu",
                          (unsigned long long)(isfile ? eos::common::FileId::InodeToFid(
                                                 buf.st_ino) : buf.st_ino));
-                sprintf(lsline, "%-16s", sinode);
+                snprintf(lsline, lsline_sz, "%-16s", sinode);
                 stdOut += lsline;
               }
 
               if ((option.find("c")) != STR_NPOS) {
                 // add checksum information
-                char checksum[36];
-                sprintf(checksum, "%-34s", cks.c_str());
+                constexpr size_t checksum_sz = 36;
+                char checksum[checksum_sz];
+                snprintf(checksum, checksum_sz, "%-34s", cks.c_str());
                 stdOut += checksum;
               }
 
-              if ((option.find("h")) == STR_NPOS)
-                sprintf(lsline, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s", backendstatus.c_str(),
-                        modestr,
-                        (int) buf.st_nlink,
-                        suid.c_str(), sgid.c_str(),
-                        eos::common::StringConversion::GetSizeString(sizestring,
-                            (unsigned long long) buf.st_size),
-                        t_creat.c_str(), val, dirmarker.c_str());
-              else
-                sprintf(lsline, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s", backendstatus.c_str(),
-                        modestr,
-                        (int) buf.st_nlink,
-                        suid.c_str(), sgid.c_str(),
-                        eos::common::StringConversion::GetReadableSizeString(sizestring,
-                            (unsigned long long) buf.st_size, ""),
-                        t_creat.c_str(), val, dirmarker.c_str());
+              if ((option.find("h")) == STR_NPOS) {
+                snprintf(lsline, lsline_sz, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s",
+                         backendstatus.c_str(), modestr, (int) buf.st_nlink,
+                         suid.c_str(), sgid.c_str(),
+                         eos::common::StringConversion::GetSizeString(sizestring,
+                             (unsigned long long) buf.st_size),
+                         t_creat.c_str(), val, dirmarker.c_str());
+              } else {
+                snprintf(lsline, lsline_sz, "%s%s %3d %-8.8s %-8.8s %12s %s %s%s",
+                         backendstatus.c_str(), modestr, (int) buf.st_nlink,
+                         suid.c_str(), sgid.c_str(),
+                         eos::common::StringConversion::GetReadableSizeString(sizestring,
+                             (unsigned long long) buf.st_size, ""),
+                         t_creat.c_str(), val, dirmarker.c_str());
+              }
 
               if ((option.find("l")) != STR_NPOS) {
                 stdOut += lsline;
@@ -412,7 +411,7 @@ ProcCommand::Ls()
     }
   }
 
-  if(filter.length() && !stdOut.length() && !stdErr.length()) {
+  if (filter.length() && !stdOut.length() && !stdErr.length()) {
     // Globbing characters were provided in user request, globbing was NOT disabled,
     // stdout is empty and stdErr is empty --> no entry will be returned to the user,
     // return ENOENT instead of silently return OK with no result
