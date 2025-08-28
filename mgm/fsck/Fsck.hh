@@ -221,14 +221,17 @@ private:
   static const std::string sFsckKey;
   //! Key used to store the status of the collector thread in the config
   static const std::string sCollectKey;
-  //! Key used to store the collection interval in the config
-  static const std::string sCollectIntervalKey;
+  static const std::string sOldCollectKey; // @esindril to be dropped
   //! Key used to store the status of the repair thread in the config
   static const std::string sRepairKey;
+  static const std::string sOldRepairKey; // @esindril to be dropped
+  //! Key used to store the best-effort status in the config
+  static const std::string sBestEffortKey;
+  static const std::string sOldBestEffortKey; // @esindril to be dropped
+  //! Key used to store the collection interval in the config
+  static const std::string sCollectIntervalKey;
   //! Key used to store the repair category in the config
   static const std::string sRepairCategory;
-  //! Key used to store the best-effort status in the config
-  static const std::string sBestEffort;
 
   std::atomic<bool> mShowOffline; ///< Flag to display offline files/replicas
   std::atomic<bool> mShowNoReplica; ///< Flag to display no replica files
