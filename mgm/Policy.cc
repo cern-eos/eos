@@ -126,6 +126,7 @@ Policy::GetLayoutAndSpace(const char* path,
   std::map<std::string, std::string> spacepolicies;
   std::map<std::string, std::string> spacerwpolicies;
   std::string satime;
+  std::string altxsopt;
   RWParams rwparams{vid.uid_string, vid.gid_string,
                     eos::common::XrdUtils::GetEnv(env, "eos.app", "default"),
                     rw};
@@ -144,6 +145,7 @@ Policy::GetLayoutAndSpace(const char* path,
       it->second->GetConfigMembers(policy_keys, spacepolicies);
       it->second->GetConfigMembers(policy_rw_keys, spacerwpolicies);
       satime = it->second->GetConfigMember("atime");
+      altxsopt = it->second->GetConfigMember("altxs");
     } // FSView default
 
     if (lockview) {
@@ -190,6 +192,7 @@ Policy::GetLayoutAndSpace(const char* path,
       it->second->GetConfigMembers(policy_keys, nondefault_policies);
       it->second->GetConfigMembers(policy_rw_keys, spacerwpolicies);
       satime = it->second->GetConfigMember("atime");
+      altxsopt = it->second->GetConfigMember("altxs");
     } // FsView;
 
     if (lockview) {
@@ -476,7 +479,7 @@ Policy::GetLayoutAndSpace(const char* path,
   }
 
   // populate list of alternative checksums
-  if (altChecksums && attrmap.count(SYS_ALTCHECKSUMS)) {
+  if (altxsopt == "on" && altChecksums && attrmap.count(SYS_ALTCHECKSUMS)) {
     altChecksums->clear();
     std::vector<std::string> xs;
     eos::common::StringConversion::Tokenize(attrmap[SYS_ALTCHECKSUMS], xs, ",");
