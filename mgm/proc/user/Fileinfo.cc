@@ -23,6 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Constants.hh"
 #include "mgm/Access.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Quota.hh"
@@ -41,15 +42,22 @@
 #include <json/json.h>
 
 EOSMGMNAMESPACE_BEGIN
+
 //------------------------------------------------------------------------------
 // Fileinfo method
 //------------------------------------------------------------------------------
-
-
 std::string
 ProcCommand::FileMDToStatus(std::shared_ptr<eos::IFileMD> fmd)
 {
   int tape_copy = 0;
+
+  if (fmd->hasAttribute(SYS_HARD_LINK)) {
+    return "hardlink";
+  }
+
+  if (fmd->isLink()) {
+    return "symlink";
+  }
 
   if (fmd->hasLocation(EOS_TAPE_FSID)) {
     tape_copy++;
@@ -234,8 +242,8 @@ ProcCommand::FileInfo(const char* path)
           try {
             spath = gOFS->eosView->getRealPath(nspath).c_str();
           } catch (const eos::MDException& e) {
-            // The link points to a location outside the EOS namespace therefore
-            // we return info about the symlink object
+            // The link points to a location outside the EOS namespace
+            // therefore we return info about the symlink object
             spath = nspath.c_str();
           }
         } else {
@@ -257,7 +265,7 @@ ProcCommand::FileInfo(const char* path)
       viewReadLock.Grab(gOFS->eosViewRWMutex);
 
       try {
-        fmd = gOFS->eosView->getFile(spath.c_str());
+        fmd = gOFS->eosView->getFile(spath.c_str(), false);
       } catch (eos::MDException& e) {
         try {
           // Maybe this is a symlink pointing outside the EOS namespace
@@ -306,6 +314,7 @@ ProcCommand::FileInfo(const char* path)
       // TODO (esindril): All this copying should be reviewed
       viewReadLock.Release();
       //-------------------------------------------
+      uint32_t lid = fmd_copy->getLayoutId();
       XrdOucString sizestring;
       bool Monitoring = false;
       bool Envformat = false;
@@ -351,7 +360,7 @@ ProcCommand::FileInfo(const char* path)
           if ((option.find("-checksum")) != STR_NPOS) {
             std::string xs;
             eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs);
-            out << "xstype: " << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
+            out << "xstype: " << LayoutId::GetChecksumString(lid)
                 << std::endl
                 << "xs:     " << xs << std::endl;
           }
@@ -385,7 +394,7 @@ ProcCommand::FileInfo(const char* path)
           eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs_spaces, ' ');
           std::string redundancy = eos::common::LayoutId::GetRedundancySymbol(
                                      fmd_copy->hasLocation(EOS_TAPE_FSID),
-                                     eos::common::LayoutId::GetRedundancy(fmd_copy->getLayoutId(),
+                                     eos::common::LayoutId::GetRedundancy(lid,
                                          fmd_copy->getNumLocation()),
                                      fmd_copy->getSize());
 
@@ -397,46 +406,48 @@ ProcCommand::FileInfo(const char* path)
               out << "  Clock: " << FileId::Fid2Hex(clock);
             }
 
-            out << std::endl;
-            out << "  Size: " << fmd_copy->getSize() << std::endl
-                << "Status: " << FileMDToStatus(fmd_copy) << std::endl
-                << "Modify: " << eos::common::Timing::ltime(filemtime)
-                << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
-                << std::endl
-                << "Change: " << eos::common::Timing::ltime(filectime)
-                << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
-                << std::endl
-                << "Access: " << eos::common::Timing::ltime(fileatime)
-                << " Timestamp: " << eos::common::Timing::TimespecToString(atime)
-                << std::endl
-                << " Birth: " << eos::common::Timing::ltime(filebtime)
-                << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
-                << std::endl
-                << "  CUid: " << fmd_copy->getCUid()
-                << " CGid: " << fmd_copy->getCGid()
-                << " Fxid: " << hex_fid
-                << " Fid: " << fmd_copy->getId()
-                << " Pid: " << fmd_copy->getContainerId()
-                << " Pxid: " << hex_pid
-                << std::endl;
-            out << "XStype: " << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
-                << "    XS: " << xs_spaces
-                << "    ETAGs: " << etag
-                << std::endl;
-            out << "Layout: " << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
-                << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
-                << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
-                << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
-                << " Redundancy: " << redundancy
-                << std::endl;
-            out << "  #Rep: " << fmd_copy->getNumLocation() << std::endl;
+            out << "\n  Size: " << fmd_copy->getSize()
+                << "\nStatus: " << FileMDToStatus(fmd_copy);
+
+            if (fmd_copy->isLink()) {
+              out << " Target: " << fmd_copy->getLink();
+            } else if (xattrs.count(SYS_HARD_LINK)) {
+              out << " Target: " << fmd_copy->getAttribute(SYS_HARD_LINK);
+            }
+
+            out  << "\n ETAGs: " << etag
+                 << "\nModify: " << Timing::ltime(filemtime)
+                 << " Timestamp: " << Timing::TimespecToString(mtime)
+                 << "\nChange: " << Timing::ltime(filectime)
+                 << " Timestamp: " << Timing::TimespecToString(ctime)
+                 << "\nAccess: " << Timing::ltime(fileatime)
+                 << " Timestamp: " << Timing::TimespecToString(atime)
+                 << "\n Birth: " << Timing::ltime(filebtime)
+                 << " Timestamp: " << Timing::TimespecToString(btime)
+                 << "\n  CUid: " << fmd_copy->getCUid()
+                 << " CGid: " << fmd_copy->getCGid()
+                 << " Fxid: " << hex_fid
+                 << " Fid: " << fmd_copy->getId()
+                 << " Pid: " << fmd_copy->getContainerId()
+                 << " Pxid: " << hex_pid << std::endl;
+
+            if (!fmd_copy->isLink() && !xattrs.count(SYS_HARD_LINK)) {
+              out << "XStype: " << LayoutId::GetChecksumString(lid)
+                  << "    XS: " << xs_spaces
+                  << "\nLayout: " << LayoutId::GetLayoutTypeString(lid)
+                  << " Stripes: " << (LayoutId::GetStripeNumber(lid) + 1)
+                  << " Blocksize: " << LayoutId::GetBlockSizeString(lid)
+                  << " LayoutId: " << FileId::Fid2Hex(lid)
+                  << " Redundancy: " << redundancy
+                  << "\n  #Rep: " << fmd_copy->getNumLocation()
+                  << std::endl;
+            }
 
             if (fmd_copy->hasLocation(EOS_TAPE_FSID)) {
               std::string storage_class = xattrs["sys.archive.storage_class"];
               std::string archive_id = xattrs["sys.archive.file_id"];
-              out << "TapeID: " << (archive_id.length() ? archive_id : "undef") <<
-                  " StorageClass: " << (storage_class.length() ? storage_class : "none")
-                  << std::endl;
+              out << "TapeID: " << (archive_id.length() ? archive_id : "undef")
+                  << " StorageClass: " << (storage_class.length() ? storage_class : "none");
             }
 
             if (xattrs.count("user.obfuscate.key")) {
@@ -449,7 +460,7 @@ ProcCommand::FileInfo(const char* path)
           } else {
             std::string xs;
 
-            if (LayoutId::GetChecksumLen(fmd_copy->getLayoutId())) {
+            if (LayoutId::GetChecksumLen(lid)) {
               eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs);
             } else {
               xs = "0";
@@ -458,8 +469,15 @@ ProcCommand::FileInfo(const char* path)
             out << "keylength.file=" << spath.length()
                 << " file=" << spath
                 << " size=" << fmd_copy->getSize()
-                << " status=" << FileMDToStatus(fmd_copy)
-                << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
+                << " status=" << FileMDToStatus(fmd_copy);
+
+            if (fmd_copy->isLink()) {
+              out << " target=" << fmd_copy->getLink();
+            } else if (xattrs.count(SYS_HARD_LINK)) {
+              out << " target= " << fmd_copy->getAttribute(SYS_HARD_LINK);
+            }
+
+            out << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
                 << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
                 << " btime=" << btime.tv_sec << "." << btime.tv_nsec
                 << " atime=" << atime.tv_sec << "." << atime.tv_nsec
@@ -472,13 +490,13 @@ ProcCommand::FileInfo(const char* path)
                 << " ino=" << FileId::FidToInode(fmd_copy->getId())
                 << " pid=" << fmd_copy->getContainerId()
                 << " pxid=" << hex_pid
-                << " xstype=" << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
+                << " xstype=" << LayoutId::GetChecksumString(lid)
                 << " xs=" << xs
                 << " etag=" << etag
                 << " detached=" << detached
-                << " layout=" << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
-                << " nstripes=" << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
-                << " lid=" << FileId::Fid2Hex(fmd_copy->getLayoutId())
+                << " layout=" << LayoutId::GetLayoutTypeString(lid)
+                << " nstripes=" << (LayoutId::GetStripeNumber(lid) + 1)
+                << " lid=" << FileId::Fid2Hex(lid)
                 << " nrep=" << fmd_copy->getNumLocation()
                 << " ";
 
@@ -594,7 +612,7 @@ ProcCommand::FileInfo(const char* path)
                     acsargs.forcedspace = space.c_str();
                     acsargs.fsindex = &fsIndex;
                     acsargs.isRW = false;
-                    acsargs.lid = fmd_copy->getLayoutId();
+                    acsargs.lid = lid;
                     acsargs.inode = (ino64_t) fmd_copy->getId();
                     acsargs.locationsfs = &selectedfs;
 
@@ -826,17 +844,17 @@ ProcCommand::DirInfo(const char* path)
           }
 
           out << std::endl;
-          out << "Modify: " << eos::common::Timing::ltime(filemtime)
-              << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+          out << "Modify: " << Timing::ltime(filemtime)
+              << " Timestamp: " << Timing::TimespecToString(mtime)
               << std::endl
-              << "Change: " << eos::common::Timing::ltime(filectime)
-              << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+              << "Change: " << Timing::ltime(filectime)
+              << " Timestamp: " << Timing::TimespecToString(ctime)
               << std::endl
-              << "Sync  : " << eos::common::Timing::ltime(filetmtime)
-              << " Timestamp: " << eos::common::Timing::TimespecToString(tmtime)
+              << "Sync  : " << Timing::ltime(filetmtime)
+              << " Timestamp: " << Timing::TimespecToString(tmtime)
               << std::endl
-              << "Birth : " << eos::common::Timing::ltime(filebtime)
-              << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
+              << "Birth : " << Timing::ltime(filebtime)
+              << " Timestamp: " << Timing::TimespecToString(btime)
               << std::endl
               << "  CUid: " << dmd_copy->getCUid()
               << " CGid: " << dmd_copy->getCGid()
@@ -891,6 +909,7 @@ ProcCommand::DirInfo(const char* path)
 int
 ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
 {
+  using eos::common::LayoutId;
   eos::IFileMD::ctime_t ctime;
   eos::IFileMD::ctime_t mtime;
   eos::IFileMD::ctime_t atime {0, 0};
@@ -972,16 +991,24 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     json["path"] = path;
     json["detached"] = detached;
     json["pid"] = (Json::Value::UInt64) fmd_copy->getContainerId();
-    json["layout"] = eos::common::LayoutId::GetLayoutTypeString(
-                       fmd_copy->getLayoutId());
-    json["nstripes"] = (int)(eos::common::LayoutId::GetStripeNumber(
-                               fmd_copy->getLayoutId())
+    json["layout"] = LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId());
+    json["nstripes"] = (int)(LayoutId::GetStripeNumber(fmd_copy->getLayoutId())
                              + 1);
+    json["checksumtype"] = LayoutId::GetChecksumString(fmd_copy->getLayoutId());
+    std::string cks;
+    eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
+    json["checksumvalue"] = cks;
+    json["status"] = FileMDToStatus(fmd_copy);
 
     if (fmd_copy->isLink()) {
       json["target"] = fmd_copy->getLink();
+    } else if (fmd_copy->hasAttribute(SYS_HARD_LINK)) {
+      json["target"] = fmd_copy->getAttribute(SYS_HARD_LINK);
     }
 
+    std::string etag;
+    eos::calculateEtag(fmd_copy.get(), etag);
+    json["etag"] = etag;
     Json::Value jsonxattr;
 
     for (const auto& elem : xattrs) {
@@ -1029,15 +1056,6 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     }
 
     json["locations"] = jsonfsids;
-    json["checksumtype"] = eos::common::LayoutId::GetChecksumString(
-                             fmd_copy->getLayoutId());
-    std::string cks;
-    eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
-    json["checksumvalue"] = cks;
-    std::string etag;
-    eos::calculateEtag(fmd_copy.get(), etag);
-    json["etag"] = etag;
-    json["status"] = FileMDToStatus(fmd_copy);
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_static_debug("msg=\"exception during JSON fileinfo\" ec=%d "

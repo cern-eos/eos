@@ -34,6 +34,8 @@ namespace eos::mgm
 static const std::string EOS_ATOMIC = "eos.atomic";
 static const std::string EOS_INJECTION = "eos.injection";
 
+static const std::string SYS_HARD_LINK = "sys.eos.mdino";
+static const std::string SYS_NUM_LINK = "sys.eos.nlink";
 static const std::string SYS_OWNER_AUTH = "sys.owner.auth";
 static const std::string SYS_VERSIONING = "sys.versioning";
 static const std::string SYS_FORCED_ATOMIC = "sys.forced.atomic";
