@@ -174,10 +174,10 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
           continue;
         }
 
-        if (!gmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
+        if (!gmd->hasAttribute(SYS_HARD_LINK)) {
           fmd = gmd;
 
-          if (fmd->hasAttribute(XrdMgmOfsFile::k_nlink)) {
+          if (fmd->hasAttribute(SYS_HARD_LINK)) {
             /* a (no-zombie) target for hard link(s), goes into the log */
             hardlinkTgt = eos::common::FileId::FidToInode(fmd->getId());
           }
@@ -190,7 +190,7 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
            * on restore they could be fiddled back together over the clone_path;
            * from above: we do not report the zombie targets themselves
            */
-          mdino = std::stoll(gmd->getAttribute(XrdMgmOfsFile::k_mdino));
+          mdino = std::stoll(gmd->getAttribute(SYS_HARD_LINK));
           fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino));
           eos_static_debug("hlnk switched from %s to file %s (%#llx)",
                            gmd->getName().c_str(), fmd->getName().c_str(), mdino);
@@ -259,8 +259,9 @@ _cloneResp(XrdOucErrInfo& out_error, XrdOucString& stdErr,
       Json::Value attr;
 
       for (auto it = attrmap.begin(); it != attrmap.end(); it++) {
-        if (it->first == "sys.vtrace" ||
-            it->first == XrdMgmOfsFile::k_mdino || it->first == XrdMgmOfsFile::k_nlink) {
+        if ((it->first == "sys.vtrace") ||
+            (it->first == SYS_HARD_LINK) ||
+            (it->first == SYS_NUM_LINK)) {
           continue;
         }
 
@@ -452,7 +453,7 @@ _clone(std::shared_ptr<eos::IContainerMD>& cmd,
         continue;
       }
 
-      /* fallthrough */
+    /* fallthrough */
 
     case '+':
       if ((uint64_t) stime.tv_sec < cloneId) {
@@ -707,7 +708,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   bool limited = false;
   bool fail_if_limited = (out_error.getErrInfo() == E2BIG);
 
-  if ((vid.uid != 0) && (!vid.hasUid(eos::common::ADM_UID)) && (!vid.hasGid(eos::common::ADM_GID)) && (!vid.sudoer)) {
+  if ((vid.uid != 0) && (!vid.hasUid(eos::common::ADM_UID)) &&
+      (!vid.hasGid(eos::common::ADM_GID)) && (!vid.sudoer)) {
     limitresult = true;
   }
 
@@ -777,7 +779,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
       try {
         cmd = gOFS->eosView->getContainer(Path.c_str(), false);
         eos::MDLocking::ContainerReadLock cmd_lock(cmd.get());
-        permok = (!vid.token)?cmd->access(vid.uid, vid.gid, R_OK | X_OK): false;
+        permok = (!vid.token) ? cmd->access(vid.uid, vid.gid, R_OK | X_OK) : false;
         cmd->getCTime(ctime);
       } catch (eos::MDException& e) {
         cmd.reset();
@@ -902,6 +904,7 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
           if (fmd) {
             eos::IContainerMD::ctime_t ctime;
             fmd->getCTime(ctime);
+
             // Skip file entries which are newer than max ctime
             if (max_ctime_file && (ctime.tv_sec > max_ctime_file)) {
               continue;
@@ -983,7 +986,8 @@ XrdMgmOfs::_find(const char* path, XrdOucErrInfo& out_error,
   // accessible since it can evt. be missing if it is empty
   XrdSfsFileExistence dir_exists;
 
-  if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid, 0)) == SFS_OK) &&
+  if (((_exists(found_dirs[0][0].c_str(), dir_exists, out_error, vid,
+                0)) == SFS_OK) &&
       (dir_exists == XrdSfsFileExistIsDirectory)) {
     eos::common::Path cPath(found_dirs[0][0].c_str());
     (void) found[found_dirs[0][0].c_str()].size();
