@@ -314,33 +314,28 @@ date
 for file in $ROOT_PATH/*.rain; do
     if [[ -f $file ]]; then
         file=$(basename $file)
-        # get the filesystems on which this files resides
+        # get the filesystems on which this file resides
         get_file_fs "$EOS_DIR/$file"
         echo "Process file $file ..."
         idx1=0
 
         for fst1 in "${VECT_FS[@]}"; do
             idx2=0
+            $SUDO $EOS -b fs config $fst1 configstatus=off
 
             for fst2 in "${VECT_FS[@]}"; do
                 if [ "$idx2" -gt "$idx1" ]; then
                     #echo "Disable FST $fst1 and $fst2 and redo read test..."
-
-                    # disable one FST in EOS and test read
-                    $SUDO $EOS -b fs config $fst1 configstatus=off
                     $SUDO $EOS -b fs config $fst2 configstatus=off
                     sleep 1
-
                     read_and_check $ROOT_PATH $EOS_DEST $file ${MAP_XS[$file]}
-
-                    # restore the configuraton in EOS
-                    $SUDO $EOS -b fs config $fst1 configstatus=rw
                     $SUDO $EOS -b fs config $fst2 configstatus=rw
                 fi
-
                 idx2=$((idx2 + 1))
             done
-
+            
+            # restore the configuraton in EOS
+            $SUDO $EOS -b fs config $fst1 configstatus=rw
             idx1=$((idx1 + 1))
         done
     fi
