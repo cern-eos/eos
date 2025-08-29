@@ -111,7 +111,7 @@
 #include <XrdSec/XrdSecInterface.hh>
 #include <XrdSfs/XrdSfsAio.hh>
 #include <XrdSfs/XrdSfsFlags.hh>
-#include "private/XrdSfs/XrdSfsFAttr.hh"
+#include <XrdSfs/XrdSfsFAttr.hh>
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
@@ -141,8 +141,6 @@ thread_local eos::common::LogId XrdMgmOfs::tlLogId;
 XrdSysError gMgmOfsEroute(0);
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
 XrdMgmOfs* gOFS = 0;
-
-const char* k_nlink = "sys.eos.nlink";
 
 // Set the version information
 XrdVERSIONINFO(XrdSfsGetFileSystem, MgmOfs);
