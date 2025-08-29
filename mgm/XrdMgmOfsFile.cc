@@ -32,6 +32,7 @@
 #include "common/Strerror_r_wrapper.hh"
 #include "common/BehaviourConfig.hh"
 #include "common/Utils.hh"
+#include "mgm/Constants.hh"
 #include "mgm/Access.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/FileSystem.hh"
@@ -254,12 +255,12 @@ XrdMgmOfsFile::create_cow(int cowType,
         gmd->addLocation(fmd->getLocation(i));
       }
     } else if (cowType == cowUnlink) {
-      int nlink = (fmd->hasAttribute(XrdMgmOfsFile::k_nlink)) ?
-                  std::stoi(fmd->getAttribute(XrdMgmOfsFile::k_nlink)) + 1 : 1;
-      fmd->setAttribute(k_nlink, std::to_string(nlink));
+      int nlink = (fmd->hasAttribute(SYS_NUM_LINK)) ?
+                  std::stoi(fmd->getAttribute(SYS_NUM_LINK)) + 1 : 1;
+      fmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
       gOFS->eosFileService->updateStore(fmd.get());
       uint64_t hlTarget = eos::common::FileId::FidToInode(fmd->getId());
-      gmd->setAttribute(XrdMgmOfsFile::k_mdino, std::to_string(hlTarget));
+      gmd->setAttribute(SYS_HARD_LINK, std::to_string(hlTarget));
       eos_static_debug("create_cow Unlink %s (%ld) -> %s (%ld)",
                        gmd->getName().c_str(), gmd->getSize(),
                        fmd->getName().c_str(), fmd->getSize());
@@ -296,19 +297,19 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
   long nlink =
     -2;                /* assume this has nothing to do with hard links */
 
-  if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
+  if (fmd->hasAttribute(SYS_HARD_LINK)) {
     /* this is a hard link, decrease reference count on underlying file */
-    uint64_t hlTgt = std::stoull(fmd->getAttribute(XrdMgmOfsFile::k_mdino));
+    uint64_t hlTgt = std::stoull(fmd->getAttribute(SYS_HARD_LINK));
     uint64_t clock;
     /* gmd = the hard link target */
     std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
                                           eos::common::FileId::InodeToFid(hlTgt), &clock);
-    nlink = std::stol(gmd->getAttribute(XrdMgmOfsFile::k_nlink)) - 1;
+    nlink = std::stol(gmd->getAttribute(SYS_NUM_LINK)) - 1;
 
     if (nlink > 0) {
-      gmd->setAttribute(XrdMgmOfsFile::k_nlink, std::to_string(nlink));
+      gmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
     } else {
-      gmd->removeAttribute(XrdMgmOfsFile::k_nlink);
+      gmd->removeAttribute(SYS_NUM_LINK);
     }
 
     gOFS->eosFileService->updateStore(gmd.get());
@@ -342,9 +343,9 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
         gOFS->eosFileService->updateStore(gmd.get());
       }
     }
-  } else if (fmd->hasAttribute(
-               XrdMgmOfsFile::k_nlink)) {      /* a hard link target */
-    nlink = std::stol(fmd->getAttribute(XrdMgmOfsFile::k_nlink));
+  } else if (fmd->hasAttribute(SYS_NUM_LINK)) {
+    // a hard link target
+    nlink = std::stol(fmd->getAttribute(SYS_NUM_LINK));
     eos_static_info("hlnk rm target nlink %ld", nlink);
 
     if (nlink > 0) {
@@ -353,7 +354,7 @@ XrdMgmOfsFile::handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
       uint64_t ino = eos::common::FileId::FidToInode(fmd->getId());
       snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", ino);
       std::string nameBufs(nameBuf);
-      fmd->setAttribute(XrdMgmOfsFile::k_nlink, std::to_string(nlink));
+      fmd->setAttribute(SYS_NUM_LINK, std::to_string(nlink));
       eos_static_info("hlnk unlink rename %s=>%s new nlink %d",
                       fmd->getName().c_str(), nameBufs.c_str(), nlink);
       cmd->removeFile(nameBufs);            // if the target exists, remove it!
@@ -503,7 +504,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   Access_Operation acc_op = GetXrdAccessOperation(open_flags);
   {
     EXEC_TIMING_BEGIN("IdMap");
-
     std::string validation_path = spath.c_str();
 
     if (spath.beginswith("/zteos64:")) {
@@ -1025,11 +1025,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           if ((fmd = dmd->findFile(fileName))) {
             /* in case of a hard link, may need to switch to target */
             /* A hard link to another file */
-            if (fmd->hasAttribute(XrdMgmOfsFile::k_mdino)) {
+            if (fmd->hasAttribute(SYS_HARD_LINK)) {
               std::shared_ptr<eos::IFileMD> gmd;
               uint64_t mdino;
 
-              if (eos::common::StringToNumeric(fmd->getAttribute(XrdMgmOfsFile::k_mdino),
+              if (eos::common::StringToNumeric(fmd->getAttribute(SYS_HARD_LINK),
                                                mdino)) {
                 gmd = gOFS->eosFileService->getFileMD(
                         eos::common::FileId::InodeToFid(mdino));
@@ -1255,17 +1255,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       if (!(taccess = dmd->access(vid.uid, vid.gid,
-				  (isRW) ? W_OK | X_OK : R_OK | X_OK))) {
-	eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
-		  fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
-		  stdpermcheck, taccess);
+                                  (isRW) ? W_OK | X_OK : R_OK | X_OK))) {
+        eos_debug("fCUid %d dCUid %d uid %d isSharedFile %d isRW %d stdpermcheck %d access %d",
+                  fmd ? fmd->getCUid() : 0, dmd->getCUid(), vid.uid, isSharedFile, isRW,
+                  stdpermcheck, taccess);
 
-	if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
-	  // we don't apply this permission check for reconstruction jobs issued via the daemon account
-	  errno = EPERM;
-	  gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
-	  return Emsg(epname, error, errno, "open file", path);
-	}
+        if (!((vid.uid == DAEMONUID) && (isPioReconstruct))) {
+          // we don't apply this permission check for reconstruction jobs issued via the daemon account
+          errno = EPERM;
+          gOFS->MgmStats.Add("OpenFailedPermission", vid.uid, vid.gid, 1);
+          return Emsg(epname, error, errno, "open file", path);
+        }
       }
     }
 
