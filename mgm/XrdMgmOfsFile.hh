@@ -81,13 +81,6 @@ public:
   //----------------------------------------------------------------------------
   virtual ~XrdMgmOfsFile();
 
-
-  //----------------------------------------------------------------------------
-  // hard link attributes
-  //----------------------------------------------------------------------------
-  static constexpr char* k_mdino = (char*)"sys.eos.mdino";
-  static constexpr char* k_nlink = (char*)"sys.eos.nlink";
-
   static int
   handleHardlinkDelete(std::shared_ptr<eos::IContainerMD> cmd,
                        std::shared_ptr<eos::IFileMD> fmd,
@@ -404,7 +397,8 @@ private:
   //!
   //! @return application name or empty string if nothing specified
   //----------------------------------------------------------------------------
-  static const std::string GetClientApplicationName(XrdOucEnv* open_opaque, const XrdSecEntity* client);
+  static const std::string GetClientApplicationName(XrdOucEnv* open_opaque,
+      const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Get POSIX open flags from the given XRootD open mode
