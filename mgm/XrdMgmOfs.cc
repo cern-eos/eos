@@ -50,6 +50,7 @@
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
 #include "grpc/GrpcRestGwServer.hh"
+#include "mgm/Constants.hh"
 #include "mgm/AdminSocket.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Access.hh"
@@ -141,7 +142,6 @@ XrdSysError gMgmOfsEroute(0);
 XrdOucTrace gMgmOfsTrace(&gMgmOfsEroute);
 XrdMgmOfs* gOFS = 0;
 
-const char* k_mdino = "sys.eos.mdino";
 const char* k_nlink = "sys.eos.nlink";
 
 // Set the version information
