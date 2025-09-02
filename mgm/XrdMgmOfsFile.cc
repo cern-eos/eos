@@ -3022,9 +3022,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += (int) fs_id;
     eos::mgm::FileSystem* repfilesystem = 0;
     replacedfs.resize(selectedfs.size());
-
     // If replacement has been specified try to get new locations for
     // reconstruction or for missing stripes
+    std::set<unsigned int> add_new_fsid;
+
     if (isPioReconstruct && !(pio_reconstruct_fs.empty())) {
       const char* containertag = 0;
 
@@ -3078,7 +3079,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       plain_book_sz = std::ceil((float) plain_book_sz / std::pow(num_data_stripes,
                                 2)) *
                       num_data_stripes * LayoutId::GetBlocksize(layoutId) + LayoutId::OssXsBlockSize;
-      eos_info("msg=\"plain booking size is %llu", plain_book_sz);
+      eos_info("msg=\"plain booking size is %llu\"", plain_book_sz);
       eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
       // Attempt to use a firewall entrypoint or a dataproxy if required, if any
       // of the two fail, then scheduling fails
@@ -3138,8 +3139,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       for (size_t i = 0; i < selection_diff; ++i) {
-        selectedfs.push_back(pio_replacement_fs.back());
+        unsigned int fsid = pio_replacement_fs.back();
         pio_replacement_fs.pop_back();
+        selectedfs.push_back(fsid);
+        add_new_fsid.insert(fsid);
       }
     }
 
@@ -3339,6 +3342,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         infolog += ") ";
       }
     } // fs_rd_lock
+
+    if (isPioReconstruct && !add_new_fsid.empty()) {
+      std::string pio_addfs = "eos.pio.addfs=";
+
+      for (const auto& elem : add_new_fsid) {
+        pio_addfs += std::to_string(elem).c_str();
+        pio_addfs += ",";
+      }
+
+      pio_addfs.erase(pio_addfs.length() - 1, 1);
+      redirectionhost += pio_addfs.c_str();
+    }
   }
 
   // ---------------------------------------------------------------------------

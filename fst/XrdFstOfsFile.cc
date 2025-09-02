@@ -1904,7 +1904,7 @@ XrdFstOfsFile::_close_wr()
   }
 
   // Commit to MGM in case of rain reconstruction and not del on close
-  if (mRainReconstruct && !mDelOnClose) {
+  if (mRainReconstruct && mLayout->IsEntryServer() && !mDelOnClose) {
     if ((rc = CommitToMgm())) {
       if ((error.getErrInfo() == EIDRM) ||
           (error.getErrInfo() == EBADE) ||
@@ -3980,6 +3980,7 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   cta::xrd::Response response;
   cta::xrd::Response::ResponseType response_type =
     cta::xrd::Response::RSP_INVALID;
+
   auto root_certs = gOFS.ConcatenatedServerRootCA;
 
   try {
@@ -4268,6 +4269,7 @@ XrdFstOfsFile::CommitToMgm()
 {
   using eos::common::StringConversion;
   std::ostringstream oss;
+  bool added_fsid = false;
   const std::string smtime = StringConversion::GetSizeString((unsigned long long)
                              (mForcedMtime != 1) ?
                              mForcedMtime :
@@ -4284,7 +4286,6 @@ XrdFstOfsFile::CommitToMgm()
       << "&mgm.size=" << mCloseSize
       << "&mgm.mtime=" << smtime
       << "&mgm.mtime_ns=" << smtime_ns
-      << "&mgm.add.fsid=" << mFmd->mProtoFmd.fsid()
       << "&mgm.logid=" << logId;
 
   if (mCheckSum) {
@@ -4318,7 +4319,25 @@ XrdFstOfsFile::CommitToMgm()
       ptr = mOpenOpaque->Get("eos.pio.recfs");
 
       if ((mHasReadErr == false) && ptr) {
-        oss << "&mgm.drop.fsid=" << ptr;
+        if (strncmp(ptr, "0", 1) == 0) {
+          // Rain reconstruction with possibly adding new fses which
+          // are present in the opaque information
+          ptr = mOpenOpaque->Get("eos.pio.addfs");
+
+          if (ptr) {
+            oss << "&mgm.add.fsid=";
+            std::vector<std::string> fsid_tokens;
+            eos::common::StringConversion::Tokenize(ptr, fsid_tokens, ",");
+
+            for (auto id : fsid_tokens) {
+              oss << id;
+              added_fsid = true;
+              break;
+            }
+          }
+        } else {
+          oss << "&mgm.drop.fsid=" << ptr;
+        }
       }
     }
   } else {
@@ -4347,6 +4366,10 @@ XrdFstOfsFile::CommitToMgm()
         }
       }
     }
+  }
+
+  if (!added_fsid) {
+    oss << "&mgm.add.fsid=" << mFmd->mProtoFmd.fsid();
   }
 
   // Evt. tag as an OC-Chunk commit
