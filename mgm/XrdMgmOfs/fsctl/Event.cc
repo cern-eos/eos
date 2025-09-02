@@ -136,7 +136,8 @@ XrdMgmOfs::Event(const char* path,
         }
 
         cmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-        eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
+        eos::IFileMD::XAttrMap xattrs;
+	gOFS->listAttributes(gOFS->eosView, &(*cmd), xattrs, false);
 
         for (const auto& elem : xattrs) {
           attrmap[elem.first] = elem.second;
@@ -146,8 +147,8 @@ XrdMgmOfs::Event(const char* path,
         if (attrmap.count("sys.attr.link")) {
           try {
             cmd = gOFS->eosView->getContainer(attrmap["sys.attr.link"]);
-            eos::IFileMD::XAttrMap xattrs = cmd->getAttributes();
-
+            eos::IFileMD::XAttrMap xattrs;
+	    gOFS->listAttributes(gOFS->eosView, &(*cmd), xattrs, false);
             for (const auto& elem : xattrs) {
               if (!attrmap.count(elem.first)) {
                 attrmap[elem.first] = elem.second;
