@@ -128,7 +128,7 @@ set_target_properties(Jerasure-Objects PROPERTIES
 #-------------------------------------------------------------------------------
 add_library(EosFstIo-Objects OBJECT
   # File IO interface
-  io/FileIo.hh
+  io/FileIo.cc                   io/FileIo.hh
   io/local/FsIo.cc               io/local/FsIo.hh
   io/davix/DavixIo.cc            io/davix/DavixIo.hh
   io/nfs/NfsIo.cc                io/nfs/NfsIo.hh
