@@ -533,8 +533,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool CreateDirHierarchy(const std::string& dir_hierarchy,
-                          mode_t mode) const;
+  bool CreateDirHierarchy(std::string dir_hierarchy, mode_t mode) const;
 
   //----------------------------------------------------------------------------
   //! Handle debug query
