@@ -57,6 +57,15 @@ public:
   //----------------------------------------------------------------------------
   virtual ~NfsIo();
 
+  //--------------------------------------------------------------------------
+  //! Rename file
+  //!
+  //! @param old_name old file name
+  //! @param new_name new file name
+  //!
+  //! @return 0 on success, -1 otherwise and error code is set
+  //--------------------------------------------------------------------------
+  static int fsRename(std::string old_name, std::string new_name);
 
   //--------------------------------------------------------------------------
   //! Open file
@@ -462,4 +471,3 @@ private:
 EOSFSTNAMESPACE_END
 
 #endif  // HAVE_NFS
-
