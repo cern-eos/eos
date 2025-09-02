@@ -400,6 +400,12 @@ HttpServer::XrdHttpHandler(std::string& method,
     headers["client-real-host"] = client.host;
     headers["x-real-ip"] = client.host;
 
+    auto it = headers.find("xrd-http-fullresource");
+
+    if (it != headers.end()) {
+      extractOpaqueWithoutAuthz(it->second,query);
+    }
+
     if (client.moninfo && strlen(client.moninfo)) {
       headers["ssl_client_s_dn"] = client.moninfo;
     }
@@ -469,16 +475,8 @@ HttpServer::BuildPathAndEnvOpaque
     return false;
   }
 
-  path = it->second;
   std::string opaque;
-  size_t pos = path.find('?');
-
-  if ((pos != std::string::npos) && (pos != path.length())) {
-    opaque = path.substr(pos + 1);
-    path = path.substr(0, pos);
-    eos::common::Path canonical_path(path);
-    path = canonical_path.GetFullPath().c_str();
-  }
+  extractPathAndOpaque(it->second,path,opaque);
 
   // Check if there is an explicit authorization header
   std::string http_authz;
@@ -526,7 +524,34 @@ HttpServer::BuildPathAndEnvOpaque
   return true;
 }
 
+void HttpServer::extractPathAndOpaque(const std::string & fullpath, std::string & path, std::string & opaque)
+{
+  path = fullpath;
 
+  size_t pos = fullpath.find('?');
+  if ((pos != std::string::npos) && (pos != fullpath.length())) {
+    opaque = path.substr(pos + 1);
+    path = path.substr(0, pos);
+    eos::common::Path canonical_path(path);
+    path = canonical_path.GetFullPath().c_str();
+  }
+
+}
+
+void HttpServer::extractOpaqueWithoutAuthz(const std::string & fullpath, std::string & opaque) {
+  std::string path;
+  opaque.clear();
+  extractPathAndOpaque(fullpath,path,opaque);
+  if(opaque.size()) {
+    auto env_opaque = std::make_unique<XrdOucEnv>(opaque.c_str(), opaque.length());
+    int envTidyLen;
+    char * envTidy = env_opaque->EnvTidy(envTidyLen);
+    if(envTidyLen > 1) {
+      // Seen during unit tests, EnvTidy puts an ampersand at the beginning of the resulting string
+      opaque.assign(envTidy + 1, envTidyLen - 1);
+    }
+  }
+}
 
 //------------------------------------------------------------------------------
 // Handle clientDN specified using RFC2253 (and RFC4514) where the

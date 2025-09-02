@@ -82,3 +82,40 @@ TEST(HttpServer, ParsePathAndToken)
   ASSERT_TRUE(HttpServer::BuildPathAndEnvOpaque(norm_hdrs, path, env_opaque));
   ASSERT_STREQ("http/wizz", env_opaque->Get("eos.app"));
 }
+
+static std::map<std::string,std::pair<std::string,std::string>> fullPathToPathAndOpaque = {
+    {"",{"",""}},
+    {"/eos/file.dat",{"/eos/file.dat",""}},
+    {"/eos/file.dat?",{"/eos/file.dat",""}},
+    {"/eos/file.dat?testopaque=1",{"/eos/file.dat","testopaque=1"}},
+    {"/eos/file.dat?testopaque=1&authz=qwerty&test=2",{"/eos/file.dat","testopaque=1&authz=qwerty&test=2"}},
+};
+
+TEST(HttpServer, ExtractPathAndOpaque) {
+  for(const auto & [fullpath, pathAndOpaquePair]: fullPathToPathAndOpaque) {
+    std::string extractedPath;
+    std::string extractedOpaque;
+    eos::mgm::HttpServer::extractPathAndOpaque(fullpath,extractedPath, extractedOpaque);
+    ASSERT_EQ(pathAndOpaquePair.first,extractedPath);
+    ASSERT_EQ(pathAndOpaquePair.second,extractedOpaque);
+  }
+}
+
+static std::map<std::string,std::string> fullPathToOpaque = {
+    {"",""},
+    {"/eos/lhcb/test/?eos.ruid=0","eos.ruid=0"},
+    {"/eos/lhcb/",""},
+    {"/eos/file.dat?",""},
+    {"/eos/lhcb/passwd.txt?eos.test=0&oss.test=18&test=3","eos.test=0&oss.test=18&test=3"},
+    {"/eos/lhcb/passwd.txt?authz=azerty&eos.test=0&oss.test=18&test=3","eos.test=0&oss.test=18&test=3"},
+    {"/eos/lhcb/passwd.txt?eos.test=0&oss.test=18&authz=azerty&test=3","eos.test=0&oss.test=18&test=3"},
+    {"/eos/lhcb/passwd.txt?eos.test=0&oss.test=18&test=3&authz=azerty","eos.test=0&oss.test=18&test=3"}
+};
+
+TEST(HttpServer, ExtractOpaqueWithoutAuthz) {
+  for (const auto & [fullpath,opaque]: fullPathToOpaque) {
+    std::string extractedOpaque;
+    eos::mgm::HttpServer::extractOpaqueWithoutAuthz(fullpath,extractedOpaque);
+    ASSERT_EQ(opaque,extractedOpaque);
+  }
+}

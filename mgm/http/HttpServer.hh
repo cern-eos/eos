@@ -165,6 +165,24 @@ public:
   BuildPathAndEnvOpaque(const std::map<std::string, std::string>&
                         normalized_headers, std::string& path,
                         std::unique_ptr<XrdOucEnv>& env_opaque);
+
+  //----------------------------------------------------------------------------
+  //! Extract opaque query from the full path passed in parameter
+  //!
+  //! @param fullpath the path from which we extract the opaque infos
+  //! @param path, the extracted path
+  //! @param opaque, the extracted opaque without the '?'
+  //----------------------------------------------------------------------------
+  static void extractPathAndOpaque(const std::string & fullpath, std::string & path, std::string & opaque);
+
+  //----------------------------------------------------------------------------
+  //! Extract opaque query from the full path passed in parameter and remove everything
+  //! related to authz
+  //!
+  //! @param fullpath the path from which we extract the opaque infos
+  //! @param opaque, the extracted opaque without the '?' and without authz opaque query
+  //----------------------------------------------------------------------------
+  static void extractOpaqueWithoutAuthz(const std::string & fullpath, std::string & opaque);
 };
 
 EOSMGMNAMESPACE_END
