@@ -33,6 +33,9 @@
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/utils/XrdOfsPathHandler.hh"
+#ifdef HAVE_NFS
+#include "fst/io/nfs/NfsIo.hh"
+#endif
 #include "common/Utils.hh"
 #include "common/PasswordHandler.hh"
 #include "common/FileId.hh"
@@ -659,8 +662,9 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
                         "an absolute path like /etc/grid-security/jwt-token-grpc");
             NoGo = 1;
           } else {
-              gConfig.JwtTokenPath = val;
+            gConfig.JwtTokenPath = val;
           }
+
           Eroute.Say("=====> fstofs.jwttokenpath : ", val);
         }
 
@@ -1768,7 +1772,7 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
       // Check that new path doesn't exist already
       struct stat info;
 
-      if (::stat(new_path.c_str(), &info) == 0) {
+      if (FileIo::fsStat(new_path.c_str(), info) == 0) {
         eos_static_err("msg=\"new path already exists on filesystem\" "
                        "fsid=%08llx new_path=%s", fsid, new_path.c_str());
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
@@ -1789,12 +1793,12 @@ XrdFstOfs::FSctl(const int cmd, XrdSfsFSctl& args, XrdOucErrInfo& error,
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
       }
 
-      if (::rename(old_path.c_str(), new_path.c_str())) {
+      if (FileIo::fsRename(old_path, new_path) != 0) {
         eos_static_err("msg=\"rename failed\" old_path=%s new_path=%s errno=%d",
                        old_path.c_str(), new_path.c_str(), errno);
         return gOFS.Emsg(epname, error, EEXIST, "do local rename", "");
       } else {
-        // Update the filemd info to point to the origianl file identifier
+        // Update the filemd info to point to the original fille identifier
         if (!mFmdHandler->UpdateFmd(new_path, new_fid)) {
           eos_static_err("msg=\"failed to update fid for the fmd object\" "
                          "path=%s new_fid=%08llx", new_path.c_str(), new_fid);
@@ -2075,10 +2079,15 @@ XrdFstOfs::UpdateTpcKeyValidity()
 // Create directory hierarchy
 //------------------------------------------------------------------------------
 bool
-XrdFstOfs::CreateDirHierarchy(const std::string& dir_hierarchy,
+XrdFstOfs::CreateDirHierarchy(std::string dir_hierarchy,
                               mode_t mode) const
 {
   struct stat info;
+
+  if (dir_hierarchy.find("nfs:/") == 0) {
+    dir_hierarchy.erase(0, 5);
+  }
+
   std::string path = "/";
   auto lst_dirs = eos::common::StringTokenizer::split<std::list<std::string>>
                   (dir_hierarchy, '/');
