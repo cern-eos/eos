@@ -59,19 +59,20 @@ NfsIo::NfsIo(std::string path, XrdFstOfsFile* file, const XrdSecEntity* client)
   : FileIo(path, "NfsIo")
 {
   eos_debug("NfsIo::NfsIo called with path=%s", path.c_str());
-  
+
   //............................................................................
   // Prepare the file path
   //............................................................................
   if (path.find("nfs:/") == 0) {
     mFilePath = path.substr(5); // Remove "nfs:/" prefix
   } else {
-    eos_warning("msg=\"NFS path does not start with 'nfs:' or '/nfs'\" path=\"%s\"", path.c_str());
+    eos_warning("msg=\"NFS path does not start with 'nfs:' or '/nfs'\" path=\"%s\"",
+                path.c_str());
     mFilePath = path;
   }
 
-  eos_debug("msg=\"NfsIo initialized\" original_path=%s, parsed_path=%s", path.c_str(), mFilePath.c_str());
-
+  eos_debug("msg=\"NfsIo initialized\" original_path=%s, parsed_path=%s",
+            path.c_str(), mFilePath.c_str());
   // Standard initialization
   mFd = -1;
   seq_offset = 0;
@@ -104,7 +105,8 @@ NfsIo::~NfsIo()
 // Open file
 //------------------------------------------------------------------------------
 int
-NfsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque, uint16_t timeout)
+NfsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode,
+                const std::string& opaque, uint16_t timeout)
 {
   eos_info("flags=%x, mode=%o, mFilePath=%s", flags, mode, mFilePath.c_str());
 
@@ -113,19 +115,18 @@ NfsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque
     close(mFd);
     mFd = -1;
   }
-  
-  int pflags = 0;
 
+  int pflags = 0;
   XrdOucEnv openEnv(opaque.c_str());
-  const char *val;
+  const char* val;
 
   if ((val = openEnv.Get("mgm.ioflag"))) {
     if (!strcmp(val, "direct")) {
       pflags |= O_DIRECT;
     } else if (!strcmp(val, "sync")) {
-        pflags |= O_SYNC;
+      pflags |= O_SYNC;
     } else if (!strcmp(val, "dsync")) {
-        pflags |= O_DSYNC;
+      pflags |= O_DSYNC;
     }
   }
 
@@ -151,15 +152,19 @@ NfsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque
   if (pflags & O_CREAT) {
     std::string parent = mFilePath;
     size_t pos = parent.rfind("/");
+
     if (pos != std::string::npos) {
       parent.erase(pos);
+
       if (!parent.empty()) {
         struct stat st;
+
         if (stat(parent.c_str(), &st) != 0) {
           eos_info("msg=\"creating parent directory\" parent=\"%s\"", parent.c_str());
-          
+
           if (Mkdir(parent.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
-            eos_err("msg=\"failed to create parent directory\" parent=\"%s\"", parent.c_str());
+            eos_err("msg=\"failed to create parent directory\" parent=\"%s\"",
+                    parent.c_str());
             return SFS_ERROR;
           }
         }
@@ -167,11 +172,13 @@ NfsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque
     }
   }
 
-  eos_info("msg=\"opening file\" path=\"%s\" flags=%x mode=%o", mFilePath.c_str(), pflags, mode);
+  eos_info("msg=\"opening file\" path=\"%s\" flags=%x mode=%o", mFilePath.c_str(),
+           pflags, mode);
   mFd = open(mFilePath.c_str(), pflags, mode);
 
   if (mFd < 0) {
-    eos_err("msg=\"failed to open file\" path=\"%s\" errno=%d", mFilePath.c_str(), errno);
+    eos_err("msg=\"failed to open file\" path=\"%s\" errno=%d", mFilePath.c_str(),
+            errno);
     return SFS_ERROR;
   }
 
@@ -187,7 +194,8 @@ NfsIo::fileOpen(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque
 // Open file asynchronously
 //------------------------------------------------------------------------------
 std::future<XrdCl::XRootDStatus>
-NfsIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode, const std::string& opaque, uint16_t timeout)
+NfsIo::fileOpenAsync(XrdSfsFileOpenMode flags, mode_t mode,
+                     const std::string& opaque, uint16_t timeout)
 {
   eos_info("msg=\"opening file asynchronously\" path=\"%s\"", mFilePath.c_str());
   std::promise<XrdCl::XRootDStatus> open_promise;
@@ -224,8 +232,10 @@ NfsIo::fileRead(XrdSfsFileOffset offset,
   }
 
   ssize_t retval = pread(mFd, buffer, length, offset);
+
   if (-1 == retval) {
-    eos_err("msg=\"failed to read file\" path=\"%s\" errno=%d", mFilePath.c_str(), errno);
+    eos_err("msg=\"failed to read file\" path=\"%s\" errno=%d", mFilePath.c_str(),
+            errno);
     return -1;
   }
 
@@ -276,9 +286,12 @@ NfsIo::fileWrite(XrdSfsFileOffset offset, const char* buffer,
     errno = ENOTSUP;
     return -1;
   }
+
   ssize_t retval = write(mFd, buffer, length);
+
   if (-1 == retval) {
-    eos_err("msg=\"failed to write file\" path=\"%s\" errno=%d", mFilePath.c_str(), errno);
+    eos_err("msg=\"failed to write file\" path=\"%s\" errno=%d", mFilePath.c_str(),
+            errno);
     return -1;
   }
 
@@ -433,21 +446,29 @@ NfsIo::fileRemove(uint16_t timeout)
 {
   eos_debug("");
   eos_info("msg=\"fileRemove called\" path=\"%s\"", mFilePath.c_str());
-
   std::string attrPath = xattrPath();
   int attr_rc = unlink(attrPath.c_str());
+
   if (attr_rc == 0) {
     eos_info("msg=\"deleted attribute file\" path=\"%s\"", attrPath.c_str());
   } else if (errno != ENOENT) {
-    eos_warning("msg=\"failed to delete attribute file\" path=\"%s\" errno=%d error=\"%s\"", attrPath.c_str(), errno, strerror(errno));
+    eos_warning("msg=\"failed to delete attribute file\" path=\"%s\" errno=%d error=\"%s\"",
+                attrPath.c_str(), errno, strerror(errno));
   }
-  
+
   int rc = unlink(mFilePath.c_str());
+
   if (-1 == rc) {
+    if (errno == ENOENT) {
+      eos_info("msg=\"file not found, skipping delete\" path=\"%s\"",
+               mFilePath.c_str());
+      return 0;
+    }
+
     eos_err("path=\"%s\" msg=\"%s\"", mFilePath.c_str(), strerror(errno));
     return -1;
   }
-  
+
   return 0;
 }
 
@@ -476,24 +497,81 @@ int
 NfsIo::fileDelete(const char* path)
 {
   eos_debug("");
-  
+  std::string path_str = std::string(path);
+
+  if (path_str.find("nfs:/") == 0) {
+    path_str.erase(0, 5); // Remove "nfs:/" prefix
+  }
+
   // Delete xattr file
-  std::string attrPath = getAttrPath(std::string(path));
+  std::string attrPath = getAttrPath(path_str);
   int attr_rc = unlink(attrPath.c_str());
+
   if (attr_rc == 0) {
     eos_info("msg=\"deleted attribute file\" path=\"%s\"", attrPath.c_str());
   } else if (errno != ENOENT) {
-    eos_warning("msg=\"failed to delete attribute file\" path=\"%s\" errno=%d error=\"%s\"", attrPath.c_str(), errno, strerror(errno));
+    eos_warning("msg=\"failed to delete attribute file\" path=\"%s\" "
+                "errno=%d error=\"%s\"", attrPath.c_str(), errno,
+                strerror(errno));
   }
-  
+
   // Delete the main file
   int rc = unlink(path);
-  
+
   if (-1 == rc) {
     eos_err("path=\"%s\" msg=\"%s\"", path, strerror(errno));
     return -1;
   }
-  
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Rename by path
+//------------------------------------------------------------------------------
+int
+NfsIo::fsRename(std::string old_name, std::string new_name)
+{
+  std::string oldPath = old_name;
+  std::string newPath = new_name;
+
+  if (oldPath.find("nfs:/") == 0) {
+    oldPath = oldPath.substr(5); // Remove "nfs:/" prefix
+  }
+
+  if (newPath.find("nfs:/") == 0) {
+    newPath = newPath.substr(5); // Remove "nfs:/" prefix
+  }
+
+  // Rename the main file
+  int rc = rename(oldPath.c_str(), newPath.c_str());
+
+  if (-1 == rc) {
+    eos_static_err("msg=\"failed to rename main file\" old_path=\"%s\" "
+                   "new_path=\"%s\" errno=%d error=\"%s\"",
+                   oldPath.c_str(), newPath.c_str(), errno, strerror(errno));
+    return -1;
+  }
+
+  // Rename the attribute files
+  std::string oldAttrPath = getAttrPath(oldPath);
+  std::string newAttrPath = getAttrPath(newPath);
+  struct stat st;
+
+  if (stat(oldAttrPath.c_str(), &st) == 0) {
+    int attr_rc = rename(oldAttrPath.c_str(), newAttrPath.c_str());
+
+    if (attr_rc != 0) {
+      eos_static_err("msg=\"failed to rename attribute file\" old_path=\"%s\" "
+                     "new_path=\"%s\" errno=%d error=\"%s\"",
+                     oldAttrPath.c_str(), newAttrPath.c_str(), errno, strerror(errno));
+      return -1;
+    }
+  }
+
+  eos_static_info("msg=\"renamed attribute file\" old_path=\"%s\" "
+                  "new_path=\"%s\"", oldAttrPath.c_str(),
+                  newAttrPath.c_str());
   return 0;
 }
 
@@ -510,40 +588,45 @@ NfsIo::Mkdir(const char* path, mode_t mode)
     errno = EINVAL;
     return -1;
   }
-  
+
   // Try to create the directory
   if (mkdir(path, mode) == 0) {
     eos_info("msg=\"successfully created directory\" path=\"%s\"", path);
     return 0;
   }
-  
+
   if (errno == EEXIST) {
     eos_info("msg=\"directory already exists\" path=\"%s\"", path);
     return 0;
   }
-  
+
   // If parent doesn't exist, try to create it recursively
   if (errno == ENOENT) {
     std::string pathStr(path);
     size_t pos = pathStr.rfind('/');
-    
+
     if (pos != std::string::npos && pos > 0) {
       std::string parent = pathStr.substr(0, pos);
+
       if (Mkdir(parent.c_str(), mode) != 0) {
-        eos_err("msg=\"failed to create parent directory\" path=\"%s\"", parent.c_str());
+        eos_err("msg=\"failed to create parent directory\" path=\"%s\"",
+                parent.c_str());
         return -1;
       }
+
       if (mkdir(path, mode) == 0) {
         eos_info("msg=\"successfully created directory\" path=\"%s\"", path);
         return 0;
       }
+
       if (errno == EEXIST) {
         return 0;
       }
     }
   }
 
-  eos_err("msg=\"failed to create directory\" path=\"%s\" error=\"%s\"", path, strerror(errno));
+  eos_err("msg=\"failed to create directory\" path=\"%s\" error=\"%s\"", path,
+          strerror(errno));
   return -1;
 }
 
@@ -556,12 +639,12 @@ NfsIo::Rmdir(const char* path)
   eos_debug("");
   eos_info("path=\"%s\"", path);
   int rc = rmdir(path);
-  
+
   if (-1 == rc) {
     eos_err("path=\"%s\" msg=\"%s\"", path, strerror(errno));
     return -1;
   }
-  
+
   return 0;
 }
 
@@ -572,15 +655,16 @@ int
 NfsIo::fileSync(uint16_t timeout)
 {
   eos_debug("");
+
   if (mFd >= 0) {
     int rc = fsync(mFd);
-    
+
     if (-1 == rc) {
       eos_err("path=\"%s\" msg=\"%s\"", mFilePath.c_str(), strerror(errno));
       return -1;
     }
   }
-  
+
   return 0;
 }
 
@@ -617,13 +701,14 @@ NfsIo::loadAttrFile()
 
   std::string attrPath = xattrPath();
   std::string content;
-  
   int fd = open(attrPath.c_str(), O_RDONLY);
+
   if (fd < 0) {
     if (errno == ENOENT) {
       mAttrLoaded = true;
       return 0;
     }
+
     return -1;
   }
 
@@ -634,7 +719,7 @@ NfsIo::loadAttrFile()
   if (bytes_read >= 0) {
     buffer[bytes_read] = '\0';
     content = buffer;
-    
+
     if (mFileMap.Load(content)) {
       mAttrLoaded = true;
       return 0;
@@ -646,7 +731,7 @@ NfsIo::loadAttrFile()
 
 int
 NfsIo::flushAttrFile()
-{  
+{
   if (!mAttrDirty) {
     eos_debug("msg=\"no attributes to flush\" path=\"%s\"", mFilePath.c_str());
     return 0;
@@ -654,6 +739,7 @@ NfsIo::flushAttrFile()
 
   // Skip flush if main file is missing
   struct stat stMain;
+
   if (stat(mFilePath.c_str(), &stMain) != 0 && errno == ENOENT) {
     mAttrDirty = false;
     mAttrLoaded = false;
@@ -662,10 +748,11 @@ NfsIo::flushAttrFile()
 
   std::string attrPath = xattrPath();
   std::string content = mFileMap.Trim();
-  
   int fd = open(attrPath.c_str(), O_CREAT | O_WRONLY | O_TRUNC, 0644);
+
   if (fd < 0) {
-    eos_err("msg=\"unable to open attribute file\" path=\"%s\" errno=%d", attrPath.c_str(), errno);
+    eos_err("msg=\"unable to open attribute file\" path=\"%s\" errno=%d",
+            attrPath.c_str(), errno);
     return -1;
   }
 
@@ -673,12 +760,13 @@ NfsIo::flushAttrFile()
   close(fd);
 
   if (written == (ssize_t)content.length()) {
-    eos_debug("msg=\"successfully wrote attribute file\" path=\"%s\" written=%zd", attrPath.c_str(), written);
+    eos_debug("msg=\"successfully wrote attribute file\" path=\"%s\" written=%zd",
+              attrPath.c_str(), written);
     mAttrDirty = false;
     return 0;
   }
 
-  eos_err("msg=\"unable to write to attribute file\" path=\"%s\" written=%zd expected=%zu errno=%d", 
+  eos_err("msg=\"unable to write to attribute file\" path=\"%s\" written=%zd expected=%zu errno=%d",
           attrPath.c_str(), written, content.length(), errno);
   return -1;
 }
@@ -711,7 +799,8 @@ NfsIo::attrSet(const char* name, const char* value, size_t len)
 
   // Load attributes from local file if not already loaded
   if (loadAttrFile() != 0) {
-    eos_static_err("msg=\"unable to load attribute file\" path=\"%s\"", mFilePath.c_str());
+    eos_static_err("msg=\"unable to load attribute file\" path=\"%s\"",
+                   mFilePath.c_str());
     return -1;
   }
 
@@ -726,12 +815,14 @@ NfsIo::attrSet(const char* name, const char* value, size_t len)
   }
 
   mAttrDirty = true;
-
   // Flush attributes to file
   int result = flushAttrFile();
+
   if (result != 0) {
-    eos_static_err("msg=\"failed to flush attribute file\" path=\"%s\" errno=%d", mFilePath.c_str(), errno);
+    eos_static_err("msg=\"failed to flush attribute file\" path=\"%s\" errno=%d",
+                   mFilePath.c_str(), errno);
   }
+
   return result;
 }
 
@@ -801,6 +892,7 @@ NfsIo::attrGet(std::string name, std::string& value)
 
   if (!mAttrSync && mAttrLoaded) {
     std::map<std::string, std::string> lMap = mFileMap.GetMap();
+
     if (lMap.count(name)) {
       value = mFileMap.Get(name);
       return 0;
@@ -817,6 +909,7 @@ NfsIo::attrGet(std::string name, std::string& value)
   }
 
   std::map<std::string, std::string> lMap = mFileMap.GetMap();
+
   if (lMap.count(name)) {
     value = mFileMap.Get(name);
     return 0;
@@ -847,9 +940,11 @@ NfsIo::attrList(std::vector<std::string>& list)
 
   if (!mAttrSync && mAttrLoaded) {
     std::map<std::string, std::string> lMap = mFileMap.GetMap();
+
     for (auto it = lMap.begin(); it != lMap.end(); ++it) {
       list.push_back(it->first);
     }
+
     return 0;
   }
 
@@ -860,24 +955,25 @@ NfsIo::attrList(std::vector<std::string>& list)
   }
 
   std::map<std::string, std::string> lMap = mFileMap.GetMap();
+
   for (auto it = lMap.begin(); it != lMap.end(); ++it) {
     list.push_back(it->first);
   }
+
   return 0;
 }
 
 int NfsIo::Statfs(struct statfs* sfs)
 {
   eos_debug("msg=\"nfsio class statfs called\"");
-  
   struct statvfs vfs;
   int retval = statvfs(mFilePath.c_str(), &vfs);
-  
+
   if (retval != 0) {
     eos_err("path=\"%s\" msg=\"%s\"", mFilePath.c_str(), strerror(errno));
     return -1;
   }
-  
+
 #ifdef __APPLE__
   sfs->f_iosize = vfs.f_bsize;
   sfs->f_bsize = sfs->f_iosize;
@@ -893,16 +989,13 @@ int NfsIo::Statfs(struct statfs* sfs)
   sfs->f_files = (fsfilcnt_t)(vfs.f_files);
   sfs->f_ffree = (fsfilcnt_t)(vfs.f_ffree);
   sfs->f_namelen = vfs.f_namemax;
-  
   unsigned long long total_bytes = vfs.f_blocks * vfs.f_bsize;
   unsigned long long free_bytes = vfs.f_bavail * vfs.f_bsize;
   unsigned long long total_files = vfs.f_files;
   unsigned long long free_files = vfs.f_ffree;
-
   eos_info("msg=\"statfs info\" total_bytes=%llu free_bytes=%llu "
            "total_files=%llu free_files=%llu",
            total_bytes, free_bytes, total_files, free_files);
-
   return 0;
 }
 
