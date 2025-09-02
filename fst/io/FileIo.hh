@@ -66,6 +66,32 @@ public:
   virtual ~FileIo() {}
 
   //--------------------------------------------------------------------------
+  //! Get stat information about the file
+  //!
+  //! @param path file path (can contain protocol specific info eg. nfs://)
+  //!
+  //! @return 0 if successful, otherwise non-zero
+  //--------------------------------------------------------------------------
+  static int fsStat(std::string path, struct stat& info)
+  {
+    if (path.find("nfs:/") == 0) {
+      path.erase(0, 5); // remove "nfs:/" prefix
+    }
+
+    return ::stat(path.c_str(), &info);
+  }
+
+  //--------------------------------------------------------------------------
+  //! Rename operation
+  //!
+  //! @param old_path old path
+  //! @param new_path new path
+  //!
+  //! @return 0 if successful, otherwise non-zero
+  //--------------------------------------------------------------------------
+  static int fsRename(std::string old_path, std::string new_path);
+
+  //--------------------------------------------------------------------------
   //! Open file
   //!
   //! @param flags open flags
