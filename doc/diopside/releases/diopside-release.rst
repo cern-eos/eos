@@ -16,6 +16,21 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.3.21 Diopside``
+====================
+
+2025-09-02
+
+Bug
+----
+
+* [EOS-6449] - Stripe checksum rescanned after upload
+* [EOS-6482] - [MGM] HTTP - Cannot set eos.app in case grpc/https authentication is used
+* FST: Properly register recovered stripes for RAIN files when recovery does
+  not happen at the entry server. Fixes recovery of under-replicated RAIN files.
+
+
 ``v5.3.20 Diopside``
 ====================
 
