@@ -1609,7 +1609,6 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     }
   }
 
-  std::string svalue = std::to_string(value);
   oss_config << id << ":" << SpaceQuota::GetTagAsString(quota_tag);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
   SpaceQuota* squota = GetSpaceQuota(path);
@@ -1620,25 +1619,37 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     return false;
   }
 
-  squota->SetQuota(quota_tag, id, value);
-  gOFS->mConfigEngine->SetConfigValue("quota", oss_config.str().c_str(),
-                                      svalue.c_str());
-
   // When setting logical bytes quota, set also raw bytes for backward compatibility
   if (quota_type == Type::kVolume) {
-    long long raw_bytes = value * squota->GetLayoutSizeFactor();
-    std::string raw_value = std::to_string(raw_bytes);
+    long long raw_bytes, log_bytes;
+
     std::string raw_config = oss_config.str();
     raw_config.erase(raw_config.find("logical"), 7);
 
-    oss_msg << "updating quota using " << value << "bytes (" << raw_bytes << " raw bytes)\n";
+    SpaceQuota::eQuotaTag quota_raw = (id_type == IdT::kUid) ? SpaceQuota::kUserBytesTarget
+                                                             : SpaceQuota::kGroupBytesTarget;
 
-    if (id_type == IdT::kUid)
-      squota->SetQuota(SpaceQuota::kUserBytesTarget, id, raw_bytes);
-    else
-      squota->SetQuota(SpaceQuota::kGroupBytesTarget, id, raw_bytes);
+    if (getenv("EOS_MGM_QUOTA_SET_BY_LOGICAL")) {
+      log_bytes = value;
+      raw_bytes = value * squota->GetLayoutSizeFactor();
+    } else {
+      log_bytes = value / squota->GetLayoutSizeFactor();
+      raw_bytes = value;
+    }
 
+    std::string log_value = std::to_string(log_bytes);
+    std::string raw_value = std::to_string(raw_bytes);
+
+    oss_msg << "updating quota using " << log_bytes << " bytes (" << raw_bytes << " raw bytes)\n";
+
+    squota->SetQuota(quota_tag, id, log_bytes);
+    squota->SetQuota(quota_raw, id, raw_bytes);
+    gOFS->mConfigEngine->SetConfigValue("quota", oss_config.str().c_str(), log_value.c_str());
     gOFS->mConfigEngine->SetConfigValue("quota", raw_config.c_str(), raw_value.c_str());
+  } else {
+    std::string svalue = std::to_string(value);
+    squota->SetQuota(quota_tag, id, value);
+    gOFS->mConfigEngine->SetConfigValue("quota", oss_config.str().c_str(), svalue.c_str());
   }
 
   oss_msg << "success: updated "

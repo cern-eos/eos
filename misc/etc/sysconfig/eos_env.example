@@ -119,6 +119,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # If you only want to report the space acacounting you can define
 # EOS_MGM_STATVFS_ONLY_SPACE=1
 
+# Set to 1 if you want eos quota set by logical space (default is by raw)
+# EOS_MGM_QUOTA_SET_BY_LOGICAL=1
+
 # If variable defined then enable the use of xrootd connection pool i.e.
 # create/share different physical connections for transfers to the same
 # destination xrootd server. By default this is disabled.
