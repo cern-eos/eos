@@ -1711,19 +1711,29 @@ a **quota** command in the EOS shell:
    # ==> Quota Node: /eos/dev/2rep/
    # _______________________________________________________________________________________________
    user       used bytes logi bytes used files aval bytes aval logib aval files filled[%]  vol-status ino-status
-   adm        2.00 GB    1.00 GB    8.00 -     1.00 TB    0.5 TB     1.00 M-    0.00       ok         ok
+   adm        2.00 GB    1.00 GB    8.00 -     2.00 TB    1.00 TB    1.00 M-    0.00       ok         ok
 
 The above configuration defines user quota for user ``adm`` with 1 TB of volume 
 quota and 1 Mio inodes under the directory subtree ``/eos/dev/plain``. 
 As you may notice EOS distinguishes between logical bytes and (physical) bytes. 
 Imagine a quota node subtree is configured to store 2 replica for each file, 
-then a 1 TB quota allows you effectivly to store 0.5 TB (aval logib = 0.5 TB!). 
+then a 1 TB quota allows you effectivly to store 2 TB of raw data.
 
-.. warning::
+.. important::
+   All quotas set via the 'quota set' command define volume in raw bytes
+   by default, and EOS displays both logical and raw bytes values, based
+   on the layout definition on the quota node. The environment variable
+   'EOS_MGM_QUOTA_SET_BY_LOGICAL', when set, changes this default to be
+   in terms of logical bytes instead.
 
-   All quota set via the 'quota set' command is defining the (physical) bytes 
-   and EOS displays the logical bytes value based on the layout definition on 
-   the quota node.
+.. important::
+   If a quota node contains files with mixed layout, say 2 replica and RAID 6,
+   the raw and logical bytes usage will reflect it accordingly, i.e., you'd see
+   less than twice the logical bytes as raw bytes used. The quota system
+   enforces the *logical bytes usage*, such that in a directory with RAID6 layout,
+   adding files of 2 replica layout may cause the raw usage to exceed the amount
+   set in the quota node without actually running out of quota. You only run out
+   of quota when the logical space is exceeded.
 
 The volume and inode status is displayed as 'ok' if there is quota left for 
 volume/inodes. If there is less than **5%** left, 'warning' is displayed, 
