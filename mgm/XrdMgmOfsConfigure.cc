@@ -39,7 +39,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
 #include "mgm/Devices.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/config/QuarkDBConfigEngine.hh"
 #include "mgm/Egroup.hh"
@@ -1132,6 +1132,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           if (val != nullptr) {
             JwtTokenPath = val;
           }
+
           Eroute.Say("=====> mgmofs.jwttokenpath : ", val);
         }
       }
@@ -1139,7 +1140,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       if (!strcmp("protowfusegrpctls", var)) {
         if ((!(val = Config.GetWord())) ||
             (strcmp("true", val) && strcmp("false", val) &&
-              strcmp("1", val) && strcmp("0", val))) {
+             strcmp("1", val) && strcmp("0", val))) {
           Eroute.Emsg("Config", "argument for protowfusegrpctls is invalid. "
                       "Must be <true>, <false>, <1> or <0>!");
         } else {
@@ -1231,6 +1232,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   } else {
     Eroute.Say("=====> mgmofs.protowfusegrpc : false");
   }
+
   if (protowfusegrpctls) {
     Eroute.Say("=====> mgmofs.protowfusegrpctls : true");
   } else {
