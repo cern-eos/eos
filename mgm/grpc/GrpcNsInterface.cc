@@ -594,7 +594,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
                   fmd->getChecksum().getDataPtr(), fmd->getChecksum().size());
 
       // Alternative checksums
-      for (const auto& [type, xs] : fmd->getAlternativeChecksums()) {
+      for (const auto& [type, xs] : fmd->getAltXs()) {
         AddChecksum(gRPCResponse.mutable_fmd(), type, xs.c_str(), xs.size());
       }
 
