@@ -152,11 +152,11 @@ void com_fs_help()
       << "    fsck_refresh_interval=<sec>\n"
       << "       time interval after which fsck inconsistencies are refreshed"
       << std::endl
-      << "    scan_alt_xs_rate=<entries/s>\n"
+      << "    scan_altxs_rate=<entries/s>\n"
       << "       maximum scan rate of ns entries for checking if alternative\n"
       << "       checksums have been computed."
       << std::endl
-      << "    scan_alt_xs_interval=<sec>\n"
+      << "    scan_altxs_interval=<sec>\n"
       << "       alternative checksum computing interval (default 30 days), 0 disables scanning"
       << std::endl
       << "    graceperiod=<seconds>\n"
