@@ -27,7 +27,7 @@
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "mgm/Quota.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/Access.hh"
 #include "common/Path.hh"
@@ -120,14 +120,16 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
     errStream << "error: you have to give a path name to call 'rm'";
     ret_c = EINVAL;
   } else {
-    if(!noglobbing) {
+    if (!noglobbing) {
       // Globbing was not disabled by the user
       eos::common::Path objPath(spath.c_str());
+
       if (objPath.Globbing()) {
         spath = objPath.GetParentPath();
         filter = objPath.GetName();
       }
     }
+
     // Check file existence
     XrdSfsFileExistence file_exists;
     XrdOucErrInfo errInfo;
@@ -177,8 +179,9 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
         // No file matched the globbing, don't silently fail nor succeed,
         // return ENOENT instead
-        if(rmList.empty()) {
-          errStream << "error: no such file or directory with path '" << spath << filter << "', globbing did not match anything. You may disable the globbing by using --no-globbing";
+        if (rmList.empty()) {
+          errStream << "error: no such file or directory with path '" << spath << filter
+                    << "', globbing did not match anything. You may disable the globbing by using --no-globbing";
           reply.set_std_err(errStream.str());
           reply.set_retc(ENOENT);
           return reply;
