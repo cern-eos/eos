@@ -71,11 +71,15 @@ static constexpr auto SCAN_DISK_INTERVAL_NAME = "scan_disk_interval";
 static constexpr auto SCAN_NS_RATE_NAME = "scan_ns_rate";
 //! Time interval after which the ns scanner will rerun
 static constexpr auto SCAN_NS_INTERVAL_NAME = "scan_ns_interval";
+//! Time interval after which the alternative checksum computing thread will rerun
+static constexpr auto SCAN_ALTXS_INTERVAL_NAME = "scan_altxs_interval";
+//! If the altxs synchronization metadata is enabled or not
+static constexpr auto ALTXS_SYNC = "altxs_sync";
+//! Refresh interval for altxs synchronization metadata
+static constexpr auto ALTXS_SYNC_INTERVAL = "altxs_sync_interval";
 //! Maximum scan rate for statting requests to the MGM for computing the
 //! alternative checksums
-static constexpr auto SCAN_ALT_XS_RATE_NAME = "scan_alt_xs_rate";
-//! Time interval after which the alternative checksum computing thread will rerun
-static constexpr auto SCAN_ALT_XS_INTERVAL_NAME = "scan_alt_xs_interval";
+static constexpr auto ALTXS_SYNC_RATE = "altxs_sync_rate";
 //! Special EOS scheduling group space
 static constexpr auto EOS_SPARE_GROUP = "spare";
 //! Application lock attribute
