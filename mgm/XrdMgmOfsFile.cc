@@ -3362,7 +3362,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   }
 
   if (!altChecksums.empty()) {
-    capability += "&mgm.altchecksums=";
+    capability += "&mgm.altxs=";
     capability += eos::common::StringConversion::Join(altChecksums, ",").c_str();
   }
 

@@ -415,12 +415,12 @@ public:
    */
   // ---------------------------------------------------------------------------
   static bool GetSpecialKeyValueMap(const char* mapstring,
-				    std::map<std::string, std::string>& map,
-				    const char* split,
-				    const char* sdelimiter,
-				    std::vector<std::string>* keyvector,
-				    const char* pathKey = "path",
-				    const char* stopKey = "fstpath");
+                                    std::map<std::string, std::string>& map,
+                                    const char* split,
+                                    const char* sdelimiter,
+                                    std::vector<std::string>* keyvector,
+                                    const char* pathKey = "path",
+                                    const char* stopKey = "fstpath");
 
   // ---------------------------------------------------------------------------
   /**

@@ -205,12 +205,16 @@ CommitHelper::grab_cgi(XrdOucEnv& env, CommitHelper::cgi_t& cgi)
     cgi["checksum"] = env.Get("mgm.checksum");
   }
 
-  if (env.Get("mgm.altchecksums")) {
-    cgi["altchecksums"] = env.Get("mgm.altchecksums");
+  if (env.Get("mgm.altxs")) {
+    cgi["altxs"] = env.Get("mgm.altxs");
   }
 
-  if (env.Get("mgm.commit.altchecksums")) {
-    cgi["commit_altxs"] = env.Get("mgm.commit.altchecksums");
+  if (env.Get("mgm.commit.altxs")) {
+    cgi["commit_altxs"] = env.Get("mgm.commit.altxs");
+  }
+
+  if (env.Get("mgm.altxs.delete")) {
+    cgi["altxs_delete"] = env.Get("mgm.altxs.delete");
   }
 }
 
@@ -238,7 +242,7 @@ CommitHelper::log_info(eos::common::VirtualIdentity& vid,
                     cgi["fsid"].c_str(),
                     cgi["dropfsid"].c_str(),
                     cgi["checksum"].c_str(),
-                    cgi["altchecksums"].c_str(),
+                    cgi["altxs"].c_str(),
                     cgi["mtime"].c_str(),
                     cgi["mtimensec"].c_str(),
                     option["occhunk"],
@@ -345,8 +349,8 @@ CommitHelper::check_commit_params(CommitHelper::cgi_t& cgi)
 
 bool CommitHelper::check_altchecksums_commit_params(CommitHelper::cgi_t& cgi)
 {
-  return cgi["commit_altxs"].length() && cgi["altchecksums"].length() &&
-         cgi["fid"].length();
+  return cgi["commit_altxs"].length() && (cgi["altxs"].length() ||
+                                          cgi["altxs_delete"].length()) && cgi["fid"].length();
 }
 
 //------------------------------------------------------------------------------
