@@ -21,21 +21,22 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "mgm/recycle/Recycle.hh"
+#include "mgm/recycle/RecyclePolicy.hh"
 #include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
-#include "common/Mapping.hh"
 #include "common/utils/BackOffInvoker.hh"
 #include "common/RWMutex.hh"
 #include "common/Path.hh"
-#include "mgm/Recycle.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Quota.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
-#include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
+
+EOSMGMNAMESPACE_BEGIN
 
 // MgmOfsConfigure prepends the proc directory path e.g. the bin is
 // /eos/<instance/proc/recycle/
@@ -46,48 +47,238 @@ std::string Recycle::gRecyclingKeepRatio = "sys.recycle.keepratio";
 std::string Recycle::gRecyclingVersionKey = "sys.recycle.version.key";
 std::string Recycle::gRecyclingPostFix = ".d";
 int Recycle::gRecyclingPollTime = 30;
+eos::common::VirtualIdentity Recycle::mRootVid =
+  eos::common::VirtualIdentity::Root();
 
-EOSMGMNAMESPACE_BEGIN
-
-
-//------------------------------------------------------------------------------
-// Run asynchronous recyling thread
-//------------------------------------------------------------------------------
-bool
-Recycle::Start()
+//----------------------------------------------------------------------------
+// Update snooze time for the recycler thread. This should match the time
+// between now and the expiration date of the oldest entry
+//----------------------------------------------------------------------------
+void
+Recycle::UpdateSnooze(time_t oldest_ts)
 {
-  mThread.reset(&Recycle::Recycler, this);
-  return true;
+  if (oldest_ts == 0ull) {
+    mSnooze = gRecyclingPollTime;
+  } else {
+    mSnooze = oldest_ts + mPolicy.mKeepTime - time(nullptr);
+
+    if (mSnooze < gRecyclingPollTime) {
+      mSnooze = gRecyclingPollTime;
+    }
+
+    if (mSnooze > mPolicy.mKeepTime) {
+      mSnooze = mPolicy.mKeepTime;
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
-// Cancel asynchronous recycle thread
+// Collect entries to recycle based on the current policy
 //------------------------------------------------------------------------------
 void
-Recycle::Stop()
+Recycle::CollectEntries(ThreadAssistant& assistant)
 {
-  mThread.join();
+  std::map<std::string, std::set < std::string>> find_map;
+  int depth = 6;
+  XrdOucErrInfo err_obj;
+  XrdOucString err_msg;
+  time_t now = time(NULL);
+  time_t max_ctime_dir = now - mPolicy.mKeepTime + (31 * 86400);
+  time_t max_ctime_file = now - mPolicy.mKeepTime;
+  std::map<std::string, time_t> ctime_map;
+  // Find with max depth 6 and ctime constraints
+  (void) gOFS->_find(Recycle::gRecyclingPrefix.c_str(),
+                     err_obj, err_msg, mRootVid, find_map,
+                     0, 0, false, 0, true, depth, nullptr, false,
+                     false, nullptr, max_ctime_dir, max_ctime_file,
+                     &ctime_map, &assistant);
+  eos_static_notice("msg=\"time-limited query\" ctime_dir=%u "
+                    "ctime_file=%u nfiles=%lu",
+                    max_ctime_dir, max_ctime_file, ctime_map.size());
+
+  for (auto it_dir = find_map.begin(); it_dir != find_map.end(); ++it_dir) {
+    XrdOucString dirname = it_dir->first.c_str();
+
+    if (dirname.endswith(".d/")) {
+      // Check again the ctime here, because we had to enlarge the query
+      // window by 31 days due to the organization of the recycle bin.
+      struct stat buf;
+
+      if (!gOFS->_stat(dirname.c_str(), &buf, err_obj, mRootVid,
+                       "", nullptr, false, 0)) {
+        if (buf.st_ctime > max_ctime_file) {
+          // skip this recusrive deletion, it is still inside the keep window
+          continue;
+        }
+      }
+
+      dirname.erase(dirname.length() - 1);
+      eos::common::Path cpath(dirname.c_str());
+      dirname = cpath.GetParentPath();
+      it_dir->second.insert(cpath.GetName());
+    }
+
+    eos_static_debug("dir=%s", it_dir->first.c_str());
+
+    for (auto it_file = it_dir->second.begin();
+         it_file != it_dir->second.end(); ++it_file) {
+      const std::string fname = HandlePotentialSymlink(dirname.c_str(), *it_file);
+      eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
+                       it_file->c_str(), fname.c_str());
+
+      if ((fname != "/") && (fname.find('#') != 0)) {
+        eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
+                         fname.c_str());
+        continue;
+      }
+
+      std::string fullpath = dirname.c_str();
+      fullpath += fname;
+      // Add to the garbage fifo deletion multimap
+      mPendingDeletions.insert(std::pair<time_t, std::string >
+                               (ctime_map[*it_file], fullpath));
+      eos_static_debug("msg=\"adding to deletion map\" fpath=\"%s\" "
+                       "ctime=%u", fullpath.c_str(), ctime_map[*it_file]);
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
-// Eternal thread doing garbage clean-up in the garbege bin
-// - default garbage directory is '<instance-proc>/recycle/'
-// - one should define an attribute like 'sys.recycle.keeptime' on this dir
-//   to define the time in seconds how long files stay in the recycle bin
+// Remove the pending deletions
+//------------------------------------------------------------------------------
+void
+Recycle::RemoveEntries()
+{
+  if (mPendingDeletions.empty()) {
+    return;
+  }
+
+  mSnooze = 0;
+  time_t now = time(nullptr);
+  auto it = mPendingDeletions.begin();
+
+  while (it != mPendingDeletions.end()) {
+    // Oldest entry expires in the future
+    if (it->first + mPolicy.mKeepTime > now) {
+      break;
+    }
+
+    // Keep ratio and watermarks already respected
+    if (mPolicy.IsWithinLimits()) {
+      break;
+    }
+
+    // Handle deletion
+    struct stat info;
+    XrdOucErrInfo error;
+    std::string fullpath = it->second;
+
+    if (fullpath.empty()) {
+      it = mPendingDeletions.erase(it);
+      continue;
+    }
+
+    if (!gOFS->_stat(fullpath.c_str(), &info, error, mRootVid, "", nullptr,
+                     false)) {
+      it = mPendingDeletions.erase(it);
+      continue;
+    }
+
+    if (S_ISDIR(info.st_mode)) {
+      RemoveSubtree(fullpath);
+      // Update current timestamp
+      now = time(nullptr);
+    } else {
+      RemoveFile(fullpath);
+    }
+
+    it = mPendingDeletions.erase(it);
+  }
+
+  if (it != mPendingDeletions.end()) {
+    UpdateSnooze(it->first);
+  } else {
+    UpdateSnooze();
+  }
+}
+
+//------------------------------------------------------------------------------
+// Remove given file entry
+//------------------------------------------------------------------------------
+int
+Recycle::RemoveFile(std::string_view fullpath)
+{
+  XrdOucErrInfo lerror;
+
+  if (gOFS->_rem(fullpath.data(), lerror, mRootVid, (const char*) 0)) {
+    eos_static_err("msg=\"unable to remove file\" path=\"%s\" "
+                   "err_msg=\"%s\" errc=%i", fullpath.data(),
+                   lerror.getErrText(), lerror.getErrInfo());
+    return SFS_ERROR;
+  }
+
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Remove all the entries in the given subtree
+//------------------------------------------------------------------------------
+void
+Recycle::RemoveSubtree(std::string_view dpath)
+{
+  std::map<std::string, std::set<std::string> > found;
+  XrdOucString err_msg;
+  XrdOucErrInfo lerror;
+
+  if (gOFS->_find(dpath.data(), lerror, err_msg, mRootVid, found)) {
+    eos_static_err("msg=\"failed doing find in subtree\" path=%s stderr=\"%s\"",
+                   dpath.data(), err_msg.c_str());
+  } else {
+    // Delete files starting at the deepest level
+    for (auto dit = found.rbegin(); dit != found.rend(); ++dit) {
+      for (auto fit = dit->second.begin(); fit != dit->second.end(); ++fit) {
+        const std::string fname = HandlePotentialSymlink(dit->first, *fit);
+        eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
+                         fit->c_str(), fname.c_str());
+        std::string fpath = dit->first;
+        fpath += fname;
+
+        if (gOFS->_rem(fpath.c_str(), lerror, mRootVid, (const char*) 0)) {
+          eos_static_err("msg=\"unable to remove file\" path=%s", fpath.c_str());
+        } else {
+          eos_static_info("msg=\"permanently deleted file from recycle bin\" "
+                          "path=%s", fpath.c_str());
+        }
+      }
+    }
+
+    // Delete directories starting at the deepest level
+    for (auto dit = found.rbegin(); dit != found.rend(); ++dit) {
+      // Don't even try to delete the root directory
+      std::string ldpath = dit->first.c_str();
+
+      if (ldpath == "/") {
+        continue;
+      }
+
+      if (gOFS->_remdir(ldpath.c_str(), lerror, mRootVid, (const char*) 0)) {
+        eos_static_err("msg=\"unable to remove directory\" path=%s",
+                       ldpath.c_str());
+      } else {
+        eos_static_info("msg=\"permanently deleted directory from "
+                        "recycle bin\" path=%s", ldpath.c_str());
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Recycle method doing the clean-up
 //------------------------------------------------------------------------------
 void
 Recycle::Recycler(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName("Recycler");
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-  XrdOucErrInfo lError;
-  time_t lKeepTime = 0;
-  double lSpaceKeepRatio = 0;
-  std::multimap<time_t, std::string> lDeletionMap;
-  time_t snoozetime = 10;
-  unsigned long long lLowInodesWatermark = 0;
-  unsigned long long lLowSpaceWatermark = 0;
-  bool show_attribute_missing = true;
   eos_static_info("%s", "\"msg = \"recycling thread started\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
@@ -97,306 +288,51 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
   assistant.wait_for(std::chrono::seconds(10));
   eos::common::BackOffInvoker backoff_logger;
+  mPolicy.Refresh(Recycle::gRecyclingPrefix);
 
   while (!assistant.terminationRequested()) {
     // Every now and then we wake up
-    backoff_logger.invoke([&snoozetime]() {
-      eos_static_info("msg=\"recycler thread\" snooze-time=%llu",
-                      snoozetime);
+    backoff_logger.invoke([this]() {
+      eos_static_info("msg=\"recycler thread\" snooze-time=%llu", this->mSnooze);
     });
 
-    for (int i = 0; i < snoozetime / 10; i++) {
+    for (int i = 0; i < mSnooze / 10; i++) {
       if (assistant.terminationRequested()) {
-        eos_static_info("%s", "msg=\"recycler thread exiting\"");
         return;
       }
 
       assistant.wait_for(std::chrono::seconds(10));
 
       if (mWakeUp) {
+        mPolicy.Refresh(Recycle::gRecyclingPrefix);
         mWakeUp = false;
         break;
       }
     }
 
-    if (!gOFS->mMaster->IsMaster()) {
+    if (!gOFS->mMaster->IsMaster() || (mPolicy.mEnforced == false)) {
       continue;
     }
 
-    // This will be reconfigured to an appropriate value later
-    snoozetime = gRecyclingPollTime;
-    // Read our current policy setting
-    eos::IContainerMD::XAttrMap attrmap;
+    if (mPolicy.mSpaceKeepRatio) {
+      mPolicy.RefreshWatermarks();
+    }
 
-    // Check if this path has a recycle attribute
-    if (gOFS->_attr_ls(Recycle::gRecyclingPrefix.c_str(), lError, rootvid, "",
-                       attrmap)) {
-      eos_static_err("msg=\"unable to get attribute on recycle path\" recycle-path=%s",
-                     Recycle::gRecyclingPrefix.c_str());
-    } else {
-      if (attrmap.count(Recycle::gRecyclingKeepRatio)) {
-        // One can define a space threshold which actually leaves even older
-        // files in the garbage bin until the threshold is reached for
-        // simplicity we apply this threshold to volume & inodes
-        lSpaceKeepRatio = strtod(attrmap[Recycle::gRecyclingKeepRatio].c_str(), 0);
-        // Get group statistics for space and project id
-        auto map_quotas = Quota::GetGroupStatistics(Recycle::gRecyclingPrefix,
-                                                    Quota::gProjectId);
-
-        if (!map_quotas.empty()) {
-          unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
-          unsigned long long maxbytes = map_quotas[SpaceQuota::kGroupLogicalBytesTarget];
-          unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
-          unsigned long long maxfiles = map_quotas[SpaceQuota::kGroupFilesTarget];
-
-          if ((lSpaceKeepRatio > (1.0 * usedbytes / (maxbytes ? maxbytes : 999999999))) &&
-              (lSpaceKeepRatio > (1.0 * usedfiles / (maxfiles ? maxfiles : 999999999)))) {
-            eos_static_debug("msg=\"skipping recycle clean-up - ratio still low\" "
-                             "ratio=%.02f space-ratio=%.02f inode-ratio=%.02f",
-                             lSpaceKeepRatio,
-                             1.0 * usedbytes / (maxbytes ? maxbytes : 999999999),
-                             1.0 * usedfiles / (maxfiles ? maxfiles : 999999999));
-            continue;
-          }
-
-          if ((lSpaceKeepRatio - 0.1) > 0) {
-            lSpaceKeepRatio -= 0.1;
-          }
-
-          lLowInodesWatermark = (maxfiles * lSpaceKeepRatio);
-          lLowSpaceWatermark = (maxbytes * lSpaceKeepRatio);
-          eos_static_info("msg=\"cleaning by ratio policy\" low-inodes-mark=%lld "
-                          "low-space-mark=%lld mark=%.02f", lLowInodesWatermark,
-                          lLowSpaceWatermark, lSpaceKeepRatio);
-        }
-      }
-
-      if (attrmap.count(Recycle::gRecyclingTimeAttribute)) {
-        lKeepTime = strtoull(attrmap[Recycle::gRecyclingTimeAttribute].c_str(), 0, 10);
-        eos_static_info("keep-time=%llu deletion-map=%llu", lKeepTime,
-                        lDeletionMap.size());
-
-        if (lKeepTime > 0) {
-          if (!lDeletionMap.size()) {
-            //  the deletion map is filled if there is nothing inside with files/
-            //  directories found previously in the garbage bin
-            std::map<std::string, std::set < std::string>> findmap;
-            char sdir[4096];
-            snprintf(sdir, sizeof(sdir) - 1, "%s/", Recycle::gRecyclingPrefix.c_str());
-            XrdOucErrInfo lError;
-            int depth = 6;
-            XrdOucString err_msg;
-            time_t now = time(NULL);
-            // a recycle bin directory has the ctime with the last entry added, to get
-            time_t max_ctime_dir = now - lKeepTime + (31 * 86400);
-            time_t max_ctime_file = now - lKeepTime;
-            std::map<std::string, time_t> ctime_map;
-            // send a restricted query, which applies ctime constraints from deepness 1
-            (void) gOFS->_find(sdir, lError, err_msg, rootvid, findmap,
-                               0, 0, false, 0, true, depth, nullptr, false,
-                               false, nullptr, max_ctime_dir, max_ctime_file,
-                               &ctime_map, &assistant);
-            eos_static_notice("msg=\"time-limited query\" ctime=%u:%u nfiles=%lu",
-                              max_ctime_dir, max_ctime_file, ctime_map.size());
-
-            for (auto dirit = findmap.begin(); dirit != findmap.end(); ++dirit) {
-              XrdOucString dirname = dirit->first.c_str();
-
-              if (dirname.endswith(".d/")) {
-                // Check again the ctime here, because we had to enalrge
-                // the query window by 31 days for the organization of
-                // the recycle bin.
-                struct stat buf;
-
-                if (!gOFS->_stat(dirname.c_str(), &buf, lError,  rootvid,
-                                 "", nullptr , false, 0)) {
-                  if (buf.st_ctime > max_ctime_file) {
-                    // skip this recusrive deletion, it is still inside the keep window
-                    continue;
-                  }
-                }
-
-                dirname.erase(dirname.length() - 1);
-                eos::common::Path cpath(dirname.c_str());
-                dirname = cpath.GetParentPath();
-                dirit->second.insert(cpath.GetName());
-              }
-
-              eos_static_debug("dir=%s", dirit->first.c_str());
-
-              for (auto fileit = dirit->second.begin();
-                   fileit != dirit->second.end(); ++fileit) {
-                const std::string fname = HandlePotentialSymlink(dirname.c_str(), *fileit);
-                eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
-                                 fileit->c_str(), fname.c_str());
-
-                if ((fname != "/") && (fname.find('#') != 0)) {
-                  eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
-                                   fname.c_str());
-                  continue;
-                }
-
-                std::string fullpath = dirname.c_str();
-                fullpath += fname;
-                // Add to the garbage fifo deletion multimap
-                lDeletionMap.insert(std::pair<time_t, std::string >
-                                    (ctime_map[*fileit], fullpath));
-                eos_static_debug("msg=\"adding to deletion map\" fpath=\"%s\" "
-                                 "ctime=%u", fullpath.c_str(), ctime_map[*fileit]);
-              }
-            }
-          } else {
-            snoozetime = 0; // this will be redefined by the oldest entry time
-            auto it = lDeletionMap.begin();
-            time_t now = time(NULL);
-
-            while (it != lDeletionMap.end()) {
-              // take the first element and see if it is exceeding the keep time
-              if ((it->first + lKeepTime) < now) {
-                // This entry can be removed
-                // If there is a keep-ratio policy defined we abort deletion once
-                // we are enough under the thresholds
-                if (attrmap.count(Recycle::gRecyclingKeepRatio)) {
-                  auto map_quotas = Quota::GetGroupStatistics(Recycle::gRecyclingPrefix,
-                                                              Quota::gProjectId);
-
-                  if (!map_quotas.empty()) {
-                    unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
-                    unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
-                    eos_static_debug("low-volume=%lld is-volume=%lld low-inodes=%lld is-inodes=%lld",
-                                     usedfiles,
-                                     lLowInodesWatermark,
-                                     usedbytes,
-                                     lLowSpaceWatermark);
-
-                    if ((lLowInodesWatermark >= usedfiles) &&
-                        (lLowSpaceWatermark >= usedbytes)) {
-                      eos_static_debug("msg=\"skipping recycle clean-up - ratio went under low watermarks\"");
-                      break; // leave the deletion loop
-                    }
-                  }
-                }
-
-                XrdOucString delpath = it->second.c_str();
-
-                if ((it->second.length()) &&
-                    (delpath.endswith(Recycle::gRecyclingPostFix.c_str()))) {
-                  // Do a directory deletion - first find all subtree children
-                  std::map<std::string, std::set<std::string> > found;
-                  std::map<std::string, std::set<std::string> >::const_reverse_iterator rfoundit;
-                  XrdOucString err_msg;
-
-                  if (gOFS->_find(it->second.c_str(), lError, err_msg, rootvid, found)) {
-                    eos_static_err("msg=\"unable to do a find in subtree\" path=%s stderr=\"%s\"",
-                                   it->second.c_str(), err_msg.c_str());
-                  } else {
-                    // Delete files starting at the deepest level
-                    for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-                      for (auto fileit = rfoundit->second.begin();
-                           fileit != rfoundit->second.end(); ++fileit) {
-                        const std::string fname = HandlePotentialSymlink(rfoundit->first, *fileit);
-                        eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
-                                         fileit->c_str(), fname.c_str());
-                        std::string fullpath = rfoundit->first;
-                        fullpath += fname;
-
-                        if (gOFS->_rem(fullpath.c_str(), lError, rootvid, (const char*) 0)) {
-                          eos_static_err("msg=\"unable to remove file\" path=%s",
-                                       fullpath.c_str());
-                        } else {
-                          eos_static_info("msg=\"permanently deleted file from recycle bin\" "
-                                          "path=%s keep-time=%llu", fullpath.c_str(), lKeepTime);
-                        }
-                      }
-                    }
-
-                    // Delete directories starting at the deepest level
-                    for (rfoundit = found.rbegin(); rfoundit != found.rend(); rfoundit++) {
-                      // Don't even try to delete the root directory
-                      std::string fspath = rfoundit->first.c_str();
-
-                      if (fspath == "/") {
-                        continue;
-                      }
-
-                      if (gOFS->_remdir(rfoundit->first.c_str(), lError, rootvid, (const char*) 0)) {
-                        eos_static_err("msg=\"unable to remove directory\" path=%s",
-                                       fspath.c_str());
-                      } else {
-                        eos_static_info("msg=\"permanently deleted directory from "
-                                        "recycle bin\" path=%s keep-time=%llu",
-                                        fspath.c_str(), lKeepTime);
-                      }
-                    }
-                  }
-
-                  lDeletionMap.erase(it);
-                  it = lDeletionMap.begin();
-                } else {
-                  // Do a single file deletion
-                  if (gOFS->_rem(it->second.c_str(), lError, rootvid, (const char*) 0)) {
-                    eos_static_err("msg=\"unable to remove file\" path=\"%s\" "
-                                   "err_msg=\"%s\" errc=%i", it->second.c_str(),
-                                   lError.getErrText(), lError.getErrInfo());
-                  }
-
-                  lDeletionMap.erase(it);
-                  it = lDeletionMap.begin();
-                }
-              } else {
-                // This entry has still to be kept
-                eos_static_info("oldest entry: %lld sec to deletion",
-                                it->first + lKeepTime - now);
-
-                if (!snoozetime) {
-                  // define the sleep period from the oldest entry
-                  snoozetime = it->first + lKeepTime - now;
-
-                  if (snoozetime < gRecyclingPollTime) {
-                    // avoid to activate this thread too many times, 5 minutes
-                    // resolution is perfectly fine
-                    snoozetime = gRecyclingPollTime;
-                  }
-
-                  if (snoozetime > lKeepTime) {
-                    eos_static_warning("msg=\"snooze time exceeds keeptime\" snooze-time=%llu keep-time=%llu",
-                                       snoozetime, lKeepTime);
-                    // That is sort of strange but let's have a fix for that
-                    snoozetime = lKeepTime;
-                  }
-                }
-
-                // we can leave the loop because all other entries don't match anymore the time constraint
-                break;
-              }
-            }
-
-            if (!snoozetime) {
-              snoozetime = gRecyclingPollTime;
-            }
-          }
-        } else {
-          eos_static_warning("msg=\"parsed '%s' attribute as keep-time of %llu seconds - ignoring!\" recycle-path=%s",
-                             Recycle::gRecyclingTimeAttribute.c_str(), Recycle::gRecyclingPrefix.c_str());
-        }
-      } else {
-        if (show_attribute_missing) {
-          eos_static_warning("msg=\"unable to read '%s' attribute on recycle path - undefined!\" recycle-path=%s",
-                             Recycle::gRecyclingTimeAttribute.c_str(), Recycle::gRecyclingPrefix.c_str());
-          show_attribute_missing = false;
-        }
-      }
+    if (mPolicy.mKeepTime) {
+      CollectEntries(assistant);
+      RemoveEntries();
     }
   }
 
   eos_static_info("%s", "msg=\"recycler thread exiting\"");
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Recycle the given object (file or subtree)
+//------------------------------------------------------------------------------
 int
 Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast)
 {
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   char srecyclepath[4096];
   // If path ends with '/' we recycle a full directory tree aka directory
   bool isdir = false;
@@ -441,7 +377,7 @@ Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast)
   mRecyclePath = srecyclepath;
 
   // Finally do the rename
-  if (gOFS->_rename(mPath.c_str(), srecyclepath, error, rootvid, "", "", true,
+  if (gOFS->_rename(mPath.c_str(), srecyclepath, error, mRootVid, "", "", true,
                     true, false, fusexcast)) {
     return gOFS->Emsg(epname, error, EIO, "rename file/directory", srecyclepath);
   }
@@ -451,8 +387,9 @@ Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast)
   return SFS_OK;
 }
 
-/*----------------------------------------------------------------------------*/
-
+//------------------------------------------------------------------------------
+// Print the recycle bin contents
+//------------------------------------------------------------------------------
 int
 Recycle::Print(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid, bool monitoring,
@@ -463,7 +400,6 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   XrdOucString uids;
   XrdOucString gids;
   std::map<uid_t, bool> printmap;
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   std::ostringstream oss_out;
 
   // fix security hole
@@ -477,7 +413,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
     // add everything found in the recycle directory structure to the printmap
     std::string subdirs;
     XrdMgmOfsDirectory dirl;
-    int listrc = dirl.open(Recycle::gRecyclingPrefix.c_str(), rootvid,
+    int listrc = dirl.open(Recycle::gRecyclingPrefix.c_str(), mRootVid,
                            (const char*) 0);
 
     if (listrc) {
@@ -518,7 +454,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
       snprintf(sdir, sizeof(sdir) - 1, "%s/uid:%u/%s",
                Recycle::gRecyclingPrefix.c_str(),
                (unsigned int) ituid->first, date.c_str());
-      XrdOucErrInfo lError;
+      XrdOucErrInfo lerror;
       int depth = 5 ;
 
       if (dPath.GetSubPathSize()) {
@@ -528,7 +464,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
       }
 
       XrdOucString err_msg;
-      int retc = gOFS->_find(sdir, lError, err_msg, rootvid, findmap,
+      int retc = gOFS->_find(sdir, lerror, err_msg, mRootVid, findmap,
                              0, 0, false, 0, true, depth);
 
       if (retc && errno != ENOENT) {
@@ -550,7 +486,6 @@ Recycle::Print(std::string& std_out, std::string& std_err,
 
         for (auto fileit = dirit->second.begin();
              fileit != dirit->second.end(); ++fileit) {
-
           if (maxentries && (count >= (size_t)maxentries)) {
             retc = E2BIG;
             std_out += oss_out.str();
@@ -703,7 +638,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
     }
   } else {
     auto map_quotas = Quota::GetGroupStatistics(Recycle::gRecyclingPrefix,
-                                                Quota::gProjectId);
+                      Quota::gProjectId);
 
     if (!map_quotas.empty()) {
       unsigned long long used_bytes = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
@@ -715,7 +650,7 @@ Recycle::Print(std::string& std_out, std::string& std_err,
       XrdOucErrInfo error;
 
       // Check if this path has a recycle attribute
-      if (gOFS->_attr_ls(Recycle::gRecyclingPrefix.c_str(), error, rootvid, "",
+      if (gOFS->_attr_ls(Recycle::gRecyclingPrefix.c_str(), error, mRootVid, "",
                          attrmap)) {
         eos_static_err("msg=\"unable to get attribute on recycle path\" "
                        "recycle-path=%s", Recycle::gRecyclingPrefix.c_str());
@@ -766,8 +701,6 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
                  eos::common::VirtualIdentity& vid, const char* key,
                  bool force_orig_name, bool restore_versions, bool make_path)
 {
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
-
   if (!key) {
     std_err += "error: invalid argument as recycle key\n";
     return EINVAL;
@@ -823,7 +756,7 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
         if (!repath.beginswith(rprefix.c_str()) &&
             !repath.beginswith(newrprefix.c_str())) {
           std_err = "error: this is not a file in your recycle bin - try to "
-            "prefix the key with pxid:<key>\n";
+                    "prefix the key with pxid:<key>\n";
           return EPERM;
         }
       } catch (eos::MDException& e) {
@@ -876,11 +809,11 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
   eos::common::Path oPath(originalpath.c_str());
   // Check if the client is the owner of the object to recycle
   struct stat buf;
-  XrdOucErrInfo lError;
+  XrdOucErrInfo lerror;
   eos_static_info("msg=\"trying to restore file\" path=\"%s\"",
                   cPath.GetPath());
 
-  if (gOFS->_stat(cPath.GetPath(), &buf, lError, rootvid, "", nullptr, false)) {
+  if (gOFS->_stat(cPath.GetPath(), &buf, lerror, mRootVid, "", nullptr, false)) {
     std_err += "error: unable to stat path to be recycled\n";
     return EIO;
   }
@@ -895,14 +828,14 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
   }
 
   // check if original parent path exists
-  if (gOFS->_stat(oPath.GetParentPath(), &buf, lError, rootvid, "")) {
+  if (gOFS->_stat(oPath.GetParentPath(), &buf, lerror, mRootVid, "")) {
     if (make_path) {
-      XrdOucErrInfo lError;
+      XrdOucErrInfo lerror;
       // create path
       ProcCommand cmd;
       XrdOucString info = "mgm.cmd=mkdir&mgm.option=p&mgm.path=";
       info += oPath.GetParentPath();
-      cmd.open("/proc/user", info.c_str(), vid, &lError);
+      cmd.open("/proc/user", info.c_str(), vid, &lerror);
       cmd.close();
       int rc = cmd.GetRetc();
 
@@ -921,7 +854,7 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
   }
 
   // check if original path is existing
-  if (!gOFS->_stat(oPath.GetPath(), &buf, lError, rootvid, "", nullptr, false)) {
+  if (!gOFS->_stat(oPath.GetPath(), &buf, lerror, mRootVid, "", nullptr, false)) {
     if (force_orig_name == false) {
       std_err +=
         "error: the original path already exists, use '-f|--force-original-name' \n"
@@ -936,13 +869,13 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
       newold += ".";
       newold += sp;
 
-      if (gOFS->_rename(oPath.GetPath(), newold.c_str(), lError, rootvid, "", "",
+      if (gOFS->_rename(oPath.GetPath(), newold.c_str(), lerror, mRootVid, "", "",
                         true, true)) {
         std_err +=
           "error: failed to rename the existing file/tree where we need to restore path=";
         std_err += oPath.GetPath();
         std_err += "\n";
-        std_err += lError.getErrText();
+        std_err += lerror.getErrText();
         return EIO;
       } else {
         std_out += "warning: renamed restore path=";
@@ -955,7 +888,7 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
   }
 
   // do the 'undelete' aka rename
-  if (gOFS->_rename(cPath.GetPath(), oPath.GetPath(), lError, rootvid, "", "",
+  if (gOFS->_rename(cPath.GetPath(), oPath.GetPath(), lerror, mRootVid, "", "",
                     true)) {
     std_err += "error: failed to undelete path=";
     std_err += oPath.GetPath();
@@ -974,7 +907,7 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
 
   std::string vkey;
 
-  if (gOFS->_attr_get(oPath.GetPath(), lError, rootvid, "",
+  if (gOFS->_attr_get(oPath.GetPath(), lerror, mRootVid, "",
                       Recycle::gRecyclingVersionKey.c_str(), vkey)) {
     // no version directory to restore
     return 0;
@@ -1000,10 +933,9 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
                bool global,
                std::string key)
 {
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   XrdMgmOfsDirectory dirl;
   char sdir[4096];
-  XrdOucErrInfo lError;
+  XrdOucErrInfo lerror;
   int nfiles_deleted = 0;
   int nbulk_deleted = 0;
   std::string rpath;
@@ -1025,7 +957,8 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
         key.erase(0, 5);
         key += ".d";
       } else {
-        std_err = "error: the given key to purge is invalid - must start with fxid: or pxid: (see output of recycle ls)";
+        std_err = "error: the given key to purge is invalid - must start "
+                  "with fxid: or pxid: (see output of recycle ls)";
         return EINVAL;
       }
     }
@@ -1035,7 +968,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
       !(vid.hasUid(eos::common::ADM_UID)) &&
       !(vid.hasGid(eos::common::ADM_GID))) {
     std_err = "error: you cannot purge your recycle bin without being a sudor "
-      "or having an admin role";
+              "or having an admin role";
     return EPERM;
   }
 
@@ -1059,7 +992,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   }
 
   XrdOucString err_msg;
-  int retc = gOFS->_find(sdir, lError, err_msg, rootvid, findmap,
+  int retc = gOFS->_find(sdir, lerror, err_msg, mRootVid, findmap,
                          0, 0, false, 0, true, depth);
 
   if (retc && errno != ENOENT) {
@@ -1091,11 +1024,15 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
       }
 
       struct stat buf;
-      XrdOucErrInfo lError;
+
+      XrdOucErrInfo lerror;
+
       std::string fullpath = dirname.c_str();
+
       fullpath += fname;
 
-      if (!gOFS->_stat(fullpath.c_str(), &buf, lError, rootvid, "", nullptr, false)) {
+      if (!gOFS->_stat(fullpath.c_str(), &buf, lerror, mRootVid, "", nullptr,
+                       false)) {
         if (key.length()) {
           // check for a particular string pattern
           if (fullpath.find(key) == std::string::npos) {
@@ -1115,7 +1052,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
         }
 
         info += fullpath.c_str();
-        int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
+        int result = Cmd.open("/proc/user", info.c_str(), mRootVid, &lerror);
         Cmd.AddOutput(std_out, std_err);
 
         if (*std_out.rbegin() != '\n') {
@@ -1163,12 +1100,11 @@ Recycle::Config(std::string& std_out, std::string& std_err,
                 eos::common::VirtualIdentity& vid,
                 const std::string& key, const std::string& value)
 {
-  XrdOucErrInfo lError;
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+  XrdOucErrInfo lerror;
 
   if (vid.uid != 0) {
     std_err = "error: you need to be root to configure the recycle bin"
-      " and/or recycle polcies\n";
+              " and/or recycle polcies\n";
     return EPERM;
   }
 
@@ -1187,7 +1123,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     info += Recycle::gRecyclingAttribute.c_str();
     info += "&mgm.attr.value=";
     info += Recycle::gRecyclingPrefix.c_str();
-    int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
+    int result = Cmd.open("/proc/user", info.c_str(), mRootVid, &lerror);
     Cmd.AddOutput(std_out, std_err);
     Cmd.close();
     return result;
@@ -1206,7 +1142,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     info += value.c_str();
     info += "&mgm.attr.key=";
     info += Recycle::gRecyclingAttribute.c_str();
-    int result = Cmd.open("/proc/user", info.c_str(), rootvid, &lError);
+    int result = Cmd.open("/proc/user", info.c_str(), mRootVid, &lerror);
     Cmd.AddOutput(std_out, std_err);
     Cmd.close();
     return result;
@@ -1237,7 +1173,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     }
 
     if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
-                        lError, rootvid, "",
+                        lerror, mRootVid, "",
                         Recycle::gRecyclingTimeAttribute.c_str(),
                         value.c_str())) {
       std_err = "error: failed to set extended attribute '";
@@ -1279,7 +1215,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     }
 
     if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
-                        lError, rootvid, "",
+                        lerror, mRootVid, "",
                         Recycle::gRecyclingKeepRatio.c_str(),
                         value.c_str())) {
       std_err = "error: failed to set extended attribute '";
@@ -1307,7 +1243,6 @@ int
 Recycle::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
                           std::string& recyclepath)
 {
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   char srecycleuser[4096];
   time_t now = time(NULL);
   struct tm nowtm;
@@ -1322,7 +1257,7 @@ Recycle::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
 
     // check in case the index directory exists, that it has not more than 1M files,
     // otherwise increment the index by one
-    if (!gOFS->_stat(srecycleuser, &buf, error, rootvid, "")) {
+    if (!gOFS->_stat(srecycleuser, &buf, error, mRootVid, "")) {
       if (buf.st_blksize > 100000) {
         index++;
         continue;
@@ -1330,14 +1265,14 @@ Recycle::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
     }
 
     // Verify/create group/user directory
-    if (gOFS->_mkdir(srecycleuser, S_IRUSR | S_IXUSR | SFS_O_MKPTH, error, rootvid,
+    if (gOFS->_mkdir(srecycleuser, S_IRUSR | S_IXUSR | SFS_O_MKPTH, error, mRootVid,
                      "")) {
       return gOFS->Emsg(epname, error, EIO, "remove existing file - the "
                         "recycle space user directory couldn't be created");
     }
 
     // Check the user recycle directory
-    if (gOFS->_stat(srecycleuser, &buf, error, rootvid, "")) {
+    if (gOFS->_stat(srecycleuser, &buf, error, mRootVid, "")) {
       return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
                         "determine ownership of the recycle space user directory",
                         srecycleuser);
@@ -1346,7 +1281,7 @@ Recycle::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
     // Check the ownership of the user directory
     if ((buf.st_uid != mOwnerUid) || (buf.st_gid != mOwnerGid)) {
       // Set the correct ownership
-      if (gOFS->_chown(srecycleuser, mOwnerUid, mOwnerGid, error, rootvid, "")) {
+      if (gOFS->_chown(srecycleuser, mOwnerUid, mOwnerGid, error, mRootVid, "")) {
         return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
                           "change ownership of the recycle space user directory",
                           srecycleuser);
@@ -1375,9 +1310,8 @@ Recycle::HandlePotentialSymlink(const std::string& ppath,
   std::string fpath = ppath + fn;
   struct stat buf;
   XrdOucErrInfo lerror;
-  eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
-  if (gOFS->_stat(fpath.c_str(), &buf, lerror, rootvid,
+  if (gOFS->_stat(fpath.c_str(), &buf, lerror, mRootVid,
                   "", nullptr, false) == SFS_OK) {
     return fn;
   }
