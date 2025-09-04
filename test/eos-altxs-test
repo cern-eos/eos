@@ -23,6 +23,12 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************/
 
+# This script will test the alternative checksum computation
+# in different scenarios, testing both synchronous and asynchronous
+# computation when the file is uploaded, as well as changes in the
+# configuration in the namespace, and then its synchronization on
+# the FSTs.
+
 set -x
 
 SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
@@ -68,7 +74,7 @@ function check_checksums() {
 
   altchecksums=$(eos -j root://$EOS_MGM_HOSTNAME file info "$eos_file" | jq '.altchecksums')
   if [[ $(jq 'length' <<< $altchecksums) -ne "${#checksums[@]}" ]]; then
-    return 1    
+    return 1
   fi
 
   for xs in "${checksums[@]}"; do
@@ -91,7 +97,23 @@ function check_checksums() {
 function enable_altxs_scan() {
   local time=$1
   for fsid in $(eos -j fs ls | jq '.result[].id'); do
-    eos fs config ${fsid} scan_alt_xs_interval=${time}
+    eos fs config ${fsid} scan_altxs_interval=${time}
+  done
+}
+
+function enable_altxs_sync() {
+  local time=$1
+  for fsid in $(eos -j fs ls | jq '.result[].id'); do
+    eos fs config ${fsid} altxs_sync=1
+    eos fs config ${fsid} altxs_sync_interval=${time}
+    eos fs config ${fsid} scan_disk_interval=${time}
+  done
+}
+
+function disable_altxs_sync() {
+  for fsid in $(eos -j fs ls | jq '.result[].id'); do
+    eos fs config ${fsid} altxs_sync=0
+    eos fs config ${fsid} altxs_sync_interval=0
   done
 }
 
@@ -126,6 +148,7 @@ dd if=/dev/urandom of=${TEST_FILE2} bs=1M count=64 &> /dev/null
 # enable on the EOS directory the alternative checksums and check
 # if they were computed
 disable_altxs_scan
+disable_altxs_sync
 eos mkdir -p ${EOS_ALTXS_TEST}/enabled
 eos attr set sys.altchecksums="md5,sha1" ${EOS_ALTXS_TEST}/enabled
 enable_altxs_upload
@@ -134,18 +157,21 @@ sleep 5 # Wait the FST to commit the alt checksums
 fail_on_error check_checksums "${EOS_ALTXS_TEST}/enabled/altxs.dat" "${TEST_FILE}" "md5 sha"
 
 # Test 2
-# Enable alternative checksums after having uplaoded the file
+# Enable alternative checksums after having uploaded the file
+disable_altxs_scan
+disable_altxs_sync
 eos mkdir -p ${EOS_ALTXS_TEST}/disabled
 eos attr rm sys.altchecksums ${EOS_ALTXS_TEST}/disabled || true
-enable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/disabled/altxs.dat
 eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/disabled
+enable_altxs_sync 5
 enable_altxs_scan 5
 check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/disabled/altxs.dat\" \"${TEST_FILE}\" \"md5 sha sha256\"" 300
 
 # Test 3
-# Check if updating the file, the alternative checksums are updated accordingly
+# Check if after having overwritten the file, the alternative checksums are updated accordingly
 disable_altxs_scan
+disable_altxs_sync
 eos mkdir -p ${EOS_ALTXS_TEST}/updated
 eos attr set sys.altchecksums="sha1,sha256" ${EOS_ALTXS_TEST}/updated
 enable_altxs_upload
@@ -155,6 +181,7 @@ fail_on_error check_checksums "${EOS_ALTXS_TEST}/updated/altxs.dat" "${TEST_FILE
 
 # Test 4
 # Check that triggering the verify command, the alternative checksums are computed and committed
+disable_altxs_sync
 disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/triggered
 eos attr rm sys.altchecksums ${EOS_ALTXS_TEST}/triggered || true
@@ -166,28 +193,33 @@ check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/triggered/altxs.dat\"
 
 # Test 5
 # Check that if there are already alternative checksums, adding others will compute the new ones
+disable_altxs_sync
 disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/added
 eos attr set sys.altchecksums="md5" ${EOS_ALTXS_TEST}/added
 enable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/added/altxs.dat
 eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/added
+enable_altxs_sync 5
 enable_altxs_scan 5
 check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/added/altxs.dat\" \"${TEST_FILE}\" \"md5 sha sha256\"" 300
 
 # Test 6
 # Check that removing alternative checksums, the removal is reflected on namespace
+disable_altxs_sync
 disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/removed
 eos attr set sys.altchecksums="md5,sha1" ${EOS_ALTXS_TEST}/removed
 enable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/removed/altxs.dat
 eos attr -r set sys.altchecksums="sha1" ${EOS_ALTXS_TEST}/removed
+enable_altxs_sync 5
 enable_altxs_scan 5
 check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/removed/altxs.dat\" \"${TEST_FILE}\" \"sha\"" 300
 
 ## Test 7
 # Check that disabling the computation of the alternative checksums on file upload, this doesn't get computed
+disable_altxs_sync
 disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/disabled_on_upload
 eos attr set sys.altchecksums="md5" ${EOS_ALTXS_TEST}/disabled_on_upload

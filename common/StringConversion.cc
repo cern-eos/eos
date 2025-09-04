@@ -651,15 +651,17 @@ StringConversion::GetKeyValueMap(const char* mapstring,
 //------------------------------------------------------------------------------
 bool
 StringConversion::GetSpecialKeyValueMap(const char* mapstring,
-					std::map<std::string, std::string>& map,
-					const char* split,
-					const char* sdelimiter,
-					std::vector<std::string>* keyvector,
-					const char* pathKey,
-					const char* stopKey)
+                                        std::map<std::string, std::string>& map,
+                                        const char* split,
+                                        const char* sdelimiter,
+                                        std::vector<std::string>* keyvector,
+                                        const char* pathKey,
+                                        const char* stopKey)
 {
-  if (!mapstring || !split || !sdelimiter || !pathKey || !stopKey)
+  if (!mapstring || !split || !sdelimiter || !pathKey || !stopKey) {
     return false;
+  }
+
   std::string input(mapstring);
   std::string delimiter(sdelimiter);
   std::string splitter(split);
@@ -667,9 +669,11 @@ StringConversion::GetSpecialKeyValueMap(const char* mapstring,
   std::string stopPrefix = std::string(stopKey) + splitter;
   size_t pos = 0;
   size_t start = 0;
+
   while (start < input.length()) {
     pos = input.find(delimiter, start);
     std::string token;
+
     if (pos == std::string::npos) {
       token = input.substr(start);
       start = input.length();
@@ -677,40 +681,53 @@ StringConversion::GetSpecialKeyValueMap(const char* mapstring,
       token = input.substr(start, pos - start);
       start = pos + delimiter.length();
     }
+
     if (token.find(pathPrefix) == 0) {
       std::string key = pathKey;
       std::string value = token.substr(pathPrefix.length());
+
       while (start < input.length()) {
-	pos = input.find(delimiter, start);
-	std::string next_token;
-	if (pos == std::string::npos) {
-	  next_token = input.substr(start);
-	  start = input.length();
-	} else {
-	  next_token = input.substr(start, pos - start);
-	  start = pos + delimiter.length();
-	}
-	if (next_token.find(stopPrefix) == 0) {
-	  start -= (next_token.length() + delimiter.length());
-	  break;
-	} else {
-	  value += delimiter + next_token;
-	}
+        pos = input.find(delimiter, start);
+        std::string next_token;
+
+        if (pos == std::string::npos) {
+          next_token = input.substr(start);
+          start = input.length();
+        } else {
+          next_token = input.substr(start, pos - start);
+          start = pos + delimiter.length();
+        }
+
+        if (next_token.find(stopPrefix) == 0) {
+          start -= (next_token.length() + delimiter.length());
+          break;
+        } else {
+          value += delimiter + next_token;
+        }
       }
+
       map[key] = value;
-      if (keyvector)
-	keyvector->push_back(key);
+
+      if (keyvector) {
+        keyvector->push_back(key);
+      }
     } else {
       size_t split_pos = token.find(splitter);
-      if (split_pos == std::string::npos)
-	continue;
+
+      if (split_pos == std::string::npos) {
+        continue;
+      }
+
       std::string key = token.substr(0, split_pos);
       std::string value = token.substr(split_pos + splitter.length());
       map[key] = value;
-      if (keyvector)
-	keyvector->push_back(key);
+
+      if (keyvector) {
+        keyvector->push_back(key);
+      }
     }
   }
+
   return true;
 }
 
