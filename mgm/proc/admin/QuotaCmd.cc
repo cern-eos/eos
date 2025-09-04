@@ -27,7 +27,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Quota.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "common/Path.hh"
 #include "common/Constants.hh"
 
