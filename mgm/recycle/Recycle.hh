@@ -3,7 +3,7 @@
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
-/****************************A********************************************
+/****************************(********************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
@@ -23,6 +23,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
+#include "mgm/recycle/RecyclePolicy.hh"
 #include "common/AssistedThread.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <sys/types.h>
@@ -56,7 +57,8 @@ public:
   //----------------------------------------------------------------------------
   Recycle() :
     mPath(""), mRecycleDir(""), mRecyclePath(""),
-    mOwnerUid(DAEMONUID), mOwnerGid(DAEMONGID), mId(0), mWakeUp(false)
+    mOwnerUid(DAEMONUID), mOwnerGid(DAEMONGID), mId(0), mWakeUp(false),
+    mSnooze(gRecyclingPollTime)
   {}
 
   //----------------------------------------------------------------------------
@@ -71,7 +73,8 @@ public:
           eos::common::VirtualIdentity* vid, uid_t ownerUid,
           gid_t ownerGid, unsigned long long id) :
     mPath(path), mRecycleDir(recycledir), mRecyclePath(""),
-    mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id), mWakeUp(false)
+    mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id), mWakeUp(false),
+    mSnooze(gRecyclingPollTime)
   {}
 
   //----------------------------------------------------------------------------
@@ -85,15 +88,26 @@ public:
   //----------------------------------------------------------------------------
   //! Start the recycle thread cleaning up the recycle bin
   //----------------------------------------------------------------------------
-  bool Start();
+  bool Start()
+  {
+    mThread.reset(&Recycle::Recycler, this);
+    return true;
+  }
 
   //----------------------------------------------------------------------------
   //! Stop the recycle thread
   //----------------------------------------------------------------------------
-  void Stop();
+  void Stop()
+  {
+    mThread.join();
+  }
 
   //----------------------------------------------------------------------------
-  //! Recycle method doing the actual clean-up
+  //! Recycle method doing the clean-up. One should define the
+  //! 'sys.recycle.keeptime' on the recycle directory which is the
+  //! time in seconds of how long files stay in the recycle bin.
+  //!
+  //! @param assistant thread information
   //----------------------------------------------------------------------------
   void Recycler(ThreadAssistant& assistant) noexcept;
 
@@ -132,29 +146,30 @@ public:
     mWakeUp = true;
   }
 
-  /**
-   * print the recycle bin contents
-   * @param std_out where to print
-   * @param std_err where to print
-   * @param vid of the client
-   * @param monitoring selects monitoring key-value output format
-   * @param translateids selects to display uid/gid as number or string
-   * @param global show files of all users as root
-   * @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
-   * @param rvec a vector of maps with all recycle informations requested
-   * @param whodeleted - show who exectued a deletion
-   * @param maxentries - maximum number of entries to report
-   * @return 0 if success, E2BIG if return list is limited
-   */
+  //----------------------------------------------------------------------------
+  //! Print the recycle bin contents
+  //!
+  //! @param std_out where to print
+  //! @param std_err where to print
+  //! @param vid of the client
+  //! @param monitoring selects monitoring key-value output format
+  //! @param translateids selects to display uid/gid as number or string
+  //! @param global show files of all users as root
+  //! @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
+  //! @param rvec a vector of maps with all recycle informations requested
+  //! @param whodeleted - show who exectued a deletion
+  //! @param maxentries - maximum number of entries to report
+  //!
+  //! @return 0 if success, E2BIG if return list is limited
+  //----------------------------------------------------------------------------
   static int Print(std::string& std_out, std::string& std_err,
-                    eos::common::VirtualIdentity& vid, bool monitoring,
-                    bool transalteids, bool details,
-                    std::string date = "",
-                    bool global = false,
-                    RecycleListing* rvec = 0,
-                    bool whodeleted = true,
-                    int32_t maxentries = 0
-                   );
+                   eos::common::VirtualIdentity& vid, bool monitoring,
+                   bool transalteids, bool details,
+                   std::string date = "",
+                   bool global = false,
+                   RecycleListing* rvec = 0,
+                   bool whodeleted = true,
+                   int32_t maxentries = 0);
 
   /**
    * undo a deletion
@@ -230,6 +245,7 @@ public:
   //! belonging to a given file
   static std::string gRecyclingVersionKey;
   static int gRecyclingPollTime; ///< Poll interval inside the garbage bin
+  static eos::common::VirtualIdentity mRootVid;
 
 private:
 #ifdef IN_TEST_HARNESS
@@ -244,6 +260,9 @@ public:
   gid_t mOwnerGid;
   unsigned long long mId;
   std::atomic<bool> mWakeUp;
+  time_t mSnooze;
+  RecyclePolicy mPolicy;
+  std::multimap<time_t, std::string> mPendingDeletions;
 
   //----------------------------------------------------------------------------
   //! Handle symlink or symlink like file names. Three scenarios:
@@ -273,6 +292,50 @@ public:
   //----------------------------------------------------------------------------
   int GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
                        std::string& recyclepath);
+
+  //----------------------------------------------------------------------------
+  //! Collect entries to recycle based on current policy
+  //!
+  //! @param assistant thread assistant
+  //----------------------------------------------------------------------------
+  void CollectEntries(ThreadAssistant& assistant);
+
+  //----------------------------------------------------------------------------
+  //! Remove the pending deletions
+  //----------------------------------------------------------------------------
+  void RemoveEntries();
+
+  //----------------------------------------------------------------------------
+  //! Remove given file entry
+  //!
+  //! @param fullpath full path to file
+  //!
+  //! return 0 (SFS_OK) if successful, otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int RemoveFile(std::string_view fullpath);
+
+  //----------------------------------------------------------------------------
+  //! Remove all the entries in the given subtree
+  //!
+  //! @param fullpath full path to directory
+  //----------------------------------------------------------------------------
+  void RemoveSubtree(std::string_view fullpath);
+
+  //----------------------------------------------------------------------------
+  //! Check if keep ratio enabled and the current quota accounting is below
+  //! the specified threshold.
+  //!
+  //! @return true if keep ratio enabled and b
+  //----------------------------------------------------------------------------
+  bool IsWithinLimits();
+
+  //----------------------------------------------------------------------------
+  //! Update snooz time for the recycler thread. This should match the time
+  //! between now and the expiration date of the oldest entry
+  //!
+  //! @param oldest_ts timestamp of the oldest entry in the recycle bin
+  //----------------------------------------------------------------------------
+  void UpdateSnooze(time_t oldest_ts = 0);
 
 };
 

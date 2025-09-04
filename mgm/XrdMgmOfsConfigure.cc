@@ -39,7 +39,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Access.hh"
 #include "mgm/Devices.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/config/QuarkDBConfigEngine.hh"
 #include "mgm/Egroup.hh"
