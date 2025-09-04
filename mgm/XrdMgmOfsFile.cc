@@ -46,7 +46,7 @@
 #include "mgm/Workflow.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"

@@ -28,7 +28,7 @@
 #include "mgm/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
 #include "mgm/LRU.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/Devices.hh"
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/convert/ConverterEngine.hh"
