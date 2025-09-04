@@ -26,7 +26,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/Access.hh"
 #include "mgm/Quota.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "common/Path.hh"
 #include <regex.h>
@@ -44,7 +44,8 @@ ProcCommand::Rm()
     std::string lpath;
     std::string err_msg;
 
-    if (GetPathFromFid(lpath, std::strtoull(spathid.c_str(), nullptr, 10), err_msg)) {
+    if (GetPathFromFid(lpath, std::strtoull(spathid.c_str(), nullptr, 10),
+                       err_msg)) {
       stdErr = err_msg.c_str();
     }
 
@@ -54,7 +55,8 @@ ProcCommand::Rm()
       std::string lpath;
       std::string err_msg;
 
-      if (GetPathFromCid(lpath, std::strtoull(scontainerid.c_str(), nullptr, 10), err_msg)) {
+      if (GetPathFromCid(lpath, std::strtoull(scontainerid.c_str(), nullptr, 10),
+                         err_msg)) {
         stdErr = err_msg.c_str();
       }
 
