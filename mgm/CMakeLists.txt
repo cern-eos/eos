@@ -234,7 +234,8 @@ add_library(
   IMaster.cc                  IMaster.hh
   QdbMaster.cc
   Devices.cc
-  Recycle.cc
+  recycle/RecyclePolicy.cc      recycle/RecyclePolicy.hh
+  recycle/Recycle.cc            recycle/Recycle.hh
   PathRouting.cc
   RouteEndpoint.cc
   LRU.cc
