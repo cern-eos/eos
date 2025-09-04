@@ -308,7 +308,7 @@ Storage::Verify()
                                                  type)) + ":" + xs->GetHexChecksum());
                 }
 
-                capOpaqueFile += "&mgm.altchecksums=";
+                capOpaqueFile += "&mgm.altxs=";
                 capOpaqueFile += eos::common::StringConversion::Join(alt, ",").c_str();
               }
             }

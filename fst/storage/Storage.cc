@@ -714,7 +714,8 @@ Storage::Boot(FileSystem* fs)
     eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
     eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME, eos::common::SCAN_DISK_INTERVAL_NAME,
     eos::common::SCAN_NS_INTERVAL_NAME, eos::common::SCAN_NS_RATE_NAME,
-    eos::common::SCAN_ALT_XS_RATE_NAME, eos::common::SCAN_ALT_XS_INTERVAL_NAME};
+    eos::common::SCAN_ALTXS_INTERVAL_NAME, eos::common::ALTXS_SYNC,
+    eos::common::ALTXS_SYNC_INTERVAL};
 
   for (const auto& key : scan_keys) {
     const std::string sval = fs->GetString(key.c_str());
@@ -1363,7 +1364,7 @@ Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
   }
 
   std::list<std::string> to_delete;
-  qclient::QSet qset(*gOFS.mFsckQcl.get(),
+  qclient::QSet qset(*gOFS.mQcl.get(),
                      SSTR("fsck:" << eos::common::FSCK_ORPHANS_N));
 
   for (const auto& fid : fids) {
@@ -1415,13 +1416,13 @@ Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
 #ifndef _NOOFS
   static const uint32_t s_max_batch_size = 10000;
 
-  if (gOFS.mFsckQcl == nullptr) {
+  if (gOFS.mQcl == nullptr) {
     eos_notice("%s", "msg=\"no qclient present, push to QDB failed\"");
     return false;
   }
 
   qclient::AsyncHandler ah;
-  qclient::QSet fsck_set(*gOFS.mFsckQcl, "");
+  qclient::QSet fsck_set(*gOFS.mQcl, "");
 
   for (const auto& elem : errs_map) {
     std::list<std::string> values; // contains fid:fsid entries

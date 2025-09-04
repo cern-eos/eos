@@ -800,8 +800,8 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
   // Create the qclient shared by all file systems for doing the ns scan for
   // the fsck consistency checks
   if (!mQdbContactDetails.empty()) {
-    mFsckQcl.reset(new qclient::QClient(mQdbContactDetails.members,
-                                        mQdbContactDetails.constructOptions()));
+    mQcl.reset(new qclient::QClient(mQdbContactDetails.members,
+                                    mQdbContactDetails.constructOptions()));
   }
 
   if (!gConfig.FstOfsBrokerUrl.endswith("/")) {
