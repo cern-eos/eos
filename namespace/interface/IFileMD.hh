@@ -207,13 +207,33 @@ public:
   //----------------------------------------------------------------------------
   virtual void setChecksum(const void* checksum, uint8_t size) = 0;
 
-  virtual void addAlternativeChecksum(eos::common::LayoutId::eChecksum
-                                      checksumType, const char* checksum, size_t size) = 0;
+  //----------------------------------------------------------------------------
+  //! Add alternative checksum
+  //!
+  //! @param checksumType type of the checksum to store
+  //! @param checksum address of a memory location string the checksum
+  //! @param size     size of the checksum in bytes
+  //----------------------------------------------------------------------------
+  virtual void addAltXs(eos::common::LayoutId::eChecksum
+                        checksumType, const char* checksum, size_t size) = 0;
 
+  //----------------------------------------------------------------------------
+  //! Get all the alternative checksums stored for the file
+  //----------------------------------------------------------------------------
   virtual std::map<eos::common::LayoutId::eChecksum, std::string>
-  getAlternativeChecksums() const = 0;
+  getAltXs() const = 0;
 
-  virtual void clearAlternativeChecksums() = 0;
+  //----------------------------------------------------------------------------
+  //! Clear the alternative checksums
+  //----------------------------------------------------------------------------
+  virtual void clearAltXs() = 0;
+
+  //----------------------------------------------------------------------------
+  //! Remove the alternative checksum
+  //!
+  //! @param checksumType type of the checksum
+  //----------------------------------------------------------------------------
+  virtual void removeAltXs(eos::common::LayoutId::eChecksum type) = 0;
 
   //----------------------------------------------------------------------------
   //! Get name
