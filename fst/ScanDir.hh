@@ -52,7 +52,6 @@ struct stripe_s {
 constexpr uint64_t DEFAULT_RAIN_RESCAN_INTERVAL = 4 * 7 * 24 * 3600;
 constexpr uint64_t DEFAULT_DISK_INTERVAL = 4 * 3600;
 constexpr uint64_t DEFAULT_NS_INTERVAL = 3 * 24 * 3600;
-constexpr uint64_t DEFAULT_ALT_XS_RATE = 20;
 
 //------------------------------------------------------------------------------
 //! Class ScanDir
@@ -138,7 +137,7 @@ public:
   //!
   //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
-  bool CheckFile(const std::string& fpath);
+  bool CheckFile(eos::fst::FileIo* io, const std::string& fpath);
 
   //----------------------------------------------------------------------------
   //! Get block checksum object for the given file. First we need to check if
@@ -379,6 +378,12 @@ public:
   bool DropGhostFid(const eos::common::FileSystem::fsid_t fsid,
                     const eos::IFileMD::id_t fid) const;
 
+  void UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
+                                const eos::common::FmdHelper& fmd);
+
+  bool DoAltXsSync(eos::fst::FileIo* io);
+
+  void SetAltXsSynced(eos::fst::FileIo* io);
 
   //----------------------------------------------------------------------------
   //! Print log message - depending on whether or not we run in standalone mode
@@ -416,6 +421,10 @@ public:
   //! Time interval after which a rain file is rescanned in seconds, if 0 then
   //! rescanning is completely disabled
   std::atomic<uint64_t> mRainEntryInterval;
+  //! Whether or not make the synchronization of the altxs's metadata
+  std::atomic<bool> mAltXsDoSync;
+
+  std::atomic<uint64_t> mAltXsSyncInterval;
 
   // Configuration for alternative checksums computation
   //! Time interval after which the thread for alternative checksyms will run again, default 30 days
@@ -438,8 +447,6 @@ public:
   //! Rate limiter for ns scanning which actually limits the number of stat
   //! requests send across the disks in one FSTs.
   std::unique_ptr<eos::common::IRateLimit> mRateLimit;
-  //! Rate limiter for alternative checksum computation
-  std::unique_ptr<eos::common::IRateLimit> mAltXsRateLimit;
 };
 
 EOSFSTNAMESPACE_END

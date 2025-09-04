@@ -739,13 +739,15 @@ public:
     });
   };
 
-  void addAlternativeChecksum(eos::common::LayoutId::eChecksum
-                              checksumType, const char* checksum, size_t size) override;
+  void addAltXs(eos::common::LayoutId::eChecksum
+                checksumType, const char* checksum, size_t size) override;
 
-  std::map<eos::common::LayoutId::eChecksum, std::string>
-  getAlternativeChecksums() const override;
+  std::map<eos::common::LayoutId::eChecksum, std::string> getAltXs() const
+  override;
 
-  void clearAlternativeChecksums() override;
+  void clearAltXs() override;
+
+  void removeAltXs(eos::common::LayoutId::eChecksum type) override;
 
 protected:
   IFileMDSvc* pFileMDSvc;

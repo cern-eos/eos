@@ -751,7 +751,6 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
                mFileId, mFmd->mProtoFmd.checksum().c_str());
       mChecksumGroup->ResetInitDefault(0, mOpenSize,
                                        mFmd->mProtoFmd.checksum().c_str());
-      // TODO: we should inizialize the others from the xattrs
     }
   }
 
@@ -2762,7 +2761,7 @@ XrdFstOfsFile::ProcessMixedOpaque()
     eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\"",
               mChecksumGroup->GetDefault(), mLid, opaqueCheckSum.c_str());
 
-    if ((val = mCapOpaque->Get("mgm.altchecksums"))) {
+    if ((val = mCapOpaque->Get("mgm.altxs"))) {
       std::vector<std::string> alternatives;
       eos::common::StringConversion::Tokenize(val, alternatives, ",");
 
@@ -4330,7 +4329,7 @@ XrdFstOfsFile::CommitToMgm()
     const auto alt = mChecksumGroup->GetAlternatives();
 
     if (alt.size()) {
-      oss << "&mgm.altchecksums=";
+      oss << "&mgm.altxs=";
       std::vector<std::string> tkn;
       tkn.reserve(alt.size());
 

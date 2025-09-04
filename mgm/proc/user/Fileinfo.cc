@@ -433,7 +433,7 @@ ProcCommand::FileInfo(const char* path)
                 << "XS: " << xs_spaces
                 << "    ETAGs: " << etag
                 << std::endl;
-            auto altchecksums = fmd_copy->getAlternativeChecksums();
+            auto altchecksums = fmd_copy->getAltXs();
 
             for (auto [type, xs] : altchecksums) {
               out << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
@@ -511,7 +511,7 @@ ProcCommand::FileInfo(const char* path)
                   << " xattrv=" << elem.second << " ";
             }
 
-            auto altchecksums = fmd_copy->getAlternativeChecksums();
+            auto altchecksums = fmd_copy->getAltXs();
 
             for (auto [type, xs] : altchecksums) {
               out << "altxsn=" << eos::common::LayoutId::GetChecksumString(type)
@@ -1069,7 +1069,7 @@ ProcCommand::FileJSON(uint64_t fid, Json::Value* ret_json, bool dolock)
     eos::appendChecksumOnStringAsHex(fmd_copy.get(), cks);
     json["checksumvalue"] = cks;
     // Add alternative checksums if available
-    auto altchecksums = fmd_copy->getAlternativeChecksums();
+    auto altchecksums = fmd_copy->getAltXs();
 
     if (!altchecksums.empty()) {
       Json::Value jsonaltxs;
