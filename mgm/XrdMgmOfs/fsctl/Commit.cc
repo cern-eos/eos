@@ -226,11 +226,11 @@ XrdMgmOfs::Commit(const char* path,
                     "commit file, parent container removed [EIDRM]", "");
       }
 
-      if (cgi["altchecksums"].length()) {
+      if (cgi["altxs"].length()) {
         std::vector<std::string> tkns;
         std::vector<std::string> name2xs;
-        eos::common::StringConversion::Tokenize(cgi["altchecksums"], tkns, ",");
-        fmd->clearAlternativeChecksums();
+        eos::common::StringConversion::Tokenize(cgi["altxs"], tkns, ",");
+        fmd->clearAltXs();
 
         for (const auto& tkn : tkns) {
           name2xs.clear();
@@ -243,8 +243,8 @@ XrdMgmOfs::Commit(const char* path,
 
           auto checksumType = eos::common::LayoutId::GetChecksumFromString(name2xs[0]);
           auto xs = name2xs[1];
-          fmd->addAlternativeChecksum(static_cast<eos::common::LayoutId::eChecksum>
-                                      (checksumType), xs.c_str(), xs.size());
+          fmd->addAltXs(static_cast<eos::common::LayoutId::eChecksum>
+                        (checksumType), xs.c_str(), xs.size());
         }
       }
 
@@ -435,24 +435,36 @@ XrdMgmOfs::Commit(const char* path,
         return Emsg(epname, error, errno, emsg.c_str(), cgi["path"].c_str());
       }
 
-      std::vector<std::string> tkns;
-      std::vector<std::string> name2xs;
-      eos::common::StringConversion::Tokenize(cgi["altchecksums"], tkns, ",");
-      fmd->clearAlternativeChecksums();
+      if (cgi["altxs"].length()) {
+        std::vector<std::string> tkns;
+        std::vector<std::string> name2xs;
+        eos::common::StringConversion::Tokenize(cgi["altxs"], tkns, ",");
+        fmd->clearAltXs();
 
-      for (const auto& tkn : tkns) {
-        name2xs.clear();
-        eos::common::StringConversion::Tokenize(tkn, name2xs, ":");
+        for (const auto& tkn : tkns) {
+          name2xs.clear();
+          eos::common::StringConversion::Tokenize(tkn, name2xs, ":");
 
-        if (name2xs.size() != 2) {
-          // the entry is not valid
-          continue;
+          if (name2xs.size() != 2) {
+            // the entry is not valid
+            continue;
+          }
+
+          auto checksumType = eos::common::LayoutId::GetChecksumFromString(name2xs[0]);
+          auto xs = name2xs[1];
+          fmd->addAltXs(static_cast<eos::common::LayoutId::eChecksum>
+                        (checksumType), xs.c_str(), xs.size());
         }
+      }
 
-        auto checksumType = eos::common::LayoutId::GetChecksumFromString(name2xs[0]);
-        auto xs = name2xs[1];
-        fmd->addAlternativeChecksum(static_cast<eos::common::LayoutId::eChecksum>
-                                    (checksumType), xs.c_str(), xs.size());
+      if (cgi["altxs_delete"].length()) {
+        std::vector<std::string> tkns;
+        eos::common::StringConversion::Tokenize(cgi["altxs_delete"], tkns, ",");
+
+        for (const auto& tkn : tkns) {
+          fmd->removeAltXs(static_cast<eos::common::LayoutId::eChecksum>
+                           (eos::common::LayoutId::GetChecksumFromString(tkn)));
+        }
       }
 
       eos::ContainerIdentifier p_ident;
