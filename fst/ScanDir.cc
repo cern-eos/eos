@@ -26,6 +26,7 @@
 #include "common/Constants.hh"
 #include "common/StringSplit.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringConversion.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
@@ -94,12 +95,13 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   mDiskInterval(DEFAULT_DISK_INTERVAL),
   mEntryInterval(file_rescan_interval),
   mRainEntryInterval(DEFAULT_RAIN_RESCAN_INTERVAL),
+  mAltXsDoSync(false), // by default sync is disabled
+  mAltXsSyncInterval(0), // by default the sync is done only once
   mAltXsInterval(0), // by default it's disabled
   mNumScannedFiles(0), mNumCorruptedFiles(0),
   mNumHWCorruptedFiles(0),  mTotalScanSize(0), mNumTotalFiles(0),
   mNumSkippedFiles(0), mBuffer(nullptr),
-  mBufferSize(0), mBgThread(bgthread), mClock(fake_clock), mRateLimit(nullptr),
-  mAltXsRateLimit(nullptr)
+  mBufferSize(0), mBgThread(bgthread), mClock(fake_clock), mRateLimit(nullptr)
 {
   long alignment = pathconf((mDirPath[0] != '/') ? "/" : mDirPath.c_str(),
                             _PC_REC_XFER_ALIGN);
@@ -126,8 +128,6 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
     mRateLimit.reset(new eos::common::RequestRateLimit());
     mRateLimit->SetRatePerSecond(sDefaultNsScanRate);
     mNsThread.reset(&ScanDir::RunNsScan, this);
-    mAltXsRateLimit.reset(new eos::common::RequestRateLimit());
-    mAltXsRateLimit->SetRatePerSecond(DEFAULT_ALT_XS_RATE);
     mAltXsThread.reset(&ScanDir::RunAltXsScan, this);
 #endif
   }
@@ -173,10 +173,12 @@ ScanDir::SetConfig(const std::string& key, long long value)
 #endif
   } else if (key == eos::common::SCAN_NS_RATE_NAME) {
     mRateLimit->SetRatePerSecond(value);
-  } else if (key == eos::common::SCAN_ALT_XS_RATE_NAME) {
-    mAltXsRateLimit->SetRatePerSecond(value);
-  } else if (key == eos::common::SCAN_ALT_XS_INTERVAL_NAME) {
+  } else if (key == eos::common::SCAN_ALTXS_INTERVAL_NAME) {
     mAltXsInterval.set(value);
+  } else if (key == eos::common::ALTXS_SYNC) {
+    mAltXsDoSync.store(value, std::memory_order_relaxed);
+  } else if (key == eos::common::ALTXS_SYNC_INTERVAL) {
+    mAltXsSyncInterval.store(value, std::memory_order_relaxed);
   }
 }
 
@@ -192,7 +194,7 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
   eos_info("msg=\"started the ns scan thread\" fsid=%lu dirpath=\"%s\" "
            "ns_scan_interval_sec=%llu", mFsId, mDirPath.c_str(), mNsInterval.get());
 
-  if (gOFS.mFsckQcl == nullptr) {
+  if (gOFS.mQcl == nullptr) {
     eos_notice("%s", "msg=\"no qclient present, skipping ns scan\"");
     return;
   }
@@ -222,41 +224,36 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
 
 namespace
 {
-std::set<eos::common::LayoutId::eChecksum> GetAlternativeChecksumsConfig(
+// Get the set of alternative checksums configured at the container
+// level in the namespace.
+std::string AltXsConfigFromNS(
   const eos::ns::ContainerMdProto& container)
 {
   if (!container.xattrs().contains(eos::mgm::SYS_ALTCHECKSUMS)) {
     return {};
   }
 
-  std::vector<std::string> tokens;
-  auto xs_str = container.xattrs().at(eos::mgm::SYS_ALTCHECKSUMS);
-  eos::common::StringConversion::Tokenize(xs_str, tokens, ",");
-  std::set<eos::common::LayoutId::eChecksum> alt_xs;
-
-  for (const auto& tkn : tokens) {
-    auto xs = eos::common::LayoutId::GetChecksumFromString(tkn);
-    alt_xs.emplace(static_cast<eos::common::LayoutId::eChecksum>(xs));
-  }
-
-  return alt_xs;
+  return container.xattrs().at(eos::mgm::SYS_ALTCHECKSUMS);
 }
 
-std::set<eos::common::LayoutId::eChecksum> ExtractAltXsOnFile(
+// Get the set of alternative checksums already computed on the file
+// that are stored in the namespace.
+std::vector<std::string> ExtractAltXsOnFile(
   eos::ns::FileMdProto& file)
 {
-  std::set<eos::common::LayoutId::eChecksum> alt_xs;
+  std::vector<std::string> altxs;
 
-  for (const auto& [xs, _] : file.altchecksums()) {
-    alt_xs.emplace(static_cast<eos::common::LayoutId::eChecksum>(xs));
+  for (const auto & [xs, _] : file.altchecksums()) {
+    altxs.emplace_back(eos::common::LayoutId::GetChecksumString(xs));
   }
 
-  return alt_xs;
+  return altxs;
 }
 
+// Create the map of alternative checksums that will be commited
+// to the MGM.
 std::map<eos::common::LayoutId::eChecksum, std::string>
-PrepareAltXsResponse(eos::fst::ChecksumGroup* xs, eos::ns::FileMdProto& file,
-                     const std::set<eos::common::LayoutId::eChecksum> from_file)
+PrepareAltXsResponse(eos::fst::ChecksumGroup* xs)
 {
   std::map<eos::common::LayoutId::eChecksum, std::string> altxs;
   auto computed = xs->GetAlternatives();
@@ -265,45 +262,128 @@ PrepareAltXsResponse(eos::fst::ChecksumGroup* xs, eos::ns::FileMdProto& file,
     altxs.insert({type, xs->GetHexChecksum()});
   }
 
-  for (const auto xs : from_file) {
-    auto it = file.altchecksums().find(xs);
+  return altxs;
+}
 
-    if (it == file.altchecksums().end()) {
-      // This should never happen
-      continue;
-    }
+// Parse a string of the type "md5,sha1" in a set of checksum types
+std::set<eos::common::LayoutId::eChecksum> ParseAltXsConfigString(
+  std::string xs_str)
+{
+  std::vector<std::string> tokens;
+  eos::common::StringConversion::Tokenize(xs_str, tokens, ",");
+  std::set<eos::common::LayoutId::eChecksum> altxs;
 
-    altxs.insert({xs, it->second});
+  for (const auto& tkn : tokens) {
+    auto xs = eos::common::LayoutId::GetChecksumFromString(tkn);
+    altxs.emplace(static_cast<eos::common::LayoutId::eChecksum>(xs));
   }
 
   return altxs;
 }
 
-void CommitAlternativeChecksums(uint64_t fid,
-                                std::map<eos::common::LayoutId::eChecksum, std::string> alt_xs)
+// Get the local view of the alternative checksums configured in the MGM
+// at the directory level.
+std::set<eos::common::LayoutId::eChecksum> LocalConfiguredAltXs(
+  eos::fst::FileIo* io)
 {
+  std::string attr;
+  io->attrGet("user.eos.altxs", attr);
+  return ParseAltXsConfigString(attr);
+}
+
+// Get the local view of the alternative checksums computed and stored
+// in the namespace.
+std::set<eos::common::LayoutId::eChecksum> LocalAltXsComputed(
+  eos::fst::FileIo* io)
+{
+  std::string attr;
+  io->attrGet("user.eos.altxs_mgm", attr);
+  return ParseAltXsConfigString(attr);
+}
+
+// Store the list of configured alternative checksums locally in the
+// xattrs of the file. The list is passed as a commad separated string
+// of the names of the alternative checksums, for example "md5,sha1"
+void StoreAltXsOnMGM(eos::fst::FileIo* io, const std::string& xs)
+{
+  io->attrSet("user.eos.altxs_mgm", xs);
+}
+
+// Store the list of configured alternative checksums locally in the
+// xattrs of the file.
+void StoreAltXsOnMGM(eos::fst::FileIo* io, const std::vector<std::string>& xs)
+{
+  StoreAltXsOnMGM(io, eos::common::StringConversion::Join(xs, ","));
+}
+
+// Store the list of configured alternative checksums locally in the
+// xattrs of the file.
+void StoreAltXsOnMGM(eos::fst::FileIo* io,
+                     const std::set<eos::common::LayoutId::eChecksum>& xs)
+{
+  std::vector<std::string> lst;
+
+  for (const auto& x : xs) {
+    lst.emplace_back(eos::common::LayoutId::GetChecksumString(x));
+  }
+
+  StoreAltXsOnMGM(io, lst);
+}
+
+// Commit the alternative checksums for the file identified by the file id <fid>.
+// If the list to_delete is not empty, it will instruct the MGM to delete
+// those checksums from the namespace.
+bool CommitAlternativeChecksums(uint64_t fid,
+                                const std::map<eos::common::LayoutId::eChecksum, std::string>& alt_xs,
+                                const std::set<eos::common::LayoutId::eChecksum>* to_delete = nullptr)
+{
+#ifndef _NOOFS
+
+  if (alt_xs.empty() && (to_delete == nullptr || to_delete->empty())) {
+    return true;
+  }
+
   XrdOucString capOpaqueFile = "";
   XrdOucString mTimeString = "";
   capOpaqueFile += "/?";
   capOpaqueFile += "&mgm.pcmd=commit";
   capOpaqueFile += "&mgm.fid=";
   capOpaqueFile += eos::common::FileId::Fid2Hex(fid).c_str();
-  capOpaqueFile += "&mgm.commit.altchecksums=1";
-  std::vector<std::string> alt;
+  capOpaqueFile += "&mgm.commit.altxs=1";
 
-  for (auto const& [type, xs] : alt_xs) {
-    alt.emplace_back(std::string(eos::common::LayoutId::GetChecksumString(
-                                   type)) + ":" + xs);
+  if (!alt_xs.empty()) {
+    std::vector<std::string> alt;
+
+    for (auto const& [type, xs] : alt_xs) {
+      alt.emplace_back(std::string(eos::common::LayoutId::GetChecksumString(
+                                     type)) + ":" + xs);
+    }
+
+    capOpaqueFile += "&mgm.altxs=";
+    capOpaqueFile += eos::common::StringConversion::Join(alt, ",").c_str();
   }
 
-  capOpaqueFile += "&mgm.altchecksums=";
-  capOpaqueFile += eos::common::StringConversion::Join(alt, ",").c_str();
+  if (to_delete != nullptr && !to_delete->empty()) {
+    capOpaqueFile += "&mgm.altxs.delete=";
+    std::vector<std::string> del;
+
+    for (auto const& xs : *to_delete) {
+      del.emplace_back(std::string(eos::common::LayoutId::GetChecksumString(xs)));
+    }
+
+    capOpaqueFile += eos::common::StringConversion::Join(del, ",").c_str();
+  }
+
   XrdOucErrInfo error;
   int rc = gOFS.CallManager(&error, nullptr, nullptr, capOpaqueFile);
 
   if (rc) {
-    eos_static_err("unable to commit alternative checksums fid=%08llx", fid);
+    eos_static_err("unable to commit alternative checksums fxid=%08llx", fid);
+    return false;
   }
+
+#endif
+  return true;
 }
 };
 
@@ -313,8 +393,8 @@ void CommitAlternativeChecksums(uint64_t fid,
 void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
 {
   auto compute_alt_xs = [this](const std::string & fpath) {
-    mAltXsRateLimit->Allow();
-    eos_debug("msg=\"running alt xs scan for file '%s'\" fsid=%d", fpath.c_str(),
+    eos_debug("msg=\"running alt xs scan for file\" path=\"%s\" fsid=%d",
+              fpath.c_str(),
               mFsId);
     auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
@@ -327,60 +407,35 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true);
 
     if (!fmd) {
-      eos_warning("msg=\"cannot find fmd object on file '%s' fsid=%d\"",
-                  fpath.c_str(), mFsId);
+      eos_warning("msg=\"cannot find fmd object on file\" fxid=%08llx fsid=%d", fid,
+                  mFsId);
       return;
     }
 
-    // Get fmd from namespace
-    eos::ns::ContainerMdProto container;
-    eos::ns::FileMdProto file;
-
-    try {
-      auto container_fut = eos::MetadataFetcher::getContainerFromId(
-                             *gOFS.mFsckQcl.get(),
-                             eos::ContainerIdentifier(fmd->mProtoFmd.cid()));
-      auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
-                      eos::FileIdentifier(fid));
-      container = std::move(container_fut).get();
-      file = std::move(file_fut).get();
-    } catch (const eos::MDException& e) {
-      return;
-    }
-
-    auto cfg = GetAlternativeChecksumsConfig(container);
-    auto on_file = ExtractAltXsOnFile(file);
-    std::set<eos::common::LayoutId::eChecksum> to_compute;
+    std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
+    auto cfg = LocalConfiguredAltXs(io.get());
+    auto on_file = LocalAltXsComputed(io.get());
+    std::set<eos::common::LayoutId::eChecksum> missing;
     std::set<eos::common::LayoutId::eChecksum> common;
     std::set_intersection(cfg.begin(), cfg.end(), on_file.begin(), on_file.end(),
                           std::inserter(common, common.begin()));
     std::set_difference(cfg.begin(), cfg.end(), common.begin(), common.end(),
-                        std::inserter(to_compute, to_compute.begin()));
-    eos_debug("msg=\"%d alt xs to compute for file '%s' fsid=%d\"",
-              to_compute.size(),
-              fpath.c_str(), mFsId);
+                        std::inserter(missing, missing.begin()));
+    eos_debug("msg=\"%d alt xs to compute for file\" fxid=%08llx fsid=%d",
+              missing.size(),
+              fid, mFsId);
 
-    if (to_compute.size() == 0) {
+    if (missing.size() == 0) {
       // nothing to compute
       if (on_file.size() != cfg.size()) {
-        eos_debug("msg=\"on_file size=%d cfg size=%d fsid=%d\"", on_file.size(),
-                  cfg.size(), mFsId);
-        // we just have to hold the ones from the config
-        // these are already available on the file
-        std::map<eos::common::LayoutId::eChecksum, std::string> to_commit;
+        // we have to delete the ones that are on the files and not in the config anymore
+        std::set<eos::common::LayoutId::eChecksum> to_delete;
+        std::set_difference(on_file.begin(), on_file.end(), cfg.begin(), cfg.end(),
+                            std::inserter(to_delete, to_delete.begin()));
 
-        for (const auto& type : cfg) {
-          auto it = file.altchecksums().find(type);
-
-          if (it == file.altchecksums().end()) {
-            // This should never happen
-            continue;
-          }
-
-          to_commit.insert({static_cast<eos::common::LayoutId::eChecksum>(type), it->second});
+        if (CommitAlternativeChecksums(fid, {}, &to_delete)) {
+          StoreAltXsOnMGM(io.get(), cfg);
         }
-
-        CommitAlternativeChecksums(fid, to_commit);
       }
 
       return;
@@ -388,25 +443,22 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
 
     std::unique_ptr<eos::fst::ChecksumGroup> xs{new eos::fst::ChecksumGroup};
 
-    for (auto m : to_compute) {
+    for (auto m : cfg) {
       xs->AddAlternative(m);
     }
 
-    auto parentpath_fut = eos::MetadataFetcher::resolveFullPath(
-                            *gOFS.mFsckQcl.get(),
-                            eos::ContainerIdentifier(fmd->mProtoFmd.cid()));
-    std::string parentpath = std::move(parentpath_fut).get();
     std::string fullpath = "root://";
     {
       XrdSysMutexHelper lock(gConfig.Mutex);
       fullpath += gConfig.Manager.c_str();
     }
-    fullpath += "/" + parentpath + "/" + file.name() + "?xrd.wantprot=sss";
+    fullpath += SSTR("//?eos.lfn=fxid:" << eos::common::FileId::Fid2Hex(
+                       fid) << "&xrd.wantprot=sss");
     auto f = std::make_unique<XrdCl::File>();
     auto status = f->Open(fullpath, XrdCl::OpenFlags::Read);
 
     if (!status.IsOK()) {
-      eos_err("msg=\"error opening file\" fullpath='%s'\" fsid=%d error='%s'",
+      eos_err("msg=\"error opening file\" fullpath='%s' fsid=%d error='%s'",
               fullpath.c_str(),
               mFsId, status.GetErrorMessage().c_str());
       return;
@@ -437,14 +489,17 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     }
 
     xs->Finalize();
-    auto alt_xs = PrepareAltXsResponse(xs.get(), file, common);
-    CommitAlternativeChecksums(fid, alt_xs);
+    auto alt_xs = PrepareAltXsResponse(xs.get());
+
+    if (CommitAlternativeChecksums(fid, alt_xs)) {
+      StoreAltXsOnMGM(io.get(), cfg);
+    }
   };
   eos_info("msg=\"started the alt xs scan thread\" fsid=%lu dirpath=\"%s\" "
            "altxs_scan_interval_sec=%llu", mFsId, mDirPath.c_str(),
            mAltXsInterval.get());
 
-  if (gOFS.mFsckQcl == nullptr) {
+  if (gOFS.mQcl == nullptr) {
     eos_notice("%s", "msg=\"no qclient present, skipping ns scan\"");
     return;
   }
@@ -508,7 +563,7 @@ ScanDir::AccountMissing()
           // File missing on disk, mark it but check the MGM info since the
           // file might be 0-size so we need to remove the kMissing flag
           eos::common::FmdHelper ns_fmd;
-          auto file = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
+          auto file = eos::MetadataFetcher::getFileFromId(*gOFS.mQcl.get(),
                       eos::FileIdentifier(fid));
           FmdMgmHandler::NsFileProtoToFmd(std::move(file).get(), ns_fmd);
 
@@ -630,7 +685,7 @@ bool
 ScanDir::IsBeingDeleted(const eos::IFileMD::id_t fid) const
 {
   using namespace std::chrono;
-  auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mFsckQcl.get(),
+  auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mQcl.get(),
                   eos::FileIdentifier(fid));
   // Throws an exception if file metadata object doesn't exist
   eos::ns::FileMdProto fmd = std::move(file_fut).get();
@@ -654,7 +709,7 @@ ScanDir::CollectNsFids(const std::string& type) const
   std::ostringstream oss;
   oss << eos::fsview::sPrefix << mFsId << ":" << type;
   const std::string key = oss.str();
-  qclient::QSet qset(*gOFS.mFsckQcl.get(), key);
+  qclient::QSet qset(*gOFS.mQcl.get(), key);
 
   try {
     for (qclient::QSet::Iterator it = qset.getIterator(); it.valid(); it.next()) {
@@ -711,7 +766,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     }
   }
 
-  if (gOFS.mFsckQcl == nullptr) {
+  if (gOFS.mQcl == nullptr) {
     eos_notice("%s", "msg=\"no qclient present, skipping disk scan\"");
     return;
   }
@@ -825,7 +880,9 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
 {
   eos::common::FsckErrsPerFsMap errs_map;
   auto scan_func = [this, &errs_map](const std::string & fpath) {
-    if (CheckFile(fpath)) {
+    std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
+
+    if (CheckFile(io.get(), fpath)) {
 #ifndef _NOOFS
       // Collect fsck errors and save them to be sent later on to QDB
       auto fid = eos::common::FileId::PathToFid(fpath.c_str());
@@ -842,6 +899,7 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
         CollectInconsistencies(*fmd.get(), mFsId, errs_map);
       }
 
+      UpdateLocalAltXsMetadata(io.get(), *fmd.get());
 #endif
     }
 
@@ -858,6 +916,74 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
   }
 
 #endif
+}
+
+void ScanDir::UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
+                                       const eos::common::FmdHelper& fmd)
+{
+#ifndef _NOOFS
+
+  if (!DoAltXsSync(io)) {
+    return;
+  }
+
+  // Get fmd from namespace
+  eos::ns::ContainerMdProto container;
+  eos::ns::FileMdProto file;
+
+  try {
+    auto container_fut = eos::MetadataFetcher::getContainerFromId(
+                           *gOFS.mQcl.get(),
+                           eos::ContainerIdentifier(fmd.mProtoFmd.cid()));
+    auto file_fut = eos::MetadataFetcher::getFileFromId(*gOFS.mQcl.get(),
+                    eos::FileIdentifier(fmd.mProtoFmd.fid()));
+    container = std::move(container_fut).get();
+    file = std::move(file_fut).get();
+  } catch (const eos::MDException& e) {
+    return;
+  }
+
+  auto cfg = AltXsConfigFromNS(container);
+  auto on_file = ExtractAltXsOnFile(file);
+  io->attrSet("user.eos.altxs", cfg);
+  StoreAltXsOnMGM(io, on_file);
+  SetAltXsSynced(io);
+#endif
+  return;
+}
+
+void ScanDir::SetAltXsSynced(eos::fst::FileIo* io)
+{
+  auto now_ts = std::chrono::duration_cast<std::chrono::seconds>
+                (std::chrono::system_clock::now().time_since_epoch()).count();
+  io->attrSet("user.eos.altxs_sync", std::to_string(now_ts));
+}
+
+bool ScanDir::DoAltXsSync(eos::fst::FileIo* io)
+{
+  if (!mAltXsDoSync) {
+    return false;
+  }
+
+  auto last_sync = getScanTimestamp(io, "user.eos.altxs_sync");
+
+  if (last_sync.count() <= 0) {
+    // The sync has never been done
+    return true;
+  }
+
+  auto sync_interval = mAltXsSyncInterval.load();
+
+  if (sync_interval == 0) {
+    // The sync has been done once
+    return false;
+  }
+
+  std::chrono::system_clock::time_point now_ts(std::chrono::system_clock::now());
+  std::chrono::system_clock::time_point sync_ts(last_sync);
+  uint64_t elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>
+                         (now_ts - sync_ts).count();
+  return elapsed_sec >= sync_interval;
 }
 
 //------------------------------------------------------------------------------
@@ -904,11 +1030,10 @@ bool ScanDir::CheckRainFile(eos::fst::FileIo* io,
 // scanner level and also by setting the proper xattrs on the file.
 //------------------------------------------------------------------------------
 bool
-ScanDir::CheckFile(const std::string& fpath)
+ScanDir::CheckFile(eos::fst::FileIo* io, const std::string& fpath)
 {
   using eos::common::LayoutId;
   eos_debug("msg=\"start file check\" path=\"%s\"", fpath.c_str());
-  std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
   auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
   if (!fid) {
@@ -953,11 +1078,11 @@ ScanDir::CheckFile(const std::string& fpath)
   }
 
   if (LayoutId::IsRain(fmd->mProtoFmd.lid())) {
-    return CheckRainFile(io.get(), fmd.get());
+    return CheckRainFile(io, fmd.get());
   }
 
 #endif
-  return CheckReplicaFile(io.get(), fid, info.st_mtime);
+  return CheckReplicaFile(io, fid, info.st_mtime);
 }
 
 //------------------------------------------------------------------------------
@@ -1127,7 +1252,7 @@ ScanDir::ScanFile(eos::fst::FileIo* io,
 
   if (mBgThread) {
     gOFS.mFmdHandler->UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
-                                         scan_xs_hex, gOFS.mFsckQcl);
+                                         scan_xs_hex, gOFS.mQcl);
   }
 
 #endif

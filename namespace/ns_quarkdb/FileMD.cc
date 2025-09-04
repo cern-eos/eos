@@ -636,8 +636,8 @@ bool QuarkFileMD::hasUnlinkedLocationNoLock(location_t location) const
   return false;
 }
 
-void QuarkFileMD::addAlternativeChecksum(eos::common::LayoutId::eChecksum
-    checksumType, const char* checksum, size_t size)
+void QuarkFileMD::addAltXs(eos::common::LayoutId::eChecksum
+                           checksumType, const char* checksum, size_t size)
 {
   runWriteOp([this, checksumType, checksum, size]() {
     mFile.mutable_altchecksums()->insert({static_cast<std::uint32_t>(checksumType),
@@ -645,7 +645,7 @@ void QuarkFileMD::addAlternativeChecksum(eos::common::LayoutId::eChecksum
   });
 }
 
-void QuarkFileMD::clearAlternativeChecksums()
+void QuarkFileMD::clearAltXs()
 {
   runWriteOp([this]() {
     mFile.mutable_altchecksums()->clear();
@@ -653,7 +653,7 @@ void QuarkFileMD::clearAlternativeChecksums()
 }
 
 std::map<eos::common::LayoutId::eChecksum, std::string>
-QuarkFileMD::getAlternativeChecksums() const
+QuarkFileMD::getAltXs() const
 {
   return this->runReadOp([this]() {
     std::map<eos::common::LayoutId::eChecksum, std::string> checksums;
@@ -663,6 +663,13 @@ QuarkFileMD::getAlternativeChecksums() const
     }
 
     return checksums;
+  });
+}
+
+void QuarkFileMD::removeAltXs(eos::common::LayoutId::eChecksum type)
+{
+  runWriteOp([this, type]() {
+    mFile.mutable_altchecksums()->erase(type);
   });
 }
 
