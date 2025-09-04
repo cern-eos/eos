@@ -26,7 +26,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Policy.hh"
 #include "mgm/Quota.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsFile.hh"
 #include "mgm/ZMQ.hh"
