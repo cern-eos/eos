@@ -21,9 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "GrpcNsInterface.hh"
-/*----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/SymKeys.hh"
 #include "common/Timing.hh"
@@ -39,7 +37,7 @@
 #include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"

@@ -21,7 +21,7 @@
  ************************************************************************/
 
 #include "RecycleCmd.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
 
@@ -41,11 +41,12 @@ RecycleCmd::ProcessRequest() noexcept
   RecycleProto::SubcmdCase subcmd = recycle.subcmd_case();
   std::string std_out, std_err;
   int rc = 0;
+
   if (subcmd == RecycleProto::kLs) {
     const eos::console::RecycleProto_LsProto& ls = recycle.ls();
     rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(),
                         !ls.numericids(), ls.fulldetails(),
-			ls.date(), ls.all(), nullptr, true, ls.maxentries());
+                        ls.date(), ls.all(), nullptr, true, ls.maxentries());
 
     if (std_out.length()) {
       reply.set_std_out(std_out.c_str());
@@ -59,8 +60,8 @@ RecycleCmd::ProcessRequest() noexcept
   } else if (subcmd == RecycleProto::kPurge) {
     const eos::console::RecycleProto_PurgeProto& purge = recycle.purge();
     reply.set_retc(Recycle::Purge(std_out, std_err, mVid, purge.date(),
-				  purge.all(),
-				  purge.key()));
+                                  purge.all(),
+                                  purge.key()));
 
     if (reply.retc()) {
       reply.set_std_err(std_err.c_str());
@@ -72,7 +73,7 @@ RecycleCmd::ProcessRequest() noexcept
     reply.set_retc(Recycle::Restore(std_out, std_err, mVid, restore.key().c_str(),
                                     restore.forceorigname(),
                                     restore.restoreversions(),
-				    restore.makepath()));
+                                    restore.makepath()));
 
     if (reply.retc()) {
       reply.set_std_err(std_err.c_str());

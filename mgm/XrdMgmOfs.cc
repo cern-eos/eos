@@ -67,7 +67,7 @@
 #include "mgm/Acl.hh"
 #include "mgm/Workflow.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/Recycle.hh"
+#include "mgm/recycle/Recycle.hh"
 #include "mgm/Devices.hh"
 #include "mgm/PathRouting.hh"
 #include "mgm/Macros.hh"
