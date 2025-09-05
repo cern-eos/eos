@@ -406,7 +406,14 @@ XrdMgmOfs::Commit(const char* path,
       }
     }
   } else if (CommitHelper::check_altchecksums_commit_params(cgi)) {
-    unsigned long long fid = std::stoull(cgi["fid"], 0, 16);
+    unsigned long long fid{};
+
+    try {
+      fid = std::stoull(cgi["fid"], 0, 16);
+    } catch (...) {
+      return Emsg(epname, error, EINVAL, "commit - bad fid", "");
+    }
+
     {
       eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
       eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
