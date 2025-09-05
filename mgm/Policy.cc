@@ -90,12 +90,11 @@ Policy::GetSpacePolicyLayout(const char* space)
   std::string iotype;
   bool isrw = false;     // does not matter
   uint64_t atimeage = 0; // does not matter
-  std::vector<std::string> altChecksums; // does not matter
   eos::IContainerMD::XAttrMap attrmap;
   eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
   GetLayoutAndSpace("/", attrmap, rootvid, layoutid, ret_space, env, forcedfsid,
                     forcedgroup, bandwidth, schedule, iopriority, iotype, isrw,
-                    true, &atimeage, &altChecksums);
+                    true, &atimeage, nullptr, nullptr);
   return layoutid;
 }
 
@@ -109,7 +108,7 @@ Policy::GetLayoutAndSpace(const char* path,
                           long& forcedgroup, std::string& bandwidth,
                           bool& schedule, std::string& iopriority,
                           std::string& iotype, bool rw, bool lockview,
-                          uint64_t* atimeage, std::vector<std::string>* altChecksums)
+                          uint64_t* atimeage, std::vector<std::string>* altChecksums, bool* computeAltXs)
 {
   eos::common::RWMutexReadLock lock;
   // this is for the moment only defaulting or manual selection
@@ -479,11 +478,15 @@ Policy::GetLayoutAndSpace(const char* path,
   }
 
   // populate list of alternative checksums
-  if (altxsopt == "on" && altChecksums && attrmap.count(SYS_ALTCHECKSUMS)) {
+  if (altChecksums && attrmap.count(SYS_ALTCHECKSUMS)) {
     altChecksums->clear();
     std::vector<std::string> xs;
     eos::common::StringConversion::Tokenize(attrmap[SYS_ALTCHECKSUMS], xs, ",");
     *altChecksums = std::move(xs);
+
+    if (computeAltXs && altxsopt == "on") {
+      *computeAltXs = true;
+    }
   }
 
   if (satime.length() && atimeage) {
