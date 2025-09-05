@@ -2229,3 +2229,60 @@ to attract less writes.
 
    # configure weight as 0 for disk with fsid 10
    eos sched configure weight default 10 0
+
+
+Alternative checksums
+---------------------
+
+The 5.4.0 release introduces support for **alternative checksums**. This feature allows for the computation and storage of multiple checksums for each file (e.g., MD5, SHA-256) in addition to the default one.
+
+The desired checksums are configured on a **per-directory basis** using an extended attribute. The actual computation can be performed in one of two ways:
+
+* Synchronously: the checksum is computed when the file is uploaded.
+* Asynchronously: the checksum is computed later by a background process on the storage node.
+
+
+Enabling Alternative Checksums on a Directory
+"""""""""""""""""""""""""""""""""""""""""""""
+
+To specify which alternative checksums should be computed for files within a directory, set the `sys.altxs`` extended attribute. The value should be a comma-separated list of the desired checksum algorithms.
+
+For example, to compute MD5, SHA-1, and SHA-256 checksums for all new files in the `/eos/dev/altxs` directory, you would run:
+
+.. code-block:: bash
+
+   eos attr set sys.altxs="md5,sha1,sha256" /eos/dev/altxs
+
+
+Administrator Configuration
+"""""""""""""""""""""""""""
+
+The following parameters control the behavior of the alternative checksums feature from the administrator's side.
+
+Synchronous computation (during file upload) is controlled at the space level. To enable it for a specific space, set the `altxs` variable to on.
+
+.. code-block:: bash
+
+   eos space config <space_name> space.altxs on
+
+The following settings control the asynchronous computation and policy synchronization for the entire filesystem.
+
+.. code-block:: bash
+   
+   # Enables or disables the periodic synchronization of alternative checksum
+   # policies (from 'sys.altxs' attributes) from the namespace.
+   # Set to 1 to enable, 0 to disable.
+   eos fs config <fsid> altxs_sync=0 # 0 by default
+
+   # Time interval in seconds after which checksum settings are refreshed from the
+   # namespace. If set to 0, synchronization only happens once.
+   # This parameter is only effective if 'altxs_sync' is enabled.
+   eos fs config <fsid> altxs_sync_interval=0 # default is 0 (sync only once)
+
+   # Time interval in seconds for the background thread that scans the namespace
+   # for files needing asynchronous alternative checksum computation.
+   eos fs config <fsid> scan_altxs_interval=3600
+
+   # The maximum rate (in namespace entries per second) at which the scanner
+   # checks for files that need alternative checksums computed.
+   eos fs config <fsid> scan_altxs_rate=1000
