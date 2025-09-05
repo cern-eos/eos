@@ -386,6 +386,7 @@ HttpServer::HttpError(const char* errorText, int errorCode)
   std::string error_body = (errorText ? errorText : "");
 
   if (!error_body.empty()) {
+    common::StringConversion::html_escape(error_body);
     error_body += "\n";
   }
 
