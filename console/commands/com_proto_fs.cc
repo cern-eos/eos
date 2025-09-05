@@ -159,6 +159,13 @@ void com_fs_help()
       << "    scan_altxs_interval=<sec>\n"
       << "       alternative checksum computing interval (default 30 days), 0 disables scanning"
       << std::endl
+      << "    altxs_sync=0|1\n"
+      << "       enable synchronization of alternative checksums settings from namespace"
+      << std::endl
+      << "    altxs_sync_interval=<seconds>\n"
+      << "       time interval after which synchronization of alternative checksums\n"
+      << "       settings are refreshed. If 0 it is synchronized only once (default 0)"
+      << std::endl
       << "    graceperiod=<seconds>\n"
       << "      grace period before a filesystem with an operation error gets\n"
       << "      automatically drained"
