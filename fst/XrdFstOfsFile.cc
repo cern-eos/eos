@@ -802,6 +802,7 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   }
 
   COMMONTIMING("open::accounting", &tm);
+  ProcessAltXsRequest();
 
   if (mIsRW) {
     gOFS.openedForWriting.up(mFsId, mFileId);
@@ -2776,21 +2777,6 @@ XrdFstOfsFile::ProcessMixedOpaque()
                                (eos::common::LayoutId::GetChecksum(mLid)));
     eos_debug("msg=\"checksum requested\" xs_ptr=%p lid=%u mgm.checksum=\"%s\"",
               mChecksumGroup->GetDefault(), mLid, opaqueCheckSum.c_str());
-
-    if ((val = mCapOpaque->Get("mgm.altxs"))) {
-      std::vector<std::string> alternatives;
-      eos::common::StringConversion::Tokenize(val, alternatives, ",");
-
-      for (const auto& xs : alternatives) {
-        if (xs.empty()) {
-          continue;
-        }
-
-        mChecksumGroup->AddAlternative(eos::fst::ChecksumPlugins::GetXsObj(xs),
-                                       xs);
-        eos_debug("msg=\"alternative checksum requested\" name=\"%s\"", xs);
-      }
-    }
   }
 
   // Handle file system id and local prefix - If we open a replica we have to
@@ -2831,6 +2817,39 @@ XrdFstOfsFile::ProcessMixedOpaque()
   mFstPath = FileId::FidPrefix2FullPath(FileId::Fid2Hex(mFileId).c_str(),
                                         mLocalPrefix.c_str());
   return SFS_OK;
+}
+
+void XrdFstOfsFile::ProcessAltXsRequest()
+{
+  bool compute = false;
+
+  if (mCapOpaque->Get("mgm.altxs.compute")) {
+    compute = std::strncmp(mCapOpaque->Get("mgm.altxs.compute"), "1", 1) == 0;
+  }
+
+  std::string altStr = mCapOpaque->Get("mgm.altxs") ? mCapOpaque->Get("mgm.altxs")
+                       : "0";
+
+  if (!altStr.empty()) {
+    auto io = mLayout->GetFileIo();
+    io->attrSet("user.eos.altxs", altStr);
+    io->attrSet("user.eos.altxs_sync", std::to_string(openTime.tv_sec));
+
+    if (compute) {
+      io->attrSet("user.eos.altxs_mgm", altStr);
+      std::vector<std::string> alternatives;
+      eos::common::StringConversion::Tokenize(altStr, alternatives, ",");
+
+      for (const auto& xs : alternatives) {
+        if (xs.empty()) {
+          continue;
+        }
+
+        mChecksumGroup->AddAlternative(eos::fst::ChecksumPlugins::GetXsObj(xs), xs);
+        eos_debug("msg=\"alternative checksum requested\" name=\"%s\"", xs);
+      }
+    }
+  }
 }
 
 //------------------------------------------------------------------------------
