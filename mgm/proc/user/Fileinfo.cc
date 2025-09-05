@@ -389,9 +389,9 @@ ProcCommand::FileInfo(const char* path)
           time_t filemtime = (time_t) mtime.tv_sec;
           time_t filebtime = (time_t) btime.tv_sec;
           time_t fileatime = (time_t) atime.tv_sec;
-          std::string etag, xs_spaces;
+          std::string etag, xs;
           eos::calculateEtag(fmd_copy.get(), etag);
-          eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs_spaces, ' ');
+          eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs);
           std::string redundancy = eos::common::LayoutId::GetRedundancySymbol(
                                      fmd_copy->hasLocation(EOS_TAPE_FSID),
                                      eos::common::LayoutId::GetRedundancy(lid,
@@ -427,11 +427,11 @@ ProcCommand::FileInfo(const char* path)
                 << " Fid: " << fmd_copy->getId()
                 << " Pid: " << fmd_copy->getContainerId()
                 << " Pxid: " << hex_pid
-                << std::endl;
-            out << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
+                << std::endl
+                << " ETAGs: " << etag << std::endl
+                << "XStype: " << std::left << std::setw(9) << LayoutId::GetChecksumString(
                   fmd_copy->getLayoutId())
-                << "XS: " << xs_spaces
-                << "    ETAGs: " << etag
+                << "XS: " << xs
                 << std::endl;
             auto altchecksums = fmd_copy->getAltXs();
 
