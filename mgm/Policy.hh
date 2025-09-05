@@ -55,7 +55,8 @@ public:
                                 bool& schedul, std::string& iopriority,
                                 std::string& ioptype, bool isrw,
                                 bool lock_view = false, uint64_t* atimeage = 0,
-                                std::vector<std::string>* altChecksums = nullptr);
+                                std::vector<std::string>* altChecksums = nullptr,
+                                bool* computeAltXs = nullptr);
 
   static void GetPlctPolicy(const char* path, eos::IContainerMD::XAttrMap& map,
                             const eos::common::VirtualIdentity& vid,
