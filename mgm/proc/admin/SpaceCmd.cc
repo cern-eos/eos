@@ -1182,7 +1182,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
         (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
         (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
         (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-        (key == eos::common::SCAN_NS_RATE_NAME)) {
+        (key == eos::common::SCAN_NS_RATE_NAME) ||
+        (key == eos::common::ALTXS_SYNC) ||
+        (key == eos::common::ALTXS_SYNC_INTERVAL) ||
+        (key == eos::common::ALTXS_SYNC_RATE)) {
       unsigned long long size = eos::common::StringConversion::GetSizeFromString(
                                   value.c_str());
       char ssize[1024];
@@ -1230,7 +1233,10 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
                (key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
                (key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
                (key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-               (key == eos::common::SCAN_NS_RATE_NAME)) && (!errno)) {
+               (key == eos::common::SCAN_NS_RATE_NAME) ||
+               (key == eos::common::ALTXS_SYNC) ||
+               (key == eos::common::ALTXS_SYNC_INTERVAL) ||
+               (key == eos::common::ALTXS_SYNC_RATE)) && (!errno)) {
             if (value == "remove") {
               fs->RemoveKey(key.c_str());
             } else {
