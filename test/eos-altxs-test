@@ -150,7 +150,7 @@ dd if=/dev/urandom of=${TEST_FILE2} bs=1M count=64 &> /dev/null
 disable_altxs_scan
 disable_altxs_sync
 eos mkdir -p ${EOS_ALTXS_TEST}/enabled
-eos attr set sys.altchecksums="md5,sha1" ${EOS_ALTXS_TEST}/enabled
+eos attr set sys.altxs="md5,sha1" ${EOS_ALTXS_TEST}/enabled
 enable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/enabled/altxs.dat
 sleep 5 # Wait the FST to commit the alt checksums
@@ -161,9 +161,9 @@ fail_on_error check_checksums "${EOS_ALTXS_TEST}/enabled/altxs.dat" "${TEST_FILE
 disable_altxs_scan
 disable_altxs_sync
 eos mkdir -p ${EOS_ALTXS_TEST}/disabled
-eos attr rm sys.altchecksums ${EOS_ALTXS_TEST}/disabled || true
+eos attr rm sys.altxs ${EOS_ALTXS_TEST}/disabled || true
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/disabled/altxs.dat
-eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/disabled
+eos attr set sys.altxs="md5,sha1,sha256" ${EOS_ALTXS_TEST}/disabled
 enable_altxs_sync 5
 enable_altxs_scan 5
 check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/disabled/altxs.dat\" \"${TEST_FILE}\" \"md5 sha sha256\"" 300
@@ -173,7 +173,7 @@ check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/disabled/altxs.dat\" 
 disable_altxs_scan
 disable_altxs_sync
 eos mkdir -p ${EOS_ALTXS_TEST}/updated
-eos attr set sys.altchecksums="sha1,sha256" ${EOS_ALTXS_TEST}/updated
+eos attr set sys.altxs="sha1,sha256" ${EOS_ALTXS_TEST}/updated
 enable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/updated/altxs.dat
 xrdcp -f --nopbar ${TEST_FILE2} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/updated/altxs.dat
@@ -184,10 +184,10 @@ fail_on_error check_checksums "${EOS_ALTXS_TEST}/updated/altxs.dat" "${TEST_FILE
 disable_altxs_sync
 disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/triggered
-eos attr rm sys.altchecksums ${EOS_ALTXS_TEST}/triggered || true
+eos attr rm sys.altxs ${EOS_ALTXS_TEST}/triggered || true
 enable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/triggered/altxs.dat
-eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/triggered
+eos attr set sys.altxs="md5,sha1,sha256" ${EOS_ALTXS_TEST}/triggered
 eos file verify ${EOS_ALTXS_TEST}/triggered/altxs.dat -checksum -commitchecksum
 check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/triggered/altxs.dat\" \"${TEST_FILE}\" \"md5 sha sha256\"" 300
 
@@ -196,10 +196,10 @@ check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/triggered/altxs.dat\"
 disable_altxs_sync
 disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/added
-eos attr set sys.altchecksums="md5" ${EOS_ALTXS_TEST}/added
+eos attr set sys.altxs="md5" ${EOS_ALTXS_TEST}/added
 enable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/added/altxs.dat
-eos attr set sys.altchecksums="md5,sha1,sha256" ${EOS_ALTXS_TEST}/added
+eos attr set sys.altxs="md5,sha1,sha256" ${EOS_ALTXS_TEST}/added
 enable_altxs_sync 5
 enable_altxs_scan 5
 check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/added/altxs.dat\" \"${TEST_FILE}\" \"md5 sha sha256\"" 300
@@ -209,10 +209,10 @@ check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/added/altxs.dat\" \"$
 disable_altxs_sync
 disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/removed
-eos attr set sys.altchecksums="md5,sha1" ${EOS_ALTXS_TEST}/removed
+eos attr set sys.altxs="md5,sha1" ${EOS_ALTXS_TEST}/removed
 enable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/removed/altxs.dat
-eos attr -r set sys.altchecksums="sha1" ${EOS_ALTXS_TEST}/removed
+eos attr -r set sys.altxs="sha1" ${EOS_ALTXS_TEST}/removed
 enable_altxs_sync 5
 enable_altxs_scan 5
 check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/removed/altxs.dat\" \"${TEST_FILE}\" \"sha\"" 300
@@ -222,7 +222,7 @@ check_until_no_errors "check_checksums \"${EOS_ALTXS_TEST}/removed/altxs.dat\" \
 disable_altxs_sync
 disable_altxs_scan
 eos mkdir -p ${EOS_ALTXS_TEST}/disabled_on_upload
-eos attr set sys.altchecksums="md5" ${EOS_ALTXS_TEST}/disabled_on_upload
+eos attr set sys.altxs="md5" ${EOS_ALTXS_TEST}/disabled_on_upload
 disable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/disabled_on_upload/altxs.dat
 fail_on_error check_checksums "${EOS_ALTXS_TEST}/disabled_on_upload/altxs.dat" "${TEST_FILE}" ""
