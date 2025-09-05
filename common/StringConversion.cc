@@ -1307,6 +1307,21 @@ StringConversion::json_encode(const std::string& s)
   return output;
 }
 
+void StringConversion::html_escape(std::string& str) {
+  std::string escaped;
+  escaped.reserve(str.size());
+  for (char c : str) {
+    switch (c) {
+      case '&': escaped += "&amp;"; break;
+      case '<': escaped += "&lt;"; break;
+      case '>': escaped += "&gt;"; break;
+      case '"': escaped += "&quot;"; break;
+      case '\'': escaped += "&apos;"; break;
+      default: escaped += c; break;
+    }
+  }
+  str.swap(escaped);
+}
 
 //------------------------------------------------------------------------------
 // Create random uuid string

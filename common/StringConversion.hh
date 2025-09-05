@@ -857,6 +857,13 @@ public:
   static std::string
   json_encode(const std::string& str);
 
+  /**
+   * HTML-escape the string. This escapes '&', '<', '>','"',' (single quote) and replaces
+   * those characters with their HTML-corresponding version
+   * @param str the string to html-escape (content will be swapped with the escaped string)
+   */
+  static void html_escape(std::string & str);
+
   // ---------------------------------------------------------------------------
   /**
    * Return a random generated uuid
