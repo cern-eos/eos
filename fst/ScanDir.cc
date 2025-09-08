@@ -924,6 +924,8 @@ void ScanDir::UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
 #ifndef _NOOFS
 
   if (!DoAltXsSync(io)) {
+    eos_debug("msg=\"skipping local altxs metadata synchronization\" fxid=%08llx fsid=%lu",
+              fmd.mProtoFmd.fid(), mFsId);
     return;
   }
 
@@ -945,6 +947,9 @@ void ScanDir::UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
 
   auto cfg = AltXsConfigFromNS(container);
   auto on_file = ExtractAltXsOnFile(file);
+  eos_debug("msg=\"got altxs metadata from MGM\" fxid=%08llx fsid=%lu cfg=\"%s\" computed=\"%s\"",
+            fmd.mProtoFmd.fid(), cfg.c_str(), eos::common::StringConversion::Join(on_file,
+                ",").c_str());
   io->attrSet("user.eos.altxs", cfg);
   StoreAltXsOnMGM(io, on_file);
   SetAltXsSynced(io);
