@@ -77,6 +77,25 @@ std::chrono::seconds getScanTimestamp(eos::fst::FileIo* io,
     return std::chrono::seconds(-1);
   }
 }
+
+// Helper function used for both the synchronization of altxs metadata from MGM
+// and on altxs computation, to decide if <fsid> is responsible of running the
+// procedures. It garantees that only one of the FS storing the replicas/stripes
+// is selected to run the procedures.
+bool IsCandidateFS(const eos::common::FmdHelper& fmd,
+                   eos::common::FileSystem::fsid_t fsid)
+{
+  auto loc = fmd.GetLocations();
+
+  if (loc.empty()) {
+    // Still waiting the sync of location from MGM
+    return false;
+  }
+
+  std::vector<eos::common::FileSystem::fsid_t> sorted(loc.begin(), loc.end());
+  auto idx = fmd.mProtoFmd.fid() % sorted.size();
+  return sorted[idx] == fsid;
+}
 }
 
 EOSFSTNAMESPACE_BEGIN
@@ -409,6 +428,11 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     if (!fmd) {
       eos_warning("msg=\"cannot find fmd object on file\" fxid=%08llx fsid=%d", fid,
                   mFsId);
+      return;
+    }
+
+    if (!IsCandidateFS(*fmd.get(), mFsId)) {
+      eos_debug("msg=\"skipped scanning of file\" fxid=%08llx fsid=%d", fid, mFsId);
       return;
     }
 
@@ -933,7 +957,7 @@ void ScanDir::UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
 {
 #ifndef _NOOFS
 
-  if (!DoAltXsSync(io)) {
+  if (!DoAltXsSync(io, fmd)) {
     eos_debug("msg=\"skipping local altxs metadata synchronization\" fxid=%08llx fsid=%lu",
               fmd.mProtoFmd.fid(), mFsId);
     return;
@@ -974,9 +998,16 @@ void ScanDir::SetAltXsSynced(eos::fst::FileIo* io)
   io->attrSet("user.eos.altxs_sync", std::to_string(now_ts));
 }
 
-bool ScanDir::DoAltXsSync(eos::fst::FileIo* io)
+bool ScanDir::DoAltXsSync(eos::fst::FileIo* io,
+                          const eos::common::FmdHelper& fmd)
 {
   if (!mAltXsDoSync) {
+    return false;
+  }
+
+  // Only run the sync on one of the replica/stripe.
+  // For the rest, it's disabled to not add useless load on qdb.
+  if (!IsCandidateFS(fmd, mFsId)) {
     return false;
   }
 
