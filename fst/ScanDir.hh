@@ -381,7 +381,7 @@ public:
   void UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
                                 const eos::common::FmdHelper& fmd);
 
-  bool DoAltXsSync(eos::fst::FileIo* io);
+  bool DoAltXsSync(eos::fst::FileIo* io, const eos::common::FmdHelper& fmd);
 
   void SetAltXsSynced(eos::fst::FileIo* io);
 
