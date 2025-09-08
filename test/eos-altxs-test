@@ -143,6 +143,9 @@ TEST_FILE2=/var/tmp/file_altxs.dat
 dd if=/dev/urandom of=${TEST_FILE} bs=1M count=16 &> /dev/null
 dd if=/dev/urandom of=${TEST_FILE2} bs=1M count=64 &> /dev/null
 
+# Enable debug on FSTs
+eos debug debug "*"
+
 # Test 1
 # Disable ScanDir thread for computing alternative checksums and
 # enable on the EOS directory the alternative checksums and check
