@@ -881,31 +881,41 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
   eos::common::FsckErrsPerFsMap errs_map;
   auto scan_func = [this, &errs_map](const std::string & fpath) {
     std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
+    // Collect fsck errors and save them to be sent later on to QDB
+#ifndef _NOOFS
+    auto fid = eos::common::FileId::PathToFid(fpath.c_str());
+
+    if (!fid) {
+      eos_static_info("msg=\"skip file which is not a eos data file\", "
+                      "path=\"%s\"", fpath.c_str());
+      return;
+    }
+
+    auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
+#endif
 
     if (CheckFile(io.get(), fpath)) {
 #ifndef _NOOFS
-      // Collect fsck errors and save them to be sent later on to QDB
-      auto fid = eos::common::FileId::PathToFid(fpath.c_str());
-
-      if (!fid) {
-        eos_static_info("msg=\"skip file which is not a eos data file\", "
-                        "path=\"%s\"", fpath.c_str());
-        return;
-      }
-
-      auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
 
       if (fmd) {
         CollectInconsistencies(*fmd.get(), mFsId, errs_map);
       }
 
-      UpdateLocalAltXsMetadata(io.get(), *fmd.get());
 #endif
     }
 
     if (assistant.terminationRequested()) {
       break; // make sure to close the FTS handle!
     }
+
+#ifndef _NOOFS
+
+    if (fmd) {
+      UpdateLocalAltXsMetadata(io.get(), *fmd.get());
+    }
+
+#endif
+    return;
   };
   ScanFsTree(assistant, scan_func);
 #ifndef _NOOFS
