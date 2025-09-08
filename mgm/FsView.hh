@@ -471,6 +471,7 @@ public:
   //----------------------------------------------------------------------------
   void SetStatus(const std::string& status)
   {
+    std::scoped_lock<std::mutex> lock(mMutex);
     mStatus = status;
   }
 
@@ -479,6 +480,7 @@ public:
   //----------------------------------------------------------------------------
   const std::string GetStatus() const
   {
+    std::scoped_lock<std::mutex> lock(mMutex);
     return mStatus;
   }
 
@@ -553,6 +555,7 @@ protected:
   std::atomic<time_t> mHeartBeat; ///< Last heartbeat time
 
 private:
+  mutable std::mutex mMutex; ///< Mutex to protect status information
   std::string mStatus; ///< Status (meaning depends on inheritor)
   std::string mSize; ///< Size of base object (meaning depends on inheritor)
 };
@@ -680,7 +683,7 @@ public:
   //----------------------------------------------------------------------------
   //! Set active status
   //----------------------------------------------------------------------------
-  bool SetActiveStatus(eos::common::ActiveStatus active);
+  void SetActiveStatus(eos::common::ActiveStatus active);
 
   //----------------------------------------------------------------------------
   //! Set the configuration default values for a node
