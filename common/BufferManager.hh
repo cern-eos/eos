@@ -78,7 +78,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~Buffer() = default;
+  virtual ~Buffer() = default;
 
   //----------------------------------------------------------------------------
   //! Get pointer to underlying data
@@ -217,7 +217,7 @@ public:
   //!        slot 6 -> 64MB
   //! @param slot_base_sz size of the blocks in the first slot
   //----------------------------------------------------------------------------
-  BufferManager(uint64_t max_size = 256 * 1024 * 1024 , uint32_t slots = 6,
+  BufferManager(uint64_t max_size = 256 * 1024 * 1024, uint32_t slots = 6,
                 uint64_t slot_base_sz = 1024 * 1024):
     mMaxSize(max_size), mAllocatedSize(0ull), mNumSlots(slots),
     mSlotBaseSize(slot_base_sz)
@@ -390,6 +390,42 @@ private:
   std::atomic<uint32_t> mNumSlots;
   const uint64_t mSlotBaseSize;
   std::vector<BufferSlot> mSlots;
+};
+
+//------------------------------------------------------------------------------
+//! Managed buffer which is automatically recycled during destruction
+//------------------------------------------------------------------------------
+class ManagedBuffer
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  ManagedBuffer(BufferManager& mgr, uint64_t size):
+    mMgr(mgr)
+  {
+    mBuff = mMgr.GetBuffer(size);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get underlying buffer
+  //----------------------------------------------------------------------------
+  inline std::shared_ptr<Buffer> GetBuffer()
+  {
+    return mBuff;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
+  ~ManagedBuffer()
+  {
+    mMgr.Recycle(mBuff);
+  }
+
+private:
+  BufferManager& mMgr;
+  std::shared_ptr<Buffer> mBuff;
 };
 
 EOSCOMMONNAMESPACE_END

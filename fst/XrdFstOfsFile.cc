@@ -3584,6 +3584,7 @@ void*
 XrdFstOfsFile::DoTpcTransfer()
 {
   eos_info("msg=\"tpc now running - 1st sync\"");
+  static eos::common::BufferManager sBuffMgrTpc(8 * eos::common::GB);
   std::string src_url = "";
   std::string src_cgi = "";
 
@@ -3643,11 +3644,6 @@ XrdFstOfsFile::DoTpcTransfer()
   int64_t rbytes = 0;
   int64_t wbytes = 0;
   off_t offset = 0;
-  constexpr uint64_t eight_gb = 8 * (1ULL << 30);
-  static_assert(eight_gb == 8589934592,
-                "eight gb is not computed correctly!");
-  std::unique_ptr< std::vector<char> > buffer
-  (new std::vector<char>(tpcIO.GetBlockSize()));
   eos_info("msg=\"tpc pull\" ");
   struct stat st_info;
 
@@ -3663,6 +3659,8 @@ XrdFstOfsFile::DoTpcTransfer()
 
   int64_t file_size = st_info.st_size;
   int64_t nread {0ull};
+  eos::common::ManagedBuffer managed_buf(sBuffMgrTpc, tpcIO.GetBlockSize());
+  std::shared_ptr<eos::common::Buffer> buffer = managed_buf.GetBuffer();
 
   while (offset < file_size) {
     // Read the remote file in chunks and check after each chunk if the TPC
@@ -3674,9 +3672,9 @@ XrdFstOfsFile::DoTpcTransfer()
     }
 
     if (getenv("EOS_FST_TPC_READASYNC")) {
-      rbytes = tpcIO.fileReadPrefetch(offset, &((*buffer)[0]), nread, 30);
+      rbytes = tpcIO.fileReadPrefetch(offset, buffer->GetDataPtr(), nread, 30);
     } else {
-      rbytes = tpcIO.fileRead(offset, &((*buffer)[0]), nread);
+      rbytes = tpcIO.fileRead(offset, buffer->GetDataPtr(), nread);
     }
 
     eos_debug("msg=\"tpc read\" rbytes=%lli request=%llu",
@@ -3695,9 +3693,10 @@ XrdFstOfsFile::DoTpcTransfer()
     }
 
     // Write the buffer out through the local object
-    wbytes = write(offset, &((*buffer)[0]), rbytes);
+    wbytes = write(offset, buffer->GetDataPtr(), rbytes);
 
-    if (offset / eight_gb != (offset + rbytes) /  eight_gb) {
+    // Write message every 8GB ie. 1 << 33 = 8GB
+    if (offset >> 33 != (offset + rbytes) >> 33) {
       eos_info("msg=\"tcp write\" offset=%llu", offset);
     }
 
