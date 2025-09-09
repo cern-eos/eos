@@ -2263,7 +2263,7 @@ Synchronous computation (during file upload) is controlled at the space level. T
 
 .. code-block:: bash
 
-   eos space config <space_name> space.altxs on
+   eos space config <space_name> space.altxs=on
 
 The following settings control the asynchronous computation and policy synchronization for the entire filesystem.
 
