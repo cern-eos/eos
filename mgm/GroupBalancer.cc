@@ -342,7 +342,12 @@ bool
 GroupBalancer::Configure(FsSpace* const space, GroupBalancer::Config& cfg)
 {
   cfg.is_enabled = space->GetConfigMember("groupbalancer") == "on";
-  cfg.is_conv_enabled = space->GetConfigMember("converter") == "on";
+  cfg.is_conv_enabled = false;
+
+  if (gOFS && gOFS->mConverterEngine &&
+      gOFS->mConverterEngine->IsRunning()) {
+    cfg.is_conv_enabled = true;
+  }
 
   if (!cfg.is_enabled || !cfg.is_conv_enabled) {
     eos_static_info("msg=\"group balancer or converter not enabled\""

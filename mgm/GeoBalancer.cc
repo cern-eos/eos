@@ -534,6 +534,15 @@ GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
     }
 
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    if (!gOFS || ! gOFS->mConverterEngine ||
+        !gOFS->mConverterEngine->IsRunning()) {
+      eos_static_debug("msg=\"geo balancer disabled since it needs the "
+                       "converter enabled to work and it's not\" space=%s",
+                       mSpaceName.c_str());
+      goto wait;
+    }
+
     FsView::gFsView.ViewMutex.LockRead();
 
     if (!FsView::gFsView.mSpaceGroupView.count(mSpaceName.c_str())) {
@@ -552,15 +561,6 @@ GeoBalancer::GeoBalance(ThreadAssistant& assistant) noexcept
     }
 
     space = it_space->second;
-
-    if (space->GetConfigMember("converter") != "on") {
-      eos_static_debug("msg=\"geo balancer disabled since it needs the "
-                       "converter enabled to work and it's not\" space=%s",
-                       mSpaceName.c_str());
-      FsView::gFsView.ViewMutex.UnLockRead();
-      goto wait;
-    }
-
     // Extract the current settings if conversion enabled and how many
     // conversion jobs should run
     is_enabled = space->GetConfigMember("geobalancer") == "on";
