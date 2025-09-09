@@ -955,16 +955,6 @@ FsSpace::FsSpace(const char* name)
       SetConfigMember("groupsize", "0");
     }
 
-    // Disable converter by default
-    if (GetConfigMember("converter").empty()) {
-      SetConfigMember("converter", "off");
-    }
-
-    // Set two converter streams by default
-    if (GetConfigMember("converter.ntx").empty()) {
-      SetConfigMember("converter.ntx", "2");
-    }
-
     if (GetConfigMember("groupbalancer").empty()) {
       SetConfigMember("groupbalancer", "off");
     }
