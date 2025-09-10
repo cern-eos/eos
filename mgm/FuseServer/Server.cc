@@ -1328,7 +1328,7 @@ Server::OpGetLs(const std::string& id,
                     "Eosxd::ext::GET");
   } else {
     EXEC_TIMING_BEGIN("Eosxd::ext::GET");
-    eos_info("ino=%lx get-file/link", (long) md.md_ino());
+    eos_debug("ino=%lx get-file/link", (long) md.md_ino());
     cont.set_type(cont.MD);
     cont.set_ref_inode_(md.md_ino());
     (*cont.mutable_md_()).set_clientuuid(md.clientuuid());
@@ -3551,7 +3551,7 @@ Server::HandleMD(const std::string& id,
     op_class = "link";
   }
 
-  eos_info("ino=%016lx operation=%s type=%s name=%s pino=%016lx cid=%s cuuid=%s",
+  eos_debug("ino=%016lx operation=%s type=%s name=%s pino=%016lx cid=%s cuuid=%s",
            (long) md.md_ino(),
            ops.c_str(),
            op_class.c_str(),
