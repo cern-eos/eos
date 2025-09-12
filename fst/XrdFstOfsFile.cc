@@ -3979,7 +3979,6 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   cta::xrd::Response response;
   cta::xrd::Response::ResponseType response_type =
     cta::xrd::Response::RSP_INVALID;
-
   auto root_certs = gOFS.ConcatenatedServerRootCA;
 
   try {
@@ -4157,7 +4156,8 @@ XrdFstOfsFile::DoSyncSync()
   // Even if async close is enabled there are some cases when close happens in
   // the same XRootD thread
   if (viaDelete || mWrDelete || mIsDevNull || (mIsRW == false) || mIsHttp ||
-      (mIsRW && (mMaxOffsetWritten <= (long long) min_size_async_sync))) {
+      (mIsRW && !mRainReconstruct &&
+       (mMaxOffsetWritten <= (long long) min_size_async_sync))) {
     return true;
   }
 
