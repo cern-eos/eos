@@ -19,7 +19,7 @@
 #include "ThreadEpochCounter.hh"
 #include "common/Logging.hh"
 
-namespace eos::common::experimental {
+namespace eos::common {
 
 std::array<std::atomic<bool>, EOS_MAX_THREADS> g_thread_in_use {false};
 thread_local ThreadID tlocalID;
@@ -48,4 +48,4 @@ ThreadID::~ThreadID()
 {
   g_thread_in_use[tid] = false;
 }
-} // namespace eos::common::experimental
+} // namespace eos::common
