@@ -16,6 +16,16 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.22 Diopside``
+====================
+
+2025-09-12
+
+Bug
+---
+
+* FST: Disable by default the stripe checksum for RAIN files.
+
 
 ``v5.3.21 Diopside``
 ====================
