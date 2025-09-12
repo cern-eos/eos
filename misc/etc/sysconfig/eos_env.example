@@ -215,6 +215,9 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # unless the following variable is defined (the value is not considered)
 # EOS_FST_POSIX_FALLOCATE=1
 
+# Enabel stripe checksum computation if env variable present - default disabled
+# EOS_FST_ENABLE_STRIPE_XS=1
+
 #-------------------------------------------------------------------------------
 # GRPC Configuration
 #-------------------------------------------------------------------------------

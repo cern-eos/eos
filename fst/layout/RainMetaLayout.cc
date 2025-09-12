@@ -81,7 +81,12 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
-  mStripeChecksum = std::make_unique<eos::fst::Adler>();
+
+  if (getenv("EOS_FST_ENABLE_STRIPE_XS") != nullptr) {
+    mStripeChecksum = std::make_unique<eos::fst::Adler>();
+  } else {
+    mStripeChecksum = nullptr;
+  }
 }
 
 //------------------------------------------------------------------------------
