@@ -88,7 +88,7 @@ constexpr size_t MAX_THREADS = 4096;
 
  */
 
-template <typename ListT = VersionEpochCounter<32>, size_t MaxWriters = 1>
+template <typename ListT = ThreadEpochCounter, size_t MaxWriters = 1>
 class RCUDomain
 {
 public:
@@ -235,6 +235,6 @@ struct ScopedRCUWrite {
   typename Ptr::pointer old_val;
 };
 
-using VersionedRCUDomain = RCUDomain<VersionEpochCounter<32>, 1>;
-using EpochRCUDomain = RCUDomain<experimental::ThreadEpochCounter, 1>;
+using VersionedRCUDomain = RCUDomain<experimental::VersionEpochCounter<32>, 1>;
+using EpochRCUDomain = RCUDomain<ThreadEpochCounter, 1>;
 } // eos::common
