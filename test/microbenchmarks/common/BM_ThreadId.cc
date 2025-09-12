@@ -28,7 +28,7 @@ static void BM_SysTID(benchmark::State& state)
 static void BM_tlTID(benchmark::State& state)
 {
   for (auto _: state) {
-    benchmark::DoNotOptimize(eos::common::experimental::tlocalID.get());
+    benchmark::DoNotOptimize(eos::common::tlocalID.get());
   }
   state.counters["freqeuncy"]=Counter(state.iterations(),
                                       benchmark::Counter::kIsRate);
