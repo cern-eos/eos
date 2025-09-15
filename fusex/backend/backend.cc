@@ -247,6 +247,11 @@ backend::fetchQueryResponse(uint64_t inode,
             return EINVAL;
           }
 
+          if (response.size() < offset + 10 + len) {
+            eos_static_debug("response had short length");
+            return EINVAL;
+          }
+
           std::string item;
           item.assign(response.c_str() + offset + 10, len);
           offset += (10 + len);
@@ -501,6 +506,14 @@ backend::fetchResponse(fuse_req_t req,
     } else {
       // failure
       bytesread = 0;
+      if (status.errNo || status.code) {
+        int err = EIO;
+        if (status.errNo) err = XrdCl::Proxy::status2errno(status);
+        eos_static_err("error=status is not ok during read : code=%d", err);
+        EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
+        errno = err;
+        return errno;
+      }
     }
 
     eos_static_debug("rbytes=%lu offset=%llu", bytesread, offset);
@@ -525,6 +538,12 @@ has_response:
 
       if (!len) {
         eos_static_debug("response had illegal length");
+        EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
+        return EINVAL;
+      }
+
+      if (response.size() < offset + 10 + len) {
+        eos_static_debug("response had short length");
         EosFuse::instance().Tracker().SetOrigin(req, inode, "fs");
         return EINVAL;
       }
