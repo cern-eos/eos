@@ -62,7 +62,7 @@ OAuth::PurgeCache(time_t& now)
   eos::common::RWMutexWriteLock lock(mOAuthCacheMutex);
 
   // purge every 5 min if we have more than 64k entries or every hour for less
-  if (((mOAuthInfo.size() > 65336) && (now - last_purge) > 300) ||
+  if (((mOAuthInfo.size() > 65536) && (now - last_purge) > 300) ||
       ((now - last_purge) > 3600)) {
     for (auto it = mOAuthInfo.begin(); it != mOAuthInfo.end();) {
       time_t ctime = strtoull(it->second["ctime"].c_str(), 0, 10);
@@ -77,6 +77,7 @@ OAuth::PurgeCache(time_t& now)
       }
     }
   }
+  last_purge = time(NULL);
 }
 
 int
@@ -86,15 +87,19 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
   time_t now = time(NULL);
 
   if (expires && (expires < now)) {
+    eos_static_debug("token='%s' has expired=%lu", accesstoken.c_str(), expires);
     return ETIME;
   }
 
+  std::stringstream s;
+  std::string issuer;
   try {
     // screen the audience
     auto decoded = jwt::decode(accesstoken);
     auto audiences = decoded.get_audience();
     auto exp = decoded.get_expires_at();
     auto iss = decoded.get_issuer();
+    issuer = iss;
     std::string iss_resource = iss + "/protocol/openid-connect/userinfo";
 
     if (resource.empty()) {
@@ -103,8 +108,13 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
     }
 
     expires = std::chrono::system_clock::to_time_t(exp);
+
+    if (expires && (expires < now)) {
+      eos_static_debug("token='%s' has expired=%lu", accesstoken.c_str(), expires);
+      return ETIME;
+    }
+
     bool audience_match = false;
-    std::stringstream s;
 
     for (auto& e : decoded.get_payload_json()) {
       s << e.first << "=" << e.second << " ";
@@ -138,12 +148,13 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
     return EPERM;
   }
 
-  // get the hash
-  uint64_t tokenhash = Hash(accesstoken);
+  // build a collision-free cache key
+  // include issuer + resource + token to avoid cross-issuer/resource aliasing
+  std::string cache_key = issuer + "\n" + resource + "\n" + accesstoken;
   PurgeCache(now);
   {
     eos::common::RWMutexReadLock lock(mOAuthCacheMutex);
-    auto cache = mOAuthInfo.find(tokenhash);
+    auto cache = mOAuthInfo.find(cache_key);
 
     if (cache != mOAuthInfo.end()) {
       time_t ctime = strtoull(cache->second["ctime"].c_str(), 0, 10);
@@ -157,6 +168,9 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
       }
     }
   }
+
+  eos_static_info("msg=\"userinfo endpoint upcall\" claims=[ %s ]", s.str().c_str());
+
   auto curl = curl_easy_init();
 
   if (curl) {
@@ -218,6 +232,7 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
               info["username"] = jsonData["sub"].asString();
             } else {
               // we need to have this field to map someone
+	      eos_static_err("msg=\"missing sub entry for OIDC style token\" claims=[ %s ]", s.str().c_str());
               return EINVAL;
             }
           }
@@ -236,9 +251,10 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
         info["etime"] = expires ? std::to_string(expires) : std::to_string(
                           now + cache_validity_time);
         eos::common::RWMutexWriteLock lock(mOAuthCacheMutex);
-        mOAuthInfo[tokenhash] = info;
+        mOAuthInfo[cache_key] = info;
         return 0;
       } else {
+	eos_static_err("msg=\"invalid response from userinfo endpoint\" claims=[ %s ]", s.str().c_str());
         return EINVAL;
       }
     } else {
@@ -297,14 +313,6 @@ OAuth::Handle(const std::string& info, eos::common::VirtualIdentity& vid)
   }
 
   return "";
-}
-
-uint64_t
-OAuth::Hash(const std::string& token)
-{
-  //  std::cerr << "hashing token: " << token << std::endl;
-  //  std::cerr << "hash: " <<  Murmur3::MurmurHasher<std::string> {}(token) << std::endl;
-  return Murmur3::MurmurHasher<std::string> {}(token);
 }
 
 EOSCOMMONNAMESPACE_END;
