@@ -31,6 +31,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/auth/AccessChecker.hh"
+#include "mgm/Macros.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -1180,13 +1181,33 @@ NewfindCmd::ProcessRequest() noexcept
         eos_static_info("msg=\"real path resolved\" rpath=\"%s\"",
                         real_path.c_str());
       } catch (eos::MDException& e) {
-        mOfsErrStream << "error: could not resove real path" << std::endl;
+        mOfsErrStream << "error: could not resolve real path" << std::endl;
         reply.set_retc(ENOENT);
         return reply;
       }
     }
   }
 
+  //set scope for this request
+  {
+    if (mVid.token && !mVid.token->TreeToken()) {
+      std::string token;
+      vid.token->Dump(token, false,true);
+      eos_static_err("msg=\"token has no tree permissions\" token=\"%s\"", token.c_str());
+      mOfsErrStream << "error: token has no tree permission" << std::endl;
+      reply.set_retc(EPERM);
+      reply.set_std_out("");
+      reply.set_std_err(SSTR("error: token has no tree permission" <<
+			     std::endl));
+
+      return reply;
+    }
+    std::string rp = real_path.c_str();
+    rp += "/";
+    const char* path = rp.c_str();
+    PROC_MVID_TOKEN_SCOPE 
+  }
+  
   errInfo.clear();
   std::unique_ptr<qclient::QClient> qcl =
     std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
