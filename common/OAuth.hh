@@ -62,10 +62,9 @@ public:
 
 private:
 
-  uint64_t Hash(const std::string& token);
   int cache_validity_time;
   eos::common::RWMutex mOAuthCacheMutex;
-  std::map<uint64_t, AuthInfo> mOAuthInfo;
+  std::map<std::string, AuthInfo> mOAuthInfo;
 };
 
 EOSCOMMONNAMESPACE_END;
