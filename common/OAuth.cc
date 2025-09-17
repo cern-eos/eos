@@ -92,14 +92,16 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
   }
 
   std::stringstream s;
-  std::string issuer;
+  std::string cache_key;
   try {
     // screen the audience
     auto decoded = jwt::decode(accesstoken);
     auto audiences = decoded.get_audience();
     auto exp = decoded.get_expires_at();
     auto iss = decoded.get_issuer();
-    issuer = iss;
+    auto signature = decoded.get_signature();
+    cache_key = signature;
+
     std::string iss_resource = iss + "/protocol/openid-connect/userinfo";
 
     if (resource.empty()) {
@@ -148,9 +150,6 @@ OAuth::Validate(OAuth::AuthInfo& info, const std::string& accesstoken,
     return EPERM;
   }
 
-  // build a collision-free cache key
-  // include issuer + resource + token to avoid cross-issuer/resource aliasing
-  std::string cache_key = issuer + "\n" + resource + "\n" + accesstoken;
   PurgeCache(now);
   {
     eos::common::RWMutexReadLock lock(mOAuthCacheMutex);
