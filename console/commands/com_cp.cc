@@ -456,6 +456,10 @@ com_cp(char* argin)
       File_t source_file;
       source_file.name = file.c_str();
       source_file.opaque = source_opaque.c_str();
+      if (getenv("EOSAUTHZ")) {
+	source_file.opaque += "&authz=";
+	source_file.opaque += getenv("EOSAUTHZ");
+      }
       source_file.protocol = protocol;
       source_list.emplace_back(source_file);
       source_basepath_list.emplace_back(basepath.c_str());
@@ -603,6 +607,10 @@ com_cp(char* argin)
     }
 
     target.name.insert(serveruri.c_str(), 0);
+    if (getenv("EOSAUTHZ")) {
+      target.opaque+= "&authz=";
+      target.opaque+= getenv("EOSAUTHZ");
+    }
   }
 
   if (debug) {
