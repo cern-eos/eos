@@ -367,6 +367,12 @@ EosTok::Match(const std::string& input, const std::string& regexString)
   return eos::common::eos_regex_match(input, regexString);
 }
 
+bool
+EosTok::TreeToken() const
+{
+  return share->token().allowtree();
+}
+
 int
 EosTok::ValidatePath(const std::string& path) const
 {

@@ -81,6 +81,7 @@ public:
                            const std::string& prot);
   virtual int ValidatePath(const std::string& path) const;
   virtual bool Valid() const;
+  virtual bool TreeToken() const;
   virtual std::string Owner() const;
   virtual std::string Group() const;
   virtual std::string Permission() const;
