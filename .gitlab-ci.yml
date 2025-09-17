@@ -867,15 +867,15 @@ notify_cta_project:
         EOS_IMAGE_TAG="$CI_COMMIT_SHORT_SHA.el9";
       else
         EOS_IMAGE_TAG="$CI_COMMIT_TAG.el9";
-        EOS_VERSION="$CI_COMMIT_TAG";
+        EOS_VERSION=$(dnf -q --repofrompath=temprepo,https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/ --repo=temprepo repoquery --qf "%{version}-%{release}\n" eos-client | grep "${CI_COMMIT_TAG}" | tail -1);
+        if [[ -z ${EOS_VERSION} ]]; then
+          echo "ERROR: Could not find EOS RPMs for ${CI_COMMIT_TAG} in storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"
+          exit 1
+        fi
       fi
     # Extract XRootD version from eos.spec.in
-    - XROOTD_VERSION=$(grep '^%define xrootd_version_min' eos.spec.in | awk '{print $3}')
-    # The locked XRootD version does not have the release included, while this is necessary to versionlock it correctly in the CTA pipeline
-    - |
-      if [[ "$XROOTD_VERSION" != *-* ]]; then
-        XROOTD_VERSION="${XROOTD_VERSION}-1"
-      fi
+    - xrd_min=$(grep '^%define xrootd_version_min' eos.spec.in | awk '{print $3}')
+    - XROOTD_VERSION=$(dnf -q --repofrompath=temprepo,https://xrootd.web.cern.ch/repo/testing/el9/x86_64/ --repo=temprepo repoquery --qf "%{epoch}:%{version}-%{release}\n" xrootd | grep "${xrd_min}" | tail  -1)
     # Get the latest stable CTA version
     - LATEST_CTA_VERSION=$(dnf -q --repofrompath=temprepo,https://cta-public-repo.web.cern.ch/stable/cta-5/el9/cta/x86_64/ --repo=temprepo repoquery --latest-limit=1 --qf "%{version}-%{release}" cta-taped)
     # Against an existing CTA tag, we can only trigger a pipeline where a different EOS image is used
