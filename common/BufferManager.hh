@@ -125,7 +125,7 @@ public:
   BufferSlot& operator =(BufferSlot&& other) noexcept
   {
     if (this != &other) {
-      mBuffSize = other.mBuffSize;
+      mBuffSize = other.mBuffSize.load();
       mNumBuffers.store(other.mNumBuffers);
       mAvailableBuffers = other.mAvailableBuffers;
       other.mAvailableBuffers.clear();
@@ -180,21 +180,34 @@ public:
   //----------------------------------------------------------------------------
   //! Try to pop a buffer from the list of available ones if possible
   //----------------------------------------------------------------------------
-  void Pop()
+  bool Pop()
   {
     std::unique_lock<std::mutex> lock(mSlotMutex);
 
     if (!mAvailableBuffers.empty()) {
       mAvailableBuffers.pop_front();
       --mNumBuffers;
+      return true;
     }
+
+    return false;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get size of the buffer allocated by this buffer slot
+  //!
+  //! @return size of the buffer allocated by this object
+  //----------------------------------------------------------------------------
+  uint64_t GetBufferSize() const
+  {
+    return mBuffSize.load();
   }
 
 private:
   std::mutex mSlotMutex;
   std::list<std::shared_ptr<Buffer>> mAvailableBuffers;
   std::atomic<uint64_t> mNumBuffers;
-  uint64_t mBuffSize;
+  std::atomic<uint64_t> mBuffSize;
 };
 
 
@@ -315,8 +328,10 @@ public:
       // Perform clean up for rest of slots depending on their size
       for (auto it = sorted_slots.rbegin(); it != sorted_slots.rend(); ++it) {
         if (it->first > slot) {
-          mSlots[it->first].Pop();
-          break;
+          if (mSlots[it->first].Pop()) {
+            mAllocatedSize -= mSlots[it->first].GetBufferSize();
+            break;
+          }
         }
 
         if (it->first < slot) {
@@ -324,8 +339,12 @@ public:
           int free_blocks = 1 << (slot - it->first);
 
           while (free_blocks) {
-            mSlots[it->first].Pop();
-            --free_blocks;
+            if (mSlots[it->first].Pop()) {
+              mAllocatedSize -= mSlots[it->first].GetBufferSize();
+              --free_blocks;
+            } else {
+              break;
+            }
           }
 
           break;
@@ -385,6 +404,9 @@ public:
   }
 
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   std::atomic<uint64_t> mMaxSize;
   std::atomic<uint64_t> mAllocatedSize;
   std::atomic<uint32_t> mNumSlots;
