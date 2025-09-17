@@ -565,7 +565,7 @@ ScanDir::ScanSubtree(ThreadAssistant& assistant) noexcept
     }
 
     if (assistant.terminationRequested()) {
-      return;
+      break; // make sure to close the FTS handle!
     }
   }
 

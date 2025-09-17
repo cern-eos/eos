@@ -399,9 +399,8 @@ public:
     {
       if (paths) {
         free(paths);
+        paths = nullptr;
       }
-
-      paths = 0;
     }
   };
 
