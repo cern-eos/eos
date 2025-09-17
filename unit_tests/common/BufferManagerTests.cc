@@ -119,6 +119,62 @@ TEST(BufferManager, RecycleSingleBuffer)
   ASSERT_EQ(total_size, 1 * MB);
 }
 
+TEST(BufferManager, PoolFull)
+{
+  using namespace eos::common;
+  constexpr uint64_t pool_sz {20 * MB};
+  eos::common::BufferManager buff_mgr(pool_sz);
+  std::list<std::shared_ptr<eos::common::Buffer>> lst_buffs;
+
+  // Add 2MB, 4MB and 8MB blocks
+  for (int i = 0; i < 6; ++i) {
+    lst_buffs.push_back(buff_mgr.GetBuffer((1 << ((i % 3) + 1)) * MB));
+  }
+
+  // We allocated more than the buffer pool size
+  ASSERT_EQ(28 * MB, buff_mgr.mAllocatedSize);
+  // First buffer in the list is a 2MB one and the last one is 8MB
+  auto buff_8MB = lst_buffs.back();
+  lst_buffs.pop_back();
+  auto buff_4MB = lst_buffs.back();
+  lst_buffs.pop_back();
+  buff_mgr.Recycle(buff_4MB);
+  ASSERT_EQ(24 * MB, buff_mgr.mAllocatedSize);
+  auto buff_2MB = lst_buffs.back();
+  lst_buffs.pop_back();
+  buff_mgr.Recycle(buff_2MB);
+  ASSERT_EQ(22 * MB, buff_mgr.mAllocatedSize);
+  buff_mgr.Recycle(buff_8MB);
+  ASSERT_EQ(14 * MB, buff_mgr.mAllocatedSize);
+  buff_8MB = lst_buffs.back();
+  lst_buffs.pop_back();
+  buff_mgr.Recycle(buff_8MB);
+  ASSERT_EQ(14 * MB, buff_mgr.mAllocatedSize);
+  buff_4MB = lst_buffs.back();
+  lst_buffs.pop_back();
+  lst_buffs.push_back(buff_mgr.GetBuffer(4 * MB));
+  ASSERT_EQ(18 * MB, buff_mgr.mAllocatedSize);
+  lst_buffs.push_back(buff_mgr.GetBuffer(4 * MB));
+  ASSERT_EQ(22 * MB, buff_mgr.mAllocatedSize);
+  buff_mgr.Recycle(buff_4MB);
+  // Free 8MB and 4MB blocks
+  ASSERT_EQ(10 * MB, buff_mgr.mAllocatedSize);
+  buff_4MB = lst_buffs.back();
+  lst_buffs.pop_back();
+  buff_mgr.Recycle(buff_4MB);
+  // We have one 4MB buffer available in the pool
+  ASSERT_EQ(10 * MB, buff_mgr.mAllocatedSize);
+  lst_buffs.push_back(buff_mgr.GetBuffer(8 * MB));
+  ASSERT_EQ(18 * MB, buff_mgr.mAllocatedSize);
+  lst_buffs.push_back(buff_mgr.GetBuffer(8 * MB));
+  ASSERT_EQ(26 * MB, buff_mgr.mAllocatedSize);
+  buff_8MB = lst_buffs.back();
+  lst_buffs.pop_back();
+  buff_mgr.Recycle(buff_8MB);
+  // Free 4MB and 8MB blocks
+  ASSERT_EQ(14 * MB, buff_mgr.mAllocatedSize);
+}
+
 TEST(BufferManager, AdjustCachedSizes)
 {
   using namespace eos::common;
