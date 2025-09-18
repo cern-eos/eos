@@ -1781,7 +1781,8 @@ bool RainMetaLayout::PrepareStripeChecksum()
     }
   } else {
     mStripeChecksum->Finalize();
-    eos_debug("msg=\"unit checksum finalized\" fxid=%08llx", mOfsFile->GetFileId());
+    eos_debug("msg=\"unit checksum finalized\" fxid=%08llx stripexs=\"%s\"",
+              mOfsFile->GetFileId(), mStripeChecksum->GetHexChecksum());
   }
 
   return false;

@@ -192,8 +192,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
 
   eos_static_debug("msg=\"XrdSecEntity client\" name=\"%s\" role=\"%s\" "
                    "group=\"%s\" tident=\"%s\" cred=\"%s\"",
-                   client->name, client->role, client->grps, client->tident,
-                   (client->creds ? client->creds : "none"));
+                   (client->name ? client->name : "null"),
+                   (client->role ? client->role : "null"),
+                   (client->grps ? client->grps : "null"),
+                   (client->tident ? client->tident : "null"),
+                   (client->creds ? client->creds : "null"));
   // We start as 'nobody'
   vid = VirtualIdentity::Nobody();
   XrdOucEnv Env(env);
@@ -510,7 +513,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (gRootSquash && (host != "localhost") && (host != "localhost.localdomain") &&
           (host != "localhost6.localdomain6") && (vid.name == "root") &&
           (myrole == "root")) {
-        eos_static_debug("tident root uid squash");
+        eos_static_debug("%s", "msg=\"tident root uid squash\"");
         vid.allowed_uids.clear();
         vid.allowed_uids.insert(DAEMONUID);
         vid.uid = DAEMONUID;
@@ -518,7 +521,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         vid.gid = DAEMONGID;
         vid.allowed_gids.insert(DAEMONGID);
       } else {
-        eos_static_debug("tident uid mapping prot=%s name=%s",
+        eos_static_debug("msg=\"tident uid mapping\" prot=%s name=%s",
                          vid.prot.c_str(), vid.name.c_str());
         vid.allowed_uids.clear();
 
@@ -816,14 +819,14 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         struct stat buf;
 
         if (::stat(getenv("EOS_MGM_TOKEN_KEYFILE"), &buf)) {
-          eos_static_err("token keyfile is not existing '%s'",
-                         getenv("EOS_MGM_TOKEN_KEYHFILE"));
+          eos_static_err("msg=\"token keyfile does not exist\" location=\"%s\"",
+                         getenv("EOS_MGM_TOKEN_KEYFILE"));
           skip_key = true;
         } else {
           if ((buf.st_uid != DAEMONUID) ||
               (buf.st_mode != 0100400)) {
             skip_key = true;
-            eos_static_err("token keyfile mode bit is %o", buf.st_mode);
+            eos_static_err("msg=\"token keyfile mode bit\" mode=%o", buf.st_mode);
           }
         }
 
@@ -839,16 +842,18 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if ((rc = vid.token->Read(authz, key, eos::common::EosTok::sTokenGeneration,
                                 false))) {
         vid.token->Reset();
-        eos_static_err("failed to decode token tident='%s' token='%s' errno=%d", tident,
-                       authz.c_str(), -rc);
+        eos_static_err("msg=\"failed to decode token\" tident=\"%s\" token=\"%s\" errno=%d",
+                       tident, authz.c_str(), -rc);
       } else {
-	bool validated = true;
-	if (path.length() && path.substr(0,6) != "/proc/") {
-	  if (vid.token->ValidatePath(path)) {
-	    eos_static_err("token:validatepath msg=\"path validation failed for '%s'\"", path.c_str());
-	    validated = false;
-	  }
-	}
+        bool validated = true;
+
+        if (path.length() && path.substr(0, 6) != "/proc/") {
+          if (vid.token->ValidatePath(path)) {
+            eos_static_err("msg=\"token path validation failed\" path=\"%s\"",
+                           path.c_str());
+            validated = false;
+          }
+        }
 
         // if the path is screened we change owner/group
         if (validated && !vid.token->Owner().empty()) {
@@ -864,7 +869,8 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         if (EOS_LOGS_INFO) {
           std::string dump;
           vid.token->Dump(dump, true, true);
-          eos_static_info("%s {tokensudo:%d (%d)}", dump.c_str(), token_sudo, gTokenSudo.load());
+          eos_static_info("%s {tokensudo:%d (%d)}", dump.c_str(), token_sudo,
+                          gTokenSudo.load());
         }
       }
     } else {

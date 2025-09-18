@@ -1087,7 +1087,7 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   }
 
   XrdOucString sizestring;
-  eos_debug("info=\"scanned checksum\" path=%s size=%s time=%.02fms "
+  eos_debug("info=\"scanned stripe checksum\" path=%s size=%s time=%.02fms "
             "rate=%.02fMB/s comp_xs=%s", path.c_str(),
             eos::common::StringConversion::GetReadableSizeString(sizestring,
                 scansize, "B"),
@@ -1100,10 +1100,10 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
               xs->GetHexChecksum(), path.c_str(), mFsId, fid);
 
     if (xs->GetHexChecksum() != fmd->mProtoFmd.stripechecksum()) {
-      eos_debug("msg=\"checksums do not match\" expected_xs=%s computed_xs=%s path=%s fsid=%d fxid=%08llx",
-                fmd->mProtoFmd.stripechecksum().c_str(), xs->GetHexChecksum(), path.c_str(),
-                mFsId,
-                fid);
+      eos_debug("msg=\"checksums do not match\" expected_xs=%s computed_xs=%s "
+                "path=%s fsid=%d fxid=%08llx",
+                fmd->mProtoFmd.stripechecksum().c_str(), xs->GetHexChecksum(),
+                path.c_str(), mFsId, fid);
       invalid_fsid.insert(mFsId);
     }
   } else {
@@ -1114,8 +1114,8 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     fmd->mProtoFmd.set_stripechecksum(xs->GetHexChecksum());
     gOFS.mFmdHandler->Commit(fmd);
 
+    // Run the full RAIN check only on the FST storing the first stripe
     if (hd->GetIdStripe() != 0) {
-      // only run the procedure on the FST storing the first stripe
       return false;
     }
 
