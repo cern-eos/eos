@@ -288,7 +288,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
   // Get the layout object
   mLayout.reset(eos::fst::LayoutPlugin::GetLayoutObject
                 (this, mLid, client, &error, mFstPath.c_str(), gOFS.mFmdHandler.get(),
-                 msDefaultTimeout, mRainReconstruct));
+                 msDefaultTimeout, mRainReconstruct,
+                 gOFS.Storage->mComputeStripeChecksum.load()));
 
   if (mLayout == nullptr) {
     int envlen;

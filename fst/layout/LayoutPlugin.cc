@@ -27,8 +27,6 @@
 #include "fst/layout/ReplicaParLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/ReedSLayout.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
-#include "fst/Load.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -43,7 +41,8 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
                               const char* path,
                               eos::fst::FmdHandler* fmdHandler,
                               uint16_t timeout,
-                              bool storeRecovery)
+                              bool storeRecovery,
+                              bool computeStripeChecksum)
 {
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {
     return static_cast<Layout*>(new PlainLayout(file, layoutId, client, error, path,
@@ -57,7 +56,8 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
 
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaidDP) {
     return static_cast<Layout*>(new RaidDpLayout(file, layoutId, client, error,
-                                path, fmdHandler, timeout, storeRecovery));
+                                path, fmdHandler, timeout, storeRecovery, 0, "oss.size",
+                                computeStripeChecksum));
   }
 
   if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid5) ||
@@ -65,7 +65,7 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) ||
       (LayoutId::GetLayoutType(layoutId) == LayoutId::kQrain)) {
     return static_cast<Layout*>(new ReedSLayout(file, layoutId, client, error, path,
-                                fmdHandler, timeout, storeRecovery));
+                                fmdHandler, timeout, storeRecovery, 0, "oss.size", computeStripeChecksum));
   }
 
   return 0;

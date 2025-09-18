@@ -38,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 // Set of keys updates to be tracked at the node level
 std::set<std::string> Storage::sNodeUpdateKeys {
   "stat.refresh_fs", "manager", "symkey", "publish.interval",
-  "debug.level", "error.simulation" };
+  "debug.level", "error.simulation", "stripexs" };
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
@@ -246,6 +246,12 @@ Storage::ProcessFstConfigChange(const std::string& key,
     gOFS.SetSimulationError(value.c_str());
     return;
   }
+
+  if (key == "stripexs") {
+    // value can be "on" or "off"
+    mComputeStripeChecksum = (value == "on");
+    return;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -356,7 +362,7 @@ Storage::Communicator(ThreadAssistant& assistant) noexcept
       eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
       eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME, eos::common::SCAN_DISK_INTERVAL_NAME,
       eos::common::SCAN_NS_INTERVAL_NAME, eos::common::SCAN_NS_RATE_NAME, "symkey",
-      "manager", "publish.interval", "debug.level", "error.simulation"};
+      "manager", "publish.interval", "debug.level", "error.simulation", "stripexs"};
   bool ok = true;
 
   for (const auto& key : watch_modification_keys) {
