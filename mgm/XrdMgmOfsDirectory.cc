@@ -105,7 +105,7 @@ XrdMgmOfsDirectory::open(const char* inpath,
   AUTHORIZE(client, &Open_Env, AOP_Readdir, "open directory", inpath, error);
   EXEC_TIMING_BEGIN("IdMap");
   eos::common::Mapping::IdMap(client, ininfo, tident, vid,
-			      gOFS->mTokenAuthz, AOP_Readdir, inpath);
+                              gOFS->mTokenAuthz, AOP_Readdir, inpath);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   BOUNCE_NOT_ALLOWED;
@@ -184,7 +184,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
     cacheentry = getCacheName(dh->getId(), mtime.tv_sec, mtime.tv_nsec,
                               env.Get("ls.skip.files"), env.Get("ls.skip.directories"));
     lock.Release();
-    permok = (!vid.token)?dh->access(vid.uid, vid.gid, R_OK | X_OK):false;
+    permok = (!vid.token) ? dh->access(vid.uid, vid.gid, R_OK | X_OK) : false;
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
     // ACL and permission check
     Acl acl(cPath.GetPath(), error, vid, attrmap);
@@ -254,8 +254,9 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   }
 
   eos_debug("msg=\"access\" uid=%d gid=%d retc=%d mode=%o token=%d",
-            vid.uid, vid.gid, !vid.token?(dh->access(vid.uid, vid.gid, R_OK | X_OK)):false,
-            dh->getMode(), vid.token);
+            vid.uid, vid.gid, !vid.token ? (dh->access(vid.uid, vid.gid,
+                R_OK | X_OK)) : false,
+            dh->getMode(), (vid.token != nullptr));
 
   if (!permok) {
     errno = EPERM;
