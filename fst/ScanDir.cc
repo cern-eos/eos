@@ -1080,7 +1080,8 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   unsigned long long scansize = 0;
   float scantime = 0; // is ms
 
-  if (!xs->ScanFile(path.c_str(), scansize, scantime, 0, hd->GetSize())) {
+  if (!xs->ScanFile(path.c_str(), scansize, scantime, mRateBandwidth.load(),
+                    hd->GetSize())) {
     eos_err("msg=\"checksum scanning failed\" path=%s", path.c_str());
     return false;
   }
