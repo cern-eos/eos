@@ -275,6 +275,16 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     }
   }
 
+  // Initialize stripe checksum only if it's enabled by the config
+  if (mComputeStripeChecksum) {
+    mStripeChecksum = std::make_unique<eos::fst::Adler>();
+    eos_debug("msg=\"stripe checksum enabled\" fxid=%08llx",
+              mOfsFile->GetFileId());
+  } else {
+    eos_debug("msg=\"stripe checksum disabled\" fxid=%08llx",
+              mOfsFile->GetFileId());
+  }
+
   unsigned int num_failures = 0u;
   std::vector<std::future<XrdCl::XRootDStatus>> open_futures;
 
@@ -296,12 +306,27 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
       {FileIoPlugin::GetIoObject(stripe_url, mOfsFile, mSecEntity)};
 
       if (file) {
-        // The local stripe is expected to be reconstructed during recovery
-        // and since it might not exist, it gets created
-        struct stat info;
+        if ((i == 0) && mIsRw) {
+          struct stat info;
 
-        if (mIsRw && (i == 0) && (file->fileStat(&info))) {
-          flags |= SFS_O_CREAT;
+          if (file->fileStat(&info)) {
+            // The local stripe is expected to be reconstructed during
+            // recovery and since it might not exist, it gets created
+            flags |= SFS_O_CREAT;
+          } else {
+            // If local stripe exists then we load the stripe checksum
+            mStripeSize = info.st_size;
+
+            if (mStripeChecksum && mStripeSize) {
+              auto xs = GetStripeChecksum();
+
+              if (xs.has_value()) {
+                mStripeChecksum->ResetInit(0, mStripeSize, xs.value().c_str());
+              } else {
+                mStripeChecksum->SetDirty();
+              }
+            }
+          }
         }
 
         open_futures.push_back(file->fileOpenAsync(flags, mode, stripe_opaque,
@@ -388,37 +413,6 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
         eos_err("%s", "msg=\"head node can not compute the file size\"");
         return SFS_ERROR;
       }
-    }
-  }
-
-  // Initialize stripe checksum only if it's enabled by the config
-  if (mComputeStripeChecksum) {
-    mStripeChecksum = std::make_unique<eos::fst::Adler>();
-    eos_debug("msg=\"stripe checksum enabled\" fxid=%08llx",
-              mOfsFile->GetFileId());
-  } else {
-    eos_debug("msg=\"stripe checksum disabled\" fxid=%08llx",
-              mOfsFile->GetFileId());
-  }
-
-  if (mIsRw && mStripeChecksum) {
-    struct stat info;
-    size_t blockSize = 0;
-
-    if (!mStripe[0]->fileStat(&info)) {
-      blockSize = info.st_size;
-    }
-
-    if (blockSize != 0) {
-      auto xs = GetStripeChecksum();
-
-      if (xs.has_value()) {
-        mStripeChecksum->ResetInit(0, blockSize, xs.value().c_str());
-      } else {
-        mStripeChecksum->SetDirty();
-      }
-
-      mStripeSize = blockSize;
     }
   }
 
@@ -1682,7 +1676,7 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   eos::common::Timing tm("truncate");
   COMMONTIMING("begin", &tm);
 
-  if (mStripeChecksum && truncate_offset < mStripeSize) {
+  if (mStripeChecksum && (truncate_offset < mStripeSize)) {
     mStripeChecksum->Reset();
     mStripeChecksum->SetDirty();
   }
