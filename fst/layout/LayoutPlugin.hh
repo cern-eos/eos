@@ -73,7 +73,8 @@ public:
                                  const char* path,
                                  eos::fst::FmdHandler* fmdHandler,
                                  uint16_t timeout = 0,
-                                 bool storeRecovery = false);
+                                 bool storeRecovery = false,
+                                 bool computeStripeChecksum = false);
 };
 
 EOSFSTNAMESPACE_END

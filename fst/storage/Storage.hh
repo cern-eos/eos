@@ -33,6 +33,7 @@
 #include "common/ConcurrentQueue.hh"
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include <atomic>
 #include <vector>
 #include <list>
 #include <queue>
@@ -272,6 +273,8 @@ private:
 
   bool mZombie; ///< State of the node
   XrdOucString mMetaDir; ///< Path to meta directory
+  std::atomic<bool>
+  mComputeStripeChecksum{false}; ///< If to compute stripe checksum synchronously when file is written
   unsigned long long* mScrubPattern[2];
   unsigned long long* mScrubPatternVerify;
   mutable XrdSysMutex mBootingMutex; // Mutex protecting the boot set

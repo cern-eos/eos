@@ -374,6 +374,19 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
         reply.set_std_err("error: failed to store debug level interval");
         reply.set_retc(EFAULT);
       }
+    } else if (config.node_key() == "stripexs") {
+      // the value can be only 'on' or 'off'
+      if (config.node_value() != "on" && config.node_value() != "off") {
+        reply.set_std_err("error: stripexs value can be either \"on\" or \"off\"");
+        reply.set_retc(EINVAL);
+      } else {
+        if (node->SetConfigMember(config.node_key(), config.node_value(), false)) {
+          reply.set_std_out("success: setting stripexs to '" + config.node_value() + "'");
+        } else {
+          reply.set_std_err("error: failed to store stripexs config");
+          reply.set_retc(EFAULT);
+        }
+      }
     } else {
       reply.set_std_err("error: the specified key is not known - consult the "
                         "usage information of the command");

@@ -83,7 +83,8 @@ void com_node_help()
       << "\t            unresponsive        : emulate a write/close request taking 2 minutes\n"
       << "\t            <none>              : disable error simulation (any value other than the previous ones is fine!)\n"
       << "\t    <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n"
-      << "\t    <key> : debug.level=<level> - set the node into debug level <level> [default=notice] -> see debug --help for available levels\n"
+      << "\t    <key> : debug.level=<level>    - set the node into debug level <level> [default=notice] -> see debug --help for available levels\n"
+      << "\t    <key> : stripexs=on|off        - enable/disable synchronously stripe checksum computation\n"
       << "\t    <key> : for other keys see help of 'fs config' for details\n"
       << std::endl
       << "node set <queue-name>|<host:port> on|off                 : activate/deactivate node\n"
