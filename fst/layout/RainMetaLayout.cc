@@ -29,7 +29,6 @@
 #include "fst/layout/RainMetaLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
 #include "fst/layout/HeaderCRC.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
 #include "RainMetaLayout.hh"
 
 // Linux compat for Apple
@@ -507,7 +506,6 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>&
     eos_debug("%s", "msg=\"read case\"");
   }
 
-  unsigned int num_failures = 0u;
   std::vector<std::future<XrdCl::XRootDStatus>> open_futures;
 
   // Open stripes
@@ -558,16 +556,11 @@ RainMetaLayout::OpenPio(const std::vector<std::pair<int, std::string>>&
             eos_err("msg=\"failed open create stripe\" url=%s",
                     stripe_urls[i].second.c_str());
             mStripe[i] = nullptr;
-            ++num_failures;
           }
         } else {
           mStripe[i] = nullptr;
-          ++num_failures;
         }
       }
-    } else {
-      // The stripe file is already nullptr
-      ++num_failures;
     }
   }
 
