@@ -57,12 +57,15 @@ public:
   //! @param force_recovery force writing back the recovered blocks to the files
   //! @param targetSize initial file size
   //! @param bookingOpaque opaque information
+  //! @param fmdHandler fmd handler obj
+  //! @param computeStripeChecksum true if stripe checksum needs to be computed
+  //!                              synchronously (default is false)
   //----------------------------------------------------------------------------
   RainMetaLayout(XrdFstOfsFile* file, unsigned long lid,
                  const XrdSecEntity* client, XrdOucErrInfo* outError,
                  const char* path, uint16_t timeout, bool force_recovery,
                  off_t targetSize, std::string bookingOpaque,
-                 eos::fst::FmdHandler* fmdHandler);
+                 eos::fst::FmdHandler* fmdHandler, bool computeStripeChecksum = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -267,6 +270,7 @@ protected:
   bool mForceRecovery;
   //! Store recovery flag due to file begin opened in RW mode
   bool mStoreRecoveryRW;
+  bool mComputeStripeChecksum;
   int mStripeHead; ///< head stripe value
   int mPhysicalStripeIndex; ///< physical index of the current stripe
   unsigned int mNbParityFiles; ///< number of parity files

@@ -25,6 +25,7 @@
 #include <string>
 #include <utility>
 #include <stdint.h>
+#include "Logging.hh"
 #include "common/Timing.hh"
 #include "fst/layout/RainMetaLayout.hh"
 #include "fst/io/AsyncMetaHandler.hh"
@@ -52,7 +53,8 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
                                bool force_recovery,
                                off_t targetSize,
                                std::string bookingOpaque,
-                               eos::fst::FmdHandler* fmdHandler) :
+                               eos::fst::FmdHandler* fmdHandler,
+                               bool computeStripeChecksum) :
   Layout(file, lid, client, outError, path, fmdHandler, timeout),
   mIsRw(false),
   mIsOpen(false),
@@ -62,6 +64,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mIsStreaming(true),
   mForceRecovery(force_recovery),
   mStoreRecoveryRW(false),
+  mComputeStripeChecksum(computeStripeChecksum),
   mStripeHead(-1),
   mNbTotalFiles(0),
   mNbDataBlocks(0),
@@ -71,6 +74,7 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mFileSize(0),
   mSizeLine(0),
   mSizeGroup(0),
+  mStripeChecksum(nullptr),
   mIsTruncated(false)
 {
   mStripeWidth = eos::common::LayoutId::GetBlocksize(lid);
@@ -80,7 +84,6 @@ RainMetaLayout::RainMetaLayout(XrdFstOfsFile* file,
   mSizeHeader = eos::common::LayoutId::OssXsBlockSize;
   mPhysicalStripeIndex = -1;
   mIsEntryServer = false;
-  mStripeChecksum = std::make_unique<eos::fst::Adler>();
 }
 
 //------------------------------------------------------------------------------
@@ -388,8 +391,17 @@ RainMetaLayout::Open(XrdSfsFileOpenMode flags, mode_t mode, const char* opaque)
     }
   }
 
-  // Initialize stripe checksum
-  if (mIsRw) {
+  // Initialize stripe checksum only if it's enabled by the config
+  if (mComputeStripeChecksum) {
+    mStripeChecksum = std::make_unique<eos::fst::Adler>();
+    eos_debug("msg=\"stripe checksum enabled\" fxid=%08llx",
+              mOfsFile->GetFileId());
+  } else {
+    eos_debug("msg=\"stripe checksum disabled\" fxid=%08llx",
+              mOfsFile->GetFileId());
+  }
+
+  if (mIsRw && mStripeChecksum) {
     struct stat info;
     size_t blockSize = 0;
 
@@ -1020,6 +1032,10 @@ RainMetaLayout::ReadV(XrdCl::ChunkList& chunkList, uint32_t len)
 void RainMetaLayout::AddDataToStripeChecksum(char* buffer, size_t size,
     size_t stripe_offset)
 {
+  if (!mStripeChecksum) {
+    return;
+  }
+
   // In the stripe checksum computation the header part is removed.
   // This means that the actual offset the checksum object is aware
   // of, is actually the current file offset - size of the header.
@@ -1666,7 +1682,7 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
   eos::common::Timing tm("truncate");
   COMMONTIMING("begin", &tm);
 
-  if (truncate_offset < mStripeSize) {
+  if (mStripeChecksum && truncate_offset < mStripeSize) {
     mStripeChecksum->Reset();
     mStripeChecksum->SetDirty();
   }
@@ -1720,9 +1736,13 @@ RainMetaLayout::Truncate(XrdSfsFileOffset offset)
 
 bool RainMetaLayout::PrepareStripeChecksum()
 {
+  if (!mStripeChecksum) {
+    return false;
+  }
+
   // If the stripe file has been extended (using Truncate())
   // we need to account this is the checksum calculation.
-  if (mIsTruncated &&
+  if (mIsTruncated && mStripeChecksum &&
       mStripeChecksum->GetLastOffset() + mSizeHeader < mStripeSize &&
       !mStripeChecksum->NeedsRecalculation()) {
     // If the file has been extended, the extended part is filled
