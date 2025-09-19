@@ -2338,7 +2338,7 @@ Server::OpSetFile(const std::string& id,
                 eos_err("msg=\"out-of-volume-quota (<%llu bytes)\" uid=%u gid=%u name=%s",
                         gOFS->getFuseBookingSize(),
                         vid.uid,
-                        vid.gid),
+                        vid.gid,
                         md.name().c_str());
                 return EDQUOT;
               }
@@ -2705,7 +2705,7 @@ Server::OpSetLink(const std::string& id,
       if (md.name().substr(0, strlen(EOS_COMMON_PATH_ATOMIC_FILE_PREFIX)) ==
           EOS_COMMON_PATH_ATOMIC_FILE_PREFIX) {
         eos_err("msg=\"atomic path is forbidden as a link/fifo name\" "
-                "ino=%lx name=\"%s\"", (long) md.md_info(),
+                "ino=%lx name=\"%s\"", (long) md.md_ino(),
                 md.name().c_str());
         return EPERM;
       }
