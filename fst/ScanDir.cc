@@ -22,15 +22,15 @@
  ************************************************************************/
 
 #include "fst/ScanDir.hh"
-#include "common/Path.hh"
+#include "ContainerMd.pb.h"
+#include "LayoutId.hh"
 #include "common/Constants.hh"
-#include "common/StringSplit.hh"
-#include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/Deletion.hh"
+#include "fst/checksum/ChecksumGroup.hh"
 #include "fst/utils/IoPriority.hh"
 #include "fst/filemd/FmdMgm.hh"
 #include "fst/storage/FileSystem.hh"
@@ -40,9 +40,11 @@
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
 #include "fst/layout/LayoutPlugin.hh"
+#include "google/protobuf/repeated_field.h"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QSet.hh"
 #include "mgm/Constants.hh"
+#include <memory>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <fts.h>
@@ -243,30 +245,37 @@ ScanDir::RunNsScan(ThreadAssistant& assistant) noexcept
 
 namespace
 {
-// Get the set of alternative checksums configured at the container
-// level in the namespace.
-std::string AltXsConfigFromNS(
-  const eos::ns::ContainerMdProto& container)
+
+// Sets on the Fmd the altxs config stored in the container.
+// In memory only.
+void SetAltXsConfigFromNS(const eos::ns::ContainerMdProto& container,
+                          eos::common::FmdHelper& fmd)
 {
   if (!container.xattrs().contains(eos::mgm::SYS_ALTCHECKSUMS)) {
-    return {};
+    return;
   }
 
-  return container.xattrs().at(eos::mgm::SYS_ALTCHECKSUMS);
+  const auto altxs_str = container.xattrs().at(eos::mgm::SYS_ALTCHECKSUMS);
+  std::vector<std::string> tkns;
+  eos::common::StringConversion::Tokenize(altxs_str, tkns, ",");
+  fmd.mProtoFmd.clear_altxs();
+
+  for (const auto& tkn : tkns) {
+    auto xs_type = eos::common::LayoutId::GetChecksumFromString(tkn);
+    fmd.mProtoFmd.mutable_altxs()->Add(xs_type);
+  }
 }
 
-// Get the set of alternative checksums already computed on the file
-// that are stored in the namespace.
-std::vector<std::string> ExtractAltXsOnFile(
-  eos::ns::FileMdProto& file)
+// Sets on the Fmd the altxs computed and stored on the file.
+// In memory only.
+void SetAltXsOnFile(const eos::ns::FileMdProto& file,
+                    eos::common::FmdHelper& fmd)
 {
-  std::vector<std::string> altxs;
+  fmd.mProtoFmd.mutable_mgmaltxs()->Clear();
 
-  for (const auto & [xs, _] : file.altchecksums()) {
-    altxs.emplace_back(eos::common::LayoutId::GetChecksumString(xs));
+  for (const auto& [xs, _] : file.altchecksums()) {
+    fmd.mProtoFmd.mutable_mgmaltxs()->Add(xs);
   }
-
-  return altxs;
 }
 
 // Create the map of alternative checksums that will be commited
@@ -282,71 +291,6 @@ PrepareAltXsResponse(eos::fst::ChecksumGroup* xs)
   }
 
   return altxs;
-}
-
-// Parse a string of the type "md5,sha1" in a set of checksum types
-std::set<eos::common::LayoutId::eChecksum> ParseAltXsConfigString(
-  std::string xs_str)
-{
-  std::vector<std::string> tokens;
-  eos::common::StringConversion::Tokenize(xs_str, tokens, ",");
-  std::set<eos::common::LayoutId::eChecksum> altxs;
-
-  for (const auto& tkn : tokens) {
-    auto xs = eos::common::LayoutId::GetChecksumFromString(tkn);
-    altxs.emplace(static_cast<eos::common::LayoutId::eChecksum>(xs));
-  }
-
-  return altxs;
-}
-
-// Get the local view of the alternative checksums configured in the MGM
-// at the directory level.
-std::set<eos::common::LayoutId::eChecksum> LocalConfiguredAltXs(
-  eos::fst::FileIo* io)
-{
-  std::string attr;
-  io->attrGet("user.eos.altxs", attr);
-  return ParseAltXsConfigString(attr);
-}
-
-// Get the local view of the alternative checksums computed and stored
-// in the namespace.
-std::set<eos::common::LayoutId::eChecksum> LocalAltXsComputed(
-  eos::fst::FileIo* io)
-{
-  std::string attr;
-  io->attrGet("user.eos.altxs_mgm", attr);
-  return ParseAltXsConfigString(attr);
-}
-
-// Store the list of configured alternative checksums locally in the
-// xattrs of the file. The list is passed as a commad separated string
-// of the names of the alternative checksums, for example "md5,sha1"
-void StoreAltXsOnMGM(eos::fst::FileIo* io, const std::string& xs)
-{
-  io->attrSet("user.eos.altxs_mgm", xs);
-}
-
-// Store the list of configured alternative checksums locally in the
-// xattrs of the file.
-void StoreAltXsOnMGM(eos::fst::FileIo* io, const std::vector<std::string>& xs)
-{
-  StoreAltXsOnMGM(io, eos::common::StringConversion::Join(xs, ","));
-}
-
-// Store the list of configured alternative checksums locally in the
-// xattrs of the file.
-void StoreAltXsOnMGM(eos::fst::FileIo* io,
-                     const std::set<eos::common::LayoutId::eChecksum>& xs)
-{
-  std::vector<std::string> lst;
-
-  for (const auto& x : xs) {
-    lst.emplace_back(eos::common::LayoutId::GetChecksumString(x));
-  }
-
-  StoreAltXsOnMGM(io, lst);
 }
 
 // Commit the alternative checksums for the file identified by the file id <fid>.
@@ -436,11 +380,10 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
       return;
     }
 
-    std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
-    auto cfg = LocalConfiguredAltXs(io.get());
-    auto on_file = LocalAltXsComputed(io.get());
-    std::set<eos::common::LayoutId::eChecksum> missing;
-    std::set<eos::common::LayoutId::eChecksum> common;
+    auto cfg = fmd->mProtoFmd.altxs();
+    auto on_file = fmd->mProtoFmd.mgmaltxs();
+    std::set<unsigned int> missing;
+    std::set<unsigned int> common;
     std::set_intersection(cfg.begin(), cfg.end(), on_file.begin(), on_file.end(),
                           std::inserter(common, common.begin()));
     std::set_difference(cfg.begin(), cfg.end(), common.begin(), common.end(),
@@ -458,17 +401,18 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
                             std::inserter(to_delete, to_delete.begin()));
 
         if (CommitAlternativeChecksums(fid, {}, &to_delete)) {
-          StoreAltXsOnMGM(io.get(), cfg);
+          fmd->mProtoFmd.mutable_mgmaltxs()->CopyFrom(cfg);
+          gOFS.mFmdHandler->Commit(fmd.get());
         }
       }
 
       return;
     }
 
-    std::unique_ptr<eos::fst::ChecksumGroup> xs{new eos::fst::ChecksumGroup};
+    auto xs = std::make_unique<eos::fst::ChecksumGroup>();
 
     for (auto m : cfg) {
-      xs->AddAlternative(m);
+      xs->AddAlternative(static_cast<eos::common::LayoutId::eChecksum>(m));
     }
 
     std::string fullpath = "root://";
@@ -516,7 +460,8 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     auto alt_xs = PrepareAltXsResponse(xs.get());
 
     if (CommitAlternativeChecksums(fid, alt_xs)) {
-      StoreAltXsOnMGM(io.get(), cfg);
+      fmd->mProtoFmd.mutable_mgmaltxs()->CopyFrom(cfg);
+      gOFS.mFmdHandler->Commit(fmd.get());
     }
   };
   eos_info("msg=\"started the alt xs scan thread\" fsid=%lu dirpath=\"%s\" "
@@ -928,14 +873,10 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
 #endif
     }
 
-    if (assistant.terminationRequested()) {
-      break; // make sure to close the FTS handle!
-    }
-
 #ifndef _NOOFS
 
     if (fmd) {
-      UpdateLocalAltXsMetadata(io.get(), *fmd.get());
+      UpdateLocalAltXsMetadata(*fmd.get());
     }
 
 #endif
@@ -952,12 +893,11 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
 #endif
 }
 
-void ScanDir::UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
-                                       const eos::common::FmdHelper& fmd)
+void ScanDir::UpdateLocalAltXsMetadata(eos::common::FmdHelper& fmd)
 {
 #ifndef _NOOFS
 
-  if (!DoAltXsSync(io, fmd)) {
+  if (!DoAltXsSync(fmd)) {
     eos_debug("msg=\"skipping local altxs metadata synchronization\" fxid=%08llx fsid=%lu",
               fmd.mProtoFmd.fid(), mFsId);
     return;
@@ -979,27 +919,17 @@ void ScanDir::UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
     return;
   }
 
-  auto cfg = AltXsConfigFromNS(container);
-  auto on_file = ExtractAltXsOnFile(file);
-  eos_debug("msg=\"got altxs metadata from MGM\" fxid=%08llx fsid=%lu cfg=\"%s\" computed=\"%s\"",
-            fmd.mProtoFmd.fid(), cfg.c_str(), eos::common::StringConversion::Join(on_file,
-                ",").c_str());
-  io->attrSet("user.eos.altxs", cfg);
-  StoreAltXsOnMGM(io, on_file);
-  SetAltXsSynced(io);
+  SetAltXsConfigFromNS(container, fmd);
+  SetAltXsOnFile(file, fmd);
+  auto now_ts = std::chrono::duration_cast<std::chrono::seconds>
+                (std::chrono::system_clock::now().time_since_epoch()).count();
+  fmd.mProtoFmd.set_altxssync(now_ts);
+  gOFS.mFmdHandler->Commit(&fmd);
 #endif
   return;
 }
 
-void ScanDir::SetAltXsSynced(eos::fst::FileIo* io)
-{
-  auto now_ts = std::chrono::duration_cast<std::chrono::seconds>
-                (std::chrono::system_clock::now().time_since_epoch()).count();
-  io->attrSet("user.eos.altxs_sync", std::to_string(now_ts));
-}
-
-bool ScanDir::DoAltXsSync(eos::fst::FileIo* io,
-                          const eos::common::FmdHelper& fmd)
+bool ScanDir::DoAltXsSync(const eos::common::FmdHelper& fmd)
 {
   if (!mAltXsDoSync) {
     return false;
@@ -1011,7 +941,7 @@ bool ScanDir::DoAltXsSync(eos::fst::FileIo* io,
     return false;
   }
 
-  auto last_sync = getScanTimestamp(io, "user.eos.altxs_sync");
+  auto last_sync = std::chrono::seconds(fmd.mProtoFmd.altxssync());
 
   if (last_sync.count() <= 0) {
     // The sync has never been done
