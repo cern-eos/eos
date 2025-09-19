@@ -284,6 +284,9 @@ OAuth::Handle(const std::string& info, eos::common::VirtualIdentity& vid)
       if (tokens.size() < 5) {
         tokens.push_back("");
       }
+    } else {
+      eos_static_err("msg=\"invalid oauth token provided\" in=\"%s\"", info.c_str());
+      return "";
     }
   } else {
     tokens.resize(5);
@@ -295,6 +298,7 @@ OAuth::Handle(const std::string& info, eos::common::VirtualIdentity& vid)
   }
 
   OAuth::AuthInfo oinfo;
+
   time_t expires = strtoull(tokens[3].c_str(), 0, 10);
 
   if (!Validate(oinfo, tokens[1], tokens[2], tokens[4], expires)) {
