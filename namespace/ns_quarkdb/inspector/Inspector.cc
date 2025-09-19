@@ -650,7 +650,8 @@ int Inspector::oneReplicaLayout(bool showName, bool showPaths,
     int64_t unlinked = proto.unlink_locations().size();
     int64_t size = proto.size();
 
-    if (!proto.link_name().empty()) {
+    if (!proto.link_name().empty() ||
+        proto.xattrs().count("sys.eos.mdino")) {
       expected = 0;
     }
 
