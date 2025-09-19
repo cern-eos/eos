@@ -2846,7 +2846,7 @@ void XrdFstOfsFile::ProcessAltXsRequest()
         }
 
         mChecksumGroup->AddAlternative(eos::fst::ChecksumPlugins::GetXsObj(xs), xs);
-        eos_debug("msg=\"alternative checksum requested\" name=\"%s\"", xs);
+        eos_debug("msg=\"alternative checksum requested\" name=\"%s\"", xs.c_str());
       }
     }
   }
