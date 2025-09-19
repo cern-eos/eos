@@ -1530,7 +1530,7 @@ Local redirection is currently supported for single replica files. It is
 disabled for PIO access with *eoscp* (default)), but works with *xrdcp*
 and *eoscp -0*. If the client does not see the shared filesystem, the
 client will fall back to the MGM and read with the FST (due to an XRootD bug
-this is currently borken). If the client
+this is currently broken). If the client
 sees the shared filesystem but cannot read it, the client will fail.
 
 One can manually select/disable local redirection using a CGI tag:
@@ -1562,7 +1562,8 @@ If you have certain machines which have access to the shared filesystem, but not
    # define the local redirection policy in the given space called 'nfs' as optional
    eos space config nfs space.policy.localredirect=optional
 
-The local redirection appear snow only on clients, which either have XRD_APP or EOSAPP set to '...#<sharedfsname'.
+Then local redirection will occur only on clients which have the XRD_APPNAME or EOSAPP environment variable (for xrootd and eos transfers, respectively)
+set to '...#<sharedfsname>', which must match the 'sharedfs' property defined on FSTs which use a shared filesystem for backend storage.
 E.g. if you have a shared filesystem called nfs1 only clients with application tag '...#nfs1' will receive a local redirect!
 
 IO Priorities
