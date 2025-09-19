@@ -1002,7 +1002,7 @@ Remove a redirection rule:
 
   eos access rm redirect 
 
-. index::
+.. index::
    pair: Access; Thread Limiting
 
 
@@ -1060,7 +1060,7 @@ A user request hitting a thread-pool (with exceeded user limit!) is not served b
 *Hint:* thread-limits can lead to longer client starvation periods in some cases of long overload periods because
 previous stalls of requests don't change the probability that a client is repeatedly stalled!
 
-. index::
+.. index::
    pair: Access; Rate Limiting
 
 Rate Limiting Rules
@@ -1568,8 +1568,8 @@ E.g. if you have a shared filesystem called nfs1 only clients with application t
 IO Priorities
 --------------
 
-IO priorities are currently ony suported by devices using the CFQ
-(CentOS7) or BFQ (Centos8s) scheduler for reads and direct writes. You
+IO priorities are currently only supported by devices using the CFQ
+(CentOS7) or BFQ (Centos8) scheduler for reads and direct writes. You
 can figure out which scheduler is used by inspecting:
 
 .. code-block:: bash
