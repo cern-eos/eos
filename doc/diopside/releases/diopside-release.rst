@@ -16,6 +16,26 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.22 Diopside``
+====================
+
+2025-09-19
+
+Bug
+----
+
+* [EOS-6487] - [HTTP] HTML-escape body of error messages before replying to the client
+* [EOS-6489] - TPC for direct I/O enabled FSTs fails
+* [EOS-6495] - Support EOS tokens to run find command
+* [EOS-6497] - Support EOSAUTHZ env for 'eos cp' commands
+* [EOS-6498] - Disable synchronously stripe checksum computation
+
+Improvement
+------------
+
+* [EOS-6483] - Allow Space attributes to define WFE trigger
+* [EOS-6488] - Rate limit scan of stripes
+
 
 ``v5.3.21 Diopside``
 ====================
