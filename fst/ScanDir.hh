@@ -378,10 +378,9 @@ public:
   bool DropGhostFid(const eos::common::FileSystem::fsid_t fsid,
                     const eos::IFileMD::id_t fid) const;
 
-  void UpdateLocalAltXsMetadata(eos::fst::FileIo* io,
-                                const eos::common::FmdHelper& fmd);
+  void UpdateLocalAltXsMetadata(eos::common::FmdHelper& fmd);
 
-  bool DoAltXsSync(eos::fst::FileIo* io, const eos::common::FmdHelper& fmd);
+  bool DoAltXsSync(const eos::common::FmdHelper& fmd);
 
   void SetAltXsSynced(eos::fst::FileIo* io);
 
