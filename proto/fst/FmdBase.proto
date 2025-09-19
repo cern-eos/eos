@@ -27,4 +27,7 @@ message FmdBase {
   optional string locations = 23; //< fsid list with locations e.g. 1,2,3,4,10
   repeated sint64 stripeerror = 24; //< fsid of broken stripes
   optional string stripechecksum = 25; //< checksum of the stripe (if RAIN file)
+  repeated uint32 altxs = 30; //< local view of altxs configured in the MGM at dir level
+  repeated uint32 mgmaltxs = 31; //< altxs computed and stored in the MGM
+  optional fixed32 altxssync = 32; //< last sync of altxs opts from MGM
 }
