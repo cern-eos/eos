@@ -126,7 +126,14 @@ FmdMgmHandler::EnvMgmToFmd(XrdOucEnv& env, eos::ns::FileMdProto& fmd)
     fmd.set_layout_id(std::stoul(env.Get("lid")));
     fmd.set_ctime(ParseFileMDTime(env, "ctime", "ctime_ns"));
     fmd.set_mtime(ParseFileMDTime(env, "mtime", "mtime_ns"));
-    fmd.set_checksum(ParseChecksum(env.Get("checksum")));
+    std::string xsVal = env.Get("checksum");
+
+    if (xsVal != "none") {
+      fmd.set_checksum(ParseChecksum(xsVal));
+    } else {
+      fmd.set_checksum("");
+    }
+
     ParseLocations(env.Get("location"), fmd);
   } catch (...) {
     // not valid
