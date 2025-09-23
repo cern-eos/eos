@@ -517,6 +517,8 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       try {
         fmd = gOFS->eosView->getFile(request->id().path());
         path = gOFS->eosView->getUri(fmd.get());
+	vid.scope = path;
+
         gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
 
         if (check_perms) {
@@ -665,6 +667,8 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
         }
       }
     }
+
+    vid.scope = path;
 
     if (request->type() == eos::rpc::STAT) {
       // if a client sends a eos::rpc::STAT request, we check permissions on a folder
@@ -830,6 +834,8 @@ GrpcNsInterface::StreamMD(eos::common::VirtualIdentity& ivid,
       return grpc::Status((grpc::StatusCode)(errno), e.getMessage().str().c_str());
     }
   }
+
+  vid.scope = path;
 
   // check if we can read this directory
   if (!Access(vid, R_OK, cmd)) {
