@@ -881,7 +881,7 @@ notify_cta_project:
     # Against an existing CTA tag, we can only trigger a pipeline where a different EOS image is used
     - echo "Triggering pipeline against CTA version $LATEST_CTA_VERSION with EOS image tag $EOS_IMAGE_TAG"
     - curl -X POST
-          -F token=$CTA_TRIGGER_TOKEN
+          -F token=$CI_JOB_TOKEN
           -F ref=$CTA_BRANCH
           -F "variables[CUSTOM_EOS_IMAGE_TAG]=$EOS_IMAGE_TAG"
           -F "variables[CUSTOM_CTA_VERSION]=$LATEST_CTA_VERSION"
@@ -894,7 +894,7 @@ notify_cta_project:
         echo "Triggering pipeline against CTA main branch"
         echo "Using EOS image tag $EOS_IMAGE_TAG and XRootD version $XROOTD_VERSION"
         curl -X POST \
-            -F token=$CTA_TRIGGER_TOKEN \
+            -F token=$CI_JOB_TOKEN \
             -F ref=$CTA_BRANCH \
             -F "variables[CUSTOM_EOS_IMAGE_TAG]=$EOS_IMAGE_TAG" \
             -F "variables[CUSTOM_XROOTD_VERSION]=$XROOTD_VERSION" \
@@ -904,7 +904,7 @@ notify_cta_project:
         echo "Triggering pipeline against CTA main branch"
         echo "Using EOS image tag $EOS_IMAGE_TAG, EOS client version $EOS_VERSION and XRootD version $XROOTD_VERSION"
         curl -X POST \
-            -F token=$CTA_TRIGGER_TOKEN \
+            -F token=$CI_JOB_TOKEN \
             -F ref=$CTA_BRANCH \
             -F "variables[CUSTOM_EOS_IMAGE_TAG]=$EOS_IMAGE_TAG" \
             -F "variables[CUSTOM_EOS_VERSION]=$EOS_VERSION" \
