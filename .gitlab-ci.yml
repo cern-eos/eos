@@ -848,6 +848,8 @@ email_notification:
    only:
      - tags
 
+# This job uses CI_JOB_TOKEN to trigger a pipeline in the CTA project.
+# This means that whoever triggers this job, must have the rights to start a pipeline in CTA.
 notify_cta_project:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/alma9-base
