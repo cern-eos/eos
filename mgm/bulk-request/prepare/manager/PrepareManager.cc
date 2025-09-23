@@ -61,6 +61,13 @@ int PrepareManager::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   return doPrepare(pargs, error, &client, vid);
 }
 
+int PrepareManager::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
+                            const std::string& authz) noexcept
+{
+  XrdSecEntity client;
+  return doPrepare(pargs, error, &client, nullptr, authz);
+}
+
 void PrepareManager::initializeStagePrepareRequest(XrdOucString& reqid,
     const common::VirtualIdentity& vid)
 {
@@ -82,26 +89,50 @@ void PrepareManager::initializeCancelPrepareRequest(XrdOucString& reqid)
 }
 
 int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
-                              const XrdSecEntity* client, const common::VirtualIdentity* vidClient) noexcept
+                              const XrdSecEntity* client, const common::VirtualIdentity* vidClient, const std::string& authz) noexcept
 {
   EXEC_TIMING_BEGIN("Prepare");
   eos_info("prepareOpts=\"%s\"",
            PrepareUtils::prepareOptsToString(pargs.opts).c_str());
   static const char* epname = mEpname.c_str();
-  const char* tident;
   XrdOucTList* pptr = pargs.paths;
   XrdOucTList* optr = pargs.oinfo;
   std::string info;
   info = (optr ? (optr->text ? optr->text : "") : "");
   eos::common::VirtualIdentity vid;
 
+  // Map each individual path to a VID
+  std::map<std::string, eos::common::VirtualIdentity> fileToVidMap;
+  {
+    XrdOucTList* pptr_aux = pargs.paths;
+    for (; pptr_aux; pptr_aux = pptr_aux->next) {
+      if (pptr->text) {
+        XrdOucString prep_path = pptr->text;
+        fileToVidMap[prep_path.c_str()] = eos::common::VirtualIdentity::Nobody();
+      }
+    }
+  }
+
   if (vidClient != nullptr) {
     vid = *vidClient;
-    tident = vid.tident.c_str();
+    for (auto & [file_path, file_vid] : fileToVidMap) {
+      file_vid = vid;
+    }
+  } else if (!authz.empty()) {
+    vid = eos::common::VirtualIdentity::Nobody();
+    mMgmFsInterface->addStats("IdMap", vid.uid, vid.gid, 1);
+    std::string env = "authz=" + eos::common::StringConversion::curl_default_escaped(authz);
+    for (auto & [file_path, file_vid] : fileToVidMap) {
+      // TODO: Replace 'AOP_Update' by 'AOP_Stage' once this is implemented in XRootD
+      eos::common::Mapping::IdMap(client, env.c_str(), client->tident, file_vid, mMgmFsInterface->getTokenHandler(), AOP_Update, file_path);
+    }
   } else {
-    tident = error.getErrUser();
+    const char* tident = error.getErrUser();
     eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
     mMgmFsInterface->addStats("IdMap", vid.uid, vid.gid, 1);
+    for (auto & [file_path, file_vid] : fileToVidMap) {
+      file_vid = vid;
+    }
   }
 
   ACCESSMODE_W;
@@ -206,6 +237,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     std::string orig_path = prep_path.c_str();
     std::unique_ptr<bulk::File> currentFile = nullptr;
+    auto & path_vid = fileToVidMap[orig_path];
     EosCtaReporterPrepareReq eosLog([&](const std::string & in) {
       mMgmFsInterface->writeEosReportRecord(in);
     });
@@ -213,9 +245,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     .addParam(EosCtaReportParam::SEC_APP, "tape_prepare")
     .addParam(EosCtaReportParam::LOG, std::string(mMgmFsInterface->get_logId()))
     .addParam(EosCtaReportParam::PATH, orig_path)
-    .addParam(EosCtaReportParam::RUID, vid.uid)
-    .addParam(EosCtaReportParam::RGID, vid.gid)
-    .addParam(EosCtaReportParam::TD, vid.tident.c_str())
+    .addParam(EosCtaReportParam::RUID, path_vid.uid)
+    .addParam(EosCtaReportParam::RGID, path_vid.gid)
+    .addParam(EosCtaReportParam::TD, path_vid.tident.c_str())
     .addParam(EosCtaReportParam::HOST, mMgmFsInterface->get_host())
     .addParam(EosCtaReportParam::PREP_REQ_REQID, reqid.c_str())
     .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
@@ -258,7 +290,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     currentFile = std::make_unique<File>(prep_path.c_str());
 
-    if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, vid, "") ||
+    if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, path_vid, "") ||
         (check != XrdSfsFileExistIsFile)) {
       std::string errorMsg =
         "prepare - file does not exist or is not accessible to you";
@@ -285,7 +317,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     if (!event.empty() &&
         mMgmFsInterface->_attr_ls(eos::common::Path(prep_path.c_str()).GetParentPath(),
-                                  error, vid,
+                                  error, path_vid,
                                   nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
       std::string eventAttr = "sys.workflow." + event;
@@ -330,7 +362,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     // check that we have write permission on path
     // This can only be done after we confirm that there the directory contains a prepare workflow attribute
-    if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, vid, "")) {
+    if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, path_vid, "")) {
       std::string errorMsg = "prepare - you don't have prepare permission";
       mMgmFsInterface->Emsg(epname, error, EPERM,
                             errorMsg.append(":").c_str(),
@@ -356,7 +388,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     if (isStagePrepare()) {
       // Check file status in the extended attributes
       if (mMgmFsInterface->_attr_ls(
-              eos::common::Path(prep_path.c_str()).GetPath(), error, vid,
+              eos::common::Path(prep_path.c_str()).GetPath(), error, path_vid,
               nullptr, xattrs) == 0) {
         XattrSet prepareReqIds;
         auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
@@ -603,30 +635,31 @@ std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(
   return queryPrepareResult;
 }
 
+std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(
+  XrdSfsPrep& pargs, XrdOucErrInfo& error,
+  const std::string& authz)
+{
+  std::unique_ptr<QueryPrepareResult> queryPrepareResult(new
+      QueryPrepareResult());
+  int retCode = doQueryPrepare(pargs, error, nullptr, *queryPrepareResult,
+                               nullptr, authz);
+  queryPrepareResult->setReturnCode(retCode);
+  return queryPrepareResult;
+}
+
 int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                                    const XrdSecEntity* client, QueryPrepareResult& result,
-                                   const common::VirtualIdentity* vidClient)
+                                   const common::VirtualIdentity* vidClient,
+                                   const std::string& authz)
 {
   EXEC_TIMING_BEGIN("QueryPrepare");
   ACCESSMODE_R;
   eos_info("cmd=\"_prepare_query\"");
   eos::common::VirtualIdentity vid;
 
-  if (vidClient != nullptr) {
-    vid = *vidClient;
-  } else  {
-    const char* tident = error.getErrUser();
-    XrdOucTList* optr = pargs.oinfo;
-    std::string info(optr && optr->text ? optr->text : "");
-    eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
-  }
+  // Map each individual path to a VID
+  std::map<std::string, eos::common::VirtualIdentity> fileToVidMap;
 
-  MAYSTALL;
-  {
-    const char* path = "/";
-    const char* ininfo = "";
-    MAYREDIRECT;
-  }
   // ID of the original prepare request. We don't need this to look up the list of files in
   // the request, as they are provided in the arguments. Anyway we return it in the reply
   // as a convenience for the client to track which prepare request the query applies to.
@@ -639,8 +672,39 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       continue;
     }
 
+    fileToVidMap[pptr->text] = eos::common::VirtualIdentity::Nobody();
     filesToQueryCollection.addFile(std::make_unique<File>(pptr->text));
     ++path_cnt;
+  }
+
+  if (vidClient != nullptr) {
+    vid = *vidClient;
+    for (auto & [file_path, file_vid] : fileToVidMap) {
+      file_vid = vid;
+    }
+  } else if (!authz.empty()) {
+    vid = eos::common::VirtualIdentity::Nobody();
+    mMgmFsInterface->addStats("IdMap", vid.uid, vid.gid, 1);
+    std::string env = "authz=" + eos::common::StringConversion::curl_default_escaped(authz);
+    for (auto & [file_path, file_vid] : fileToVidMap) {
+      // TODO: Replace 'AOP_Stat' by 'AOP_Stage' once this is implemented in XRootD
+      eos::common::Mapping::IdMap(client, env.c_str(), client->tident, file_vid, mMgmFsInterface->getTokenHandler(), AOP_Stat, file_path);
+    }
+  } else  {
+    const char* tident = error.getErrUser();
+    XrdOucTList* optr = pargs.oinfo;
+    std::string info(optr && optr->text ? optr->text : "");
+    eos::common::Mapping::IdMap(client, info.c_str(), tident, vid);
+    for (auto & [file_path, file_vid] : fileToVidMap) {
+      file_vid = vid;
+    }
+  }
+
+  MAYSTALL;
+  {
+    const char* path = "/";
+    const char* ininfo = "";
+    MAYREDIRECT;
   }
 
   mMgmFsInterface->addStats("QueryPrepare", vid.uid, vid.gid, path_cnt);
@@ -652,6 +716,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     response->responses.push_back(QueryPrepareFileResponse(file->getPath()));
     auto& rsp = response->responses.back();
     auto currentFile = file;
+    auto & file_vid = fileToVidMap[file->getPath()];
     // check if the file exists
     XrdOucString prep_path;
     {
@@ -676,7 +741,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       goto logErrorAndContinue;
     }
 
-    if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, vid, "") ||
+    if (mMgmFsInterface->_exists(prep_path.c_str(), check, error, file_vid, "") ||
         check != XrdSfsFileExistIsFile) {
       currentFile->setErrorIfNotAlreadySet("USER ERROR: file does not exist or is not accessible to you");
       goto logErrorAndContinue;
@@ -685,7 +750,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     rsp.is_exists = true;
 
     // Check file state (online/offline)
-    if (mMgmFsInterface->_stat(rsp.path.c_str(), &buf, xrd_error, vid, nullptr,
+    if (mMgmFsInterface->_stat(rsp.path.c_str(), &buf, xrd_error, file_vid, nullptr,
                                nullptr, false)) {
       currentFile->setErrorIfNotAlreadySet(xrd_error.getErrText());
       goto logErrorAndContinue;
@@ -697,7 +762,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
     // Check file status in the extended attributes
     if (mMgmFsInterface->_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(),
-                                  xrd_error, vid,
+                                  xrd_error, file_vid,
                                   nullptr, xattrs) == 0) {
       auto xattr_it = xattrs.find(eos::common::RETRIEVE_REQID_ATTR_NAME);
 
@@ -730,7 +795,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       goto logErrorAndContinue;
     }
 
-    if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, vid, "")) {
+    if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, file_vid, "")) {
       currentFile->setError(
         std::string("USER ERROR: you don't have prepare permission"));
       goto logErrorAndContinue;

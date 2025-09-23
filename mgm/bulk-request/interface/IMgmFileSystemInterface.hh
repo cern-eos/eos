@@ -28,6 +28,7 @@
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include <XrdSfs/XrdSfsInterface.hh>
 #include <XrdSec/XrdSecEntity.hh>
+#include <XrdAcc/XrdAccAuthorize.hh>
 #include "common/VirtualIdentity.hh"
 #include "namespace/interface/IContainerMD.hh"
 
@@ -46,6 +47,7 @@ public:
                         unsigned long val) = 0;
   virtual bool isTapeEnabled() = 0;
   virtual int getReqIdMaxCount() = 0;
+  virtual XrdAccAuthorize* getTokenHandler() = 0;
   virtual int Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode,
                    const char* op, const char* target = "") = 0;
   virtual int _exists(const char* path, XrdSfsFileExistence& file_exists,

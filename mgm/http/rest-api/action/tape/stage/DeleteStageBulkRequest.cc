@@ -37,9 +37,10 @@ common::HttpResponse* DeleteStageBulkRequest::run(common::HttpRequest* request,
   //Get the id of the request from the URL
   parser.matchesAndExtractParameters(this->mAccessURLPattern, requestParameters);
   std::string requestId = requestParameters[URLParametersConstants::ID];
+  const std::string& http_authz = request->GetHeaders().count("Authorization") ? request->GetHeaders().at("Authorization") : "";
 
   try {
-    mTapeRestApiBusiness->deleteStageBulkRequest(requestId, vid);
+    mTapeRestApiBusiness->deleteStageBulkRequest(requestId, vid, http_authz);
   } catch (const ObjectNotFoundException& ex) {
     return mResponseFactory.createNotFoundError().getHttpResponse();
   } catch (const TapeRestApiBusinessException& ex) {

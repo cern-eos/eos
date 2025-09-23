@@ -43,6 +43,7 @@ public:
                               unsigned long val));
   MOCK_METHOD0(isTapeEnabled, bool());
   MOCK_METHOD0(getReqIdMaxCount, int());
+  MOCK_METHOD0(getTokenHandler, XrdAccAuthorize*());
   MOCK_METHOD5(Emsg, int(const char* pfx, XrdOucErrInfo& einfo, int ecode,
                          const char* op, const char* target));
   MOCK_METHOD5(_exists, int(const char* path, XrdSfsFileExistence& file_exists,

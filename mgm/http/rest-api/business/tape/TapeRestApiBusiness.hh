@@ -34,19 +34,22 @@ EOSMGMRESTNAMESPACE_BEGIN
 class TapeRestApiBusiness : public ITapeRestApiBusiness
 {
 public:
-  virtual std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(
+  std::shared_ptr<bulk::BulkRequest> createStageBulkRequest(
     const CreateStageBulkRequestModel* model,
-    const common::VirtualIdentity* vid) override;
-  virtual void cancelStageBulkRequest(const std::string& requestId,
-                                      const PathsModel* model, const common::VirtualIdentity* vid) override;
-  virtual  std::shared_ptr<GetStageBulkRequestResponseModel> getStageBulkRequest(
-    const std::string& requestId, const common::VirtualIdentity* vid) override;
-  virtual void deleteStageBulkRequest(const std::string& requestId,
-                                      const common::VirtualIdentity* vid) override;
-  virtual std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(
-    const PathsModel* model, const common::VirtualIdentity* vid) override;
-  virtual void releasePaths(const PathsModel* model,
-                            const common::VirtualIdentity* vid) override;
+    const common::VirtualIdentity* vid,
+    const std::string& authz) override;
+  void cancelStageBulkRequest(const std::string& requestId,
+                              const PathsModel* model, const common::VirtualIdentity* vid, const std::string& authz) override;
+  std::shared_ptr<GetStageBulkRequestResponseModel> getStageBulkRequest(
+    const std::string& requestId, const common::VirtualIdentity* vid, const std::string& authz) override;
+  void deleteStageBulkRequest(const std::string& requestId,
+                              const common::VirtualIdentity* vid,
+                              const std::string& authz) override;
+  std::shared_ptr<bulk::QueryPrepareResponse> getFileInfo(
+    const PathsModel* model, const common::VirtualIdentity* vid, const std::string& authz) override;
+  void releasePaths(const PathsModel* model,
+                    const common::VirtualIdentity* vid,
+                    const std::string& authz) override;
 protected:
   std::unique_ptr<bulk::BulkRequestPrepareManager>
   createBulkRequestPrepareManager();

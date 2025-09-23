@@ -42,9 +42,10 @@ common::HttpResponse* GetStageBulkRequest::run(common::HttpRequest* request,
   parser.matchesAndExtractParameters(this->mAccessURLPattern, requestParameters);
   std::string requestId = requestParameters[URLParametersConstants::ID];
   std::shared_ptr<GetStageBulkRequestResponseModel> responseModel;
+  const std::string& http_authz = request->GetHeaders().count("Authorization") ? request->GetHeaders().at("Authorization") : "";
 
   try {
-    responseModel = mTapeRestApiBusiness->getStageBulkRequest(requestId, vid);
+    responseModel = mTapeRestApiBusiness->getStageBulkRequest(requestId, vid, http_authz);
   } catch (const ObjectNotFoundException& ex) {
     return mResponseFactory.createNotFoundError().getHttpResponse();
   } catch (const TapeRestApiBusinessException& ex) {

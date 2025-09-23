@@ -99,6 +99,14 @@ VirtualIdentity VirtualIdentity::Nobody()
 }
 
 //------------------------------------------------------------------------------
+// Check if this client is nobody
+//------------------------------------------------------------------------------
+bool VirtualIdentity::isNobody() const
+{
+  return uid == kNobodyUid && gid == kNobodyGid;
+}
+
+//------------------------------------------------------------------------------
 // Check if this client is coming from localhost
 //------------------------------------------------------------------------------
 bool VirtualIdentity::isLocalhost() const
