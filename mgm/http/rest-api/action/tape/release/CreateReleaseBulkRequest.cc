@@ -39,9 +39,11 @@ CreateReleaseBulkRequest::run(common::HttpRequest* request,
     return mResponseFactory.createBadRequestError(ex).getHttpResponse();
   }
 
+  const std::string& http_authz = request->GetHeaders().count("Authorization") ? request->GetHeaders().at("Authorization") : "";
+
   //release the files provided by the user
   try {
-    mTapeRestApiBusiness->releasePaths(paths.get(), vid);
+    mTapeRestApiBusiness->releasePaths(paths.get(), vid, http_authz);
   } catch (const TapeRestApiBusinessException& ex) {
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }

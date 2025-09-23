@@ -84,6 +84,17 @@ public:
                       const common::VirtualIdentity* vid) noexcept;
 
   /**
+   * Allows to launch a prepare logic on the files passed in parameter. Will perform a client map
+   * based on the authorization token provided.
+   * @param pargs Xrootd prepare arguments (containing the path of the files)
+   * @param error Xrootd error information to fill if there are any errors
+   * @param authz token authorizationn (if vid is invalid)
+   * @return the status code of the issued prepare request
+   */
+  virtual int prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
+                      const std::string& authz) noexcept;
+
+  /**
    * Allows to launch a query prepare logic on the files passed in parameter
    * @param pargs Xrootd prepare arguments (containing the path of the files)
    * @param error Xrootd error information to fill if there are any errors
@@ -102,6 +113,16 @@ public:
    */
   virtual std::unique_ptr<QueryPrepareResult> queryPrepare(XrdSfsPrep& pargs,
       XrdOucErrInfo& error, const common::VirtualIdentity* vid);
+
+  /**
+   * Allows to launch a query prepare logic on the files passed in parameter
+   * @param pargs Xrootd prepare arguments (containing the path of the files)
+   * @param error Xrootd error information to fill if there are any errors
+   * @param authz token authorizationn (if vid is invalid)
+   * @returns the query prepare result object containing the result of the query prepare request
+   */
+  virtual std::unique_ptr<QueryPrepareResult> queryPrepare(XrdSfsPrep& pargs,
+      XrdOucErrInfo& error, const std::string& authz);
 
   virtual ~PrepareManager() {}
 
@@ -160,24 +181,28 @@ protected:
    * @param pargs Xrootd prepare arguments
    * @param error Xrootd error information to fill if there are any errors
    * @param client the client who issued the prepare
-   * @param vid the vid of the client if the latter has already been mapped. (Avoids an IdMap call on the client param)
+   * @param vidClient the vid of the client if the latter has already been mapped. (Avoids an IdMap call on the client param)
+   * @param authz token authorizationn (if vid is invalid)
    * @returns the status code of the issued prepare request
    */
   int doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                 const XrdSecEntity* client,
-                const common::VirtualIdentity* vidClient = nullptr) noexcept;
+                const common::VirtualIdentity* vidClient = nullptr,
+                const std::string& authz = "") noexcept;
 
   /**
    * Perform the query prepare logic
    * @param pargs Xrootd prepare arguments
    * @param error Xrootd error information to fill if there are any errors
    * @param client the client who issued the query prepare
-   * @param vid the vid of the client if the latter has already been mapped. (Avoids an IdMap call on the client param)
+   * @param vidClient the vid of the client if the latter has already been mapped. (Avoids an IdMap call on the client param)
+   * @param authz token authorizationn (if vid is invalid)
    * @returns the status code of the issued prepare request
    */
   int doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                      const XrdSecEntity* client, QueryPrepareResult& result,
-                     const common::VirtualIdentity* vidClient = nullptr);
+                     const common::VirtualIdentity* vidClient = nullptr,
+                     const std::string& authz = "");
 
   inline static std::string mEpname = "prepare";
   //The prepare action that is launched by the "prepare()" method

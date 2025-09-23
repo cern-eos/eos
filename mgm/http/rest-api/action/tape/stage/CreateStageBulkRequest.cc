@@ -49,10 +49,11 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request,
 
   //Create the prepare arguments
   std::shared_ptr<bulk::BulkRequest> bulkRequest;
+  const std::string& http_authz = request->GetHeaders().count("Authorization") ? request->GetHeaders().at("Authorization") : "";
 
   try {
     bulkRequest = mTapeRestApiBusiness->createStageBulkRequest(
-                    createStageBulkRequestModel.get(), vid);
+                    createStageBulkRequestModel.get(), vid, http_authz);
   } catch (const TapeRestApiBusinessException& ex) {
     return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
   }

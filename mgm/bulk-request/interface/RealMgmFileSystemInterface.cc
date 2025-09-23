@@ -46,6 +46,11 @@ int RealMgmFileSystemInterface::getReqIdMaxCount()
   return mMgmOfs->mReqIdMax;
 }
 
+XrdAccAuthorize* RealMgmFileSystemInterface::getTokenHandler()
+{
+  return mMgmOfs->mTokenAuthz;
+}
+
 int RealMgmFileSystemInterface::Emsg(const char* pfx, XrdOucErrInfo& einfo,
                                      int ecode, const char* op, const char* target)
 {

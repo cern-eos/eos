@@ -38,7 +38,7 @@
 EOSMGMRESTNAMESPACE_BEGIN
 
 std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(
-  const CreateStageBulkRequestModel* model, const common::VirtualIdentity* vid)
+  const CreateStageBulkRequestModel* model, const common::VirtualIdentity* vid, const std::string& authz)
 {
   const FilesContainer& files = model->getFiles();
   EXEC_TIMING_BEGIN("TapeRestApiBusiness::createStageBulkRequest");
@@ -48,8 +48,9 @@ std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(
     "fake_id", Prep_STAGE, files.getPaths(), files.getOpaqueInfos());
   auto prepareManager = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
-  int prepareRetCode = prepareManager->prepare(
-                         *pargsWrapper.getPrepareArguments(), error, vid);
+  int prepareRetCode = vid->isNobody() && !authz.empty() ?
+                       prepareManager->prepare(*pargsWrapper.getPrepareArguments(), error, authz) :
+                       prepareManager->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (prepareRetCode != SFS_DATA) {
     throw TapeRestApiBusinessException(error.getErrText());
@@ -60,7 +61,7 @@ std::shared_ptr<bulk::BulkRequest> TapeRestApiBusiness::createStageBulkRequest(
 }
 
 void TapeRestApiBusiness::cancelStageBulkRequest(const std::string& requestId,
-    const PathsModel* model, const common::VirtualIdentity* vid)
+    const PathsModel* model, const common::VirtualIdentity* vid, const std::string& authz)
 {
   EXEC_TIMING_BEGIN("TapeRestApiBusiness::cancelStageBulkRequest");
   gOFS->MgmStats.Add("TapeRestApiBusiness::cancelStageBulkRequest", vid->uid,
@@ -106,8 +107,9 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string& requestId,
   if (pargsWrapper.getNbFiles() != 0) {
     auto pm = createBulkRequestPrepareManager();
     XrdOucErrInfo error;
-    int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(), error,
-                                      vid);
+    int retCancellation = vid->isNobody() && !authz.empty() ?
+                          pm->prepare(*pargsWrapper.getPrepareArguments(), error, authz) :
+                          pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
     if (retCancellation != SFS_OK) {
       std::stringstream ss;
@@ -122,7 +124,7 @@ void TapeRestApiBusiness::cancelStageBulkRequest(const std::string& requestId,
 
 std::shared_ptr<GetStageBulkRequestResponseModel>
 TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
-    const common::VirtualIdentity* vid)
+    const common::VirtualIdentity* vid, const std::string& authz)
 {
   EXEC_TIMING_BEGIN("TapeRestApiBusiness::getStageBulkRequest");
   gOFS->MgmStats.Add("TapeRestApiBusiness::getStageBulkRequest", vid->uid,
@@ -158,8 +160,10 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
 
   auto pm = createPrepareManager();
   XrdOucErrInfo error;
-  auto queryPrepareResult = pm->queryPrepare(*pargsWrapper.getPrepareArguments(),
-                            error, vid);
+
+  auto queryPrepareResult = vid->isNobody() && !authz.empty() ?
+                            pm->queryPrepare(*pargsWrapper.getPrepareArguments(), error, authz) :
+                            pm->queryPrepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (!queryPrepareResult->hasQueryPrepareFinished()) {
     std::stringstream ss;
@@ -202,7 +206,7 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
 }
 
 void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
-    const common::VirtualIdentity* vid)
+    const common::VirtualIdentity* vid, const std::string& authz)
 {
   EXEC_TIMING_BEGIN("TapeRestApiBusiness::deleteStageBulkRequest");
   gOFS->MgmStats.Add("TapeRestApiBusiness::deleteStageBulkRequest", vid->uid,
@@ -229,8 +233,9 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
 
   auto pm = createPrepareManager();
   XrdOucErrInfo error;
-  int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(), error,
-                                    vid);
+  int retCancellation = vid->isNobody() && !authz.empty() ?
+                        pm->prepare(*pargsWrapper.getPrepareArguments(), error, authz) :
+                        pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (retCancellation != SFS_OK) {
     std::stringstream ss;
@@ -250,7 +255,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
 }
 
 std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(
-  const PathsModel* model, const common::VirtualIdentity* vid)
+  const PathsModel* model, const common::VirtualIdentity* vid, const std::string& authz)
 {
   EXEC_TIMING_BEGIN("TapeRestApiBusiness::getFileInfo");
   gOFS->MgmStats.Add("TapeRestApiBusiness::getFileInfo", vid->uid, vid->gid, 1);
@@ -263,8 +268,10 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(
 
   auto pm = createPrepareManager();
   XrdOucErrInfo error;
-  auto queryPrepareResult = pm->queryPrepare(*pargsWrapper.getPrepareArguments(),
-                            error, vid);
+
+  auto queryPrepareResult = vid->isNobody() && !authz.empty() ?
+                            pm->queryPrepare(*pargsWrapper.getPrepareArguments(), error, authz) :
+                            pm->queryPrepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (!queryPrepareResult->hasQueryPrepareFinished()) {
     std::stringstream ss;
@@ -278,7 +285,7 @@ std::shared_ptr<bulk::QueryPrepareResponse> TapeRestApiBusiness::getFileInfo(
 }
 
 void TapeRestApiBusiness::releasePaths(const PathsModel* model,
-                                       const common::VirtualIdentity* vid)
+                                       const common::VirtualIdentity* vid, const std::string& authz)
 {
   EXEC_TIMING_BEGIN("TapeRestApiBusiness::releasePaths");
   gOFS->MgmStats.Add("TapeRestApiBusiness::releasePaths", vid->uid, vid->gid, 1);
@@ -288,7 +295,9 @@ void TapeRestApiBusiness::releasePaths(const PathsModel* model,
       filesContainer.getOpaqueInfos());
   auto pm = createBulkRequestPrepareManager();
   XrdOucErrInfo error;
-  int retEvict = pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
+  int retEvict = vid->isNobody() && !authz.empty() ?
+                      pm->prepare(*pargsWrapper.getPrepareArguments(), error, authz) :
+                      pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (retEvict != SFS_OK) {
     std::stringstream ss;
