@@ -237,4 +237,13 @@ struct ScopedRCUWrite {
 
 using VersionedRCUDomain = RCUDomain<experimental::VersionEpochCounter<32>, 1>;
 using EpochRCUDomain = RCUDomain<ThreadEpochCounter, 1>;
+
+
+template <typename CounterT = ThreadEpochCounter>
+class RCUMutexT {
+  static_assert(detail::is_state_less_v<CounterT>,
+                "RCUMutex needs to be stateless to confirm to std::shared_mutex api");
+public:
+  // implement here the std::shared_lock and unique_lock api
+};
 } // eos::common
