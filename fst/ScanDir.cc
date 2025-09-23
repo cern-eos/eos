@@ -298,7 +298,7 @@ PrepareAltXsResponse(eos::fst::ChecksumGroup* xs)
 // those checksums from the namespace.
 bool CommitAlternativeChecksums(uint64_t fid,
                                 const std::map<eos::common::LayoutId::eChecksum, std::string>& alt_xs,
-                                const std::set<eos::common::LayoutId::eChecksum>* to_delete = nullptr)
+                                const std::set<unsigned int>* to_delete = nullptr)
 {
 #ifndef _NOOFS
 
@@ -396,7 +396,7 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
       // nothing to compute
       if (on_file.size() != cfg.size()) {
         // we have to delete the ones that are on the files and not in the config anymore
-        std::set<eos::common::LayoutId::eChecksum> to_delete;
+        std::set<unsigned int> to_delete;
         std::set_difference(on_file.begin(), on_file.end(), cfg.begin(), cfg.end(),
                             std::inserter(to_delete, to_delete.begin()));
 
@@ -429,12 +429,14 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
     }
 
     uint64_t offset = 0;
+    static eos::common::BufferManager sBuffMgr(8 * eos::common::GB);
     constexpr size_t buff_size = 256 * 1024;
-    std::unique_ptr<char[]> buffer = std::make_unique<char[]>(buff_size);
+    eos::common::ManagedBuffer managed_buf(sBuffMgr, buff_size);
+    auto buffer = managed_buf.GetBuffer();
     uint32_t nread = 0;
 
     while (true) {
-      status = f->Read(offset, buff_size, buffer.get(), nread);
+      status = f->Read(offset, buff_size, buffer->GetDataPtr(), nread);
 
       if (!status.IsOK()) {
         eos_err("msg=\"error reading file\" fullpath='%s'\" fsid=%d error='%s'",
@@ -448,7 +450,7 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
         break;
       }
 
-      xs->Add(buffer.get(), nread, offset);
+      xs->Add(buffer->GetDataPtr(), nread, offset);
       offset += nread;
     }
 
