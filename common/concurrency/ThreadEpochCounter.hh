@@ -46,6 +46,9 @@ constexpr bool is_state_less_v = is_state_less<T>::value;
 } // detail
 
 namespace experimental {
+  // The Counters in experimental namespace are not
+  // yet production ready! This is for testing only
+  // currently
   template <size_t kMaxEpochs=32768>
   class VersionEpochCounter {
   public:
@@ -118,11 +121,8 @@ extern thread_local ThreadID tlocalID;
  * store. However, if we have hash collisions, we need to store the oldest epoch
  * as we're tracking the oldest epoch.
  *
- * This counter currently is not meant to be stable as with thread_id, hash collisions are
- * expected and thus we won't be doing the epoch tracking correctly if a thread with a colliding
- * hash moves onto a different epoch. A different way of doing this is just having a thread_local
- * reader/epoch counter, and when one does a write lock, you'd have to walk through this list of
- * thread_local pointers.
+ * This counter is supposed to be used with a threadID that is unique
+ * like the one provided by ThreadID above.
  */
 
 struct alignas(hardware_destructive_interference_size) ThreadEpoch {
