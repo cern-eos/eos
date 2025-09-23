@@ -1453,6 +1453,7 @@ GrpcNsInterface::Mkdir(eos::common::VirtualIdentity& vid,
 
   std::string path;
   path = request->id().path();
+  vid.scope = path;
 
   if (path.empty()) {
     reply->set_code(EINVAL);
@@ -1503,6 +1504,7 @@ grpc::Status GrpcNsInterface::Rmdir(eos::common::VirtualIdentity& vid,
 {
   std::string path;
   path = request->id().path();
+  vid.scope = path;
 
   if (path.empty()) {
     try {
@@ -1551,6 +1553,7 @@ grpc::Status GrpcNsInterface::Touch(eos::common::VirtualIdentity& vid,
 {
   std::string path;
   path = request->id().path();
+  vid.scope = path;
 
   if (path.empty()) {
     reply->set_code(EINVAL);
@@ -1588,6 +1591,7 @@ grpc::Status GrpcNsInterface::Unlink(eos::common::VirtualIdentity& vid,
 
   std::string path;
   path = request->id().path();
+  vid.scope = path;
 
   if (path.empty()) {
     try {
@@ -1689,6 +1693,8 @@ grpc::Status GrpcNsInterface::Rename(eos::common::VirtualIdentity& vid,
   path = request->id().path();
   target = request->target();
 
+  vid.scope = path;
+
   if (path.empty()) {
     reply->set_code(EINVAL);
     reply->set_msg("error:path is empty");
@@ -1732,6 +1738,7 @@ grpc::Status GrpcNsInterface::Symlink(eos::common::VirtualIdentity& vid,
   std::string target;
   path = request->id().path();
   target = request->target();
+  vid.scope = path;
 
   if (path.empty()) {
     reply->set_code(EINVAL);
@@ -1840,6 +1847,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
     eos::common::SymKey::Base64(value, b64value);
 
     for (const auto& spath : lst_dirs) {
+      vid.scope = spath.c_str();
       if (gOFS->_attr_set(spath.c_str(), error, vid, (const char*) 0, key.c_str(),
                           b64value.c_str(), request->create())) {
         reply->set_code(errno);
@@ -1852,6 +1860,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
   // deleting keys
   for (auto i = 0; i < request->keystodelete().size(); ++i) {
     for (const auto& spath : lst_dirs) {
+      vid.scope = spath.c_str();
       if (gOFS->_attr_rem(spath.c_str(), error, vid, (const char*) 0,
                           request->keystodelete()[i].c_str())) {
         reply->set_code(errno);
