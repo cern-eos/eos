@@ -415,13 +415,9 @@ void ScanDir::RunAltXsScan(ThreadAssistant& assistant) noexcept
       xs->AddAlternative(static_cast<eos::common::LayoutId::eChecksum>(m));
     }
 
-    std::string fullpath = "root://";
-    {
-      XrdSysMutexHelper lock(gConfig.Mutex);
-      fullpath += gConfig.Manager.c_str();
-    }
-    fullpath += SSTR("//?eos.lfn=fxid:" << eos::common::FileId::Fid2Hex(
-                       fid) << "&xrd.wantprot=sss");
+    std::string fullpath = SSTR("root://" << gConfig.GetManager() <<
+                                "//?eos.lfn=fxid:" << eos::common::FileId::Fid2Hex(
+                                  fid) << "&xrd.wantprot=sss");
     auto f = std::make_unique<XrdCl::File>();
     auto status = f->Open(fullpath, XrdCl::OpenFlags::Read);
 
