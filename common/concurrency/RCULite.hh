@@ -23,8 +23,8 @@
 
 
 #pragma once
+#include "common/concurrency/AlignMacros.hh"
 #include "common/concurrency/ThreadEpochCounter.hh"
-
 #include <atomic>
 #include <thread>
 
@@ -33,8 +33,36 @@ namespace eos::common
 {
 
 constexpr size_t MAX_THREADS = 4096;
+// A simple ticket spin lock implementation
 
-/*
+class TicketLock {
+public:
+  void lock() noexcept {
+    auto my_ticket = ticket.fetch_add(1, std::memory_order_acquire);
+
+    uint32_t spin_count = 0;
+    while (serving.load(std::memory_order_acquire) != my_ticket) {
+      if (spin_count < 100) {
+        ++spin_count;
+      } else if (spin_count < 1000) {
+        if (++spin_count % 20 == 0) {
+          std::this_thread::yield();
+        }
+      } else {
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+      }
+    }
+  }
+
+  void unlock() noexcept {
+    serving.fetch_add(1, std::memory_order_release);
+  }
+private:
+  alignas(hardware_destructive_interference_size)  std::atomic<uint32_t> ticket {0};
+  alignas(hardware_destructive_interference_size) std::atomic<uint32_t> serving {0};
+};
+
+ /*
   A Read Copy Update Like primitive that guarantees that is wait-free on the
   readers and guarantees that all memory is protected from deletion. This
   is similar to folly's RCU implementation, but a bit simpler to accomodate
@@ -88,11 +116,11 @@ constexpr size_t MAX_THREADS = 4096;
 
  */
 
-template <typename ListT = ThreadEpochCounter, size_t MaxWriters = 1>
+template <typename ListT = ThreadEpochCounter>
 class RCUDomain
 {
 public:
-
+  using is_state_less = detail::is_state_less<ListT>;
   RCUDomain() = default;
 
   inline uint64_t get_current_epoch(std::memory_order order
@@ -135,51 +163,36 @@ public:
 
   inline void rcu_write_lock() noexcept
   {
-    uint64_t expected_writers = MaxWriters - 1;
-    uint64_t counter{0};
-
-    while (!mWritersCount.compare_exchange_strong(expected_writers,
-           expected_writers + 1,
-           std::memory_order_acq_rel)) {
-      if (expected_writers >= MaxWriters) {
-        expected_writers = MaxWriters - 1;
-      }
-
-      if (counter % 20 == 0) {
-        std::this_thread::yield();
-      }
-    }
+    mWriterLock.lock();
   }
 
-  inline void rcu_synchronize() noexcept
-  {
-    auto curr_epoch = mEpoch.load(std::memory_order_acquire);
 
-    while (!mEpoch.compare_exchange_strong(curr_epoch, curr_epoch + 1,
-                                           std::memory_order_acq_rel)) ;
-
-    int i = 0;
-
-    while (mReadersCounter.epochHasReaders(curr_epoch)) {
-      if (i++ % 20 == 0) {
-        std::this_thread::yield();
-      }
-    }
-
-    mWritersCount.fetch_sub(1, std::memory_order_release);
-  }
 
   inline void rcu_write_unlock() noexcept
   {
     rcu_synchronize();
+    mWriterLock.unlock();
   }
 
 
 private:
+
+  inline void rcu_synchronize() noexcept
+  {
+    auto old_epoch = mEpoch.fetch_add(1, std::memory_order_acq_rel);
+    uint32_t spin_count = 0;
+    while (mReadersCounter.epochHasReaders(old_epoch)) {
+      if (++spin_count % 1000 == 0) {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+      } else if (spin_count % 20 == 0) {
+        std::this_thread::yield();
+      }
+    }
+  }
+
   ListT mReadersCounter;
   alignas(hardware_destructive_interference_size) std::atomic<uint64_t> mEpoch{0};
-  alignas(hardware_destructive_interference_size) std::atomic<uint64_t>
-  mWritersCount{0};
+  TicketLock mWriterLock;
 };
 
 template <typename RCUDomain>
@@ -209,7 +222,7 @@ struct RCUWriteLock {
 
   ~RCUWriteLock()
   {
-    rcu_domain.rcu_synchronize();
+    rcu_domain.rcu_write_unlock();
   }
 
   RCUDomain& rcu_domain;
@@ -235,6 +248,71 @@ struct ScopedRCUWrite {
   typename Ptr::pointer old_val;
 };
 
-using VersionedRCUDomain = RCUDomain<experimental::VersionEpochCounter<32>, 1>;
-using EpochRCUDomain = RCUDomain<ThreadEpochCounter, 1>;
+using VersionedRCUDomain = RCUDomain<experimental::VersionEpochCounter<32>>;
+using EpochRCUDomain = RCUDomain<ThreadEpochCounter>;
+
+// An adapter to use RCUDomain as a std::shared_mutex like object
+template <typename RCUDomainT = EpochRCUDomain>
+class RCUMutexT {
+  static_assert(detail::is_state_less_v<RCUDomainT>,
+                "RCUMutex needs to be stateless to confirm to std::shared_mutex api");
+public:
+  // implement here the std::shared_lock and unique_lock api
+  void lock_shared() {
+    rcu_domain.rcu_read_lock();
+  }
+
+  void unlock_shared() {
+    rcu_domain.rcu_read_unlock();
+  }
+
+  void lock() {
+    rcu_domain.rcu_write_lock();
+  }
+
+  void unlock() {
+    rcu_domain.rcu_write_unlock();
+  }
+private:
+  RCUDomainT rcu_domain;
+};
+
+// Specialization of ScopedRCUWrite for RCUMutexT which is
+// compatible with std::shared_mutex/unique/shared_lock apis
+template <typename Ptr>
+class ScopedRCUWrite<RCUMutexT<>, Ptr> {
+public:
+    ScopedRCUWrite(RCUMutexT<>& _rcu_mutex,
+                   Ptr& ptr,
+                   typename Ptr::pointer new_val) : rcu_mutex(_rcu_mutex)
+    {
+      rcu_mutex.lock();
+      old_val = ptr.reset(new_val);
+    }
+
+  ~ScopedRCUWrite()
+    {
+      rcu_mutex.unlock();
+      delete old_val;
+    }
+    private:
+    RCUMutexT<>& rcu_mutex;
+    typename Ptr::pointer old_val;
+};
+
+  // Specialization for RCUMutexT, in the future replace these calls with
+  // std::shared_lock where possible. This is just for backward compatibility
+template <>
+class RCUReadLock <RCUMutexT<>> {
+public:
+  RCUReadLock(RCUMutexT<>& _rcu_mutex) : rcu_mutex(_rcu_mutex) {
+    rcu_mutex.lock_shared();
+  }
+
+  ~RCUReadLock() {
+    rcu_mutex.unlock_shared();
+  }
+private:
+  RCUMutexT<>& rcu_mutex;
+};
 } // eos::common
