@@ -2840,6 +2840,8 @@ FsNode::GetMember(const std::string& member) const
     std::string hostport =
       eos::common::StringConversion::GetStringHostPortFromQueue(mName.c_str());
     return hostport;
+  } else if (member == "status") {
+    return GetStatus();
   } else {
     return BaseView::GetMember(member);
   }
