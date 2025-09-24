@@ -1291,7 +1291,10 @@ main(int argc, char* argv[])
   // Get sources access type
   //.............................................................................
   for (int i = 0; i < nsrc; i++) {
-    if (src_location[i].first.find("root://") != std::string::npos) {
+    bool is_root = (src_location[i].first.find("root://") == 0);
+    bool is_roots = (src_location[i].first.find("roots://") == 0);
+
+    if (is_root || is_roots) {
       if (isRaidTransfer && isSrcRaid) {
         src_type.push_back(RAID_ACCESS);
       } else {
@@ -1441,7 +1444,7 @@ main(int argc, char* argv[])
                 for (int j = 0; j < nsrc; j++) {
                   tag = "pio.";
                   tag += j;
-                  stripe_path = "root://";
+                  stripe_path = (is_roots ? "roots://" : "root://");
                   stripe_path += openOpaque->Get(tag.c_str());
                   stripe_path += "/";
                   stripe_path += orig_file.c_str();
@@ -1524,13 +1527,14 @@ main(int argc, char* argv[])
   // Get destinations access type
   //............................................................................
   for (int i = 0; i < ndst; i++) {
-    if (dst_location[i].first.find("root://") != std::string::npos) {
+    bool is_root = (dst_location[i].first.find("root://") == 0);
+    bool is_roots = (dst_location[i].first.find("roots://") == 0);
+
+    if (is_root || is_roots) {
       if (isRaidTransfer && !isSrcRaid) {
         dst_type.push_back(RAID_ACCESS);
       } else {
-        //.......................................................................
         // Here we rely on the fact that all destinations must be of the same type
-        //.......................................................................
         dst_type.push_back(XRD_ACCESS);
       }
     } else if (dst_location[i].second == "-") {
