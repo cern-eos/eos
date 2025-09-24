@@ -42,7 +42,6 @@ public:
   unsigned long cId;
   unsigned long lId;
 
-  XrdOucString localPrefix;
   XrdOucString managerId;
   XrdOucString opaque;
   XrdOucString container;
@@ -55,7 +54,7 @@ public:
 
   unsigned int verifyRate;
 
-  Verify(unsigned long long fid, unsigned long fsid, const char* localprefix,
+  Verify(unsigned long long fid, unsigned long fsid,
          const char* managerid, const char* inopaque, const char* incontainer,
          unsigned long incid, unsigned long inlid, const char* inpath,
          bool inComputeChecksum, bool inCommitChecksum, bool inCommitSize,
@@ -63,7 +62,6 @@ public:
   {
     fId = fid;
     fsId = fsid;
-    localPrefix = localprefix;
     managerId = managerid;
     opaque = inopaque;
     container = incontainer;
@@ -81,7 +79,6 @@ public:
   Create(XrdOucEnv* capOpaque)
   {
     // decode the opaque tags
-    const char* localprefix = 0;
     XrdOucString hexfids = "";
     XrdOucString hexfid = "";
     XrdOucString access = "";
@@ -105,7 +102,6 @@ public:
       return 0;
     }
 
-    localprefix = capOpaque->Get("mgm.localprefix");
     hexfid = capOpaque->Get("mgm.fid");
     sfsid = capOpaque->Get("mgm.fsid");
     smanager = capOpaque->Get("mgm.manager");
@@ -140,8 +136,7 @@ public:
       return 0;
     }
 
-    if (!localprefix || !hexfid.length() || !sfsid || !smanager || !layout ||
-        !scid) {
+    if (!hexfid.length() || !sfsid || !smanager || !layout || !scid) {
       return 0;
     }
 
@@ -150,7 +145,7 @@ public:
     int envlen = 0;
     fid = eos::common::FileId::Hex2Fid(hexfid.c_str());
     fsid = atoi(sfsid);
-    return new Verify(fid, fsid, localprefix, smanager, capOpaque->Env(envlen),
+    return new Verify(fid, fsid, smanager, capOpaque->Env(envlen),
                       container, cid, lid, path, computeChecksum, commitChecksum, commitSize,
                       commitFmd, verifyRate);
   };

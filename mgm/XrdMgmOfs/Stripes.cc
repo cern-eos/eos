@@ -86,7 +86,8 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
                 std::to_string(fid).c_str());
   }
 
-  {  // Check parent existance and permissions
+  {
+    // Check parent existance and permissions
     eos::MDLocking::ContainerReadLockPtr cmd_rlock;
     std::shared_ptr<eos::IContainerMD> cmd;
 
@@ -126,7 +127,7 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
   }
 
   int fst_port;
-  std::string fst_path, fst_queue, fst_host;
+  std::string fst_queue, fst_host;
   {
     eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
     auto* verify_fs = FsView::gFsView.mIdView.lookupByID(fsid);
@@ -139,16 +140,12 @@ XrdMgmOfs::_verifystripe(const eos::IFileMD::id_t fid,
     }
 
     // @todo(esindril) only issue verify for booted filesystems
-    fst_path = verify_fs->GetPath();
     fst_queue = verify_fs->GetQueue();
     fst_host = verify_fs->GetHost();
     fst_port = verify_fs->getCoreParams().getLocator().getPort();
   }
-
   // Build the opaquestring contents
   XrdOucString opaquestring = "";
-  opaquestring += "&mgm.localprefix=";
-  opaquestring += fst_path.c_str();
   opaquestring += "&mgm.fid=";
   const std::string hex_fid = eos::common::FileId::Fid2Hex(fid);
   opaquestring += hex_fid.c_str();
@@ -257,6 +254,7 @@ XrdMgmOfs::_dropstripe(const char* path,
   try {
     auto cmd = gOFS->eosView->getContainerMDSvc()->getContainerMD(cid);
     errno = 0;
+
     // only one operation, no need to readlock!
     if (vid.token || (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) && !errno)) {
       errc = EPERM;
@@ -274,7 +272,8 @@ XrdMgmOfs::_dropstripe(const char* path,
   try {
     std::string locations;
     eos::IFileMDPtr fmd = gOFS->eosView->getFileMDSvc()->getFileMD(fid);
-    eos::MDLocking::FileWriteLockPtr fmd_wlock = eos::MDLocking::writeLock(fmd.get());
+    eos::MDLocking::FileWriteLockPtr fmd_wlock = eos::MDLocking::writeLock(
+          fmd.get());
 
     try {
       locations = fmd->getAttribute("sys.fs.tracking");
@@ -289,7 +288,7 @@ XrdMgmOfs::_dropstripe(const char* path,
         locations += "-";
         locations += std::to_string(fsid);
         fmd->setAttribute("sys.fs.tracking",
-                                   StringConversion::ReduceString(locations).c_str());
+                          StringConversion::ReduceString(locations).c_str());
         gOFS->eosView->updateFileStore(fmd.get());
         eos_debug("msg=\"unlinking location\" fxid=%08llx fsid=%lu", fid, fsid);
       } else {
@@ -303,7 +302,7 @@ XrdMgmOfs::_dropstripe(const char* path,
         locations += "-";
         locations += std::to_string(fsid);
         fmd->setAttribute("sys.fs.tracking",
-                                   StringConversion::ReduceString(locations).c_str());
+                          StringConversion::ReduceString(locations).c_str());
       }
 
       fmd->removeLocation(fsid);
@@ -478,7 +477,7 @@ XrdMgmOfs::_replicatestripe(const char* path,
     // check permissions
     errno = 0;
 
-    if (dh && (vid.token ||(!dh->access(vid.uid, vid.gid, X_OK | W_OK)))) {
+    if (dh && (vid.token || (!dh->access(vid.uid, vid.gid, X_OK | W_OK)))) {
       if (!errno) {
         errc = EPERM;
       }

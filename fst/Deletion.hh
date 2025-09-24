@@ -39,18 +39,15 @@ class Deletion
 public:
   std::vector<unsigned long long> mFidVect;
   unsigned long mFsid;
-  XrdOucString mLocalPrefix;
 
   //------------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param id_vect file ids to delete
   //! @param fsid filesystem id
-  //! @param local_prerfix filesystem local prefix path
   //------------------------------------------------------------------------------
-  Deletion(std::vector<unsigned long long> id_vect, unsigned long fsid,
-           const char* local_prefix):
-    mFidVect(id_vect), mFsid(fsid), mLocalPrefix(local_prefix)
+  Deletion(std::vector<unsigned long long> id_vect, unsigned long fsid):
+    mFidVect(id_vect), mFsid(fsid)
   {}
 
   //------------------------------------------------------------------------------
@@ -68,18 +65,16 @@ public:
   static std::unique_ptr<Deletion>
   Create(XrdOucEnv* capOpaque)
   {
-    const char* localprefix = 0;
     XrdOucString hexfids = "";
     XrdOucString hexfid = "";
     XrdOucString access = "";
     const char* sfsid = 0;
     std::vector <unsigned long long> idvector;
-    localprefix = capOpaque->Get("mgm.localprefix");
     hexfids = capOpaque->Get("mgm.fids");
     sfsid = capOpaque->Get("mgm.fsid");
     access = capOpaque->Get("mgm.access");
 
-    if ((access != "delete") || !localprefix || !hexfids.length() || !sfsid) {
+    if ((access != "delete") || !hexfids.length() || !sfsid) {
       return nullptr;
     }
 
@@ -101,7 +96,7 @@ public:
     }
 
     unsigned long fsid = atoi(sfsid);
-    return std::make_unique<Deletion>(std::move(idvector), fsid, localprefix);
+    return std::make_unique<Deletion>(std::move(idvector), fsid);
   }
 };
 

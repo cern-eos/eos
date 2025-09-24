@@ -1945,6 +1945,9 @@ XrdFstOfsFile::_close_wr()
         !mIsReplication && !mIsInjection &&
         !mIsOCchunk && !mRainReconstruct) {
       drop_all = true;
+      //@todo(esindril) remove file is already close therefore then
+      // file removal using the file object will fail and we are
+      // left with an orphan file!
       mLayout->Remove();
     }
 
@@ -2656,7 +2659,6 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   }
   // Handle virtual identity
   vid = eos::common::VirtualIdentity::Nobody();
-
   vid.app = mSecMap["app"];
 
   if ((val = mCapOpaque->Get("mgm.ruid"))) {
@@ -2766,14 +2768,10 @@ XrdFstOfsFile::ProcessMixedOpaque()
   } else {
     // Extract the local path prefix from the broadcasted configuration!
     mFsId = atoi(sfsid ? sfsid : "0");
-    eos::common::RWMutexReadLock lock(gOFS.Storage->mFsMutex);
-
-    if (mFsId && gOFS.Storage->mFsMap.count(mFsId)) {
-      mLocalPrefix = gOFS.Storage->mFsMap[mFsId]->GetPath().c_str();
-    }
+    mLocalPrefix = gOFS.Storage->GetStoragePath(mFsId).c_str();
   }
 
-  // @note: the localprefix implementation does not work for gateway machines
+  // @note: the mLocalPrefix implementation does not work for gateway machines
   if (!mLocalPrefix.length()) {
     return gOFS.Emsg(epname, error, EINVAL, "open - cannot determine the prefix"
                      " path to use for the given filesystem id", mNsPath.c_str());
