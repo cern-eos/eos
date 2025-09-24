@@ -130,6 +130,12 @@ XrdMgmOfs::Drop(const char* path,
             }
 
             if (fmd->hasUnlinkedLocation(id)) {
+              // Make sure to also send a delete requests for the stripes/
+              // replicas, otherwise we're left with orphans - best effort
+              if (drop_all) {
+                (void) DeleteExternal(fid, id);
+              }
+
               fmd->removeLocation(id);
               updatestore = true;
               locations += "/";
