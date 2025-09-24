@@ -54,9 +54,6 @@ if [[ ${FST_ONLINE} -lt 7 ]]; then
   exit 1
 fi
 
-eos space config default space.drainer.node.nfs=1
-eos space config default space.drainer.node.ntx=5
-
 # Create dummy test files
 TEST_FN0=/var/tmp/zero.dat
 TEST_FN1=/var/tmp/32kb.dat
