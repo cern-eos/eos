@@ -214,7 +214,14 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # that are pre-fetched. By default this is set to 1024*1024 (1MB).
 # EOS_FST_XRDIO_READAHEAD_BLOCK_SIZE=1024*1024
 
-# XFS filesystems will use file allocation, other filesystems like EXT4 and BTRFS will not use fallocation
+# XFS filesystems will use file allocation by default unless explicitly disabled.
+#
+# XFS on zoned storage (e.g Host managed SMR drives) does not support fallocate
+# and requires the following variable to be defined to avoid write errors:
+# EOS_FST_DISABLE_XFS_FALLOCATE=1
+# (the value is not considered)
+#
+# Other filesystems like EXT4 and BTRFS will not use fallocation by default
 # unless the following variable is defined (the value is not considered)
 # EOS_FST_POSIX_FALLOCATE=1
 
