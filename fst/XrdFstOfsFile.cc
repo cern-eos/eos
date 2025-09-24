@@ -1945,10 +1945,6 @@ XrdFstOfsFile::_close_wr()
         !mIsReplication && !mIsInjection &&
         !mIsOCchunk && !mRainReconstruct) {
       drop_all = true;
-      //@todo(esindril) remove file is already close therefore then
-      // file removal using the file object will fail and we are
-      // left with an orphan file!
-      mLayout->Remove();
     }
 
     DropFromMgm(mFileId, (drop_all ? 0u : mFsId), mNsPath.c_str(),
@@ -4377,8 +4373,17 @@ XrdFstOfsFile::CommitToMgm()
     oss << eos::common::OwnCloud::FilterOcQuery(mOpenOpaque->Env(envlen));
   }
 
-  return gOFS.CallManager(&error, mNsPath.c_str(), mRdrManager.c_str(),
-                          oss.str(), 0, true);
+  int retc = gOFS.CallManager(&error, mNsPath.c_str(), mRdrManager.c_str(),
+                              oss.str(), 0, true);
+
+  if (gOFS.mSimCloseCommitMgmErr) {
+    eos_err("msg=\"simulate error during MGM commit\" path=\"%s\"",
+            mNsPath.c_str());
+    error.setErrCode(EREMCHG);
+    return SFS_ERROR;
+  }
+
+  return retc;
 }
 
 //------------------------------------------------------------------------------
