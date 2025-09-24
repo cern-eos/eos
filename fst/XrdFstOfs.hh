@@ -475,12 +475,14 @@ public:
   std::atomic<bool> mSimIoWriteErr; ///< simulate an IO error on write
   std::atomic<bool> mSimXsReadErr; ///< simulate a checksum error on read
   std::atomic<bool> mSimXsWriteErr; ///< simulate a checksum error on write
-  std::atomic<uint32_t>
-  mSimXsWriteErrDelay; ///< add delay after setting the error
+  //! Delay value for simulated xs error on write
+  std::atomic<uint32_t>  mSimXsWriteErrDelay;
   std::atomic<uint64_t> mSimErrIoReadOff; ///< Simulate IO error offset on rd
   std::atomic<uint64_t> mSimErrIoWriteOff;///< Simulate IO error offset on wr
   std::atomic<bool> mSimDiskWriting;///< Do not really write IO to disk
   std::atomic<bool> mSimCloseErr; ///< simulate an error during close
+  //! Simulate an error during closw while doing the MGM commit call
+  std::atomic<bool> mSimCloseCommitMgmErr;
   std::atomic<bool> mSimUnresponsive; ///< simulate timeouts in the OFS layer
 
   //! A vector map pointing from tpc key => tpc information for reads, [0]
