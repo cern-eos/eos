@@ -1412,36 +1412,37 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
 {
   EPNAME("rem");
   std::string fstPath = "";
-  const char* localprefix = 0;
   const char* hexfid = 0;
   const char* sfsid = 0;
 
   if ((!fstpath) && (!fsid) && (!fid)) {
     // Standard deletion brings all information via the opaque info
-    if (!(localprefix = capOpaque->Get("mgm.localprefix"))) {
-      return gOFS.Emsg(epname, error, EINVAL, "open - no local prefix in capability",
-                       path);
-    }
-
     if (!(hexfid = capOpaque->Get("mgm.fid"))) {
-      return gOFS.Emsg(epname, error, EINVAL, "open - no file id in capability",
-                       path);
+      return gOFS.Emsg(epname, error, EINVAL,
+                       "remove - no file id in capability", path);
     }
 
     if (!(sfsid = capOpaque->Get("mgm.fsid"))) {
       return gOFS.Emsg(epname, error, EINVAL,
-                       "open - no file system id in capability", path);
+                       "remove - no file system id in capability", path);
     }
 
-    fstPath = eos::common::FileId::FidPrefix2FullPath(hexfid, localprefix);
+    try {
+      fsid = std::stoull(sfsid);
+    } catch (...) {
+      return gOFS.Emsg(epname, error, EINVAL,
+                       "remove - file system id not numeric", path);
+    }
+
+    const std::string local_prefix = Storage->GetStoragePath(fsid);
+    fstPath = eos::common::FileId::FidPrefix2FullPath(hexfid,
+              local_prefix.c_str());
     fid = eos::common::FileId::Hex2Fid(hexfid);
-    fsid = atoi(sfsid);
   } else {
     // Deletion during close provides the local storage path, fid & fsid
     fstPath = fstpath;
   }
 
-  eos_info("fstpath=%s", fstPath.c_str());
   int rc = 0;
   errno = 0; // If file not found this will be ENOENT
   struct stat sbd;
@@ -1451,8 +1452,8 @@ XrdFstOfs::_rem(const char* path, XrdOucErrInfo& error,
   // through XrdOfs::rem to also clean up any potential blockxs files
   if (eos::common::LayoutId::GetIoType(fstPath.c_str()) ==
       eos::common::LayoutId::kLocal) {
-    // get the size before deletion
-    XrdOfs::stat(fstPath.c_str(), &sbd, error, client, 0);
+    // Get the size before deletion for the report
+    (void) XrdOfs::stat(fstPath.c_str(), &sbd, error, client, 0);
     rc = XrdOfs::rem(fstPath.c_str(), error, client, 0);
 
     if (rc) {
@@ -2488,7 +2489,7 @@ XrdFstOfs::Query2Delete()
 
       try {
         gOFS.Storage->AddDeletion(std::make_unique<Deletion>
-                                  (std::move(fids), del.fsid(), del.path().c_str()));
+                                  (std::move(fids), del.fsid()));
       } catch (const std::bad_alloc& e) {
         eos_static_err("%s", "msg=\"failed to alloc deletion object\"");
         continue;

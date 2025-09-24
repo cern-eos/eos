@@ -388,7 +388,6 @@ DrainTransferJob::BuildTpcSrc(const FileDrainInfo& fdrain,
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec="
                << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
-               << "&mgm.localprefix=" << src_snapshot.mPath.c_str()
                << "&mgm.fsid=" << src_snapshot.mId
                << "&eos.app=" << mAppTag
                << "&eos.ruid=" << DAEMONUID
@@ -504,7 +503,6 @@ DrainTransferJob::BuildTpcDst(const FileDrainInfo& fdrain,
                << "&mgm.fid=" << eos::common::FileId::Fid2Hex(mFileId)
                << "&mgm.sec="
                << eos::common::SecEntity::ToKey(0, SSTR("eos/" << mAppTag).c_str())
-               << "&mgm.localprefix=" << dst_snapshot.mPath.c_str()
                << "&mgm.fsid=" << dst_snapshot.mId
                << "&mgm.bookingsize="
                << LayoutId::ExpectedStripeSize(lid, fdrain.mProto.size())
