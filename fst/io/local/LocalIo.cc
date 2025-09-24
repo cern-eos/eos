@@ -257,7 +257,7 @@ LocalIo::fileFallocate(XrdSfsFileOffset length)
 #else
   int fd = error.getErrInfo();
 
-  if (platform_test_xfs_fd(fd)) {
+  if (platform_test_xfs_fd(fd) && !getenv("EOS_FST_DISABLE_XFS_FALLOCATE")) {
     // Select the fast XFS allocation function if available
     xfs_flock64_t fl;
     fl.l_whence = 0;
