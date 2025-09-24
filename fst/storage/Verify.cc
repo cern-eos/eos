@@ -87,9 +87,9 @@ Storage::Verify()
                      verifyfile->fsId);
     // verify the file
     const std::string hex_fid = FileId::Fid2Hex(verifyfile->fId);
-    XrdOucErrInfo error;
-    std::string fstPath = FileId::FidPrefix2FullPath(hex_fid.c_str(),
-                          verifyfile->localPrefix.c_str());
+    const std::string local_prefix = gOFS.Storage->GetStoragePath(verifyfile->fsId);
+    const std::string fstPath = FileId::FidPrefix2FullPath(hex_fid.c_str(),
+                                local_prefix.c_str());
     {
       auto fMd = gOFS.mFmdHandler->LocalGetFmd(verifyfile->fId,
                  verifyfile->fsId, true);
@@ -307,7 +307,8 @@ Storage::Verify()
                               verifyfile->fId, verifyfile->fsId, fstPath.c_str());
             }
 
-            int rc = gOFS.CallManager(&error, verifyfile->path.c_str(), 0, capOpaqueFile);
+            XrdOucErrInfo lerror;
+            int rc = gOFS.CallManager(&lerror, verifyfile->path.c_str(), 0, capOpaqueFile);
 
             if (rc) {
               eos_static_err("unable to verify file id=%s fs=%u at manager %s",
