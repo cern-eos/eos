@@ -73,8 +73,6 @@ Storage::Remover()
         OpaqueString += (int) to_del->mFsid;
         OpaqueString += "&mgm.fid=";
         OpaqueString += hex_fid.c_str();
-        OpaqueString += "&mgm.localprefix=";
-        OpaqueString += to_del->mLocalPrefix;
         XrdOucEnv Opaque(OpaqueString.c_str());
         capOpaqueString += OpaqueString;
         // Delete local file
@@ -84,8 +82,7 @@ Storage::Remover()
         if ((gOFS._rem("/DELETION", error, (const XrdSecEntity*) 0, &Opaque,
                        0, 0, 0, true, &deletionreport) != SFS_OK)) {
           eos_static_warning("msg=\"unable to remove local file\" fxid=%s "
-                             "fsid=%lu localprefix=%s", hex_fid.c_str(),
-                             to_del->mFsid, to_del->mLocalPrefix.c_str());
+                             "fsid=%lu", hex_fid.c_str(), to_del->mFsid);
         } else {
           // Encode the deletion report only if deletion is successful
           eos::common::SymKey::ZBase64(deletionreport, deletionreport64);
@@ -94,7 +91,7 @@ Storage::Remover()
         }
 
         // Update the manager
-        if (gOFS.CallManager(&error, 0, 0 , capOpaqueString)) {
+        if (gOFS.CallManager(&error, 0, 0, capOpaqueString)) {
           eos_static_err("msg=\"unable to drop file\" fxid=\"%s\" fsid=\"%u\"",
                          hex_fid.c_str(), to_del->mFsid);
         }
