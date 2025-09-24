@@ -378,7 +378,8 @@ XrdFstOfs::XrdFstOfs() :
   mSimIoWriteErr(false), mSimXsReadErr(false),
   mSimXsWriteErr(false), mSimXsWriteErrDelay(0ull),
   mSimErrIoReadOff(0ull), mSimErrIoWriteOff(0ull),
-  mSimDiskWriting(false), mSimCloseErr(false), mSimUnresponsive(false)
+  mSimDiskWriting(false), mSimCloseErr(false),
+  mSimCloseCommitMgmErr(false), mSimUnresponsive(false)
 {
   Eroute = 0;
   TransferScheduler = 0;
@@ -1022,62 +1023,47 @@ XrdFstOfs::SetSimulationError(const std::string& input)
   mSimIoReadErr = mSimXsReadErr = mSimReadDelay = false;
   mSimIoWriteErr =  mSimXsWriteErr = false;
   mSimDiskWriting = mSimCloseErr = mSimUnresponsive = false;
+  mSimCloseCommitMgmErr = false;
   mSimErrIoReadOff = mSimErrIoWriteOff = 0ull;
   mSimReadDelaySec = 10;
   mSimXsWriteErrDelay = 0;
 
-  if (input.find("open_delay") == 0) {
+  if (input == "xs_read") {
+    mSimXsReadErr = true;
+  } else if (input == "fmd_open") {
+    mSimFmdOpenErr = true;
+  } else if (input == "fake_write") {
+    mSimDiskWriting = true;
+  } else if (input == "close_commit_mgm")  {
+    mSimCloseCommitMgmErr = true;
+  } else if (input == "close") {
+    mSimCloseErr = true;
+  } else if (input == "unresponsive") {
+    mSimUnresponsive = true;
+  } else if (input.find("open_delay") == 0) {
     mSimOpenDelay = true;
 
     if (input.length() > std::strlen("open_delay")) {
       mSimOpenDelaySec = GetSimulationDelay(input);
     }
-  }
-
-  if (input.find("read_delay") == 0) {
+  } else if (input.find("read_delay") == 0) {
     mSimReadDelay = true;
 
     if (input.length() > std::strlen("read_delay")) {
       mSimReadDelaySec = GetSimulationDelay(input);
     }
-  }
-
-  if (input.find("io_read") == 0) {
+  } else if (input.find("io_read") == 0) {
     mSimIoReadErr = true;
     mSimErrIoReadOff = GetSimulationErrorOffset(input);
-  }
-
-  if (input.find("io_write") == 0) {
+  } else if (input.find("io_write") == 0) {
     mSimIoWriteErr = true;
     mSimErrIoWriteOff = GetSimulationErrorOffset(input);
-  }
-
-  if (input.find("xs_read") == 0) {
-    mSimXsReadErr = true;
-  }
-
-  if (input.find("xs_write") == 0) {
+  } else if (input.find("xs_write") == 0) {
     mSimXsWriteErr = true;
 
     if (input.length() > std::strlen("xs_write")) {
       mSimXsWriteErrDelay = GetSimulationDelay(input);
     }
-  }
-
-  if (input.find("fmd_open") == 0) {
-    mSimFmdOpenErr = true;
-  }
-
-  if (input.find("fake_write") == 0) {
-    mSimDiskWriting = true;
-  }
-
-  if (input.find("close") == 0) {
-    mSimCloseErr = true;
-  }
-
-  if (input.find("unresponsive") == 0) {
-    mSimUnresponsive = true;
   }
 }
 
