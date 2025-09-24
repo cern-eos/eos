@@ -80,6 +80,7 @@ void com_node_help()
       << "\t            xs_write[_<sec>]    : simulate checksum errors on write with an optional delay, default 0\n"
       << "\t            fake_write          : do not really write data to disk\n"
       << "\t            close               : return an error on close\n"
+      << "\t            close_commit_mgm    : simulate error during close commit to MGM\n"
       << "\t            unresponsive        : emulate a write/close request taking 2 minutes\n"
       << "\t            <none>              : disable error simulation (any value other than the previous ones is fine!)\n"
       << "\t    <key> : publish.interval=<sec> - set the filesystem state publication interval to <sec> seconds\n"
