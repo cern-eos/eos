@@ -878,8 +878,9 @@ Storage::DeleteByMove(std::unique_ptr<Deletion> del)
   using eos::common::FileId;
   static const std::string del_dir = ".eosdeletions";
   const std::string sfxid = FileId::Fid2Hex(del->mFidVect[0]);
+  const std::string local_prefix = gOFS.Storage->GetStoragePath(del->mFsid);
   const std::string fpath = FileId::FidPrefix2FullPath(sfxid.c_str(),
-                            del->mLocalPrefix.c_str());
+                            local_prefix.c_str());
   eos::common::Path cpath(fpath.c_str());
   size_t cpath_sz = cpath.GetSubPathSize();
 
