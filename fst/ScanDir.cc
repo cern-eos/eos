@@ -316,8 +316,7 @@ ScanDir::CleanupUnlinked()
         eos_info("msg=\"resubmit for deletion\" fxid=%08llx fsid=%lu",
                  fid, mFsId);
         std::vector<unsigned long long> id_vect {fid};
-        auto deletion = std::make_unique<Deletion>
-                        (id_vect, mFsId, mDirPath.c_str());
+        auto deletion = std::make_unique<Deletion>(id_vect, mFsId);
         gOFS.Storage->AddDeletion(std::move(deletion));
       }
     } catch (eos::MDException& e) {
