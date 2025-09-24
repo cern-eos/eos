@@ -133,7 +133,7 @@ XrdMgmOfs::Drop(const char* path,
               // Make sure to also send a delete requests for the stripes/
               // replicas, otherwise we're left with orphans - best effort
               if (drop_all) {
-                (void) DeleteExternal(fid, id);
+                (void) DeleteExternal(id, fid);
               }
 
               fmd->removeLocation(id);
