@@ -450,7 +450,7 @@ public:
     dest->pSize = pSize;
     // copy the data
     memcpy(dest->pNodeIdxs, pNodeIdxs, sizeof(tFastTreeIdx)*pSize);
-    memcpy(dest->pBuffer, pBuffer, sizeof(char*)*pSize * pStrLen);
+    memcpy(dest->pBuffer, pBuffer, sizeof(char) * pSize * pStrLen);
     return 0;
   }
 
