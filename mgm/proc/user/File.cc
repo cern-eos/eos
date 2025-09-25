@@ -1261,17 +1261,26 @@ ProcCommand::File()
                   }
                 }
 
-                eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+                std::string err_msg;
 
                 // Push conversion job to QuarkDB
-                if (gOFS->mConverterEngine->ScheduleJob(fmd->getId(), conversiontag)) {
+                if (gOFS->mConverterEngine->ScheduleJob(fmd->getId(),
+                                                        conversiontag, err_msg)) {
                   stdOut += "success: pushed conversion job '";
                   stdOut += conversiontag.c_str();
                   stdOut += "' to QuarkDB";
                 } else {
-                  stdErr += "error: unable to push conversion job '";
+                  stdErr += "error: failed to schedule conversion '";
                   stdErr += conversiontag.c_str();
-                  stdErr += "' to QuarkDB";
+
+                  if (err_msg.empty()) {
+                    stdErr += " msg=\"";
+                    stdErr += err_msg.c_str();
+                    stdErr += "\"";
+                  }
+
+                  retc = EINVAL;
+                  break;
                 }
               }
             }
