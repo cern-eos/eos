@@ -326,8 +326,9 @@ GroupDrainer::scheduleTransfer(eos::common::FileId::fileid_t fid,
 
   conv_tag += "^groupdrainer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
+  std::string err_msg;
 
-  if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag)) {
+  if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag, err_msg)) {
     eos_info("msg=\"group drainer scheduled job file=\"%s\" "
              "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
              src_grp.c_str(), tgt_grp.c_str());

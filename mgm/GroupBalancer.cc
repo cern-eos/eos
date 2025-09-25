@@ -117,8 +117,9 @@ GroupBalancer::scheduleTransfer(const FileInfo& file_info,
   std::string conv_tag = file_info.filename;
   conv_tag += "^groupbalancer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
+  std::string err_msg;
 
-  if (gOFS->mConverterEngine->ScheduleJob(file_info.fid, conv_tag)) {
+  if (gOFS->mConverterEngine->ScheduleJob(file_info.fid, conv_tag, err_msg)) {
     eos_static_info("msg=\"group balancer scheduled job\" file=\"%s\" "
                     "src_grp=\"%s\" dst_grp=\"%s\"", conv_tag.c_str(),
                     sourceGroup->mName.c_str(), targetGroup->mName.c_str());

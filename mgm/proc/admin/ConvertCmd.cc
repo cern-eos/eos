@@ -267,15 +267,21 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
   }
 
   // Schedule conversion job
+  std::string err_msg;
   std::string conversion_id = BuildConversionId(conversion.layout(), echecksum,
                               conversion.replica(), file_id,
                               space, conversion.placement());
   eos_info("msg=\"scheduling conversion job\" path=%s conversion_id=%s",
            path.c_str(), conversion_id.c_str());
 
-  if (!gOFS->mConverterEngine->ScheduleJob(file_id, conversion_id)) {
-    err << "error: unable to push conversion job '" << conversion_id.c_str()
-        << "' to QuarkDB";
+  if (!gOFS->mConverterEngine->ScheduleJob(file_id, conversion_id, err_msg)) {
+    err << "error: failed to schedule conversion '"
+        << conversion_id.c_str();
+
+    if (!err_msg.empty()) {
+      err << " msg=\"" << err_msg << "\"";
+    }
+
     reply.set_std_err(err.str());
     reply.set_retc(EIO);
     return;
