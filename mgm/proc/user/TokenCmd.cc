@@ -202,54 +202,57 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
 
       token.set_group(mVid.gid_string);
 
-      // we verify that mVid owns the path in the token
-      if (token.path().back() == '/') {
-        if (token.allowtree()) {
-	  if (gOFS->_access(token.path().c_str(), mode, error, mVid, "")) {
-            if (error.getErrInfo()) {
-              // stat error
+      // deal with multiple paths
+      std::vector<std::string> paths;
+      eos::common::StringConversion::Tokenize(token.path(),
+                                              paths, "://:");
+
+      for ( auto p: paths) {
+	// we verify that mVid owns the path in the token
+	if (p.back() == '/') {
+	  if (token.allowtree()) {
+	    if (gOFS->_access(p.c_str(), mode, error, mVid, "")) {
+	      if (error.getErrInfo()) {
+		// stat error
               reply.set_retc(error.getErrInfo());
               reply.set_std_err(error.getErrText());
               return reply;
-            }
-          }
-        } else {
-          // directory token
-          if (gOFS->_access(token.path().c_str(), mode, error, mVid, "")) {
-            if (errno) {
-              // return errno
-              reply.set_retc(errno);
-
-              if (errno == ENOENT) {
-                reply.set_std_err("error: path does not exist!");
-              } else {
-                reply.set_std_err("error: no permission!");
-              }
+	      }
+	    }
+	  } else {
+	    // directory token
+	    if (gOFS->_access(p.c_str(), mode, error, mVid, "")) {
+	      if (errno) {
+		// return errno
+		reply.set_retc(errno);
+		if (errno == ENOENT) {
+		  reply.set_std_err("error: path does not exist!");
+		} else {
+		  reply.set_std_err("error: no permission!");
+		}
+		return reply;
+	      }
+	    }
+	  }
+	} else {
+	  // file path
+	  mode |= F_OK;
+	  // now tree permission for files
+	  token.set_allowtree(false);
+	  eos::common::Path cPath(p.c_str());
+	  errno = 0;
+	  if (gOFS->_access(p.c_str(), mode, error, mVid, "")) {
+	    if (errno) {
+	      // return errno
+	      reply.set_retc(errno);
+	      if (errno == ENOENT) {
+		reply.set_std_err("error: path does not exist!");
+	      } else {
+		reply.set_std_err("error: no permission!");
+	      }
 	      return reply;
-            }
-          }
-        }
-      } else {
-        // file path
-        mode |= F_OK;
-	// now tree permission for files
-	token.set_allowtree(false);
-        eos::common::Path cPath(token.path().c_str());
-        errno = 0;
-
-        if (gOFS->_access(token.path().c_str(), mode, error, mVid, "")) {
-          if (errno) {
-            // return errno
-            reply.set_retc(errno);
-
-            if (errno == ENOENT) {
-              reply.set_std_err("error: path does not exist!");
-            } else {
-              reply.set_std_err("error: no permission!");
-            }
-
-            return reply;
-          }
+	    }
+	  }
         }
       }
     }
