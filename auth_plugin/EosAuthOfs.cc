@@ -168,6 +168,11 @@ EosAuthOfs::~EosAuthOfs()
   delete mFrontend;
   delete mBackend.second;
   delete mZmqContext;
+  // Free configuration file name allocated via strdup during initialization
+  if (ConfigFN) {
+    free(ConfigFN);
+    ConfigFN = nullptr;
+  }
 }
 
 
