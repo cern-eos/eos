@@ -1341,19 +1341,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         error.setErrInfo(1800, "delay client up to 30 minutes for update conversion");
         auto conversiontag = ConversionTag::Get(
                                byfid, target_space, target_layout, std::string(""), true);
+        std::string err_msg;
 
         if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
-                                                conversionCb)) {
-          eos_info("msg='update conversion started' fxid=%016llx conv='%s'", byfid,
-                   conversiontag.c_str());
+                                                err_msg, conversionCb)) {
+          eos_info("msg=\"update conversion started\" fxid=%08llx conv=\"%s\"",
+                   byfid, conversiontag.c_str());
           return SFS_STARTED;
         } else {
           // remove the callback from the error object
           error.setErrCB(0);
           error.setErrArg(0);
           error.setErrInfo(60, "please retry after 60 seconds for update conversion");
-          eos_info("msg='stalling client for update conversion' fxid=%016llx conv='%s'",
-                   byfid, conversiontag.c_str());
+          eos_info("msg=\"stalling client for update conversion\" fxid=%08llx "
+                   "conv=\"%s\"", byfid, conversiontag.c_str());
           return SFS_STALL;
         }
       } else {
@@ -1658,19 +1659,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         error.setErrInfo(1800, "delay client up to 30 minutes for read conversion");
         auto conversiontag = ConversionTag::Get(
                                byfid, target_space, target_layout, std::string(""), true);
+        std::string err_msg;
 
         if (gOFS->mConverterEngine->ScheduleJob(byfid, conversiontag,
-                                                conversionCb)) {
-          eos_info("msg='read conversion started' fxid=%016llx conv='%s'", byfid,
-                   conversiontag.c_str());
+                                                err_msg, conversionCb)) {
+          eos_info("msg=\"read conversion started\" fxid=%08llx conv=\"%s\"",
+                   byfid, conversiontag.c_str());
           return SFS_STARTED;
         } else {
           // remove the callback from the error object
           error.setErrCB(0);
           error.setErrArg(0);
           error.setErrInfo(60, "please retry after 60 seconds for read conversion");
-          eos_info("msg='stalling client for read conversion' fxid=%016llx conv='%s'",
-                   byfid, conversiontag.c_str());
+          eos_info("msg=\"stalling client for read conversion\" fxid=%08llx "
+                   "conv=\"%s\"", byfid, conversiontag.c_str());
           return SFS_STALL;
         }
       } else {

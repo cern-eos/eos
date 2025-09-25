@@ -800,10 +800,11 @@ LRU::ConvertMatch(const char* dir,
       space = cenv.Get("eos.space");
     }
 
+    std::string err_msg;
     std::string conv_tag = ConversionTag::Get(it->first, space.c_str(), conversion,
                            plctplcy);
 
-    if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag)) {
+    if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag, err_msg)) {
       eos_static_info("msg=\"LRU scheduled conversion job\" tag=\"%s\"",
                       conv_tag.c_str());
     } else {
