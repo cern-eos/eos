@@ -376,27 +376,39 @@ EosTok::TreeToken() const
 int
 EosTok::ValidatePath(const std::string& path) const
 {
-  if (share->token().allowtree()) {
-    // this is a tree permission
-    if (path.substr(0, share->token().path().length()) != share->token().path()) {
-      return -EACCES;
-    }
-  } else {
-    if ((path.back() == '/') && (share->token().path().back() != '/')) {
-      eos::common::Path cPath(share->token().path());
+  // this function can now deal to have several paths listed in the token path e.g.
+  // '/eos/dir1/://:/eos/dir2/://:/eos/dir3/' using '://:' as separator which cannot occur in a regular normalized path!
 
-      if (path == cPath.GetParentPath()) {
-        return 0;
+  std::vector<std::string> paths;
+  eos::common::StringConversion::Tokenize(share->token().path(),
+					  paths, "://:");
+  for (auto p:paths) {
+    if (share->token().allowtree()) {
+      fprintf(stderr,"comparing %s <=> %s", path.substr(0, p.length()).c_str(), p.c_str());
+      // this is a tree permission
+      if (path.substr(0, p.length()) != p) {
+	continue;
       }
-    }
+      // we have a match!
+      return 0;
+    } else {
+      if ((path.back() == '/') && (p.back() != '/')) {
+	eos::common::Path cPath(p);
 
-    // this is an exact permission
-    if (path != share->token().path()) {
-      return -EACCES;
+	if (path == cPath.GetParentPath()) {
+	  return 0;
+	}
+      }
+
+      // this is an exact permission
+      if (path != p) {
+	continue;
+      }
+      // we have an exact path match
+      return 0;
     }
   }
-
-  return 0;
+  return -EACCES;
 }
 
 bool
