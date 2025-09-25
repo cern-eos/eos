@@ -361,8 +361,9 @@ GeoBalancer::scheduleTransfer(eos::common::FileId::fileid_t fid,
   std::string conv_tag = file_path;
   conv_tag += "^geobalancer^";
   conv_tag.erase(0, gOFS->MgmProcConversionPath.length() + 1);
+  std::string err_msg;
 
-  if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag)) {
+  if (gOFS->mConverterEngine->ScheduleJob(fid, conv_tag, err_msg)) {
     eos_static_info("msg=\"geo_balancer scheduled job\" file=\"%s\" "
                     "from_geotag=\"%s\"", conv_tag.c_str(),
                     fromGeotag.c_str());

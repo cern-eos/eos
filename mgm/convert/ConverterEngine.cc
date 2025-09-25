@@ -221,25 +221,30 @@ ConverterEngine::JoinAllConversionJobs()
 bool
 ConverterEngine::ScheduleJob(const eos::IFileMD::id_t& id,
                              const std::string& conversion_info,
+                             std::string& err_msg,
                              std::shared_ptr<XrdOucCallBack> callback)
 {
   if (!mIsRunning) {
+    err_msg = "converter not running";
     return false;
   }
 
   if (mPendingJobs.size() > 1000000) {
+    err_msg = "converter queue full";
     eos_static_err("%s", "msg=\"forbid conversion as there are more than 1M "
                    "jobs pending");
     return false;
   }
 
   if (conversion_info.empty()) {
-    eos_static_err("msg=\"Invalid conversion_info string for file\" fxid=%08llx",
+    err_msg = "invalid conversion info";
+    eos_static_err("msg=\"invalid conversion_info string for file\" fxid=%08llx",
                    id);
     return false;
   }
 
   if (!gOFS->mFidTracker.AddEntry(id, TrackerType::Convert)) {
+    err_msg = "already scheduled file";
     eos_static_debug("msg=\"skip recently scheduled file\" fxid=%08llx", id);
     return false;
   }

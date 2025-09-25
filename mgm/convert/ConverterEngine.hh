@@ -86,11 +86,14 @@ public:
   //!
   //! @param id the job id
   //! @param conversion_info the conversion info string
+  //! @param err_msg error message in case of failure
   //! @param callback shared pointer to a callback object - default is nullptr
+  //!
   //! @return true if scheduling succeeded, false otherwise
   //----------------------------------------------------------------------------
   bool ScheduleJob(const eos::IFileMD::id_t& id,
                    const std::string& conversion_info,
+                   std::string& err_msg,
                    std::shared_ptr<XrdOucCallBack> callback = nullptr);
 
   //----------------------------------------------------------------------------
