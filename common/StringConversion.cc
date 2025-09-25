@@ -61,22 +61,57 @@ char StringConversion::pHex2AsciiLkup[16];
 void
 StringConversion::Tokenize(const std::string& str,
                            std::vector<std::string>& tokens,
-                           const std::string& delimiters)
+                           const std::string& delimiter)
 {
-  // Skip delimiters at the beginning
-  std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
-  // Find first "non-delimiter"
-  std::string::size_type pos = str.find_first_of(delimiters, lastPos);
+  tokens.clear();
+  // Edge cases
+  if (str.empty()) return;
+  if (delimiter.empty()) {           // no delimiter => whole string
+    tokens.push_back(str);
+    return;
+  }
 
-  while (std::string::npos != pos || std::string::npos != lastPos) {
-    // Found a token, add it to the vector.
-    tokens.push_back(str.substr(lastPos, pos - lastPos));
-    // Skip delimiters.  Note the "not_of"
-    lastPos = str.find_first_not_of(delimiters, pos);
-    // Find next "non-delimiter"
-    pos = str.find_first_of(delimiters, lastPos);
+  const std::size_t dlen = delimiter.size();
+  std::size_t lastPos = 0;
+
+  // Skip delimiters at the beginning (like the original)
+  while (lastPos <= str.size() - dlen &&
+         str.compare(lastPos, dlen, delimiter) == 0) {
+    lastPos += dlen;
+  }
+
+  while (lastPos <= str.size()) {
+    // Find next delimiter occurrence starting from lastPos
+    std::size_t pos = str.find(delimiter, lastPos);
+
+    if (pos == std::string::npos) {
+      // No more delimiters: take the rest (if any)
+      if (lastPos < str.size()) {
+        tokens.emplace_back(str.substr(lastPos));
+      }
+      break;
+    }
+
+    // Push token between lastPos and pos (may be empty if we didn’t skip,
+    // but we DO skip consecutive delimiters below, so it won’t be)
+    if (pos > lastPos) {
+      tokens.emplace_back(str.substr(lastPos, pos - lastPos));
+    }
+
+    // Move past this delimiter
+    lastPos = pos + dlen;
+
+    // Skip any *consecutive* delimiters (collapse them)
+    while (lastPos <= str.size() - dlen &&
+           str.compare(lastPos, dlen, delimiter) == 0) {
+      lastPos += dlen;
+    }
+
+    // If we ended exactly at the end (i.e., trailing delimiter(s)), stop
+    if (lastPos >= str.size()) break;
   }
 }
+
 
 //------------------------------------------------------------------------------
 // Tokenize a string accepting also empty members e.g. a||b returns 3 fields
