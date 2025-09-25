@@ -313,6 +313,10 @@ public:
     if (HostPref) {
       free(HostPref);
     }
+
+    if (ConfigFN) {
+      free(ConfigFN);
+    }
   }
 
   virtual bool Init(XrdSysError&)
