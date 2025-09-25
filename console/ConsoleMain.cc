@@ -41,6 +41,8 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdCl/XrdClFile.hh>
 #include <zmq.hpp>
+
+#include <cstdio>
 #include <iomanip>
 #include <setjmp.h>
 #include <readline/readline.h>
@@ -49,6 +51,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <XrdCl/XrdClPostMaster.hh>
+#include <unistd.h>
 
 #ifdef __APPLE__
 #define ENONET 64
@@ -846,7 +849,7 @@ Run(int argc, char* argv[])
   XrdOucString grole = "";
   bool selectedrole = false;
   int argindex = 1;
-  int retc = system("test -t 0 && test -t 1");
+  int retc = isatty(fileno(stdin) && isatty(fileno(stdout)));
 
   if (getenv("EOS_ENABLE_PIPEMODE")) {
     runpipe = true;
