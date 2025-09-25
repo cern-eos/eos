@@ -42,6 +42,7 @@ XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned short, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
 HttpHandlerFstFileCache HttpHandler::sFileCache;
+static constexpr const char* HTTP_TIDENT= "http";
 
 /*----------------------------------------------------------------------------*/
 HttpHandler::~HttpHandler()
@@ -49,6 +50,14 @@ HttpHandler::~HttpHandler()
   if (mFile) {
     delete mFile;
     mFile = nullptr;
+  }
+  if (mClient.name) {
+    free(mClient.name);
+    mClient.name = nullptr;
+  }
+  if (mClient.host) {
+    free(mClient.host);
+    mClient.host = nullptr;
   }
 }
 
@@ -278,7 +287,7 @@ HttpHandler::Initialize(eos::common::HttpRequest* request)
   mClient.prot[XrdSecPROTOIDSIZE - 1] = '\0';
   mClient.name = strdup("nobody");
   mClient.host = strdup("localhost");
-  mClient.tident = strdup("http");
+  mClient.tident = HTTP_TIDENT;
 }
 
 /*----------------------------------------------------------------------------*/
