@@ -60,6 +60,8 @@ void com_token_help()
       << "       token --token <token> \n"
       << "                                           : provide a JSON dump of a token - independent of validity\n"
       << "             --path <path>                 : define the namespace restriction - if ending with '/' this is a directory or tree, otherwise it references a file\n"
+      << "             --path <path1>://:<path2>://: ..."
+      << "                                           : define multi-path token which share ACLs for all of them"
       << "             --permission <perm>           : define the token bearer permissions e.g 'rx' 'rwx' 'rwx!d' 'rwxq' - see acl command for permissions\n"
       << "             --owner <owner>               : identify the bearer with as user <owner> \n"
       << "             --group <group>               : identify the beaere with a group <group> \n"

@@ -86,7 +86,7 @@ TokenHelper::ParseCommand(const char* arg)
       }
     }
 
-    eos::common::Path cPath(*args["path"].begin());
+    eos::common::Path cPath(*args["path"].begin(), true);
 
     if (!args.count("permission")) {
       args["permission"].insert("rx");
