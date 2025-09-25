@@ -755,9 +755,10 @@ XrdMgmOfs::_qos_set(const char* path, XrdOucErrInfo& error,
     std::string conversion_file = SSTR(
                                     gOFS->MgmProcConversionPath.c_str() << "/" << conversion_id);
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
+    std::string err_msg;
 
     // Push conversion job to QuarkDB
-    if (!gOFS->mConverterEngine->ScheduleJob(fileid, conversion_id)) {
+    if (!gOFS->mConverterEngine->ScheduleJob(fileid, conversion_id, err_msg)) {
       return Emsg(epname, error, errno, "schedule QoS conversion job to QuarkDB",
                   conversion_id.c_str());
     }
