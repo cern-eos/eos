@@ -468,6 +468,11 @@ XrdFstOfs::~XrdFstOfs()
   if (mHostName) {
     free(const_cast<char*>(mHostName));
   }
+  // Free configuration file name allocated via strdup during initialization
+  if (ConfigFN) {
+    free(ConfigFN);
+    ConfigFN = nullptr;
+  }
 }
 
 //------------------------------------------------------------------------------
