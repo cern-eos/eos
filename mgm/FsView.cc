@@ -2808,7 +2808,11 @@ FsNode::SetNodeConfigDefault()
 
   // Define the manager ID
   if (!(GetConfigMember("manager").length())) {
-    SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true);
+    const std::string master_id = gOFS->mMaster->GetMasterId();
+
+    if (!master_id.empty()) {
+      SetConfigMember("manager", gOFS->mMaster->GetMasterId(), true);
+    }
   }
 
   // Set the default sym key from the sym key store
@@ -3297,6 +3301,8 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
 void
 FsView::BroadcastMasterId(const std::string master_id)
 {
+  eos_static_info("msg=\"broadcast master id\" master=\"%s\"",
+                  master_id.c_str());
   eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
 
   for (auto it = FsView::gFsView.mNodeView.begin();
