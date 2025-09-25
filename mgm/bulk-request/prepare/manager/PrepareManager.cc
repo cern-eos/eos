@@ -106,8 +106,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   {
     XrdOucTList* pptr_aux = pargs.paths;
     for (; pptr_aux; pptr_aux = pptr_aux->next) {
-      if (pptr->text) {
-        XrdOucString prep_path = pptr->text;
+      if (pptr_aux->text) {
+        XrdOucString prep_path = pptr_aux->text;
         fileToVidMap[prep_path.c_str()] = eos::common::VirtualIdentity::Nobody();
       }
     }
