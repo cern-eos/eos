@@ -56,14 +56,14 @@ public:
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  Path(const char* path = "")
+  Path(const char* path = "", bool multipath=false)
   {
-    Init(path);
+    Init(path, multipath);
   }
 
-  Path(std::string path)
+  Path(std::string path, bool multipath=false)
   {
-    Init(path.c_str());
+    Init(path.c_str(), multipath);
   }
 
   //----------------------------------------------------------------------------
@@ -278,11 +278,19 @@ public:
   //! Initialization
   //----------------------------------------------------------------------------
   void
-  Init(const char* path)
+  Init(const char* path, bool multipath=false)
   {
     fullPath = path;
 
+    if (multipath) {
+      while (fullPath.replace("://:",":/@/@/:"));
+    }
+
     while (fullPath.replace("//", "/")) {}
+
+    if (multipath) {
+      while (fullPath.replace(":/@/@/:", "://:"));
+    }
 
     parentPath = "/";
     lastPath = "";
