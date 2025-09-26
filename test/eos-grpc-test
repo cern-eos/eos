@@ -104,6 +104,7 @@ eos-grpc-ns --token $authkey -p $prefix/t_grpc/file list-version | grep ino | wc
 eos-grpc-ns --token $authkey -p $prefix/t_grpc/file unlink || exit -10
 
 #acls
+eos attr set sys.eval.useracl=1 $prefix/t_grpc/
 eos-grpc-ns --token $authkey -p $prefix/t_grpc --sysacl --acl u:adm=rwx acl || exit -11
 eos-grpc-ns --token $authkey -p $prefix/t_grpc --acl u:nobody=rwx acl || exit -11
 eos-grpc-ns --token $authkey -p $prefix/t_grpc --sysacl acl | grep "u:adm:rwx" || exit -11
