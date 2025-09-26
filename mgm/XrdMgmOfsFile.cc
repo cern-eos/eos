@@ -2796,7 +2796,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (isRW && LayoutId::IsRain(layoutId)) {
     fsIndex = mFid % selectedfs.size();
     eos_static_info("msg=\"selecting entry-server\" fsIndex=%lu fsid=%lu "
-                    "fxid=%97llx mod=%lu", fsIndex, selectedfs[fsIndex],
+                    "fxid=%08llx mod=%lu", fsIndex, selectedfs[fsIndex],
                     mFid, selectedfs.size());
   }
 
