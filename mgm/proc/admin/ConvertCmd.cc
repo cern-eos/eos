@@ -123,7 +123,6 @@ ConvertCmd::ConfigList(bool json) const
     Json::Value json;
     json["threadpool"] = parseKeyValueString(threadpool.c_str());
     json["config"] = parseKeyValueString(config.c_str());
-    json["status"] = state;
     json["running"] = (Json::Value::UInt64) running;
     json["pending"] = (Json::Value::UInt64) pending;
     json["failed"] = (Json::Value::UInt64) failed;
