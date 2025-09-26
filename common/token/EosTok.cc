@@ -45,6 +45,7 @@
 #include <errno.h>
 #include <iostream>
 #include <XrdOuc/XrdOucEnv.hh>
+#include "common/Logging.hh"
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -384,6 +385,7 @@ EosTok::ValidatePath(const std::string& path) const
 						   paths, "://:");
   for (auto p:paths) {
     if (share->token().allowtree()) {
+      eos_static_debug("comparing %s <=> %s", path.substr(0, p.length()).c_str(), p.c_str());
       // this is a tree permission
       if (path.substr(0, p.length()) != p) {
 	continue;

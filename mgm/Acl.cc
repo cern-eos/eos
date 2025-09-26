@@ -753,7 +753,7 @@ Acl::TokenAcl(const eos::common::VirtualIdentity& vid) const
 	eos_static_info("msg=\"validated path\" tokenacl=\"%s\"", tokenacl.c_str());
         return tokenacl;
       } else {
-        eos_static_err("%s", "msg=\"path outside token scope\"");
+        eos_static_err("msg=\"path outside token scope\" tokenscope=\"%s\" path=\"%s\"", vid.scope.c_str(),vid.token->Path().c_str());
 	return "u:root:rx";
       }
     } else {
