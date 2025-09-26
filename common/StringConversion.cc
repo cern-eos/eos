@@ -63,7 +63,6 @@ StringConversion::Tokenize(const std::string& str,
                            std::vector<std::string>& tokens,
                            const std::string& delimiter)
 {
-  tokens.clear();
   // Edge cases
   if (str.empty()) return;
   if (delimiter.empty()) {           // no delimiter => whole string
