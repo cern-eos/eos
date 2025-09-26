@@ -118,7 +118,6 @@ ConvertCmd::ConfigList(bool json) const
   uint64_t running = gOFS->mConverterEngine->NumRunningJobs();
   uint64_t failed = gOFS->mConverterEngine->NumFailedJobs();
   int64_t pending = gOFS->mConverterEngine->NumPendingJobs();
-  auto state = (gOFS->mConverterEngine->IsRunning() ? "on" : "off");
 
   if (json) {
     Json::Value json;
@@ -133,11 +132,11 @@ ConvertCmd::ConfigList(bool json) const
       builder.newStreamWriter());
     jsonwriter->write(json, &out);
   } else {
-    out << "Configuration: " << config << " status=" << state << std::endl
-        << "Threadpool: " << threadpool << std::endl
-        << "Running jobs: " << running << std::endl
-        << "Pending jobs: " << pending << std::endl
-        << "Failed jobs : " << failed << std::endl;
+    out << "Configuration: " << config << std::endl
+        << "Threadpool   : " << threadpool << std::endl
+        << "Running jobs : " << running << std::endl
+        << "Pending jobs : " << pending << std::endl
+        << "Failed jobs  : " << failed << std::endl;
   }
 
   return out.str();
