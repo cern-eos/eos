@@ -233,6 +233,28 @@ regex is invalid, the command will return with an error message.
 .. index::
    pair: EOS Tokens; GRPC
 
+Multi-path Tokens
+^^^^^^^^^^^^^^^^^
+
+EOS supports not multipath-tokens which carry the same owner/group and ACLs for several distinct paths.
+
+To issue a multipath token you concatenate your paths using '://:' as a delimiter e.g.
+
+.. code-block:: bash
+
+   # create a token for a generic EOS path and to call the Tape Rest API endpoitn
+   
+   eos token --path /eos/://:/api/
+
+   # allow 'rwx' in /eos/user/ and /eos/group/ to 1234:1234
+   eos token --path /eos/user/://:/eos/group/ --permission rwx --owner 1234 --group 1234
+   
+.. index::
+   pair: EOS Tokens; Multi-path Token
+
+   
+   
+   
 Token Mapping
 ^^^^^^^^^^^^^
 
