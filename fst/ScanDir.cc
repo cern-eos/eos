@@ -1318,12 +1318,9 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io,
                    file_path.c_str(), scan_size, tx_duration_ms,
                    (((1.0 * offset) / (1024 * 1024)) * 1000) / tx_duration_ms)
 
-  if (comp_file_xs) {
-    comp_file_xs->Finalize();
-  }
-
   // Check file checksum only for replica layouts
   if (comp_file_xs) {
+    comp_file_xs->Finalize();
     scan_xs_hex = comp_file_xs->GetHexChecksum();
 
     if (!comp_file_xs->Compare(xs_val)) {
