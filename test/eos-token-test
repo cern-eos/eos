@@ -29,7 +29,7 @@ echo -e "Starting EOS token tests for prefix: $prefix on host: $host"
 
 ### Cleanup
 run_step "Cleaning up test directory" true
-eos rm -r $prefix/t_token/ 2>&/dev/null
+eos rm -r $prefix/t_token/ >/dev/null 2>&1
 
 ### Disable token generation and test failure
 run_step "Disabling token generation" eos space config default space.token.generation=0
@@ -43,16 +43,17 @@ run_step "Testing wildcard origin" eos token --path $prefix/t_token/file.1 --exp
 run_step "Testing regex origin" eos token --path $prefix/t_token/file.1 --expires $later --origin \.*:\.*:\.*
 
 ### Test 1: Single file token
+eos mkdir -p $prefix/t_token/ > /dev/null 2>&1
 FILETOKEN=$(eos token --path $prefix/t_token/file.1 --expires $later)
-! xrdcp /etc/passwd "$url/$prefix/t_token/file.1?authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to read-only token${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/file.1?eos.ruid=2&eos.rgid=2&authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to read-only token${NC}"
 
 FILETOKEN=$(eos token --path $prefix/t_token/file.1 --expires $later --permission rwx)
-! xrdcp /etc/passwd "$url/$prefix/t_token/file.wrong?authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to path mismatch${NC}"
-! xrdcp /etc/passwd "$url/$prefix/t_token/?authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to path mismatch${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/file.wrong?eos.ruid=2&eos.rgid=2&authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to path mismatch${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/?eos.ruid=2&eos.rgid=2authz=$FILETOKEN" && echo -e "${GREEN}Expected failure due to path mismatch${NC}"
 
-run_step "Upload file using CGI token" xrdcp /etc/passwd "$url/$prefix/t_token/file.1?authz=$FILETOKEN"
-run_step "Overwrite file using CGI token" xrdcp /etc/passwd "$url/$prefix/t_token/file.1?authz=$FILETOKEN" -f
-run_step "Upload using token as path" xrdcp /etc/passwd "$url//$FILETOKEN" -f
+run_step "Upload file using CGI token" xrdcp /etc/passwd "$url/$prefix/t_token/file.1?eos.ruid=2&eos.rgid=2&authz=$FILETOKEN"
+run_step "Overwrite file using CGI token" xrdcp /etc/passwd "$url/$prefix/t_token/file.1?eos.ruid=2&eos.rgid=2&authz=$FILETOKEN" -f
+run_step "Upload using token as path" xrdcp /etc/passwd "$url//$FILETOKEN&eos.ruid=2&eos.rgid=2" -f
 
 ### Test 2: Single file token with specific user
 FILETOKEN=$(eos token --path $prefix/t_token/file.2 --expires $later --owner nobody --group nobody --permission rwx)
@@ -72,22 +73,22 @@ DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later)
 DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --tree)
 eos token --token $DIRTOKEN
 
-run_step "Upload file.3 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/file.3?authz=$DIRTOKEN" -f
-run_step "Upload nested file.3 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/dir.1/file.3?authz=$DIRTOKEN" -f
-run_step "Upload deep nested file.4 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/dir.2/dir.2.1/file.4?authz=$DIRTOKEN" -f
+run_step "Upload file.3 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/file.3?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f
+run_step "Upload nested file.3 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/dir.1/file.3?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f
+run_step "Upload deep nested file.4 with tree token" xrdcp /etc/passwd "$url/$prefix/t_token/dir.2/dir.2.1/file.4?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f
 
 ### Test 4: Directory token for specific user
 DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --owner nobody --group nobody)
-! xrdcp /etc/passwd "$url/$prefix/file.4?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected permission fail${NC}"
-! xrdcp /etc/passwd "$url/$prefix/t_token/file.4?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected tree flag fail${NC}"
-! xrdcp /etc/passwd "$url/$prefix/t_token/dir.3/file.4?authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected tree flag fail${NC}"
+! xrdcp /etc/passwd "$url/$prefix/file.4?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected permission fail${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/file.4?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected tree flag fail${NC}"
+! xrdcp /etc/passwd "$url/$prefix/t_token/dir.3/file.4?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f && echo -e "${GREEN}Expected tree flag fail${NC}"
 
 DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rwx --expires $later --tree --owner nobody --group nobody)
 eos token --token $DIRTOKEN
 
-run_step "Upload file.5" xrdcp /etc/passwd "$url/$prefix/t_token/file.5?authz=$DIRTOKEN" -f
-run_step "Upload dir.3/file.5" xrdcp /etc/passwd "$url/$prefix/t_token/dir.3/file.5?authz=$DIRTOKEN" -f
-run_step "Upload dir.4/dir.2.1/file.6" xrdcp /etc/passwd "$url/$prefix/t_token/dir.4/dir.2.1/file.6?authz=$DIRTOKEN" -f
+run_step "Upload file.5" xrdcp /etc/passwd "$url/$prefix/t_token/file.5?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f
+run_step "Upload dir.3/file.5" xrdcp /etc/passwd "$url/$prefix/t_token/dir.3/file.5?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f
+run_step "Upload dir.4/dir.2.1/file.6" xrdcp /etc/passwd "$url/$prefix/t_token/dir.4/dir.2.1/file.6?eos.ruid=2&eos.rgid=2&authz=$DIRTOKEN" -f
 
 eos find $prefix/t_token/
 eos ls -la $prefix/t_token/
@@ -127,6 +128,13 @@ run_step "TokenAcl Setting" eos attr set sys.acl=u:65534:trx $prefix/t_token/tok
 ! env XrdSecPROTOCOL=unix eos token --path $prefix/t_token/tokenacl/ --permission rwx && echo -e "${GREEN}Expected token creation failure due to missing write permission ${NC}"
 run_step "TokenAcl GetToken" env XrdSecPROTOCOL=unix eos token --path $prefix/t_token/tokenacl/
 
+### Test 7: Multipath token
+run_step "Multipath Token" eos mkdir -p $prefix/t_token/multipath
+SINGLEPATHTOKEN=$(eos token --path $prefix/t_token/singlepath/ --permission rwx --expires $later --owner nobody --group nobody --tree)
+MULTIPATHTOKEN=$(eos token --path "$prefix/t_token/singlepath/://:$prefix/t_token/multipath/" --permission rwx --expires $later --owner nobody --group nobody --tree)
+! xrdcp /etc/passwd "$url/$prefix/t_token/multipath/file?eos.ruid=2&eos.rgid=2&authz=$SINGLEPATHTOKEN" -f && echo -e "${GREEN}Expected to fail with single path token${NC}"
+run_step "Upload Multipath" xrdcp /etc/passwd "$url/$prefix/t_token/multipath/file?eos.ruid=2&eos.rgid=2&authz=$MULTIPATHTOKEN" -f
+eos token --token $MULTIPATHTOKEN
 ### Cleanup
 run_step "Final cleanup of test directory" eos rm -r $prefix/t_token/
 
