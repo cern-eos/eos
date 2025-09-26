@@ -112,7 +112,7 @@ XrdFstOfsFile::XrdFstOfsFile(const char* user, int MonID) :
   mWritePosition(0ull), mOpenSize(0),
   mCloseSize(0), mTpcThreadStatus(EINVAL), mTpcState(kTpcIdle),
   mTpcFlag(kTpcNone), mTpcKey(""), mIsTpcDst(false), mTpcRetc(0),
-  mTpcCancel(false), mIsHttp(false)
+  mTpcCancel(false), mTpcFileSize(0ull), mIsHttp(false)
 {
   rBytes = wBytes = sFwdBytes = sBwdBytes = sXlFwdBytes
                                 = sXlBwdBytes = rOffset = wOffset = 0;
@@ -1323,7 +1323,6 @@ int
 XrdFstOfsFile::sync()
 {
   eos_debug("msg=\"sync request\", fxid=%08llx", mFileId);
-  static const int cbWaitTime = 3600;
 
   // TPC transfer
   if (mTpcFlag == kTpcDstSetup) {
@@ -1341,7 +1340,7 @@ XrdFstOfsFile::sync()
         scope_lock.UnLock();
         return SFS_OK;
       } else {
-        eos_err("msg=\"failed to start TPC job thread\"");
+        eos_err("msg=\"failed to start TPC job thread\" fxid=%08llx", mFileId);
         mTpcState = kTpcDone;
 
         if (mTpcInfo.Key) {
@@ -1352,17 +1351,34 @@ XrdFstOfsFile::sync()
         return mTpcInfo.Fail(&error, "could not start job", ECANCELED);
       }
     } else if (mTpcState == kTpcRun) {
-      eos_info("msg=\"tpc running -> 2nd sync\"");
-
       if (mTpcInfo.SetCB(&error)) {
+        eos_info("msg=\"tpc running -> 2nd sync failed\" fxid=%08llx", mFileId);
         return SFS_ERROR;
       }
 
-      error.setErrCode(cbWaitTime);
+      // By default tell the client to wait 1 hour for the trasfer to complete,
+      // if we have information about the size of the file to be transferred
+      // then we compute the wait time for this operation using 5MB/s as the
+      // average transfer speed and use it only if it's bigger than 1 hour.
+      int cb_wait_sec = 3600;
+
+      if (mTpcFileSize) {
+        cb_wait_sec = eos::common::FileId::EstimateTpcTimeout
+                      (mTpcFileSize.load(), 5).count();
+
+        if (cb_wait_sec < 3600) {
+          cb_wait_sec = 3600;
+        }
+      }
+
+      eos_info("msg=\"tpc running -> 2nd sync\" fxid=%08llx tpc_fsize=%llu "
+               "wait_time=%isec", mFileId, mTpcFileSize.load(), cb_wait_sec);
+      error.setErrCode(cb_wait_sec);
       mTpcInfo.Engage();
       return SFS_STARTED;
     } else if (mTpcState == kTpcDone) {
-      eos_info("msg=\"tpc already finished, retc=%i\"", mTpcRetc);
+      eos_info("msg=\"tpc already finished\" fxid=%08llx retc=%i\"",
+               mFileId, mTpcRetc);
 
       if (mTpcRetc) {
         error.setErrInfo(mTpcRetc, (mTpcInfo.Key ? mTpcInfo.Key : "failed tpc"));
@@ -1371,7 +1387,7 @@ XrdFstOfsFile::sync()
         return SFS_OK;
       }
     } else {
-      eos_err("%s", "msg=\"unknown tpc state\"");
+      eos_err("msg=\"unknown tpc state\" fxid=%08llx", mFileId);
       error.setErrInfo(EINVAL, "unknown TPC state");
       return SFS_ERROR;
     }
@@ -3660,18 +3676,18 @@ XrdFstOfsFile::DoTpcTransfer()
     return 0;
   }
 
-  int64_t file_size = st_info.st_size;
+  mTpcFileSize = st_info.st_size;
   int64_t nread {0ull};
   eos::common::ManagedBuffer managed_buf(sBuffMgrTpc, tpcIO.GetBlockSize());
   std::shared_ptr<eos::common::Buffer> buffer = managed_buf.GetBuffer();
 
-  while (offset < file_size) {
+  while (offset < mTpcFileSize) {
     // Read the remote file in chunks and check after each chunk if the TPC
     // has been aborted already
-    if (file_size - offset >= tpcIO.GetBlockSize()) {
+    if (mTpcFileSize - offset >= tpcIO.GetBlockSize()) {
       nread = tpcIO.GetBlockSize();
     } else {
-      nread = file_size - offset;
+      nread = mTpcFileSize - offset;
     }
 
     if (getenv("EOS_FST_TPC_READASYNC")) {

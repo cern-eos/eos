@@ -469,6 +469,9 @@ public:
   bool mIsTpcDst; ///< If true this is a TPC destination, otherwise a source
   int mTpcRetc; ///< TPC job return code
   std::atomic<bool> mTpcCancel; ///< Mark TPC cancellation request
+  //! Size of the file to be transferred via TPC, this is used to compute
+  //! the estimated transfer time.
+  std::atomic<uint64_t> mTpcFileSize;
   uint16_t mTimeout; ///< timeout for layout operations
   bool mIsHttp; ///< Mark if this is HTTP acceess
 
