@@ -380,8 +380,8 @@ EosTok::ValidatePath(const std::string& path) const
   // '/eos/dir1/://:/eos/dir2/://:/eos/dir3/' using '://:' as separator which cannot occur in a regular normalized path!
 
   std::vector<std::string> paths;
-  eos::common::StringConversion::Tokenize(share->token().path(),
-					  paths, "://:");
+  eos::common::StringConversion::MulticharTokenize(share->token().path(),
+						   paths, "://:");
   for (auto p:paths) {
     if (share->token().allowtree()) {
       fprintf(stderr,"comparing %s <=> %s", path.substr(0, p.length()).c_str(), p.c_str());

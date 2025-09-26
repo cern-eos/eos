@@ -204,7 +204,7 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
 
       // deal with multiple paths
       std::vector<std::string> paths;
-      eos::common::StringConversion::Tokenize(token.path(),
+      eos::common::StringConversion::MulticharTokenize(token.path(),
                                               paths, "://:");
 
       for ( auto p: paths) {

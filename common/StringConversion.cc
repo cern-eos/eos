@@ -56,12 +56,37 @@ char StringConversion::pAscii2HexLkup[256];
 char StringConversion::pHex2AsciiLkup[16];
 
 //------------------------------------------------------------------------------
-// Tokenize a string
+// Tokenize a string by a set of delimiters
 //------------------------------------------------------------------------------
 void
 StringConversion::Tokenize(const std::string& str,
                            std::vector<std::string>& tokens,
-                           const std::string& delimiter)
+                           const std::string& delimiters)
+{
+  // Skip delimiters at the beginning
+  std::string::size_type lastPos = str.find_first_not_of(delimiters, 0);
+  // Find first "non-delimiter"
+  std::string::size_type pos = str.find_first_of(delimiters, lastPos);
+
+  while (std::string::npos != pos || std::string::npos != lastPos) {
+    // Found a token, add it to the vector.
+    tokens.push_back(str.substr(lastPos, pos - lastPos));
+    // Skip delimiters.  Note the "not_of"
+    lastPos = str.find_first_not_of(delimiters, pos);
+    // Find next "non-delimiter"
+    pos = str.find_first_of(delimiters, lastPos);
+  }
+}
+
+
+//------------------------------------------------------------------------------
+// Tokenize a string seperated by one single charactor or multichar string
+//------------------------------------------------------------------------------
+
+void
+StringConversion::MulticharTokenize(const std::string& str,
+		       std::vector<std::string>& tokens,
+		       const std::string& delimiter)
 {
   // Edge cases
   if (str.empty()) return;

@@ -84,6 +84,19 @@ public:
 
   // ---------------------------------------------------------------------------
   /**
+   * Tokenize a string
+   *
+   * @param str string to be tokenized
+   * @param tokens  returned list of separated string tokens
+   * @param multi-char delimiter used for tokenizing
+   */
+  // ----------------------------------------------------------------------------
+  static void MulticharTokenize(const std::string& str,
+				std::vector<std::string>& tokens,
+				const std::string& delimiter = " ");
+
+  // ---------------------------------------------------------------------------
+  /**
    * Tokenize a string accepting also empty members e.g. a||b returns 3 fields
    *
    * @param str string to be tokenized
