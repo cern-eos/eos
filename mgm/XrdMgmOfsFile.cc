@@ -2796,13 +2796,14 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (isRW && LayoutId::IsRain(layoutId)) {
     fsIndex = mFid % selectedfs.size();
     eos_static_info("msg=\"selecting entry-server\" fsIndex=%lu fsid=%lu "
-                    "fxid=%97llx mod=%lu", fsIndex, selectedfs[fsIndex],
+                    "fxid=%08llx mod=%lu", fsIndex, selectedfs[fsIndex],
                     mFid, selectedfs.size());
   }
 
   // If behaviour enabled then add preference to always select the file system
   // with the lowest fsid as the server entry point
-  if (gOFS->mBehaviourCfg->Exists(eos::common::BehaviourType::RainMinFsidEntry)) {
+  if (LayoutId::IsRain(layoutId) &&
+      gOFS->mBehaviourCfg->Exists(eos::common::BehaviourType::RainMinFsidEntry)) {
     fsIndex = EnforceRainMinFsidEntry(selectedfs);
   }
 
