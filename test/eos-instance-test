@@ -2485,7 +2485,7 @@ runtest "### eos-lru  " unix 0 "" eos_lru "/eos/$EOS_TEST_INSTANCE/test/instance
 # ------------------------------------------------------------------------------
 categorie="token"
 # ------------------------------------------------------------------------------
-runtest "### eos-token  " unix 0 "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/token.dir/"
+runtest "### eos-token  " unix 0 "" eos_token "/eos/$EOS_TEST_INSTANCE/test/instancetest/token.dir/"
 
 ################################################################################
 # RAIN-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY
