@@ -615,6 +615,7 @@ el9_asan_docker_image:
     - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    - exec_cmd eos-cli1 'cd /eosclient-tests && pip install -r requirements.txt'
     # ubuntu releases do not support 'clone' yet, skip its test
     - case $CI_JOB_NAME in
       "ub_focal"* | "ub_jammy"* ) ;;
@@ -646,6 +647,8 @@ el9_asan_docker_image:
     - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
     # download tests repo
     - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    - exec_cmd eos-cli1 'cd /eosclient-tests && pip install -r requirements.txt'
+    # run the tests
 
     # @todo(esindril): run "all" tests in schedule mode once these are properly supported
     # if [[ "$CI_PIPELINE_SOURCE" == "schedule" ]];
@@ -687,6 +690,7 @@ el9_asan_docker_image:
     - exec_cmd eos-cli1 'echo -e "export KRB5CCNAME=FILE:/tmp/krb5cc_$(id -u eos-user)" >> ~/.bashrc'
     - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user@TEST.EOS -k -t /home/eos-user/eos-user.keytab"'
     - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user/eosclient-tests && pip install -r requirements.txt"'
     # launch the tests
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
