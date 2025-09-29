@@ -94,6 +94,20 @@ function check_checksums() {
   return 0
 }
 
+function enable_frequent_scanning() {
+  local time=5
+  for fsid in $(eos -j fs ls | jq '.result[].id'); do
+    eos fs config ${fsid} scan_disk_interval=${time}
+  done
+}
+
+function disable_frequent_scanning() {
+  local time=14400
+  for fsid in $(eos -j fs ls | jq '.result[].id'); do
+    eos fs config ${fsid} scan_disk_interval=${time}
+  done
+}
+
 function enable_altxs_scan() {
   local time=$1
   for fsid in $(eos -j fs ls | jq '.result[].id'); do
@@ -106,7 +120,6 @@ function enable_altxs_sync() {
   for fsid in $(eos -j fs ls | jq '.result[].id'); do
     eos fs config ${fsid} altxs_sync=1
     eos fs config ${fsid} altxs_sync_interval=${time}
-    eos fs config ${fsid} scan_disk_interval=${time}
   done
 }
 
@@ -114,6 +127,7 @@ function disable_altxs_sync() {
   for fsid in $(eos -j fs ls | jq '.result[].id'); do
     eos fs config ${fsid} altxs_sync=0
     eos fs config ${fsid} altxs_sync_interval=0
+    # Put back teh default value
   done
 }
 
@@ -144,7 +158,10 @@ dd if=/dev/urandom of=${TEST_FILE} bs=1M count=16 &> /dev/null
 dd if=/dev/urandom of=${TEST_FILE2} bs=1M count=64 &> /dev/null
 
 # Enable debug on FSTs
-eos debug debug "*"
+#eos debug debug "*"
+
+# Enable frequent disk scanning
+enable_frequent_scanning
 
 # Test 1
 # Disable ScanDir thread for computing alternative checksums and
@@ -229,3 +246,6 @@ eos attr set sys.altxs="md5" ${EOS_ALTXS_TEST}/disabled_on_upload
 disable_altxs_upload
 xrdcp -f --nopbar ${TEST_FILE} root://${EOS_MGM_HOSTNAME}/${EOS_ALTXS_TEST}/disabled_on_upload/altxs.dat
 fail_on_error check_checksums "${EOS_ALTXS_TEST}/disabled_on_upload/altxs.dat" "${TEST_FILE}" ""
+
+# Restore disk scanning to the default value
+disable_frequent_scanning
