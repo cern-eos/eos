@@ -15,13 +15,10 @@ Most of them are implement in an asynchronous thread running as part of the meta
 .. index::
    pair: MGM; Converter
 
-
 Converter
 ---------
 
-The converter functionality serves several purposes: 
-
-
+The converter functionality serves several purposes:
 
 .. index::
    pair: Converter; Engine
@@ -29,19 +26,20 @@ The converter functionality serves several purposes:
 Converter Engine
 ^^^^^^^^^^^^^^^^
 
-The Converter Engine is responsible for scheduling
-and performing file conversion jobs. A conversion job means rewriting a file
-with a different storage parameter: layout, replica number, space
-or placement policy. The functionality is used for serveral purposes: For the Balancer
-it is used to rewrite files to achieve a new placement. For the LRU policy converter
-is used to rewrite a file with a new layout e.g. rewrite a file with 2 replica 
-into a RAID-6 like RAIN layout with the benefit of space savings.
-Internally the converter uses the XRootD third party copy mechanism and consumes
-one thread in the **MGM** for each running conversion transfer.
+The Converter Engine is responsible for scheduling and performing file
+conversion jobs. A conversion job means rewriting a file with a different
+storage parameter: layout, replica number, space or placement policy. The
+functionality is used for several purposes:
+* for the Balancer to rewrite files to achieve a new placement
+* for the LRU policy to rewrite a file with a new layout e.g. rewrite a
+  file with 2 replica into a RAID-6 like RAIN layout with the benefit of
+  space savings
+
+Internally the converter uses the XRootD third party copy mechanism and
+consumes one thread in the **MGM** for each running conversion transfer.
 
 The Converter Engine is split into two main components:
 *Converter Driver* and *Converter Scheduler*.
-
 
 .. index::
    pair: Converter; Driver
@@ -51,31 +49,27 @@ Converter Driver
 
 The Converter Driver is the component responsible for performing the actual
 conversion job. This is done using XRootD third party copy between the FSTs.
+The Converter Driver keeps a threadpool available for conversion jobs,
+that serves the entire EOS cluster. Periodically, it checks the list of
+pending conversion jobs and the retrieved jobs are scheduled, one per
+thread, up to a configurable limit. After each scheduling, a check is
+performed to identify completed or failed jobs. Each conversion job is
+tracked internally and the list of files being tracked by the convertor
+can be displayed using the following command:
 
-The Converter Driver keeps a threadpool available for conversion jobs.
-Periodically, it queries QuarkDB for conversion jobs, in batches of 1000. 
-The retrieved jobs are scheduled, one per thread, up to a configurable 
-runtime threads limit. After each scheduling, a check is performed 
-to identify completed or failed jobs.
-  
-Successful conversion jobs:
-  - get removed from the QuarkDB pending jobs set
-  - get removed from the MGM in-flight jobs tracker
+.. code-block:: bash
 
-Failed conversion jobs:
-  - get removed from the QuarkDB pending jobs set
-  - get removed from the MGM in-flight jobs tracker
-  - get updated to the QuarkDB failed jobs set
-  - get updated to the MGM failed jobs set
+   eos ns tracker list --name convert
 
-Within QuarkDB, the following hash sets are used:
+Within QuarkDB, we keep the list of pending conversion jobs so that
+after an MGM restart the list of conversion is not lost. For this purpose
+the following set structure is used inside QuarkDB:
 
 .. code-block:: bash
 
   eos-conversion-jobs-pending
-  eos-conversion-jobs-failed
 
-Each hash entry has the following structure: *<fid>:<conversion_info>*.
+Each entry in the set has the following structure: *<fid>:<conversion_info>*.
 
 .. index::
    pair: Conversion; Info
@@ -94,9 +88,8 @@ A conversion info is defined as following:
     <layout>    - 8-digit with leading zeroes hexadecimal layout id
     <placement> - the placement policy to apply
 
-The job info is parsed by the Converter Driver before creating 
-the associated job. Entries with invalid info are simply discarded 
-from the QuarkDB pending jobs set.
+The job info is parsed by the Converter Driver before creating
+the associated job. Entries with invalid info are simply discarded.
 
 .. index::
    pair: Conversion; Job
@@ -113,8 +106,8 @@ A conversion job goes through the following steps:
   - Merge the conversion entry with the initial file
   - Mark conversion job as completed
 
-If at any step a failure is encountered, the conversion job
-will be flagged as failed.
+If at any step a failure is encountered, the conversion job will be flagged
+as failed.
 
 .. index::
    pair: Converter; Scheduler
@@ -135,62 +128,67 @@ and the target storage parameter.
 .. index::
    pair: Converter; Configuration
 
-
 Configuration
 ^^^^^^^^^^^^^
-The Converter is enabled/disabled by space:
+The Converter is enabled/disabled globally on the instance:
 
 .. code-block:: bash
 
    # enable
-   eos space config default space.converter=on  
+   eos convert config set status=on
    # disable
-   eos space config default space.converter=off
+   eos convert config set status=off
 
-.. warning:: Be aware that you have to grant project quota in the converter directory if your instances has quota enabled, otherwise
-	     the converter cannot write files because the same quota restrictions apply
+.. warning:: Be aware that you have to grant project quota in the converter
+             directory if your instances has quota enabled, otherwise the
+             converter cannot write files because the same quota restrictions
+             apply.
 
 The current status of the Converter can be seen via:
 
 .. code-block:: bash
 
-   eos -b space status default
-   # ------------------------------------------------------------------------------------
-   # Space Variables
-   # ....................................................................................
-   ...
-   converter                       := off
-   converter.ntx                   := 0
-   ...
+   eos convert config list
+   Configuration: status=on max-thread-pool-size=101 max-queue-size=1002
+   Threadpool: pool=converter      min=16  max=100  size=16   queue_sz=0
+   Running jobs: 0
+   Pending jobs: 0
+   Failed jobs : 0
 
-The number of concurrent transfers to run is defined via the **converter.ntx**
-space variable:
 
-.. code-block:: bash
-
-   # schedule 10 transfers in parallel
-   eos space config default space.converter.ntx=10
-
-One can see the same settings and the number of active conversion transfers
-(scroll to the right):
+The maximum number of threads in the thread pool as well as the maximum
+queue size for conversion jobs can be modified using the same CLI:
 
 .. code-block:: bash
-   
-   eos space ls 
-   #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   #     type #           name #  groupsize #   groupmod #N(fs) #N(fs-rw) #sum(usedbytes) #sum(capacity) #capacity(rw) #nom.capacity #quota #balancing # threshold # converter #  ntx # active #intergroup
-   #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-   spaceview           default           22           22    202       123          2.91 T       339.38 T      245.53 T          0.00     on        off        0.00          on 100.00     0.00         off
 
+   # Set conversion thread pool max size
+   eos convert config set max-thread-pool-size=1000
+
+   # Set the maximum queue size of conversion jobs
+   eos convert config set max-queue-size=250
 
 .. index::
-   pair: Converer; Log Files
+   pair: Converter; Log Files
+
+To monitor the activity of the Converter engine, one can look at the
+statistics related to stated/successful and failed conversion transfers.
+This command will also print a summary of the converter configuration
+and the number of files tracked by the converter:
+
+.. code-block:: bash
+   eos ns stat | grep -i "conve"
+   ALL      converter info                   pool=converter      min=64  max=100  size=64   queue_sz=0
+   ALL      tracker info                     tracker=convert size=0
+   all ConversionJobFailed                         128.38 K       0.00       0.00       0.00       0.00     -NA-      -NA-      -NA-      -NA-     -NA-
+   all ConversionJobStarted                          1.77 M       0.00       0.00       1.72       1.47     -NA-      -NA-      -NA-      -NA-     -NA-
+   all ConversionJobSuccessful                       1.64 M       0.00       0.00       1.72       1.47     -NA-      -NA-      -NA-      -NA-     -NA-
+
 
 Log Files
 ^^^^^^^^^
 
 The Converter has a dedicated log file under ``/var/log/eos/mgm/Converter.log``
-which shows scheduled conversions and errors of conversion jobs. To get more
+which shows scheduled conversions and any potential errors. To get more
 verbose information you can change the log level:
 
 .. code-block:: bash
@@ -199,6 +197,7 @@ verbose information you can change the log level:
    eos debug debug
 
    # switch back to info log level on the MGM
+   eos debug info
 
 
 .. index::
@@ -210,7 +209,7 @@ Balancing
 The rebalacing system is made out of three services:
 
 .. epigraph::
-  
+
    ========================= ======================================================================
    Name                      Responsability
    ========================= ======================================================================
@@ -228,8 +227,8 @@ Filesystem Balancer
 Overview
 """""""""
 
-The filesystem balancing system provides a fully automated mechanism to balance the 
-volume usage across a scheduling group. Hence currently the balancing system 
+The filesystem balancing system provides a fully automated mechanism to balance the
+volume usage across a scheduling group. Hence currently the balancing system
 does not balance between scheduling groups!
 
 The balancing system is made up by the cooperation of several components:
@@ -248,7 +247,7 @@ The balancing system is made up by the cooperation of several components:
 Balancing View and Configuration
 """""""""""""""""""""""""""""""""
 
-Each filesystem advertises the used volume and the central view allows to see 
+Each filesystem advertises the used volume and the central view allows to see
 the deviation from the average filesystem usage in each group.
 
 .. code-block:: bash
@@ -281,11 +280,11 @@ the deviation from the average filesystem usage in each group.
    groupview  default.9                  on     8         0.30         0.11         0.14 idle                0          0
 
 
-The decision parameters to enable balancing in a group is the maximum deviation 
-of the filling state (given in %). 
+The decision parameters to enable balancing in a group is the maximum deviation
+of the filling state (given in %).
 In this example two groups are unbalanced (12 + 14 %).
 
-The balancing is configured on the space level and the current configuration 
+The balancing is configured on the space level and the current configuration
 is displayed using the 'space status' command:
 
 .. code-block:: bash
@@ -306,7 +305,7 @@ is displayed using the 'space status' command:
 The configuration variables are:
 
 .. epigraph::
-  
+
    ========================= ======================================================================
    variable                  definition
    ========================= ======================================================================
@@ -315,7 +314,7 @@ The configuration variables are:
    balancer.node.rate        rate limitation for each running balancer transfer in MB/s
    balancer.threshold        percentage at which balancing get's enabled within a scheduling group
    ========================= ======================================================================
- 
+
 If balancing is enabled ....
 
 .. code-block:: bash
@@ -398,7 +397,7 @@ To see the usage difference within the group, one can inspect all the group file
    lxfsra02a07.cern.ch:1095   143       default.20       0.10         0.00         7.00        119          9          0      0      2     28.57 GB      2.00 TB       7.46 k     97.52 M          7          0
    lxfsra04a03.cern.ch:1095   165       default.20       0.12         0.00         6.00        119         10          0      0      5      7.56 GB      2.00 TB       2.96 k     97.52 M          5          0
 
- 
+
 The scheduling activity for balancing can be monitored with the **eos ns ls** command:
 
 .. code-block:: bash
@@ -420,18 +419,18 @@ The scheduling activity for balancing can be monitored with the **eos ns ls** co
    # -----------------------------------------------------------------------------------------------------------
    who      command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)
    # -----------------------------------------------------------------------------------------------------------
-   ALL        Access                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-     
+   ALL        Access                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
     ....
-   ALL        Schedule2Balance                         6423    11.75    10.81    10.71     1.78     -NA- +- -NA-     
-   ALL        Schedule2Drain                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-     
-   ALL        Scheduled2Balance                        6423    11.75    10.81    10.71     1.78     4.20 +- 0.57 
+   ALL        Schedule2Balance                         6423    11.75    10.81    10.71     1.78     -NA- +- -NA-
+   ALL        Schedule2Drain                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+   ALL        Scheduled2Balance                        6423    11.75    10.81    10.71     1.78     4.20 +- 0.57
    ALL        SchedulingFailedBalance                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-
 
-   
+
 The relevant counters are:
 
 .. epigraph::
-   
+
    ============================== =====================================================================
    state                          definition
    ============================== =====================================================================
@@ -517,7 +516,7 @@ Groupbalancing is enabled/disabled by space:
 .. code-block:: bash
 
    # enable
-   eos space config default space.groupbalancer=on  
+   eos space config default space.groupbalancer=on
    # disable
    eos space config default space.groupbalancer=off
 
@@ -587,7 +586,7 @@ Make sure that you have enabled the converter and the **converter.ntx** space
 variable is bigger than **groupbalancer.ntx** :
 
 .. code-block:: bash
-  
+
    # enable the converter
    eos space config default space.converter=on
    # run 20 conversion transfers in parallel
@@ -597,8 +596,8 @@ One can see the same settings and the number of active conversion transfers
 (scroll to the right):
 
 .. code-block:: bash
-   
-   eos space ls 
+
+   eos space ls
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
    #     type #           name #  groupsize #   groupmod #N(fs) #N(fs-rw) #sum(usedbytes) #sum(capacity) #capacity(rw) #nom.capacity #quota #balancing # threshold # converter #  ntx # active #intergroup
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -723,8 +722,8 @@ verbose information you can change the log level:
 GEO Balancer
 ^^^^^^^^^^^^
 
-The GEO Balancer uses the converter mechanism to redistribute files according 
-to their geographical location. Currently it is only moving files with replica 
+The GEO Balancer uses the converter mechanism to redistribute files according
+to their geographical location. Currently it is only moving files with replica
 layouts. To avoid oscillations a threshold parameter defines when geo balancing stops e.g.
 the deviation from the average in a group is less then the threshold parameter.
 
@@ -741,7 +740,7 @@ GEO balancing is enabled/disabled by space:
 .. code-block:: bash
 
    # enable
-   eos space config default space.geobalancer=on  
+   eos space config default space.geobalancer=on
    # disable
    eos space config default space.geobalancer=off
 
@@ -778,7 +777,7 @@ Make sure that you have enabled the converter and the **converter.ntx** space
 variable is bigger than **geobalancer.ntx** :
 
 .. code-block:: bash
-  
+
    # enable the converter
    eos space config default space.converter=on
    # run 20 conversion transfers in parallel
@@ -788,8 +787,8 @@ One can see the same settings and the number of active conversion transfers
 (scroll to the right):
 
 .. code-block:: bash
-   
-   eos space ls 
+
+   eos space ls
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
    #     type #           name #  groupsize #   groupmod #N(fs) #N(fs-rw) #sum(usedbytes) #sum(capacity) #capacity(rw) #nom.capacity #quota #balancing # threshold # converter #  ntx # active #intergroup
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -803,7 +802,7 @@ One can see the same settings and the number of active conversion transfers
 .. index::
    pair: GEO Balanacer; Log Files
 
-Log Files 
+Log Files
 """""""""
 The GEO Balancer has a dedicated log file under ``/var/log/eos/mgm/GeoBalancer.log``
 which shows basic variables used for balancing decisions and scheduled transfers. To get more
@@ -1244,7 +1243,7 @@ special Drainer Engine which only looks for groups marked as *drain* as source g
 groups are by default chosen as a threshold below the total group fillness average. Similar to
 converter and groupbalancer this is enabled/disabled at a space level.
 
-.. index::  
+.. index::
    pair: Group Drainer; Configuration
 
 
@@ -1279,7 +1278,7 @@ and the converter is kept busy. However if you want to reduce throughput, reduci
 The `retry_interval` and `retry_count` determine the amount of retries we do for a failed transfer. By default we try upto 5 times before giving up and
 eventually marking the FS as drainfailed. This will need manual intervention similar to handling regular FS drains.
 
-.. index::  
+.. index::
    pair: Group Drainer; Info
 
 Status
@@ -1333,7 +1332,7 @@ File Inspector
 
 The File Inspector is a slow agent scanning all files in a namespace and collects statistics per layout type. Additionally it adds statistic about replication inconsistencies per layout. The target interval to scan all files is user defined. The default cycle is 4 hours, which can create a too high load in large namespaces and should be adjusted accordingly.
 
-.. index::  
+.. index::
    pair: Inspector; Configuration
 
 Configuration
@@ -1346,7 +1345,7 @@ The File Inspector has to be enabled/disabled in the default space only:
 .. code-block:: bash
 
    # enable
-   eos space config default space.inspector=on  
+   eos space config default space.inspector=on
    # disable
    eos space config default space.inspector=off
 
@@ -1376,7 +1375,7 @@ The default inspector interval to scan all files is 4 hours. The interval can be
    eos space config default space.inspector.interval=86400
 
 
-.. index::  
+.. index::
    pair: Inspector; Info
 
 
@@ -1389,7 +1388,7 @@ You can get the inspector status and an estimate for the run time using
 
    eos space inspector
 
-   # or 
+   # or
 
    eos inspector
 
@@ -1405,7 +1404,7 @@ You can see the current statistics of the inspector run using
 
 .. code-block:: bash
 
-   eos inspector -c 
+   eos inspector -c
    eos inspector --current
 
    # ------------------------------------------------------------------------------------
@@ -1414,28 +1413,28 @@ You can see the current statistics of the inspector run using
    # current scan: 2019-07-12T08:25:42Z
     not-found-during-scan            : 0
    ======================================================================================
-   layout=00000000 type=plain         checksum=none     blockchecksum=none     blocksize=4k  
+   layout=00000000 type=plain         checksum=none     blockchecksum=none     blocksize=4k
 
    locations                        : 0
    nolocation                       : 223004
    repdelta:-1                      : 223004
    unlinkedlocations                : 0
    zerosize                         : 223004
-   
+
    ======================================================================================
-   layout=00100001 type=plain         checksum=none     blockchecksum=none     blocksize=4k  
+   layout=00100001 type=plain         checksum=none     blockchecksum=none     blocksize=4k
 
    locations                        : 2
    repdelta:0                       : 2
    unlinkedlocations                : 0
    volume                           : 3484
-  
+
    ...
 
 
 The reports tags are:
 
-.. code-block:: bash 
+.. code-block:: bash
 
    locations         : number of replicas (or stripes) in this layout categorie
    nolocation        : number of files without any location attached
@@ -1448,7 +1447,7 @@ The reports tags are:
    shadowdeletions   : number of files with a replica pointing to a not configured filesystem for deletion
    shodowlocation    : number of files with a replica pointing to a not configured filesystem
 
-.. index::  
+.. index::
    pair: Inspector; Statistics
    pair: Inspector; Access Time Distribution
    pair: Inspector; Birth Time Distribution
@@ -1500,15 +1499,15 @@ This will additionally include birth and access time distributions:
 
 To get access time distributions you have to have the access time tracking enabled in the space configuration:
 e.g. with 1h resolution: ``eos space config default atime=3600``
-   
+
 You can print the current and last run statistics in monitoring format:
 
 .. code-block:: bash
 
-   eos inspector -c -m 
+   eos inspector -c -m
    ...
 
-   eos inspector -l -m 
+   eos inspector -l -m
 
    key=last layout=00100002 type=plain checksum=adler32 blockchecksum=none blocksize=4k locations=638871 repdelta:+1=1 repdelta:0=638869 unlinkedlocations=0 volume=10802198338 zerosize=550002
    key=last layout=00100012 type=replica checksum=adler32 blockchecksum=none blocksize=4k locations=42 repdelta:0=42 unlinkedlocations=0 volume=21008942
@@ -1557,7 +1556,7 @@ The list of file ids with an inconsistency can be extracted using:
    # 2019-07-12T08:53:33Z
    # 100 % done - estimate to finish: 0 seconds
    # file list exported on MGM to '/var/log/eos/mgm/FileInspector.1562921613.list'
-   # -----------------------------------------------------------------------   
+   # -----------------------------------------------------------------------
 
 
 Log Files
@@ -1575,7 +1574,7 @@ verbose information you can change the log level:
    eos debug info
 
 .. index::
-   pair: MGM; LRU 
+   pair: MGM; LRU
 
 LRU Engine
 ----------
@@ -1596,7 +1595,7 @@ the following LRU policies:
    Automatic time based layout conversion if a file has not been used for specified time mtime
    ===================================================================================== =====================
 
-.. index::  
+.. index::
    pair: LRU; Configuration
    pair: LRU; Engine
 
@@ -1635,7 +1634,7 @@ space variable:
    # run the LRU scan once a week
    eos space config default space.lru.interval=604800
 
-.. index::  
+.. index::
    pair: LRU; Policy
 
 Policy
@@ -1661,7 +1660,7 @@ When the cache reaches the high watermark it cleans the oldest files untile low-
    # track atime with a time resolution of 5 minutes (space configuration parameter)
    eos space config default space.atime=300
 
-.. index::  
+.. index::
    pair: LRU; Clean Empty Directories
 
 
@@ -1767,7 +1766,7 @@ file creation time. A *placement policy* can also be specified.
      # same thing specifying a placement policy for the replicas/stripes
      eos> attr set sys.conversion.*=20640542|gathered:site1::rack2 /eos/dev/instance/convert/
 
-.. index::  
+.. index::
    pair: File; Conversion
 
 
@@ -1814,7 +1813,7 @@ It is possible to run an asynchronous file conversion using the **EOS CLI**.
      5      77     lxfsra04a01.cern.ch      default.11     /data13    booted             rw    nodrain   online   eos::cern::mgm
    *******
 
-.. index::  
+.. index::
    pair: LRU; Log Files
 
 Log Files
@@ -1833,8 +1832,8 @@ verbose information you can change the log level:
 
 
 .. index::
-   pair: MGM; FSCK 
-   pair: MGM; Consistency 
+   pair: MGM; FSCK
+   pair: MGM; Consistency
 
 FSCK
 -----
@@ -1843,7 +1842,7 @@ FSCK (File System Consistency Check) is the service reporting and possibly repai
 
 This section describles how the internal file system consistency checks (FSCK) are configured and work.
 
-.. index::  
+.. index::
    pair: FSCK; FST Scan
 
 
@@ -1928,7 +1927,7 @@ Subsequent scans will only look at file that have not been scanned since scanint
 
    210211 12:49:44 time=1613044184.957472 func=RunDiskScan              level=NOTE  logid=1827f5ea-6c5e-11eb-ae37-3868dd2a6fb0    unit=fst@fst-9.eos.grid.vbc.ac.at:1095 tid=00007f993afff700 source=ScanDir:504                    tident=<service> sec=      uid=0 gid=0 name= geo="" [ScanDir] Directory: /srv/data/data.01 files=147957 scanduration=293 [s] scansize=23732973568 [Bytes] [ 23733 MB ] scannedfiles=391 corruptedfiles=0 hwcorrupted=0 skippedfiles=147557
 
-.. index::  
+.. index::
    pair: FSCK; Error Types
 
 Error Types detected by FSCK
@@ -1950,7 +1949,7 @@ rep_diff_n     replica count is not nominal (too high or too low)    fixed by dr
 orphans_n      orphan files (no record for replica/file in mgm)      no action at the MGM, files not referenced by MGM at all, moved to to .eosorphans directory on FS mountpoint
 =============  ====================================================  ================================================================================================================
 
-.. index::  
+.. index::
    pair: FSCK; Configuration
 
 Configuration
@@ -2073,7 +2072,7 @@ For a more comprehensive error report, use **eos fsck report** this will only co
    timestamp=1613055250 tag="unreg_n" count=180971
 
 
-.. index::  
+.. index::
    pair: FSCK; Repair
 
 Repair
@@ -2235,7 +2234,7 @@ not counting per each replica of a file.
    timestamp=1613069473 tag="rep_missing_n" count=28
    timestamp=1613069473 tag="unreg_n" count=180998
 
-.. index::  
+.. index::
    pair: Tracker; Replication Tracker
 
 
@@ -2245,9 +2244,9 @@ Replication Tracker
 The Replication Tracker follows the workflow of file creations. For each created file a virtual entry is created in the ``proc/tracker`` directory. Entries are removed once a layout is completely commited. The purpose of this tracker is to find inconsistent files after creation and to remove atomic upload relicts automatically after two days.
 
 
-.. warning:: Please note that using the tracker will increase the meta-data operation load on the MGM! 
+.. warning:: Please note that using the tracker will increase the meta-data operation load on the MGM!
 
-.. index::  
+.. index::
    pair: Tracker; Configuration
 
 Configuration
@@ -2260,7 +2259,7 @@ The Replication Tracker has to be enabled/disabled in the default space only:
 .. code-block:: bash
 
    # enable
-   eos space config default space.tracker=on  
+   eos space config default space.tracker=on
    # disable
    eos space config default space.tracker=off
 
@@ -2284,7 +2283,7 @@ Automatic Cleanup
 
 When the tracker is enabled, an automatic thread inspects tracking entries and takes care of cleanup of tracking entries and the time based tracking directory hierarchy. Atomic upload files are automatically cleaned after 48 hours when the tracker is enabled.
 
-.. index::  
+.. index::
    pair: Tracker; Info
 
 Listing Tracking Information
@@ -2294,13 +2293,13 @@ You can get the current listing of tracked files using:
 
 .. code-block:: bash
 
-   eos space tracker 
+   eos space tracker
 
    # ------------------------------------------------------------------------------------
    key=00142888 age=4 (s) delete=0 rep=0/1 atomic=1 reason=REPLOW uri='/eos/test/creations/.sys.a#.f.1.802e6b70-973e-11e9-a687-fa163eb6b6cf'
    # ------------------------------------------------------------------------------------
 
-   
+
 
 The displayed reasons are:
 
@@ -2317,7 +2316,7 @@ There is convenience command defined in the console:
    eos tracker # instead of eos space tracker
 
 
-.. index::  
+.. index::
    pair: Tracker; Log Files
 
 Log Files

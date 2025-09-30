@@ -135,21 +135,6 @@ ConvertHelper::ParseCommand(const char* arg)
 
     file ->set_allocated_conversion(conversion);
     // Placeholder for options
-  } else if (token == "rule") {
-    if (!tokenizer.NextToken(token)) {
-      return false;
-    }
-
-    eos::console::ConvertProto_RuleProto* rule = convert->mutable_rule();
-    rule->set_allocated_identifier(ParseIdentifier(token));
-    eos::console::ConvertProto_ConversionProto*
-    conversion = ParseConversion(tokenizer);
-
-    if (conversion == nullptr) {
-      return false;
-    }
-
-    rule->set_allocated_conversion(conversion);
   } else if (token == "list") {
     convert->mutable_list();
   } else if (token == "clear") {
@@ -319,11 +304,6 @@ void com_convert_help()
       << "  convert file <identifier> <conversion>           \n"
       << "    schedule a file conversion                     \n"
       << "    <identifier> = fid|fxid|path                   \n"
-      << "    <conversion> = <layout:replica> [space] [placement] [checksum]\n"
-      << std::endl
-      << "  convert rule <identifier> <conversion>           \n"
-      << "    apply a conversion rule on the given directory \n"
-      << "    <identifier> = cid|cxid|path                   \n"
       << "    <conversion> = <layout:replica> [space] [placement] [checksum]\n";
   std::cerr << oss.str() << std::endl;
 }
