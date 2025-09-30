@@ -169,8 +169,8 @@ clone_docker:
       fi
     # [BEGIN] Build custom eos-xrootd RPMS
     - ${PKG_MGR} install -y dnf-plugins-core epel-release krb5-workstation rpmdevtools sudo git
-    - groupadd xrootd && useradd -g xrootd -m xrootd && echo "xrootd ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
-    - su - xrootd
+    #- groupadd xrootd && useradd -g xrootd -m xrootd && echo "xrootd ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+    #- su - xrootd
     - BRANCH=scitoken-stage-support
     - VERSION=5.8.3
     - git clone https://github.com/jafonso/xrootd -b ${BRANCH} xrootd-${VERSION}
