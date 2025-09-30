@@ -37,7 +37,11 @@ class StorageHandler;
 
 class ClusterMgr {
 public:
-  using cluster_rcu_mutex_t = eos::common::EpochRCUDomain;
+  // cluster_rcu_mutex_t is compatible with std::shared_mutex api
+  // and hence can be used with std::shared_lock and std::unique_lock
+  // It is possible to just change cluster_rcu_mutex_t to anything
+  // that conforms to std::shared_mutex api
+  using cluster_rcu_mutex_t = eos::common::RCUMutexT<>;
   struct ClusterDataPtr {
     ClusterDataPtr(ClusterData* data_,
                    cluster_rcu_mutex_t& rcu_domain_):
