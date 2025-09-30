@@ -123,8 +123,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     mMgmFsInterface->addStats("IdMap", vid.uid, vid.gid, 1);
     std::string env = "authz=" + eos::common::StringConversion::curl_default_escaped(authz);
     for (auto & [file_path, file_vid] : fileToVidMap) {
-      // TODO: Replace 'AOP_Update' by 'AOP_Stage' once this is implemented in XRootD
-      eos::common::Mapping::IdMap(client, env.c_str(), client->tident, file_vid, mMgmFsInterface->getTokenHandler(), AOP_Update, file_path);
+      eos::common::Mapping::IdMap(client, env.c_str(), client->tident, file_vid, mMgmFsInterface->getTokenHandler(), AOP_Stage, file_path);
     }
   } else {
     const char* tident = error.getErrUser();
@@ -687,8 +686,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     mMgmFsInterface->addStats("IdMap", vid.uid, vid.gid, 1);
     std::string env = "authz=" + eos::common::StringConversion::curl_default_escaped(authz);
     for (auto & [file_path, file_vid] : fileToVidMap) {
-      // TODO: Replace 'AOP_Stat' by 'AOP_Stage' once this is implemented in XRootD
-      eos::common::Mapping::IdMap(client, env.c_str(), client->tident, file_vid, mMgmFsInterface->getTokenHandler(), AOP_Stat, file_path);
+      eos::common::Mapping::IdMap(client, env.c_str(), client->tident, file_vid, mMgmFsInterface->getTokenHandler(), AOP_Stage, file_path);
     }
   } else  {
     const char* tident = error.getErrUser();
