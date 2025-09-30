@@ -97,7 +97,7 @@ TEST(RCUTests, BasicVersionCounter)
     for (int j = 0; j < 5000; ++j) {
       rcu_domain.rcu_write_lock();
       auto old_ptr = ptr.reset(new int(i++));
-      rcu_domain.rcu_synchronize();
+      rcu_domain.rcu_write_unlock();
       std::cout << ".";
       delete old_ptr;
       std::this_thread::sleep_for(std::chrono::nanoseconds(1));
