@@ -127,7 +127,6 @@ function disable_altxs_sync() {
   for fsid in $(eos -j fs ls | jq '.result[].id'); do
     eos fs config ${fsid} altxs_sync=0
     eos fs config ${fsid} altxs_sync_interval=0
-    # Put back teh default value
   done
 }
 

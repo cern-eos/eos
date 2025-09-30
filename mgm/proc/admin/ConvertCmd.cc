@@ -68,8 +68,6 @@ ConvertCmd::ProcessRequest() noexcept
     ConfigSubcmd(convert.config(), reply, json);
   } else if (subcmd == eos::console::ConvertProto::kFile) {
     FileSubcmd(convert.file(), reply, json);
-  } else if (subcmd == eos::console::ConvertProto::kRule) {
-    RuleSubcmd(convert.rule(), reply, json);
   } else if (subcmd == eos::console::ConvertProto::kList) {
     ListSubcmd(convert.list(), reply, json);
   } else if (subcmd == eos::console::ConvertProto::kClear) {
@@ -297,97 +295,6 @@ void ConvertCmd::FileSubcmd(const eos::console::ConvertProto_FileProto& file,
     jsonwriter->write(json, &out);
   } else {
     out << "Scheduled conversion job: " << conversion_id;
-  }
-
-  reply.set_std_out(out.str());
-}
-
-//------------------------------------------------------------------------------
-// Execute rule subcommand
-//------------------------------------------------------------------------------
-void ConvertCmd::RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
-                            eos::console::ReplyProto& reply,
-                            bool json)
-{
-  using eos::common::LayoutId;
-  auto conversion = rule.conversion();
-  XrdOucErrInfo errInfo;
-  std::ostringstream out;
-  std::ostringstream err;
-  std::string errmsg;
-  std::string path;
-  int retc = 0;
-  auto enforce_dir = XrdSfsFileExistence::XrdSfsFileExistIsDirectory;
-  path = PathFromIdentifierProto(rule.identifier(), errmsg);
-
-  if (!path.length()) {
-    reply.set_std_err(errmsg);
-    reply.set_retc(errno);
-    return;
-  }
-
-  if ((retc = CheckValidPath(path.c_str(), mVid, errmsg, enforce_dir))) {
-    reply.set_std_err(errmsg);
-    reply.set_retc(retc);
-    return;
-  }
-
-  if ((retc = CheckConversionProto(conversion, errmsg))) {
-    reply.set_std_err(errmsg);
-    reply.set_retc(retc);
-    return;
-  }
-
-  if (conversion.checksum().empty()) {
-    err << "error: no conversion checksum provided";
-    reply.set_std_err(err.str());
-    reply.set_retc(EINVAL);
-    return;
-  }
-
-  // Handle space default scenario
-  std::string space = conversion.space().empty() ?
-                      "default.0" : conversion.space();
-  // Handle checksum
-  LayoutId::eChecksum echecksum = static_cast<LayoutId::eChecksum>(
-                                    LayoutId::GetChecksumFromString(conversion.checksum()));
-  //------------------------------------------
-  // This part acts as a placeholder
-  //------------------------------------------
-  // Build conversion rule
-  std::string conversion_rule = BuildConversionId(conversion.layout(), echecksum,
-                                conversion.replica(), 0, space,
-                                conversion.placement());
-  size_t pos = conversion_rule.find(":");
-
-  if (pos != std::string::npos) {
-    conversion_rule.erase(0, pos + 1);
-  }
-
-  // Set rule as extended attribute
-  eos_info("msg=\"placing conversion rule\" path=%s conversion_rule=%s",
-           path.c_str(), conversion_rule.c_str());
-
-  if (gOFS->_attr_set(path.c_str(), errInfo, mVid, 0, "sys.eos.convert.rule",
-                      conversion_rule.c_str())) {
-    err << "error: could not set conversion rule '" << conversion_rule
-        << "' on path '" << path << "' -- emsg=" << errInfo.getErrText();
-    reply.set_std_err(err.str());
-    reply.set_retc(errInfo.getErrInfo());
-    return;
-  }
-
-  if (json) {
-    Json::Value json;
-    json["conversion_rule"] = conversion_rule;
-    json["path"] = path;
-    Json::StreamWriterBuilder builder;
-    std::unique_ptr<Json::StreamWriter> jsonwriter(
-      builder.newStreamWriter());
-    jsonwriter->write(json, &out);
-  } else {
-    out << "Set conversion rule '" << conversion_rule
-        << "' on path '" << path << "'";
   }
 
   reply.set_std_out(out.str());
