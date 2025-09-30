@@ -180,6 +180,7 @@ clone_docker:
     - ${PKG_MGR} builddep -y eos-xrootd.spec
     - rpmbuild -ba --without tests --with git eos-xrootd.spec --define "_smp_mflags -j4"
     - ${PKG_MGR} install -y ~/rpmbuild/RPMS/*/*.rpm
+    - cd ..
     # [END] Build custom eos-xrootd RPMS
     - rpmbuild --rebuild --with server --with eos_grpc_gateway --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | (ts 2> dev/null || true; tee)
     - ccache -s
