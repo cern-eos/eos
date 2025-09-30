@@ -33,6 +33,34 @@ namespace eos::common
 {
 
 constexpr size_t MAX_THREADS = 4096;
+// A simple ticket spin lock implementation
+
+class TicketLock {
+public:
+  void lock() noexcept {
+    auto my_ticket = ticket.fetch_add(1, std::memory_order_acquire);
+
+    uint32_t spin_count = 0;
+    while (serving.load(std::memory_order_acquire) != my_ticket) {
+      if (spin_count < 100) {
+        ++spin_count;
+      } else if (spin_count < 1000) {
+        if (++spin_count % 20 == 0) {
+          std::this_thread::yield();
+        }
+      } else {
+        std::this_thread::sleep_for(std::chrono::microseconds(10));
+      }
+    }
+  }
+
+  void unlock() noexcept {
+    serving.fetch_add(1, std::memory_order_release);
+  }
+private:
+  alignas(hardware_destructive_interference_size)  std::atomic<uint32_t> ticket {0};
+  alignas(hardware_destructive_interference_size) std::atomic<uint32_t> serving {0};
+};
 
 /*
   A Read Copy Update Like primitive that guarantees that is wait-free on the
