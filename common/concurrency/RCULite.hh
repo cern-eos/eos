@@ -23,8 +23,8 @@
 
 
 #pragma once
+#include "common/concurrency/AlignMacros.hh"
 #include "common/concurrency/ThreadEpochCounter.hh"
-
 #include <atomic>
 #include <thread>
 
@@ -62,7 +62,7 @@ private:
   alignas(hardware_destructive_interference_size) std::atomic<uint32_t> serving {0};
 };
 
-/*
+ /*
   A Read Copy Update Like primitive that guarantees that is wait-free on the
   readers and guarantees that all memory is protected from deletion. This
   is similar to folly's RCU implementation, but a bit simpler to accomodate
@@ -116,7 +116,7 @@ private:
 
  */
 
-template <typename ListT = ThreadEpochCounter, size_t MaxWriters = 1>
+template <typename ListT = ThreadEpochCounter>
 class RCUDomain
 {
 public:
@@ -163,51 +163,33 @@ public:
 
   inline void rcu_write_lock() noexcept
   {
-    uint64_t expected_writers = MaxWriters - 1;
-    uint64_t counter{0};
-
-    while (!mWritersCount.compare_exchange_strong(expected_writers,
-           expected_writers + 1,
-           std::memory_order_acq_rel)) {
-      if (expected_writers >= MaxWriters) {
-        expected_writers = MaxWriters - 1;
-      }
-
-      if (counter % 20 == 0) {
-        std::this_thread::yield();
-      }
-    }
+    mWriterLock.lock();
   }
 
   inline void rcu_synchronize() noexcept
   {
-    auto curr_epoch = mEpoch.load(std::memory_order_acquire);
-
-    while (!mEpoch.compare_exchange_strong(curr_epoch, curr_epoch + 1,
-                                           std::memory_order_acq_rel)) ;
-
-    int i = 0;
-
-    while (mReadersCounter.epochHasReaders(curr_epoch)) {
-      if (i++ % 20 == 0) {
+    auto old_epoch = mEpoch.fetch_add(1, std::memory_order_acq_rel);
+    uint32_t spin_count = 0;
+    while (mReadersCounter.epochHasReaders(old_epoch)) {
+      if (++spin_count % 1000 == 0) {
+        std::this_thread::sleep_for(std::chrono::microseconds(100));
+      } else if (spin_count % 20 == 0) {
         std::this_thread::yield();
       }
     }
-
-    mWritersCount.fetch_sub(1, std::memory_order_release);
   }
 
   inline void rcu_write_unlock() noexcept
   {
     rcu_synchronize();
+    mWriterLock.unlock();
   }
 
 
 private:
   ListT mReadersCounter;
   alignas(hardware_destructive_interference_size) std::atomic<uint64_t> mEpoch{0};
-  alignas(hardware_destructive_interference_size) std::atomic<uint64_t>
-  mWritersCount{0};
+  TicketLock mWriterLock;
 };
 
 template <typename RCUDomain>
@@ -263,8 +245,8 @@ struct ScopedRCUWrite {
   typename Ptr::pointer old_val;
 };
 
-using VersionedRCUDomain = RCUDomain<experimental::VersionEpochCounter<32>, 1>;
-using EpochRCUDomain = RCUDomain<ThreadEpochCounter, 1>;
+using VersionedRCUDomain = RCUDomain<experimental::VersionEpochCounter<32>>;
+using EpochRCUDomain = RCUDomain<ThreadEpochCounter>;
 
 
 template <typename CounterT = ThreadEpochCounter>
