@@ -166,6 +166,17 @@ public:
     mWriterLock.lock();
   }
 
+
+
+  inline void rcu_write_unlock() noexcept
+  {
+    rcu_synchronize();
+    mWriterLock.unlock();
+  }
+
+
+private:
+
   inline void rcu_synchronize() noexcept
   {
     auto old_epoch = mEpoch.fetch_add(1, std::memory_order_acq_rel);
@@ -179,14 +190,6 @@ public:
     }
   }
 
-  inline void rcu_write_unlock() noexcept
-  {
-    rcu_synchronize();
-    mWriterLock.unlock();
-  }
-
-
-private:
   ListT mReadersCounter;
   alignas(hardware_destructive_interference_size) std::atomic<uint64_t> mEpoch{0};
   TicketLock mWriterLock;
