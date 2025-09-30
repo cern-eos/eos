@@ -1132,6 +1132,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           if (val != nullptr) {
             JwtTokenPath = val;
           }
+
           Eroute.Say("=====> mgmofs.jwttokenpath : ", val);
         }
       }
@@ -1139,7 +1140,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       if (!strcmp("protowfusegrpctls", var)) {
         if ((!(val = Config.GetWord())) ||
             (strcmp("true", val) && strcmp("false", val) &&
-              strcmp("1", val) && strcmp("0", val))) {
+             strcmp("1", val) && strcmp("0", val))) {
           Eroute.Emsg("Config", "argument for protowfusegrpctls is invalid. "
                       "Must be <true>, <false>, <1> or <0>!");
         } else {
@@ -1231,6 +1232,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   } else {
     Eroute.Say("=====> mgmofs.protowfusegrpc : false");
   }
+
   if (protowfusegrpctls) {
     Eroute.Say("=====> mgmofs.protowfusegrpctls : true");
   } else {
@@ -2389,8 +2391,9 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("CommitFailedNamespace", 0, 0, 0);
   MgmStats.Add("CommitFailedParameters", 0, 0, 0);
   MgmStats.Add("CommitFailedUnlinked", 0, 0, 0);
-  MgmStats.Add("ConversionDone", 0, 0, 0);
-  MgmStats.Add("ConversionFailed", 0, 0, 0);
+  MgmStats.Add("ConversionJobStared", 0, 0, 0);
+  MgmStats.Add("ConversionJobFailed", 0, 0, 0);
+  MgmStats.Add("ConversionJobSuccessful", 0, 0, 0);
   MgmStats.Add("CopyStripe", 0, 0, 0);
   MgmStats.Add("Devices::Extract", 0, 0, 0);
   MgmStats.Add("Devices::Store", 0, 0, 0);
