@@ -1,0 +1,83 @@
+#
+# Simple EOS Docker file
+#
+# Version 0.3
+
+FROM gitlab-registry.cern.ch/linuxsupport/alma9-base
+LABEL maintainer="Elvin Sindrilaru, esindril@cern.ch, CERN 2024"
+
+ARG EOS_CODENAME
+
+# Expect to use eos-xrootd in running containers
+ENV PATH "/opt/eos/xrootd/bin:${PATH}"
+ENV LD_LIBRARY_PATH "/opt/eos/xrootd/lib64:${LD_LIBRARY_PATH}"
+
+# Add extra repositories
+COPY eos-docker/el-9/*.repo /etc/yum.repos.d/
+
+# Add helper scripts
+COPY eos-docker/image_scripts/*.sh /
+
+# Add configuration files for EOS instance
+COPY eos-docker/eos.sysconfig /etc/sysconfig/eos
+COPY eos-docker/xrd.cf.* eos-docker/krb5.conf /etc/
+COPY eos-docker/fuse.eosdockertest.conf /etc/eos/fuse.eosdockertest.conf
+COPY eos-docker/fuse.conf /etc/eos/fuse.mount-1.conf
+COPY eos-docker/fuse.conf /etc/eos/fuse.mount-2.conf
+
+# Add configuration files for forwarding proxy server
+COPY eos-docker/xrootd.conf /etc/tmpfiles.d/
+COPY eos-docker/xrootd-fwd-proxy.cfg /etc/xrootd/
+
+# Set correct path for the dependency repository based on the EOS version
+# which is being built
+RUN sed -i "s/__EOS_CODENAME__/${EOS_CODENAME}/g" /etc/yum.repos.d/eos.repo
+
+RUN mkdir /var/tmp/eosxd-cache/ /var/tmp/eosxd-journal/
+RUN adduser eos-user && adduser eosnobody
+
+# Docker will aggressively cache the following command, but this is fine, since
+# these packages are not updated often.
+RUN dnf -y --nogpg install epel-release \
+    && dnf -y --nogpg install at bzip2 cmake createrepo gcc-c++ gdb git \
+       heimdal-server heimdal-workstation initscripts krb5-server \
+       krb5-workstation less libacl-devel libgfortran libtool parallel \
+       perl-Test-Harness python3 python3-pip redis rpm-build sudo \
+       dnf-plugins-core davix openssl rsync voms-clients-cpp sqlite \
+# Used by eosclient-tests
+       libtool autoconf automake python3-setuptools \
+    && dnf clean all
+
+# Install new EOS from created repo - the ADD command will reset the docker cache,
+# and any commands after that point will be uncached.
+ENV EOSREPODIR="/repo/eos"
+ADD el-9_artifacts/RPMS/ ${EOSREPODIR}
+
+# Special packages, must be installed un-cached.
+RUN createrepo ${EOSREPODIR} \
+    && echo -e "[eos-artifacts]\nname=EOS artifacts\nbaseurl=file://${EOSREPODIR}\ngpgcheck=0\nenabled=1\npriority=1" >> /etc/yum.repos.d/eos.repo \
+    && dnf -y --nogpg install eos-server eos-client eos-archive eos-fusex eos-quarkdb \
+                              eos-ns-inspect eos-test eos-testkeytab eos-grpc-gateway \
+    && dnf clean all
+
+# Create macaroon secret and set sss keytab permissions to400
+RUN openssl rand -base64 -out /etc/eos.macaroon.secret 64 \
+    && chown 2:2 /etc/eos.macaroon.secret \
+    && chmod 400 /etc/eos.keytab /etc/eos.client.keytab /etc/eos.macaroon.secret
+
+# Generate only a common root CA certificate
+RUN /mkcert-ssl.sh -s
+
+# Replace eos-xrootd RPMS
+ARG CACHE_BUST=1
+ARG BRANCH=scitoken-stage-support
+ARG VERSION=5.8.3
+RUN git clone https://github.com/jafonso/xrootd -b ${BRANCH} xrootd-${VERSION}
+WORKDIR xrootd-${VERSION}
+RUN rpmdev-setuptree
+RUN git archive --prefix xrootd-${VERSION}/ -o $(rpm -E '%{_sourcedir}')/xrootd-${VERSION}.tar.gz HEAD
+RUN dnf builddep -y eos-xrootd.spec
+RUN rpmbuild -ba --without tests --with git eos-xrootd.spec --define "_smp_mflags -j4"
+RUN dnf install -y ~/rpmbuild/RPMS/*/*.rpm
+
+ENTRYPOINT ["/bin/bash"]
