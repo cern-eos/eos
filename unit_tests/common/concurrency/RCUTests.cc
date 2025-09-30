@@ -26,7 +26,7 @@ TEST(RCUTests, Basic)
 {
   using namespace eos::common;
   // Test that we can create an RCU object
-  RCUDomain<ThreadEpochCounter, 1> rcu_domain;
+  RCUDomain<ThreadEpochCounter> rcu_domain;
   atomic_unique_ptr<int> ptr(new int(0));
   int i{0};
   // Test that we can create an RCU read lock
