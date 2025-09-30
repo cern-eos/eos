@@ -184,17 +184,21 @@ static void BM_SharedMutexRWLock(benchmark::State& state)
 
 static void BM_RCUVersionedReadWriteLock(benchmark::State& state)
 {
-  eos::common::VersionedRCUDomain rcu_domain;
+  eos::common::RCUMutexT<> rcu_mutex;
   eos::common::atomic_unique_ptr<std::string> p(new std::string("foobar"));
   std::string *x;
-  auto writer_fn = [&p, &rcu_domain] {
+  auto writer_fn = [&p, &rcu_mutex] {
     for (int i=0; i < 10000; ++i) {
-      rcu_domain.rcu_write_lock();
-      auto x = p.reset(new std::string("foobar2"));
-      rcu_domain.rcu_synchronize();
+
+      // First do a write lock to swap the pointer
+      std::string* x;
+      {
+        std::unique_lock lk(rcu_mutex);
+        x = p.reset(new std::string("foobar2"));
+      }
       delete x;
 
-      eos::common::ScopedRCUWrite w(rcu_domain, p,
+      eos::common::ScopedRCUWrite w(rcu_mutex, p,
                                     new std::string("foobar" + std::to_string(i)));
     }
   };
@@ -205,7 +209,7 @@ static void BM_RCUVersionedReadWriteLock(benchmark::State& state)
   }
 
   for (auto _ : state) {
-    eos::common::RCUReadLock rlock(rcu_domain);
+    std::shared_lock rlock(rcu_mutex);
     benchmark::DoNotOptimize(x=p.get());
   }
 
