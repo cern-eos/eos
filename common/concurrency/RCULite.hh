@@ -298,5 +298,21 @@ public:
     private:
     RCUMutexT<>& rcu_mutex;
     typename Ptr::pointer old_val;
-  };
+};
+
+  // Specialization for RCUMutexT, in the future replace these calls with
+  // std::shared_lock where possible. This is just for backward compatibility
+template <>
+class RCUReadLock <RCUMutexT<>> {
+public:
+  RCUReadLock(RCUMutexT<>& _rcu_mutex) : rcu_mutex(_rcu_mutex) {
+    rcu_mutex.lock_shared();
+  }
+
+  ~RCUReadLock() {
+    rcu_mutex.unlock_shared();
+  }
+private:
+  RCUMutexT<>& rcu_mutex;
+};
 } // eos::common
