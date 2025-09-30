@@ -860,7 +860,7 @@ LongLongAggregator::aggregateNodes(
 //----------------------------------------------------------------------------
 FsSpace::FsSpace(const char* name)
   : BaseView(common::SharedHashLocator::makeForSpace(name)),
-    mFsBalancer(nullptr), mConverter(nullptr), mGroupBalancer(nullptr),
+    mFsBalancer(nullptr), mGroupBalancer(nullptr),
     mGeoBalancer(nullptr), mGroupDrainer(nullptr)
 {
   mName = name;
@@ -1012,12 +1012,12 @@ FsSpace::FsSpace(const char* name)
 
     // Disable lru by default
     if (GetConfigMember("lru").empty()) {
-      SetConfigMember("converter", "off");
+      SetConfigMember("lru", "off");
     }
 
     // Set one week lru interval by default
     if (GetConfigMember("lru.interval") == "604800") {
-      SetConfigMember("converter.ntx", "2");
+      SetConfigMember("lru.interval", "604800");
     }
 
     // Set the wfe off by default
@@ -1757,9 +1757,6 @@ FsView::GetSpaceFormat(std::string option)
     format += "member=cfg.quota:width=6:format=s|";
     format += "member=cfg.balancer:width=10:format=s:tag=balancing|";
     format += "member=cfg.balancer.threshold:width=11:format=+l:tag=threshold|";
-    format += "member=cfg.converter:width=11:format=s:tag=converter|";
-    format += "member=cfg.converter.ntx:width=6:format=+l:tag=ntx|";
-    format += "member=cfg.stat.converter.active:width=8:format=+l:tag=active|";
     format += "member=cfg.wfe:width=11:format=s:tag=wfe|";
     format += "member=cfg.wfe.ntx:width=6:format=+l:tag=ntx|";
     format += "member=cfg.stat.wfe.active:width=8:format=+l:tag=active|";
