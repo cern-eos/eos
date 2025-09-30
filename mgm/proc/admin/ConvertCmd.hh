@@ -87,16 +87,6 @@ private:
                   eos::console::ReplyProto& reply, bool json = false);
 
   //----------------------------------------------------------------------------
-  //! Execute rule subcommand
-  //!
-  //! @param rule rule subcommand proto object
-  //! @param reply reply proto object
-  //! @param json flag to print output in JSON format
-  //----------------------------------------------------------------------------
-  void RuleSubcmd(const eos::console::ConvertProto_RuleProto& rule,
-                  eos::console::ReplyProto& reply, bool json = false);
-
-  //----------------------------------------------------------------------------
   //! List jobs subcommand
   //!
   //! @param list list subcommand proto object
