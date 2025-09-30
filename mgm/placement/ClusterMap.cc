@@ -42,11 +42,15 @@ ClusterMgr::getClusterData()
 void
 ClusterMgr::addClusterData(ClusterData&& data)
 {
-  cluster_mgr_rcu.rcu_write_lock();
-  auto old_data = mClusterData.reset(new ClusterData(std::move(data)));
-  mCurrentEpoch.fetch_add(1, std::memory_order_release);
-  cluster_mgr_rcu.rcu_synchronize();
-  delete old_data;
+  // mClusterData is an atomic unique ptr, so reset returns a ptr
+  // whose deletion we need to do outside the lock
+  ClusterData* old_ptr {nullptr};
+  {
+    std::unique_lock l(cluster_mgr_rcu);
+    old_ptr = mClusterData.reset(new ClusterData(std::move(data)));
+    mCurrentEpoch.fetch_add(1, std::memory_order_release);
+  }
+  delete old_ptr;
 }
 
 
