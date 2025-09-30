@@ -1264,6 +1264,11 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io,
 
   if (comp_file_xs) {
     comp_file_xs->Reset();
+  } else {
+    eos_static_warning("msg=\"file has no checksum type xattr\", path=\"%s\"",
+                       file_path.c_str());
+    //@todo(esindril) if this happens we should get the checksum type
+    // from the Fmd information attached also as an xattr.
   }
 
   int64_t nread = 0;
