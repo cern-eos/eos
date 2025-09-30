@@ -572,8 +572,6 @@ public:
   static std::string gConfigQueuePrefix; ///<  Configuration queue prefix
   //! File system balancer
   std::unique_ptr<FsBalancer> mFsBalancer;
-  //! Threaded object running layout conversion jobs
-  Converter* mConverter;
   //! Threaded object running group balancing
   GroupBalancer* mGroupBalancer;
   //! Threaded object running geotag balancing
