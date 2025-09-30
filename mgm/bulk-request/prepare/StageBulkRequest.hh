@@ -36,12 +36,14 @@ class StageBulkRequest : public BulkRequest
 {
 public:
   StageBulkRequest(const std::string& id,
-                   const common::VirtualIdentity& issuerVid);
+                   const common::VirtualIdentity& issuerVid)
+    : BulkRequest(id), mIssuerVid(issuerVid), mCreationTime(::time(nullptr)) {}
   StageBulkRequest(const std::string& id,
-                   const common::VirtualIdentity& issuerVid, const time_t& creationTime);
-  BulkRequest::Type getType() const override;
-  const common::VirtualIdentity& getIssuerVid() const;
-  time_t getCreationTime() const;
+                   const common::VirtualIdentity& issuerVid, const time_t& creationTime)
+    : BulkRequest(id), mIssuerVid(issuerVid), mCreationTime(creationTime) {}
+  BulkRequest::Type getType() const override { return BulkRequest::Type::PREPARE_STAGE; }
+  const common::VirtualIdentity& getIssuerVid() const { return mIssuerVid; }
+  time_t getCreationTime() const { return mCreationTime; }
 private:
   //The virtual identity of the person who issued this bulk-request
   const eos::common::VirtualIdentity mIssuerVid;

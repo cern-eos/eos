@@ -35,11 +35,8 @@ EOSBULKNAMESPACE_BEGIN
 class PersistencyException : public common::Exception
 {
 public:
-  /**
-   * Constructor of the PersistencyException
-   * @param exceptionMsg the error message associated to this exception
-   */
-  PersistencyException(const std::string& exceptionMsg);
+  PersistencyException(const std::string& exceptionMsg)
+    : common::Exception(exceptionMsg) {}
 
 };
 

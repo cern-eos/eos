@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/http/rest-api/exception/ObjectNotFoundException.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "TapeRestApiBusiness.hh"
 #include "mgm/http/rest-api/model/tape/common/FilesContainer.hh"
 #include "mgm/bulk-request/utils/PrepareArgumentsWrapper.hh"
@@ -29,9 +29,7 @@
 #include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/business/BulkRequestBusiness.hh"
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
-#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
-#include "mgm/http/rest-api/exception/tape/FileDoesNotBelongToBulkRequestException.hh"
-#include "mgm/http/rest-api/exception/ForbiddenException.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/Stat.hh"
 

@@ -23,9 +23,8 @@
 #include "DeleteStageBulkRequest.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
-#include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
-#include "mgm/http/rest-api/exception/ObjectNotFoundException.hh"
-#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
+#include "mgm/http/rest-api/Constants.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -36,17 +35,17 @@ common::HttpResponse* DeleteStageBulkRequest::run(common::HttpRequest* request,
   std::map<std::string, std::string> requestParameters;
   //Get the id of the request from the URL
   parser.matchesAndExtractParameters(this->mAccessURLPattern, requestParameters);
-  std::string requestId = requestParameters[URLParametersConstants::ID];
+  std::string requestId = requestParameters[URLPARAM_ID];
 
   try {
     mTapeRestApiBusiness->deleteStageBulkRequest(requestId, vid);
   } catch (const ObjectNotFoundException& ex) {
-    return mResponseFactory.createNotFoundError().getHttpResponse();
+    return mResponseFactory.NotFound().getHttpResponse();
   } catch (const TapeRestApiBusinessException& ex) {
-    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+    return mResponseFactory.InternalError(ex.what()).getHttpResponse();
   }
 
-  return mResponseFactory.createOkEmptyResponse().getHttpResponse();
+  return mResponseFactory.OkEmpty().getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END

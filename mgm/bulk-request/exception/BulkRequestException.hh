@@ -29,17 +29,9 @@
 class BulkRequestException : public std::exception
 {
 public:
-  /**
-   * Constructor of the PersistencyException
-   * @param exceptionMsg the error message associated to this exception
-   */
-  BulkRequestException(const std::string& exceptionMsg);
-  /**
-   * Returns the message of this exception
-   * @return the message of this exception
-   */
-  virtual const char*  what() const noexcept;
-
+  BulkRequestException(const std::string& exceptionMsg)
+    : std::exception(), mErrorMsg(exceptionMsg) {}
+  virtual const char* what() const noexcept { return mErrorMsg.c_str(); }
 private:
   std::string mErrorMsg;
 };
