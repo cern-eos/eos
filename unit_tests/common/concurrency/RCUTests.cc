@@ -112,6 +112,6 @@ TEST(RCUTests, BasicVersionCounter)
   for (int i = 0; i < 100; ++i) {
     readers[i].join();
   }
-
+  std::cout << "Joining writer" << std::endl;
   writer.join();
 } // namespace eos::common
