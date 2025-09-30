@@ -167,6 +167,20 @@ clone_docker:
       else
         source gitlab-ci/setup_ccache.sh;
       fi
+    # [BEGIN] Build custom eos-xrootd RPMS
+    - ${PKG_MGR} install -y dnf-plugins-core epel-release krb5-workstation rpmdevtools sudo git
+    - groupadd xrootd && useradd -g xrootd -m xrootd && echo "xrootd ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
+    - su - xrootd
+    - BRANCH=scitoken-stage-support
+    - VERSION=5.8.3
+    - git clone https://github.com/jafonso/xrootd -b ${BRANCH} xrootd-${VERSION}
+    - cd xrootd-${VERSION}
+    - rpmdev-setuptree
+    - git archive --prefix xrootd-${VERSION}/ -o $(rpm -E '%{_sourcedir}')/xrootd-${VERSION}.tar.gz HEAD
+    - ${PKG_MGR} builddep -y eos-xrootd.spec
+    - rpmbuild -ba --without tests --with git eos-xrootd.spec --define "_smp_mflags -j4"
+    - ${PKG_MGR} install -y ~/rpmbuild/RPMS/*/*.rpm
+    # [END] Build custom eos-xrootd RPMS
     - rpmbuild --rebuild --with server --with eos_grpc_gateway --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | (ts 2> dev/null || true; tee)
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
