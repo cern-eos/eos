@@ -120,7 +120,7 @@ template <typename ListT = ThreadEpochCounter>
 class RCUDomain
 {
 public:
-
+  using is_state_less = detail::is_state_less<ListT>;
   RCUDomain() = default;
 
   inline uint64_t get_current_epoch(std::memory_order order
@@ -219,7 +219,7 @@ struct RCUWriteLock {
 
   ~RCUWriteLock()
   {
-    rcu_domain.rcu_synchronize();
+    rcu_domain.rcu_write_unlock();
   }
 
   RCUDomain& rcu_domain;
@@ -248,12 +248,52 @@ struct ScopedRCUWrite {
 using VersionedRCUDomain = RCUDomain<experimental::VersionEpochCounter<32>>;
 using EpochRCUDomain = RCUDomain<ThreadEpochCounter>;
 
-
-template <typename CounterT = ThreadEpochCounter>
+// An adapter to use RCUDomain as a std::shared_mutex like object
+template <typename RCUDomainT = EpochRCUDomain>
 class RCUMutexT {
-  static_assert(detail::is_state_less_v<CounterT>,
+  static_assert(detail::is_state_less_v<RCUDomainT>,
                 "RCUMutex needs to be stateless to confirm to std::shared_mutex api");
 public:
   // implement here the std::shared_lock and unique_lock api
+  void lock_shared() {
+    rcu_domain.rcu_read_lock();
+  }
+
+  void unlock_shared() {
+    rcu_domain.rcu_read_unlock();
+  }
+
+  void lock() {
+    rcu_domain.rcu_write_lock();
+  }
+
+  void unlock() {
+    rcu_domain.rcu_write_unlock();
+  }
+private:
+  RCUDomainT rcu_domain;
 };
+
+// Specialization of ScopedRCUWrite for RCUMutexT which is
+// compatible with std::shared_mutex/unique/shared_lock apis
+template <typename Ptr>
+class ScopedRCUWrite<RCUMutexT<>, Ptr> {
+public:
+    ScopedRCUWrite(RCUMutexT<>& _rcu_mutex,
+                   Ptr& ptr,
+                   typename Ptr::pointer new_val) : rcu_mutex(_rcu_mutex)
+    {
+      rcu_mutex.lock();
+      old_val = ptr.reset(new_val);
+    }
+
+  ~ScopedRCUWrite()
+    {
+      rcu_mutex.unlock();
+      delete old_val;
+    }
+    private:
+    RCUMutexT<>& rcu_mutex;
+    typename Ptr::pointer old_val;
+  };
 } // eos::common
