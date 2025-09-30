@@ -27,7 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/action/Action.hh"
 #include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
-#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/response/RestResponseFactory.hh"
 #include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -43,7 +43,7 @@ public:
                                     const common::VirtualIdentity* vid) override = 0;
 protected:
   std::shared_ptr<ITapeRestApiBusiness> mTapeRestApiBusiness;
-  TapeRestApiResponseFactory mResponseFactory;
+  RestResponseFactory mResponseFactory;
 };
 
 EOSMGMRESTNAMESPACE_END

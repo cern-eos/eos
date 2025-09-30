@@ -102,7 +102,9 @@ TEST_F(RestApiTest, RestHandlerHandleRequestResourceAndVersionExist)
     createHttpRequestWithEmptyBody("/rest-api-entry-point/v1/stage/"));
   std::unique_ptr<eos::common::HttpResponse> response(restHandler->handleRequest(
         request.get(), &vid));
-  //ASSERT_EQ(response->)
+  // Posting to stage without a valid body should yield a bad request
+  ASSERT_EQ(eos::common::HttpResponse::ResponseCodes::BAD_REQUEST,
+            response->GetResponseCode());
 }
 
 TEST_F(RestApiTest, URLParserTestMatchesBegin)

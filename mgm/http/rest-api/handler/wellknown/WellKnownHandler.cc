@@ -22,11 +22,13 @@
  ************************************************************************/
 #include "WellKnownHandler.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/http/rest-api/action/wellknown/tape/GetTapeRestApiWellKnown.hh"
-#include "mgm/http/rest-api/controllers/wellknown/factories/WellKnownControllerFactory.hh"
-#include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
-#include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
-#include "mgm/http/rest-api/json/wellknown/tape/jsonifiers/GetTapeWellKnownModelJsonifier.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.hh"
+#include "mgm/http/rest-api/json/tape/TapeJsonifiers.hh"
+#include "mgm/http/rest-api/response/RestResponseFactory.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
+#include "mgm/http/rest-api/response/ErrorHandling.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -34,7 +36,7 @@ WellKnownHandler::WellKnownHandler(const std::string& accessURL,
                                    const RestApiManager* restApiManager) : RestHandler(accessURL),
   mRestApiManager(restApiManager)
 {
-  initializeControllers();
+  initializeRoutes();
 }
 
 common::HttpResponse* WellKnownHandler::handleRequest(common::HttpRequest*
@@ -43,38 +45,40 @@ common::HttpResponse* WellKnownHandler::handleRequest(common::HttpRequest*
   std::string url = request->GetUrl();
 
   try {
-    Controller* controller = mControllerManager.getController(url);
-    return controller->handleRequest(request, vid);
+    return mRouter.dispatch(request, vid);
   } catch (const NotFoundException& ex) {
     eos_static_info(ex.what());
-    return mWellknownResponseFactory.createError(
-             common::HttpResponse::NOT_FOUND).getHttpResponse();
+    return mWellknownResponseFactory.NotFound().getHttpResponse();
   } catch (const MethodNotAllowedException& ex) {
     eos_static_info(ex.what());
-    return mWellknownResponseFactory.createError(
-             common::HttpResponse::METHOD_NOT_ALLOWED).getHttpResponse();
+    return mWellknownResponseFactory.MethodNotAllowed(ex.what()).getHttpResponse();
   } catch (...) {
     std::string errorMsg = "Unknown exception occured";
     eos_static_err(errorMsg.c_str());
-    return mWellknownResponseFactory.createError(
-             common::HttpResponse::INTERNAL_SERVER_ERROR).getHttpResponse();
+    return mWellknownResponseFactory.InternalError(errorMsg).getHttpResponse();
   }
 }
 
-void WellKnownHandler::initializeControllers()
+void WellKnownHandler::initializeRoutes()
 {
-  std::unique_ptr<Controller> wellKnownController =
-    WellKnownControllerFactory::getWellKnownController(mEntryPointURL +
-        "wlcg-tape-rest-api");
-  std::unique_ptr<RestHandler> restHandler = mRestApiManager->getRestHandler(
-        mRestApiManager->getTapeRestApiConfig()->getAccessURL());
-  std::unique_ptr<TapeRestHandler> tapeRestHandler(static_cast<TapeRestHandler*>
-      (restHandler.release()));
-  wellKnownController->addAction(std::make_unique<GetTapeRestApiWellKnown>
-                                 (wellKnownController->getAccessURL(), common::HttpHandler::Methods::GET,
-                                  std::move(tapeRestHandler),
-                                  std::make_shared<GetTapeWellKnownModelJsonifier>()));
-  mControllerManager.addController(std::move(wellKnownController));
+  const std::string accessURL = mEntryPointURL + "wlcg-tape-rest-api";
+  mRouter.add(accessURL, common::HttpHandler::Methods::GET,
+              [this](auto* request, auto* vid) -> common::HttpResponse* {
+                RestResponseFactory respFactory;
+                std::unique_ptr<RestHandler> restHandler = mRestApiManager->getRestHandler(
+                      mRestApiManager->getTapeRestApiConfig()->getAccessURL());
+                std::unique_ptr<TapeRestHandler> tapeRestHandler(static_cast<TapeRestHandler*>
+                    (restHandler.release()));
+                const TapeWellKnownInfos* tapeWellKnownInfos = tapeRestHandler->getWellKnownInfos();
+                std::string errorMsg;
+                if (!tapeRestHandler->isRestRequest(tapeRestHandler->getEntryPointURL(), errorMsg)) {
+                  return respFactory.InternalError(errorMsg).getHttpResponse();
+                }
+                std::shared_ptr<GetTapeWellKnownModel> model =
+                  std::make_shared<GetTapeWellKnownModel>(tapeWellKnownInfos);
+                model->setJsonifier(std::make_shared<GetTapeWellKnownModelJsonifier>());
+                return respFactory.Ok(model).getHttpResponse();
+              });
 }
 
 EOSMGMRESTNAMESPACE_END
