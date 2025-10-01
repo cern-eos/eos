@@ -290,7 +290,7 @@ Egroup::CachedEntry Egroup::query(const std::string& username,
   Status status = isMemberUncached(username, egroupname);
   bool isMember = (status == Status::kMember);
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
-  uint64_t expiration = common::SteadyClock::secondsSinceEpoch(
+  uint64_t expiration = common::SteadyClock::SecondsSinceEpoch(
                           now + kCacheDuration).count();
   eos_static_info("member=%s user=\"%s\" e-group=\"%s\" expiration=%lu",
                   common::boolToString(isMember).c_str(), username.c_str(),
@@ -372,7 +372,7 @@ Egroup::CachedEntry Egroup::refresh(const std::string& username,
 
   bool isMember = (status == Status::kMember);
   std::chrono::steady_clock::time_point now = common::SteadyClock::now(clock);
-  uint64_t expiration = common::SteadyClock::secondsSinceEpoch(
+  uint64_t expiration = common::SteadyClock::SecondsSinceEpoch(
                           now + kCacheDuration).count();
   eos_static_info("member=%s user=\"%s\" e-group=\"%s\" expiration=%lu",
                   common::boolToString(isMember).c_str(), username.c_str(),
