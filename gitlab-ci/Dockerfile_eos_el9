@@ -69,6 +69,7 @@ RUN openssl rand -base64 -out /etc/eos.macaroon.secret 64 \
 RUN /mkcert-ssl.sh -s
 
 # Replace eos-xrootd RPMS
+RUN dnf install -y dnf-plugins-core epel-release rpmdevtools git
 ARG CACHE_BUST=1
 ARG BRANCH=scitoken-stage-support
 ARG VERSION=5.8.3
