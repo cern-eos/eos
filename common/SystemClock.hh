@@ -100,6 +100,9 @@ public:
   }
 
 private:
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   bool mFake;
   mutable std::mutex mtx;
   std::chrono::system_clock::time_point fakeTimepoint;
