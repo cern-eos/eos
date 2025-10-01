@@ -423,6 +423,8 @@ HttpServer::XrdHttpHandler(std::string& method,
   int errc = 0;
   std::string usr_name = eos::common::Mapping::UidToUserName(vid->uid, errc);
   vid->name = (errc ? std::to_string(vid->uid).c_str() : usr_name.c_str());
+  // Add the path to the vid's scope member for token ACL path validation
+  vid->scope = uri;
   eos_static_info("request=%s client-real-ip=%s client-real-host=%s "
                   "vid.name=%s vid.uid=%s vid.gid=%s vid.host=%s "
                   "vid.dn=%s vid.tident=%s",
