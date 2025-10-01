@@ -64,11 +64,19 @@ public:
 
 public:
   bool mEnforced {false};
-  time_t mKeepTime {0};
+  time_t mKeepTimeSec {0};
   double mSpaceKeepRatio {0.0};
+  //! Flag if we are in dry-run mode or not
+  bool mDryRun {false};
+  //! Recycle thread poll interval in seconds, default 30 min
+  std::chrono::seconds mPollInterval {30 * 60};
+  //! How often the collection of entries is happening, default 1 day
+  std::chrono::seconds mCollectInterval {24 * 3600};
+  //! How often the removal of entries is happening, default 1 hour
+  std::chrono::seconds mRemoveInterval {3600};
   eos::IContainerMD::ctime_t mRecycleDirCtime {0, 0};
-  std::atomic<unsigned long long> mLowSpaceWatermark {0ull};
-  std::atomic<unsigned long long> mLowInodeWatermark {0ull};
+  unsigned long long mLowSpaceWatermark {0ull};
+  unsigned long long mLowInodeWatermark {0ull};
 
   //----------------------------------------------------------------------------
   //! Get quota statistics for the recycle bin
@@ -76,7 +84,11 @@ public:
   //! return map storing the quota information or empty if not quota
   //----------------------------------------------------------------------------
   virtual std::map<int, unsigned long long> GetQuotaStats();
+
+  //----------------------------------------------------------------------------
+  // Dump current active recycle policy
+  //----------------------------------------------------------------------------
+  std::string Dump() const;
 };
 
 EOSMGMNAMESPACE_END
-
