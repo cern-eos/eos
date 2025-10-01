@@ -25,6 +25,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/recycle/RecyclePolicy.hh"
 #include "common/AssistedThread.hh"
+#include "common/SystemClock.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <sys/types.h>
 
@@ -55,11 +56,7 @@ public:
   //----------------------------------------------------------------------------
   //! Default constructor
   //----------------------------------------------------------------------------
-  Recycle() :
-    mPath(""), mRecycleDir(""), mRecyclePath(""),
-    mOwnerUid(DAEMONUID), mOwnerGid(DAEMONGID), mId(0), mWakeUp(false),
-    mSnooze(gRecyclingPollTime)
-  {}
+  Recycle(bool fake_clock = false);
 
   //----------------------------------------------------------------------------
   //! Constructor
@@ -71,11 +68,7 @@ public:
   //----------------------------------------------------------------------------
   Recycle(const char* path, const char* recycledir,
           eos::common::VirtualIdentity* vid, uid_t ownerUid,
-          gid_t ownerGid, unsigned long long id) :
-    mPath(path), mRecycleDir(recycledir), mRecyclePath(""),
-    mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id), mWakeUp(false),
-    mSnooze(gRecyclingPollTime)
-  {}
+          gid_t ownerGid, unsigned long long id, bool fake_clock = false);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -236,15 +229,22 @@ public:
   static std::string gRecyclingAttribute;
   //! Attribute key defining the max. time a file stays in the garbage directory
   static std::string gRecyclingTimeAttribute;
+  //! Attribute key defining the recycle poll interval in seconds
+  static std::string gRecyclingPollAttribute;
   //! Ratio from 0 ..1.0 defining a threshold when the recycle bin is not yet
   //! cleaned even if files have expired their lifetime attributel.
   static std::string gRecyclingKeepRatio;
   //! Postfix which identifies a name in the garbage bin as a bulk deletion of a directory
   static std::string gRecyclingPostFix;
+  //! Attribute defining how often the collection of entries is attempted
+  static std::string gRecyclingCollectInterval;
+  //! Attribute defining how often the removeal of collected entries is attempted
+  static std::string gRecyclingRemoveInterval;
+  //! Attribute key defining whether the recycler runs in dry-run mode or not
+  static std::string gRecyclingDryRunAttribute;
   //! Attribute key storing the recycling key of the version directory
   //! belonging to a given file
   static std::string gRecyclingVersionKey;
-  static int gRecyclingPollTime; ///< Poll interval inside the garbage bin
   static eos::common::VirtualIdentity mRootVid;
 
 private:
@@ -260,9 +260,12 @@ public:
   gid_t mOwnerGid;
   unsigned long long mId;
   std::atomic<bool> mWakeUp;
-  time_t mSnooze;
   RecyclePolicy mPolicy;
-  std::multimap<time_t, std::string> mPendingDeletions;
+  std::atomic<uint64_t> mPollIntervalSec;
+  //! Map holding the container identifier and the full path of the directoies
+  //! to be deleted.
+  std::map<eos::IContainerMD::id_t, std::string> mPendingDeletions;
+  eos::common::SystemClock mClock;
 
   //----------------------------------------------------------------------------
   //! Handle symlink or symlink like file names. Three scenarios:
@@ -312,7 +315,7 @@ public:
   //!
   //! return 0 (SFS_OK) if successful, otherwise SFS_ERROR
   //----------------------------------------------------------------------------
-  int RemoveFile(std::string_view fullpath);
+  // int RemoveFile(std::string_view fullpath);
 
   //----------------------------------------------------------------------------
   //! Remove all the entries in the given subtree
@@ -322,21 +325,12 @@ public:
   void RemoveSubtree(std::string_view fullpath);
 
   //----------------------------------------------------------------------------
-  //! Check if keep ratio enabled and the current quota accounting is below
-  //! the specified threshold.
+  //! Get cut-off date based on the configured retention policy with respect
+  //! to the current timestamp.
   //!
-  //! @return true if keep ratio enabled and b
+  //! @return a string representing a date <year>/<month>/day numeric format
   //----------------------------------------------------------------------------
-  bool IsWithinLimits();
-
-  //----------------------------------------------------------------------------
-  //! Update snooz time for the recycler thread. This should match the time
-  //! between now and the expiration date of the oldest entry
-  //!
-  //! @param oldest_ts timestamp of the oldest entry in the recycle bin
-  //----------------------------------------------------------------------------
-  void UpdateSnooze(time_t oldest_ts = 0);
-
+  std::string GetCutOffDate();
 };
 
 EOSMGMNAMESPACE_END

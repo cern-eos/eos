@@ -1131,7 +1131,7 @@ ScanDir::DoRescan(std::chrono::seconds last_scan, bool rain_ts) const
   // Used only during testing
   if (mClock.IsFake()) {
     steady_clock::time_point old_ts(last_scan);
-    steady_clock::time_point now_ts(mClock.getTime());
+    steady_clock::time_point now_ts(mClock.GetTime());
     elapsed_sec = duration_cast<seconds>(now_ts - old_ts).count();
   } else {
     system_clock::time_point old_ts(last_scan);
@@ -1975,7 +1975,7 @@ ScanDir::GetTimestampSmearedSec(bool rain_ts) const
   uint64_t ts_sec;
 
   if (mClock.IsFake()) {
-    ts_sec = duration_cast<seconds>(mClock.getTime().time_since_epoch()).count();
+    ts_sec = duration_cast<seconds>(mClock.GetTime().time_since_epoch()).count();
   } else {
     ts_sec = duration_cast<seconds>(system_clock::now().time_since_epoch()).count();
   }

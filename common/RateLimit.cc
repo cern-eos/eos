@@ -46,7 +46,7 @@ RequestRateLimit::GetDelay()
   std::lock_guard<std::mutex> lock(mMutex);
   // Compute expire timestamp which is one second back in time
   uint64_t now_us = duration_cast<microseconds>
-                    (mClock.getTime().time_since_epoch()).count();
+                    (mClock.GetTime().time_since_epoch()).count();
   // Round to the beginning of the interval
   now_us = (now_us / mRateIntervalUs) * mRateIntervalUs;
   uint64_t expire_us = now_us - 1000000;
