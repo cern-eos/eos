@@ -37,7 +37,7 @@ int64_t GetTimestampSec(eos::common::SteadyClock& clock)
 {
   using namespace std::chrono;
   return duration_cast<seconds>
-         (clock.getTime().time_since_epoch()).count();
+         (clock.GetTime().time_since_epoch()).count();
 }
 
 //------------------------------------------------------------------------------
@@ -87,7 +87,7 @@ TEST(ScanDir, TimestampSmeared)
 
   for (int count = 0; count < 100; ++count) {
     uint64_t ts_sec = duration_cast<seconds>
-                      (clock.getTime().time_since_epoch()).count();
+                      (clock.GetTime().time_since_epoch()).count();
     auto sts = sd.GetTimestampSmearedSec();
     ASSERT_TRUE(std::stoull(sts) >= ts_sec - interval);
     ASSERT_TRUE(std::stoull(sts) <= ts_sec + interval);

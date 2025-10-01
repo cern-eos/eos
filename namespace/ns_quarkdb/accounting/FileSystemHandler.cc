@@ -68,7 +68,7 @@ FileSystemHandler::FileSystemHandler(folly::Executor* executor,
 FileSystemHandler* FileSystemHandler::ensureContentsLoaded()
 {
   using eos::common::SteadyClock;
-  mLastCacheLoadTS = SteadyClock::secondsSinceEpoch(mClock.getTime()).count();
+  mLastCacheLoadTS = SteadyClock::SecondsSinceEpoch(mClock.GetTime()).count();
   return ensureContentsLoadedAsync().get();
 }
 
@@ -270,7 +270,7 @@ FileSystemHandler::clearCache(std::chrono::seconds inactive_timeout)
 
   if (inactive_timeout.count()) {
     int64_t inactive_interval =
-      SteadyClock::secondsSinceEpoch(mClock.getTime()).count() - mLastCacheLoadTS;
+      SteadyClock::SecondsSinceEpoch(mClock.GetTime()).count() - mLastCacheLoadTS;
 
     if (inactive_timeout.count() > inactive_interval) {
       return;
