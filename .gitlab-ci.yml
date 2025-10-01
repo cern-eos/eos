@@ -479,7 +479,7 @@ build_el9_coverage:
 el9_docker_image:
   extends: .build_dockerimage-template
   variables:
-    DOCKERFILE: $CI_PROJECT_DIR/gitlab-ci/Dockerfile_el9
+    DOCKERFILE: $CI_PROJECT_DIR/gitlab-ci/Dockerfile_eos_el9
     OS_TAG: ".el9"
   needs:
     - job: clone_docker
