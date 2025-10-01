@@ -77,7 +77,7 @@ TEST(RequestRateLimit, MultiThread)
     clock.advance(std::chrono::seconds(5));  // fake clock starts at 0
     ASSERT_NO_THROW(rlimit->SetRatePerSecond(rate));
     uint64_t start_us = duration_cast<microseconds>
-                        (clock.getTime().time_since_epoch()).count();
+                        (clock.GetTime().time_since_epoch()).count();
     auto func = [&](int indx) noexcept {
       for (int i = 0; i < rate; ++i) {
         (void)rlimit->Allow();
