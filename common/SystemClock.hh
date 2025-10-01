@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: SteadyClock.hh
-// Author: Georgios Bitzes - CERN
+// File: SystemClock.hh
+// Author: Elvin Sindrilaru - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
+ * Copyright (C) 2025 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -29,29 +29,29 @@
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! A clock which behaves similarly to std::chrono::steady_clock, but can be
+//! A clock which behaves similarly to std::chrono::system_clock, but can be
 //! faked. During faking, you can advance time manually.
 //------------------------------------------------------------------------------
-class SteadyClock
+class SystemClock
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor: Specify whether we're faking time, or not.
   //----------------------------------------------------------------------------
-  SteadyClock(bool fake_) : mFake(fake_) {}
+  SystemClock(bool fake_) : mFake(fake_) {}
 
   //----------------------------------------------------------------------------
   //! Default constructor - Sets fake to false
   //----------------------------------------------------------------------------
-  SteadyClock() : mFake(false) {}
+  SystemClock() : mFake(false) {}
 
   //----------------------------------------------------------------------------
   //! Static now function - it's also possible to pass a nullptr
   //----------------------------------------------------------------------------
-  static std::chrono::steady_clock::time_point now(SteadyClock* clock)
+  static std::chrono::system_clock::time_point now(SystemClock* clock)
   {
     if (clock == nullptr) {
-      return std::chrono::steady_clock::now();
+      return std::chrono::system_clock::now();
     }
 
     return clock->GetTime();
@@ -60,14 +60,14 @@ public:
   //----------------------------------------------------------------------------
   //! Get current time.
   //----------------------------------------------------------------------------
-  std::chrono::steady_clock::time_point GetTime() const
+  std::chrono::system_clock::time_point GetTime() const
   {
     if (mFake) {
       std::lock_guard<std::mutex> lock(mtx);
       return fakeTimepoint;
     }
 
-    return std::chrono::steady_clock::now();
+    return std::chrono::system_clock::now();
   }
 
   //----------------------------------------------------------------------------
@@ -85,7 +85,7 @@ public:
   //! Utility function to convert a time_point to seconds since epoch
   //----------------------------------------------------------------------------
   static std::chrono::seconds SecondsSinceEpoch(
-    std::chrono::steady_clock::time_point point)
+    std::chrono::system_clock::time_point point)
   {
     return std::chrono::duration_cast<std::chrono::seconds>(
              point.time_since_epoch());
@@ -102,7 +102,7 @@ public:
 private:
   bool mFake;
   mutable std::mutex mtx;
-  std::chrono::steady_clock::time_point fakeTimepoint;
+  std::chrono::system_clock::time_point fakeTimepoint;
 };
 
 EOSCOMMONNAMESPACE_END
