@@ -471,6 +471,7 @@ build_el9_coverage:
     - DESTINATION="${IMAGE_REPO}:${IMAGE_TAG}"
     - echo "CACHE=$CACHE - DESTINATION=$DESTINATION"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
+    - echo $DOCKERFILE
     - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --compressed-caching=false --use-new-run
   retry: 1
 
