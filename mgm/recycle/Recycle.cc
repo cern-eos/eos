@@ -44,33 +44,34 @@ std::string Recycle::gRecyclingPrefix = "/recycle/";
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
 std::string Recycle::gRecyclingTimeAttribute = "sys.recycle.keeptime";
 std::string Recycle::gRecyclingKeepRatio = "sys.recycle.keepratio";
+std::string Recycle::gRecyclingPollAttribute = "sys.recycle.pollinterval";
+std::string Recycle::gRecyclingCollectInterval = "sys.recycle.collectinterval";
+std::string Recycle::gRecyclingRemoveInterval = "sys.recycle.removeinterval";
+std::string Recycle::gRecyclingDryRunAttribute = "sys.recycle.dryrun";
 std::string Recycle::gRecyclingVersionKey = "sys.recycle.version.key";
 std::string Recycle::gRecyclingPostFix = ".d";
-int Recycle::gRecyclingPollTime = 30;
 eos::common::VirtualIdentity Recycle::mRootVid =
   eos::common::VirtualIdentity::Root();
 
-//----------------------------------------------------------------------------
-// Update snooze time for the recycler thread. This should match the time
-// between now and the expiration date of the oldest entry
-//----------------------------------------------------------------------------
-void
-Recycle::UpdateSnooze(time_t oldest_ts)
-{
-  if (oldest_ts == 0ull) {
-    mSnooze = gRecyclingPollTime;
-  } else {
-    mSnooze = oldest_ts + mPolicy.mKeepTime - time(nullptr);
+//------------------------------------------------------------------------------
+// Default constructor
+//------------------------------------------------------------------------------
+Recycle::Recycle(bool fake_clock) :
+  mPath(""), mRecycleDir(""), mRecyclePath(""),
+  mOwnerUid(DAEMONUID), mOwnerGid(DAEMONGID), mId(0), mWakeUp(false),
+  mClock(false)
+{}
 
-    if (mSnooze < gRecyclingPollTime) {
-      mSnooze = gRecyclingPollTime;
-    }
-
-    if (mSnooze > mPolicy.mKeepTime) {
-      mSnooze = mPolicy.mKeepTime;
-    }
-  }
-}
+//------------------------------------------------------------------------------
+// Constructor
+//------------------------------------------------------------------------------
+Recycle::Recycle(const char* path, const char* recycledir,
+                 eos::common::VirtualIdentity* vid, uid_t ownerUid,
+                 gid_t ownerGid, unsigned long long id, bool fake_clock) :
+  mPath(path), mRecycleDir(recycledir), mRecyclePath(""),
+  mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id), mWakeUp(false),
+  mClock(fake_clock)
+{}
 
 //------------------------------------------------------------------------------
 // Collect entries to recycle based on the current policy
@@ -78,69 +79,58 @@ Recycle::UpdateSnooze(time_t oldest_ts)
 void
 Recycle::CollectEntries(ThreadAssistant& assistant)
 {
-  std::map<std::string, std::set < std::string>> find_map;
-  int depth = 6;
+  auto now_ts = eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime());
+  static std::chrono::seconds s_last_ts = now_ts;
+
+  // Run collection once every mCollectInterval
+  if (now_ts - s_last_ts < mPolicy.mCollectInterval) {
+    eos_static_debug("msg=\"recycle skip collection\" last_ts=%llu "
+                     "collect_interval_sec=%llu", s_last_ts.count(),
+                     mPolicy.mCollectInterval.count());
+    return;
+  }
+
+  // Clear the old list of deletions as we'll repopulate it
+  mPendingDeletions.clear();
+  s_last_ts = now_ts;
+  int depth = 4;
   XrdOucErrInfo err_obj;
   XrdOucString err_msg;
-  time_t now = time(NULL);
-  time_t max_ctime_dir = now - mPolicy.mKeepTime + (31 * 86400);
-  time_t max_ctime_file = now - mPolicy.mKeepTime;
-  std::map<std::string, time_t> ctime_map;
-  // Find with max depth 6 and ctime constraints
+  std::map<std::string, std::set<std::string>> find_map;
+  // /eos/<instance>/proc/recycle/uid:<val>/year/month/day
   (void) gOFS->_find(Recycle::gRecyclingPrefix.c_str(),
                      err_obj, err_msg, mRootVid, find_map,
-                     0, 0, false, 0, true, depth, nullptr, false,
-                     false, nullptr, max_ctime_dir, max_ctime_file,
-                     &ctime_map, &assistant);
-  eos_static_notice("msg=\"time-limited query\" ctime_dir=%u "
-                    "ctime_file=%u nfiles=%lu",
-                    max_ctime_dir, max_ctime_file, ctime_map.size());
+                     0, 0, true, 0, true, depth, nullptr, false,
+                     false, nullptr, 0, 0, nullptr, &assistant);
+  std::string cutoff_date = GetCutOffDate();
+  eos_static_notice("msg=\"recycle find query\" cutoff_date=\"%s\"",
+                    cutoff_date.c_str())
 
   for (auto it_dir = find_map.begin(); it_dir != find_map.end(); ++it_dir) {
-    XrdOucString dirname = it_dir->first.c_str();
+    // Select all the directories with depth 8
+    eos::common::Path cpath(it_dir->first);
 
-    if (dirname.endswith(".d/")) {
-      // Check again the ctime here, because we had to enlarge the query
-      // window by 31 days due to the organization of the recycle bin.
-      struct stat buf;
+    if (cpath.GetSubPathSize() == 8) {
+      std::string dir_date = cpath.GetFullPath().c_str();
+      dir_date.erase(0, strlen(cpath.GetSubPath(5)));
+      eos_static_debug("dir_date=\"%s\" cutoff_date=\"%s\"",
+                       dir_date.c_str(), cutoff_date.c_str());
 
-      if (!gOFS->_stat(dirname.c_str(), &buf, err_obj, mRootVid,
-                       "", nullptr, false, 0)) {
-        if (buf.st_ctime > max_ctime_file) {
-          // skip this recusrive deletion, it is still inside the keep window
-          continue;
+      // Select directories which are older than the cut off date
+      if (cutoff_date.compare(dir_date) > 0) {
+        try {
+          std::shared_ptr<eos::IContainerMD> cmd =
+            gOFS->eosView->getContainer(cpath.GetFullPath().c_str());
+          mPendingDeletions.emplace(cmd->getId(), cpath.GetFullPath().c_str());
+        } catch (const eos::MDException& e) {
+          // skip missing directory
         }
       }
-
-      dirname.erase(dirname.length() - 1);
-      eos::common::Path cpath(dirname.c_str());
-      dirname = cpath.GetParentPath();
-      it_dir->second.insert(cpath.GetName());
-    }
-
-    eos_static_debug("dir=%s", it_dir->first.c_str());
-
-    for (auto it_file = it_dir->second.begin();
-         it_file != it_dir->second.end(); ++it_file) {
-      const std::string fname = HandlePotentialSymlink(dirname.c_str(), *it_file);
-      eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
-                       it_file->c_str(), fname.c_str());
-
-      if ((fname != "/") && (fname.find('#') != 0)) {
-        eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
-                         fname.c_str());
-        continue;
-      }
-
-      std::string fullpath = dirname.c_str();
-      fullpath += fname;
-      // Add to the garbage fifo deletion multimap
-      mPendingDeletions.insert(std::pair<time_t, std::string >
-                               (ctime_map[*it_file], fullpath));
-      eos_static_debug("msg=\"adding to deletion map\" fpath=\"%s\" "
-                       "ctime=%u", fullpath.c_str(), ctime_map[*it_file]);
     }
   }
+
+  eos_static_notice("msg=\"recycle done collection\" num_entries=%llu",
+                    mPendingDeletions.size());
 }
 
 //------------------------------------------------------------------------------
@@ -149,75 +139,58 @@ Recycle::CollectEntries(ThreadAssistant& assistant)
 void
 Recycle::RemoveEntries()
 {
+  auto now_ts = eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime());
+  static std::chrono::seconds s_last_ts = now_ts;
+
+  // Run removal every mRemoveInterval
+  if (now_ts - s_last_ts < mPolicy.mRemoveInterval) {
+    eos_static_debug("msg=\"recycle skip removal\" last_ts=%llu "
+                     "removal_interval_sec=%llu", s_last_ts.count(),
+                     mPolicy.mCollectInterval.count());
+    return;
+  }
+
+  s_last_ts = now_ts;
+
   if (mPendingDeletions.empty()) {
     return;
   }
 
-  mSnooze = 0;
-  time_t now = time(nullptr);
+  // Compute the index of the containers to be removed in the current slot
+  int slots_per_day = 86400 / mPolicy.mRemoveInterval.count();
+  int current_slot = (now_ts.count() % 86400) / mPolicy.mRemoveInterval.count();
   auto it = mPendingDeletions.begin();
+  uint64_t count = 0;
 
   while (it != mPendingDeletions.end()) {
-    // Oldest entry expires in the future
-    if (it->first + mPolicy.mKeepTime > now) {
-      break;
-    }
-
     // Keep ratio and watermarks already respected
-    if (mPolicy.IsWithinLimits()) {
+    if ((count % 10 == 0) && mPolicy.IsWithinLimits()) {
       break;
     }
 
-    // Handle deletion
-    struct stat info;
-    XrdOucErrInfo error;
-    std::string fullpath = it->second;
+    ++count;
+    // Decide if the current directory should be handled at this moment -
+    // try to spread out the deletion throughout the day!
+    eos::IContainerMD::id_t cid = it->first;
 
-    if (fullpath.empty()) {
-      it = mPendingDeletions.erase(it);
+    if (cid % slots_per_day != current_slot) {
+      eos_static_debug("msg=\"recycle skip directory removal\" cxid=%08llx"
+                       " current_slot=%i slots=%i", cid, current_slot,
+                       slots_per_day);
+      ++it;
       continue;
     }
 
-    if (!gOFS->_stat(fullpath.c_str(), &info, error, mRootVid, "", nullptr,
-                     false)) {
-      it = mPendingDeletions.erase(it);
-      continue;
-    }
-
-    if (S_ISDIR(info.st_mode)) {
-      RemoveSubtree(fullpath);
-      // Update current timestamp
-      now = time(nullptr);
+    if (mPolicy.mDryRun) {
+      eos_static_info("msg=\"recycle skip remove entries in dry-run\" "
+                      "cxid=%08llx", cid);
+      ++it;
     } else {
-      RemoveFile(fullpath);
+      // Handle deletion
+      RemoveSubtree(it->second);
+      it = mPendingDeletions.erase(it);
     }
-
-    it = mPendingDeletions.erase(it);
   }
-
-  if (it != mPendingDeletions.end()) {
-    UpdateSnooze(it->first);
-  } else {
-    UpdateSnooze();
-  }
-}
-
-//------------------------------------------------------------------------------
-// Remove given file entry
-//------------------------------------------------------------------------------
-int
-Recycle::RemoveFile(std::string_view fullpath)
-{
-  XrdOucErrInfo lerror;
-
-  if (gOFS->_rem(fullpath.data(), lerror, mRootVid, (const char*) 0)) {
-    eos_static_err("msg=\"unable to remove file\" path=\"%s\" "
-                   "err_msg=\"%s\" errc=%i", fullpath.data(),
-                   lerror.getErrText(), lerror.getErrInfo());
-    return SFS_ERROR;
-  }
-
-  return SFS_OK;
 }
 
 //------------------------------------------------------------------------------
@@ -269,8 +242,29 @@ Recycle::RemoveSubtree(std::string_view dpath)
                         "recycle bin\" path=%s", ldpath.c_str());
       }
     }
+
+    //@todo(esindril) delete parent directory if empty and still within
+    // the recycle bin directory!
   }
 }
+
+//------------------------------------------------------------------------------
+// Get cut-off date based on the configured retention policy with respect
+// to the current timestamp.
+//------------------------------------------------------------------------------
+std::string
+Recycle::GetCutOffDate()
+{
+  uint64_t now = eos::common::SystemClock::SecondsSinceEpoch(
+                   mClock.GetTime()).count();
+  std::time_t cut_off_ts = now - mPolicy.mKeepTimeSec -
+                           86400; // add one extra day
+  auto tm = *std::localtime(&cut_off_ts);
+  std::ostringstream oss;
+  oss << std::put_time(&tm, "%Y/%m/%d");
+  return oss.str();
+}
+
 
 //------------------------------------------------------------------------------
 // Recycle method doing the clean-up
@@ -279,7 +273,7 @@ void
 Recycle::Recycler(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName("Recycler");
-  eos_static_info("%s", "\"msg = \"recycling thread started\"");
+  eos_static_info("%s", "\"msg = \"recycle thread started\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
   if (assistant.terminationRequested()) {
@@ -293,10 +287,11 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     // Every now and then we wake up
     backoff_logger.invoke([this]() {
-      eos_static_info("msg=\"recycler thread\" snooze-time=%llu", this->mSnooze);
+      eos_static_info("msg=\"recycle thread\" snooze-time=%llusec",
+                      mPolicy.mPollInterval.count());
     });
 
-    for (int i = 0; i < mSnooze / 10; i++) {
+    for (int i = 0; i <= mPolicy.mPollInterval.count() / 10; i++) {
       if (assistant.terminationRequested()) {
         return;
       }
@@ -318,7 +313,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
       mPolicy.RefreshWatermarks();
     }
 
-    if (mPolicy.mKeepTime) {
+    if (mPolicy.mKeepTimeSec) {
       CollectEntries(assistant);
       RemoveEntries();
     }
@@ -1186,11 +1181,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin lifetime configured!\n";
     }
-
-    gOFS->Recycler->WakeUp();
-  }
-
-  if (key == "--ratio") {
+  } else if (key == "--ratio") {
     if (value.empty()) {
       std_err = "error: missing ratio argument\n";
       return EINVAL;
@@ -1228,10 +1219,45 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin ratio configured!";
     }
+  } else if (key == "--poll-interval") {
+    if (value.empty()) {
+      std_err = "error: missing poll interval value\n";
+      return EINVAL;
+    }
 
-    gOFS->Recycler->WakeUp();
+    try {
+      uint64_t poll_interval = std::stoull(value);
+
+      // Make sure the poll interval is never less than 30 seconds
+      if (poll_interval < 10) {
+        std_err = "error: recycle poll interval has to be > 10";
+        return EINVAL;
+      }
+    } catch (...) {
+      std_err = "error: recycle poll interval not numeric";
+      return EINVAL;
+    }
+
+    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
+                        lerror, mRootVid, "",
+                        Recycle::gRecyclingPollAttribute.c_str(),
+                        value.c_str())) {
+      std_err = "error: failed to set extended attribute '";
+      std_err += Recycle::gRecyclingPollAttribute.c_str();
+      std_err += "'";
+      std_err += " at '";
+      std_err += Recycle::gRecyclingPrefix.c_str();
+      std_err += "'";
+      return EIO;
+    } else {
+      std_out += "success: recycle bin update poll interval";
+    }
+  } else {
+    std_err = "error: unknown configuration key";
+    return EINVAL;
   }
 
+  gOFS->Recycler->WakeUp();
   return 0;
 }
 
@@ -1320,5 +1346,23 @@ Recycle::HandlePotentialSymlink(const std::string& ppath,
   // target from the filename so that we actually work with it
   return fn.substr(0, pos);
 }
+
+// //------------------------------------------------------------------------------
+// // Remove given file entry
+// //------------------------------------------------------------------------------
+// int
+// Recycle::RemoveFile(std::string_view fullpath)
+// {
+//   XrdOucErrInfo lerror;
+
+//   if (gOFS->_rem(fullpath.data(), lerror, mRootVid, (const char*) 0)) {
+//     eos_static_err("msg=\"unable to remove file\" path=\"%s\" "
+//                    "err_msg=\"%s\" errc=%i", fullpath.data(),
+//                    lerror.getErrText(), lerror.getErrInfo());
+//     return SFS_ERROR;
+//   }
+
+//   return SFS_OK;
+// }
 
 EOSMGMNAMESPACE_END

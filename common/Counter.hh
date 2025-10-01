@@ -26,50 +26,61 @@
 
 #include "common/SteadyClock.hh"
 
-namespace eos::common {
+namespace eos::common
+{
 
-class Counter {
+class Counter
+{
 public:
   Counter() = default;
 
-  Counter(SteadyClock *clock): mCounter(0), mSteadyClock(clock) {}
+  Counter(SteadyClock* clock): mCounter(0), mSteadyClock(clock) {}
 
 
-  void Init() {
+  void Init()
+  {
     mCounter = 0;
     mStartTime = GetCurrentTime();
     mLastTime = mStartTime;
   }
 
-  void Increment(uint64_t value = 1) {
+  void Increment(uint64_t value = 1)
+  {
     auto curr_time = GetCurrentTime();
     std::chrono::duration<double, std::milli> ms_elapsed = curr_time - mLastTime;
-    if (ms_elapsed.count() > 0)
-      last_frequency = 1000*value/ms_elapsed.count();
+
+    if (ms_elapsed.count() > 0) {
+      last_frequency = 1000 * value / ms_elapsed.count();
+    }
 
     mLastTime = curr_time;
     mCounter += value;
-
     ms_elapsed = curr_time - mStartTime;
-    if (ms_elapsed.count() > 0)
-      frequency = 1000*mCounter/ms_elapsed.count();
+
+    if (ms_elapsed.count() > 0) {
+      frequency = 1000 * mCounter / ms_elapsed.count();
+    }
   }
 
   double
-  GetFrequency() {
+  GetFrequency()
+  {
     return frequency;
   }
 
   double
-  GetLastFrequency() {
+  GetLastFrequency()
+  {
     return last_frequency;
   }
 
-  std::chrono::steady_clock::time_point GetStartTime() {
+  std::chrono::steady_clock::time_point GetStartTime()
+  {
     return mStartTime;
   }
 
-  uint64_t GetSecondsSinceStart() {
+  uint64_t GetSecondsSinceStart()
+  {
     using namespace std::chrono;
     return duration_cast<seconds>(GetCurrentTime() - mStartTime).count();
   }
@@ -78,8 +89,9 @@ private:
   std::chrono::steady_clock::time_point GetCurrentTime()
   {
     if (mSteadyClock != nullptr) {
-      return mSteadyClock->getTime();
+      return mSteadyClock->GetTime();
     }
+
     return std::chrono::steady_clock::now();
   }
 
