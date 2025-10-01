@@ -16,7 +16,7 @@ TEST(RetryTracker, basic)
   EXPECT_NE(tracker.last_run_time, time0);
   eos::common::SteadyClock test_clock(true);
   ASSERT_FALSE(tracker.need_update(900));
-  test_clock.advance(eos::common::SteadyClock::secondsSinceEpoch(
+  test_clock.advance(eos::common::SteadyClock::SecondsSinceEpoch(
                        std::chrono::steady_clock::now()));
   test_clock.advance(std::chrono::seconds(902));
   ASSERT_TRUE(tracker.need_update(900, &test_clock));

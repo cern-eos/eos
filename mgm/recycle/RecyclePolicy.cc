@@ -69,9 +69,8 @@ void RecyclePolicy::Refresh(const std::string& path)
   }
 
   // Get the space keep ratio
-  auto it = attr_map.find(Recycle::gRecyclingKeepRatio);
-
-  if (it != attr_map.end()) {
+  if (auto it = attr_map.find(Recycle::gRecyclingKeepRatio);
+      it != attr_map.end()) {
     try {
       mSpaceKeepRatio = std::stod(it->second);
     } catch (...) {
@@ -84,23 +83,89 @@ void RecyclePolicy::Refresh(const std::string& path)
   }
 
   // Get the time keep value
-  it = attr_map.find(Recycle::gRecyclingTimeAttribute);
-
-  if (it != attr_map.end()) {
+  if (auto it = attr_map.find(Recycle::gRecyclingTimeAttribute);
+      it != attr_map.end()) {
     try {
-      mKeepTime = std::stoull(it->second);
+      mKeepTimeSec = std::stoull(it->second);
     } catch (...) {
-      mKeepTime = 0ull;
+      mKeepTimeSec = 0ull;
       eos_static_err("msg=\"recycle keep time conversion to ull failed\""
                      " val=\"%s\"", it->second.c_str());
     }
   } else {
-    mKeepTime = 0ull;
+    mKeepTimeSec = 0ull;
   }
 
-  if (mKeepTime || mSpaceKeepRatio) {
+  // Get the poll interval
+  if (auto it = attr_map.find(Recycle::gRecyclingPollAttribute);
+      it != attr_map.end()) {
+    try {
+      mPollInterval = std::chrono::seconds(std::stoull(it->second));
+    } catch (...) {
+      // No changes to the default poll interval
+      eos_static_err("msg=\"recycle poll interval conversion failed\" "
+                     "val=\"%s\"", it->second.c_str());
+    }
+  }
+
+  // Get the collect interval
+  if (auto it = attr_map.find(Recycle::gRecyclingCollectInterval);
+      it != attr_map.end()) {
+    try {
+      mCollectInterval = std::chrono::seconds(std::stoull(it->second));
+    } catch (...) {
+      // No changes to the default collect interval
+      eos_static_err("msg=\"recycle collect interval conversion failed\" "
+                     "val=\"%s\"", it->second.c_str());
+    }
+  }
+
+  // Get the remove interval
+  if (auto it = attr_map.find(Recycle::gRecyclingRemoveInterval);
+      it != attr_map.end()) {
+    try {
+      mRemoveInterval = std::chrono::seconds(std::stoull(it->second));
+    } catch (...) {
+      // No changes to the default remove interval
+      eos_static_err("msg=\"recycle remove interval conversion failed\" "
+                     "val=\"%s\"", it->second.c_str());
+    }
+  }
+
+  // Get the dry-run mode
+  if (auto it = attr_map.find(Recycle::gRecyclingDryRunAttribute);
+      it != attr_map.end()) {
+    if (it->second == "yes") {
+      mDryRun = true;
+    } else {
+      mDryRun = false;
+    }
+  }
+
+  if (mKeepTimeSec || mSpaceKeepRatio) {
     mEnforced = true;
   }
+
+  eos_static_info("msg=\"recycle config refresh\" %s", Dump().c_str());
+}
+
+//----------------------------------------------------------------------------
+// Dump current active recycle policy
+//----------------------------------------------------------------------------
+std::string
+RecyclePolicy::Dump() const
+{
+  std::ostringstream oss;
+  oss << "enforced=" << (mEnforced ? "on" : "off")
+      << " dry_run=" << (mDryRun ? "yes" : "no")
+      << " keep_time_sec=" << mKeepTimeSec
+      << " space_keep_ratio=" << mSpaceKeepRatio
+      << " low_space_watermark=" << mLowSpaceWatermark
+      << " low_inode_watermark=" << mLowInodeWatermark
+      << " poll_interval_sec=" << mPollInterval.count()
+      << " collect_interval_sec=" << mCollectInterval.count()
+      << " remove_interval_sec=" << mRemoveInterval.count();
+  return oss.str();
 }
 
 //----------------------------------------------------------------------------
@@ -146,9 +211,8 @@ RecyclePolicy::RefreshWatermarks()
       mLowInodeWatermark = (maxfiles * space_ratio);
       mLowSpaceWatermark = (maxbytes * space_ratio);
       eos_static_info("msg=\"cleaning by ratio policy\" low-inodes-mark=%lld "
-                      "low-space-mark=%lld ratio=%.02f",
-                      mLowInodeWatermark.load(), mLowSpaceWatermark.load(),
-                      mSpaceKeepRatio);
+                      "low-space-mark=%lld ratio=%.02f", mLowInodeWatermark,
+                      mLowSpaceWatermark, mSpaceKeepRatio);
     }
   } else {
     mLowInodeWatermark = 0ull;
@@ -171,8 +235,8 @@ RecyclePolicy::IsWithinLimits()
         unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
         eos_static_debug("volume=%lld volume_low_wm=%lld "
                          "inodes=%lld inodes_low_wn=%lld",
-                         usedfiles, mLowInodeWatermark.load(),
-                         usedbytes, mLowSpaceWatermark.load());
+                         usedfiles, mLowInodeWatermark,
+                         usedbytes, mLowSpaceWatermark);
 
         if ((mLowInodeWatermark < usedfiles) ||
             (mLowSpaceWatermark < usedbytes)) {
