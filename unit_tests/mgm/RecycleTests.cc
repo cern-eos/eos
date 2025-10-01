@@ -35,10 +35,11 @@ TEST(Recycle, ComputeCutOffDate)
 {
   Recycle recycle(true);
   auto& clock = recycle.mClock;
-  clock.advance(std::chrono::seconds(1759265438));
+  // Set the clock to Tue Sep 30 03:46:40 PM CEST 2025
+  clock.advance(std::chrono::seconds(1759240000));
   recycle.mPolicy.mKeepTimeSec = 6 * 31 * 24 * 3600; // 6 months
-  ASSERT_STREQ("2025/03/28", recycle.GetCutOffDate().c_str());
-  recycle.mPolicy.mKeepTimeSec =  31 * 24 * 3600; // 1 months
+  ASSERT_STREQ("2025/03/27", recycle.GetCutOffDate().c_str());
+  recycle.mPolicy.mKeepTimeSec =  31 * 24 * 3600; // 1 month
   ASSERT_STREQ("2025/08/29", recycle.GetCutOffDate().c_str());
   recycle.mPolicy.mKeepTimeSec =  7 * 24 * 3600; // 1 week
   ASSERT_STREQ("2025/09/22", recycle.GetCutOffDate().c_str());
