@@ -64,7 +64,7 @@ public:
 
 public:
   bool mEnforced {false};
-  time_t mKeepTimeSec {0};
+  uint64_t mKeepTimeSec {0};
   double mSpaceKeepRatio {0.0};
   //! Flag if we are in dry-run mode or not
   bool mDryRun {false};

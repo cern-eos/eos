@@ -59,7 +59,7 @@ eos::common::VirtualIdentity Recycle::mRootVid =
 Recycle::Recycle(bool fake_clock) :
   mPath(""), mRecycleDir(""), mRecyclePath(""),
   mOwnerUid(DAEMONUID), mOwnerGid(DAEMONGID), mId(0), mWakeUp(false),
-  mClock(false)
+  mClock(fake_clock)
 {}
 
 //------------------------------------------------------------------------------
@@ -257,14 +257,13 @@ Recycle::GetCutOffDate()
 {
   uint64_t now = eos::common::SystemClock::SecondsSinceEpoch(
                    mClock.GetTime()).count();
-  std::time_t cut_off_ts = now - mPolicy.mKeepTimeSec -
-                           86400; // add one extra day
+  // Add one extra day
+  std::time_t cut_off_ts = now - mPolicy.mKeepTimeSec - 86400;
   auto tm = *std::localtime(&cut_off_ts);
   std::ostringstream oss;
   oss << std::put_time(&tm, "%Y/%m/%d");
   return oss.str();
 }
-
 
 //------------------------------------------------------------------------------
 // Recycle method doing the clean-up
@@ -1251,6 +1250,26 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       return EIO;
     } else {
       std_out += "success: recycle bin update poll interval";
+    }
+  } else if (key == "--dry-run") {
+    if (value.empty() || ((value != "yes") && (value != "no"))) {
+      std_err = "error: missing/wrong dry-run value\n";
+      return EINVAL;
+    }
+
+    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
+                        lerror, mRootVid, "",
+                        Recycle::gRecyclingDryRunAttribute.c_str(),
+                        value.c_str())) {
+      std_err = "error: failed to set extended attribute '";
+      std_err += Recycle::gRecyclingDryRunAttribute.c_str();
+      std_err += "'";
+      std_err += " at '";
+      std_err += Recycle::gRecyclingPrefix.c_str();
+      std_err += "'";
+      return EIO;
+    } else {
+      std_out += "success: recycle bin update dry-run option";
     }
   } else {
     std_err = "error: unknown configuration key";
