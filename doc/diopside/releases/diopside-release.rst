@@ -16,6 +16,24 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.23 Diopside``
+====================
+
+2025-10-02
+
+Bug
+----
+
+* [EOS-6500] - Malformed OAUTH token can crash MGM
+* [EOS-6501] - [MGM] EosToken - Do not validate path for tape REST API access
+* [EOS-6503] - GRPC find request with token ACL gets error - path outside token scope
+
+Improvement
+------------
+
+* [EOS-6508] - Support multi-path EOS tokens with shared ACL
+
+
 ``v5.3.22 Diopside``
 ====================
 
