@@ -255,6 +255,12 @@ rh-9:
  extends: .build-client-srpm-template
  image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
 
+
+rh-10:
+ extends: .build-client-srpm-template
+ image: gitlab-registry.cern.ch/linuxsupport/ubi10/ubi
+
+
 #-------------------------------------------------------------------------------
 # Fedora builds
 #-------------------------------------------------------------------------------
@@ -802,6 +808,7 @@ publish_koji_al8:
   dependencies:
     - build_el8
 
+
 publish_koji_al9:
   <<: *publish_koji_template_definition
   variables:
@@ -809,6 +816,15 @@ publish_koji_al9:
     BUILD_NAME: "el-9"
   dependencies:
     - build_el9
+
+
+publish_koji_al10:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos10al"
+    BUILD_NAME: "el-10"
+  dependencies:
+    - build_el10
 
 
 publish_koji_rh-8:
@@ -833,6 +849,19 @@ publish_koji_rh-9:
     - tags
   needs:
     - job: rh-9
+
+
+publish_koji_rh-10:
+  <<: *publish_koji_template_definition
+  variables:
+    TARGET: "eos10el"
+    BUILD_NAME: "rh-10"
+  only:
+    - schedules
+    - tags
+  needs:
+    - job: rh-10
+
 
 
 email_notification:
