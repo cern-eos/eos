@@ -39,7 +39,7 @@ CreateReleaseBulkRequest::run(common::HttpRequest* request,
     return mResponseFactory.createBadRequestError(ex).getHttpResponse();
   }
 
-  const std::string& http_authz = request->GetHeaders().count("Authorization") ? request->GetHeaders().at("Authorization") : "";
+  const std::string& http_authz = request->GetHeaders().count("authorization") ? request->GetHeaders().at("authorization") : "";
 
   //release the files provided by the user
   try {

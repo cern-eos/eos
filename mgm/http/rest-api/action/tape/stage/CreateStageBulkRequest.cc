@@ -49,7 +49,7 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request,
 
   //Create the prepare arguments
   std::shared_ptr<bulk::BulkRequest> bulkRequest;
-  const std::string& http_authz = request->GetHeaders().count("Authorization") ? request->GetHeaders().at("Authorization") : "";
+  const std::string& http_authz = request->GetHeaders().count("authorization") ? request->GetHeaders().at("authorization") : "";
 
   try {
     bulkRequest = mTapeRestApiBusiness->createStageBulkRequest(
