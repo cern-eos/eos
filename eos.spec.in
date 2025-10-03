@@ -142,7 +142,6 @@ BuildRequires: redhat-rpm-config
 BuildRequires: libattr-devel, xfsprogs-devel
 BuildRequires: gcc gcc-c++
 BuildRequires: jsoncpp, jsoncpp-devel
-BuildRequires: jemalloc, jemalloc-devel
 BuildRequires: glibc-headers
 BuildRequires: binutils-devel
 BuildRequires: help2man
@@ -156,6 +155,10 @@ BuildRequires: gflags gflags-devel
 BuildRequires: systemd
 BuildRequires: fmt-devel
 BuildRequires: activemq-cpp, activemq-cpp-devel
+
+%if 0%{?rhel} != 10
+BuildRequires: jemalloc, jemalloc-devel
+%endif
 
 # NFS support dependencies
 BuildRequires: libnfs, libnfs-devel
@@ -542,9 +545,12 @@ Requires: xrootd-client >= %{xrootd_version_min}
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse
-Requires: jemalloc, jemalloc-devel
 Requires: attr
 Requires: zeromq
+
+%if 0%{?rhel} != 10
+Requires: jemalloc, jemalloc-devel
+%endif
 
 %description -n eos-fusex-core
 The EOS fuse core containing eosxd/eosxd3.
@@ -628,8 +634,11 @@ Requires: xrootd-client >= %{xrootd_version_min}
 
 Requires: eos-client = @CPACK_PACKAGE_VERSION@
 Requires: fuse3
-Requires: jemalloc, jemalloc-devel
 Requires: autofs
+
+%if 0%{?rhel} != 10
+Requires: jemalloc, jemalloc-devel
+%endif
 
 %description -n eos-cfsd
 The new EOS client filesystem daemon
@@ -657,7 +666,8 @@ Summary: EOS QuarkDB package
 Group: Applications/File
 
 Obsoletes: quarkdb <= 0.4.2
-Requires: lz4-devel, lz4, elfutils-devel, jemalloc, jemalloc-devel
+Requires: lz4-devel, lz4, elfutils-devel
+Requires: jemalloc, jemalloc-devel
 
 # Select xrootd package
 %if %{with eos_xrootd_rh}
