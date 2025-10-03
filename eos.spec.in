@@ -569,9 +569,9 @@ The EOS fuse core containing eosxd/eosxd3.
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/
 %dir %attr(755,daemon,daemon) %{_localstatedir}/cache/eos/fusex/
 # Ensure /run/eos/... creation
-%dir %attr(0755, root, root) %{_rundir}/eos
-%dir %attr(1777, root, root) %{_rundir}/eos/credentials
-%dir %attr(1777, root, root) %{_rundir}/eos/credentials/store
+%dir %attr(0755, root, root) %{_localstatedir}%{_rundir}/eos
+%dir %attr(1777, root, root) %{_localstatedir}%{_rundir}/eos/credentials
+%dir %attr(1777, root, root) %{_localstatedir}%{_rundir}/eos/credentials/store
 
 #-------------------------------------------------------------------------------
 # Package eos-fusex-selinux
