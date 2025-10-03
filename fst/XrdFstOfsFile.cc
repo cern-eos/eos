@@ -844,6 +844,18 @@ XrdSfsXferSize
 XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                     XrdSfsXferSize buffer_size)
 {
+  auto win = gOFS.ioMap.getAvailableWindows();
+  if (win.has_value()){
+	for (auto it : win.value()){
+	  if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
+		gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
+	  if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
+		gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
+	  if (!gOFS.ioMap.containe(it, vid.app))
+		gOFS.ioMap.setTrack(it, vid.app);
+	}
+  }
+
   gettimeofday(&rStart, &tz);
   // use RR scheduling if there is a round-robin app name
   std::mutex* mutex = 0;
@@ -888,6 +900,8 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   int rc = mLayout->Read(fileOffset, buffer, buffer_size);
+  if (rc > 0)
+    gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rc);
   eos_debug("layout read %d checkSum %d", rc,
             mChecksumGroup ? nullptr : mChecksumGroup->GetDefault());
 
@@ -984,6 +998,19 @@ XrdSfsXferSize
 XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 {
   eos_debug("msg=\"readv request\" count=%i", readCount);
+
+  auto win = gOFS.ioMap.getAvailableWindows();
+  if (win.has_value()){
+	for (auto it : win.value()){
+	  if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
+		gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
+	  if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
+		gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
+	  if (!gOFS.ioMap.containe(it, vid.app))
+		gOFS.ioMap.setTrack(it, vid.app);
+	}
+  }
+
   gettimeofday(&rvStart, &tz);
   std::string output_init, output_final;
   auto print_readv_request = [](XrdOucIOVec * readv, int num_chunks) {
@@ -1018,6 +1045,8 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
   }
 
   int64_t rv = mLayout->ReadV(chunkList, total_read);
+  if (rv > 0)
+	gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rv);
   totalBytes += rv;
 
   if (EOS_LOGS_DEBUG) {
@@ -1046,6 +1075,18 @@ XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
+  auto win = gOFS.ioMap.getAvailableWindows();
+  if (win.has_value()){
+	for (auto it : win.value()){
+	  if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
+		gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
+	  if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
+		gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
+	  if (!gOFS.ioMap.containe(it, vid.app))
+		gOFS.ioMap.setTrack(it, vid.app);
+	}
+  }
+
   gettimeofday(&wStart, &tz);
 
   if (gOFS.mSimUnresponsive) {
@@ -1128,6 +1169,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long>(buffer_size));
+  if (rc > 0)
+    gOFS.ioMap.addWrite(1, vid.app, vid.uid, vid.gid, rc);
 
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
   // only for replica layouts and not for FuseX clients

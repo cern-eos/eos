@@ -543,6 +543,17 @@ com_daemon(char* arg)
       return (0);
     }
 
+	FILE* pipe = popen(std::string("pidof -s eos-" + std::string(service.c_str())).c_str(), "r");
+	pid_t pid = 0;
+
+	if (!pipe || fscanf(pipe, "%d", &pid) != 1)
+	  pid = -1;
+	pclose(pipe);
+	if (pid != -1){
+	  fprintf(stderr, "error: %s currently running\n", service.c_str());
+	  return 0;
+	}
+
     char** const envv = cfg.Env("sysconfig");
 
     for (size_t i = 0; i < 1024; ++i) {
