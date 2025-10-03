@@ -252,7 +252,12 @@ if (NOT CLIENT AND Linux)
     http/HttpRequest.cc
     http/HttpResponse.cc
     http/s3/S3Handler.cc
-    stringencoders/modp_numtoa.c)
+    stringencoders/modp_numtoa.c
+	ioMonitor/src/IoAggregateMap.cc
+	ioMonitor/src/IoMap.cc
+	ioMonitor/src/IoStat.cc
+	ioMonitor/proto/IoBuffer.pb.cc
+	ioMonitor/src/IoAggregate.cc)
 
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient

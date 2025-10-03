@@ -824,6 +824,11 @@ Run(int argc, char* argv[])
   };
   std::unique_ptr<void, decltype(stopPostMaster)> stopPostMasterDeleter((void *)1, stopPostMaster);
 
+  // std::unique_ptr<void, void(*)(void *)> libShutDown(nullptr, [](void *){google::protobuf::ShutdownProtobufLibrary();});
+  // std::unique_ptr<void, void(*)(void *)> stopPostMaster(nullptr, [](void *){XrdCl::DefaultEnv::GetPostMaster()->Stop();});
+  atexit([]{google::protobuf::ShutdownProtobufLibrary();});
+  // atexit([]{XrdCl::DefaultEnv::GetPostMaster()->Stop();});
+
   char* line, *s;
   serveruri = (char*) "root://localhost";
   // Enable fork handlers for XrdCl
