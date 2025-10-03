@@ -271,7 +271,12 @@ if (NOT CLIENT AND Linux)
     mq/SharedDequeProvider.cc         mq/SharedDequeProvider.hh
     mq/SharedHashProvider.cc          mq/SharedHashProvider.hh
     mq/SharedHashWrapper.cc           mq/SharedHashWrapper.hh
-    mq/LocalHash.cc                   mq/LocalHash.hh)
+    mq/LocalHash.cc                   mq/LocalHash.hh
+	ioMonitor/src/IoAggregateMap.cc
+	ioMonitor/src/IoMap.cc
+	ioMonitor/src/IoStat.cc
+	ioMonitor/proto/IoBuffer.pb.cc
+	ioMonitor/src/IoAggregate.cc)
 
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
