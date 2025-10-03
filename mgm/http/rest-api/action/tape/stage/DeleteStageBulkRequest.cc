@@ -37,7 +37,7 @@ common::HttpResponse* DeleteStageBulkRequest::run(common::HttpRequest* request,
   //Get the id of the request from the URL
   parser.matchesAndExtractParameters(this->mAccessURLPattern, requestParameters);
   std::string requestId = requestParameters[URLParametersConstants::ID];
-  const std::string& http_authz = request->GetHeaders().count("Authorization") ? request->GetHeaders().at("Authorization") : "";
+  const std::string& http_authz = request->GetHeaders().count("authorization") ? request->GetHeaders().at("authorization") : "";
 
   try {
     mTapeRestApiBusiness->deleteStageBulkRequest(requestId, vid, http_authz);

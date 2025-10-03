@@ -41,7 +41,7 @@ common::HttpResponse* GetArchiveInfo::run(common::HttpRequest* request,
 
   //Get the information about the files
   std::shared_ptr<bulk::QueryPrepareResponse> queryPrepareResponse;
-  const std::string& http_authz = request->GetHeaders().count("Authorization") ? request->GetHeaders().at("Authorization") : "";
+  const std::string& http_authz = request->GetHeaders().count("authorization") ? request->GetHeaders().at("authorization") : "";
 
   try {
     queryPrepareResponse = mTapeRestApiBusiness->getFileInfo(paths.get(), vid, http_authz);
