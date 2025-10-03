@@ -57,3 +57,7 @@ ApMon/*.tar.gz
 ApMon/rpmbuild*
 ApMon/eos-apmon-*
 !ApMon/Makefile
+
+# clangd file
+compile_commands.json
+.cache

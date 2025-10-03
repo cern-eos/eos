@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package IoBuffer;
+
+message Summary {
+  optional uint32 rAvrg = 1;
+  optional uint32 rStd  = 2;
+  optional uint32 wAvrg = 3;
+  optional uint32 wStd  = 4;
+  uint32 rSize = 5;
+  uint32 wSize = 6;
+  double rIops = 7;
+  double wIops = 8;
+  optional uint64 winTime = 9;
+}
+
+message data{
+  map<string, Summary> apps = 1;
+  map<uint64, Summary> uids = 2;
+  map<uint64, Summary> gids = 3;
+}
