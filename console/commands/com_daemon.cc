@@ -178,6 +178,7 @@ com_daemon(char* arg)
       (option != "config") &&
       (option != "stack") &&
       (option != "stop") &&
+      (option != "restart") &&
       (option != "kill") &&
       (option != "jwk") &&
       (option != "module-init")) {
@@ -512,7 +513,7 @@ com_daemon(char* arg)
     fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
     global_retc = WEXITSTATUS(rc);
     return (0);
-  } else if (option == "kill") {
+  } else if (option == "kill" || option == "restart") {
     std::string kline;
     kline = "test -e ";
     kline += envfile.c_str();
@@ -521,8 +522,10 @@ com_daemon(char* arg)
     kline += "| cut -d '&' -f 1 | cut -d '=' -f 2`";
     int rc = system(kline.c_str());
     fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
-    global_retc = WEXITSTATUS(rc);
-    return (0);
+	if (option == "kill"){
+	  global_retc = WEXITSTATUS(rc);
+	  return (0);
+	}
   } else if (option == "stop") {
     std::string kline;
     kline = "test -e ";
@@ -534,7 +537,8 @@ com_daemon(char* arg)
     fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
     global_retc = WEXITSTATUS(rc);
     return (0);
-  } else if (option == "run") {
+  }
+  if (option == "run" || option == "restart") {
     if (!cfg.Has(chapter.c_str())) {
       fprintf(stderr,
               "error: missing service configuration [%s] in generic config file '/etc/eos/config/generic/all' or '/etc/eos/config/%s/%s'\n",
@@ -543,15 +547,17 @@ com_daemon(char* arg)
       return (0);
     }
 
-	FILE* pipe = popen(std::string("pidof -s eos-" + std::string(service.c_str())).c_str(), "r");
-	pid_t pid = 0;
+	if (option == "run"){
+	  FILE* pipe = popen(std::string("pidof -s eos-" + std::string(service.c_str())).c_str(), "r");
+	  pid_t pid = 0;
 
-	if (!pipe || fscanf(pipe, "%d", &pid) != 1)
-	  pid = -1;
-	pclose(pipe);
-	if (pid != -1){
-	  fprintf(stderr, "error: %s currently running\n", service.c_str());
-	  return 0;
+	  if (!pipe || fscanf(pipe, "%d", &pid) != 1)
+	    pid = -1;
+	  pclose(pipe);
+	  if (pid != -1){
+	    fprintf(stderr, "error: %s currently running\n", service.c_str());
+	    return 0;
+	  }
 	}
 
     char** const envv = cfg.Env("sysconfig");
