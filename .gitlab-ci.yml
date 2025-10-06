@@ -172,7 +172,7 @@ clone_docker:
     #- groupadd xrootd && useradd -g xrootd -m xrootd && echo "xrootd ALL=(ALL:ALL) NOPASSWD: ALL" >> /etc/sudoers
     #- su - xrootd
     - BRANCH=scitoken-stage-support
-    - VERSION=5.8.3
+    - VERSION=5.8.4
     - git clone https://github.com/jafonso/xrootd -b ${BRANCH} xrootd-${VERSION}
     - cd xrootd-${VERSION}
     - rpmdev-setuptree
