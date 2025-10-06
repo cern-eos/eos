@@ -57,7 +57,7 @@ ADD el-9_artifacts/RPMS/ ${EOSREPODIR}
 RUN dnf -y --nogpg instally dnf-plugins-core rpmdevtools
 ARG CACHE_BUST=1
 ARG BRANCH=scitoken-stage-support
-ARG VERSION=5.8.3
+ARG VERSION=5.8.4
 RUN git clone https://github.com/jafonso/xrootd -b ${BRANCH} xrootd-${VERSION}
 RUN rpmdev-setuptree
 RUN cd xrootd-${VERSION} && git archive --prefix xrootd-${VERSION}/ -o $(rpm -E '%{_sourcedir}')/xrootd-${VERSION}.tar.gz HEAD
