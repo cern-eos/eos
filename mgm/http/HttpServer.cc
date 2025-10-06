@@ -387,7 +387,7 @@ HttpServer::XrdHttpHandler(std::string& method,
     }
 
     // Get access operation type for the authz library
-    Access_Operation acc_op = MapHttpVerbToAOP(method);
+    Access_Operation acc_op = HttpHandler::Matches(method, headers) ? AOP_Stage : MapHttpVerbToAOP(method);
     const std::string env = ptr;
     query = env;
     vid = std::make_unique<VirtualIdentity>();
