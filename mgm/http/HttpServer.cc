@@ -23,6 +23,7 @@
 
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/ProtocolHandlerFactory.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Macros.hh"
@@ -387,7 +388,7 @@ HttpServer::XrdHttpHandler(std::string& method,
     }
 
     // Get access operation type for the authz library
-    Access_Operation acc_op = HttpHandler::Matches(method, headers) ? AOP_Stage : MapHttpVerbToAOP(method);
+    Access_Operation acc_op = gOFS->mRestApiManager->isRestRequest(uri) ? AOP_Stage : MapHttpVerbToAOP(method);
     const std::string env = ptr;
     query = env;
     vid = std::make_unique<VirtualIdentity>();
