@@ -54,7 +54,7 @@ ENV EOSREPODIR="/repo/eos"
 ADD el-9_artifacts/RPMS/ ${EOSREPODIR}
 
 # Replace eos-xrootd RPMS
-RUN dnf -y --nogpg instally dnf-plugins-core rpmdevtools
+RUN dnf -y --nogpg install dnf-plugins-core rpmdevtools
 ARG CACHE_BUST=1
 ARG BRANCH=scitoken-stage-support
 ARG VERSION=5.8.4
