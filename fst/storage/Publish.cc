@@ -524,17 +524,14 @@ Storage::GetFstStatistics(const std::string& tmpfile,
 	
   /// get map info
  {
-  IoBuffer::data buffer;
-  IoBuffer::Summary protoBuff;
-  std::string out;
-  std::vector<gid_t> gids(gOFS.ioMap.getGids(300));
-  std::vector<uid_t> uids(gOFS.ioMap.getUids(300));
-  std::vector<std::string> apps(gOFS.ioMap.getApps(300));
+	  IoBuffer::Summary protoBuff;
+	  IoBuffer::data buffer;
 
+	  size_t winTime = 60;
+	  std::vector<gid_t> gids(gOFS.ioMap.getGids(winTime));
+	  std::vector<uid_t> uids(gOFS.ioMap.getUids(winTime));
+	  std::vector<std::string> apps(gOFS.ioMap.getApps(winTime));
 
-  auto win = gOFS.ioMap.getAvailableWindows();
-  if (win.has_value()){
-	for (auto winTime : win.value()){
 		for (auto it : apps){
 		  auto sum = gOFS.ioMap.getSummary(winTime, it);
 		  if (sum.has_value()){
@@ -559,19 +556,20 @@ Storage::GetFstStatistics(const std::string& tmpfile,
 		   }
 		   protoBuff.Clear();
 		 }
-	  }
+
+	  std::cerr << gOFS.ioMap << std::endl;
+
+	  std::string out;
+	  google::protobuf::util::JsonPrintOptions options;
+
+	  options.add_whitespace = true;
+	  // options.always_print_primitive_fields = true;
+	  // options.preserve_proto_field_names = true;
+	  auto it = google::protobuf::util::MessageToJsonString(buffer, &out, options);
+	  if (it.ok())
+		output["stat.iomap"] = out;
   }
 
-  std::cerr << gOFS.ioMap << std::endl;
-
-  google::protobuf::util::JsonPrintOptions options;
-  // options.add_whitespace = true;
-  // options.always_print_primitive_fields = true;
-  // options.preserve_proto_field_names = true;
-  auto it = google::protobuf::util::MessageToJsonString(buffer, &out, options);
-  if (it.ok())
-    output["stat.iomap"] = out;
- }
   return output;
 }
 
