@@ -178,7 +178,7 @@ clone_docker:
     - rpmdev-setuptree
     - git archive --prefix xrootd-${VERSION}/ -o $(rpm -E '%{_sourcedir}')/xrootd-${VERSION}.tar.gz HEAD
     - ${PKG_MGR} builddep -y eos-xrootd.spec
-    - rpmbuild -ba --without tests --with git eos-xrootd.spec --define "_smp_mflags -j4"
+    - rpmbuild -ba --without tests --with git eos-xrootd.spec --define "_smp_mflags -j4" --define "optflags -O0 -g"
     - ${PKG_MGR} install -y ~/rpmbuild/RPMS/*/*.rpm
     - cd ..
     # [END] Build custom eos-xrootd RPMS
