@@ -47,6 +47,7 @@ add_compile_options(-Wall
   # https://github.com/openssl/openssl/issues/25858
   -Wno-deprecated-declarations
   -Werror=return-type
+  -fdebug-prefix-map=${CMAKE_SOURCE_DIR}=/eos
 )
 
 #-------------------------------------------------------------------------------
