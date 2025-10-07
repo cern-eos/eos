@@ -470,7 +470,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   }
 
   //Trigger the prepare workflow
-  triggerPrepareWorkflow(pathsToPrepare, cmd, event, reqid, error, vid);
+  triggerPrepareWorkflow(pathsToPrepare, cmd, event, reqid, error, fileToVidMap);
   int retc = SFS_OK;
 #if (XrdMajorVNUM(XrdVNUMBER) == 4 && XrdMinorVNUM(XrdVNUMBER) >= 10) || XrdMajorVNUM(XrdVNUMBER) >= 5
 
@@ -532,7 +532,7 @@ bool PrepareManager::isStagePrepare() const
 void PrepareManager::triggerPrepareWorkflow(
   std::list<std::tuple<char**, char**, EosCtaReporterPrepareReq>>& pathsToPrepare,
   const std::string& cmd, const std::string& event, const XrdOucString& reqid,
-  XrdOucErrInfo& error, const eos::common::VirtualIdentity& vid)
+  XrdOucErrInfo& error, const std::map<std::string, eos::common::VirtualIdentity>& fileToVidMap)
 {
   for (auto& pathTuple : pathsToPrepare) {
     EosCtaReporterPrepareReq eosLog = std::move(std::get<2>(pathTuple));
@@ -564,14 +564,16 @@ void PrepareManager::triggerPrepareWorkflow(
       prep_info += "default";
     }
 
+    const eos::common::VirtualIdentity fileVid = fileToVidMap.find(prep_path.c_str())->second;
+
     prep_info += "&mgm.fid=0&mgm.path=";
     prep_info += prep_path.c_str();
     prep_info += "&mgm.logid=";
     prep_info += this->logId;
     prep_info += "&mgm.ruid=";
-    prep_info += (int)vid.uid;
+    prep_info += (int)fileVid.uid;
     prep_info += "&mgm.rgid=";
-    prep_info += (int)vid.gid;
+    prep_info += (int)fileVid.gid;
     prep_info += "&mgm.reqid=";
     prep_info += reqid.c_str();
 
@@ -580,10 +582,10 @@ void PrepareManager::triggerPrepareWorkflow(
       prep_info += prep_env.Get("activity");
     }
 
-    XrdSecEntity lClient(vid.prot.c_str());
-    lClient.name = (char*) vid.name.c_str();
-    lClient.tident = (char*) vid.tident.c_str();
-    lClient.host = (char*) vid.host.c_str();
+    XrdSecEntity lClient(fileVid.prot.c_str());
+    lClient.name = (char*) fileVid.name.c_str();
+    lClient.tident = (char*) fileVid.tident.c_str();
+    lClient.host = (char*) fileVid.host.c_str();
     XrdOucString lSec = "&mgm.sec=";
     lSec += eos::common::SecEntity::ToKey(&lClient,
                                           "eos").c_str();

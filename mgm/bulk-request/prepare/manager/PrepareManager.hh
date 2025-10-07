@@ -157,13 +157,13 @@ protected:
    * @param event the event to trigger (sync::prepare, sync::evict_prepare...)
    * @param reqid the requestId of this prepare request
    * @param error The error that will be returned to the client if an error happens
-   * @param vid the identity of the person who issued the prepare request
+   * @param fileToVidMap the identity of the person who issued the prepare request, per file
    */
   void triggerPrepareWorkflow(
     std::list<std::tuple<char**, char**, EosCtaReporterPrepareReq>>&
     pathsToPrepare, const std::string& cmd, const std::string& event,
     const XrdOucString& reqid, XrdOucErrInfo& error,
-    const eos::common::VirtualIdentity& vid);
+    const std::map<std::string, eos::common::VirtualIdentity>& fileToVidMap);
 
   /**
    * Will call the business layer to persist the bulk request
