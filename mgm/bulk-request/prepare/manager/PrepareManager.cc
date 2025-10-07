@@ -641,6 +641,7 @@ std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(
   const std::string& authz)
 {
   XrdSecEntity client;
+  snprintf(client.prot, sizeof(client.prot) - 1, "https");
   std::unique_ptr<QueryPrepareResult> queryPrepareResult(new
       QueryPrepareResult());
   int retCode = doQueryPrepare(pargs, error, &client, *queryPrepareResult,
@@ -761,12 +762,6 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     rsp.is_on_tape = buf.st_rdev & XRDSFS_HASBKUP;
     rsp.is_online  = !(buf.st_rdev & XRDSFS_OFFLINE);
 
-    if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, file_vid, "")) {
-      currentFile->setError(
-        std::string("USER ERROR: you don't have prepare permission"));
-      goto logErrorAndContinue;
-    }
-
     // Check file status in the extended attributes
     if (mMgmFsInterface->_attr_ls(eos::common::Path(prep_path.c_str()).GetPath(),
                                   xrd_error, file_vid,
@@ -799,6 +794,12 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     } else {
       // failed to read extended attributes
       currentFile->setErrorIfNotAlreadySet(xrd_error.getErrText());
+      goto logErrorAndContinue;
+    }
+
+    if (mMgmFsInterface->_access(prep_path.c_str(), P_OK, error, file_vid, "")) {
+      currentFile->setError(
+        std::string("USER ERROR: you don't have prepare permission"));
       goto logErrorAndContinue;
     }
 
