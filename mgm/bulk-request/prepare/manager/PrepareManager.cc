@@ -65,6 +65,7 @@ int PrepareManager::prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                             const std::string& authz) noexcept
 {
   XrdSecEntity client;
+  snprintf(client.prot, sizeof(client.prot) - 1, "https");
   return doPrepare(pargs, error, &client, nullptr, authz);
 }
 
