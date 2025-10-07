@@ -221,7 +221,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // @todo (esindril) this is just a workaround for the fact that XrdHttp
   // does not properly populate the prot field in the XrdSecEntity object.
   // See https://github.com/xrootd/xrootd/issues/1122
-  if ((strlen(client->tident) == 4) &&
+  if (client->tident && (strlen(client->tident) == 4) &&
       (strcmp(client->tident, "http") == 0)) {
     vid.prot = "https";
   }
