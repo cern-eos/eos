@@ -157,8 +157,17 @@ Recycle::RemoveEntries()
   }
 
   // Compute the index of the containers to be removed in the current slot
-  int slots_per_day = 86400 / mPolicy.mRemoveInterval.count();
-  int current_slot = (now_ts.count() % 86400) / mPolicy.mRemoveInterval.count();
+  int total_slots = mPolicy.mCollectInterval.count() /
+                    mPolicy.mRemoveInterval.count();
+  int current_slot = (now_ts.count() % mPolicy.mCollectInterval.count()) /
+                     mPolicy.mRemoveInterval.count();
+
+  // Catch all config in case the remove interval >= collect interval
+  if (total_slots == 0) {
+    total_slots = 1;
+    current_slot = 0;
+  }
+
   auto it = mPendingDeletions.begin();
   uint64_t count = 0;
 
@@ -173,10 +182,10 @@ Recycle::RemoveEntries()
     // try to spread out the deletion throughout the day!
     eos::IContainerMD::id_t cid = it->first;
 
-    if (cid % slots_per_day != current_slot) {
+    if (cid % total_slots != current_slot) {
       eos_static_debug("msg=\"recycle skip directory removal\" cxid=%08llx"
                        " current_slot=%i slots=%i", cid, current_slot,
-                       slots_per_day);
+                       total_slots);
       ++it;
       continue;
     }
@@ -243,8 +252,19 @@ Recycle::RemoveSubtree(std::string_view dpath)
       }
     }
 
-    //@todo(esindril) delete parent directory if empty and still within
-    // the recycle bin directory!
+    // Delete parent directories if empty and still within the recycle bin
+    // the current path should have 8 levels
+    eos::common::Path cpath(dpath.data());
+
+    for (auto level = cpath.GetSubPathSize(); level > 4; --level) {
+      std::string dpath = cpath.GetSubPath(level);
+
+      // Ignore failed removals as it means directory is not empty
+      if (gOFS->_rem(dpath.c_str(), lerror, mRootVid, (const char*) 0)) {
+        eos_static_info("msg=\"permanently deleted directory from "
+                        "recycle bin\" path=%s", dpath.c_str());
+      }
+    }
   }
 }
 
@@ -1227,7 +1247,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     try {
       uint64_t poll_interval = std::stoull(value);
 
-      // Make sure the poll interval is never less than 30 seconds
+      // Make sure the poll interval is never less than 10 seconds
       if (poll_interval < 10) {
         std_err = "error: recycle poll interval has to be > 10";
         return EINVAL;
@@ -1250,6 +1270,72 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       return EIO;
     } else {
       std_out += "success: recycle bin update poll interval";
+    }
+  } else if (key == "--collect-interval") {
+    if (value.empty()) {
+      std_err = "error: missing collect interval value\n";
+      return EINVAL;
+    }
+
+    try {
+      uint64_t collect_interval = std::stoull(value);
+
+      // Make sure the collect interval is never less than 10 sec
+      if (collect_interval < 10) {
+        std_err = "error: recycle collect interval has to be > 10";
+        return EINVAL;
+      }
+    } catch (...) {
+      std_err = "error: recycle collect interval not numeric";
+      return EINVAL;
+    }
+
+    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
+                        lerror, mRootVid, "",
+                        Recycle::gRecyclingCollectInterval.c_str(),
+                        value.c_str())) {
+      std_err = "error: failed to set extended attribute '";
+      std_err += Recycle::gRecyclingCollectInterval.c_str();
+      std_err += "'";
+      std_err += " at '";
+      std_err += Recycle::gRecyclingPrefix.c_str();
+      std_err += "'";
+      return EIO;
+    } else {
+      std_out += "success: recycle bin update collect interval";
+    }
+  } else if (key == "--remove-interval") {
+    if (value.empty()) {
+      std_err = "error: missing remove interval value\n";
+      return EINVAL;
+    }
+
+    try {
+      uint64_t remove_interval = std::stoull(value);
+
+      // Make sure the collect interval is never less than 10 sec
+      if (remove_interval < 10) {
+        std_err = "error: recycle collect interval has to be > 10";
+        return EINVAL;
+      }
+    } catch (...) {
+      std_err = "error: recycle collect interval not numeric";
+      return EINVAL;
+    }
+
+    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
+                        lerror, mRootVid, "",
+                        Recycle::gRecyclingRemoveInterval.c_str(),
+                        value.c_str())) {
+      std_err = "error: failed to set extended attribute '";
+      std_err += Recycle::gRecyclingRemoveInterval.c_str();
+      std_err += "'";
+      std_err += " at '";
+      std_err += Recycle::gRecyclingPrefix.c_str();
+      std_err += "'";
+      return EIO;
+    } else {
+      std_out += "success: recycle bin update remove interval";
     }
   } else if (key == "--dry-run") {
     if (value.empty() || ((value != "yes") && (value != "no"))) {
