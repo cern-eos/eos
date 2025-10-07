@@ -707,7 +707,11 @@ TEST_F(PrepareManagerTest, queryPrepareFileNoPreparePermissionOnDirectory)
       //File could not be recalled
       MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY
     ));
-  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(0);
+  EXPECT_CALL(mgmOfs, _attr_ls(_, _, _, _, _, _)).Times(nbFiles).WillRepeatedly(
+                                 Invoke(
+                                   //Set all possible errors, we want to see the "USER ERROR: you don't have prepare permission" error message in all cases.
+                                   MockPrepareMgmFSInterface::_ATTR_LS_ARCHIVE_RETRIEVE_ERROR_LAMBDA
+                                 ));
   EXPECT_CALL(mgmOfs, _access(_, _, _, _, _)).Times(nbFiles).WillRepeatedly(
     Invoke(
       MockPrepareMgmFSInterface::_ACCESS_FILE_NO_PREPARE_PERMISSION_LAMBDA
