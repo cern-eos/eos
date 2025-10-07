@@ -232,7 +232,8 @@ BuildRequires: compiler-rt
 The EOS software package.
 %prep
 %setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
-%global build_type RelWithDebInfo
+%global build_type Debug
+%global optflags %{optflags} -fdebug-prefix-map=%{_builddir}=/eos -ffile-prefix-map=%{_builddir}=/eos
 %global build_flags -DBUILD_MANPAGES=1
 %if %{without server}
 %global build_flags %{build_flags} -DCLIENT=1
