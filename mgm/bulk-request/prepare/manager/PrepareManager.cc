@@ -626,9 +626,10 @@ std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(
   XrdSfsPrep& pargs, XrdOucErrInfo& error,
   const common::VirtualIdentity* vidClient)
 {
+  XrdSecEntity client;
   std::unique_ptr<QueryPrepareResult> queryPrepareResult(new
       QueryPrepareResult());
-  int retCode = doQueryPrepare(pargs, error, nullptr, *queryPrepareResult,
+  int retCode = doQueryPrepare(pargs, error, &client, *queryPrepareResult,
                                vidClient);
   queryPrepareResult->setReturnCode(retCode);
   return queryPrepareResult;
@@ -638,9 +639,10 @@ std::unique_ptr<QueryPrepareResult> PrepareManager::queryPrepare(
   XrdSfsPrep& pargs, XrdOucErrInfo& error,
   const std::string& authz)
 {
+  XrdSecEntity client;
   std::unique_ptr<QueryPrepareResult> queryPrepareResult(new
       QueryPrepareResult());
-  int retCode = doQueryPrepare(pargs, error, nullptr, *queryPrepareResult,
+  int retCode = doQueryPrepare(pargs, error, &client, *queryPrepareResult,
                                nullptr, authz);
   queryPrepareResult->setReturnCode(retCode);
   return queryPrepareResult;
