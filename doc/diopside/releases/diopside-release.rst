@@ -16,6 +16,16 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.24 Diopside``
+====================
+
+2025-10-08
+
+Bug
+----
+
+* [EOS-6500] - Malformed OAUTH token can crash MGM
+
 ``v5.3.23 Diopside``
 ====================
 
