@@ -24,6 +24,15 @@
 #pragma once
 
 #include <json/json.h>
+#include <type_traits>
+#include <atomic>
+#include <array>
+#include <vector>
+#include <set>
+#include <map>
+#include <unordered_map>
+#include <string>
+#include <sstream>
 
 template <typename T>
 std::enable_if_t<std::is_integral_v<T>, Json::Value> inline ConvertToJson(
