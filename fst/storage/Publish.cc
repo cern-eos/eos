@@ -557,7 +557,7 @@ Storage::GetFstStatistics(const std::string& tmpfile,
 		   protoBuff.Clear();
 		 }
 
-	  std::cerr << gOFS.ioMap << std::endl;
+	  // std::cerr << gOFS.ioMap << std::endl;
 
 	  std::string out;
 	  google::protobuf::util::JsonPrintOptions options;
