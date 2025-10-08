@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "Logging.hh"
 #include "common/Path.hh"
 #include "common/FileId.hh"
 #include "common/IntervalStopwatch.hh"
@@ -1369,43 +1370,48 @@ void FileInspector::QdbHelper::Load(FileInspectorStats& stats)
 {
   std::vector<std::string> members = mQHashStats.hgetall();
 
-  for (int i = 0; i < members.size() - 1; i += 2) {
-    std::string key = members[i];
-    std::string value = members[i + 1];
+  try {
+    for (int i = 0; i < members.size() - 1; i += 2) {
+      std::string key = members[i];
+      std::string value = members[i + 1];
 
-    if (key == SCAN_STATS_KEY) {
-      Unmarshal(value, stats.ScanStats);
-    } else if (key == FAULTY_FILES_KEY) {
-      Unmarshal(value, stats.FaultyFiles);
-    } else if (key == ACCESS_TIME_FILES_KEY) {
-      Unmarshal(value, stats.AccessTimeFiles);
-    } else if (key == ACCESS_TIME_VOLUME_KEY) {
-      Unmarshal(value, stats.AccessTimeVolume);
-    } else if (key == BIRTH_TIME_FILES_KEY) {
-      Unmarshal(value, stats.BirthTimeFiles);
-    } else if (key == BIRTH_TIME_VOLUME_KEY) {
-      Unmarshal(value, stats.BirthTimeVolume);
-    } else if (key == BIRTH_VS_ACCESS_TIME_FILES_KEY) {
-      Unmarshal(value, stats.BirthVsAccessTimeFiles);
-    } else if (key == BIRTH_VS_ACCESS_TIME_VOLUME_KEY) {
-      Unmarshal(value, stats.BirthVsAccessTimeVolume);
-    } else if (key == USER_COSTS_KEY) {
-      Unmarshal(value, stats.UserCosts);
-    } else if (key == GROUP_COSTS_KEY) {
-      Unmarshal(value, stats.GroupCosts);
-    } else if (key == TOTAL_COSTS_KEY) {
-      Unmarshal(value, stats.TotalCosts);
-    } else if (key == USER_BYTES_KEY) {
-      Unmarshal(value, stats.UserBytes);
-    } else if (key == GROUP_BYTES_KEY) {
-      Unmarshal(value, stats.GroupBytes);
-    } else if (key == TOTAL_BYTES_KEY) {
-      Unmarshal(value, stats.TotalBytes);
-    } else if (key == NUM_FAULTY_FILES_KEY) {
-      Unmarshal(value, stats.NumFaultyFiles);
-    } else if (key == TIME_SCAN_KEY) {
-      Unmarshal(value, stats.TimeScan);
+      if (key == SCAN_STATS_KEY) {
+        Unmarshal(value, stats.ScanStats);
+      } else if (key == FAULTY_FILES_KEY) {
+        Unmarshal(value, stats.FaultyFiles);
+      } else if (key == ACCESS_TIME_FILES_KEY) {
+        Unmarshal(value, stats.AccessTimeFiles);
+      } else if (key == ACCESS_TIME_VOLUME_KEY) {
+        Unmarshal(value, stats.AccessTimeVolume);
+      } else if (key == BIRTH_TIME_FILES_KEY) {
+        Unmarshal(value, stats.BirthTimeFiles);
+      } else if (key == BIRTH_TIME_VOLUME_KEY) {
+        Unmarshal(value, stats.BirthTimeVolume);
+      } else if (key == BIRTH_VS_ACCESS_TIME_FILES_KEY) {
+        Unmarshal(value, stats.BirthVsAccessTimeFiles);
+      } else if (key == BIRTH_VS_ACCESS_TIME_VOLUME_KEY) {
+        Unmarshal(value, stats.BirthVsAccessTimeVolume);
+      } else if (key == USER_COSTS_KEY) {
+        Unmarshal(value, stats.UserCosts);
+      } else if (key == GROUP_COSTS_KEY) {
+        Unmarshal(value, stats.GroupCosts);
+      } else if (key == TOTAL_COSTS_KEY) {
+        Unmarshal(value, stats.TotalCosts);
+      } else if (key == USER_BYTES_KEY) {
+        Unmarshal(value, stats.UserBytes);
+      } else if (key == GROUP_BYTES_KEY) {
+        Unmarshal(value, stats.GroupBytes);
+      } else if (key == TOTAL_BYTES_KEY) {
+        Unmarshal(value, stats.TotalBytes);
+      } else if (key == NUM_FAULTY_FILES_KEY) {
+        Unmarshal(value, stats.NumFaultyFiles);
+      } else if (key == TIME_SCAN_KEY) {
+        Unmarshal(value, stats.TimeScan);
+      }
     }
+  } catch (...) {
+    eos_static_warning("msg=\"error unmarshalling FileInspector stats from QDB\"");
+    stats = FileInspectorStats(); // Reset stats on error
   }
 }
 
