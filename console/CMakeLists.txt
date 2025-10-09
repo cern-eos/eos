@@ -56,6 +56,13 @@ add_library(EosConsoleCommands-Objects OBJECT
   ConsolePipe.cc  ConsolePipe.hh
   ConsoleCompletion.cc ConsoleCompletion.hh
   RegexUtil.cc RegexUtil.hh
+  commands/native/CoreNativeCommands.cc
+  commands/native/PwdCdNativeCommands.cc
+  commands/native/LsNativeCommand.cc
+  commands/native/VersionStatusNativeCommands.cc
+  commands/native/MkdirRmNativeCommands.cc
+  commands/native/InfoStatNativeCommands.cc
+  commands/native/BasicWrappersNativeCommands.cc
   commands/helpers/NewfindHelper.cc commands/helpers/NewfindHelper.hh
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh

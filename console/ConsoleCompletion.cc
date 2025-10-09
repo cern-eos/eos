@@ -227,8 +227,6 @@ char* eos_command_generator(const char* text, int state)
     int len = strlen(text);
     completions.clear();
     index = 0;
-    char* name;
-    int i = 0;
 
     // Prefer registry over static commands array
     auto& all = CommandRegistry::instance().all();
