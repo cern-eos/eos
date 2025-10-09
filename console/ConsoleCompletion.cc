@@ -22,6 +22,7 @@
 
 #include "ConsoleMain.hh"
 #include "ConsoleCompletion.hh"
+#include "CommandFramework.hh"
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include <string.h>
@@ -229,12 +230,11 @@ char* eos_command_generator(const char* text, int state)
     char* name;
     int i = 0;
 
-    while ((name = commands[i].name)) {
-      if (strncmp(name, text, len) == 0) {
-        completions.push_back(name);
-      }
-
-      ++i;
+    // Prefer registry over static commands array
+    auto& all = CommandRegistry::instance().all();
+    for (auto* c : all) {
+      const char* name = c->name();
+      if (strncmp(name, text, len) == 0) completions.push_back(name);
     }
   } else {
     ++index;

@@ -52,6 +52,7 @@ set_target_properties(EosConsoleHelpers-Objects PROPERTIES
 
 add_library(EosConsoleCommands-Objects OBJECT
   ConsoleMain.cc  ConsoleMain.hh
+  CommandFramework.cc CommandFramework.hh
   ConsolePipe.cc  ConsolePipe.hh
   ConsoleCompletion.cc ConsoleCompletion.hh
   RegexUtil.cc RegexUtil.hh

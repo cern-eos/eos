@@ -24,6 +24,7 @@
 #include "ConsoleMain.hh"
 #include "ConsolePipe.hh"
 #include "ConsoleCompletion.hh"
+#include "CommandFramework.hh"
 #include "console/RegexUtil.hh"
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClURL.hh>
@@ -1322,29 +1323,50 @@ execute_line(char* line)
     return (-1);
   }
 
-  COMMAND* command = find_command(tokens.begin()->c_str());
+  // Initialize registry on first use
+  static bool registryInitialized = false;
+  if (!registryInitialized) {
+    RegisterAllConsoleCommands();
+    RegisterNativeConsoleCommands();
+    registryInitialized = true;
+  }
 
-  if (!command) {
-    fprintf(stderr, "%s: No such command for EOS Console.\n",
-            tokens.begin()->c_str());
+  std::string cmdName = *tokens.begin();
+  IConsoleCommand* icmd = CommandRegistry::instance().find(cmdName);
+  if (!icmd) {
+    fprintf(stderr, "%s: No such command for EOS Console.\n", cmdName.c_str());
     global_retc = -1;
     return (-1);
   }
 
-  // Extract arguments string from full command line
+  // Extract arguments vector from full command line
   line_without_comment = line_without_comment.substr(tokens.begin()->size());
   eos::common::trim(line_without_comment);
-  std::string args = line_without_comment;
+  std::string rest = line_without_comment;
+  std::list<std::string> argTokens = eos::common::StringTokenizer::split<std::list<std::string>>(rest.c_str(), ' ');
+  std::vector<std::string> argsVec(argTokens.begin(), argTokens.end());
 
   // Check MGM availability
-  if (RequiresMgm(command->name, args) &&
+  if (icmd->requiresMgm(rest) &&
       !CheckMgmOnline(serveruri.c_str())) {
     std::cerr << "error: MGM " << serveruri.c_str()
               << " not online/reachable" << std::endl;
     exit(ENONET);
   }
 
-  return ((*(command->func))((char*)args.c_str()));
+  CommandContext ctx;
+  ctx.serverUri = serveruri.c_str();
+  ctx.globalOpts = &gGlobalOpts;
+  ctx.json = json;
+  ctx.silent = silent;
+  ctx.interactive = interactive;
+  ctx.timing = timing;
+  ctx.userRole = user_role.c_str();
+  ctx.groupRole = group_role.c_str();
+  ctx.clientCommand = &client_command;
+  ctx.outputResult = &output_result;
+
+  return icmd->run(argsVec, ctx);
 }
 
 //------------------------------------------------------------------------------
