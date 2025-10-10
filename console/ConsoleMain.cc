@@ -1326,7 +1326,7 @@ execute_line(char* line)
   // Initialize registry on first use
   static bool registryInitialized = false;
   if (!registryInitialized) {
-    RegisterAllConsoleCommands();
+    // Use only native registration (includes all remaining legacy via adapters)
     RegisterNativeConsoleCommands();
     registryInitialized = true;
   }

@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: VersionStatusNativeCommands.cc
+// File: version-native.cc
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
@@ -21,42 +21,24 @@ public:
               "                -f                                                   -  print the list of supported features\n");
       fprintf(stdout,
               "                -m                                                   -  print in monitoring format\n");
-      global_retc = EINVAL;
-      return 0;
+      global_retc = EINVAL; return 0;
     }
-
-    XrdOucString in = "mgm.cmd=version";
-    XrdOucString options = "";
+    XrdOucString in = "mgm.cmd=version"; XrdOucString options = "";
     for (const auto& a : args) {
-      if (a == "-f") options += "f";
-      else if (a == "-m") options += "m";
-      else if (!a.empty()) { fprintf(stdout, "usage: version [-f] [-m]\n"); global_retc = EINVAL; return 0; }
+      if (a == "-f") options += "f"; else if (a == "-m") options += "m"; else if (!a.empty()) { fprintf(stdout, "usage: version [-f] [-m]\n"); global_retc = EINVAL; return 0; }
     }
     if (options.length()) { in += "&mgm.option="; in += options; }
-
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
-    if ((options.find("m") == STR_NPOS) && !ctx.json) {
-      fprintf(stdout, "EOS_CLIENT_VERSION=%s EOS_CLIENT_RELEASE=%s\n", VERSION, RELEASE);
-    }
+    if ((options.find("m") == STR_NPOS) && !ctx.json) { fprintf(stdout, "EOS_CLIENT_VERSION=%s EOS_CLIENT_RELEASE=%s\n", VERSION, RELEASE); }
     return 0;
   }
   void printHelp() const override {}
 };
-
-class StatusCommand : public IConsoleCommand {
-public:
-  const char* name() const override { return "status"; }
-  const char* description() const override { return "Display status information on an MGM"; }
-  bool requiresMgm(const std::string&) const override { return false; }
-  int run(const std::vector<std::string>&, CommandContext&) override { (void)!system("eos-status"); return 0; }
-  void printHelp() const override {}
-};
 }
 
-void RegisterVersionStatusNativeCommands()
+void RegisterVersionNativeCommand()
 {
   CommandRegistry::instance().reg(std::make_unique<VersionCommand>());
-  CommandRegistry::instance().reg(std::make_unique<StatusCommand>());
 }
 
 

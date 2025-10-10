@@ -64,27 +64,172 @@ void RegisterAllConsoleCommands()
 void RegisterNativeConsoleCommands()
 {
   // Registration split across native modules for maintainability
-  // Basic wrappers
-  extern void RegisterBasicWrappersNativeCommands();
-  RegisterBasicWrappersNativeCommands();
   // Core
   extern void RegisterCoreNativeCommands();
   RegisterCoreNativeCommands();
-  // Pwd/Cd
-  extern void RegisterPwdCdNativeCommands();
-  RegisterPwdCdNativeCommands();
+  // Pwd
+  extern void RegisterPwdNativeCommand();
+  RegisterPwdNativeCommand();
+  // Cd
+  extern void RegisterCdNativeCommand();
+  RegisterCdNativeCommand();
   // Ls
   extern void RegisterLsNativeCommand();
   RegisterLsNativeCommand();
-  // Version/Status
-  extern void RegisterVersionStatusNativeCommands();
-  RegisterVersionStatusNativeCommands();
+  // Cp
+  extern void RegisterCpNativeCommand();
+  RegisterCpNativeCommand();
+  // Version
+  extern void RegisterVersionNativeCommand();
+  RegisterVersionNativeCommand();
+  // Status
+  extern void RegisterStatusNativeCommand();
+  RegisterStatusNativeCommand();
   // Mkdir/Rm
-  extern void RegisterMkdirRmNativeCommands();
-  RegisterMkdirRmNativeCommands();
-  // Info/Stat
-  extern void RegisterInfoStatNativeCommands();
-  RegisterInfoStatNativeCommands();
+  extern void RegisterMkdirNativeCommand();
+  RegisterMkdirNativeCommand();
+  extern void RegisterRmNativeCommand();
+  RegisterRmNativeCommand();
+  // Info
+  extern void RegisterInfoNativeCommand();
+  RegisterInfoNativeCommand();
+  // Stat
+  extern void RegisterStatNativeCommand();
+  RegisterStatNativeCommand();
+  // Mv
+  extern void RegisterMvNativeCommand();
+  RegisterMvNativeCommand();
+  // Ln
+  extern void RegisterLnNativeCommand();
+  RegisterLnNativeCommand();
+  // Rmdir
+  extern void RegisterRmdirNativeCommand();
+  RegisterRmdirNativeCommand();
+  // Touch
+  extern void RegisterTouchNativeCommand();
+  RegisterTouchNativeCommand();
+  // Who
+  extern void RegisterWhoNativeCommand();
+  RegisterWhoNativeCommand();
+  // Whoami
+  extern void RegisterWhoamiNativeCommand();
+  RegisterWhoamiNativeCommand();
+  // Proto commands
+  extern void RegisterAccessProtoNativeCommand();
+  RegisterAccessProtoNativeCommand();
+  extern void RegisterAclProtoNativeCommand();
+  RegisterAclProtoNativeCommand();
+  extern void RegisterConfigProtoNativeCommand();
+  RegisterConfigProtoNativeCommand();
+  extern void RegisterConvertProtoNativeCommand();
+  RegisterConvertProtoNativeCommand();
+  extern void RegisterDevicesProtoNativeCommand();
+  RegisterDevicesProtoNativeCommand();
+  extern void RegisterDfProtoNativeCommand();
+  RegisterDfProtoNativeCommand();
+  extern void RegisterFindProtoNativeCommand();
+  RegisterFindProtoNativeCommand();
+  extern void RegisterFsProtoNativeCommand();
+  RegisterFsProtoNativeCommand();
+  extern void RegisterFsckProtoNativeCommand();
+  RegisterFsckProtoNativeCommand();
+  extern void RegisterGroupProtoNativeCommand();
+  RegisterGroupProtoNativeCommand();
+  extern void RegisterIoProtoNativeCommand();
+  RegisterIoProtoNativeCommand();
+  extern void RegisterNodeProtoNativeCommand();
+  RegisterNodeProtoNativeCommand();
+  extern void RegisterNsProtoNativeCommand();
+  RegisterNsProtoNativeCommand();
+  extern void RegisterQosProtoNativeCommand();
+  RegisterQosProtoNativeCommand();
+  extern void RegisterQuotaProtoNativeCommand();
+  RegisterQuotaProtoNativeCommand();
+  extern void RegisterRecycleProtoNativeCommand();
+  RegisterRecycleProtoNativeCommand();
+  extern void RegisterRegisterProtoNativeCommand();
+  RegisterRegisterProtoNativeCommand();
+  extern void RegisterRmProtoNativeCommand();
+  RegisterRmProtoNativeCommand();
+  extern void RegisterRouteProtoNativeCommand();
+  RegisterRouteProtoNativeCommand();
+  extern void RegisterTokenProtoNativeCommand();
+  RegisterTokenProtoNativeCommand();
+  extern void RegisterSpaceProtoNativeCommand();
+  RegisterSpaceProtoNativeCommand();
+  extern void RegisterSchedProtoNativeCommand();
+  RegisterSchedProtoNativeCommand();
+  // file/fuse/fusex
+  extern void RegisterFileNativeCommand();
+  RegisterFileNativeCommand();
+  extern void RegisterFuseNativeCommand();
+  RegisterFuseNativeCommand();
+  extern void RegisterFusexNativeCommand();
+  RegisterFusexNativeCommand();
+  // Misc
+  extern void RegisterBackupNativeCommand();
+  RegisterBackupNativeCommand();
+  extern void RegisterClearNativeCommand();
+  RegisterClearNativeCommand();
+  extern void RegisterConsoleNativeCommand();
+  RegisterConsoleNativeCommand();
+  extern void RegisterDebugNativeCommand();
+  RegisterDebugNativeCommand();
+  extern void RegisterDuNativeCommand();
+  RegisterDuNativeCommand();
+  extern void RegisterEvictNativeCommand();
+  RegisterEvictNativeCommand();
+  extern void RegisterMotdNativeCommand();
+  RegisterMotdNativeCommand();
+  extern void RegisterOldfindNativeCommand();
+  RegisterOldfindNativeCommand();
+  extern void RegisterRcloneNativeCommand();
+  RegisterRcloneNativeCommand();
+  extern void RegisterSquashNativeCommand();
+  RegisterSquashNativeCommand();
+  extern void RegisterTestNativeCommand();
+  RegisterTestNativeCommand();
+  // Attr/Mode
+  extern void RegisterArchiveNativeCommand();
+  RegisterArchiveNativeCommand();
+  extern void RegisterAttrNativeCommand();
+  RegisterAttrNativeCommand();
+  extern void RegisterChmodNativeCommand();
+  RegisterChmodNativeCommand();
+  extern void RegisterChownNativeCommand();
+  RegisterChownNativeCommand();
+  // Admin/Device and misc extras
+  extern void RegisterDaemonNativeCommand();
+  RegisterDaemonNativeCommand();
+  extern void RegisterGeoschedNativeCommand();
+  RegisterGeoschedNativeCommand();
+  extern void RegisterInspectorNativeCommand();
+  RegisterInspectorNativeCommand();
+  extern void RegisterLicenseNativeCommand();
+  RegisterLicenseNativeCommand();
+  extern void RegisterMapNativeCommand();
+  RegisterMapNativeCommand();
+  extern void RegisterMemberNativeCommand();
+  RegisterMemberNativeCommand();
+  extern void RegisterAccountingNativeCommand();
+  RegisterAccountingNativeCommand();
+  extern void RegisterHealthNativeCommand();
+  RegisterHealthNativeCommand();
+  extern void RegisterReconnectNativeCommand();
+  RegisterReconnectNativeCommand();
+  extern void RegisterReportNativeCommand();
+  RegisterReportNativeCommand();
+  extern void RegisterRtlogNativeCommand();
+  RegisterRtlogNativeCommand();
+  extern void RegisterRoleNativeCommand();
+  RegisterRoleNativeCommand();
+  extern void RegisterScitokenNativeCommand();
+  RegisterScitokenNativeCommand();
+  extern void RegisterTrackerNativeCommand();
+  RegisterTrackerNativeCommand();
+  extern void RegisterVidNativeCommand();
+  RegisterVidNativeCommand();
+  // RemainingLegacyNativeCommands removed
 }
 
 

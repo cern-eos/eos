@@ -8,9 +8,7 @@ The console has been refactored to route all commands through a small, typed com
   - `IConsoleCommand`: interface for all commands
     - `name()`, `description()`, `requiresMgm(args)`, `run(args, ctx)`, `printHelp()`
   - `CommandRegistry`: registers and finds commands; registry order prefers most recently registered (native overrides legacy)
-  - `CFuncCommandAdapter`: adapter that wraps legacy `int com_xxx(char*)` symbols so they are visible in the registry immediately
-  - `RegisterAllConsoleCommands()`: populates registry with every legacy command from the static `commands[]` table
-  - `RegisterNativeConsoleCommands()`: calls per‑module registrars to add new native commands
+  - `RegisterNativeConsoleCommands()`: calls per‑module registrars to add new native commands (and unified legacy adapters)
 
 - `CommandContext`
   - Lightweight context passed into `run(...)` providing access to current CLI state and helpers
@@ -24,13 +22,12 @@ The console has been refactored to route all commands through a small, typed com
   - `commands/native/VersionStatusNativeCommands.cc`: `version`, `status`
   - `commands/native/MkdirRmNativeCommands.cc`: `mkdir`, `rm`
   - `commands/native/InfoStatNativeCommands.cc`: `info` (delegates), `stat` (inline)
-  - `commands/native/BasicWrappersNativeCommands.cc`: bulk registration of thin wrappers for remaining legacy commands using the registry (see below)
+  - `commands/native/RemainingLegacyNativeCommands.cc`: centralized inclusion and registration of remaining legacy `com_*` commands as native adapters
 
 ### Dispatch Flow
 
 1. `ConsoleMain.cc` initializes the registry once on first command:
-   - `RegisterAllConsoleCommands()` (wrap every legacy `com_*`)
-   - `RegisterNativeConsoleCommands()` (register modern classes, overriding legacy when names collide)
+   - `RegisterNativeConsoleCommands()` (register modern classes and unified legacy adapters)
 2. Input is tokenized; the first token selects the command: `CommandRegistry::find(name)`
 3. `ConsoleMain` builds a `CommandContext` from current globals and calls `icmd->run(args, ctx)`
 4. `requiresMgm(args)` is used to decide whether to ping the MGM before execution
@@ -49,7 +46,7 @@ The framework allows gradual conversion of legacy commands:
 3. Port logic from `commands/com_*.cc` into the native `run(...)`, using `CommandContext` to call `client_command(...)` and `output_result(...)`
 4. Remove the legacy file once parity is achieved (and update `CMakeLists.txt`)
 
-When commands are not yet ported, `BasicWrappersNativeCommands.cc` registers wrappers for most remaining `com_*` by dynamically resolving function pointers from the legacy `commands[]` table at runtime. Missing symbols are skipped automatically so builds remain portable.
+Legacy `commands[]` is no longer used for registration; remaining `com_*` are registered via adapters in `RemainingLegacyNativeCommands.cc` until fully ported.
 
 ### Adding a New Native Command
 
