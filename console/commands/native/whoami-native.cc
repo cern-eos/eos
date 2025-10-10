@@ -3,10 +3,9 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleArgParser.hh"
 #include <memory>
 #include <sstream>
-
-extern int com_whoami(char*);
 
 namespace {
 class WhoamiCommand : public IConsoleCommand {
@@ -14,9 +13,11 @@ public:
   const char* name() const override { return "whoami"; }
   const char* description() const override { return "Determine how we are mapped on server side"; }
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
-  int run(const std::vector<std::string>& args, CommandContext&) override {
-    std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); return com_whoami((char*)joined.c_str());
+  int run(const std::vector<std::string>& args, CommandContext& ctx) override {
+    XrdOucString in = "mgm.cmd=whoami";
+    if (!args.empty()) { in += "&authz="; in += args[0].c_str(); }
+    global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
+    return 0;
   }
   void printHelp() const override {}
 };

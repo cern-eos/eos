@@ -5,8 +5,7 @@
 #include "console/CommandFramework.hh"
 #include <memory>
 #include <sstream>
-
-extern int com_clear(char*);
+#include <string.h>
 
 namespace {
 class ClearCommand : public IConsoleCommand {
@@ -15,8 +14,15 @@ public:
   const char* description() const override { return "Clear the terminal"; }
   bool requiresMgm(const std::string&) const override { return false; }
   int run(const std::vector<std::string>& args, CommandContext&) override {
-    std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); return com_clear((char*)joined.c_str());
+    if (!args.empty()) {
+      if (args[0] == "-h" || args[0] == "--help" || args[0] == "\"-h\"" || args[0] == "\"--help\"") {
+        fprintf(stdout,"Usage: clear\n");
+        fprintf(stdout,"'[eos] clear' is equivalent to the interactive shell command to clear the screen.\n");
+        return 0;
+      }
+    }
+    int rc = system("clear");
+    return rc;
   }
   void printHelp() const override {}
 };

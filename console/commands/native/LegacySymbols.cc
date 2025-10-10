@@ -20,7 +20,6 @@
 #include "console/commands/com_info.cc"
 #include "console/commands/com_cd.cc"
 #include "console/commands/com_cp.cc"
-#include "console/commands/com_ls.cc"
 #include "console/commands/com_fuse.cc"
 #include "console/commands/com_fusex.cc"
 #include "console/commands/com_mv.cc"

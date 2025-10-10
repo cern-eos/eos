@@ -93,7 +93,6 @@ extern int com_protoio(char*);
 extern int com_json(char*);
 extern int com_license(char*);
 extern int com_ln(char*);
-extern int com_ls(char*);
 extern int com_map(char*);
 extern int com_member(char*);
 extern int com_mkdir(char*);
@@ -182,7 +181,6 @@ COMMAND commands[] = {
   { (char*) "io", com_protoio, (char*) "IO Interface"},
   { (char*) "json", com_json, (char*) "Toggle JSON output flag for stdout"},
   { (char*) "license", com_license, (char*) "Display Software License"},
-  { (char*) "ls", com_ls, (char*) "List a directory"},
   { (char*) "ln", com_ln, (char*) "Create a symbolic link"},
   { (char*) "map", com_map, (char*) "Path mapping interface"},
   { (char*) "member", com_member, (char*) "Check Egroup membership"},

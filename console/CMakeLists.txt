@@ -107,6 +107,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/native/file-native.cc
   commands/native/fuse-native.cc
   commands/native/fusex-native.cc
+  commands/native/ls-compat.cc
   commands/native/backup-native.cc
   commands/native/clear-native.cc
   commands/native/console-native.cc

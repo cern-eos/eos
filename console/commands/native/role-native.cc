@@ -3,10 +3,9 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
-
-extern int com_role(char*);
 
 namespace {
 class RoleCommand : public IConsoleCommand {
@@ -15,8 +14,14 @@ public:
   const char* description() const override { return "Switch role or show roles"; }
   bool requiresMgm(const std::string&) const override { return false; }
   int run(const std::vector<std::string>& args, CommandContext&) override {
-    std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); return com_role((char*)joined.c_str());
+    if (args.empty() || wants_help(args[0].c_str())) {
+      fprintf(stdout, "usage: role <user-role> [<group-role>]\n"); global_retc = EINVAL; return 0;
+    }
+    user_role = args[0].c_str();
+    if (args.size() > 1) group_role = args[1].c_str(); else group_role = "";
+    if (!silent) fprintf(stdout, "=> selected user role ruid=<%s> and group role rgid=<%s>\n", user_role.c_str(), group_role.c_str());
+    gGlobalOpts.mUserRole = user_role.c_str(); gGlobalOpts.mGroupRole = group_role.c_str();
+    return 0;
   }
   void printHelp() const override {}
 };

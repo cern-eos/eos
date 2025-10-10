@@ -3,10 +3,10 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleArgParser.hh"
+#include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
-
-extern int com_rmdir(char*);
 
 namespace {
 class RmdirCommand : public IConsoleCommand {
@@ -14,9 +14,11 @@ public:
   const char* name() const override { return "rmdir"; }
   const char* description() const override { return "Remove a directory"; }
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
-  int run(const std::vector<std::string>& args, CommandContext&) override {
-    std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); return com_rmdir((char*)joined.c_str());
+  int run(const std::vector<std::string>& args, CommandContext& ctx) override {
+    if (args.empty() || wants_help(args[0].c_str())) { fprintf(stdout, "usage: rmdir <path>\n"); global_retc = EINVAL; return 0; }
+    XrdOucString in = "mgm.cmd=rmdir&mgm.path="; XrdOucString p = abspath(args[0].c_str()); in += p;
+    global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
+    return 0;
   }
   void printHelp() const override {}
 };
