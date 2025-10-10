@@ -13,6 +13,20 @@ static bool starts_with(const std::string& s, const char* pfx) {
 
 ConsoleArgParser::ConsoleArgParser() = default;
 
+namespace {
+static inline std::string dequoteToken(const std::string& in) {
+  if (in.size() >= 2) {
+    char a = in.front();
+    char b = in.back();
+    if ((a == '"' && b == '"') || (a == '\'' && b == '\'')) {
+      // avoid "" and '' edge-case returning empty meaningful token
+      return in.substr(1, in.size() - 2);
+    }
+  }
+  return in;
+}
+}
+
 ConsoleArgParser& ConsoleArgParser::setProgramName(const std::string& nm) {
   mProgramName = nm; return *this;
 }
@@ -93,23 +107,23 @@ ConsoleArgParser::ParseResult ConsoleArgParser::parse(const std::vector<std::str
   auto set_flag = [&](const InternalSpec* spec){ add_value(spec, std::string()); };
 
   for (size_t i = 0; i < args.size(); ++i) {
-    const std::string& tok = args[i];
+    std::string tok = dequoteToken(args[i]);
     if (onlyPositionals) { r.positionals.push_back(tok); continue; }
 
     if (tok == "--") { onlyPositionals = true; continue; }
 
     // Long option: --opt or --opt=value
     if (starts_with(tok, "--")) {
-      std::string nameval = tok.substr(2);
+      std::string nameval = dequoteToken(tok.substr(2));
       std::string name, val;
       size_t eq = nameval.find('=');
-      if (eq == std::string::npos) name = nameval; else { name = nameval.substr(0, eq); val = nameval.substr(eq+1); }
+      if (eq == std::string::npos) name = nameval; else { name = nameval.substr(0, eq); val = dequoteToken(nameval.substr(eq+1)); }
       auto* s = findByLong(name);
       if (!s) { if (mCollectUnknownTokens) r.unknownTokens.push_back(tok); else r.errors.push_back("Unknown option: " + tok); continue; }
       if (s->spec.requiresValue) {
         if (!val.empty()) { add_value(s, val); }
         else {
-          if (i+1 < args.size()) { add_value(s, args[++i]); }
+          if (i+1 < args.size()) { add_value(s, dequoteToken(args[++i])); }
           else { r.errors.push_back("Missing value for option --" + name); }
         }
       } else {
@@ -134,7 +148,7 @@ ConsoleArgParser::ParseResult ConsoleArgParser::parse(const std::vector<std::str
               add_value(s, val);
               break; // rest belongs to value
             } else if (i+1 < args.size()) {
-              add_value(s, args[++i]);
+              add_value(s, dequoteToken(args[++i]));
             } else {
               r.errors.push_back(std::string("Missing value for option -") + c);
             }
@@ -150,7 +164,7 @@ ConsoleArgParser::ParseResult ConsoleArgParser::parse(const std::vector<std::str
         if (s->spec.requiresValue) {
           std::string val;
           if (mAllowAttachedValue && tok.size() > 2) val = tok.substr(2);
-          else if (i+1 < args.size()) val = args[++i];
+          else if (i+1 < args.size()) val = dequoteToken(args[++i]);
           else r.errors.push_back(std::string("Missing value for option -") + c);
           if (!val.empty()) add_value(s, val);
         } else {
@@ -164,8 +178,8 @@ ConsoleArgParser::ParseResult ConsoleArgParser::parse(const std::vector<std::str
     if (mAcceptBareAssignments) {
       size_t eq = tok.find('=');
       if (eq != std::string::npos && eq > 0) {
-        std::string key = tok.substr(0, eq);
-        std::string val = tok.substr(eq+1);
+        std::string key = dequoteToken(tok.substr(0, eq));
+        std::string val = dequoteToken(tok.substr(eq+1));
         // if there is a spec matching the long name, map it; otherwise keep as positional assignment
         if (auto* s = findByLong(key)) {
           add_value(s, val);

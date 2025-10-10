@@ -1341,8 +1341,22 @@ execute_line(char* line)
   line_without_comment = line_without_comment.substr(tokens.begin()->size());
   eos::common::trim(line_without_comment);
   std::string rest = line_without_comment;
-  std::list<std::string> argTokens = eos::common::StringTokenizer::split<std::list<std::string>>(rest.c_str(), ' ');
-  std::vector<std::string> argsVec(argTokens.begin(), argTokens.end());
+  // Quote-aware tokenization: preserve spaces within quoted strings, drop quotes
+  std::vector<std::string> argsVec;
+  {
+    bool inD = false, inS = false; std::string cur;
+    for (size_t i = 0; i < rest.size(); ++i) {
+      char c = rest[i];
+      if (c == '"' && !inS) { inD = !inD; continue; }
+      if (c == '\'' && !inD) { inS = !inS; continue; }
+      if (c == ' ' && !inD && !inS) {
+        if (!cur.empty()) { argsVec.push_back(cur); cur.clear(); }
+        continue;
+      }
+      cur.push_back(c);
+    }
+    if (!cur.empty()) argsVec.push_back(cur);
+  }
 
   // Check MGM availability
   if (icmd->requiresMgm(rest) &&
