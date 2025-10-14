@@ -16,9 +16,23 @@ public:
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
   int run(const std::vector<std::string>& args, CommandContext&) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); return com_proto_sched((char*)joined.c_str());
+    std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
+    return com_proto_sched((char*)joined.c_str());
   }
-  void printHelp() const override {}
+  void printHelp() const override {
+    fprintf(stdout,
+            " Usage:\n"
+            " sched configure type <schedtype>\n"
+            "\t <schedtype> is one of roundrobin,weightedrr,tlrr,random,weightedrandom,geo\n"
+            "\t if configured via space; space takes precedence\n"
+            " sched configure weight <space> <fsid> <weight>\n"
+            "\t configure weight for a given fsid in the given space\n"
+            " sched configure show type [spacename]\n"
+            "\t show existing configured scheduler; optionally for space\n"
+            " sched configure forcerefresh [spacename]\n"
+            "\t Force refresh scheduler internal state\n"
+            " ls <spacename> <bucket|disk|all>\n");
+  }
 };
 }
 

@@ -20,7 +20,8 @@ public:
     // Parse du flags and translate to proto find
     ConsoleArgParser p; p.addOption({"", 'a', false, false, "", "print files", ""}); p.addOption({"", 'h', false, false, "", "human readable", ""}); p.addOption({"", 's', false, false, "", "summary only", ""}); p.addOption({"si", '\0', false, false, "", "si units", ""});
     auto r = p.parse(args);
-    std::vector<std::string> pos = r.positionals; if (pos.empty()) { fprintf(stderr, "usage: du [-a][-h][-s][--si] path\n"); global_retc = EINVAL; return 0; }
+    if (r.has("help")) { printHelp(); global_retc = EINVAL; return 0; }
+    std::vector<std::string> pos = r.positionals; if (pos.empty()) { printHelp(); global_retc = EINVAL; return 0; }
     std::string path = abspath(pos[0].c_str());
     std::string cmd = "--du";
     if (!r.has("a")) cmd += " -d";
@@ -30,7 +31,19 @@ public:
     cmd += " "; cmd += path;
     return com_proto_find((char*)cmd.c_str());
   }
-  void printHelp() const override {}
+  void printHelp() const override {
+    fprintf(stdout,
+            " usage:\n"
+            "du [-a][-h][-s][--si] path\n"
+            "'[eos] du ...' print unix like 'du' information showing subtreesize for directories\n"
+            "\n"
+            "Options:\n"
+            "\n"
+            "-a   : print also for files\n"
+            "-h   : print human readable in units of 1000\n"
+            "-s   : print only the summary\n"
+            "--si : print in si units\n");
+  }
 };
 }
 
