@@ -23,8 +23,8 @@
 # ************************************************************************
 
 EXPORT_BASE_DIR="${EXPORT_BASE_DIR:-/tmp/eos-diagnostics}"
-DUMP_DIR="dump-$(date +"%Y%m%dT%H%M%S")"
-EXPORT_DIR="${EXPORT_BASE_DIR}/dumps/${DUMP_DIR}"
+DUMP_DIR="${DUMP_DIR:-${EXPORT_BASE_DIR}/dump-$(date +"%Y%m%dT%H%M%S")}"
+EXPORT_DIR="${DUMP_DIR}"
 TARBALL_DIR="${EXPORT_BASE_DIR}/tarballs"
 
 # directory tree within the export dir for various info
@@ -161,9 +161,10 @@ get_config()
 
 make_tarball()
 {
-    DUMP_TARBALL="${TARBALL_DIR}/${DUMP_DIR}.tar.xz"
+    local dump_dir_name="$(basename "${EXPORT_DIR}")"
+    DUMP_TARBALL="${TARBALL_DIR}/${dump_dir_name}.tar.xz"
     pushd "$(dirname "${EXPORT_DIR}")" > /dev/null
-    tar -cJf "${DUMP_TARBALL}" "${DUMP_DIR}"
+    tar -cJf "${DUMP_TARBALL}" "${dump_dir_name}"
     log_info "Tarballs at ${DUMP_TARBALL}"
     popd > /dev/null
 }
