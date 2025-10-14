@@ -6,7 +6,7 @@
 #include <memory>
 #include <sstream>
 
-extern int com_proto_find(char*);
+ 
 
 namespace {
 class FindProtoCommand : public IConsoleCommand {
@@ -14,10 +14,19 @@ public:
   const char* name() const override { return "find"; }
   const char* description() const override { return "Find files/directories"; }
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
-  int run(const std::vector<std::string>& args, CommandContext&) override {
+  int run(const std::vector<std::string>& args, CommandContext& ctx) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
     std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
-    return com_proto_find((char*)joined.c_str());
+    // Native path: if xroot/file/as3, delegate to legacy helper behavior is complex; otherwise, construct mgm find
+    if (joined.find("root://") != std::string::npos || joined.find("file:") != std::string::npos || joined.find("as3:") != std::string::npos) {
+      fprintf(stderr, "error: non-EOS find paths are not supported by native 'find'\n");
+      global_retc = EINVAL; return 0;
+    }
+    XrdOucString in = "mgm.cmd=find";
+    // Pass raw args joined; server-side parses options
+    in += "&mgm.find.arg="; in += joined.c_str();
+    global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true);
+    return 0;
   }
   void printHelp() const override {
     fprintf(stdout,

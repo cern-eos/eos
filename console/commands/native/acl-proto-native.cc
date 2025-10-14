@@ -40,10 +40,7 @@ public:
     const char* key = sysAcl ? "sys.acl" : (userAcl ? "user.acl" : "sys.acl");
 
     IConsoleCommand* attrCmd = CommandRegistry::instance().find("attr");
-    if (!attrCmd) {
-      // Fallback to legacy implementation if attr is not available
-      return com_acl((char*)joined.c_str());
-    }
+    if (!attrCmd) { fprintf(stderr, "error: 'attr' command not available for ACL operations\n"); global_retc = EINVAL; return 0; }
 
     if (list) {
       if (positionals.empty()) { printHelp(); global_retc = EINVAL; return 0; }

@@ -6,7 +6,7 @@
 #include <memory>
 #include <sstream>
 
-extern int com_protorecycle(char*);
+ 
 
 namespace {
 class RecycleProtoCommand : public IConsoleCommand {
@@ -14,10 +14,17 @@ public:
   const char* name() const override { return "recycle"; }
   const char* description() const override { return "Recycle Bin Functionality"; }
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
-  int run(const std::vector<std::string>& args, CommandContext&) override {
+  int run(const std::vector<std::string>& args, CommandContext& ctx) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
     std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
-    return com_protorecycle((char*)joined.c_str());
+    XrdOucString in = "mgm.cmd=recycle";
+    if (args.empty()) { in += "&mgm.subcmd=stat"; }
+    else if (args[0] == "ls") { in += "&mgm.subcmd=ls"; for (size_t i=1;i<args.size();++i){ const auto& a=args[i]; if(a=="-g") in+="&mgm.option=g"; else if(a=="-m") in+="&mgm.option=m"; else if(a=="-n") in+="&mgm.option=n"; else { in+="&mgm.date="; in+=a.c_str(); } } }
+    else if (args[0] == "purge") { in += "&mgm.subcmd=purge"; for (size_t i=1;i<args.size();++i){ const auto& a=args[i]; if(a=="-g") in+="&mgm.option=g"; else if(a=="-k"&&i+1<args.size()){ in+="&mgm.key="; in+=args[++i].c_str(); } else { in+="&mgm.date="; in+=a.c_str(); } } }
+    else if (args[0] == "restore") { in += "&mgm.subcmd=restore"; bool haveKey=false; for (size_t i=1;i<args.size();++i){ const auto& a=args[i]; if(a=="-p") in+="&mgm.parents=1"; else if(a=="-f"||a=="--force-original-name") in+="&mgm.force=1"; else if(a=="-r"||a=="--restore-versions") in+="&mgm.versions=1"; else { in+="&mgm.key="; in+=a.c_str(); haveKey=true; } } if(!haveKey){ printHelp(); global_retc=EINVAL; return 0; } }
+    else if (args[0] == "config") { in += "&mgm.subcmd=config"; for (size_t i=1;i<args.size();++i){ const auto& a=args[i]; if(a=="--add-bin"||a=="--remove-bin"){ if(i+1<args.size()){ in+="&mgm.config="; in+=a.c_str(); in+="&mgm.subtree="; in+=args[++i].c_str(); } } else if(a=="--lifetime"&&i+1<args.size()){ in+="&mgm.lifetime="; in+=args[++i].c_str(); } else if(a=="--ratio"&&i+1<args.size()){ in+="&mgm.ratio="; in+=args[++i].c_str(); } else if(a=="--size"&&i+1<args.size()){ in+="&mgm.size="; in+=args[++i].c_str(); } else if(a=="--inodes"&&i+1<args.size()){ in+="&mgm.inodes="; in+=args[++i].c_str(); } } }
+    else { fprintf(stderr, "error: unsupported recycle subcommand\n"); global_retc = EINVAL; return 0; }
+    global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true); return 0;
   }
   void printHelp() const override {
     fprintf(stdout,

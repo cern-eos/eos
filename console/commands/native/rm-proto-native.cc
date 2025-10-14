@@ -6,7 +6,7 @@
 #include <memory>
 #include <sstream>
 
-extern int com_protorm(char*);
+ 
 
 namespace {
 class RmProtoCommand : public IConsoleCommand {
@@ -19,8 +19,9 @@ public:
     std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
     IConsoleCommand* rmNative = CommandRegistry::instance().find("rm");
     if (rmNative) { return rmNative->run(args, ctx); }
-    // Fallback to legacy symbol if native not present
-    return com_protorm((char*)joined.c_str());
+    fprintf(stderr, "error: native 'rm' command not available\n");
+    global_retc = EINVAL;
+    return 0;
   }
   void printHelp() const override {
     fprintf(stdout,
