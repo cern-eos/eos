@@ -15,7 +15,7 @@ public:
   const char* description() const override { return "File Handling"; }
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
   int run(const std::vector<std::string>& args, CommandContext& ctx) override {
-    if (args.empty()) { printHelp(); global_retc = EINVAL; return 0; }
+    if (args.empty() || args[0] == "--help" || args[0] == "-h") { printHelp(); global_retc = EINVAL; return 0; }
     XrdOucString cmd = args[0].c_str();
     std::vector<std::string> rest(args.begin()+1, args.end());
     XrdOucString in = "mgm.cmd=file";
@@ -95,6 +95,26 @@ public:
     } else if (cmd == "workflow") {
       if (rest.size() < 3) { printHelp(); global_retc = EINVAL; return 0; }
       XrdOucString p = rest[0].c_str(); in += "&mgm.subcmd=workflow&mgm.path="; in += abspath(p.c_str()); in += "&mgm.workflow="; in += rest[1].c_str(); in += "&mgm.event="; in += rest[2].c_str();
+    } else if (cmd == "info") {
+      if (rest.empty()) { printHelp(); global_retc = EINVAL; return 0; }
+      XrdOucString path = rest[0].c_str();
+      if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")) &&
+          (!path.beginswith("pid:")) && (!path.beginswith("pxid:")) &&
+          (!path.beginswith("inode:"))) {
+        path = abspath(path.c_str());
+      }
+      XrdOucString fin = "mgm.cmd=fileinfo&mgm.path="; fin += path;
+      XrdOucString option = "";
+      for (size_t i = 1; i < rest.size(); ++i) {
+        XrdOucString tok = rest[i].c_str();
+        if (tok == "s") option += "silent"; else option += tok;
+      }
+      if (option.length()) { fin += "&mgm.file.info.option="; fin += option; }
+      // Print output unless silent
+      if (option.find("silent") == STR_NPOS) {
+        global_retc = ctx.outputResult(ctx.clientCommand(fin, false, nullptr), true);
+      }
+      return 0;
     } else {
       printHelp(); global_retc = EINVAL; return 0;
     }
@@ -102,7 +122,25 @@ public:
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }
-  void printHelp() const override {}
+  void printHelp() const override {
+    fprintf(stdout,
+            "Usage: file <subcmd> ...\n"
+            "  info <identifier> [options]            : show file info (path|fid:|fxid:|pid:|pxid:|inode:)\n"
+            "  rename <src> <dst>                     : rename path\n"
+            "  symlink <name> <link-name>             : create symlink\n"
+            "  drop <path|fid> <fsid> [-f]            : drop replica\n"
+            "  move <path|fid> <fsid1> <fsid2>        : move replica between fsids\n"
+            "  replicate <path|fid> <fsid1> <fsid2>   : replicate replica between fsids\n"
+            "  purge <path> [version]                 : purge versions\n"
+            "  version <path> [version]               : create version\n"
+            "  versions <path|fid> [grab-version]     : list/grab versions\n"
+            "  layout <path|fid> -stripes| -checksum| -type <val> : change layout\n"
+            "  tag <path|fid> +|-|~<fsid>             : location tag ops\n"
+            "  convert <path|fid> [layout] [space] [policy] [checksum] [--rewrite]\n"
+            "  verify <path|fid> [opts]               : verify file checks\n"
+            "  share <path> [lifetime]                : create share link\n"
+            "  workflow <path> <workflow> <event>     : trigger workflow\n");
+  }
 };
 }
 

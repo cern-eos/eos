@@ -28,6 +28,10 @@ IConsoleCommand* CommandRegistry::find(const std::string& name) const
   for (auto it = mCommandsView.rbegin(); it != mCommandsView.rend(); ++it) {
     if (name == (*it)->name()) return *it;
   }
+  // Simple aliases
+  if (name == "fileinfo") {
+    return find("file");
+  }
   return nullptr;
 }
 
@@ -162,6 +166,8 @@ void RegisterNativeConsoleCommands()
   // file/fuse/fusex
   extern void RegisterFileNativeCommand();
   RegisterFileNativeCommand();
+  extern void RegisterFileInfoAliasCommand();
+  RegisterFileInfoAliasCommand();
   extern void RegisterFuseNativeCommand();
   RegisterFuseNativeCommand();
   extern void RegisterFusexNativeCommand();
