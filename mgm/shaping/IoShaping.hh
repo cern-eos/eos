@@ -24,18 +24,108 @@
 
 #include "mgm/Namespace.hh"
 #include "common/ioMonitor/include/IoAggregate.hh"
+#include "common/AssistedThread.hh"
+// #include "common/Logging.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include <unordered_map>
 
 EOSMGMNAMESPACE_BEGIN
 
-#include "common/AssistedThread.hh"
+//--------------------------------------------
+/// The current name of the class when us
+/// printInfo function
+//--------------------------------------------
+#define IOAGGREGATEMAP_NAME "IoShaping"
 
-class IoShaping {
+class IoShaping : public eos::common::LogId{
 	private:
-		AssistedThread _mReceivingThread;
-		AssistedThread _mPublishingThread;
-		AssistedThread _mShapingThread;
-		std::atomic<bool> _running;
+		AssistedThread 		_mReceivingThread;
+		AssistedThread 		_mPublishingThread;
+		AssistedThread 		_mShapingThread;
+		mutable std::mutex	_mSyncThread;
+
+		std::atomic<bool> 	_rReceiving;
+		std::atomic<bool> 	_rPublishing;
+		std::atomic<bool> 	_rShaping;
+
+		std::unordered_map<std::string, double> _shapings;
+
+		std::atomic<size_t>	_receivingTime;
+
+		//----------------------------------------------------------------------------
+		//! Start receiving thread
+		//!
+		//! @return true if successful, otherwise false
+		//----------------------------------------------------------------------------
+		bool startReceiving();
+
+		//----------------------------------------------------------------------------
+		//! Stop receiving thread
+		//!
+		//! @return true if successful, otherwise false
+		//----------------------------------------------------------------------------
+		bool stopReceiving();
+
+		//----------------------------------------------------------------------------
+		//! Start publising thread
+		//!
+		//! @return true if successful, otherwise false
+		//----------------------------------------------------------------------------
+		bool startPublising();
+
+		//----------------------------------------------------------------------------
+		//! Stop publising thread
+		//!
+		//! @return true if successful, otherwise false
+		//----------------------------------------------------------------------------
+		bool stopPublising();
+
+		//----------------------------------------------------------------------------
+		//! Start shaping thread
+		//!
+		//! @return true if successful, otherwise false
+		//----------------------------------------------------------------------------
+		bool startShaping();
+
+		//----------------------------------------------------------------------------
+		//! Stop shaping thread
+		//!
+		//! @return true if successful, otherwise false
+		//----------------------------------------------------------------------------
+		bool stopShaping();
+
+		void receive(ThreadAssistant &assistant) noexcept;
+	
+		void publish(ThreadAssistant &assistant) noexcept;
+
+		void shaping(ThreadAssistant &assistant) noexcept;
+		
 	public:
+		//--------------------------------------------
+		/// Orthodoxe canonical form
+		//--------------------------------------------
+
+		//--------------------------------------------
+		/// Main constructor
+		//--------------------------------------------
+		IoShaping(size_t = 5);
+
+		//--------------------------------------------
+		/// Destructor
+		//--------------------------------------------
+		~IoShaping();
+
+		//--------------------------------------------
+		/// Constructor by copy constructor
+		//--------------------------------------------
+		IoShaping(const IoShaping &other);
+
+		//--------------------------------------------
+		/// Overload the operator =
+		//--------------------------------------------
+		IoShaping& operator=(const IoShaping &other);
+
+		void setReceivingTime(size_t);
 };
 
 EOSMGMNAMESPACE_END
