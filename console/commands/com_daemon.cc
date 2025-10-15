@@ -713,6 +713,8 @@ com_daemon_usage:
   fprintf(stdout,
           "                run                                                   -  run the given service daemon optionally identified by name\n");
   fprintf(stdout,
+          "                restart                                               -  restart the given service daemon optionally identified by name\n");
+  fprintf(stdout,
           "                sss recreate                                          -  re-create an instance sss key and the eosnobody keys (/etc/eos.keytab,/etc/eos/fuse.sss.keytab)'\n");
   fprintf(stdout,
           "                stack                                                 -  print an 'eu-stack'\n");
