@@ -111,7 +111,7 @@ class IoAggregate{
 		//--------------------------------------------
 		/// Destructor
 		//--------------------------------------------
-		~IoAggregate(){}
+		~IoAggregate();
 
 		//--------------------------------------------
 		/// Constructor by copy constructor

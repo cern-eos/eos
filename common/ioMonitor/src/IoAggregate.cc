@@ -67,6 +67,11 @@ IoAggregate::IoAggregate(size_t winTime)
 }
 
 //--------------------------------------------
+/// Destructor
+//--------------------------------------------
+IoAggregate::~IoAggregate(){}
+
+//--------------------------------------------
 /// Updates the current bin according to the
 /// appName/uid/gid which are tracked every N seconds
 /// (depending on this->_intervalSec)
