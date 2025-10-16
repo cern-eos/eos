@@ -2079,6 +2079,12 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
   eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u",
                    args->vid->uid, args->vid->gid, args->grouptag,
                    nfilesystems);
+  if (FsView::gFsView.mSpaceGroupView.count(*args->spacename) == 0) {
+    eos_static_err("msg=\"no filesystem in space\" space=\"%s\"",
+                   args->spacename->c_str());
+    args->selected_filesystems->clear();
+    return ENOSPC;
+  }
 
   // Check if quota enabled for current space
   if (FsView::gFsView.IsQuotaEnabled(*args->spacename)) {
@@ -2102,24 +2108,13 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
     eos_static_debug("quota is disabled for space=%s", args->spacename->c_str());
   }
 
-  bool space_exists = FsView::gFsView.mSpaceGroupView.count(*args->spacename);
-
-  if (!space_exists) {
-    eos_static_err("msg=\"no filesystem in space\" space=\"%s\"",
+  if (!FsView::gFsView.UnderNominalQuota(*args->spacename, args->vid->sudoer)) {
+    eos_static_err("msg=\"over physical quota limit (nominal space setting)\" space=\"%s\"",
                    args->spacename->c_str());
-    args->selected_filesystems->clear();
     return ENOSPC;
-  } else {
-    if (!FsView::gFsView.UnderNominalQuota(*args->spacename, args->vid->sudoer)) {
-      eos_static_err("msg=\"over physical quota limit (nominal space setting)\" space=\"%s\"",
-                     args->spacename->c_str());
-      return ENOSPC;
-    } else {
-      if (EOS_LOGS_DEBUG) {
-        eos_static_debug("nominal quota ok");
-      }
-    }
   }
+
+  eos_static_debug("%s", "nominal quota ok");
 
   // Call the scheduler implementation
   return Scheduler::FilePlacement(args);
