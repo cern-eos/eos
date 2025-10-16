@@ -86,6 +86,10 @@ public:
     unsigned long long bookingsize;
     //! indicate if this is a request for regular, draining or balancing placement
     tSchedType schedtype;
+    //! scheduling strategy to be used (if not set, use space default)
+   // placement::PlacementStrategyT sched_strategy;
+    //! scheduling strategy if set from opaque string
+    const char* sched_strategy_cstr;
     //! virtual identity of the client
     const eos::common::VirtualIdentity* vid;
     /// INPUT/OUTPUT
@@ -112,6 +116,7 @@ public:
       forced_scheduling_group_index(-1),
       bookingsize(1024 * 1024 * 1024ll),
       schedtype(regular),
+      sched_strategy_cstr(nullptr),
       vid(0),
       alreadyused_filesystems(0),
       selected_filesystems(0),
@@ -126,10 +131,15 @@ public:
         spacename && spacename->size()
         && path
         && lid
+        && isValidReplicas(lid)
         && vid
         && alreadyused_filesystems
         && exclude_filesystems
         && selected_filesystems;
+    }
+
+    bool isValidReplicas(unsigned long lid) const {
+      return common::LayoutId::GetStripeNumber(lid) + 1 < std::numeric_limits<uint8_t>::max();
     }
   };
 
@@ -144,6 +154,10 @@ public:
   //! NOTE: Has to be called with a lock on the FsView::gFsView::ViewMutex
   //----------------------------------------------------------------------------
   static int FilePlacement(PlacementArguments* args);
+
+  static uint8_t getRequiredReplicas(unsigned long lid);
+
+  static int FlatSchedulerFilePlacement(PlacementArguments* args);
 
   struct AccessArguments {
     /// INPUT
