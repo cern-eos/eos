@@ -3101,6 +3101,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       plctargs.path = path;
       plctargs.plctTrgGeotag = &targetgeotag;
       plctargs.plctpolicy = plctplcy;
+      plctargs.sched_strategy_cstr = openOpaque->Get("eos.schedulingstrategy");
       plctargs.exclude_filesystems = &excludefs;
       plctargs.selected_filesystems = &pio_replacement_fs;
       plctargs.spacename = &space;
