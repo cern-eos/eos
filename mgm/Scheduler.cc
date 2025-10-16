@@ -23,7 +23,8 @@
 
 #include "mgm/Scheduler.hh"
 #include "mgm/Quota.hh"
-#include "GeoTreeEngine.hh"
+#include "mgm/GeoTreeEngine.hh"
+#include "mgm/placement/FsScheduler.hh"
 #include "mgm/XrdMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -46,9 +47,47 @@ Scheduler::~Scheduler() { }
 // Write placement routine - the caller routine has to lock via =>
 // eos::common::RWMutexReadLock(FsView::gFsView.ViewMutex)
 //------------------------------------------------------------------------------
+uint8_t Scheduler::getRequiredReplicas(unsigned long lid)
+{
+  uint64_t n_replicas = eos::common::LayoutId::GetStripeNumber(lid) + 1;
+  return static_cast<uint8_t>(n_replicas);
+}
+
+
+int Scheduler::FlatSchedulerFilePlacement(PlacementArguments *args)
+{
+  auto strategy = gOFS->mFsScheduler->getPlacementStrategy(*args->spacename);
+  if (args->sched_strategy_cstr != nullptr) {
+    strategy = placement::strategy_from_str(args->sched_strategy_cstr);
+  }
+  if (strategy == placement::PlacementStrategyT::kGeoScheduler) {
+    return EINVAL;
+  }
+
+  uint8_t n_replicas = getRequiredReplicas(args->lid);
+  placement::PlacementArguments plct_args{n_replicas, placement::ConfigStatus::kRW, strategy};
+
+  plct_args.excludefs.assign(args->exclude_filesystems->begin(),
+                             args->exclude_filesystems->end());
+  plct_args.forced_group_index = args->forced_scheduling_group_index;
+
+  auto ret = gOFS->mFsScheduler->schedule(*args->spacename, plct_args);
+  if (!ret) {
+    return ENOSPC;
+  }
+
+  args->selected_filesystems->assign(ret.ids.begin(), ret.ids.begin()+n_replicas);
+  return 0;
+}
+
+
 int
 Scheduler::FilePlacement(PlacementArguments* args)
 {
+  if (!FlatSchedulerFilePlacement(args)) {
+    return 0;
+  }
+
   eos_static_debug("requesting file placement from geolocation %s",
                    args->vid->geolocation.c_str());
   // The caller routine has to lock via =>
