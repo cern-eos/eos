@@ -67,6 +67,10 @@ public:
     return pPath.c_str();
   }
 
+  inline const std::string& GetSpaceNameStr() const
+  {
+    return pPath;
+  }
   //----------------------------------------------------------------------------
   //! Get namespace quota node
   //----------------------------------------------------------------------------
