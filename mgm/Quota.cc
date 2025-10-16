@@ -24,6 +24,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "common/StringUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
@@ -1388,17 +1389,16 @@ Quota::GetSpaceQuota(const std::string& qpath)
 SpaceQuota*
 Quota::GetResponsibleSpaceQuota(const std::string& path)
 {
-  XrdOucString matchpath = path.c_str();
   SpaceQuota* squota = nullptr;
 
   for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {
-    if (matchpath.beginswith(it->second->GetSpaceName())) {
+    if (common::startsWith(path, it->second->GetSpaceName())) {
       if (squota == nullptr) {
         squota = it->second;
       }
 
       // Save if it's a better match
-      if (strlen(it->second->GetSpaceName()) > strlen(squota->GetSpaceName())) {
+      if (it->second->GetSpaceNameStr().size() > squota->GetSpaceNameStr().size()) {
         squota = it->second;
       }
     }
@@ -1417,7 +1417,7 @@ Quota::GetResponsibleSpaceQuotaPath(const std::string& path)
   SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
   if (squota) {
-    return squota->GetSpaceName();
+    return squota->GetSpaceNameStr();
   } else {
     return "";
   }
@@ -2027,7 +2027,7 @@ Quota::UpdateFromNsQuota(const std::string& path, uid_t uid, gid_t gid)
   SpaceQuota* squota = GetResponsibleSpaceQuota(path);
 
   // No quota or this is not the space quota itself - do nothing
-  if (!squota || (strcmp(squota->GetSpaceName(), path.c_str()))) {
+  if (!squota || squota->GetSpaceNameStr().compare(path)) {
     return false;
   }
 
