@@ -2153,19 +2153,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     targetsize = strtoull(openOpaque->Get("eos.targetsize"), 0, 10);
   }
 
-  //std::string spacename = space.c_str();
-  auto strategy = gOFS->mFsScheduler->getPlacementStrategy(space);
-  const char* strategy_cstr;
-
-  if ((strategy_cstr = openOpaque->Get("eos.schedulingstrategy"))) {
-    strategy = placement::strategy_from_str(strategy_cstr);
-    eos_debug("msg=\"using scheduling strategy\" strategy=%s",
-              strategy_to_str(strategy).c_str());
-  }
-
-  bool use_geoscheduler = strategy ==
-                          placement::PlacementStrategyT::kGeoScheduler;
-  //eos::mgm::FileSystem* filesystem = 0;
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int> excludefs = GetExcludedFsids();
   std::vector<std::string> proxys;
@@ -2208,6 +2195,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     plctargs.path = path;
     plctargs.plctTrgGeotag = &targetgeotag;
     plctargs.plctpolicy = plctplcy;
+    plctargs.sched_strategy_cstr = openOpaque->Get("eos.schedulingstrategy");
     plctargs.exclude_filesystems = &excludefs;
     plctargs.selected_filesystems = &selectedfs;
     plctargs.spacename = &space;
@@ -2219,54 +2207,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
     }
 
-    if (!use_geoscheduler) {
-      COMMONTIMING("PlctScheduler::FilePlacement", &tm);
-      uint64_t n_replicas_ = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
 
-      if (n_replicas_ > std::numeric_limits<uint8_t>::max()) {
-        eos_err("msg=\"too many replicas requested\" n_replicas=%" PRIu64, n_replicas_);
-        return Emsg(epname, error, EINVAL, "open - too many replicas requested", path);
-      }
+    COMMONTIMING("Scheduler::FilePlacement", &tm);
+    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+    retc = Quota::FilePlacement(&plctargs);
+    COMMONTIMING("Scheduler::FilePlaced", &tm);
 
-      uint8_t n_replicas = static_cast<uint8_t>(n_replicas_);
-      placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
-
-      if (!excludefs.empty()) {
-        args.excludefs = excludefs;
-      }
-
-      if (forced_group >= 0) {
-        args.forced_group_index = forced_group;
-      }
-
-      auto ret = gOFS->mFsScheduler->schedule(space,
-                                              args);
-      COMMONTIMING("PlctScheduler::FilePlaced", &tm);
-
-      if (ret.is_valid_placement(n_replicas)) {
-        for (int i = 0; i < n_replicas; i++) {
-          selectedfs.push_back(ret.ids[i]);
-        }
-
-        // TODO: this should be demoted to DEBUG once we have a proper understanding
-        eos_info("msg=\"FlatScheduler selected filesystems\" fs=%s",
-                 ret.result_string().c_str());
-      } else {
-        // Fallback to classic geoscheduler on failure
-        eos_err("msg =\"no valid placement found with FlatScheduler\" ret=%d, err_msg=%s",
-                ret.ret_code, ret.error_string().c_str());
-        use_geoscheduler = true;
-        gOFS->MgmStats.Add("FScheduler::Placement::Failed", vid.uid, vid.gid, 1,
-                           vid.app);
-      }
-    }
-
-    if (use_geoscheduler) {
-      COMMONTIMING("Scheduler::FilePlacement", &tm);
-      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-      retc = Quota::FilePlacement(&plctargs);
-      COMMONTIMING("Scheduler::FilePlaced", &tm);
-    }
 
     // reshuffle the selectedfs by returning as first entry the lowest if the
     // sum of the fsid is odd the highest if the sum is even
@@ -2403,6 +2349,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         plctargs.path = path;
         plctargs.plctTrgGeotag = &targetgeotag;
         plctargs.plctpolicy = plctplcy;
+        plctargs.sched_strategy_cstr = openOpaque->Get("eos.schedulingstrategy");
         plctargs.exclude_filesystems = &excludefs;
         plctargs.selected_filesystems = &selectedfs;
         plctargs.spacename = &space;
@@ -2414,40 +2361,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
         }
 
-        if (!use_geoscheduler) {
-          COMMONTIMING("PlctScheduler::FilePlacement", &tm);
-          uint8_t n_replicas = eos::common::LayoutId::GetStripeNumber(layoutId) + 1;
-          placement::PlacementArguments args{n_replicas, placement::ConfigStatus::kRW, strategy};
-
-          if (!excludefs.empty()) {
-            args.excludefs = excludefs;
-          }
-
-          if (forced_group >= 0) {
-            args.forced_group_index = forced_group;
-          }
-
-          auto ret = gOFS->mFsScheduler->schedule(space,
-                                                  args);
-          COMMONTIMING("PlctScheduler::FilePlaced", &tm);
-
-          if (ret.is_valid_placement(n_replicas)) {
-            for (int i = 0; i < n_replicas; i++) {
-              selectedfs.push_back(ret.ids[i]);
-            }
-          } else {
-            eos_info("msg =\"no valid placement found with FSScheduler\" ret=%d, err_msg=%s",
-                     ret.ret_code, ret.error_string().c_str());
-            use_geoscheduler = true;
-          }
-        }
-
-        if (use_geoscheduler) {
-          COMMONTIMING("Scheduler::FilePlacement", &tm);
-          eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-          retc = Quota::FilePlacement(&plctargs);
-          COMMONTIMING("Scheduler::FilePlaced", &tm);
-        }
+        COMMONTIMING("Scheduler::FilePlacement", &tm);
+        eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
+        retc = Quota::FilePlacement(&plctargs);
+        COMMONTIMING("Scheduler::FilePlaced", &tm);
 
         eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
                  path, retc);
