@@ -21,8 +21,6 @@
  *************************************************************************/
 
 #include "IoShaping.hh"
-#include <chrono>
-#include <mutex>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -33,19 +31,18 @@ IoShaping::IoShaping(const IoShaping &other) : _rReceiving(other._rReceiving.loa
 	_receivingTime(other._receivingTime.load())
 {}
 
+IoShaping::~IoShaping(){}
+
 IoShaping& IoShaping::operator=(const IoShaping &other){
-	if (this != &other){
+	if (this != &other)
 		std::scoped_lock lock(_mSyncThread, other._mSyncThread);
-	}
 
 	return *this;
 }
 
-void IoShaping::setReceivingTime(size_t time){_receivingTime.store(time);}
-
 void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 	ThreadAssistant::setSelfThreadName("IoShapingReceiver");
-	eos_static_info("%s", "msg=\"starting IoShaping receive thread\"");
+	eos_static_info("%s", "msg=\"starting IoShaping receiving thread\"");
 
 	if (gOFS == nullptr) {
 		return;
@@ -62,6 +59,13 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 	}
 
   eos_static_info("%s", "msg=\"stopping IoShaping receiver thread\"");
+}
+
+void IoShaping::publish(ThreadAssistant &assistant) noexcept{
+	ThreadAssistant::setSelfThreadName("IoShapingPublishing");
+	eos_static_info("%s", "msg=\"starting IoShaping publishing thread\"");
+	(void)assistant;
+
 }
 
 bool IoShaping::startReceiving(){
@@ -86,6 +90,50 @@ bool IoShaping::stopReceiving(){
 	return false;
 }
 
-IoShaping::~IoShaping(){}
+bool IoShaping::startPublishing(){
+	std::lock_guard<std::mutex> lock(_mSyncThread);
+
+	if (!_rPublishing.load()){
+		_rPublishing.store(true);
+		_mPublishingThread.reset(&IoShaping::publish, this);
+		return true;
+	}
+
+	return false;
+}
+
+bool IoShaping::stopPublishing(){
+
+	if (_rPublishing.load()){
+		std::lock_guard<std::mutex> lock(_mSyncThread);
+		_rPublishing.store(false);
+		return true;
+	}
+	return false;
+}
+
+bool IoShaping::startShaping(){
+	std::lock_guard<std::mutex> lock(_mSyncThread);
+
+	if (!_rShaping.load()){
+		_rShaping.store(true);
+		_mShapingThread.reset(&IoShaping::shaping, this);
+		return true;
+	}
+
+	return false;
+}
+
+bool IoShaping::stopShaping(){
+
+	if (_rShaping.load()){
+		std::lock_guard<std::mutex> lock(_mSyncThread);
+		_rShaping.store(false);
+		return true;
+	}
+	return false;
+}
+
+void IoShaping::setReceivingTime(size_t time){_receivingTime.store(time);}
 
 EOSMGMNAMESPACE_END
