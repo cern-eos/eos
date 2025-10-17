@@ -70,6 +70,8 @@ com_daemon(char* arg)
   std::string pidfile;
   std::string envfile;
   std::string cfile;
+  FILE* pipe = NULL;
+  pid_t pid = 0;
   bool ok = false;
   subtokenizer.GetLine();
 
@@ -199,6 +201,11 @@ com_daemon(char* arg)
   if (!name.length()) {
     name = service.c_str();
   }
+
+  pipe = popen(std::string("pidof -s eos-" + std::string(service.c_str())).c_str(), "r");
+  if (!pipe || fscanf(pipe, "%d", &pid) != 1)
+    pid = -1;
+  pclose(pipe);
 
   modules = name;
   modules += ".modules";
@@ -514,6 +521,10 @@ com_daemon(char* arg)
     global_retc = WEXITSTATUS(rc);
     return (0);
   } else if (option == "kill" || option == "restart") {
+	if (option == "kill" && pid == -1){
+	  fprintf(stderr, "error: %s is not launched\n", service.c_str());
+	  return 0;
+	}
     std::string kline;
     kline = "test -e ";
     kline += envfile.c_str();
@@ -548,15 +559,9 @@ com_daemon(char* arg)
     }
 
 	if (option == "run"){
-	  FILE* pipe = popen(std::string("pidof -s eos-" + std::string(service.c_str())).c_str(), "r");
-	  pid_t pid = 0;
-
-	  if (!pipe || fscanf(pipe, "%d", &pid) != 1)
-	    pid = -1;
-	  pclose(pipe);
 	  if (pid != -1){
 	    fprintf(stderr, "error: %s currently running\n", service.c_str());
-	    return 0;
+	  	return 0;
 	  }
 	}
 

@@ -29,6 +29,11 @@
 #include "mgm/XrdMgmOfs.hh"
 #include <unordered_map>
 
+namespace eos::common
+{
+class TransferQueue;
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 //--------------------------------------------
@@ -71,14 +76,14 @@ class IoShaping : public eos::common::LogId{
 		//!
 		//! @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
-		bool startPublising();
+		bool startPublishing();
 
 		//----------------------------------------------------------------------------
 		//! Stop publising thread
 		//!
 		//! @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
-		bool stopPublising();
+		bool stopPublishing();
 
 		//----------------------------------------------------------------------------
 		//! Start shaping thread
@@ -95,7 +100,7 @@ class IoShaping : public eos::common::LogId{
 		bool stopShaping();
 
 		void receive(ThreadAssistant &assistant) noexcept;
-	
+
 		void publish(ThreadAssistant &assistant) noexcept;
 
 		void shaping(ThreadAssistant &assistant) noexcept;
