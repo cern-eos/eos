@@ -123,6 +123,7 @@
 #include "namespace/locking/BulkNsObjectLocker.hh"
 #include "mgm/inflighttracker/InFlightTracker.hh"
 #include "mgm/namespacestats/NamespaceStats.hh"
+#include "shaping/IoShaping.hh"
 #include <XrdAcc/XrdAccPrivs.hh>
 #include <google/sparse_hash_map>
 #include <chrono>
@@ -1850,6 +1851,8 @@ public:
   AssistedThread mFsMonitorTid;
 
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
+
+  IoShaping		 mIoShaper;
 
   //----------------------------------------------------------------------------
   // Authentication plugin variables like the ZMQ front end port number and the

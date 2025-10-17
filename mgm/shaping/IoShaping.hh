@@ -23,10 +23,8 @@
 #pragma once
 
 #include "mgm/Namespace.hh"
-#include "common/ioMonitor/include/IoAggregate.hh"
 #include "common/AssistedThread.hh"
-// #include "common/Logging.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/FsView.hh"
 #include <unordered_map>
 
 namespace eos::common
@@ -52,6 +50,7 @@ class IoShaping : public eos::common::LogId{
 		std::atomic<bool> 	_rReceiving;
 		std::atomic<bool> 	_rPublishing;
 		std::atomic<bool> 	_rShaping;
+		static IoShaping lol;
 
 		std::unordered_map<std::string, double> _shapings;
 

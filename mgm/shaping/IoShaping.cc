@@ -21,17 +21,23 @@
  *************************************************************************/
 
 #include "IoShaping.hh"
+#include "mgm/FsView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-IoShaping::IoShaping(size_t time) : _rReceiving(false),  _rPublishing(false), _rShaping(false),_receivingTime(time){}
+IoShaping::IoShaping(size_t time) : _rReceiving(false),  _rPublishing(false), _rShaping(false),_receivingTime(time){
+	eos_static_info("%s", "msg=\"create IoShaping object\"");
+}
 
 IoShaping::IoShaping(const IoShaping &other) : _rReceiving(other._rReceiving.load()),
 	_rPublishing(other._rPublishing.load()), _rShaping(other._rShaping.load()),
-	_receivingTime(other._receivingTime.load())
-{}
+	_receivingTime(other._receivingTime.load()){
+		eos_static_info("%s", "msg=\"create IoShaping object by copy constructor\"");
+}
 
-IoShaping::~IoShaping(){}
+IoShaping::~IoShaping(){
+	eos_static_info("%s", "msg=\"delete IoShaping object\"");
+}
 
 IoShaping& IoShaping::operator=(const IoShaping &other){
 	if (this != &other)
@@ -44,18 +50,17 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 	ThreadAssistant::setSelfThreadName("IoShapingReceiver");
 	eos_static_info("%s", "msg=\"starting IoShaping receiving thread\"");
 
-	if (gOFS == nullptr) {
-		return;
-	}
 	// wait init ?
-
 	while (!assistant.terminationRequested()){
+		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 		std::lock_guard<std::mutex> lock(_mSyncThread);
+		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
 		std::string msg;
 		XrdOucString body(msg.c_str());
-		/// get all data
+		std::cerr << "HERE" << std::endl;
+		for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++)
+			std::cerr << it->first << std::endl;
 		eos_static_info("%s", "msg=\"IoShaping receiver thread get data\"");
-		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 	}
 
   eos_static_info("%s", "msg=\"stopping IoShaping receiver thread\"");
@@ -66,6 +71,12 @@ void IoShaping::publish(ThreadAssistant &assistant) noexcept{
 	eos_static_info("%s", "msg=\"starting IoShaping publishing thread\"");
 	(void)assistant;
 
+}
+
+void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
+	ThreadAssistant::setSelfThreadName("IoShaping");
+	eos_static_info("%s", "msg=\"starting IoShaping thread\"");
+	(void)assistant;
 }
 
 bool IoShaping::startReceiving(){
