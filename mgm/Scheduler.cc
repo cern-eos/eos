@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "Scheduler.hh"
 #include "mgm/Scheduler.hh"
 #include "mgm/Quota.hh"
 #include "mgm/GeoTreeEngine.hh"
@@ -295,6 +296,16 @@ Scheduler::FilePlacement(PlacementArguments* args)
   return ENOSPC;
 }
 
+static GeoTreeEngine::SchedType toGeoTreeSchedtype(Scheduler::tSchedType in_type, bool isRW) {
+  GeoTreeEngine::SchedType out_type = GeoTreeEngine::regularRO;
+  if (in_type == Scheduler::tSchedType::regular) {
+    out_type = isRW ? GeoTreeEngine::regularRW : GeoTreeEngine::regularRO;
+  } else if (in_type == Scheduler::tSchedType::draining) {
+    out_type = GeoTreeEngine::draining;
+  }
+  return out_type;
+}
+
 //------------------------------------------------------------------------------
 // File access method
 //------------------------------------------------------------------------------
@@ -305,20 +316,7 @@ int Scheduler::FileAccess(AccessArguments* args)
                         eos::common::LayoutId::GetMinOnlineReplica(args->lid));
   eos_static_debug("requesting file access from geolocation %s",
                    args->vid->geolocation.c_str());
-  GeoTreeEngine::SchedType st = GeoTreeEngine::regularRO;
-
-  // we set a low weight for drain filesystems if there is more than one replica
-  if (args->schedtype == regular) {
-    if (args->isRW) {
-      st = GeoTreeEngine::regularRW;
-    } else {
-      st = GeoTreeEngine::regularRO;
-    }
-  }
-
-  if (args->schedtype == draining) {
-    st = GeoTreeEngine::draining;
-  }
+  GeoTreeEngine::SchedType st = toGeoTreeSchedtype(args->schedtype, args->isRW);
 
   // make sure we have the matching geo location before the not matching one
   if (!args->tried_cgi->empty()) {
