@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "Scheduler.hh"
 #include "mgm/Scheduler.hh"
 #include "mgm/Quota.hh"
 #include "mgm/GeoTreeEngine.hh"
@@ -314,9 +313,29 @@ int Scheduler::FileAccess(AccessArguments* args)
   size_t nReqStripes = (args->isRW ?
                         eos::common::LayoutId::GetOnlineStripeNumber(args->lid) :
                         eos::common::LayoutId::GetMinOnlineReplica(args->lid));
+  // pre-checks before deciding the scheduler
+
+  if (nReqStripes > args->locationsfs->size()) {
+    eos_static_debug("not enough filesystems available for access: "
+                     "required=%zu, available=%zu", nReqStripes,
+                     args->locationsfs->size());
+    return EROFS;
+  }
+
+  if (args->forcedfsid > 0 &&
+      std::find(args->locationsfs->begin(),
+                args->locationsfs->end(),
+                args->forcedfsid) == args->locationsfs->end()) {
+    eos_static_debug("forced filesystem %lu not in available locations",
+                     (unsigned long)args->forcedfsid);
+    return ENODATA;
+  }
+
+
   eos_static_debug("requesting file access from geolocation %s",
                    args->vid->geolocation.c_str());
   GeoTreeEngine::SchedType st = toGeoTreeSchedtype(args->schedtype, args->isRW);
+
 
   // make sure we have the matching geo location before the not matching one
   if (!args->tried_cgi->empty()) {
