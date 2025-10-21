@@ -1852,7 +1852,7 @@ public:
   //! Check that the right number of replicas is online.
   //! return the best possible head replica
   // @param nReplicas
-  //   the number of replicas to access
+  //   the number of replicas to access - must be > 0
   // @param fsindex
   //   return the index of the head replica in the existingReplicas vector
   // @param existingReplicas
@@ -1872,7 +1872,7 @@ public:
   // @param accesserGeoTag
   //   try to get the replicas as close to this geotag as possible
   // @param forcedFsId
-  //   if non zeros, force the head replica fsid
+  //   if non zeros, force the head replica fsid; The Forced FSID must be present in the existingReplicas vector
   // @param unavailableFs
   //   return the unavailable file systems for the current access operation
   // @return
