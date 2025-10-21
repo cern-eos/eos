@@ -1787,22 +1787,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     std::vector<eos::common::FileSystem::fsid_t>* unavailableFs)
 {
   int returnCode = ENODATA;
-  assert(nAccessReplicas);
   assert(existingReplicas);
-
-  // Check that enough replicas exist already
-  if (nAccessReplicas > existingReplicas->size()) {
-    eos_debug("msg=\"not enough replicas\" current=%d required=%d",
-              (int)existingReplicas->size(), (int)nAccessReplicas);
-    return EROFS;
-  }
-
-  // Check if the forced replicas (if any) are among the existing replicas
-  if (forcedFsId > 0 &&
-      (std::find(existingReplicas->begin(), existingReplicas->end(),
-                 forcedFsId) == existingReplicas->end())) {
-    return ENODATA;
-  }
+  assert(nAccessReplicas > existingReplicas->size());
 
   // Find the group holdings the fs of the existing replicas and check that the
   // replicas are available
