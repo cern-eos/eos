@@ -1307,7 +1307,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   std::vector<std::string> lFanOutTags {
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
     "Master", "Recycle", "LRU", "WFE", "Wnc", "WFE::Job", "GroupBalancer", "GroupDrainer",
-    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "TokenCmd"};
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts",
+	"OAuth", "TokenCmd", "Shaping"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1353,6 +1354,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("ConversionInfo", "Converter");
     g_logging.AddFanOutAlias("ConversionJob", "Converter");
     g_logging.AddFanOutAlias("ConverterEngine", "Converter");
+	g_logging.AddFanOutAlias("IoShaping", "Shaping");
   }
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
@@ -2358,6 +2360,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                          space.second->GetConfigMember("scheduler.type"));
     }
   }
+  mIoShaper.startReceiving();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/
