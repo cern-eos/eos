@@ -628,6 +628,13 @@ XrdMgmOfs::OrderlyShutdown()
   eos_warning("msg=\"finished orderly shutdown in %llu seconds\"",
               std::chrono::duration_cast<std::chrono::seconds>
               (end_ts - start_ts).count());
+
+  mIoShaper.stopShaping();
+  eos_warning("%s", "msg=\"stopping IoShaping shaping thread\"");
+  mIoShaper.stopPublishing();
+  eos_warning("%s", "msg=\"stopping IoShaping publishing thread\"");
+  mIoShaper.stopReceiving();
+  eos_warning("%s", "msg=\"stopping IoShaping receiving thread\"");
 }
 
 //------------------------------------------------------------------------------
