@@ -27,18 +27,7 @@
 #include "mgm/FsView.hh"
 #include <unordered_map>
 
-namespace eos::common
-{
-class TransferQueue;
-}
-
 EOSMGMNAMESPACE_BEGIN
-
-//--------------------------------------------
-/// The current name of the class when us
-/// printInfo function
-//--------------------------------------------
-#define IOAGGREGATEMAP_NAME "IoShaping"
 
 class IoShaping : public eos::common::LogId{
 	private:
@@ -50,11 +39,41 @@ class IoShaping : public eos::common::LogId{
 		std::atomic<bool> 	_rReceiving;
 		std::atomic<bool> 	_rPublishing;
 		std::atomic<bool> 	_rShaping;
-		static IoShaping lol;
 
 		std::unordered_map<std::string, double> _shapings;
 
 		std::atomic<size_t>	_receivingTime;
+
+		void receive(ThreadAssistant &assistant) noexcept;
+
+		void publish(ThreadAssistant &assistant) noexcept;
+
+		void shaping(ThreadAssistant &assistant) noexcept;
+		
+	public:
+		//--------------------------------------------
+		/// Orthodoxe canonical form
+		//--------------------------------------------
+
+		//--------------------------------------------
+		/// Main constructor
+		//--------------------------------------------
+		IoShaping(size_t = 5);
+
+		//--------------------------------------------
+		/// Destructor
+		//--------------------------------------------
+		~IoShaping();
+
+		//--------------------------------------------
+		/// Constructor by copy constructor
+		//--------------------------------------------
+		IoShaping(const IoShaping &other);
+
+		//--------------------------------------------
+		/// Overload the operator =
+		//--------------------------------------------
+		IoShaping& operator=(const IoShaping &other);
 
 		//----------------------------------------------------------------------------
 		//! Start receiving thread
@@ -97,37 +116,6 @@ class IoShaping : public eos::common::LogId{
 		//! @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
 		bool stopShaping();
-
-		void receive(ThreadAssistant &assistant) noexcept;
-
-		void publish(ThreadAssistant &assistant) noexcept;
-
-		void shaping(ThreadAssistant &assistant) noexcept;
-		
-	public:
-		//--------------------------------------------
-		/// Orthodoxe canonical form
-		//--------------------------------------------
-
-		//--------------------------------------------
-		/// Main constructor
-		//--------------------------------------------
-		IoShaping(size_t = 5);
-
-		//--------------------------------------------
-		/// Destructor
-		//--------------------------------------------
-		~IoShaping();
-
-		//--------------------------------------------
-		/// Constructor by copy constructor
-		//--------------------------------------------
-		IoShaping(const IoShaping &other);
-
-		//--------------------------------------------
-		/// Overload the operator =
-		//--------------------------------------------
-		IoShaping& operator=(const IoShaping &other);
 
 		void setReceivingTime(size_t);
 };
