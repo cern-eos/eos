@@ -30,7 +30,6 @@
 #include "common/LayoutId.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/FsView.hh"
-#include "mgm/placement/PlacementStrategy.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 
