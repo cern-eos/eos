@@ -21,23 +21,21 @@
  *************************************************************************/
 
 #include "IoShaping.hh"
-#include "mgm/FsView.hh"
+#include "FileSystem.hh"
+#include "qclient/shared/SharedHashSubscription.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
-IoShaping::IoShaping(size_t time) : _rReceiving(false),  _rPublishing(false), _rShaping(false),_receivingTime(time){
-	eos_static_info("%s", "msg=\"create IoShaping object\"");
+IoShaping::IoShaping(size_t time) : _rReceiving(false),  _rPublishing(false),
+	_rShaping(false),_receivingTime(time){
 }
 
 IoShaping::IoShaping(const IoShaping &other) : _rReceiving(other._rReceiving.load()),
 	_rPublishing(other._rPublishing.load()), _rShaping(other._rShaping.load()),
 	_receivingTime(other._receivingTime.load()){
-		eos_static_info("%s", "msg=\"create IoShaping object by copy constructor\"");
 }
 
-IoShaping::~IoShaping(){
-	eos_static_info("%s", "msg=\"delete IoShaping object\"");
-}
+IoShaping::~IoShaping(){}
 
 IoShaping& IoShaping::operator=(const IoShaping &other){
 	if (this != &other)
@@ -51,16 +49,23 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 	eos_static_info("%s", "msg=\"starting IoShaping receiving thread\"");
 
 	// wait init ?
+	assistant.wait_for(std::chrono::seconds(2));
 	while (!assistant.terminationRequested()){
 		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 		std::lock_guard<std::mutex> lock(_mSyncThread);
 		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
 		std::string msg;
 		XrdOucString body(msg.c_str());
-		std::cerr << "HERE" << std::endl;
 		for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++)
-			std::cerr << it->first << std::endl;
-		eos_static_info("%s", "msg=\"IoShaping receiver thread get data\"");
+		{
+			if (it->second->GetStatus() == "online"){
+				eos_static_info("msg=\"IoShaping %s is online\"", it->first.c_str());
+				std::string protoMap(it->second->GetMember("cfg.stat.iomap"));
+				eos_static_info("msg=\"IoShaping data: %s\"", protoMap.c_str());
+			}else 
+				eos_static_info("msg=\"IoShaping is offline\"", it->first.c_str());
+		}
+		eos_static_info("%s", "msg=\"IoShaping receiver update\"\n");
 	}
 
   eos_static_info("%s", "msg=\"stopping IoShaping receiver thread\"");
