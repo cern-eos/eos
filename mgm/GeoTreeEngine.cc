@@ -2123,11 +2123,36 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
     }
   }
 
+  returnCode = accessProxyFirewall(ERIdx, entries, inode,
+                                   dataProxys, firewallEntryPoint, accesserGeotag);
+  // cleanup and exit
+cleanup:
+
+  for (auto cit = entry2FsId.begin(); cit != entry2FsId.end(); cit++) {
+    cit->first->doubleBufferMutex.UnLockRead();
+    AtomicDec(cit->first->fastStructLockWaitersCount);
+  }
+
+  return returnCode;
+}
+
+int GeoTreeEngine::accessProxyFirewall(const std::vector<SchedTreeBase::tFastTreeIdx> &ERIdx,
+  const std::vector<SchedTME *> &entries,
+  ino64_t inode,
+  std::vector<std::string> *dataProxys,
+  std::vector<std::string> *firewallEntryPoint,
+  const std::string &accesserGeotag)
+{
+  if (!dataProxys && !firewallEntryPoint) {
+    return 0;
+  }
+
+  const std::string& effectiveGeotag = pProxyCloseToFs ? "" : accesserGeotag;
+
   if (dataProxys) {
     if (!findProxy(ERIdx, entries, inode, dataProxys, NULL,
-                   pProxyCloseToFs ? "" : accesserGeotag, filesticky)) {
-      returnCode = ENETUNREACH;
-      goto cleanup;
+                   effectiveGeotag, filesticky)) {
+      return ENETUNREACH;
     }
   }
 
@@ -2142,7 +2167,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
                           , accesserGeotag)) {
           firewallProxyGroups[i] = accessGetProxygroup((
                                      *entries[i]->foregroundFastStruct->treeInfo)[ERIdx[i]].fullGeotag);
-        }
+                          }
       }
 
     if (dataProxys) {
@@ -2150,9 +2175,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
     }
 
     if (!findProxy(ERIdx, entries, inode, firewallEntryPoint, &firewallProxyGroups,
-                   pProxyCloseToFs ? "" : accesserGeotag, any)) {
-      returnCode = ENETUNREACH;
-      goto cleanup;
+                   effectiveGeotag, any)) {
+      return ENETUNREACH;
     }
   }
 
@@ -2162,23 +2186,12 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
     }
 
     if (!findProxy(ERIdx, entries, inode, dataProxys, NULL,
-                   pProxyCloseToFs ? "" : accesserGeotag, regular)) {
-      returnCode = ENETUNREACH;
-      goto cleanup;
+                   effectiveGeotag, regular)) {
+      return ENETUNREACH;
     }
   }
 
-  // If we get here, everything is fine
-  returnCode = 0;
-  // cleanup and exit
-cleanup:
-
-  for (auto cit = entry2FsId.begin(); cit != entry2FsId.end(); cit++) {
-    cit->first->doubleBufferMutex.UnLockRead();
-    AtomicDec(cit->first->fastStructLockWaitersCount);
-  }
-
-  return returnCode;
+  return 0;
 }
 
 void GeoTreeEngine::StartUpdater()
