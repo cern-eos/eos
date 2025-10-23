@@ -1886,7 +1886,7 @@ public:
   // ---------------------------------------------------------------------------
   int accessHeadReplicaMultipleGroup(const size_t& nReplicas,
                                      unsigned long& fsIndex,
-                                     std::vector<eos::common::FileSystem::fsid_t>* existingReplicas,
+                                     const std::vector<eos::common::FileSystem::fsid_t>& existingReplicas,
                                      ino64_t inode,
                                      std::vector<std::string>* dataProxys,
                                      std::vector<std::string>* firewallEntryPoints,
