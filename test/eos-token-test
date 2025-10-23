@@ -135,6 +135,12 @@ MULTIPATHTOKEN=$(eos token --path "$prefix/t_token/singlepath/://:$prefix/t_toke
 ! xrdcp /etc/passwd "$url/$prefix/t_token/multipath/file?eos.ruid=2&eos.rgid=2&authz=$SINGLEPATHTOKEN" -f && echo -e "${GREEN}Expected to fail with single path token${NC}"
 run_step "Upload Multipath" xrdcp /etc/passwd "$url/$prefix/t_token/multipath/file?eos.ruid=2&eos.rgid=2&authz=$MULTIPATHTOKEN" -f
 eos token --token $MULTIPATHTOKEN
+
+### Test 8: Directory listing with token
+eos chmod -R 700 $prefix/t_token/
+DIRTOKEN=$(eos token --path $prefix/t_token/ --permission rx --expires $later --owner daemon --group daemon --tree)
+run_step "Listing directory" xrdfs $url ls -l "$prefix/t_token/?authz=$DIRTOKEN&xrd.wantprot=unix"
+
 ### Cleanup
 run_step "Final cleanup of test directory" eos rm -r $prefix/t_token/
 
