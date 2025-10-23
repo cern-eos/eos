@@ -1851,13 +1851,13 @@ public:
   //! Access replicas across one or several scheduling group.
   //! Check that the right number of replicas is online.
   //! return the best possible head replica
-  // @param nReplicas
+  // @param [in] nReplicas
   //   the number of replicas to access - must be > 0
-  // @param fsindex
+  // @param [out] fsindex
   //   return the index of the head replica in the existingReplicas vector
-  // @param existingReplicas
+  // @param [in] existingReplicas
   //   fsids of preexisting replicas for the current file
-  // @param inode
+  // @param  [in] inode
   //   inode of the file to place, used for filesticky proxy scheduling
   // @param dataProxys
   //   if this pointer is non NULL, one proxy is returned for each filesystem returned
@@ -1869,11 +1869,11 @@ public:
   // @param type
   //   type of access to be performed. It can be:
   //     regularRO, regularRW, balancing or draining
-  // @param accesserGeoTag
+  // @param [in] accesserGeoTag
   //   try to get the replicas as close to this geotag as possible
-  // @param forcedFsId
+  // @param [in] forcedFsId
   //   if non zeros, force the head replica fsid; The Forced FSID must be present in the existingReplicas vector
-  // @param unavailableFs
+  // @param  [in/out] unavailableFs
   //   return the unavailable file systems for the current access operation
   // @return
   //   EROFS   if not enough replicas are provided to the function to
@@ -1884,7 +1884,7 @@ public:
   //           for this access operation
   //   0       if success
   // ---------------------------------------------------------------------------
-  int accessHeadReplicaMultipleGroup(const size_t& nReplicas,
+  int accessHeadReplicaMultipleGroup(size_t nReplicas,
                                      unsigned long& fsIndex,
                                      const std::vector<eos::common::FileSystem::fsid_t>& existingReplicas,
                                      ino64_t inode,
@@ -1892,8 +1892,8 @@ public:
                                      std::vector<std::string>* firewallEntryPoints,
                                      SchedType type = regularRO,
                                      const std::string& accesserGeotag = "",
-                                     const eos::common::FileSystem::fsid_t& forcedFsId = 0,
-                                     std::vector<eos::common::FileSystem::fsid_t>* unavailableFs = NULL
+                                     eos::common::FileSystem::fsid_t forcedFsId = 0,
+                                     std::vector<eos::common::FileSystem::fsid_t>* unavailableFs = nullptr
                                     );
 
   // ---------------------------------------------------------------------------
