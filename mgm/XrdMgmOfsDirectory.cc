@@ -132,12 +132,6 @@ XrdMgmOfsDirectory::open(const char* inpath,
   ACCESSMODE_R;
   MAYSTALL;
   MAYREDIRECT;
-
-  // we have to show this as a directory inside the tokens cope
-  if (!vid.scope.empty() && vid.scope.back() != '/') {
-    vid.scope += "/";
-  }
-
   return _open(path, vid, ininfo);
 }
 
@@ -154,6 +148,17 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
                            (dirCache.setMaxSize(atoi(getenv("EOS_MGM_LISTING_CACHE")))));
   XrdOucEnv Open_Env(info);
   errno = 0;
+
+  // Need to set the vid scope for future validation with the token path and
+  // we have to show this as a directory!
+  if (dir_path) {
+    vid.scope = dir_path;
+
+    if (vid.scope.back() != '/') {
+      vid.scope += "/";
+    }
+  }
+
   EXEC_TIMING_BEGIN("OpenDir");
   eos::common::Path cPath(dir_path);
 
