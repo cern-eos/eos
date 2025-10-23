@@ -1400,58 +1400,11 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
 
   if (dataProxys || firewallEntryPoint) {
     entries.assign(newReplicasIdx.size(), entry);
-  }
-
-  // find proxy for filesticky scheduling
-  if (dataProxys) {
-    if (!findProxy(newReplicasIdx, entries, inode, dataProxys, NULL,
-                   pProxyCloseToFs ? "" : clientGeoTag, filesticky)) {
+    auto rc = accessProxyFirewall(newReplicasIdx, entries,
+                                  inode, dataProxys, firewallEntryPoint,
+                                  clientGeoTag);
+    if (rc != 0) {
       success = false;
-      goto cleanup;
-    }
-  }
-
-  // find the firewall entry point if needed
-  if (firewallEntryPoint) {
-    std::vector<std::string> firewallProxyGroups(newReplicasIdx.size());
-
-    // if there are some access geotag mapping rules, use them
-    if (pAccessGeotagMapping.inuse && pAccessProxygroup.inuse)
-      for (size_t i = 0; i < newReplicasIdx.size(); i++) {
-        if (clientGeoTag.empty() ||
-            accessReqFwEP((
-                            *entries[i]->foregroundFastStruct->treeInfo)[newReplicasIdx[i]].fullGeotag,
-                          clientGeoTag)) {
-          firewallProxyGroups[i] = accessGetProxygroup((
-                                     *entries[i]->foregroundFastStruct->treeInfo)[newReplicasIdx[i]].fullGeotag);
-        }
-      }
-
-    // Use the dataproxys as entrypoints if possible
-    if (dataProxys) {
-      *firewallEntryPoint = *dataProxys;
-    }
-
-    if (!findProxy(newReplicasIdx, entries, inode, firewallEntryPoint,
-                   &firewallProxyGroups, pProxyCloseToFs ? "" : clientGeoTag, any)) {
-      success = false;
-      goto cleanup;
-    }
-  }
-
-  // find proxy in the right proxygroup if any
-  if (dataProxys) {
-    // If we already have some firewall entry points, pass them to the findProxy
-    // procedure to check if it's needed to find a distinct data proxy
-    // use the entrypoints as dataproxy if possible
-    if (firewallEntryPoint) {
-      *dataProxys = *firewallEntryPoint;
-    }
-
-    if (!findProxy(newReplicasIdx, entries, inode, dataProxys, NULL,
-                   pProxyCloseToFs ? "" : clientGeoTag, regular)) {
-      success = false;
-      goto cleanup;
     }
   }
 
@@ -2123,53 +2076,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
     }
   }
 
-  if (dataProxys) {
-    if (!findProxy(ERIdx, entries, inode, dataProxys, NULL,
-                   pProxyCloseToFs ? "" : accesserGeotag, filesticky)) {
-      returnCode = ENETUNREACH;
-      goto cleanup;
-    }
-  }
-
-  if (firewallEntryPoint) {
-    std::vector<std::string> firewallProxyGroups(ERIdx.size());
-
-    // if there are some access geotag mapping rules, use them
-    if (pAccessGeotagMapping.inuse && pAccessProxygroup.inuse)
-      for (size_t i = 0; i < ERIdx.size(); i++) {
-        if (accesserGeotag.empty() ||
-            accessReqFwEP((*entries[i]->foregroundFastStruct->treeInfo)[ERIdx[i]].fullGeotag
-                          , accesserGeotag)) {
-          firewallProxyGroups[i] = accessGetProxygroup((
-                                     *entries[i]->foregroundFastStruct->treeInfo)[ERIdx[i]].fullGeotag);
-        }
-      }
-
-    if (dataProxys) {
-      *firewallEntryPoint = *dataProxys;
-    }
-
-    if (!findProxy(ERIdx, entries, inode, firewallEntryPoint, &firewallProxyGroups,
-                   pProxyCloseToFs ? "" : accesserGeotag, any)) {
-      returnCode = ENETUNREACH;
-      goto cleanup;
-    }
-  }
-
-  if (dataProxys) {
-    if (firewallEntryPoint) {
-      *dataProxys = *firewallEntryPoint;
-    }
-
-    if (!findProxy(ERIdx, entries, inode, dataProxys, NULL,
-                   pProxyCloseToFs ? "" : accesserGeotag, regular)) {
-      returnCode = ENETUNREACH;
-      goto cleanup;
-    }
-  }
-
-  // If we get here, everything is fine
-  returnCode = 0;
+  returnCode = accessProxyFirewall(ERIdx, entries, inode,
+                                   dataProxys, firewallEntryPoint, accesserGeotag);
   // cleanup and exit
 cleanup:
 
@@ -2179,6 +2087,64 @@ cleanup:
   }
 
   return returnCode;
+}
+
+int GeoTreeEngine::accessProxyFirewall(const std::vector<SchedTreeBase::tFastTreeIdx> &ERIdx,
+                                       const std::vector<SchedTME *> &entries,
+                                       ino64_t inode,
+                                       std::vector<std::string> *dataProxys,
+                                       std::vector<std::string> *firewallEntryPoint,
+                                       const std::string &accesserGeotag)
+{
+  if (!dataProxys && !firewallEntryPoint) {
+    return 0;
+  }
+
+  const std::string& effectiveGeotag = pProxyCloseToFs ? "" : accesserGeotag;
+
+  if (dataProxys) {
+    if (!findProxy(ERIdx, entries, inode, dataProxys, nullptr,
+                   effectiveGeotag, filesticky)) {
+      return ENETUNREACH;
+    }
+  }
+
+  if (firewallEntryPoint) {
+    std::vector<std::string> firewallProxyGroups(ERIdx.size());
+
+    // if there are some access geotag mapping rules, use them
+    if (pAccessGeotagMapping.inuse && pAccessProxygroup.inuse)
+      for (size_t i = 0; i < ERIdx.size(); i++) {
+        const auto& tree_Info = (*entries[i]->foregroundFastStruct->treeInfo)[ERIdx[i]];
+        if (accesserGeotag.empty() ||
+            accessReqFwEP(tree_Info.fullGeotag,
+                          accesserGeotag)) {
+          firewallProxyGroups[i] = accessGetProxygroup(tree_Info.fullGeotag);
+        }
+      }
+
+    if (dataProxys) {
+      *firewallEntryPoint = *dataProxys;
+    }
+
+    if (!findProxy(ERIdx, entries, inode, firewallEntryPoint, &firewallProxyGroups,
+                   effectiveGeotag, any)) {
+      return ENETUNREACH;
+    }
+  }
+
+  if (dataProxys) {
+    if (firewallEntryPoint) {
+      *dataProxys = *firewallEntryPoint;
+    }
+
+    if (!findProxy(ERIdx, entries, inode, dataProxys, nullptr,
+                   effectiveGeotag, regular)) {
+      return ENETUNREACH;
+    }
+  }
+
+  return 0;
 }
 
 void GeoTreeEngine::StartUpdater()
