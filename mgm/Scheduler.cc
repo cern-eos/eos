@@ -362,7 +362,7 @@ int Scheduler::FileAccess(AccessArguments* args)
 
   return gOFS->mGeoTreeEngine->accessHeadReplicaMultipleGroup(nReqStripes,
          *args->fsindex,
-         args->locationsfs,
+         *args->locationsfs,
          args->inode,
          args->dataproxys,
          args->firewallentpts,
