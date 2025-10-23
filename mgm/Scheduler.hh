@@ -179,9 +179,9 @@ public:
     tSchedType schedtype;
     //! virtual identity of the client
     const eos::common::VirtualIdentity* vid;
-    /// INPUT/OUTPUT
     //!filesystem ids where layout is stored
-    std::vector<unsigned int>* locationsfs;
+    const std::vector<unsigned int>* locationsfs;
+    /// INPUT/OUTPUT
     //! if non NULL, schedule dataproxys for each fs if proxygroups are defined (empty string if not defined)
     std::vector<std::string>* dataproxys;
     //! firewallentpts if non NULL, schedule a firewall entry point for each fs
@@ -200,12 +200,12 @@ public:
       isRW(false),
       bookingsize(0),
       schedtype(regular),
-      vid(NULL),
-      locationsfs(NULL),
-      dataproxys(NULL),
-      firewallentpts(NULL),
-      fsindex(NULL),
-      unavailfs(NULL)
+      vid(nullptr),
+      locationsfs(nullptr),
+      dataproxys(nullptr),
+      firewallentpts(nullptr),
+      fsindex(nullptr),
+      unavailfs(nullptr)
     {}
 
     bool isValid() const
