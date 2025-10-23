@@ -1775,7 +1775,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx>&
   return true;
 }
 
-int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
+int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
     unsigned long& fsIndex,
     const std::vector<eos::common::FileSystem::fsid_t>& existingReplicas,
     ino64_t inode,
@@ -1783,7 +1783,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     std::vector<std::string>* firewallEntryPoint,
     SchedType type,
     const std::string& accesserGeotag,
-    const eos::common::FileSystem::fsid_t& forcedFsId,
+    eos::common::FileSystem::fsid_t forcedFsId,
     std::vector<eos::common::FileSystem::fsid_t>* unavailableFs)
 {
   int returnCode = ENODATA;
