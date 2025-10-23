@@ -811,7 +811,6 @@ void
 NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
                       eos::console::ReplyProto& reply)
 {
-  eos::common::RWMutexWriteLock ns_wr_lock(gOFS->eosViewRWMutex);
   std::shared_ptr<IContainerMD> cont;
 
   try {
@@ -987,7 +986,7 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
       eos_err("error=\"%s\"", e.what());
       continue;
     }
-
+    // No need to lock the file here as it's only one operation to be done
     tree_size += tmp_fmd->getSize();
     tree_files += 1;
   }
@@ -999,18 +998,26 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
       eos_err("error=\"%s\"", e.what());
       continue;
     }
-
+    // Read lock the container here
+    eos::MDLocking::ContainerReadLock readLock(tmp_cont.get());
     tree_size += tmp_cont->getTreeSize();
     tree_containers += tmp_cont->getTreeContainers() +
                        1; //Count the current cont' children + the subChildren (getDirCount())
     tree_files += tmp_cont->getTreeFiles();
   }
 
-  cont->setTreeSize(tree_size);
-  cont->setTreeFiles(tree_files);
-  cont->setTreeContainers(tree_containers);
-  gOFS->eosDirectoryService->updateStore(cont.get());
-  gOFS->FuseXCastRefresh(cont->getIdentifier(), cont->getParentIdentifier());
+  eos::ContainerIdentifier id;
+  eos::ContainerIdentifier parentId;
+  {
+    eos::MDLocking::ContainerWriteLock writeLock(cont.get());
+    id = cont->getIdentifier();
+    parentId = cont->getParentIdentifier();
+    cont->setTreeSize(tree_size);
+    cont->setTreeFiles(tree_files);
+    cont->setTreeContainers(tree_containers);
+    gOFS->eosDirectoryService->updateStore(cont.get());
+  }
+  gOFS->FuseXCastRefresh(id, parentId);
 }
 
 //------------------------------------------------------------------------------
