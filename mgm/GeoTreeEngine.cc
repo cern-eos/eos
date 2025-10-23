@@ -1777,7 +1777,7 @@ bool GeoTreeEngine::findProxy(const std::vector<SchedTreeBase::tFastTreeIdx>&
 
 int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     unsigned long& fsIndex,
-    std::vector<eos::common::FileSystem::fsid_t>* existingReplicas,
+    const std::vector<eos::common::FileSystem::fsid_t>& existingReplicas,
     ino64_t inode,
     std::vector<std::string>* dataProxys,
     std::vector<std::string>* firewallEntryPoint,
@@ -1787,19 +1787,18 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     std::vector<eos::common::FileSystem::fsid_t>* unavailableFs)
 {
   int returnCode = ENODATA;
-  assert(existingReplicas);
-  assert(nAccessReplicas > existingReplicas->size());
+  assert(nAccessReplicas > existingReplicas.size());
 
   // Find the group holdings the fs of the existing replicas and check that the
   // replicas are available
   size_t availFsCount = 0;
   eos::mgm::SchedTreeBase::TreeNodeSlots freeSlot;
   freeSlot.freeSlotsCount = 1;
-  std::vector<eos::common::FileSystem::fsid_t>::iterator it;
+  std::vector<eos::common::FileSystem::fsid_t>::const_iterator it;
   std::vector<SchedTreeBase::tFastTreeIdx> ERIdx;
-  ERIdx.reserve(existingReplicas->size());
+  ERIdx.reserve(existingReplicas.size());
   std::vector<SchedTME*> entries;
-  entries.reserve(existingReplicas->size());
+  entries.reserve(existingReplicas.size());
   // Maps tree maps entries (i.e. scheduling groups) to fs ids containing an
   // available replica and the corresponding fastTreeIndex
   map<SchedTME*, vector< pair<FileSystem::fsid_t, SchedTreeBase::tFastTreeIdx> > >
@@ -1810,14 +1809,13 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     // be delete while processing it.
     RWMutexReadLock lock(this->pTreeMapMutex);
 
-    for (auto exrepIt = existingReplicas->begin();
-         exrepIt != existingReplicas->end(); exrepIt++) {
-      auto mentry = pFs2SchedTME.find(*exrepIt);
+    for (const auto& exrepIt : existingReplicas) {
+      auto mentry = pFs2SchedTME.find(exrepIt);
 
       // If we cannot find the fs in any group, there is an inconsistency somewhere
       if (mentry == pFs2SchedTME.end()) {
         eos_warning("msg=\"cannot find the existing replica in any "
-                    "scheduling group\" fsid=%lu", *exrepIt);
+                    "scheduling group\" fsid=%u", exrepIt);
         continue;
       }
 
@@ -1833,9 +1831,9 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
 
       const SchedTreeBase::tFastTreeIdx* idx;
 
-      if (!entry->foregroundFastStruct->fs2TreeIdx->get(*exrepIt, idx)) {
+      if (!entry->foregroundFastStruct->fs2TreeIdx->get(exrepIt, idx)) {
         eos_warning("msg=\"cannot find fs in the scheduling group in the 2nd "
-                    "pass\" fsid=%lu", *exrepIt);
+                    "pass\" fsid=%u", exrepIt);
 
         if (!entry2FsId.count(entry)) {
           entry->doubleBufferMutex.UnLockRead();
@@ -1853,7 +1851,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
       std::string msg;
 
       if (std::find(unavailableFs->begin(), unavailableFs->end(),
-                    *exrepIt) == unavailableFs->end()) {
+                    exrepIt) == unavailableFs->end()) {
         switch (type) {
         case regularRO:
           isValid = entry->foregroundFastStruct->rOAccessTree->pBranchComp.isValidSlot(
@@ -1893,7 +1891,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
       }
 
       if (isValid) {
-        entry2FsId[entry].push_back(make_pair(*exrepIt, *idx));
+        entry2FsId[entry].push_back(make_pair(exrepIt, *idx));
         availFsCount++;
       } else {
         // create an empty entry in the map if needed
@@ -1903,8 +1901,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
         }
 
         // update the unavailable fs
-        unavailableFs->push_back(*exrepIt);
-        eos_warning("msg=\"%s\" fsid=%lu", msg.c_str(), (unsigned long)*exrepIt);
+        unavailableFs->push_back(exrepIt);
+        eos_warning("msg=\"%s\" fsid=%u", msg.c_str(), exrepIt);
       }
     }
   }
@@ -2038,15 +2036,15 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
                                               geoScore2Fs.rbegin()->second.size()];
 
       // return the corresponding index
-      for (it = existingReplicas->begin(); it != existingReplicas->end(); it++) {
+      for (it = existingReplicas.cbegin(); it != existingReplicas.cend(); it++) {
         if (*it == selectedFsId) {
-          fsIndex = (eos::common::FileSystem::fsid_t)(it - existingReplicas->begin());
+          fsIndex = static_cast<unsigned long>(std::distance(existingReplicas.cbegin(), it));
           break;
         }
       }
 
       // check we found it
-      if (it == existingReplicas->end()) {
+      if (it == existingReplicas.cend()) {
         eos_err("inconsistency : unable to find the selected fs but it should be there");
         returnCode = EIO;
         goto cleanup;
@@ -2058,8 +2056,8 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
       buffer[0] = 0;
       char* buf = buffer;
 
-      for (auto it = existingReplicas->begin(); it != existingReplicas->end(); ++it) {
-        buf += sprintf(buf, "%lu  ", (unsigned long)(*it));
+      for (const auto& it: existingReplicas) {
+        buf += sprintf(buf, "%u  ", it);
       }
 
       eos_debug("existing replicas fs id's -> %s", buffer);
@@ -2079,9 +2077,9 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(const size_t& nAccessReplicas,
     std::set<eos::common::FileSystem::fsid_t>
     setunav(unavailableFs->begin(), unavailableFs->end());
 
-    for (size_t i = 0; i < existingReplicas->size(); i++) {
-      size_t j = (fsIndex + i) % existingReplicas->size();
-      auto& fs = (*existingReplicas)[j];
+    for (size_t i = 0; i < existingReplicas.size(); i++) {
+      size_t j = (fsIndex + i) % existingReplicas.size();
+      auto fs = existingReplicas[j];
 
       // If this one is unavailable, skip it
       if (setunav.count(fs)) {
