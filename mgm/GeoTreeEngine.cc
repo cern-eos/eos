@@ -2024,7 +2024,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
         // if the box is unsaturated, give an advantage to this FS
         if (retCode == 2) {
           geoScore += 100;
-          eos_debug("found unsaturated fs");
+          eos_debug("%s","found unsaturated fs");
         }
 
         geoScore2Fs[geoScore].push_back(
@@ -2045,7 +2045,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
 
       // check we found it
       if (it == existingReplicas.cend()) {
-        eos_err("inconsistency : unable to find the selected fs but it should be there");
+        eos_err("%s","inconsistency : unable to find the selected fs but it should be there");
         returnCode = EIO;
         goto cleanup;
       }
