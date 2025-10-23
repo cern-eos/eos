@@ -1896,6 +1896,13 @@ public:
                                      std::vector<eos::common::FileSystem::fsid_t>* unavailableFs = nullptr
                                     );
 
+  int accessProxyFirewall(const std::vector<SchedTreeBase::tFastTreeIdx>& ERIdx,
+                          const std::vector<SchedTME*>& entries,
+                          ino64_t inode,
+                          std::vector<std::string>* dataProxys,
+                          std::vector<std::string>* firewallEntryPoint,
+                          const std::string& accesserGeotag);
+
   // ---------------------------------------------------------------------------
   //! Start the background updater thread
   // @return
