@@ -311,4 +311,11 @@ struct PlacementStrategy {
   virtual ~PlacementStrategy() = default;
 };
 
+struct AccessArguments {
+  size_t n_replicas;
+  size_t& selectedIndex;
+  std::vector<uint32_t>* unavailfs;
+  const std::vector<uint32_t>* selectedfs;
+};
+
 } // namespace eos::mgm::placement
