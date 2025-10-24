@@ -463,13 +463,17 @@ XrdMgmOfsFile::GetXrdAccessOperation(int open_flags)
   return op;
 }
 
+struct target_params {
+  std::string  targethost;
+  int          targetport;
+  int          targethttpport;
+  XrdOucString redirectionhost;
+};
+
 static bool setProxyFwGateway(const std::vector<std::string>& firewalleps,
                               const std::vector<std::string>& proxys,
                               size_t fsIndex,
-                              std::string& targethost,
-                              int& targetport,
-                              int& targethttpport,
-                              XrdOucString& redirectionhost,
+                              target_params& out,
                               const std::string& fs_host,
                               const std::string& fs_port,
                               const std::string& fs_http_port,
@@ -489,18 +493,18 @@ static bool setProxyFwGateway(const std::vector<std::string>& firewalleps,
       auto idx = firewalleps[fsIndex].rfind(':');
 
       if (idx != std::string::npos) {
-        targethost = firewalleps[fsIndex].substr(0, idx).c_str();
-        targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
+        out.targethost = firewalleps[fsIndex].substr(0, idx).c_str();
+        out.targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
                           std::string::npos).c_str());
-        targethttpport = 8001;
+        out.targethttpport = 8001;
       } else {
-        targethost = firewalleps[fsIndex].c_str();
-        targetport = 0;
-        targethttpport = 8001;
+        out.targethost = firewalleps[fsIndex].c_str();
+        out.targetport = 0;
+        out.targethttpport = 8001;
       }
 
       std::ostringstream oss;
-      oss << targethost << "?" << "eos.fstfrw=";
+      oss << out.targethost << "?" << "eos.fstfrw=";
 
       // Check if we have to redirect to the fs host or to a proxy
       if (proxys[fsIndex].empty()) {
@@ -509,38 +513,38 @@ static bool setProxyFwGateway(const std::vector<std::string>& firewalleps,
         oss << proxys[fsIndex];
       }
 
-      redirectionhost = oss.str().c_str();
-      redirectionhost += "&";
+      out.redirectionhost = oss.str().c_str();
+      out.redirectionhost += "&";
     } else {
       if (proxys[fsIndex].empty()) { // there is no proxy to use
-        targethost  = fs_host.c_str();
-        targetport  = atoi(fs_port.c_str());
-        targethttpport  = atoi(fs_http_port.c_str());
+        out.targethost  = fs_host.c_str();
+        out.targetport  = atoi(fs_port.c_str());
+        out.targethttpport  = atoi(fs_http_port.c_str());
 
         // default xrootd & http port
-        if (!targetport) {
-          targetport = 1095;
+        if (!out.targetport) {
+          out.targetport = 1095;
         }
 
-        if (!targethttpport) {
-          targethttpport = 8001;
+        if (!out.targethttpport) {
+          out.targethttpport = 8001;
         }
       } else { // we have a proxy to use
         auto idx = proxys[fsIndex].rfind(':');
 
         if (idx != std::string::npos) {
-          targethost = proxys[fsIndex].substr(0, idx).c_str();
-          targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
-          targethttpport = 8001;
+          out.targethost = proxys[fsIndex].substr(0, idx).c_str();
+          out.targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
+          out.targethttpport = 8001;
         } else {
-          targethost = proxys[fsIndex].c_str();
-          targetport = 0;
-          targethttpport = 0;
+          out.targethost = proxys[fsIndex].c_str();
+          out.targetport = 0;
+          out.targethttpport = 0;
         }
       }
 
-      redirectionhost = targethost.c_str();
-      redirectionhost += "?";
+      out.redirectionhost = out.targethost.c_str();
+      out.redirectionhost += "?";
     }
 
     if (!proxys[fsIndex].empty()) {
@@ -549,7 +553,7 @@ static bool setProxyFwGateway(const std::vector<std::string>& firewalleps,
         s += "=";
         s += fs_prefix.c_str();
         s.replace(":", "#COL#");
-        redirectionhost += s;
+        out.redirectionhost += s;
       }
     }
   } else {
