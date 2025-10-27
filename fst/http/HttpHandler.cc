@@ -846,8 +846,14 @@ HttpHandler::DecodeByteRange(std::string rangeheader,
       stop = filesize - 1;
     }
 
-    if ((start > filesize) || (stop > filesize)) {
+    if ((start > filesize)) {
       return false;
+    }
+
+    // RFC https://datatracker.ietf.org/doc/html/rfc7233 , do not return an error if the outer part of the range is > than the file size
+    // Set the outer part of the range to the end of the file.
+    if (stop >= filesize) {
+      stop = filesize - 1;
     }
 
     if (stop >= start) {
