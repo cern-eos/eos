@@ -463,37 +463,35 @@ XrdMgmOfsFile::GetXrdAccessOperation(int open_flags)
   return op;
 }
 
-struct target_params {
-  std::string  targethost;
-  int          targetport;
-  int          targethttpport;
-  XrdOucString redirectionhost;
-};
 
-static bool setProxyFwGateway(const std::vector<std::string>& firewalleps,
-                              const std::vector<std::string>& proxys,
-                              size_t fsIndex,
-                              target_params& out,
-                              const std::string& fs_host,
-                              const std::string& fs_port,
-                              const std::string& fs_http_port,
-                              const std::string& fs_hostport,
-                              const std::string& fs_prefix)
+
+XrdMgmOfsFile::targetParams
+XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
+                                     const std::vector<std::string>& proxys,
+                                     size_t fsIndex,
+                                     std::string_view fs_hostport,
+                                     std::string_view fs_prefix)
 {
 
+  bool hasFirewall = fsIndex < firewalleps.size() &&
+                   !firewalleps[fsIndex].empty();
+  bool hasProxy = fsIndex < proxys.size() && !proxys[fsIndex].empty();
+  if (!hasFirewall && !hasProxy) {
+    return {};
+  }
+
+  targetParams out;
     // Set the FST gateway for clients who are geo-tagged with default
-  if ((firewalleps.size() > fsIndex) && (proxys.size() > fsIndex)) {
     // Do this with forwarding proxy syntax only if the firewall entrypoint is
     // different from the endpoint
-    if (!(firewalleps[fsIndex].empty()) &&
-        ((!proxys[fsIndex].empty() && firewalleps[fsIndex] != proxys[fsIndex]) ||
-         (firewalleps[fsIndex] != fs_hostport))) {
+    if (hasFirewall &&
+        ((hasProxy && firewalleps[fsIndex] != proxys[fsIndex]) ||
+        (firewalleps[fsIndex] != fs_hostport))) {
       // Build the URL for the forwarding proxy and must have the following
       // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
-      auto idx = firewalleps[fsIndex].rfind(':');
-
-      if (idx != std::string::npos) {
-        out.targethost = firewalleps[fsIndex].substr(0, idx).c_str();
+      if (auto idx = firewalleps[fsIndex].rfind(':');
+        idx != std::string::npos) {
+        out.targethost = firewalleps[fsIndex].substr(0, idx);
         out.targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
                           std::string::npos).c_str());
         out.targethttpport = 8001;
@@ -503,63 +501,37 @@ static bool setProxyFwGateway(const std::vector<std::string>& firewalleps,
         out.targethttpport = 8001;
       }
 
-      std::ostringstream oss;
-      oss << out.targethost << "?" << "eos.fstfrw=";
 
-      // Check if we have to redirect to the fs host or to a proxy
-      if (proxys[fsIndex].empty()) {
-        oss << fs_host << ":" << fs_port;
+
+      out.redirectionhost = out.targethost + ":" +
+                            std::to_string(out.targetport) + "?eos.fstfrw=";
+      if (hasProxy) {
+        out.redirectionhost += proxys[fsIndex];
       } else {
-        oss << proxys[fsIndex];
+        out.redirectionhost += fs_hostport;
       }
-
-      out.redirectionhost = oss.str().c_str();
-      out.redirectionhost += "&";
-    } else {
-      if (proxys[fsIndex].empty()) { // there is no proxy to use
-        out.targethost  = fs_host.c_str();
-        out.targetport  = atoi(fs_port.c_str());
-        out.targethttpport  = atoi(fs_http_port.c_str());
-
-        // default xrootd & http port
-        if (!out.targetport) {
-          out.targetport = 1095;
-        }
-
-        if (!out.targethttpport) {
-          out.targethttpport = 8001;
-        }
-      } else { // we have a proxy to use
-        auto idx = proxys[fsIndex].rfind(':');
-
-        if (idx != std::string::npos) {
-          out.targethost = proxys[fsIndex].substr(0, idx).c_str();
+    } else if (hasProxy) {
+        if (auto idx = proxys[fsIndex].rfind(':');
+            idx != std::string::npos) {
+          out.targethost = proxys[fsIndex].substr(0, idx);
           out.targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
           out.targethttpport = 8001;
         } else {
-          out.targethost = proxys[fsIndex].c_str();
+          out.targethost = proxys[fsIndex];
           out.targetport = 0;
           out.targethttpport = 0;
         }
-      }
-
-      out.redirectionhost = out.targethost.c_str();
-      out.redirectionhost += "?";
+      out.redirectionhost = out.targethost;
     }
 
-    if (!proxys[fsIndex].empty()) {
-      if (!(fs_prefix.empty())) {
-        XrdOucString s = "mgm.fsprefix";
-        s += "=";
-        s += fs_prefix.c_str();
-        s.replace(":", "#COL#");
-        out.redirectionhost += s;
-      }
+    if (hasProxy && !fs_prefix.empty()) {
+      std::string _s = "mgm.fsprefix=";
+      _s.append(fs_prefix);
+      XrdOucString s = _s.c_str();
+      s.replace(":", "#COL#");
+      out.redirectionhost += _s.c_str();
     }
-  } else {
-    return false;
-  }
-  return true;
+  return out;
 }
 
 /*----------------------------------------------------------------------------*/
@@ -2867,20 +2839,21 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     fs_id = filesystem->GetId();
   } // fs_rd_lock scope
 
-  if (!setProxyFwGateway(firewalleps, proxys, fsIndex,
-                         targethost, targetport, targethttpport,
-                         redirectionhost,
-                         fs_host, fs_port, fs_http_port,
-                         fs_hostport, fs_prefix))
- {
+  if (auto result = setProxyFwEntrypoint(firewalleps, proxys, fsIndex,
+                            fs_hostport, fs_prefix);
+                            result.valid()) {
+    targetport = result.targetport;
+    targethttpport = result.targethttpport;
+    targethost = std::move(result.targethost);
+    redirectionhost = result.redirectionhost.c_str();
+  } else {
     // There is no proxy or firewall entry point to use
     targethost  = fs_host.c_str();
     targetport  = atoi(fs_port.c_str());
     targethttpport  = atoi(fs_http_port.c_str());
-    redirectionhost = targethost.c_str();
+    redirectionhost = fs_hostport.c_str();
     redirectionhost += "?";
   }
-
   // ---------------------------------------------------------------------------
   // Rebuild the layout ID (for read it should indicate only the number of
   // available stripes for reading);
@@ -3144,30 +3117,30 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                    "path=\"%s\" fsid=%d", path, selectedfs[i]);
           continue;
         }
-
+        XrdOucString replicahost;
+        int replicaport{0};
         if (replace) {
           fsIndex = i;
 
-          if (!setProxyFwGateway(firewalleps, proxys,
-                                 fsIndex,
-                                 targethost, targetport, targethttpport,
-                                 redirectionhost,
-                                 repfilesystem->GetString("host"),
-                                 repfilesystem->GetString("port"),
-                                 repfilesystem->GetString("stat.http.port"),
-                                 repfilesystem->GetString("hostport"),
-                                 repfilesystem->GetPath()
-                                 )) {
+          if  (auto result = setProxyFwEntrypoint(firewalleps, proxys,
+                                                  fsIndex,
+                                                  repfilesystem->GetString("hostport"),
+                                                  repfilesystem->GetPath());
+            result.valid()) {
+            targetport = result.targetport;
+            targethttpport = result.targethttpport;
+            targethost = std::move(result.targethost);
+            redirectionhost = result.redirectionhost.c_str();
+          } else {
               // There is no proxy to use
               targethost  = repfilesystem->GetString("host").c_str();
               targetport  = atoi(repfilesystem->GetString("port").c_str());
               targethttpport  = atoi(repfilesystem->GetString("stat.http.port").c_str());
-            }
-
-          redirectionhost = targethost.c_str();
-          redirectionhost += "?";
-
-
+              redirectionhost = targethost.c_str();
+              redirectionhost += "?";
+              replicahost += repfilesystem->GetString("host").c_str();
+              replicaport = atoi(repfilesystem->GetString("port").c_str());
+          }
           // point at the right vector entry
           fsIndex = i;
         }
@@ -3175,8 +3148,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         capability += "&mgm.url";
         capability += (int) i;
         capability += "=root://";
-        XrdOucString replicahost = "";
-        int replicaport = 0;
 
         // -----------------------------------------------------------------------
         // Logic to mask 'offline' filesystems
@@ -3202,8 +3173,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         } else {
           // There is no proxy to use
-          replicahost += repfilesystem->GetString("host").c_str();
-          replicaport = atoi(repfilesystem->GetString("port").c_str());
+
         }
 
         capability += replicahost;
