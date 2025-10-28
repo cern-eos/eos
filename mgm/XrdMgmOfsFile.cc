@@ -501,8 +501,6 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
         out.targethttpport = 8001;
       }
 
-
-
       out.redirectionhost = out.targethost + ":" +
                             std::to_string(out.targetport) + "?eos.fstfrw=";
       if (hasProxy) {
@@ -527,9 +525,9 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
     if (hasProxy && !fs_prefix.empty()) {
       std::string _s = "mgm.fsprefix=";
       _s.append(fs_prefix);
-      XrdOucString s = _s.c_str();
-      s.replace(":", "#COL#");
-      out.redirectionhost += _s.c_str();
+      eos::common::replace_all(_s, ":", "#COL#");
+      out.redirectionhost += _s;
+      out.redirectionsuffix = std::move(_s);
     }
   return out;
 }
@@ -2851,7 +2849,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     targethost  = fs_host.c_str();
     targetport  = atoi(fs_port.c_str());
     targethttpport  = atoi(fs_http_port.c_str());
-    redirectionhost = fs_hostport.c_str();
+    redirectionhost = targethost.c_str();
     redirectionhost += "?";
   }
   // ---------------------------------------------------------------------------
@@ -3117,8 +3115,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                    "path=\"%s\" fsid=%d", path, selectedfs[i]);
           continue;
         }
-        XrdOucString replicahost;
+        std::string replicahost;
+        std::string redirectionsuffix;
         int replicaport{0};
+        bool hasreplaceProxy {false};
         if (replace) {
           fsIndex = i;
 
@@ -3131,15 +3131,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             targethttpport = result.targethttpport;
             targethost = std::move(result.targethost);
             redirectionhost = result.redirectionhost.c_str();
+            redirectionsuffix = std::move(result.redirectionsuffix);
+            hasreplaceProxy = true;
           } else {
               // There is no proxy to use
-              targethost  = repfilesystem->GetString("host").c_str();
-              targetport  = atoi(repfilesystem->GetString("port").c_str());
-              targethttpport  = atoi(repfilesystem->GetString("stat.http.port").c_str());
-              redirectionhost = targethost.c_str();
-              redirectionhost += "?";
-              replicahost += repfilesystem->GetString("host").c_str();
-              replicaport = atoi(repfilesystem->GetString("port").c_str());
+            targethost  = repfilesystem->GetString("host").c_str();
+            targetport  = atoi(repfilesystem->GetString("port").c_str());
+            targethttpport  = atoi(repfilesystem->GetString("stat.http.port").c_str());
+            redirectionhost = targethost.c_str();
+            redirectionhost += "?";
+            replicahost += repfilesystem->GetString("host").c_str();
+            replicaport = atoi(repfilesystem->GetString("port").c_str());
           }
           // point at the right vector entry
           fsIndex = i;
@@ -3159,24 +3161,24 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           }
         }
 
-        if ((proxys.size() > i) && !proxys[i].empty()) {
-          // We have a proxy to use
-          auto idx = proxys[i].rfind(':');
-
-          if (idx != std::string::npos) {
-            replicahost = proxys[i].substr(0, idx).c_str();
-            replicaport =
-              atoi(proxys[i].substr(idx + 1, std::string::npos).c_str());
-          } else {
-            replicahost = proxys[i].c_str();
-            replicaport = 0;
-          }
-        } else {
-          // There is no proxy to use
-
+        replicahost = repfilesystem->GetString("host");
+        replicaport = atoi(repfilesystem->GetString("port").c_str());
+        // if there was a replacement and proxy, copy replica
+        // details from target
+        if (hasreplaceProxy) {
+          replicahost = targethost;
+          replicaport = targetport;
+        } else if (auto result = setProxyFwEntrypoint(firewalleps, proxys,
+                                                  i,
+                                                  repfilesystem->GetString("hostport"),
+                                                  repfilesystem->GetPath());
+                   result.valid()) {
+          replicahost = std::move(result.targethost);
+          replicaport = result.targetport;
+          redirectionsuffix = std::move(result.redirectionsuffix);
         }
 
-        capability += replicahost;
+        capability += replicahost.c_str();
         capability += ":";
         capability += replicaport;
         capability += "//";
@@ -3186,17 +3188,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         capability += "=";
         capability += (int)repfilesystem->GetId();
 
-        if ((proxys.size() > i) && !proxys[i].empty()) {
-          std::string fsprefix = repfilesystem->GetPath();
-
-          if (!fsprefix.empty()) {
-            XrdOucString s = "mgm.fsprefix";
-            s += (int)i;
-            s += "=";
-            s += fsprefix.c_str();
-            s.replace(":", "#COL#");
-            capability += s;
-          }
+        // If there was a proxy redirection add this to the cap
+        if (!redirectionsuffix.empty()) {
+          capability += redirectionsuffix.c_str();
         }
 
         if (isPio) {
@@ -3211,7 +3205,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           piolist += "pio.";
           piolist += (int)i;
           piolist += "=";
-          piolist += replicahost;
+          piolist += replicahost.c_str();
           piolist += ":";
           piolist += replicaport;
           piolist += "&";
