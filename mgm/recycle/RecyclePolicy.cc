@@ -194,7 +194,7 @@ RecyclePolicy::RefreshWatermarks()
 
     if ((mSpaceKeepRatio > (1.0 * usedbytes / (maxbytes ? maxbytes : 999999999))) &&
         (mSpaceKeepRatio > (1.0 * usedfiles / (maxfiles ? maxfiles : 999999999)))) {
-      eos_static_debug("msg=\"skipping recycle clean-up - ratio still low\" "
+      eos_static_debug("msg=\"skip recycle watermark update - ratio still low\" "
                        "space-ratio=%.02f inode-ratio=%.02f ratio=%.02f",
                        1.0 * usedbytes / (maxbytes ? maxbytes : 999999999),
                        1.0 * usedfiles / (maxfiles ? maxfiles : 999999999),
@@ -227,29 +227,26 @@ bool
 RecyclePolicy::IsWithinLimits()
 {
   if (mSpaceKeepRatio) {
-    if (mLowInodeWatermark && mLowSpaceWatermark) {
-      auto map_quotas = GetQuotaStats();
+    auto map_quotas = GetQuotaStats();
 
-      if (!map_quotas.empty()) {
-        unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
-        unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
-        eos_static_debug("volume=%lld volume_low_wm=%lld "
-                         "inodes=%lld inodes_low_wn=%lld",
-                         usedfiles, mLowInodeWatermark,
-                         usedbytes, mLowSpaceWatermark);
+    if (!map_quotas.empty()) {
+      unsigned long long usedbytes = map_quotas[SpaceQuota::kGroupLogicalBytesIs];
+      unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
+      eos_static_debug("volume=%lld volume_low_wm=%lld "
+                       "inodes=%lld inodes_low_wm=%lld",
+                       usedbytes, mLowSpaceWatermark,
+                       usedfiles, mLowInodeWatermark);
 
-        if ((mLowInodeWatermark < usedfiles) ||
-            (mLowSpaceWatermark < usedbytes)) {
-          return false;
-        }
+      if ((mLowInodeWatermark && (mLowInodeWatermark > usedfiles)) ||
+          (mLowSpaceWatermark && (mLowSpaceWatermark > usedbytes))) {
+        return true;
       }
     }
   }
 
-  eos_static_debug("%s",
-                   "msg=\"skip recycle clean-up, space ratio not configured "
-                   " or below watermark limits\"");
-  return true;
+  eos_static_debug("%s", "msg=\"do cleanup, space ratio not configured or "
+                   "above watermark limits\"");
+  return false;
 }
 
 EOSMGMNAMESPACE_END
