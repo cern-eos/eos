@@ -30,6 +30,7 @@
 #include <string>
 #include <charconv>
 #include <cstdint>
+#include <cstddef>
 #include <string_view>
 
 #include "common/Namespace.hh"
@@ -259,6 +260,100 @@ auto StringToNumeric(const StrT& key, NumT& value,
   return true;
 }
 
-#endif
+#endif // __cpp_lib_to_chars
+
+
+// an XrdOucString inspired replace function that replaces
+// all occurences of s1 with s2 for a given str, in place
+// The Original function returned the signed size of total
+// length modification, however this doesn't really tell
+// us if any replacement happened since s1.size() == s2.size()
+// would mean the str size remains the same regardless of replacement
+// so we don't really return the difference.
+static inline void replace_all(std::string& str,
+                 std::string_view s1, std::string_view s2,
+                 size_t from=0, size_t to=std::string::npos)
+{
+  const size_t orig_str_size = str.size();
+  if (str.empty() || s1.empty() || from >= orig_str_size || from > to) {
+    return;
+  }
+
+  to = std::min(to, str.size() - 1);
+
+  // Run 2 passes of the replace function, the first pass
+  // determines the total delta, this allows to calculate
+  // upfront our target size and hence reduce regrowing the
+  // string at every interval
+  const size_t l1 = s1.size();
+  const size_t l2 = s2.size();
+
+  if (l1 > to - from + 1) {
+    return;
+  }
+
+  // Check if the orig string will need to be expanded, this occurs
+  // when the replacement target is bigger. We'd need to reallocate
+  // do this once!
+  if (l2 > l1) {
+    size_t match_count {0};
+    size_t pos {from};
+    size_t end_pos {to - l1 + 1};
+    size_t delta_per {l2 - l1};
+    while (pos <= end_pos) {
+      pos = str.find(s1, pos);
+      if (pos == std::string::npos || pos > end_pos) {
+        break;
+      }
+      ++match_count;
+      pos += l1;
+    }
+
+    if (match_count == 0) {
+      return;
+    }
+
+    str.reserve(orig_str_size + (match_count * delta_per));
+  }
+
+
+  size_t end_pos {to - l1 + 1};
+  size_t curr_pos {from};
+  const std::ptrdiff_t delta_per = static_cast<std::ptrdiff_t>(l2) - static_cast<std::ptrdiff_t>(l1);
+  while (curr_pos != std::string::npos) {
+    size_t match_pos = str.find(s1, curr_pos);
+
+    if (match_pos == std::string::npos || match_pos > end_pos) {
+      return;
+    }
+
+    str.replace(match_pos, l1, s2);
+
+    if (delta_per != 0) {
+      if (delta_per > 0) {
+        to += static_cast<size_t>(delta_per);
+      } else {
+        const size_t abs_diff = static_cast<size_t>(-delta_per);
+        if (abs_diff <= to) {
+          to -= abs_diff;
+        } else {
+          // Clamp to 0 if the contraction exceeds the 'to' index
+          to = 0;
+        }
+      }
+
+      if (to < l1) {
+        break;
+      }
+
+      end_pos = to - l1 + 1;
+
+    }
+    curr_pos = match_pos + l2;
+  }
+
+}
+
+
 
 EOSCOMMONNAMESPACE_END
