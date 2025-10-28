@@ -257,6 +257,41 @@ RecycleHelper::ParseCommand(const char* arg)
       }
 
       config->set_size(size);
+    } else if ((soption == "--poll-interval") ||
+               (soption == "--collect-interval") ||
+               (soption == "--remove-interval")) {
+      if (soption == "--poll-interval") {
+        config->set_op(eos::console::RecycleProto::ConfigProto::POOL_INTERVAL);
+      } else if (soption == "--collect-interval") {
+        config->set_op(eos::console::RecycleProto::ConfigProto::COLLECT_INTERVAL);
+      } else {
+        config->set_op(eos::console::RecycleProto::ConfigProto::REMOVE_INTERVAL);
+      }
+
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      soption = option;
+      uint64_t value = 0ull;
+
+      try {
+        value = std::stoull(soption);
+      } catch (...) {
+        std::cerr << "error: specified intrerval could not be converted"
+                  << std::endl;
+        return false;
+      }
+
+      config->set_size(value);
+    } else if ((soption == "--dry-run")) {
+      config->set_op(eos::console::RecycleProto::ConfigProto::DRY_RUN);
+
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      config->set_value(option);
     } else {
       return false;
     }
@@ -266,4 +301,3 @@ RecycleHelper::ParseCommand(const char* arg)
 
   return true;
 }
-
