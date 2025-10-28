@@ -309,15 +309,6 @@ public:
   void RemoveEntries();
 
   //----------------------------------------------------------------------------
-  //! Remove given file entry
-  //!
-  //! @param fullpath full path to file
-  //!
-  //! return 0 (SFS_OK) if successful, otherwise SFS_ERROR
-  //----------------------------------------------------------------------------
-  // int RemoveFile(std::string_view fullpath);
-
-  //----------------------------------------------------------------------------
   //! Remove all the entries in the given subtree
   //!
   //! @param fullpath full path to directory
