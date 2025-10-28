@@ -54,8 +54,8 @@ TEST(RecyclePolicyTests, NoLimits)
   mock_policy.RefreshWatermarks();
   ASSERT_EQ(mock_policy.mLowInodeWatermark, 0ull);
   ASSERT_EQ(mock_policy.mLowSpaceWatermark,  0ull);
-  // There are no limits yet so this should be true
-  ASSERT_TRUE(mock_policy.IsWithinLimits());
+  // There are no space limits yet so clean up should be performed
+  ASSERT_FALSE(mock_policy.IsWithinLimits());
 }
 
 //------------------------------------------------------------------------------
