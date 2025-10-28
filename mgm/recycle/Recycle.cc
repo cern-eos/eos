@@ -34,6 +34,7 @@
 #include "mgm/QdbMaster.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 
 EOSMGMNAMESPACE_BEGIN
@@ -81,6 +82,7 @@ Recycle::CollectEntries(ThreadAssistant& assistant)
 {
   auto now_ts = eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime());
   static std::chrono::seconds s_last_ts = now_ts;
+  eos_static_debug("msg=\"recycle start collection\" ts=%llu", now_ts.count());
 
   // Run collection once every mCollectInterval
   if (now_ts - s_last_ts < mPolicy.mCollectInterval) {
@@ -108,20 +110,41 @@ Recycle::CollectEntries(ThreadAssistant& assistant)
 
   for (auto it_dir = find_map.begin(); it_dir != find_map.end(); ++it_dir) {
     // Select all the directories with depth 8
-    eos::common::Path cpath(it_dir->first);
+    const std::string dir_path = it_dir->first;
+    eos::common::Path cpath(dir_path);
+    unsigned int path_levels = cpath.GetSubPathSize();
 
-    if (cpath.GetSubPathSize() == 8) {
-      std::string dir_date = cpath.GetFullPath().c_str();
-      dir_date.erase(0, strlen(cpath.GetSubPath(5)));
-      eos_static_debug("dir_date=\"%s\" cutoff_date=\"%s\"",
-                       dir_date.c_str(), cutoff_date.c_str());
+    if (path_levels == std::clamp(path_levels, 5u, 8u)) {
+      bool exceeds_cutoff = false; // old directory to be removed
+      bool top_dir = false; // top directory to be removed if empty
+
+      if (path_levels == 8) {
+        std::string dir_date = cpath.GetFullPath().c_str();
+        dir_date.erase(0, strlen(cpath.GetSubPath(5)));
+        eos_static_debug("dir_date=\"%s\" cutoff_date=\"%s\"",
+                         dir_date.c_str(), cutoff_date.c_str());
+        exceeds_cutoff = (cutoff_date.compare(dir_date) > 0);
+      } else {
+        top_dir = true;
+      }
 
       // Select directories which are older than the cut off date
-      if (cutoff_date.compare(dir_date) > 0) {
+      if (exceeds_cutoff || top_dir) {
         try {
-          std::shared_ptr<eos::IContainerMD> cmd =
-            gOFS->eosView->getContainer(cpath.GetFullPath().c_str());
-          mPendingDeletions.emplace(cmd->getId(), cpath.GetFullPath().c_str());
+          eos::IContainerMDPtr cmd = gOFS->eosView->getContainer(dir_path);
+          auto cmd_rd_lock = eos::MDLocking::readLock(cmd.get());
+
+          // If no more children then add it to the list for deletion
+          if (cmd->getNumContainers() == 0) {
+            mPendingDeletions.emplace(cmd->getId(), dir_path);
+          } else if (exceeds_cutoff) {
+            // Otherwise add all the subcontainers used for sharding
+            // .../year/month/day/[0,1,2, ... max_shard]/
+            for (auto it = eos::ContainerMapIterator(cmd); it.valid(); it.next()) {
+              std::string full_path = dir_path + it.key();
+              mPendingDeletions.emplace(it.value(), full_path);
+            }
+          }
         } catch (const eos::MDException& e) {
           // skip missing directory
         }
@@ -129,8 +152,18 @@ Recycle::CollectEntries(ThreadAssistant& assistant)
     }
   }
 
-  eos_static_notice("msg=\"recycle done collection\" num_entries=%llu",
-                    mPendingDeletions.size());
+  if (EOS_LOGS_DEBUG) {
+    for (const auto& pair : mPendingDeletions) {
+      eos_static_debug("msg=\"recycle entry\" cxid=%08llx path=\"%s\"",
+                       pair.first, pair.second.c_str());
+    }
+  }
+
+  auto duration = std::chrono::duration_cast<std::chrono::seconds>
+                  (eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime()) - now_ts);
+  eos_static_notice("msg=\"recycle done collection\" num_entries=%llu "
+                    "duration_sec=%llu", mPendingDeletions.size(),
+                    duration.count());
 }
 
 //------------------------------------------------------------------------------
@@ -146,7 +179,7 @@ Recycle::RemoveEntries()
   if (now_ts - s_last_ts < mPolicy.mRemoveInterval) {
     eos_static_debug("msg=\"recycle skip removal\" last_ts=%llu "
                      "removal_interval_sec=%llu", s_last_ts.count(),
-                     mPolicy.mCollectInterval.count());
+                     mPolicy.mRemoveInterval.count());
     return;
   }
 
@@ -179,7 +212,7 @@ Recycle::RemoveEntries()
 
     ++count;
     // Decide if the current directory should be handled at this moment -
-    // try to spread out the deletion throughout the day!
+    // try to spread out the deletions throughout the day!
     eos::IContainerMD::id_t cid = it->first;
 
     if (cid % total_slots != current_slot) {
@@ -191,7 +224,7 @@ Recycle::RemoveEntries()
     }
 
     if (mPolicy.mDryRun) {
-      eos_static_info("msg=\"recycle skip remove entries in dry-run\" "
+      eos_static_info("msg=\"recycle skip removing entries in dry-run\" "
                       "cxid=%08llx", cid);
       ++it;
     } else {
@@ -236,33 +269,40 @@ Recycle::RemoveSubtree(std::string_view dpath)
 
     // Delete directories starting at the deepest level
     for (auto dit = found.rbegin(); dit != found.rend(); ++dit) {
-      // Don't even try to delete the root directory
+      eos_static_info("msg=\"handling directory\" path=%s", dit->first.c_str());
       std::string ldpath = dit->first.c_str();
 
-      if (ldpath == "/") {
+      // Don't even try to delete the root directory or
+      // something outside the recycle bin
+      if ((ldpath == "/") || (ldpath.find(Recycle::gRecyclingPrefix) != 0)) {
         continue;
       }
 
-      if (gOFS->_remdir(ldpath.c_str(), lerror, mRootVid, (const char*) 0)) {
-        eos_static_err("msg=\"unable to remove directory\" path=%s",
-                       ldpath.c_str());
-      } else {
+      if (!gOFS->_remdir(ldpath.c_str(), lerror, mRootVid, (const char*) 0)) {
         eos_static_info("msg=\"permanently deleted directory from "
                         "recycle bin\" path=%s", ldpath.c_str());
+      } else {
+        eos_static_err("msg=\"unable to remove directory\" path=%s",
+                       ldpath.c_str());
       }
     }
 
-    // Delete parent directories if empty and still within the recycle bin
-    // the current path should have 8 levels
-    eos::common::Path cpath(dpath.data());
+    // Delete parent directories if empty and still within the recycle bin.
+    if (dpath.find(Recycle::gRecyclingPrefix) == 0) {
+      eos_static_info("msg=\"delete parent directory\" path=%s", dpath.data());
+      eos::common::Path cpath(std::string(dpath.data()));
 
-    for (auto level = cpath.GetSubPathSize(); level > 4; --level) {
-      std::string dpath = cpath.GetSubPath(level);
+      for (auto level = cpath.GetSubPathSize() - 1; level > 4; --level) {
+        std::string sub_path = cpath.GetSubPath(level);
 
-      // Ignore failed removals as it means directory is not empty
-      if (gOFS->_rem(dpath.c_str(), lerror, mRootVid, (const char*) 0)) {
-        eos_static_info("msg=\"permanently deleted directory from "
-                        "recycle bin\" path=%s", dpath.c_str());
+        if (!gOFS->_remdir(sub_path.c_str(), lerror, mRootVid, (const char*) 0)) {
+          eos_static_info("msg=\"permanently deleted directory from "
+                          "recycle bin\" path=%s", sub_path.c_str());
+        } else {
+          // Failed removal means directory is not empty so there is
+          // no point in continuing.
+          break;
+        }
       }
     }
   }
@@ -332,7 +372,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
       mPolicy.RefreshWatermarks();
     }
 
-    if (mPolicy.mKeepTimeSec) {
+    if (mPolicy.mKeepTimeSec && !mPolicy.IsWithinLimits()) {
       CollectEntries(assistant);
       RemoveEntries();
     }
@@ -1315,11 +1355,11 @@ Recycle::Config(std::string& std_out, std::string& std_err,
 
       // Make sure the collect interval is never less than 10 sec
       if (remove_interval < 10) {
-        std_err = "error: recycle collect interval has to be > 10";
+        std_err = "error: recycle remove interval has to be > 10";
         return EINVAL;
       }
     } catch (...) {
-      std_err = "error: recycle collect interval not numeric";
+      std_err = "error: recycle remove interval not numeric";
       return EINVAL;
     }
 
@@ -1451,23 +1491,5 @@ Recycle::HandlePotentialSymlink(const std::string& ppath,
   // target from the filename so that we actually work with it
   return fn.substr(0, pos);
 }
-
-// //------------------------------------------------------------------------------
-// // Remove given file entry
-// //------------------------------------------------------------------------------
-// int
-// Recycle::RemoveFile(std::string_view fullpath)
-// {
-//   XrdOucErrInfo lerror;
-
-//   if (gOFS->_rem(fullpath.data(), lerror, mRootVid, (const char*) 0)) {
-//     eos_static_err("msg=\"unable to remove file\" path=\"%s\" "
-//                    "err_msg=\"%s\" errc=%i", fullpath.data(),
-//                    lerror.getErrText(), lerror.getErrInfo());
-//     return SFS_ERROR;
-//   }
-
-//   return SFS_OK;
-// }
 
 EOSMGMNAMESPACE_END

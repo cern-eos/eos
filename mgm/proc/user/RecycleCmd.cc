@@ -124,6 +124,20 @@ RecycleCmd::ProcessRequest() noexcept
         reply.set_retc(retc);
         return reply;
       }
+    } else if (config.op() ==
+               eos::console::RecycleProto_ConfigProto::POOL_INTERVAL) {
+      retc = Recycle::Config(std_out, std_err, mVid, "--poll-interval",
+                             std::to_string(config.size()));
+    } else if (config.op() ==
+               eos::console::RecycleProto_ConfigProto::COLLECT_INTERVAL) {
+      retc = Recycle::Config(std_out, std_err, mVid, "--collect-interval",
+                             std::to_string(config.size()));
+    } else if (config.op() ==
+               eos::console::RecycleProto_ConfigProto::REMOVE_INTERVAL) {
+      retc = Recycle::Config(std_out, std_err, mVid, "--remove-interval",
+                             std::to_string(config.size()));
+    }  else if (config.op() == eos::console::RecycleProto_ConfigProto::DRY_RUN) {
+      retc = Recycle::Config(std_out, std_err, mVid, "--dry-run", config.value());
     }
 
     reply.set_retc(retc);
