@@ -47,7 +47,6 @@ int com_protorecycle(char* arg)
   }
 
   global_retc = recycle.Execute(true, true);
-
   return global_retc;
 }
 
@@ -57,68 +56,75 @@ int com_protorecycle(char* arg)
 void com_recycle_help()
 {
   std::ostringstream oss;
-  oss << "Usage: recycle [ls|purge|restore|config ...]" << std::endl
-      << "    provides recycle bin functionality" << std::endl
-      << "  recycle [-m]" << std::endl
-      << "    print status of recycle bin and config status if executed by root"
+  oss << "Usage: recycle [ls|purge|restore|config ...]\n"
+      << "    provides recycle bin functionality\n"
+      << "  recycle [-m]\n"
+      << "    print status of recycle bin and config status if executed by root\n"
+      << "    -m     : display info in monitoring format\n"
       << std::endl
-      << "    -m     : display info in monitoring format" << std::endl
+      << "  recycle ls [-g|<date> [<limit>]] [-m] [-n]\n"
+      << "    list files in the recycle bin\n"
+      << "    -g     : list files of all users (if done by root or admin)\n"
+      << "    <date> : can be <year>, <year>/<month> or <year>/<month>/<day> or <year>/<month>/<day>/<index>\n"
+      << "   <limit> : maximum number of entries to return when listing\n"
+      << "             e.g.: recycle ls 2018/08/12\n"
+      << "    -m     : display info in monitoring format\n"
+      << "    -n     : display numeric uid/gid(s) instead of names\n"
       << std::endl
-      << "  recycle ls [-g|<date> [<limit>]] [-m] [-n]" << std::endl
-      << "    list files in the recycle bin" << std::endl
-      << "    -g     : list files of all users (if done by root or admin)"
+      << "  recycle purge [-g|<date>] [-k <key>]\n"
+      << "    purge files in the recycle bin\n"
+      << "    -g       : empty recycle bin of all users (if done by root or admin)\n"
+      << "    -k <key> : purge only the given key\n"
+      << "    <date>   : can be <year>, <year>/<month> or <year>/<month>/<day>\n"
       << std::endl
-      << "    <date> : can be <year>, <year>/<month> or <year>/<month>/<day> or <year>/<month>/<day>/<index>"
-      << std::endl
-      << "   <limit> : maximum number of entries to return when listing"
-      << std::endl 
-      << "             e.g.: recycle ls 2018/08/12" << std::endl
-      << "    -m     : display info in monitoring format" << std::endl
-      << "    -n     : display numeric uid/gid(s) instead of names" << std::endl
-      << std::endl
-      << "  recycle purge [-g|<date>] [-k <key>]" << std::endl
-      << "    purge files in the recycle bin" << std::endl
-      << "    -g       : empty recycle bin of all users (if done by root or admin)"
-      << std::endl
-      << "    -k <key> : purge only the given key"
-      << std::endl
-      << "    <date>   : can be <year>, <year>/<month> or <year>/<month>/<day>"
-      << std::endl
-      << std::endl
-      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>"
-      << std::endl
-      << "    undo the deletion identified by the <recycle-key>" << std::endl
+      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>\n"
+      << "    undo the deletion identified by the <recycle-key>\n"
       << "    -p : create all missing parent directories\n"
       << "    -f : move deleted files/dirs back to their original location (otherwise"
       << std::endl
       << "          the key entry will have a <.inode> suffix)" << std::endl
       << "     -r : restore all previous versions of a file" << std::endl
       << std::endl
-      << "  recycle config [--add-bin|--remove-bin] <sub-tree>" << std::endl
-      << "    --add-bin    : enable recycle bin for deletions in <sub-tree>" <<
-      std::endl
-      << "    --remove-bin : disable recycle bin for deletions in <sub-tree>" <<
-      std::endl
+      << "  recycle config <key> <value>\n"
+      << "    where <key> and <value> need to be one of the following:\n"
+      << "    [--add-bin|--remove-bin] <sub-tree>\n"
+      << "      --add-bin    : enable recycle bin for deletion in <sub-tree>\n"
+      << "      --remove-bin : disable recycle bin for <sub-tree>\n"
       << std::endl
-      << "  recycle config --lifetime <seconds>" << std::endl
-      << "    configure FIFO lifetime for the recycle bin" << std::endl
+      << "    --lifetime <seconds>\n"
+      << "      configure FIFO lifetime for the recycle bin\n"
       << std::endl
-      << "  recycle config --ratio <0..1.0>" << std::endl
-      << "    configure the volume/inode keep ratio. E.g: 0.8 means files will only"
+      << "    --ratio <0..1.0>\n"
+      << "      configure the volume/inode keep ratio. E.g.: 0.8 means files\n"
+      << "      will only be recycled if more than 80% of the volume/inodes\n"
+      << "      quota is used. The low-watermark is by default 10% below the\n"
+      << "      the given ratio.\n"
       << std::endl
-      << "    be recycled if more than 80% of the volume/inodes quota is used. The"
+      << "    --size <value>[K|M|G]\n"
+      << "      configure the quota for the maximum size of the recycle bin\n"
+      << "      If no unit is set explicitly then bytes is assumed.\n"
       << std::endl
-      << "    low watermark is by default 10% below the given ratio."
+      << "    --inodes <value>[K|M|G]\n"
+      << "      configure the quota for the maximum number of inodes in the\n"
+      << "      recycle bin.\n"
       << std::endl
+      << "    --poll-interval <seconds>\n"
+      << "      how often the recyler checks for collection or removal\n"
+      << "      operations. Default 30 minutes ie. 1800 seconds. Change only\n"
+      << "      for testing.\n"
       << std::endl
-      << "  recycle config --size <value>[K|M|G]" << std::endl
-      << "    configure the quota for the maximum size of the recycle bin. "
+      << "    --collect-interval <seconds>\n"
+      << "      how ofen the recycler collects new entries to be removed from\n"
+      << "      the recycle bin. Default once per day i.e 86400 seconds. Change\n"
+      << "      only for testing.\n"
       << std::endl
-      << "    If no unit is set explicitly then we assume bytes." << std::endl
-      << std::endl
-      << "  recycle config --inodes <value>[K|M|G]" << std::endl
-      << "    configure the quota for the maximum number of inodes in the recycle"
-      << std::endl
-      << "    bin." << std::endl;
+      << "    --remove-interval <seconds>\n"
+      << "      how often the recycler removes collected entries. The collected\n"
+      << "      container ids to be removed are sharded and the removal is spread\n"
+      << "      evenly across collect-interval/remove-interval slots.\n"
+      << "    Note: These last three parameters should be changed only for testing\n"
+      << "    and while maintaining the following order: \n"
+      << "    poll-interval < remove-interval < collection-interval\n"
+      << std::endl;
   std::cerr << oss.str() << std::endl;
 }
