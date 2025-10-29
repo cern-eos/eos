@@ -528,10 +528,11 @@ function cleanup() {
 }
 
 
-# @todo the whole args parsing story should be rewritten, possibly decoupling docker/kubernetes execution from the test itself
+# @todo the whole args parsing story should be rewritten, possibly
+# decoupling docker/kubernetes execution from the test itself
 
 MAX_DELAY=300
-# Late addition of optional argument "max-delay, it must be the first arg"
+
 if [[ "$1" == "--max-delay" ]]; then
   MAX_DELAY=$2
   shift # past argument
