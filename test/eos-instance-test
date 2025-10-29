@@ -1356,7 +1356,19 @@ runtest "### SpaceACL" unix 0 "" eos space config default "space.attr.sys.acl=\>
 runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/"
 runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep -F 'u:65534:rw,u:2:rwx!d,u:1000:rwx'"
 runtest "### SpaceACL" unix 0 "" eos space config rm default "space.attr.sys.acl"
-runtest "### SpaceACL" unix 1 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep u:1000:rwx"
+# Test that if directory already has the space acl then we don't see duplicates
+runtest "### SpaceACL" sss  0 "" eos acl u:1000=rx "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/"
+runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep -F 'u:65534:rw,u:2:rwx!d,u:1000:rx'"
+runtest "### SpaceACL" unix 0 "" eos space config default space.attr.sys.acl=u:1000:rx
+runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep u:1000:rx | grep -v u:65534:rw"
+runtest "### SpaceACL" unix 0 "" eos space config default "space.attr.sys.acl=\|u:1000:rx"
+runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep u:1000:rx | grep u:65534:rw"
+runtest "### SpaceACL" unix 0 "" eos space config default "space.attr.sys.acl=\<u:1000:rx"
+runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep -F 'u:1000:rx,u:65534:rw,u:2:rwx!d'"
+runtest "### SpaceACL" unix 0 "" eos space config default "space.attr.sys.acl=\>u:1000:rx"
+runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep -F 'u:65534:rw,u:2:rwx!d,u:1000:rx'"
+runtest "### SpaceACL" unix 0 "" eos space config rm default "space.attr.sys.acl"
+runtest "### SpaceACL" unix 0 "" eos attr ls "/eos/$EOS_TEST_INSTANCE/test/acl/nobody_src/ | grep u:1000:rx"
 runtest "### Rmdir   " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/acl"
 # Test concurrent ACL recursive modifications
 runtest "### Mkdir   " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/acl_concurrent"
