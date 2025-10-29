@@ -1287,9 +1287,9 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     try {
       uint64_t poll_interval = std::stoull(value);
 
-      // Make sure the poll interval is never less than 10 seconds
-      if (poll_interval < 10) {
-        std_err = "error: recycle poll interval has to be > 10";
+      // Make sure the poll interval is never less than 5 seconds
+      if (poll_interval < 5) {
+        std_err = "error: recycle poll interval has to be > 5";
         return EINVAL;
       }
     } catch (...) {
