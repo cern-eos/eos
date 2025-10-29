@@ -29,7 +29,7 @@ k8s_system:
   allow_failure: true
 
 
-k8s_convert_fsck_recycle:
+k8s_conv_fsck_recycle:
   extends: .dock8s_convert_fsck_recycle_template
   image: alpine/k8s:1.18.2
   needs:
