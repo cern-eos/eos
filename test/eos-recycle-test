@@ -1,0 +1,207 @@
+#!/bin/bash -ex
+
+# ******************************************************************************
+# EOS - the CERN Disk Storage System
+# Copyright (C) 2025 CERN/Switzerland
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+# ******************************************************************************
+
+SCRIPTPATH="$( cd "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+source ${SCRIPTPATH}/eos-test-utils
+EOS_ROOT=/eos/dockertest
+EOS_RECYCLE="${EOS_ROOT}/proc/recycle/uid:0"
+CURRENT_YEAR=$(date +%Y)
+PREVIOUS_YEAR=$(($CURRENT_YEAR - 1))
+CURRENT_MONTH=$(date +%m)
+CURRENT_DAY=$(date +%d)
+RECYCLE_POLL_INTERVAL=5
+RECYCLE_REMOVE_INTERVAL=10
+RECYCLE_COLLECT_INTERVAL=20
+
+#-------------------------------------------------------------------------------
+# Description: this script tests the recycle bin functionality by making sure
+# that the correct entries from the recycle bin are properly cleaned up based
+# and the given configuration.
+#-------------------------------------------------------------------------------
+function usage() {
+  echo "usage: $(basename $0) --root /eos/instance --type docker/local/k8s <k8s_namespace>"
+  echo "       local  : script runs locally, needs EOS_MGM_URL to be set"
+  echo "       docker : script runs in a Docker based setup"
+  echo "       k8s    : script runs in a Kubernetes setup and requires a namespace argument"
+}
+
+#-------------------------------------------------------------------------------
+# Configure the recycle thread to run more often for testing purposes
+#-------------------------------------------------------------------------------
+function configure_recycler() {
+  echo "info: configure recycler"
+  # Set lifetime to one month 31 * 24 * 3600
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --lifetime 2678400"
+  # Set keep ratio to a very low value so we make sure it's triggered
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --ratio 0.005"
+  # Set maximum quota for the recycle bin
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --size 4G"
+  # Update the poll, remove and collect intervals
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --poll-interval ${RECYCLE_POLL_INTERVAL}"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --remove-interval ${RECYCLE_REMOVE_INTERVAL}"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --collect-interval ${RECYCLE_COLLECT_INTERVAL}"
+}
+
+
+#-------------------------------------------------------------------------------
+# Create recycle directory structure for scenario 1 - here we have several
+# directories
+#-------------------------------------------------------------------------------
+function scenario_1_create_hierarchy() {
+  echo "info: create recycle hierachy"
+  # Timestamp of 6 months ago - create some dirs and files that should be
+  # cleaned by the recycle thread
+  local OLD_DATE_TS=$(($(date +%s) - 6 * 31 * 86400))
+  local OLD_YEAR=$(date -d @${OLD_DATE_TS} +%Y)
+  local OLD_MONTH=$(date -d @${OLD_DATE_TS} +%m)
+  local OLD_DAY=$(date -d @${OLD_DATE_TS} +%d)
+  local OLD_DATE=${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}
+  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2"
+  # Need to create the file outside the recycle bin and move them in
+  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file0.dat"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/del_file0.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
+  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file1.dat"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/del_file1.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1/"
+  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file2.dat"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/del_file2.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2/"
+  exec_cmd eos-mgm-1 "eos -r 0 0 ls -lrta ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}"
+  exec_cmd eos-mgm-1 "eos -r 0 0 ls -lrta ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
+  # Timestamp is 2 weeks ago - create some dirs and files that should not be
+  # touched by the recycle thread
+  OLD_DATE_TS=$(($(date +%s) - 14 * 86400))
+  OLD_YEAR=$(date -d @${OLD_DATE_TS} +%Y)
+  OLD_MONTH=$(date -d @${OLD_DATE_TS} +%m)
+  OLD_DAY=$(date -d @${OLD_DATE_TS} +%d)
+  OLD_DATE=${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}
+  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2"
+  # Need to create the file outside the recycle bin and move them in
+  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/file0.dat"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/file0.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
+  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/file1.dat"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/file1.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1/"
+  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/file2.dat"
+  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/file2.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2/"
+}
+
+
+#-------------------------------------------------------------------------------
+# Check if scenario 1 expectation are met after the recycle thread has run.
+# We expect only the files from the second batch to still be in the namespace.
+#-------------------------------------------------------------------------------
+function scenario_1_check_expectations() {
+  echo "info: check expectations"
+  exec_cmd eos-mgm-1 "eos -r 0 0 find --count ${EOS_RECYCLE} | grep \"nfiles=3 ndirectories=7\""
+
+  if [[ $? -ne 0 ]]; then
+    echo "error: expectations not met";
+    exit 1
+  fi
+}
+
+#-------------------------------------------------------------------------------
+# Perform cleanup of used files and revert the recycler configuration to the
+# default values.
+#-------------------------------------------------------------------------------
+function cleanup() {
+  echo "info: recycle cleanup"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --poll-interval 1800"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --remove-interval 3600"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --collect-interval 86400"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --size 100G"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --ratio 0.95"
+  exec_cmd eos-mgm1 "eos -r 0 0 rm -rF ${EOS_RECYCLE}/${CURRENT_YEAR}/ || true"
+  exec_cmd eos-mgm1 "eos -r 0 0 rm -rF ${EOS_RECYCLE}/${PREVIOUS_YEAR}/ || true"
+}
+
+# Make sure we always clean up on exit
+trap cleanup EXIT
+
+if [[ $# -lt 2 ]]; then
+  echo "error: invalid number of arguments"
+  usage
+  exit 1
+fi
+
+# Parse EOS instance root location
+if [[ "$1" == "--root" ]]; then
+    EOS_ROOT=$2
+    EOS_RECYCLE=${EOS_ROOT}/proc/recycle/uid:0
+    shift # past argument
+    shift # past value
+fi
+
+# Set up global variables
+IS_DOCKER=false
+IS_LOCAL=false
+K8S_NAMESPACE=""
+
+# Parse type of environment for the command wrapper
+if [[ "$1" != "--type" ]]; then
+  echo "error: unknown argument \"$1\""
+  usage
+  exit 1
+fi
+
+if [[ "$2" == "docker" ]]; then
+    IS_DOCKER=true
+elif [[ "$2" == "local" ]]; then
+    IS_LOCAL=true
+elif [[ "$2" == "k8s" ]]; then
+    IS_DOCKER=false
+else
+  echo "error: unknown type of executor \"$2\""
+  usage
+  exit 1
+fi
+
+if [[ "${IS_LOCAL}" == true && -z "${EOS_MGM_URL}" ]]; then
+   echo "error: EOS_MGM_URL env needs to be set for local!"
+   exit 1
+fi
+
+if [[ "${IS_DOCKER}" == false && "${IS_LOCAL}" == false ]]; then
+  # For the Kubernetes setup we also need a namespace argument
+  if [[ $# -lt 3 ]]; then
+    echo "error: missing Kubernetes namespace argument"
+    usage
+    exit 1
+  fi
+  K8S_NAMESPACE="$3"
+fi
+
+# Initial configuration of the recycler
+configure_recycler
+
+# Create recycle directory structure
+scenario_1_create_hierarchy
+
+# Wait for the recycle thread to run at least twice
+echo "info: wait for recycle run"
+sleep $((${RECYCLE_COLLECT_INTERVAL} + ${RECYCLE_POLL_INTERVAL}))
+
+# Check that the expectation are met
+scenario_1_check_expectations
+
+echo "info: all expectations matched"
+exit 0
