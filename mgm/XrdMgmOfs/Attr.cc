@@ -493,8 +493,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
       eos::IContainerMD::XAttrMap attr_map = cmd->getAttributes();
       Acl acl(attr_map, vid);
 
-	if (vid.token || (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) &&
-			  !acl.AllowXAttrUpdate(skey, vid))) {
+      if (vid.token || (!cmd->access(vid.uid, vid.gid, X_OK | W_OK) &&
+                        !acl.AllowXAttrUpdate(skey, vid))) {
         errno = EPERM;
       } else {
         if (!cmd->hasAttribute(skey)) {
@@ -527,108 +527,151 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
 }
 
 //----------------------------------------------------------------------------
-//! List Attributes high-level function merging space and namespace attributes
+// List attributes high-level function merging space and namespace attributes
 //----------------------------------------------------------------------------
-
 void
-XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix, bool existing){
+XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix,
+                                bool existing)
+{
   std::string space = "default";
+
   if (out.count("sys.forced.space")) {
     space = out["sys.forced.space"];
   }
-  std::map<std::string,std::string> attr;
+
+  std::map<std::string, std::string> attr;
+
   if (gOFS->mSpaceAttributes.count(space)) {
-      // retrieve space arguments
-      std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
-      attr = gOFS->mSpaceAttributes[space];
-    }
-    // loop over arguments
-    for ( auto x:attr ) {
-      if (x.first == "sys.forced.space") {
-	// we ignore this
+    // retrieve space arguments
+    std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
+    attr = gOFS->mSpaceAttributes[space];
+  }
+
+  // loop over arguments
+  for (const auto& x : attr) {
+    if (x.first == "sys.forced.space") {
+      // we ignore this
+      continue;
+    } else {
+      if (existing && !out.count(x.first)) {
+        // merge only existing attributes
+        continue;
+      }
+
+      std::string inkey = x.first;
+      std::string outkey = (prefix ? (std::string("sys.space.") + x.first) : x.first);
+
+      if (x.first == "sys.acl") {
+        // Special meaning of the first char:
+        // > append acl to the existing ones
+        // < prepend acl to the existing ones
+        // | add only if acls not set at all
+        // none of the above means overwrite existring acls
+        char op = '\0';
+
+        if (!x.second.empty()) {
+          op = x.second[0];
+        }
+
+        std::string old_acls = out["sys.acl"];
+        std::string space_acls = x.second;
+
+        if ((op == '>') || (op == '<') || (op == '|')) {
+          space_acls = space_acls.erase(0, 1);
+        }
+
+        // ACL handling
+        if (((op != '>') && (op != '<') && (op != '|')) || // Full overwrite
+            ((op == '|') && old_acls.empty())) {       // Overwrite if empty
+          out[outkey] = space_acls;
+        } else {
+          // If existing acls already include the space acls then
+          // remove them to avoid duplicates.
+          auto pos = old_acls.find(space_acls);
+
+          if ((pos != std::string::npos) && (op != '|')) {
+            auto del_pos = pos;
+            auto del_len = space_acls.length();
+
+            // Either delete the command before or the comma after
+            if (del_pos && (old_acls[del_pos - 1] == ',')) {
+              --del_pos;
+              ++del_len;
+            } else if ((del_pos + del_len < old_acls.length()) &&
+                       (old_acls[del_pos + del_len] == ',')) {
+              ++del_len;
+            }
+
+            old_acls = old_acls.erase(del_pos, del_len);
+          }
+
+          if (op == '>') { // Append rule
+            out[outkey] = old_acls + std::string(",") + space_acls;
+          } else if (op == '<') { // Prepend rule
+            out[outkey] = space_acls + std::string(",") + old_acls;
+          }
+
+          if (op == '|') {
+            out[outkey] = old_acls;
+          }
+        }
       } else {
-	if (existing && !out.count(x.first)) {
-	  // merge only existing attributes
-	  continue;
-	}
-	std::string inkey=x.first;
-	std::string outkey=prefix?(std::string("sys.space.") + x.first): x.first;
-	if (x.first == "sys.acl") {
-	  // ACL handling
-	  if (x.second.substr(0,1) == ">") {
-	    if (out["sys.acl"].length()) {
-	      // append rule
-	      out[outkey] = out["sys.acl"] + std::string(",") + x.second.substr(1);
-	    } else {
-	      out[outkey] = x.second.substr(1);
-	    }
-	  } else if (x.second.substr(0,1) == "<") {
-	    if (out["sys.acl"].length()) {
-	      // prepend rule
-	      out[outkey] = x.second.substr(1) + std::string(",") + out["sys.acl"];
-	    } else {
-	      out[outkey] = x.second.substr(1);
-	    }
-	  } else if (x.second.substr(0,1) == "|") {
-	    if (!out["sys.acl"].length()) {
-	      // if not set rule
-	      out[outkey] = x.second.substr(1);
-	    }
-	  } else {
-	    // overwrite rule
-	    out[outkey] = x.second;
-	  }
-	} else {
-	  // normal attribute handling
-	  if (x.second.substr(0,1) == "|") {
-	    // if not set rule
-	    if (!out[x.first].length()) {
-	      out[outkey] = x.second.substr(1);
-	    }
-	  } else {
-	    // overwrite rule
-	    out[outkey] = x.second;
-	  }
-	}
+        // Normal attribute handling
+        if (x.second.substr(0, 1) == "|") {
+          // if not set rule
+          if (!out[x.first].length()) {
+            out[outkey] = x.second.substr(1);
+          }
+        } else {
+          // overwrite rule
+          out[outkey] = x.second;
+        }
       }
     }
+  }
 }
 
 
 void
 XrdMgmOfs::listAttributes(eos::IView* view, eos::IContainerMD* target,
-                          eos::IContainerMD::XAttrMap& out, bool prefixLinks){
+                          eos::IContainerMD::XAttrMap& out, bool prefixLinks)
+{
   eos::listAttributes(view, target, out, prefixLinks);
   mergeSpaceAttributes(out);
 }
 
 void
 XrdMgmOfs::listAttributes(eos::IView* view, eos::IFileMD* target,
-                          eos::IContainerMD::XAttrMap& out, bool prefixLinks){
+                          eos::IContainerMD::XAttrMap& out, bool prefixLinks)
+{
   eos::listAttributes(view, target, out, prefixLinks);
   mergeSpaceAttributes(out);
 }
 
 void
 XrdMgmOfs::listAttributes(eos::IView* view, eos::FileOrContainerMD target,
-                          eos::IContainerMD::XAttrMap& out, bool prefixLinks){
+                          eos::IContainerMD::XAttrMap& out, bool prefixLinks)
+{
   eos::listAttributes(view, target, out, prefixLinks);
   mergeSpaceAttributes(out);
 }
 
 template<typename T>
 bool XrdMgmOfs::getAttribute(eos::IView* view, T& md, std::string key,
-		  std::string& rvalue)
+                             std::string& rvalue)
 {
   auto result = eos::getAttribute(view, md, key, rvalue);
   eos::IContainerMD::XAttrMap attr;
+
   if (!result) {
-    attr[key]="";
+    attr[key] = "";
   } else {
     attr[key] = rvalue;
   }
-  mergeSpaceAttributes(attr,false,true);
+
+  mergeSpaceAttributes(attr, false, true);
   rvalue = attr[key];
+
   if (!result) {
     return attr[key].length();
   } else {
