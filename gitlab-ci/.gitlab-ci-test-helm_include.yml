@@ -155,7 +155,7 @@ helm_cbox:
       artifacts: false
   when: manual
 
-helm_cnvrt_fsck:
+helm_convert_fsck_recycle:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: *helm_before_script_template
@@ -171,8 +171,15 @@ helm_cnvrt_fsck:
     # fsck
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-fsck-test ./eos-fsck-test; chmod +x eos-fsck-test
     - ./eos-fsck-test --max-delay 600 --type k8s $K8S_NAMESPACE
-    - rm -rf eos-fsck-test
+    # recycle
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-recycle-test ./eos-recycle-test; chmod +x eos-recycle-test
+    - ./eos-recycle-test --type k8s $K8S_NAMESPACE
+    # cleanup
     - rm -rf eos-test-utils
+    - rm -rf eos-converter-utils
+    - rm -rf eos-fsck-test
+    - rm -rf eos-recycle-test
+
   <<: *helm_after_script_template
   artifacts:
     when: on_failure
