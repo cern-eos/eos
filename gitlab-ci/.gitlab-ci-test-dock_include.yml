@@ -44,8 +44,8 @@ dock_system:
     - dock
   when: manual
 
-dock_cnvrt_fsck:
-  extends: .dock8s_cnvrt_fsck_template
+dock_convert_fsck_recycle:
+  extends: .dock8s_convert_fsck_recycle_template
   image: gitlab-registry.cern.ch/dss/docker-enhanced:19.03.12
   services:
     - docker:19.03.12-dind
