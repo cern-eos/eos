@@ -73,18 +73,18 @@ function scenario_1_create_hierarchy() {
   local OLD_MONTH=$(date -d @${OLD_DATE_TS} +%m)
   local OLD_DAY=$(date -d @${OLD_DATE_TS} +%d)
   local OLD_DATE=${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}
-  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2"
+  exec_cmd eos-mgm1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0"
+  exec_cmd eos-mgm1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1"
+  exec_cmd eos-mgm1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2"
   # Need to create the file outside the recycle bin and move them in
-  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file0.dat"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/del_file0.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
-  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file1.dat"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/del_file1.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1/"
-  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file2.dat"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/del_file2.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2/"
-  exec_cmd eos-mgm-1 "eos -r 0 0 ls -lrta ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}"
-  exec_cmd eos-mgm-1 "eos -r 0 0 ls -lrta ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
+  exec_cmd eos-mgm1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file0.dat"
+  exec_cmd eos-mgm1 "eos -r 0 0 mv ${EOS_ROOT}/del_file0.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
+  exec_cmd eos-mgm1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file1.dat"
+  exec_cmd eos-mgm1 "eos -r 0 0 mv ${EOS_ROOT}/del_file1.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1/"
+  exec_cmd eos-mgm1 "eos -r 0 0 file touch ${EOS_ROOT}/del_file2.dat"
+  exec_cmd eos-mgm1 "eos -r 0 0 mv ${EOS_ROOT}/del_file2.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2/"
+  exec_cmd eos-mgm1 "eos -r 0 0 ls -lrta ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}"
+  exec_cmd eos-mgm1 "eos -r 0 0 ls -lrta ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
   # Timestamp is 2 weeks ago - create some dirs and files that should not be
   # touched by the recycle thread
   OLD_DATE_TS=$(($(date +%s) - 14 * 86400))
@@ -92,16 +92,16 @@ function scenario_1_create_hierarchy() {
   OLD_MONTH=$(date -d @${OLD_DATE_TS} +%m)
   OLD_DAY=$(date -d @${OLD_DATE_TS} +%d)
   OLD_DATE=${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}
-  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2"
+  exec_cmd eos-mgm1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0"
+  exec_cmd eos-mgm1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1"
+  exec_cmd eos-mgm1 "eos -r 0 0 mkdir -p ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2"
   # Need to create the file outside the recycle bin and move them in
-  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/file0.dat"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/file0.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
-  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/file1.dat"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/file1.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1/"
-  exec_cmd eos-mgm-1 "eos -r 0 0 file touch ${EOS_ROOT}/file2.dat"
-  exec_cmd eos-mgm-1 "eos -r 0 0 mv ${EOS_ROOT}/file2.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2/"
+  exec_cmd eos-mgm1 "eos -r 0 0 file touch ${EOS_ROOT}/file0.dat"
+  exec_cmd eos-mgm1 "eos -r 0 0 mv ${EOS_ROOT}/file0.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/0/"
+  exec_cmd eos-mgm1 "eos -r 0 0 file touch ${EOS_ROOT}/file1.dat"
+  exec_cmd eos-mgm1 "eos -r 0 0 mv ${EOS_ROOT}/file1.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/1/"
+  exec_cmd eos-mgm1 "eos -r 0 0 file touch ${EOS_ROOT}/file2.dat"
+  exec_cmd eos-mgm1 "eos -r 0 0 mv ${EOS_ROOT}/file2.dat ${EOS_RECYCLE}/${OLD_YEAR}/${OLD_MONTH}/${OLD_DAY}/2/"
 }
 
 
@@ -111,7 +111,7 @@ function scenario_1_create_hierarchy() {
 #-------------------------------------------------------------------------------
 function scenario_1_check_expectations() {
   echo "info: check expectations"
-  exec_cmd eos-mgm-1 "eos -r 0 0 find --count ${EOS_RECYCLE} | grep \"nfiles=3 ndirectories=7\""
+  exec_cmd eos-mgm1 "eos -r 0 0 find --count ${EOS_RECYCLE} | grep \"nfiles=3 ndirectories=7\""
 
   if [[ $? -ne 0 ]]; then
     echo "error: expectations not met";
