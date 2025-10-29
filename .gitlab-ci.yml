@@ -598,7 +598,7 @@ el9_asan_docker_image:
       "k8s"*  )
         ./eos-convert-test --type k8s $K8S_NAMESPACE;
         ./eos-fsck-test --max-delay 600 --type k8s $K8S_NAMESPACE;
-        ./eos-recycle-test --type k8s $K8S_NAMESPACE;;;
+        ./eos-recycle-test --type k8s $K8S_NAMESPACE;;
       "dock"* )
         ./eos-convert-test --type docker;
         ./eos-fsck-test --max-delay 600 --type docker;

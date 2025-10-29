@@ -155,7 +155,7 @@ helm_cbox:
       artifacts: false
   when: manual
 
-helm_convert_fsck_recycle:
+helm_conv_fsck_recycle:
   stage: test
   image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
   <<: *helm_before_script_template
