@@ -16,6 +16,31 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.25 Diopside``
+====================
+
+2025-10-30
+
+Bug
+----
+
+* [EOS-6525] - EOS token scope not set for directory listings
+* [EOS-6527] - FST: HTTP - Range-Request with outer value > file size should not send back an error
+* [EOS-6528] - CLI: Acl - Cannot set 't' ACL via eos acl command
+* [EOS-6529] - space-level "sys.acl" gets persistently duplicated after further ACL changes
+
+New Feature
+------------
+
+* [EOS-6276] - Track and enforce EOS quotas by logical bytes instead of raw physical bytes
+* [EOS-6520] - Create a command that does move and symlink at once
+
+Improvement
+------------
+
+* [EOS-6426] - NS: Replace with the new NS locking recompute_tree_size
+
+
 ``v5.3.24 Diopside``
 ====================
 
