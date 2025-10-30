@@ -771,6 +771,16 @@ runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/insta
 runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
 runtest "### Rem       " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
+# Tests for rename_with_symlink functionality
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink"
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink/archive"
+runtest "### Upload    " unix 0 "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink/file.dat" "-ODeos.space=default"
+# Fail if destination directory matches source directory
+runtest "### RenameSym " unix 1 "" eos "file rename_with_symlink /eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink/file.dat /eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink"
+runtest "### RenameSym " unix 0 "" eos "file rename_with_symlink /eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink/file.dat /eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink/archive"
+runtest "### RenameSym " unix 0 "" eos "ls -l /eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink/ | grep \"file.dat -> /eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink/archive/file.dat\""
+runtest "### Stat      " unix 0 "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink/archive/file.dat"
+runtest "### Rem       " unix 0 "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/mv_with_symlink"
 
 runtest "### MkSpace   " unix 0 "" eos "space define __test__"
 runtest "### SetSpace  " unix 0 "" eos "space set __test__ on "

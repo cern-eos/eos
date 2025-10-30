@@ -672,6 +672,38 @@ public:
               bool overwrite = false,
               bool fusexcast = true);
 
+  //----------------------------------------------------------------------------
+  //! Rename file by atomically creating a symlink with the same name pointing
+  //! to the new destination - EOS internal low-level API.
+  //!
+  //! @note Rename within a directory is simple since the quota accounting has
+  //! not to be modified. Rename of directories between quota nodes need to
+  //! recompute all the quota of the subtree which is moving and in case reject
+  //! the operation if there is not enough quota left. Overall it is a quite
+  //!complex function.
+  //!
+  //! @param old_name old name
+  //! @param new_name new name
+  //! @param error error object
+  //! @param vid virtual identity of the client
+  //! @param infoO CGI of the old name
+  //! @param infoN CGI of the new name
+  //! @param updateCTime indicates to update the change time of a directory
+  //! @param checkQuota indicates to check the quota during a rename operation
+  //! @param fusexcast if true do a FUSEX cast otherwise no
+  //!
+  //! @return SFS_OK on success otherwise SFS_ERROR
+  //----------------------------------------------------------------------------
+  int _rename_with_symlink(const char* old_name,
+                           const char* new_name,
+                           XrdOucErrInfo& error,
+                           eos::common::VirtualIdentity& vid,
+                           const char* infoO = 0,
+                           const char* infoN = 0,
+                           bool updateCTime = false,
+                           bool checkQuota = false,
+                           bool fusexcast = true);
+
   // ---------------------------------------------------------------------------
   // symlink file/dir
   // ---------------------------------------------------------------------------
@@ -2084,8 +2116,8 @@ public:
 
   //! Global Attrbute Map Space=>map(key,val)
   std::mutex mSpaceAttributesMutex; ///< Mutex protecting space attributes
-  std::map<std::string, std::map<std::string,std::string>> mSpaceAttributes;
-  
+  std::map<std::string, std::map<std::string, std::string>> mSpaceAttributes;
+
   XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
   //! Shared Hash/Queue Object Change Notifier
   XrdMqSharedObjectChangeNotifier ObjectNotifier;
@@ -2182,22 +2214,23 @@ public:
   //! List Attributes high-level function merging space and namespace attributes
   //----------------------------------------------------------------------------
 
-  void mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix=false, bool existing=false);
-  
+  void mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix = false,
+                            bool existing = false);
+
   void
   listAttributes(eos::IView* view, eos::IContainerMD* target,
-		 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
+                 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
   void
   listAttributes(eos::IView* view, eos::IFileMD* target,
-		 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
+                 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
   void
   listAttributes(eos::IView* view, eos::FileOrContainerMD target,
-		 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
+                 eos::IContainerMD::XAttrMap& out, bool prefixLinks = false);
 
   template<typename T>
   bool getAttribute(eos::IView* view, T& md, std::string key,
-			       std::string& rvalue);
-  
+                    std::string& rvalue);
+
 protected:
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 

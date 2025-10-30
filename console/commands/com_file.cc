@@ -267,7 +267,7 @@ com_file(char* arg1)
       (cmd != "rename") && (cmd != "copy") && (cmd != "convert") &&
       (cmd != "share") && (cmd != "purge") && (cmd != "version") &&
       (cmd != "versions") && (cmd != "symlink") && (cmd != "tag") &&
-      (cmd != "workflow")) {
+      (cmd != "workflow") && (cmd != "rename_with_symlink")) {
     goto com_file_usage;
   }
 
@@ -288,6 +288,21 @@ com_file(char* arg1)
 
     fsid1 = abspath(fsid1.c_str());
     in += "&mgm.subcmd=rename";
+    in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
+    in += path;
+    in += "&mgm.file.source=";
+    in += path;
+    in += "&mgm.file.target=";
+    in += fsid1.c_str();
+  }
+
+  if (cmd == "rename_with_symlink") {
+    if (!path.length() || !fsid1.length()) {
+      goto com_file_usage;
+    }
+
+    fsid1 = abspath(fsid1.c_str());
+    in += "&mgm.subcmd=rename_with_symlink";
     in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
     in += "&mgm.file.source=";
@@ -1123,6 +1138,12 @@ com_file_usage:
   fprintf(stdout, "file rename [<path>|fid:<fid-dec>|fxid:<fid-hex>] <new> :\n");
   fprintf(stdout,
           "                                                  rename from <old> to <new> name (works for files and directories!).\n");
+  fprintf(stdout, "file rename_with_symlink <source_file> <destination_dir> :\n");
+  fprintf(stdout,
+          "     rename/move source file to destination directory by doing\n"
+          "     two operations in an atomic step:\n"
+          "     - move file to destination directory\n"
+          "     - create symlink in the source directory to the new location\n");
   fprintf(stdout,
           "file replicate [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2> :\n");
   fprintf(stdout,

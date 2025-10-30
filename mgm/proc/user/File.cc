@@ -622,9 +622,33 @@ ProcCommand::File()
       }
     }
 
-    // -------------------------------------------------------------------------
-    // link a file or directory from source to target path
-    // -------------------------------------------------------------------------
+    //--------------------------------------------------------------------------
+    // Rename a file by atomically creting a symlink in the old location that
+    // will point to the new destination.
+    //--------------------------------------------------------------------------
+    if (mSubCmd == "rename_with_symlink") {
+      cmdok = true;
+      XrdOucString source = pOpaque->Get("mgm.file.source");
+      XrdOucString target = pOpaque->Get("mgm.file.target");
+      PROC_MOVE_TOKENSCOPE(source.c_str(), target.c_str());
+
+      if (gOFS->_rename_with_symlink(source.c_str(), target.c_str(),
+                                     *mError, *pVid, 0, 0, true, true)) {
+        stdErr += "error: ";
+        stdErr += mError->getErrText();
+        retc = errno;
+      } else {
+        stdOut += "success: renamed '";
+        stdOut += source.c_str();
+        stdOut += "' to '";
+        stdOut += target.c_str();
+        stdOut += "'";
+      }
+    }
+
+    //--------------------------------------------------------------------------
+    // Link a file or directory from source to target path
+    //--------------------------------------------------------------------------
     if (mSubCmd == "symlink") {
       cmdok = true;
       XrdOucString source = pOpaque->Get("mgm.file.source");

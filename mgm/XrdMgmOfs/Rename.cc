@@ -406,7 +406,8 @@ XrdMgmOfs::_rename(const char* old_name,
               dirFileLocker.add(dir.get());
               dirFileLocker.add(file.get());
               auto locks = dirFileLocker.lockAll();
-              COMMONTIMING("rename::rename_file_within_same_container_dir_file_write_lock", &tm);
+              COMMONTIMING("rename::rename_file_within_same_container_dir_file_write_lock",
+                           &tm);
               eosView->renameFile(file.get(), nPath.GetName());
               dir->setMTimeNow();
               dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -415,6 +416,7 @@ XrdMgmOfs::_rename(const char* old_name,
               const std::string old_name = oPath.GetName();
               fid = file->getIdentifier();
             }
+
             if (fusexcast) {
               fuse_batch.Register([&, did, pdid, fid, old_name]() {
                 gOFS->FuseXCastRefresh(did, pdid);
@@ -441,7 +443,8 @@ XrdMgmOfs::_rename(const char* old_name,
             helper.add(newdir.get());
             helper.add(file.get());
             auto locks = helper.lockAll();
-            COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock", &tm);
+            COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock",
+                         &tm);
             dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -517,6 +520,7 @@ XrdMgmOfs::_rename(const char* old_name,
               {
                 std::map<uid_t, unsigned long long> user_del_size;
                 std::map<gid_t, unsigned long long> group_del_size;
+
                 // Compute the total quota we need to rename by uid/gid
                 for (rfoundit = found.rbegin(); rfoundit != found.rend();
                      rfoundit++) {
@@ -745,7 +749,7 @@ XrdMgmOfs::_rename(const char* old_name,
               dir->notifyMTimeChange(gOFS->eosDirectoryService);
 
               if (gOFS->eosContainerAccounting) {
-                gOFS->eosContainerAccounting->RemoveTree(dir.get(), {tree_size,tree_files,tree_cont});
+                gOFS->eosContainerAccounting->RemoveTree(dir.get(), {tree_size, tree_files, tree_cont});
               }
 
               eosView->updateContainerStore(dir.get());
@@ -779,7 +783,7 @@ XrdMgmOfs::_rename(const char* old_name,
               newdir->setMTimeNow();
 
               if (gOFS->eosContainerAccounting) {
-                gOFS->eosContainerAccounting->AddTree(newdir.get(), {tree_size,tree_files,tree_cont});
+                gOFS->eosContainerAccounting->AddTree(newdir.get(), {tree_size, tree_files, tree_cont});
               }
 
               const eos::ContainerIdentifier rdid = rdir->getIdentifier();
@@ -824,6 +828,275 @@ XrdMgmOfs::_rename(const char* old_name,
     }
   }
 
+  COMMONTIMING("end", &tm);
+  EXEC_TIMING_END("Rename");
+  return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Rename a file by atomically creating a symlink with the same name pointing
+// to the new destination.
+//------------------------------------------------------------------------------
+int
+XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
+                                XrdOucErrInfo& error,
+                                eos::common::VirtualIdentity& vid,
+                                const char* infoO, const char* infoN,
+                                bool updateCTime, bool checkQuota,
+                                bool fusexcast)
+{
+  static const char* epname = "_rename_with_symlink";
+
+  if (!old_name || !new_name) {
+    errno = EINVAL;
+    return Emsg(epname, error, EINVAL,
+                "rename with symlink - empty source or target");
+  }
+
+  eos_info("msg=\"rename with symlink\" source_file=\"%s\" "
+           "target_dir=\"%s\"", old_name, new_name);
+
+  // If source and target are the same return success
+  if (!strcmp(old_name, new_name)) {
+    return SFS_OK;
+  }
+
+  XrdOucString oldn = old_name;
+  XrdOucString newn = new_name;
+  const char* inpath = 0;
+  const char* ininfo = 0;
+  errno = 0;
+  {
+    inpath = old_name;
+    ininfo = infoO;
+    NAMESPACEMAP;
+    BOUNCE_ILLEGAL_NAMES;
+    oldn = path;
+  }
+  {
+    inpath = new_name;
+    ininfo = infoN;
+    NAMESPACEMAP;
+    BOUNCE_ILLEGAL_NAMES;
+    newn = path;
+  }
+  BOUNCE_NOT_ALLOWED;
+  ACCESSMODE_W;
+  MAYSTALL;
+  {
+    const char* path = inpath;
+    MAYREDIRECT;
+  }
+
+  // Check access permissions on source
+  if (_access(oldn.c_str(), W_OK | D_OK, error, vid, infoO) != SFS_OK) {
+    return Emsg(epname, error, errno, "rename with symlink - "
+                "source access failure");
+  }
+
+  // Check access permissions on target
+  if (_access(newn.c_str(), W_OK, error, vid, infoN) != SFS_OK) {
+    return Emsg(epname, error, errno, "rename with symlink - "
+                "destination access failure");
+  }
+
+  errno = 0;
+  EXEC_TIMING_BEGIN("Rename");
+  eos::common::Timing tm("_rename_with_symlink");
+  COMMONTIMING("begin", &tm);
+  eos::common::Path nPath(newn.c_str());
+  eos::common::Path oPath(oldn.c_str());
+  std::string oP = oPath.GetParentPath();
+  std::string nP = nPath.GetParentPath();
+  gOFS->MgmStats.Add("Rename", vid.uid, vid.gid, 1);
+  XrdSfsFileExistence file_exists;
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, oP);
+  eos::Prefetcher::prefetchContainerMDAndWait(gOFS->eosView, nP);
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, oPath.GetPath());
+  eos::Prefetcher::prefetchItemAndWait(gOFS->eosView, nPath.GetPath());
+  COMMONTIMING("prefetchItems", &tm);
+
+  // Check that source is an existing file
+  if (_exists(old_name, file_exists, error, vid, infoN)) {
+    errno = ENOENT;
+    return Emsg(epname, error, errno,
+                "rename with symlink - source does not exist");
+  }
+
+  if (file_exists == XrdSfsFileExistNo) {
+    errno = ENOENT;
+    return Emsg(epname, error, errno,
+                "rename with symlink - source does not exist");
+  }
+
+  if (file_exists == XrdSfsFileExistIsDirectory) {
+    errno = EINVAL;
+    return Emsg(epname, error, errno,
+                "rename with symlink - source is a directory");
+  }
+
+  if (file_exists == XrdSfsFileExistIsFile) {
+    XrdSfsFileExistence version_exists;
+    XrdOucString vpath = nPath.GetPath();
+
+    if ((!_exists(oPath.GetVersionDirectory(), version_exists, error, vid,
+                  infoN)) &&
+        (version_exists == XrdSfsFileExistIsDirectory) &&
+        (!vpath.beginswith(oPath.GetVersionDirectory())) &&
+        (!vpath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
+      errno = EINVAL;
+      return Emsg(epname, error, errno, "rename with symlink - source has versions");
+    }
+  }
+
+  // Check that destination is a directory and does not contain already
+  // the source file name.
+  if (!_exists(newn.c_str(), file_exists, error, vid, infoN)) {
+    if (file_exists == XrdSfsFileExistIsFile) {
+      errno = ENOTDIR;
+      return Emsg(epname, error, errno,
+                  "rename with symlink - target is a not directory");
+    }
+
+    if (file_exists == XrdSfsFileExistNo) {
+      errno = ENOENT;
+      return Emsg(epname, error, errno,
+                  "rename with symlink - missing target directory");
+    }
+
+    if (file_exists == XrdSfsFileExistIsDirectory) {
+      // Construct the full destination path and check that
+      // it doesn't exist already.
+      std::string new_path = newn.c_str();
+
+      if (new_path.back() != '/') {
+        new_path += "/";
+      }
+
+      if (oP == new_path) {
+        errno = EEXIST;
+        return Emsg(epname, error, errno, "rename with symlink - "
+                    "destination directory must be different from source");
+      }
+
+      new_path += oPath.GetName();
+      nPath = new_path;
+      nP = nPath.GetParentPath();
+
+      if (!_exists(new_path.c_str(), file_exists, error, vid, infoN)) {
+        if (file_exists != XrdSfsFileExistNo) {
+          errno = EEXIST;
+          return Emsg(epname, error, errno,
+                      "rename with symlink - name exists in target directory");
+        }
+      }
+    }
+  } else {
+    errno = ENOENT;
+    return Emsg(epname, error, errno,
+                "rename with symlink - missing target directory");
+  }
+
+  COMMONTIMING("exists", &tm);
+
+  try {
+    eos::mgm::FusexCastBatch fuse_batch;
+    std::shared_ptr<eos::IContainerMD> dir = eosView->getContainer(
+          oPath.GetParentPath());
+    std::shared_ptr<eos::IContainerMD> newdir = eosView->getContainer(
+          nPath.GetParentPath());
+    // Translate to paths without symlinks
+    std::string duri = eosView->getUri(dir.get());
+    std::string newduri = eosView->getUri(newdir.get());
+    std::string old_file_uri = duri + oPath.GetName();
+    std::string new_file_uri = newduri + oPath.GetName();
+    // Get symlink-free dir's
+    eos_info("msg=\"get uri\" old=\"%s\" new=\"%s\"", duri.c_str(),
+             newduri.c_str());
+    dir = eosView->getContainer(duri);
+    newdir = eosView->getContainer(newduri);
+    const eos::ContainerIdentifier did = dir->getIdentifier();
+    const eos::ContainerIdentifier pdid = dir->getParentIdentifier();
+    const eos::ContainerIdentifier ndid = newdir->getIdentifier();
+    const eos::ContainerIdentifier pndid = newdir->getParentIdentifier();
+    std::shared_ptr<eos::IFileMD> file = dir->findFile(oPath.GetName());
+
+    if (!file) {
+      errno = ENOENT;
+      return Emsg(epname, error, errno,
+                  "rename with symlink - source file does not exist");
+    }
+
+    // Get the quota nodes before locking the directories. Getting the quota
+    // node requires the tree to be browsed from the directory to all its
+    // parents until reaching the quota node (taking read locks on each
+    // directory), which could break the locking order (by directory ID)...
+    eos::IQuotaNode* old_qnode = eosView->getQuotaNode(dir.get());
+    eos::IQuotaNode* new_qnode = eosView->getQuotaNode(newdir.get());
+    // Move to a new directory and create symlink in the old directory
+    // pointing to the new destination
+    eos::MDLocking::BulkMDWriteLock helper;
+    helper.add(dir.get());
+    helper.add(newdir.get());
+    helper.add(file.get());
+    auto locks = helper.lockAll();
+    dir->removeFile(oPath.GetName());
+    // Create the symlink
+    eos_info("msg=\"create symlink\" old=\"%s\" new=\"%s\"",
+             old_file_uri.c_str(), new_file_uri.c_str());
+    eosView->createLink(old_file_uri, new_file_uri, vid.uid, vid.gid);
+    dir->setMTimeNow();
+    dir->notifyMTimeChange(gOFS->eosDirectoryService);
+    newdir->setMTimeNow();
+    newdir->notifyMTimeChange(gOFS->eosDirectoryService);
+    newdir->addFile(file.get());
+    eosView->updateContainerStore(dir.get());
+    eosView->updateContainerStore(newdir.get());
+    file->setName(nPath.GetName());
+    file->setContainerId(newdir->getId());
+
+    if (updateCTime) {
+      file->setCTimeNow();
+    }
+
+    eosView->updateFileStore(file.get());
+    COMMONTIMING("rename::move_file_to_different_container_rename", &tm);
+
+    // Adjust the ns quota
+    if (old_qnode) {
+      old_qnode->removeFile(file.get());
+    }
+
+    if (new_qnode) {
+      new_qnode->addFile(file.get());
+    }
+
+    if (fusexcast) {
+      const eos::FileIdentifier fid = file->getIdentifier();
+      const std::string src_file_name = oPath.GetName();
+      fuse_batch.Register([&, did, pdid, ndid, pndid, fid, src_file_name]() {
+        gOFS->FuseXCastRefresh(did, pdid);
+        gOFS->FuseXCastRefresh(ndid, pndid);
+        gOFS->FuseXCastDeletion(did, src_file_name);
+        gOFS->FuseXCastRefresh(fid, ndid);
+      });
+    }
+
+    COMMONTIMING("rename::move_file_to_different_container_adjust_ns_quota", &tm);
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+    errno = ENOENT;
+    return Emsg(epname, error, errno, "rename with symlink", old_name);
+  }
+
+  std::ostringstream oss;
+  oss << "msg=\"rename_with_symlink\""
+      << " source= " << oPath.GetFullPath()
+      << " destination=" << nPath.GetFullPath()
+      << " timing=" << tm.Dump();
+  eos_static_debug(oss.str().c_str());
   COMMONTIMING("end", &tm);
   EXEC_TIMING_END("Rename");
   return SFS_OK;
