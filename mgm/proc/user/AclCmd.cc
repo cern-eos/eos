@@ -282,7 +282,7 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl)
   auto acl_delimiter = single_acl.rfind(':');
   ret.first = std::string(single_acl.begin(),
                           single_acl.begin() + acl_delimiter);
-  unsigned short rule_int = 0;
+  unsigned long rule_int = 0;
 
   for (auto i = acl_delimiter + 1, size = single_acl.length(); i < size; ++i) {
     switch (single_acl.at(i)) {
@@ -328,6 +328,10 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl)
 
     case 'X':
       rule_int = rule_int | AclCmd::SysAttr;
+      break;
+
+    case 't':
+      rule_int = rule_int | AclCmd::Token;
       break;
 
     case '+' :
@@ -419,7 +423,7 @@ AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap)
 bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
 {
   bool lambda_happen = false;
-  unsigned short int ret = 0, add_ret = 0, rm_ret = 0;
+  unsigned long ret = 0, add_ret = 0, rm_ret = 0;
   auto add_lambda = [&](AclCmd::ACLPos pos) {
     add_ret = add_ret | pos;
     ret = ret | pos;
@@ -519,6 +523,11 @@ bool AclCmd::GetRuleBitmask(const std::string& input, bool set)
 
     if (*flag == 'X') {
       curr_lambda(AclCmd::SysAttr);
+      continue;
+    }
+
+    if (*flag == 't') {
+      curr_lambda(AclCmd::Token);
       continue;
     }
 
@@ -695,7 +704,7 @@ AclCmd::CheckCorrectId(const std::string& id) const
 //------------------------------------------------------------------------------
 void AclCmd::ApplyRule(RuleMap& rules, size_t pos)
 {
-  unsigned short temp_rule = 0;
+  unsigned long temp_rule = 0;
 
   if (!mSet) {
     auto it = std::find_if(rules.begin(),
@@ -757,7 +766,7 @@ AclCmd::GenerateAclString(const RuleMap& rmap)
 // Convert ACL bitmask to string representation
 //------------------------------------------------------------------------------
 std::string
-AclCmd::AclBitmaskToString(const unsigned short int in)
+AclCmd::AclBitmaskToString(const unsigned long int in)
 {
   std::string ret = "";
 
@@ -783,6 +792,10 @@ AclCmd::AclBitmaskToString(const unsigned short int in)
 
   if (in & AclCmd::SysAttr) {
     ret.append("X");
+  }
+
+  if (in & AclCmd::Token) {
+    ret.append("t");
   }
 
   if (in & AclCmd::M) {

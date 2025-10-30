@@ -78,7 +78,7 @@ AclHelper::CheckId(const std::string& id)
 bool
 AclHelper::CheckFlags(const std::string& flags)
 {
-  static const std::string allowed_chars = "!+-rwoxmduqcaAX";
+  static const std::string allowed_chars = "!+-rwoxmduqcatAX";
   return flags.find_first_not_of(allowed_chars) == std::string::npos;
 }
 

@@ -28,8 +28,8 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-typedef std::pair<std::string, unsigned short> Rule;
-//typedef std::unordered_map<std::string, unsigned short> RuleMap;
+typedef std::pair<std::string, unsigned long> Rule;
+//typedef std::unordered_map<std::string, unsigned long> RuleMap;
 // We use a list as we need to be able to insert at any position
 typedef std::list<Rule> RuleMap;
 
@@ -195,7 +195,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return mAddRule result after GetRuleBitmask call.
   //----------------------------------------------------------------------------
-  unsigned short GetAddRule()
+  unsigned long GetAddRule()
   {
     return mAddRule;
   }
@@ -203,7 +203,7 @@ public:
   //----------------------------------------------------------------------------
   //! Return mRmRule result after GetRuleBitmask call.
   //----------------------------------------------------------------------------
-  unsigned short GetRmRule()
+  unsigned long  GetRmRule()
   {
     return mRmRule;
   }
@@ -227,13 +227,14 @@ private:
     nW = 1 << 13,      // 8192 - !w
     nX = 1 << 14,      //16384 - !x
     A  = 1 << 15,      //32768 -  a
-    SysAcl  = 1 << 16, //65536  -  A
-    SysAttr = 1 << 17  //131072 -  X
+    SysAcl  = 1 << 16, //65536  - A
+    SysAttr = 1 << 17, //131072 - X
+    Token   = 1 << 18  //262144 - t
   };
 
   std::string mId; ///< Rule identifier extracted from command line
   ///< ACL rule bitmasks for adding and removing
-  unsigned short mAddRule, mRmRule;
+  unsigned long mAddRule, mRmRule;
   bool mSet; ///< Rule is set operations i.e contains =
 
   //----------------------------------------------------------------------------
@@ -289,7 +290,7 @@ private:
   //!
   //! @return std::string representation of ACL
   //----------------------------------------------------------------------------
-  static std::string AclBitmaskToString(const unsigned short in);
+  static std::string AclBitmaskToString(const unsigned long in);
 
   std::string mErr; ///< Command error output string
 
