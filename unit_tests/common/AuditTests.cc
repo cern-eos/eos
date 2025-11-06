@@ -90,7 +90,7 @@ TEST(Audit, BasicWriteRotateAndSymlink)
 
   eos::audit::AuditRecord rec1;
   rec1.set_timestamp(::time(nullptr));
-  rec1.set_filename("/eos/test/file1");
+  rec1.set_path("/eos/test/file1");
   rec1.set_operation(eos::audit::Operation::CREATE);
   rec1.set_client_ip("127.0.0.1");
   rec1.set_account("root");
@@ -113,7 +113,7 @@ TEST(Audit, BasicWriteRotateAndSymlink)
 
   eos::audit::AuditRecord rec2;
   rec2.set_timestamp(::time(nullptr));
-  rec2.set_filename("/eos/test/file2");
+  rec2.set_path("/eos/test/file2");
   rec2.set_operation(eos::audit::Operation::RENAME);
   rec2.set_target("/eos/test/file2.new");
   rec2.set_client_ip("127.0.0.1");

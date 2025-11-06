@@ -190,7 +190,7 @@ Audit::audit(eos::audit::Operation operation,
 {
   eos::audit::AuditRecord rec;
   rec.set_timestamp(time(nullptr));
-  rec.set_filename(filename);
+  rec.set_path(filename);
   rec.set_operation(operation);
   rec.set_client_ip(vid.host);
   if (vid.name.length()) {

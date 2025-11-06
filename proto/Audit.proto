@@ -36,7 +36,7 @@ message AuthorizationInfo {
 message AuditRecord {
   // Seconds since UNIX epoch
   int64 timestamp = 1;
-  string filename = 2;
+  string path = 2;
   Operation operation = 3;
   string client_ip = 4;
   string account = 5;
