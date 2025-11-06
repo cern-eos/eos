@@ -32,6 +32,8 @@
 #define __EOSCOMMON_AUDIT__HH__
 
 #include "common/Namespace.hh"
+#include "common/VirtualIdentity.hh"
+#include "proto/Audit.pb.h"
 #include <string>
 #include <mutex>
 
@@ -74,6 +76,25 @@ public:
    * @brief Append a record to the audit log (JSON line). Thread-safe.
    */
   void audit(const eos::audit::AuditRecord& record);
+
+  /**
+   * @brief Convenience overload to build and append an audit record.
+   *        Populates common fields from VirtualIdentity.
+   * @param operation operation type (e.g. DELETE, CREATE)
+   * @param filename affected path
+   * @param vid caller identity (for account, client_ip, mechanism, app, token)
+   * @param uuid unique request id
+   * @param tid trace identifier (short token)
+   * @param svc acting service (e.g. "mgm")
+   * @param target optional destination path (for rename/symlink)
+   */
+  void audit(eos::audit::Operation operation,
+             const std::string& filename,
+             const eos::common::VirtualIdentity& vid,
+             const std::string& uuid,
+             const std::string& tid,
+             const std::string& svc,
+             const std::string& target = std::string());
 
 private:
   void rotateIfNeededLocked(time_t now);
