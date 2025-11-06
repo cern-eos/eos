@@ -106,6 +106,7 @@ set(COMMON_UT_SRCS
   common/InodeTests.cc
   common/LoggingTests.cc
   common/LoggingTestsUtils.cc
+  common/AuditTests.cc
   common/MappingTests.cc
   common/PathTests.cc
   common/GlobTests.cc
