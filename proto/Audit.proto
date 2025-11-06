@@ -19,6 +19,8 @@ enum Operation {
   READ = 10;         // optional, if enabling read auditing
   LIST = 11;         // optional, if enabling directory listing auditing
   METADATA_UPDATE = 12;
+  MKDIR = 13;        // directory creation
+  RMDIR = 14;        // directory deletion
 }
 
 message AuthInfo {

@@ -211,11 +211,17 @@ XrdMgmOfs::_chmod(const char* path,
 
   if (cmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
+    if (mAudit) {
+      mAudit->audit(eos::audit::CHMOD, path, vid, logId, cident, "mgm");
+    }
     return SFS_OK;
   }
 
   if (fmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
+    if (mAudit) {
+      mAudit->audit(eos::audit::CHMOD, path, vid, logId, cident, "mgm");
+    }
     return SFS_OK;
   }
 
