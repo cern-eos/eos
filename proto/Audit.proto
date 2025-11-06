@@ -50,6 +50,10 @@ message AuditRecord {
   string uuid = 10;
   // Trace identifier (short token for correlating logs)
   string tid = 11;
+  // Acting application (client), e.g. eoscp, xrdcp, gateway
+  string app = 12;
+  // Acting EOS service, e.g. mgm, fst, gateway
+  string svc = 13;
 }
 
 
