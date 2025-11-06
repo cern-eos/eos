@@ -158,6 +158,25 @@ Audit::audit(const eos::audit::AuditRecord& record)
       }
     }
   }
+
+  // Flush buffered data so small records are visible immediately
+  {
+    ZSTD_inBuffer fin = { nullptr, 0, 0 };
+    size_t fret = 0;
+    do {
+      ZSTD_outBuffer out = { outBuf.data(), outBuf.size(), 0 };
+      fret = ZSTD_compressStream2(reinterpret_cast<ZSTD_CCtx*>(mZstdCctx),
+                                  &out, &fin, ZSTD_e_flush);
+      if (ZSTD_isError(fret)) {
+        eos_static_warning("msg=\"zstd flush error\" code=%s",
+                           ZSTD_getErrorName(fret));
+        break;
+      }
+      if (out.pos) {
+        (void) ::write(mFd, outBuf.data(), out.pos);
+      }
+    } while (fret != 0);
+  }
 }
 
 void
