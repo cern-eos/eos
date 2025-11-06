@@ -205,6 +205,22 @@ Audit::openWriterLocked(time_t segmentStart)
     eos_static_warning("msg=\"failed to set zstd compression level\" level=%d", mCompressionLevel);
   }
 
+  // Ensure a valid ZSTD frame header is written so readers like zstdcat don't
+  // fail on an empty, newly-rotated file. Flush pending header with empty input.
+  {
+    std::vector<char> outBuf(16384);
+    ZSTD_inBuffer in = { nullptr, 0, 0 };
+    ZSTD_outBuffer out = { outBuf.data(), outBuf.size(), 0 };
+    size_t ret = ZSTD_compressStream2(reinterpret_cast<ZSTD_CCtx*>(mZstdCctx),
+                                      &out, &in, ZSTD_e_flush);
+    if (ZSTD_isError(ret)) {
+      eos_static_warning("msg=\"zstd header flush error\" code=%s", ZSTD_getErrorName(ret));
+    }
+    if (out.pos) {
+      (void)::write(mFd, outBuf.data(), out.pos);
+    }
+  }
+
   // Update symlink audit.log -> current file (best-effort)
   std::string linkPath = mBaseDir + "/audit.log";
   (void)::unlink(linkPath.c_str());
