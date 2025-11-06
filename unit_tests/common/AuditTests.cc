@@ -114,7 +114,8 @@ TEST(Audit, BasicWriteRotateAndSymlink)
   eos::audit::AuditRecord rec2;
   rec2.set_timestamp(::time(nullptr));
   rec2.set_filename("/eos/test/file2");
-  rec2.set_operation(eos::audit::Operation::WRITE);
+  rec2.set_operation(eos::audit::Operation::RENAME);
+  rec2.set_target("/eos/test/file2.new");
   rec2.set_client_ip("127.0.0.1");
   rec2.set_account("root");
   rec2.mutable_auth()->set_mechanism("local");
