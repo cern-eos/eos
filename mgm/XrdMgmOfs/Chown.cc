@@ -184,6 +184,9 @@ XrdMgmOfs::_chown(const char* path,
   // ---------------------------------------------------------------------------
   if (cmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
+    if (mAudit) {
+      mAudit->audit(eos::audit::CHOWN, path, vid, logId, cident, "mgm");
+    }
     return SFS_OK;
   }
 

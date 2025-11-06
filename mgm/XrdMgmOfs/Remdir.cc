@@ -270,7 +270,7 @@ XrdMgmOfs::_remdir(const char* path,
     if (mAudit) {
       std::string apath = path ? path : "";
       if (!apath.empty() && apath.back() != '/') apath.push_back('/');
-      mAudit->audit(eos::audit::DELETE, apath, vid, logId, cident, "mgm");
+      mAudit->audit(eos::audit::RMDIR, apath, vid, logId, cident, "mgm");
     }
     return SFS_OK;
   }
