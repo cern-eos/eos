@@ -46,6 +46,10 @@ message AuditRecord {
   string trace_id = 8;
   // Optional target path for operations that involve a destination, e.g. rename/symlink
   string target = 9;
+  // Unique request identifier (UUID)
+  string uuid = 10;
+  // Trace identifier (short token for correlating logs)
+  string tid = 11;
 }
 
 
