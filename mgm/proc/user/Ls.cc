@@ -65,7 +65,7 @@ ProcCommand::Ls()
       return cacheentry;
     }
   };
-  static eos::common::LRU::Cache<std::string, struct result> dirCache;
+  static eos::common::LRU::Cache<std::string, struct result, std::mutex> dirCache;
   static bool use_cache = (getenv("EOS_MGM_LISTING_CACHE") &&
                            (dirCache.setMaxSize(atoi(getenv("EOS_MGM_LISTING_CACHE")))));
   std::ostringstream oss;
