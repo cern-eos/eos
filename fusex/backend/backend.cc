@@ -338,8 +338,7 @@ backend::fetchResponse(fuse_req_t req,
   std::string response;
   off_t offset = 0;
   const int kPAGE = 512 * 1024;
-  std::vector<char> rbuff;
-  rbuff.reserve(kPAGE);
+  std::vector<char> rbuff(kPAGE);
   uint32_t bytesread = 0;
 
   do {
