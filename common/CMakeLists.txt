@@ -164,6 +164,7 @@ add_library(EosCommon-Objects OBJECT
   concurrency/ThreadEpochCounter.cc
   BehaviourConfig.cc
   UnixGroupsFetcher.cc
+  Audit.cc
 )
 
 # Avoid warnings related to bfd_get_section* macros being redefined
@@ -174,8 +175,10 @@ set_target_properties(EosCommon-Objects PROPERTIES
 target_link_libraries(EosCommon-Objects PUBLIC
   EosFstProto-Objects
   EosCliProto-Objects
+  EosAuditProto-Objects
   CURL::libcurl
   ZLIB::ZLIB
+  ZSTD::ZSTD
   JSONCPP::JSONCPP
   OpenSSL::SSL
   XROOTD::UTILS
@@ -203,6 +206,7 @@ target_link_libraries(EosCommon PUBLIC
   EosCommon-Objects
   EosFstProto-Objects
   EosCliProto-Objects
+  EosAuditProto-Objects
   EosSciToken-Objects
   EosNsQuarkdbProto-Objects
   NCURSES::NCURSES
@@ -220,6 +224,7 @@ set(EosCommonLinkLibs
   EosCommon-Objects
   EosFstProto-Objects
   EosCliProto-Objects
+  EosAuditProto-Objects
   EosSciToken-Objects
   EosNsQuarkdbProto-Objects
   XROOTD::CL

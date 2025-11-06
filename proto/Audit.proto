@@ -1,0 +1,49 @@
+syntax = "proto3";
+package eos.audit;
+
+//------------------------------------------------------------------------------
+// Audit logging protobufs
+//------------------------------------------------------------------------------
+
+enum Operation {
+  OPERATION_UNSPECIFIED = 0;
+  CREATE = 1;
+  DELETE = 2;
+  RENAME = 3;
+  WRITE = 4;
+  TRUNCATE = 5;
+  SET_XATTR = 6;
+  SET_ACL = 7;
+  CHMOD = 8;
+  CHOWN = 9;
+  READ = 10;         // optional, if enabling read auditing
+  LIST = 11;         // optional, if enabling directory listing auditing
+  METADATA_UPDATE = 12;
+}
+
+message AuthInfo {
+  // Authentication mechanism: sss, krb5, gsi, oauth, tokens, gateway, local, ...
+  string mechanism = 1;
+  // Additional per-authentication attributes (no secrets, no full tokens)
+  map<string, string> attributes = 2;
+}
+
+message AuthorizationInfo {
+  // Reasons/grants for authorization, e.g. "uidgid", "egroup:<group>", "token-namespace:<ns>"
+  repeated string reasons = 1;
+}
+
+message AuditRecord {
+  // Seconds since UNIX epoch
+  int64 timestamp = 1;
+  string filename = 2;
+  Operation operation = 3;
+  string client_ip = 4;
+  string account = 5;
+  AuthInfo auth = 6;
+  AuthorizationInfo authorization = 7;
+  // Optional trace identifier for correlation
+  string trace_id = 8;
+}
+
+
