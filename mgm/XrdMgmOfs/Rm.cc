@@ -26,6 +26,8 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
+#include "proto/Audit.pb.h"
+#include <time.h>
 
 /*----------------------------------------------------------------------------*/
 int
@@ -482,6 +484,39 @@ XrdMgmOfs::_rem(const char* path,
   } else {
     eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u",
              doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
+    // Emit audit record for successful deletion
+    if (mAudit) {
+      eos::audit::AuditRecord rec;
+      rec.set_timestamp(time(nullptr));
+      rec.set_filename(path);
+      rec.set_operation(eos::audit::DELETE);
+      rec.set_client_ip(vid.host);
+      // Prefer named account, fallback to uid string
+      if (vid.name.length()) {
+        rec.set_account(vid.name.c_str());
+      } else if (!vid.uid_string.empty()) {
+        rec.set_account(vid.uid_string);
+      } else {
+        rec.set_account(std::to_string(vid.uid));
+      }
+      // Authentication information
+      rec.mutable_auth()->set_mechanism(vid.prot.length() ? vid.prot.c_str() : "local");
+      if (vid.gateway) {
+        (*rec.mutable_auth()->mutable_attributes())["gateway"] = "1";
+      }
+      // Authorization reason (coarse)
+      if (vid.token && vid.token->Valid()) {
+        rec.mutable_authorization()->add_reasons("token");
+      } else {
+        rec.mutable_authorization()->add_reasons("uidgid");
+      }
+      // Correlation identifiers and actors
+      rec.set_uuid(logId);
+      rec.set_tid(cident);
+      if (!vid.app.empty()) rec.set_app(vid.app);
+      rec.set_svc("mgm");
+      mAudit->audit(rec);
+    }
     return SFS_OK;
   }
 }
