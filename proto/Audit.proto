@@ -44,6 +44,8 @@ message AuditRecord {
   AuthorizationInfo authorization = 7;
   // Optional trace identifier for correlation
   string trace_id = 8;
+  // Optional target path for operations that involve a destination, e.g. rename/symlink
+  string target = 9;
 }
 
 
