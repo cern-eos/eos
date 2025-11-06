@@ -106,6 +106,7 @@
 #include "common/AssistedThread.hh"
 #include "common/XrdConnPool.hh"
 #include "common/MutexLatencyWatcher.hh"
+#include "common/Audit.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
@@ -2088,6 +2089,9 @@ public:
   std::unique_ptr<eos::common::CommentLog> mCommentLog;
   std::unique_ptr<eos::common::CommentLog> mFusexStackTraces;
   std::unique_ptr<eos::common::CommentLog> mFusexLogTraces;
+
+  //! Audit logger writing compressed JSON lines under /var/log/eos/audit
+  std::unique_ptr<eos::common::Audit> mAudit;
 
   //! Class tracking file creations for sanity
   std::unique_ptr<eos::mgm::ReplicationTracker> mReplicationTracker;
