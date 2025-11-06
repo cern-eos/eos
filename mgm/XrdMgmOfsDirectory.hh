@@ -135,7 +135,7 @@ public:
 
   typedef std::set<std::string> listing_t;
 
-  static eos::common::LRU::Cache<std::string, std::shared_ptr<listing_t>>
+  static eos::common::LRU::Cache<std::string, std::shared_ptr<listing_t>,std::mutex>
       dirCache;
 
 private:
