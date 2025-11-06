@@ -266,6 +266,10 @@ XrdMgmOfs::_remdir(const char* path,
       return Emsg(epname, error, errno, "rmdir", path);
     }
   } else {
+    // Emit audit record for successful directory deletion
+    if (mAudit) {
+      mAudit->audit(eos::audit::DELETE, path, vid, logId, cident, "mgm");
+    }
     return SFS_OK;
   }
 }

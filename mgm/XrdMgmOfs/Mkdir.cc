@@ -25,6 +25,7 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
+#include "proto/Audit.pb.h"
 
 //------------------------------------------------------------------------------
 /*
@@ -427,5 +428,9 @@ XrdMgmOfs::_mkdir(const char* path,
   }
 
   EXEC_TIMING_END("Mkdir");
+  // Emit audit record for successful directory creation
+  if (!errno && mAudit) {
+    mAudit->audit(eos::audit::CREATE, path, vid, logId, cident, "mgm");
+  }
   return SFS_OK;
 }
