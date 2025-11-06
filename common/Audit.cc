@@ -55,8 +55,8 @@ static inline std::string format_segment_filename(time_t t)
   struct tm tmval;
   localtime_r(&t, &tmval);
   char buf[64];
-  // audit-YYYYmmdd-HHMM.zst
-  if (strftime(buf, sizeof(buf), "audit-%Y%m%d-%H%M.zst", &tmval) == 0) {
+  // audit-YYYYmmdd-HHMMSS.zst (include seconds to support sub-minute rotations)
+  if (strftime(buf, sizeof(buf), "audit-%Y%m%d-%H%M%S.zst", &tmval) == 0) {
     return "audit-unknown.zst";
   }
   return buf;
