@@ -180,6 +180,44 @@ Audit::audit(const eos::audit::AuditRecord& record)
 }
 
 void
+Audit::audit(eos::audit::Operation operation,
+             const std::string& filename,
+             const eos::common::VirtualIdentity& vid,
+             const std::string& uuid,
+             const std::string& tid,
+             const std::string& svc,
+             const std::string& target)
+{
+  eos::audit::AuditRecord rec;
+  rec.set_timestamp(time(nullptr));
+  rec.set_filename(filename);
+  rec.set_operation(operation);
+  rec.set_client_ip(vid.host);
+  if (vid.name.length()) {
+    rec.set_account(vid.name.c_str());
+  } else if (!vid.uid_string.empty()) {
+    rec.set_account(vid.uid_string);
+  } else {
+    rec.set_account(std::to_string(vid.uid));
+  }
+  rec.mutable_auth()->set_mechanism(vid.prot.length() ? vid.prot.c_str() : "local");
+  if (vid.gateway) {
+    (*rec.mutable_auth()->mutable_attributes())["gateway"] = "1";
+  }
+  if (vid.token && vid.token->Valid()) {
+    rec.mutable_authorization()->add_reasons("token");
+  } else {
+    rec.mutable_authorization()->add_reasons("uidgid");
+  }
+  if (!uuid.empty()) rec.set_uuid(uuid);
+  if (!tid.empty()) rec.set_tid(tid);
+  if (!vid.app.empty()) rec.set_app(vid.app);
+  if (!svc.empty()) rec.set_svc(svc);
+  if (!target.empty()) rec.set_target(target);
+  audit(rec);
+}
+
+void
 Audit::rotateIfNeededLocked(time_t now)
 {
   const time_t seg = truncate_to_interval(now, mRotationSeconds);
