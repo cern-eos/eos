@@ -2450,6 +2450,14 @@ Parsing and Consumption
 
    zstdcat <logdir>/audit/audit.zstd | jq '.'
 
+**Follow audit logs across rotations (like `tail -F`):**
+
+.. code-block:: bash
+
+   zstdtail <logdir>/audit/audit.zstd
+   # Or with filtering:
+   zstdtail <logdir>/audit/audit.zstd -- jq 'select(.operation == "DELETE")'
+
 **Historical segments:**
 
 Each segment file contains standalone JSON records. Process line-by-line:
