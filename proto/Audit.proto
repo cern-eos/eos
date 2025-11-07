@@ -22,6 +22,7 @@ enum Operation {
   MKDIR = 13;        // directory creation
   RMDIR = 14;        // directory deletion
   RM_XATTR = 15;     // remove extended attribute
+  SYMLINK = 16;      // create symbolic link
 }
 
 message AuthInfo {
