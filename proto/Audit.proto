@@ -21,6 +21,7 @@ enum Operation {
   METADATA_UPDATE = 12;
   MKDIR = 13;        // directory creation
   RMDIR = 14;        // directory deletion
+  RM_XATTR = 15;     // remove extended attribute
 }
 
 message AuthInfo {
