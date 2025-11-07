@@ -2332,3 +2332,157 @@ verbose information you can change the log level:
 
    # switch back to info log level on the MGM
    eos debug info
+
+.. index::
+   pair: MGM; Audit Logging
+
+Audit Logging
+-------------
+
+.. index::
+   pair: Audit Logging; Overview
+
+Overview
+^^^^^^^^
+
+EOS implements structured audit logging for successful operations that modify the namespace or file metadata. Audit entries are encoded as JSON (one record per line), written directly into ZSTD-compressed log segments, and rotated every 5 minutes. A symlink ``audit.zstd`` always points to the current active segment.
+
+This audit logging provides comprehensive tracking of all namespace-affecting operations performed by identified users, enabling security monitoring, compliance reporting, and operational analysis.
+
+.. index::
+   pair: Audit Logging; Scope
+
+Scope: What gets logged
+^^^^^^^^^^^^^^^^^^^^^^^
+
+**Successful namespace-affecting operations by identified users:**
+
+- **Files**: CREATE, DELETE, RENAME/MOVE, TRUNCATE, WRITE (commit), UPDATE (open for write without create/truncate)
+- **Directories**: MKDIR, RMDIR, RENAME/MOVE
+- **Symlinks**: SYMLINK creation, DELETE
+- **Metadata**: CHMOD, CHOWN, SET_XATTR, RM_XATTR, SET_ACL
+
+**Excluded:** Failed attempts, internal non-human activities (e.g. purge/version housekeeping), and by default READ/LIST operations (can be enabled if needed despite volume).
+
+.. index::
+   pair: Audit Logging; Record Format
+
+Record Format
+^^^^^^^^^^^^^
+
+Each audit line is a JSON serialization of the ``eos.audit.AuditRecord`` protobuf. Key elements:
+
+**Common fields**
+
+- ``timestamp`` (int64): seconds since epoch (server time)
+- ``path`` (string): absolute path to object; directory paths end with '/'
+- ``operation`` (enum): CREATE, DELETE, RENAME, WRITE, TRUNCATE, SET_XATTR, RM_XATTR, SET_ACL, CHMOD, CHOWN, MKDIR, RMDIR, SYMLINK, UPDATE
+- ``client_ip``, ``account``
+- ``auth`` (mechanism string + attributes map)
+- ``authorization`` (reasons[])
+- ``trace_id`` (string): server trace id
+- ``target`` (string): for rename/symlink target path
+- ``uuid`` (string): client/session id
+- ``tid`` (string): client trace identifier
+- ``app`` (string): client application
+- ``svc`` (string): emitting service (e.g. "mgm")
+
+**State snapshots**
+
+- ``before`` / ``after`` (Stat): include ``ctime``, ``mtime``, ``uid``, ``gid``, ``mode``, ``mode_octal``, ``size``, ``checksum`` (files)
+- ``attrs`` (repeated AttrChange): ``{ name, before, after }`` for xattr changes
+
+**Nanosecond resolution times**
+
+- ``Stat.ctime_ns`` and ``Stat.mtime_ns`` provide full-resolution strings (e.g. ``1730985600.123456789``)
+
+**Source and version metadata**
+
+- ``software`` (string): source location and version in format ``filename:line@version``
+
+Example JSON record:
+
+.. code-block:: json
+
+   {
+     "timestamp": 1730985600,
+     "path": "/eos/user/a/alice/data/file.txt",
+     "operation": "WRITE",
+     "client_ip": "192.0.2.10",
+     "account": "alice",
+     "auth": { "mechanism": "krb5", "attributes": {"principal": "alice@EXAMPLE.ORG"} },
+     "authorization": { "reasons": ["uid-match"] },
+     "trace_id": "srv-abc123",
+     "uuid": "550e8400-e29b-41d4-a716-446655440000",
+     "tid": "cli-xyz789",
+     "app": "eoscp",
+     "svc": "mgm",
+     "before": { "ctime": 1730980000, "mtime": 1730981000, "uid": 1000, "gid": 1000, "mode": 420, "mode_octal": "0100644", "size": 1024, "checksum": "a1b2..." },
+     "after":  { "ctime": 1730980000, "mtime": 1730985600, "ctime_ns": "1730980000.000000000", "mtime_ns": "1730985600.123456789", "uid": 1000, "gid": 1000, "mode": 420, "mode_octal": "0100644", "size": 4096, "checksum": "dead..." },
+     "software": "Server.cc:2600@5.3.25"
+   }
+
+.. index::
+   pair: Audit Logging; Log Files
+
+Log Files and Location
+^^^^^^^^^^^^^^^^^^^^^^
+
+**Location**: ``<logdir>/audit/`` where ``logdir`` is derived from ``XRDLOGDIR`` (see ``mgm/XrdMgmOfsConfigure.cc``).
+
+- Directory is created on startup if missing; mode 0755; owned appropriately by the service user.
+- **Active segment symlink**: ``<logdir>/audit/audit.zstd`` points to the current segment file.
+- **Segments**: Files are ZSTD-compressed; rotated every 5 minutes.
+- **Filenames**: ``audit-YYYYMMDD-HHMMSS.zst`` (includes seconds for uniqueness)
+- **Symlink update**: Atomically updated on rotation to point to the new segment.
+
+The ``logdir`` is typically ``/var/log/eos/<servicename>/``, where ``<servicename>`` defaults to ``mgm`` but can be modified (e.g. ``mgm1``, ``mgm2``) to support multiple MGM instances.
+
+.. index::
+   pair: Audit Logging; Parsing
+
+Parsing and Consumption
+^^^^^^^^^^^^^^^^^^^^^^^
+
+**Stream current audit records:**
+
+.. code-block:: bash
+
+   zstdcat <logdir>/audit/audit.zstd | jq '.'
+
+**Historical segments:**
+
+Each segment file contains standalone JSON records. Process line-by-line:
+
+.. code-block:: bash
+
+   zstdcat <logdir>/audit/audit-20241106-164000.zst | jq 'select(.operation == "DELETE")'
+
+.. index::
+   pair: Audit Logging; Implementation
+
+Implementation Details
+^^^^^^^^^^^^^^^^^^^^^^
+
+- **Core components**: ``common/Audit.{hh,cc}`` - thread-safe ZSTD writer with rotation
+- **Protobuf schema**: ``proto/Audit.proto``
+- **MGM integration**: ``XrdMgmOfs`` class with ``mAudit`` member; initialized in ``XrdMgmOfsConfigure.cc``
+- **FUSE integration**: ``mgm/FuseServer/Server.cc`` for additional file operations
+
+**Integration points:**
+
+- **Core MGM operations**: Rm, Mkdir, Chmod, Chown, Attr, Link, Rename, XrdMgmOfsFile
+- **FUSE server operations**: OpSetFile, OpSetDirectory, OpDeleteFile, OpDeleteDirectory, OpSetLink
+
+.. index::
+   pair: Audit Logging; Notes
+
+Notes and Caveats
+^^^^^^^^^^^^^^^^^
+
+- Only successful operations are logged
+- Directory paths include trailing ``/`` for unambiguous parsing
+- Mode stored as integer and octal string for convenience
+- Audit writer flushes after each record for operational visibility
+- READ/LIST intentionally omitted by default due to volume
+- All timestamps use server time (seconds since epoch)
