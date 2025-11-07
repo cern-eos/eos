@@ -129,7 +129,7 @@ EOSCOMMONNAMESPACE_END
 
 #ifndef EOS_AUDIT
 #define EOS_AUDIT(auditPtr, ...) do { \
-  if ((auditPtr)) { (auditPtr)->audit(__VA_ARGS__, __FILE__, __LINE__, VERSION); } \
+  if ((auditPtr)) { (auditPtr)->audit(__VA_ARGS__, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION); } \
 } while(0)
 #endif
 
