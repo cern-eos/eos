@@ -71,10 +71,8 @@ message AuditRecord {
   Stat after = 15;
   // Attribute changes (if any)
   repeated AttrChange attrs = 16;
-  // Source location and version metadata
-  string src_file = 17;
-  uint32 src_line = 18;
-  string version = 19;
+  // Source location and version metadata (format: "filename:line@version")
+  string software = 17;
 }
 
 // Basic stat-like information

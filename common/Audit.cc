@@ -234,10 +234,15 @@ Audit::audit(eos::audit::Operation operation,
   }
   if (src_file && *src_file) {
     const char* basename = strrchr(src_file, '/') ? strrchr(src_file, '/') + 1 : src_file;
-    rec.set_src_file(basename);
+    std::string software = basename;
+    if (src_line > 0) {
+      software += ":" + std::to_string(src_line);
+    }
+    if (version && *version) {
+      software += "@" + std::string(version);
+    }
+    rec.set_software(software);
   }
-  if (src_line > 0) rec.set_src_line(static_cast<uint32_t>(src_line));
-  if (version && *version) rec.set_version(version);
   audit(rec);
 }
 
