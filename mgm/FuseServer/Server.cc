@@ -48,6 +48,8 @@
 #include <string>
 #include <cstdlib>
 #include <thread>
+#include "proto/Audit.pb.h"
+#include "namespace/utils/Checksum.hh"
 
 USE_EOSMGMNAMESPACE
 
@@ -1713,8 +1715,28 @@ Server::OpSetDirectory(const std::string& id,
     }
 
     gOFS->eosDirectoryService->updateStore(cmd.get());
-    // release the namespace lock before seralization/broadcasting
+    // release the namespace lock before serialization/broadcasting
     lock.Release();
+    // Audit directory creation
+    if (gOFS->mAudit) {
+      std::string path = gOFS->eosView->getUri(cmd.get());
+      if (!path.empty() && path.back() != '/') path.push_back('/');
+      eos::audit::Stat afterStat;
+      eos::IContainerMD::ctime_t cts, mts;
+      cmd->getCTime(cts);
+      cmd->getMTime(mts);
+      afterStat.set_ctime(cts.tv_sec);
+      afterStat.set_mtime(mts.tv_sec);
+      afterStat.set_uid(cmd->getCUid());
+      afterStat.set_gid(cmd->getCGid());
+      uint32_t am = (cmd->getMode() & 07777);
+      afterStat.set_mode(am);
+      char amo[8];
+      snprintf(amo, sizeof(amo), "0%04o", am);
+      afterStat.set_mode_octal(amo);
+      gOFS->mAudit->audit(eos::audit::MKDIR, path, vid, logId, cident, "mgm",
+                          std::string(), nullptr, &afterStat);
+    }
     eos::fusex::response resp;
     resp.set_type(resp.ACK);
     resp.mutable_ack_()->set_code(resp.ack_().OK);
@@ -1865,6 +1887,20 @@ Server::OpSetFile(const std::string& id,
                                       fmd->getName().c_str(),
                                       md.name().c_str());
 
+      // Capture before stat
+      eos::audit::Stat beforeStat;
+      {
+        eos::IFileMD::ctime_t cts, mts;
+        fmd->getCTime(cts);
+        fmd->getMTime(mts);
+        beforeStat.set_ctime(cts.tv_sec);
+        beforeStat.set_mtime(mts.tv_sec);
+        beforeStat.set_size(fmd->getSize());
+        std::string hex;
+        eos::appendChecksumOnStringAsHex(fmd.get(), hex);
+        if (!hex.empty()) beforeStat.set_checksum(hex);
+      }
+
       if (fmd->getContainerId() != md.md_pino()) {
         recycleOrVersioned = CheckRecycleBinOrVersion(fmd);
       }
@@ -1987,6 +2023,23 @@ Server::OpSetFile(const std::string& id,
           gOFS->eosView->updateContainerStore(cpcmd.get());
           gOFS->eosView->updateFileStore(fmd.get());
           gOFS->eosView->updateContainerStore(pcmd.get());
+
+          // Audit rename/move
+          if (gOFS->mAudit) {
+            std::string newPath = gOFS->eosView->getUri(fmd.get());
+            eos::audit::Stat afterStat;
+            eos::IFileMD::ctime_t cts2, mts2;
+            fmd->getCTime(cts2);
+            fmd->getMTime(mts2);
+            afterStat.set_ctime(cts2.tv_sec);
+            afterStat.set_mtime(mts2.tv_sec);
+            afterStat.set_size(fmd->getSize());
+            std::string hex2;
+            eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
+            if (!hex2.empty()) afterStat.set_checksum(hex2);
+            gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, logId, cident, "mgm",
+                                oldname);
+          }
 
           if (hasVersion) {
             eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
@@ -2259,7 +2312,13 @@ Server::OpSetFile(const std::string& id,
 
       pcmd->addFile(gmd.get());
       gOFS->eosFileService->updateStore(gmd.get());
-      gOFS->eosView->updateContainerStore(pcmd.get());
+            gOFS->eosView->updateContainerStore(pcmd.get());
+            // Audit rename
+            if (gOFS->mAudit) {
+              std::string newPath = gOFS->eosView->getUri(fmd.get());
+              gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, logId, cident, "mgm",
+                                  oldname);
+            }
       eos::fusex::response resp;
       resp.set_type(resp.ACK);
       resp.mutable_ack_()->set_code(resp.ack_().OK);
