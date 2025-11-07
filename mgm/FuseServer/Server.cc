@@ -1736,6 +1736,10 @@ Server::OpSetDirectory(const std::string& id,
         if (oit == oldDirAttrs.end() || oit->second != kv.second) {
           gOFS->mAudit->audit(eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
                               std::string(), nullptr, nullptr, an, before, kv.second);
+          if (an == "sys.acl" || an == "user.acl") {
+            gOFS->mAudit->audit(eos::audit::SET_ACL, path, vid, logId, cident, "mgm",
+                                std::string(), nullptr, nullptr, an, before, kv.second);
+          }
         }
       }
       // RM_XATTR for removed attrs
@@ -2609,6 +2613,10 @@ Server::OpSetFile(const std::string& id,
           if (oit == oldFileAttrs.end() || oit->second != kv.second) {
             gOFS->mAudit->audit(eos::audit::SET_XATTR, filePath, vid, logId, cident, "mgm",
                                 std::string(), nullptr, nullptr, an, before, kv.second);
+            if (an == "sys.acl" || an == "user.acl") {
+              gOFS->mAudit->audit(eos::audit::SET_ACL, filePath, vid, logId, cident, "mgm",
+                                  std::string(), nullptr, nullptr, an, before, kv.second);
+            }
           }
         }
         for (const auto& okv : oldFileAttrs) {
