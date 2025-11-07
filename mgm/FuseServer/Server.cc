@@ -1889,6 +1889,9 @@ Server::OpSetFile(const std::string& id,
 
       // Capture before stat
       eos::audit::Stat beforeStat;
+      uint32_t oldMode = 0;
+      uid_t oldUid = 0;
+      gid_t oldGid = 0;
       {
         eos::IFileMD::ctime_t cts, mts;
         fmd->getCTime(cts);
@@ -1899,6 +1902,9 @@ Server::OpSetFile(const std::string& id,
         std::string hex;
         eos::appendChecksumOnStringAsHex(fmd.get(), hex);
         if (!hex.empty()) beforeStat.set_checksum(hex);
+        oldMode = (fmd->getFlags() & 07777);
+        oldUid = fmd->getCUid();
+        oldGid = fmd->getCGid();
       }
 
       if (fmd->getContainerId() != md.md_pino()) {
@@ -2560,6 +2566,17 @@ Server::OpSetFile(const std::string& id,
       } else if (op == UPDATE) {
         gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, logId, cident, "mgm",
                             std::string(), &beforeStat, &afterStat);
+
+        // Emit CHMOD/CHOWN if mode/owner changed
+        uint32_t newMode = (fmd->getFlags() & 07777);
+        if (newMode != oldMode) {
+          gOFS->mAudit->audit(eos::audit::CHMOD, filePath, vid, logId, cident, "mgm",
+                              std::string(), &beforeStat, &afterStat);
+        }
+        if (fmd->getCUid() != oldUid || fmd->getCGid() != oldGid) {
+          gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, logId, cident, "mgm",
+                              std::string(), &beforeStat, &afterStat);
+        }
       }
     }
 
