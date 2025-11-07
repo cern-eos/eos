@@ -183,7 +183,11 @@ XrdMgmOfs::_chmod(const char* path,
       beforeStat.set_mtime(mts.tv_sec);
       beforeStat.set_uid(cmd->getCUid());
       beforeStat.set_gid(cmd->getCGid());
-      beforeStat.set_mode(cmd->getMode() & 07777);
+      uint32_t m = (cmd->getMode() & 07777);
+      beforeStat.set_mode(m);
+      char mo[8];
+      snprintf(mo, sizeof(mo), "0%04o", m);
+      beforeStat.set_mode_octal(mo);
     }
             Mode &= mask;
             cmd->setMode(Mode | S_IFDIR);
@@ -197,9 +201,13 @@ XrdMgmOfs::_chmod(const char* path,
     afterStat.set_mtime(time(nullptr));
     afterStat.set_uid(cmd->getCUid());
     afterStat.set_gid(cmd->getCGid());
-    afterStat.set_mode((Mode | S_IFDIR) & 07777);
+    uint32_t am = ((Mode | S_IFDIR) & 07777);
+    afterStat.set_mode(am);
+    char amo[8];
+    snprintf(amo, sizeof(amo), "0%04o", am);
+    afterStat.set_mode_octal(amo);
     if (mAudit) {
-      mAudit->audit(eos::audit::CHMOD, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
+      EOS_AUDIT(mAudit, eos::audit::CHMOD, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
     }
           }
 
@@ -213,7 +221,11 @@ XrdMgmOfs::_chmod(const char* path,
       beforeStat.set_mtime(mts.tv_sec);
       beforeStat.set_uid(fmd->getCUid());
       beforeStat.set_gid(fmd->getCGid());
-      beforeStat.set_mode(fmd->getFlags() & 07777);
+      uint32_t m = (fmd->getFlags() & 07777);
+      beforeStat.set_mode(m);
+      char mo[8];
+      snprintf(mo, sizeof(mo), "0%04o", m);
+      beforeStat.set_mode_octal(mo);
     }
             // we just store 9 bits in flags
             Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
@@ -225,9 +237,13 @@ XrdMgmOfs::_chmod(const char* path,
     afterStat.set_mtime(time(nullptr));
     afterStat.set_uid(fmd->getCUid());
     afterStat.set_gid(fmd->getCGid());
-    afterStat.set_mode(Mode & 07777);
+    uint32_t am = (Mode & 07777);
+    afterStat.set_mode(am);
+    char amo[8];
+    snprintf(amo, sizeof(amo), "0%04o", am);
+    afterStat.set_mode_octal(amo);
     if (mAudit) {
-      mAudit->audit(eos::audit::CHMOD, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
+      EOS_AUDIT(mAudit, eos::audit::CHMOD, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
     }
           }
 

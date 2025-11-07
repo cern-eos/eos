@@ -38,6 +38,13 @@ Each audit line is a JSON serialization of the `eos.audit.AuditRecord` protobuf 
   - `before` / `after` (Stat): include `ctime`, `mtime`, `uid`, `gid`, `mode` (uint32), `mode_octal` (string), `size` (uint64), `checksum` (hex string for files)
   - `attrs` (repeated AttrChange): `{ name, before, after }` for xattr changes (non-system attributes)
 
+- **Nanosecond resolution times**
+  - `Stat.ctime_ns` and `Stat.mtime_ns` provide full-resolution strings in the form `seconds.nanoseconds` (e.g. `1730985600.123456789`).
+
+- **Source and version metadata**
+  - `src_file`, `src_line`: source file and line where the audit call originated
+  - `version`: software version used when emitting the record
+
 Example JSON line (pretty-printed for readability):
 
 ```json
@@ -55,7 +62,10 @@ Example JSON line (pretty-printed for readability):
   "app": "eoscp",
   "svc": "mgm",
   "before": { "ctime": 1730980000, "mtime": 1730981000, "uid": 1000, "gid": 1000, "mode": 420, "mode_octal": "0100644", "size": 1024, "checksum": "a1b2..." },
-  "after":  { "ctime": 1730980000, "mtime": 1730985600, "uid": 1000, "gid": 1000, "mode": 420, "mode_octal": "0100644", "size": 4096, "checksum": "dead..." }
+  "after":  { "ctime": 1730980000, "mtime": 1730985600, "ctime_ns": "1730980000.000000000", "mtime_ns": "1730985600.123456789", "uid": 1000, "gid": 1000, "mode": 420, "mode_octal": "0100644", "size": 4096, "checksum": "dead..." },
+  "src_file": "mgm/FuseServer/Server.cc",
+  "src_line": 2600,
+  "version": "<eos-version>"
 }
 ```
 

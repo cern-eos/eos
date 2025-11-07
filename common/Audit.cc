@@ -191,7 +191,10 @@ Audit::audit(eos::audit::Operation operation,
              const eos::audit::Stat* after,
              const std::string& attr_name,
              const std::string& attr_before,
-             const std::string& attr_after)
+             const std::string& attr_after,
+             const char* src_file,
+             int src_line,
+             const char* version)
 {
   eos::audit::AuditRecord rec;
   rec.set_timestamp(time(nullptr));
@@ -229,6 +232,9 @@ Audit::audit(eos::audit::Operation operation,
     ac->set_before(attr_before);
     ac->set_after(attr_after);
   }
+  if (src_file && *src_file) rec.set_src_file(src_file);
+  if (src_line > 0) rec.set_src_line(static_cast<uint32_t>(src_line));
+  if (version && *version) rec.set_version(version);
   audit(rec);
 }
 

@@ -71,6 +71,10 @@ message AuditRecord {
   Stat after = 15;
   // Attribute changes (if any)
   repeated AttrChange attrs = 16;
+  // Source location and version metadata
+  string src_file = 17;
+  uint32 src_line = 18;
+  string version = 19;
 }
 
 // Basic stat-like information
@@ -83,6 +87,9 @@ message Stat {
   string mode_octal = 6; // e.g. "0755"
   uint64 size = 7; // bytes
   string checksum = 8; // hex encoded checksum
+  // Seconds.nanoseconds string representation for full resolution
+  string ctime_ns = 9;
+  string mtime_ns = 10;
 }
 
 
