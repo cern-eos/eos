@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# zstdtail: follow a .zst file across rotations (like tail -F for zstd)
+# Usage: zstdtail /path/to/file-or-symlink.zst [-- jq '.foo']
+set -euo pipefail
+
+LINK="${1:?usage: zstdtail <file-or-symlink.zst> [-- <downstream-cmd...>]}"
+shift || true
+
+# Optional downstream command after decompression (default: cat)
+if [[ "${1:-}" == "--" ]]; then
+  shift
+  downstream=( "$@" )
+else
+  downstream=( cat )
+fi
+
+last_dev_inode=""
+
+resolve_target() {
+  # Resolve to a real file; if already a real file, just echo it.
+  readlink -f -- "$LINK" 2>/dev/null || echo "$LINK"
+}
+
+stat_dev_inode() {
+  # device:inode pair uniquely identifies a file even if the path is reused
+  stat -Lc '%d:%i' -- "$1" 2>/dev/null || true
+}
+
+wait_for_change() {
+  dir=$(dirname -- "$LINK")
+  if command -v inotifywait >/dev/null 2>&1; then
+    inotifywait -q -e move,create,delete,attrib,close_write "$dir" >/dev/null || true
+  else
+    sleep 1
+  fi
+}
+
+while :; do
+  tgt="$(resolve_target)"
+  if [[ ! -e "$tgt" ]]; then
+    wait_for_change
+    continue
+  fi
+
+  dev_inode="$(stat_dev_inode "$tgt")"
+  if [[ -n "$last_dev_inode" && "$dev_inode" != "$last_dev_inode" ]]; then
+    echo "== rotation detected: $tgt ==" >&2
+  fi
+  last_dev_inode="$dev_inode"
+
+  # Stream until EOF; if writer is appending, this blocks until close.
+  # On EOF or error, loop will re-resolve and continue.
+  if ! zstdcat -- "$tgt" | "${downstream[@]}"; then
+    # Allow quick retry on transient errors
+    sleep 0.2
+  fi
+
+  # If the target file is unchanged and still exists, wait for a change
+  # before re-reading to avoid tight loops.
+  new_tgt="$(resolve_target)"
+  new_dev_inode="$(stat_dev_inode "$new_tgt")"
+  if [[ "$new_dev_inode" == "$dev_inode" ]]; then
+    wait_for_change
+  fi
+done
