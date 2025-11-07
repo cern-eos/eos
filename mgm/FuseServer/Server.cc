@@ -1885,6 +1885,11 @@ Server::OpSetFile(const std::string& id,
   try {
     uint64_t clock = 0;
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+    // For UPDATE auditing across the function
+    eos::audit::Stat beforeStat;
+    uint32_t oldMode = 0;
+    uid_t oldUid = 0;
+    gid_t oldGid = 0;
 
     if (md_ino && exclusive) {
       return EEXIST;
@@ -1907,10 +1912,6 @@ Server::OpSetFile(const std::string& id,
                                       md.name().c_str());
 
       // Capture before stat
-      eos::audit::Stat beforeStat;
-      uint32_t oldMode = 0;
-      uid_t oldUid = 0;
-      gid_t oldGid = 0;
       {
         eos::IFileMD::ctime_t cts, mts;
         fmd->getCTime(cts);
