@@ -128,14 +128,12 @@ EOSCOMMONNAMESPACE_END
 #endif
 
 #ifndef EOS_AUDIT
-// Use when the call site does NOT pass attr_name/attr_before/attr_after
 #define EOS_AUDIT(auditPtr, ...) do { \
-  if ((auditPtr)) { (auditPtr)->audit(__VA_ARGS__, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION); } \
+  if ((auditPtr)) { (auditPtr)->audit(__VA_ARGS__, __FILE__, __LINE__, VERSION); } \
 } while(0)
 #endif
 
 #ifndef EOS_AUDIT_SRC
-// Use when the call site ALREADY passes attr_name/attr_before/attr_after
 #define EOS_AUDIT_SRC(auditPtr, ...) do { \
   if ((auditPtr)) { (auditPtr)->audit(__VA_ARGS__, __FILE__, __LINE__, VERSION); } \
 } while(0)
