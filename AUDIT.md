@@ -119,10 +119,18 @@ Example JSON line (pretty-printed for readability):
 
 ### Parsing and tooling
 
-- Stream audit records:
+- Stream current audit records:
 
 ```bash
 zstdcat <logdir>/audit/audit.zstd | jq '.'
+```
+
+- Follow audit logs across rotations (like `tail -F`):
+
+```bash
+zstdtail <logdir>/audit/audit.zstd
+# Or with filtering:
+zstdtail <logdir>/audit/audit.zstd -- jq 'select(.operation == "DELETE")'
 ```
 
 - Historical segments are named `audit-YYYYMMDD-HHMMSS.zst`. Each line is a standalone JSON record; consumers can ingest line-by-line.
