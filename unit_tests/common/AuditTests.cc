@@ -139,7 +139,7 @@ TEST(Audit, BenchmarkWrite10000)
   // Use a long rotation to avoid rotation overhead in benchmark
   Audit audit(dir, /*rotationSeconds*/3600, /*compressionLevel*/1);
 
-  const int N = 10000;
+  const int N = 100000;
   eos::audit::AuditRecord rec;
   rec.set_timestamp(::time(nullptr));
   rec.set_path("/eos/bench/file");
