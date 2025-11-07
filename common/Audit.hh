@@ -127,18 +127,6 @@ EOSCOMMONNAMESPACE_END
 #define VERSION "unknown"
 #endif
 
-#ifndef EOS_AUDIT
-#define EOS_AUDIT(auditPtr, ...) do { \
-  if ((auditPtr)) { (auditPtr)->audit(__VA_ARGS__, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION); } \
-} while(0)
-#endif
-
-#ifndef EOS_AUDIT_SRC
-#define EOS_AUDIT_SRC(auditPtr, ...) do { \
-  if ((auditPtr)) { (auditPtr)->audit(__VA_ARGS__, __FILE__, __LINE__, VERSION); } \
-} while(0)
-#endif
-
 #endif
 
 

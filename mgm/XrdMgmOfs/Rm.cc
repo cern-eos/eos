@@ -486,7 +486,7 @@ XrdMgmOfs::_rem(const char* path,
              doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
     // Emit audit record for successful deletion
     if (mAudit) {
-      EOS_AUDIT(mAudit, eos::audit::DELETE, path, vid, std::string(logId), std::string(cident), "mgm");
+      mAudit->audit(eos::audit::DELETE, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
     }
     return SFS_OK;
   }

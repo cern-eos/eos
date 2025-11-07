@@ -832,7 +832,7 @@ XrdMgmOfs::_rename(const char* old_name,
       if (!newPath.empty() && newPath.back() != '/') newPath.push_back('/');
       if (!oldPath.empty() && oldPath.back() != '/') oldPath.push_back('/');
     }
-    EOS_AUDIT(mAudit, eos::audit::RENAME, newPath, vid, std::string(logId), std::string(cident), "mgm", oldPath);
+    if (mAudit) mAudit->audit(eos::audit::RENAME, newPath, vid, std::string(logId), std::string(cident), "mgm", oldPath, nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
   }
   return SFS_OK;
 }
@@ -1107,7 +1107,7 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
   if (mAudit) {
     std::string newPath = nPath.GetFullPath().c_str();
     std::string oldPath = oPath.GetFullPath().c_str();
-    EOS_AUDIT(mAudit, eos::audit::RENAME, newPath, vid, std::string(logId), std::string(cident), "mgm", oldPath);
+    if (mAudit) mAudit->audit(eos::audit::RENAME, newPath, vid, std::string(logId), std::string(cident), "mgm", oldPath, nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
   }
   return SFS_OK;
 }
