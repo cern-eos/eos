@@ -346,11 +346,11 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
     }
     // Emit audit for attribute set
     if (mAudit) {
-      EOS_AUDIT(mAudit, eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
-                    std::string(), nullptr, nullptr, skey, prev_value, new_value);
+      mAudit->audit(eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+                    std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__, __LINE__, VERSION);
       if (skey == "sys.acl" || skey == "user.acl") {
-        EOS_AUDIT(mAudit, eos::audit::SET_ACL, path, vid, std::string(logId), std::string(cident), "mgm",
-                      std::string(), nullptr, nullptr, skey, prev_value, new_value);
+        mAudit->audit(eos::audit::SET_ACL, path, vid, std::string(logId), std::string(cident), "mgm",
+                      std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__, __LINE__, VERSION);
       }
     }
   } catch (eos::MDException& e) {
@@ -523,8 +523,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           gOFS->FuseXCastRefresh(f_id, d_id);
           errno = 0;
           if (mAudit) {
-            EOS_AUDIT(mAudit, eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
-                          std::string(), nullptr, nullptr, skey, prev, std::string());
+            if (mAudit) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+                          std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__, VERSION);
           }
         }
       }
@@ -555,8 +555,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           gOFS->FuseXCastRefresh(d_id, d_pid);
           errno = 0;
           if (mAudit) {
-            EOS_AUDIT(mAudit, eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
-                          std::string(), nullptr, nullptr, skey, prev, std::string());
+            if (mAudit) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+                          std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__, VERSION);
           }
         }
       }

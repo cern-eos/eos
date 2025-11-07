@@ -432,7 +432,7 @@ XrdMgmOfs::_mkdir(const char* path,
   if (!errno && mAudit) {
     std::string apath = path ? path : "";
     if (!apath.empty() && apath.back() != '/') apath.push_back('/');
-    EOS_AUDIT(mAudit, eos::audit::MKDIR, apath, vid, std::string(logId), std::string(cident), "mgm");
+    mAudit->audit(eos::audit::MKDIR, apath, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
   }
   return SFS_OK;
 }
