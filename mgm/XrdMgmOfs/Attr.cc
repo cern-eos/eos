@@ -348,6 +348,10 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
     if (mAudit) {
       mAudit->audit(eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
                     std::string(), nullptr, nullptr, skey, prev_value, new_value);
+      if (skey == "sys.acl" || skey == "user.acl") {
+        mAudit->audit(eos::audit::SET_ACL, path, vid, logId, cident, "mgm",
+                      std::string(), nullptr, nullptr, skey, prev_value, new_value);
+      }
     }
   } catch (eos::MDException& e) {
     errno = e.getErrno();
