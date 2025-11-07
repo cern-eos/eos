@@ -251,6 +251,10 @@ XrdMgmOfs::_symlink(const char* source_name,
   }
 
   EXEC_TIMING_END("SymLink");
+  // Audit symlink creation (source_name is the link path, target_name is the target)
+  if (mAudit) {
+    mAudit->audit(eos::audit::SYMLINK, source_name, vid, logId, cident, "mgm", target_name);
+  }
   return SFS_OK;
 }
 
