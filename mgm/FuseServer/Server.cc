@@ -1573,7 +1573,7 @@ Server::OpSetDirectory(const std::string& id,
         gOFS->eosView->updateContainerStore(pcmd.get());
       }
 
-      if (cmd->getName() != md.name()) {
+    if (cmd->getName() != md.name()) {
         // this indicates a directory rename
         op = RENAME;
         eos_info("msg=\"rename\" from=\"%s\" to=\"%s\"", cmd->getName().c_str(),
@@ -1674,6 +1674,12 @@ Server::OpSetDirectory(const std::string& id,
     // propagate mtime changes
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
 
+    // Snapshot old attributes for xattr audit on UPDATE
+    eos::IContainerMD::XAttrMap oldDirAttrs;
+    if (op != CREATE) {
+      oldDirAttrs = cmd->getAttributes();
+    }
+
     for (auto it = md.attr().begin(); it != md.attr().end(); ++it) {
       if ((it->first.substr(0, 3) != "sys") ||
           (it->first == "sys.eos.btime")) {
@@ -1717,6 +1723,31 @@ Server::OpSetDirectory(const std::string& id,
     gOFS->eosDirectoryService->updateStore(cmd.get());
     // release the namespace lock before serialization/broadcasting
     lock.Release();
+    // Audit xattr changes on directories (UPDATE only)
+    if (gOFS->mAudit && op == UPDATE) {
+      std::string path = gOFS->eosView->getUri(cmd.get());
+      if (!path.empty() && path.back() != '/') path.push_back('/');
+      // SET_XATTR for added/changed attrs
+      for (const auto& kv : md.attr()) {
+        const std::string& an = kv.first;
+        if (an.size() >= 3 && an.substr(0, 3) == "sys" && an != "sys.eos.btime") continue;
+        auto oit = oldDirAttrs.find(an);
+        std::string before = (oit == oldDirAttrs.end()) ? std::string() : oit->second;
+        if (oit == oldDirAttrs.end() || oit->second != kv.second) {
+          gOFS->mAudit->audit(eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
+                              std::string(), nullptr, nullptr, an, before, kv.second);
+        }
+      }
+      // RM_XATTR for removed attrs
+      for (const auto& okv : oldDirAttrs) {
+        const std::string& an = okv.first;
+        if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
+        if (md.attr().find(an) == md.attr().end()) {
+          gOFS->mAudit->audit(eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
+                              std::string(), nullptr, nullptr, an, okv.second, std::string());
+        }
+      }
+    }
     // Audit directory creation
     if (gOFS->mAudit) {
       std::string path = gOFS->eosView->getUri(cmd.get());
@@ -1808,19 +1839,7 @@ Server::OpSetDirectory(const std::string& id,
 //------------------------------------------------------------------------------
 
 /*----------------------------------------------------------------------------*/
-bool
-Server::CheckRecycleBinOrVersion(std::shared_ptr<eos::IFileMD> fmd)
-{
-  std::string path = gOFS->eosView->getUri(fmd.get());
-  return (Recycle::InRecycleBin(path) || eos::common::Path::IsVersion(path));
-}
 
-
-//------------------------------------------------------------------------------
-// Server a meta-data SET operation
-//------------------------------------------------------------------------------
-
-/*----------------------------------------------------------------------------*/
 int
 Server::OpSetFile(const std::string& id,
                   const eos::fusex::md& md,
@@ -2521,6 +2540,8 @@ Server::OpSetFile(const std::string& id,
     fmd->setCTime(ctime);
     fmd->setMTime(mtime);
     fmd->setATime(atime);
+    // Snapshot old file attributes for xattr audit on UPDATE
+    eos::IFileMD::XAttrMap oldFileAttrs = fmd->getAttributes();
     replaceNonSysAttributes(fmd, md);
     struct timespec pt_mtime;
 
@@ -2576,6 +2597,26 @@ Server::OpSetFile(const std::string& id,
         if (fmd->getCUid() != oldUid || fmd->getCGid() != oldGid) {
           gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, logId, cident, "mgm",
                               std::string(), &beforeStat, &afterStat);
+        }
+
+        // Emit SET_XATTR / RM_XATTR for file xattr changes
+        for (const auto& kv : md.attr()) {
+          const std::string& an = kv.first;
+          if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
+          auto oit = oldFileAttrs.find(an);
+          std::string before = (oit == oldFileAttrs.end()) ? std::string() : oit->second;
+          if (oit == oldFileAttrs.end() || oit->second != kv.second) {
+            gOFS->mAudit->audit(eos::audit::SET_XATTR, filePath, vid, logId, cident, "mgm",
+                                std::string(), nullptr, nullptr, an, before, kv.second);
+          }
+        }
+        for (const auto& okv : oldFileAttrs) {
+          const std::string& an = okv.first;
+          if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
+          if (md.attr().find(an) == md.attr().end()) {
+            gOFS->mAudit->audit(eos::audit::RM_XATTR, filePath, vid, logId, cident, "mgm",
+                                std::string(), nullptr, nullptr, an, okv.second, std::string());
+          }
         }
       }
     }
@@ -2925,6 +2966,28 @@ Server::OpSetLink(const std::string& id,
     uint64_t bclock = 0;
 
     Cap().BroadcastMD(md, md_ino, md_pino, bclock, pt_mtime);
+
+    // release the namespace lock before serialization/broadcasting
+    lock.Release();
+
+    // Audit SYMLINK creation (OpSetLink create)
+    if (gOFS->mAudit && op == CREATE) {
+      std::string linkPath = gOFS->eosView->getUri(fmd.get());
+      eos::audit::Stat afterStat;
+      eos::IFileMD::ctime_t cts2, mts2;
+      fmd->getCTime(cts2);
+      fmd->getMTime(mts2);
+      afterStat.set_ctime(cts2.tv_sec);
+      afterStat.set_mtime(mts2.tv_sec);
+      afterStat.set_size(fmd->getSize());
+      uint32_t am = (fmd->getFlags() & 07777);
+      afterStat.set_mode(am);
+      char amo[8];
+      snprintf(amo, sizeof(amo), "0%04o", am);
+      afterStat.set_mode_octal(amo);
+      gOFS->mAudit->audit(eos::audit::SYMLINK, linkPath, vid, logId, cident, "mgm",
+                          md.target());
+    }
   } catch (eos::MDException& e) {
     eos_err("ino=%lx err-no=%d msg=\"%s\"", (long) md.md_ino(),
             e.getErrno(),
@@ -3254,13 +3317,13 @@ Server::OpDeleteFile(const std::string& id,
           snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", tgt_md_ino);
           std::string tmpName = nameBuf;
           fmd->setAttribute(k_nlink, std::to_string(nlink));
-          eos_info("msg=\"hlnk unlink rename\" old=\"%s\" new=\"%s\" nlink=%d",
+          eos_info("hlnk unlink rename %s=>%s new nlink %d",
                    fmd->getName().c_str(), tmpName.c_str(), nlink);
           pcmd->removeFile(tmpName);            // if the target exists, remove it!
           gOFS->eosView->renameFile(fmd.get(), tmpName);
           doDelete = false;
         } else {
-          eos_info("msg=\"hlnk will be deleted\" nlink=%ld target=\"%s\"",
+          eos_info("hlnk nlink %ld for %s, will be deleted",
                    nlink, fmd->getName().c_str());
         }
       }
