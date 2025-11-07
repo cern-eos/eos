@@ -56,6 +56,19 @@ message AuditRecord {
   string app = 12;
   // Acting EOS service, e.g. mgm, fst, gateway
   string svc = 13;
+  // State before operation for existing entries
+  Stat before = 14;
+  // State after operation (if still exists)
+  Stat after = 15;
+}
+
+// Basic stat-like information
+message Stat {
+  int64 ctime = 1; // seconds since epoch
+  int64 mtime = 2; // seconds since epoch
+  uint32 uid = 3;
+  uint32 gid = 4;
+  uint32 mode = 5; // unix mode bits
 }
 
 

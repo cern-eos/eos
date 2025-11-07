@@ -102,7 +102,7 @@ TEST(Audit, BasicWriteRotateAndSymlink)
   auto files1 = listZst(dir);
   ASSERT_GE(files1.size(), 1u);
 
-  std::string linkPath = dir + "/audit.log";
+  std::string linkPath = dir + "/audit.zstd";
   struct stat st{};
   ASSERT_EQ(::lstat(linkPath.c_str(), &st), 0);
   ASSERT_TRUE(S_ISLNK(st.st_mode));

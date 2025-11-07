@@ -186,7 +186,9 @@ Audit::audit(eos::audit::Operation operation,
              const std::string& uuid,
              const std::string& tid,
              const std::string& svc,
-             const std::string& target)
+             const std::string& target,
+             const eos::audit::Stat* before,
+             const eos::audit::Stat* after)
 {
   eos::audit::AuditRecord rec;
   rec.set_timestamp(time(nullptr));
@@ -214,6 +216,8 @@ Audit::audit(eos::audit::Operation operation,
   if (!vid.app.empty()) rec.set_app(vid.app);
   if (!svc.empty()) rec.set_svc(svc);
   if (!target.empty()) rec.set_target(target);
+  if (before) rec.mutable_before()->CopyFrom(*before);
+  if (after) rec.mutable_after()->CopyFrom(*after);
   audit(rec);
 }
 
@@ -278,8 +282,8 @@ Audit::openWriterLocked(time_t segmentStart)
     }
   }
 
-  // Update symlink audit.log -> current file (best-effort)
-  std::string linkPath = mBaseDir + "/audit.log";
+  // Update symlink audit.zstd -> current file (best-effort)
+  std::string linkPath = mBaseDir + "/audit.zstd";
   (void)::unlink(linkPath.c_str());
   (void)::symlink(filename.c_str(), linkPath.c_str());
 

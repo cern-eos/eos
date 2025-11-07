@@ -94,7 +94,9 @@ public:
              const std::string& uuid,
              const std::string& tid,
              const std::string& svc,
-             const std::string& target = std::string());
+             const std::string& target = std::string(),
+             const eos::audit::Stat* before = nullptr,
+             const eos::audit::Stat* after = nullptr);
 
 private:
   void rotateIfNeededLocked(time_t now);
