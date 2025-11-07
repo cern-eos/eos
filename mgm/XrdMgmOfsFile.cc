@@ -1459,6 +1459,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1, vid.app);
+        // Emit UPDATE audit for opening existing file for update (non-create, non-truncate)
+        if (gOFS->mAudit) {
+          gOFS->mAudit->audit(eos::audit::UPDATE, path, vid, logId, cident, "mgm");
+        }
       }
     }
 

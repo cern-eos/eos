@@ -23,6 +23,7 @@ enum Operation {
   RMDIR = 14;        // directory deletion
   RM_XATTR = 15;     // remove extended attribute
   SYMLINK = 16;      // create symbolic link
+  UPDATE = 17;       // open file for update (write on existing)
 }
 
 message AuthInfo {
