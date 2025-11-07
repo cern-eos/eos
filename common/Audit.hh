@@ -99,7 +99,10 @@ public:
              const eos::audit::Stat* after = nullptr,
              const std::string& attr_name = std::string(),
              const std::string& attr_before = std::string(),
-             const std::string& attr_after = std::string());
+             const std::string& attr_after = std::string(),
+             const char* src_file = nullptr,
+             int src_line = 0,
+             const char* version = nullptr);
 
 private:
   void rotateIfNeededLocked(time_t now);
@@ -118,6 +121,17 @@ private:
 };
 
 EOSCOMMONNAMESPACE_END
+
+// Helper macro to capture source location/version for audit calls
+#ifndef VERSION
+#define VERSION "unknown"
+#endif
+
+#ifndef EOS_AUDIT
+#define EOS_AUDIT(auditPtr, ...) do { \
+  if ((auditPtr)) { (auditPtr)->audit(__VA_ARGS__, __FILE__, __LINE__, VERSION); } \
+} while(0)
+#endif
 
 #endif
 

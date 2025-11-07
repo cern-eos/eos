@@ -1734,10 +1734,10 @@ Server::OpSetDirectory(const std::string& id,
         auto oit = oldDirAttrs.find(an);
         std::string before = (oit == oldDirAttrs.end()) ? std::string() : oit->second;
         if (oit == oldDirAttrs.end() || oit->second != kv.second) {
-          gOFS->mAudit->audit(eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
+          EOS_AUDIT(gOFS->mAudit, eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
                               std::string(), nullptr, nullptr, an, before, kv.second);
           if (an == "sys.acl" || an == "user.acl") {
-            gOFS->mAudit->audit(eos::audit::SET_ACL, path, vid, logId, cident, "mgm",
+            EOS_AUDIT(gOFS->mAudit, eos::audit::SET_ACL, path, vid, logId, cident, "mgm",
                                 std::string(), nullptr, nullptr, an, before, kv.second);
           }
         }
@@ -1747,7 +1747,7 @@ Server::OpSetDirectory(const std::string& id,
         const std::string& an = okv.first;
         if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
         if (md.attr().find(an) == md.attr().end()) {
-          gOFS->mAudit->audit(eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
+          EOS_AUDIT(gOFS->mAudit, eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
                               std::string(), nullptr, nullptr, an, okv.second, std::string());
         }
       }
@@ -1769,7 +1769,15 @@ Server::OpSetDirectory(const std::string& id,
       char amo[8];
       snprintf(amo, sizeof(amo), "0%04o", am);
       afterStat.set_mode_octal(amo);
-      gOFS->mAudit->audit(eos::audit::MKDIR, path, vid, logId, cident, "mgm",
+      // Add ns-resolution timestamps
+      {
+        char cbuf[64], mbuf[64];
+        snprintf(cbuf, sizeof(cbuf), "%ld.%09ld", (long)cts.tv_sec, (long)cts.tv_nsec);
+        snprintf(mbuf, sizeof(mbuf), "%ld.%09ld", (long)mts.tv_sec, (long)mts.tv_nsec);
+        afterStat.set_ctime_ns(cbuf);
+        afterStat.set_mtime_ns(mbuf);
+      }
+      EOS_AUDIT(gOFS->mAudit, eos::audit::MKDIR, path, vid, logId, cident, "mgm",
                           std::string(), nullptr, &afterStat);
     }
     eos::fusex::response resp;
@@ -2067,8 +2075,8 @@ Server::OpSetFile(const std::string& id,
             std::string hex2;
             eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
             if (!hex2.empty()) afterStat.set_checksum(hex2);
-            gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, logId, cident, "mgm",
-                                oldname);
+            EOS_AUDIT(gOFS->mAudit, eos::audit::RENAME, newPath, vid, logId, cident, "mgm",
+                                  oldname);
           }
 
           if (hasVersion) {
@@ -2576,6 +2584,13 @@ Server::OpSetFile(const std::string& id,
       fmd->getMTime(mts2);
       afterStat.set_ctime(cts2.tv_sec);
       afterStat.set_mtime(mts2.tv_sec);
+      {
+        char cbuf[64], mbuf[64];
+        snprintf(cbuf, sizeof(cbuf), "%ld.%09ld", (long)cts2.tv_sec, (long)cts2.tv_nsec);
+        snprintf(mbuf, sizeof(mbuf), "%ld.%09ld", (long)mts2.tv_sec, (long)mts2.tv_nsec);
+        afterStat.set_ctime_ns(cbuf);
+        afterStat.set_mtime_ns(mbuf);
+      }
       afterStat.set_size(fmd->getSize());
       uint32_t am = (fmd->getFlags() & 07777);
       afterStat.set_mode(am);
@@ -2587,20 +2602,20 @@ Server::OpSetFile(const std::string& id,
       if (!hex2.empty()) afterStat.set_checksum(hex2);
 
       if (op == CREATE) {
-        gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, logId, cident, "mgm",
+        EOS_AUDIT(gOFS->mAudit, eos::audit::CREATE, filePath, vid, logId, cident, "mgm",
                             std::string(), nullptr, &afterStat);
       } else if (op == UPDATE) {
-        gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, logId, cident, "mgm",
+        EOS_AUDIT(gOFS->mAudit, eos::audit::UPDATE, filePath, vid, logId, cident, "mgm",
                             std::string(), &beforeStat, &afterStat);
 
         // Emit CHMOD/CHOWN if mode/owner changed
         uint32_t newMode = (fmd->getFlags() & 07777);
         if (newMode != oldMode) {
-          gOFS->mAudit->audit(eos::audit::CHMOD, filePath, vid, logId, cident, "mgm",
+          EOS_AUDIT(gOFS->mAudit, eos::audit::CHMOD, filePath, vid, logId, cident, "mgm",
                               std::string(), &beforeStat, &afterStat);
         }
         if (fmd->getCUid() != oldUid || fmd->getCGid() != oldGid) {
-          gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, logId, cident, "mgm",
+          EOS_AUDIT(gOFS->mAudit, eos::audit::CHOWN, filePath, vid, logId, cident, "mgm",
                               std::string(), &beforeStat, &afterStat);
         }
 
@@ -2611,7 +2626,7 @@ Server::OpSetFile(const std::string& id,
           auto oit = oldFileAttrs.find(an);
           std::string before = (oit == oldFileAttrs.end()) ? std::string() : oit->second;
           if (oit == oldFileAttrs.end() || oit->second != kv.second) {
-            gOFS->mAudit->audit(eos::audit::SET_XATTR, filePath, vid, logId, cident, "mgm",
+            EOS_AUDIT(gOFS->mAudit, eos::audit::SET_XATTR, filePath, vid, logId, cident, "mgm",
                                 std::string(), nullptr, nullptr, an, before, kv.second);
             if (an == "sys.acl" || an == "user.acl") {
               gOFS->mAudit->audit(eos::audit::SET_ACL, filePath, vid, logId, cident, "mgm",
@@ -2623,7 +2638,7 @@ Server::OpSetFile(const std::string& id,
           const std::string& an = okv.first;
           if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
           if (md.attr().find(an) == md.attr().end()) {
-            gOFS->mAudit->audit(eos::audit::RM_XATTR, filePath, vid, logId, cident, "mgm",
+            EOS_AUDIT(gOFS->mAudit, eos::audit::RM_XATTR, filePath, vid, logId, cident, "mgm",
                                 std::string(), nullptr, nullptr, an, okv.second, std::string());
           }
         }
@@ -2988,13 +3003,20 @@ Server::OpSetLink(const std::string& id,
       fmd->getMTime(mts2);
       afterStat.set_ctime(cts2.tv_sec);
       afterStat.set_mtime(mts2.tv_sec);
+      {
+        char cbuf[64], mbuf[64];
+        snprintf(cbuf, sizeof(cbuf), "%ld.%09ld", (long)cts2.tv_sec, (long)cts2.tv_nsec);
+        snprintf(mbuf, sizeof(mbuf), "%ld.%09ld", (long)mts2.tv_sec, (long)mts2.tv_nsec);
+        afterStat.set_ctime_ns(cbuf);
+        afterStat.set_mtime_ns(mbuf);
+      }
       afterStat.set_size(fmd->getSize());
       uint32_t am = (fmd->getFlags() & 07777);
       afterStat.set_mode(am);
       char amo[8];
       snprintf(amo, sizeof(amo), "0%04o", am);
       afterStat.set_mode_octal(amo);
-      gOFS->mAudit->audit(eos::audit::SYMLINK, linkPath, vid, logId, cident, "mgm",
+      EOS_AUDIT(gOFS->mAudit, eos::audit::SYMLINK, linkPath, vid, logId, cident, "mgm",
                           md.target());
     }
   } catch (eos::MDException& e) {
@@ -3216,7 +3238,7 @@ Server::OpDeleteFile(const std::string& id,
 
     pcmd->setMTime(mtime);
     eos_info("ino=%lx msg=\"delete-file\"", (long) md.md_ino());
-    // Pre-capture path and before stat for auditing
+      // Pre-capture path and before stat for auditing
     std::string filePath;
     eos::audit::Stat beforeStat;
     if (gOFS->mAudit) {
@@ -3226,6 +3248,13 @@ Server::OpDeleteFile(const std::string& id,
       fmd->getMTime(mts);
       beforeStat.set_ctime(cts.tv_sec);
       beforeStat.set_mtime(mts.tv_sec);
+        {
+          char cbuf[64], mbuf[64];
+          snprintf(cbuf, sizeof(cbuf), "%ld.%09ld", (long)cts.tv_sec, (long)cts.tv_nsec);
+          snprintf(mbuf, sizeof(mbuf), "%ld.%09ld", (long)mts.tv_sec, (long)mts.tv_nsec);
+          beforeStat.set_ctime_ns(cbuf);
+          beforeStat.set_mtime_ns(mbuf);
+        }
       beforeStat.set_size(fmd->getSize());
       beforeStat.set_uid(fmd->getCUid());
       beforeStat.set_gid(fmd->getCGid());
@@ -3388,7 +3417,7 @@ Server::OpDeleteFile(const std::string& id,
     Cap().Delete(md.md_ino());
     // Audit DELETE after successful deletion (only when actually deleted here)
     if (gOFS->mAudit && !filePath.empty()) {
-      gOFS->mAudit->audit(eos::audit::DELETE, filePath, vid, logId, cident, "mgm",
+      EOS_AUDIT(gOFS->mAudit, eos::audit::DELETE, filePath, vid, logId, cident, "mgm",
                           std::string(), &beforeStat, nullptr);
     }
   } catch (eos::MDException& e) {
