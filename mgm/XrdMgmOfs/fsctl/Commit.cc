@@ -33,6 +33,7 @@
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 #include "namespace/Prefetcher.hh"
 #include "proto/Audit.pb.h"
+#include "namespace/utils/Checksum.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <openssl/sha.h>
@@ -310,6 +311,9 @@ XrdMgmOfs::Commit(const char* path,
         beforeStat.set_ctime(cts.tv_sec);
         beforeStat.set_mtime(mts.tv_sec);
         beforeStat.set_size(fmd->getSize());
+        std::string hex;
+        eos::appendChecksumOnStringAsHex(fmd.get(), hex);
+        if (!hex.empty()) beforeStat.set_checksum(hex);
       }
 
       if (option["update"] && mtime) {
@@ -357,6 +361,9 @@ XrdMgmOfs::Commit(const char* path,
           afterStat.set_ctime(cts2.tv_sec);
           afterStat.set_mtime(mts2.tv_sec);
           afterStat.set_size(fmd->getSize());
+          std::string hex2;
+          eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
+          if (!hex2.empty()) afterStat.set_checksum(hex2);
           gOFS->mAudit->audit(eos::audit::WRITE, cgi.count("path") ? cgi["path"] : path,
                               vid, tlLogId.logId, tlLogId.cident, "mgm",
                               std::string(), &beforeStat, &afterStat);
