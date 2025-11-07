@@ -131,6 +131,34 @@ TEST(Audit, BasicWriteRotateAndSymlink)
   ASSERT_NE(firstTarget, secondTarget);
 }
 
+TEST(Audit, BenchmarkWrite10000)
+{
+  using namespace eos::common;
+  std::string dir = makeTempDir();
+
+  // Use a long rotation to avoid rotation overhead in benchmark
+  Audit audit(dir, /*rotationSeconds*/3600, /*compressionLevel*/1);
+
+  const int N = 10000;
+  eos::audit::AuditRecord rec;
+  rec.set_timestamp(::time(nullptr));
+  rec.set_path("/eos/bench/file");
+  rec.set_operation(eos::audit::WRITE);
+  rec.set_client_ip("127.0.0.1");
+  rec.set_account("bench");
+  rec.set_svc("test");
+
+  auto t0 = std::chrono::steady_clock::now();
+  for (int i = 0; i < N; ++i) {
+    rec.set_path(std::string("/eos/bench/file_") + std::to_string(i));
+    audit.audit(rec);
+  }
+  auto t1 = std::chrono::steady_clock::now();
+  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+  std::cout << "Audit benchmark: wrote " << N << " records in " << ms << " ms\n";
+}
+
 EOSCOMMONTESTING_END
 
 
