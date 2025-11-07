@@ -2535,6 +2535,34 @@ Server::OpSetFile(const std::string& id,
 
     gOFS->eosFileService->updateStore(fmd.get());
 
+    // Emit CREATE/UPDATE audit for files
+    if (gOFS->mAudit) {
+      std::string filePath = gOFS->eosView->getUri(fmd.get());
+      eos::audit::Stat afterStat;
+      eos::IFileMD::ctime_t cts2, mts2;
+      fmd->getCTime(cts2);
+      fmd->getMTime(mts2);
+      afterStat.set_ctime(cts2.tv_sec);
+      afterStat.set_mtime(mts2.tv_sec);
+      afterStat.set_size(fmd->getSize());
+      uint32_t am = (fmd->getFlags() & 07777);
+      afterStat.set_mode(am);
+      char amo[8];
+      snprintf(amo, sizeof(amo), "0%04o", am);
+      afterStat.set_mode_octal(amo);
+      std::string hex2;
+      eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
+      if (!hex2.empty()) afterStat.set_checksum(hex2);
+
+      if (op == CREATE) {
+        gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, logId, cident, "mgm",
+                            std::string(), nullptr, &afterStat);
+      } else if (op == UPDATE) {
+        gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, logId, cident, "mgm",
+                            std::string(), &beforeStat, &afterStat);
+      }
+    }
+
     if (op != UPDATE) {
       // update the mtime
       gOFS->eosDirectoryService->updateStore(pcmd.get());
