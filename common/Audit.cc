@@ -232,7 +232,10 @@ Audit::audit(eos::audit::Operation operation,
     ac->set_before(attr_before);
     ac->set_after(attr_after);
   }
-  if (src_file && *src_file) rec.set_src_file(src_file);
+  if (src_file && *src_file) {
+    const char* basename = strrchr(src_file, '/') ? strrchr(src_file, '/') + 1 : src_file;
+    rec.set_src_file(basename);
+  }
   if (src_line > 0) rec.set_src_line(static_cast<uint32_t>(src_line));
   if (version && *version) rec.set_version(version);
   audit(rec);
