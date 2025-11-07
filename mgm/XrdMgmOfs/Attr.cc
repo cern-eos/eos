@@ -519,7 +519,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           gOFS->FuseXCastRefresh(f_id, d_id);
           errno = 0;
           if (mAudit) {
-            mAudit->audit(eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
+            mAudit->audit(eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
                           std::string(), nullptr, nullptr, skey, prev, std::string());
           }
         }
@@ -551,7 +551,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           gOFS->FuseXCastRefresh(d_id, d_pid);
           errno = 0;
           if (mAudit) {
-            mAudit->audit(eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
+            mAudit->audit(eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
                           std::string(), nullptr, nullptr, skey, prev, std::string());
           }
         }
