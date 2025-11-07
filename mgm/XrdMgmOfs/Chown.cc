@@ -26,6 +26,7 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
+#include "proto/Audit.pb.h"
 
 /*----------------------------------------------------------------------------*/
 int
@@ -92,6 +93,18 @@ XrdMgmOfs::_chown(const char* path,
         (vid.uid && !acl.IsMutable())) {
       errno = EPERM;
     } else {
+      // Prepare before stat for directory
+      eos::audit::Stat beforeStat;
+      {
+        eos::IContainerMD::ctime_t cts, mts;
+        cmd->getCTime(cts);
+        cmd->getMTime(mts);
+        beforeStat.set_ctime(cts.tv_sec);
+        beforeStat.set_mtime(mts.tv_sec);
+        beforeStat.set_uid(cmd->getCUid());
+        beforeStat.set_gid(cmd->getCGid());
+        beforeStat.set_mode(cmd->getMode() & 07777);
+      }
       if ((unsigned int) uid != 0xffffffff) {
         // Change the owner
         cmd->setCUid(uid);
@@ -109,6 +122,15 @@ XrdMgmOfs::_chown(const char* path,
       lock.Release();
       gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
       errno = 0;
+      if (mAudit) {
+        eos::audit::Stat afterStat;
+        afterStat.set_ctime(time(nullptr));
+        afterStat.set_mtime(time(nullptr));
+        afterStat.set_uid(cmd->getCUid());
+        afterStat.set_gid(cmd->getCGid());
+        afterStat.set_mode(cmd->getMode() & 07777);
+        mAudit->audit(eos::audit::CHOWN, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
+      }
     }
   } catch (eos::MDException& e) {
     errno = e.getErrno();
@@ -150,6 +172,17 @@ XrdMgmOfs::_chown(const char* path,
         fmd = gOFS->eosView->getFile(path, !nodereference);
         eos_info("path=%s uid=%u gid=%u old_uid=%u old_gid=%d noderef=%d",
                  path, uid, gid, fmd->getCUid(), fmd->getCGid(), nodereference);
+        eos::audit::Stat beforeStat;
+        {
+          eos::IFileMD::ctime_t cts, mts;
+          fmd->getCTime(cts);
+          fmd->getMTime(mts);
+          beforeStat.set_ctime(cts.tv_sec);
+          beforeStat.set_mtime(mts.tv_sec);
+          beforeStat.set_uid(fmd->getCUid());
+          beforeStat.set_gid(fmd->getCGid());
+          beforeStat.set_mode(fmd->getFlags() & 07777);
+        }
 
         // Subtract the file
         if (ns_quota) {
@@ -175,6 +208,15 @@ XrdMgmOfs::_chown(const char* path,
         eosView->updateFileStore(fmd.get());
         lock.Release();
         gOFS->FuseXCastRefresh(fmd->getIdentifier(), cmd->getParentIdentifier());
+        if (mAudit) {
+          eos::audit::Stat afterStat;
+          afterStat.set_ctime(time(nullptr));
+          afterStat.set_mtime(time(nullptr));
+          afterStat.set_uid(fmd->getCUid());
+          afterStat.set_gid(fmd->getCGid());
+          afterStat.set_mode(fmd->getFlags() & 07777);
+          mAudit->audit(eos::audit::CHOWN, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
+        }
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();
@@ -184,9 +226,6 @@ XrdMgmOfs::_chown(const char* path,
   // ---------------------------------------------------------------------------
   if (cmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
-    if (mAudit) {
-      mAudit->audit(eos::audit::CHOWN, path, vid, logId, cident, "mgm");
-    }
     return SFS_OK;
   }
 

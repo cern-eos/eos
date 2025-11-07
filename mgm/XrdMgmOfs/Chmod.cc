@@ -26,6 +26,7 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
+#include "proto/Audit.pb.h"
 
 /*----------------------------------------------------------------------------*/
 int
@@ -171,7 +172,19 @@ XrdMgmOfs::_chmod(const char* path,
           eos::ContainerIdentifier cmd_pid;
           eos::FileIdentifier f_id;
 
-          if (cmd) {
+  if (cmd) {
+    // Build before stat for directory
+    eos::audit::Stat beforeStat;
+    {
+      eos::IContainerMD::ctime_t cts, mts;
+      cmd->getCTime(cts);
+      cmd->getMTime(mts);
+      beforeStat.set_ctime(cts.tv_sec);
+      beforeStat.set_mtime(mts.tv_sec);
+      beforeStat.set_uid(cmd->getCUid());
+      beforeStat.set_gid(cmd->getCGid());
+      beforeStat.set_mode(cmd->getMode() & 07777);
+    }
             Mode &= mask;
             cmd->setMode(Mode | S_IFDIR);
             cmd->setCTimeNow();
@@ -179,14 +192,43 @@ XrdMgmOfs::_chmod(const char* path,
             eosView->updateContainerStore(cmd.get());
             cmd_id = cmd->getIdentifier();
             cmd_pid = cmd->getParentIdentifier();
+    eos::audit::Stat afterStat;
+    afterStat.set_ctime(time(nullptr));
+    afterStat.set_mtime(time(nullptr));
+    afterStat.set_uid(cmd->getCUid());
+    afterStat.set_gid(cmd->getCGid());
+    afterStat.set_mode((Mode | S_IFDIR) & 07777);
+    if (mAudit) {
+      mAudit->audit(eos::audit::CHMOD, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
+    }
           }
 
-          if (fmd) {
+  if (fmd) {
+    eos::audit::Stat beforeStat;
+    {
+      eos::IFileMD::ctime_t cts, mts;
+      fmd->getCTime(cts);
+      fmd->getMTime(mts);
+      beforeStat.set_ctime(cts.tv_sec);
+      beforeStat.set_mtime(mts.tv_sec);
+      beforeStat.set_uid(fmd->getCUid());
+      beforeStat.set_gid(fmd->getCGid());
+      beforeStat.set_mode(fmd->getFlags() & 07777);
+    }
             // we just store 9 bits in flags
             Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
             fmd->setFlags(Mode);
             eosView->updateFileStore(fmd.get());
             f_id = fmd->getIdentifier();
+    eos::audit::Stat afterStat;
+    afterStat.set_ctime(time(nullptr));
+    afterStat.set_mtime(time(nullptr));
+    afterStat.set_uid(fmd->getCUid());
+    afterStat.set_gid(fmd->getCGid());
+    afterStat.set_mode(Mode & 07777);
+    if (mAudit) {
+      mAudit->audit(eos::audit::CHMOD, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
+    }
           }
 
           lock.Release();
@@ -211,17 +253,11 @@ XrdMgmOfs::_chmod(const char* path,
 
   if (cmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
-    if (mAudit) {
-      mAudit->audit(eos::audit::CHMOD, path, vid, logId, cident, "mgm");
-    }
     return SFS_OK;
   }
 
   if (fmd && (!errno)) {
     EXEC_TIMING_END("Chmod");
-    if (mAudit) {
-      mAudit->audit(eos::audit::CHMOD, path, vid, logId, cident, "mgm");
-    }
     return SFS_OK;
   }
 
