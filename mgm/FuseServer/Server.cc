@@ -3725,6 +3725,16 @@ Server::OpSetLock(const std::string& id,
   return 0;
 }
 
+//----------------------------------------------------------------------------
+// Check if a file is in recycle bin or is a version file
+//----------------------------------------------------------------------------
+bool
+Server::CheckRecycleBinOrVersion(std::shared_ptr<eos::IFileMD> fmd)
+{
+  std::string path = gOFS->eosView->getUri(fmd.get());
+  return (Recycle::InRecycleBin(path) || eos::common::Path::IsVersion(path));
+}
+
 //------------------------------------------------------------------------------
 // Dispatch meta-data requests
 //------------------------------------------------------------------------------
