@@ -188,7 +188,10 @@ Audit::audit(eos::audit::Operation operation,
              const std::string& svc,
              const std::string& target,
              const eos::audit::Stat* before,
-             const eos::audit::Stat* after)
+             const eos::audit::Stat* after,
+             const std::string& attr_name,
+             const std::string& attr_before,
+             const std::string& attr_after)
 {
   eos::audit::AuditRecord rec;
   rec.set_timestamp(time(nullptr));
@@ -218,6 +221,12 @@ Audit::audit(eos::audit::Operation operation,
   if (!target.empty()) rec.set_target(target);
   if (before) rec.mutable_before()->CopyFrom(*before);
   if (after) rec.mutable_after()->CopyFrom(*after);
+  if (!attr_name.empty()) {
+    auto* ac = rec.add_attrs();
+    ac->set_name(attr_name);
+    ac->set_before(attr_before);
+    ac->set_after(attr_after);
+  }
   audit(rec);
 }
 

@@ -96,7 +96,10 @@ public:
              const std::string& svc,
              const std::string& target = std::string(),
              const eos::audit::Stat* before = nullptr,
-             const eos::audit::Stat* after = nullptr);
+             const eos::audit::Stat* after = nullptr,
+             const std::string& attr_name = std::string(),
+             const std::string& attr_before = std::string(),
+             const std::string& attr_after = std::string());
 
 private:
   void rotateIfNeededLocked(time_t now);

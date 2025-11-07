@@ -35,6 +35,12 @@ message AuthorizationInfo {
   repeated string reasons = 1;
 }
 
+message AttrChange {
+  string name = 1;
+  string before = 2;
+  string after = 3;
+}
+
 message AuditRecord {
   // Seconds since UNIX epoch
   int64 timestamp = 1;
@@ -60,6 +66,8 @@ message AuditRecord {
   Stat before = 14;
   // State after operation (if still exists)
   Stat after = 15;
+  // Attribute changes (if any)
+  repeated AttrChange attrs = 16;
 }
 
 // Basic stat-like information
@@ -69,6 +77,7 @@ message Stat {
   uint32 uid = 3;
   uint32 gid = 4;
   uint32 mode = 5; // unix mode bits
+  string mode_octal = 6; // e.g. "0755"
 }
 
 
