@@ -137,7 +137,7 @@ XrdMgmOfs::_chown(const char* path,
         char amo[8];
         snprintf(amo, sizeof(amo), "0%04o", am);
         afterStat.set_mode_octal(amo);
-        EOS_AUDIT(mAudit, eos::audit::CHOWN, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
+        EOS_AUDIT(mAudit, eos::audit::CHOWN, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat);
       }
     }
   } catch (eos::MDException& e) {
@@ -231,7 +231,7 @@ XrdMgmOfs::_chown(const char* path,
           char amo[8];
           snprintf(amo, sizeof(amo), "0%04o", am);
           afterStat.set_mode_octal(amo);
-          EOS_AUDIT(mAudit, eos::audit::CHOWN, path, vid, logId, cident, "mgm", std::string(), &beforeStat, &afterStat);
+          EOS_AUDIT(mAudit, eos::audit::CHOWN, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat);
         }
       }
     } catch (eos::MDException& e) {

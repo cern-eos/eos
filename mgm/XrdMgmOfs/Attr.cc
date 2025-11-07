@@ -346,10 +346,10 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
     }
     // Emit audit for attribute set
     if (mAudit) {
-      EOS_AUDIT(mAudit, eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
+      EOS_AUDIT(mAudit, eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
                     std::string(), nullptr, nullptr, skey, prev_value, new_value);
       if (skey == "sys.acl" || skey == "user.acl") {
-        EOS_AUDIT(mAudit, eos::audit::SET_ACL, path, vid, logId, cident, "mgm",
+        EOS_AUDIT(mAudit, eos::audit::SET_ACL, path, vid, std::string(logId), std::string(cident), "mgm",
                       std::string(), nullptr, nullptr, skey, prev_value, new_value);
       }
     }
@@ -523,7 +523,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           gOFS->FuseXCastRefresh(f_id, d_id);
           errno = 0;
           if (mAudit) {
-            EOS_AUDIT(mAudit, eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
+            EOS_AUDIT(mAudit, eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
                           std::string(), nullptr, nullptr, skey, prev, std::string());
           }
         }
@@ -555,7 +555,7 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           gOFS->FuseXCastRefresh(d_id, d_pid);
           errno = 0;
           if (mAudit) {
-            EOS_AUDIT(mAudit, eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
+            EOS_AUDIT(mAudit, eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
                           std::string(), nullptr, nullptr, skey, prev, std::string());
           }
         }
