@@ -826,8 +826,8 @@ XrdMgmOfs::_rename(const char* old_name,
   EXEC_TIMING_END("Rename");
   // Audit RENAME after successful operation
   if (mAudit) {
-    std::string newPath = nPath.GetFullPath();
-    std::string oldPath = oPath.GetFullPath();
+    std::string newPath = nPath.GetFullPath().c_str();
+    std::string oldPath = oPath.GetFullPath().c_str();
     if (renameDir) {
       if (!newPath.empty() && newPath.back() != '/') newPath.push_back('/');
       if (!oldPath.empty() && oldPath.back() != '/') oldPath.push_back('/');
@@ -1105,8 +1105,8 @@ XrdMgmOfs::_rename_with_symlink(const char* old_name, const char* new_name,
   EXEC_TIMING_END("Rename");
   // Audit RENAME after successful move with symlink creation
   if (mAudit) {
-    std::string newPath = nPath.GetFullPath();
-    std::string oldPath = oPath.GetFullPath();
+    std::string newPath = nPath.GetFullPath().c_str();
+    std::string oldPath = oPath.GetFullPath().c_str();
     mAudit->audit(eos::audit::RENAME, newPath, vid, logId, cident, "mgm", oldPath);
   }
   return SFS_OK;
