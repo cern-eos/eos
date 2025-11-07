@@ -533,6 +533,7 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
 }
 
 /*----------------------------------------------------------------------------*/
+#include "proto/Audit.pb.h"
 /*
  * @brief open a given file with the indicated mode
  *
@@ -556,6 +557,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                     const XrdSecEntity* client,
                     const char* ininfo)
 {
+  // For audit of truncation: capture before/after
+  bool auditTruncate = false;
+  eos::audit::Stat truncBefore;
+  std::string truncPath;
   using eos::common::LayoutId;
   static const char* epname = "open";
   const char* tident = error.getErrUser();
@@ -1442,6 +1447,23 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     if (!isInjection && (open_flags & O_TRUNC) && fmd) {
+      // Capture state before truncation
+      {
+        eos::IFileMD::ctime_t cts, mts;
+        fmd->getCTime(cts);
+        fmd->getMTime(mts);
+        truncBefore.set_ctime(cts.tv_sec);
+        truncBefore.set_mtime(mts.tv_sec);
+        truncBefore.set_uid(fmd->getCUid());
+        truncBefore.set_gid(fmd->getCGid());
+        uint32_t m = (fmd->getFlags() & 07777);
+        truncBefore.set_mode(m);
+        char mo[8];
+        snprintf(mo, sizeof(mo), "0%04o", m);
+        truncBefore.set_mode_octal(mo);
+        truncPath = path;
+        auditTruncate = true;
+      }
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
         if (acl.CanWriteOnce()) {
@@ -1573,6 +1595,36 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               file->clearChecksum(0);
               dmd->addFile(file.get());
               fmd = file;
+            }
+
+            // Emit CREATE or TRUNCATE audit after creation
+            if (gOFS->mAudit) {
+              eos::audit::Stat afterStat;
+              {
+                eos::IFileMD::ctime_t cts, mts;
+                fmd->getCTime(cts);
+                fmd->getMTime(mts);
+                afterStat.set_ctime(cts.tv_sec);
+                afterStat.set_mtime(mts.tv_sec);
+                afterStat.set_uid(fmd->getCUid());
+                afterStat.set_gid(fmd->getCGid());
+                uint32_t am = (fmd->getFlags() & 07777);
+                afterStat.set_mode(am);
+                char amo[8];
+                snprintf(amo, sizeof(amo), "0%04o", am);
+                afterStat.set_mode_octal(amo);
+              }
+              if (auditTruncate) {
+                gOFS->mAudit->audit(eos::audit::TRUNCATE,
+                                    truncPath.empty() ? path : truncPath,
+                                    vid, logId, cident, "mgm",
+                                    std::string(), &truncBefore, &afterStat);
+              } else {
+                gOFS->mAudit->audit(eos::audit::CREATE,
+                                    creation_path.c_str(),
+                                    vid, logId, cident, "mgm",
+                                    std::string(), nullptr, &afterStat);
+              }
             }
 
             if ((mEosObfuscate > 0) ||
