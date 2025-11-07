@@ -1734,10 +1734,10 @@ Server::OpSetDirectory(const std::string& id,
         auto oit = oldDirAttrs.find(an);
         std::string before = (oit == oldDirAttrs.end()) ? std::string() : oit->second;
         if (oit == oldDirAttrs.end() || oit->second != kv.second) {
-          EOS_AUDIT(gOFS->mAudit, eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
+          EOS_AUDIT_SRC(gOFS->mAudit, eos::audit::SET_XATTR, path, vid, logId, cident, "mgm",
                               std::string(), nullptr, nullptr, an, before, kv.second);
           if (an == "sys.acl" || an == "user.acl") {
-            EOS_AUDIT(gOFS->mAudit, eos::audit::SET_ACL, path, vid, logId, cident, "mgm",
+            EOS_AUDIT_SRC(gOFS->mAudit, eos::audit::SET_ACL, path, vid, logId, cident, "mgm",
                                 std::string(), nullptr, nullptr, an, before, kv.second);
           }
         }
@@ -1747,7 +1747,7 @@ Server::OpSetDirectory(const std::string& id,
         const std::string& an = okv.first;
         if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
         if (md.attr().find(an) == md.attr().end()) {
-          EOS_AUDIT(gOFS->mAudit, eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
+          EOS_AUDIT_SRC(gOFS->mAudit, eos::audit::RM_XATTR, path, vid, logId, cident, "mgm",
                               std::string(), nullptr, nullptr, an, okv.second, std::string());
         }
       }
@@ -2626,10 +2626,10 @@ Server::OpSetFile(const std::string& id,
           auto oit = oldFileAttrs.find(an);
           std::string before = (oit == oldFileAttrs.end()) ? std::string() : oit->second;
           if (oit == oldFileAttrs.end() || oit->second != kv.second) {
-            EOS_AUDIT(gOFS->mAudit, eos::audit::SET_XATTR, filePath, vid, logId, cident, "mgm",
+            EOS_AUDIT_SRC(gOFS->mAudit, eos::audit::SET_XATTR, filePath, vid, logId, cident, "mgm",
                                 std::string(), nullptr, nullptr, an, before, kv.second);
             if (an == "sys.acl" || an == "user.acl") {
-              gOFS->mAudit->audit(eos::audit::SET_ACL, filePath, vid, logId, cident, "mgm",
+              EOS_AUDIT_SRC(gOFS->mAudit, eos::audit::SET_ACL, filePath, vid, logId, cident, "mgm",
                                   std::string(), nullptr, nullptr, an, before, kv.second);
             }
           }
@@ -2638,7 +2638,7 @@ Server::OpSetFile(const std::string& id,
           const std::string& an = okv.first;
           if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
           if (md.attr().find(an) == md.attr().end()) {
-            EOS_AUDIT(gOFS->mAudit, eos::audit::RM_XATTR, filePath, vid, logId, cident, "mgm",
+            EOS_AUDIT_SRC(gOFS->mAudit, eos::audit::RM_XATTR, filePath, vid, logId, cident, "mgm",
                                 std::string(), nullptr, nullptr, an, okv.second, std::string());
           }
         }
