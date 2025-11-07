@@ -214,7 +214,9 @@ Audit::audit(eos::audit::Operation operation,
   } else {
     rec.mutable_authorization()->add_reasons("uidgid");
   }
-  if (!uuid.empty()) rec.set_uuid(uuid);
+  if (!uuid.empty() && uuid != "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx") {
+    rec.set_uuid(uuid);
+  }
   if (!tid.empty()) rec.set_tid(tid);
   if (!vid.app.empty()) rec.set_app(vid.app);
   if (!svc.empty()) rec.set_svc(svc);
