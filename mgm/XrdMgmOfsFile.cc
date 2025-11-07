@@ -534,6 +534,7 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
 
 /*----------------------------------------------------------------------------*/
 #include "proto/Audit.pb.h"
+#include "namespace/utils/Checksum.hh"
 /*
  * @brief open a given file with the indicated mode
  *
@@ -1530,7 +1531,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1, vid.app);
         // Emit UPDATE audit for opening existing file for update (non-create, non-truncate)
         if (gOFS->mAudit) {
-          gOFS->mAudit->audit(eos::audit::UPDATE, path, vid, logId, cident, "mgm");
+          eos::audit::Stat beforeStat;
+          eos::IFileMD::ctime_t cts, mts;
+          if (fmd) {
+            fmd->getCTime(cts);
+            fmd->getMTime(mts);
+            beforeStat.set_ctime(cts.tv_sec);
+            beforeStat.set_mtime(mts.tv_sec);
+            beforeStat.set_size(fmd->getSize());
+            std::string hex;
+            eos::appendChecksumOnStringAsHex(fmd.get(), hex);
+            if (!hex.empty()) beforeStat.set_checksum(hex);
+          }
+          gOFS->mAudit->audit(eos::audit::UPDATE, path, vid, logId, cident, "mgm",
+                              std::string(), &beforeStat, nullptr);
         }
       }
     }
