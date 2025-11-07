@@ -32,6 +32,7 @@
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 #include "namespace/Prefetcher.hh"
+#include "proto/Audit.pb.h"
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <openssl/sha.h>
@@ -300,6 +301,17 @@ XrdMgmOfs::Commit(const char* path,
         option["versioning"] = false;
       }
 
+      eos::audit::Stat beforeStat;
+      if (option["update"]) {
+        // Capture before state (size and times)
+        eos::IFileMD::ctime_t cts, mts;
+        fmd->getCTime(cts);
+        fmd->getMTime(mts);
+        beforeStat.set_ctime(cts.tv_sec);
+        beforeStat.set_mtime(mts.tv_sec);
+        beforeStat.set_size(fmd->getSize());
+      }
+
       if (option["update"] && mtime) {
         // Update the modification time only if the file contents changed and
         // mtime != 0
@@ -334,6 +346,20 @@ XrdMgmOfs::Commit(const char* path,
         // triggered outside the fusex client network e.g. xrdcp etc.
         if (!option["fusex"]) {
           gOFS->FuseXCastRefresh(c_ident, p_ident);
+        }
+
+        // Emit WRITE audit with before/after size and times
+        if (gOFS->mAudit) {
+          eos::audit::Stat afterStat;
+          eos::IFileMD::ctime_t cts2, mts2;
+          fmd->getCTime(cts2);
+          fmd->getMTime(mts2);
+          afterStat.set_ctime(cts2.tv_sec);
+          afterStat.set_mtime(mts2.tv_sec);
+          afterStat.set_size(fmd->getSize());
+          gOFS->mAudit->audit(eos::audit::WRITE, cgi.count("path") ? cgi["path"] : path,
+                              vid, tlLogId.logId, tlLogId.cident, "mgm",
+                              std::string(), &beforeStat, &afterStat);
         }
       }
     }
