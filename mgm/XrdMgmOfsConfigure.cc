@@ -1506,9 +1506,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     NoGo = 1;
   }
 
-  // Initialize Audit logger under /var/log/eos/audit (ensure directory exists)
+  // Initialize Audit logger under <logdir>/audit (ensure directory exists)
   {
-    const std::string auditDir = "/var/log/eos/audit";
+    std::string baseLogDir = "/var/log/eos";
+    if (logdir && *logdir) {
+      baseLogDir = logdir;
+    }
+    const std::string auditDir = baseLogDir + "/audit";
     struct stat st{};
     if (::stat(auditDir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
       eos::common::Path p((auditDir + "/.keep").c_str());
