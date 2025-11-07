@@ -12,7 +12,7 @@ This document explains what is logged, the record format, where files are writte
   - **Files**: CREATE, DELETE, RENAME/MOVE, TRUNCATE, WRITE (commit), UPDATE (open for write without create/truncate)
   - **Directories**: MKDIR, RMDIR, RENAME/MOVE
   - **Symlinks**: SYMLINK creation, DELETE
-  - **Metadata**: CHMOD, CHOWN, SET_XATTR, RM_XATTR, SET_ACL (if/when wired)
+  - **Metadata**: CHMOD, CHOWN, SET_XATTR, RM_XATTR, SET_ACL
 - **Optional**: READ and LIST can be enabled later (not default; high volume).
 - **Excluded**: Failed attempts, internal non-human activities (e.g. purge/version housekeeping).
 
