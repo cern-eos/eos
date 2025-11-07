@@ -3041,6 +3041,11 @@ Server::OpDeleteDirectory(const std::string& id,
       resp.SerializeToString(response);
     } else {
       eos_info("ino=%lx msg=\"delete-dir\"", (long) md.md_ino());
+      std::string dirPath;
+      if (gOFS->mAudit) {
+        dirPath = gOFS->eosView->getUri(cmd.get());
+        if (!dirPath.empty() && dirPath.back() != '/') dirPath.push_back('/');
+      }
       pcmd->removeContainer(cmd->getName());
       gOFS->eosDirectoryService->removeContainer(cmd.get());
       gOFS->eosDirectoryService->updateStore(pcmd.get());
@@ -3055,6 +3060,10 @@ Server::OpDeleteDirectory(const std::string& id,
       Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName(), pt_mtime);
       Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().Delete(md.md_ino());
+      // Audit RMDIR after successful deletion
+      if (gOFS->mAudit && !dirPath.empty()) {
+        gOFS->mAudit->audit(eos::audit::RMDIR, dirPath, vid, logId, cident, "mgm");
+      }
     }
   } catch (eos::MDException& e) {
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
@@ -3135,6 +3144,28 @@ Server::OpDeleteFile(const std::string& id,
 
     pcmd->setMTime(mtime);
     eos_info("ino=%lx msg=\"delete-file\"", (long) md.md_ino());
+    // Pre-capture path and before stat for auditing
+    std::string filePath;
+    eos::audit::Stat beforeStat;
+    if (gOFS->mAudit) {
+      filePath = gOFS->eosView->getUri(fmd.get());
+      eos::IFileMD::ctime_t cts, mts;
+      fmd->getCTime(cts);
+      fmd->getMTime(mts);
+      beforeStat.set_ctime(cts.tv_sec);
+      beforeStat.set_mtime(mts.tv_sec);
+      beforeStat.set_size(fmd->getSize());
+      beforeStat.set_uid(fmd->getCUid());
+      beforeStat.set_gid(fmd->getCGid());
+      uint32_t bm = (fmd->getFlags() & 07777);
+      beforeStat.set_mode(bm);
+      char bmo[8];
+      snprintf(bmo, sizeof(bmo), "0%04o", bm);
+      beforeStat.set_mode_octal(bmo);
+      std::string hex;
+      eos::appendChecksumOnStringAsHex(fmd.get(), hex);
+      if (!hex.empty()) beforeStat.set_checksum(hex);
+    }
     eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
     // this is a client hiding versions, force the version cleanup
     bool version_cleanup =
@@ -3283,6 +3314,11 @@ Server::OpDeleteFile(const std::string& id,
     Cap().BroadcastDeletion(pcmd->getId(), md, md.name(), pt_mtime);
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
     Cap().Delete(md.md_ino());
+    // Audit DELETE after successful deletion (only when actually deleted here)
+    if (gOFS->mAudit && !filePath.empty()) {
+      gOFS->mAudit->audit(eos::audit::DELETE, filePath, vid, logId, cident, "mgm",
+                          std::string(), &beforeStat, nullptr);
+    }
   } catch (eos::MDException& e) {
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
     resp.mutable_ack_()->set_err_no(e.getErrno());
@@ -3362,6 +3398,10 @@ Server::OpDeleteLink(const std::string& id,
 
     pcmd->setMTime(mtime);
     eos_info("msg=\"delete-link\" ino=%lx", (long) md.md_ino());
+    std::string linkPath;
+    if (gOFS->mAudit) {
+      linkPath = gOFS->eosView->getUri(fmd.get());
+    }
     gOFS->eosView->removeFile(fmd.get());
     eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
@@ -3382,6 +3422,10 @@ Server::OpDeleteLink(const std::string& id,
     Cap().BroadcastDeletion(pcmd->getId(), md, md.name(), pt_mtime);
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
     Cap().Delete(md.md_ino());
+    // Audit DELETE for symlink removal
+    if (gOFS->mAudit && !linkPath.empty()) {
+      gOFS->mAudit->audit(eos::audit::DELETE, linkPath, vid, logId, cident, "mgm");
+    }
   } catch (eos::MDException& e) {
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
     resp.mutable_ack_()->set_err_no(e.getErrno());
