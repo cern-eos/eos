@@ -44,14 +44,32 @@ class IoShaping : public eos::common::LogId{
 		std::atomic<bool> 	_mPublishing;
 		std::atomic<bool> 	_mShaping;
 
-		Shaping::received	_shapings;
+		std::unordered_map<std::string, std::string>	_shapings;
 
 		std::atomic<size_t>	_receivingTime;
 
+		//----------------------------------------------------------------------------
+		/// Extracts the data from each node
+		/// every "_receivingTime" (aka std::atomic<size_t>) second.
+		///
+		/// @param assistant reference to thread object
+		//----------------------------------------------------------------------------
 		void receive(ThreadAssistant &assistant) noexcept;
 
-		void publish(ThreadAssistant &assistant) noexcept;
+		//----------------------------------------------------------------------------
+		/// Publish trafic data to each node
+		/// every "_receivingTime" (aka std::atomic<size_t>) second.
+		///
+		/// @param assistant reference to thread object
+		//----------------------------------------------------------------------------
+		void publishing(ThreadAssistant &assistant) noexcept;
 
+		//----------------------------------------------------------------------------
+		/// Shape
+		/// every "_receivingTime" (aka std::atomic<size_t>) second.
+		///
+		/// @param assistant reference to thread object
+		//----------------------------------------------------------------------------
 		void shaping(ThreadAssistant &assistant) noexcept;
 		
 	public:
@@ -80,44 +98,44 @@ class IoShaping : public eos::common::LogId{
 		IoShaping& operator=(const IoShaping &other);
 
 		//----------------------------------------------------------------------------
-		//! Start receiving thread
-		//!
-		//! @return true if successful, otherwise false
+		/// Start receiving thread
+		///
+		/// @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
 		bool startReceiving();
 
 		//----------------------------------------------------------------------------
-		//! Stop receiving thread
-		//!
-		//! @return true if successful, otherwise false
+		/// Stop receiving thread
+		///
+		/// @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
 		bool stopReceiving();
 
 		//----------------------------------------------------------------------------
-		//! Start publising thread
-		//!
-		//! @return true if successful, otherwise false
+		/// Start publising thread
+		///
+		/// @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
 		bool startPublishing();
 
 		//----------------------------------------------------------------------------
-		//! Stop publising thread
-		//!
-		//! @return true if successful, otherwise false
+		/// Stop publising thread
+		///
+		/// @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
 		bool stopPublishing();
 
 		//----------------------------------------------------------------------------
-		//! Start shaping thread
-		//!
-		//! @return true if successful, otherwise false
+		/// Start shaping thread
+		///
+		/// @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
 		bool startShaping();
 
 		//----------------------------------------------------------------------------
-		//! Stop shaping thread
-		//!
-		//! @return true if successful, otherwise false
+		/// Stop shaping thread
+		///
+		/// @return true if successful, otherwise false
 		//----------------------------------------------------------------------------
 		bool stopShaping();
 

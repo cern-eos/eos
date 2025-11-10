@@ -522,7 +522,6 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   output["stat.publishtimestamp"] = SSTR(
                                       eos::common::getEpochInMilliseconds().count());
   output["stat.iomap"] = "0";
-	
   /// get ioMap info
   IoBuffer::Summary protoBuff;
   IoBuffer::summarys finalBuffer;
@@ -563,7 +562,8 @@ Storage::GetFstStatistics(const std::string& tmpfile,
 		   }
 			protoBuff.Clear();
 		 }
-		finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummarys);
+		if (winTimeSummarys.apps_size() > 0 || winTimeSummarys.gids_size() > 0 || winTimeSummarys.uids_size() > 0)
+			finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummarys);
   }
 
   // std::cerr << gOFS.ioMap << std::endl;
