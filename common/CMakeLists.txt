@@ -54,6 +54,14 @@ target_link_libraries(EosSciToken-Objects PUBLIC
   SCITOKENS::SCITOKENS)
 
 #-------------------------------------------------------------------------------
+# ioBuffer library
+#-------------------------------------------------------------------------------
+
+include_directories(ioMonitor/proto)
+set(PROTO_FILES ioMonitor/IoBuffer.proto)
+protobuf_generate_cpp(PROTO_IO_MONITORSRCS PROTO_IO_MONITOR_HDRS ${PROTO_FILES})
+
+#-------------------------------------------------------------------------------
 # EosBlake3-Objects library
 #-------------------------------------------------------------------------------
 set(BLAKE3_PORTABLE_SRCS
