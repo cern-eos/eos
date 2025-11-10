@@ -22,16 +22,20 @@
 
 #include "IoShaping.hh"
 #include "FileSystem.hh"
+#include "ioMonitor/include/IoMonitor.hh"
+#include "ioMonitor/include/IoStat.hh"
+#include "mgm/FsView.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
+
 
 EOSMGMNAMESPACE_BEGIN
 
-IoShaping::IoShaping(size_t time) : _rReceiving(false),  _rPublishing(false),
-	_rShaping(false),_receivingTime(time){
+IoShaping::IoShaping(size_t time) : _mReceiving(false),  _mPublishing(false),
+	_mShaping(false),_receivingTime(time){
 }
 
-IoShaping::IoShaping(const IoShaping &other) : _rReceiving(other._rReceiving.load()),
-	_rPublishing(other._rPublishing.load()), _rShaping(other._rShaping.load()),
+IoShaping::IoShaping(const IoShaping &other) : _mReceiving(other._mReceiving.load()),
+	_mPublishing(other._mPublishing.load()), _mShaping(other._mShaping.load()),
 	_receivingTime(other._receivingTime.load()){
 }
 
@@ -48,9 +52,10 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 	ThreadAssistant::setSelfThreadName("IoShapingReceiver");
 	eos_static_info("%s", "msg=\"starting IoShaping receiving thread\"");
 
-	// wait init ?
 	assistant.wait_for(std::chrono::seconds(2));
 	while (!assistant.terminationRequested()){
+		if (!_mReceiving.load())
+			break ;
 		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 		std::lock_guard<std::mutex> lock(_mSyncThread);
 		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
@@ -59,13 +64,11 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 		for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++)
 		{
 			if (it->second->GetStatus() == "online"){
-				eos_static_info("msg=\"IoShaping %s is online\"", it->first.c_str());
 				std::string protoMap(it->second->GetMember("cfg.stat.iomap"));
-				eos_static_info("msg=\"IoShaping data: %s\"", protoMap.c_str());
-			}else 
-				eos_static_info("msg=\"IoShaping is offline\"", it->first.c_str());
+				if (!protoMap.empty())
+					_shapings.mutable_data()->emplace(protoMap, 42);
+			}
 		}
-		eos_static_info("%s", "msg=\"IoShaping receiver update\"\n");
 	}
 
   eos_static_info("%s", "msg=\"stopping IoShaping receiver thread\"");
@@ -74,21 +77,48 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 void IoShaping::publish(ThreadAssistant &assistant) noexcept{
 	ThreadAssistant::setSelfThreadName("IoShapingPublishing");
 	eos_static_info("%s", "msg=\"starting IoShaping publishing thread\"");
-	(void)assistant;
 
+	assistant.wait_for(std::chrono::seconds(2));
+	while (!assistant.terminationRequested()){
+		if (!_mPublishing.load())
+			break ;
+		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
+		std::lock_guard<std::mutex> lock(_mSyncThread);
+		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+		for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++){
+			if (it->second->GetStatus() == "online"){
+				/// calcule stat;
+				it->second->SetConfigMember("trafic", std::to_string(_shapings.data().size()));
+			}
+		}
+	}
+
+  eos_static_info("%s", "msg=\"stopping IoShaping publishing thread\"");
 }
 
 void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
 	ThreadAssistant::setSelfThreadName("IoShaping");
-	eos_static_info("%s", "msg=\"starting IoShaping thread\"");
+	eos_static_info("%s", "msg=\"starting IoShaping shaping thread\"");
+	assistant.wait_for(std::chrono::seconds(2));
+	while (!assistant.terminationRequested()){
+		if (!_mPublishing.load())
+			break ;
+		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
+		std::lock_guard<std::mutex> lock(_mSyncThread);
+		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+		std::string msg;
+		XrdOucString body(msg.c_str());
+	}
+
+  eos_static_info("%s", "msg=\"stopping IoShaping publishing thread\"");
 	(void)assistant;
 }
 
 bool IoShaping::startReceiving(){
 	std::lock_guard<std::mutex> lock(_mSyncThread);
 
-	if (!_rReceiving.load()){
-		_rReceiving.store(true);
+	if (!_mReceiving.load()){
+		_mReceiving.store(true);
 		_mReceivingThread.reset(&IoShaping::receive, this);
 		return true;
 	}
@@ -98,9 +128,9 @@ bool IoShaping::startReceiving(){
 
 bool IoShaping::stopReceiving(){
 
-	if (_rReceiving.load()){
+	if (_mReceiving.load()){
 		std::lock_guard<std::mutex> lock(_mSyncThread);
-		_rReceiving.store(false);
+		_mReceiving.store(false);
 		return true;
 	}
 	return false;
@@ -109,20 +139,19 @@ bool IoShaping::stopReceiving(){
 bool IoShaping::startPublishing(){
 	std::lock_guard<std::mutex> lock(_mSyncThread);
 
-	if (!_rPublishing.load()){
-		_rPublishing.store(true);
+	if (!_mPublishing.load()){
+		_mPublishing.store(true);
 		_mPublishingThread.reset(&IoShaping::publish, this);
 		return true;
 	}
-
 	return false;
 }
 
 bool IoShaping::stopPublishing(){
 
-	if (_rPublishing.load()){
+	if (_mPublishing.load()){
 		std::lock_guard<std::mutex> lock(_mSyncThread);
-		_rPublishing.store(false);
+		_mPublishing.store(false);
 		return true;
 	}
 	return false;
@@ -131,20 +160,19 @@ bool IoShaping::stopPublishing(){
 bool IoShaping::startShaping(){
 	std::lock_guard<std::mutex> lock(_mSyncThread);
 
-	if (!_rShaping.load()){
-		_rShaping.store(true);
+	if (!_mShaping.load()){
+		_mShaping.store(true);
 		_mShapingThread.reset(&IoShaping::shaping, this);
 		return true;
 	}
-
 	return false;
 }
 
 bool IoShaping::stopShaping(){
 
-	if (_rShaping.load()){
+	if (_mShaping.load()){
 		std::lock_guard<std::mutex> lock(_mSyncThread);
-		_rShaping.store(false);
+		_mShaping.store(false);
 		return true;
 	}
 	return false;
