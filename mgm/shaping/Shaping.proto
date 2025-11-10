@@ -1,0 +1,7 @@
+syntax = "proto3";
+
+package Shaping;
+
+message received{
+  map<string, double> data = 1;
+}

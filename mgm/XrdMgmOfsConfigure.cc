@@ -2361,6 +2361,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
   }
   mIoShaper.startReceiving();
+  mIoShaper.startPublishing();
+  mIoShaper.startShaping();
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/
