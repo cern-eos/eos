@@ -64,9 +64,10 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 		for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++)
 		{
 			if (it->second->GetStatus() == "online"){
+				std::string node(it->second->GetMember("cfg.stat.hostport"));
 				std::string protoMap(it->second->GetMember("cfg.stat.iomap"));
 				if (!protoMap.empty())
-					_shapings.mutable_data()->emplace(protoMap, 42);
+					_shapings[node] = protoMap;
 			}
 		}
 	}
@@ -74,11 +75,11 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
   eos_static_info("%s", "msg=\"stopping IoShaping receiver thread\"");
 }
 
-void IoShaping::publish(ThreadAssistant &assistant) noexcept{
+void IoShaping::publishing(ThreadAssistant &assistant) noexcept{
 	ThreadAssistant::setSelfThreadName("IoShapingPublishing");
 	eos_static_info("%s", "msg=\"starting IoShaping publishing thread\"");
 
-	assistant.wait_for(std::chrono::seconds(2));
+	assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 	while (!assistant.terminationRequested()){
 		if (!_mPublishing.load())
 			break ;
@@ -88,7 +89,22 @@ void IoShaping::publish(ThreadAssistant &assistant) noexcept{
 		for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++){
 			if (it->second->GetStatus() == "online"){
 				/// calcule stat;
-				it->second->SetConfigMember("trafic", std::to_string(_shapings.data().size()));
+				it->second->SetConfigMember("trafic", "0");
+				try {
+					auto node(_shapings.at(it->second->GetMember("cfg.stat.hostport")));
+					if (!node.empty() && node != "0"){
+						IoBuffer::summarys trafic;
+						google::protobuf::util::JsonParseOptions options;
+						auto abslStatus = google::protobuf::util::JsonStringToMessage(node, &trafic, options);
+						if (!abslStatus.ok()){
+							eos_static_err("%s", "msg=\"Publishing thread, failed to convert node into summarys object\"");
+							continue;
+						}
+						it->second->SetConfigMember("trafic", std::to_string(trafic.aggregated_size()));
+					}
+				} catch (std::exception e){
+					eos_static_err("%s", e.what());
+				}
 			}
 		}
 	}
@@ -99,7 +115,7 @@ void IoShaping::publish(ThreadAssistant &assistant) noexcept{
 void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
 	ThreadAssistant::setSelfThreadName("IoShaping");
 	eos_static_info("%s", "msg=\"starting IoShaping shaping thread\"");
-	assistant.wait_for(std::chrono::seconds(2));
+	assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 	while (!assistant.terminationRequested()){
 		if (!_mPublishing.load())
 			break ;
@@ -111,7 +127,6 @@ void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
 	}
 
   eos_static_info("%s", "msg=\"stopping IoShaping publishing thread\"");
-	(void)assistant;
 }
 
 bool IoShaping::startReceiving(){
@@ -141,7 +156,7 @@ bool IoShaping::startPublishing(){
 
 	if (!_mPublishing.load()){
 		_mPublishing.store(true);
-		_mPublishingThread.reset(&IoShaping::publish, this);
+		_mPublishingThread.reset(&IoShaping::publishing, this);
 		return true;
 	}
 	return false;
