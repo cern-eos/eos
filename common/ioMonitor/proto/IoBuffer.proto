@@ -19,3 +19,7 @@ message data{
   map<uint64, Summary> uids = 2;
   map<uint64, Summary> gids = 3;
 }
+
+message summarys{
+  map<uint64, data> aggregated = 1;
+}

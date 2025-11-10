@@ -521,61 +521,64 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   // publish timestamp
   output["stat.publishtimestamp"] = SSTR(
                                       eos::common::getEpochInMilliseconds().count());
+  output["stat.iomap"] = "0";
 	
   /// get ioMap info
- {
-	  IoBuffer::Summary protoBuff;
-	  IoBuffer::data buffer;
+  IoBuffer::Summary protoBuff;
+  IoBuffer::summarys finalBuffer;
 
-	  size_t winTime = 60;
-	  std::vector<gid_t> gids(gOFS.ioMap.getGids(winTime));
-	  std::vector<uid_t> uids(gOFS.ioMap.getUids(winTime));
-	  std::vector<std::string> apps(gOFS.ioMap.getApps(winTime));
+  std::optional<std::vector<size_t> > win(gOFS.ioMap.getAvailableWindows());
+  if (!win.has_value())
+		return output;
 
-	  output["stat.iomap"] = "0";
+   for (auto winTime = win.value().begin(); winTime != win->end(); winTime++){
+	  std::vector<gid_t> gids(gOFS.ioMap.getGids(*winTime));
+	  std::vector<uid_t> uids(gOFS.ioMap.getUids(*winTime));
+	  std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
+	  if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0)
+			continue;
+		IoBuffer::data winTimeSummarys;
 
 		for (auto it : apps){
-		  auto sum = gOFS.ioMap.getSummary(winTime, it);
+		  auto sum = gOFS.ioMap.getSummary(*winTime, it);
 		  if (sum.has_value()){
-			sum->winTime = winTime;
-			buffer.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
+			sum->winTime = *winTime;
+			winTimeSummarys.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
 		  }
 		  protoBuff.Clear();
 	   }
 		for (auto it : uids){
-		  auto sum = gOFS.ioMap.getSummary(winTime, io::TYPE::UID, it);
+		  auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::UID, it);
 		  if (sum.has_value()){
-			sum->winTime = winTime;
-			buffer.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
+			sum->winTime =*winTime;
+			winTimeSummarys.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
 		  }
 		  protoBuff.Clear();
 	   }
 		 for (auto it : gids){
-		   auto sum = gOFS.ioMap.getSummary(winTime, io::TYPE::GID, it);
+		   auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::GID, it);
 		   if (sum.has_value()){
-			  sum->winTime = winTime;
-			  buffer.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
+			  sum->winTime =*winTime;
+			  winTimeSummarys.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
 		   }
 			protoBuff.Clear();
 		 }
+		finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummarys);
+  }
 
-	  // std::cerr << gOFS.ioMap << std::endl;
+  // std::cerr << gOFS.ioMap << std::endl;
 
-	  if (buffer.apps_size() != 0
-			|| buffer.gids_size() != 0
-			|| buffer.uids_size() != 0){
-
-	    std::string out;
+	if (finalBuffer.aggregated_size() > 0){
+		std::string out;
 		google::protobuf::util::JsonPrintOptions options;
 
 		// options.add_whitespace = true;
 		// options.always_print_primitive_fields = true;
-		options.preserve_proto_field_names = true;
-		auto it = google::protobuf::util::MessageToJsonString(buffer, &out, options);
+		// options.preserve_proto_field_names = true;
+		auto it = google::protobuf::util::MessageToJsonString(finalBuffer, &out, options);
 		if (it.ok())
 		  output["stat.iomap"] = out;
 	}
-  }
 
   return output;
 }
