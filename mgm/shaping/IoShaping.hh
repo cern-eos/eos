@@ -25,7 +25,11 @@
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "mgm/FsView.hh"
+#include "common/ioMonitor/proto/IoBuffer.pb.h"
+// #include "mgm/XrdMgmOfs.hh"
+#include <google/protobuf/util/json_util.h>
 #include <unordered_map>
+#include "Shaping.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -36,11 +40,11 @@ class IoShaping : public eos::common::LogId{
 		AssistedThread 		_mShapingThread;
 		mutable std::mutex	_mSyncThread;
 
-		std::atomic<bool> 	_rReceiving;
-		std::atomic<bool> 	_rPublishing;
-		std::atomic<bool> 	_rShaping;
+		std::atomic<bool> 	_mReceiving;
+		std::atomic<bool> 	_mPublishing;
+		std::atomic<bool> 	_mShaping;
 
-		std::unordered_map<std::string, double> _shapings;
+		Shaping::received	_shapings;
 
 		std::atomic<size_t>	_receivingTime;
 

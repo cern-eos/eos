@@ -1852,7 +1852,7 @@ public:
 
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
-  IoShaping		 mIoShaper;
+  IoShaping		 mIoShaper; // ioShaper thread to manager ioAggregates object
 
   //----------------------------------------------------------------------------
   // Authentication plugin variables like the ZMQ front end port number and the

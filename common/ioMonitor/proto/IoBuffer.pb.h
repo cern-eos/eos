@@ -69,6 +69,12 @@ extern data_GidsEntry_DoNotUseDefaultTypeInternal _data_GidsEntry_DoNotUse_defau
 class data_UidsEntry_DoNotUse;
 struct data_UidsEntry_DoNotUseDefaultTypeInternal;
 extern data_UidsEntry_DoNotUseDefaultTypeInternal _data_UidsEntry_DoNotUse_default_instance_;
+class summarys;
+struct summarysDefaultTypeInternal;
+extern summarysDefaultTypeInternal _summarys_default_instance_;
+class summarys_AggregatedEntry_DoNotUse;
+struct summarys_AggregatedEntry_DoNotUseDefaultTypeInternal;
+extern summarys_AggregatedEntry_DoNotUseDefaultTypeInternal _summarys_AggregatedEntry_DoNotUse_default_instance_;
 }  // namespace IoBuffer
 PROTOBUF_NAMESPACE_OPEN
 template <>
@@ -81,6 +87,10 @@ template <>
 ::IoBuffer::data_GidsEntry_DoNotUse* Arena::CreateMaybeMessage<::IoBuffer::data_GidsEntry_DoNotUse>(Arena*);
 template <>
 ::IoBuffer::data_UidsEntry_DoNotUse* Arena::CreateMaybeMessage<::IoBuffer::data_UidsEntry_DoNotUse>(Arena*);
+template <>
+::IoBuffer::summarys* Arena::CreateMaybeMessage<::IoBuffer::summarys>(Arena*);
+template <>
+::IoBuffer::summarys_AggregatedEntry_DoNotUse* Arena::CreateMaybeMessage<::IoBuffer::summarys_AggregatedEntry_DoNotUse>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 
 namespace IoBuffer {
@@ -632,6 +642,197 @@ class data final :
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_IoBuffer_2eproto;
+};// -------------------------------------------------------------------
+
+class summarys_AggregatedEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<summarys_AggregatedEntry_DoNotUse, 
+    ::uint64_t, ::IoBuffer::data,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> {
+public:
+  typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<summarys_AggregatedEntry_DoNotUse, 
+    ::uint64_t, ::IoBuffer::data,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> SuperType;
+  summarys_AggregatedEntry_DoNotUse();
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR summarys_AggregatedEntry_DoNotUse(
+      ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  explicit summarys_AggregatedEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void MergeFrom(const summarys_AggregatedEntry_DoNotUse& other);
+  static const summarys_AggregatedEntry_DoNotUse* internal_default_instance() { return reinterpret_cast<const summarys_AggregatedEntry_DoNotUse*>(&_summarys_AggregatedEntry_DoNotUse_default_instance_); }
+  static bool ValidateKey(void*) { return true; }
+  static bool ValidateValue(void*) { return true; }
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  friend struct ::TableStruct_IoBuffer_2eproto;
+};
+// -------------------------------------------------------------------
+
+class summarys final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:IoBuffer.summarys) */ {
+ public:
+  inline summarys() : summarys(nullptr) {}
+  ~summarys() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR summarys(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  summarys(const summarys& from);
+  summarys(summarys&& from) noexcept
+    : summarys() {
+    *this = ::std::move(from);
+  }
+
+  inline summarys& operator=(const summarys& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline summarys& operator=(summarys&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const summarys& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const summarys* internal_default_instance() {
+    return reinterpret_cast<const summarys*>(
+               &_summarys_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    6;
+
+  friend void swap(summarys& a, summarys& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(summarys* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(summarys* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  summarys* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<summarys>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const summarys& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const summarys& from) {
+    summarys::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(summarys* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "IoBuffer.summarys";
+  }
+  protected:
+  explicit summarys(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kAggregatedFieldNumber = 1,
+  };
+  // map<uint64, .IoBuffer.data> aggregated = 1;
+  int aggregated_size() const;
+  private:
+  int _internal_aggregated_size() const;
+
+  public:
+  void clear_aggregated() ;
+  private:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::data >&
+      _internal_aggregated() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::data >*
+      _internal_mutable_aggregated();
+  public:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::data >&
+      aggregated() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::data >*
+      mutable_aggregated();
+  // @@protoc_insertion_point(class_scope:IoBuffer.summarys)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::MapField<
+        summarys_AggregatedEntry_DoNotUse,
+        ::uint64_t, ::IoBuffer::data,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> aggregated_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_IoBuffer_2eproto;
 };
 
 // ===================================================================
@@ -950,6 +1151,41 @@ inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::Summary >*
 data::mutable_gids() {
   // @@protoc_insertion_point(field_mutable_map:IoBuffer.data.gids)
   return _internal_mutable_gids();
+}
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// summarys
+
+// map<uint64, .IoBuffer.data> aggregated = 1;
+inline int summarys::_internal_aggregated_size() const {
+  return _impl_.aggregated_.size();
+}
+inline int summarys::aggregated_size() const {
+  return _internal_aggregated_size();
+}
+inline void summarys::clear_aggregated() {
+  _impl_.aggregated_.Clear();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::data >&
+summarys::_internal_aggregated() const {
+  return _impl_.aggregated_.GetMap();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::data >&
+summarys::aggregated() const {
+  // @@protoc_insertion_point(field_map:IoBuffer.summarys.aggregated)
+  return _internal_aggregated();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::data >*
+summarys::_internal_mutable_aggregated() {
+  return _impl_.aggregated_.MutableMap();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::IoBuffer::data >*
+summarys::mutable_aggregated() {
+  // @@protoc_insertion_point(field_mutable_map:IoBuffer.summarys.aggregated)
+  return _internal_mutable_aggregated();
 }
 
 #ifdef __GNUC__
