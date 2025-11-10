@@ -6,7 +6,7 @@
 #include <memory>
 #include <sstream>
 
-extern int com_proto_token(char*);
+ 
 
 namespace {
 class TokenProtoCommand : public IConsoleCommand {
@@ -14,10 +14,25 @@ public:
   const char* name() const override { return "token"; }
   const char* description() const override { return "Token interface"; }
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
-  int run(const std::vector<std::string>& args, CommandContext&) override {
+  int run(const std::vector<std::string>& args, CommandContext& ctx) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
     std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
-    return com_proto_token((char*)joined.c_str());
+    // Parse token CLI: either --token <tok> OR --path <path> --expires <expires> [--permission <perm>] [--owner <owner>] [--group <group>] [--tree] [--origin <origin>...]
+    XrdOucString in = "mgm.cmd=token"; bool haveOp=false; 
+    for (size_t i=0;i<args.size();++i) {
+      const std::string& a = args[i];
+      if (a == "--token" && i+1<args.size()) { in += "&mgm.token="; in += args[++i].c_str(); haveOp=true; }
+      else if (a == "--path" && i+1<args.size()) { in += "&mgm.path="; in += abspath(args[++i].c_str()); haveOp=true; }
+      else if (a == "--expires" && i+1<args.size()) { in += "&mgm.expires="; in += args[++i].c_str(); }
+      else if (a == "--permission" && i+1<args.size()) { in += "&mgm.perm="; in += args[++i].c_str(); }
+      else if (a == "--owner" && i+1<args.size()) { in += "&mgm.owner="; in += args[++i].c_str(); }
+      else if (a == "--group" && i+1<args.size()) { in += "&mgm.group="; in += args[++i].c_str(); }
+      else if (a == "--tree") { in += "&mgm.tree=1"; }
+      else if (a == "--origin" && i+1<args.size()) { in += "&mgm.origin="; in += args[++i].c_str(); }
+    }
+    if (!haveOp) { printHelp(); global_retc = EINVAL; return 0; }
+    global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true);
+    return 0;
   }
   void printHelp() const override {
     fprintf(stdout,

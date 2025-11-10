@@ -6,7 +6,7 @@
 #include <memory>
 #include <sstream>
 
-extern int com_protoregister(char*);
+ 
 
 namespace {
 class RegisterProtoCommand : public IConsoleCommand {

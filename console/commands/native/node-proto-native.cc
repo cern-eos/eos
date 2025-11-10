@@ -3,10 +3,12 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleMain.hh"
+#include "console/commands/helpers/NodeHelper.hh"
 #include <memory>
 #include <sstream>
 
-extern int com_protonode(char*);
+ 
 
 namespace {
 class NodeProtoCommand : public IConsoleCommand {
@@ -14,10 +16,14 @@ public:
   const char* name() const override { return "node"; }
   const char* description() const override { return "Node configuration"; }
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
-  int run(const std::vector<std::string>& args, CommandContext&) override {
+  int run(const std::vector<std::string>& args, CommandContext& ctx) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
-    return com_protonode((char*)joined.c_str());
+    std::string joined = oss.str();
+    if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
+    NodeHelper helper(*ctx.globalOpts);
+    if (!helper.ParseCommand(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
+    global_retc = helper.Execute();
+    return 0;
   }
   void printHelp() const override {
     fprintf(stdout,

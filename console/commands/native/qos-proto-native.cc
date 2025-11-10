@@ -6,7 +6,7 @@
 #include <memory>
 #include <sstream>
 
-extern int com_qos(char*);
+ 
 
 namespace {
 class QosProtoCommand : public IConsoleCommand {
@@ -17,7 +17,8 @@ public:
   int run(const std::vector<std::string>& args, CommandContext&) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
     std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
-    return com_qos((char*)joined.c_str());
+    fprintf(stderr, "error: native 'qos' implementation missing; legacy fallback removed\n");
+    global_retc = EINVAL; return 0;
   }
   void printHelp() const override {
     fprintf(stdout,

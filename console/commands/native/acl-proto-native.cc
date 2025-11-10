@@ -6,7 +6,7 @@
 #include <memory>
 #include <sstream>
 
-extern int com_acl(char*);
+ 
 
 namespace {
 class AclProtoCommand : public IConsoleCommand {

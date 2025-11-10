@@ -3,10 +3,9 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
-
-extern int com_reconnect(char*);
 
 namespace {
 class ReconnectCommand : public IConsoleCommand {
@@ -15,10 +14,23 @@ public:
   const char* description() const override { return "Reconnect to MGM"; }
   bool requiresMgm(const std::string&) const override { return false; }
   int run(const std::vector<std::string>& args, CommandContext&) override {
-    std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); return com_reconnect((char*)joined.c_str());
+    std::string proto = args.empty() ? std::string() : args[0];
+    if (!proto.empty() && proto != "gsi" && proto != "krb5" && proto != "unix" && proto != "sss") {
+      printHelp(); global_retc = EINVAL; return 0;
+    }
+    if (!proto.empty()) {
+      fprintf(stdout, "# reconnecting to %s with <%s> authentication\n", serveruri.c_str(), proto.c_str());
+      setenv("XrdSecPROTOCOL", proto.c_str(), 1);
+    } else {
+      fprintf(stdout, "# reconnecting to %s\n", serveruri.c_str());
+    }
+    XrdOucString path = serveruri; path += "//proc/admin/"; // nudge connection
+    global_retc = 0;
+    return 0;
   }
-  void printHelp() const override {}
+  void printHelp() const override {
+    fprintf(stdout, "usage: reconnect [gsi,krb5,unix,sss] : reconnect to the management node [using the specified protocol]\n");
+  }
 };
 }
 

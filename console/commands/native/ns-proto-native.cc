@@ -3,10 +3,13 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
 
+// Use legacy protobuf-based implementation
 extern int com_ns(char*);
+ 
 
 namespace {
 class NsProtoCommand : public IConsoleCommand {
@@ -16,8 +19,9 @@ public:
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
   int run(const std::vector<std::string>& args, CommandContext&) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
-    return com_ns((char*)joined.c_str());
+    std::string joined = oss.str();
+    if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
+    return ::com_ns((char*)joined.c_str());
   }
   void printHelp() const override {
     fprintf(stdout,

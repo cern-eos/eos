@@ -153,8 +153,6 @@ void RegisterNativeConsoleCommands()
   RegisterRecycleProtoNativeCommand();
   extern void RegisterRegisterProtoNativeCommand();
   RegisterRegisterProtoNativeCommand();
-  extern void RegisterRmProtoNativeCommand();
-  RegisterRmProtoNativeCommand();
   extern void RegisterRouteProtoNativeCommand();
   RegisterRouteProtoNativeCommand();
   extern void RegisterTokenProtoNativeCommand();

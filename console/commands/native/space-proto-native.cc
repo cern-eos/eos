@@ -3,12 +3,74 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleMain.hh"
+#include "console/commands/ICmdHelper.hh"
+#include "common/StringTokenizer.hh"
+#include <algorithm>
 #include <memory>
 #include <sstream>
 
-extern int com_proto_space(char*);
+ 
 
 namespace {
+
+class SpaceHelper : public ICmdHelper {
+public:
+  SpaceHelper(const GlobalOptions& opts) : ICmdHelper(opts) { mIsAdmin = true; }
+  ~SpaceHelper() override = default;
+  bool ParseCommand(const char* arg) override {
+    eos::console::SpaceProto* space = mReq.mutable_space();
+    eos::common::StringTokenizer tokenizer(arg); tokenizer.GetLine(); std::string token;
+    if (!tokenizer.NextToken(token)) return false;
+    if (token == "ls") {
+      eos::console::SpaceProto_LsProto* ls = space->mutable_ls();
+      while (tokenizer.NextToken(token)) {
+        if (token == "-s") { mIsSilent = true; }
+        else if (token == "-g") { if (!tokenizer.NextToken(token) || !eos::common::StringTokenizer::IsUnsignedNumber(token)) return false; try { ls->set_outdepth(std::stoi(token)); } catch (...) { return false; } }
+        else if (token == "-m") { ls->set_outformat(eos::console::SpaceProto_LsProto::MONITORING); }
+        else if (token == "-l") { ls->set_outformat(eos::console::SpaceProto_LsProto::LISTING); }
+        else if (token == "--io") { ls->set_outformat(eos::console::SpaceProto_LsProto::IO); }
+        else if (token == "--fsck") { ls->set_outformat(eos::console::SpaceProto_LsProto::FSCK); }
+        else if (token.find('-') != 0) { ls->set_selection(token); }
+        else { return false; }
+      }
+    } else if (token == "config") {
+      if (!tokenizer.NextToken(token)) return false;
+      eos::console::SpaceProto_ConfigProto* config = space->mutable_config();
+      bool removing = false;
+      if (token == "rm") { removing = true; if (!tokenizer.NextToken(token)) return false; }
+      config->set_mgmspace_name(token);
+      if (!tokenizer.NextToken(token)) return false;
+      if (removing) { config->set_remove(true); config->set_mgmspace_key(token); }
+      else {
+        std::string::size_type pos = token.find('=');
+        if (pos != std::string::npos && std::count(token.begin(), token.end(), '=') == 1) {
+          config->set_mgmspace_key(token.substr(0, pos));
+          config->set_mgmspace_value(token.substr(pos + 1));
+        } else { return false; }
+      }
+    } else if (token == "set") {
+      if (!tokenizer.NextToken(token)) return false;
+      eos::console::SpaceProto_SetProto* set = space->mutable_set();
+      set->set_mgmspace(token);
+      if (!tokenizer.NextToken(token)) return false;
+      if (token == "on") set->set_state_switch(true);
+      else if (token == "off") set->set_state_switch(false);
+      else return false;
+    } else if (token == "rm") {
+      if (!tokenizer.NextToken(token)) return false;
+      eos::console::SpaceProto_RmProto* rm = space->mutable_rm(); rm->set_mgmspace(token);
+    } else if (token == "status") {
+      if (!tokenizer.NextToken(token)) return false;
+      eos::console::SpaceProto_StatusProto* status = space->mutable_status(); status->set_mgmspace(token);
+      if (tokenizer.NextToken(token)) { if (token == "-m") status->set_outformat_m(true); else return false; }
+    } else {
+      return false;
+    }
+    return true;
+  }
+};
+
 class SpaceProtoCommand : public IConsoleCommand {
 public:
   const char* name() const override { return "space"; }
@@ -17,7 +79,10 @@ public:
   int run(const std::vector<std::string>& args, CommandContext&) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
     std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
-    return com_proto_space((char*)joined.c_str());
+    SpaceHelper helper(gGlobalOpts);
+    if (!helper.ParseCommand(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
+    global_retc = helper.Execute();
+    return 0;
   }
   void printHelp() const override {
     fprintf(stdout,

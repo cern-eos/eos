@@ -3,8 +3,11 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/commands/helpers/NewfindHelper.hh"
+#include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
+#include <algorithm>
 
  
 
@@ -16,16 +19,31 @@ public:
   bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
   int run(const std::vector<std::string>& args, CommandContext& ctx) override {
     std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-    std::string joined = oss.str(); if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
-    // Native path: if xroot/file/as3, delegate to legacy helper behavior is complex; otherwise, construct mgm find
-    if (joined.find("root://") != std::string::npos || joined.find("file:") != std::string::npos || joined.find("as3:") != std::string::npos) {
-      fprintf(stderr, "error: non-EOS find paths are not supported by native 'find'\n");
-      global_retc = EINVAL; return 0;
+    std::string joined = oss.str();
+    if (wants_help(joined.c_str())) { printHelp(); global_retc = EINVAL; return 0; }
+    // Reuse the same helper as the original newfind implementation
+    NewfindHelper finder(*ctx.globalOpts);
+    // Special schemes handled locally
+    if (joined.find("root://") != std::string::npos) {
+      std::string path = joined.substr(joined.rfind("root://"));
+      path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
+      global_retc = finder.FindXroot(path);
+      return 0;
+    } else if (joined.find("file:") != std::string::npos) {
+      std::string path = joined.substr(joined.rfind("file:"));
+      path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
+      global_retc = finder.FindXroot(path);
+      return 0;
+    } else if (joined.find("as3:") != std::string::npos) {
+      std::string path = joined.substr(joined.rfind("as3:"));
+      path.erase(std::remove(path.begin(), path.end(), '"'), path.end());
+      global_retc = finder.FindAs3(path);
+      return 0;
     }
-    XrdOucString in = "mgm.cmd=find";
-    // Pass raw args joined; server-side parses options
-    in += "&mgm.find.arg="; in += joined.c_str();
-    global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true);
+    if (!finder.ParseCommand(joined.c_str())) {
+      printHelp(); global_retc = EINVAL; return 0;
+    }
+    global_retc = finder.Execute();
     return 0;
   }
   void printHelp() const override {
@@ -77,11 +95,34 @@ public:
             "\t path=...       :  all other paths are considered to be EOS paths!\n");
   }
 };
+
+// Provide 'newfind' alias to the same implementation as 'find'
+class NewfindAliasCommand : public IConsoleCommand {
+public:
+  const char* name() const override { return "newfind"; }
+  const char* description() const override { return "Find files/directories (new)"; }
+  bool requiresMgm(const std::string& args) const override { return !wants_help(args.c_str()); }
+  int run(const std::vector<std::string>& args, CommandContext& ctx) override {
+    IConsoleCommand* findCmd = CommandRegistry::instance().find("find");
+    if (!findCmd) {
+      fprintf(stderr, "error: 'find' command not available\n");
+      global_retc = EINVAL;
+      return 0;
+    }
+    return findCmd->run(args, ctx);
+  }
+  void printHelp() const override {
+    // Delegate to 'find' help
+    IConsoleCommand* findCmd = CommandRegistry::instance().find("find");
+    if (findCmd) findCmd->printHelp();
+  }
+};
 }
 
 void RegisterFindProtoNativeCommand()
 {
   CommandRegistry::instance().reg(std::make_unique<FindProtoCommand>());
+  CommandRegistry::instance().reg(std::make_unique<NewfindAliasCommand>());
 }
 
 

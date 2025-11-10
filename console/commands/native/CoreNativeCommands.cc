@@ -6,8 +6,8 @@
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
-// legacy command symbols
-extern int com_help(char*);
+#include <algorithm>
+#include <vector>
 
 namespace {
 class HelpCommand : public IConsoleCommand {
@@ -16,17 +16,32 @@ public:
   const char* description() const override { return "Display this text"; }
   bool requiresMgm(const std::string&) const override { return false; }
   int run(const std::vector<std::string>& args, CommandContext&) override {
-    if (!args.empty()) {
-      std::ostringstream oss; for (size_t i=0;i<args.size();++i){ if(i)oss<<' '; oss<<args[i]; }
-      std::string joined = oss.str();
-      return com_help((char*)joined.c_str());
+    if (args.empty()) {
+      auto& all = CommandRegistry::instance().all();
+      fprintf(stderr, "Available commands:\n");
+      // Make a copy and sort by command name
+      std::vector<IConsoleCommand*> sorted(all.begin(), all.end());
+      std::sort(sorted.begin(), sorted.end(),
+                [](const IConsoleCommand* a, const IConsoleCommand* b) {
+                  return std::string(a->name()) < std::string(b->name());
+                });
+      for (auto* c : sorted) {
+        fprintf(stderr, "  %-16s %s\n", c->name(), c->description());
+      }
+      return 0;
     }
-    auto& all = CommandRegistry::instance().all();
-    fprintf(stderr, "Available commands:\n");
-    for (auto* c : all) fprintf(stderr, "  %-16s %s\n", c->name(), c->description());
+    // Print detailed help for a specific command
+    IConsoleCommand* cmd = CommandRegistry::instance().find(args[0].c_str());
+    if (!cmd) {
+      fprintf(stderr, "error: unknown command '%s'\n", args[0].c_str());
+      return (global_retc = EINVAL);
+    }
+    cmd->printHelp();
     return 0;
   }
-  void printHelp() const override {}
+  void printHelp() const override {
+    fprintf(stdout, "usage: help [command]\n");
+  }
 };
 
 class ToggleFlagCommand : public IConsoleCommand {

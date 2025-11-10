@@ -13,7 +13,6 @@
 #include "console/commands/com_chown.cc"
 #include "console/commands/com_clear.cc"
 #include "console/commands/com_console.cc"
-#include "console/commands/com_daemon.cc"
 #include "console/commands/com_du.cc"
 #include "console/commands/com_evict.cc"
 #include "console/commands/com_file.cc"
@@ -33,7 +32,6 @@
 #include "console/commands/com_member.cc"
 #include "console/commands/com_mkdir.cc"
 #include "console/commands/com_motd.cc"
-#include "console/commands/com_old_find.cc"
 #include "console/commands/com_print.cc"     // provides com_help
 #include "console/commands/com_proto_access.cc"
 #include "console/commands/com_proto_acl.cc"
