@@ -93,7 +93,15 @@ Audit::Audit(const std::string& baseDirectory,
 , mCurrentSegmentStart(0)
 , mAuditRead(false)
 , mAuditList(false)
+, mReadAuditAll(false)
 {
+  // Default: audit common document-style file types for READ
+  const char* defaults[] = {
+    "txt", "pdf", "doc", "docx", "ppt", "pptx",
+    "xls", "xlsx", "odt", "ods", "odp", "rtf",
+    "csv", "json", "xml", "yaml", "yml", "md", "html", "htm"
+  };
+  mReadAuditSuffixes.assign(std::begin(defaults), std::end(defaults));
 }
 
 Audit::~Audit()
@@ -111,6 +119,49 @@ Audit::setBaseDirectory(const std::string& baseDirectory)
   }
   mBaseDir = baseDirectory;
   closeWriterLocked();
+}
+
+void
+Audit::setReadAuditSuffixes(const std::vector<std::string>& suffixes)
+{
+  std::lock_guard<std::mutex> g(mMutex);
+  mReadAuditSuffixes.clear();
+  mReadAuditAll = false;
+  for (const auto& s : suffixes) {
+    if (s == "*") { mReadAuditAll = true; continue; }
+    std::string ls;
+    ls.reserve(s.size());
+    for (char c : s) ls.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+    // strip leading dot if provided
+    if (!ls.empty() && ls[0] == '.') ls.erase(ls.begin());
+    if (!ls.empty()) mReadAuditSuffixes.push_back(ls);
+  }
+}
+
+void
+Audit::setReadAuditAll(bool enable)
+{
+  std::lock_guard<std::mutex> g(mMutex);
+  mReadAuditAll = enable;
+}
+
+bool
+Audit::shouldAuditReadPath(const std::string& path) const
+{
+  if (mReadAuditAll) return true;
+  // find suffix after last '.' ignoring directories
+  std::string::size_type slash = path.find_last_of('/') ;
+  std::string::size_type dot = path.find_last_of('.');
+  if (dot == std::string::npos) return false;
+  if (slash != std::string::npos && dot < slash) return false;
+  std::string ext = path.substr(dot + 1);
+  std::string lext;
+  lext.reserve(ext.size());
+  for (char c : ext) lext.push_back(static_cast<char>(std::tolower(static_cast<unsigned char>(c))));
+  for (const auto& s : mReadAuditSuffixes) {
+    if (lext == s) return true;
+  }
+  return false;
 }
 
 void

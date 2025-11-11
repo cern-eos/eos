@@ -2194,6 +2194,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
       eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
       mIsZeroSize = true;
+      // Audit READ on successful read-only open (served by MGM)
+      if (gOFS->mAudit && gOFS->mAudit->isReadAuditingEnabled() && gOFS->mAudit->shouldAuditReadPath(path)) {
+        gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                            std::string(), nullptr, nullptr,
+                            std::string(), std::string(), std::string(),
+                            __FILE__, __LINE__, VERSION);
+      }
       return SFS_OK;
     }
   }
@@ -2790,6 +2797,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // also if this is not a rain file
         if (!isFuse && !LayoutId::IsRain(layoutId)) {
           mIsZeroSize = true;
+          // Audit READ on successful read-only open (served by MGM)
+          if (gOFS->mAudit && gOFS->mAudit->isReadAuditingEnabled() && gOFS->mAudit->shouldAuditReadPath(path)) {
+            gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                                std::string(), nullptr, nullptr,
+                                std::string(), std::string(), std::string(),
+                                __FILE__, __LINE__, VERSION);
+          }
           return SFS_OK;
         }
       }
@@ -3443,6 +3457,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   eos_info("path=%s %s duration=%0.03fms timing=%s",
            path, clientinfo, tm.RealTime(), tm.Dump().c_str());
+  // Audit READ for successful open if read-only and auditing enabled
+  if (!isRW && gOFS->mAudit && gOFS->mAudit->isReadAuditingEnabled() && gOFS->mAudit->shouldAuditReadPath(path)) {
+    gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                        std::string(), nullptr, nullptr,
+                        std::string(), std::string(), std::string(),
+                        __FILE__, __LINE__, VERSION);
+  }
   return rcode;
 }
 
