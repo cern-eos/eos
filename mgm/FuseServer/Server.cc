@@ -1759,26 +1759,7 @@ Server::OpSetDirectory(const std::string& id,
       std::string path = gOFS->eosView->getUri(cmd.get());
       if (!path.empty() && path.back() != '/') path.push_back('/');
       eos::audit::Stat afterStat;
-      eos::IContainerMD::ctime_t cts, mts;
-      cmd->getCTime(cts);
-      cmd->getMTime(mts);
-      afterStat.set_ctime(cts.tv_sec);
-      afterStat.set_mtime(mts.tv_sec);
-      afterStat.set_uid(cmd->getCUid());
-      afterStat.set_gid(cmd->getCGid());
-      uint32_t am = (cmd->getMode() & 07777);
-      afterStat.set_mode(am);
-      char amo[8];
-      snprintf(amo, sizeof(amo), "0%04o", am);
-      afterStat.set_mode_octal(amo);
-      // Add ns-resolution timestamps
-      {
-        char cbuf[64], mbuf[64];
-        snprintf(cbuf, sizeof(cbuf), "%ld.%09ld", (long)cts.tv_sec, (long)cts.tv_nsec);
-        snprintf(mbuf, sizeof(mbuf), "%ld.%09ld", (long)mts.tv_sec, (long)mts.tv_nsec);
-        afterStat.set_ctime_ns(cbuf);
-        afterStat.set_mtime_ns(mbuf);
-      }
+      eos::mgm::auditutil::buildStatFromContainerMD(cmd, afterStat, /*includeNs=*/true);
       if (gOFS->mAudit && gOFS->AllowAuditModification(path)) gOFS->mAudit->audit(eos::audit::MKDIR, path, vid, std::string(logId), std::string(cident), "mgm",
                           std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
     }
@@ -2068,15 +2049,7 @@ Server::OpSetFile(const std::string& id,
           if (gOFS->mAudit) {
             std::string newPath = gOFS->eosView->getUri(fmd.get());
             eos::audit::Stat afterStat;
-            eos::IFileMD::ctime_t cts2, mts2;
-            fmd->getCTime(cts2);
-            fmd->getMTime(mts2);
-            afterStat.set_ctime(cts2.tv_sec);
-            afterStat.set_mtime(mts2.tv_sec);
-            afterStat.set_size(fmd->getSize());
-            std::string hex2;
-            eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
-            if (!hex2.empty()) afterStat.set_checksum(hex2);
+            eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
             if (gOFS->mAudit && gOFS->AllowAuditModification(newPath)) gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, std::string(logId), std::string(cident), "mgm",
                                   oldname, nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
           }
@@ -2581,32 +2554,10 @@ Server::OpSetFile(const std::string& id,
     if (gOFS->mAudit) {
       std::string filePath = gOFS->eosView->getUri(fmd.get());
       eos::audit::Stat afterStat;
-      eos::IFileMD::ctime_t cts2, mts2;
-      fmd->getCTime(cts2);
-      fmd->getMTime(mts2);
-      afterStat.set_ctime(cts2.tv_sec);
-      afterStat.set_mtime(mts2.tv_sec);
-      {
-        char cbuf[64], mbuf[64];
-        snprintf(cbuf, sizeof(cbuf), "%ld.%09ld", (long)cts2.tv_sec, (long)cts2.tv_nsec);
-        snprintf(mbuf, sizeof(mbuf), "%ld.%09ld", (long)mts2.tv_sec, (long)mts2.tv_nsec);
-        afterStat.set_ctime_ns(cbuf);
-        afterStat.set_mtime_ns(mbuf);
-      }
-      afterStat.set_size(fmd->getSize());
-      uint32_t am = (fmd->getFlags() & 07777);
-      afterStat.set_mode(am);
-      char amo[8];
-      snprintf(amo, sizeof(amo), "0%04o", am);
-      afterStat.set_mode_octal(amo);
-      std::string hex2;
-      eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
-      if (!hex2.empty()) afterStat.set_checksum(hex2);
-
-      if (op == CREATE) {
-        if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
+      eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+      if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
                             std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
-      } else if (op == UPDATE) {
+      if (op == UPDATE) {
         if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
                             std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
 
@@ -3000,24 +2951,7 @@ Server::OpSetLink(const std::string& id,
     if (gOFS->mAudit && op == CREATE) {
       std::string linkPath = gOFS->eosView->getUri(fmd.get());
       eos::audit::Stat afterStat;
-      eos::IFileMD::ctime_t cts2, mts2;
-      fmd->getCTime(cts2);
-      fmd->getMTime(mts2);
-      afterStat.set_ctime(cts2.tv_sec);
-      afterStat.set_mtime(mts2.tv_sec);
-      {
-        char cbuf[64], mbuf[64];
-        snprintf(cbuf, sizeof(cbuf), "%ld.%09ld", (long)cts2.tv_sec, (long)cts2.tv_nsec);
-        snprintf(mbuf, sizeof(mbuf), "%ld.%09ld", (long)mts2.tv_sec, (long)mts2.tv_nsec);
-        afterStat.set_ctime_ns(cbuf);
-        afterStat.set_mtime_ns(mbuf);
-      }
-      afterStat.set_size(fmd->getSize());
-      uint32_t am = (fmd->getFlags() & 07777);
-      afterStat.set_mode(am);
-      char amo[8];
-      snprintf(amo, sizeof(amo), "0%04o", am);
-      afterStat.set_mode_octal(amo);
+      eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
       if (gOFS->mAudit && gOFS->AllowAuditModification(linkPath)) gOFS->mAudit->audit(eos::audit::SYMLINK, linkPath, vid, std::string(logId), std::string(cident), "mgm",
                           md.target(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
     }
