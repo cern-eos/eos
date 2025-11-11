@@ -2240,6 +2240,13 @@ public:
   bool AllowAuditList(const std::string& dirPath);
   bool AllowAuditRead(const std::string& path);
 
+  // Fast-path overloads: evaluate auditing given a pre-fetched sys.audit value.
+  // The provided auditMode string should be the raw attribute value (any case).
+  // For read evaluation, path is used when auditMode is "default" to apply the suffix filter.
+  bool AllowAuditModificationAttr(const std::string& auditMode);
+  bool AllowAuditListAttr(const std::string& auditMode);
+  bool AllowAuditReadAttr(const std::string& auditMode, const std::string& path);
+
 protected:
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 
