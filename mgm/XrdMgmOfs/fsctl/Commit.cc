@@ -355,15 +355,7 @@ XrdMgmOfs::Commit(const char* path,
         // Emit WRITE audit with before/after size and times
         if (gOFS->mAudit) {
           eos::audit::Stat afterStat;
-          eos::IFileMD::ctime_t cts2, mts2;
-          fmd->getCTime(cts2);
-          fmd->getMTime(mts2);
-          afterStat.set_ctime(cts2.tv_sec);
-          afterStat.set_mtime(mts2.tv_sec);
-          afterStat.set_size(fmd->getSize());
-          std::string hex2;
-          eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
-          if (!hex2.empty()) afterStat.set_checksum(hex2);
+          eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
           if (gOFS->AllowAuditModification(cgi.count("path") ? cgi["path"] : path)) gOFS->mAudit->audit(eos::audit::WRITE, cgi.count("path") ? cgi["path"] : path,
                                 vid, tlLogId.logId, tlLogId.cident, "mgm",
                                 std::string(), &beforeStat, &afterStat);

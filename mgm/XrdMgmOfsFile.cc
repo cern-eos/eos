@@ -63,6 +63,8 @@
 #include <XrdSfs/XrdSfsAio.hh>
 #include "common/Constants.hh"
 #include <XrdOuc/XrdOucPgrwUtils.hh>
+#include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/AuditHelpers.hh"
 
 
 #ifdef __APPLE__
@@ -1532,17 +1534,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // Emit UPDATE audit for opening existing file for update (non-create, non-truncate)
         if (gOFS->mAudit) {
           eos::audit::Stat beforeStat;
-          eos::IFileMD::ctime_t cts, mts;
-          if (fmd) {
-            fmd->getCTime(cts);
-            fmd->getMTime(mts);
-            beforeStat.set_ctime(cts.tv_sec);
-            beforeStat.set_mtime(mts.tv_sec);
-            beforeStat.set_size(fmd->getSize());
-            std::string hex;
-            eos::appendChecksumOnStringAsHex(fmd.get(), hex);
-            if (!hex.empty()) beforeStat.set_checksum(hex);
-          }
+          eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
           gOFS->mAudit->audit(eos::audit::UPDATE, path, vid, logId, cident, "mgm",
                               std::string(), &beforeStat, nullptr);
         }
@@ -1618,20 +1610,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             // Emit CREATE or TRUNCATE audit after creation
             if (gOFS->mAudit) {
               eos::audit::Stat afterStat;
-              {
-                eos::IFileMD::ctime_t cts, mts;
-                fmd->getCTime(cts);
-                fmd->getMTime(mts);
-                afterStat.set_ctime(cts.tv_sec);
-                afterStat.set_mtime(mts.tv_sec);
-                afterStat.set_uid(fmd->getCUid());
-                afterStat.set_gid(fmd->getCGid());
-                uint32_t am = (fmd->getFlags() & 07777);
-                afterStat.set_mode(am);
-                char amo[8];
-                snprintf(amo, sizeof(amo), "0%04o", am);
-                afterStat.set_mode_octal(amo);
-              }
+              eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
               if (auditTruncate) {
                 gOFS->mAudit->audit(eos::audit::TRUNCATE,
                                     truncPath.empty() ? path : truncPath,
@@ -2799,7 +2778,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // also if this is not a rain file
         if (!isFuse && !LayoutId::IsRain(layoutId)) {
           mIsZeroSize = true;
-          // -------------------------------------------------------------------
+          // ----------f---------------------------------------------------------
           // Per-directory sys.audit override for READ auditing
           if (gOFS->AllowAuditRead(path)) {
             gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
