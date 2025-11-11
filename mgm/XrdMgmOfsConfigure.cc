@@ -1531,8 +1531,14 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       if (mEnvAuditDisableAll) {
         mAudit.reset();
       } else if (mAudit) {
-        mAudit->setReadAuditing(mEnvAuditRead);
-        mAudit->setListAuditing(mEnvAuditList);
+        if (mEnvAuditAttributeOnly) {
+          // attribute mode: keep audit object, disable all globals
+          mAudit->setReadAuditing(false);
+          mAudit->setListAuditing(false);
+        } else {
+          mAudit->setReadAuditing(mEnvAuditRead);
+          mAudit->setListAuditing(mEnvAuditList);
+        }
         if (mEnvAuditReadSuffixesSet) {
           mAudit->setReadAuditSuffixes(mEnvAuditReadSuffixes);
         }

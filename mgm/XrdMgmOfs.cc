@@ -378,22 +378,40 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     if (mode.empty() || mode == "none" || mode == "false" || mode == "no" || mode == "off") {
       mEnvAuditDisableAll = true;
+      mEnvAuditAttributeMode = false;
+      mEnvAuditAttributeOnly = false;
     } else if (mode == "default") {
+      mEnvAuditAttributeMode = true;
+      mEnvAuditAttributeOnly = false;
       mEnvAuditRead = true;      // default suffix list
       mEnvAuditList = false;
       mEnvAuditReadAll = false;
     } else if (mode == "modifications") {
+      mEnvAuditAttributeMode = true;
+      mEnvAuditAttributeOnly = false;
       mEnvAuditRead = false;
       mEnvAuditList = false;
       mEnvAuditReadAll = false;
     } else if (mode == "detail") {
+      mEnvAuditAttributeMode = true;
+      mEnvAuditAttributeOnly = false;
       mEnvAuditRead = true;
       mEnvAuditReadAll = true;   // read all files
       mEnvAuditList = false;
     } else if (mode == "all") {
+      mEnvAuditAttributeMode = true;
+      mEnvAuditAttributeOnly = false;
       mEnvAuditRead = true;
       mEnvAuditReadAll = true;
       mEnvAuditList = true;
+    } else if (mode == "attribute") {
+      // Create audit object but disable all globally; only sys.audit enables
+      mEnvAuditDisableAll = false;
+      mEnvAuditAttributeMode = true;
+      mEnvAuditAttributeOnly = true;
+      mEnvAuditRead = false;
+      mEnvAuditReadAll = false;
+      mEnvAuditList = false;
     }
 
     const char* rs = getenv("EOS_MGM_AUDIT_READ_SUFFIX");
@@ -1782,4 +1800,69 @@ XrdMgmOfs::IsMaster(const char* path,
   const char* ok = "OK";
   error.setErrInfo(strlen(ok) + 1, ok);
   return SFS_DATA;
+}
+
+bool
+XrdMgmOfs::AllowAuditModification(const std::string& path) const
+{
+  if (!mAudit) return false;
+  if (!mEnvAuditAttributeOnly) return true;
+  // attribute-only: parent sys.audit must enable modifications
+  std::string pdir;
+  { eos::common::Path cP(path.c_str()); pdir = cP.GetParentPath(); }
+  try {
+    eos::common::RWMutexReadLock rl(eosViewRWMutex);
+    auto pd = eosView->getContainer(pdir);
+    auto amap = pd->getAttributes();
+    auto it = amap.find("sys.audit");
+    if (it != amap.end()) {
+      std::string mode = it->second;
+      for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      if (mode == "all" || mode == "detail" || mode == "default" || mode == "modifications") return true;
+    }
+  } catch (...) {}
+  return false;
+}
+
+bool
+XrdMgmOfs::AllowAuditList(const std::string& dirPath) const
+{
+  if (!mAudit) return false;
+  if (!mEnvAuditAttributeOnly) return mAudit->isListAuditingEnabled();
+  // attribute-only: dir sys.audit must be 'all'
+  try {
+    eos::common::RWMutexReadLock rl(eosViewRWMutex);
+    auto dh = eosView->getContainer(dirPath);
+    auto amap = dh->getAttributes();
+    auto it = amap.find("sys.audit");
+    if (it != amap.end()) {
+      std::string mode = it->second;
+      for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      if (mode == "all") return true;
+    }
+  } catch (...) {}
+  return false;
+}
+
+bool
+XrdMgmOfs::AllowAuditRead(const std::string& path) const
+{
+  if (!mAudit) return false;
+  if (!mEnvAuditAttributeOnly) return (mAudit->isReadAuditingEnabled() && mAudit->shouldAuditReadPath(path));
+  // attribute-only: parent sys.audit governs; default/detail/all enable; default uses suffix filter
+  std::string pdir;
+  { eos::common::Path cP(path.c_str()); pdir = cP.GetParentPath(); }
+  try {
+    eos::common::RWMutexReadLock rl(eosViewRWMutex);
+    auto pd = eosView->getContainer(pdir);
+    auto amap = pd->getAttributes();
+    auto it = amap.find("sys.audit");
+    if (it != amap.end()) {
+      std::string mode = it->second;
+      for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      if (mode == "detail" || mode == "all") return true;
+      if (mode == "default") return mAudit->shouldAuditReadPath(path);
+    }
+  } catch (...) {}
+  return false;
 }
