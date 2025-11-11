@@ -122,8 +122,6 @@ XrdMgmOfs::_chown(const char* path,
       errno = 0;
       if (mAudit) {
         eos::audit::Stat afterStat;
-        afterStat.set_ctime(time(nullptr));
-        afterStat.set_mtime(time(nullptr));
         eos::mgm::auditutil::buildStatFromContainerMD(cmd, afterStat, /*includeNs=*/true);
         if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHOWN, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
       }
@@ -202,8 +200,6 @@ XrdMgmOfs::_chown(const char* path,
         gOFS->FuseXCastRefresh(fmd->getIdentifier(), cmd->getParentIdentifier());
         if (mAudit) {
           eos::audit::Stat afterStat;
-          afterStat.set_ctime(time(nullptr));
-          afterStat.set_mtime(time(nullptr));
           eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
           if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHOWN, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
         }
