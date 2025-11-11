@@ -35,6 +35,7 @@
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include <XrdOuc/XrdOucEnv.hh>
+#include "common/Audit.hh"
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -277,6 +278,16 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
 
   dirName = dir_path;
   EXEC_TIMING_END("OpenDir");
+  // Emit LIST audit on successful directory open (if enabled)
+  if (gOFS->mAudit && gOFS->mAudit->isListAuditingEnabled()) {
+    std::string apath = dir_path ? dir_path : "";
+    if (!apath.empty() && apath.back() != '/') apath.push_back('/');
+    gOFS->mAudit->audit(eos::audit::LIST, apath, vid,
+                        std::string(), std::string(), "mgm",
+                        std::string(), nullptr, nullptr,
+                        std::string(), std::string(), std::string(),
+                        __FILE__, __LINE__, VERSION);
+  }
   return SFS_OK;
 }
 

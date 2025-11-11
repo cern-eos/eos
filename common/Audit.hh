@@ -73,6 +73,20 @@ public:
   void setBaseDirectory(const std::string& baseDirectory);
 
   /**
+   * @brief Enable/disable audit logging for specific operations
+   * @param enable true to enable, false to disable
+   */
+  void setReadAuditing(bool enable) { mAuditRead = enable; }
+  void setListAuditing(bool enable) { mAuditList = enable; }
+
+  /**
+   * @brief Check if auditing is enabled for specific operations
+   * @return true if enabled, false otherwise
+   */
+  bool isReadAuditingEnabled() const { return mAuditRead; }
+  bool isListAuditingEnabled() const { return mAuditList; }
+
+  /**
    * @brief Append a record to the audit log (JSON line). Thread-safe.
    */
   void audit(const eos::audit::AuditRecord& record);
@@ -118,6 +132,8 @@ private:
   void* mZstdCctx; // ZSTD_CCtx*
   int mFd;         // file descriptor for current .zst file
   time_t mCurrentSegmentStart;
+  bool mAuditRead = false;
+  bool mAuditList = false;
 };
 
 EOSCOMMONNAMESPACE_END
