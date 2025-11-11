@@ -118,7 +118,7 @@ Example JSON line (pretty-printed for readability):
 ### Environment configuration
 
 - `EOS_MGM_AUDIT` — control overall audit level (parsed in `XrdMgmOfs` and applied during configure):
-  - `none`, `false`, `no`, or empty: disable all auditing
+  - `none`, `false`, `no`, `off`, or empty: disable all auditing
   - `default`: audit modifications and READ for default document suffixes (no LIST)
   - `modifications`: audit only modifications (no LIST, no READ)
   - `detail`: audit modifications and READ for all files (no LIST)
