@@ -517,8 +517,7 @@ GrpcNsInterface::GetMD(eos::common::VirtualIdentity& vid,
       try {
         fmd = gOFS->eosView->getFile(request->id().path());
         path = gOFS->eosView->getUri(fmd.get());
-	vid.scope = path;
-
+        vid.scope = path;
         gOFS->listAttributes(gOFS->eosView, fmd.get(), attrmapF, false);
 
         if (check_perms) {
@@ -1692,7 +1691,6 @@ grpc::Status GrpcNsInterface::Rename(eos::common::VirtualIdentity& vid,
   std::string target;
   path = request->id().path();
   target = request->target();
-
   vid.scope = path;
 
   if (path.empty()) {
@@ -1710,11 +1708,7 @@ grpc::Status GrpcNsInterface::Rename(eos::common::VirtualIdentity& vid,
   XrdOucErrInfo error;
   errno = 0;
 
-  if (gOFS->_rename(
-        path.c_str(),
-        target.c_str(),
-        error,
-        vid)) {
+  if (gOFS->rename(path.c_str(), target.c_str(), error, vid)) {
     reply->set_code(errno);
     reply->set_msg(error.getErrText());
     return grpc::Status::OK;
@@ -1848,6 +1842,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
 
     for (const auto& spath : lst_dirs) {
       vid.scope = spath.c_str();
+
       if (gOFS->_attr_set(spath.c_str(), error, vid, (const char*) 0, key.c_str(),
                           b64value.c_str(), request->create())) {
         reply->set_code(errno);
@@ -1861,6 +1856,7 @@ grpc::Status GrpcNsInterface::SetXAttr(eos::common::VirtualIdentity& vid,
   for (auto i = 0; i < request->keystodelete().size(); ++i) {
     for (const auto& spath : lst_dirs) {
       vid.scope = spath.c_str();
+
       if (gOFS->_attr_rem(spath.c_str(), error, vid, (const char*) 0,
                           request->keystodelete()[i].c_str())) {
         reply->set_code(errno);
