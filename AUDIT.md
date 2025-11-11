@@ -107,6 +107,32 @@ Example JSON line (pretty-printed for readability):
   - READ: in `mgm/XrdMgmOfsFile.cc::open` for successful read-only opens (including 0-size files served by MGM) when enabled and suffix matches.
   - LIST: in `mgm/XrdMgmOfsDirectory.cc::_open` on successful directory opens when enabled.
 
+### Default settings in XrdMgmOfs
+
+- The MGM reads environment variables at startup and applies them to the `Audit` instance:
+  - Default mode (`EOS_MGM_AUDIT` unset or `default`):
+    - Audit all modifications (CREATE, DELETE, RENAME, TRUNCATE, WRITE, UPDATE, metadata changes)
+    - Audit READ for the default document-style suffix list
+    - Do not audit LIST
+
+### Environment configuration
+
+- `EOS_MGM_AUDIT` — control overall audit level (parsed in `XrdMgmOfs` and applied during configure):
+  - `none`, `false`, `no`, or empty: disable all auditing
+  - `default`: audit modifications and READ for default document suffixes (no LIST)
+  - `modifications`: audit only modifications (no LIST, no READ)
+  - `detail`: audit modifications and READ for all files (no LIST)
+  - `all`: audit everything, including LIST and READ for all files
+
+- `EOS_MGM_AUDIT_READ_SUFFIX` — override the READ suffix filter:
+  - Comma-separated list, case-insensitive (e.g. `pdf,docx,json`)
+  - Use `*` to audit READ for all files
+  - If unset, the built-in default document-style list is used
+
+Notes:
+- Variables are parsed in `XrdMgmOfs` constructor and applied after the `Audit` instance is created in `XrdMgmOfsConfigure.cc`.
+- Setting `EOS_MGM_AUDIT` to a disabling mode prevents the `Audit` object from being used.
+
 ### Integration points (where audits are emitted)
 
 - Core MGM (`mgm/`):
