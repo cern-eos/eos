@@ -27,7 +27,7 @@
 //------------------------------------------------------------------------------
 
 #include "mgm/XrdMgmOfsTrace.hh"
-#include "mgm/ProcInterface.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/AuditHelpers.hh"
 
 //------------------------------------------------------------------------------
