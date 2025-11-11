@@ -34,6 +34,7 @@
 #include "namespace/Prefetcher.hh"
 #include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"
+#include "mgm/AuditHelpers.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include <openssl/sha.h>
