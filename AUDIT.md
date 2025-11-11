@@ -115,6 +115,22 @@ Example JSON line (pretty-printed for readability):
     - Audit READ for the default document-style suffix list
     - Do not audit LIST
 
+### Per-directory attribute-based auditing (sys.audit)
+
+- When `EOS_MGM_AUDIT=attribute`, global auditing is disabled and auditing is enabled per directory via the extended attribute `sys.audit` set on the parent directory (for files) or the directory itself (for LIST).
+- Valid values for `sys.audit` (case-insensitive):
+  - `none` / `no` / `false` / `off`: disable auditing for that directory
+  - `modifications`: enable modifications only (CREATE/DELETE/RENAME/TRUNCATE/WRITE/UPDATE/metadata)
+  - `default`: enable modifications and READ filtered by the default suffix list; LIST remains off
+  - `detail`: enable modifications and READ for all files; LIST remains off
+  - `all`: enable everything including LIST and READ for all files
+- Evaluation points:
+  - Files: parent directory’s `sys.audit`
+  - LIST: the directory’s own `sys.audit`
+- Notes:
+  - `EOS_MGM_AUDIT=off` disables auditing completely; `sys.audit` is ignored.
+  - In non-`attribute` modes, global settings control auditing; `sys.audit` is not used to override them.
+
 ### Environment configuration
 
 - `EOS_MGM_AUDIT` — control overall audit level (parsed in `XrdMgmOfs` and applied during configure):
@@ -123,6 +139,7 @@ Example JSON line (pretty-printed for readability):
   - `modifications`: audit only modifications (no LIST, no READ)
   - `detail`: audit modifications and READ for all files (no LIST)
   - `all`: audit everything, including LIST and READ for all files
+  - `attribute`: create the audit logger but disable all global auditing; auditing is enabled explicitly via `sys.audit`
 
 - `EOS_MGM_AUDIT_READ_SUFFIX` — override the READ suffix filter:
   - Comma-separated list, case-insensitive (e.g. `pdf,docx,json`)
@@ -131,7 +148,8 @@ Example JSON line (pretty-printed for readability):
 
 Notes:
 - Variables are parsed in `XrdMgmOfs` constructor and applied after the `Audit` instance is created in `XrdMgmOfsConfigure.cc`.
-- Setting `EOS_MGM_AUDIT` to a disabling mode prevents the `Audit` object from being used.
+- Setting `EOS_MGM_AUDIT=attribute` keeps the logger active while relying solely on per-directory `sys.audit` to enable auditing.
+- Setting `EOS_MGM_AUDIT=off` disables the logger entirely (no auditing).
 
 ### Integration points (where audits are emitted)
 
