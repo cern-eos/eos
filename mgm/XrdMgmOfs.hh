@@ -2236,9 +2236,9 @@ public:
                     std::string& rvalue);
 
   // Centralized audit allow checks
-  bool AllowAuditModification(const std::string& path) const;
-  bool AllowAuditList(const std::string& dirPath) const;
-  bool AllowAuditRead(const std::string& path) const;
+  bool AllowAuditModification(const std::string& path);
+  bool AllowAuditList(const std::string& dirPath);
+  bool AllowAuditRead(const std::string& path);
 
 protected:
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
