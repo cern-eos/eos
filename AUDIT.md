@@ -92,14 +92,29 @@ Example JSON line (pretty-printed for readability):
   - Automatic rotation based on time; symlink management (`audit.zstd`)
   - Normalizes placeholder UUID to empty string
 
+### READ and LIST auditing (optional)
+
+- **Disabled by default.** Enable only when needed due to potential volume.
+- **Enabling via API** (on `eos::common::Audit`):
+  - `setReadAuditing(true|false)` — enable/disable READ auditing
+  - `setListAuditing(true|false)` — enable/disable directory LIST auditing
+- **Suffix filter for READ auditing**:
+  - By default, READ auditing applies to common document-style files: `txt, pdf, doc, docx, ppt, pptx, xls, xlsx, odt, ods, odp, rtf, csv, json, xml, yaml, yml, md, html, htm`.
+  - Configure at runtime with `setReadAuditSuffixes({"pdf","docx",...})`.
+  - If the vector contains `"*"`, all files are audited for READ (equivalent to `setReadAuditAll(true)`).
+  - Matching is case-insensitive and based on the file extension of the path being opened.
+- **Where READ/LIST audits are emitted**:
+  - READ: in `mgm/XrdMgmOfsFile.cc::open` for successful read-only opens (including 0-size files served by MGM) when enabled and suffix matches.
+  - LIST: in `mgm/XrdMgmOfsDirectory.cc::_open` on successful directory opens when enabled.
+
 ### Integration points (where audits are emitted)
 
 - Core MGM (`mgm/`):
   - `XrdMgmOfs.hh`: `std::unique_ptr<eos::common::Audit> mAudit` member
   - `XrdMgmOfsConfigure.cc`: initializes `mAudit` with `<logdir>/audit/`
   - Operations:
-    - Files: `XrdMgmOfsFile.cc::open` (CREATE, TRUNCATE, UPDATE), `fsctl/Commit.cc` (WRITE)
-    - Directories: `Mkdir.cc` (MKDIR), `Remdir.cc` (RMDIR)
+    - Files: `XrdMgmOfsFile.cc::open` (CREATE, TRUNCATE, UPDATE, READ), `fsctl/Commit.cc` (WRITE)
+    - Directories: `Mkdir.cc` (MKDIR), `Remdir.cc` (RMDIR), `XrdMgmOfsDirectory.cc` (LIST)
     - Metadata: `Chmod.cc` (CHMOD), `Chown.cc` (CHOWN), `Attr.cc` (SET_XATTR, RM_XATTR)
     - Symlinks: `Link.cc` (SYMLINK)
     - Delete: `Rm.cc` (DELETE)

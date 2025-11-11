@@ -1527,6 +1527,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     try {
       mAudit.reset(new eos::common::Audit(auditDir));
       Eroute.Say("=====> audit log directory: ", auditDir.c_str(), "");
+      // Apply audit environment configuration
+      if (mEnvAuditDisableAll) {
+        mAudit.reset();
+      } else if (mAudit) {
+        mAudit->setReadAuditing(mEnvAuditRead);
+        mAudit->setListAuditing(mEnvAuditList);
+        if (mEnvAuditReadSuffixesSet) {
+          mAudit->setReadAuditSuffixes(mEnvAuditReadSuffixes);
+        }
+        if (mEnvAuditReadAll) {
+          mAudit->setReadAuditAll(true);
+        }
+      }
     } catch (...) {
       Eroute.Emsg("Config", "failed to initialize audit logger");
       NoGo = 1;
