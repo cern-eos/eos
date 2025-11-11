@@ -121,6 +121,11 @@ PlacementResult WeightedRandomPlacement::placeFiles(const ClusterData& data,
   return mImpl->placeFiles(data, std::move(args));
 }
 
+int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments args)
+{
+  return EINVAL;
+}
+
 WeightedRandomPlacement::~WeightedRandomPlacement() = default;
 
 } // namespace eos::mgm::placement

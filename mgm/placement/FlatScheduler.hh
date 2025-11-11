@@ -41,6 +41,9 @@ public:
   PlacementResult schedule(const ClusterData& cluster_data,
                            PlacementArguments args);
 
+  int access(const ClusterData& cluster_data,
+             AccessArguments args);
+
 private:
   PlacementResult scheduleDefault(const ClusterData& cluster_data,
                                   PlacementArguments args);
