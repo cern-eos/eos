@@ -1803,7 +1803,7 @@ XrdMgmOfs::IsMaster(const char* path,
 }
 
 bool
-XrdMgmOfs::AllowAuditModification(const std::string& path) const
+XrdMgmOfs::AllowAuditModification(const std::string& path)
 {
   if (!mAudit) return false;
   if (!mEnvAuditAttributeOnly) return true;
@@ -1825,7 +1825,7 @@ XrdMgmOfs::AllowAuditModification(const std::string& path) const
 }
 
 bool
-XrdMgmOfs::AllowAuditList(const std::string& dirPath) const
+XrdMgmOfs::AllowAuditList(const std::string& dirPath)
 {
   if (!mAudit) return false;
   if (!mEnvAuditAttributeOnly) return mAudit->isListAuditingEnabled();
@@ -1845,7 +1845,7 @@ XrdMgmOfs::AllowAuditList(const std::string& dirPath) const
 }
 
 bool
-XrdMgmOfs::AllowAuditRead(const std::string& path) const
+XrdMgmOfs::AllowAuditRead(const std::string& path)
 {
   if (!mAudit) return false;
   if (!mEnvAuditAttributeOnly) return (mAudit->isReadAuditingEnabled() && mAudit->shouldAuditReadPath(path));

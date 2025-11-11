@@ -267,10 +267,12 @@ XrdMgmOfs::_remdir(const char* path,
     }
   } else {
     // Emit audit record for successful directory deletion (append '/' to denote dir)
-    if (mAudit && gOFS->AllowAuditModification(apath)) {
+    {
       std::string apath = path ? path : "";
       if (!apath.empty() && apath.back() != '/') apath.push_back('/');
-      mAudit->audit(eos::audit::RMDIR, apath, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+      if (mAudit && gOFS->AllowAuditModification(apath)) {
+        mAudit->audit(eos::audit::RMDIR, apath, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+      }
     }
     return SFS_OK;
   }
