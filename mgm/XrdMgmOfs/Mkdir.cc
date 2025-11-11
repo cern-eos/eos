@@ -429,7 +429,7 @@ XrdMgmOfs::_mkdir(const char* path,
 
   EXEC_TIMING_END("Mkdir");
   // Emit audit record for successful directory creation (append '/' to denote dir)
-  if (!errno && mAudit) {
+  if (!errno && mAudit && gOFS->AllowAuditModification(apath)) {
     std::string apath = path ? path : "";
     if (!apath.empty() && apath.back() != '/') apath.push_back('/');
     mAudit->audit(eos::audit::MKDIR, apath, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);

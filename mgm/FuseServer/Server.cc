@@ -1734,9 +1734,9 @@ Server::OpSetDirectory(const std::string& id,
         auto oit = oldDirAttrs.find(an);
         std::string before = (oit == oldDirAttrs.end()) ? std::string() : oit->second;
         if (oit == oldDirAttrs.end() || oit->second != kv.second) {
-          if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+          if (gOFS->mAudit && gOFS->AllowAuditModification(path)) gOFS->mAudit->audit(eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
                               std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
-          if ((an == "sys.acl" || an == "user.acl") && gOFS->mAudit) {
+          if ((an == "sys.acl" || an == "user.acl") && gOFS->mAudit && gOFS->AllowAuditModification(path)) {
             gOFS->mAudit->audit(eos::audit::SET_ACL, path, vid, std::string(logId), std::string(cident), "mgm",
                                 std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
           }
@@ -1747,7 +1747,7 @@ Server::OpSetDirectory(const std::string& id,
         const std::string& an = okv.first;
         if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
         if (md.attr().find(an) == md.attr().end()) {
-          if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+          if (gOFS->mAudit && gOFS->AllowAuditModification(path)) gOFS->mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
                               std::string(), nullptr, nullptr, an, okv.second, std::string(), __FILE__, __LINE__, VERSION);
         }
       }
@@ -1777,7 +1777,7 @@ Server::OpSetDirectory(const std::string& id,
         afterStat.set_ctime_ns(cbuf);
         afterStat.set_mtime_ns(mbuf);
       }
-      if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::MKDIR, path, vid, std::string(logId), std::string(cident), "mgm",
+      if (gOFS->mAudit && gOFS->AllowAuditModification(path)) gOFS->mAudit->audit(eos::audit::MKDIR, path, vid, std::string(logId), std::string(cident), "mgm",
                           std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
     }
     eos::fusex::response resp;
@@ -2075,7 +2075,7 @@ Server::OpSetFile(const std::string& id,
             std::string hex2;
             eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
             if (!hex2.empty()) afterStat.set_checksum(hex2);
-            if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, std::string(logId), std::string(cident), "mgm",
+            if (gOFS->mAudit && gOFS->AllowAuditModification(newPath)) gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, std::string(logId), std::string(cident), "mgm",
                                   oldname, nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
           }
 
@@ -2602,20 +2602,20 @@ Server::OpSetFile(const std::string& id,
       if (!hex2.empty()) afterStat.set_checksum(hex2);
 
       if (op == CREATE) {
-        if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
+        if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
                             std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
       } else if (op == UPDATE) {
-        if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
+        if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
                             std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
 
         // Emit CHMOD/CHOWN if mode/owner changed
         uint32_t newMode = (fmd->getFlags() & 07777);
         if (newMode != oldMode) {
-          if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::CHMOD, filePath, vid, std::string(logId), std::string(cident), "mgm",
+          if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::CHMOD, filePath, vid, std::string(logId), std::string(cident), "mgm",
                               std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
         }
         if (fmd->getCUid() != oldUid || fmd->getCGid() != oldGid) {
-          if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, std::string(logId), std::string(cident), "mgm",
+          if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, std::string(logId), std::string(cident), "mgm",
                               std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
         }
 
@@ -2626,10 +2626,10 @@ Server::OpSetFile(const std::string& id,
           auto oit = oldFileAttrs.find(an);
           std::string before = (oit == oldFileAttrs.end()) ? std::string() : oit->second;
           if (oit == oldFileAttrs.end() || oit->second != kv.second) {
-            if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::SET_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
+            if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::SET_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
                                 std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
             if (an == "sys.acl" || an == "user.acl") {
-              if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::SET_ACL, filePath, vid, std::string(logId), std::string(cident), "mgm",
+              if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::SET_ACL, filePath, vid, std::string(logId), std::string(cident), "mgm",
                                   std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
             }
           }
@@ -2638,7 +2638,7 @@ Server::OpSetFile(const std::string& id,
           const std::string& an = okv.first;
           if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
           if (md.attr().find(an) == md.attr().end()) {
-            if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::RM_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
+            if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::RM_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
                                 std::string(), nullptr, nullptr, an, okv.second, std::string(), __FILE__, __LINE__, VERSION);
           }
         }
@@ -3016,7 +3016,7 @@ Server::OpSetLink(const std::string& id,
       char amo[8];
       snprintf(amo, sizeof(amo), "0%04o", am);
       afterStat.set_mode_octal(amo);
-      if (gOFS->mAudit) gOFS->mAudit->audit(eos::audit::SYMLINK, linkPath, vid, std::string(logId), std::string(cident), "mgm",
+      if (gOFS->mAudit && gOFS->AllowAuditModification(linkPath)) gOFS->mAudit->audit(eos::audit::SYMLINK, linkPath, vid, std::string(logId), std::string(cident), "mgm",
                           md.target(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
     }
   } catch (eos::MDException& e) {
@@ -3155,7 +3155,7 @@ Server::OpDeleteDirectory(const std::string& id,
       Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().Delete(md.md_ino());
       // Audit RMDIR after successful deletion
-      if (gOFS->mAudit && !dirPath.empty()) {
+      if (gOFS->mAudit && !dirPath.empty() && gOFS->AllowAuditModification(dirPath)) {
         gOFS->mAudit->audit(eos::audit::RMDIR, dirPath, vid, logId, cident, "mgm");
       }
     }
@@ -3416,7 +3416,7 @@ Server::OpDeleteFile(const std::string& id,
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
     Cap().Delete(md.md_ino());
     // Audit DELETE after successful deletion (only when actually deleted here)
-    if (gOFS->mAudit && !filePath.empty()) {
+    if (gOFS->mAudit && !filePath.empty() && gOFS->AllowAuditModification(filePath)) {
       gOFS->mAudit->audit(eos::audit::DELETE, filePath, vid, std::string(logId), std::string(cident), "mgm",
                           std::string(), &beforeStat, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
     }
@@ -3524,7 +3524,7 @@ Server::OpDeleteLink(const std::string& id,
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
     Cap().Delete(md.md_ino());
     // Audit DELETE for symlink removal
-    if (gOFS->mAudit && !linkPath.empty()) {
+    if (gOFS->mAudit && !linkPath.empty() && gOFS->AllowAuditModification(linkPath)) {
       gOFS->mAudit->audit(eos::audit::DELETE, linkPath, vid, logId, cident, "mgm");
     }
   } catch (eos::MDException& e) {

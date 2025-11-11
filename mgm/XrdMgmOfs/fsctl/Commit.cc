@@ -364,9 +364,9 @@ XrdMgmOfs::Commit(const char* path,
           std::string hex2;
           eos::appendChecksumOnStringAsHex(fmd.get(), hex2);
           if (!hex2.empty()) afterStat.set_checksum(hex2);
-          gOFS->mAudit->audit(eos::audit::WRITE, cgi.count("path") ? cgi["path"] : path,
-                              vid, tlLogId.logId, tlLogId.cident, "mgm",
-                              std::string(), &beforeStat, &afterStat);
+          if (gOFS->AllowAuditModification(cgi.count("path") ? cgi["path"] : path)) gOFS->mAudit->audit(eos::audit::WRITE, cgi.count("path") ? cgi["path"] : path,
+                                vid, tlLogId.logId, tlLogId.cident, "mgm",
+                                std::string(), &beforeStat, &afterStat);
         }
       }
     }

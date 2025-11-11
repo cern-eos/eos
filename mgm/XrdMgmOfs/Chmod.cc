@@ -206,9 +206,7 @@ XrdMgmOfs::_chmod(const char* path,
     char amo[8];
     snprintf(amo, sizeof(amo), "0%04o", am);
     afterStat.set_mode_octal(amo);
-    if (mAudit) {
-      if (mAudit) mAudit->audit(eos::audit::CHMOD, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
-    }
+    if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHMOD, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
           }
 
   if (fmd) {
@@ -242,9 +240,7 @@ XrdMgmOfs::_chmod(const char* path,
     char amo[8];
     snprintf(amo, sizeof(amo), "0%04o", am);
     afterStat.set_mode_octal(amo);
-    if (mAudit) {
-      if (mAudit) mAudit->audit(eos::audit::CHMOD, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
-    }
+    if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHMOD, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
           }
 
           lock.Release();
