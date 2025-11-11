@@ -141,5 +141,10 @@ PlacementResult WeightedRoundRobinPlacement::placeFiles(const ClusterData& data,
   return mImpl->placeFiles(data, std::move(args));
 }
 
+int WeightedRoundRobinPlacement::access(const ClusterData &data, AccessArguments args)
+{
+  return EINVAL;
+}
+
 WeightedRoundRobinPlacement::~WeightedRoundRobinPlacement() = default;
 } // eos::mgm::placement
