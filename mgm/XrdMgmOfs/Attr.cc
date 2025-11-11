@@ -346,9 +346,9 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
     }
     // Emit audit for attribute set
     if (mAudit) {
-      mAudit->audit(eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+      if (gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
                     std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__, __LINE__, VERSION);
-      if (skey == "sys.acl" || skey == "user.acl") {
+      if ((skey == "sys.acl" || skey == "user.acl") && gOFS->AllowAuditModification(path)) {
         mAudit->audit(eos::audit::SET_ACL, path, vid, std::string(logId), std::string(cident), "mgm",
                       std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__, __LINE__, VERSION);
       }
@@ -522,10 +522,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           fmd_lock.reset(nullptr);
           gOFS->FuseXCastRefresh(f_id, d_id);
           errno = 0;
-          if (mAudit) {
-            if (mAudit) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+          if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
                           std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__, VERSION);
-          }
         }
       }
     } else { // container
@@ -554,10 +552,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           cmd_lock.reset(nullptr);
           gOFS->FuseXCastRefresh(d_id, d_pid);
           errno = 0;
-          if (mAudit) {
-            if (mAudit) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+          if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
                           std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__, VERSION);
-          }
         }
       }
     }
