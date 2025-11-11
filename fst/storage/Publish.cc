@@ -194,7 +194,7 @@ static void
 GetNetworkCounters(std::map<std::string, std::string>& output)
 {
   static const std::set<std::string> set_keys {"rx_errors", "rx_dropped",
-    "tx_errors", "tx_dropped"};
+      "tx_errors", "tx_dropped"};
   static std::map<std::string, std::string> map_key_paths;
 
   // Build set of files to query for the above counters depending on the
@@ -608,6 +608,12 @@ Storage::GetFsStatistics(FileSystem* fs)
 
   if (!fs->GetHealthInfo(health)) {
     health = mFstHealth.getDiskHealth(fs->GetPath());
+
+    // If SMART status is FAILING then mark the file system for auto drain
+    if (mDrainOnSmartErr && health.count("summary") &&
+        health["summary"] == "FAILING") {
+      fs->BroadcastError(EIO, "S.M.A.R.T. errors detected");
+    }
   }
 
   output["stat.health"] = (health.count("summary") ? health["summary"].c_str() :

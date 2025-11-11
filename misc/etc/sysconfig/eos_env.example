@@ -218,6 +218,12 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # unless the following variable is defined (the value is not considered)
 # EOS_FST_POSIX_FALLOCATE=1
 
+# Enable automatic draining of file systems when S.M.A.R.T errors are detected.
+# The condition for this is that smartctl -q silent -a /dev/... returns a value
+# that has the 4th bit set to 1, which translated to "FAILING" status. This is
+# disabled by default. To enable it must be set to "1".
+# EOS_FST_DRAIN_ON_SMART_ERROR=0
+
 #-------------------------------------------------------------------------------
 # GRPC Configuration
 #-------------------------------------------------------------------------------

@@ -307,6 +307,8 @@ private:
   std::mutex mMutexRegisterFs;
   bool mTriggerRegisterFs {false};
   AssistedThread mFsConfigThread; ///< Thread applying FS config updates
+  //! Trigger automatic drain if S.M.A.R.T. errros detected
+  bool mDrainOnSmartErr {false};
   //----------------------------------------------------------------------------
   //! Struct modelling a file system configuration update
   //----------------------------------------------------------------------------
