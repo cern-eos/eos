@@ -2561,6 +2561,14 @@ private:
                                XrdOucErrInfo& error,
                                eos::common::VirtualIdentity& vid,
                                const XrdSecEntity* client);
+
+  // Audit environment configuration (parsed in constructor, applied after mAudit init)
+  bool mEnvAuditDisableAll {false};
+  bool mEnvAuditRead {false};
+  bool mEnvAuditList {false};
+  bool mEnvAuditReadAll {false};
+  std::vector<std::string> mEnvAuditReadSuffixes;
+  bool mEnvAuditReadSuffixesSet {false};
 };
 
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object

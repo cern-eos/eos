@@ -370,6 +370,54 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     }
   }
 
+  // Parse audit environment configuration
+  {
+    const char* am = getenv("EOS_MGM_AUDIT");
+    std::string mode = (am ? am : "");
+    // normalize to lowercase
+    for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (mode.empty() || mode == "none" || mode == "false" || mode == "no") {
+      mEnvAuditDisableAll = true;
+    } else if (mode == "default") {
+      mEnvAuditRead = true;      // default suffix list
+      mEnvAuditList = false;
+      mEnvAuditReadAll = false;
+    } else if (mode == "modifications") {
+      mEnvAuditRead = false;
+      mEnvAuditList = false;
+      mEnvAuditReadAll = false;
+    } else if (mode == "detail") {
+      mEnvAuditRead = true;
+      mEnvAuditReadAll = true;   // read all files
+      mEnvAuditList = false;
+    } else if (mode == "all") {
+      mEnvAuditRead = true;
+      mEnvAuditReadAll = true;
+      mEnvAuditList = true;
+    }
+
+    const char* rs = getenv("EOS_MGM_AUDIT_READ_SUFFIX");
+    if (rs && *rs) {
+      std::string s = rs;
+      std::string token;
+      for (size_t i = 0; i <= s.size(); ++i) {
+        if (i == s.size() || s[i] == ',' || s[i] == ';' || s[i] == ' ') {
+          if (!token.empty()) {
+            // normalize
+            for (auto& c : token) c = static_cast<char>(
+                std::tolower(static_cast<unsigned char>(c)));
+            if (!token.empty() && token[0] == '.') token.erase(token.begin());
+            mEnvAuditReadSuffixes.push_back(token);
+            token.clear();
+          }
+        } else {
+          token.push_back(s[i]);
+        }
+      }
+      mEnvAuditReadSuffixesSet = true;
+    }
+  }
+
   EgroupRefresh.reset(new eos::mgm::Egroup());
   Recycler.reset(new eos::mgm::Recycle());
   mDeviceTracker.reset(new eos::mgm::Devices());
