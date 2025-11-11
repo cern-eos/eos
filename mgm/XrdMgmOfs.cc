@@ -1866,3 +1866,37 @@ XrdMgmOfs::AllowAuditRead(const std::string& path)
   } catch (...) {}
   return false;
 }
+
+// Fast-path overloads that use an already available sys.audit attribute value
+bool
+XrdMgmOfs::AllowAuditModificationAttr(const std::string& auditMode)
+{
+  if (!mAudit) return false;
+  if (!mEnvAuditAttributeOnly) return true;
+  std::string mode = auditMode;
+  for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  if (mode == "all" || mode == "detail" || mode == "default" || mode == "modifications") return true;
+  return false;
+}
+
+bool
+XrdMgmOfs::AllowAuditListAttr(const std::string& auditMode)
+{
+  if (!mAudit) return false;
+  if (!mEnvAuditAttributeOnly) return mAudit->isListAuditingEnabled();
+  std::string mode = auditMode;
+  for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  return (mode == "all");
+}
+
+bool
+XrdMgmOfs::AllowAuditReadAttr(const std::string& auditMode, const std::string& path)
+{
+  if (!mAudit) return false;
+  if (!mEnvAuditAttributeOnly) return (mAudit->isReadAuditingEnabled() && mAudit->shouldAuditReadPath(path));
+  std::string mode = auditMode;
+  for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  if (mode == "detail" || mode == "all") return true;
+  if (mode == "default") return mAudit->shouldAuditReadPath(path);
+  return false;
+}
