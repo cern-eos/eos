@@ -135,6 +135,9 @@ public:
   PlacementResult placeFiles(const ClusterData& cluster_data,
                              Args args) override;
 
+  int access(const ClusterData& cluster_data,
+                     AccessArguments args) override;
+
 private:
   std::unique_ptr<RRSeeder> mSeed;
 };
