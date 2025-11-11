@@ -2554,23 +2554,32 @@ Server::OpSetFile(const std::string& id,
       std::string filePath = gOFS->eosView->getUri(fmd.get());
       eos::audit::Stat afterStat;
       eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
-      if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
-                            std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+      bool allowAuditMod = false;
+      if (gOFS->mEnvAuditAttributeOnly && pcmd) {
+        eos::IContainerMD::XAttrMap pAttrs = pcmd->getAttributes();
+        auto it = pAttrs.find("sys.audit");
+        std::string mode = (it != pAttrs.end()) ? it->second : std::string();
+        allowAuditMod = gOFS->AllowAuditModificationAttr(mode);
+      } else {
+        allowAuditMod = gOFS->AllowAuditModification(filePath);
+      }
+      if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                             std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
       if (op == UPDATE) {
-        if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
-                            std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
-
+        if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                             std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+ 
         // Emit CHMOD/CHOWN if mode/owner changed
         uint32_t newMode = (fmd->getFlags() & 07777);
         if (newMode != oldMode) {
-          if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::CHMOD, filePath, vid, std::string(logId), std::string(cident), "mgm",
-                              std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+          if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::CHMOD, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                               std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
         }
         if (fmd->getCUid() != oldUid || fmd->getCGid() != oldGid) {
-          if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, std::string(logId), std::string(cident), "mgm",
-                              std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+          if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                               std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
         }
-
+ 
         // Emit SET_XATTR / RM_XATTR for file xattr changes
         for (const auto& kv : md.attr()) {
           const std::string& an = kv.first;
@@ -2578,20 +2587,21 @@ Server::OpSetFile(const std::string& id,
           auto oit = oldFileAttrs.find(an);
           std::string before = (oit == oldFileAttrs.end()) ? std::string() : oit->second;
           if (oit == oldFileAttrs.end() || oit->second != kv.second) {
-            if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::SET_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
-                                std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
+            if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::SET_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                                 std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
             if (an == "sys.acl" || an == "user.acl") {
-              if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::SET_ACL, filePath, vid, std::string(logId), std::string(cident), "mgm",
+              if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::SET_ACL, filePath, vid, std::string(logId), std::string(cident), "mgm",
                                   std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
             }
           }
-        }
-        for (const auto& okv : oldFileAttrs) {
-          const std::string& an = okv.first;
-          if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
-          if (md.attr().find(an) == md.attr().end()) {
-            if (gOFS->mAudit && gOFS->AllowAuditModification(filePath)) gOFS->mAudit->audit(eos::audit::RM_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
-                                std::string(), nullptr, nullptr, an, okv.second, std::string(), __FILE__, __LINE__, VERSION);
+          // Removed attributes
+          for (const auto& okv : oldFileAttrs) {
+            const std::string& oan = okv.first;
+            if (oan.size() >= 3 && oan.substr(0, 3) == "sys") continue;
+            if (md.attr().find(oan) == md.attr().end()) {
+              if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::RM_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                                  std::string(), nullptr, nullptr, oan, okv.second, std::string(), __FILE__, __LINE__, VERSION);
+            }
           }
         }
       }
