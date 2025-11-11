@@ -1811,8 +1811,8 @@ XrdMgmOfs::AllowAuditModification(const std::string& path)
   std::string pdir;
   { eos::common::Path cP(path.c_str()); pdir = cP.GetParentPath(); }
   try {
-    eos::common::RWMutexReadLock rl(eosViewRWMutex);
     auto pd = eosView->getContainer(pdir);
+    eos::MDLocking::ContainerReadLock cmd_lock(pd.get());
     auto amap = pd->getAttributes();
     auto it = amap.find("sys.audit");
     if (it != amap.end()) {
@@ -1831,8 +1831,8 @@ XrdMgmOfs::AllowAuditList(const std::string& dirPath)
   if (!mEnvAuditAttributeOnly) return mAudit->isListAuditingEnabled();
   // attribute-only: dir sys.audit must be 'all'
   try {
-    eos::common::RWMutexReadLock rl(eosViewRWMutex);
     auto dh = eosView->getContainer(dirPath);
+    eos::MDLocking::ContainerReadLock cmd_lock(dh.get());
     auto amap = dh->getAttributes();
     auto it = amap.find("sys.audit");
     if (it != amap.end()) {
@@ -1853,8 +1853,8 @@ XrdMgmOfs::AllowAuditRead(const std::string& path)
   std::string pdir;
   { eos::common::Path cP(path.c_str()); pdir = cP.GetParentPath(); }
   try {
-    eos::common::RWMutexReadLock rl(eosViewRWMutex);
     auto pd = eosView->getContainer(pdir);
+    eos::MDLocking::ContainerReadLock cmd_lock(pd.get());
     auto amap = pd->getAttributes();
     auto it = amap.find("sys.audit");
     if (it != amap.end()) {
