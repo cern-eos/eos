@@ -91,6 +91,8 @@ Audit::Audit(const std::string& baseDirectory,
 , mZstdCctx(nullptr)
 , mFd(-1)
 , mCurrentSegmentStart(0)
+, mAuditRead(false)
+, mAuditList(false)
 {
 }
 
