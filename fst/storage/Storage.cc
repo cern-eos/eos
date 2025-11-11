@@ -63,9 +63,6 @@ GetFullFsThresholdBytes()
      * 1024ll * 1024ll * 1024ll);
   return s_full_threshold;
 }
-}
-
-EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Check a few files randomly to make sure they have the FMD xattr converted
@@ -83,7 +80,7 @@ bool RandomCheckFsXattrConverted(const std::string& fs_path)
   // Lambda function to check for existence of FMD xattr
   auto check_fmd_xattr = [](std::string_view abs_path) -> bool {
     static const std::string xattr_key = "user.eos.fmd";
-    FsIo local_io {abs_path.data()};
+    eos::fst::FsIo local_io {abs_path.data()};
     std::string xattr_val;
     return (local_io.attrGet(xattr_key, xattr_val) == 0);
   };
@@ -126,7 +123,7 @@ bool RandomCheckFsXattrConverted(const std::string& fs_path)
 
           if (file_index.find(count) != file_index.end()) {
             // Skip check for block checksum files
-            if (strstr(node->fts_path, XSMAP_SUFFIX.data()) != nullptr) {
+            if (strstr(node->fts_path, eos::fst::XSMAP_SUFFIX.data()) != nullptr) {
               continue;
             }
 
@@ -219,6 +216,9 @@ CheckFsXattrConverted(std::string fs_path)
 
   return true;
 }
+}
+
+EOSFSTNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 // Create new Storage object
@@ -241,6 +241,13 @@ Storage::Create(const char* meta_dir)
 //------------------------------------------------------------------------------
 Storage::Storage(const char* meta_dir)
 {
+  // Check if automatic drain on SMART errors is requested
+  const char* ptr = getenv("EOS_FST_DRAIN_ON_SMART_ERROR");
+
+  if (ptr && strncmp(ptr, "1", 1) == 0) {
+    mDrainOnSmartErr = true;
+  }
+
   SetLogId("FstOfsStorage", "<service>");
   XrdOucString mkmetalogdir = "mkdir -p ";
   mkmetalogdir += meta_dir;
