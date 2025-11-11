@@ -25,10 +25,8 @@
 
 #include "mgm/placement/ClusterDataTypes.hh"
 #include "mgm/placement/RRSeed.hh"
-#include "mgm/placement/ThreadLocalRRSeed.hh"
 #include <algorithm>
 #include <optional>
-#include <errno.h>
 
 namespace eos::mgm::placement
 {
@@ -244,11 +242,25 @@ struct PlacementArguments {
 
 };
 
+  struct AccessArguments {
+    size_t n_replicas;
+    size_t& selectedIndex;
+    ino64_t inode;
+    PlacementStrategyT strategy;
+
+    std::string_view geolocation;
+    std::vector<uint32_t>* unavailfs;
+    const std::vector<uint32_t>& selectedfs;
+  };
+
 struct PlacementStrategy {
   using Args = PlacementArguments;
 
   virtual PlacementResult placeFiles(const ClusterData& cluster_data,
                                      Args args) = 0;
+
+  virtual int access(const ClusterData& cluster_data,
+                     AccessArguments args) = 0;
 
   bool validateArgs(const ClusterData& cluster_data, const Args& args,
                     PlacementResult& result) const
@@ -311,11 +323,5 @@ struct PlacementStrategy {
   virtual ~PlacementStrategy() = default;
 };
 
-struct AccessArguments {
-  size_t n_replicas;
-  size_t& selectedIndex;
-  std::vector<uint32_t>* unavailfs;
-  const std::vector<uint32_t>* selectedfs;
-};
 
 } // namespace eos::mgm::placement

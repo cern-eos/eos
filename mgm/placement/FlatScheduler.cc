@@ -154,5 +154,18 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
   return {};
 }
 
+int
+FlatScheduler::access(const ClusterData& cluster_data,
+   AccessArguments args) {
+  if (!is_valid_placement_strategy(args.strategy) ||
+      mPlacementStrategy[strategy_index(args.strategy)] == nullptr) {
+    return EINVAL;
+  }
 
+  mPlacementStrategy[strategy_index(args.strategy)]->access(cluster_data, args);
+
+
+  return 0;
+
+}
 } // namespace eos::mgm::placement
