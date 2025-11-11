@@ -101,15 +101,7 @@ XrdMgmOfs::_chown(const char* path,
         eos::IContainerMD::ctime_t cts, mts;
         cmd->getCTime(cts);
         cmd->getMTime(mts);
-        beforeStat.set_ctime(cts.tv_sec);
-        beforeStat.set_mtime(mts.tv_sec);
-        beforeStat.set_uid(cmd->getCUid());
-        beforeStat.set_gid(cmd->getCGid());
-        uint32_t m = (cmd->getMode() & 07777);
-        beforeStat.set_mode(m);
-        char mo[8];
-        snprintf(mo, sizeof(mo), "0%04o", m);
-        beforeStat.set_mode_octal(mo);
+        eos::mgm::auditutil::buildStatFromContainerMD(cmd, beforeStat, /*includeNs=*/true);
       }
       if ((unsigned int) uid != 0xffffffff) {
         // Change the owner
@@ -132,13 +124,7 @@ XrdMgmOfs::_chown(const char* path,
         eos::audit::Stat afterStat;
         afterStat.set_ctime(time(nullptr));
         afterStat.set_mtime(time(nullptr));
-        afterStat.set_uid(cmd->getCUid());
-        afterStat.set_gid(cmd->getCGid());
-        uint32_t am = (cmd->getMode() & 07777);
-        afterStat.set_mode(am);
-        char amo[8];
-        snprintf(amo, sizeof(amo), "0%04o", am);
-        afterStat.set_mode_octal(amo);
+        eos::mgm::auditutil::buildStatFromContainerMD(cmd, afterStat, /*includeNs=*/true);
         if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHOWN, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
       }
     }
@@ -187,15 +173,7 @@ XrdMgmOfs::_chown(const char* path,
           eos::IFileMD::ctime_t cts, mts;
           fmd->getCTime(cts);
           fmd->getMTime(mts);
-          beforeStat.set_ctime(cts.tv_sec);
-          beforeStat.set_mtime(mts.tv_sec);
-          beforeStat.set_uid(fmd->getCUid());
-          beforeStat.set_gid(fmd->getCGid());
-          uint32_t m = (fmd->getFlags() & 07777);
-          beforeStat.set_mode(m);
-          char mo[8];
-          snprintf(mo, sizeof(mo), "0%04o", m);
-          beforeStat.set_mode_octal(mo);
+          eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
         }
 
         // Subtract the file
@@ -226,13 +204,7 @@ XrdMgmOfs::_chown(const char* path,
           eos::audit::Stat afterStat;
           afterStat.set_ctime(time(nullptr));
           afterStat.set_mtime(time(nullptr));
-          afterStat.set_uid(fmd->getCUid());
-          afterStat.set_gid(fmd->getCGid());
-          uint32_t am = (fmd->getFlags() & 07777);
-          afterStat.set_mode(am);
-          char amo[8];
-          snprintf(amo, sizeof(amo), "0%04o", am);
-          afterStat.set_mode_octal(amo);
+          eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
           if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHOWN, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
         }
       }

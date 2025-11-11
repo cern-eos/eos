@@ -51,6 +51,7 @@
 #include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"
 #include "mgm/AuditHelpers.hh"
+#include "mgm/auditutil.hh"
 
 USE_EOSMGMNAMESPACE
 
