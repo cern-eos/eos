@@ -2235,6 +2235,11 @@ public:
   bool getAttribute(eos::IView* view, T& md, std::string key,
                     std::string& rvalue);
 
+  // Centralized audit allow checks
+  bool AllowAuditModification(const std::string& path) const;
+  bool AllowAuditList(const std::string& dirPath) const;
+  bool AllowAuditRead(const std::string& path) const;
+
 protected:
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
 
@@ -2567,6 +2572,10 @@ private:
   bool mEnvAuditRead {false};
   bool mEnvAuditList {false};
   bool mEnvAuditReadAll {false};
+  bool mEnvAuditAttributeMode {false};
+  // Attribute evaluation is enabled for all non-off modes
+  bool mEnvAuditAttributeOnly {false};
+  // Attribute-only mode (EOS_MGM_AUDIT=attribute) disables global auditing toggles
   std::vector<std::string> mEnvAuditReadSuffixes;
   bool mEnvAuditReadSuffixesSet {false};
 };

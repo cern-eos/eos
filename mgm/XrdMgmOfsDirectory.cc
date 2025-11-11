@@ -279,7 +279,7 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   dirName = dir_path;
   EXEC_TIMING_END("OpenDir");
   // Emit LIST audit on successful directory open (if enabled)
-  if (gOFS->mAudit && gOFS->mAudit->isListAuditingEnabled()) {
+  if (gOFS->mAudit && gOFS->AllowAuditList(dir_path)) {
     std::string apath = dir_path ? dir_path : "";
     if (!apath.empty() && apath.back() != '/') apath.push_back('/');
     gOFS->mAudit->audit(eos::audit::LIST, apath, vid,
