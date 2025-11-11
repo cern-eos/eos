@@ -27,6 +27,9 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/AuditHelpers.hh"
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::symlink(const char* source_name,

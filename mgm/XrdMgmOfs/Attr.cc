@@ -26,6 +26,9 @@
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
+#include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/ProcInterface.hh"
+#include "mgm/AuditHelpers.hh"
 
 //------------------------------------------------------------------------------
 // List extended attributes for a given file/directory - high-level API.

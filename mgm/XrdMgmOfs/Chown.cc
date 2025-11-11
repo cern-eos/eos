@@ -27,6 +27,8 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 #include "proto/Audit.pb.h"
+#include "mgm/Stat.hh"
+#include "mgm/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/
 int
