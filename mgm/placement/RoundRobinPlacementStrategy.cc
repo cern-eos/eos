@@ -78,4 +78,12 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
 }
 
 
+int
+RoundRobinPlacement::access(const ClusterData &cluster_data, AccessArguments args)
+{
+  return EINVAL;
+}
+
+
+
 } // namespace eos::mgm::placement
