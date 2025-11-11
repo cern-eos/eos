@@ -279,14 +279,25 @@ XrdMgmOfsDirectory::_open(const char* dir_path,
   dirName = dir_path;
   EXEC_TIMING_END("OpenDir");
   // Emit LIST audit on successful directory open (if enabled)
-  if (gOFS->mAudit && gOFS->AllowAuditList(dir_path)) {
-    std::string apath = dir_path ? dir_path : "";
-    if (!apath.empty() && apath.back() != '/') apath.push_back('/');
-    gOFS->mAudit->audit(eos::audit::LIST, apath, vid,
-                        std::string(), std::string(), "mgm",
-                        std::string(), nullptr, nullptr,
-                        std::string(), std::string(), std::string(),
-                        __FILE__, __LINE__, VERSION);
+  if (gOFS->mAudit) {
+    bool allowList = false;
+    if (gOFS->mEnvAuditAttributeOnly) {
+      eos::IContainerMD::XAttrMap amap = dh->getAttributes();
+      auto it = amap.find("sys.audit");
+      std::string mode = (it != amap.end()) ? it->second : std::string();
+      allowList = gOFS->AllowAuditListAttr(mode);
+    } else {
+      allowList = gOFS->AllowAuditList(dir_path);
+    }
+    if (allowList) {
+      std::string apath = dir_path ? dir_path : "";
+      if (!apath.empty() && apath.back() != '/') apath.push_back('/');
+      gOFS->mAudit->audit(eos::audit::LIST, apath, vid,
+                          std::string(), std::string(), "mgm",
+                          std::string(), nullptr, nullptr,
+                          std::string(), std::string(), std::string(),
+                          __FILE__, __LINE__, VERSION);
+    }
   }
   return SFS_OK;
 }
