@@ -376,7 +376,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     std::string mode = (am ? am : "");
     // normalize to lowercase
     for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    if (mode.empty() || mode == "none" || mode == "false" || mode == "no") {
+    if (mode.empty() || mode == "none" || mode == "false" || mode == "no" || mode == "off") {
       mEnvAuditDisableAll = true;
     } else if (mode == "default") {
       mEnvAuditRead = true;      // default suffix list
