@@ -87,6 +87,22 @@ public:
   bool isListAuditingEnabled() const { return mAuditList; }
 
   /**
+   * @brief Configure which file suffixes should trigger READ auditing.
+   * If the vector contains "*", all files are audited for READ.
+   */
+  void setReadAuditSuffixes(const std::vector<std::string>& suffixes);
+
+  /**
+   * @brief Convenience to enable auditing all files for READ.
+   */
+  void setReadAuditAll(bool enable);
+
+  /**
+   * @brief Check if the given path matches the READ auditing suffix policy.
+   */
+  bool shouldAuditReadPath(const std::string& path) const;
+
+  /**
    * @brief Append a record to the audit log (JSON line). Thread-safe.
    */
   void audit(const eos::audit::AuditRecord& record);
@@ -134,6 +150,8 @@ private:
   time_t mCurrentSegmentStart;
   bool mAuditRead = false;
   bool mAuditList = false;
+  bool mReadAuditAll = false;
+  std::vector<std::string> mReadAuditSuffixes; // lowercase suffixes without dot
 };
 
 EOSCOMMONNAMESPACE_END
