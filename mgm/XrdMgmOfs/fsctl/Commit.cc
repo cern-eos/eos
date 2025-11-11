@@ -309,12 +309,7 @@ XrdMgmOfs::Commit(const char* path,
         eos::IFileMD::ctime_t cts, mts;
         fmd->getCTime(cts);
         fmd->getMTime(mts);
-        beforeStat.set_ctime(cts.tv_sec);
-        beforeStat.set_mtime(mts.tv_sec);
-        beforeStat.set_size(fmd->getSize());
-        std::string hex;
-        eos::appendChecksumOnStringAsHex(fmd.get(), hex);
-        if (!hex.empty()) beforeStat.set_checksum(hex);
+        eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
       }
 
       if (option["update"] && mtime) {
