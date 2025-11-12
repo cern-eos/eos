@@ -98,9 +98,6 @@ XrdMgmOfs::_chown(const char* path,
       // Prepare before stat for directory
       eos::audit::Stat beforeStat;
       {
-        eos::IContainerMD::ctime_t cts, mts;
-        cmd->getCTime(cts);
-        cmd->getMTime(mts);
         eos::mgm::auditutil::buildStatFromContainerMD(cmd, beforeStat, /*includeNs=*/true);
       }
       if ((unsigned int) uid != 0xffffffff) {
@@ -168,9 +165,6 @@ XrdMgmOfs::_chown(const char* path,
                  path, uid, gid, fmd->getCUid(), fmd->getCGid(), nodereference);
         eos::audit::Stat beforeStat;
         {
-          eos::IFileMD::ctime_t cts, mts;
-          fmd->getCTime(cts);
-          fmd->getMTime(mts);
           eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
         }
 
