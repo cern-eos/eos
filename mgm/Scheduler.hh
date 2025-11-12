@@ -87,7 +87,6 @@ public:
     //! indicate if this is a request for regular, draining or balancing placement
     tSchedType schedtype;
     //! scheduling strategy to be used (if not set, use space default)
-   // placement::PlacementStrategyT sched_strategy;
     //! scheduling strategy if set from opaque string
     const char* sched_strategy_cstr;
     //! virtual identity of the client
@@ -141,6 +140,52 @@ public:
     bool isValidReplicas(unsigned long lid) const {
       return common::LayoutId::GetStripeNumber(lid) + 1 < std::numeric_limits<uint8_t>::max();
     }
+
+    // Strong Types to avoid misplaced function calls
+    struct Path { const char* value; };
+    struct GroupTag { const char* value; };
+    struct Lid { unsigned long value; }; // LayoutId would conflict with eos::common
+    struct BookingSize { unsigned long long value; };
+
+    PlacementArguments& setFileParams(const std::string& p_space,
+                                      Path p_path,
+                                      GroupTag p_grouptag,
+                                      Lid p_lid,
+                                      ino64_t p_inode,
+                                      BookingSize p_bookingsize,
+                                      bool p_truncate,
+                                      const common::VirtualIdentity& p_vid) {
+      spacename = &p_space;
+      path = p_path.value;
+      grouptag = p_grouptag.value;
+      lid = p_lid.value;
+      inode = p_inode;
+      vid = &p_vid;
+      bookingsize = p_bookingsize.value;
+      truncate = p_truncate;
+      return *this;
+    }
+
+    PlacementArguments& setFsParams(std::vector<unsigned int>* p_alreadyused_filesystems,
+                                    std::vector<unsigned int>* p_exclude_filesystems,
+                                    std::vector<unsigned int>* p_selected_filesystems) {
+      alreadyused_filesystems = p_alreadyused_filesystems;
+      exclude_filesystems = p_exclude_filesystems;
+      selected_filesystems = p_selected_filesystems;
+      return *this;
+    }
+
+    PlacementArguments& setPlctParams(tPlctPolicy p_plctpolicy,
+                                     const std::string* p_plctTrgGeotag,
+                                     int p_forced_group_index,
+                                     const char* p_sched_strategy_cstr) {
+      plctpolicy = p_plctpolicy;
+      plctTrgGeotag = p_plctTrgGeotag;
+      forced_scheduling_group_index = p_forced_group_index;
+      sched_strategy_cstr = p_sched_strategy_cstr;
+      return *this;
+    }
+
   };
 
   //----------------------------------------------------------------------------
@@ -271,6 +316,27 @@ protected:
   //! std::string = <grouptag>|<uid>:<gid>
   static std::map<std::string, FsGroup*> schedulingGroup;
 };
+
+namespace scheduler {
+
+inline Scheduler::PlacementArguments::Path Path(const char* v) {
+  return Scheduler::PlacementArguments::Path{v};
+}
+
+inline Scheduler::PlacementArguments::GroupTag GroupTag(const char* v) {
+  return Scheduler::PlacementArguments::GroupTag{v};
+}
+
+inline Scheduler::PlacementArguments::Lid Lid(unsigned long v) {
+  return Scheduler::PlacementArguments::Lid{v};
+}
+
+inline Scheduler::PlacementArguments::BookingSize BookingSize(unsigned long long v) {
+  return Scheduler::PlacementArguments::BookingSize{v};
+}
+
+
+} // namespace scheduler
 
 EOSMGMNAMESPACE_END
 
