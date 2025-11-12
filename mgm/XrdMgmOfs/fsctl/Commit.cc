@@ -306,9 +306,6 @@ XrdMgmOfs::Commit(const char* path,
       eos::audit::Stat beforeStat;
       if (option["update"]) {
         // Capture before state (size and times)
-        eos::IFileMD::ctime_t cts, mts;
-        fmd->getCTime(cts);
-        fmd->getMTime(mts);
         eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
       }
 

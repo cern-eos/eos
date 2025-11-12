@@ -178,9 +178,6 @@ XrdMgmOfs::_chmod(const char* path,
     // Build before stat for directory
     eos::audit::Stat beforeStat;
     {
-      eos::IContainerMD::ctime_t cts, mts;
-      cmd->getCTime(cts);
-      cmd->getMTime(mts);
       eos::mgm::auditutil::buildStatFromContainerMD(cmd, beforeStat, /*includeNs=*/true);
     }
             Mode &= mask;
@@ -198,9 +195,6 @@ XrdMgmOfs::_chmod(const char* path,
   if (fmd) {
     eos::audit::Stat beforeStat;
     {
-      eos::IFileMD::ctime_t cts, mts;
-      fmd->getCTime(cts);
-      fmd->getMTime(mts);
       eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
     }
             // we just store 9 bits in flags
