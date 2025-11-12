@@ -315,7 +315,7 @@ SpaceQuota::UpdateTargetSums()
     return;
   }
 
-  eos_debug("updating targets");
+  eos_debug("%s", "updating targets");
   XrdSysMutexHelper scope_lock(mMutex);
   mDirtyTarget = false;
   mMapIdQuota[Index(kAllUserBytesTarget, 0)] = 0;
@@ -355,7 +355,7 @@ SpaceQuota::UpdateTargetSums()
 void
 SpaceQuota::UpdateIsSums()
 {
-  eos_debug("updating IS values");
+  eos_debug("%s", "updating IS values");
   XrdSysMutexHelper scope_lock(mMutex);
   mMapIdQuota[Index(kAllUserBytesIs, 0)] = 0;
   mMapIdQuota[Index(kAllUserLogicalBytesIs, 0)] = 0;
@@ -414,7 +414,7 @@ SpaceQuota::UpdateIsSums()
 void
 SpaceQuota::UpdateFromQuotaNode(uid_t uid, gid_t gid, bool upd_proj_quota)
 {
-  eos_debug("updating uid/gid values from quota node");
+  eos_debug("%s", "updating uid/gid values from quota node");
   XrdSysMutexHelper scope_lock(mMutex);
 
   if (mQuotaNode) {
@@ -588,14 +588,17 @@ SpaceQuota::PrintOut(XrdOucString& output, long long int uid_sel,
   uids.erase(std::unique(uids.begin(), uids.end()), uids.end());
   std::sort(gids.begin(), gids.end());
   gids.erase(std::unique(gids.begin(), gids.end()), gids.end());
-  eos_debug("sorted");
 
-  for (unsigned int i = 0; i < uids.size(); ++i) {
-    eos_debug("sort %d %d", i, uids[i].second);
-  }
+  if (EOS_LOGS_DEBUG) {
+    eos_debug("%s","sorted");
 
-  for (unsigned int i = 0; i < gids.size(); ++i) {
-    eos_debug("sort %d %d", i, gids[i].second);
+    for (unsigned int i = 0; i < uids.size(); ++i) {
+      eos_debug("sort %d %d", i, uids[i].second);
+    }
+
+    for (unsigned int i = 0; i < gids.size(); ++i) {
+      eos_debug("sort %d %d", i, gids[i].second);
+    }
   }
 
   // Print the header for selected uid/gid's only if there is something to print
