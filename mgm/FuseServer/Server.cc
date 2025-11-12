@@ -1907,15 +1907,7 @@ Server::OpSetFile(const std::string& id,
 
       // Capture before stat
       {
-        eos::IFileMD::ctime_t cts, mts;
-        fmd->getCTime(cts);
-        fmd->getMTime(mts);
-        beforeStat.set_ctime(cts.tv_sec);
-        beforeStat.set_mtime(mts.tv_sec);
-        beforeStat.set_size(fmd->getSize());
-        std::string hex;
-        eos::appendChecksumOnStringAsHex(fmd.get(), hex);
-        if (!hex.empty()) beforeStat.set_checksum(hex);
+        eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
         oldMode = (fmd->getFlags() & 07777);
         oldUid = fmd->getCUid();
         oldGid = fmd->getCGid();
@@ -3188,29 +3180,7 @@ Server::OpDeleteFile(const std::string& id,
     eos::audit::Stat beforeStat;
     if (gOFS->mAudit) {
       filePath = gOFS->eosView->getUri(fmd.get());
-      eos::IFileMD::ctime_t cts, mts;
-      fmd->getCTime(cts);
-      fmd->getMTime(mts);
-      beforeStat.set_ctime(cts.tv_sec);
-      beforeStat.set_mtime(mts.tv_sec);
-        {
-          char cbuf[64], mbuf[64];
-          snprintf(cbuf, sizeof(cbuf), "%ld.%09ld", (long)cts.tv_sec, (long)cts.tv_nsec);
-          snprintf(mbuf, sizeof(mbuf), "%ld.%09ld", (long)mts.tv_sec, (long)mts.tv_nsec);
-          beforeStat.set_ctime_ns(cbuf);
-          beforeStat.set_mtime_ns(mbuf);
-        }
-      beforeStat.set_size(fmd->getSize());
-      beforeStat.set_uid(fmd->getCUid());
-      beforeStat.set_gid(fmd->getCGid());
-      uint32_t bm = (fmd->getFlags() & 07777);
-      beforeStat.set_mode(bm);
-      char bmo[8];
-      snprintf(bmo, sizeof(bmo), "0%04o", bm);
-      beforeStat.set_mode_octal(bmo);
-      std::string hex;
-      eos::appendChecksumOnStringAsHex(fmd.get(), hex);
-      if (!hex.empty()) beforeStat.set_checksum(hex);
+      eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
     }
     eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
     // this is a client hiding versions, force the version cleanup
