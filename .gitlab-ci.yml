@@ -227,10 +227,9 @@ build_el9_arm64:
 .build-client-srpm-template: &build-client-srpm-template_definition
   stage: build:rpm
   script:
-    - update-crypto-policies --set LEGACY
     - dnf config-manager --add-repo https://linuxsoft.cern.ch/cern/rhel/$(rpm --eval '%{rhel}')/CERN/$(uname -m)/ --set-enabled
     - dnf install cern-gpg-keys --nogpgcheck -y
-    - rpm --import /etc/pki/rpm-gpg/*
+    - rpm --import /etc/pki/rpm-gpg/* || true
     - dnf install rpm-build cmake gcc-c++ git -y
     - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir -pv build; cd build;
