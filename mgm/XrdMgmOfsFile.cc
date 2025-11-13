@@ -3402,15 +3402,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.msg");
   eos::common::StringConversion::MaskTag(predirectionhost, "cap.sym");
 
-  if (isRW) {
-    eos_info("op=write path=%s info=%s %s redirection=%s xrd_port=%d "
-             "http_port=%d", path, pinfo.c_str(), infolog.c_str(),
-             predirectionhost.c_str(), targetport, targethttpport);
-  } else {
-    eos_info("op=read path=%s info=%s %s redirection=%s xrd_port=%d "
-             "http_port=%d", path, pinfo.c_str(), infolog.c_str(),
-             predirectionhost.c_str(), targetport, targethttpport);
-  }
+  const char* op = isRW ? "write" : "read";
+  eos_info("op=%s path=%s info=%s %s redirection=%s xrd_port=%d "
+            "http_port=%d", op, path, pinfo.c_str(), infolog.c_str(),
+            predirectionhost.c_str(), targetport, targethttpport);
 
   EXEC_TIMING_END("Open");
   COMMONTIMING("end", &tm);
