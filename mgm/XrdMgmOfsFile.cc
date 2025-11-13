@@ -1374,14 +1374,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                    attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
   // check for injection in non fuse clients with cgi
   isInjection = !isFuse && openOpaque->Get("eos.injection");
-
-  if (openOpaque->Get("eos.repair")) {
-    isRepair = true;
-  }
-
-  if (openOpaque->Get("eos.repairread")) {
-    isRepairRead = true;
-  }
+  isRepair = openOpaque->Get("eos.repair") != nullptr;
+  isRepairRead = openOpaque->Get("eos.repairread") != nullptr;
 
   // Short-cut to block multi-source access to EC files
   if (IsRainRetryWithExclusion(isRW, fmdlid)) {
