@@ -93,16 +93,14 @@ RecycleCmd::ProcessRequest() noexcept
     }
 
     if (config.op() == eos::console::RecycleProto_ConfigProto::ADD_BIN) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--add-bin",
-                             config.subtree());
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.subtree());
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::RM_BIN) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--remove-bin",
-                             config.subtree());
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.subtree());
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::LIFETIME) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--lifetime",
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(),
                              std::to_string(config.lifetimesec()));
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::RATIO) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--ratio",
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(),
                              std::to_string(config.ratio()));
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::SIZE) {
       std::string msg;
@@ -125,19 +123,22 @@ RecycleCmd::ProcessRequest() noexcept
         return reply;
       }
     } else if (config.op() ==
-               eos::console::RecycleProto_ConfigProto::POOL_INTERVAL) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--poll-interval",
+               eos::console::RecycleProto_ConfigProto::POLL_INTERVAL) {
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(),
                              std::to_string(config.size()));
     } else if (config.op() ==
                eos::console::RecycleProto_ConfigProto::COLLECT_INTERVAL) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--collect-interval",
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(),
                              std::to_string(config.size()));
     } else if (config.op() ==
                eos::console::RecycleProto_ConfigProto::REMOVE_INTERVAL) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--remove-interval",
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(),
                              std::to_string(config.size()));
-    }  else if (config.op() == eos::console::RecycleProto_ConfigProto::DRY_RUN) {
-      retc = Recycle::Config(std_out, std_err, mVid, "--dry-run", config.value());
+    } else if (config.op() == eos::console::RecycleProto_ConfigProto::DRY_RUN) {
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.value());
+    } else if (config.op() == eos::console::RecycleProto_ConfigProto::DUMP) {
+      retc = 0;
+      std_out = gOFS->Recycler->Dump();
     }
 
     reply.set_retc(retc);
