@@ -371,4 +371,27 @@ int Scheduler::FileAccess(AccessArguments* args)
          args->forcedfsid, args->unavailfs);
 }
 
+void Scheduler::ReshuffleFs(std::vector<unsigned int> &selectedfs)
+{
+  if (selectedfs.size() > 0) {
+    std::vector<unsigned int> newselectedfs;
+    auto result = std::minmax_element(selectedfs.begin(), selectedfs.end());
+    int sum = std::accumulate(selectedfs.begin(), selectedfs.end(), 0);
+
+    if ((sum % 2) == 0) {
+      newselectedfs.push_back(*result.second);
+    } else {
+      newselectedfs.push_back(*result.first);
+    }
+
+    for (const auto& i : selectedfs) {
+      if (i != newselectedfs.front()) {
+        newselectedfs.push_back(i);
+      }
+    }
+
+    selectedfs.swap(newselectedfs);
+  }
+}
+
 EOSMGMNAMESPACE_END

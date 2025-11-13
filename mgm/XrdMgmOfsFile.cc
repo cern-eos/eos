@@ -2268,28 +2268,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     retc = Quota::FilePlacement(&plctargs);
     COMMONTIMING("Scheduler::FilePlaced", &tm);
 
-
-    // reshuffle the selectedfs by returning as first entry the lowest if the
-    // sum of the fsid is odd the highest if the sum is even
-    if (selectedfs.size() > 0) {
-      std::vector<unsigned int> newselectedfs;
-      auto result = std::minmax_element(selectedfs.begin(), selectedfs.end());
-      int sum = std::accumulate(selectedfs.begin(), selectedfs.end(), 0);
-
-      if ((sum % 2) == 0) {
-        newselectedfs.push_back(*result.second);
-      } else {
-        newselectedfs.push_back(*result.first);
-      }
-
-      for (const auto& i : selectedfs) {
-        if (i != newselectedfs.front()) {
-          newselectedfs.push_back(i);
-        }
-      }
-
-      selectedfs.swap(newselectedfs);
-    }
+    Scheduler::ReshuffleFs(selectedfs);
   } else {
     // Access existing file - fill the vector with the existing locations
     for (unsigned int i = 0; i < fmd->getNumLocation(); i++) {
