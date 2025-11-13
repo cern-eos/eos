@@ -2258,8 +2258,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
   // Start the recycler garbage collection thread on a master machine
-  if ((mMaster->IsMaster()) && (!Recycler->Start())) {
-    eos_static_warning("msg=\"cannot start recycle thread\"");
+  if (mMaster->IsMaster()) {
+    Recycler->Start();
   }
 
   // Print a test-stacktrace to ensure we have debugging symbols.
