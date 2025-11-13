@@ -85,10 +85,10 @@ Recycle::CollectEntries(ThreadAssistant& assistant)
   eos_static_debug("msg=\"recycle start collection\" ts=%llu", now_ts.count());
 
   // Run collection once every mCollectInterval
-  if (now_ts - s_last_ts < mPolicy.mCollectInterval) {
+  if (now_ts - s_last_ts < mPolicy.mCollectInterval.load()) {
     eos_static_debug("msg=\"recycle skip collection\" last_ts=%llu "
                      "collect_interval_sec=%llu", s_last_ts.count(),
-                     mPolicy.mCollectInterval.count());
+                     mPolicy.mCollectInterval.load().count());
     return;
   }
 
@@ -176,10 +176,10 @@ Recycle::RemoveEntries()
   static std::chrono::seconds s_last_ts = now_ts;
 
   // Run removal every mRemoveInterval
-  if (now_ts - s_last_ts < mPolicy.mRemoveInterval) {
+  if (now_ts - s_last_ts < mPolicy.mRemoveInterval.load()) {
     eos_static_debug("msg=\"recycle skip removal\" last_ts=%llu "
                      "removal_interval_sec=%llu", s_last_ts.count(),
-                     mPolicy.mRemoveInterval.count());
+                     mPolicy.mRemoveInterval.load().count());
     return;
   }
 
@@ -190,10 +190,10 @@ Recycle::RemoveEntries()
   }
 
   // Compute the index of the containers to be removed in the current slot
-  int total_slots = mPolicy.mCollectInterval.count() /
-                    mPolicy.mRemoveInterval.count();
-  int current_slot = (now_ts.count() % mPolicy.mCollectInterval.count()) /
-                     mPolicy.mRemoveInterval.count();
+  int total_slots = mPolicy.mCollectInterval.load().count() /
+                    mPolicy.mRemoveInterval.load().count();
+  int current_slot = (now_ts.count() % mPolicy.mCollectInterval.load().count()) /
+                     mPolicy.mRemoveInterval.load().count();
 
   // Catch all config in case the remove interval >= collect interval
   if (total_slots == 0) {
@@ -347,10 +347,10 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
     // Every now and then we wake up
     backoff_logger.invoke([this]() {
       eos_static_info("msg=\"recycle thread\" snooze-time=%llusec",
-                      mPolicy.mPollInterval.count());
+                      mPolicy.mPollInterval.load().count());
     });
 
-    for (int i = 0; i <= mPolicy.mPollInterval.count() / 10; i++) {
+    for (int i = 0; i <= mPolicy.mPollInterval.load().count() / 10; i++) {
       if (assistant.terminationRequested()) {
         return;
       }
@@ -1148,11 +1148,14 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   return 0;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Configure the recycle bin parameters
+//------------------------------------------------------------------------------
 int
 Recycle::Config(std::string& std_out, std::string& std_err,
                 eos::common::VirtualIdentity& vid,
-                const std::string& key, const std::string& value)
+                eos::console::RecycleProto_ConfigProto_OpType op,
+                const std::string& value)
 {
   XrdOucErrInfo lerror;
 
@@ -1162,7 +1165,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     return EPERM;
   }
 
-  if (key == "--add-bin") {
+  if (op == eos::console::RecycleProto_ConfigProto::ADD_BIN) {
     if (value.empty()) {
       std_err = "error: missing subtree argument\n";
       return EINVAL;
@@ -1183,7 +1186,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     return result;
   }
 
-  if (key == "--remove-bin") {
+  if (op == eos::console::RecycleProto_ConfigProto::RM_BIN) {
     if (value.empty()) {
       std_err = "error: missing subtree argument\n";
       return EINVAL;
@@ -1202,7 +1205,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     return result;
   }
 
-  if (key == "--lifetime") {
+  if (op == eos::console::RecycleProto_ConfigProto::LIFETIME) {
     if (value.empty()) {
       std_err = "error: missing lifetime argument";
       return EINVAL;
@@ -1240,7 +1243,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin lifetime configured!\n";
     }
-  } else if (key == "--ratio") {
+  } else if (op == eos::console::RecycleProto_ConfigProto::RATIO) {
     if (value.empty()) {
       std_err = "error: missing ratio argument\n";
       return EINVAL;
@@ -1278,7 +1281,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin ratio configured!";
     }
-  } else if (key == "--poll-interval") {
+  } else if (op == eos::console::RecycleProto_ConfigProto::POLL_INTERVAL) {
     if (value.empty()) {
       std_err = "error: missing poll interval value\n";
       return EINVAL;
@@ -1311,7 +1314,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin update poll interval";
     }
-  } else if (key == "--collect-interval") {
+  } else if (op == eos::console::RecycleProto_ConfigProto::COLLECT_INTERVAL) {
     if (value.empty()) {
       std_err = "error: missing collect interval value\n";
       return EINVAL;
@@ -1344,7 +1347,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin update collect interval";
     }
-  } else if (key == "--remove-interval") {
+  } else if (op == eos::console::RecycleProto_ConfigProto::REMOVE_INTERVAL) {
     if (value.empty()) {
       std_err = "error: missing remove interval value\n";
       return EINVAL;
@@ -1377,7 +1380,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin update remove interval";
     }
-  } else if (key == "--dry-run") {
+  } else if (op == eos::console::RecycleProto_ConfigProto::DRY_RUN) {
     if (value.empty() || ((value != "yes") && (value != "no"))) {
       std_err = "error: missing/wrong dry-run value\n";
       return EINVAL;
@@ -1398,7 +1401,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       std_out += "success: recycle bin update dry-run option";
     }
   } else {
-    std_err = "error: unknown configuration key";
+    std_err = "error: unknown configuration operation";
     return EINVAL;
   }
 
