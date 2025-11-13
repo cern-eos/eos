@@ -261,7 +261,7 @@ RecycleHelper::ParseCommand(const char* arg)
                (soption == "--collect-interval") ||
                (soption == "--remove-interval")) {
       if (soption == "--poll-interval") {
-        config->set_op(eos::console::RecycleProto::ConfigProto::POOL_INTERVAL);
+        config->set_op(eos::console::RecycleProto::ConfigProto::POLL_INTERVAL);
       } else if (soption == "--collect-interval") {
         config->set_op(eos::console::RecycleProto::ConfigProto::COLLECT_INTERVAL);
       } else {
@@ -284,7 +284,7 @@ RecycleHelper::ParseCommand(const char* arg)
       }
 
       config->set_size(value);
-    } else if ((soption == "--dry-run")) {
+    } else if (soption == "--dry-run") {
       config->set_op(eos::console::RecycleProto::ConfigProto::DRY_RUN);
 
       if (!(option = tokenizer.GetToken())) {
@@ -292,6 +292,8 @@ RecycleHelper::ParseCommand(const char* arg)
       }
 
       config->set_value(option);
+    } else if ((soption == "--dump")) {
+      config->set_op(eos::console::RecycleProto::ConfigProto::DUMP);
     } else {
       return false;
     }

@@ -299,7 +299,7 @@ void com_convert_help()
       << "    list conversion jobs                           \n"
       << std::endl
       << "  convert clear                                    \n"
-      << "    clear list of jobs stored in the backend       \n"
+      << "    clear list of pending jobs                     \n"
       << std::endl
       << "  convert file <identifier> <conversion>           \n"
       << "    schedule a file conversion                     \n"

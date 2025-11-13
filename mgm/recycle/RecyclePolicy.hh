@@ -36,6 +36,8 @@ EOSMGMNAMESPACE_BEGIN
 class RecyclePolicy: public eos::common::LogId
 {
 public:
+  friend class Recycle;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
@@ -62,18 +64,24 @@ public:
   //----------------------------------------------------------------------------
   bool IsWithinLimits();
 
+private:
+#ifdef IN_TEST_HARNESS
 public:
+#endif
   bool mEnforced {false};
   uint64_t mKeepTimeSec {0};
   double mSpaceKeepRatio {0.0};
   //! Flag if we are in dry-run mode or not
-  bool mDryRun {false};
+  std::atomic<bool> mDryRun {false};
   //! Recycle thread poll interval in seconds, default 30 min
-  std::chrono::seconds mPollInterval {30 * 60};
+  std::atomic<std::chrono::seconds> mPollInterval =
+    std::chrono::seconds(30 * 60);
   //! How often the collection of entries is happening, default 1 day
-  std::chrono::seconds mCollectInterval {24 * 3600};
+  std::atomic<std::chrono::seconds> mCollectInterval =
+    std::chrono::seconds(24 * 3600);
   //! How often the removal of entries is happening, default 1 hour
-  std::chrono::seconds mRemoveInterval {3600};
+  std::atomic<std::chrono::seconds> mRemoveInterval =
+    std::chrono::seconds(3600);
   eos::IContainerMD::ctime_t mRecycleDirCtime {0, 0};
   unsigned long long mLowSpaceWatermark {0ull};
   unsigned long long mLowInodeWatermark {0ull};
