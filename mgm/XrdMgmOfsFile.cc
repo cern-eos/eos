@@ -2173,11 +2173,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   capability += "&mgm.sec=";
   capability += eos::common::SecEntity::ToKey(client, app_name.c_str()).c_str();
 
-  if (attrmap.count("user.tag")) {
-    capability += "&mgm.container=";
-    capability += attrmap["user.tag"].c_str();
-  }
 
+  std::string containertag;
+  if (attr::getValue(attrmap, "user.tag", containertag)) {
+    capability += "&mgm.container=";
+    capability += containertag.c_str();
+  }
   // Size which will be reserved with a placement of one replica for the file
   unsigned long long bookingsize = 0;
   bool hasClientBookingSize = false;
@@ -2233,13 +2234,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int retc = 0;
   bool isRecreation = false;
 
+
   // Place a new file
   if (isCreation || (!fmd->getNumLocation()) || isInjection) {
-    const char* containertag = 0;
-
-    if (attrmap.count("user.tag")) {
-      containertag = attrmap["user.tag"].c_str();
-    }
 
     Scheduler::PlacementArguments plctargs;
     {
@@ -2252,7 +2249,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
 
       using namespace eos::mgm::scheduler;
-      plctargs.setFileParams(space, Path(path), GroupTag(containertag),
+      plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
                              Lid(layoutId), (ino64_t)fmd->getId(),
                              BookingSize(_bookingsize), open_flags & O_TRUNC, vid)
               .setFsParams(&selectedfs, &excludefs, &selectedfs)
@@ -2385,17 +2382,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if ((retc == ENETUNREACH) || (retc == EROFS) || isRepair) {
       if (isRW && ((((fmd->getSize() == 0) && (bookingsize == 0)) || isRepair))) {
         // File-recreation due to offline/full file systems
-        const char* containertag = 0;
-
-        if (attrmap.count("user.tag")) {
-          containertag = attrmap["user.tag"].c_str();
-        }
-
         isCreation = true;
         Scheduler::PlacementArguments plctargs;
         {
           using namespace eos::mgm::scheduler;
-          plctargs.setFileParams(space, Path(path), GroupTag(containertag),
+          plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
                                  Lid(layoutId), (ino64_t)fmd->getId(),
                                  BookingSize(bookingsize), open_flags & O_TRUNC, vid)
                   .setFsParams(&excludefs, &excludefs, &selectedfs)
@@ -2929,12 +2920,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     std::set<unsigned int> add_new_fsid;
 
     if (isPioReconstruct && !(pio_reconstruct_fs.empty())) {
-      const char* containertag = 0;
-
-      if (attrmap.count("user.tag")) {
-        containertag = attrmap["user.tag"].c_str();
-      }
-
       // Get the scheduling group of one of the stripes
       if (fmd->getNumLocation() == 0) {
         eos_err("msg=\"no locations available for file\"");
@@ -2986,7 +2971,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       Scheduler::PlacementArguments plctargs;
       {
         using namespace eos::mgm::scheduler;
-        plctargs.setFileParams(space, Path(path), GroupTag(containertag),
+        plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
                                Lid(plain_lid), (ino64_t)fmd->getId(),
                                BookingSize(plain_book_sz), false, rootvid)
                 .setFsParams(&selectedfs, &excludefs, &pio_replacement_fs)
