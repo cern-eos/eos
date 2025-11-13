@@ -86,4 +86,16 @@ int getVersioning(const eos::IContainerMD::XAttrMap& attrmap,
   return versioning;
 }
 
+bool getValue(const eos::IContainerMD::XAttrMap &attrmap,
+              const std::string &key, std::string &out)
+{
+  if (auto kv = attrmap.find(key);
+      kv != attrmap.end()) {
+    out = kv->second;
+    return true;
+  }
+  return false;
+}
+
+
 } // namespace eos::mgm::attr

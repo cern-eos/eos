@@ -22,8 +22,11 @@
  ************************************************************************/
 
 #pragma once
+#include <type_traits>
+
 #include "namespace/interface/IContainerMD.hh"
 #include "common/VirtualIdentity.hh"
+#include "common/StringUtils.hh"
 
 namespace eos::mgm::attr
 {
@@ -67,4 +70,33 @@ bool checkAtomicUpload(const eos::IContainerMD::XAttrMap& attrmap,
 int getVersioning(const eos::IContainerMD::XAttrMap& attrmap,
                   std::string_view versioning_cgi = {});
 
-} // eos::mgm::attr
+/*!
+ * Get string value from xattr map
+ * @param attrmap map of xattrs
+ * @param key key to search
+ * @param out output string
+ * @return true if key found and out populated
+ */
+bool getValue(const eos::IContainerMD::XAttrMap& attrmap,
+              const std::string& key, std::string& out);
+
+/*!
+ * Get numeric value from xattr map
+ * @param attrmap map of xattrs
+ * @param key key to search
+ * @param out output numeric value
+ * @return true if key found and out populated
+ */
+template <typename T>
+auto getValue(const eos::IContainerMD::XAttrMap&  attrmap,
+              const std::string& key, T& out)
+    -> std::enable_if_t<std::is_arithmetic_v<T>, bool>
+{
+    auto kv = attrmap.find(key);
+    if (kv != attrmap.end()) {
+        return common::StringToNumeric(kv->second, out);
+    }
+    return false;
+}
+
+}// eos::mgm::attr
