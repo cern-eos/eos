@@ -16,6 +16,20 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.26 Diopside``
+====================
+
+2025-11-13
+
+Bug
+----
+
+* [EOS-6514] - Make more robust file inspector stats load
+* [EOS-6534] - Rename via gRPC does not respect ACLs
+* [EOS-6536] - eosxd crash on el10 node
+* [EOS-6540] - SIGSEGV in recompute_tree_size
+
+
 ``v5.3.25 Diopside``
 ====================
 
