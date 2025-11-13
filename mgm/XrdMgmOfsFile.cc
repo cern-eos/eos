@@ -1209,11 +1209,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                     e.getErrno(), e.getMessage().str().c_str());
         }
 
-        // ---------------------------------------------------------------------
-        if (attrmap.count("sys.redirect.enoent")) {
+        if (std::string _redir;
+            attr::getValue(attrmap, "sys.redirect.enoent", _redir) && !_redir.empty()) {
           // there is a redirection setting here
           redirectionhost = "";
-          redirectionhost = attrmap["sys.redirect.enoent"].c_str();
+          redirectionhost = _redir.c_str();
           int portpos = 0;
 
           if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
@@ -2256,12 +2256,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   unsigned long long minimumsize = 0;
   unsigned long long maximumsize = 0;
 
-  if (attrmap.count("sys.forced.bookingsize")) {
+  if (attr::getValue(attrmap, "sys.forced.bookingsize", bookingsize)) {
     // we allow only a system attribute not to get fooled by a user
-    bookingsize = strtoull(attrmap["sys.forced.bookingsize"].c_str(), 0, 10);
   } else {
-    if (attrmap.count("user.forced.bookingsize")) {
-      bookingsize = strtoull(attrmap["user.forced.bookingsize"].c_str(), 0, 10);
+    if (attr::getValue(attrmap, "user.forced.bookingsize", bookingsize)) {
+      // fallback to user booking size
     } else {
       bookingsize = 1024ll; // 1k as default
 
@@ -2276,14 +2275,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       }
     }
   }
-
-  if (attrmap.count("sys.forced.minsize")) {
-    minimumsize = strtoull(attrmap["sys.forced.minsize"].c_str(), 0, 10);
-  }
-
-  if (attrmap.count("sys.forced.maxsize")) {
-    maximumsize = strtoull(attrmap["sys.forced.maxsize"].c_str(), 0, 10);
-  }
+  attr::getValue(attrmap, "sys.forced.minsize", minimumsize);
+  attr::getValue(attrmap, "sys.forced.maxsize", maximumsize);
 
   if (openOpaque->Get("oss.asize")) {
     targetsize = strtoull(openOpaque->Get("oss.asize"), 0, 10);
@@ -2499,36 +2492,28 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       MAYSTALL_ENETUNREACH;
 
       // check if the dir attributes tell us to let clients rebounce
-      if (attrmap.count("sys.stall.unavailable")) {
-        int stalltime = atoi(attrmap["sys.stall.unavailable"].c_str());
-
-        if (stalltime) {
-          // stall the client
+      // stall clients when sys/user attributes are set
+      if (attr::getValue(attrmap, "sys.stall.unavailable", stalltime) && stalltime > 0) {
           gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1, vid.app);
           eos_info("attr=sys info=\"stalling file since replica's are down\" path=%s rw=%d",
                    path, isRW);
           return gOFS->Stall(error, vid, stalltime,
                              "Required filesystems are currently unavailable!");
-        }
       }
 
-      if (attrmap.count("user.stall.unavailable")) {
-        int stalltime = atoi(attrmap["user.stall.unavailable"].c_str());
-
-        if (stalltime) {
-          // stall the client
+      if (attr::getValue(attrmap, "user.stall.unavailable", stalltime) && stalltime > 0) {
           gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1, vid.app);
           eos_info("attr=user info=\"stalling file since replica's are down\" path=%s rw=%d",
                    path, isRW);
           return gOFS->Stall(error, vid, stalltime,
                              "Required filesystems are currently unavailable!");
-        }
       }
 
-      if ((attrmap.count("sys.redirect.enonet"))) {
+      if (std::string _redir;
+          attr::getValue(attrmap, "sys.redirect.enonet", _redir) && !_redir.empty()) {
         // there is a redirection setting here if files are unaccessible
         redirectionhost = "";
-        redirectionhost = attrmap["sys.redirect.enonet"].c_str();
+        redirectionhost = _redir.c_str();
         int portpos = 0;
 
         if ((portpos = redirectionhost.find(":")) != STR_NPOS) {
