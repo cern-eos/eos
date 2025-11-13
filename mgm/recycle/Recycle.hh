@@ -26,6 +26,7 @@
 #include "mgm/recycle/RecyclePolicy.hh"
 #include "common/AssistedThread.hh"
 #include "common/SystemClock.hh"
+#include "proto/Recycle.pb.h"
 #include <XrdOuc/XrdOucString.hh>
 #include <sys/types.h>
 
@@ -81,10 +82,9 @@ public:
   //----------------------------------------------------------------------------
   //! Start the recycle thread cleaning up the recycle bin
   //----------------------------------------------------------------------------
-  bool Start()
+  void Start()
   {
     mThread.reset(&Recycle::Recycler, this);
-    return true;
   }
 
   //----------------------------------------------------------------------------
@@ -110,14 +110,15 @@ public:
   //! @param std_out where to print
   //! @param std_err where to print
   //! @param vid of the client
-  //! @param arg configuration key/op
-  //! @param option configuration value
+  //! @param op operation type according to Recycle.proto
+  //! @param value configuration value for the given operation type
   //!
   //! @return 0 if successful, otherwise errno
   //----------------------------------------------------------------------------
   static int Config(std::string& std_out, std::string& std_err,
                     eos::common::VirtualIdentity& vid,
-                    const std::string& key, const std::string& value);
+                    eos::console::RecycleProto_ConfigProto_OpType op,
+                    const std::string& value);
 
   //----------------------------------------------------------------------------
   //! Recycle the given object (file or subtree)
@@ -140,6 +141,16 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Dump recycler configutation
+  //!
+  //! @return string representation of the recycler configuration
+  //----------------------------------------------------------------------------
+  inline std::string Dump() const
+  {
+    return mPolicy.Dump();
+  }
+
+  //----------------------------------------------------------------------------
   //! Print the recycle bin contents
   //!
   //! @param std_out where to print
@@ -148,7 +159,8 @@ public:
   //! @param monitoring selects monitoring key-value output format
   //! @param translateids selects to display uid/gid as number or string
   //! @param global show files of all users as root
-  //! @param date filter recycle bin for given date <year> or <year>/<month> or <year>/<month>/<day>
+  //! @param date filter recycle bin for given date <year> or <year>/<month>
+  //!        or <year>/<month>/<day>
   //! @param rvec a vector of maps with all recycle informations requested
   //! @param whodeleted - show who exectued a deletion
   //! @param maxentries - maximum number of entries to report
@@ -253,16 +265,16 @@ public:
 #endif
 
   AssistedThread mThread; ///< Thread doing the recycling
-  std::string mPath;
+  std::string mPath; ///< Path of file to be recycled
   std::string mRecycleDir;
-  std::string mRecyclePath;
+  std::string mRecyclePath; ///< Final path of file in the recycle bin
   uid_t mOwnerUid;
   gid_t mOwnerGid;
   unsigned long long mId;
   std::atomic<bool> mWakeUp;
   RecyclePolicy mPolicy;
   std::atomic<uint64_t> mPollIntervalSec;
-  //! Map holding the container identifier and the full path of the directoies
+  //! Map holding the container identifier and the full path of the directories
   //! to be deleted.
   std::map<eos::IContainerMD::id_t, std::string> mPendingDeletions;
   eos::common::SystemClock mClock;
