@@ -986,6 +986,7 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
       eos_err("error=\"%s\"", e.what());
       continue;
     }
+
     // No need to lock the file here as it's only one operation to be done
     tree_size += tmp_fmd->getSize();
     tree_files += 1;
@@ -998,6 +999,7 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
       eos_err("error=\"%s\"", e.what());
       continue;
     }
+
     // Read lock the container here
     eos::MDLocking::ContainerReadLock readLock(tmp_cont.get());
     tree_size += tmp_cont->getTreeSize();
@@ -1102,7 +1104,9 @@ NsCmd::BreadthFirstSearchContainers(eos::IContainerMD* cont,
 
       for (auto subcont_it = ContainerMapIterator(tmp_cont); subcont_it.valid();
            subcont_it.next()) {
-        it_next_lvl->push_back(subcont_it.value());
+        if (it_next_lvl != depth.end()) {
+          it_next_lvl->push_back(subcont_it.value());
+        }
       }
     }
 
