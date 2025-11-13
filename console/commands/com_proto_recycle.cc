@@ -65,7 +65,8 @@ void com_recycle_help()
       << "  recycle ls [-g|<date> [<limit>]] [-m] [-n]\n"
       << "    list files in the recycle bin\n"
       << "    -g     : list files of all users (if done by root or admin)\n"
-      << "    <date> : can be <year>, <year>/<month> or <year>/<month>/<day> or <year>/<month>/<day>/<index>\n"
+      << "    <date> : can be <year>, <year>/<month> or <year>/<month>/<day> or"
+      << "             <year>/<month>/<day>/<index>\n"
       << "   <limit> : maximum number of entries to return when listing\n"
       << "             e.g.: recycle ls 2018/08/12\n"
       << "    -m     : display info in monitoring format\n"
@@ -80,13 +81,16 @@ void com_recycle_help()
       << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>\n"
       << "    undo the deletion identified by the <recycle-key>\n"
       << "    -p : create all missing parent directories\n"
-      << "    -f : move deleted files/dirs back to their original location (otherwise"
-      << std::endl
+      << "    -f : move deleted files/dirs back to their original location (otherwise\n"
       << "          the key entry will have a <.inode> suffix)" << std::endl
       << "     -r : restore all previous versions of a file" << std::endl
       << std::endl
       << "  recycle config <key> <value>\n"
       << "    where <key> and <value> need to be one of the following:\n"
+      << std::endl
+      << "    --dump\n"
+      << "      dump the current recycle policy configuration\n"
+      << std::endl
       << "    [--add-bin|--remove-bin] <sub-tree>\n"
       << "      --add-bin    : enable recycle bin for deletion in <sub-tree>\n"
       << "      --remove-bin : disable recycle bin for <sub-tree>\n"
@@ -108,21 +112,26 @@ void com_recycle_help()
       << "      configure the quota for the maximum number of inodes in the\n"
       << "      recycle bin.\n"
       << std::endl
+      << "    --dry-run <yes/no>\n"
+      << "      when dry-run mode is enabled, no removal of entries is performed\n"
+      << std::endl
       << "    --poll-interval <seconds>\n"
       << "      how often the recyler checks for collection or removal\n"
-      << "      operations. Default 30 minutes ie. 1800 seconds. Change only\n"
-      << "      for testing.\n"
+      << "      operations. Default 30 minutes ie. 1800 seconds.\n"
+      << "      Change only for testing!\n"
       << std::endl
       << "    --collect-interval <seconds>\n"
       << "      how ofen the recycler collects new entries to be removed from\n"
-      << "      the recycle bin. Default once per day i.e 86400 seconds. Change\n"
-      << "      only for testing.\n"
+      << "      the recycle bin. Default once per day i.e 86400 seconds.\n"
+      << "      Change only for testing!\n"
       << std::endl
       << "    --remove-interval <seconds>\n"
       << "      how often the recycler removes collected entries. The collected\n"
       << "      container ids to be removed are sharded and the removal is spread\n"
-      << "      evenly across collect-interval/remove-interval slots.\n"
-      << "    Note: These last three parameters should be changed only for testing\n"
+      << "      evenly across collect-interval/remove-interval slots. Default once\n"
+      << "      every hour i.e. 3600. Change only for testing!\n"
+      << std::endl
+      << "    Note: The last three parameters should be changed only for testing\n"
       << "    and while maintaining the following order: \n"
       << "    poll-interval < remove-interval < collection-interval\n"
       << std::endl;

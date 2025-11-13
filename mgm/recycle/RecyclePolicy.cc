@@ -156,15 +156,15 @@ std::string
 RecyclePolicy::Dump() const
 {
   std::ostringstream oss;
-  oss << "enforced=" << (mEnforced ? "on" : "off")
-      << " dry_run=" << (mDryRun ? "yes" : "no")
-      << " keep_time_sec=" << mKeepTimeSec
-      << " space_keep_ratio=" << mSpaceKeepRatio
-      << " low_space_watermark=" << mLowSpaceWatermark
-      << " low_inode_watermark=" << mLowInodeWatermark
-      << " poll_interval_sec=" << mPollInterval.count()
-      << " collect_interval_sec=" << mCollectInterval.count()
-      << " remove_interval_sec=" << mRemoveInterval.count();
+  oss << "enforced=" << (mEnforced ? "on" : "off") << std::endl
+      << " dry_run=" << (mDryRun ? "yes" : "no") << std::endl
+      << " keep_time_sec=" << mKeepTimeSec << std::endl
+      << " space_keep_ratio=" << mSpaceKeepRatio << std::endl
+      << " low_space_watermark=" << mLowSpaceWatermark << std::endl
+      << " low_inode_watermark=" << mLowInodeWatermark << std::endl
+      << " poll_interval_sec=" << mPollInterval.load().count() << std::endl
+      << " collect_interval_sec=" << mCollectInterval.load().count() << std::endl
+      << " remove_interval_sec=" << mRemoveInterval.load().count() << std::endl;
   return oss.str();
 }
 
