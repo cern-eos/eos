@@ -223,7 +223,7 @@ Storage::Verify()
 
           if (cxError) {
             eos_static_err("checksum invalid   : path=%s fxid=%s checksum=%s stored-checksum=%s",
-                           verifyfile->path.c_str(), hex_fid.c_str(), computedchecksum,
+                           verifyfile->path.c_str(), hex_fid.c_str(), computedchecksum.c_str(),
                            fMd->mProtoFmd.checksum().c_str());
             fMd->mProtoFmd.set_checksum(computedchecksum);
             fMd->mProtoFmd.set_diskchecksum(computedchecksum);
@@ -243,7 +243,7 @@ Storage::Verify()
           } else {
             eos_static_info("checksum OK        : path=%s fxid=%s checksum=%s",
                             verifyfile->path.c_str(), hex_fid.c_str(),
-                            computedchecksum);
+                            computedchecksum.c_str());
 
             // Reset error flags if needed
             if (fMd->mProtoFmd.blockcxerror() || fMd->mProtoFmd.filecxerror()) {
