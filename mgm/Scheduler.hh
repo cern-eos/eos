@@ -308,6 +308,10 @@ public:
     return -1;
   }
 
+  // reshuffle the selectedfs by returning as first entry the lowest if the
+  // sum of the fsid is odd the highest if the sum is even
+  static void ReshuffleFs(std::vector<unsigned int>& selectedfs);
+
 protected:
 
   static XrdSysMutex pMapMutex; //< protect the following scheduling state maps
