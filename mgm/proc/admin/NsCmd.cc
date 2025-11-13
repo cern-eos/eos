@@ -1098,7 +1098,7 @@ NsCmd::BreadthFirstSearchContainers(eos::IContainerMD* cont,
         tmp_cont = gOFS->eosDirectoryService->getContainerMD(cid);
       } catch (const eos::MDException& e) {
         // ignore error
-        eos_err("error=\"%s\"", e.what());
+        eos_static_err("error=\"%s\"", e.what());
         continue;
       }
 
@@ -1106,6 +1106,9 @@ NsCmd::BreadthFirstSearchContainers(eos::IContainerMD* cont,
            subcont_it.next()) {
         if (it_next_lvl != depth.end()) {
           it_next_lvl->push_back(subcont_it.value());
+        } else {
+          eos_static_notice("msg=\"reached maximum hierarchy depth\" "
+                            "cxid=%08llx", cid);
         }
       }
     }
