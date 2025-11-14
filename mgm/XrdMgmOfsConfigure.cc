@@ -2306,7 +2306,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Start the recycler garbage collection thread on a master machine
   if (mMaster->IsMaster()) {
-    Recycler->Start();
+    mRecycler->Start();
   }
 
   // Print a test-stacktrace to ensure we have debugging symbols.

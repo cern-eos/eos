@@ -45,7 +45,6 @@ std::string Recycle::gRecyclingPrefix = "/recycle/";
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
 std::string Recycle::gRecyclingTimeAttribute = "sys.recycle.keeptime";
 std::string Recycle::gRecyclingKeepRatio = "sys.recycle.keepratio";
-std::string Recycle::gRecyclingPollAttribute = "sys.recycle.pollinterval";
 std::string Recycle::gRecyclingCollectInterval = "sys.recycle.collectinterval";
 std::string Recycle::gRecyclingRemoveInterval = "sys.recycle.removeinterval";
 std::string Recycle::gRecyclingDryRunAttribute = "sys.recycle.dryrun";
@@ -53,14 +52,14 @@ std::string Recycle::gRecyclingVersionKey = "sys.recycle.version.key";
 std::string Recycle::gRecyclingPostFix = ".d";
 eos::common::VirtualIdentity Recycle::mRootVid =
   eos::common::VirtualIdentity::Root();
+std::chrono::seconds Recycle::mLastRemoveTs = std::chrono::seconds(0);
 
 //------------------------------------------------------------------------------
 // Default constructor
 //------------------------------------------------------------------------------
 Recycle::Recycle(bool fake_clock) :
-  mPath(""), mRecycleDir(""), mRecyclePath(""),
-  mOwnerUid(DAEMONUID), mOwnerGid(DAEMONGID), mId(0), mWakeUp(false),
-  mClock(fake_clock)
+  mPath(""), mRecycleDir(""), mRecyclePath(""), mOwnerUid(DAEMONUID),
+  mOwnerGid(DAEMONGID), mId(0), mClock(fake_clock)
 {}
 
 //------------------------------------------------------------------------------
@@ -70,8 +69,7 @@ Recycle::Recycle(const char* path, const char* recycledir,
                  eos::common::VirtualIdentity* vid, uid_t ownerUid,
                  gid_t ownerGid, unsigned long long id, bool fake_clock) :
   mPath(path), mRecycleDir(recycledir), mRecyclePath(""),
-  mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id), mWakeUp(false),
-  mClock(fake_clock)
+  mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id), mClock(fake_clock)
 {}
 
 //------------------------------------------------------------------------------
@@ -173,17 +171,16 @@ void
 Recycle::RemoveEntries()
 {
   auto now_ts = eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime());
-  static std::chrono::seconds s_last_ts = now_ts;
 
   // Run removal every mRemoveInterval
-  if (now_ts - s_last_ts < mPolicy.mRemoveInterval.load()) {
+  if (now_ts - mLastRemoveTs < mPolicy.mRemoveInterval.load()) {
     eos_static_debug("msg=\"recycle skip removal\" last_ts=%llu "
-                     "removal_interval_sec=%llu", s_last_ts.count(),
+                     "removal_interval_sec=%llu", mLastRemoveTs.count(),
                      mPolicy.mRemoveInterval.load().count());
     return;
   }
 
-  s_last_ts = now_ts;
+  mLastRemoveTs = now_ts;
 
   if (mPendingDeletions.empty()) {
     return;
@@ -334,6 +331,20 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
   ThreadAssistant::setSelfThreadName("Recycler");
   eos_static_info("%s", "\"msg = \"recycle thread started\"");
   gOFS->WaitUntilNamespaceIsBooted(assistant);
+  mLastRemoveTs = eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime());
+  // Lambda computing the wait time for the configuration update condition
+  // variable. We need to wait at most the remove interval time.
+  auto getCvWaitFor = [&]() -> std::chrono::seconds {
+    auto now_ts = eos::common::SystemClock::SecondsSinceEpoch(mClock.GetTime());
+    std::chrono::seconds wait_for = now_ts - mLastRemoveTs;
+
+    if (wait_for.count() > 5)
+    {
+      wait_for -= std::chrono::seconds(5);
+    }
+
+    return wait_for;
+  };
 
   if (assistant.terminationRequested()) {
     return;
@@ -347,20 +358,16 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
     // Every now and then we wake up
     backoff_logger.invoke([this]() {
       eos_static_info("msg=\"recycle thread\" snooze-time=%llusec",
-                      mPolicy.mPollInterval.load().count());
+                      mPolicy.mRemoveInterval.load().count());
     });
+    {
+      // Wait for configuration update request or timeout, we don't care
+      // about spurious wakeups.
+      std::unique_lock<std::mutex> lock(mCvMutex);
+      auto cv_status = mCvCfgUpdate.wait_for(lock, getCvWaitFor());
 
-    for (int i = 0; i <= mPolicy.mPollInterval.load().count() / 10; i++) {
-      if (assistant.terminationRequested()) {
-        return;
-      }
-
-      assistant.wait_for(std::chrono::seconds(10));
-
-      if (mWakeUp) {
+      if (cv_status == std::cv_status::no_timeout) {
         mPolicy.Refresh(Recycle::gRecyclingPrefix);
-        mWakeUp = false;
-        break;
       }
     }
 
@@ -1281,39 +1288,6 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin ratio configured!";
     }
-  } else if (op == eos::console::RecycleProto_ConfigProto::POLL_INTERVAL) {
-    if (value.empty()) {
-      std_err = "error: missing poll interval value\n";
-      return EINVAL;
-    }
-
-    try {
-      uint64_t poll_interval = std::stoull(value);
-
-      // Make sure the poll interval is never less than 5 seconds
-      if (poll_interval < 5) {
-        std_err = "error: recycle poll interval has to be > 5";
-        return EINVAL;
-      }
-    } catch (...) {
-      std_err = "error: recycle poll interval not numeric";
-      return EINVAL;
-    }
-
-    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
-                        lerror, mRootVid, "",
-                        Recycle::gRecyclingPollAttribute.c_str(),
-                        value.c_str())) {
-      std_err = "error: failed to set extended attribute '";
-      std_err += Recycle::gRecyclingPollAttribute.c_str();
-      std_err += "'";
-      std_err += " at '";
-      std_err += Recycle::gRecyclingPrefix.c_str();
-      std_err += "'";
-      return EIO;
-    } else {
-      std_out += "success: recycle bin update poll interval";
-    }
   } else if (op == eos::console::RecycleProto_ConfigProto::COLLECT_INTERVAL) {
     if (value.empty()) {
       std_err = "error: missing collect interval value\n";
@@ -1361,6 +1335,12 @@ Recycle::Config(std::string& std_out, std::string& std_err,
         std_err = "error: recycle remove interval has to be > 10";
         return EINVAL;
       }
+
+      if (remove_interval >= gOFS->mRecycler->GetCollectInterval()) {
+        std_err = "erorr: remove interval needs to be smaller than "
+                  "the collect interval";
+        return EINVAL;
+      }
     } catch (...) {
       std_err = "error: recycle remove interval not numeric";
       return EINVAL;
@@ -1405,7 +1385,7 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     return EINVAL;
   }
 
-  gOFS->Recycler->WakeUp();
+  gOFS->mRecycler->NotifyConfigUpdate();
   return 0;
 }
 
