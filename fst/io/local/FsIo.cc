@@ -209,7 +209,7 @@ FsIo::fileFallocate(XrdSfsFileOffset length)
   return 0;
 #else
 
-  if (platform_test_xfs_fd(mFd)) {
+  if (platform_test_xfs_fd(mFd) && !getenv("EOS_FST_DISABLE_XFS_FALLOCATE")) {
     // Select the fast XFS allocation function if available
     xfs_flock64_t fl;
     fl.l_whence = 0;
