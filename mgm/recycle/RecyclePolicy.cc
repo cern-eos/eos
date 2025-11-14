@@ -96,18 +96,6 @@ void RecyclePolicy::Refresh(const std::string& path)
     mKeepTimeSec = 0ull;
   }
 
-  // Get the poll interval
-  if (auto it = attr_map.find(Recycle::gRecyclingPollAttribute);
-      it != attr_map.end()) {
-    try {
-      mPollInterval = std::chrono::seconds(std::stoull(it->second));
-    } catch (...) {
-      // No changes to the default poll interval
-      eos_static_err("msg=\"recycle poll interval conversion failed\" "
-                     "val=\"%s\"", it->second.c_str());
-    }
-  }
-
   // Get the collect interval
   if (auto it = attr_map.find(Recycle::gRecyclingCollectInterval);
       it != attr_map.end()) {
@@ -146,25 +134,24 @@ void RecyclePolicy::Refresh(const std::string& path)
     mEnforced = true;
   }
 
-  eos_static_info("msg=\"recycle config refresh\" %s", Dump().c_str());
+  eos_static_info("msg=\"recycle config refresh\" %s", Dump(" ").c_str());
 }
 
 //----------------------------------------------------------------------------
 // Dump current active recycle policy
 //----------------------------------------------------------------------------
 std::string
-RecyclePolicy::Dump() const
+RecyclePolicy::Dump(const std::string& delim) const
 {
   std::ostringstream oss;
-  oss << "enforced=" << (mEnforced ? "on" : "off") << std::endl
-      << " dry_run=" << (mDryRun ? "yes" : "no") << std::endl
-      << " keep_time_sec=" << mKeepTimeSec << std::endl
-      << " space_keep_ratio=" << mSpaceKeepRatio << std::endl
-      << " low_space_watermark=" << mLowSpaceWatermark << std::endl
-      << " low_inode_watermark=" << mLowInodeWatermark << std::endl
-      << " poll_interval_sec=" << mPollInterval.load().count() << std::endl
-      << " collect_interval_sec=" << mCollectInterval.load().count() << std::endl
-      << " remove_interval_sec=" << mRemoveInterval.load().count() << std::endl;
+  oss << "enforced=" << (mEnforced ? "on" : "off") << delim
+      << "dry_run=" << (mDryRun ? "yes" : "no") << delim
+      << "keep_time_sec=" << mKeepTimeSec << delim
+      << "space_keep_ratio=" << mSpaceKeepRatio << delim
+      << "low_space_watermark=" << mLowSpaceWatermark << delim
+      << "low_inode_watermark=" << mLowInodeWatermark << delim
+      << "collect_interval_sec=" << mCollectInterval.load().count() << delim
+      << "remove_interval_sec=" << mRemoveInterval.load().count() << delim;
   return oss.str();
 }
 

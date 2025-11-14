@@ -257,12 +257,9 @@ RecycleHelper::ParseCommand(const char* arg)
       }
 
       config->set_size(size);
-    } else if ((soption == "--poll-interval") ||
-               (soption == "--collect-interval") ||
+    } else if ((soption == "--collect-interval") ||
                (soption == "--remove-interval")) {
-      if (soption == "--poll-interval") {
-        config->set_op(eos::console::RecycleProto::ConfigProto::POLL_INTERVAL);
-      } else if (soption == "--collect-interval") {
+      if (soption == "--collect-interval") {
         config->set_op(eos::console::RecycleProto::ConfigProto::COLLECT_INTERVAL);
       } else {
         config->set_op(eos::console::RecycleProto::ConfigProto::REMOVE_INTERVAL);

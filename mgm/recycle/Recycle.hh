@@ -53,6 +53,30 @@ class Recycle
 {
 public:
   typedef std::vector<std::map<std::string, std::string>> RecycleListing;
+  //! Prefix for all recycle bins
+  static std::string gRecyclingPrefix;
+  //! Attribute key defining a recycling location
+  static std::string gRecyclingAttribute;
+  //! Attribute key defining the max. time a file stays in the garbage directory
+  static std::string gRecyclingTimeAttribute;
+  //! Ratio from 0 ..1.0 defining a threshold when the recycle bin is not yet
+  //! cleaned even if files have expired their lifetime attributel.
+  static std::string gRecyclingKeepRatio;
+  //! Postfix which identifies a name in the garbage bin as a bulk deletion of a directory
+  static std::string gRecyclingPostFix;
+  //! Attribute defining how often the collection of entries is attempted
+  static std::string gRecyclingCollectInterval;
+  //! Attribute defining how often the removeal of collected entries is attempted
+  static std::string gRecyclingRemoveInterval;
+  //! Attribute key defining whether the recycler runs in dry-run mode or not
+  static std::string gRecyclingDryRunAttribute;
+  //! Attribute key storing the recycling key of the version directory
+  //! belonging to a given file
+  static std::string gRecyclingVersionKey;
+  //! Root virtual identity used internally for unrestricted operations
+  static eos::common::VirtualIdentity mRootVid;
+  //! Timestamp of the last remove operation done by the recycler
+  static std::chrono::seconds mLastRemoveTs;
 
   //----------------------------------------------------------------------------
   //! Default constructor
@@ -92,6 +116,8 @@ public:
   //----------------------------------------------------------------------------
   void Stop()
   {
+    // Unblock thread waiting for timeout of config update
+    NotifyConfigUpdate();
     mThread.join();
   }
 
@@ -121,6 +147,22 @@ public:
                     const std::string& value);
 
   //----------------------------------------------------------------------------
+  //! Notify the recycle that the configuration was updated
+  //----------------------------------------------------------------------------
+  inline void NotifyConfigUpdate()
+  {
+    mCvCfgUpdate.notify_all();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get collect interval value
+  //----------------------------------------------------------------------------
+  inline uint64_t GetCollectInterval() const
+  {
+    return mPolicy.mCollectInterval.load().count();
+  }
+
+  //----------------------------------------------------------------------------
   //! Recycle the given object (file or subtree)
   //!
   //! @param epname error tag
@@ -130,15 +172,6 @@ public:
   //! @return SFS_OK if ok, otherwise SFS_ERR + errno + error object set
   //----------------------------------------------------------------------------
   int ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast = true);
-
-  //----------------------------------------------------------------------------
-  //! Set the wake-up flag in the recycle thread to look at modified recycle
-  //! bin settings.
-  //----------------------------------------------------------------------------
-  inline void WakeUp()
-  {
-    mWakeUp = true;
-  }
 
   //----------------------------------------------------------------------------
   //! Dump recycler configutation
@@ -235,35 +268,10 @@ public:
     return (path == Recycle::gRecyclingPrefix);
   }
 
-  //! Prefix for all recycle bins
-  static std::string gRecyclingPrefix;
-  //! Attribute key defining a recycling location
-  static std::string gRecyclingAttribute;
-  //! Attribute key defining the max. time a file stays in the garbage directory
-  static std::string gRecyclingTimeAttribute;
-  //! Attribute key defining the recycle poll interval in seconds
-  static std::string gRecyclingPollAttribute;
-  //! Ratio from 0 ..1.0 defining a threshold when the recycle bin is not yet
-  //! cleaned even if files have expired their lifetime attributel.
-  static std::string gRecyclingKeepRatio;
-  //! Postfix which identifies a name in the garbage bin as a bulk deletion of a directory
-  static std::string gRecyclingPostFix;
-  //! Attribute defining how often the collection of entries is attempted
-  static std::string gRecyclingCollectInterval;
-  //! Attribute defining how often the removeal of collected entries is attempted
-  static std::string gRecyclingRemoveInterval;
-  //! Attribute key defining whether the recycler runs in dry-run mode or not
-  static std::string gRecyclingDryRunAttribute;
-  //! Attribute key storing the recycling key of the version directory
-  //! belonging to a given file
-  static std::string gRecyclingVersionKey;
-  static eos::common::VirtualIdentity mRootVid;
-
 private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
-
   AssistedThread mThread; ///< Thread doing the recycling
   std::string mPath; ///< Path of file to be recycled
   std::string mRecycleDir;
@@ -271,13 +279,14 @@ public:
   uid_t mOwnerUid;
   gid_t mOwnerGid;
   unsigned long long mId;
-  std::atomic<bool> mWakeUp;
   RecyclePolicy mPolicy;
-  std::atomic<uint64_t> mPollIntervalSec;
   //! Map holding the container identifier and the full path of the directories
   //! to be deleted.
   std::map<eos::IContainerMD::id_t, std::string> mPendingDeletions;
   eos::common::SystemClock mClock;
+  //! Condition variable to notify a configuration update is needed
+  std::mutex mCvMutex;
+  std::condition_variable mCvCfgUpdate;
 
   //----------------------------------------------------------------------------
   //! Handle symlink or symlink like file names. Three scenarios:
