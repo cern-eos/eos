@@ -433,7 +433,7 @@ QdbMaster::SlaveToMaster()
   FsView::gFsView.BroadcastMasterId(GetMasterId());
   mIsMaster = true;
   gOFS->mLRUEngine->Start();
-  gOFS->Recycler->Start();
+  gOFS->mRecycler->Start();
   gOFS->mDeviceTracker->Start();
   // Trigger a geotree refresh to make sure all the file systems are
   // marked as available in the GeoTree after the failover.
@@ -475,7 +475,7 @@ QdbMaster::MasterToSlave()
   mIsMaster = false;
   UpdateMasterId("");
   gOFS->mDeviceTracker->Stop();
-  gOFS->Recycler->Stop();
+  gOFS->mRecycler->Stop();
   gOFS->mDrainEngine.Stop();
   gOFS->mFsckEngine->Stop();
   gOFS->mLRUEngine->Stop();
