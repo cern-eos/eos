@@ -31,8 +31,8 @@ function usage() {
 
 function cleanup() {
   rm -rf /tmp/conv_test_file.dat
-  exec_cmd eos-cli1 "eos rm -rF $EOS_CONVERTER_DIR"
-  exec_cmd eos-cli1 "eos rmdir $(dirname $EOS_CONVERTER_DIR)"
+  exec_cmd eos-cli1 "eos -r 0 0 rm -rF $EOS_CONVERTER_DIR"
+  exec_cmd eos-cli1 "eos -r 0 0 rmdir $(dirname $EOS_CONVERTER_DIR)"
 }
 
 # Set up global variables
