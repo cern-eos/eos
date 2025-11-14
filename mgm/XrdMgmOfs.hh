@@ -2149,7 +2149,7 @@ public:
   //!  Egroup refresh object running asynchronous Egroup fetch thread
   std::unique_ptr<Egroup> EgroupRefresh;
   //!  Recycle object running the recycle bin deletion thread
-  std::unique_ptr<Recycle> Recycler;
+  std::unique_ptr<Recycle> mRecycler;
   //!  Device Tracking Thread
   std::unique_ptr<Devices> mDeviceTracker;
 

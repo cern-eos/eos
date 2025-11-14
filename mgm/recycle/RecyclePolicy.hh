@@ -73,9 +73,6 @@ public:
   double mSpaceKeepRatio {0.0};
   //! Flag if we are in dry-run mode or not
   std::atomic<bool> mDryRun {false};
-  //! Recycle thread poll interval in seconds, default 30 min
-  std::atomic<std::chrono::seconds> mPollInterval =
-    std::chrono::seconds(30 * 60);
   //! How often the collection of entries is happening, default 1 day
   std::atomic<std::chrono::seconds> mCollectInterval =
     std::chrono::seconds(24 * 3600);
@@ -94,9 +91,11 @@ public:
   virtual std::map<int, unsigned long long> GetQuotaStats();
 
   //----------------------------------------------------------------------------
-  // Dump current active recycle policy
+  //! Dump current active recycle policy
+  //!
+  //! @param delim delimiter between output entries
   //----------------------------------------------------------------------------
-  std::string Dump() const;
+  std::string Dump(const std::string& delim = "\n") const;
 };
 
 EOSMGMNAMESPACE_END

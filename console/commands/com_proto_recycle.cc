@@ -115,11 +115,6 @@ void com_recycle_help()
       << "    --dry-run <yes/no>\n"
       << "      when dry-run mode is enabled, no removal of entries is performed\n"
       << std::endl
-      << "    --poll-interval <seconds>\n"
-      << "      how often the recyler checks for collection or removal\n"
-      << "      operations. Default 30 minutes ie. 1800 seconds.\n"
-      << "      Change only for testing!\n"
-      << std::endl
       << "    --collect-interval <seconds>\n"
       << "      how ofen the recycler collects new entries to be removed from\n"
       << "      the recycle bin. Default once per day i.e 86400 seconds.\n"
@@ -131,9 +126,9 @@ void com_recycle_help()
       << "      evenly across collect-interval/remove-interval slots. Default once\n"
       << "      every hour i.e. 3600. Change only for testing!\n"
       << std::endl
-      << "    Note: The last three parameters should be changed only for testing\n"
+      << "    Note: The last two parameters should be changed only for testing\n"
       << "    and while maintaining the following order: \n"
-      << "    poll-interval < remove-interval < collection-interval\n"
+      << "    remove-interval << collection-interval\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }

@@ -123,10 +123,6 @@ RecycleCmd::ProcessRequest() noexcept
         return reply;
       }
     } else if (config.op() ==
-               eos::console::RecycleProto_ConfigProto::POLL_INTERVAL) {
-      retc = Recycle::Config(std_out, std_err, mVid, config.op(),
-                             std::to_string(config.size()));
-    } else if (config.op() ==
                eos::console::RecycleProto_ConfigProto::COLLECT_INTERVAL) {
       retc = Recycle::Config(std_out, std_err, mVid, config.op(),
                              std::to_string(config.size()));
@@ -138,7 +134,7 @@ RecycleCmd::ProcessRequest() noexcept
       retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.value());
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::DUMP) {
       retc = 0;
-      std_out = gOFS->Recycler->Dump();
+      std_out = gOFS->mRecycler->Dump();
     }
 
     reply.set_retc(retc);
