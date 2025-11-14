@@ -371,7 +371,7 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   }
 
   EgroupRefresh.reset(new eos::mgm::Egroup());
-  Recycler.reset(new eos::mgm::Recycle());
+  mRecycler.reset(new eos::mgm::Recycle());
   mDeviceTracker.reset(new eos::mgm::Devices());
   mTapeGcMgm.reset(new tgc::RealTapeGcMgm(*this));
   mTapeGc.reset(new tgc::MultiSpaceTapeGc(*mTapeGcMgm));
@@ -502,9 +502,9 @@ XrdMgmOfs::OrderlyShutdown()
     mMgmMessaging = nullptr;
   }
 
-  if (Recycler) {
+  if (mRecycler) {
     eos_warning("%s", "msg=\"stopping and deleting recycler server\"");
-    Recycler.reset();
+    mRecycler.reset();
   }
 
   if (WFEPtr) {
