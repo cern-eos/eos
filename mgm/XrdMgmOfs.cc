@@ -389,9 +389,11 @@ XrdMgmOfs::~XrdMgmOfs()
   if (HostName) {
     free(HostName);
   }
+
   if (HostPref) {
     free(HostPref);
   }
+
   if (ConfigFN) {
     free(ConfigFN);
   }
@@ -440,6 +442,11 @@ XrdMgmOfs::OrderlyShutdown()
   stop_fsconfiglistener.join();
   eos_warning("%s", "msg=\"disable configuration engine autosave\"");
   mConfigEngine->SetAutoSave(false);
+  // Delete mConfigEngine object otherwise this might be reused by the
+  // FsView if the ConfigResetMonitor runs at some point after we set
+  // the ConfigEngine reference to null in the FsView below.
+  delete mConfigEngine;
+  mConfigEngine = nullptr;
   FsView::gFsView.SetConfigEngine(nullptr);
   eos_warning("%s", "msg=\"stop routing\"");
 
