@@ -40,6 +40,7 @@ Group=root
 Restart=on-failure
 RestartSec=5
 LimitNOFILE=65000
+TimeoutSec=120
 
 # Leverage 'soft-stop' feature of FST (waits for writes to complete || timeout)
 KillMode=mixed
