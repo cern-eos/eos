@@ -26,6 +26,10 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
+#include "proto/Audit.pb.h"
+#include <time.h>
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/
 int
@@ -482,6 +486,10 @@ XrdMgmOfs::_rem(const char* path,
   } else {
     eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u",
              doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
+    // Emit audit record for successful deletion
+    if (mAudit && gOFS->AllowAuditModification(path)) {
+      mAudit->audit(eos::audit::DELETE, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+    }
     return SFS_OK;
   }
 }

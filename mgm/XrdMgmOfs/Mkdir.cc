@@ -25,6 +25,7 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
+#include "proto/Audit.pb.h"
 
 //------------------------------------------------------------------------------
 /*
@@ -427,5 +428,13 @@ XrdMgmOfs::_mkdir(const char* path,
   }
 
   EXEC_TIMING_END("Mkdir");
+  // Emit audit record for successful directory creation (append '/' to denote dir)
+  {
+    std::string apath = path ? path : "";
+    if (!apath.empty() && apath.back() != '/') apath.push_back('/');
+    if (!errno && mAudit && gOFS->AllowAuditModification(apath)) {
+      mAudit->audit(eos::audit::MKDIR, apath, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+    }
+  }
   return SFS_OK;
 }

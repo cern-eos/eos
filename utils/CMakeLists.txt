@@ -21,6 +21,13 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
+# Build zstdtail executable
+add_executable(zstdtail zstdtail.cc)
+target_link_libraries(zstdtail PRIVATE ZSTD::ZSTD)
+
+install(TARGETS zstdtail
+  DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})
+
 install(
   PROGRAMS eos-log-clean eos-mgm-clean eos-fst-clean eos-uninstall eos-ports-block eos-tty-broadcast filter-trace/eos-filter-stacktrace flamegraph/eos-util-flamegraph flamegraph/eos-util-stackcollapse flamegraph/eos-make-flamegraph
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

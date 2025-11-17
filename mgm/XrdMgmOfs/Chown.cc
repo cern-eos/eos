@@ -26,6 +26,9 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
+#include "proto/Audit.pb.h"
+#include "mgm/Stat.hh"
+#include "mgm/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/
 int
@@ -92,6 +95,11 @@ XrdMgmOfs::_chown(const char* path,
         (vid.uid && !acl.IsMutable())) {
       errno = EPERM;
     } else {
+      // Prepare before stat for directory
+      eos::audit::Stat beforeStat;
+      {
+        eos::mgm::auditutil::buildStatFromContainerMD(cmd, beforeStat, /*includeNs=*/true);
+      }
       if ((unsigned int) uid != 0xffffffff) {
         // Change the owner
         cmd->setCUid(uid);
@@ -109,6 +117,11 @@ XrdMgmOfs::_chown(const char* path,
       lock.Release();
       gOFS->FuseXCastRefresh(cmd->getIdentifier(), cmd->getParentIdentifier());
       errno = 0;
+      if (mAudit) {
+        eos::audit::Stat afterStat;
+        eos::mgm::auditutil::buildStatFromContainerMD(cmd, afterStat, /*includeNs=*/true);
+        if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHOWN, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+      }
     }
   } catch (eos::MDException& e) {
     errno = e.getErrno();
@@ -150,6 +163,10 @@ XrdMgmOfs::_chown(const char* path,
         fmd = gOFS->eosView->getFile(path, !nodereference);
         eos_info("path=%s uid=%u gid=%u old_uid=%u old_gid=%d noderef=%d",
                  path, uid, gid, fmd->getCUid(), fmd->getCGid(), nodereference);
+        eos::audit::Stat beforeStat;
+        {
+          eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
+        }
 
         // Subtract the file
         if (ns_quota) {
@@ -175,6 +192,11 @@ XrdMgmOfs::_chown(const char* path,
         eosView->updateFileStore(fmd.get());
         lock.Release();
         gOFS->FuseXCastRefresh(fmd->getIdentifier(), cmd->getParentIdentifier());
+        if (mAudit) {
+          eos::audit::Stat afterStat;
+          eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
+          if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHOWN, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+        }
       }
     } catch (eos::MDException& e) {
       errno = e.getErrno();

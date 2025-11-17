@@ -63,6 +63,8 @@
 #include <XrdSfs/XrdSfsAio.hh>
 #include "common/Constants.hh"
 #include <XrdOuc/XrdOucPgrwUtils.hh>
+#include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/AuditHelpers.hh"
 
 
 #ifdef __APPLE__
@@ -533,6 +535,8 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
 }
 
 /*----------------------------------------------------------------------------*/
+#include "proto/Audit.pb.h"
+#include "namespace/utils/Checksum.hh"
 /*
  * @brief open a given file with the indicated mode
  *
@@ -556,6 +560,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                     const XrdSecEntity* client,
                     const char* ininfo)
 {
+  // For audit of truncation: capture before/after
+  bool auditTruncate = false;
+  eos::audit::Stat truncBefore;
+  std::string truncPath;
   using eos::common::LayoutId;
   static const char* epname = "open";
   const char* tident = error.getErrUser();
@@ -1442,6 +1450,23 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
 
     if (!isInjection && (open_flags & O_TRUNC) && fmd) {
+      // Capture state before truncation
+      {
+        eos::IFileMD::ctime_t cts, mts;
+        fmd->getCTime(cts);
+        fmd->getMTime(mts);
+        truncBefore.set_ctime(cts.tv_sec);
+        truncBefore.set_mtime(mts.tv_sec);
+        truncBefore.set_uid(fmd->getCUid());
+        truncBefore.set_gid(fmd->getCGid());
+        uint32_t m = (fmd->getFlags() & 07777);
+        truncBefore.set_mode(m);
+        char mo[8];
+        snprintf(mo, sizeof(mo), "0%04o", m);
+        truncBefore.set_mode_octal(mo);
+        truncPath = path;
+        auditTruncate = true;
+      }
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
         if (acl.CanWriteOnce()) {
@@ -1506,6 +1531,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1, vid.app);
+        // Emit UPDATE audit for opening existing file for update (non-create, non-truncate)
+        if (gOFS->mAudit) {
+          eos::audit::Stat beforeStat;
+          eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+          gOFS->mAudit->audit(eos::audit::UPDATE, path, vid, logId, cident, "mgm",
+                              std::string(), &beforeStat, nullptr);
+        }
       }
     }
 
@@ -1573,6 +1605,23 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
               file->clearChecksum(0);
               dmd->addFile(file.get());
               fmd = file;
+            }
+
+            // Emit CREATE or TRUNCATE audit after creation
+            if (gOFS->mAudit) {
+              eos::audit::Stat afterStat;
+              eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
+              if (auditTruncate) {
+                gOFS->mAudit->audit(eos::audit::TRUNCATE,
+                                    truncPath.empty() ? path : truncPath,
+                                    vid, logId, cident, "mgm",
+                                    std::string(), &truncBefore, &afterStat);
+              } else {
+                gOFS->mAudit->audit(eos::audit::CREATE,
+                                    creation_path.c_str(),
+                                    vid, logId, cident, "mgm",
+                                    std::string(), nullptr, &afterStat);
+              }
             }
 
             if ((mEosObfuscate > 0) ||
@@ -2124,6 +2173,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
       eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
       mIsZeroSize = true;
+      // ---------------------------------------------------------------------
+      // Per-directory sys.audit override for READ auditing
+      if (gOFS->AllowAuditRead(path)) {
+        gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                            std::string(), nullptr, nullptr,
+                            std::string(), std::string(), std::string(),
+                            __FILE__, __LINE__, VERSION);
+      }
+      // ---------------------------------------------------------------------
       return SFS_OK;
     }
   }
@@ -2720,6 +2778,15 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // also if this is not a rain file
         if (!isFuse && !LayoutId::IsRain(layoutId)) {
           mIsZeroSize = true;
+          // ----------f---------------------------------------------------------
+          // Per-directory sys.audit override for READ auditing
+          if (gOFS->AllowAuditRead(path)) {
+            gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                                std::string(), nullptr, nullptr,
+                                std::string(), std::string(), std::string(),
+                                __FILE__, __LINE__, VERSION);
+          }
+          // -------------------------------------------------------------------
           return SFS_OK;
         }
       }
@@ -3373,6 +3440,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   eos_info("path=%s %s duration=%0.03fms timing=%s",
            path, clientinfo, tm.RealTime(), tm.Dump().c_str());
+  // Audit READ for successful open if read-only using global or per-dir override
+  if (!isRW && gOFS->AllowAuditRead(path)) {
+    gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
+                        std::string(), nullptr, nullptr,
+                        std::string(), std::string(), std::string(),
+                        __FILE__, __LINE__, VERSION);
+  }
   return rcode;
 }
 
