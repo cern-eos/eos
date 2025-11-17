@@ -26,6 +26,9 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
+#include "proto/Audit.pb.h"
+#include "mgm/Stat.hh"
+#include "mgm/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/
 int
@@ -171,7 +174,12 @@ XrdMgmOfs::_chmod(const char* path,
           eos::ContainerIdentifier cmd_pid;
           eos::FileIdentifier f_id;
 
-          if (cmd) {
+  if (cmd) {
+    // Build before stat for directory
+    eos::audit::Stat beforeStat;
+    {
+      eos::mgm::auditutil::buildStatFromContainerMD(cmd, beforeStat, /*includeNs=*/true);
+    }
             Mode &= mask;
             cmd->setMode(Mode | S_IFDIR);
             cmd->setCTimeNow();
@@ -179,14 +187,24 @@ XrdMgmOfs::_chmod(const char* path,
             eosView->updateContainerStore(cmd.get());
             cmd_id = cmd->getIdentifier();
             cmd_pid = cmd->getParentIdentifier();
+    eos::audit::Stat afterStat;
+    eos::mgm::auditutil::buildStatFromContainerMD(cmd, afterStat, /*includeNs=*/true);
+    if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHMOD, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
           }
 
-          if (fmd) {
+  if (fmd) {
+    eos::audit::Stat beforeStat;
+    {
+      eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
+    }
             // we just store 9 bits in flags
             Mode &= (S_IRWXU | S_IRWXG | S_IRWXO);
             fmd->setFlags(Mode);
             eosView->updateFileStore(fmd.get());
             f_id = fmd->getIdentifier();
+    eos::audit::Stat afterStat;
+    eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
+    if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::CHMOD, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
           }
 
           lock.Release();

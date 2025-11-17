@@ -135,6 +135,23 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # EOS_XRD_CONNECTION_POOL_SIZE=128
 
 #-------------------------------------------------------------------------------
+# MGM Audit Configuration
+#-------------------------------------------------------------------------------
+# EOS_MGM_AUDIT controls what is audited at the MGM:
+#   "none"|"false"|"no"|"off" or empty => disable all auditing
+#   "default"   => audit modifications and READ for default document suffixes
+#   "modifications" => audit all modifications (no LIST, no READ)
+#   "detail"    => audit modifications and READ for all files (no LIST)
+#   "all"       => audit everything including LIST and READ for all files
+# Default example below sets auditing OFF by default.
+EOS_MGM_AUDIT=off
+
+# Configure READ audit suffix filter: comma-separated list of extensions (case-insensitive),
+# use '*' to audit READ for all files. If unset, a built-in document suffix list is used:
+# txt,pdf,doc,docx,ppt,pptx,xls,xlsx,odt,ods,odp,rtf,csv,json,xml,yaml,yml,md,html,htm
+# EOS_MGM_AUDIT_READ_SUFFIX="pdf,docx"
+
+#-------------------------------------------------------------------------------
 # FST Configuration
 #-------------------------------------------------------------------------------
 
