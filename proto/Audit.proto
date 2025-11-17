@@ -1,0 +1,93 @@
+syntax = "proto3";
+package eos.audit;
+
+//------------------------------------------------------------------------------
+// Audit logging protobufs
+//------------------------------------------------------------------------------
+
+enum Operation {
+  OPERATION_UNSPECIFIED = 0;
+  CREATE = 1;
+  DELETE = 2;
+  RENAME = 3;
+  WRITE = 4;
+  TRUNCATE = 5;
+  SET_XATTR = 6;
+  SET_ACL = 7;
+  CHMOD = 8;
+  CHOWN = 9;
+  READ = 10;         // optional, if enabling read auditing
+  LIST = 11;         // optional, if enabling directory listing auditing
+  METADATA_UPDATE = 12;
+  MKDIR = 13;        // directory creation
+  RMDIR = 14;        // directory deletion
+  RM_XATTR = 15;     // remove extended attribute
+  SYMLINK = 16;      // create symbolic link
+  UPDATE = 17;       // open file for update (write on existing)
+}
+
+message AuthInfo {
+  // Authentication mechanism: sss, krb5, gsi, oauth, tokens, gateway, local, ...
+  string mechanism = 1;
+  // Additional per-authentication attributes (no secrets, no full tokens)
+  map<string, string> attributes = 2;
+}
+
+message AuthorizationInfo {
+  // Reasons/grants for authorization, e.g. "uidgid", "egroup:<group>", "token-namespace:<ns>"
+  repeated string reasons = 1;
+}
+
+message AttrChange {
+  string name = 1;
+  string before = 2;
+  string after = 3;
+}
+
+message AuditRecord {
+  // Seconds since UNIX epoch
+  int64 timestamp = 1;
+  string path = 2;
+  Operation operation = 3;
+  string client_ip = 4;
+  string account = 5;
+  AuthInfo auth = 6;
+  AuthorizationInfo authorization = 7;
+  // Optional trace identifier for correlation
+  string trace_id = 8;
+  // Optional target path for operations that involve a destination, e.g. rename/symlink
+  string target = 9;
+  // Unique request identifier (UUID)
+  string uuid = 10;
+  // Trace identifier (short token for correlating logs)
+  string tid = 11;
+  // Acting application (client), e.g. eoscp, xrdcp, gateway
+  string app = 12;
+  // Acting EOS service, e.g. mgm, fst, gateway
+  string svc = 13;
+  // State before operation for existing entries
+  Stat before = 14;
+  // State after operation (if still exists)
+  Stat after = 15;
+  // Attribute changes (if any)
+  repeated AttrChange attrs = 16;
+  // Source location and version metadata (format: "filename:line@version")
+  string software = 17;
+}
+
+// Basic stat-like information
+message Stat {
+  int64 ctime = 1; // seconds since epoch
+  int64 mtime = 2; // seconds since epoch
+  uint32 uid = 3;
+  uint32 gid = 4;
+  uint32 mode = 5; // unix mode bits
+  string mode_octal = 6; // e.g. "0755"
+  uint64 size = 7; // bytes
+  string checksum = 8; // hex encoded checksum
+  // Seconds.nanoseconds string representation for full resolution
+  string ctime_ns = 9;
+  string mtime_ns = 10;
+}
+
+
