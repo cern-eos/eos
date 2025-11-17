@@ -26,6 +26,9 @@
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
+#include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/proc/ProcInterface.hh"
+#include "mgm/AuditHelpers.hh"
 
 //------------------------------------------------------------------------------
 // List extended attributes for a given file/directory - high-level API.
@@ -305,6 +308,17 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
 
   try {
     eos::FileOrContainerMD item = gOFS->eosView->getItem(path).get();
+    // Capture previous value if any
+    std::string prev_value;
+    {
+      if (item.file) {
+        auto amap = item.file->getAttributes();
+        if (amap.count(skey)) prev_value = amap[skey];
+      } else if (item.container) {
+        auto amap = item.container->getAttributes();
+        if (amap.count(skey)) prev_value = amap[skey];
+      }
+    }
     eos::FileOrContWriteLocked item_wlock;
 
     if (item.file) {
@@ -320,6 +334,26 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
       } else if (errno == EBUSY) {
         return Emsg(epname, error, errno, "set attribute (foreign attribute"
                     " lock existing)", path);
+      }
+    }
+    // Fetch new value
+    std::string new_value;
+    {
+      if (item.file) {
+        auto amap = item.file->getAttributes();
+        if (amap.count(skey)) new_value = amap[skey];
+      } else if (item.container) {
+        auto amap = item.container->getAttributes();
+        if (amap.count(skey)) new_value = amap[skey];
+      }
+    }
+    // Emit audit for attribute set
+    if (mAudit) {
+      if (gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+                    std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__, __LINE__, VERSION);
+      if ((skey == "sys.acl" || skey == "user.acl") && gOFS->AllowAuditModification(path)) {
+        mAudit->audit(eos::audit::SET_ACL, path, vid, std::string(logId), std::string(cident), "mgm",
+                      std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__, __LINE__, VERSION);
       }
     }
   } catch (eos::MDException& e) {
@@ -477,6 +511,12 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
         if (!fmd->hasAttribute(skey)) {
           errno = ENODATA;
         } else {
+          // Capture previous value
+          std::string prev;
+          {
+            auto amap = fmd->getAttributes();
+            if (amap.count(skey)) prev = amap[skey];
+          }
           fmd->removeAttribute(skey);
           eosView->updateFileStore(fmd.get());
           eos::FileIdentifier f_id = fmd->getIdentifier();
@@ -485,6 +525,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           fmd_lock.reset(nullptr);
           gOFS->FuseXCastRefresh(f_id, d_id);
           errno = 0;
+          if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+                          std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__, VERSION);
         }
       }
     } else { // container
@@ -500,6 +542,11 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
         if (!cmd->hasAttribute(skey)) {
           errno = ENODATA;
         } else {
+          std::string prev;
+          {
+            auto amap = cmd->getAttributes();
+            if (amap.count(skey)) prev = amap[skey];
+          }
           cmd->removeAttribute(skey);
           eos::ContainerIdentifier d_id = cmd->getIdentifier();
           eos::ContainerIdentifier d_pid = cmd->getParentIdentifier();
@@ -508,6 +555,8 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           cmd_lock.reset(nullptr);
           gOFS->FuseXCastRefresh(d_id, d_pid);
           errno = 0;
+          if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+                          std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__, VERSION);
         }
       }
     }
