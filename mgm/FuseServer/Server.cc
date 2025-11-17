@@ -48,6 +48,9 @@
 #include <string>
 #include <cstdlib>
 #include <thread>
+#include "proto/Audit.pb.h"
+#include "namespace/utils/Checksum.hh"
+#include "mgm/AuditHelpers.hh"
 
 USE_EOSMGMNAMESPACE
 
@@ -1571,7 +1574,7 @@ Server::OpSetDirectory(const std::string& id,
         gOFS->eosView->updateContainerStore(pcmd.get());
       }
 
-      if (cmd->getName() != md.name()) {
+    if (cmd->getName() != md.name()) {
         // this indicates a directory rename
         op = RENAME;
         eos_info("msg=\"rename\" from=\"%s\" to=\"%s\"", cmd->getName().c_str(),
@@ -1672,6 +1675,12 @@ Server::OpSetDirectory(const std::string& id,
     // propagate mtime changes
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
 
+    // Snapshot old attributes for xattr audit on UPDATE
+    eos::IContainerMD::XAttrMap oldDirAttrs;
+    if (op != CREATE) {
+      oldDirAttrs = cmd->getAttributes();
+    }
+
     for (auto it = md.attr().begin(); it != md.attr().end(); ++it) {
       if ((it->first.substr(0, 3) != "sys") ||
           (it->first == "sys.eos.btime")) {
@@ -1713,8 +1722,46 @@ Server::OpSetDirectory(const std::string& id,
     }
 
     gOFS->eosDirectoryService->updateStore(cmd.get());
-    // release the namespace lock before seralization/broadcasting
+    // release the namespace lock before serialization/broadcasting
     lock.Release();
+    // Audit xattr changes on directories (UPDATE only)
+    if (gOFS->mAudit && op == UPDATE) {
+      std::string path = gOFS->eosView->getUri(cmd.get());
+      if (!path.empty() && path.back() != '/') path.push_back('/');
+      // SET_XATTR for added/changed attrs
+      for (const auto& kv : md.attr()) {
+        const std::string& an = kv.first;
+        if (an.size() >= 3 && an.substr(0, 3) == "sys" && an != "sys.eos.btime") continue;
+        auto oit = oldDirAttrs.find(an);
+        std::string before = (oit == oldDirAttrs.end()) ? std::string() : oit->second;
+        if (oit == oldDirAttrs.end() || oit->second != kv.second) {
+          if (gOFS->mAudit && gOFS->AllowAuditModification(path)) gOFS->mAudit->audit(eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+                              std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
+          if ((an == "sys.acl" || an == "user.acl") && gOFS->mAudit && gOFS->AllowAuditModification(path)) {
+            gOFS->mAudit->audit(eos::audit::SET_ACL, path, vid, std::string(logId), std::string(cident), "mgm",
+                                std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
+          }
+        }
+      }
+      // RM_XATTR for removed attrs
+      for (const auto& okv : oldDirAttrs) {
+        const std::string& an = okv.first;
+        if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
+        if (md.attr().find(an) == md.attr().end()) {
+          if (gOFS->mAudit && gOFS->AllowAuditModification(path)) gOFS->mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
+                              std::string(), nullptr, nullptr, an, okv.second, std::string(), __FILE__, __LINE__, VERSION);
+        }
+      }
+    }
+    // Audit directory creation
+    if (gOFS->mAudit) {
+      std::string path = gOFS->eosView->getUri(cmd.get());
+      if (!path.empty() && path.back() != '/') path.push_back('/');
+      eos::audit::Stat afterStat;
+      eos::mgm::auditutil::buildStatFromContainerMD(cmd, afterStat, /*includeNs=*/true);
+      if (gOFS->mAudit && gOFS->AllowAuditModification(path)) gOFS->mAudit->audit(eos::audit::MKDIR, path, vid, std::string(logId), std::string(cident), "mgm",
+                          std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+    }
     eos::fusex::response resp;
     resp.set_type(resp.ACK);
     resp.mutable_ack_()->set_code(resp.ack_().OK);
@@ -1786,19 +1833,7 @@ Server::OpSetDirectory(const std::string& id,
 //------------------------------------------------------------------------------
 
 /*----------------------------------------------------------------------------*/
-bool
-Server::CheckRecycleBinOrVersion(std::shared_ptr<eos::IFileMD> fmd)
-{
-  std::string path = gOFS->eosView->getUri(fmd.get());
-  return (Recycle::InRecycleBin(path) || eos::common::Path::IsVersion(path));
-}
 
-
-//------------------------------------------------------------------------------
-// Server a meta-data SET operation
-//------------------------------------------------------------------------------
-
-/*----------------------------------------------------------------------------*/
 int
 Server::OpSetFile(const std::string& id,
                   const eos::fusex::md& md,
@@ -1844,6 +1879,11 @@ Server::OpSetFile(const std::string& id,
   try {
     uint64_t clock = 0;
     pcmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino());
+    // For UPDATE auditing across the function
+    eos::audit::Stat beforeStat;
+    uint32_t oldMode = 0;
+    uid_t oldUid = 0;
+    gid_t oldGid = 0;
 
     if (md_ino && exclusive) {
       return EEXIST;
@@ -1864,6 +1904,14 @@ Server::OpSetFile(const std::string& id,
       if (EOS_LOGS_DEBUG) eos_debug("updating %s => %s ",
                                       fmd->getName().c_str(),
                                       md.name().c_str());
+
+      // Capture before stat
+      {
+        eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+        oldMode = (fmd->getFlags() & 07777);
+        oldUid = fmd->getCUid();
+        oldGid = fmd->getCGid();
+      }
 
       if (fmd->getContainerId() != md.md_pino()) {
         recycleOrVersioned = CheckRecycleBinOrVersion(fmd);
@@ -1987,6 +2035,15 @@ Server::OpSetFile(const std::string& id,
           gOFS->eosView->updateContainerStore(cpcmd.get());
           gOFS->eosView->updateFileStore(fmd.get());
           gOFS->eosView->updateContainerStore(pcmd.get());
+
+          // Audit rename/move
+          if (gOFS->mAudit) {
+            std::string newPath = gOFS->eosView->getUri(fmd.get());
+            eos::audit::Stat afterStat;
+            eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+            if (gOFS->mAudit && gOFS->AllowAuditModification(newPath)) gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, std::string(logId), std::string(cident), "mgm",
+                                  oldname, nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+          }
 
           if (hasVersion) {
             eos::common::Path nPath(gOFS->eosView->getUri(fmd.get()).c_str());
@@ -2259,7 +2316,13 @@ Server::OpSetFile(const std::string& id,
 
       pcmd->addFile(gmd.get());
       gOFS->eosFileService->updateStore(gmd.get());
-      gOFS->eosView->updateContainerStore(pcmd.get());
+            gOFS->eosView->updateContainerStore(pcmd.get());
+            // Audit rename
+            if (gOFS->mAudit) {
+              std::string newPath = gOFS->eosView->getUri(fmd.get());
+              gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, logId, cident, "mgm",
+                                  oldname);
+            }
       eos::fusex::response resp;
       resp.set_type(resp.ACK);
       resp.mutable_ack_()->set_code(resp.ack_().OK);
@@ -2456,6 +2519,8 @@ Server::OpSetFile(const std::string& id,
     fmd->setCTime(ctime);
     fmd->setMTime(mtime);
     fmd->setATime(atime);
+    // Snapshot old file attributes for xattr audit on UPDATE
+    eos::IFileMD::XAttrMap oldFileAttrs = fmd->getAttributes();
     replaceNonSysAttributes(fmd, md);
     struct timespec pt_mtime;
 
@@ -2475,6 +2540,64 @@ Server::OpSetFile(const std::string& id,
     }
 
     gOFS->eosFileService->updateStore(fmd.get());
+
+    // Emit CREATE/UPDATE audit for files
+    if (gOFS->mAudit) {
+      std::string filePath = gOFS->eosView->getUri(fmd.get());
+      eos::audit::Stat afterStat;
+      eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+      bool allowAuditMod = false;
+      if (gOFS->mEnvAuditAttributeOnly && pcmd) {
+        eos::IContainerMD::XAttrMap pAttrs = pcmd->getAttributes();
+        auto it = pAttrs.find("sys.audit");
+        std::string mode = (it != pAttrs.end()) ? it->second : std::string();
+        allowAuditMod = gOFS->AllowAuditModificationAttr(mode);
+      } else {
+        allowAuditMod = gOFS->AllowAuditModification(filePath);
+      }
+      if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::CREATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                             std::string(), nullptr, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+      if (op == UPDATE) {
+        if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                             std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+ 
+        // Emit CHMOD/CHOWN if mode/owner changed
+        uint32_t newMode = (fmd->getFlags() & 07777);
+        if (newMode != oldMode) {
+          if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::CHMOD, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                               std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+        }
+        if (fmd->getCUid() != oldUid || fmd->getCGid() != oldGid) {
+          if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                               std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+        }
+ 
+        // Emit SET_XATTR / RM_XATTR for file xattr changes
+        for (const auto& kv : md.attr()) {
+          const std::string& an = kv.first;
+          if (an.size() >= 3 && an.substr(0, 3) == "sys") continue;
+          auto oit = oldFileAttrs.find(an);
+          std::string before = (oit == oldFileAttrs.end()) ? std::string() : oit->second;
+          if (oit == oldFileAttrs.end() || oit->second != kv.second) {
+            if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::SET_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                                 std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
+            if (an == "sys.acl" || an == "user.acl") {
+              if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::SET_ACL, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                                  std::string(), nullptr, nullptr, an, before, kv.second, __FILE__, __LINE__, VERSION);
+            }
+          }
+          // Removed attributes
+          for (const auto& okv : oldFileAttrs) {
+            const std::string& oan = okv.first;
+            if (oan.size() >= 3 && oan.substr(0, 3) == "sys") continue;
+            if (md.attr().find(oan) == md.attr().end()) {
+              if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::RM_XATTR, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                                  std::string(), nullptr, nullptr, oan, okv.second, std::string(), __FILE__, __LINE__, VERSION);
+            }
+          }
+        }
+      }
+    }
 
     if (op != UPDATE) {
       // update the mtime
@@ -2821,6 +2944,18 @@ Server::OpSetLink(const std::string& id,
     uint64_t bclock = 0;
 
     Cap().BroadcastMD(md, md_ino, md_pino, bclock, pt_mtime);
+
+    // release the namespace lock before serialization/broadcasting
+    lock.Release();
+
+    // Audit SYMLINK creation (OpSetLink create)
+    if (gOFS->mAudit && op == CREATE) {
+      std::string linkPath = gOFS->eosView->getUri(fmd.get());
+      eos::audit::Stat afterStat;
+      eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+      if (gOFS->mAudit && gOFS->AllowAuditModification(linkPath)) gOFS->mAudit->audit(eos::audit::SYMLINK, linkPath, vid, std::string(logId), std::string(cident), "mgm",
+                          md.target(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+    }
   } catch (eos::MDException& e) {
     eos_err("ino=%lx err-no=%d msg=\"%s\"", (long) md.md_ino(),
             e.getErrno(),
@@ -2937,6 +3072,11 @@ Server::OpDeleteDirectory(const std::string& id,
       resp.SerializeToString(response);
     } else {
       eos_info("ino=%lx msg=\"delete-dir\"", (long) md.md_ino());
+      std::string dirPath;
+      if (gOFS->mAudit) {
+        dirPath = gOFS->eosView->getUri(cmd.get());
+        if (!dirPath.empty() && dirPath.back() != '/') dirPath.push_back('/');
+      }
       pcmd->removeContainer(cmd->getName());
       gOFS->eosDirectoryService->removeContainer(cmd.get());
       gOFS->eosDirectoryService->updateStore(pcmd.get());
@@ -2951,6 +3091,10 @@ Server::OpDeleteDirectory(const std::string& id,
       Cap().BroadcastDeletion(pcmd->getId(), md, cmd->getName(), pt_mtime);
       Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
       Cap().Delete(md.md_ino());
+      // Audit RMDIR after successful deletion
+      if (gOFS->mAudit && !dirPath.empty() && gOFS->AllowAuditModification(dirPath)) {
+        gOFS->mAudit->audit(eos::audit::RMDIR, dirPath, vid, logId, cident, "mgm");
+      }
     }
   } catch (eos::MDException& e) {
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
@@ -3031,6 +3175,13 @@ Server::OpDeleteFile(const std::string& id,
 
     pcmd->setMTime(mtime);
     eos_info("ino=%lx msg=\"delete-file\"", (long) md.md_ino());
+      // Pre-capture path and before stat for auditing
+    std::string filePath;
+    eos::audit::Stat beforeStat;
+    if (gOFS->mAudit) {
+      filePath = gOFS->eosView->getUri(fmd.get());
+      eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+    }
     eos::IContainerMD::XAttrMap attrmap = pcmd->getAttributes();
     // this is a client hiding versions, force the version cleanup
     bool version_cleanup =
@@ -3119,13 +3270,13 @@ Server::OpDeleteFile(const std::string& id,
           snprintf(nameBuf, sizeof(nameBuf), "...eos.ino...%lx", tgt_md_ino);
           std::string tmpName = nameBuf;
           fmd->setAttribute(k_nlink, std::to_string(nlink));
-          eos_info("msg=\"hlnk unlink rename\" old=\"%s\" new=\"%s\" nlink=%d",
+          eos_info("hlnk unlink rename %s=>%s new nlink %d",
                    fmd->getName().c_str(), tmpName.c_str(), nlink);
           pcmd->removeFile(tmpName);            // if the target exists, remove it!
           gOFS->eosView->renameFile(fmd.get(), tmpName);
           doDelete = false;
         } else {
-          eos_info("msg=\"hlnk will be deleted\" nlink=%ld target=\"%s\"",
+          eos_info("hlnk nlink %ld for %s, will be deleted",
                    nlink, fmd->getName().c_str());
         }
       }
@@ -3179,6 +3330,11 @@ Server::OpDeleteFile(const std::string& id,
     Cap().BroadcastDeletion(pcmd->getId(), md, md.name(), pt_mtime);
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
     Cap().Delete(md.md_ino());
+    // Audit DELETE after successful deletion (only when actually deleted here)
+    if (gOFS->mAudit && !filePath.empty() && gOFS->AllowAuditModification(filePath)) {
+      gOFS->mAudit->audit(eos::audit::DELETE, filePath, vid, std::string(logId), std::string(cident), "mgm",
+                          std::string(), &beforeStat, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+    }
   } catch (eos::MDException& e) {
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
     resp.mutable_ack_()->set_err_no(e.getErrno());
@@ -3258,6 +3414,10 @@ Server::OpDeleteLink(const std::string& id,
 
     pcmd->setMTime(mtime);
     eos_info("msg=\"delete-link\" ino=%lx", (long) md.md_ino());
+    std::string linkPath;
+    if (gOFS->mAudit) {
+      linkPath = gOFS->eosView->getUri(fmd.get());
+    }
     gOFS->eosView->removeFile(fmd.get());
     eos::IQuotaNode* quotanode = gOFS->eosView->getQuotaNode(pcmd.get());
 
@@ -3278,6 +3438,10 @@ Server::OpDeleteLink(const std::string& id,
     Cap().BroadcastDeletion(pcmd->getId(), md, md.name(), pt_mtime);
     Cap().BroadcastRefresh(pcmd->getId(), md, pcmd->getParentId(), true);
     Cap().Delete(md.md_ino());
+    // Audit DELETE for symlink removal
+    if (gOFS->mAudit && !linkPath.empty() && gOFS->AllowAuditModification(linkPath)) {
+      gOFS->mAudit->audit(eos::audit::DELETE, linkPath, vid, logId, cident, "mgm");
+    }
   } catch (eos::MDException& e) {
     resp.mutable_ack_()->set_code(resp.ack_().PERMANENT_FAILURE);
     resp.mutable_ack_()->set_err_no(e.getErrno());
@@ -3503,6 +3667,16 @@ Server::OpSetLock(const std::string& id,
   EXEC_TIMING_END((md.operation() == md.SETLKW) ? "Eosxd::ext::SETLKW" :
                   "Eosxd::ext::SETLK");
   return 0;
+}
+
+//----------------------------------------------------------------------------
+// Check if a file is in recycle bin or is a version file
+//----------------------------------------------------------------------------
+bool
+Server::CheckRecycleBinOrVersion(std::shared_ptr<eos::IFileMD> fmd)
+{
+  std::string path = gOFS->eosView->getUri(fmd.get());
+  return (Recycle::InRecycleBin(path) || eos::common::Path::IsVersion(path));
 }
 
 //------------------------------------------------------------------------------

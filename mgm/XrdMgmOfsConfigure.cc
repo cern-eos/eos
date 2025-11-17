@@ -63,6 +63,7 @@
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
 #include "common/Path.hh"
+#include "common/Audit.hh"
 #include "common/JeMallocHandler.hh"
 #include "common/PasswordHandler.hh"
 #include "common/InstanceName.hh"
@@ -1503,6 +1504,52 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Emsg("Config", "Cannot create/open the eosxd logtraces log file "
                 "/var/log/eos/mgm/eosxd-logtraces.log");
     NoGo = 1;
+  }
+
+  // Initialize Audit logger under <logdir>/audit (ensure directory exists)
+  {
+    std::string baseLogDir = "/var/log/eos";
+    if (logdir && *logdir) {
+      baseLogDir = logdir;
+    }
+    const std::string auditDir = baseLogDir + "/audit";
+    struct stat st{};
+    if (::stat(auditDir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
+      eos::common::Path p((auditDir + "/.keep").c_str());
+      if (!p.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+        Eroute.Emsg("Config", "cannot create audit directory", auditDir.c_str());
+        NoGo = 1;
+      } else {
+        (void)::chmod(auditDir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+        (void)::chown(auditDir.c_str(), 2, 2);
+      }
+    }
+    try {
+      mAudit.reset(new eos::common::Audit(auditDir));
+      Eroute.Say("=====> audit log directory: ", auditDir.c_str(), "");
+      // Apply audit environment configuration
+      if (mEnvAuditDisableAll) {
+        mAudit.reset();
+      } else if (mAudit) {
+        if (mEnvAuditAttributeOnly) {
+          // attribute mode: keep audit object, disable all globals
+          mAudit->setReadAuditing(false);
+          mAudit->setListAuditing(false);
+        } else {
+          mAudit->setReadAuditing(mEnvAuditRead);
+          mAudit->setListAuditing(mEnvAuditList);
+        }
+        if (mEnvAuditReadSuffixesSet) {
+          mAudit->setReadAuditSuffixes(mEnvAuditReadSuffixes);
+        }
+        if (mEnvAuditReadAll) {
+          mAudit->setReadAuditAll(true);
+        }
+      }
+    } catch (...) {
+      Eroute.Emsg("Config", "failed to initialize audit logger");
+      NoGo = 1;
+    }
   }
 
   // Save MGM alias if configured

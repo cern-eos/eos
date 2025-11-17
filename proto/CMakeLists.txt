@@ -79,6 +79,24 @@ set_target_properties(EosFstProto-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 #-------------------------------------------------------------------------------
+# Generate protocol buffer object for Audit logging
+#-------------------------------------------------------------------------------
+PROTOBUF_GENERATE_CPP(AUDIT_SRCS AUDIT_HDRS Audit.proto)
+
+add_library(EosAuditProto-Objects OBJECT
+  ${AUDIT_SRCS} ${AUDIT_HDRS})
+
+target_link_libraries(EosAuditProto-Objects PUBLIC
+  PROTOBUF::PROTOBUF
+  ABSL::ABSL)
+
+target_include_directories(EosAuditProto-Objects PUBLIC
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
+
+set_target_properties(EosAuditProto-Objects PROPERTIES
+  POSITION_INDEPENDENT_CODE TRUE)
+
+#-------------------------------------------------------------------------------
 # Generate protocol buffer object for the CLI
 #-------------------------------------------------------------------------------
 set(EOS_PROTO_ROOT eos-protobuf-spec)

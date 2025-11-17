@@ -106,6 +106,7 @@
 #include "common/AssistedThread.hh"
 #include "common/XrdConnPool.hh"
 #include "common/MutexLatencyWatcher.hh"
+#include "common/Audit.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
@@ -2089,6 +2090,9 @@ public:
   std::unique_ptr<eos::common::CommentLog> mFusexStackTraces;
   std::unique_ptr<eos::common::CommentLog> mFusexLogTraces;
 
+  //! Audit logger writing compressed JSON lines under /var/log/eos/audit
+  std::unique_ptr<eos::common::Audit> mAudit;
+
   //! Class tracking file creations for sanity
   std::unique_ptr<eos::mgm::ReplicationTracker> mReplicationTracker;
 
@@ -2230,6 +2234,18 @@ public:
   template<typename T>
   bool getAttribute(eos::IView* view, T& md, std::string key,
                     std::string& rvalue);
+
+  // Centralized audit allow checks
+  bool AllowAuditModification(const std::string& path);
+  bool AllowAuditList(const std::string& dirPath);
+  bool AllowAuditRead(const std::string& path);
+
+  // Fast-path overloads: evaluate auditing given a pre-fetched sys.audit value.
+  // The provided auditMode string should be the raw attribute value (any case).
+  // For read evaluation, path is used when auditMode is "default" to apply the suffix filter.
+  bool AllowAuditModificationAttr(const std::string& auditMode);
+  bool AllowAuditListAttr(const std::string& auditMode);
+  bool AllowAuditReadAttr(const std::string& auditMode, const std::string& path);
 
 protected:
   std::atomic<bool> mDoneOrderlyShutdown; ///< Mark for orderly shutdown
@@ -2557,6 +2573,18 @@ private:
                                XrdOucErrInfo& error,
                                eos::common::VirtualIdentity& vid,
                                const XrdSecEntity* client);
+
+  // Audit environment configuration (parsed in constructor, applied after mAudit init)
+  bool mEnvAuditDisableAll {false};
+  bool mEnvAuditRead {false};
+  bool mEnvAuditList {false};
+  bool mEnvAuditReadAll {false};
+  bool mEnvAuditAttributeMode {false};
+  // Attribute evaluation is enabled for all non-off modes
+  bool mEnvAuditAttributeOnly {false};
+  // Attribute-only mode (EOS_MGM_AUDIT=attribute) disables global auditing toggles
+  std::vector<std::string> mEnvAuditReadSuffixes;
+  bool mEnvAuditReadSuffixesSet {false};
 };
 
 extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
