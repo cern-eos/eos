@@ -538,9 +538,13 @@ LogBuffer::log_thread()
           eos::common::Logging::GetInstance().WriteZstd(tag, buff->h.fanOutBuffer);
         }
       }
-      // Also write the main formatted line into a compressed stream named like xrdlog.<unit>
+      // Also write the main formatted line into a compressed stream named like xrdlog.<service>
       if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
-        std::string mainTag = std::string("xrdlog.") + eos::common::Logging::GetInstance().gUnit.c_str();
+        auto& L = eos::common::Logging::GetInstance();
+        const std::string& baseDir = L.gZstdUnitDir.empty() ? L.gZstdBaseDir : L.gZstdUnitDir;
+        auto pos = baseDir.find_last_of('/');
+        std::string svc = (pos == std::string::npos) ? baseDir : baseDir.substr(pos + 1);
+        std::string mainTag = std::string("xrdlog.") + svc;
         eos::common::Logging::GetInstance().WriteZstd(mainTag.c_str(), buff->buffer);
       }
 
@@ -816,7 +820,12 @@ Logging::stderrReaderLoop()
 {
 #if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
   // Read from gStderrPipeRead and forward to main compressed log
-  std::string mainTag = std::string("xrdlog.") + gUnit.c_str();
+  auto baseDirName = [&]() -> std::string {
+    const std::string& s = gZstdUnitDir.empty() ? gZstdBaseDir : gZstdUnitDir;
+    auto pos = s.find_last_of('/');
+    return (pos == std::string::npos) ? s : s.substr(pos + 1);
+  }();
+  std::string mainTag = std::string("xrdlog.") + baseDirName;
   std::string buf;
   buf.reserve(8 << 10);
   char tmp[4096];
@@ -887,10 +896,8 @@ void Logging::zstdMaybeInit()
 {
   if (!gZstdEnable) return;
   if (gZstdUnitDir.empty()) {
-    // Derive unit directory lazily to allow SetUnit to have been called
+    // Place compressed logs directly into the base log directory (no extra subdir)
     gZstdUnitDir = gZstdBaseDir;
-    if (!gZstdUnitDir.empty() && gZstdUnitDir.back() != '/') gZstdUnitDir.push_back('/');
-    gZstdUnitDir += gUnit.c_str();
   }
 }
 
