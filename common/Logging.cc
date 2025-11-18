@@ -519,8 +519,12 @@ LogBuffer::log_thread()
         syslog(buff->h.priority, "%s", buff->h.ptr);
       }
 
-      if (buff->h.fanOutBuffer != NULL) {
-        if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
+      if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
+        // Write per-tag compressed output using source tag if explicit fan-out tag is absent
+        const char* tag = (buff->h.fanOutTag[0] ? buff->h.fanOutTag : buff->h.sourceTag);
+        eos::common::Logging::GetInstance().WriteZstd(tag, buff->buffer);
+      } else {
+        if (buff->h.fanOutBuffer != NULL) {
           if (buff->h.fanOutS != NULL) {
             fputs(buff->h.fanOutBuffer, buff->h.fanOutS);
             fflush(buff->h.fanOutS);
@@ -529,13 +533,6 @@ LogBuffer::log_thread()
             fputs(buff->h.fanOutBuffer, buff->h.fanOut);
             fflush(buff->h.fanOut);
           }
-        } else {
-          // When ZSTD logging is enabled, write fan-out formatted lines per tag
-          // Tag is either the explicit source file tag (File.c_str()), or "*" / "#" routes
-          // The tag is not passed down to the log thread; reconstruct a generic tag
-          // based on presence of fanOut destinations:
-          const char* tag = (buff->h.fanOutTag[0] ? buff->h.fanOutTag : "fanout");
-          eos::common::Logging::GetInstance().WriteZstd(tag, buff->h.fanOutBuffer);
         }
       }
       // Also write the main formatted line into a compressed stream named like xrdlog.<service>
@@ -599,6 +596,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   // file names like *.cc and *.hh
   File.erase(0, File.rfind("/") + 1);
   File.erase(File.length() - 3);
+  // Capture source tag (basename without extension) for later zstd tag selection
+  strncpy(logBuffer->h.sourceTag, File.c_str(), sizeof(logBuffer->h.sourceTag) - 1);
+  logBuffer->h.sourceTag[sizeof(logBuffer->h.sourceTag) - 1] = '\0';
   time_t current_time;
   struct timeval tv;
   struct timezone tz;
@@ -802,6 +802,7 @@ Logging::GetMainZstdTag() const
   const std::string& s = gZstdUnitDir.empty() ? gZstdBaseDir : gZstdUnitDir;
   auto pos = s.find_last_of('/');
   std::string base = (pos == std::string::npos) ? s : s.substr(pos + 1);
+  if (base.empty()) base = "mgm";
   return std::string("xrdlog.") + base;
 }
 #endif
@@ -900,6 +901,10 @@ void Logging::zstdMaybeInit()
   if (gZstdUnitDir.empty()) {
     // Place compressed logs directly into the base log directory (no extra subdir)
     gZstdUnitDir = gZstdBaseDir;
+    // Normalize: strip trailing slashes
+    while (gZstdUnitDir.size() > 1 && gZstdUnitDir.back() == '/') {
+      gZstdUnitDir.pop_back();
+    }
   }
 }
 

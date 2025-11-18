@@ -481,6 +481,7 @@ public:
     int priority;
     int fanOutBufLen;
     char fanOutTag[64]; /* tag name for fan-out (source basename, '*' or '#'), empty if none */
+    char sourceTag[64]; /* source file basename tag */
 
   };
 
