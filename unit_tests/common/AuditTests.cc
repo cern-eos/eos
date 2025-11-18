@@ -38,6 +38,7 @@
 #include <set>
 #include <chrono>
 #include <thread>
+#include <vector>
 
 EOSCOMMONTESTING_BEGIN
 
@@ -157,6 +158,45 @@ TEST(Audit, BenchmarkWrite10000)
   auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
 
   std::cout << "Audit benchmark: wrote " << N << " records in " << ms << " ms\n";
+}
+
+TEST(Audit, BenchmarkWrite100kConcurrent)
+{
+  using namespace eos::common;
+  std::string dir = makeTempDir();
+
+  // Long rotation to avoid rotation overhead skewing results
+  Audit audit(dir, /*rotationSeconds*/3600, /*compressionLevel*/1);
+
+  const int numThreads = 100;
+  const int perThread = 1000; // 100 * 1000 = 100000
+
+  eos::audit::AuditRecord base;
+  base.set_timestamp(::time(nullptr));
+  base.set_operation(eos::audit::WRITE);
+  base.set_client_ip("127.0.0.1");
+  base.set_account("bench");
+  base.set_svc("test");
+
+  std::vector<std::thread> threads;
+  threads.reserve(numThreads);
+
+  auto t0 = std::chrono::steady_clock::now();
+  for (int t = 0; t < numThreads; ++t) {
+    threads.emplace_back([&, t]() {
+      eos::audit::AuditRecord rec = base;
+      for (int i = 0; i < perThread; ++i) {
+        rec.set_path(std::string("/eos/bench/concurrent_") + std::to_string(t) + "_" + std::to_string(i));
+        audit.audit(rec);
+      }
+    });
+  }
+  for (auto& th : threads) th.join();
+  auto t1 = std::chrono::steady_clock::now();
+  auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+  std::cout << "Audit concurrent benchmark: wrote " << (numThreads * perThread)
+            << " records in " << ms << " ms\n";
 }
 
 EOSCOMMONTESTING_END
