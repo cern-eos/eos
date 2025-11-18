@@ -74,6 +74,10 @@ EOSCOMMONNAMESPACE_BEGIN
 #  endif
 #endif
 
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+struct ZstdLogState;
+#endif
+
 #define EOS_TEXTNORMAL "\033[0m"
 #define EOS_TEXTBLACK  "\033[49;30m"
 #define EOS_TEXTRED    "\033[49;31m"
@@ -859,6 +863,10 @@ public:
   //! Write a single already-formatted line to optional ZSTD log (if enabled)
   //----------------------------------------------------------------------------
   void WriteZstd(const char* tag, const char* line);
+  //----------------------------------------------------------------------------
+  //! Query if ZSTD logging is enabled
+  //----------------------------------------------------------------------------
+  bool IsZstdEnabled() const { return gZstdEnable; }
 private:
 #if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
   // ZSTD logging helpers

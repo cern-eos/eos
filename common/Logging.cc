@@ -495,7 +495,7 @@ LogBuffer::log_thread()
       guard.unlock();                                 /* drop while buffer is printed */
       fprintf(stderr, "%s\n", buff->buffer);
 
-      if (!gZstdEnable) {
+      if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
         if (null_active_head) {
           fflush(stderr);        /* only flush if there's no other */
         }
@@ -506,7 +506,7 @@ LogBuffer::log_thread()
       }
 
       if (buff->h.fanOutBuffer != NULL) {
-        if (!eos::common::Logging::GetInstance().gZstdEnable) {
+        if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
           if (buff->h.fanOutS != NULL) {
             fputs(buff->h.fanOutBuffer, buff->h.fanOutS);
             fflush(buff->h.fanOutS);
@@ -527,7 +527,7 @@ LogBuffer::log_thread()
         }
       }
       // Also write the main formatted line into a compressed stream named like xrdlog.<unit>
-      if (eos::common::Logging::GetInstance().gZstdEnable) {
+      if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
         std::string mainTag = std::string("xrdlog.") + eos::common::Logging::GetInstance().gUnit.c_str();
         eos::common::Logging::GetInstance().WriteZstd(mainTag.c_str(), buff->buffer);
       }
@@ -878,7 +878,7 @@ void Logging::zstdEnsureDir()
   (void)::chmod(gZstdUnitDir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 }
 
-Logging::ZstdLogState* Logging::zstdGetStateLocked(const std::string& tag)
+ZstdLogState* Logging::zstdGetStateLocked(const std::string& tag)
 {
   auto it = gZstdStates.find(tag);
   if (it != gZstdStates.end()) return it->second;
