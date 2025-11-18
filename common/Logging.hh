@@ -868,6 +868,10 @@ public:
   //! Query if ZSTD logging is enabled
   //----------------------------------------------------------------------------
   bool IsZstdEnabled() const { return gZstdEnable; }
+  //----------------------------------------------------------------------------
+  //! Compute the main ZSTD tag (e.g. "xrdlog.mgm") based on configured dir
+  //----------------------------------------------------------------------------
+  std::string GetMainZstdTag() const;
 private:
 #if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
   // ZSTD logging helpers

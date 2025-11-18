@@ -540,11 +540,7 @@ LogBuffer::log_thread()
       }
       // Also write the main formatted line into a compressed stream named like xrdlog.<service>
       if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
-        auto& L = eos::common::Logging::GetInstance();
-        const std::string& baseDir = L.gZstdUnitDir.empty() ? L.gZstdBaseDir : L.gZstdUnitDir;
-        auto pos = baseDir.find_last_of('/');
-        std::string svc = (pos == std::string::npos) ? baseDir : baseDir.substr(pos + 1);
-        std::string mainTag = std::string("xrdlog.") + svc;
+        std::string mainTag = eos::common::Logging::GetInstance().GetMainZstdTag();
         eos::common::Logging::GetInstance().WriteZstd(mainTag.c_str(), buff->buffer);
       }
 
@@ -800,6 +796,17 @@ Logging::rate_limit(struct timeval& tv, int priority, const char* file,
 }
 
 #if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+std::string
+Logging::GetMainZstdTag() const
+{
+  const std::string& s = gZstdUnitDir.empty() ? gZstdBaseDir : gZstdUnitDir;
+  auto pos = s.find_last_of('/');
+  std::string base = (pos == std::string::npos) ? s : s.substr(pos + 1);
+  return std::string("xrdlog.") + base;
+}
+#endif
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
 static void write_all(int fd, const void* buf, size_t len)
 {
   const char* p = static_cast<const char*>(buf);
@@ -820,12 +827,7 @@ Logging::stderrReaderLoop()
 {
 #if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
   // Read from gStderrPipeRead and forward to main compressed log
-  auto baseDirName = [&]() -> std::string {
-    const std::string& s = gZstdUnitDir.empty() ? gZstdBaseDir : gZstdUnitDir;
-    auto pos = s.find_last_of('/');
-    return (pos == std::string::npos) ? s : s.substr(pos + 1);
-  }();
-  std::string mainTag = std::string("xrdlog.") + baseDirName;
+  std::string mainTag = GetMainZstdTag();
   std::string buf;
   buf.reserve(8 << 10);
   char tmp[4096];
