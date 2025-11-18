@@ -840,22 +840,6 @@ Logging::stderrReaderLoop()
 #endif
 }
 
-#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
-static void write_all(int fd, const void* buf, size_t len)
-{
-  const char* p = static_cast<const char*>(buf);
-  while (len > 0) {
-    ssize_t n = ::write(fd, p, len);
-    if (n <= 0) {
-      if (errno == EINTR) continue;
-      break;
-    }
-    p += n;
-    len -= (size_t)n;
-  }
-}
-#endif
-
 void
 Logging::WriteZstd(const char* tag, const char* line)
 {
