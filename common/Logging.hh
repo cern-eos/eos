@@ -68,6 +68,12 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+#ifdef __has_include
+#  if __has_include(<zstd.h>)
+#    define EOS_HAVE_ZSTD 1
+#  endif
+#endif
+
 #define EOS_TEXTNORMAL "\033[0m"
 #define EOS_TEXTBLACK  "\033[49;30m"
 #define EOS_TEXTRED    "\033[49;31m"
@@ -849,6 +855,31 @@ public:
   //---------------------------------------------------------------------------
 
   bool rate_limit(struct timeval& tv, int priority, const char* file, int line);
+  //----------------------------------------------------------------------------
+  //! Write a single already-formatted line to optional ZSTD log (if enabled)
+  //----------------------------------------------------------------------------
+  void WriteZstd(const char* line);
+private:
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+  // ZSTD logging helpers
+  void zstdMaybeInit();
+  void zstdRotateIfNeededLocked(time_t now);
+  void zstdOpenLocked(time_t now);
+  void zstdCloseLocked();
+  std::string zstdMakeSegmentPath(time_t ts) const;
+  void zstdEnsureDir();
+#endif
+
+  // Configuration/state for ZSTD writer
+  bool gZstdEnable = false;
+  int gZstdRotationSeconds = 3600; // default 1 hour
+  int gZstdLevel = 1;
+  std::string gZstdBaseDir;   // base directory for logs (XRDLOGDIR or /var/log/eos)
+  std::string gZstdUnitDir;   // derived from gUnit at open time
+  std::string gZstdSymlink;   // .../log.zstd
+
+  std::mutex gZstdMutex;
+  struct ZstdLogState* gZstd = nullptr; // pimpl to avoid header deps
 };
 
 extern Logging& gLogging; ///< Global logging object

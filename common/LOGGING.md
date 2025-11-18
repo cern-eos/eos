@@ -134,6 +134,26 @@ Duplicate messages to syslog:
   EOS_LOG_SYSLOG=1    # or "true"
   ```
 
+ZSTD-compressed rotating logs
+-----------------------------
+
+Logging can optionally mirror all messages into a ZSTD-compressed, time-rotated log stream (similar to the audit logger).
+
+- Enable via environment:
+  ```
+  EOS_ZSTD_LOGGING=1            # enable compressed logging
+  EOS_ZSTD_ROTATION=3600        # rotate every N seconds (default: 3600 = 1 hour)
+  EOS_ZSTD_LEVEL=1              # optional compression level (1..19), default 1
+  ```
+- Location:
+  - Base directory: `$XRDLOGDIR` if set; otherwise `/var/log/eos`.
+  - Final path: `<base>/<unit>/log-YYYYmmdd-HHMMSS.zst` with a symlink `<base>/<unit>/log.zstd` pointing to the current segment.
+  - `<unit>` is the value set via `Logging::SetUnit("...")`.
+- Behavior:
+  - A ZSTD frame header is flushed immediately when a new segment opens to avoid “unexpected end of file” for empty segments.
+  - Each message is flushed to make the stream tail-able (e.g., with `zstdcat` or a `zstdtail` utility).
+  - Rotation creates a fresh segment; the `log.zstd` symlink is atomically updated.
+
 
 Fan-out to additional files
 ---------------------------

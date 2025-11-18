@@ -23,6 +23,13 @@
 
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/Path.hh"
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+#include <zstd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 #include <XrdSys/XrdSysPthread.hh>
 #include <new>
 #include <type_traits>
@@ -35,6 +42,14 @@ static typename std::aligned_storage<sizeof(Logging), alignof(Logging)>::type
 logging_buf; ///< Memory for the global logging object
 Logging& gLogging = reinterpret_cast<Logging&>(logging_buf);
 
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+struct ZstdLogState {
+  int fd = -1;
+  ZSTD_CStream* cstream = nullptr;
+  time_t segmentStart = 0;
+  std::string currentPath;
+};
+#endif
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -94,6 +109,26 @@ Logging::Logging():
       gToSysLog = true;
     }
   }
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+  // ZSTD logging configuration from environment
+  const char* zenv = getenv("EOS_ZSTD_LOGGING");
+  if (zenv && (!strcmp(zenv, "1") || !strcasecmp(zenv, "true") || !strcasecmp(zenv, "yes") || !strcasecmp(zenv, "on"))) {
+    gZstdEnable = true;
+  }
+  const char* zrot = getenv("EOS_ZSTD_ROTATION");
+  if (zrot && *zrot) {
+    int v = atoi(zrot);
+    if (v > 0) gZstdRotationSeconds = v;
+  }
+  const char* lvl = getenv("EOS_ZSTD_LEVEL");
+  if (lvl && *lvl) {
+    int v = atoi(lvl);
+    if (v >= 1 && v <= 19) gZstdLevel = v;
+  }
+  const char* xrd = getenv("XRDLOGDIR");
+  gZstdBaseDir = (xrd && *xrd) ? xrd : "/var/log/eos";
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -477,6 +512,8 @@ LogBuffer::log_thread()
           fflush(buff->h.fanOut);
         }
       }
+      // Also mirror to optional ZSTD-compressed rotating log
+      eos::common::Logging::GetInstance().WriteZstd(buff->buffer);
 
       if (buff_2b_returned != buff) {
         buff->h.next = buff_2b_returned;
@@ -724,5 +761,164 @@ Logging::rate_limit(struct timeval& tv, int priority, const char* file,
 
   return do_limit;
 }
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+static void write_all(int fd, const void* buf, size_t len)
+{
+  const char* p = static_cast<const char*>(buf);
+  while (len > 0) {
+    ssize_t n = ::write(fd, p, len);
+    if (n <= 0) {
+      if (errno == EINTR) continue;
+      break;
+    }
+    p += n;
+    len -= (size_t)n;
+  }
+}
+#endif
+
+void
+Logging::WriteZstd(const char* line)
+{
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+  if (!gZstdEnable) return;
+  if (!line) return;
+  std::lock_guard<std::mutex> g(gZstdMutex);
+  zstdMaybeInit();
+  time_t now = ::time(nullptr);
+  zstdRotateIfNeededLocked(now);
+  if (!gZstd || gZstd->fd < 0 || !gZstd->cstream) return;
+  // Build a line with newline terminator if missing
+  size_t len = ::strlen(line);
+  char nl = '\n';
+  // First write the line
+  ZSTD_inBuffer in1 = { line, len, 0 };
+  char outBuf[1 << 14];
+  do {
+    ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
+    size_t r = ZSTD_compressStream2(gZstd->cstream, &out, &in1, ZSTD_e_flush);
+    write_all(gZstd->fd, outBuf, out.pos);
+    if (ZSTD_isError(r)) break;
+    if (in1.pos == in1.size) break;
+  } while (true);
+  // Then a newline if not already present
+  if (len == 0 || line[len - 1] != '\n') {
+    ZSTD_inBuffer in2 = { &nl, 1, 0 };
+    char outBuf2[256];
+    do {
+      ZSTD_outBuffer out = { outBuf2, sizeof(outBuf2), 0 };
+      size_t r = ZSTD_compressStream2(gZstd->cstream, &out, &in2, ZSTD_e_flush);
+      write_all(gZstd->fd, outBuf2, out.pos);
+      if (ZSTD_isError(r)) break;
+      if (in2.pos == in2.size) break;
+    } while (true);
+  }
+#else
+  (void)line;
+#endif
+}
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+void Logging::zstdMaybeInit()
+{
+  if (!gZstdEnable) return;
+  if (!gZstd) {
+    gZstd = new ZstdLogState();
+  }
+  if (gZstdUnitDir.empty()) {
+    // Derive unit directory lazily to allow SetUnit to have been called
+    gZstdUnitDir = gZstdBaseDir;
+    if (!gZstdUnitDir.empty() && gZstdUnitDir.back() != '/') gZstdUnitDir.push_back('/');
+    gZstdUnitDir += gUnit.c_str();
+  }
+  if (gZstdSymlink.empty()) {
+    gZstdSymlink = gZstdUnitDir + "/log.zstd";
+  }
+  if (gZstd->fd < 0 || !gZstd->cstream) {
+    zstdOpenLocked(::time(nullptr));
+  }
+}
+
+void Logging::zstdRotateIfNeededLocked(time_t now)
+{
+  if (!gZstd) return;
+  if (gZstd->fd < 0 || !gZstd->cstream) {
+    zstdOpenLocked(now);
+    return;
+  }
+  if ((now - gZstd->segmentStart) >= gZstdRotationSeconds) {
+    zstdCloseLocked();
+    zstdOpenLocked(now);
+  }
+}
+
+std::string Logging::zstdMakeSegmentPath(time_t ts) const
+{
+  char tbuf[64];
+  struct tm tm;
+  localtime_r(&ts, &tm);
+  strftime(tbuf, sizeof(tbuf), "log-%Y%m%d-%H%M%S.zst", &tm);
+  std::string path = gZstdUnitDir;
+  path += "/";
+  path += tbuf;
+  return path;
+}
+
+void Logging::zstdEnsureDir()
+{
+  eos::common::Path p((gZstdUnitDir + "/.keep").c_str());
+  (void)p.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  (void)::chmod(gZstdUnitDir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+}
+
+void Logging::zstdOpenLocked(time_t now)
+{
+  zstdEnsureDir();
+  std::string path = zstdMakeSegmentPath(now);
+  int fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY | O_CLOEXEC, 0644);
+  if (fd < 0) return;
+  if (!gZstd) gZstd = new ZstdLogState();
+  gZstd->fd = fd;
+  gZstd->segmentStart = now;
+  gZstd->currentPath = path;
+  if (!gZstd->cstream) gZstd->cstream = ZSTD_createCStream();
+  ZSTD_CCtx_setParameter(gZstd->cstream, ZSTD_c_compressionLevel, gZstdLevel);
+  (void)ZSTD_initCStream(gZstd->cstream, gZstdLevel);
+  // Emit a header by flushing an empty input
+  char dummy = 0;
+  ZSTD_inBuffer in = { &dummy, 0, 0 };
+  char outBuf[64];
+  ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
+  (void)ZSTD_compressStream2(gZstd->cstream, &out, &in, ZSTD_e_flush);
+  write_all(gZstd->fd, outBuf, out.pos);
+  // Update symlink
+  ::unlink(gZstdSymlink.c_str());
+  ::symlink(path.c_str(), gZstdSymlink.c_str());
+}
+
+void Logging::zstdCloseLocked()
+{
+  if (!gZstd) return;
+  if (gZstd->cstream) {
+    // End frame gracefully
+    char outBuf[256];
+    ZSTD_inBuffer in = { nullptr, 0, 0 };
+    size_t remaining = 0;
+    do {
+      ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
+      remaining = ZSTD_compressStream2(gZstd->cstream, &out, &in, ZSTD_e_end);
+      write_all(gZstd->fd, outBuf, out.pos);
+    } while (remaining != 0);
+    ZSTD_freeCStream(gZstd->cstream);
+    gZstd->cstream = nullptr;
+  }
+  if (gZstd->fd >= 0) {
+    ::close(gZstd->fd);
+    gZstd->fd = -1;
+  }
+  gZstd->currentPath.clear();
+}
+#endif
 
 EOSCOMMONNAMESPACE_END
