@@ -34,6 +34,7 @@
 #include <new>
 #include <type_traits>
 #include <atomic>
+#include <map>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -48,6 +49,7 @@ struct ZstdLogState {
   ZSTD_CStream* cstream = nullptr;
   time_t segmentStart = 0;
   std::string currentPath;
+  std::string symlinkPath;
 };
 #endif
 //------------------------------------------------------------------------------
@@ -493,8 +495,10 @@ LogBuffer::log_thread()
       guard.unlock();                                 /* drop while buffer is printed */
       fprintf(stderr, "%s\n", buff->buffer);
 
-      if (null_active_head) {
-        fflush(stderr);        /* only flush if there's no other */
+      if (!gZstdEnable) {
+        if (null_active_head) {
+          fflush(stderr);        /* only flush if there's no other */
+        }
       }
 
       if (eos::common::Logging::GetInstance().gToSysLog) {
@@ -502,18 +506,31 @@ LogBuffer::log_thread()
       }
 
       if (buff->h.fanOutBuffer != NULL) {
-        if (buff->h.fanOutS != NULL) {
-          fputs(buff->h.fanOutBuffer, buff->h.fanOutS);
-          fflush(buff->h.fanOutS);
-        }
-
-        if (buff->h.fanOut != NULL) {
-          fputs(buff->h.fanOutBuffer, buff->h.fanOut);
-          fflush(buff->h.fanOut);
+        if (!eos::common::Logging::GetInstance().gZstdEnable) {
+          if (buff->h.fanOutS != NULL) {
+            fputs(buff->h.fanOutBuffer, buff->h.fanOutS);
+            fflush(buff->h.fanOutS);
+          }
+          if (buff->h.fanOut != NULL) {
+            fputs(buff->h.fanOutBuffer, buff->h.fanOut);
+            fflush(buff->h.fanOut);
+          }
+        } else {
+          // When ZSTD logging is enabled, write fan-out formatted lines per tag
+          // Tag is either the explicit source file tag (File.c_str()), or "*" / "#" routes
+          // The tag is not passed down to the log thread; reconstruct a generic tag
+          // based on presence of fanOut destinations:
+          const char* tag = "fanout";
+          if (buff->h.fanOut && !buff->h.fanOutS) tag = "tag";
+          if (buff->h.fanOutS && !buff->h.fanOut) tag = "star";
+          eos::common::Logging::GetInstance().WriteZstd(tag, buff->h.fanOutBuffer);
         }
       }
-      // Also mirror to optional ZSTD-compressed rotating log
-      eos::common::Logging::GetInstance().WriteZstd(buff->buffer);
+      // Also write the main formatted line into a compressed stream named like xrdlog.<unit>
+      if (eos::common::Logging::GetInstance().gZstdEnable) {
+        std::string mainTag = std::string("xrdlog.") + eos::common::Logging::GetInstance().gUnit.c_str();
+        eos::common::Logging::GetInstance().WriteZstd(mainTag.c_str(), buff->buffer);
+      }
 
       if (buff_2b_returned != buff) {
         buff->h.next = buff_2b_returned;
@@ -779,16 +796,17 @@ static void write_all(int fd, const void* buf, size_t len)
 #endif
 
 void
-Logging::WriteZstd(const char* line)
+Logging::WriteZstd(const char* tag, const char* line)
 {
 #if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
   if (!gZstdEnable) return;
-  if (!line) return;
+  if (!line || !tag || !*tag) return;
   std::lock_guard<std::mutex> g(gZstdMutex);
   zstdMaybeInit();
   time_t now = ::time(nullptr);
-  zstdRotateIfNeededLocked(now);
-  if (!gZstd || gZstd->fd < 0 || !gZstd->cstream) return;
+  zstdRotateIfNeededLocked(tag, now);
+  ZstdLogState* st = zstdGetStateLocked(tag);
+  if (!st || st->fd < 0 || !st->cstream) return;
   // Build a line with newline terminator if missing
   size_t len = ::strlen(line);
   char nl = '\n';
@@ -797,8 +815,8 @@ Logging::WriteZstd(const char* line)
   char outBuf[1 << 14];
   do {
     ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
-    size_t r = ZSTD_compressStream2(gZstd->cstream, &out, &in1, ZSTD_e_flush);
-    write_all(gZstd->fd, outBuf, out.pos);
+    size_t r = ZSTD_compressStream2(st->cstream, &out, &in1, ZSTD_e_flush);
+    write_all(st->fd, outBuf, out.pos);
     if (ZSTD_isError(r)) break;
     if (in1.pos == in1.size) break;
   } while (true);
@@ -808,14 +826,14 @@ Logging::WriteZstd(const char* line)
     char outBuf2[256];
     do {
       ZSTD_outBuffer out = { outBuf2, sizeof(outBuf2), 0 };
-      size_t r = ZSTD_compressStream2(gZstd->cstream, &out, &in2, ZSTD_e_flush);
-      write_all(gZstd->fd, outBuf2, out.pos);
+      size_t r = ZSTD_compressStream2(st->cstream, &out, &in2, ZSTD_e_flush);
+      write_all(st->fd, outBuf2, out.pos);
       if (ZSTD_isError(r)) break;
       if (in2.pos == in2.size) break;
     } while (true);
   }
 #else
-  (void)line;
+  (void)tag; (void)line;
 #endif
 }
 
@@ -823,45 +841,33 @@ Logging::WriteZstd(const char* line)
 void Logging::zstdMaybeInit()
 {
   if (!gZstdEnable) return;
-  if (!gZstd) {
-    gZstd = new ZstdLogState();
-  }
   if (gZstdUnitDir.empty()) {
     // Derive unit directory lazily to allow SetUnit to have been called
     gZstdUnitDir = gZstdBaseDir;
     if (!gZstdUnitDir.empty() && gZstdUnitDir.back() != '/') gZstdUnitDir.push_back('/');
     gZstdUnitDir += gUnit.c_str();
   }
-  if (gZstdSymlink.empty()) {
-    gZstdSymlink = gZstdUnitDir + "/log.zstd";
-  }
-  if (gZstd->fd < 0 || !gZstd->cstream) {
-    zstdOpenLocked(::time(nullptr));
-  }
 }
 
-void Logging::zstdRotateIfNeededLocked(time_t now)
+void Logging::zstdRotateIfNeededLocked(const std::string& tag, time_t now)
 {
-  if (!gZstd) return;
-  if (gZstd->fd < 0 || !gZstd->cstream) {
-    zstdOpenLocked(now);
-    return;
-  }
-  if ((now - gZstd->segmentStart) >= gZstdRotationSeconds) {
-    zstdCloseLocked();
-    zstdOpenLocked(now);
-  }
+  ZstdLogState* st = zstdGetStateLocked(tag);
+  if (!st || st->fd < 0 || !st->cstream) { zstdOpenLocked(tag, now); return; }
+  if ((now - st->segmentStart) >= gZstdRotationSeconds) { zstdCloseLocked(tag); zstdOpenLocked(tag, now); }
 }
 
-std::string Logging::zstdMakeSegmentPath(time_t ts) const
+std::string Logging::zstdMakeSegmentPath(const std::string& tag, time_t ts) const
 {
   char tbuf[64];
   struct tm tm;
   localtime_r(&ts, &tm);
-  strftime(tbuf, sizeof(tbuf), "log-%Y%m%d-%H%M%S.zst", &tm);
+  strftime(tbuf, sizeof(tbuf), "%Y%m%d-%H%M%S", &tm);
   std::string path = gZstdUnitDir;
   path += "/";
+  path += tag;
+  path += "-";
   path += tbuf;
+  path += ".zst";
   return path;
 }
 
@@ -872,52 +878,63 @@ void Logging::zstdEnsureDir()
   (void)::chmod(gZstdUnitDir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 }
 
-void Logging::zstdOpenLocked(time_t now)
+Logging::ZstdLogState* Logging::zstdGetStateLocked(const std::string& tag)
+{
+  auto it = gZstdStates.find(tag);
+  if (it != gZstdStates.end()) return it->second;
+  ZstdLogState* st = new ZstdLogState();
+  st->symlinkPath = gZstdUnitDir + "/" + tag + ".zstd";
+  gZstdStates[tag] = st;
+  return st;
+}
+
+void Logging::zstdOpenLocked(const std::string& tag, time_t now)
 {
   zstdEnsureDir();
-  std::string path = zstdMakeSegmentPath(now);
+  ZstdLogState* st = zstdGetStateLocked(tag);
+  std::string path = zstdMakeSegmentPath(tag, now);
   int fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY | O_CLOEXEC, 0644);
   if (fd < 0) return;
-  if (!gZstd) gZstd = new ZstdLogState();
-  gZstd->fd = fd;
-  gZstd->segmentStart = now;
-  gZstd->currentPath = path;
-  if (!gZstd->cstream) gZstd->cstream = ZSTD_createCStream();
-  ZSTD_CCtx_setParameter(gZstd->cstream, ZSTD_c_compressionLevel, gZstdLevel);
-  (void)ZSTD_initCStream(gZstd->cstream, gZstdLevel);
+  st->fd = fd;
+  st->segmentStart = now;
+  st->currentPath = path;
+  if (!st->cstream) st->cstream = ZSTD_createCStream();
+  ZSTD_CCtx_setParameter(st->cstream, ZSTD_c_compressionLevel, gZstdLevel);
+  (void)ZSTD_initCStream(st->cstream, gZstdLevel);
   // Emit a header by flushing an empty input
   char dummy = 0;
   ZSTD_inBuffer in = { &dummy, 0, 0 };
   char outBuf[64];
   ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
-  (void)ZSTD_compressStream2(gZstd->cstream, &out, &in, ZSTD_e_flush);
-  write_all(gZstd->fd, outBuf, out.pos);
+  (void)ZSTD_compressStream2(st->cstream, &out, &in, ZSTD_e_flush);
+  write_all(st->fd, outBuf, out.pos);
   // Update symlink
-  ::unlink(gZstdSymlink.c_str());
-  ::symlink(path.c_str(), gZstdSymlink.c_str());
+  ::unlink(st->symlinkPath.c_str());
+  ::symlink(path.c_str(), st->symlinkPath.c_str());
 }
 
-void Logging::zstdCloseLocked()
+void Logging::zstdCloseLocked(const std::string& tag)
 {
-  if (!gZstd) return;
-  if (gZstd->cstream) {
+  ZstdLogState* st = zstdGetStateLocked(tag);
+  if (!st) return;
+  if (st->cstream) {
     // End frame gracefully
     char outBuf[256];
     ZSTD_inBuffer in = { nullptr, 0, 0 };
     size_t remaining = 0;
     do {
       ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
-      remaining = ZSTD_compressStream2(gZstd->cstream, &out, &in, ZSTD_e_end);
-      write_all(gZstd->fd, outBuf, out.pos);
+      remaining = ZSTD_compressStream2(st->cstream, &out, &in, ZSTD_e_end);
+      write_all(st->fd, outBuf, out.pos);
     } while (remaining != 0);
-    ZSTD_freeCStream(gZstd->cstream);
-    gZstd->cstream = nullptr;
+    ZSTD_freeCStream(st->cstream);
+    st->cstream = nullptr;
   }
-  if (gZstd->fd >= 0) {
-    ::close(gZstd->fd);
-    gZstd->fd = -1;
+  if (st->fd >= 0) {
+    ::close(st->fd);
+    st->fd = -1;
   }
-  gZstd->currentPath.clear();
+  st->currentPath.clear();
 }
 #endif
 

@@ -134,25 +134,27 @@ Duplicate messages to syslog:
   EOS_LOG_SYSLOG=1    # or "true"
   ```
 
-ZSTD-compressed rotating logs
------------------------------
+ZSTD-compressed rotating logs (replacement mode)
+------------------------------------------------
 
-Logging can optionally mirror all messages into a ZSTD-compressed, time-rotated log stream (similar to the audit logger).
+Logging can optionally replace stdout/fan-out outputs with ZSTD-compressed, time-rotated files (similar to the audit logger).
 
 - Enable via environment:
   ```
-  EOS_ZSTD_LOGGING=1            # enable compressed logging
+  EOS_ZSTD_LOGGING=1            # enable compressed logging (replaces fan-out files)
   EOS_ZSTD_ROTATION=3600        # rotate every N seconds (default: 3600 = 1 hour)
   EOS_ZSTD_LEVEL=1              # optional compression level (1..19), default 1
   ```
 - Location:
   - Base directory: `$XRDLOGDIR` if set; otherwise `/var/log/eos`.
-  - Final path: `<base>/<unit>/log-YYYYmmdd-HHMMSS.zst` with a symlink `<base>/<unit>/log.zstd` pointing to the current segment.
+  - Main stream: `<base>/<unit>/xrdlog.<unit>-YYYYmmdd-HHMMSS.zst` with symlink `<base>/<unit>/xrdlog.<unit>.zstd`.
+  - Fan-out streams: `<base>/<unit>/<tag>-YYYYmmdd-HHMMSS.zst` with symlink `<base>/<unit>/<tag>.zstd`, where `<tag>` is the fan-out tag (e.g., `Server`, `#`, `*`).
   - `<unit>` is the value set via `Logging::SetUnit("...")`.
 - Behavior:
   - A ZSTD frame header is flushed immediately when a new segment opens to avoid “unexpected end of file” for empty segments.
   - Each message is flushed to make the stream tail-able (e.g., with `zstdcat` or a `zstdtail` utility).
-  - Rotation creates a fresh segment; the `log.zstd` symlink is atomically updated.
+  - Rotation creates fresh segments; per-stream symlinks are atomically updated.
+  - When enabled, stdout/stderr printing and fan-out FILE* writes are suppressed (the compressed streams are authoritative).
 
 
 Fan-out to additional files
