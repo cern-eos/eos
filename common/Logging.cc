@@ -130,6 +130,18 @@ Logging::Logging():
   }
   const char* xrd = getenv("XRDLOGDIR");
   gZstdBaseDir = (xrd && *xrd) ? xrd : "/var/log/eos";
+  if (gZstdEnable) {
+    // Redirect STDERR into our pipe to capture messages from other components
+    int fds[2];
+    if (::pipe(fds) == 0) {
+      gStderrPipeRead = fds[0];
+      gStderrPipeWrite = fds[1];
+      fflush(stderr);
+      ::dup2(gStderrPipeWrite, STDERR_FILENO);
+      gStderrThread = std::thread([this]() { this->stderrReaderLoop(); });
+      gStderrThread.detach();
+    }
+  }
 #endif
 }
 
@@ -493,7 +505,9 @@ LogBuffer::log_thread()
 
       log_buffer_in_q--;
       guard.unlock();                                 /* drop while buffer is printed */
-      fprintf(stderr, "%s\n", buff->buffer);
+      if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
+        fprintf(stderr, "%s\n", buff->buffer);
+      }
 
       if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
         if (null_active_head) {
@@ -520,9 +534,7 @@ LogBuffer::log_thread()
           // Tag is either the explicit source file tag (File.c_str()), or "*" / "#" routes
           // The tag is not passed down to the log thread; reconstruct a generic tag
           // based on presence of fanOut destinations:
-          const char* tag = "fanout";
-          if (buff->h.fanOut && !buff->h.fanOutS) tag = "tag";
-          if (buff->h.fanOutS && !buff->h.fanOut) tag = "star";
+          const char* tag = (buff->h.fanOutTag[0] ? buff->h.fanOutTag : "fanout");
           eos::common::Logging::GetInstance().WriteZstd(tag, buff->h.fanOutBuffer);
         }
       }
@@ -664,12 +676,14 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
       logBuffer->h.fanOutBuffer = ptr + strlen(ptr) + 1;
       logBuffer->h.fanOutBufLen = sizeof(logBuffer->buffer) -
                                   (logBuffer->h.fanOutBuffer - logBuffer->buffer);
+      logBuffer->h.fanOutTag[0] = '\0';
 
       // we do log-message fanout
       if (gLogFanOut.count("*")) {
         logBuffer->h.fanOutS = gLogFanOut["*"];
         snprintf(logBuffer->h.fanOutBuffer, logBuffer->h.fanOutBufLen, "%s\n",
                  logBuffer->buffer);
+        snprintf(logBuffer->h.fanOutTag, sizeof(logBuffer->h.fanOutTag), "*");
       }
 
       if (gLogFanOut.count(File.c_str())) {
@@ -684,6 +698,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
                  sourceline,
                  logBuffer->h.ptr); /* truncation not an issue */
         logBuffer->buffer[15] = ' ';
+        snprintf(logBuffer->h.fanOutTag, sizeof(logBuffer->h.fanOutTag), "%s", File.c_str());
       } else {
         if (gLogFanOut.count("#")) {
           logBuffer->buffer[15] = 0;
@@ -701,6 +716,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
                    logBuffer->h.ptr
                   );
           logBuffer->buffer[15] = ' ';
+          snprintf(logBuffer->h.fanOutTag, sizeof(logBuffer->h.fanOutTag), "#");
         }
       }
     }
@@ -777,6 +793,51 @@ Logging::rate_limit(struct timeval& tv, int priority, const char* file,
   }
 
   return do_limit;
+}
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+static void write_all(int fd, const void* buf, size_t len)
+{
+  const char* p = static_cast<const char*>(buf);
+  while (len > 0) {
+    ssize_t n = ::write(fd, p, len);
+    if (n <= 0) {
+      if (errno == EINTR) continue;
+      break;
+    }
+    p += n;
+    len -= (size_t)n;
+  }
+}
+#endif
+
+void
+Logging::stderrReaderLoop()
+{
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+  // Read from gStderrPipeRead and forward to main compressed log
+  std::string mainTag = std::string("xrdlog.") + gUnit.c_str();
+  std::string buf;
+  buf.reserve(8 << 10);
+  char tmp[4096];
+  while (true) {
+    ssize_t n = ::read(gStderrPipeRead, tmp, sizeof(tmp));
+    if (n <= 0) {
+      if (n < 0 && errno == EINTR) continue;
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      continue;
+    }
+    for (ssize_t i = 0; i < n; ++i) {
+      char c = tmp[i];
+      if (c == '\n') {
+        WriteZstd(mainTag.c_str(), buf.c_str());
+        buf.clear();
+      } else {
+        buf.push_back(c);
+      }
+    }
+  }
+#endif
 }
 
 #if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD

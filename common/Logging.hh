@@ -480,6 +480,7 @@ public:
     FILE* fanOut;
     int priority;
     int fanOutBufLen;
+    char fanOutTag[64]; /* tag name for fan-out (source basename, '*' or '#'), empty if none */
 
   };
 
@@ -890,6 +891,12 @@ private:
   // Per-tag ZSTD state (main line tag and fan-out tags)
   struct ZstdLogState* zstdGetStateLocked(const std::string& tag);
   std::map<std::string, struct ZstdLogState*> gZstdStates; // owned pointers
+
+  // STDERR redirection into main compressed log
+  int gStderrPipeRead = -1;
+  int gStderrPipeWrite = -1;
+  std::thread gStderrThread;
+  void stderrReaderLoop();
 };
 
 extern Logging& gLogging; ///< Global logging object
