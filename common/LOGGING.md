@@ -146,15 +146,24 @@ Logging can optionally replace stdout/fan-out outputs with ZSTD-compressed, time
   EOS_ZSTD_LEVEL=1              # optional compression level (1..19), default 1
   ```
 - Location:
-  - Base directory: `$XRDLOGDIR` if set; otherwise `/var/log/eos`.
-  - Main stream: `<base>/<unit>/xrdlog.<unit>-YYYYmmdd-HHMMSS.zst` with symlink `<base>/<unit>/xrdlog.<unit>.zstd`.
-  - Fan-out streams: `<base>/<unit>/<tag>-YYYYmmdd-HHMMSS.zst` with symlink `<base>/<unit>/<tag>.zstd`, where `<tag>` is the fan-out tag (e.g., `Server`, `#`, `*`).
-  - `<unit>` is the value set via `Logging::SetUnit("...")`.
+  - Base directory: `$XRDLOGDIR` if set; otherwise `/var/log/eos/<service>`.
+  - Real segments are stored under `<base>/logs/`.
+  - Top-level symlinks remain in `<base>/` and are relative:
+    - Main: `<base>/xrdlog.<service>.zstd -> logs/xrdlog.<service>-YYYYmmdd-HHMMSS.zst`
+    - Per-tag: `<base>/<tag>.zstd -> logs/<tag>-YYYYmmdd-HHMMSS.zst`
 - Behavior:
   - A ZSTD frame header is flushed immediately when a new segment opens to avoid “unexpected end of file” for empty segments.
   - Each message is flushed to make the stream tail-able (e.g., with `zstdcat` or a `zstdtail` utility).
-  - Rotation creates fresh segments; per-stream symlinks are atomically updated.
-  - When enabled, stdout/stderr printing and fan-out FILE* writes are suppressed (the compressed streams are authoritative).
+  - Rotation creates fresh segments under `logs/`; per-stream top-level symlinks are atomically updated to relative targets.
+  - When enabled, stdout printing and fan-out FILE* writes are suppressed (compressed streams are authoritative). Stderr is redirected and its lines are written to the main compressed stream.
+  - On startup in ZSTD mode, if a plain `xrdlog.<service>` exists with content (e.g., created by XRootD early), its contents are migrated into the compressed main stream and the plain file is unlinked.
+
+Per-tag file names in ZSTD mode
+-------------------------------
+
+- Only canonical fan-out tags produce per-tag `.zst` streams. The allowed set matches MGM’s fan-out list:
+  `Grpc, Balancer, Converter, DrainJob, ZMQ, MetadataFlusher, Http, Master, Recycle, LRU, WFE, Wnc, WFE::Job, GroupBalancer, GroupDrainer, GeoBalancer, GeoTreeEngine, ReplicationTracker, FileInspector, Mounts, OAuth, TokenCmd`
+- Source module names are mapped to this set using MGM’s aliasing (e.g., `HttpHandler` → `Http`, `Drainer` → `DrainJob`). Non-matching module names are skipped to avoid proliferation of files.
 
 
 Fan-out to additional files
@@ -291,5 +300,6 @@ Route `Server.cc` logs to a separate file:
 FILE* fx = fopen("/var/log/eos/fxserver.log", "a");
 eos::common::Logging::GetInstance().AddFanOut("Server", fx); // from FuseServer/Server.cc
 ```
+
 
 
