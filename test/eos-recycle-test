@@ -195,8 +195,11 @@ configure_recycler
 scenario_1_create_hierarchy
 
 # Wait for the recycle thread to run at least twice
+
 echo "info: wait for recycle run"
-sleep $((2*${RECYCLE_COLLECT_INTERVAL}))
+date
+sleep $((3*${RECYCLE_COLLECT_INTERVAL}))
+date
 
 # Check that the expectation are met
 scenario_1_check_expectations
