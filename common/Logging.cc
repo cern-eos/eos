@@ -523,8 +523,8 @@ LogBuffer::log_thread()
       }
 
       if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
-        // Write per-tag compressed output using source tag if explicit fan-out tag is absent
-        const char* tag = (buff->h.fanOutTag[0] ? buff->h.fanOutTag : buff->h.sourceTag);
+        // Write per-tag compressed output using source tag only (ignore fan-out aliases)
+        const char* tag = buff->h.sourceTag;
         eos::common::Logging::GetInstance().WriteZstd(tag, buff->buffer);
       } else {
         if (buff->h.fanOutBuffer != NULL) {
