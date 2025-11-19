@@ -523,9 +523,12 @@ LogBuffer::log_thread()
       }
 
       if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
-        // Write per-tag compressed output using source tag only (ignore fan-out aliases)
-        const char* tag = buff->h.sourceTag;
-        eos::common::Logging::GetInstance().WriteZstd(tag, buff->buffer);
+        // Resolve canonical per-tag name from source/fanout and write compressed
+        std::string tag = eos::common::Logging::GetInstance().resolveZstdTag(buff->h.sourceTag,
+                                                                             buff->h.fanOutTag);
+        if (!tag.empty()) {
+          eos::common::Logging::GetInstance().WriteZstd(tag.c_str(), buff->buffer);
+        }
       } else {
         if (buff->h.fanOutBuffer != NULL) {
           if (buff->h.fanOutS != NULL) {
@@ -807,6 +810,31 @@ Logging::GetMainZstdTag() const
   std::string base = (pos == std::string::npos) ? s : s.substr(pos + 1);
   if (base.empty()) base = "mgm";
   return std::string("xrdlog.") + base;
+}
+
+std::string
+Logging::resolveZstdTag(const char* sourceTag, const char* fanOutTag) const
+{
+  auto isAllowed = [&](const std::string& t) -> bool {
+    for (const auto& a : gZstdAllowedTags) if (a == t) return true;
+    return false;
+  };
+  // Prefer explicit fan-out tag if it exists and is allowed
+  if (fanOutTag && *fanOutTag) {
+    std::string t = fanOutTag;
+    if (isAllowed(t)) return t;
+  }
+  // Map source tag via alias table
+  std::string st = (sourceTag ? sourceTag : "");
+  for (const auto& pr : gZstdAliasPairs) {
+    if (st == pr.first) {
+      if (isAllowed(pr.second)) return pr.second;
+    }
+  }
+  // If source tag is directly in allowed list, keep it
+  if (isAllowed(st)) return st;
+  // Otherwise, do not create a separate per-tag stream
+  return std::string();
 }
 #endif
 

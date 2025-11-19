@@ -903,6 +903,23 @@ private:
   int gStderrPipeWrite = -1;
   std::thread gStderrThread;
   void stderrReaderLoop();
+
+  // Canonical tag resolution (restrict to configured fan-out list)
+  std::string resolveZstdTag(const char* sourceTag, const char* fanOutTag) const;
+  const std::vector<std::string> gZstdAllowedTags {
+    "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
+    "Master", "Recycle", "LRU", "WFE", "Wnc", "WFE::Job", "GroupBalancer", "GroupDrainer",
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "TokenCmd"
+  };
+  const std::vector<std::pair<const char*, const char*>> gZstdAliasPairs {
+    {"HttpHandler","Http"}, {"HttpServer","Http"}, {"GrpcServer","Grpc"}, {"GrpcWncServer","Wnc"},
+    {"ProtocolHandler","Http"}, {"PropFindResponse","Http"}, {"WebDAV","Http"},
+    {"WebDAVHandler","Http"}, {"WebDAVReponse","Http"}, {"S3","Http"}, {"S3Store","Http"},
+    {"S3Handler","Http"},
+    {"DrainTransferJob","DrainJob"}, {"DrainFs","DrainJob"}, {"Drainer","DrainJob"},
+    {"Clients","Mounts"},
+    {"ConversionInfo","Converter"}, {"ConversionJob","Converter"}, {"ConverterEngine","Converter"}
+  };
 };
 
 extern Logging& gLogging; ///< Global logging object
