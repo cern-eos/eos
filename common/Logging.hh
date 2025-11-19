@@ -882,6 +882,7 @@ private:
   void zstdCloseLocked(const std::string& tag);
   std::string zstdMakeSegmentPath(const std::string& tag, time_t ts) const;
   void zstdEnsureDir();
+  void zstdMigratePlainMain();
 #endif
 
   // Configuration/state for ZSTD writer

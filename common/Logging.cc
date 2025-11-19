@@ -141,6 +141,9 @@ Logging::Logging():
       gStderrThread = std::thread([this]() { this->stderrReaderLoop(); });
       gStderrThread.detach();
     }
+    // Initialize zstd logging dir and migrate any existing plain main log
+    zstdMaybeInit();
+    zstdMigratePlainMain();
   }
 #endif
 }
@@ -994,6 +997,46 @@ void Logging::zstdCloseLocked(const std::string& tag)
     st->fd = -1;
   }
   st->currentPath.clear();
+}
+#endif
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+void Logging::zstdMigratePlainMain()
+{
+  // Move contents of existing plain main log (e.g. xrdlog.mgm) into the compressed stream, then unlink it
+  std::string tag = GetMainZstdTag(); // e.g., "xrdlog.mgm"
+  std::string plainPath = gZstdUnitDir + "/" + tag; // direct file in base dir
+  struct stat st{};
+  if (::stat(plainPath.c_str(), &st) != 0 || !S_ISREG(st.st_mode) || st.st_size <= 0) {
+    return;
+  }
+  int fd = ::open(plainPath.c_str(), O_RDONLY | O_CLOEXEC);
+  if (fd < 0) return;
+  std::string buf; buf.reserve(1 << 16);
+  char tmp[8192];
+  ssize_t n;
+  while ((n = ::read(fd, tmp, sizeof(tmp))) > 0) {
+    for (ssize_t i = 0; i < n; ++i) {
+      char c = tmp[i];
+      if (c == '\n') {
+        if (!buf.empty()) {
+          WriteZstd(tag.c_str(), buf.c_str());
+          buf.clear();
+        } else {
+          // empty line: still log as newline
+          WriteZstd(tag.c_str(), "");
+        }
+      } else {
+        buf.push_back(c);
+      }
+    }
+  }
+  if (!buf.empty()) {
+    WriteZstd(tag.c_str(), buf.c_str());
+    buf.clear();
+  }
+  ::close(fd);
+  ::unlink(plainPath.c_str());
 }
 #endif
 
