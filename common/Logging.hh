@@ -873,6 +873,12 @@ public:
   //! Compute the main ZSTD tag (e.g. "xrdlog.mgm") based on configured dir
   //----------------------------------------------------------------------------
   std::string GetMainZstdTag() const;
+  //----------------------------------------------------------------------------
+  //! Public resolver for canonical per-tag names (maps aliases, filters to allowed tags)
+  //----------------------------------------------------------------------------
+  std::string ResolveZstdTag(const char* sourceTag, const char* fanOutTag) const {
+    return resolveZstdTag(sourceTag, fanOutTag);
+  }
 private:
 #if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
   // ZSTD logging helpers

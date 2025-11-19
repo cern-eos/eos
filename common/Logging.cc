@@ -524,7 +524,7 @@ LogBuffer::log_thread()
 
       if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
         // Resolve canonical per-tag name from source/fanout and write compressed
-        std::string tag = eos::common::Logging::GetInstance().resolveZstdTag(buff->h.sourceTag,
+        std::string tag = eos::common::Logging::GetInstance().ResolveZstdTag(buff->h.sourceTag,
                                                                              buff->h.fanOutTag);
         if (!tag.empty()) {
           eos::common::Logging::GetInstance().WriteZstd(tag.c_str(), buff->buffer);
