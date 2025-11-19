@@ -925,7 +925,7 @@ std::string Logging::zstdMakeSegmentPath(const std::string& tag, time_t ts) cons
   localtime_r(&ts, &tm);
   strftime(tbuf, sizeof(tbuf), "%Y%m%d-%H%M%S", &tm);
   std::string path = gZstdUnitDir;
-  path += "/";
+  path += "/logs/";
   path += tag;
   path += "-";
   path += tbuf;
@@ -938,6 +938,10 @@ void Logging::zstdEnsureDir()
   eos::common::Path p((gZstdUnitDir + "/.keep").c_str());
   (void)p.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
   (void)::chmod(gZstdUnitDir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  // Ensure logs/ subdirectory exists for real files
+  eos::common::Path lp((gZstdUnitDir + "/logs/.keep").c_str());
+  (void)lp.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  (void)::chmod((gZstdUnitDir + "/logs").c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
 }
 
 ZstdLogState* Logging::zstdGetStateLocked(const std::string& tag)
@@ -972,7 +976,12 @@ void Logging::zstdOpenLocked(const std::string& tag, time_t now)
   write_all(st->fd, outBuf, out.pos);
   // Update symlink
   ::unlink(st->symlinkPath.c_str());
-  ::symlink(path.c_str(), st->symlinkPath.c_str());
+  // Create relative symlink pointing into logs/
+  auto slash = path.find_last_of('/');
+  std::string base = (slash == std::string::npos) ? path : path.substr(slash + 1);
+  std::string relTarget = "logs/";
+  relTarget += base;
+  ::symlink(relTarget.c_str(), st->symlinkPath.c_str());
 }
 
 void Logging::zstdCloseLocked(const std::string& tag)
