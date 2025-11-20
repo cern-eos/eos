@@ -86,7 +86,7 @@ Audit::Audit(const std::string& baseDirectory,
              unsigned rotationSeconds,
              int compressionLevel)
 : mBaseDir(baseDirectory)
-, mRotationSeconds(rotationSeconds ? rotationSeconds : 300)
+, mRotationSeconds(rotationSeconds ? rotationSeconds : 3600)
 , mCompressionLevel(compressionLevel)
 , mZstdCctx(nullptr)
 , mFd(-1)

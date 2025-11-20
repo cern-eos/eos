@@ -45,7 +45,7 @@ EOSCOMMONNAMESPACE_BEGIN
 /**
  * @class Audit
  * @brief Thread-safe audit logger writing newline-delimited JSON to ZSTD files
- *        with time-based rotation (default 5 minutes).
+ *        with time-based rotation (default 1 hour).
  */
 class Audit
 {
@@ -53,11 +53,11 @@ public:
   /**
    * @brief Construct an audit logger
    * @param baseDirectory directory where audit files are created
-   * @param rotationSeconds rotation interval in seconds (default 300)
+   * @param rotationSeconds rotation interval in seconds (default 3600)
    * @param compressionLevel zstd compression level (default 3)
    */
   Audit(const std::string& baseDirectory,
-        unsigned rotationSeconds = 300,
+        unsigned rotationSeconds = 3600,
         int compressionLevel = 3);
 
   ~Audit();

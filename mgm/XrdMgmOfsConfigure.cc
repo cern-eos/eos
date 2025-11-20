@@ -1525,7 +1525,19 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
       }
     }
     try {
-      mAudit.reset(new eos::common::Audit(auditDir));
+      // Optional rotation override via EOS_AUDIT_ROTATION (seconds)
+      unsigned rotationSeconds = 3600; // default 1 hour
+      if (const char* envRot = ::getenv("EOS_AUDIT_ROTATION")) {
+        if (*envRot) {
+          char* endp = nullptr;
+          errno = 0;
+          long v = ::strtol(envRot, &endp, 10);
+          if (errno == 0 && endp && *endp == '\0' && v > 0 && v <= static_cast<long>(std::numeric_limits<unsigned>::max())) {
+            rotationSeconds = static_cast<unsigned>(v);
+          }
+        }
+      }
+      mAudit.reset(new eos::common::Audit(auditDir, rotationSeconds));
       Eroute.Say("=====> audit log directory: ", auditDir.c_str(), "");
       // Apply audit environment configuration
       if (mEnvAuditDisableAll) {
