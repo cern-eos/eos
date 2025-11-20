@@ -2,7 +2,7 @@
 
 ### Overview
 
-EOS implements structured audit logging for successful operations that modify the namespace or file metadata. Audit entries are encoded as JSON (one record per line), written directly into ZSTD-compressed log segments, and rotated every 5 minutes. A symlink `audit.zstd` always points to the current active segment.
+EOS implements structured audit logging for successful operations that modify the namespace or file metadata. Audit entries are encoded as JSON (one record per line), written directly into ZSTD-compressed log segments, and rotated every 1 hour by default. A symlink `audit.zstd` always points to the current active segment.
 
 This document explains what is logged, the record format, where files are written, rotation behavior, how to parse the logs, and where audit hooks are integrated in the codebase.
 
@@ -74,7 +74,8 @@ Example JSON line (pretty-printed for readability):
 - **Location**: `<logdir>/audit/` where `logdir` is derived from `XRDLOGDIR` (see `mgm/XrdMgmOfsConfigure.cc`).
   - Directory is created on startup if missing; mode 0755; owned appropriately by the service user.
 - **Active segment symlink**: `<logdir>/audit/audit.zstd` points to the current segment file.
-- **Segments**: Files are ZSTD-compressed; rotated every 5 minutes.
+- **Segments**: Files are ZSTD-compressed; rotated every 1 hour by default.
+  - Override the rotation interval via environment variable: `EOS_AUDIT_ROTATION=<seconds>`
   - Filenames include seconds for uniqueness: `audit-YYYYMMDD-HHMMSS.zst`
   - On rotation, the symlink is atomically updated to the new segment.
 
