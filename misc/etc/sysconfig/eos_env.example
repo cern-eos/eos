@@ -146,6 +146,10 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Default example below sets auditing OFF by default.
 EOS_MGM_AUDIT=off
 
+# Audit log rotation interval in seconds (default is 3600 = 1 hour)
+# Override only if you need a different rotation cadence
+EOS_AUDIT_ROTATION=3600
+
 # Configure READ audit suffix filter: comma-separated list of extensions (case-insensitive),
 # use '*' to audit READ for all files. If unset, a built-in document suffix list is used:
 # txt,pdf,doc,docx,ppt,pptx,xls,xlsx,odt,ods,odp,rtf,csv,json,xml,yaml,yml,md,html,htm
