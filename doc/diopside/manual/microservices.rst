@@ -2432,7 +2432,7 @@ Log Files and Location
 
 - Directory is created on startup if missing; mode 0755; owned appropriately by the service user.
 - **Active segment symlink**: ``<logdir>/audit/audit.zstd`` points to the current segment file.
-- **Segments**: Files are ZSTD-compressed; rotated every 5 minutes.
+- **Segments**: Files are ZSTD-compressed; rotated every 1 hour by default (configurable via ``EOS_AUDIT_ROTATION=<seconds>``).
 - **Filenames**: ``audit-YYYYMMDD-HHMMSS.zst`` (includes seconds for uniqueness)
 - **Symlink update**: Atomically updated on rotation to point to the new segment.
 
