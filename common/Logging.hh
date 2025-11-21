@@ -68,6 +68,16 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
+#ifdef __has_include
+#  if __has_include(<zstd.h>)
+#    define EOS_HAVE_ZSTD 1
+#  endif
+#endif
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+struct ZstdLogState;
+#endif
+
 #define EOS_TEXTNORMAL "\033[0m"
 #define EOS_TEXTBLACK  "\033[49;30m"
 #define EOS_TEXTRED    "\033[49;31m"
@@ -470,6 +480,8 @@ public:
     FILE* fanOut;
     int priority;
     int fanOutBufLen;
+    char fanOutTag[64]; /* tag name for fan-out (source basename, '*' or '#'), empty if none */
+    char sourceTag[64]; /* source file basename tag */
 
   };
 
@@ -849,6 +861,71 @@ public:
   //---------------------------------------------------------------------------
 
   bool rate_limit(struct timeval& tv, int priority, const char* file, int line);
+  //----------------------------------------------------------------------------
+  //! Write a single already-formatted line to optional ZSTD log (if enabled)
+  //----------------------------------------------------------------------------
+  void WriteZstd(const char* tag, const char* line);
+  //----------------------------------------------------------------------------
+  //! Query if ZSTD logging is enabled
+  //----------------------------------------------------------------------------
+  bool IsZstdEnabled() const { return gZstdEnable; }
+  //----------------------------------------------------------------------------
+  //! Compute the main ZSTD tag (e.g. "xrdlog.mgm") based on configured dir
+  //----------------------------------------------------------------------------
+  std::string GetMainZstdTag() const;
+  //----------------------------------------------------------------------------
+  //! Public resolver for canonical per-tag names (maps aliases, filters to allowed tags)
+  //----------------------------------------------------------------------------
+  std::string ResolveZstdTag(const char* sourceTag, const char* fanOutTag) const {
+    return resolveZstdTag(sourceTag, fanOutTag);
+  }
+private:
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+  // ZSTD logging helpers
+  void zstdMaybeInit();
+  void zstdRotateIfNeededLocked(const std::string& tag, time_t now);
+  void zstdOpenLocked(const std::string& tag, time_t now);
+  void zstdCloseLocked(const std::string& tag);
+  std::string zstdMakeSegmentPath(const std::string& tag, time_t ts) const;
+  void zstdEnsureDir();
+  void zstdMigratePlainMain();
+#endif
+
+  // Configuration/state for ZSTD writer
+  bool gZstdEnable = false;
+  bool gZstdSuppressStdErr = true; // when enabled, prefer compressed logs
+  int gZstdRotationSeconds = 3600; // default 1 hour
+  int gZstdLevel = 1;
+  std::string gZstdBaseDir;   // base directory for logs (XRDLOGDIR or /var/log/eos)
+  std::string gZstdUnitDir;   // derived from gUnit at open time
+
+  std::mutex gZstdMutex;
+  // Per-tag ZSTD state (main line tag and fan-out tags)
+  struct ZstdLogState* zstdGetStateLocked(const std::string& tag);
+  std::map<std::string, struct ZstdLogState*> gZstdStates; // owned pointers
+
+  // STDERR redirection into main compressed log
+  int gStderrPipeRead = -1;
+  int gStderrPipeWrite = -1;
+  std::thread gStderrThread;
+  void stderrReaderLoop();
+
+  // Canonical tag resolution (restrict to configured fan-out list)
+  std::string resolveZstdTag(const char* sourceTag, const char* fanOutTag) const;
+  const std::vector<std::string> gZstdAllowedTags {
+    "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
+    "Master", "Recycle", "LRU", "WFE", "Wnc", "WFE::Job", "GroupBalancer", "GroupDrainer",
+    "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "TokenCmd"
+  };
+  const std::vector<std::pair<const char*, const char*>> gZstdAliasPairs {
+    {"HttpHandler","Http"}, {"HttpServer","Http"}, {"GrpcServer","Grpc"}, {"GrpcWncServer","Wnc"},
+    {"ProtocolHandler","Http"}, {"PropFindResponse","Http"}, {"WebDAV","Http"},
+    {"WebDAVHandler","Http"}, {"WebDAVReponse","Http"}, {"S3","Http"}, {"S3Store","Http"},
+    {"S3Handler","Http"},
+    {"DrainTransferJob","DrainJob"}, {"DrainFs","DrainJob"}, {"Drainer","DrainJob"},
+    {"Clients","Mounts"},
+    {"ConversionInfo","Converter"}, {"ConversionJob","Converter"}, {"ConverterEngine","Converter"}
+  };
 };
 
 extern Logging& gLogging; ///< Global logging object
