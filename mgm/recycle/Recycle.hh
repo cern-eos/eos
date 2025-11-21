@@ -151,6 +151,11 @@ public:
   //----------------------------------------------------------------------------
   inline void NotifyConfigUpdate()
   {
+    {
+      // Set the refresh flag and notify
+      std::unique_lock<std::mutex> lock(mCvMutex);
+      mTriggerRefresh = true;
+    }
     mCvCfgUpdate.notify_all();
   }
 
@@ -287,6 +292,7 @@ public:
   //! Condition variable to notify a configuration update is needed
   std::mutex mCvMutex;
   std::condition_variable mCvCfgUpdate;
+  bool mTriggerRefresh {false};
 
   //----------------------------------------------------------------------------
   //! Handle symlink or symlink like file names. Three scenarios:

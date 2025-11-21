@@ -364,9 +364,11 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
       // Wait for configuration update request or timeout, we don't care
       // about spurious wakeups.
       std::unique_lock<std::mutex> lock(mCvMutex);
-      auto cv_status = mCvCfgUpdate.wait_for(lock, getCvWaitFor());
+      bool do_refresh = mCvCfgUpdate.wait_for(lock, getCvWaitFor(),
+                                              [&] {return mTriggerRefresh;});
 
-      if (cv_status == std::cv_status::no_timeout) {
+      if (do_refresh) {
+        mTriggerRefresh = false;
         mPolicy.Refresh(Recycle::gRecyclingPrefix);
       }
     }
