@@ -194,6 +194,10 @@ target_link_libraries(EosCommon-Objects PUBLIC
 set_target_properties(EosCommon-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
+if (TARGET ZSTD::ZSTD)
+  target_compile_definitions(EosCommon-Objects PUBLIC EOS_HAVE_ZSTD=1)
+endif()
+
 target_compile_definitions(EosCommon-Objects PUBLIC
   DAEMONUID=${DAEMONUID} DAEMONGID=${DAEMONGID})
 
