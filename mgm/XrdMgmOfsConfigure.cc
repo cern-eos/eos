@@ -62,6 +62,7 @@
 #include "common/StacktraceHere.hh"
 #include "common/plugin_manager/PluginManager.hh"
 #include "common/CommentLog.hh"
+#include "common/Logging.hh"
 #include "common/Path.hh"
 #include "common/Audit.hh"
 #include "common/JeMallocHandler.hh"
@@ -1313,7 +1314,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
 
-  if (logdir) {
+  if (logdir && !eos::common::Logging::GetInstance().IsZstdEnabled()) {
     for (size_t i = 0; i < lFanOutTags.size(); ++i) {
       std::string log_path = logdir;
       log_path += "/";

@@ -23,10 +23,18 @@
 
 #include "common/Namespace.hh"
 #include "common/Logging.hh"
+#include "common/Path.hh"
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+#include <zstd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#endif
 #include <XrdSys/XrdSysPthread.hh>
 #include <new>
 #include <type_traits>
 #include <atomic>
+#include <map>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -35,6 +43,15 @@ static typename std::aligned_storage<sizeof(Logging), alignof(Logging)>::type
 logging_buf; ///< Memory for the global logging object
 Logging& gLogging = reinterpret_cast<Logging&>(logging_buf);
 
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+struct ZstdLogState {
+  int fd = -1;
+  ZSTD_CStream* cstream = nullptr;
+  time_t segmentStart = 0;
+  std::string currentPath;
+  std::string symlinkPath;
+};
+#endif
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -94,6 +111,41 @@ Logging::Logging():
       gToSysLog = true;
     }
   }
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+  // ZSTD logging configuration from environment
+  const char* zenv = getenv("EOS_ZSTD_LOGGING");
+  if (zenv && (!strcmp(zenv, "1") || !strcasecmp(zenv, "true") || !strcasecmp(zenv, "yes") || !strcasecmp(zenv, "on"))) {
+    gZstdEnable = true;
+  }
+  const char* zrot = getenv("EOS_ZSTD_ROTATION");
+  if (zrot && *zrot) {
+    int v = atoi(zrot);
+    if (v > 0) gZstdRotationSeconds = v;
+  }
+  const char* lvl = getenv("EOS_ZSTD_LEVEL");
+  if (lvl && *lvl) {
+    int v = atoi(lvl);
+    if (v >= 1 && v <= 19) gZstdLevel = v;
+  }
+  const char* xrd = getenv("XRDLOGDIR");
+  gZstdBaseDir = (xrd && *xrd) ? xrd : "/var/log/eos";
+  if (gZstdEnable) {
+    // Redirect STDERR into our pipe to capture messages from other components
+    int fds[2];
+    if (::pipe(fds) == 0) {
+      gStderrPipeRead = fds[0];
+      gStderrPipeWrite = fds[1];
+      fflush(stderr);
+      ::dup2(gStderrPipeWrite, STDERR_FILENO);
+      gStderrThread = std::thread([this]() { this->stderrReaderLoop(); });
+      gStderrThread.detach();
+    }
+    // Initialize zstd logging dir and migrate any existing plain main log
+    zstdMaybeInit();
+    zstdMigratePlainMain();
+  }
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -456,26 +508,43 @@ LogBuffer::log_thread()
 
       log_buffer_in_q--;
       guard.unlock();                                 /* drop while buffer is printed */
-      fprintf(stderr, "%s\n", buff->buffer);
+      if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
+        fprintf(stderr, "%s\n", buff->buffer);
+      }
 
-      if (null_active_head) {
-        fflush(stderr);        /* only flush if there's no other */
+      if (!eos::common::Logging::GetInstance().IsZstdEnabled()) {
+        if (null_active_head) {
+          fflush(stderr);        /* only flush if there's no other */
+        }
       }
 
       if (eos::common::Logging::GetInstance().gToSysLog) {
         syslog(buff->h.priority, "%s", buff->h.ptr);
       }
 
-      if (buff->h.fanOutBuffer != NULL) {
-        if (buff->h.fanOutS != NULL) {
-          fputs(buff->h.fanOutBuffer, buff->h.fanOutS);
-          fflush(buff->h.fanOutS);
+      if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
+        // Resolve canonical per-tag name from source/fanout and write compressed
+        std::string tag = eos::common::Logging::GetInstance().ResolveZstdTag(buff->h.sourceTag,
+                                                                             buff->h.fanOutTag);
+        if (!tag.empty()) {
+          eos::common::Logging::GetInstance().WriteZstd(tag.c_str(), buff->buffer);
         }
-
-        if (buff->h.fanOut != NULL) {
-          fputs(buff->h.fanOutBuffer, buff->h.fanOut);
-          fflush(buff->h.fanOut);
+      } else {
+        if (buff->h.fanOutBuffer != NULL) {
+          if (buff->h.fanOutS != NULL) {
+            fputs(buff->h.fanOutBuffer, buff->h.fanOutS);
+            fflush(buff->h.fanOutS);
+          }
+          if (buff->h.fanOut != NULL) {
+            fputs(buff->h.fanOutBuffer, buff->h.fanOut);
+            fflush(buff->h.fanOut);
+          }
         }
+      }
+      // Also write the main formatted line into a compressed stream named like xrdlog.<service>
+      if (eos::common::Logging::GetInstance().IsZstdEnabled()) {
+        std::string mainTag = eos::common::Logging::GetInstance().GetMainZstdTag();
+        eos::common::Logging::GetInstance().WriteZstd(mainTag.c_str(), buff->buffer);
       }
 
       if (buff_2b_returned != buff) {
@@ -533,6 +602,9 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
   // file names like *.cc and *.hh
   File.erase(0, File.rfind("/") + 1);
   File.erase(File.length() - 3);
+  // Capture source tag (basename without extension) for later zstd tag selection
+  strncpy(logBuffer->h.sourceTag, File.c_str(), sizeof(logBuffer->h.sourceTag) - 1);
+  logBuffer->h.sourceTag[sizeof(logBuffer->h.sourceTag) - 1] = '\0';
   time_t current_time;
   struct timeval tv;
   struct timezone tz;
@@ -610,12 +682,14 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
       logBuffer->h.fanOutBuffer = ptr + strlen(ptr) + 1;
       logBuffer->h.fanOutBufLen = sizeof(logBuffer->buffer) -
                                   (logBuffer->h.fanOutBuffer - logBuffer->buffer);
+      logBuffer->h.fanOutTag[0] = '\0';
 
       // we do log-message fanout
       if (gLogFanOut.count("*")) {
         logBuffer->h.fanOutS = gLogFanOut["*"];
         snprintf(logBuffer->h.fanOutBuffer, logBuffer->h.fanOutBufLen, "%s\n",
                  logBuffer->buffer);
+        snprintf(logBuffer->h.fanOutTag, sizeof(logBuffer->h.fanOutTag), "*");
       }
 
       if (gLogFanOut.count(File.c_str())) {
@@ -630,6 +704,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
                  sourceline,
                  logBuffer->h.ptr); /* truncation not an issue */
         logBuffer->buffer[15] = ' ';
+        snprintf(logBuffer->h.fanOutTag, sizeof(logBuffer->h.fanOutTag), "%s", File.c_str());
       } else {
         if (gLogFanOut.count("#")) {
           logBuffer->buffer[15] = 0;
@@ -647,6 +722,7 @@ Logging::log(const char* func, const char* file, int line, const char* logid,
                    logBuffer->h.ptr
                   );
           logBuffer->buffer[15] = ' ';
+          snprintf(logBuffer->h.fanOutTag, sizeof(logBuffer->h.fanOutTag), "#");
         }
       }
     }
@@ -724,5 +800,281 @@ Logging::rate_limit(struct timeval& tv, int priority, const char* file,
 
   return do_limit;
 }
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+std::string
+Logging::GetMainZstdTag() const
+{
+  const std::string& s = gZstdUnitDir.empty() ? gZstdBaseDir : gZstdUnitDir;
+  auto pos = s.find_last_of('/');
+  std::string base = (pos == std::string::npos) ? s : s.substr(pos + 1);
+  if (base.empty()) base = "mgm";
+  return std::string("xrdlog.") + base;
+}
+
+std::string
+Logging::resolveZstdTag(const char* sourceTag, const char* fanOutTag) const
+{
+  auto isAllowed = [&](const std::string& t) -> bool {
+    for (const auto& a : gZstdAllowedTags) if (a == t) return true;
+    return false;
+  };
+  // Prefer explicit fan-out tag if it exists and is allowed
+  if (fanOutTag && *fanOutTag) {
+    std::string t = fanOutTag;
+    if (isAllowed(t)) return t;
+  }
+  // Map source tag via alias table
+  std::string st = (sourceTag ? sourceTag : "");
+  for (const auto& pr : gZstdAliasPairs) {
+    if (st == pr.first) {
+      if (isAllowed(pr.second)) return pr.second;
+    }
+  }
+  // If source tag is directly in allowed list, keep it
+  if (isAllowed(st)) return st;
+  // Otherwise, do not create a separate per-tag stream
+  return std::string();
+}
+#endif
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+static void write_all(int fd, const void* buf, size_t len)
+{
+  const char* p = static_cast<const char*>(buf);
+  while (len > 0) {
+    ssize_t n = ::write(fd, p, len);
+    if (n <= 0) {
+      if (errno == EINTR) continue;
+      break;
+    }
+    p += n;
+    len -= (size_t)n;
+  }
+}
+#endif
+
+void
+Logging::stderrReaderLoop()
+{
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+  // Read from gStderrPipeRead and forward to main compressed log
+  std::string mainTag = GetMainZstdTag();
+  std::string buf;
+  buf.reserve(8 << 10);
+  char tmp[4096];
+  while (true) {
+    ssize_t n = ::read(gStderrPipeRead, tmp, sizeof(tmp));
+    if (n <= 0) {
+      if (n < 0 && errno == EINTR) continue;
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+      continue;
+    }
+    for (ssize_t i = 0; i < n; ++i) {
+      char c = tmp[i];
+      if (c == '\n') {
+        WriteZstd(mainTag.c_str(), buf.c_str());
+        buf.clear();
+      } else {
+        buf.push_back(c);
+      }
+    }
+  }
+#endif
+}
+
+void
+Logging::WriteZstd(const char* tag, const char* line)
+{
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+  if (!gZstdEnable) return;
+  if (!line || !tag || !*tag) return;
+  std::lock_guard<std::mutex> g(gZstdMutex);
+  zstdMaybeInit();
+  time_t now = ::time(nullptr);
+  zstdRotateIfNeededLocked(tag, now);
+  ZstdLogState* st = zstdGetStateLocked(tag);
+  if (!st || st->fd < 0 || !st->cstream) return;
+  // Build a line with newline terminator if missing
+  size_t len = ::strlen(line);
+  char nl = '\n';
+  // First write the line
+  ZSTD_inBuffer in1 = { line, len, 0 };
+  char outBuf[1 << 14];
+  do {
+    ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
+    size_t r = ZSTD_compressStream2(st->cstream, &out, &in1, ZSTD_e_flush);
+    write_all(st->fd, outBuf, out.pos);
+    if (ZSTD_isError(r)) break;
+    if (in1.pos == in1.size) break;
+  } while (true);
+  // Then a newline if not already present
+  if (len == 0 || line[len - 1] != '\n') {
+    ZSTD_inBuffer in2 = { &nl, 1, 0 };
+    char outBuf2[256];
+    do {
+      ZSTD_outBuffer out = { outBuf2, sizeof(outBuf2), 0 };
+      size_t r = ZSTD_compressStream2(st->cstream, &out, &in2, ZSTD_e_flush);
+      write_all(st->fd, outBuf2, out.pos);
+      if (ZSTD_isError(r)) break;
+      if (in2.pos == in2.size) break;
+    } while (true);
+  }
+#else
+  (void)tag; (void)line;
+#endif
+}
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+void Logging::zstdMaybeInit()
+{
+  if (!gZstdEnable) return;
+  if (gZstdUnitDir.empty()) {
+    // Place compressed logs directly into the base log directory (no extra subdir)
+    gZstdUnitDir = gZstdBaseDir;
+    // Normalize: strip trailing slashes
+    while (gZstdUnitDir.size() > 1 && gZstdUnitDir.back() == '/') {
+      gZstdUnitDir.pop_back();
+    }
+  }
+}
+
+void Logging::zstdRotateIfNeededLocked(const std::string& tag, time_t now)
+{
+  ZstdLogState* st = zstdGetStateLocked(tag);
+  if (!st || st->fd < 0 || !st->cstream) { zstdOpenLocked(tag, now); return; }
+  if ((now - st->segmentStart) >= gZstdRotationSeconds) { zstdCloseLocked(tag); zstdOpenLocked(tag, now); }
+}
+
+std::string Logging::zstdMakeSegmentPath(const std::string& tag, time_t ts) const
+{
+  char tbuf[64];
+  struct tm tm;
+  localtime_r(&ts, &tm);
+  strftime(tbuf, sizeof(tbuf), "%Y%m%d-%H%M%S", &tm);
+  std::string path = gZstdUnitDir;
+  path += "/logs/";
+  path += tag;
+  path += "-";
+  path += tbuf;
+  path += ".zst";
+  return path;
+}
+
+void Logging::zstdEnsureDir()
+{
+  eos::common::Path p((gZstdUnitDir + "/.keep").c_str());
+  (void)p.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  (void)::chmod(gZstdUnitDir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  // Ensure logs/ subdirectory exists for real files
+  eos::common::Path lp((gZstdUnitDir + "/logs/.keep").c_str());
+  (void)lp.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+  (void)::chmod((gZstdUnitDir + "/logs").c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+}
+
+ZstdLogState* Logging::zstdGetStateLocked(const std::string& tag)
+{
+  auto it = gZstdStates.find(tag);
+  if (it != gZstdStates.end()) return it->second;
+  ZstdLogState* st = new ZstdLogState();
+  st->symlinkPath = gZstdUnitDir + "/" + tag + ".zstd";
+  gZstdStates[tag] = st;
+  return st;
+}
+
+void Logging::zstdOpenLocked(const std::string& tag, time_t now)
+{
+  zstdEnsureDir();
+  ZstdLogState* st = zstdGetStateLocked(tag);
+  std::string path = zstdMakeSegmentPath(tag, now);
+  int fd = ::open(path.c_str(), O_CREAT | O_TRUNC | O_WRONLY | O_CLOEXEC, 0644);
+  if (fd < 0) return;
+  st->fd = fd;
+  st->segmentStart = now;
+  st->currentPath = path;
+  if (!st->cstream) st->cstream = ZSTD_createCStream();
+  ZSTD_CCtx_setParameter(st->cstream, ZSTD_c_compressionLevel, gZstdLevel);
+  (void)ZSTD_initCStream(st->cstream, gZstdLevel);
+  // Emit a header by flushing an empty input
+  char dummy = 0;
+  ZSTD_inBuffer in = { &dummy, 0, 0 };
+  char outBuf[64];
+  ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
+  (void)ZSTD_compressStream2(st->cstream, &out, &in, ZSTD_e_flush);
+  write_all(st->fd, outBuf, out.pos);
+  // Update symlink
+  ::unlink(st->symlinkPath.c_str());
+  // Create relative symlink pointing into logs/
+  auto slash = path.find_last_of('/');
+  std::string base = (slash == std::string::npos) ? path : path.substr(slash + 1);
+  std::string relTarget = "logs/";
+  relTarget += base;
+  ::symlink(relTarget.c_str(), st->symlinkPath.c_str());
+}
+
+void Logging::zstdCloseLocked(const std::string& tag)
+{
+  ZstdLogState* st = zstdGetStateLocked(tag);
+  if (!st) return;
+  if (st->cstream) {
+    // End frame gracefully
+    char outBuf[256];
+    ZSTD_inBuffer in = { nullptr, 0, 0 };
+    size_t remaining = 0;
+    do {
+      ZSTD_outBuffer out = { outBuf, sizeof(outBuf), 0 };
+      remaining = ZSTD_compressStream2(st->cstream, &out, &in, ZSTD_e_end);
+      write_all(st->fd, outBuf, out.pos);
+    } while (remaining != 0);
+    ZSTD_freeCStream(st->cstream);
+    st->cstream = nullptr;
+  }
+  if (st->fd >= 0) {
+    ::close(st->fd);
+    st->fd = -1;
+  }
+  st->currentPath.clear();
+}
+#endif
+
+#if defined(EOS_HAVE_ZSTD) && EOS_HAVE_ZSTD
+void Logging::zstdMigratePlainMain()
+{
+  // Move contents of existing plain main log (e.g. xrdlog.mgm) into the compressed stream, then unlink it
+  std::string tag = GetMainZstdTag(); // e.g., "xrdlog.mgm"
+  std::string plainPath = gZstdUnitDir + "/" + tag; // direct file in base dir
+  struct stat st{};
+  if (::stat(plainPath.c_str(), &st) != 0 || !S_ISREG(st.st_mode) || st.st_size <= 0) {
+    return;
+  }
+  int fd = ::open(plainPath.c_str(), O_RDONLY | O_CLOEXEC);
+  if (fd < 0) return;
+  std::string buf; buf.reserve(1 << 16);
+  char tmp[8192];
+  ssize_t n;
+  while ((n = ::read(fd, tmp, sizeof(tmp))) > 0) {
+    for (ssize_t i = 0; i < n; ++i) {
+      char c = tmp[i];
+      if (c == '\n') {
+        if (!buf.empty()) {
+          WriteZstd(tag.c_str(), buf.c_str());
+          buf.clear();
+        } else {
+          // empty line: still log as newline
+          WriteZstd(tag.c_str(), "");
+        }
+      } else {
+        buf.push_back(c);
+      }
+    }
+  }
+  if (!buf.empty()) {
+    WriteZstd(tag.c_str(), buf.c_str());
+    buf.clear();
+  }
+  ::close(fd);
+  ::unlink(plainPath.c_str());
+}
+#endif
 
 EOSCOMMONNAMESPACE_END
