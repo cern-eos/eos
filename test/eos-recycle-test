@@ -198,7 +198,7 @@ scenario_1_create_hierarchy
 
 echo "info: wait for recycle run"
 date
-sleep $((3*${RECYCLE_COLLECT_INTERVAL}))
+sleep $((2*${RECYCLE_COLLECT_INTERVAL}))
 date
 
 # Check that the expectation are met
