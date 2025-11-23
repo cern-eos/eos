@@ -118,12 +118,15 @@ Logging::Logging():
   if (zenv && (!strcmp(zenv, "1") || !strcasecmp(zenv, "true") || !strcasecmp(zenv, "yes") || !strcasecmp(zenv, "on"))) {
     gZstdEnable = true;
   }
-  const char* zrot = getenv("EOS_ZSTD_ROTATION");
+  // Prefer renamed variables; fallback to legacy for compatibility
+  const char* zrot = getenv("EOS_ZSTD_LOGGING_ROTATION");
+  if ((!zrot || !*zrot)) zrot = getenv("EOS_ZSTD_ROTATION");
   if (zrot && *zrot) {
     int v = atoi(zrot);
     if (v > 0) gZstdRotationSeconds = v;
   }
-  const char* lvl = getenv("EOS_ZSTD_LEVEL");
+  const char* lvl = getenv("EOS_ZSTD_LOGGING_LEVEL");
+  if ((!lvl || !*lvl)) lvl = getenv("EOS_ZSTD_LEVEL");
   if (lvl && *lvl) {
     int v = atoi(lvl);
     if (v >= 1 && v <= 19) gZstdLevel = v;
