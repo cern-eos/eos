@@ -156,6 +156,25 @@ EOS_AUDIT_ROTATION=3600
 # EOS_MGM_AUDIT_READ_SUFFIX="pdf,docx"
 
 #-------------------------------------------------------------------------------
+# ZSTD-compressed Logging and Reports
+#-------------------------------------------------------------------------------
+# Enable ZSTD-compressed rotating logs (replaces fan-out files). Disabled by default.
+#EOS_ZSTD_LOGGING=0
+# Rotation interval for ZSTD logging in seconds (default 3600 = 1 hour)
+#EOS_ZSTD_LOGGING_ROTATION=3600
+# ZSTD compression level for logging (1..19), default 1
+#EOS_ZSTD_LOGGING_LEVEL=1
+#
+# Enable ZSTD-compressed iostat reports. Disabled by default.
+# When enabled, reports are written as compressed, time-rotated segments instead of plain .eosreport files.
+#EOS_ZSTD_REPORTS=0
+# Rotation interval for compressed reports in seconds (default 86400 = 1 day)
+#EOS_ZSTD_REPORTS_ROTATION=86400
+# ZSTD compression level for reports (1..19), default 1
+# Note: variable name is EOS_ZSTD_REPORTS_LEVE as requested
+#EOS_ZSTD_REPORTS_LEVE=1
+
+#-------------------------------------------------------------------------------
 # FST Configuration
 #-------------------------------------------------------------------------------
 
