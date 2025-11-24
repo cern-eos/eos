@@ -173,6 +173,41 @@ RecycleHelper::ParseCommand(const char* arg)
     if (restore->key().empty()) {
       return false;
     }
+  } else if (cmd == "project") {
+    eos::console::RecycleProto_ProjectProto* project = recycle->mutable_project();
+
+    while ((option = tokenizer.GetToken())) {
+      soption = option;
+
+      if (soption == "--path") {
+        if (!(option = tokenizer.GetToken())) {
+          return false;
+        }
+
+        soption = option;
+
+        if (soption.empty() && soption[0] != '/') {
+          std::cerr << "error: path specification is not supported" << std::endl;
+          return false;
+        }
+
+        project->set_path(soption);
+      } else if (soption == "--acl") {
+        if (!(option = tokenizer.GetToken())) {
+          return false;
+        }
+
+        soption = option;
+        project->set_acl(soption);
+      } else {
+        std::cerr << "error: unknown option \"" << soption << "\"" << std::endl;
+        return false;
+      }
+
+      if (project->path().empty()) {
+        return false;
+      }
+    }
   } else if (cmd == "config") {
     eos::console::RecycleProto_ConfigProto* config = recycle->mutable_config();
 
