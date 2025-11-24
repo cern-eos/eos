@@ -75,7 +75,7 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
   eos_static_info("%s", "msg=\"stopping IoShaping receiver thread\"");
 }
 
-void IoShaping::publishing(ThreadAssistant &assistant) noexcept{
+void IoShaping::publishing(ThreadAssistant &assistant){
 	ThreadAssistant::setSelfThreadName("IoShapingPublishing");
 	eos_static_info("%s", "msg=\"starting IoShaping publishing thread\"");
 
@@ -87,24 +87,21 @@ void IoShaping::publishing(ThreadAssistant &assistant) noexcept{
 		std::lock_guard<std::mutex> lock(_mSyncThread);
 		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
 		for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++){
-			if (it->second->GetStatus() == "online"){
+			if (it->second->GetStatus() == "online"
+				&& (_shapings.find(it->second->GetMember("cfg.stat.hostport")) != _shapings.end())){
 				/// calcule stat;
-				it->second->SetConfigMember("trafic", "0");
-				try {
-					auto node(_shapings.at(it->second->GetMember("cfg.stat.hostport")));
-					if (!node.empty() && node != "0"){
-						IoBuffer::summarys trafic;
-						google::protobuf::util::JsonParseOptions options;
-						auto abslStatus = google::protobuf::util::JsonStringToMessage(node, &trafic, options);
-						if (!abslStatus.ok()){
-							eos_static_err("%s", "msg=\"Publishing thread, failed to convert node into summarys object\"");
-							continue;
-						}
-						it->second->SetConfigMember("trafic", std::to_string(trafic.aggregated_size()));
+				auto node(_shapings.at(it->second->GetMember("cfg.stat.hostport")));
+				if (!node.empty() && node != "0"){
+					IoBuffer::summarys trafic;
+					google::protobuf::util::JsonParseOptions options;
+					auto abslStatus = google::protobuf::util::JsonStringToMessage(node, &trafic, options);
+					if (!abslStatus.ok()){
+						eos_static_err("%s", "msg=\"Publishing thread, failed to convert node into summarys object\"");
+						continue;
 					}
-				} catch (std::exception e){
-					eos_static_err("%s", e.what());
-				}
+					it->second->SetConfigMember("trafic", std::to_string(trafic.aggregated_size()));
+				} else
+					it->second->SetConfigMember("trafic", "0");
 			}
 		}
 	}

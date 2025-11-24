@@ -566,13 +566,11 @@ Storage::GetFstStatistics(const std::string& tmpfile,
 			finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummarys);
   }
 
-  // std::cerr << gOFS.ioMap << std::endl;
-
 	if (finalBuffer.aggregated_size() > 0){
 		std::string out;
 		google::protobuf::util::JsonPrintOptions options;
 
-		// options.add_whitespace = true;
+		options.add_whitespace = true;
 		// options.always_print_primitive_fields = true;
 		// options.preserve_proto_field_names = true;
 		auto it = google::protobuf::util::MessageToJsonString(finalBuffer, &out, options);

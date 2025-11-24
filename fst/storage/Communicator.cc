@@ -38,7 +38,7 @@ EOSFSTNAMESPACE_BEGIN
 // Set of keys updates to be tracked at the node level
 std::set<std::string> Storage::sNodeUpdateKeys {
   "stat.refresh_fs", "manager", "symkey", "publish.interval",
-  "debug.level", "error.simulation", "stripexs" };
+  "debug.level", "error.simulation", "stripexs", "stat.monitor" };
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
@@ -179,6 +179,353 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   return FsRegisterStatus::kRegistered;
 }
 
+int setTrack(IoAggregateMap &map, std::stringstream &stream){
+	int code = 0;
+	size_t winTime = 0;
+	size_t uid = 0;
+	size_t gid = 0;
+	std::string cmd;
+
+	if (stream >> winTime){
+		while (stream >> cmd){
+			if (cmd == "uid"){
+				if (stream >> uid)
+					code = map.setTrack(winTime, io::TYPE::UID, uid);
+				else{
+					std::cerr << "Monitor: Error: bad uid number" << std::endl;
+					return -1;
+				}
+			}
+			else if (cmd == "gid"){
+				if (stream >> gid)
+					code = map.setTrack(winTime, io::TYPE::GID, gid);
+				else{
+					std::cerr << "Monitor: Error: bad gid number" << std::endl;
+					return -1;
+				}
+			}
+			else
+				code = map.setTrack(winTime, cmd);
+			if (code != 0)
+				return code;
+		}
+		if (cmd.empty())
+			return -1;
+	}
+	else
+		return -1;
+	return 0;
+}
+
+int addWindow(IoAggregateMap &map, std::stringstream &stream){
+	char *tmp = NULL;
+	long winTime = 0;
+	std::string cmd;
+
+	while (stream >> cmd){
+		winTime = std::strtol(cmd.c_str(), &tmp, 10);
+		if (!*tmp){
+			if (winTime < 0 || map.addWindow(winTime))
+				return -1;
+		}
+		else
+			return -1;
+	}
+
+	return 0;
+}
+
+template <typename T>
+static int printSummary(std::stringstream &os, IoAggregateMap &map, size_t winTime, const T index){
+	if (!map.containe(winTime, index))
+		return -1;
+	os << C_GREEN << "[" << C_CYAN << "Summary winTime: "
+		<< winTime << C_GREEN << "][" << C_CYAN << "summary of appName: " << std::string(index)
+		<< C_GREEN << "]" << C_RESET << std::endl;
+	os << C_CYAN << map.getSummary(winTime, index) << C_RESET << std::endl;
+	return 0;
+}
+
+template <typename T>
+static int printSummary(std::stringstream &os, IoAggregateMap &map, size_t winTime, io::TYPE type, const T index){
+	if (!map.containe(winTime, type, index))
+		return -1;
+
+	if (type == io::TYPE::UID)
+		os << C_GREEN << "[" << C_CYAN << "Summary winTime: "
+			<< winTime << C_GREEN << "][" << C_CYAN << "summary of uid: " << index
+			<< C_GREEN << "]" << C_RESET << std::endl;
+	else if (type == io::TYPE::GID)
+		os << C_GREEN << "[" << C_CYAN << "Summary winTime: "
+			<< winTime << C_GREEN << "][" << C_CYAN << "summary of gid: " << index
+			<< C_GREEN << "]" << C_RESET << std::endl;
+	else{
+		os << "printSummay failed" << std::endl;
+		return -1;
+	}
+	os << C_CYAN <<  map.getSummary(winTime, type, index) << C_RESET << std::endl;
+	return 0;
+}
+
+int printSums(IoAggregateMap &map, std::stringstream &stream, std::stringstream &os){
+	size_t winTime = 0;
+	std::string cmd;
+	int code = 0;
+	size_t uid = 0;
+	size_t gid = 0;
+
+	if (stream >> winTime){
+		while (true){
+			if (stream >> cmd){
+				if (cmd == "uid" && stream >> uid)
+					code = printSummary(os, map, winTime, io::TYPE::UID, uid);
+				else if (cmd == "gid" && stream >> gid)
+					code = printSummary(os, map, winTime, io::TYPE::GID, gid);
+				else
+					code = printSummary(os, map, winTime, cmd);
+				if (code)
+					return -1;
+				if (stream.eof())
+					break;
+			}
+			else
+				return -1;
+		}
+	}
+	else
+		return -1;
+
+	return 0;
+}
+
+int printProto(IoAggregateMap &map, std::stringstream &stream, std::stringstream &os){
+	size_t winTime = 0;
+	std::string cmd;
+	size_t uid = 0;
+	size_t gid = 0;
+	IoBuffer::Summary sum;
+	google::protobuf::util::JsonPrintOptions options;
+	options.add_whitespace = true;
+	options.always_print_primitive_fields = true;
+	options.preserve_proto_field_names = true;
+
+	if (stream >> winTime){
+		while (true){
+			if (stream >> cmd){
+				if (cmd == "uid" && stream >> uid){
+					auto summary(map.getSummary(winTime, io::TYPE::UID, uid));
+					if (summary.has_value()){
+						summary->winTime = winTime;
+						summary->Serialize(sum);
+					}
+				}
+				else if (cmd == "gid" && stream >> gid){
+					auto summary(map.getSummary(winTime, io::TYPE::GID, gid));
+					if (summary.has_value()){
+						summary->winTime = winTime;
+						summary->Serialize(sum);
+					}
+				}
+				else{
+					auto summary(map.getSummary(winTime, cmd));
+					if (summary.has_value()){
+						summary->winTime = winTime;
+						summary->Serialize(sum);
+					}
+				}
+				auto it = google::protobuf::util::MessageToJsonString(sum, &cmd, options);
+				if (!it.ok())
+					return -1;
+				os << "Protobuf JSON:" << std::endl << cmd << std::endl;
+				sum.Clear();
+			}
+			else if (!stream.eof())
+				return -1;
+			else
+				break;
+		}
+	} else
+		return -1;
+
+	return 0;
+}
+
+void fillThread(IoAggregateMap &map, std::mutex &mutex,
+			   size_t nbrOfLoop,
+			   size_t fileId,
+			   std::string appName,
+			   size_t maxInteraction,
+			   size_t maxByte,
+			   size_t uid,
+			   size_t gid,
+			   bool rw){
+	for (size_t i = 0; i < nbrOfLoop; i++){
+		std::this_thread::sleep_for(std::chrono::seconds(1));
+		std::lock_guard<std::mutex> lock(mutex);
+		for (size_t j = (std::abs(rand()) % maxInteraction); j < maxInteraction; j++){
+			if (!rw)
+				map.addRead(fileId, appName, uid, gid, std::abs(rand()) % maxByte);
+			else
+				map.addWrite(fileId, appName, uid, gid, std::abs(rand()) % maxByte);
+		}
+	}
+}
+
+int fillData(IoAggregateMap &map, std::mutex &mutex,std::stringstream &stream, std::stringstream &os){
+	std::string input;
+	std::string appName;
+	size_t fileId = 0;
+	size_t uid = 0;
+	size_t gid = 0;
+	size_t nbrOfLoop = 0;
+	size_t maxInteraction = 0;
+	size_t maxByte = 0;
+	bool rw = true;
+
+	try {
+		if (!(stream >> fileId >> appName >> uid >> gid))
+			return -1;;
+		nbrOfLoop = std::abs(rand()) % 10;
+		maxInteraction = std::abs(rand()) % 200;
+		maxByte = std::abs(rand()) % 10000;
+
+		std::thread RbgThread = std::thread([&, nbrOfLoop, fileId, appName, maxInteraction, maxByte, uid, gid, rw]() {
+			fillThread(map,
+				   mutex,
+				   nbrOfLoop,
+				   fileId,
+				   appName,
+				   maxInteraction,
+				   maxByte,
+				   uid,
+				   gid,
+				   rw);
+		});
+		nbrOfLoop = std::abs(rand()) % 10;
+		maxInteraction = std::abs(rand()) % 200;
+		maxByte = std::abs(rand()) % 10000;
+		rw = false;
+		std::thread WbgThread = std::thread([&, nbrOfLoop, fileId, appName, maxInteraction, maxByte, uid, gid, rw]() {
+			fillThread(map,
+				   mutex,
+				   nbrOfLoop,
+				   fileId,
+				   appName,
+				   maxInteraction,
+				   maxByte,
+				   uid,
+				   gid,
+				   rw);
+		});
+		RbgThread.detach();
+		WbgThread.detach();
+	} catch(std::exception &e){
+		os << "\033[F\033[K";
+		os << "Monitor: Error: " << e.what() << ": Bad input" << std::endl;
+		return -1;
+	}
+
+	return 0;
+}
+
+std::string Storage::MonitorCmd(const std::string &input){
+	std::stringstream stream(input);
+	std::mutex mutex;
+	std::stringstream os;
+	std::string cmd;
+
+	if (stream >> cmd){
+		int winTime = 0;
+		uid_t uid = 0;
+		gid_t gid = 0;
+		size_t bytes = 0;
+		if (cmd == "set"){
+			if (!setTrack(gOFS.ioMap, stream))
+				os << "track successfully set" << std::endl;
+			else
+				os << "track set failed" << std::endl;
+		}
+		else if (cmd == "show"){
+			size_t len = 1;
+			if (stream >> len){
+				if (stream >> cmd){
+					os << "print map failed" << std::endl;
+				} else{
+					for (size_t i = 0; i < len; i++){
+						os << gOFS.ioMap << std::endl;
+						if (i + 1 < len)
+							std::this_thread::sleep_for(std::chrono::seconds(1));
+					}
+				}
+			} else
+				os << gOFS.ioMap << std::endl;
+		}
+		else if (cmd == "add"){
+			if (!addWindow(gOFS.ioMap, stream))
+				os << "window successfully set" << std::endl;
+			else
+				os << "window set failed" << std::endl;
+		}
+		else if (cmd == "read"){
+			int fileId = 0;
+			std::string appName;
+			if (stream >> fileId >> appName >> uid >> gid >> bytes){
+				gOFS.ioMap.addRead(fileId, appName, uid, gid, bytes);
+				os << "add read succeed" << std::endl;
+			}
+			else
+				os << "add read failed" << std::endl;
+		}
+		else if (cmd == "write"){
+			int fileId = 0;
+			std::string appName;
+			if (stream >> fileId >> appName >> uid >> gid >> bytes){
+				gOFS.ioMap.addWrite(fileId, appName, uid, gid, bytes);
+				os << "add write succeed" << std::endl;
+			}
+			else
+				os << "add write failed" << std::endl;
+		}
+		else if (cmd == "sum"){
+			if (printSums(gOFS.ioMap, stream, os))
+				os << "print Summary failed" << std::endl;
+		}
+		else if (cmd == "shift"){
+			long index = 0;
+			if (stream >> winTime){
+				if (stream >> index){
+					index = gOFS.ioMap.shiftWindow(winTime, index);
+					if (index == -1)
+						os << "shift window " << winTime << " failed" << std::endl;
+					else
+						os << "shift window " << winTime << " at " << index << std::endl;
+				}
+				else{
+					index = gOFS.ioMap.shiftWindow(winTime);
+					if (index == -1)
+						os << "shift window " << winTime << " failed" << std::endl;
+					else
+						os << "shift window " << winTime << " at " << index << std::endl;
+				}
+			}
+		}
+		else if (cmd == "fill"){
+			if (!fillData(gOFS.ioMap, mutex, stream, os))
+				os << "fill map succeed" << std::endl;
+			else
+				os << "fill map failed" << std::endl;
+		}
+		else if (cmd == "proto"){
+			if (printProto(gOFS.ioMap, stream, os) < 0)
+				os << "protobuf conversion failed" << std::endl;
+		}
+		else
+			os << "Monitor: command not found: " << input << std::endl;
+	}
+
+	return (os.str());
+}
+
 //------------------------------------------------------------------------------
 // Process incoming configuration change
 //------------------------------------------------------------------------------
@@ -242,6 +589,12 @@ Storage::ProcessFstConfigChange(const std::string& key,
     // value can be "on" or "off"
     mComputeStripeChecksum = (value == "on");
     return;
+  }
+
+  if (key == "stat.monitor"){
+	std::string reply = MonitorCmd(value);
+	eos_static_info("msg=\"stat.monitor | %s\"", reply.c_str());
+	return;
   }
 }
 
