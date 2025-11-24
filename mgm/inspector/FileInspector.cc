@@ -632,6 +632,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
       }
       // Render vertical columns with a maximum height and axes
       const int colWidth = 6;       // width per bin column
+      const int yLabelW  = 8;       // width for Y-axis numeric labels
       const int maxHeight = 20;
       uint64_t scale = (maxc > (uint64_t)maxHeight) ? ((maxc + maxHeight - 1) / maxHeight) : 1;
       std::vector<uint64_t> heights;
@@ -642,10 +643,23 @@ FileInspector::Dump(std::string& out, std::string_view options,
       }
       uint64_t hmax = 0;
       for (auto h : heights) if (h > hmax) hmax = h;
-      // Top arrow for Y axis
-      out += "# \xE2\x86\x91\n"; // "↑"
+      // Top arrow for Y axis, aligned under the Y label field
+      {
+        std::string line = "# ";
+        for (int i = 0; i < yLabelW; ++i) line += " ";
+        line += "\xE2\x86\x91"; // "↑"
+        line += "\n";
+        out += line;
+      }
       for (uint64_t row = hmax; row >= 1; --row) {
         std::string line = "# ";
+        // Y-axis numeric label (approximate count at this tick)
+        char ybuf[32];
+        snprintf(ybuf, sizeof(ybuf), "%6lu ", (unsigned long)(row * scale));
+        // right align in yLabelW
+        char yfield[32];
+        snprintf(yfield, sizeof(yfield), "%*s", yLabelW, ybuf);
+        line += yfield;
         line += "\xE2\x94\x82"; // "│"
         for (size_t i = 0; i < heights.size(); ++i) {
           if (heights[i] >= row) {
@@ -661,11 +675,25 @@ FileInspector::Dump(std::string& out, std::string_view options,
       // X-axis base with arrow
       {
         std::string line = "# ";
+        for (int i = 0; i < yLabelW; ++i) line += " ";
         line += "\xE2\x94\x94"; // "└"
         for (size_t i = 0; i < labels.size(); ++i) {
           for (int k = 0; k < colWidth; ++k) line += "\xE2\x94\x80"; // "─"
         }
         line += "\xE2\x86\x92"; // "→"
+        line += "\n";
+        out += line;
+      }
+      // X-axis labels
+      {
+        std::string line = "# ";
+        for (int i = 0; i < yLabelW; ++i) line += " ";
+        line += " ";
+        for (size_t i = 0; i < labels.size(); ++i) {
+          char buf[16];
+          snprintf(buf, sizeof(buf), "%-6s", labels[i].c_str());
+          line += buf;
+        }
         line += "\n";
         out += line;
       }
