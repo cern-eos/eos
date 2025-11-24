@@ -30,6 +30,7 @@
 #include <time.h>
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/AuditHelpers.hh"
+#include "mgm/recycle/RecycleEntry.hh"
 
 /*----------------------------------------------------------------------------*/
 int
@@ -392,27 +393,24 @@ XrdMgmOfs::_rem(const char* path,
       } else {
         // Move the file to the recycle bin
         int rc = 0;
-        Recycle lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
-                         &vid, fmd->getCUid(), fmd->getCGid(),
-                         fmd->getId());
+        RecycleEntry lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
+                              &vid, fmd->getCUid(), fmd->getCGid(), fmd->getId());
+        Workflow workflow;
+        // eventually trigger a workflow
+        workflow.Init(&attrmap, path, fmd->getId());
+        errno = 0;
+        auto ret_wfe = workflow.Trigger("sync::recycle", "default", vid, ininfo,
+                                        errMsg);
 
-	Workflow workflow;
-	// eventually trigger a workflow
-	workflow.Init(&attrmap, path, fmd->getId());
-	errno = 0;
+        if (ret_wfe < 0 && errno == ENOKEY) {
+          eos_info("msg=\"no workflow defined for recycle\"");
+        } else {
+          eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
+        }
 
-	auto ret_wfe = workflow.Trigger("sync::recycle", "default", vid, ininfo, errMsg);
-
-	if (ret_wfe < 0 && errno == ENOKEY) {
-	  eos_info("msg=\"no workflow defined for recycle\"");
-	} else {
-	  eos_info("msg=\"workflow trigger returned\" retc=%d errno=%d", ret_wfe, errno);
-	}
-
-        if ((rc = lRecycle.ToGarbage(epname, error, fusexcast))) {
+        if ((rc = lRecycle.ToGarbage(epname, error))) {
           return rc;
         } else {
-
           if (container) {
             if (XrdMgmOfsFile::create_cow(XrdMgmOfsFile::cowUnlink, container, fmd, vid,
                                           error) > -1) {
@@ -486,10 +484,14 @@ XrdMgmOfs::_rem(const char* path,
   } else {
     eos_info("msg=\"deleted\" can-recycle=%d path=%s owner.uid=%u owner.gid=%u vid.uid=%u vid.gid=%u",
              doRecycle, path, owner_uid, owner_gid, vid.uid, vid.gid);
+
     // Emit audit record for successful deletion
     if (mAudit && gOFS->AllowAuditModification(path)) {
-      mAudit->audit(eos::audit::DELETE, path, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+      mAudit->audit(eos::audit::DELETE, path, vid, std::string(logId),
+                    std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(),
+                    std::string(), std::string(), __FILE__, __LINE__, VERSION);
     }
+
     return SFS_OK;
   }
 }

@@ -29,6 +29,7 @@
 #include "mgm/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/Macros.hh"
+#include "mgm/recycle/RecycleEntry.hh"
 #include "mgm/Access.hh"
 #include "common/Path.hh"
 #include "common/Glob.hh"
@@ -304,9 +305,9 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           }
 
           spath += "/";
-          eos::mgm::Recycle lRecycle(spath.c_str(), recyclingAttribute.c_str(),
-                                     &mVid, buf.st_uid, buf.st_gid,
-                                     (unsigned long long) buf.st_ino);
+          eos::mgm::RecycleEntry lRecycle(spath.c_str(), recyclingAttribute.c_str(),
+                                          &mVid, buf.st_uid, buf.st_gid,
+                                          (unsigned long long) buf.st_ino);
           errInfo.clear();
 
           if (lRecycle.ToGarbage("rm-r", errInfo)) {

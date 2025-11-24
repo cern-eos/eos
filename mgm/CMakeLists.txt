@@ -235,6 +235,7 @@ add_library(
   QdbMaster.cc
   Devices.cc
   recycle/RecyclePolicy.cc      recycle/RecyclePolicy.hh
+  recycle/RecycleEntry.cc       recycle/RecycleEntry.hh
   recycle/Recycle.cc            recycle/Recycle.hh
   PathRouting.cc
   RouteEndpoint.cc

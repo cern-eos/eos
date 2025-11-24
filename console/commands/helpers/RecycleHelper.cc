@@ -76,9 +76,10 @@ RecycleHelper::ParseCommand(const char* arg)
 
   if ((cmd == "ls") || cmd.empty() || (cmd == "-m")) {
     eos::console::RecycleProto_LsProto* ls = recycle->mutable_ls();
+    ls->set_display(eos::console::RecycleProto::UID);
 
     if (cmd.empty()) {
-      ls->set_all(true);
+      ls->set_display(eos::console::RecycleProto::ALL);
     } else if (cmd == "-m") {
       ls->set_monitorfmt(true);
     } else {
@@ -87,8 +88,18 @@ RecycleHelper::ParseCommand(const char* arg)
       while ((option = tokenizer.GetToken())) {
         soption = option;
 
-        if (soption == "-g") {
-          ls->set_all(true);
+        if (soption == "--all") {
+          ls->set_display(eos::console::RecycleProto::ALL);
+        } else if (soption == "--uid") {
+          ls->set_display(eos::console::RecycleProto::UID);
+        } else if (soption == "--rid") {
+          ls->set_display(eos::console::RecycleProto::RID);
+
+          // Get recycle id value
+          if ((option = tokenizer.GetToken())) {
+            soption = option;
+            ls->set_displayval(soption);
+          }
         } else if (soption == "-m") {
           ls->set_monitorfmt(true);
         } else if (soption == "-n") {
@@ -109,12 +120,6 @@ RecycleHelper::ParseCommand(const char* arg)
             ls->set_maxentries(atoi(soption.c_str()));
           }
         }
-      }
-
-      if (ls->all() && (!ls->date().empty())) {
-        std::cerr << "error: -g and <date> can not be used together"
-                  << std::endl;
-        return false;
       }
     }
   } else if (cmd == "purge") {
