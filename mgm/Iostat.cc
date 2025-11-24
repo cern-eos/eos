@@ -47,6 +47,12 @@
 #include <XrdNet/XrdNetUtils.hh>
 #include <XrdNet/XrdNetAddr.hh>
 #include <curl/curl.h>
+#include <zstd.h>
+#include <fcntl.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#include <string.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -988,12 +994,204 @@ Iostat::WriteRecord(const std::string& record)
   static std::mutex s_mutex;
   static std::string s_report_fn = "";
   static time_t s_last_ts = 0ull;
+
+  // ZSTD compressed reports configuration (lazy-init)
+  static bool s_zstd_enabled = false;
+  static bool s_zstd_inited = false;
+  static unsigned s_zstd_rotation = 24 * 3600; // default one day
+  static int s_zstd_level = 1;
+  static int s_zstd_fd = -1;
+  static void* s_zstd_cctx = nullptr;
+  static time_t s_zstd_segstart = 0;
+  static std::string s_zstd_current_path;
+
+  auto ensure_dir = [](const std::string& path) -> bool {
+    eos::common::Path cPath(path.c_str());
+    return cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP);
+  };
+
+  auto truncate_to_interval = [](time_t t, unsigned interval) -> time_t {
+    if (!interval) return t;
+    return t - (t % interval);
+  };
+
+  auto make_segment_path = [&](time_t t) -> std::string {
+    struct tm tmval;
+    localtime_r(&t, &tmval);
+    char dirbuf[4096];
+    // Directory: <IoReportStorePath>/YYYY/MM
+    snprintf(dirbuf, sizeof(dirbuf) - 1, "%s/%04u/%02u",
+             gOFS->IoReportStorePath.c_str(),
+             1900 + tmval.tm_year,
+             tmval.tm_mon + 1);
+    char filebuf[256];
+    // File: YYYYMMDD-HHMMSS.eosreport.zst
+    snprintf(filebuf, sizeof(filebuf) - 1, "%04u%02u%02u-%02u%02u%02u.eosreport.zst",
+             1900 + tmval.tm_year, tmval.tm_mon + 1, tmval.tm_mday,
+             tmval.tm_hour, tmval.tm_min, tmval.tm_sec);
+    std::string full = std::string(dirbuf) + "/" + filebuf;
+    return full;
+  };
+
+  auto close_zstd_locked = [&]() {
+    if (s_zstd_fd >= 0 && s_zstd_cctx) {
+      std::vector<char> outBuf(65536);
+      ZSTD_inBuffer in = { nullptr, 0, 0 };
+      size_t ret = 0;
+      do {
+        ZSTD_outBuffer out = { outBuf.data(), outBuf.size(), 0 };
+        ret = ZSTD_compressStream2(reinterpret_cast<ZSTD_CCtx*>(s_zstd_cctx),
+                                   &out, &in, ZSTD_e_end);
+        if (ZSTD_isError(ret)) {
+          eos_static_err("msg=\"zstd endStream error (reports)\" code=%s",
+                         ZSTD_getErrorName(ret));
+          break;
+        }
+        if (out.pos) {
+          (void)::write(s_zstd_fd, outBuf.data(), out.pos);
+        }
+      } while (ret != 0);
+    }
+    if (s_zstd_fd >= 0) {
+      ::close(s_zstd_fd);
+      s_zstd_fd = -1;
+    }
+    if (s_zstd_cctx) {
+      ZSTD_freeCCtx(reinterpret_cast<ZSTD_CCtx*>(s_zstd_cctx));
+      s_zstd_cctx = nullptr;
+    }
+    s_zstd_current_path.clear();
+  };
+
+  auto open_zstd_locked = [&](time_t segstart) -> bool {
+    std::string path = make_segment_path(segstart);
+    if (!ensure_dir(path)) {
+      eos_static_err("msg=\"failed to create report parent path\" path=%s",
+                     path.c_str());
+      return false;
+    }
+    int fd = ::open(path.c_str(), O_CREAT | O_WRONLY | O_TRUNC | O_CLOEXEC, 0644);
+    if (fd < 0) {
+      eos_static_err("msg=\"failed to open report file\" path=%s errno=%d err=\"%s\"",
+                     path.c_str(), errno, strerror(errno));
+      return false;
+    }
+    void* cctx = ZSTD_createCCtx();
+    if (!cctx) {
+      eos_static_err("%s", "msg=\"cannot create zstd context (reports)\"");
+      ::close(fd);
+      return false;
+    }
+    if (ZSTD_isError(ZSTD_CCtx_setParameter(reinterpret_cast<ZSTD_CCtx*>(cctx),
+                                            ZSTD_c_compressionLevel, s_zstd_level))) {
+      eos_static_warning("msg=\"failed to set zstd level (reports)\" level=%d",
+                         s_zstd_level);
+    }
+    // Write frame header to avoid empty-file reader errors
+    {
+      std::vector<char> outBuf(16384);
+      ZSTD_inBuffer in = { nullptr, 0, 0 };
+      ZSTD_outBuffer out = { outBuf.data(), outBuf.size(), 0 };
+      size_t ret = ZSTD_compressStream2(reinterpret_cast<ZSTD_CCtx*>(cctx),
+                                        &out, &in, ZSTD_e_flush);
+      if (ZSTD_isError(ret)) {
+        eos_static_warning("msg=\"zstd header flush error (reports)\" code=%s",
+                           ZSTD_getErrorName(ret));
+      }
+      if (out.pos) {
+        (void)::write(fd, outBuf.data(), out.pos);
+      }
+    }
+    s_zstd_fd = fd;
+    s_zstd_cctx = cctx;
+    s_zstd_segstart = segstart;
+    s_zstd_current_path = path;
+    return true;
+  };
+
   time_t now_ts = time(NULL);
   std::unique_lock<std::mutex> scope_lock(s_mutex);
 
+  if (!s_zstd_inited) {
+    const char* zenv = getenv("EOS_ZSTD_REPORTS");
+    if (zenv && (*zenv == '1' || !strcasecmp(zenv, "true") || !strcasecmp(zenv, "yes") || !strcasecmp(zenv, "on"))) {
+      s_zstd_enabled = true;
+    }
+    const char* zrot = getenv("EOS_ZSTD_REPORTS_ROTATION");
+    if (zrot && *zrot) {
+      int v = atoi(zrot);
+      if (v > 0) s_zstd_rotation = static_cast<unsigned>(v);
+    }
+    const char* lvl = getenv("EOS_ZSTD_REPORTS_LEVEL");
+    if (lvl && *lvl) {
+      int v = atoi(lvl);
+      if (v >= 1 && v <= 19) s_zstd_level = v;
+    }
+    s_zstd_inited = true;
+  }
+
+  if (s_zstd_enabled) {
+    // Close plain FILE* if previously used
+    if (gOpenReportFD) {
+      fclose(gOpenReportFD);
+      gOpenReportFD = nullptr;
+      s_report_fn.clear();
+      s_last_ts = 0ull;
+    }
+    const time_t seg = truncate_to_interval(now_ts, s_zstd_rotation);
+    if (s_zstd_fd < 0 || !s_zstd_cctx || seg != s_zstd_segstart) {
+      close_zstd_locked();
+      if (!open_zstd_locked(seg)) {
+        return;
+      }
+    }
+    // Build line with newline terminator
+    std::string line = record;
+    line.push_back('\n');
+    ZSTD_inBuffer in = { line.data(), line.size(), 0 };
+    std::vector<char> outBuf(131072);
+    while (in.pos < in.size) {
+      ZSTD_outBuffer out = { outBuf.data(), outBuf.size(), 0 };
+      size_t ret = ZSTD_compressStream2(reinterpret_cast<ZSTD_CCtx*>(s_zstd_cctx),
+                                        &out, &in, ZSTD_e_continue);
+      if (ZSTD_isError(ret)) {
+        eos_static_err("msg=\"zstd compress error (reports)\" code=%s",
+                       ZSTD_getErrorName(ret));
+        break;
+      }
+      if (out.pos) {
+        ssize_t w = ::write(s_zstd_fd, outBuf.data(), out.pos);
+        if (w < 0) {
+          eos_static_err("msg=\"write error (reports)\" errno=%d err=\"%s\"",
+                         errno, strerror(errno));
+          break;
+        }
+      }
+    }
+    // Flush so small records are visible
+    {
+      ZSTD_inBuffer fin = { nullptr, 0, 0 };
+      size_t fret = 0;
+      do {
+        ZSTD_outBuffer out = { outBuf.data(), outBuf.size(), 0 };
+        fret = ZSTD_compressStream2(reinterpret_cast<ZSTD_CCtx*>(s_zstd_cctx),
+                                    &out, &fin, ZSTD_e_flush);
+        if (ZSTD_isError(fret)) {
+          eos_static_warning("msg=\"zstd flush error (reports)\" code=%s",
+                             ZSTD_getErrorName(fret));
+          break;
+        }
+        if (out.pos) {
+          (void)::write(s_zstd_fd, outBuf.data(), out.pos);
+        }
+      } while (fret != 0);
+    }
+    return;
+  }
+
+  // Plain (legacy) daily uncompressed reports
   if (now_ts / sec_per_day != s_last_ts / sec_per_day) {
     struct tm nowtm;
-
     if (localtime_r(&now_ts, &nowtm)) {
       static char logfile[4096];
       snprintf(logfile, sizeof(logfile) - 1, "%s/%04u/%02u/%04u%02u%02u.eosreport",
@@ -1004,18 +1202,14 @@ Iostat::WriteRecord(const std::string& record)
                nowtm.tm_mon + 1,
                nowtm.tm_mday);
       std::string report_fn = logfile;
-
       if (report_fn != s_report_fn) {
         if (gOpenReportFD) {
           fclose(gOpenReportFD);
           gOpenReportFD = nullptr;
         }
-
         eos::common::Path cPath(report_fn.c_str());
-
         if (cPath.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP)) {
           gOpenReportFD = fopen(report_fn.c_str(), "a+");
-
           if (!gOpenReportFD) {
             eos_static_err("msg=\"failed to open report file\" path=%s",
                            report_fn.c_str());
@@ -1026,13 +1220,11 @@ Iostat::WriteRecord(const std::string& record)
                          report_fn.c_str());
           return;
         }
-
         s_report_fn = report_fn;
         s_last_ts = now_ts;
       }
     }
   }
-
   if (gOpenReportFD) {
     fprintf(gOpenReportFD, "%s\n", record.c_str());
     fflush(gOpenReportFD);

@@ -142,8 +142,8 @@ Logging can optionally replace stdout/fan-out outputs with ZSTD-compressed, time
 - Enable via environment:
   ```
   EOS_ZSTD_LOGGING=1            # enable compressed logging (replaces fan-out files)
-  EOS_ZSTD_ROTATION=3600        # rotate every N seconds (default: 3600 = 1 hour)
-  EOS_ZSTD_LEVEL=1              # optional compression level (1..19), default 1
+  EOS_ZSTD_LOGGING_ROTATION=3600  # rotate every N seconds (default: 3600 = 1 hour)
+  EOS_ZSTD_LOGGING_LEVEL=1        # optional compression level (1..19), default 1
   ```
 - Location:
   - Base directory: `$XRDLOGDIR` if set; otherwise `/var/log/eos/<service>`.
