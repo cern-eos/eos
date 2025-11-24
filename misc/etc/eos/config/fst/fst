@@ -8,6 +8,16 @@ EOS_GEOTAG=local::geo
 QDB_HOST=${SERVER_HOST}
 QDB_PORT=7777
 
+#-------------------------------------------------------------------------------
+# LOGGING
+#-------------------------------------------------------------------------------
+# ZSTD-compressed rotating logs (replacement for fan-out files). Disabled by default.
+#EOS_ZSTD_LOGGING=0
+# Rotate logging segments every N seconds (default: 3600 = 1 hour)
+#EOS_ZSTD_LOGGING_ROTATION=3600
+# ZSTD compression level for logging (1..19), default 1
+#EOS_ZSTD_LOGGING_LEVEL=1
+
 # ------------------------------------------------------------ #
 # create a private mount namespace for the process
 # ------------------------------------------------------------ #
