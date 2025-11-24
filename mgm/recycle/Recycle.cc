@@ -111,15 +111,6 @@ Recycle::Recycle(bool fake_clock) :
   mOwnerGid(DAEMONGID), mId(0), mClock(fake_clock)
 {}
 
-//------------------------------------------------------------------------------
-// Constructor
-//------------------------------------------------------------------------------
-Recycle::Recycle(const char* path, const char* recycledir,
-                 eos::common::VirtualIdentity* vid, uid_t ownerUid,
-                 gid_t ownerGid, unsigned long long id, bool fake_clock) :
-  mPath(path), mRecycleDir(recycledir), mRecyclePath(""),
-  mOwnerUid(ownerUid), mOwnerGid(ownerGid), mId(id), mClock(fake_clock)
-{}
 
 //------------------------------------------------------------------------------
 // Collect entries to recycle based on the current policy
@@ -440,97 +431,46 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 }
 
 //------------------------------------------------------------------------------
-// Recycle the given object (file or subtree)
-//------------------------------------------------------------------------------
-int
-Recycle::ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast)
-{
-  char srecyclepath[4096];
-  // If path ends with '/' we recycle a full directory tree aka directory
-  bool isdir = false;
-  // rewrite the file name /a/b/c as #:#a#:#b#:#c
-  XrdOucString contractedpath = mPath.c_str();
-
-  if (contractedpath.endswith("/")) {
-    isdir = true;
-    mPath.erase(mPath.length() - 1);
-    // remove the '/' indicating a recursive directory recycling
-    contractedpath.erase(contractedpath.length() - 1);
-  }
-
-  if (mRecycleDir.length() > 1) {
-    if (mRecycleDir[mRecycleDir.length() - 1] == '/') {
-      mRecycleDir.erase(mRecycleDir.length() - 1);
-    }
-  }
-
-  while (contractedpath.replace("/", "#:#")) {
-  }
-
-  // For dir's we add a '.d' in the end of the recycle path
-  std::string lPostFix = "";
-
-  if (isdir) {
-    lPostFix = Recycle::gRecyclingPostFix;
-  }
-
-  std::string rpath;
-  int rc = 0;
-
-  // retrieve the current valid index directory
-  if ((rc = GetRecyclePrefix(epname, error, rpath))) {
-    return rc;
-  }
-
-  snprintf(srecyclepath, sizeof(srecyclepath) - 1, "%s/%s.%016llx%s",
-           rpath.c_str(),
-           contractedpath.c_str(),
-           mId, lPostFix.c_str());
-  mRecyclePath = srecyclepath;
-
-  // Finally do the rename
-  if (gOFS->_rename(mPath.c_str(), srecyclepath, error, mRootVid, "", "", true,
-                    true, false, fusexcast)) {
-    return gOFS->Emsg(epname, error, EIO, "rename file/directory", srecyclepath);
-  }
-
-  // store the recycle path in the error object
-  error.setErrInfo(0, srecyclepath);
-  return SFS_OK;
-}
-
-//------------------------------------------------------------------------------
 // Print the recycle bin contents
 //------------------------------------------------------------------------------
 int
 Recycle::Print(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid, bool monitoring,
-               bool translateids, bool details, std::string date, bool global,
-               Recycle::RecycleListing* rvec, bool whodeleted, int32_t maxentries)
+               bool translateids, bool details,
+               std::string_view display_type,
+               std::string_view display_val,
+               std::string_view date, Recycle::RecycleListing* rvec,
+               bool whodeleted, int32_t maxentries)
 {
   using namespace eos::common;
   XrdOucString uids;
   XrdOucString gids;
-  std::map<uid_t, bool> printmap;
+  std::map<std::string, bool> printmap;
   std::ostringstream oss_out;
 
-  // fix security hole
-  if (date.find("..") != std::string::npos) {
-    return EINVAL;
+  // Sanitize user input
+  if (!date.empty()) {
+    for (const auto& ch : date) {
+      if (!isdigit(ch) && (ch != '/')) {
+        std_err = "error: invalid date format";
+        return EINVAL;
+      }
+    }
   }
 
-  if (global && ((!vid.uid) ||
-                 (vid.hasUid(eos::common::ADM_UID)) ||
-                 (vid.hasGid(eos::common::ADM_GID)))) {
-    // add everything found in the recycle directory structure to the printmap
+  if ((display_type == "all") &&
+      ((!vid.uid) ||
+       (vid.hasUid(eos::common::ADM_UID)) ||
+       (vid.hasGid(eos::common::ADM_GID)))) {
+    // Add everything found in the recycle directory structure to the printmap
     std::string subdirs;
     XrdMgmOfsDirectory dirl;
     int listrc = dirl.open(Recycle::gRecyclingPrefix.c_str(), mRootVid,
                            (const char*) 0);
 
     if (listrc) {
-      eos_static_err("msg=\"unable to list the garbage directory level-1\" recycle-path=%s",
-                     Recycle::gRecyclingPrefix.c_str());
+      eos_static_err("msg=\"unable to list the garbage directory level-1\" "
+                     "recycle-path=%s", Recycle::gRecyclingPrefix.c_str());
     } else {
       // loop over all directories = group directories
       const char* dname1;
@@ -542,31 +482,46 @@ Recycle::Print(std::string& std_out, std::string& std_err,
           continue;
         }
 
-        if (sdname.substr(0, 4) == "uid:") {
-          uid_t uid = std::stoull(sdname.substr(4));
-          printmap[uid] = true;
+        if ((sdname.substr(0, 4) == "uid:") ||
+            (sdname.substr(0, 4) == "rid:")) {
+          printmap[sdname] = true;
         }
       }
 
       dirl.close();
     }
+  } else if (display_type == "rid") {
+    // Check that a recycle id value was given
+    if (display_val.empty()) {
+      std_err = "error: no recycle id value given";
+      return EINVAL;
+    }
+
+    // Basic checks about the recyle id
+    try {
+      (void) std::stoull(display_val.data());
+    } catch (...) {
+      std_err = "error: recycle id must be numeric";
+      return EINVAL;
+    }
+
+    // Add only the requested recycle id
+    printmap[SSTR("rid:" << display_val.data())] = true;
   } else {
-    // add only the virtual user to the printmap
-    printmap[vid.uid] = true;
+    // Add only the virtual user to the printmap
+    printmap[SSTR("uid:" << vid.uid)] = true;
   }
 
-  eos::common::Path dPath(std::string("/") + date);
+  eos::common::Path dPath(std::string("/") + date.data());
 
   if (details) {
     size_t count = 0;
 
-    for (auto ituid = printmap.begin(); ituid != printmap.end(); ituid++) {
-      std::map<std::string, std::set < std::string>> findmap;
+    for (auto it = printmap.begin(); it != printmap.end(); it++) {
       char sdir[4096];
-      snprintf(sdir, sizeof(sdir) - 1, "%s/uid:%u/%s",
+      snprintf(sdir, sizeof(sdir) - 1, "%s/%s/%s",
                Recycle::gRecyclingPrefix.c_str(),
-               (unsigned int) ituid->first, date.c_str());
-      XrdOucErrInfo lerror;
+               it->first.c_str(), date.data());
       int depth = 5 ;
 
       if (dPath.GetSubPathSize()) {
@@ -576,37 +531,43 @@ Recycle::Print(std::string& std_out, std::string& std_err,
       }
 
       XrdOucString err_msg;
-      int retc = gOFS->_find(sdir, lerror, err_msg, mRootVid, findmap,
+      XrdOucErrInfo lerror;
+      std::map<std::string, std::set < std::string>> find_map;
+      int retc = gOFS->_find(sdir, lerror, err_msg, mRootVid, find_map,
                              0, 0, false, 0, true, depth);
 
-      if (retc && errno != ENOENT) {
-        std_err = err_msg.c_str();
-        eos_static_err("find command failed in dir='%s'", sdir);
+      if (retc) {
+        if (errno != ENOENT) {
+          std_err = err_msg.c_str();
+          eos_static_err("msg=\"failed find command\" dir=\"%s\"", sdir);
+        } else {
+          continue;
+        }
       }
 
-      for (auto dirit = findmap.begin(); dirit != findmap.end(); ++dirit) {
-        XrdOucString dirname = dirit->first.c_str();
+      for (auto it_dir = find_map.begin(); it_dir != find_map.end(); ++it_dir) {
+        XrdOucString dirname = it_dir->first.c_str();
 
         if (dirname.endswith(".d/")) {
           dirname.erase(dirname.length() - 1);
           eos::common::Path cpath(dirname.c_str());
           dirname = cpath.GetParentPath();
-          dirit->second.insert(cpath.GetName());
+          it_dir->second.insert(cpath.GetName());
         }
 
-        eos_static_debug("dir=%s", dirit->first.c_str());
+        eos_static_debug("dir=%s", it_dir->first.c_str());
 
-        for (auto fileit = dirit->second.begin();
-             fileit != dirit->second.end(); ++fileit) {
+        for (auto it_file = it_dir->second.begin();
+             it_file != it_dir->second.end(); ++it_file) {
           if (maxentries && (count >= (size_t)maxentries)) {
             retc = E2BIG;
             std_out += oss_out.str();
             return E2BIG;;
           }
 
-          const std::string fname = HandlePotentialSymlink(dirname.c_str(), *fileit);
+          const std::string fname = HandlePotentialSymlink(dirname.c_str(), *it_file);
           eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
-                           fileit->c_str(), fname.c_str());
+                           it_file->c_str(), fname.c_str());
 
           if ((fname != "/") && (fname.find('#') != 0)) {
             eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
@@ -1093,7 +1054,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     snprintf(sdir, sizeof(sdir) - 1, "%s/", Recycle::gRecyclingPrefix.c_str());
   }
 
-  std::map<std::string, std::set < std::string>> findmap;
+  std::map<std::string, std::set < std::string>> find_map;
   int depth = 5 + (int) global;
   eos::common::Path dPath(std::string("/") + date);
 
@@ -1104,7 +1065,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   }
 
   XrdOucString err_msg;
-  int retc = gOFS->_find(sdir, lerror, err_msg, mRootVid, findmap,
+  int retc = gOFS->_find(sdir, lerror, err_msg, mRootVid, find_map,
                          0, 0, false, 0, true, depth);
 
   if (retc && errno != ENOENT) {
@@ -1112,22 +1073,22 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     eos_static_err("msg=\"find command failed\" dir=\"%s\"", sdir);
   }
 
-  for (auto dirit = findmap.begin(); dirit != findmap.end(); ++dirit) {
-    eos_static_debug("dir=%s", dirit->first.c_str());
-    XrdOucString dirname = dirit->first.c_str();
+  for (auto it_dir = find_map.begin(); it_dir != find_map.end(); ++it_dir) {
+    eos_static_debug("dir=%s", it_dir->first.c_str());
+    XrdOucString dirname = it_dir->first.c_str();
 
     if (dirname.endswith(".d/")) {
       dirname.erase(dirname.length() - 1);
       eos::common::Path cpath(dirname.c_str());
       dirname = cpath.GetParentPath();
-      dirit->second.insert(cpath.GetName());
+      it_dir->second.insert(cpath.GetName());
     }
 
-    for (auto fileit = dirit->second.begin();
-         fileit != dirit->second.end(); ++fileit) {
-      const std::string fname = HandlePotentialSymlink(dirname.c_str(), *fileit);
+    for (auto it_file = it_dir->second.begin();
+         it_file != it_dir->second.end(); ++it_file) {
+      const std::string fname = HandlePotentialSymlink(dirname.c_str(), *it_file);
       eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
-                       fileit->c_str(), fname.c_str());
+                       it_file->c_str(), fname.c_str());
 
       if ((fname != "/") && (fname.find('#') != 0)) {
         eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
@@ -1543,63 +1504,6 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
   }
 
   return 0;
-}
-
-//------------------------------------------------------------------------------
-// Compute recycle path directory for given user and timestamp
-//------------------------------------------------------------------------------
-int
-Recycle::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
-                          std::string& recyclepath)
-{
-  char srecycleuser[4096];
-  time_t now = time(NULL);
-  struct tm nowtm;
-  localtime_r(&now, &nowtm);
-  size_t index = 0;
-
-  do {
-    snprintf(srecycleuser, sizeof(srecycleuser) - 1, "%s/uid:%u/%04u/%02u/%02u/%lu",
-             mRecycleDir.c_str(), mOwnerUid, 1900 + nowtm.tm_year,
-             nowtm.tm_mon + 1, nowtm.tm_mday, index);
-    struct stat buf;
-
-    // check in case the index directory exists, that it has not more than 1M files,
-    // otherwise increment the index by one
-    if (!gOFS->_stat(srecycleuser, &buf, error, mRootVid, "")) {
-      if (buf.st_blksize > 100000) {
-        index++;
-        continue;
-      }
-    }
-
-    // Verify/create group/user directory
-    if (gOFS->_mkdir(srecycleuser, S_IRUSR | S_IXUSR | SFS_O_MKPTH, error, mRootVid,
-                     "")) {
-      return gOFS->Emsg(epname, error, EIO, "remove existing file - the "
-                        "recycle space user directory couldn't be created");
-    }
-
-    // Check the user recycle directory
-    if (gOFS->_stat(srecycleuser, &buf, error, mRootVid, "")) {
-      return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
-                        "determine ownership of the recycle space user directory",
-                        srecycleuser);
-    }
-
-    // Check the ownership of the user directory
-    if ((buf.st_uid != mOwnerUid) || (buf.st_gid != mOwnerGid)) {
-      // Set the correct ownership
-      if (gOFS->_chown(srecycleuser, mOwnerUid, mOwnerGid, error, mRootVid, "")) {
-        return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
-                          "change ownership of the recycle space user directory",
-                          srecycleuser);
-      }
-    }
-
-    recyclepath = srecycleuser;
-    return SFS_OK;
-  } while (1);
 }
 
 //----------------------------------------------------------------------------
