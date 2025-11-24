@@ -233,8 +233,7 @@ EOS_MGM_AUDIT=off
 # Rotate iostat report segments every N seconds (default: 86400 = 1 day)
 #EOS_ZSTD_REPORTS_ROTATION=86400
 # ZSTD compression level for iostat reports (1..19), default 1
-# Note: variable name is EOS_ZSTD_REPORTS_LEVE as requested
-#EOS_ZSTD_REPORTS_LEVE=1
+#EOS_ZSTD_REPORTS_LEVEL=1
 #
 # Audit log rotation interval in seconds (default 3600 = 1 hour)
 # Override only if you need a different rotation cadence
