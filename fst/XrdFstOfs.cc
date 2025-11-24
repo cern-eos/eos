@@ -456,6 +456,7 @@ XrdFstOfs::XrdFstOfs() :
   if (getenv("EOS_FST_FSCK_DELETE_BY_MOVE")) {
     mEnvFsckDeleteByMove = true;
   }
+
   ioMap.addWindow(10);
   ioMap.addWindow(60);
   ioMap.addWindow(300);

@@ -31,6 +31,7 @@
 #include "common/AssistedThread.hh"
 #include "common/Fmd.hh"
 #include "common/ConcurrentQueue.hh"
+#include <google/protobuf/util/json_util.h>
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <atomic>
@@ -566,6 +567,13 @@ private:
   //! Signal the thread responsible with registered file systems
   //----------------------------------------------------------------------------
   void SignalRegisterThread();
+
+  //----------------------------------------------------------------------------
+  /// Parse the io monitor command
+  ///
+  /// @param reply the reply of the function
+  //----------------------------------------------------------------------------
+  std::string MonitorCmd(const std::string &reply);
 };
 
 EOSFSTNAMESPACE_END
