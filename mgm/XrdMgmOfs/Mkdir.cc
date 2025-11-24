@@ -166,13 +166,12 @@ XrdMgmOfs::_mkdir(const char* path,
 
       // Admin can always create a directory
       if (!nopermissioncheck) {
-
-	if (stdpermcheck &&
-	    (vid.token || (!dir->access(vid.uid, vid.gid, X_OK | W_OK)))) {
-	  errno = EPERM;
-	  return Emsg(epname, error, EPERM, "access(XW) parent directory",
-		      cPath.GetParentPath());
-	}
+        if (stdpermcheck &&
+            (vid.token || (!dir->access(vid.uid, vid.gid, X_OK | W_OK)))) {
+          errno = EPERM;
+          return Emsg(epname, error, EPERM, "access(XW) parent directory",
+                      cPath.GetParentPath());
+        }
       }
 
       // Check for sys.owner.auth entries, which let users operate as
@@ -283,12 +282,11 @@ XrdMgmOfs::_mkdir(const char* path,
       }
 
       if (!nopermissioncheck && stdpermcheck) {
-
-	if (vid.token || !dir->access(vid.uid, vid.gid, X_OK | W_OK)) {
-	  errno = EPERM;
-	  return Emsg(epname, error, EPERM, "create parent directory",
-		      cPath.GetParentPath());
-	}
+        if (vid.token || !dir->access(vid.uid, vid.gid, X_OK | W_OK)) {
+          errno = EPERM;
+          return Emsg(epname, error, EPERM, "create parent directory",
+                      cPath.GetParentPath());
+        }
       }
 
       // Check for sys.owner.auth entries, which let users operate as
@@ -431,9 +429,16 @@ XrdMgmOfs::_mkdir(const char* path,
   // Emit audit record for successful directory creation (append '/' to denote dir)
   {
     std::string apath = path ? path : "";
-    if (!apath.empty() && apath.back() != '/') apath.push_back('/');
+
+    if (!apath.empty() && apath.back() != '/') {
+      apath.push_back('/');
+    }
+
     if (!errno && mAudit && gOFS->AllowAuditModification(apath)) {
-      mAudit->audit(eos::audit::MKDIR, apath, vid, std::string(logId), std::string(cident), "mgm", std::string(), nullptr, nullptr, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
+      mAudit->audit(eos::audit::MKDIR, apath, vid, std::string(logId),
+                    std::string(cident), "mgm", std::string(), nullptr,
+                    nullptr, std::string(), std::string(), std::string(),
+                    __FILE__, __LINE__, VERSION);
     }
   }
   return SFS_OK;
