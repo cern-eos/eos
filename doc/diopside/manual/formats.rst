@@ -24,6 +24,14 @@ must be enabled on the MGM:
    success: enabled IO report store
 
 
+.. note::
+
+   Report log files can optionally be produced as ZSTD-compressed, time-rotated
+   segments when `EOS_ZSTD_REPORTS=1` is set in the MGM environment. In this mode,
+   files are created under the same directory tree with `.eosreport.zst` suffix.
+   Rotation interval and compression level can be tuned via
+   `EOS_ZSTD_REPORTS_ROTATION` (seconds) and `EOS_ZSTD_REPORTS_LEVEL` (1..19).
+
 File creation/update records
 -----------------------------
 

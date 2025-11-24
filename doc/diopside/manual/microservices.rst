@@ -199,6 +199,41 @@ verbose information you can change the log level:
    # switch back to info log level on the MGM
    eos debug info
 
+.. index::
+   pair: MGM; IO Report Logs
+
+IO Report Logs
+--------------
+
+The MGM can collect IO report logs which are stored under:
+
+.. code-block:: bash
+
+   /var/eos/report/<YEAR>/<MONTH>/<YEAR><MONTH><DAY>.eosreport
+
+Collection is disabled by default and must be enabled:
+
+.. code-block:: bash
+
+   # start the IO collection thread
+   eos io enable
+
+   # enable collection of IO reports
+   eos io enable -r
+
+Optionally, report logs can be produced as ZSTD-compressed, time-rotated segments
+when the environment variable ``EOS_ZSTD_REPORTS=1`` is set for the MGM service.
+In this mode, files are created in the same directory tree with ``.eosreport.zst``
+suffix. The rotation interval and compression level can be adjusted via:
+
+.. code-block:: bash
+
+   # rotate every N seconds (default: 86400 = 1 day)
+   EOS_ZSTD_REPORTS_ROTATION=86400
+
+   # ZSTD compression level (1..19), default 1
+   EOS_ZSTD_REPORTS_LEVEL=1
+
 
 .. index::
    pair: MGM; Balancing
