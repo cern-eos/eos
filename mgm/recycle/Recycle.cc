@@ -33,9 +33,57 @@
 #include "mgm/Quota.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/proc/user/AclCmd.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
+
+namespace
+{
+//----------------------------------------------------------------------------
+//! Check that all directories in the given path hierarchy contain the given
+//! xattr key.
+//!
+//! @param path path hierarchy pointing to a directory
+//! @param xattr_key extended attribute key
+//! @param xattr_val extended attribute value
+//!
+//! @return true if successful, otherwise false
+//----------------------------------------------------------------------------
+bool AllHierarchyHasXattr(std::string_view path, std::string_view xattr_key,
+                          std::string_view xattr_val)
+{
+  // Find all the directories that contain the given xattr
+  XrdOucString lout;
+  XrdOucErrInfo lerror;
+  std::map<std::string, std::set<std::string>> found;
+
+  // Get the total number of sub-dirs in the hierarchy
+  if (gOFS->_find(path.data(), lerror, lout, Recycle::mRootVid,
+                  found, nullptr, nullptr, true)) {
+    eos_static_err("msg=\"failed computing number of sub-dirs in hierarchy\" "
+                   "path=\"%s\"", path.data());
+    return false;
+  }
+
+  uint64_t tree_num_dirs = found.size();
+  found.clear();
+
+  // Get the sub-dirs that contain the requested xattr key-value combination
+  if (gOFS->_find(path.data(), lerror, lout, Recycle::mRootVid,
+                  found, xattr_key.data(), xattr_val.data(), true)) {
+    eos_static_err("msg=\"failed running find in hierarchy\" path=\"%s\"",
+                   path.data());
+    return false;
+  }
+
+  if (found.size() == tree_num_dirs) {
+    return true;
+  }
+
+  return false;
+}
+}
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -53,6 +101,7 @@ std::string Recycle::gRecyclingPostFix = ".d";
 eos::common::VirtualIdentity Recycle::mRootVid =
   eos::common::VirtualIdentity::Root();
 std::chrono::seconds Recycle::mLastRemoveTs = std::chrono::seconds(0);
+const std::string Recycle::kRecycleIdXattrKey = "sys.forced.recycleid";
 
 //------------------------------------------------------------------------------
 // Default constructor
@@ -1391,6 +1440,110 @@ Recycle::Config(std::string& std_out, std::string& std_err,
   return 0;
 }
 
+//------------------------------------------------------------------------------
+// Configure a recycle id for the given path
+//------------------------------------------------------------------------------
+int
+Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
+                        std::string& std_err)
+{
+  // Check that the given path exist and save the container id
+  eos::ContainerIdentifier cid {0ull};
+  std::string recycle_id_val;
+
+  try {
+    auto cmd = gOFS->eosView->getContainer(path.data());
+    auto cmd_lock = eos::MDLocking::readLock(cmd.get());
+    cid = cmd->getIdentifier();
+
+    if (cmd->hasAttribute(Recycle::kRecycleIdXattrKey)) {
+      recycle_id_val = cmd->getAttribute(Recycle::kRecycleIdXattrKey);
+    }
+  } catch (eos::MDException& e) {
+    std_err = SSTR("error: path does not exist " << path.data()
+                   << " msg=" << e.what()).c_str();
+    return ENOENT;
+  }
+
+  // Don't allow if path is inside the "proc" hierarchy
+  if (path.find(gOFS->MgmProcPath.c_str()) == 0) {
+    std_err = "error: path can not be inside the proc hierarchy";
+    return EPERM;
+  }
+
+  // If there is already a recycle id attribute then skip applying it
+  if (recycle_id_val.empty()) {
+    recycle_id_val = std::to_string(cid.getUnderlyingUInt64());
+  }
+
+  // Create the recycle directory for the given recycle id
+  XrdOucErrInfo lerror;
+  std::string proj_recycle_path = Recycle::gRecyclingPrefix + "rid:" +
+                                  recycle_id_val;
+
+  // @todo(esindril) consider either to avoid inheriting sys.recycle xattrs or
+  // to move the Recycler configuration inside the EOS config and drop the
+  // configuration via xattrs!
+  if (gOFS->_mkdir(proj_recycle_path.c_str(), S_IRUSR | S_IXUSR | SFS_O_MKPTH,
+                   lerror, mRootVid, "")) {
+    std_err = "error: failed to create recycle project directory";
+    return EINVAL;
+  }
+
+  // Add requested ACLs to the recycle bin top project directory
+  if (!acl.empty()) {
+    eos::console::RequestProto req;
+    eos::console::AclProto* acl_req = req.mutable_acl();
+    acl_req->set_recursive(true);
+    acl_req->set_sys_acl(true);
+    acl_req->set_op(eos::console::AclProto::MODIFY);
+    acl_req->set_rule(acl.data());
+    acl_req->set_path(proj_recycle_path);
+    eos::mgm::AclCmd acl_cmd(std::move(req), mRootVid);
+    eos::console::ReplyProto reply = acl_cmd.ProcessRequest();
+
+    if (reply.retc()) {
+      std_err = reply.std_err();
+      return reply.retc();
+    }
+  }
+
+  // Apply recursively the sys.forced.recycleid=<cid_val> to the entire
+  // original subtree and make sure to sub-dir was skipped
+  unsigned int attempts = 5;
+
+  do {
+    XrdOucString lerr;
+    bool exclusive = false;
+    std::map<std::string, std::set<std::string>> found;
+
+    if (gOFS->_find(path.data(), lerror, lerr, mRootVid, found, nullptr,
+                    nullptr, true)) {
+      std_err = "error: failed to search in given path";
+      return errno;
+    }
+
+    for (auto find_it = found.cbegin(); find_it != found.cend(); ++find_it) {
+      if (gOFS->_attr_set(find_it->first.c_str(), lerror, mRootVid,
+                          (const char*) 0, Recycle::kRecycleIdXattrKey.c_str(),
+                          recycle_id_val.c_str(), exclusive)) {
+        std_err = "error: failed to set xattr on path ";
+        std_err += find_it->first;
+        return errno;
+      }
+    }
+  } while ((--attempts > 0) &&
+           !AllHierarchyHasXattr(path, Recycle::kRecycleIdXattrKey,
+                                 recycle_id_val));
+
+  if (attempts == 0) {
+    std_err = "error: failed to propagate sys.forced.recycleid in the hiearchy ";
+    std_err += path;
+    return EINVAL;
+  }
+
+  return 0;
+}
 
 //------------------------------------------------------------------------------
 // Compute recycle path directory for given user and timestamp
