@@ -87,18 +87,6 @@ public:
   Recycle(bool fake_clock = false);
 
   //----------------------------------------------------------------------------
-  //! Constructor
-  //! @param path path to recycle
-  //! @param recycle bin directory
-  //! @param uid user id
-  //! @param gid group id
-  //! @param id of the container or file
-  //----------------------------------------------------------------------------
-  Recycle(const char* path, const char* recycledir,
-          eos::common::VirtualIdentity* vid, uid_t ownerUid,
-          gid_t ownerGid, unsigned long long id, bool fake_clock = false);
-
-  //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
   ~Recycle()
@@ -187,17 +175,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Recycle the given object (file or subtree)
-  //!
-  //! @param epname error tag
-  //! @param error object
-  //! @param fusexcast indicate if this requires an external fusex cast call
-  //!
-  //! @return SFS_OK if ok, otherwise SFS_ERR + errno + error object set
-  //----------------------------------------------------------------------------
-  int ToGarbage(const char* epname, XrdOucErrInfo& error, bool fusexcast = true);
-
-  //----------------------------------------------------------------------------
   //! Dump recycler configutation
   //!
   //! @return string representation of the recycler configuration
@@ -215,7 +192,7 @@ public:
   //! @param vid of the client
   //! @param monitoring selects monitoring key-value output format
   //! @param translateids selects to display uid/gid as number or string
-  //! @param global show files of all users as root
+  //! @param display type of display requested e.g. all, by uid, by recycle id
   //! @param date filter recycle bin for given date <year> or <year>/<month>
   //!        or <year>/<month>/<day>
   //! @param rvec a vector of maps with all recycle informations requested
@@ -227,11 +204,10 @@ public:
   static int Print(std::string& std_out, std::string& std_err,
                    eos::common::VirtualIdentity& vid, bool monitoring,
                    bool transalteids, bool details,
-                   std::string date = "",
-                   bool global = false,
-                   RecycleListing* rvec = 0,
-                   bool whodeleted = true,
-                   int32_t maxentries = 0);
+                   std::string_view display_type,
+                   std::string_view display_val,
+                   std::string_view date = "", RecycleListing* rvec = 0,
+                   bool whodeleted = true, int32_t maxentries = 0);
 
   /**
    * undo a deletion
@@ -329,18 +305,6 @@ public:
   //----------------------------------------------------------------------------
   static std::string
   HandlePotentialSymlink(const std::string& ppath, const std::string& fn);
-
-  //----------------------------------------------------------------------------
-  //! Compute recycle path directory for given user and timestamp
-  //!
-  //! epname error printing name
-  //! error error object
-  //! recyclepath computed by this function
-  //!
-  //! SFS_OK if ok, otherwise SFS_ERR + errno + error object set
-  //----------------------------------------------------------------------------
-  int GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
-                       std::string& recyclepath);
 
   //----------------------------------------------------------------------------
   //! Collect entries to recycle based on current policy
