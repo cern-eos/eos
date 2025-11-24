@@ -417,6 +417,20 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     double ageInYears = 0; // stores the ages of a file in years as a double
     eos::IFileMD::ctime_t btime {0, 0};
     eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
+    uint64_t sizeBytes = fmd->getSize();
+    // size bins upper bounds in bytes; 0 => >= 1TB
+    static const uint64_t KB = 1024ull;
+    static const uint64_t MB = KB * 1024ull;
+    static const uint64_t GB = MB * 1024ull;
+    static const uint64_t TB = GB * 1024ull;
+    static const std::vector<uint64_t> size_bins {
+      4 * KB, 1 * MB, 16 * MB, 64 * MB, 128 * MB, 256 * MB,
+      1 * GB, 4 * GB, 16 * GB, 128 * GB, 512 * GB, 1 * TB
+    };
+    uint64_t size_bin_key = 0; // default for >= 1TB
+    for (auto ub : size_bins) {
+      if (sizeBytes < ub) { size_bin_key = ub; break; }
+    }
 
     if (xattrs.count("sys.eos.btime")) {
       eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
@@ -443,6 +457,11 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
       mCurrentStats.BirthTimeVolume[0] += fmd->getSize();
       mCurrentStats.BirthVsAccessTimeFiles[0][atime_bin]++;
       mCurrentStats.BirthVsAccessTimeVolume[0][atime_bin] += fmd->getSize();
+      // size distributions
+      mCurrentStats.SizeBinsFiles[size_bin_key]++;
+      mCurrentStats.SizeBinsVolume[size_bin_key] += sizeBytes;
+      mCurrentStats.BirthVsSizeFiles[0][size_bin_key]++;
+      mCurrentStats.BirthVsSizeVolume[0][size_bin_key] += sizeBytes;
     } else {
       for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
         if ((mCurrentStats.TimeScan - (int64_t)btime.tv_sec) >= (int64_t) *rev_it) {
@@ -450,6 +469,11 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
           mCurrentStats.BirthTimeVolume[*rev_it] += fmd->getSize();
           mCurrentStats.BirthVsAccessTimeFiles[*rev_it][atime_bin]++;
           mCurrentStats.BirthVsAccessTimeVolume[*rev_it][atime_bin] += fmd->getSize();
+          // size distributions
+          mCurrentStats.SizeBinsFiles[size_bin_key]++;
+          mCurrentStats.SizeBinsVolume[size_bin_key] += sizeBytes;
+          mCurrentStats.BirthVsSizeFiles[*rev_it][size_bin_key]++;
+          mCurrentStats.BirthVsSizeVolume[*rev_it][size_bin_key] += sizeBytes;
           break;
         }
       }
@@ -671,6 +695,62 @@ FileInspector::Dump(std::string& out, std::string_view options,
         bvolume += std::to_string(it->second);
         out += bvolume;
         out += "\n";
+      }
+    }
+
+    // Size distributions (files/volume)
+    if (mLastStats.SizeBinsFiles.size()) {
+      for (auto it = mLastStats.SizeBinsFiles.begin();
+           it != mLastStats.SizeBinsFiles.end(); ++it) {
+        std::string sfiles = "key=last tag=size::files bin=";
+        sfiles += std::to_string(it->first);
+        sfiles += " value=";
+        sfiles += std::to_string(it->second);
+        out += sfiles;
+        out += "\n";
+      }
+    }
+    if (mLastStats.SizeBinsVolume.size()) {
+      for (auto it = mLastStats.SizeBinsVolume.begin();
+           it != mLastStats.SizeBinsVolume.end(); ++it) {
+        std::string svol = "key=last tag=size::volume bin=";
+        svol += std::to_string(it->first);
+        svol += " value=";
+        svol += std::to_string(it->second);
+        out += svol;
+        out += "\n";
+      }
+    }
+
+    // Birth vs Size (files/volume)
+    if (mLastStats.BirthVsSizeFiles.size()) {
+      for (auto it = mLastStats.BirthVsSizeFiles.begin();
+           it != mLastStats.BirthVsSizeFiles.end(); ++it) {
+        for (auto jt = it->second.begin(); jt != it->second.end(); ++jt) {
+          std::string bs = "key=last tag=birthvssize::files xbin=";
+          bs += std::to_string(it->first);
+          bs += " ybin=";
+          bs += std::to_string(jt->first);
+          bs += " value=";
+          bs += std::to_string(jt->second);
+          out += bs;
+          out += "\n";
+        }
+      }
+    }
+    if (mLastStats.BirthVsSizeVolume.size()) {
+      for (auto it = mLastStats.BirthVsSizeVolume.begin();
+           it != mLastStats.BirthVsSizeVolume.end(); ++it) {
+        for (auto jt = it->second.begin(); jt != it->second.end(); ++jt) {
+          std::string bsv = "key=last tag=birthvssize::volume xbin=";
+          bsv += std::to_string(it->first);
+          bsv += " ybin=";
+          bsv += std::to_string(jt->first);
+          bsv += " value=";
+          bsv += std::to_string(jt->second);
+          out += bsv;
+          out += "\n";
+        }
       }
     }
 
