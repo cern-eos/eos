@@ -25,9 +25,11 @@
 #include "common/Path.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
+#include "common/Logging.hh"
 
 extern int com_io(char*);
 void com_io_help();
+static bool isCommand(const char *cmd);
 
 //------------------------------------------------------------------------------
 //! Class IoHelper
@@ -197,6 +199,28 @@ bool IoHelper::ParseCommand(const char* arg)
         return false;
       }
     }
+  } else if (token == "monitor"){
+		eos::console::IoProto_MonitorProto* monitor = io->mutable_monitor();
+		std::string options;
+
+		if (!*arg || !tokenizer.NextToken(token))
+			return false;
+		monitor->set_node(token);
+
+		if (!tokenizer.NextToken(token) || !isCommand(token.c_str()))
+			return false;
+		monitor->set_cmd(token);
+
+		const char *firstToken = tokenizer.GetToken();
+		if (firstToken)
+			options = firstToken;
+		while (tokenizer.NextToken(token))
+			options += " " + token;
+
+		if (!options.empty())
+			monitor->set_options(options);
+
+		return true;
   } else { // no proper subcommand
     return false;
   }
@@ -277,6 +301,57 @@ void com_io_help()
       << "\t  -10000 :  show the first 10000 in the ranking\n"
       << "\t      -w :  show history for the last 7 days\n"
       << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens\n"
+      << std::endl
+	  << "io monitor <queue-name>|<host:port> [command] [options...] : interact with IoMonitor\n"
+      << std::endl
+	  << "  COMMANDS\n"
+	  << "\t                        add [window] : add a window to the map\n"
+	  << "\t           set [window][tracks][...] : set track to a window, multiple track can be set\n"
+	  << "\t         proto [window][tracks][...] : print ProtoBuff JSON format of given tracks (get directly the summary)\n"
+      << "     read [fileId][appName][uid][gid][bytes] : add a read input to the map\n"
+      << "    write [fileId][appName][uid][gid][bytes] : add a write input to the map\n"
+      << "\t                          show [...] : print the IoAggregate map, can add a number to print the map N seconds\n"
+      << "\t                 sum [window][track] : print the summary of a track\n"
+      << "\t                                fill : fill the map with I/O\n"
+	  << "\t                       shift [index] : shift the window to the next Bin, or to the index given as a parametre\n"
+      << std::endl
+	  << "  OPTIONS\n"
+	  << "\t  window : size_t number\n"
+	  << "\t   track : track can be a appName/uid/gid, if it's a uid/gid you have to specify it\n"
+	  << "\t  fileId : size_t number\n"
+	  << "\t appName : string\n"
+	  << "\t     uid : uid_t number\n"
+	  << "\t     gid : gid_t number\n"
+	  << "\t   bytes : size_t number\n"
+	  << "\t   index : index of the Bin you want to go\n"
+	  << std::endl
+	  << "  EXEMPLE\n"
+	  << "\t     [uid set] : io monitor set 60 uid 14\n"
+	  << "\t [appName set] : io monitor set 60 eos\n"
+	  // << "\t [multiple set] :\t$ set 60 io uid 12 gid 42 mgm fst\n"
+	  << std::endl
+	  << "\t  [add window] : io monitor add 3600\n"
+	  << std::endl
+	  << "\t    [add read] : io monitor read 10 eos 250 13 241351\n"
+	  << "\t   [add write] : io monitor write 13 eos 43 7 581\n"
+	  << std::endl
+	  << "\t [print summary] : io monitor sum 3600 uid 14\n"
+	  << "\t [print summary] : io monitor sum 3600 eos\n"
       << std::endl;
   std::cerr << oss.str() << std::endl;
+}
+
+static bool isCommand(const char *cmd){
+	if (cmd &&
+		(!strcmp(cmd, "add")
+		|| !strcmp(cmd, "set")
+		|| !strcmp(cmd, "proto")
+		|| !strcmp(cmd, "read")
+		|| !strcmp(cmd, "write")
+		|| !strcmp(cmd, "show")
+		|| !strcmp(cmd, "sum")
+		|| !strcmp(cmd, "fill")
+		|| !strcmp(cmd, "shift")))
+		return true;
+	return false;
 }

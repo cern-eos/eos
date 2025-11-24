@@ -92,6 +92,15 @@ private:
   //----------------------------------------------------------------------------
   void NsSubcmd(const eos::console::IoProto_NsProto& ns,
                 eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
+  //! Execute monitor subcommand
+  //!
+  //! @param ns ns subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void MonitorSubcmd(const eos::console::IoProto_MonitorProto& ns,
+                eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END
