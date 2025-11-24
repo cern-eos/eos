@@ -1122,7 +1122,7 @@ Iostat::WriteRecord(const std::string& record)
       int v = atoi(zrot);
       if (v > 0) s_zstd_rotation = static_cast<unsigned>(v);
     }
-    const char* lvl = getenv("EOS_ZSTD_REPORTS_LEVE"); // intentional name as requested
+    const char* lvl = getenv("EOS_ZSTD_REPORTS_LEVEL");
     if (lvl && *lvl) {
       int v = atoi(lvl);
       if (v >= 1 && v <= 19) s_zstd_level = v;
