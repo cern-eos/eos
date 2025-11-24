@@ -25,8 +25,18 @@
 // Build: g++ -std=c++17 -O2 zstdtail.cpp -o zstdtail -lzstd
 //
 // Usage:
-//   zstdtail /path/to/file-or-symlink.zst
-//   zstdtail /path/to/file-or-symlink.zst | jq '.'
+//   zstdtail /path/to/file-or-symlink.zst           # default: follow-only (do not read existing content)
+//   zstdtail -f /path/to/file-or-symlink.zst        # same as default: follow-only
+//   zstdtail -100 /path/to/file-or-symlink.zst      # print last 100 decompressed lines, then exit
+//   zstdtail -100f /path/to/file-or-symlink.zst     # print last 100 decompressed lines, then follow
+//   zstdtail -n 200 -f /path/to/file-or-symlink.zst # print last 200 lines, then follow (alternate form)
+//
+// Notes:
+// - Follow-only mode intentionally does NOT read or decompress the current file’s existing content.
+//   Due to ZSTD frame structure, decoding cannot start mid-frame. Therefore, follow-only will wait
+//   for rotation (new file / new symlink target) and start from the beginning of the new segment.
+// - Tail-N modes (-N or -n N) must decompress from the beginning to find the last N lines. A ring
+//   buffer is used to bound memory, and nothing is printed until the initial scan reaches EOF.
 //
 // Behavior:
 // - Decompresses all complete frames currently in the file.
@@ -54,6 +64,8 @@
 #include <thread>
 #include <unistd.h>
 #include <vector>
+#include <deque>
+#include <cctype>
 
 namespace {
 
@@ -108,31 +120,101 @@ int open_follow(const std::string& path) {
     return fd;
 }
 
-size_t safe_read(int fd, void* buf, size_t n) {
-    for (;;) {
-        ssize_t r = ::read(fd, buf, n);
-        if (r > 0) return static_cast<size_t>(r);
-        if (r == 0) return 0; // EOF
-        if (errno == EINTR) continue;
-        if (errno == EAGAIN) { std::this_thread::sleep_for(std::chrono::milliseconds(5)); continue; }
-        return static_cast<size_t>(-1);
-    }
-}
-
-bool is_regular_open(int fd) {
-    struct stat st{};
-    if (fstat(fd, &st) != 0) return false;
-    return S_ISREG(st.st_mode);
-}
+// (intentionally no unused helpers)
 
 } // namespace
 
 int main(int argc, char** argv) {
     if (argc < 2) {
-        std::fprintf(stderr, "usage: %s <file-or-symlink.zst>\n", argv[0]);
+        std::fprintf(stderr,
+                     "usage:\n"
+                     "  %s [-f] <file.zst>\n"
+                     "  %s -N[f] <file.zst>         (e.g. -100 or -100f)\n"
+                     "  %s -n N [-f] <file.zst>\n",
+                     argv[0], argv[0], argv[0]);
         return 2;
     }
-    std::string path = argv[1];
+    // Parse args
+    bool wantFollow = false;          // follow after initial action
+    bool followOnly = false;          // do not read existing content; follow new segments/frames only
+    long tailLines = -1;              // -1 => no tail-N priming; >=0 => keep last N lines then (maybe) follow
+    std::string path;
+    bool showHelp = false;
+
+    auto parseInt = [](const char* s, long& out) -> bool {
+        char* end = nullptr;
+        long v = std::strtol(s, &end, 10);
+        if (end == s || v < 0) return false;
+        out = v;
+        return true;
+    };
+
+    for (int i = 1; i < argc; ++i) {
+        std::string a = argv[i];
+        if (a == "-f") { wantFollow = true; continue; }
+        if (a == "-h" || a == "--help") { showHelp = true; continue; }
+        if (a == "-n") {
+            if (i + 1 >= argc) {
+                std::fprintf(stderr, "-n requires a number\n");
+                return 2;
+            }
+            long n = -1;
+            if (!parseInt(argv[i + 1], n)) {
+                std::fprintf(stderr, "invalid number for -n: %s\n", argv[i + 1]);
+                return 2;
+            }
+            tailLines = n;
+            ++i;
+            continue;
+        }
+        if (!a.empty() && a[0] == '-' && a.size() > 1 && std::isdigit(static_cast<unsigned char>(a[1]))) {
+            // Compact -N or -Nf form
+            size_t pos = 1;
+            while (pos < a.size() && std::isdigit(static_cast<unsigned char>(a[pos]))) pos++;
+            long n = -1;
+            if (!parseInt(a.substr(1, pos - 1).c_str(), n)) {
+                std::fprintf(stderr, "invalid number in %s\n", a.c_str());
+                return 2;
+            }
+            tailLines = n;
+            if (pos < a.size() && a[pos] == 'f' && pos + 1 == a.size()) {
+                wantFollow = true;
+            } else if (pos < a.size()) {
+                std::fprintf(stderr, "invalid suffix in %s (only 'f' allowed)\n", a.c_str());
+                return 2;
+            }
+            continue;
+        }
+        // First non-option is the path
+        path = a;
+        // Remaining args ignored
+        break;
+    }
+    if (showHelp || path.empty()) {
+        std::fprintf(stderr,
+                     "zstdtail - stream decompressed tail of ZSTD files\n"
+                     "\n"
+                     "Usage:\n"
+                     "  zstdtail [-f] <file.zst>\n"
+                     "      Follow only: do not print existing content; print new data as it arrives.\n"
+                     "  zstdtail -N[f] <file.zst>\n"
+                     "      Print last N lines, then exit (or follow if 'f' is appended, e.g. -100f).\n"
+                     "  zstdtail -n N [-f] <file.zst>\n"
+                     "      Same as -N form.\n"
+                     "\n"
+                     "Notes:\n"
+                     "- Decoding starts at frame boundaries. For already-open segments, -f will scan\n"
+                     "  from the beginning but suppress historical output (equivalent to tail -n 0 -f).\n"
+                     "- On rotation (new segment), decoding continues from the beginning of the new file.\n");
+        return path.empty() ? 2 : 0;
+    }
+    if (path.empty()) {
+        std::fprintf(stderr, "missing <file.zst> argument\n");
+        return 2;
+    }
+    // Default behavior: follow-only if no -n/-N given
+    followOnly = (tailLines < 0);
+    if (followOnly) wantFollow = true; // follow-only implies follow loop
 
     std::signal(SIGINT, on_signal);
     std::signal(SIGTERM, on_signal);
@@ -160,6 +242,32 @@ int main(int argc, char** argv) {
 
     size_t inSize = 0;      // bytes valid in inBuf
     size_t inPos  = 0;      // current read position in inBuf
+    bool priming = (tailLines >= 0); // in tail-N mode, delay printing until initial EOF
+    bool suppressDuringPriming = false; // used for followOnly: suppress historical output
+    std::string lineBuf;
+    std::deque<std::string> lastN;
+    auto emit_line = [&](const char* data, size_t len) {
+        if (priming) {
+            if (tailLines >= 0) {
+                lastN.emplace_back(data, len);
+                while (static_cast<long>(lastN.size()) > tailLines) lastN.pop_front();
+                return;
+            }
+            if (suppressDuringPriming) {
+                // drop
+                return;
+            }
+        }
+        (void)fwrite(data, 1, len, stdout);
+        fflush(stdout);
+    };
+    auto flush_lastN = [&]() {
+        for (const auto& s : lastN) {
+            (void)fwrite(s.data(), 1, s.size(), stdout);
+        }
+        fflush(stdout);
+        lastN.clear();
+    };
 
     DevIno lastDI{};
     bool haveLast = false;
@@ -177,6 +285,9 @@ int main(int argc, char** argv) {
         // Reset input buffer
         inSize = 0;
         inPos = 0;
+        // Reset tailing state for new file if we are following after priming has completed
+        lineBuf.clear();
+        // In follow mode keep priming=false after initial dump
 
         // Open (follow symlink)
         for (;;) {
@@ -194,11 +305,15 @@ int main(int argc, char** argv) {
         return true;
     };
 
-    // First open
+    // First open: always open current file. For followOnly, suppress historical output until first EOF.
     if (!reopen()) {
         std::fprintf(stderr, "error: cannot open %s\n", path.c_str());
         ZSTD_freeDStream(dstream);
         return 1;
+    }
+    if (followOnly) {
+        priming = true;
+        suppressDuringPriming = true;
     }
 
     // Main follow loop
@@ -210,8 +325,15 @@ int main(int argc, char** argv) {
             if (haveLast && diNow != lastDI) {
                 std::fprintf(stderr, "== rotation detected: %s ==\n", resolvedNow.c_str());
                 if (!reopen()) break;
+                priming = false; // after rotation, stream continues live
                 continue; // start reading new file from beginning
             }
+        }
+
+        // If follow-only and we have not yet opened (waiting for rotation), just sleep briefly
+        if (followOnly && fd == -1) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            continue;
         }
 
         // If input buffer is consumed, try to read more bytes
@@ -232,6 +354,17 @@ int main(int argc, char** argv) {
             }
             if (r == 0) {
                 // EOF: no new bytes *right now*. Wait briefly and retry.
+                // If we were priming for tail-N and reached EOF the first time, flush the ring and switch to live mode.
+                if (priming) {
+                    if (tailLines >= 0) {
+                        flush_lastN();
+                    }
+                    priming = false;
+                    suppressDuringPriming = false;
+                    if (!wantFollow) {
+                        break; // exit after printing last N lines (no -f)
+                    }
+                }
                 std::this_thread::sleep_for(std::chrono::milliseconds(80));
                 continue;
             }
@@ -251,11 +384,30 @@ int main(int argc, char** argv) {
                 break;
             }
 
-            // Write decompressed bytes to stdout
+            // Assemble lines from decompressed bytes
             if (zout.pos > 0) {
-                size_t wrote = fwrite(outBuf.data(), 1, zout.pos, stdout);
-                (void)wrote;
-                fflush(stdout);
+                size_t start = 0;
+                const char* data = outBuf.data();
+                for (size_t i = 0; i < zout.pos; ++i) {
+                    if (data[i] == '\n') {
+                        // complete line = (lineBuf if any) + data[start..i] + '\n'
+                        if (!lineBuf.empty()) {
+                            std::string combined;
+                            combined.reserve(lineBuf.size() + (i - start + 1));
+                            combined.append(lineBuf);
+                            combined.append(data + start, i - start + 1);
+                            emit_line(combined.data(), combined.size());
+                            lineBuf.clear();
+                        } else {
+                            emit_line(data + start, i - start + 1);
+                        }
+                        start = i + 1;
+                    }
+                }
+                // remainder (partial line)
+                if (start < zout.pos) {
+                    lineBuf.append(data + start, zout.pos - start);
+                }
             }
 
             inPos = zin.pos;
@@ -273,6 +425,12 @@ int main(int argc, char** argv) {
         }
 
         // If buffer fully consumed, next loop iteration will read more.
+    }
+
+    // On exit: if we were priming and have a partial line buffered, treat it as a line
+    if (tailLines >= 0 && !lineBuf.empty()) {
+        (void)fwrite(lineBuf.data(), 1, lineBuf.size(), stdout);
+        fflush(stdout);
     }
 
     if (fd != -1) ::close(fd);
