@@ -144,6 +144,20 @@ RecycleCmd::ProcessRequest() noexcept
     } else {
       reply.set_std_err(std_err.c_str());
     }
+  } else if (subcmd == RecycleProto::kProject) {
+    if (mVid.uid != 0) {
+      std_err = "error: you need to be root to setup recycle ids\n";
+      reply.set_std_err(std_err.c_str());
+      reply.set_retc(EPERM);
+    }
+
+    const eos::console::RecycleProto_ProjectProto& project = recycle.project();
+    int retc = Recycle::RecycleIdSetup(project.path(), project.acl(), std_err);
+    reply.set_retc(retc);
+
+    if (retc) {
+      reply.set_std_err(std_err);
+    }
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");

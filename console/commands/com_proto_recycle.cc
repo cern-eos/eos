@@ -82,8 +82,17 @@ void com_recycle_help()
       << "    undo the deletion identified by the <recycle-key>\n"
       << "    -p : create all missing parent directories\n"
       << "    -f : move deleted files/dirs back to their original location (otherwise\n"
-      << "          the key entry will have a <.inode> suffix)" << std::endl
-      << "     -r : restore all previous versions of a file" << std::endl
+      << "          the key entry will have a <.inode> suffix)\n"
+      << "     -r : restore all previous versions of a file\n"
+      << std::endl
+      << "  recycle project --path <path> [--acl <acl_spec>]\n"
+      << "    setup a recycle id that will group all the recycled paths from\n"
+      << "    the given top level directory <path>. Optionally, specify a list\n"
+      << "    of ACLs that are appended to the recycle location and control the \n"
+      << "    access to the recycled entries. The recycle id is represented by the\n"
+      << "    container id of <path> and is used to construct the recycle path:\n"
+      << "    /eos/<instance>/proc/recycle/rid:<cid_value>/2025...\n"
+      << "    ACL spec is the usual string representation of ACLs e.g u:1234:rx\n"
       << std::endl
       << "  recycle config <key> <value>\n"
       << "    where <key> and <value> need to be one of the following:\n"
