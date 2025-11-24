@@ -139,6 +139,7 @@ int main(int argc, char** argv) {
     bool followOnly = false;          // do not read existing content; follow new segments/frames only
     long tailLines = -1;              // -1 => no tail-N priming; >=0 => keep last N lines then (maybe) follow
     std::string path;
+    bool showHelp = false;
 
     auto parseInt = [](const char* s, long& out) -> bool {
         char* end = nullptr;
@@ -151,6 +152,7 @@ int main(int argc, char** argv) {
     for (int i = 1; i < argc; ++i) {
         std::string a = argv[i];
         if (a == "-f") { wantFollow = true; continue; }
+        if (a == "-h" || a == "--help") { showHelp = true; continue; }
         if (a == "-n") {
             if (i + 1 >= argc) {
                 std::fprintf(stderr, "-n requires a number\n");
@@ -188,6 +190,24 @@ int main(int argc, char** argv) {
         // Remaining args ignored
         break;
     }
+    if (showHelp || path.empty()) {
+        std::fprintf(stderr,
+                     "zstdtail - stream decompressed tail of ZSTD files\n"
+                     "\n"
+                     "Usage:\n"
+                     "  zstdtail [-f] <file.zst>\n"
+                     "      Follow only: do not print existing content; print new data as it arrives.\n"
+                     "  zstdtail -N[f] <file.zst>\n"
+                     "      Print last N lines, then exit (or follow if 'f' is appended, e.g. -100f).\n"
+                     "  zstdtail -n N [-f] <file.zst>\n"
+                     "      Same as -N form.\n"
+                     "\n"
+                     "Notes:\n"
+                     "- Decoding starts at frame boundaries. For already-open segments, -f will scan\n"
+                     "  from the beginning but suppress historical output (equivalent to tail -n 0 -f).\n"
+                     "- On rotation (new segment), decoding continues from the beginning of the new file.\n");
+        return path.empty() ? 2 : 0;
+    }
     if (path.empty()) {
         std::fprintf(stderr, "missing <file.zst> argument\n");
         return 2;
@@ -223,16 +243,23 @@ int main(int argc, char** argv) {
     size_t inSize = 0;      // bytes valid in inBuf
     size_t inPos  = 0;      // current read position in inBuf
     bool priming = (tailLines >= 0); // in tail-N mode, delay printing until initial EOF
+    bool suppressDuringPriming = false; // used for followOnly: suppress historical output
     std::string lineBuf;
     std::deque<std::string> lastN;
     auto emit_line = [&](const char* data, size_t len) {
-        if (tailLines >= 0 && priming) {
-            lastN.emplace_back(data, len);
-            while (static_cast<long>(lastN.size()) > tailLines) lastN.pop_front();
-        } else {
-            (void)fwrite(data, 1, len, stdout);
-            fflush(stdout);
+        if (priming) {
+            if (tailLines >= 0) {
+                lastN.emplace_back(data, len);
+                while (static_cast<long>(lastN.size()) > tailLines) lastN.pop_front();
+                return;
+            }
+            if (suppressDuringPriming) {
+                // drop
+                return;
+            }
         }
+        (void)fwrite(data, 1, len, stdout);
+        fflush(stdout);
     };
     auto flush_lastN = [&]() {
         for (const auto& s : lastN) {
@@ -278,24 +305,15 @@ int main(int argc, char** argv) {
         return true;
     };
 
-    // First open (or wait for rotation if follow-only)
-    if (!followOnly) {
-        if (!reopen()) {
-            std::fprintf(stderr, "error: cannot open %s\n", path.c_str());
-            ZSTD_freeDStream(dstream);
-            return 1;
-        }
-    } else {
-        // Follow-only: resolve and remember current target inode, but do not read/decode its content
-        std::string dummy;
-        DevIno di{};
-        if (!lstat_dev_ino(path, di, &dummy)) {
-            std::fprintf(stderr, "error: cannot stat %s\n", path.c_str());
-            ZSTD_freeDStream(dstream);
-            return 1;
-        }
-        lastDI = di; haveLast = true;
-        // We will wait for rotation and then reopen+start decoding the new file from the beginning
+    // First open: always open current file. For followOnly, suppress historical output until first EOF.
+    if (!reopen()) {
+        std::fprintf(stderr, "error: cannot open %s\n", path.c_str());
+        ZSTD_freeDStream(dstream);
+        return 1;
+    }
+    if (followOnly) {
+        priming = true;
+        suppressDuringPriming = true;
     }
 
     // Main follow loop
@@ -337,9 +355,12 @@ int main(int argc, char** argv) {
             if (r == 0) {
                 // EOF: no new bytes *right now*. Wait briefly and retry.
                 // If we were priming for tail-N and reached EOF the first time, flush the ring and switch to live mode.
-                if (tailLines >= 0 && priming) {
-                    flush_lastN();
+                if (priming) {
+                    if (tailLines >= 0) {
+                        flush_lastN();
+                    }
                     priming = false;
+                    suppressDuringPriming = false;
                     if (!wantFollow) {
                         break; // exit after printing last N lines (no -f)
                     }
