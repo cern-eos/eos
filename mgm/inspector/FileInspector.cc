@@ -604,7 +604,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
     }
     // Size histogram (files) using predefined bins
     {
-      out += " Size histogram (files)\n";
+      out += "# Size histogram (files)\n";
       // Define bins in the desired order (upper bound in bytes; 0 => >= 1TB)
       static const uint64_t KB = 1024ull;
       static const uint64_t MB = KB * 1024ull;
@@ -628,8 +628,9 @@ FileInspector::Dump(std::string& out, std::string_view options,
         counts.push_back(c);
         if (c > maxc) maxc = c;
       }
-      // Render vertical columns with a maximum height
-      const int colWidth = 6;
+      // Render vertical columns with a maximum height and axes
+      const int colWidth = 6;       // width per bin column
+      const int yLabelW  = 8;       // width of Y-axis label field
       const int maxHeight = 20;
       uint64_t scale = (maxc > (uint64_t)maxHeight) ? ((maxc + maxHeight - 1) / maxHeight) : 1;
       std::vector<uint64_t> heights;
@@ -641,7 +642,15 @@ FileInspector::Dump(std::string& out, std::string_view options,
       uint64_t hmax = 0;
       for (auto h : heights) if (h > hmax) hmax = h;
       for (uint64_t row = hmax; row >= 1; --row) {
-        std::string line;
+        std::string line = "# ";
+        // Y-axis label shows approximate count at this tick
+        char ybuf[32];
+        snprintf(ybuf, sizeof(ybuf), "%6lu ", (unsigned long)(row * scale));
+        // right-align within yLabelW
+        char yfield[32];
+        snprintf(yfield, sizeof(yfield), "%*s", yLabelW, ybuf);
+        line += yfield;
+        line += "|";
         for (size_t i = 0; i < heights.size(); ++i) {
           if (heights[i] >= row) {
             line += "  *   ";
@@ -653,9 +662,23 @@ FileInspector::Dump(std::string& out, std::string_view options,
         out += line;
         if (row == 1) break; // avoid unsigned wrap
       }
-      // Labels
+      // X-axis
       {
-        std::string line;
+        std::string line = "# ";
+        // space under Y label, then '+'
+        for (int i = 0; i < yLabelW; ++i) line += " ";
+        line += "+";
+        for (size_t i = 0; i < labels.size(); ++i) {
+          for (int k = 0; k < colWidth; ++k) line += "-";
+        }
+        line += "\n";
+        out += line;
+      }
+      // X-axis labels
+      {
+        std::string line = "# ";
+        for (int i = 0; i < yLabelW; ++i) line += " ";
+        line += " ";
         for (size_t i = 0; i < labels.size(); ++i) {
           char buf[16];
           snprintf(buf, sizeof(buf), "%-6s", labels[i].c_str());
@@ -667,7 +690,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
       // Scale note
       {
         char buf[128];
-        snprintf(buf, sizeof(buf), " (each * ~ %lu files)\n", (unsigned long)scale);
+        snprintf(buf, sizeof(buf), "# (each * ~ %lu files)\n", (unsigned long)scale);
         out += buf;
       }
     }
