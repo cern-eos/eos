@@ -121,6 +121,10 @@ struct FileInspectorStats {
   //! Running count of number of time files have been classed faulty
   uint64_t NumFaultyFiles = 0;
 
+  //! Totals for convenience
+  uint64_t TotalFileCount = 0;
+  uint64_t TotalLogicalBytes = 0;
+
   time_t TimeScan;
 };
 

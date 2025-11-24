@@ -301,6 +301,9 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
 
   uint64_t lid = fmd->getLayoutId();
   std::lock_guard<std::mutex> lock(mutexScanStats);
+  // Totals
+  mCurrentStats.TotalFileCount++;
+  mCurrentStats.TotalLogicalBytes += fmd->getSize();
   double disksize = 1.0 * fmd->getSize() * eos::common::LayoutId::GetSizeFactor(
                       lid);
   bool ontape = eos::modeFromMetadataEntry(fmd) & EOS_TAPE_MODE_T;
@@ -578,6 +581,17 @@ FileInspector::Dump(std::string& out, std::string_view options,
     out += "# ";
     out += eos::common::Timing::ltime(now);
     out += "\n";
+    // Summary at top: total files and average filesize
+    if (mLastStats.TotalFileCount > 0) {
+      char sum[256];
+      double avg = static_cast<double>(mLastStats.TotalLogicalBytes) /
+                   static_cast<double>(mLastStats.TotalFileCount);
+      snprintf(sum, sizeof(sum), "# total_files: %lu\n# average_filesize_bytes: %.0f\n",
+               (unsigned long)mLastStats.TotalFileCount, avg);
+      out += sum;
+    } else {
+      out += "# total_files: 0\n# average_filesize_bytes: 0\n";
+    }
   }
 
   if (!enabled()) {
@@ -593,6 +607,20 @@ FileInspector::Dump(std::string& out, std::string_view options,
   std::lock_guard<std::mutex> lock(mutexScanStats);
 
   if (options.find("m") != std::string::npos) {
+    // Monitoring: emit summary as two lines
+    {
+      std::string l;
+      l = "key=last tag=summary::total_files value=";
+      l += std::to_string(mLastStats.TotalFileCount);
+      out += l; out += "\n";
+      l = "key=last tag=summary::avg_filesize value=";
+      if (mLastStats.TotalFileCount > 0) {
+        l += std::to_string(mLastStats.TotalLogicalBytes / mLastStats.TotalFileCount);
+      } else {
+        l += "0";
+      }
+      out += l; out += "\n";
+    }
     for (auto it = mLastStats.ScanStats.begin(); it != mLastStats.ScanStats.end();
          ++it) {
       snprintf(line, sizeof(line),

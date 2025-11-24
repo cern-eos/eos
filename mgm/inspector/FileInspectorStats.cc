@@ -65,6 +65,8 @@ FileInspectorStats& FileInspectorStats::operator=(const FileInspectorStats&
   clone(TotalBytes, other.TotalBytes);
   clone(UserBytes, other.UserBytes);
   NumFaultyFiles = other.NumFaultyFiles;
+  TotalFileCount = other.TotalFileCount;
+  TotalLogicalBytes = other.TotalLogicalBytes;
   TimeScan = other.TimeScan;
   return *this;
 }
@@ -108,6 +110,8 @@ noexcept
   move(TotalBytes, other.TotalBytes);
   move(UserBytes, other.UserBytes);
   NumFaultyFiles = other.NumFaultyFiles;
+  TotalFileCount = other.TotalFileCount;
+  TotalLogicalBytes = other.TotalLogicalBytes;
   TimeScan = other.TimeScan;
   return *this;
 }
