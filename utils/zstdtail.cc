@@ -369,12 +369,17 @@ int main(int argc, char** argv) {
                 const char* data = outBuf.data();
                 for (size_t i = 0; i < zout.pos; ++i) {
                     if (data[i] == '\n') {
-                        // complete line = lineBuf + data[start..i]
+                        // complete line = (lineBuf if any) + data[start..i] + '\n'
                         if (!lineBuf.empty()) {
-                            emit_line(lineBuf.data(), lineBuf.size());
+                            std::string combined;
+                            combined.reserve(lineBuf.size() + (i - start + 1));
+                            combined.append(lineBuf);
+                            combined.append(data + start, i - start + 1);
+                            emit_line(combined.data(), combined.size());
                             lineBuf.clear();
+                        } else {
+                            emit_line(data + start, i - start + 1);
                         }
-                        emit_line(data + start, i - start + 1);
                         start = i + 1;
                     }
                 }
@@ -399,6 +404,12 @@ int main(int argc, char** argv) {
         }
 
         // If buffer fully consumed, next loop iteration will read more.
+    }
+
+    // On exit: if we were priming and have a partial line buffered, treat it as a line
+    if (tailLines >= 0 && !lineBuf.empty()) {
+        (void)fwrite(lineBuf.data(), 1, lineBuf.size(), stdout);
+        fflush(stdout);
     }
 
     if (fd != -1) ::close(fd);
