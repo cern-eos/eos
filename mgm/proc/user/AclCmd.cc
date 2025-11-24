@@ -146,7 +146,7 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
   // Parse acl modification command into bitmask rule format
   if (!ParseRule(acl.rule())) {
     eos_static_err("msg=\"%s\"", mErr.c_str());
-    mErr = "error: failed to parse input rule or unknown id";
+    mErr = "error: failed to parse ACL input rule or unknown id";
     return EINVAL;
   }
 
