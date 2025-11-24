@@ -65,6 +65,7 @@
 #include <unistd.h>
 #include <vector>
 #include <deque>
+#include <cctype>
 
 namespace {
 
@@ -119,22 +120,7 @@ int open_follow(const std::string& path) {
     return fd;
 }
 
-size_t safe_read(int fd, void* buf, size_t n) {
-    for (;;) {
-        ssize_t r = ::read(fd, buf, n);
-        if (r > 0) return static_cast<size_t>(r);
-        if (r == 0) return 0; // EOF
-        if (errno == EINTR) continue;
-        if (errno == EAGAIN) { std::this_thread::sleep_for(std::chrono::milliseconds(5)); continue; }
-        return static_cast<size_t>(-1);
-    }
-}
-
-bool is_regular_open(int fd) {
-    struct stat st{};
-    if (fstat(fd, &st) != 0) return false;
-    return S_ISREG(st.st_mode);
-}
+// (intentionally no unused helpers)
 
 } // namespace
 
@@ -354,6 +340,9 @@ int main(int argc, char** argv) {
                 if (tailLines >= 0 && priming) {
                     flush_lastN();
                     priming = false;
+                    if (!wantFollow) {
+                        break; // exit after printing last N lines (no -f)
+                    }
                 }
                 std::this_thread::sleep_for(std::chrono::milliseconds(80));
                 continue;
