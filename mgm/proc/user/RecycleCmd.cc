@@ -44,9 +44,18 @@ RecycleCmd::ProcessRequest() noexcept
 
   if (subcmd == RecycleProto::kLs) {
     const eos::console::RecycleProto_LsProto& ls = recycle.ls();
+    std::string display_type = "uid";
+
+    if (ls.display() == eos::console::RecycleProto::ALL) {
+      display_type = "all";
+    } else if (ls.display() == eos::console::RecycleProto::RID) {
+      display_type = "rid";
+    }
+
     rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(),
-                        !ls.numericids(), ls.fulldetails(),
-                        ls.date(), ls.all(), nullptr, true, ls.maxentries());
+                        !ls.numericids(), ls.fulldetails(), display_type,
+                        ls.displayval(), ls.date(), nullptr, true,
+                        ls.maxentries());
 
     if (std_out.length()) {
       reply.set_std_out(std_out.c_str());
@@ -60,8 +69,7 @@ RecycleCmd::ProcessRequest() noexcept
   } else if (subcmd == RecycleProto::kPurge) {
     const eos::console::RecycleProto_PurgeProto& purge = recycle.purge();
     reply.set_retc(Recycle::Purge(std_out, std_err, mVid, purge.date(),
-                                  purge.all(),
-                                  purge.key()));
+                                  purge.all(), purge.key()));
 
     if (reply.retc()) {
       reply.set_std_err(std_err.c_str());
