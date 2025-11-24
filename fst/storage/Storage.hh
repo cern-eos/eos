@@ -31,6 +31,7 @@
 #include "common/AssistedThread.hh"
 #include "common/Fmd.hh"
 #include "common/ConcurrentQueue.hh"
+#include <google/protobuf/util/json_util.h>
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include <atomic>
