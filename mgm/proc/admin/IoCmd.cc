@@ -329,6 +329,7 @@ void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn,
 
 	node->SetConfigMember("stat.monitor", (cmd + " " + options).c_str(), true);
 	reply.set_std_out(nodename + " : " + cmd + " " + options);
+	// reply.set_std_out(nodename + " : " + cmd + " " + options);
 	reply.set_retc(0);
 }
 
