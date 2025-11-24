@@ -589,18 +589,20 @@ FileInspector::Dump(std::string& out, std::string_view options,
       std::string totals =
         eos::common::StringConversion::GetReadableSizeString(
           mLastStats.TotalLogicalBytes, "B");
-      snprintf(sum, sizeof(sum), "# total_files: %lu\n# total_size: %s\n# average_filesize_bytes: %.0f\n",
+      std::string avgReadable =
+        eos::common::StringConversion::GetReadableSizeString(avg, "B");
+      snprintf(sum, sizeof(sum), "# total_files: %lu\n# total_size: %s\n# average_filesize: %s\n",
                (unsigned long)mLastStats.TotalFileCount, avg);
       // Insert total size string between the tokens
       {
         // Reconstruct with totals
         char buf[512];
-        snprintf(buf, sizeof(buf), "# total_files: %lu\n# total_size: %s\n# average_filesize_bytes: %.0f\n",
-                 (unsigned long)mLastStats.TotalFileCount, totals.c_str(), avg);
+        snprintf(buf, sizeof(buf), "# total_files: %lu\n# total_size: %s\n# average_filesize: %s\n",
+                 (unsigned long)mLastStats.TotalFileCount, totals.c_str(), avgReadable.c_str());
         out += buf;
       }
     } else {
-      out += "# total_files: 0\n# total_size: 0B\n# average_filesize_bytes: 0\n";
+      out += "# total_files: 0\n# total_size: 0B\n# average_filesize: 0B\n";
     }
     // Size histogram (files) using predefined bins
     {
@@ -647,7 +649,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
         line += "\xE2\x94\x82"; // "│"
         for (size_t i = 0; i < heights.size(); ++i) {
           if (heights[i] >= row) {
-            line += "  *   ";
+            line += "  \xE2\x96\x88   "; // "█"
           } else {
             line += "      ";
           }
@@ -670,7 +672,7 @@ FileInspector::Dump(std::string& out, std::string_view options,
       // Scale note
       {
         char buf[128];
-        snprintf(buf, sizeof(buf), "# (each * ~ %lu files)\n", (unsigned long)scale);
+        snprintf(buf, sizeof(buf), "# (each \xE2\x96\x88 ~ %lu files)\n", (unsigned long)scale); // "█"
         out += buf;
       }
     }
