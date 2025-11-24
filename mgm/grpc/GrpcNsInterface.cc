@@ -2219,16 +2219,19 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
       }
     }
 
-    int rc = Recycle::Print(std_out,
-                            std_err,
-                            vid,
-                            true,
-                            true,
-                            true,
-                            date,
-                            false,
-                            &rvec,
-                            true,
+    std::string display_type = "uid";
+
+    if (request->listflag().display() == eos::rpc::NSRequest_RecycleRequest::ALL) {
+      display_type = "all";
+    } else if (request->listflag().display() ==
+               eos::rpc::NSRequest_RecycleRequest::RID) {
+      display_type = "rid";
+    }
+
+    int rc = Recycle::Print(std_out, std_err, vid, true, true, true,
+                            display_type,
+                            request->listflag().display_val(),
+                            date, &rvec, true,
                             request->listflag().maxentries());
 
     for (auto item : rvec) {
