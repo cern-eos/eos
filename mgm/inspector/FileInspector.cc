@@ -586,11 +586,90 @@ FileInspector::Dump(std::string& out, std::string_view options,
       char sum[256];
       double avg = static_cast<double>(mLastStats.TotalLogicalBytes) /
                    static_cast<double>(mLastStats.TotalFileCount);
-      snprintf(sum, sizeof(sum), "# total_files: %lu\n# average_filesize_bytes: %.0f\n",
+      std::string totals =
+        eos::common::StringConversion::GetReadableSizeString(
+          mLastStats.TotalLogicalBytes, "B");
+      snprintf(sum, sizeof(sum), "# total_files: %lu\n# total_size: %s\n# average_filesize_bytes: %.0f\n",
                (unsigned long)mLastStats.TotalFileCount, avg);
-      out += sum;
+      // Insert total size string between the tokens
+      {
+        // Reconstruct with totals
+        char buf[512];
+        snprintf(buf, sizeof(buf), "# total_files: %lu\n# total_size: %s\n# average_filesize_bytes: %.0f\n",
+                 (unsigned long)mLastStats.TotalFileCount, totals.c_str(), avg);
+        out += buf;
+      }
     } else {
-      out += "# total_files: 0\n# average_filesize_bytes: 0\n";
+      out += "# total_files: 0\n# total_size: 0B\n# average_filesize_bytes: 0\n";
+    }
+    // Size histogram (files) using predefined bins
+    {
+      out += " Size histogram (files)\n";
+      // Define bins in the desired order (upper bound in bytes; 0 => >= 1TB)
+      static const uint64_t KB = 1024ull;
+      static const uint64_t MB = KB * 1024ull;
+      static const uint64_t GB = MB * 1024ull;
+      static const uint64_t TB = GB * 1024ull;
+      static const std::vector<uint64_t> bins {
+        4 * KB, 1 * MB, 16 * MB, 64 * MB, 128 * MB, 256 * MB,
+        1 * GB, 4 * GB, 16 * GB, 128 * GB, 512 * GB, 1 * TB, 0ull
+      };
+      static const std::vector<std::string> labels {
+        "<4K", "<1M", "<16M", "<64M", "<128M", "<256M",
+        "<1G", "<4G", "<16G", "<128G", "<512G", "<1T", ">=1T"
+      };
+      std::vector<uint64_t> counts;
+      counts.reserve(bins.size());
+      uint64_t maxc = 0;
+      for (auto ub : bins) {
+        uint64_t c = 0;
+        auto it = mLastStats.SizeBinsFiles.find(ub);
+        if (it != mLastStats.SizeBinsFiles.end()) c = it->second;
+        counts.push_back(c);
+        if (c > maxc) maxc = c;
+      }
+      // Render vertical columns with a maximum height
+      const int colWidth = 6;
+      const int maxHeight = 20;
+      uint64_t scale = (maxc > (uint64_t)maxHeight) ? ((maxc + maxHeight - 1) / maxHeight) : 1;
+      std::vector<uint64_t> heights;
+      heights.reserve(counts.size());
+      for (auto c : counts) {
+        uint64_t h = (c + scale - 1) / scale;
+        heights.push_back(h);
+      }
+      uint64_t hmax = 0;
+      for (auto h : heights) if (h > hmax) hmax = h;
+      for (uint64_t row = hmax; row >= 1; --row) {
+        std::string line;
+        for (size_t i = 0; i < heights.size(); ++i) {
+          if (heights[i] >= row) {
+            line += "  *   ";
+          } else {
+            line += "      ";
+          }
+        }
+        line += "\n";
+        out += line;
+        if (row == 1) break; // avoid unsigned wrap
+      }
+      // Labels
+      {
+        std::string line;
+        for (size_t i = 0; i < labels.size(); ++i) {
+          char buf[16];
+          snprintf(buf, sizeof(buf), "%-6s", labels[i].c_str());
+          line += buf;
+        }
+        line += "\n";
+        out += line;
+      }
+      // Scale note
+      {
+        char buf[128];
+        snprintf(buf, sizeof(buf), " (each * ~ %lu files)\n", (unsigned long)scale);
+        out += buf;
+      }
     }
   }
 
