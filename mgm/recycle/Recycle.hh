@@ -77,6 +77,9 @@ public:
   static eos::common::VirtualIdentity mRootVid;
   //! Timestamp of the last remove operation done by the recycler
   static std::chrono::seconds mLastRemoveTs;
+  //! Recycle id extended attribute value used to store the container id
+  //! for which the corresponding recycle directory belong to
+  static const std::string kRecycleIdXattrKey;
 
   //----------------------------------------------------------------------------
   //! Default constructor
@@ -145,6 +148,22 @@ public:
                     eos::common::VirtualIdentity& vid,
                     eos::console::RecycleProto_ConfigProto_OpType op,
                     const std::string& value);
+
+  //----------------------------------------------------------------------------
+  //! Configure a recycle id for the given path and optionally set the given
+  //! ACL on the computed top level recycle directory to control access with
+  //! respect to restoring recycled entries
+  //!
+  //! @param path path to top level directory that is to be labeled with a
+  //!             recycle id. The recycle id will match the top container id.
+  //! @param acl string representation of ACLs to be appended to the top
+  //!             recycle directory
+  //! @param std_err output string holding any potential error message
+  //!
+  //! @return 0 if succsessful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int RecycleIdSetup(std::string_view path, std::string_view acl,
+                            std::string& std_err);
 
   //----------------------------------------------------------------------------
   //! Notify the recycle that the configuration was updated
