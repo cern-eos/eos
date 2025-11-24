@@ -54,6 +54,10 @@ IoCmd::ProcessRequest() noexcept
     NsSubcmd(io.ns(), reply);
     break;
 
+	case eos::console::IoProto::kMonitor:
+    MonitorSubcmd(io.monitor(), reply);
+    break;
+
   default:
     reply.set_retc(EINVAL);
     reply.set_std_err("error: not supported");
@@ -286,6 +290,46 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
 
   reply.set_std_out(out.c_str());
   reply.set_retc(0);
+}
+
+void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn,
+                     eos::console::ReplyProto& reply)
+{
+	std::string nodename = mn.node();
+	std::string cmd = mn.cmd();
+	std::string options = mn.options();
+
+	if ((nodename.find(':') == std::string::npos)) {
+		nodename += ":1095"; // default eos fst port
+	}
+
+	if ((nodename.find("/eos/") == std::string::npos)) {
+		nodename.insert(0, "/eos/");
+		nodename.append("/fst");
+	}
+
+	eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
+	if (!FsView::gFsView.mNodeView.count(nodename)) {
+		reply.set_std_err("error: cannot find node - no node with name '" + nodename +
+						  "'");
+		reply.set_retc(ENOENT);
+		return;
+	}
+
+	std::string std_out;
+	std::vector<std::string> keylist;
+
+	auto *node = FsView::gFsView.mNodeView[nodename];
+	if (node->GetStatus() != "online"){
+		reply.set_std_err("error: node offline '" + nodename +
+			  "'");
+		reply.set_retc(ENOENT);
+		return;
+	}
+
+	node->SetConfigMember("stat.monitor", (cmd + " " + options).c_str(), true);
+	reply.set_std_out(nodename + " : " + cmd + " " + options);
+	reply.set_retc(0);
 }
 
 EOSMGMNAMESPACE_END
