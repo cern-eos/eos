@@ -62,7 +62,7 @@ class IoShaping : public eos::common::LogId{
 		///
 		/// @param assistant reference to thread object
 		//----------------------------------------------------------------------------
-		void publishing(ThreadAssistant &assistant) noexcept;
+		void publishing(ThreadAssistant &assistant);
 
 		//----------------------------------------------------------------------------
 		/// Shape

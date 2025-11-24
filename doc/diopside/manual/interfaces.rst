@@ -1121,8 +1121,8 @@ Space attribute are removed like:
 
 .. code-block:: bash
 
-                # remove checksum settings in the default space
-                eos sapce config rm default space.attr.sys.forced.checksum
+		# remove checksum settings in the default space
+		eos space config rm default space.attr.sys.forced.checksum
 
 Space attributes are listed in the usual manner:
 
