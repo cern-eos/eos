@@ -25,7 +25,7 @@ set(gtest_force_shared_crt
 FetchContent_MakeAvailable(googletest)
 
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
-	add_compile_options(-Wall -Wextra -Werror -Weverything -O2 -g3 -std=c++17)
+	add_compile_options(-Wall -Wextra -Werror -O2 -g3 -std=c++17)
 endif()
 
 include_directories(include)

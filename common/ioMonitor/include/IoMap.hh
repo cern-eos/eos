@@ -167,6 +167,26 @@ class IoMap {
 		//--------------------------------------------
 		void addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes);
 
+		//--------------------------------------------
+		/// @brief Delete the appName of 
+		/// the _apps variable
+		///
+		/// @param appName name of the tracked app
+		///
+		/// @return bool if the appName has been deleted
+		//--------------------------------------------
+		bool rm(std::string &appName);
+
+		//--------------------------------------------
+		/// @brief Delete the uid/gid of 
+		/// the _uids/gids variable
+		///
+		/// @param type Type of the id variable
+		/// @param id The uid/gid to delete
+		///
+		/// @return bool if the id has been deleted
+		//--------------------------------------------
+		bool rm(io::TYPE type, size_t id);
 
 		//--------------------------------------------
 		///@brief Get all apps
