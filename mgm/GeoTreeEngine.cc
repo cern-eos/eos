@@ -1741,7 +1741,6 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
 {
   int returnCode = ENODATA;
   assert(nAccessReplicas);
-  assert(existingReplicas);
   // Find the group holdings the fs of the existing replicas and check that the
   // replicas are available
   size_t availFsCount = 0;
