@@ -166,8 +166,27 @@ RecycleHelper::ParseCommand(const char* arg)
         restore->set_forceorigname(true);
       } else if ((soption == "-r") || (soption == "--restore-versions")) {
         restore->set_restoreversions(true);
-      }  else if (soption == "-p") {
+      } else if (soption == "-p") {
         restore->set_makepath(true);
+      } else if (soption == "--rid") {
+        if (!(option = tokenizer.GetToken())) {
+          // Parse the recycle id value
+          std::cerr << "error: need to specify a recycle id after --rid option"
+                    << std::endl;
+          return EINVAL;
+        }
+
+        soption = option;
+
+        // Make sure this is a number
+        try {
+          (void) std::stoull(soption);
+        } catch (...) {
+          std::cerr << "error: recycle id needs to be numeric" << std::endl;
+          return EINVAL;
+        }
+
+        restore->set_recycleid(soption);
       } else {
         // This must be the recycle-key
         restore->set_key(soption);
