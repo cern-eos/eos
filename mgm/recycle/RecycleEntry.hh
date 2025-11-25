@@ -50,13 +50,14 @@ public:
   //!
   //! @param path path to recycle
   //! @param recycle_dir recycle bin directory
+  //! @param rid empty for user based recycling, rid value for projects
   //! @param owner_uid user id
   //! @param owner_gid group id
   //! @param id of the container or file
   //----------------------------------------------------------------------------
   RecycleEntry(std::string_view path, std::string_view recycle_dir,
-               eos::common::VirtualIdentity* vid, uid_t owner_uid,
-               gid_t owner_gid, unsigned long long id);
+               std::string_view rid, eos::common::VirtualIdentity* vid,
+               uid_t owner_uid, gid_t owner_gid, unsigned long long id);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -74,8 +75,10 @@ public:
   int ToGarbage(const char* epname, XrdOucErrInfo& error);
 
 private:
+  static uint32_t sMaxEntriesPerDir;
   std::string mPath; ///< Path for the entry to recycle
   std::string mRecycleDir; ///< Path for the top recycle directory
+  std::string mRecycleId; ///< Either uid:<val> or rid:<val> for projects
   uid_t mOwnerUid; ///< Original uid owner of the entry
   gid_t mOwnerGid; ///< Origianl gid owner of the entry
   unsigned long long mId; ///< File or container identifier
