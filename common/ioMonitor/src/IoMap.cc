@@ -229,6 +229,27 @@ void IoMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gi
 	}
 }
 
+bool IoMap::rm(std::string &appName){
+	std::lock_guard<std::mutex> lock(_mutex);
+	if (_apps.find(appName) == _apps.end())
+		return false;
+
+	_apps.erase(appName);
+	return true;
+}
+
+bool IoMap::rm(io::TYPE type, size_t id){
+	std::lock_guard<std::mutex> lock(_mutex);
+	if (type != io::TYPE::UID && type != io::TYPE::GID)
+		return false;
+	else if (type == io::TYPE::UID ? _uids.find(id) == _uids.end() : _gids.find(id) == _gids.end())
+		return false;
+
+	type == io::TYPE::UID ? _uids.erase(id) : _gids.erase(id);
+
+	return true;
+}
+
 
 //--------------------------------------------
 /// Get all apps
