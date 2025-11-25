@@ -73,13 +73,161 @@ public:
   //! Attribute key storing the recycling key of the version directory
   //! belonging to a given file
   static std::string gRecyclingVersionKey;
+  //! Recycle id extended attribute value used to store the container id
+  //! for which the corresponding recycle directory belong to
+  static std::string gRecycleIdXattrKey;
   //! Root virtual identity used internally for unrestricted operations
   static eos::common::VirtualIdentity mRootVid;
   //! Timestamp of the last remove operation done by the recycler
   static std::chrono::seconds mLastRemoveTs;
-  //! Recycle id extended attribute value used to store the container id
-  //! for which the corresponding recycle directory belong to
-  static const std::string kRecycleIdXattrKey;
+
+  //----------------------------------------------------------------------------
+  //! Configure the recycle bin
+  //!
+  //! @param std_out where to print
+  //! @param std_err where to print
+  //! @param vid of the client
+  //! @param op operation type according to Recycle.proto
+  //! @param value configuration value for the given operation type
+  //!
+  //! @return 0 if successful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int Config(std::string& std_out, std::string& std_err,
+                    eos::common::VirtualIdentity& vid,
+                    eos::console::RecycleProto_ConfigProto_OpType op,
+                    const std::string& value);
+
+  //----------------------------------------------------------------------------
+  //! Configure a recycle id for the given path and optionally set the given
+  //! ACL on the computed top level recycle directory to control access with
+  //! respect to restoring recycled entries
+  //!
+  //! @param path path to top level directory that is to be labeled with a
+  //!             recycle id. The recycle id will match the top container id.
+  //! @param acl string representation of ACLs to be appended to the top
+  //!             recycle directory
+  //! @param std_err output string holding any potential error message
+  //!
+  //! @return 0 if succsessful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int RecycleIdSetup(std::string_view path, std::string_view acl,
+                            std::string& std_err);
+
+  //----------------------------------------------------------------------------
+  //! Print the recycle bin contents
+  //!
+  //! @param std_out where to print
+  //! @param std_err where to print
+  //! @param vid of the client
+  //! @param monitoring selects monitoring key-value output format
+  //! @param translateids selects to display uid/gid as number or string
+  //! @param display type of display requested e.g. all, by uid, by recycle id
+  //! @param date filter recycle bin for given date <year> or <year>/<month>
+  //!        or <year>/<month>/<day>
+  //! @param rvec a vector of maps with all recycle informations requested
+  //! @param whodeleted - show who exectued a deletion
+  //! @param maxentries - maximum number of entries to report
+  //!
+  //! @return 0 if success, E2BIG if return list is limited
+  //----------------------------------------------------------------------------
+  static int Print(std::string& std_out, std::string& std_err,
+                   eos::common::VirtualIdentity& vid, bool monitoring,
+                   bool transalteids, bool details,
+                   std::string_view display_type,
+                   std::string_view display_val,
+                   std::string_view date = "", RecycleListing* rvec = 0,
+                   bool whodeleted = true, int32_t maxentries = 0);
+
+  //----------------------------------------------------------------------------
+  //! Restore an entry from the recycle bin to the original location
+  //!
+  //! @param std_out stdout message
+  //! @param std_err stderr error message
+  //! @param vid client virtual identity
+  //! @param key (==inode) identifier to restore (undelete)
+  //! @param recycle_id empty for user recycle bin, otherwise it contains the
+  //!        corresponding recycle id of the projects that should be searched
+  //! @param force_orig_name flag to force restore to the original name
+  //! @param restore_versions flag to restore all versions
+  //! @param make_path flag to recreate all missing parent directories
+  //!
+  //! @return 0 if successful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int Restore(std::string& std_out, std::string& std_err,
+                     eos::common::VirtualIdentity& vid,
+                     std::string_view key, std::string_view recycle_id,
+                     bool force_orig_name, bool restore_versions,
+                     bool make_path = false);
+
+  //----------------------------------------------------------------------------
+  //! Get recycle bin path from the given restore key information
+  //!
+  //! @param key restore key fxid:<val> or pxid:<val>
+  //! @param recycle_id project recycle id or empty for user recycling
+  //! @param vid client virtual identity
+  //! @param std_err error message
+  //! @param recycle_path computed recycle path
+  //!
+  //! @return 0 if successful, otherwise errno
+  //----------------------------------------------------------------------------
+  static int
+  GetPathFromRestoreKey(std::string_view key, std::string_view recycle_id,
+                        const eos::common::VirtualIdentity& vid,
+                        std::string& std_err, std::string& recycle_path);
+
+  //----------------------------------------------------------------------------
+  //! Demangle path from recycle bin to obtain the original path
+  //!
+  //! @param recyle_path recycle path using the #.# encoding. This only
+  //!        contains the flattened structure without the path location
+  //!        inside the recycle bin.
+  //!
+  //! @return original path
+  //----------------------------------------------------------------------------
+  static std::string
+  DemanglePath(std::string_view recycle_path);
+
+  /**
+   * purge all files in the recycle bin with new uid:<uid>/<date> structure
+   * @param std_out where to print
+   * @param std_err where to print
+   * @param vid of the client
+   * @PARAM date can be empty, <year> or <year>/<month> or <year>/<month>/<day>
+   * @return 0 if done, otherwise errno
+   */
+  static int Purge(std::string& std_out, std::string& std_err,
+                   eos::common::VirtualIdentity& vid, std::string date = "",
+                   bool global = false, std::string pattern = "");
+
+  //----------------------------------------------------------------------------
+  //! Check if given path is inside the recycle bin
+  //!
+  //! @param path searched path
+  //!
+  //! @return true if path inside the recycle bin, otherwise false
+  //----------------------------------------------------------------------------
+  static bool InRecycleBin(const std::string& path)
+  {
+    return (path.substr(0, Recycle::gRecyclingPrefix.length()) ==
+            Recycle::gRecyclingPrefix);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check if given path matches the top recycle bin directory
+  //!
+  //! @param path searched path
+  //!
+  //! @return true if path inside the recycle bin, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsTopRecycleBin(std::string path)
+  {
+    if (*(path.rbegin()) != '/') {
+      path += '/';
+    }
+
+    return (path == Recycle::gRecyclingPrefix);
+  }
+
 
   //----------------------------------------------------------------------------
   //! Default constructor
@@ -122,38 +270,6 @@ public:
   void Recycler(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
-  //! Configure the recycle bin
-  //!
-  //! @param std_out where to print
-  //! @param std_err where to print
-  //! @param vid of the client
-  //! @param op operation type according to Recycle.proto
-  //! @param value configuration value for the given operation type
-  //!
-  //! @return 0 if successful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int Config(std::string& std_out, std::string& std_err,
-                    eos::common::VirtualIdentity& vid,
-                    eos::console::RecycleProto_ConfigProto_OpType op,
-                    const std::string& value);
-
-  //----------------------------------------------------------------------------
-  //! Configure a recycle id for the given path and optionally set the given
-  //! ACL on the computed top level recycle directory to control access with
-  //! respect to restoring recycled entries
-  //!
-  //! @param path path to top level directory that is to be labeled with a
-  //!             recycle id. The recycle id will match the top container id.
-  //! @param acl string representation of ACLs to be appended to the top
-  //!             recycle directory
-  //! @param std_err output string holding any potential error message
-  //!
-  //! @return 0 if succsessful, otherwise errno
-  //----------------------------------------------------------------------------
-  static int RecycleIdSetup(std::string_view path, std::string_view acl,
-                            std::string& std_err);
-
-  //----------------------------------------------------------------------------
   //! Notify the recycle that the configuration was updated
   //----------------------------------------------------------------------------
   inline void NotifyConfigUpdate()
@@ -182,90 +298,6 @@ public:
   inline std::string Dump() const
   {
     return mPolicy.Dump();
-  }
-
-  //----------------------------------------------------------------------------
-  //! Print the recycle bin contents
-  //!
-  //! @param std_out where to print
-  //! @param std_err where to print
-  //! @param vid of the client
-  //! @param monitoring selects monitoring key-value output format
-  //! @param translateids selects to display uid/gid as number or string
-  //! @param display type of display requested e.g. all, by uid, by recycle id
-  //! @param date filter recycle bin for given date <year> or <year>/<month>
-  //!        or <year>/<month>/<day>
-  //! @param rvec a vector of maps with all recycle informations requested
-  //! @param whodeleted - show who exectued a deletion
-  //! @param maxentries - maximum number of entries to report
-  //!
-  //! @return 0 if success, E2BIG if return list is limited
-  //----------------------------------------------------------------------------
-  static int Print(std::string& std_out, std::string& std_err,
-                   eos::common::VirtualIdentity& vid, bool monitoring,
-                   bool transalteids, bool details,
-                   std::string_view display_type,
-                   std::string_view display_val,
-                   std::string_view date = "", RecycleListing* rvec = 0,
-                   bool whodeleted = true, int32_t maxentries = 0);
-
-  /**
-   * undo a deletion
-   * @param std_out where to print
-   * @param std_err where to print
-   * @param vid of the client
-   * @param key (==inode) to undelete
-   * @param force_orig_name flag to force restore to the original name
-   * @param restore_versions flag to restore all versions
-   * @param make_path flag to recreate all missing parent directories
-   * @return 0 if done, otherwise errno
-   */
-  static int Restore(std::string& std_out, std::string& std_err,
-                     eos::common::VirtualIdentity& vid, const char* key,
-                     bool force_orig_name, bool restore_versions, bool make_path = false);
-
-  /**
-   * purge all files in the recycle bin with new uid:<uid>/<date> structure
-   * @param std_out where to print
-   * @param std_err where to print
-   * @param vid of the client
-   * @PARAM date can be empty, <year> or <year>/<month> or <year>/<month>/<day>
-   * @return 0 if done, otherwise errno
-   */
-  static int Purge(std::string& std_out, std::string& std_err,
-                   eos::common::VirtualIdentity& vid,
-                   std::string date = "",
-                   bool global = false,
-                   std::string pattern = ""
-                  );
-
-  //----------------------------------------------------------------------------
-  //! Check if given path is inside the recycle bin
-  //!
-  //! @param path searched path
-  //!
-  //! @return true if path inside the recycle bin, otherwise false
-  //----------------------------------------------------------------------------
-  static bool InRecycleBin(const std::string& path)
-  {
-    return (path.substr(0, Recycle::gRecyclingPrefix.length()) ==
-            Recycle::gRecyclingPrefix);
-  }
-
-  //----------------------------------------------------------------------------
-  //! Check if given path matches the top recycle bin directory
-  //!
-  //! @param path searched path
-  //!
-  //! @return true if path inside the recycle bin, otherwise false
-  //----------------------------------------------------------------------------
-  static bool IsTopRecycleBin(std::string path)
-  {
-    if (*(path.rbegin()) != '/') {
-      path += '/';
-    }
-
-    return (path == Recycle::gRecyclingPrefix);
   }
 
 private:
@@ -332,6 +364,21 @@ public:
   //! @return a string representing a date <year>/<month>/day numeric format
   //----------------------------------------------------------------------------
   std::string GetCutOffDate();
+
+  //----------------------------------------------------------------------------
+  //! Check if client is allowed to restore the given recyle path. There are
+  //! two situations when restore is allowed:
+  //! * client is the owner of the entry
+  //! * directory ACLs allow the client to read the entry i.e. restore
+  //!
+  //! @param recycle_path path in the recycle bin to restore
+  //! @param vid client virtual identity
+  //!
+  //! @return 0 if allowe, otherwise errno
+  //----------------------------------------------------------------------------
+  static int
+  IsAllowedToRestore(std::string_view recycle_path,
+                     const eos::common::VirtualIdentity& vid);
 };
 
 EOSMGMNAMESPACE_END

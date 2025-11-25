@@ -2138,10 +2138,8 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
                     request->restoreflag().force(),
                     request->restoreflag().versions(),
                     request->restoreflag().mkpath());
-    int retc = Recycle::Restore(std_out,
-                                std_err,
-                                vid,
-                                request->key().c_str(),
+    int retc = Recycle::Restore(std_out, std_err, vid,
+                                request->key(), request->recycleid(),
                                 request->restoreflag().force(),
                                 request->restoreflag().versions(),
                                 request->restoreflag().mkpath());

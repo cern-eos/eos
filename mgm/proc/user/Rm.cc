@@ -184,29 +184,27 @@ ProcCommand::Rm()
           retc = errno;
         }
       } else {
-        std::string recyclingAttribute;
+        std::string recycle_dir;
+        std::string recycle_id;
 
         if (!force) {
-          // only recycle if there is no '-f' flag
-          int rpos;
+          // Only recycle if there is no '-f' flag
+          std::string lpath = spath.c_str();
+          size_t pos = lpath.find("/.sys.v#.");
 
-          if ((rpos = spath.find("/.sys.v#.")) == STR_NPOS) {
-            // check if this path has a recycle attribute
-            gOFS->_attr_get(spath.c_str(), *mError, *pVid, "",
-                            Recycle::gRecyclingAttribute.c_str(), recyclingAttribute);
-          } else {
-            XrdOucString ppath = spath;
-            ppath.erase(rpos);
-            // get it from the parent directory for version directories
-            gOFS->_attr_get(ppath.c_str(), *mError, *pVid, "",
-                            Recycle::gRecyclingAttribute.c_str(), recyclingAttribute);
+          if (pos != std::string::npos) {
+            lpath.erase(pos);
           }
+
+          // Get recycle directory and eventually the recycle id
+          gOFS->_attr_get(lpath.c_str(), *mError, *pVid, "",
+                          Recycle::gRecyclingAttribute.c_str(), recycle_dir);
+          gOFS->_attr_get(lpath.c_str(), *mError, *pVid, "",
+                          Recycle::gRecycleIdXattrKey.c_str(), recycle_id);
         }
 
-        //.......................................................................
-        // see if we have a recycle policy set
-        //.......................................................................
-        if (recyclingAttribute.length() &&
+        // Check if we have a recycle policy set
+        if (recycle_dir.length() &&
             (!spath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
           //.....................................................................
           // two step deletion via recycle bin
@@ -268,7 +266,7 @@ ProcCommand::Rm()
           }
 
           spath += "/";
-          RecycleEntry lRecycle(spath.c_str(), recyclingAttribute.c_str(),
+          RecycleEntry lRecycle(spath.c_str(), recycle_dir, recycle_id,
                                 pVid, buf.st_uid, buf.st_gid,
                                 (unsigned long long) buf.st_ino);
           int rc = 0;

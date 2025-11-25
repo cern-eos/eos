@@ -78,7 +78,8 @@ RecycleCmd::ProcessRequest() noexcept
     }
   } else if (subcmd == RecycleProto::kRestore) {
     const eos::console::RecycleProto_RestoreProto& restore = recycle.restore();
-    reply.set_retc(Recycle::Restore(std_out, std_err, mVid, restore.key().c_str(),
+    reply.set_retc(Recycle::Restore(std_out, std_err, mVid,
+                                    restore.key(), restore.recycleid(),
                                     restore.forceorigname(),
                                     restore.restoreversions(),
                                     restore.makepath()));
