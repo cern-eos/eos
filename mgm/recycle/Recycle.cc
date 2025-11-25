@@ -29,7 +29,9 @@
 #include "common/utils/BackOffInvoker.hh"
 #include "common/RWMutex.hh"
 #include "common/Path.hh"
+#include "common/StringUtils.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/Acl.hh"
 #include "mgm/Quota.hh"
 #include "mgm/QdbMaster.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
@@ -97,11 +99,11 @@ std::string Recycle::gRecyclingCollectInterval = "sys.recycle.collectinterval";
 std::string Recycle::gRecyclingRemoveInterval = "sys.recycle.removeinterval";
 std::string Recycle::gRecyclingDryRunAttribute = "sys.recycle.dryrun";
 std::string Recycle::gRecyclingVersionKey = "sys.recycle.version.key";
+std::string Recycle::gRecycleIdXattrKey = "sys.forced.recycleid";
 std::string Recycle::gRecyclingPostFix = ".d";
 eos::common::VirtualIdentity Recycle::mRootVid =
   eos::common::VirtualIdentity::Root();
 std::chrono::seconds Recycle::mLastRemoveTs = std::chrono::seconds(0);
-const std::string Recycle::kRecycleIdXattrKey = "sys.forced.recycleid";
 
 //------------------------------------------------------------------------------
 // Default constructor
@@ -110,7 +112,6 @@ Recycle::Recycle(bool fake_clock) :
   mPath(""), mRecycleDir(""), mRecyclePath(""), mOwnerUid(DAEMONUID),
   mOwnerGid(DAEMONGID), mId(0), mClock(fake_clock)
 {}
-
 
 //------------------------------------------------------------------------------
 // Collect entries to recycle based on the current policy
@@ -767,144 +768,219 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   return 0;
 }
 
-
-/*----------------------------------------------------------------------------*/
+//----------------------------------------------------------------------------
+//! Check if client is allowed to restore the given recyle path
+//----------------------------------------------------------------------------
 int
-Recycle::Restore(std::string& std_out, std::string& std_err,
-                 eos::common::VirtualIdentity& vid, const char* key,
-                 bool force_orig_name, bool restore_versions, bool make_path)
+Recycle::IsAllowedToRestore(std::string_view recycle_path,
+                            const eos::common::VirtualIdentity& vid)
 {
-  if (!key) {
-    std_err += "error: invalid argument as recycle key\n";
+  struct stat buf;
+  XrdOucErrInfo lerror;
+  eos_static_debug("msg=\"attempt file restore\" path=\"%s\"", recycle_path);
+
+  if (gOFS->_stat(recycle_path.data(), &buf, lerror,
+                  mRootVid, "", nullptr, false)) {
+    return EIO;
+  }
+
+  // If not owner of the recycle entry
+  if (vid.uid != buf.st_uid) {
+    // Evalue the parent ACLs for right to read
+    eos::common::Path cpath(recycle_path.data());
+    std::string parent_dir = cpath.GetParentPath();
+
+    try {
+      auto cmd = gOFS->eosView->getContainer(parent_dir);
+      auto cmd_rlock = eos::MDLocking::readLock(cmd.get());
+      auto xattrs = cmd->getAttributes();
+      Acl acl(xattrs, vid);
+
+      if (acl.CanRead()) {
+        return 0;
+      }
+
+      return EPERM;
+    } catch (const eos::MDException& e) {
+      eos_static_err("msg=\"missing directory for restore\" path=\"%s\"",
+                     parent_dir.c_str());
+      return ENOENT;
+    }
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
+// Get recycle bin path from the given restore key information
+//------------------------------------------------------------------------------
+int
+Recycle::GetPathFromRestoreKey(std::string_view key,
+                               std::string_view recycle_id,
+                               const eos::common::VirtualIdentity& vid,
+                               std::string& std_err, std::string& recycle_path)
+{
+  if (key.empty()) {
+    std_err += "error: invalid argument as recycle key";
     return EINVAL;
   }
 
-  XrdOucString skey = key;
   bool force_file = false;
-  bool force_directory = false;
+  bool force_dir = false;
+  std::string skey(key);
 
-  if (skey.beginswith("fxid:")) {
+  if (skey.find("fxid:") == 0) {
     skey.erase(0, 5);
     force_file = true;
-  }
-
-  if (skey.beginswith("pxid:")) {
+  } else if (skey.find("pxid:") == 0) {
     skey.erase(0, 5);
-    force_directory = true;
+    force_dir = true;
+  } else {
+    std_err = "error: unknow recycle key format";
+    return EINVAL;
   }
 
-  unsigned long long fid = strtoull(skey.c_str(), 0, 16);
-  // convert the hex inode number into decimal and retrieve path name
-  std::shared_ptr<eos::IFileMD> fmd;
-  std::shared_ptr<eos::IContainerMD> cmd;
-  std::string recyclepath;
-  XrdOucString repath;
-  XrdOucString rprefix = Recycle::gRecyclingPrefix.c_str();
-  rprefix += "/";
-  rprefix += (int) vid.gid;
-  rprefix += "/";
-  rprefix += (int) vid.uid;
-  XrdOucString newrprefix = Recycle::gRecyclingPrefix.c_str();
-  newrprefix += "/uid:";
-  newrprefix += (int) vid.uid;
+  // Make sure the value is a hex
+  unsigned long long id = 0ull;
 
-  while (rprefix.replace("//", "/")) {
+  try {
+    id = std::stoull(skey, 0, 16);
+  } catch (...) {
+    std_err = "error: recycle key must containe a hex value";
+    return EINVAL;
   }
 
-  while (newrprefix.replace("//", "/")) {
+  // Construct recycle path prefix depending if this is a project or
+  // a simple user recycle bin path
+  XrdOucString prefix = Recycle::gRecyclingPrefix.c_str();
+
+  if (recycle_id.empty()) {
+    prefix += "/uid:";
+    prefix += (int) vid.uid;
+  } else {
+    prefix += "/rid:";
+    prefix += recycle_id.data();
   }
 
+  while (prefix.replace("//", "/")) {
+  }
+
+  // Full path of the target inside the recycle bin
   {
-    // TODO(gbitzes): This could be more precise...
-    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, fid);
-    eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+    std::shared_ptr<eos::IFileMD> fmd;
 
-    if (!force_directory) {
+    if (!force_dir) {
       try {
-        fmd = gOFS->eosFileService->getFileMD(fid);
-        recyclepath = gOFS->eosView->getUri(fmd.get());
-        repath = recyclepath.c_str();
+        eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, id);
+        auto fmd = gOFS->eosFileService->getFileMD(id);
+        recycle_path = gOFS->eosView->getUri(fmd.get());
 
-        if (!repath.beginswith(rprefix.c_str()) &&
-            !repath.beginswith(newrprefix.c_str())) {
+        if (recycle_path.find(prefix.c_str()) != 0) {
           std_err = "error: this is not a file in your recycle bin - try to "
-                    "prefix the key with pxid:<key>\n";
+                    "prefix the key with pxid:<key>";
           return EPERM;
         }
-      } catch (eos::MDException& e) {
+      } catch (const eos::MDException& e) {
+        // empty
       }
     }
 
     if (!force_file && !fmd) {
       try {
-        cmd = gOFS->eosDirectoryService->getContainerMD(fid);
-        recyclepath = gOFS->eosView->getUri(cmd.get());
-        repath = recyclepath.c_str();
+        eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, id);
+        auto cmd = gOFS->eosDirectoryService->getContainerMD(id);
+        recycle_path = gOFS->eosView->getUri(cmd.get());
 
-        if (!repath.beginswith(rprefix.c_str()) &&
-            !repath.beginswith(newrprefix.c_str())) {
-          std_err = "error: this is not a directory in your recycle bin\n";
+        if (recycle_path.find(prefix.c_str()) != 0) {
+          std_err = "error: this is not a directory in your recycle bin";
           return EPERM;
         }
-      } catch (eos::MDException& e) {
+      } catch (const eos::MDException& e) {
+        // empty
       }
     }
 
-    if (!recyclepath.length()) {
-      std_err = "error: cannot find object referenced by recycle-key=";
-      std_err += key;
+    if (recycle_path.empty()) {
+      std_err = SSTR("error: cannot find object referenced by recycle-key="
+                     << key);
       return ENOENT;
     }
   }
 
-  // reconstruct original file name
-  eos::common::Path cPath(recyclepath.c_str());
-  XrdOucString originalpath = cPath.GetName();
-
-  // Demangle path
-  while (originalpath.replace("#:#", "/")) {
-  }
-
-  if (originalpath.endswith(Recycle::gRecyclingPostFix.c_str())) {
-    originalpath.erase(originalpath.length() - Recycle::gRecyclingPostFix.length() -
-                       16 - 1);
-  } else {
-    originalpath.erase(originalpath.length() - 16 - 1);
-  }
-
   // Check that this is a path to recycle
-  if (!repath.beginswith(Recycle::gRecyclingPrefix.c_str())) {
-    std_err = "error: referenced object cannot be recycled\n";
+  if (recycle_path.find(Recycle::gRecyclingPrefix.c_str()) != 0) {
+    std_err = "error: referenced object cannot be recycled";
     return EINVAL;
   }
 
-  eos::common::Path oPath(originalpath.c_str());
-  // Check if the client is the owner of the object to recycle
+  return 0;
+}
+
+//----------------------------------------------------------------------------
+// Demangle path from recycle bin to obtain the original path
+//----------------------------------------------------------------------------
+std::string
+Recycle::DemanglePath(std::string_view recycle_path)
+{
+  std::string orig_path(recycle_path);
+
+  // This should not contain any '/'
+  if (orig_path.find('/') != std::string::npos) {
+    return std::string();
+  }
+
+  eos::common::replace_all(orig_path, "#.#", "/");
+
+  if (eos::common::endsWith(orig_path, Recycle::gRecyclingPostFix)) {
+    orig_path.erase(orig_path.length() - Recycle::gRecyclingPostFix.length() -
+                    16 - 1);
+  } else {
+    orig_path.erase(orig_path.length() - 16 - 1);
+  }
+
+  return orig_path;
+}
+
+//------------------------------------------------------------------------------
+// Restore an entry from the recycle bin to the original location
+//------------------------------------------------------------------------------
+int
+Recycle::Restore(std::string& std_out, std::string& std_err,
+                 eos::common::VirtualIdentity& vid,
+                 std::string_view key, std::string_view recycle_id,
+                 bool force_orig_name, bool restore_versions, bool make_path)
+{
+  std::string recycle_path;
+  int retc = GetPathFromRestoreKey(key, recycle_id, vid, std_err, recycle_path);
+
+  if (retc) {
+    return retc;
+  }
+
+  // Reconstruct original file name
+  eos::common::Path cPath(recycle_path.c_str());
+  std::string orig_path = DemanglePath(cPath.GetName());
+
+  if (orig_path.empty()) {
+    std_err = "error: failed to demangle recycle path";
+    return EINVAL;
+  }
+
+  // Check if client is allowed to restore the given entry
+  retc = IsAllowedToRestore(recycle_path, vid);
+
+  if (retc) {
+    std_err = "error: client not allowed to restore given path";
+    return retc;
+  }
+
+  eos::common::Path oPath(orig_path.c_str());
   struct stat buf;
   XrdOucErrInfo lerror;
-  eos_static_info("msg=\"trying to restore file\" path=\"%s\"",
-                  cPath.GetPath());
 
-  if (gOFS->_stat(cPath.GetPath(), &buf, lerror, mRootVid, "", nullptr, false)) {
-    std_err += "error: unable to stat path to be recycled\n";
-    return EIO;
-  }
-
-  // check that the client is the owner of that object
-  if (vid.uid != buf.st_uid) {
-    std_err +=
-      "error: to recycle this file you have to have the role of the file owner: uid=";
-    std_err += (int) buf.st_uid;
-    std_err += "\n";
-    return EPERM;
-  }
-
-  // check if original parent path exists
+  // Check if original parent path exists
   if (gOFS->_stat(oPath.GetParentPath(), &buf, lerror, mRootVid, "")) {
     if (make_path) {
-      XrdOucErrInfo lerror;
-      // create path
       ProcCommand cmd;
       XrdOucString info = "mgm.cmd=mkdir&mgm.option=p&mgm.path=";
       info += oPath.GetParentPath();
@@ -913,90 +989,78 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
       int rc = cmd.GetRetc();
 
       if (rc) {
-        std_err += "error: creation failed: ";
-        std_err += cmd.GetStdErr();
+        std_err = SSTR("error: creation failed: " << cmd.GetStdErr());
         return rc;
       }
     } else {
-      std_err = "error: you have to recreate the restore directory path=";
-      std_err += oPath.GetParentPath();
-      std_err += " to be able to restore this file/tree\n";
-      std_err += "hint: retry after creating the mentioned directory\n";
+      std_err = SSTR("error: you have to recreate the restore directory path="
+                     << oPath.GetParentPath()
+                     << " to be able to restore this file/tree\n"
+                     << "hint: retry after creating the mentioned directory");
       return ENOENT;
     }
   }
 
-  // check if original path is existing
+  // Check if original path exists
   if (!gOFS->_stat(oPath.GetPath(), &buf, lerror, mRootVid, "", nullptr, false)) {
     if (force_orig_name == false) {
-      std_err +=
-        "error: the original path already exists, use '-f|--force-original-name' \n"
-        "to put the deleted file/tree back and rename the file/tree in place to <name>.<inode>\n";
+      std_err = "error: the original path already exists, use "
+                "'-f|--force-original-name' to put the deleted file/tree\n"
+                " back and rename the file/tree in place to <name>.<inode>";
       return EEXIST;
     } else {
-      std::string newold = oPath.GetPath();
       char sp[256];
       snprintf(sp, sizeof(sp) - 1, "%016llx",
                (unsigned long long)(S_ISDIR(buf.st_mode) ? buf.st_ino :
                                     eos::common::FileId::InodeToFid(buf.st_ino)));
-      newold += ".";
-      newold += sp;
+      std::string newold = SSTR(oPath.GetPath() << "." << sp);
 
       if (gOFS->_rename(oPath.GetPath(), newold.c_str(), lerror, mRootVid, "", "",
                         true, true)) {
-        std_err +=
-          "error: failed to rename the existing file/tree where we need to restore path=";
-        std_err += oPath.GetPath();
-        std_err += "\n";
-        std_err += lerror.getErrText();
+        std_err = SSTR("error: failed to rename the existing file/tree where we "
+                       "need to restore path=" << oPath.GetPath() << std::endl
+                       << lerror.getErrText());
         return EIO;
       } else {
-        std_out += "warning: renamed restore path=";
-        std_out += oPath.GetPath();
-        std_out += " to backup-path=";
-        std_out += newold.c_str();
-        std_out += "\n";
+        std_out = SSTR("warning: renamed restore path=" << oPath.GetPath()
+                       << " to backup-path=" << newold.c_str());
       }
     }
   }
 
-  // do the 'undelete' aka rename
-  if (gOFS->_rename(cPath.GetPath(), oPath.GetPath(), lerror, mRootVid, "", "",
-                    true)) {
-    std_err += "error: failed to undelete path=";
-    std_err += oPath.GetPath();
-    std_err += "\n";
+  // Do the 'undelete' aka rename
+  if (gOFS->_rename(cPath.GetPath(), oPath.GetPath(), lerror, mRootVid,
+                    "", "", true)) {
+    std_err = SSTR("error: failed to undelete path=" << oPath.GetPath());
     return EIO;
   } else {
-    std_out += "success: restored path=";
-    std_out += oPath.GetPath();
-    std_out += "\n";
+    std_out = SSTR("success: restored path=" << oPath.GetPath());
   }
 
+  // Skip version restore if not requested
   if (restore_versions == false) {
-    // don't restore old versions
     return 0;
   }
 
+  // Attempt to restore versions
   std::string vkey;
 
   if (gOFS->_attr_get(oPath.GetPath(), lerror, mRootVid, "",
                       Recycle::gRecyclingVersionKey.c_str(), vkey)) {
-    // no version directory to restore
+    // No version directory to restore
     return 0;
   }
 
-  int retc = Restore(std_out, std_err, vid, vkey.c_str(), force_orig_name,
-                     restore_versions);
+  retc = Restore(std_out, std_err, vid, vkey.c_str(), recycle_id,
+                 force_orig_name, restore_versions);
 
-  // mask an non existant version reference
+  // Mask an non existent version reference
   if (retc == ENOENT) {
     return 0;
   }
 
   return retc;
 }
-
 
 /*----------------------------------------------------------------------------*/
 int
@@ -1417,8 +1481,8 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
     auto cmd_lock = eos::MDLocking::readLock(cmd.get());
     cid = cmd->getIdentifier();
 
-    if (cmd->hasAttribute(Recycle::kRecycleIdXattrKey)) {
-      recycle_id_val = cmd->getAttribute(Recycle::kRecycleIdXattrKey);
+    if (cmd->hasAttribute(Recycle::gRecycleIdXattrKey)) {
+      recycle_id_val = cmd->getAttribute(Recycle::gRecycleIdXattrKey);
     }
   } catch (eos::MDException& e) {
     std_err = SSTR("error: path does not exist " << path.data()
@@ -1486,7 +1550,7 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
 
     for (auto find_it = found.cbegin(); find_it != found.cend(); ++find_it) {
       if (gOFS->_attr_set(find_it->first.c_str(), lerror, mRootVid,
-                          (const char*) 0, Recycle::kRecycleIdXattrKey.c_str(),
+                          (const char*) 0, Recycle::gRecycleIdXattrKey.c_str(),
                           recycle_id_val.c_str(), exclusive)) {
         std_err = "error: failed to set xattr on path ";
         std_err += find_it->first;
@@ -1494,7 +1558,7 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
       }
     }
   } while ((--attempts > 0) &&
-           !AllHierarchyHasXattr(path, Recycle::kRecycleIdXattrKey,
+           !AllHierarchyHasXattr(path, Recycle::gRecycleIdXattrKey,
                                  recycle_id_val));
 
   if (attempts == 0) {

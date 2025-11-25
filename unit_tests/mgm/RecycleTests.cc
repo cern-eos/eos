@@ -44,3 +44,14 @@ TEST(Recycle, ComputeCutOffDate)
   recycle.mPolicy.mKeepTimeSec =  7 * 24 * 3600; // 1 week
   ASSERT_STREQ("2025/09/22", recycle.GetCutOffDate().c_str());
 }
+
+TEST(Recycle, DemangleTest)
+{
+  // Recycle path should never contain '/'
+  ASSERT_STREQ("", Recycle::DemanglePath("/some/real/path/").c_str());
+  ASSERT_STREQ("", Recycle::DemanglePath("").c_str());
+  ASSERT_STREQ("/eos/top/dir/path",
+               Recycle::DemanglePath("#.#eos#.#top#.#dir#.#path").c_str());
+  ASSERT_STREQ("/eos/top/with_funny_chars!#?/file",
+               Recycle::DemanglePath("#.#eos#.#top#.#with_funny_chars!#?#.#file").c_str());
+}
