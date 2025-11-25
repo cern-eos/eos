@@ -28,21 +28,28 @@
 #include <sys/stat.h>
 
 //! Static members
+uint32_t RecycleEntry::sMaxEntriesPerDir = 100000;
 eos::common::VirtualIdentity RecycleEntry::mRootVid =
   eos::common::VirtualIdentity::Root();
-
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Constructor
+// Constructor
 //------------------------------------------------------------------------------
 RecycleEntry::RecycleEntry(std::string_view path, std::string_view recycle_dir,
+                           std::string_view rid,
                            eos::common::VirtualIdentity* vid, uid_t uid,
                            gid_t gid, unsigned long long id):
   mPath(path), mRecycleDir(recycle_dir),
   mOwnerUid(uid), mOwnerGid(gid), mId(id)
 {
+  if (rid.empty()) {
+    mRecycleId = SSTR("uid:" << mOwnerUid);
+  } else {
+    mRecycleId = SSTR("rid:" << rid.data());
+  }
+
   // Make sure the recycle dir path does not have ending '/'
   if (!mRecycleDir.empty() && (*mRecycleDir.rbegin() == '/')) {
     mRecycleDir.erase(mRecycleDir.length() - 1);
@@ -63,41 +70,40 @@ RecycleEntry::GetRecyclePrefix(const char* epname, XrdOucErrInfo& error,
   size_t index = 0;
 
   do {
-    snprintf(prefix, sizeof(prefix) - 1, "%s/uid:%u/%04u/%02u/%02u/%lu",
-             mRecycleDir.c_str(), mOwnerUid, 1900 + nowtm.tm_year,
+    snprintf(prefix, sizeof(prefix) - 1, "%s/%s/%04u/%02u/%02u/%lu",
+             mRecycleDir.c_str(), mRecycleId.c_str(), 1900 + nowtm.tm_year,
              nowtm.tm_mon + 1, nowtm.tm_mday, index);
     struct stat buf;
 
-    // check in case the index directory exists, that it has not more than 1M files,
-    // otherwise increment the index by one
+    // If index directory exists and it has more than 100k enties then
+    // move on to the next index.
     if (!gOFS->_stat(prefix, &buf, error, mRootVid, "")) {
-      if (buf.st_blksize > 100000) {
-        index++;
+      if (buf.st_blksize > sMaxEntriesPerDir) {
+        ++index;
         continue;
       }
-    }
+    } else {
+      // Create recycle directory
+      if (gOFS->_mkdir(prefix, S_IRUSR | S_IXUSR | SFS_O_MKPTH,
+                       error, mRootVid, "")) {
+        return gOFS->Emsg(epname, error, EIO, "remove existing file - the "
+                          "recycle space user directory couldn't be created");
+      }
 
-    // Verify/create group/user directory
-    if (gOFS->_mkdir(prefix, S_IRUSR | S_IXUSR | SFS_O_MKPTH, error, mRootVid,
-                     "")) {
-      return gOFS->Emsg(epname, error, EIO, "remove existing file - the "
-                        "recycle space user directory couldn't be created");
-    }
+      // Check recycle directory ownership
+      if (gOFS->_stat(prefix, &buf, error, mRootVid, "")) {
+        return gOFS->Emsg(epname, error, EIO, "remove existing file - could "
+                          "not determine ownership of the recycle space "
+                          "user directory", prefix);
+      }
 
-    // Check the user recycle directory
-    if (gOFS->_stat(prefix, &buf, error, mRootVid, "")) {
-      return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
-                        "determine ownership of the recycle space user directory",
-                        prefix);
-    }
-
-    // Check the ownership of the user directory
-    if ((buf.st_uid != mOwnerUid) || (buf.st_gid != mOwnerGid)) {
-      // Set the correct ownership
-      if (gOFS->_chown(prefix, mOwnerUid, mOwnerGid, error, mRootVid, "")) {
-        return gOFS->Emsg(epname, error, EIO, "remove existing file - could not "
-                          "change ownership of the recycle space user directory",
-                          prefix);
+      // Update the ownership of the user directory
+      if ((buf.st_uid != mOwnerUid) || (buf.st_gid != mOwnerGid)) {
+        if (gOFS->_chown(prefix, mOwnerUid, mOwnerGid, error, mRootVid, "")) {
+          return gOFS->Emsg(epname, error, EIO, "remove existing file - could "
+                            "not change ownership of the recycle space user "
+                            "directory", prefix);
+        }
       }
     }
 
@@ -148,16 +154,15 @@ RecycleEntry::ToGarbage(const char* epname, XrdOucErrInfo& error)
            rpath.c_str(), contractedpath.c_str(), mId, lPostFix.c_str());
 
   // Finally do the rename
-  if (gOFS->_rename(mPath.c_str(), recycle_path, error, mRootVid, "", "", true,
-                    true, false, true)) {
-    return gOFS->Emsg(epname, error, EIO, "rename file/directory", recycle_path);
+  if (gOFS->_rename(mPath.c_str(), recycle_path, error, mRootVid,
+                    "", "", true, true, false, true)) {
+    return gOFS->Emsg(epname, error, EIO, "rename file/directory",
+                      recycle_path);
   }
 
   // Store the recycle path in the error object
   error.setErrInfo(0, recycle_path);
   return SFS_OK;
 }
-
-
 
 EOSMGMNAMESPACE_END

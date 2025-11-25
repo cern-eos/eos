@@ -213,29 +213,27 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
 
         ret_c = errno;
       } else {
-        std::string recyclingAttribute = "";
+        std::string recycle_dir;
+        std::string recycle_id;
 
         if (!force) {
-          // only recycle if there is no '-f' flag
-          unsigned long rpos;
+          // Only recycle if there is no '-f' flag
+          std::string lpath = spath.c_str();
+          size_t pos = lpath.find("/.sys.v#.");
 
-          if ((rpos = spath.find("/.sys.v#.")) == std::string::npos) {
-            // check if this path has a recycle attribute
-            errInfo.clear();
-            gOFS->_attr_get(spath.c_str(), errInfo, mVid, "",
-                            Recycle::gRecyclingAttribute.c_str(), recyclingAttribute);
-          } else {
-            auto ppath = spath;
-            ppath.erase(rpos);
-            // get it from the parent directory for version directories
-            errInfo.clear();
-            gOFS->_attr_get(ppath.c_str(), errInfo, mVid, "",
-                            Recycle::gRecyclingAttribute.c_str(), recyclingAttribute);
+          if (pos != std::string::npos) {
+            lpath.erase(pos);
           }
+
+          // Get recycle directory and eventually the recycle id
+          gOFS->_attr_get(lpath.c_str(), errInfo, mVid, "",
+                          Recycle::gRecyclingAttribute.c_str(), recycle_dir);
+          gOFS->_attr_get(lpath.c_str(), errInfo, mVid, "",
+                          Recycle::gRecycleIdXattrKey.c_str(), recycle_id);
         }
 
         // See if we have a recycle policy set
-        if (recyclingAttribute.length() &&
+        if (recycle_dir.length() &&
             (spath.find(Recycle::gRecyclingPrefix) != 0)) {
           // Two step deletion via recycle bin
           // delete files in simulation mode
@@ -305,9 +303,9 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
           }
 
           spath += "/";
-          eos::mgm::RecycleEntry lRecycle(spath.c_str(), recyclingAttribute.c_str(),
-                                          &mVid, buf.st_uid, buf.st_gid,
-                                          (unsigned long long) buf.st_ino);
+          RecycleEntry lRecycle(spath.c_str(), recycle_dir, recycle_id,
+                                &mVid, buf.st_uid, buf.st_gid,
+                                (unsigned long long) buf.st_ino);
           errInfo.clear();
 
           if (lRecycle.ToGarbage("rm-r", errInfo)) {
@@ -344,7 +342,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
               if (gOFS->_rem(fspath.c_str(), errInfo, mVid, nullptr, false, false,
                              force, false, true, noworkflow)) {
                 errStream << "error: unable to remove file '" << fspath.c_str() << "'"
-                          << std::endl;
+                          << " reason: " << errInfo.getErrText() << std::endl;
                 ret_c = errno;
               }
             }
@@ -365,7 +363,7 @@ eos::mgm::RmCmd::ProcessRequest() noexcept
               if (errno != ENOENT) {
                 errStream << "error: unable to remove directory "
                           << "'" << rfoundit->first.c_str() << "'" << std::endl
-                          << "reason: " << errInfo.getErrText() << std::endl;
+                          << " reason: " << errInfo.getErrText() << std::endl;
                 ret_c = errno;
               }
             }
