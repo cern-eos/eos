@@ -75,24 +75,25 @@ int main(int ac, char **av) {
 	
 	// code = testIoStatExactValue();
 	// code = testIoStatIOPS();
+	// code = testIoStatCopy();
 
 	// code = testIoMapSpecificCase();
 	// code = testIoMapSummary();
 	// code = testIoMapBigVolume();
 	// code = testIoMapExactValue();
 	// code = testIoMapIds();
-
-	// code = testIoAggregateMapWindow();
-	// code = testIoAggregateMap();
 	// code = testInteractiveIoMap();
-	// code = testIoStatCopy();
 	// code = testIoMapCopy();
+
+	// code = testIoAggregateMap();
+	// code = testIoAggregateMapWindow();
+	// code = testIoAggregateMapDelete();
+	code = testIoAggregateMapInteract();
 	// code = testIoAggregateMapCopy();
-	// code = testIoStatIOPS();
-	// code = testIoAggregateMapInteract();
+
 	// code = testIoBuffer();
-	// std::cout << "code: " << code << std::endl;
+	std::cout << "code: " << code << std::endl;
 	google::protobuf::ShutdownProtobufLibrary();
-    ::testing::InitGoogleTest(&ac, av);
-    return RUN_ALL_TESTS();
+ //    ::testing::InitGoogleTest(&ac, av);
+    // return RUN_ALL_TESTS();
 }
