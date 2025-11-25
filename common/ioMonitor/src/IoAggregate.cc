@@ -43,12 +43,13 @@ IoAggregate& IoAggregate::operator=(const IoAggregate &other){
 	if (this != &other){
 		std::scoped_lock lock(_mutex, other._mutex);
 		_intervalSec = other._intervalSec;
+		_winTime = other._winTime;
 		_currentIndex = other._currentIndex;
-		_bins = other._bins;
 		_currentTime = other._currentTime;
 		_apps = other._apps;
 		_uids = other._uids;
 		_gids = other._gids;
+		_bins = other._bins;
 	}
 	return *this;
 }
@@ -107,6 +108,30 @@ void IoAggregate::update(const IoMap &maps){
 		}
 		_currentTime = std::chrono::system_clock::now();
 	}
+}
+
+bool IoAggregate::rm(std::string &appName){
+	if (_apps.find(appName) == _apps.end())
+		return false;
+
+	_apps.erase(appName);
+	auto appsRange = _bins.at(_currentIndex).appStats.equal_range(appName);
+	_bins.at(_currentIndex).appStats.erase(appsRange.first, appsRange.second);
+	return true;
+}
+
+bool IoAggregate::rm(io::TYPE type, size_t id){
+	if (type != io::TYPE::UID && type != io::TYPE::GID)
+		return false;
+	else if (type == io::TYPE::UID ? _uids.find(id) == _uids.end() : _gids.find(id) == _gids.end())
+		return false;
+
+	type == io::TYPE::UID ? _uids.erase(id) : _gids.erase(id);
+
+	auto idRange = (type == io::TYPE::UID ? _bins.at(_currentIndex).uidStats : _bins.at(_currentIndex).gidStats).equal_range(id);
+	(type == io::TYPE::UID ? _bins.at(_currentIndex).uidStats : _bins.at(_currentIndex).gidStats).erase(idRange.first, idRange.second);
+
+	return true;
 }
 
 //--------------------------------------------
