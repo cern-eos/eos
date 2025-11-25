@@ -70,24 +70,26 @@ void com_recycle_help()
       << "                  e.g.: recycle ls 2018/08/12 1000\n"
       << "    -m          : display info in monitoring format\n"
       << "    -n          : display numeric uid/gid(s) instead of names\n"
+      << "    --all       : display entries of all users - only if root or admin\n"
+      << "    --uid       : display entries for the current user id [default]\n"
       << "    --rid <val> : display entries corresponding to the given recycle id\n"
       << "                  which represents the container id of the top directory\n"
-      << "                   e.g. recycle ls --rid 1001\n"
-      << "    --uid       : display entries for the given user id - default\n"
-      << "    --all       : display files of all users - only if root or admin\n"
+      << "                  e.g. recycle ls --rid 1001\n"
       << std::endl
       << "  recycle purge [-g|<date>] [-k <key>]\n"
       << "    purge files in the recycle bin\n"
-      << "    -g       : empty recycle bin of all users (if done by root or admin)\n"
-      << "    -k <key> : purge only the given key\n"
-      << "    <date>   : can be <year>, <year>/<month> or <year>/<month>/<day>\n"
+      << "    -g          : empty recycle bin of all users - only if root or admin\n"
+      << "    -k <key>    : purge only the given key\n"
+      << "    --rid <val> : purge entries corresponding to the given recycle id\n"
+      << "    <date>      : can be <year>, <year>/<month> or <year>/<month>/<day>\n"
       << std::endl
-      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>\n"
+      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] [--rid <val>] <recycle-key>\n"
       << "    undo the deletion identified by the <recycle-key>\n"
-      << "    -p : create all missing parent directories\n"
-      << "    -f : move deleted files/dirs back to their original location (otherwise\n"
-      << "          the key entry will have a <.inode> suffix)\n"
-      << "     -r : restore all previous versions of a file\n"
+      << "    -p          : create all missing parent directories\n"
+      << "    -f          : move deleted files/dirs back to their original location\n"
+      << "                  (otherwise the key entry will have a <.inode> suffix)\n"
+      << "    -r          : restore all previous versions of a file\n"
+      << "    --rid <val> : restore entries corresponding to the given recycle id\n"
       << std::endl
       << "  recycle project --path <path> [--acl <acl_spec>]\n"
       << "    setup a recycle id that will group all the recycled paths from\n"
@@ -100,45 +102,35 @@ void com_recycle_help()
       << std::endl
       << "  recycle config <key> <value>\n"
       << "    where <key> and <value> need to be one of the following:\n"
-      << std::endl
       << "    --dump\n"
       << "      dump the current recycle policy configuration\n"
-      << std::endl
       << "    [--add-bin|--remove-bin] <sub-tree>\n"
       << "      --add-bin    : enable recycle bin for deletion in <sub-tree>\n"
       << "      --remove-bin : disable recycle bin for <sub-tree>\n"
-      << std::endl
       << "    --lifetime <seconds>\n"
       << "      configure FIFO lifetime for the recycle bin\n"
-      << std::endl
       << "    --ratio <0..1.0>\n"
       << "      configure the volume/inode keep ratio. E.g.: 0.8 means files\n"
       << "      will only be recycled if more than 80% of the volume/inodes\n"
       << "      quota is used. The low-watermark is by default 10% below the\n"
       << "      the given ratio.\n"
-      << std::endl
       << "    --size <value>[K|M|G]\n"
       << "      configure the quota for the maximum size of the recycle bin\n"
       << "      If no unit is set explicitly then bytes is assumed.\n"
-      << std::endl
       << "    --inodes <value>[K|M|G]\n"
       << "      configure the quota for the maximum number of inodes in the\n"
       << "      recycle bin.\n"
-      << std::endl
       << "    --dry-run <yes/no>\n"
       << "      when dry-run mode is enabled, no removal of entries is performed\n"
-      << std::endl
       << "    --collect-interval <seconds>\n"
       << "      how ofen the recycler collects new entries to be removed from\n"
       << "      the recycle bin. Default once per day i.e 86400 seconds.\n"
       << "      Change only for testing!\n"
-      << std::endl
       << "    --remove-interval <seconds>\n"
       << "      how often the recycler removes collected entries. The collected\n"
       << "      container ids to be removed are sharded and the removal is spread\n"
       << "      evenly across collect-interval/remove-interval slots. Default once\n"
       << "      every hour i.e. 3600. Change only for testing!\n"
-      << std::endl
       << "    Note: The last two parameters should be changed only for testing\n"
       << "    and while maintaining the following order: \n"
       << "    remove-interval << collection-interval\n"

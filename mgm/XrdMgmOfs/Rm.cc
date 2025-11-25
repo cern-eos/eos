@@ -378,12 +378,26 @@ XrdMgmOfs::_rem(const char* path,
     XrdOucString recyclePath;
     lock.Release();
     // -------------------------------------------------------------------------
-    std::string recycle_space = attrmap[Recycle::gRecyclingAttribute].c_str();
+    std::string recycle_dir, recycle_id;
+    auto it = attrmap.find(Recycle::gRecyclingAttribute);
+
+    if (it != attrmap.end()) {
+      recycle_dir = it->second;
+    }
+
+    it = attrmap.find(Recycle::gRecycleIdXattrKey);
+
+    if (it != attrmap.end()) {
+      recycle_id = it->second;
+    }
+
+    eos_static_info("recycle_dir=\"%s\" recycle_id=\"%s\"", recycle_dir.c_str(),
+                    recycle_id.c_str());
     eos::common::VirtualIdentity rootvid = eos::common::VirtualIdentity::Root();
 
-    if (Quota::ExistsResponsible(recycle_space)) {
+    if (Quota::ExistsResponsible(recycle_dir)) {
       if (!no_quota_enforcement &&
-          !Quota::Check(recycle_space, fmd->getCUid(), fmd->getCGid(),
+          !Quota::Check(recycle_dir, fmd->getCUid(), fmd->getCGid(),
                         fmd->getSize(), fmd->getNumLocation())) {
         // This is the very critical case where we have to reject the delete
         // since the recycle space is full
@@ -393,8 +407,8 @@ XrdMgmOfs::_rem(const char* path,
       } else {
         // Move the file to the recycle bin
         int rc = 0;
-        RecycleEntry lRecycle(path, attrmap[Recycle::gRecyclingAttribute].c_str(),
-                              &vid, fmd->getCUid(), fmd->getCGid(), fmd->getId());
+        RecycleEntry lRecycle(path, recycle_dir, recycle_id, &vid,
+                              fmd->getCUid(), fmd->getCGid(), fmd->getId());
         Workflow workflow;
         // eventually trigger a workflow
         workflow.Init(&attrmap, path, fmd->getId());
