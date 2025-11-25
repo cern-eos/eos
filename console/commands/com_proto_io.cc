@@ -302,10 +302,11 @@ void com_io_help()
       << "\t      -w :  show history for the last 7 days\n"
       << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens\n"
       << std::endl
-	  << "io monitor <queue-name>|<host:port> [command] [options...] : interact with IoMonitor\n"
+	  << "io monitor <queue-name>|<host:port> [command] [options...] : interact with IoMap's\n"
       << std::endl
 	  << "  COMMANDS\n"
 	  << "\t                        add [window] : add a window to the map\n"
+	  << "\t                     delete [window] : add a window to the map\n"
 	  << "\t           set [window][tracks][...] : set track to a window, multiple track can be set\n"
 	  << "\t         proto [window][tracks][...] : print ProtoBuff JSON format of given tracks (get directly the summary)\n"
       << "     read [fileId][appName][uid][gid][bytes] : add a read input to the map\n"
@@ -316,7 +317,7 @@ void com_io_help()
 	  << "\t                       shift [index] : shift the window to the next Bin, or to the index given as a parametre\n"
       << std::endl
 	  << "  OPTIONS\n"
-	  << "\t  window : size_t number\n"
+	  << "\t  window : Number of seconde of the window\n"
 	  << "\t   track : track can be a appName/uid/gid, if it's a uid/gid you have to specify it\n"
 	  << "\t  fileId : size_t number\n"
 	  << "\t appName : string\n"
@@ -325,7 +326,7 @@ void com_io_help()
 	  << "\t   bytes : size_t number\n"
 	  << "\t   index : index of the Bin you want to go\n"
 	  << std::endl
-	  << "  EXEMPLE\n"
+	  << "  EXAMPLE\n"
 	  << "\t     [uid set] : io monitor set 60 uid 14\n"
 	  << "\t [appName set] : io monitor set 60 eos\n"
 	  // << "\t [multiple set] :\t$ set 60 io uid 12 gid 42 mgm fst\n"
@@ -342,16 +343,16 @@ void com_io_help()
 }
 
 static bool isCommand(const char *cmd){
-	if (cmd &&
-		(!strcmp(cmd, "add")
-		|| !strcmp(cmd, "set")
-		|| !strcmp(cmd, "proto")
-		|| !strcmp(cmd, "read")
-		|| !strcmp(cmd, "write")
-		|| !strcmp(cmd, "show")
-		|| !strcmp(cmd, "sum")
-		|| !strcmp(cmd, "fill")
-		|| !strcmp(cmd, "shift")))
-		return true;
-	return false;
+  if (cmd &&
+    (!strcmp(cmd, "add")
+	|| !strcmp(cmd, "set")
+	|| !strcmp(cmd, "proto")
+	|| !strcmp(cmd, "read")
+	|| !strcmp(cmd, "write")
+	|| !strcmp(cmd, "show")
+	|| !strcmp(cmd, "sum")
+	|| !strcmp(cmd, "fill")
+	|| !strcmp(cmd, "shift")))
+	  return true;
+  return false;
 }

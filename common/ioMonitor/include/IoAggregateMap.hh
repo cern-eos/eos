@@ -167,6 +167,39 @@ class IoAggregateMap{
 		int addWindow(size_t winTime);
 
 		//--------------------------------------------
+		/// @brief Delete the specified window
+		///
+		/// @param winTime The targeted window
+		///
+		/// @return bool if the window has been deleted
+		/// 
+		//--------------------------------------------
+		bool rm(size_t winTime);
+
+		//--------------------------------------------
+		/// @brief Delete the appName of 
+		/// the specified window
+		///
+		/// @param winTime The targeted window
+		/// @param appName name of the tracked app
+		///
+		/// @return bool if the appName has been deleted
+		//--------------------------------------------
+		bool rm(size_t winTime, std::string &appName);
+
+		//--------------------------------------------
+		/// @brief Delete the uid/gid of 
+		/// the specified window
+		///
+		/// @param winTime The targeted window
+		/// @param type Type of the id variable
+		/// @param id The uid/gid to delete
+		///
+		/// @return bool if the id has been deleted
+		//--------------------------------------------
+		bool rm(size_t winTime, io::TYPE type, size_t id);
+
+		//--------------------------------------------
 		/// @brief Returns a vector of all available windows
 		///
 		/// @return std::nullopt
@@ -207,7 +240,7 @@ class IoAggregateMap{
 		///
 		/// @param winTime The targeted window
 		///
-		/// @return bool
+		/// @return true if the window exist
 		//--------------------------------------------
 		bool containe(size_t winTime) const;
 
@@ -218,7 +251,8 @@ class IoAggregateMap{
 		/// @param winTime The targeted window
 		/// @param app the app name
 		///
-		/// @return bool
+		/// @return true if the appName in the specified
+		/// window exist
 		//--------------------------------------------
 		bool containe(size_t winTime, std::string appName) const;
 
@@ -228,7 +262,8 @@ class IoAggregateMap{
 		///
 		/// @param winTime The targeted window
 		///
-		/// @return bool
+		/// @return true if the uid/gid in the specified
+		/// window exist
 		//--------------------------------------------
 		bool containe(size_t winTime, io::TYPE type, size_t id) const;
 

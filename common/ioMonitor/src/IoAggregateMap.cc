@@ -234,6 +234,44 @@ bool IoAggregateMap::containe(size_t winTime, io::TYPE type, size_t id) const {
 }
 
 //--------------------------------------------
+/// Return true if the window has been deleted,
+/// otherwise returns false
+//--------------------------------------------
+bool IoAggregateMap::rm(size_t winTime){
+	std::lock_guard<std::mutex> lock(_mutex);
+	return _aggregates.erase(winTime);
+}
+
+//--------------------------------------------
+/// Return true if the appName of the window 
+/// has been deleted, otherwise returns false
+//--------------------------------------------
+bool IoAggregateMap::rm(size_t winTime, std::string &appName){
+	std::lock_guard<std::mutex> lock(_mutex);
+	if (_aggregates.find(winTime) == _aggregates.end())
+		return false;
+
+	_map.rm(appName);
+	return (_aggregates.at(winTime)->rm(appName));
+}
+
+//--------------------------------------------
+/// Return true if the uid/gid of the window 
+/// has been deleted, otherwise returns false
+//--------------------------------------------
+bool IoAggregateMap::rm(size_t winTime, io::TYPE type, size_t id){
+	std::lock_guard<std::mutex> lock(_mutex);
+	if (_aggregates.find(winTime) == _aggregates.end())
+		return false;
+
+	if (type != io::TYPE::UID && type != io::TYPE::GID)
+		return false;
+
+	_map.rm(type, id);
+	return (_aggregates.at(winTime)->rm(type, id));
+}
+
+//--------------------------------------------
 /// Returns a reference to the IoMap object
 //--------------------------------------------
 const IoMap& IoAggregateMap::getIoMap() const{

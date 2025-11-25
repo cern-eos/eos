@@ -26,6 +26,7 @@ int testIoAggregateMap();
 int testIoAggregateMapInteract();
 int testIoAggregateMapWindow();
 int testIoAggregateMapCopy();
+int testIoAggregateMapDelete();
 
 int testIoAggregateCopy();
 

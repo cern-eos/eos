@@ -39,7 +39,20 @@ IoShaping::IoShaping(const IoShaping &other) : _mReceiving(other._mReceiving.loa
 	_receivingTime(other._receivingTime.load()){
 }
 
-IoShaping::~IoShaping(){}
+IoShaping::~IoShaping(){
+	if (_mShaping.load()){
+		std::lock_guard<std::mutex> lock(_mSyncThread);
+		_mShaping.store(false);
+	}
+	if (_mPublishing.load()){
+		std::lock_guard<std::mutex> lock(_mSyncThread);
+		_mPublishing.store(false);
+	}
+	if (_mReceiving.load()){
+		std::lock_guard<std::mutex> lock(_mSyncThread);
+		_mReceiving.store(false);
+	}
+}
 
 IoShaping& IoShaping::operator=(const IoShaping &other){
 	if (this != &other)

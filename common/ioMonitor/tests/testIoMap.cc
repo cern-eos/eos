@@ -38,7 +38,7 @@ void prompt(bool &isMultiT, std::string &input){
 void print(IoMap *map){
 	auto snap = map->GetAllStatsSnapshot();
 	for (auto it : snap){
-		std::cout << C_GREEN << "┌─[" << C_CYAN << "IoMap" << C_GREEN << "]" << C_RESET;
+		std::cout << C_GREEN << "┌─[" << C_CYAN << "Map" << C_GREEN << "]" << C_RESET;
 		std::cout << C_GREEN << "[" << C_CYAN << "id:" << it.first << C_GREEN << "]" << C_RESET;
 		std::cout << C_GREEN << "[" <<  C_CYAN << "app:"<< it.second->getApp() << C_GREEN << "]" << C_RESET;
 		std::cout << C_GREEN << "[" << C_CYAN << "uid:" << it.second->getUid() << C_GREEN << "]" << C_RESET;
@@ -46,8 +46,38 @@ void print(IoMap *map){
 		std::cout << C_GREEN << "[" << C_CYAN << "sR:" << it.second->getSize(IoStat::Marks::READ)
 			<< "/sW:"<< it.second->getSize(IoStat::Marks::WRITE) << C_GREEN << "]" << C_RESET;
 		std::cout << std::endl << C_GREEN << "└─[" << C_CYAN << "IoStat" << C_GREEN << "]" << C_RESET;
-		std::cout << C_WHITE << *it.second << C_RESET << std::endl;
+		std::cout << C_WHITE << *it.second << C_RESET << std::endl << std::endl;
 	}
+
+	std::cout << C_GREEN << "[" << C_CYAN << "apps" << C_GREEN << "] : " << C_CYAN;
+	auto apps = map->getApps();
+	for (auto it = apps.begin(); it != apps.end();){
+		std::cout << *it;
+		it++;
+		if (it != apps.end())
+			std::cout << ", ";
+	}
+	std::cout << C_RESET << std::endl << std::endl;
+
+	std::cout << C_GREEN << "[" << C_CYAN << "uids" << C_GREEN << "] : " << C_CYAN;
+	auto uids = map->getUids();
+	for (auto it = uids.begin(); it != uids.end();){
+		std::cout << *it;
+		it++;
+		if (it != uids.end())
+			std::cout << ", ";
+	}
+	std::cout << C_RESET << std::endl << std::endl;
+
+	std::cout << C_GREEN << "[" << C_CYAN << "gids" << C_GREEN << "] : " << C_CYAN;
+	auto gids = map->getGids();
+	for (auto it = gids.begin(); it != gids.end();){
+		std::cout << *it;
+		it++;
+		if (it != gids.end())
+			std::cout << ", ";
+	}
+	std::cout << C_RESET << std::endl;
 }
 
 void fill(IoMap &map, std::mutex &mutex){
@@ -84,7 +114,7 @@ void purge(bool &isMultiT, IoMap *map){
 
 static void printUsage(){
 	std::cout << "Usage:" << std::endl;
-	std::cout << "./IoMap [command]" << std::endl;
+	std::cout << "$ [command]" << std::endl;
 	std::cout << std::endl;
 
 	std::cout << "META OPTIONS" << std::endl;
@@ -98,6 +128,22 @@ static void printUsage(){
 	std::cout << "  c, \tclear\tclear the terminal" << std::endl;
 	std::cout << "  exit, \texit monitor" << std::endl;
 	std::cout << std::endl;
+}
+
+static int rm(IoMap *map, std::stringstream &os){
+	std::string cmd;
+	uid_t uid = 0;
+	uid_t gid = 0;
+
+	if (os >> cmd){
+		if (cmd == "uid" && os >> uid)
+			return map->rm(io::TYPE::UID, uid);
+		if (cmd == "gid" && os >> gid)
+			return map->rm(io::TYPE::GID, gid);
+		else
+			return map->rm(cmd);
+	}
+	return -1;
 }
 
 int execCmd(std::string &input, IoMap *map, bool &isMultiT, std::mutex &mutex){
@@ -122,6 +168,8 @@ int execCmd(std::string &input, IoMap *map, bool &isMultiT, std::mutex &mutex){
 		purge(isMultiT, map);
 	else if (cmd == "h" || cmd == "help")
 		printUsage();
+	else if (cmd == "rm")
+		std::cout << "rm: " << rm(map, os) << std::endl;
 	else
 		std::cerr << "IoMap: " << input << " :command not found" << std::endl;
 	if (cmd != "clear" && cmd != "c")
