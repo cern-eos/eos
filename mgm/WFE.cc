@@ -2189,7 +2189,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
         throw_mdexception(EINVAL, "mgm.reqid has no value set in opaque data.");
       }
 
-      eosLog.addParam(EosCtaReportParam::PREP_WFE_REQID, opaqueRequestId);
+      eosLog.addParam(cta::ReportParam::PREP_WFE_REQID, opaqueRequestId);
 
       if (prepareReqIds.values.erase(opaqueRequestId) != 1) {
         throw_mdexception(EINVAL, "Request ID not found in extended attributes");
@@ -2204,7 +2204,7 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
                   " for file " << fullPath.c_str() << ". "
                   << "Not doing the abort retrieve.";
       eos_static_err(err_message.str().c_str());
-      eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, err_message.str());
+      eosLog.addParam(cta::ReportParam::PREP_WFE_ERROR, err_message.str());
       MoveWithResults(EAGAIN);
       return EAGAIN;
     }

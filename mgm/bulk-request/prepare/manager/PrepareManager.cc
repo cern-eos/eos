@@ -570,13 +570,13 @@ void PrepareManager::triggerPrepareWorkflow(
           prep_path.c_str() << "; " << error.getErrText();
       eos_err(oss.str().c_str());
       eosLog
-      .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
-      .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
-      .addParam(EosCtaReportParam::PREP_REQ_ERROR, oss.str());
+      .addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, false)
+      .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, false)
+      .addParam(cta::ReportParam::PREP_REQ_ERROR, oss.str());
     } else {
       eosLog
-      .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, true)
-      .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, true);
+      .addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, true)
+      .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, true);
     }
   }
 }
