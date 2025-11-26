@@ -81,6 +81,43 @@ TGC modules live under ``mgm/cta/tgc`` and are activated only when tape is enabl
 - ``AsyncUint64ShellCmd``: helper for metrics that require external commands.
 - ``IClock`` / ``RealClock``: time abstractions to aid testing.
 
+TGC configuration (per-space)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+TGC is configured per space via space configuration members (read by MGM). The following keys are supported:
+
+- ``tgc.qryperiodsecs`` (default: 320)
+
+  - Delay in seconds between TGC space-stat queries.
+  - Must be > 0 and <= ``TGC_MAX_QRY_PERIOD_SECS`` (derived from histogram dimensions).
+  - Also drives the FreedBytesHistogram bin width: roughly ``ceil(qryperiodsecs / nbBins)``.
+
+- ``tgc.availbytes`` (default: 0)
+
+  - Target minimum available bytes. GC only proceeds if current ``availBytes < tgc.availbytes``.
+
+- ``tgc.totalbytes`` (default: 1 Exabyte)
+
+  - Minimum total bytes threshold before GC can begin. If current ``totalBytes < tgc.totalbytes``, GC does not run. The large default effectively disables this guard unless set.
+
+- ``tgc.freebytesscript`` (default: empty)
+
+  - Optional script path to override free-bytes with an external source. Invoked as ``<script> <space-name>`` and must print a single unsigned 64-bit integer (free bytes) on stdout. Used asynchronously with fallback to internal stats on error.
+
+Configuration cache
+^^^^^^^^^^^^^^^^^^^
+- TGC caches space configuration in memory up to ``TGC_DEFAULT_MAX_CONFIG_CACHE_AGE_SECS`` (10 seconds) to reduce overhead.
+
+Setting parameters
+^^^^^^^^^^^^^^^^^^
+Use the EOS console to set space members (example for ``default`` space):
+
+.. code-block:: bash
+
+   eos space config default tgc.qryperiodsecs=600
+   eos space config default tgc.availbytes=500000000000     # 500 GB
+   eos space config default tgc.totalbytes=10000000000000   # 10 TB
+   eos space config default tgc.freebytesscript=/usr/local/bin/eos-free-bytes
+
 Configuration and CLI
 ---------------------
 Tape mode and WFE

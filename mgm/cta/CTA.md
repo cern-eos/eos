@@ -110,6 +110,41 @@ Key components (high level):
 
 The TGC runs only when tape is enabled and the affected spaces are configured for GC. TGC is modular and policy-driven through the above classes; it does not enable itself automatically for every space without configuration.
 
+TGC configuration (per-space)
+-----------------------------
+Configuration members are read from each EOS space’s configuration (via `FsView::SpaceView.GetConfigMember`). The following keys are supported:
+
+- `tgc.qryperiodsecs` (default: 320)
+  - Delay in seconds between TGC space-stat queries.
+  - Must be > 0 and <= `TGC_MAX_QRY_PERIOD_SECS` (calculated from histogram size and maximum bin width).
+  - Also controls the FreedBytesHistogram bin width (effectively `ceil(qryperiodsecs / nbBins)`).
+  - Invalid values are ignored and an error is logged.
+
+- `tgc.availbytes` (default: 0)
+  - Target minimum available bytes for the space. Garbage collection will only proceed if current `availBytes < tgc.availbytes`.
+
+- `tgc.totalbytes` (default: 1 Exabyte)
+  - Minimum total bytes threshold before GC can begin. If current `totalBytes < tgc.totalbytes`, GC will not run. The very high default effectively disables this guard unless explicitly set.
+
+- `tgc.freebytesscript` (default: empty)
+  - Optional external script path that, when set, is invoked as `script <space-name>` and must print a single unsigned 64-bit integer (free bytes) to stdout.
+  - The value is used asynchronously; when pending, TGC may keep the previous value if available, or fall back to internal stats on error. Errors are logged and do not stop TGC.
+
+Notes:
+- TGC periodically updates and uses a histogram of freed bytes; `tgc.qryperiodsecs` determines the histogram bin width and influences smoothing.
+- TGC configuration is cached in-memory for up to `TGC_DEFAULT_MAX_CONFIG_CACHE_AGE_SECS` (10s) to reduce load.
+
+Setting TGC parameters
+~~~~~~~~~~~~~~~~~~~~~~
+Use the EOS console to set space members. For example, to configure space “default”:
+
+```
+eos space config default tgc.qryperiodsecs=600
+eos space config default tgc.availbytes=500000000000   # 500 GB
+eos space config default tgc.totalbytes=10000000000000 # 10 TB
+eos space config default tgc.freebytesscript=/usr/local/bin/eos-free-bytes
+```
+
 Components in mgm/cta and mgm/cta/tgc
 --------------------------------------
 - `mgm/cta/`:
