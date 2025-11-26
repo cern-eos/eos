@@ -296,7 +296,7 @@ Recycle::RemoveSubtree(std::string_view dpath)
         std::string fpath = dit->first;
         fpath += fname;
 
-        if (gOFS->_rem(fpath.c_str(), lerror, mRootVid, (const char*) 0)) {
+        if (gOFS->_rem(fpath.c_str(), lerror, mRootVid, nullptr)) {
           eos_static_err("msg=\"unable to remove file\" path=%s", fpath.c_str());
         } else {
           eos_static_info("msg=\"permanently deleted file from recycle bin\" "
@@ -1058,7 +1058,7 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
 int
 Recycle::Purge(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid,
-               std::string key, std::string date,
+               std::string key, std::string_view date,
                std::string_view type, std::string_view recycle_id)
 {
   // Basic permission checks
@@ -1068,6 +1068,11 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     std_err = "error: you cannot purge your recycle bin without being a "
               "sudo or having an admin role";
     return EPERM;
+  }
+
+  if (!key.empty() && !date.empty()) {
+    std_err = "error: recycle key and date can not be used together";
+    return EINVAL;
   }
 
   // Sanitize user input
@@ -1080,148 +1085,59 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     }
   }
 
-  XrdMgmOfsDirectory dirl;
-  char sdir[4096];
-  XrdOucErrInfo lerror;
-  int nfiles_deleted = 0;
-  int nbulk_deleted = 0;
-  std::string rpath;
+  // Path that needs to be purged
+  std::string recycle_path;
 
-  // translate key into search pattern
-  if (key.length()) {
-    if (key.substr(0, 5) == "fxid:") {
-      // purge file
-      key.erase(0, 5);
+  if (!key.empty()) {
+    int retc = GetPathFromRestoreKey(key, vid, std_err, recycle_path);
+
+    if (retc) {
+      return retc;
+    }
+  } else if (!date.empty()) {
+    char sdir[4096];
+
+    if ((type == "all") && (vid.uid == 0)) {
+      snprintf(sdir, sizeof(sdir) - 1, "%s/", Recycle::gRecyclingPrefix.c_str());
+    } else if ((type == "rid") && !recycle_id.empty()) {
+      snprintf(sdir, sizeof(sdir) - 1, "%s/rid:%s/%s",
+               Recycle::gRecyclingPrefix.c_str(),
+               recycle_id.data(), date.data());
     } else {
-      if (key.substr(0, 5) == "pxid:") {
-        // purge directory
-        key.erase(0, 5);
-        key += ".d";
-      } else {
-        std_err = "error: the given key to purge is invalid - must start "
-                  "with fxid: or pxid: (see output of recycle ls)";
-        return EINVAL;
-      }
+      snprintf(sdir, sizeof(sdir) - 1, "%s/uid:%u/%s",
+               Recycle::gRecyclingPrefix.c_str(),
+               (unsigned int) vid.uid, date.data());
     }
+
+    recycle_path = sdir;
   }
 
-  if ((type != "all") || ((type == "all") && vid.uid)) {
-    snprintf(sdir, sizeof(sdir) - 1, "%s/uid:%u/%s",
-             Recycle::gRecyclingPrefix.c_str(),
-             (unsigned int) vid.uid,
-             date.c_str());
+  // Make sure the path to purge is inside the recycle bine
+  if (recycle_path.find(Recycle::gRecyclingPrefix) != 0) {
+    std_err = SSTR("error: purge path is " << recycle_path
+                   << " not in the recyle bin ");
+    return EINVAL;
+  }
+
+  // Determine if we need to remove a subtree or a file
+  struct stat buf;
+  XrdOucErrInfo lerror;
+
+  if (gOFS->_stat(recycle_path.c_str(), &buf, lerror, mRootVid, "",
+                  nullptr, false)) {
+    std_err = SSTR("error: recycle path " << recycle_path
+                   << " does not exist");
+    return ENOENT;
+  }
+
+  if (S_ISDIR(buf.st_mode)) {
+    RemoveSubtree(recycle_path.data());
   } else {
-    snprintf(sdir, sizeof(sdir) - 1, "%s/", Recycle::gRecyclingPrefix.c_str());
+    (void) gOFS->_rem(recycle_path.c_str(), lerror, mRootVid, nullptr);
   }
 
-  std::map<std::string, std::set < std::string>> find_map;
-  int depth = 5;
-
-  if (type == "all") {
-    ++depth;
-  }
-
-  eos::common::Path dPath(std::string("/") + date);
-
-  if (dPath.GetSubPathSize()) {
-    if (depth > (int) dPath.GetSubPathSize()) {
-      depth -= dPath.GetSubPathSize();
-    }
-  }
-
-  XrdOucString err_msg;
-  int retc = gOFS->_find(sdir, lerror, err_msg, mRootVid, find_map,
-                         0, 0, false, 0, true, depth);
-
-  if (retc && errno != ENOENT) {
-    std_err = err_msg.c_str();
-    eos_static_err("msg=\"find command failed\" dir=\"%s\"", sdir);
-  }
-
-  for (auto it_dir = find_map.begin(); it_dir != find_map.end(); ++it_dir) {
-    eos_static_debug("dir=%s", it_dir->first.c_str());
-    XrdOucString dirname = it_dir->first.c_str();
-
-    if (dirname.endswith(".d/")) {
-      dirname.erase(dirname.length() - 1);
-      eos::common::Path cpath(dirname.c_str());
-      dirname = cpath.GetParentPath();
-      it_dir->second.insert(cpath.GetName());
-    }
-
-    for (auto it_file = it_dir->second.begin();
-         it_file != it_dir->second.end(); ++it_file) {
-      const std::string fname = HandlePotentialSymlink(dirname.c_str(), *it_file);
-      eos_static_debug("orig_fname=\"%s\" new_fname=\"%s\"",
-                       it_file->c_str(), fname.c_str());
-
-      if ((fname != "/") && (fname.find('#') != 0)) {
-        eos_static_debug("msg=\"skip unexpected entry\" fname=\"%s\"",
-                         fname.c_str());
-        continue;
-      }
-
-      struct stat buf;
-
-      XrdOucErrInfo lerror;
-
-      std::string fullpath = dirname.c_str();
-
-      fullpath += fname;
-
-      if (!gOFS->_stat(fullpath.c_str(), &buf, lerror, mRootVid, "", nullptr,
-                       false)) {
-        if (key.length()) {
-          // check for a particular string pattern
-          if (fullpath.find(key) == std::string::npos) {
-            continue;
-          }
-        }
-
-        // execute a proc command
-        ProcCommand Cmd;
-        XrdOucString info;
-
-        if (S_ISDIR(buf.st_mode)) {
-          // we need recursive deletion
-          info = "mgm.cmd=rm&mgm.option=r&mgm.path=";
-        } else {
-          info = "mgm.cmd=rm&mgm.path=";
-        }
-
-        info += fullpath.c_str();
-        int result = Cmd.open("/proc/user", info.c_str(), mRootVid, &lerror);
-        Cmd.AddOutput(std_out, std_err);
-
-        if (*std_out.rbegin() != '\n') {
-          std_out += "\n";
-        }
-
-        if (*std_err.rbegin() != '\n') {
-          std_err += "\n";
-        }
-
-        Cmd.close();
-
-        if (!result) {
-          if (S_ISDIR(buf.st_mode)) {
-            nbulk_deleted++;
-          } else {
-            nfiles_deleted++;
-          }
-        }
-      }
-    }
-  }
-
-  std_out += SSTR("success: purged " << nbulk_deleted << " bulk deletions and "
-                  << nfiles_deleted << " individual files from recycle bin!");
-
-  if (key.length() && !nbulk_deleted && !nfiles_deleted) {
-    std_err = SSTR("error: no entry for key='" << key << "'");
-    return ENODATA;
-  }
-
+  std_out = SSTR("success: purged path " << recycle_path
+                 << " from recycle bin!");
   return 0;
 }
 

@@ -200,7 +200,7 @@ public:
   //----------------------------------------------------------------------------
   static int Purge(std::string& std_out, std::string& std_err,
                    eos::common::VirtualIdentity& vid,
-                   std::string key, std::string date,
+                   std::string key, std::string_view date,
                    std::string_view type = "",
                    std::string_view recycle_id = "");
 
@@ -342,6 +342,13 @@ public:
                      const eos::common::VirtualIdentity& vid);
 
   //----------------------------------------------------------------------------
+  //! Remove all the entries in the given subtree
+  //!
+  //! @param fullpath full path to directory
+  //----------------------------------------------------------------------------
+  static void RemoveSubtree(std::string_view fullpath);
+
+  //----------------------------------------------------------------------------
   //! Handle symlink or symlink like file names. Three scenarios:
   //! - file does not contain the ' -> ' string so it's returned as it is
   //! - file is not a symlink but contains the ' -> ' string in its name then
@@ -369,13 +376,6 @@ public:
   //! Remove the pending deletions
   //----------------------------------------------------------------------------
   void RemoveEntries();
-
-  //----------------------------------------------------------------------------
-  //! Remove all the entries in the given subtree
-  //!
-  //! @param fullpath full path to directory
-  //----------------------------------------------------------------------------
-  void RemoveSubtree(std::string_view fullpath);
 
   //----------------------------------------------------------------------------
   //! Get cut-off date based on the configured retention policy with respect
