@@ -157,8 +157,8 @@ ReporterFileCreation::DEFAULT_PARAMS_FILE_CREATION{
 // Default function used to write the EOS-CTA reports
 static void ioStatsWrite(const std::string& in)
 {
-  if (eos::mgm::gOFS->mIoStats) {
-    eos::mgm::gOFS->mIoStats->WriteRecord(in);
+  if (gOFS && gOFS->mIoStats) {
+    gOFS->mIoStats->WriteRecord(in);
   }
 }
 
