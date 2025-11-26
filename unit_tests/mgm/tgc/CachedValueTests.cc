@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/CachedValue.hh"
+#include "mgm/cta/tgc/CachedValue.hh"
 
 #include <gtest/gtest.h>
 #include <stdint.h>

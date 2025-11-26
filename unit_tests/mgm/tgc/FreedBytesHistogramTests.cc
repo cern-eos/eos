@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/Constants.hh"
-#include "mgm/tgc/DummyClock.hh"
-#include "mgm/tgc/FreedBytesHistogram.hh"
-#include "mgm/tgc/RealClock.hh"
+#include "mgm/cta/tgc/Constants.hh"
+#include "mgm/cta/tgc/DummyClock.hh"
+#include "mgm/cta/tgc/FreedBytesHistogram.hh"
+#include "mgm/cta/tgc/RealClock.hh"
 
 #include <gtest/gtest.h>
 

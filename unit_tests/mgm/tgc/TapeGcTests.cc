@@ -21,9 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/DummyTapeGcMgm.hh"
-#include "mgm/tgc/MaxLenExceeded.hh"
-#include "mgm/tgc/TestingTapeGc.hh"
+#include "mgm/cta/tgc/DummyTapeGcMgm.hh"
+#include "mgm/cta/tgc/MaxLenExceeded.hh"
+#include "mgm/cta/tgc/TestingTapeGc.hh"
 
 #include <gtest/gtest.h>
 #include <ctime>

@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/DummyTapeGcMgm.hh"
-#include "mgm/tgc/SmartSpaceStats.hh"
+#include "mgm/cta/tgc/DummyTapeGcMgm.hh"
+#include "mgm/cta/tgc/SmartSpaceStats.hh"
 
 #include <gtest/gtest.h>
 
