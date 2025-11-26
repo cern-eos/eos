@@ -25,7 +25,7 @@
 #include <sstream>
 #include <map>
 
-#include "mgm/cta/EosCtaReporter.hh"
+#include "mgm/cta/Reporter.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Iostat.hh"
 

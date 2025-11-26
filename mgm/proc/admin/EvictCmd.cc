@@ -25,7 +25,7 @@
 #include "common/Timing.hh"
 #include "EvictCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/cta/EosCtaReporter.hh"
+#include "mgm/cta/Reporter.hh"
 #include "common/Definitions.hh"
 #include "common/Constants.hh"
 #include "namespace/interface/IView.hh"

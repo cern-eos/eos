@@ -36,7 +36,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/cta/EosCtaReporter.hh"
+#include "mgm/cta/Reporter.hh"
 #include "mgm/CtaUtils.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
 #include "namespace/interface/IView.hh"

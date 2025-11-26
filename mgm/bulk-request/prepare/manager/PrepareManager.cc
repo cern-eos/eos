@@ -27,7 +27,7 @@
 #include "PrepareManager.hh"
 #include "common/Constants.hh"
 #include "mgm/Stat.hh"
-#include "mgm/cta/EosCtaReporter.hh"
+#include "mgm/cta/Reporter.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
