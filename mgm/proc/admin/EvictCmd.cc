@@ -134,7 +134,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       errStream << "error: you don't have 'p' acl flag permission on path '"
                 << cPath.GetParentPath() << "'";
       ret_c = EPERM;
-      eosLog.addParam(cta::EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -145,19 +145,19 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
     if (gOFS->_exists(path.c_str(), file_exists, errInfo, mVid, nullptr)) {
       errStream << "error: unable to run exists on path '" << path << "'";
       ret_c = errno;
-      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
     if (file_exists == XrdSfsFileExistNo) {
       errStream << "error: no such file with path '" << path << "'";
       ret_c = ENODATA;
-      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     } else if (file_exists == XrdSfsFileExistIsDirectory) {
       errStream << "error: given path is a directory '" << path << "'";
       ret_c = EINVAL;
-      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -167,7 +167,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
                     false) != 0) {
       errStream << "error: unable to run stat for replicas on path '" << path << "'";
       ret_c = EINVAL;
-      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -175,7 +175,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
     if ((buf.st_mode & EOS_TAPE_MODE_T) == 0) {
       errStream << "error: no tape replicas for file '" << path << "'";
       ret_c = EINVAL;
-      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -203,8 +203,8 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         eos_static_err("msg=\"unable to find disk replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
         errStream << "error: unable to find disk replica of '" << path << "'";
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID,  fsid.value());
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_FSID,  fsid.value());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
         continue;
       }
@@ -224,7 +224,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         eos_static_err("msg=\"unable to find any disk replica of %s\" reason=\"%s\"",
                        path.c_str(), errInfo.getErrText());
         errStream << "error: unable to find any disk replica of '" << path << "'";
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
         continue;
       }
@@ -241,8 +241,8 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         eos_static_err("msg=\"could not delete replica of %s\" fsid=\"%u\" reason=\"%s\"",
                        path.c_str(), fsid.value(), errInfo.getErrText());
         errStream << "error: could not delete replica of '" << path << "'";
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID, fsid.value());
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_FSID, fsid.value());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
       } else {
         if (diskReplicaCount <= 1) {
@@ -268,7 +268,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
                                           eos::common::RETRIEVE_EVICT_COUNTER_NAME));
           }
 
-          eosLog.addParam(EosCtaReportParam::EVICTCMD_EVICTCOUNTER, evictionCounter);
+          eosLog.addParam(cta::ReportParam::EVICTCMD_EVICTCOUNTER, evictionCounter);
           evictionCounter = std::max(0, evictionCounter - 1);
           fmd->setAttribute(eos::common::RETRIEVE_EVICT_COUNTER_NAME,
                             std::to_string(evictionCounter));
@@ -280,7 +280,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
 
         if (evictionCounter > 0) {
           // Do not remove if eviction counter not zero
-          eosLog.addParam(EosCtaReportParam::EVICTCMD_FILEREMOVED, false);
+          eosLog.addParam(cta::ReportParam::EVICTCMD_FILEREMOVED, false);
           count_evict_counter_not_zero++;
           continue;
         }
@@ -291,7 +291,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
         eos_static_err("msg=\"could not delete all disk replicas of %s\" reason=\"%s\"",
                        path.c_str(), errInfo.getErrText());
         errStream << "error: could not delete all disk replicas of '" << path << "'";
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
         ret_c = SFS_ERROR;
       } else {
         count_all_disk_replicas_removed++;
@@ -318,10 +318,10 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       }
 
       if (fsid.has_value()) {
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_FSID, fsid.value());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_FSID, fsid.value());
       }
 
-      eosLog.addParam(EosCtaReportParam::EVICTCMD_FILEREMOVED, true);
+      eosLog.addParam(cta::ReportParam::EVICTCMD_FILEREMOVED, true);
     }
   }
 
