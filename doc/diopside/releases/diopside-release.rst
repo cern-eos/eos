@@ -16,6 +16,20 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.27 Diopside``
+====================
+
+2025-11-26
+
+Bug
+----
+
+MGM: Delete the configuration engine object during the MGM shutdown
+to avoid any possibility that this is reused during the destruction
+of the FsView that migth in turn lead to deletion of file systems
+from the configuration.
+
+
 ``v5.3.26 Diopside``
 ====================
 
