@@ -218,8 +218,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     .addParam(cta::ReportParam::TD, vid.tident.c_str())
     .addParam(cta::ReportParam::HOST, mMgmFsInterface->get_host())
     .addParam(cta::ReportParam::PREP_REQ_REQID, reqid.c_str())
-    .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
-    .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
+    .addParam(cta::ReportParam::TS, ts_now.tv_sec)
+    .addParam(cta::ReportParam::TNS, ts_now.tv_nsec);
     eos_info("msg=\"checking file exists\" path=\"%s\"", prep_path.c_str());
     {
       const char* inpath = prep_path.c_str();
@@ -250,9 +250,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
       error_counter++;
       eosLog
-      .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
-      .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
-      .addParam(EosCtaReportParam::PREP_REQ_ERROR, errorMsg);
+      .addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, false)
+      .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, false)
+      .addParam(cta::ReportParam::PREP_REQ_ERROR, errorMsg);
       continue;
     }
 
@@ -274,9 +274,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       error_counter++;
       addFileToBulkRequest(std::move(currentFile));
       eosLog
-      .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
-      .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
-      .addParam(EosCtaReportParam::PREP_REQ_ERROR, errorMsg);
+      .addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, false)
+      .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, false)
+      .addParam(cta::ReportParam::PREP_REQ_ERROR, errorMsg);
       continue;
     }
 
@@ -289,7 +289,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                                   nullptr, attributes) == 0) {
       bool foundPrepareTag = false;
       std::string eventAttr = "sys.workflow." + event;
-      eosLog.addParam(EosCtaReportParam::PREP_REQ_EVENT, event);
+      eosLog.addParam(cta::ReportParam::PREP_REQ_EVENT, event);
 
       for (const auto& attrEntry : attributes) {
         foundPrepareTag |= attrEntry.first.find(eventAttr) == 0;
@@ -307,8 +307,8 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
         currentFile->setError(oss.str());
         addFileToBulkRequest(std::move(currentFile));
         eosLog
-        .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
-        .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, true);
+        .addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, false)
+        .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, true);
         continue;
       }
     } else {
@@ -319,9 +319,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
             << eos::common::Path(prep_path.c_str()).GetParentPath();
         currentFile->setError(oss.str());
         eosLog
-        .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
-        .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
-        .addParam(EosCtaReportParam::PREP_REQ_ERROR, oss.str());
+        .addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, false)
+        .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, false)
+        .addParam(cta::ReportParam::PREP_REQ_ERROR, oss.str());
       }
 
       addFileToBulkRequest(std::move(currentFile));
@@ -345,9 +345,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       error_counter++;
       addFileToBulkRequest(std::move(currentFile));
       eosLog
-      .addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, true)
-      .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, true)
-      .addParam(EosCtaReportParam::PREP_REQ_ERROR, errorMsg);
+      .addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, true)
+      .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, true)
+      .addParam(cta::ReportParam::PREP_REQ_ERROR, errorMsg);
       continue;
     }
 
@@ -382,9 +382,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
           }
           error_counter++;
 
-          eosLog.addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
-              .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
-              .addParam(EosCtaReportParam::PREP_REQ_ERROR, errorMsg);
+          eosLog.addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, false)
+              .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, false)
+              .addParam(cta::ReportParam::PREP_REQ_ERROR, errorMsg);
           addFileToBulkRequest(std::move(currentFile));
           continue;
         }
@@ -395,9 +395,9 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
             << prep_path;
         currentFile->setError(oss.str());
         pathsToPrepare.pop_back();
-        eosLog.addParam(EosCtaReportParam::PREP_REQ_SENTTOWFE, false)
-            .addParam(EosCtaReportParam::PREP_REQ_SUCCESSFUL, false)
-            .addParam(EosCtaReportParam::PREP_REQ_ERROR, oss.str());
+        eosLog.addParam(cta::ReportParam::PREP_REQ_SENTTOWFE, false)
+            .addParam(cta::ReportParam::PREP_REQ_SUCCESSFUL, false)
+            .addParam(cta::ReportParam::PREP_REQ_ERROR, oss.str());
         addFileToBulkRequest(std::move(currentFile));
         continue;
       }
@@ -498,12 +498,12 @@ bool PrepareManager::isStagePrepare() const
 }
 
 void PrepareManager::triggerPrepareWorkflow(
-  std::list<std::tuple<char**, char**, EosCtaReporterPrepareReq>>& pathsToPrepare,
+  std::list<std::tuple<char**, char**, cta::ReporterPrepareReq>>& pathsToPrepare,
   const std::string& cmd, const std::string& event, const XrdOucString& reqid,
   XrdOucErrInfo& error, const eos::common::VirtualIdentity& vid)
 {
   for (auto& pathTuple : pathsToPrepare) {
-    EosCtaReporterPrepareReq eosLog = std::move(std::get<2>(pathTuple));
+    cta::ReporterPrepareReq eosLog = std::move(std::get<2>(pathTuple));
     XrdOucString prep_path = (*std::get<0>(pathTuple) ? *std::get<0>
                               (pathTuple) : "");
     {
