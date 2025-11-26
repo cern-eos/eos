@@ -34,7 +34,7 @@
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/workflow/Workflow.hh"
-#include "mgm/XattrLock.hh"
+#include "mgm/xattr/XattrLock.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"

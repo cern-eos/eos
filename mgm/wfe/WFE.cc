@@ -31,7 +31,7 @@
 #include "mgm/quota/Quota.hh"
 #include "common/eos_cta_pb/EosCtaAlertHandler.hh"
 #include "common/WebNotify.hh"
-#include "mgm/XattrSet.hh"
+#include "mgm/xattr/XattrSet.hh"
 #include "mgm/wfe/WFE.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"

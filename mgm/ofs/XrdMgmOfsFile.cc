@@ -51,7 +51,7 @@
 #include "mgm/zmq/ZMQ.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/utils/AttrHelper.hh"
-#include "mgm/XattrLock.hh"
+#include "mgm/xattr/XattrLock.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "namespace/utils/Attributes.hh"

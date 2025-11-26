@@ -86,7 +86,7 @@
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
-#include "mgm/XattrLock.hh"
+#include "mgm/xattr/XattrLock.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"

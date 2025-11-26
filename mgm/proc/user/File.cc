@@ -31,7 +31,7 @@
 #include "mgm/stat/Stat.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/convert/ConversionTag.hh"
-#include "mgm/XattrLock.hh"
+#include "mgm/xattr/XattrLock.hh"
 #include "mgm/Constants.hh"
 #include "common/Utils.hh"
 #include "common/Path.hh"
