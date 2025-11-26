@@ -41,9 +41,9 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsFile.hh"
 #include "mgm/fsck/Fsck.hh"
-#include "mgm/Quota.hh"
-#include "mgm/Stat.hh"
-#include "mgm/ZMQ.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/zmq/ZMQ.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include <sstream>

@@ -27,7 +27,7 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/Scheduler.hh"
+#include "mgm/scheduler/Scheduler.hh"
 #include "namespace/interface/IContainerMD.hh"
 /*----------------------------------------------------------------------------*/
 #include <XrdOuc/XrdOucEnv.hh>

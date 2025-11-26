@@ -20,7 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/AdminSocket.hh"
+#include "mgm/adminsocket/AdminSocket.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
 

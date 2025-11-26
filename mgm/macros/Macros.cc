@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Macros.hh"
-#include "mgm/Access.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/access/Access.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 
 EOSMGMNAMESPACE_BEGIN

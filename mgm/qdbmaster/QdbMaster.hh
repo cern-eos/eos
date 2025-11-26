@@ -25,7 +25,7 @@
 //! @brief Master interface for Qdb implementation
 //------------------------------------------------------------------------------
 #pragma once
-#include "mgm/IMaster.hh"
+#include "mgm/imaster/IMaster.hh"
 #include "common/AssistedThread.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 

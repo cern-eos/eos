@@ -23,8 +23,8 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Features.hh"
-#include "mgm/Stat.hh"
+#include "mgm/features/Features.hh"
+#include "mgm/stat/Stat.hh"
 #include <XrdVersion.hh>
 
 XrdVERSIONINFOREF( XrdgetProtocol );

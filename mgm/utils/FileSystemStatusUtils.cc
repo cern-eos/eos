@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "FileSystemStatusUtils.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/Logging.hh"
 

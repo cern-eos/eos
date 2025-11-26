@@ -23,8 +23,8 @@
 
 #include "ConvertCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Scheduler.hh"
-#include "mgm/FsView.hh"
+#include "mgm/scheduler/Scheduler.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"

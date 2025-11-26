@@ -10,9 +10,9 @@
 #include "console/commands/HealthCommand.hh"
 #include "console/ConsoleMain.hh"
 
-#include "mgm/Acl.hh"
-#include "mgm/Egroup.hh"
-#include "mgm/GeoTreeEngine.hh"
+#include "mgm/acl/Acl.hh"
+#include "mgm/egroup/Egroup.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"

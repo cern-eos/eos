@@ -115,7 +115,7 @@
 #include "mgm/IdTrackerWithValidity.hh"
 #include "mgm/qos/QoSConfig.hh"
 #include "mgm/qos/QoSClass.hh"
-#include "mgm/IMaster.hh"
+#include "mgm/imaster/IMaster.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
@@ -124,7 +124,7 @@
 #include "namespace/MDLocking.hh"
 #include "namespace/locking/NSObjectLocker.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
-#include "mgm/InFlightTracker.hh"
+#include "mgm/inflighttracker/InFlightTracker.hh"
 #include "mgm/namespacestats/NamespaceStats.hh"
 #include <XrdAcc/XrdAccPrivs.hh>
 #include <google/sparse_hash_map>

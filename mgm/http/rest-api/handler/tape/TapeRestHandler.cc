@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "TapeRestHandler.hh"
-#include "mgm/IMaster.hh"
+#include "mgm/imaster/IMaster.hh"
 #include "mgm/http/rest-api/Constants.hh"
 #include "mgm/http/rest-api/action/tape/archiveinfo/GetArchiveInfo.hh"
 #include "mgm/http/rest-api/action/tape/release/CreateReleaseBulkRequest.hh"

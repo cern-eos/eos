@@ -23,8 +23,8 @@
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Access.hh"
-#include "mgm/Macros.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/macros/Macros.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/FileSystem.hh"
+#include "mgm/filesystem/FileSystem.hh"
 #include "mq/MessagingRealm.hh"
 #include "mq/FsChangeListener.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
 

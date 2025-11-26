@@ -21,9 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Scheduler.hh"
-#include "mgm/Quota.hh"
-#include "mgm/GeoTreeEngine.hh"
+#include "mgm/scheduler/Scheduler.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "mgm/XrdMgmOfs.hh"
 

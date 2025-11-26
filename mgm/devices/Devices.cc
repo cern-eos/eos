@@ -26,10 +26,10 @@
 #include "common/RWMutex.hh"
 #include "common/Path.hh"
 #include "common/utils/BackOffInvoker.hh"
-#include "mgm/Devices.hh"
+#include "mgm/devices/Devices.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
-#include "mgm/Stat.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/stat/Stat.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IView.hh"
 

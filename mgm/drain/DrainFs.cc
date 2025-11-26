@@ -23,7 +23,7 @@
 #include "mgm/drain/DrainFs.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/ThreadPool.hh"
 #include "namespace/interface/IView.hh"

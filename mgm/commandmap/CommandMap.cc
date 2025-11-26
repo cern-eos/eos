@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/CommandMap.hh"
+#include "mgm/commandmap/CommandMap.hh"
 
 namespace
 {

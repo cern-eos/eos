@@ -22,7 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/Policy.hh"
+#include "mgm/policy/Policy.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"

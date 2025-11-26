@@ -21,16 +21,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/QdbMaster.hh"
+#include "mgm/qdbmaster/QdbMaster.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Quota.hh"
-#include "mgm/Access.hh"
-#include "mgm/WFE.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/wfe/WFE.hh"
 #include "mgm/fsck/Fsck.hh"
-#include "mgm/LRU.hh"
+#include "mgm/lru/LRU.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/Devices.hh"
-#include "mgm/GeoTreeEngine.hh"
+#include "mgm/devices/Devices.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"

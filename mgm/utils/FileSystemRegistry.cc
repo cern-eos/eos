@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/utils/FileSystemRegistry.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "common/Logging.hh"
 #include "common/Assert.hh"
 

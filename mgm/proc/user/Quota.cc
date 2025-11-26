@@ -23,9 +23,9 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Acl.hh"
-#include "mgm/Quota.hh"
-#include "mgm/Stat.hh"
+#include "mgm/acl/Acl.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
 #include "common/Constants.hh"
 
 EOSMGMNAMESPACE_BEGIN

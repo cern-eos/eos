@@ -20,7 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/RouteEndpoint.hh"
+#include "mgm/routeendpoint/RouteEndpoint.hh"
 #include "common/StringConversion.hh"
 #include "common/ParseUtils.hh"
 #include <XrdCl/XrdClURL.hh>

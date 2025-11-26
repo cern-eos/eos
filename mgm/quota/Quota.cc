@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Quota.hh"
-#include "mgm/Policy.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/policy/Policy.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/StringUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"

@@ -26,10 +26,10 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "mgm/Quota.hh"
+#include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Access.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/access/Access.hh"
 #include "common/Path.hh"
 #include "common/Glob.hh"
 

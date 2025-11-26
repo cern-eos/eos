@@ -21,9 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/GroupBalancer.hh"
+#include "mgm/groupbalancer/GroupBalancer.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "namespace/interface/IFsView.hh"
 #include "common/StringConversion.hh"

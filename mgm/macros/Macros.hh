@@ -33,7 +33,7 @@
 #ifndef __EOSMGM_MACROS__HH__
 #define __EOSMGM_MACROS__HH__
 
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 
 USE_EOSMGMNAMESPACE

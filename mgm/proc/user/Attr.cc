@@ -23,8 +23,8 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Access.hh"
-#include "mgm/Macros.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/macros/Macros.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IView.hh"

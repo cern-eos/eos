@@ -28,7 +28,7 @@
 #undef des_set_key
 #include <google/dense_hash_map>
 #include <google/sparsehash/densehashtable.h>
-#include "mgm/Scheduler.hh"
+#include "mgm/scheduler/Scheduler.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"

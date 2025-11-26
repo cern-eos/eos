@@ -24,10 +24,10 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Access.hh"
-#include "mgm/Quota.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/Macros.hh"
+#include "mgm/macros/Macros.hh"
 #include "common/Path.hh"
 #include <regex.h>
 

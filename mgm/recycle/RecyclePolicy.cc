@@ -23,7 +23,7 @@
 
 #include "mgm/recycle/RecyclePolicy.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/Quota.hh"
+#include "mgm/quota/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 

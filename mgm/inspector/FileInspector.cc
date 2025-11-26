@@ -29,7 +29,7 @@
 #include "common/Timing.hh"
 #include "common/json/Json.hh"
 #include "common/ParseUtils.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/XrdMgmOfs.hh"

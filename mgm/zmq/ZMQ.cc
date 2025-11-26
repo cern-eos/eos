@@ -26,7 +26,7 @@
 #include <common/StringUtils.hh>
 #include "mgm/fusex.pb.h"
 #include "mgm/FuseServer/Server.hh"
-#include "mgm/ZMQ.hh"
+#include "mgm/zmq/ZMQ.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -29,7 +29,7 @@
 #include "common/FileSystem.hh"
 #include "common/LayoutId.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/
 

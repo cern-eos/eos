@@ -23,7 +23,7 @@
 
 #include <mgm/bulk-request/exception/PersistencyException.hh>
 #include "BulkRequestBusiness.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
 
 EOSBULKNAMESPACE_BEGIN

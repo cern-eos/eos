@@ -33,7 +33,7 @@
 #include "mgm/http/rest-api/exception/tape/FileDoesNotBelongToBulkRequestException.hh"
 #include "mgm/http/rest-api/exception/ForbiddenException.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 

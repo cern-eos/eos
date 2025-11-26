@@ -21,9 +21,9 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/GeoBalancer.hh"
+#include "mgm/geobalancer/GeoBalancer.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"

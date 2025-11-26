@@ -22,12 +22,12 @@
  ************************************************************************/
 
 #include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/XrdMgmOfsSecurity.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Access.hh"
-#include "mgm/Acl.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/acl/Acl.hh"
 #include "common/Path.hh"
 #include "common/Strerror_r_wrapper.hh"
 #include "namespace/interface/IContainerMD.hh"

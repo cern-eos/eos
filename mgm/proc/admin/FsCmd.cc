@@ -22,10 +22,10 @@
 ************************************************************************/
 
 #include "FsCmd.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "common/LayoutId.hh"
 #include "namespace/interface/IFsView.hh"

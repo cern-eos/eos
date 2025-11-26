@@ -24,9 +24,9 @@
 
 #include <chrono>
 
-#include "mgm/Messaging.hh"
+#include "mgm/messaging/Messaging.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mq/MessagingRealm.hh"
 
 EOSMGMNAMESPACE_BEGIN

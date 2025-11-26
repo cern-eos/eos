@@ -29,7 +29,7 @@
 #include "common/LinuxFds.hh"
 #include "common/LinuxStat.hh"
 #include "common/LinuxMemConsumption.hh"
-#include "mgm/Acl.hh"
+#include "mgm/acl/Acl.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"

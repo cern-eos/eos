@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/IMaster.hh"
+#include "mgm/imaster/IMaster.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "common/ParseUtils.hh"

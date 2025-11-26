@@ -27,7 +27,7 @@
 #include "common/IntervalStopwatch.hh"
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "namespace/Prefetcher.hh"

@@ -29,7 +29,7 @@
 #define HAVE_ATOMICS 1
 
 /*----------------------------------------------------------------------------*/
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/geotree/SchedulingSlowTree.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/Timing.hh"

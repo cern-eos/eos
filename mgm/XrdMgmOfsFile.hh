@@ -50,7 +50,7 @@
 
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
-#include "mgm/Messaging.hh"
+#include "mgm/messaging/Messaging.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include <XrdSfs/XrdSfsInterface.hh>

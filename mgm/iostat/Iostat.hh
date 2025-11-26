@@ -24,7 +24,7 @@
 #pragma once
 #include "common/AssistedThread.hh"
 #include "common/StringConversion.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/Namespace.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/structures/QHash.hh"

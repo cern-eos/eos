@@ -21,7 +21,7 @@
  ************************************************************************/
 
 #include "AclCmd.hh"
-#include "mgm/Acl.hh"
+#include "mgm/acl/Acl.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/StringTokenizer.hh"
 #include "common/ErrnoToString.hh"

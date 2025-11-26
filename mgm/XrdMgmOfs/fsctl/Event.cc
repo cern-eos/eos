@@ -26,11 +26,11 @@
 #include "common/SecEntity.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Workflow.hh"
-#include "mgm/FsView.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/workflow/Workflow.hh"
+#include "mgm/fsview/FsView.hh"
 #include "common/Definitions.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 

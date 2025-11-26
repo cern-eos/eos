@@ -24,10 +24,10 @@
 /*----------------------------------------------------------------------------*/
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
-#include "mgm/Workflow.hh"
+#include "mgm/workflow/Workflow.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/WFE.hh"
-#include "mgm/FsView.hh"
+#include "mgm/wfe/WFE.hh"
+#include "mgm/fsview/FsView.hh"
 #include "common/Constants.hh"
 #include "namespace/Prefetcher.hh"
 /*----------------------------------------------------------------------------*/

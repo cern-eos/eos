@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/webdav/PropPatchResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Quota.hh"
+#include "mgm/quota/Quota.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"

@@ -23,8 +23,8 @@
 
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
-#include "mgm/Stat.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/LayoutId.hh"

@@ -23,7 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/GeoTreeEngine.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

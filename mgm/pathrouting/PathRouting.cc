@@ -20,7 +20,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/PathRouting.hh"
+#include "mgm/pathrouting/PathRouting.hh"
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include <XrdCl/XrdClURL.hh>

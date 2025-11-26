@@ -23,7 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include <json/json.h>
 #include "common/Mapping.hh"
 

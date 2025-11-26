@@ -28,7 +28,7 @@
 #include "mgm/http/webdav/PropPatchResponse.hh"
 #include "mgm/http/webdav/LockResponse.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/Logging.hh"

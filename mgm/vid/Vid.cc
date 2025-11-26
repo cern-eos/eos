@@ -24,7 +24,7 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "common/Mapping.hh"
-#include "mgm/Vid.hh"
+#include "mgm/vid/Vid.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/config/IConfigEngine.hh"
 

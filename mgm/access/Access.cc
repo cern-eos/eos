@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "mgm/Namespace.hh"
-#include "mgm/Access.hh"
-#include "mgm/FsView.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/fsview/FsView.hh"
 #include "common/StringConversion.hh"
 #include <regex.h>
 

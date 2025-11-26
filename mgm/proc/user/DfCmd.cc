@@ -22,7 +22,7 @@
 
 #include "DfCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include <sstream>
 

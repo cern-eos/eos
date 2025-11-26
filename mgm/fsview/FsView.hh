@@ -25,7 +25,7 @@
 #define __EOSMGM_FSVIEW__HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/FileSystem.hh"
+#include "mgm/filesystem/FileSystem.hh"
 #include "mgm/utils/FilesystemUuidMapper.hh"
 #include "mgm/utils/FileSystemRegistry.hh"
 #include "common/RWMutex.hh"

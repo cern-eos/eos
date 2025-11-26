@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 /*----------------------------------------------------------------------------*/
-#include "mgm/InFlightTracker.hh"
-#include "mgm/Access.hh"
+#include "mgm/inflighttracker/InFlightTracker.hh"
+#include "mgm/access/Access.hh"
 #include "common/utils/RandUtils.hh"
 /*----------------------------------------------------------------------------*/
 /*----------------------------------------------------------------------------*/

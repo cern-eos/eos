@@ -27,11 +27,11 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFsView.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Macros.hh"
-#include "mgm/FsView.hh"
-#include "mgm/Messaging.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/messaging/Messaging.hh"
 #include "proto/Delete.pb.h"
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/util/json_util.h>

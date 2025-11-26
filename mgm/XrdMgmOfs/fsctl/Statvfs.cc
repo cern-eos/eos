@@ -23,11 +23,11 @@
 
 #include "common/Logging.hh"
 #include "common/utils/RandUtils.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Quota.hh"
-#include "mgm/FsView.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/fsview/FsView.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
 

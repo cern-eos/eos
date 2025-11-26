@@ -1,4 +1,4 @@
-#include "mgm/Policy.hh"
+#include "mgm/policy/Policy.hh"
 #include "mgm/Constants.hh"
 #include "gtest/gtest.h"
 

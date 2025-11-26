@@ -27,9 +27,9 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Macros.hh"
+#include "mgm/macros/Macros.hh"
 #include "namespace/Prefetcher.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 

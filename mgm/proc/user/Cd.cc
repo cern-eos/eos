@@ -23,8 +23,8 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Stat.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/stat/Stat.hh"
 
 
 EOSMGMNAMESPACE_BEGIN

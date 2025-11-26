@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "BulkRequestProcCleaner.hh"
-#include "mgm/IMaster.hh"
+#include "mgm/imaster/IMaster.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include <common/IntervalStopwatch.hh>
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"

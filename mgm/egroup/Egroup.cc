@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Egroup.hh"
+#include "mgm/egroup/Egroup.hh"
 #include "common/Logging.hh"
 #include "common/StringUtils.hh"
 #include <ldap.h>

@@ -23,9 +23,9 @@
 
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
-#include "mgm/GeoTreeEngine.hh"
-#include "mgm/Stat.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "common/SecEntity.hh"
 #include "common/LayoutId.hh"

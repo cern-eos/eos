@@ -26,7 +26,7 @@
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "common/Timing.hh"
 #include "common/ErrnoToString.hh"
 #include "common/http/PlainHttpResponse.hh"

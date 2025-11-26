@@ -25,7 +25,7 @@
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
 #include "common/AssistedThread.hh"
-#include "mgm/RouteEndpoint.hh"
+#include "mgm/routeendpoint/RouteEndpoint.hh"
 #include <map>
 #include <list>
 

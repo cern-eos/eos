@@ -26,7 +26,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/Macros.hh"
+#include "mgm/macros/Macros.hh"
 #include "namespace/interface/IView.hh"
 #include "json/json.h"
 #include <google/protobuf/util/json_util.h>

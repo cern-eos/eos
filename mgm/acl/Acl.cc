@@ -20,8 +20,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Acl.hh"
-#include "mgm/Egroup.hh"
+#include "mgm/acl/Acl.hh"
+#include "mgm/egroup/Egroup.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "common/StringConversion.hh"
 #include <regex.h>
