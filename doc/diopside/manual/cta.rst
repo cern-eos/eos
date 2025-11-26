@@ -20,6 +20,12 @@ Enabling Tape Mode
 ------------------
 Tape functionality is enabled at the MGM level (``mTapeEnabled``). In code, related decisions are guarded by tape checks (e.g. ``isTapeEnabled()`` or ``mTapeEnabled``).
 
+In the MGM xrootd configuration file (for example ``/etc/xrd.cf.mgm`` or ``/etc/eos/config/mgm/...``) enable tape mode with:
+
+.. code-block:: none
+
+   mgmofs.tapeenabled 1
+
 CTA Report Logs
 ---------------
 CTA events are written as EOS report log entries (``key=value`` pairs) using helpers in ``mgm/cta/Reporter.*``:

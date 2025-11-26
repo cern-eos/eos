@@ -28,6 +28,12 @@ Tape mode is a runtime setting of the MGM. In code paths you will frequently see
 - “isTapeEnabled()” on MGM interfaces; or
 - “mTapeEnabled” in core MGM classes.
 
+To enable tape mode, set the following directive in the MGM xrootd configuration (e.g. `/etc/xrd.cf.mgm` or `/etc/eos/config/mgm/...`):
+
+```
+mgmofs.tapeenabled 1
+```
+
 When tape is enabled:
 - MGM accepts “prepare/stage” requests and forwards them into the workflow engine (WFE), and
 - TGC subsystems and tape-specific policies are effective where configured.
