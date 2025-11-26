@@ -24,7 +24,7 @@
 #include "common/Logging.hh"
 #include "mgm/cta/tgc/MaxLenExceeded.hh"
 #include "mgm/cta/tgc/MultiSpaceTapeGc.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/cta/Utils.hh"
 
 #include <iomanip>
 #include <sstream>
