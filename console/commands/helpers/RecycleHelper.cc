@@ -142,6 +142,7 @@ RecycleHelper::ParseCommand(const char* arg)
         }
 
         soption = option;
+        purge->set_type(eos::console::RecycleProto::RID);
 
         // Make sure this is a number
         try {
