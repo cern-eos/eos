@@ -25,7 +25,7 @@
 #include "mgm/proc/ProcInterface.hh"
 
 #include <XrdOuc/XrdOucEnv.hh>
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/config/IConfigEngine.hh"
 

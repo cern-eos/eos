@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "ConvertCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/scheduler/Scheduler.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/convert/ConverterEngine.hh"

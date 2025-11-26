@@ -27,7 +27,7 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/

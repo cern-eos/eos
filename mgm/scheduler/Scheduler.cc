@@ -25,7 +25,7 @@
 #include "mgm/quota/Quota.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/placement/FsScheduler.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

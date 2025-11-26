@@ -28,7 +28,7 @@
 // -----------------------------------------------------------------------
 #include "proto/Audit.pb.h"
 #include <time.h>
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/

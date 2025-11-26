@@ -23,7 +23,7 @@
 
 #include "mgm/quota/Quota.hh"
 #include "mgm/policy/Policy.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/StringUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "namespace/interface/IView.hh"

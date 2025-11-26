@@ -35,7 +35,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "mgm/iostat/Iostat.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/imaster/IMaster.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IView.hh"

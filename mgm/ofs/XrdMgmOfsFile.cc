@@ -36,9 +36,9 @@
 #include "mgm/access/Access.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/filesystem/FileSystem.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsFile.hh"
-#include "mgm/XrdMgmOfsSecurity.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/ofs/XrdMgmOfsSecurity.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
@@ -63,7 +63,7 @@
 #include <XrdSfs/XrdSfsAio.hh>
 #include "common/Constants.hh"
 #include <XrdOuc/XrdOucPgrwUtils.hh>
-#include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/ofs/XrdMgmOfsTrace.hh"
 #include "mgm/AuditHelpers.hh"
 
 

@@ -24,7 +24,7 @@
 #include "common/Logging.hh"
 #include "common/utils/RandUtils.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/fsview/FsView.hh"

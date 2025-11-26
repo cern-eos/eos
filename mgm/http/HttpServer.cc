@@ -23,7 +23,7 @@
 
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/ProtocolHandlerFactory.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/macros/Macros.hh"
 #include "common/Path.hh"

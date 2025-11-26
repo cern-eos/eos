@@ -23,7 +23,7 @@
 
 #include "common/Path.hh"
 #include "common/CommentLog.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/macros/Macros.hh"

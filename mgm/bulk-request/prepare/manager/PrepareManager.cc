@@ -35,7 +35,7 @@
 #include "common/utils/XrdUtils.hh"
 #include "common/Definitions.hh"
 #include "mgm/macros/Macros.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include <mgm/XattrSet.hh>
 #include "mgm/bulk-request/File.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"

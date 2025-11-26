@@ -28,7 +28,7 @@
 #include "common/LayoutId.hh"
 #include "common/Path.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/Resolver.hh"

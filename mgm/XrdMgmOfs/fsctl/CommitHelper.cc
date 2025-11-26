@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"

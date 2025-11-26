@@ -26,7 +26,7 @@
 // transparent without slowing down the compilation time.
 //------------------------------------------------------------------------------
 
-#include "mgm/XrdMgmOfsTrace.hh"
+#include "mgm/ofs/XrdMgmOfsTrace.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/AuditHelpers.hh"
 

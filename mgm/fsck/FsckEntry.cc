@@ -23,7 +23,7 @@
 
 #include "mgm/fsck/FsckEntry.hh"
 #include "mgm/fsck/Fsck.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/proc/proc_fs.hh"

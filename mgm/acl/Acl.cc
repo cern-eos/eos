@@ -22,7 +22,7 @@
 
 #include "mgm/acl/Acl.hh"
 #include "mgm/egroup/Egroup.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/StringConversion.hh"
 #include <regex.h>
 

@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/drain/DrainTransferJob.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/stat/Stat.hh"

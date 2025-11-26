@@ -21,7 +21,7 @@
  ************************************************************************/
 
 #include "RouteCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/routeendpoint/RouteEndpoint.hh"
 #include "mgm/pathrouting/PathRouting.hh"

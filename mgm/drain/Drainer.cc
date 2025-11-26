@@ -21,7 +21,7 @@
  ************************************************************************/
 
 #include "mgm/drain/Drainer.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/drain/DrainFs.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "mgm/fsview/FsView.hh"

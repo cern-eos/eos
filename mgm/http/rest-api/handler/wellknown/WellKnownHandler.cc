@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #include "WellKnownHandler.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/http/rest-api/action/wellknown/tape/GetTapeRestApiWellKnown.hh"
 #include "mgm/http/rest-api/controllers/wellknown/factories/WellKnownControllerFactory.hh"
 #include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"

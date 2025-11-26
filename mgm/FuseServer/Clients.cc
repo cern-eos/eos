@@ -28,7 +28,7 @@
 #include "mgm/FuseServer/Clients.hh"
 #include "common/Logging.hh"
 #include "common/CommentLog.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/zmq/ZMQ.hh"
 

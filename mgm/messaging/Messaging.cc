@@ -25,7 +25,7 @@
 #include <chrono>
 
 #include "mgm/messaging/Messaging.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mq/MessagingRealm.hh"
 

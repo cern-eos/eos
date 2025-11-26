@@ -23,7 +23,7 @@
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include "common/Path.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
 

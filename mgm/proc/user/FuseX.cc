@@ -25,7 +25,7 @@
 #include "common/SymKeys.hh"
 #include "mgm/zmq/ZMQ.hh"
 #include "mgm/FuseServer/Server.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/stat/Stat.hh"

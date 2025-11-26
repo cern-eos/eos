@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "URLBuilder.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include <unistd.h>
 
 EOSMGMRESTNAMESPACE_BEGIN

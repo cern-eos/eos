@@ -27,7 +27,7 @@
 #ifndef NODEBUG
 
 #include <iostream>
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 
 #define GTRACE(act)         gMgmOfsTrace.What & TRACE_ ## act
 

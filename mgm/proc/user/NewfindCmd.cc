@@ -29,7 +29,7 @@
 #include "mgm/acl/Acl.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/macros/Macros.hh"
 #include "namespace/interface/IView.hh"

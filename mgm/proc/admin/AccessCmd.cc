@@ -24,7 +24,7 @@
 
 #include "AccessCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/stat/Stat.hh"
 #include "common/StringUtils.hh"

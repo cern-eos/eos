@@ -23,7 +23,7 @@
 
 #include "QuotaCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/quota/Quota.hh"

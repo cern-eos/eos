@@ -24,7 +24,7 @@
 #include "mgm/fsview/FsView.hh"
 #include "mgm/proc/proc_fs.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/imaster/IMaster.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/interface/IView.hh"

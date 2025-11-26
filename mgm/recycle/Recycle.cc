@@ -29,10 +29,10 @@
 #include "common/utils/BackOffInvoker.hh"
 #include "common/RWMutex.hh"
 #include "common/Path.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/qdbmaster/QdbMaster.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/XrdMgmOfsDirectory.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/ContainerIterators.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>

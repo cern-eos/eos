@@ -22,7 +22,7 @@
 
 #include "EosMgmHttpHandler.hh"
 #include "common/Logging.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm//http/HttpServer.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/StringConversion.hh"

@@ -24,7 +24,7 @@
 #include "mgm/recycle/RecyclePolicy.hh"
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/quota/Quota.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 
 EOSMGMNAMESPACE_BEGIN

@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/qdbmaster/QdbMaster.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/wfe/WFE.hh"

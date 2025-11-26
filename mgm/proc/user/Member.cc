@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/egroup/Egroup.hh"
 
 EOSMGMNAMESPACE_BEGIN

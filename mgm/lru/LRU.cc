@@ -31,7 +31,7 @@
 #include "mgm/quota/Quota.hh"
 #include "mgm/lru/LRU.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "namespace/interface/IView.hh"

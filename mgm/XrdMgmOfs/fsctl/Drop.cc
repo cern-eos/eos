@@ -32,7 +32,7 @@
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/iostat/Iostat.hh"
 #include <XrdOuc/XrdOucEnv.hh>

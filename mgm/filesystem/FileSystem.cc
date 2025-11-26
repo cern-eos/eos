@@ -25,7 +25,7 @@
 #include "mq/MessagingRealm.hh"
 #include "mq/FsChangeListener.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
 
 EOSMGMNAMESPACE_BEGIN

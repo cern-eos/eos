@@ -29,7 +29,7 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/messaging/Messaging.hh"
 #include "mgm/fsview/FsView.hh"
 #include "namespace/interface/IView.hh"

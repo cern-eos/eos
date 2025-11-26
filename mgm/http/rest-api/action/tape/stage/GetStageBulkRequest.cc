@@ -24,7 +24,7 @@
 #include "GetStageBulkRequest.hh"
 #include <memory>
 #include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"

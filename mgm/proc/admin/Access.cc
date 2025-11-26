@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include <XrdOuc/XrdOucEnv.hh>
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/stat/Stat.hh"
 

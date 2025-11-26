@@ -24,7 +24,7 @@
 #include <cfloat>
 #include <curl/curl.h>
 #include "common/config/ConfigParsing.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/geobalancer/GeoBalancer.hh"
 #include "mgm/groupbalancer/GroupBalancer.hh"

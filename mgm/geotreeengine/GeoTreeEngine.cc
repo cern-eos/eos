@@ -24,7 +24,7 @@
 #define HAVE_ATOMICS 1
 
 #include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/FileSystem.hh"

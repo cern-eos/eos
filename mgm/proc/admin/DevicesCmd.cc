@@ -24,7 +24,7 @@
 #include "DevicesCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/tgc/Constants.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/devices/Devices.hh"
 #include "common/Path.hh"
 #include "mgm/config/IConfigEngine.hh"

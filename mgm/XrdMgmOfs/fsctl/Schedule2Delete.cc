@@ -28,7 +28,7 @@
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IFsView.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/messaging/Messaging.hh"

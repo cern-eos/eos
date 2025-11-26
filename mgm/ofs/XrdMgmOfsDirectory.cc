@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/XrdMgmOfsDirectory.hh"
 #include "mgm/stat/Stat.hh"
-#include "mgm/XrdMgmOfsTrace.hh"
-#include "mgm/XrdMgmOfsSecurity.hh"
+#include "mgm/ofs/XrdMgmOfsTrace.hh"
+#include "mgm/ofs/XrdMgmOfsSecurity.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/acl/Acl.hh"

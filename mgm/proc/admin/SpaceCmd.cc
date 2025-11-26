@@ -26,7 +26,7 @@
 #include "mgm/tgc/Constants.hh"
 #include "mgm/http/rest-api/Constants.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/lru/LRU.hh"
 #include "mgm/acl/Acl.hh"
 #include "common/Path.hh"

@@ -27,7 +27,7 @@
 #include "common/Path.hh"
 #include "common/utils/BackOffInvoker.hh"
 #include "mgm/devices/Devices.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/stat/Stat.hh"
 #include "namespace/Prefetcher.hh"

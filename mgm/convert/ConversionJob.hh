@@ -23,7 +23,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/convert/ConversionInfo.hh"
 #include "common/FileId.hh"
 #include "common/LayoutId.hh"

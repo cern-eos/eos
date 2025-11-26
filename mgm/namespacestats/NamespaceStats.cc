@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "NamespaceStats.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 
 EOSMGMNAMESPACE_BEGIN

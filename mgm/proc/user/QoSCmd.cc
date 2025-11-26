@@ -23,7 +23,7 @@
 
 #include "common/LayoutId.hh"
 #include "common/StringConversion.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/scheduler/Scheduler.hh"
 #include "mgm/qos/QoSClass.hh"
 #include "mgm/qos/QoSConfig.hh"

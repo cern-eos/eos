@@ -24,7 +24,7 @@
 #include "FsCmd.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/proc/proc_fs.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/placement/FsScheduler.hh"
 #include "common/LayoutId.hh"

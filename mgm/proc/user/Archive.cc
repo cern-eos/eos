@@ -23,8 +23,8 @@
 
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsDirectory.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/acl/Acl.hh"

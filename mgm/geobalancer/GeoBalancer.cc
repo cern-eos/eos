@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/geobalancer/GeoBalancer.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "namespace/interface/IFsView.hh"
