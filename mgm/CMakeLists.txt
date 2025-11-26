@@ -93,12 +93,12 @@ add_library(
   config/IConfigEngine.cc                           config/IConfigEngine.hh
   config/QuarkConfigHandler.cc                      config/QuarkConfigHandler.hh
   config/QuarkDBConfigEngine.cc                     config/QuarkDBConfigEngine.hh
-  Access.cc
-  Macros.cc
-  GeoTreeEngine.cc
-  Messaging.cc
+  access/Access.cc
+  macros/Macros.cc
+  geotreeengine/GeoTreeEngine.cc
+  messaging/Messaging.cc
   ${MGM_TGC_SRC_FILES}
-  Policy.cc
+  policy/Policy.cc
   namespacestats/NamespaceStats.cc
   proc/IProcCommand.cc
   proc/ProcInterface.cc
@@ -160,10 +160,10 @@ add_library(
   proc/user/Whoami.cc
   qos/QoSConfig.cc                                  qos/QoSConfig.hh
   qos/QoSClass.hh
-  Quota.cc
-  Scheduler.cc
-  Vid.cc
-  FsView.cc
+  quota/Quota.cc
+  scheduler/Scheduler.cc
+  vid/Vid.cc
+  fsview/FsView.cc
   XrdMgmOfsConfigure.cc
   XrdMgmOfsFile.cc
   XrdMgmOfsDirectory.cc
@@ -193,27 +193,27 @@ add_library(
   XrdMgmOfs/fsctl/Version.cc
   balancer/FsBalancer.cc
   balancer/FsBalancerStats.cc
-  CommandMap.cc
-  FileSystem.cc
+  commandmap/CommandMap.cc
+  filesystem/FileSystem.cc
   convert/ConversionInfo.cc
   convert/ConversionJob.cc
   convert/ConverterEngine.cc
   drain/DrainFs.cc
   drain/DrainTransferJob.cc
   drain/Drainer.cc
-  Egroup.cc
-  AdminSocket.cc
-  Acl.cc
-  Stat.cc
-  Iostat.cc
+  egroup/Egroup.cc
+  adminsocket/AdminSocket.cc
+  acl/Acl.cc
+  stat/Stat.cc
+  iostat/Iostat.cc
   fsck/Fsck.cc
   fsck/FsckEntry.cc
   utils/AttrHelper.cc
   utils/FileSystemRegistry.cc                  utils/FileSystemRegistry.hh
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
   utils/FileSystemStatusUtils.cc
-  GroupBalancer.cc
-  GroupDrainer.cc
+  groupbalancer/GroupBalancer.cc
+  groupdrainer/GroupDrainer.cc
   groupbalancer/BalancerEngine.cc
   groupbalancer/ConverterUtils.cc
   groupbalancer/FreeSpaceBalancerEngine.cc
@@ -222,27 +222,27 @@ add_library(
   groupbalancer/StdDrainerEngine.cc
   groupbalancer/GroupsInfoFetcher.cc
   groupdrainer/DrainProgressTracker.cc
-  GeoBalancer.cc
-  Features.cc
-  ZMQ.cc
+  geobalancer/GeoBalancer.cc
+  features/Features.cc
+  zmq/ZMQ.cc
   FuseServer/Server.cc FuseServer/Server.hh
   FuseServer/Clients.cc FuseServer/Clients.hh
   FuseServer/Locks.cc FuseServer/Locks.hh
   FuseServer/Caps.cc FuseServer/Caps.hh
   FuseServer/Flush.cc FuseServer/Flush.hh
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
-  IMaster.cc                  IMaster.hh
-  QdbMaster.cc
-  Devices.cc
+  imaster/IMaster.cc                  imaster/IMaster.hh
+  qdbmaster/QdbMaster.cc
+  devices/Devices.cc
   recycle/RecyclePolicy.cc      recycle/RecyclePolicy.hh
   recycle/Recycle.cc            recycle/Recycle.hh
-  PathRouting.cc
-  RouteEndpoint.cc
-  LRU.cc
-  WFE.cc
+  pathrouting/PathRouting.cc
+  routeendpoint/RouteEndpoint.cc
+  lru/LRU.cc
+  wfe/WFE.cc
   EosCtaReporter.cc
-  Workflow.cc
-  InFlightTracker.cc
+  workflow/Workflow.cc
+  inflighttracker/InFlightTracker.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcWncServer.cc      grpc/GrpcWncServer.hh
