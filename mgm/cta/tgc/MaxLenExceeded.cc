@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/MaxLenExceeded.hh"
+#include "mgm/cta/tgc/MaxLenExceeded.hh"
 
 EOSTGCNAMESPACE_BEGIN
 
