@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RealClock.cc
+// File: TestingTapeGc.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,16 +21,56 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Namespace.hh"
-#include "mgm/tgc/RealClock.hh"
+#ifndef __EOSMGM_TESTINGTAPEGC_HH__
+#define __EOSMGM_TESTINGTAPEGC_HH__
 
+#include "mgm/cta/tgc/TapeGc.hh"
+
+#include <atomic>
+#include <ctime>
+#include <mutex>
+#include <stdexcept>
+#include <thread>
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @file TestingTapeGc.hh
+ *
+ * @brief Facilitates the unit testing of the TapeGc class
+ *
+ */
+/*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Destructor
+//! Facilitates the unit testing of the TapeGc class
 //------------------------------------------------------------------------------
-std::time_t RealClock::getTime() {
-  return std::time(nullptr);
-}
+class TestingTapeGc: public TapeGc
+{
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param mgm interface to the EOS MGM
+  //! @param space name of the EOS space that this garbage collector will work
+  //! on
+  //! @param maxConfigCacheAgeSecs maximum age in seconds of a tape-ware garbage
+  //! collector's cached configuration
+  //----------------------------------------------------------------------------
+  TestingTapeGc(
+    ITapeGcMgm &mgm,
+    const std::string &space,
+    const std::time_t maxConfigCacheAgeSecs
+  ): TapeGc(mgm, space, maxConfigCacheAgeSecs)
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Make tryToGarbageCollectASingleFile() public so it can be unit tested
+  //----------------------------------------------------------------------------
+  using TapeGc::tryToGarbageCollectASingleFile;
+};
 
 EOSTGCNAMESPACE_END
+
+#endif

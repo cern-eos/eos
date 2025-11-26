@@ -26,8 +26,8 @@
 
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/CachedValue.hh"
-#include "mgm/tgc/Lru.hh"
+#include "mgm/cta/tgc/CachedValue.hh"
+#include "mgm/cta/tgc/Lru.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "proto/ConsoleReply.pb.h"
 #include "proto/ConsoleRequest.pb.h"

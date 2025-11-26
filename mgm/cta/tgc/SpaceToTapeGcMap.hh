@@ -24,9 +24,9 @@
 #ifndef __EOSMGM_SPACETOTAPEAGCMAP_HH__
 #define __EOSMGM_SPACETOTAPEAGCMAP_HH__
 
-#include "mgm/tgc/ITapeGcMgm.hh"
-#include "mgm/tgc/TapeGc.hh"
-#include "mgm/tgc/TapeGcStats.hh"
+#include "mgm/cta/tgc/ITapeGcMgm.hh"
+#include "mgm/cta/tgc/TapeGc.hh"
+#include "mgm/cta/tgc/TapeGcStats.hh"
 
 #include <map>
 #include <set>

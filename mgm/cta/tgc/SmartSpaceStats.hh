@@ -25,12 +25,12 @@
 #define __EOSMGMSMARTSPACESTATS_HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/AsyncUint64ShellCmd.hh"
-#include "mgm/tgc/CachedValue.hh"
-#include "mgm/tgc/FreedBytesHistogram.hh"
-#include "mgm/tgc/ITapeGcMgm.hh"
-#include "mgm/tgc/RealClock.hh"
-#include "mgm/tgc/SpaceStats.hh"
+#include "mgm/cta/tgc/AsyncUint64ShellCmd.hh"
+#include "mgm/cta/tgc/CachedValue.hh"
+#include "mgm/cta/tgc/FreedBytesHistogram.hh"
+#include "mgm/cta/tgc/ITapeGcMgm.hh"
+#include "mgm/cta/tgc/RealClock.hh"
+#include "mgm/cta/tgc/SpaceStats.hh"
 
 #include <ctime>
 #include <mutex>

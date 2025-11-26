@@ -52,7 +52,7 @@
 #include "mgm/QdbMaster.hh"
 #include "mgm/Messaging.hh"
 #include "mgm/convert/ConverterEngine.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/cta/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/qos/QoSClass.hh"

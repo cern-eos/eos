@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeGc.hh
+// File: FreedBytesHistogram.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,180 +21,165 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_TAPEGC_HH__
-#define __EOSMGM_TAPEGC_HH__
+#ifndef __EOSMGMTGCFREEDBYTESHISTOGRAM_HH__
+#define __EOSMGMTGCFREEDBYTESHISTOGRAM_HH__
 
-#include "common/Logging.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/BlockingFlag.hh"
-#include "mgm/tgc/CachedValue.hh"
-#include "mgm/tgc/Constants.hh"
-#include "mgm/tgc/ITapeGcMgm.hh"
-#include "mgm/tgc/Lru.hh"
-#include "mgm/tgc/SmartSpaceStats.hh"
-#include "mgm/tgc/SpaceConfig.hh"
-#include "mgm/tgc/TapeGcStats.hh"
-#include "namespace/interface/IFileMD.hh"
-#include "proto/ConsoleReply.pb.h"
-#include "proto/ConsoleRequest.pb.h"
+#include "mgm/cta/tgc/IClock.hh"
 
-#include <atomic>
 #include <cstdint>
 #include <ctime>
 #include <mutex>
 #include <stdexcept>
-#include <thread>
+#include <vector>
 
 /*----------------------------------------------------------------------------*/
 /**
- * @file TapeGc.hh
+ * @file FreedBytesHistogram.hh
  *
- * @brief Class implementing a tape aware garbage collector
- *
+ * @brief Histogram of freed bytes over time.
  */
 /*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! A tape aware garbage collector
+//! Histogram of freed bytes over time.
 //------------------------------------------------------------------------------
-class TapeGc
-{
+class FreedBytesHistogram {
 public:
+
+  //----------------------------------------------------------------------------
+  //! Thrown when an invalid number of bins has been specified
+  //----------------------------------------------------------------------------
+  struct InvalidNbBins: public std::runtime_error {
+    InvalidNbBins(const std::string &what): runtime_error(what) {}
+  };
+
+  //----------------------------------------------------------------------------
+  //! Thrown when an invalid bin width has been specified
+  //----------------------------------------------------------------------------
+  struct InvalidBinWidth: public std::runtime_error {
+    InvalidBinWidth(const std::string &what): runtime_error(what) {}
+  };
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
-  //! @param mgm interface to the EOS MGM
-  //! @param spaceName name of the EOS space that this garbage collector will
-  //! manage
-  //! @param maxConfigCacheAgeSecs maximum age in seconds of a tape-ware garbage
-  //! collector's cached configuration
+  //! @param nbBins The number of bins in the histogram
+  //! @param binWidthSecs The width of a bin in seconds
+  //! @param clock Object responsible for giving the current time
+  //! @throw InvalidNbBins If nbBins is invalid
+  //! @throw InvalidBinWidth If binWidthSecs is invalid
   //----------------------------------------------------------------------------
-  TapeGc(
-    ITapeGcMgm &mgm,
-    const std::string &spaceName,
-    std::time_t maxConfigCacheAgeSecs = TGC_DEFAULT_MAX_CONFIG_CACHE_AGE_SECS
-  );
+  FreedBytesHistogram(std::uint32_t nbBins, std::uint32_t binWidthSecs, IClock &clock);
 
   //----------------------------------------------------------------------------
-  //! Destructor
+  //! Notify cache that bytes were freed
   //----------------------------------------------------------------------------
-  ~TapeGc();
+  void bytesFreed(std::uint64_t nbBytes);
 
   //----------------------------------------------------------------------------
-  //! Delete copy constructor
+  //! Thrown when a request for historic data goes too far back in time
   //----------------------------------------------------------------------------
-  TapeGc(const TapeGc &) = delete;
+  struct TooFarBackInTime: public std::runtime_error {
+    TooFarBackInTime(const std::string &what): runtime_error(what) {}
+  };
 
   //----------------------------------------------------------------------------
-  //! Delete move constructor
+  //! @return number of bytes freed in the specified last number of seconds
+  //! @param lastNbSecs The last number of seconds.  A value of 0 seconds will
+  //! always return a value of 0 freed bytes.
+  //! @throw TooFarBackInTime when lastNbSecs goes back in time more than the
+  //! finite capacity of the underlying histogram, in other words if more than
+  //! nbBins * binWidthSecs
   //----------------------------------------------------------------------------
-  TapeGc(const TapeGc &&) = delete;
+  std::uint64_t getNbBytesFreedInLastNbSecs(std::uint32_t lastNbSecs);
 
   //----------------------------------------------------------------------------
-  //! Delete assignment operator
+  //! @return The total number of bytes freed that the histogram in its finite
+  //! capacity knows about
   //----------------------------------------------------------------------------
-  TapeGc &operator=(const TapeGc &) = delete;
+  std::uint64_t getTotalBytesFreed();
 
   //----------------------------------------------------------------------------
-  //! Idempotent method to start the worker thread of the tape-aware GC
+  //! Thrown when an invalid bin index has been specified
   //----------------------------------------------------------------------------
-  void startWorkerThread();
+  struct InvalidBinIndex: public std::runtime_error {
+    InvalidBinIndex(const std::string &what): runtime_error(what) {}
+  };
 
   //----------------------------------------------------------------------------
-  //! Notify GC the specified file has been accessed
+  //! @return Number of bytes freed in the specified histogram bin
+  //! @param binIndex Bin index in the range 0 to nbBind - 1 inclusive
+  //! @throw InvalidBinIndex If binIndex is invalid
+  //----------------------------------------------------------------------------
+  std::uint64_t getFreedBytesInBin(std::uint32_t binIndex) const;
+
+  //----------------------------------------------------------------------------
+  //! Set the bin width
+  //! @param newBinWidthSecs The new bin width in seconds
+  //! @throw InvalidBinWidth If newBinWidthSecs is invalid
+  //----------------------------------------------------------------------------
+  void setBinWidthSecs(std::uint32_t newBinWidthSecs);
+
+  //----------------------------------------------------------------------------
+  //! @return Bin width in seconds
+  //----------------------------------------------------------------------------
+  uint32_t getBinWidthSecs() const;
+
+  //----------------------------------------------------------------------------
+  //! @return number of bins
+  //----------------------------------------------------------------------------
+  uint32_t getNbBins() const;
+
+private:
+
+  //----------------------------------------------------------------------------
+  //! Mutex used to protect the contents of this object
+  //----------------------------------------------------------------------------
+  mutable std::mutex m_mutex;
+
+  //----------------------------------------------------------------------------
+  //! Circular histogram of freed bytes over time.  The time/x-axis starts at
+  //! 0 seconds since now and goes to nbBins * binWidthSecs seconds since now.
+  //----------------------------------------------------------------------------
+  std::vector<std::uint64_t> m_histogram;
+
+  //----------------------------------------------------------------------------
+  //! Current start index of histogram
+  //----------------------------------------------------------------------------
+  size_t m_startIndex;
+
+  //----------------------------------------------------------------------------
+  //! Width of a histogram bin in seconds
+  //----------------------------------------------------------------------------
+  std::uint32_t m_binWidthSecs;
+
+  //----------------------------------------------------------------------------
+  //! Object responsible for giving the cUrrent time
+  //----------------------------------------------------------------------------
+  IClock &m_clock;
+
+  //----------------------------------------------------------------------------
+  //! Timestamp of last update
+  //----------------------------------------------------------------------------
+  std::time_t m_lastUpdateTimestamp;
+
+  //----------------------------------------------------------------------------
+  //! Slide histogram to the right until the first bin is aligned with now
   //!
-  //! @param fid file identifier
+  //! Please note that this method assumes a lock has been taken on m_mutex
   //----------------------------------------------------------------------------
-  void fileAccessed(IFileMD::id_t fid) noexcept;
+  void alignHistogramWithNow();
 
   //----------------------------------------------------------------------------
-  //! @return statistics
-  //----------------------------------------------------------------------------
-  TapeGcStats getStats() noexcept;
-
-  //----------------------------------------------------------------------------
-  //! Writes the JSON representation of this object to the specified stream.
+  //! @return Number bytes freed per second during the specified second
+  //! @param secsAgo The number of seconds ago.  A value of 0 seconds will
+  //! always return a value of 0 freed bytes.
   //!
-  //! @param os Input/Output parameter specifying the stream to write to.
-  //! @param maxLen The maximum length the stream should be.  A value of 0 means
-  //! unlimited.  This method can go over the maxLen limit but it MUST throw
-  //! a MaxLenExceeded exception if it does.
-  //!
-  //! @throw MaxLenExceeded if the length of the JSON string has exceeded maxLen
+  //! Please note that this method assumes a lock has been taken on m_mutex
   //----------------------------------------------------------------------------
-  void toJson(std::ostringstream &os, std::uint64_t maxLen = 0) const;
-
-protected:
-
-  /// The interface to the EOS MGM
-  ITapeGcMgm &m_mgm;
-
-  /// The name of the EOS space managed by this garbage collector
-  std::string m_spaceName;
-
-  /// Ensures startWorkerThread() only starts the worker thread once
-  std::atomic_flag m_startWorkerThreadMethodCalled = ATOMIC_FLAG_INIT;
-
-  /// True if the worker thread should stop
-  BlockingFlag m_stop;
-
-  /// Mutex dedicated to protecting the m_worker member variable
-  std::mutex m_workerMutex;
-
-  /// The one and only GC worker thread
-  std::unique_ptr<std::thread> m_worker;
-
-  /// Mutex protecting mLruQueue
-  mutable std::mutex m_lruQueueMutex;
-
-  /// Queue of Least Recently Used (LRU) files
-  Lru m_lruQueue;
-
-  //----------------------------------------------------------------------------
-  //! Entry point for the GC worker thread
-  //----------------------------------------------------------------------------
-  void workerThreadEntryPoint() noexcept;
-
-  //----------------------------------------------------------------------------
-  //! @return the size of the LRU queue.  Zero is returned in the case of error.
-  //----------------------------------------------------------------------------
-  Lru::FidQueue::size_type getLruQueueSize() const noexcept;
-
-  //----------------------------------------------------------------------------
-  //! Try to garbage collect a single file if necessary and possible.
-  //!
-  //! Please note that a file is considered successfully garbage collected if
-  //! it does not exists in the EOS namespace when it is popped from the LRU
-  //! data structure.
-  //!
-  //! @return True if a file was garbage collected
-  //----------------------------------------------------------------------------
-  bool tryToGarbageCollectASingleFile() noexcept;
-
-  //----------------------------------------------------------------------------
-  //! Configuration
-  //----------------------------------------------------------------------------
-  CachedValue<SpaceConfig> m_config;
-
-  //----------------------------------------------------------------------------
-  //! Statistics about the EOS space being managed
-  //----------------------------------------------------------------------------
-  SmartSpaceStats m_spaceStats;
-
-  //----------------------------------------------------------------------------
-  //! Counter that is incremented each time a file is successfully evicted
-  //----------------------------------------------------------------------------
-  std::atomic<std::uint64_t> m_nbEvicts;
-
-  //----------------------------------------------------------------------------
-  //! Take note of a disk replica queued for deletion so that the amount of free
-  //! space can be updated without having to wait for the next query to the EOS
-  //! MGM
-  //!
-  //! @param fileSizeBytes File size in bytes
-  //----------------------------------------------------------------------------
-  void diskReplicaQueuedForDeletion(size_t fileSizeBytes);
+  std::uint64_t getFreedBytesPerSec(std::uint32_t secsAgo) const;
 };
 
 EOSTGCNAMESPACE_END

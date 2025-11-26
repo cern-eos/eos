@@ -25,7 +25,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/Quota.hh"
 #include "mgm/FsView.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/cta/tgc/MultiSpaceTapeGc.hh"
 #include "common/Constants.hh"
 #include "common/Timing.hh"
 #include "namespace/Prefetcher.hh"

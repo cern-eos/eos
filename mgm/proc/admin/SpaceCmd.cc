@@ -23,7 +23,7 @@
 
 #include "SpaceCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/tgc/Constants.hh"
+#include "mgm/cta/tgc/Constants.hh"
 #include "mgm/http/rest-api/Constants.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/XrdMgmOfs.hh"

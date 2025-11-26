@@ -33,7 +33,7 @@
 #include "mgm/balancer/FsBalancer.hh"
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/config/IConfigEngine.hh"
-#include "mgm/tgc/Constants.hh"
+#include "mgm/cta/tgc/Constants.hh"
 #include "mgm/http/rest-api/Constants.hh"
 #include "mgm/Policy.hh"
 #include "mgm/placement/FsScheduler.hh"

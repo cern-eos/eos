@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ITapeGcMgm.hh
+// File: RealTapeGcMgm.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,53 +21,58 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGMTGC_ITAPEGCMGM_HH__
-#define __EOSMGMTGC_ITAPEGCMGM_HH__
+#ifndef __EOSMGMTGC_REALTAPEGCMGM_HH__
+#define __EOSMGMTGC_REALTAPEGCMGM_HH__
 
-#include "common/FileSystem.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/SpaceStats.hh"
-#include "mgm/tgc/SpaceConfig.hh"
+#include "mgm/cta/tgc/ITapeGcMgm.hh"
+#include "mgm/XrdMgmOfs.hh"
 #include "namespace/interface/IFileMD.hh"
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
-
-#include <atomic>
-#include <cstdint>
-#include <set>
-#include <stdexcept>
-#include <string>
 
 /*----------------------------------------------------------------------------*/
 /**
- * @file ITapeGcMgm.hh
+ * @file RealTapeGcMgm.hh
  *
- * @brief Specifies the tape-aware garbage collector's interface to the EOS MGM
+ * @brief Implements access to the real EOS MGM
  *
  */
 /*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Specifies the tape-aware garbage collector's interface to the EOS MGM
+//! Implements access to the real EOS MGM
 //------------------------------------------------------------------------------
-class ITapeGcMgm {
+class RealTapeGcMgm: public ITapeGcMgm {
 public:
-  //----------------------------------------------------------------------------
-  //! Default constructor
-  //----------------------------------------------------------------------------
-  ITapeGcMgm() = default;
 
   //----------------------------------------------------------------------------
-  //! Virtual destructor
+  //! Constructor
+  //!
+  //! @param ofs The XRootD OFS plugin implementing the metadata handling of EOS
   //----------------------------------------------------------------------------
-  virtual ~ITapeGcMgm() = 0;
+  explicit RealTapeGcMgm(XrdMgmOfs &ofs);
+
+  //----------------------------------------------------------------------------
+  //! Delete copy constructor
+  //----------------------------------------------------------------------------
+  RealTapeGcMgm(const RealTapeGcMgm &) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Delete move constructor
+  //----------------------------------------------------------------------------
+  RealTapeGcMgm(const RealTapeGcMgm &&) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Delete assignment operator
+  //----------------------------------------------------------------------------
+  RealTapeGcMgm &operator=(const RealTapeGcMgm &) = delete;
 
   //----------------------------------------------------------------------------
   //! @return The configuration of a tape-aware garbage collector for the
   //! specified space.
   //! @param spaceName The name of the space
   //----------------------------------------------------------------------------
-  virtual SpaceConfig getTapeGcSpaceConfig(const std::string &spaceName) = 0;
+  SpaceConfig getTapeGcSpaceConfig(const std::string &spaceName) override;
 
   //----------------------------------------------------------------------------
   //! @return Statistics about the specified space
@@ -75,22 +80,14 @@ public:
   //! @throw TapeAwareGcSpaceNotFound when the EOS space named m_spaceName
   //! cannot be found
   //----------------------------------------------------------------------------
-  [[nodiscard]] virtual SpaceStats getSpaceStats(const std::string &spaceName) const = 0;
-
-  //----------------------------------------------------------------------------
-  //! Thrown when there is a failure to get the size of a file
-  //----------------------------------------------------------------------------
-  struct FailedToGetFileSize: public std::runtime_error {
-    FailedToGetFileSize(const std::string &msg): std::runtime_error(msg) {}
-  };
+  [[nodiscard]] SpaceStats getSpaceStats(const std::string &space) const override;
 
   //----------------------------------------------------------------------------
   //! @param fid The file identifier
-  //! @return The size of the specified file in bytes.
-  //! @throw FailedToGetFileSize When there is a failure to get the size of the
-  //! file
+  //! @return The size of the specified file in bytes.  If the file cannot be
+  //! found in the EOS namespace then a file size of 0 is returned.
   //----------------------------------------------------------------------------
-  virtual std::uint64_t getFileSizeBytes(IFileMD::id_t fid) = 0;
+  std::uint64_t getFileSizeBytes(IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
   //! Determine if the specified file exists and is not scheduled for deletion
@@ -99,60 +96,19 @@ public:
   //! @return True if the file exists in the EOS namespace and is not scheduled
   //! for deletion
   //----------------------------------------------------------------------------
-  virtual bool fileInNamespaceAndNotScheduledForDeletion(IFileMD::id_t fid) = 0;
+  bool fileInNamespaceAndNotScheduledForDeletion(IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
   //! Execute evict as user root
   //!
   //! @param fid The file identifier
   //----------------------------------------------------------------------------
-  virtual void evictAsRoot(const IFileMD::id_t fid) = 0;
+  void evictAsRoot(const IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
   //! @return Map from file system ID to EOS space name
   //----------------------------------------------------------------------------
-  virtual std::map<common::FileSystem::fsid_t, std::string> getFsIdToSpaceMap() = 0;
-
-  //------------------------------------------------------------------------------
-  //! Structure containing the identifier and ctime of an EOS file which can
-  //! be ordered by ctime within an std container.
-  //------------------------------------------------------------------------------
-  struct FileIdAndCtime
-  {
-    //----------------------------------------------------------------------------
-    //! The EOS identifier
-    //----------------------------------------------------------------------------
-    IFileMD::id_t id;
-
-    //----------------------------------------------------------------------------
-    //! The ctime
-    //----------------------------------------------------------------------------
-    timespec ctime;
-
-    //----------------------------------------------------------------------------
-    //! Constructor
-    //----------------------------------------------------------------------------
-    FileIdAndCtime(): id(0) {
-      ctime.tv_sec = 0;
-      ctime.tv_nsec = 0;
-    }
-
-    //----------------------------------------------------------------------------
-    //! Constructor
-    //----------------------------------------------------------------------------
-    FileIdAndCtime(const IFileMD::id_t i, const timespec c): id(i), ctime(c) {}
-
-    //----------------------------------------------------------------------------
-    //! Less than operator
-    //----------------------------------------------------------------------------
-    bool operator<(const FileIdAndCtime &rhs) const {
-      if (ctime.tv_sec == rhs.ctime.tv_sec) {
-        return ctime.tv_nsec < rhs.ctime.tv_nsec;
-      } else {
-        return ctime.tv_sec < rhs.ctime.tv_sec;
-      }
-    }
-  };
+  std::map<common::FileSystem::fsid_t, std::string> getFsIdToSpaceMap() override;
 
   //----------------------------------------------------------------------------
   //! @return map from EOS space name to disk replicas within that space - the
@@ -163,15 +119,49 @@ public:
   //! @param nbFilesScanned reference to a counter which this method will set to
   //! the total number of files scanned
   //----------------------------------------------------------------------------
-  virtual std::map<std::string, std::set<FileIdAndCtime> > getSpaceToDiskReplicasMap(
-    const std::set<std::string> &spacesToMap, std::atomic<bool> &stop, uint64_t &nbFilesScanned) = 0;
+  std::map<std::string, std::set<FileIdAndCtime> > getSpaceToDiskReplicasMap(
+    const std::set<std::string> &spacesToMap, std::atomic<bool> &stop, uint64_t &nbFilesScanned) override;
 
   //----------------------------------------------------------------------------
   //! @return The stdout of the specified shell cmd as a string
   //! @param cmdStr The shell command string to be executed
   //! @param maxLen The maximum length of the result
   //----------------------------------------------------------------------------
-  virtual std::string getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t maxLen) const = 0;
+  std::string getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t maxLen) const override;
+
+private:
+
+  /// The XRootD OFS plugin implementing the metadata handling of EOS
+  XrdMgmOfs &m_ofs;
+
+  //----------------------------------------------------------------------------
+  //! @return The string value of the specified space configuration variable.
+  //! If the value cannot be determined for whatever reason then the specified
+  //! default is returned.
+  //!
+  //! @param spaceName The name of the space
+  //! @param memberName The name of the space configuration member.
+  //! @param defaultValue The default value of the space configuration member.
+  //----------------------------------------------------------------------------
+  static std::string getSpaceConfigMemberString(const std::string &spaceName, const std::string &memberName,
+                                                std::string defaultValue) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! @return The unit64_t value of the specified space configuration variable.
+  //! If the value cannot be determined for whatever reason then the specified
+  //! default is returned.
+  //!
+  //! @param spaceName The name of the space
+  //! @param memberName The name of the space configuration member.
+  //! @param defaultValue The default value of the space configuration member.
+  //----------------------------------------------------------------------------
+  static std::uint64_t getSpaceConfigMemberUint64(const std::string &spaceName, const std::string &memberName,
+    std::uint64_t defaultValue) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! @return a list of the names of all the EOS spaces
+  //----------------------------------------------------------------------------
+  std::set<std::string> getSpaces() const;
 };
 
 EOSTGCNAMESPACE_END

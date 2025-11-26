@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: IClock.cc
+// File: RealClock.cc
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -22,14 +22,15 @@
  ************************************************************************/
 
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/IClock.hh"
+#include "mgm/cta/tgc/RealClock.hh"
 
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Destructor
 //------------------------------------------------------------------------------
-IClock::~IClock() {
+std::time_t RealClock::getTime() {
+  return std::time(nullptr);
 }
 
 EOSTGCNAMESPACE_END

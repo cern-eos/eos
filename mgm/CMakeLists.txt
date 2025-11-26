@@ -68,20 +68,20 @@ install(
   ARCHIVE DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR})
 
 set (MGM_TGC_SRC_FILES
-  tgc/AsyncUint64ShellCmd.cc
-  tgc/DummyTapeGcMgm.cc
-  tgc/FreedBytesHistogram.cc
-  tgc/IClock.cc
-  tgc/ITapeGcMgm.cc
-  tgc/Lru.cc
-  tgc/MaxLenExceeded.cc
-  tgc/MultiSpaceTapeGc.cc
-  tgc/RealClock.cc
-  tgc/RealTapeGcMgm.cc
-  tgc/SmartSpaceStats.cc
-  tgc/SpaceNotFound.cc
-  tgc/SpaceToTapeGcMap.cc
-  tgc/TapeGc.cc
+  cta/tgc/AsyncUint64ShellCmd.cc
+  cta/tgc/DummyTapeGcMgm.cc
+  cta/tgc/FreedBytesHistogram.cc
+  cta/tgc/IClock.cc
+  cta/tgc/ITapeGcMgm.cc
+  cta/tgc/Lru.cc
+  cta/tgc/MaxLenExceeded.cc
+  cta/tgc/MultiSpaceTapeGc.cc
+  cta/tgc/RealClock.cc
+  cta/tgc/RealTapeGcMgm.cc
+  cta/tgc/SmartSpaceStats.cc
+  cta/tgc/SpaceNotFound.cc
+  cta/tgc/SpaceToTapeGcMap.cc
+  cta/tgc/TapeGc.cc
   cta/Utils.cc)
 
 #-------------------------------------------------------------------------------

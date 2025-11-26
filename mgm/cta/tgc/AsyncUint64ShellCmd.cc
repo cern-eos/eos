@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/AsyncUint64ShellCmd.hh"
-#include "mgm/tgc/SmartSpaceStats.hh"
+#include "mgm/cta/tgc/AsyncUint64ShellCmd.hh"
+#include "mgm/cta/tgc/SmartSpaceStats.hh"
 #include "mgm/cta/Utils.hh"
 
 #include <chrono>

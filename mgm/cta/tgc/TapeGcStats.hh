@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: DummyClock.hh
+// File: TapeGcStats.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,63 +21,58 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGMTGC_DUMMYCLOCK_HH__
-#define __EOSMGMTGC_DUMMYCLOCK_HH__
+#ifndef __EOSMGMTGCTAPEGCSTATS_HH__
+#define __EOSMGMTGCTAPEGCSTATS_HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/IClock.hh"
+#include "mgm/cta/tgc/SpaceStats.hh"
 
+#include <cstdint>
 
 /*----------------------------------------------------------------------------*/
 /**
- * @file DummyClock.hh
+ * @file TapeGcStats.hh
  *
- * @brief A dummy clock to be used for unit testing.
+ * @brief Statistics about a tape-aware GC
  *
  */
 /*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Provides the current time using std::time()
+//! Statistics about a tape-aware GC
 //------------------------------------------------------------------------------
-class DummyClock: public IClock {
-public:
-
-  //------------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param initialTime Initial value for the current (dummy) time in seconds
-  //! since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
-  //------------------------------------------------------------------------------
-  DummyClock(std::time_t initialTime): m_currentTime(initialTime) {
+struct TapeGcStats {
+  //----------------------------------------------------------------------------
+  //! Constructor.
+  //----------------------------------------------------------------------------
+  TapeGcStats(): nbEvicts(0),
+    lruQueueSize(0),
+    queryTimestamp(0) {
   }
 
-  //------------------------------------------------------------------------------
-  //! @return Number of seconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
-  //------------------------------------------------------------------------------
-  std::time_t getTime() override {
-    return m_currentTime;
-  }
+  //----------------------------------------------------------------------------
+  //! Number of files successfully evicted since TapeGc started.
+  //! This value is Zero in the case of an error.
+  //----------------------------------------------------------------------------
+  std::uint64_t nbEvicts;
 
-  //------------------------------------------------------------------------------
-  //! Set the current (dummy) time in seconds since the Epoch,
-  //! 1970-01-01 00:00:00 +0000 (UTC)
-  //!
-  //! @param currentTime Current (dummy) time in seconds since the Epoch,
-  //! 1970-01-01 00:00:00 +0000 (UTC)
-  //------------------------------------------------------------------------------
-  void setTime(const std::time_t currentTime) {
-    m_currentTime = currentTime;
-  }
+  //----------------------------------------------------------------------------
+  //! Size of the LRU queue.  This value is Zero in the case of an error.
+  //----------------------------------------------------------------------------
+  Lru::FidQueue::size_type lruQueueSize;
 
-private:
+  //----------------------------------------------------------------------------
+  //! Statistics about the EOS space being managed by the tape-aware garbage
+  //! collector
+  //----------------------------------------------------------------------------
+  SpaceStats spaceStats;
 
-  //------------------------------------------------------------------------------
-  //! Current (dummy) time in seconds since the Epoch,
-  //! 1970-01-01 00:00:00 +0000 (UTC)
-  //------------------------------------------------------------------------------
-  std::time_t m_currentTime;
+  //----------------------------------------------------------------------------
+  //! Timestamp at which the EOS space was queried.  This value is zero in the
+  //! case of error.
+  //----------------------------------------------------------------------------
+  time_t queryTimestamp;
 };
 
 EOSTGCNAMESPACE_END

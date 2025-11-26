@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/Constants.hh"
-#include "mgm/tgc/MaxLenExceeded.hh"
-#include "mgm/tgc/TapeGc.hh"
-#include "mgm/tgc/SpaceNotFound.hh"
+#include "mgm/cta/tgc/Constants.hh"
+#include "mgm/cta/tgc/MaxLenExceeded.hh"
+#include "mgm/cta/tgc/TapeGc.hh"
+#include "mgm/cta/tgc/SpaceNotFound.hh"
 #include "mgm/cta/Utils.hh"
 
 #include <cstring>

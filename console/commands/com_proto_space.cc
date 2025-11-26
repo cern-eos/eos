@@ -30,7 +30,7 @@
 #include "common/SymKeys.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
-#include "mgm/tgc/Constants.hh"
+#include "mgm/cta/tgc/Constants.hh"
 #include "mgm/http/rest-api/Constants.hh"
 
 void com_space_help();

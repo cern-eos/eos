@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RealClock.hh
+// File: SpaceNotFound.cc
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,35 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGMTGC_REALCLOCK_HH__
-#define __EOSMGMTGC_REALCLOCK_HH__
-
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/IClock.hh"
+#include "mgm/cta/tgc/SpaceNotFound.hh"
 
-
-/*----------------------------------------------------------------------------*/
-/**
- * @file RealClock.hh
- *
- * @brief Provides the current time using std::time().
- *
- */
-/*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Provides the current time using std::time()
+//! Thrown when a given EOS space cannot be found
 //------------------------------------------------------------------------------
-class RealClock: public IClock {
-public:
-
-  //------------------------------------------------------------------------------
-  //! @return Number of seconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
-  //------------------------------------------------------------------------------
-  std::time_t getTime() override;
-};
+SpaceNotFound::SpaceNotFound(const std::string &msg): std::runtime_error(msg) {
+}
 
 EOSTGCNAMESPACE_END
-
-#endif

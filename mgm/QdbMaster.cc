@@ -33,7 +33,7 @@
 #include "mgm/GeoTreeEngine.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/config/IConfigEngine.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/cta/tgc/MultiSpaceTapeGc.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"

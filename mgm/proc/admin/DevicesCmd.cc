@@ -23,7 +23,7 @@
 
 #include "DevicesCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/tgc/Constants.hh"
+#include "mgm/cta/tgc/Constants.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Devices.hh"
 #include "common/Path.hh"

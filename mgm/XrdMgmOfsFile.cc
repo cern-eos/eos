@@ -49,7 +49,7 @@
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/Macros.hh"
 #include "mgm/ZMQ.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/cta/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/utils/AttrHelper.hh"
 #include "mgm/XattrLock.hh"
 #include "mgm/convert/ConverterEngine.hh"

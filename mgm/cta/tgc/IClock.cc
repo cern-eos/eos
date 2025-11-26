@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TestingTapeGc.hh
+// File: IClock.cc
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,56 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_TESTINGTAPEGC_HH__
-#define __EOSMGM_TESTINGTAPEGC_HH__
+#include "mgm/Namespace.hh"
+#include "mgm/cta/tgc/IClock.hh"
 
-#include "mgm/tgc/TapeGc.hh"
-
-#include <atomic>
-#include <ctime>
-#include <mutex>
-#include <stdexcept>
-#include <thread>
-
-/*----------------------------------------------------------------------------*/
-/**
- * @file TestingTapeGc.hh
- *
- * @brief Facilitates the unit testing of the TapeGc class
- *
- */
-/*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Facilitates the unit testing of the TapeGc class
+//! Destructor
 //------------------------------------------------------------------------------
-class TestingTapeGc: public TapeGc
-{
-public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param mgm interface to the EOS MGM
-  //! @param space name of the EOS space that this garbage collector will work
-  //! on
-  //! @param maxConfigCacheAgeSecs maximum age in seconds of a tape-ware garbage
-  //! collector's cached configuration
-  //----------------------------------------------------------------------------
-  TestingTapeGc(
-    ITapeGcMgm &mgm,
-    const std::string &space,
-    const std::time_t maxConfigCacheAgeSecs
-  ): TapeGc(mgm, space, maxConfigCacheAgeSecs)
-  {
-  }
-
-  //----------------------------------------------------------------------------
-  //! Make tryToGarbageCollectASingleFile() public so it can be unit tested
-  //----------------------------------------------------------------------------
-  using TapeGc::tryToGarbageCollectASingleFile;
-};
+IClock::~IClock() {
+}
 
 EOSTGCNAMESPACE_END
-
-#endif

@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/Constants.hh"
-#include "mgm/tgc/DummyTapeGcMgm.hh"
+#include "mgm/cta/tgc/Constants.hh"
+#include "mgm/cta/tgc/DummyTapeGcMgm.hh"
 
 EOSTGCNAMESPACE_BEGIN
 

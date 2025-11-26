@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: MultiSpaceTapeGc.hh
+// File: DummyTapeGcMgm.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,216 +21,210 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGM_MULTISPACETAPEGC_HH__
-#define __EOSMGM_MULTISPACETAPEGC_HH__
+#ifndef __EOSMGMTGC_DUMMYTAPEGCMGM_HH__
+#define __EOSMGMTGC_DUMMYTAPEGCMGM_HH__
 
-#include "mgm/Namespace.hh"
-#include "mgm/tgc/ITapeGcMgm.hh"
-#include "mgm/tgc/Lru.hh"
-#include "mgm/tgc/SpaceToTapeGcMap.hh"
-#include "mgm/tgc/TapeGcStats.hh"
+#include "mgm/cta/tgc/ITapeGcMgm.hh"
 
-#include <atomic>
 #include <map>
-#include <set>
-#include <stdexcept>
-#include <string>
-#include <XrdSfs/XrdSfsInterface.hh>
+#include <mutex>
 
 /*----------------------------------------------------------------------------*/
 /**
- * @file MultiSpaceTapeGc.hh
+ * @file DummyTapeGcMgm.hh
  *
- * @brief Class implementing a tape aware garbage collector that can work over
- * multiple EOS spaces
+ * @brief A dummy implementation of access to the EOS MGM.  The main purpose of
+ * this class is to facilitate unit testing.
  *
  */
 /*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! A tape aware garbage collector that can work over multiple EOS spaces
+//! A dummy implementation of access to the EOS MGM.  The main purpose of this
+//! class is to facilitate unit testing.
 //------------------------------------------------------------------------------
-class MultiSpaceTapeGc
-{
+class DummyTapeGcMgm: public ITapeGcMgm {
 public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param mgm the interface to the EOS MGM
-  //----------------------------------------------------------------------------
-  explicit MultiSpaceTapeGc(ITapeGcMgm &mgm);
 
   //----------------------------------------------------------------------------
-  //! Destructor
+  //! Constructor
   //----------------------------------------------------------------------------
-  ~MultiSpaceTapeGc();
+  DummyTapeGcMgm();
 
   //----------------------------------------------------------------------------
   //! Delete copy constructor
   //----------------------------------------------------------------------------
-  MultiSpaceTapeGc(const MultiSpaceTapeGc &) = delete;
+  DummyTapeGcMgm(const DummyTapeGcMgm &) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Delete move constructor
+  //----------------------------------------------------------------------------
+  DummyTapeGcMgm(const DummyTapeGcMgm &&) = delete;
 
   //----------------------------------------------------------------------------
   //! Delete assignment operator
   //----------------------------------------------------------------------------
-  MultiSpaceTapeGc &operator=(const MultiSpaceTapeGc &) = delete;
+  DummyTapeGcMgm &operator=(const DummyTapeGcMgm &) = delete;
 
   //----------------------------------------------------------------------------
-  //! Thrown if garbage collection has already started
+  //! @return The configuration of a tape-aware garbage collector for the
+  //! specified space.
+  //! @param spaceName The name of the space
   //----------------------------------------------------------------------------
-  struct GcAlreadyStarted: public std::runtime_error {using std::runtime_error::runtime_error;};
+  SpaceConfig getTapeGcSpaceConfig(const std::string &spaceName) override;
 
   //----------------------------------------------------------------------------
-  //! Thrown if garbage collection is started without being enabled
+  //! @return Statistics about the specified space
+  //! @param space The name of the EOS space to be queried
+  //! @throw TapeAwareGcSpaceNotFound when the EOS space named m_spaceName
+  //! cannot be found
   //----------------------------------------------------------------------------
-  struct GcIsNotEnabled: public std::runtime_error {using std::runtime_error::runtime_error;};
+  SpaceStats getSpaceStats(const std::string &space) const override;
 
   //----------------------------------------------------------------------------
-  //! Enables garbage collection for the specified EOS spaces
+  //! @param fid The file identifier
+  //! @return The size of the specified file in bytes.  If the file cannot be
+  //! found in the EOS namespace then a file size of 0 is returned.
+  //----------------------------------------------------------------------------
+  std::uint64_t getFileSizeBytes(IFileMD::id_t fid) override;
+
+  //----------------------------------------------------------------------------
+  //! Determine if the specified file exists and is not scheduled for deletion
   //!
-  //! Please note that calling this method tells this object that support for
-  //! tape is enabled
+  //! @param fid The file identifier
+  //! @return True if the file exists in the EOS namespace and is not scheduled
+  //! for deletion
   //----------------------------------------------------------------------------
-  void setTapeEnabled(const std::set<std::string>& spaces);
+  bool fileInNamespaceAndNotScheduledForDeletion(IFileMD::id_t fid) override;
 
   //----------------------------------------------------------------------------
-  //! Start garbage collection for the previously specified EOS spaces
+  //! Execute evict as user root
   //!
-  //! Please note that calling this method tells this object requires support
-  //! for tape to be enabled
+  //! @param fid The file identifier
+  //----------------------------------------------------------------------------
+  void evictAsRoot(const IFileMD::id_t fid) override;
+
+  //----------------------------------------------------------------------------
+  //! @return Map from file system ID to EOS space name
+  //----------------------------------------------------------------------------
+  std::map<common::FileSystem::fsid_t, std::string> getFsIdToSpaceMap() override;
+
+  //----------------------------------------------------------------------------
+  //! @return map from EOS space name to disk replicas within that space - the
+  //! disk replicas are ordered from oldest first to youngest last
+  //! @param spaces names of the EOS spaces to be mapped
+  //! @param stop reference to a shared atomic boolean that if set to true will
+  //! cause this method to stop and return
+  //! @param nbFilesScanned reference to a counter which this method will set to
+  //! the total number of files scanned
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::set<FileIdAndCtime> > getSpaceToDiskReplicasMap(
+    const std::set<std::string> &spacesToMap, std::atomic<bool> &stop, uint64_t &nbFilesScanned) override;
+
+  //----------------------------------------------------------------------------
+  //! @return The stdout of the specified shell cmd as a string
+  //! @param cmdStr The shell command string to be executed
+  //! @param maxLen The maximum length of the result
+  //----------------------------------------------------------------------------
+  std::string getStdoutFromShellCmd(const std::string &cmdStr, const ssize_t maxLen) const override;
+
+  //----------------------------------------------------------------------------
+  //! Set the tape-aware garbage collector configuration for the specified EOS
+  //! space
   //!
-  //! @throw GCAlreadyStarted if garbage collection has already been started
-  //! @throw GcIsNotEnabled if garbage colletion has not been enabled
+  //! @param space Name of the space.
+  //! @param config The configuration
   //----------------------------------------------------------------------------
-  void start();
+  void setTapeGcSpaceConfig(const std::string &space, const SpaceConfig &config);
 
   //----------------------------------------------------------------------------
-  //! Stop garbage collection for all specified EOS spacesm_worker
+  //! Set the statistics of the specified EOS space.
   //!
-  //! @throw GCAlreadyStarted if garbage collection has already been started
-  //! @throw GcIsNotEnabled if garbage colletion has not been enabled
+  //! @param space Name of the space.
+  //! @param spaceStats The statistics.
   //----------------------------------------------------------------------------
-  void stop();
+  void setSpaceStats(const std::string &space, const SpaceStats &spaceStats);
 
   //----------------------------------------------------------------------------
-  //! Check if garbage collection is active
+  //! @return number of times getTapeGcSpaceConfig() has been called
   //----------------------------------------------------------------------------
-  bool isGcActive();
+  std::uint64_t getNbCallsToGetTapeGcSpaceConfig() const;
 
   //----------------------------------------------------------------------------
-  //! Notify GC the specified file has been opened for write
-  //! @note This method does nothing and returns immediately if the GC has not
-  //! been enabled
-  //!
-  //! @param space where the file will be written to
-  //! @param fid file identifier
+  //! @return number of times getSpaceStats() has been called
   //----------------------------------------------------------------------------
-  void fileOpenedForWrite(const std::string &space, const eos::IFileMD::id_t fid);
+  std::uint64_t getNbCallsToGetSpaceStats() const;
 
   //----------------------------------------------------------------------------
-  //! Notify GC the specified file has been opened for read
-  //! @note This method does nothing and returns immediately if the GC has not
-  //! been enabled
-  //!
-  //! @param space where the file resides
-  //! @param fid file identifier
+  //! @return number of times fileInNamespaceAndNotScheduledForDeletion() has
+  //! been called
   //----------------------------------------------------------------------------
-  void fileOpenedForRead(const std::string &space, const eos::IFileMD::id_t fid);
+  std::uint64_t getNbCallsToFileInNamespaceAndNotScheduledForDeletion() const;
 
   //----------------------------------------------------------------------------
-  //! Notify GC the specified file has been converted
-  //! @note This method does nothing and returns immediately if the GC has not
-  //! been enabled
-  //!
-  //! @param space where the destination converted file resides
-  //! @param fid file identifier
+  //! @return number of times getFileSizeBytes() has been called
   //----------------------------------------------------------------------------
-  void fileConverted(const std::string &space, const eos::IFileMD::id_t fid);
+  std::uint64_t getNbCallsToGetFileSizeBytes() const;
+
+  //------------------------------------------------------------------------------
+  //! @return number of times evictAsRoot() has been called
+  //------------------------------------------------------------------------------
+  std::uint64_t getNbCallsToEvictAsRoot() const;
 
   //----------------------------------------------------------------------------
-  //! @return map from EOS space name to tape-aware GC statistics
+  //! Set the standard out from the shell command
+  //! @param stdoutFromShellCmd Standard out from the shell command as a string
   //----------------------------------------------------------------------------
-  std::map<std::string, TapeGcStats> getStats() const;
-
-  //----------------------------------------------------------------------------
-  //! Handles a cmd=SFS_FSCTL_PLUGIO arg1=tgc request
-  //----------------------------------------------------------------------------
-  int handleFSCTL_PLUGIO_tgc(XrdOucErrInfo& error, eos::common::VirtualIdentity& vid, const XrdSecEntity* client);
+  void setStdoutFromShellCmd(const std::string &stdoutFromShellCmd);
 
 private:
 
   //----------------------------------------------------------------------------
-  //! True if tape support is enabled
+  //! Mutex protecting this dummy object representing access to the MGM
   //----------------------------------------------------------------------------
-  std::atomic<bool> m_tapeEnabled;
+  mutable std::mutex m_mutex;
 
   //----------------------------------------------------------------------------
-  //! True if garbage collector is active in current node
+  //! Map from EOS space name to the tape-aware garbage collector configuration
   //----------------------------------------------------------------------------
-  std::atomic<bool> m_gcIsActive;
+  std::map<std::string, SpaceConfig> m_spaceToTapeGcConfig;
 
   //----------------------------------------------------------------------------
-  //! The interface to the EOS MGM
+  //! Map from the name of an EOS space to its statistics
   //----------------------------------------------------------------------------
-  ITapeGcMgm &m_mgm;
+  std::map<std::string, SpaceStats> m_spaceToStats;
 
   //----------------------------------------------------------------------------
-  //! Thread safe map from EOS space name to tape aware garbage collector
+  //! Number of times getTapeGcSpaceConfig() has been called
   //----------------------------------------------------------------------------
-  SpaceToTapeGcMap m_gcs;
+  std::uint64_t m_nbCallsToGetTapeGcSpaceConfig;
 
   //----------------------------------------------------------------------------
-  //! True if the worker thread of this object should stop
+  //! Number of times getSpaceStats() has been called
   //----------------------------------------------------------------------------
-  std::atomic<bool> m_stop = false;
+  mutable std::uint64_t m_nbCallsToGetSpaceStats;
 
   //----------------------------------------------------------------------------
-  //! Mutex ensuring that calls to start()/stop() are consistent
+  //! Number of times fileInNamespaceAndNotScheduledForDeletion() has been
+  //! called
   //----------------------------------------------------------------------------
-  std::mutex m_gcStartupMutex;
+  std::uint64_t m_nbCallsToFileInNamespaceAndNotScheduledForDeletion;
 
   //----------------------------------------------------------------------------
-  //! The worker thread for this object (each TapeGc also has its own separate
-  //! worker thread)
+  //! Number of times getFileSizeBytes() has been called
   //----------------------------------------------------------------------------
-  std::unique_ptr<std::thread> m_worker;
+  std::uint64_t m_nbCallsToGetFileSizeBytes;
 
   //----------------------------------------------------------------------------
-  //! Becomes true when the metadata of the tape-aware GCs has been fully
-  //! populated using Quark DB
+  //! Number of times evictAsRoot() has been called
   //----------------------------------------------------------------------------
-  std::atomic<bool> m_gcsPopulatedUsingQdb = false;
+  std::uint64_t m_nbCallsToEvictAsRoot;
 
   //----------------------------------------------------------------------------
-  //! The names of the EOS spaces that are to be garbage collected
+  //! Standard out from the shel command as a string.
   //----------------------------------------------------------------------------
-  std::set<std::string> m_spaces;
-
-  //----------------------------------------------------------------------------
-  //! Entry point for the worker thread of this object
-  //----------------------------------------------------------------------------
-  void workerThreadEntryPoint() noexcept;
-
-  //----------------------------------------------------------------------------
-  //! Populate the in-memory LRU data structures of the tape aware garbage
-  //! collectors using Quark DB
-  //----------------------------------------------------------------------------
-  void populateGcsUsingQdb();
-
-  //----------------------------------------------------------------------------
-  //! Thrown if an EOS file system cannot determined
-  //----------------------------------------------------------------------------
-  struct FileSystemNotFound: public std::runtime_error {using std::runtime_error::runtime_error;};
-
-  //----------------------------------------------------------------------------
-  //! Dispach file accessed event to the space specific tape garbage collector
-  // 
-  //! @param event human readable string describing the event
-  //! @param space the name of the EOS space where the file resides
-  //! @param fileId ID of the file
-  //----------------------------------------------------------------------------
-  void dispatchFileAccessedToGc(const std::string &event, const std::string &space, const IFileMD::id_t fileId);
+  std::string m_stdoutFromShellCmd;
 };
 
 EOSTGCNAMESPACE_END

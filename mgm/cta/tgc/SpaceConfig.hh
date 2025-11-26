@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ITapeGcMgm.cc
+// File: SpaceConfig.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,14 +21,45 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/ITapeGcMgm.hh"
+#ifndef __EOSMGMTGC_SPACECONFIG_HH__
+#define __EOSMGMTGC_SPACECONFIG_HH__
 
+#include "mgm/Namespace.hh"
+#include "mgm/cta/tgc/Constants.hh"
+
+#include <cstdint>
+#include <ctime>
+#include <string>
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @file SpaceConfig.hh
+ *
+ * @brief The configuration of a tape-aware garbage collector for a specific EOS
+ * space.
+ */
+/*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
-//----------------------------------------------------------------------------
-// Destructor
-//----------------------------------------------------------------------------
-ITapeGcMgm::~ITapeGcMgm() {
-}
+//------------------------------------------------------------------------------
+//! The configuration of a tape-aware garbage collector for a specific EOS
+//! space.
+//------------------------------------------------------------------------------
+struct SpaceConfig {
+  std::time_t queryPeriodSecs;
+  std::uint64_t availBytes;
+  std::string freeBytesScript;
+  std::uint64_t totalBytes;
+
+  SpaceConfig():
+    queryPeriodSecs(TGC_DEFAULT_QRY_PERIOD_SECS),
+    availBytes(TGC_DEFAULT_AVAIL_BYTES),
+    freeBytesScript(TGC_DEFAULT_FREE_BYTES_SCRIPT),
+    totalBytes(TGC_DEFAULT_TOTAL_BYTES)
+  {
+  }
+};
 
 EOSTGCNAMESPACE_END
+
+#endif

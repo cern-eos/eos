@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/tgc/Lru.hh"
-#include "mgm/tgc/MaxLenExceeded.hh"
+#include "mgm/cta/tgc/Lru.hh"
+#include "mgm/cta/tgc/MaxLenExceeded.hh"
 
 #include <iomanip>
 #include <stdexcept>

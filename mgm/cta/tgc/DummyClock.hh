@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: SpaceConfig.hh
+// File: DummyClock.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,43 +21,63 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGMTGC_SPACECONFIG_HH__
-#define __EOSMGMTGC_SPACECONFIG_HH__
+#ifndef __EOSMGMTGC_DUMMYCLOCK_HH__
+#define __EOSMGMTGC_DUMMYCLOCK_HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/Constants.hh"
+#include "mgm/cta/tgc/IClock.hh"
 
-#include <cstdint>
-#include <ctime>
-#include <string>
 
 /*----------------------------------------------------------------------------*/
 /**
- * @file SpaceConfig.hh
+ * @file DummyClock.hh
  *
- * @brief The configuration of a tape-aware garbage collector for a specific EOS
- * space.
+ * @brief A dummy clock to be used for unit testing.
+ *
  */
 /*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! The configuration of a tape-aware garbage collector for a specific EOS
-//! space.
+//! Provides the current time using std::time()
 //------------------------------------------------------------------------------
-struct SpaceConfig {
-  std::time_t queryPeriodSecs;
-  std::uint64_t availBytes;
-  std::string freeBytesScript;
-  std::uint64_t totalBytes;
+class DummyClock: public IClock {
+public:
 
-  SpaceConfig():
-    queryPeriodSecs(TGC_DEFAULT_QRY_PERIOD_SECS),
-    availBytes(TGC_DEFAULT_AVAIL_BYTES),
-    freeBytesScript(TGC_DEFAULT_FREE_BYTES_SCRIPT),
-    totalBytes(TGC_DEFAULT_TOTAL_BYTES)
-  {
+  //------------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param initialTime Initial value for the current (dummy) time in seconds
+  //! since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
+  //------------------------------------------------------------------------------
+  DummyClock(std::time_t initialTime): m_currentTime(initialTime) {
   }
+
+  //------------------------------------------------------------------------------
+  //! @return Number of seconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
+  //------------------------------------------------------------------------------
+  std::time_t getTime() override {
+    return m_currentTime;
+  }
+
+  //------------------------------------------------------------------------------
+  //! Set the current (dummy) time in seconds since the Epoch,
+  //! 1970-01-01 00:00:00 +0000 (UTC)
+  //!
+  //! @param currentTime Current (dummy) time in seconds since the Epoch,
+  //! 1970-01-01 00:00:00 +0000 (UTC)
+  //------------------------------------------------------------------------------
+  void setTime(const std::time_t currentTime) {
+    m_currentTime = currentTime;
+  }
+
+private:
+
+  //------------------------------------------------------------------------------
+  //! Current (dummy) time in seconds since the Epoch,
+  //! 1970-01-01 00:00:00 +0000 (UTC)
+  //------------------------------------------------------------------------------
+  std::time_t m_currentTime;
 };
 
 EOSTGCNAMESPACE_END

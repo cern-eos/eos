@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: SpaceNotFound.cc
+// File: ITapeGcMgm.cc
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,15 +21,14 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/Namespace.hh"
-#include "mgm/tgc/SpaceNotFound.hh"
+#include "mgm/cta/tgc/ITapeGcMgm.hh"
 
 EOSTGCNAMESPACE_BEGIN
 
-//------------------------------------------------------------------------------
-//! Thrown when a given EOS space cannot be found
-//------------------------------------------------------------------------------
-SpaceNotFound::SpaceNotFound(const std::string &msg): std::runtime_error(msg) {
+//----------------------------------------------------------------------------
+// Destructor
+//----------------------------------------------------------------------------
+ITapeGcMgm::~ITapeGcMgm() {
 }
 
 EOSTGCNAMESPACE_END

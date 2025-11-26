@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: TapeGcStats.hh
+// File: RealClock.hh
 // Author: Steven Murray - CERN
 // ----------------------------------------------------------------------
 
@@ -21,58 +21,33 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSMGMTGCTAPEGCSTATS_HH__
-#define __EOSMGMTGCTAPEGCSTATS_HH__
+#ifndef __EOSMGMTGC_REALCLOCK_HH__
+#define __EOSMGMTGC_REALCLOCK_HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/SpaceStats.hh"
+#include "mgm/cta/tgc/IClock.hh"
 
-#include <cstdint>
 
 /*----------------------------------------------------------------------------*/
 /**
- * @file TapeGcStats.hh
+ * @file RealClock.hh
  *
- * @brief Statistics about a tape-aware GC
+ * @brief Provides the current time using std::time().
  *
  */
 /*----------------------------------------------------------------------------*/
 EOSTGCNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Statistics about a tape-aware GC
+//! Provides the current time using std::time()
 //------------------------------------------------------------------------------
-struct TapeGcStats {
-  //----------------------------------------------------------------------------
-  //! Constructor.
-  //----------------------------------------------------------------------------
-  TapeGcStats(): nbEvicts(0),
-    lruQueueSize(0),
-    queryTimestamp(0) {
-  }
+class RealClock: public IClock {
+public:
 
-  //----------------------------------------------------------------------------
-  //! Number of files successfully evicted since TapeGc started.
-  //! This value is Zero in the case of an error.
-  //----------------------------------------------------------------------------
-  std::uint64_t nbEvicts;
-
-  //----------------------------------------------------------------------------
-  //! Size of the LRU queue.  This value is Zero in the case of an error.
-  //----------------------------------------------------------------------------
-  Lru::FidQueue::size_type lruQueueSize;
-
-  //----------------------------------------------------------------------------
-  //! Statistics about the EOS space being managed by the tape-aware garbage
-  //! collector
-  //----------------------------------------------------------------------------
-  SpaceStats spaceStats;
-
-  //----------------------------------------------------------------------------
-  //! Timestamp at which the EOS space was queried.  This value is zero in the
-  //! case of error.
-  //----------------------------------------------------------------------------
-  time_t queryTimestamp;
+  //------------------------------------------------------------------------------
+  //! @return Number of seconds since the Epoch, 1970-01-01 00:00:00 +0000 (UTC)
+  //------------------------------------------------------------------------------
+  std::time_t getTime() override;
 };
 
 EOSTGCNAMESPACE_END
