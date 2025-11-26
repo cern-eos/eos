@@ -25,7 +25,7 @@
 
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/EosCtaReporter.hh"
+#include "mgm/cta/EosCtaReporter.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
@@ -139,7 +139,7 @@ protected:
    * @param vid the identity of the person who issued the prepare request
    */
   void triggerPrepareWorkflow(
-    std::list<std::tuple<char**, char**, EosCtaReporterPrepareReq>>&
+    std::list<std::tuple<char**, char**, cta::ReporterPrepareReq>>&
     pathsToPrepare, const std::string& cmd, const std::string& event,
     const XrdOucString& reqid, XrdOucErrInfo& error,
     const eos::common::VirtualIdentity& vid);

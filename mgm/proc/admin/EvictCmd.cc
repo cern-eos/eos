@@ -25,7 +25,7 @@
 #include "common/Timing.hh"
 #include "EvictCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/EosCtaReporter.hh"
+#include "mgm/cta/EosCtaReporter.hh"
 #include "common/Definitions.hh"
 #include "common/Constants.hh"
 #include "namespace/interface/IView.hh"
@@ -79,15 +79,15 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
   int count_evict_counter_not_zero = 0;
 
   for (int i = 0; i < evict.file_size(); i++) {
-    EosCtaReporterEvict eosLog;
+    cta::ReporterEvict eosLog;
     eosLog
-    .addParam(EosCtaReportParam::SEC_APP, "tape_evict")
-    .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
-    .addParam(EosCtaReportParam::RUID, mVid.uid)
-    .addParam(EosCtaReportParam::RGID, mVid.gid)
-    .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
-    .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
-    .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
+    .addParam(cta::ReportParam::SEC_APP, "tape_evict")
+    .addParam(cta::ReportParam::LOG, std::string(gOFS->logId))
+    .addParam(cta::ReportParam::RUID, mVid.uid)
+    .addParam(cta::ReportParam::RGID, mVid.gid)
+    .addParam(cta::ReportParam::TD, mVid.tident.c_str())
+    .addParam(cta::ReportParam::TS, ts_now.tv_sec)
+    .addParam(cta::ReportParam::TNS, ts_now.tv_nsec);
     const auto& file = evict.file(i);
     std::string path;
     std::string err;
@@ -99,11 +99,11 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       if (0 == path.length()) {
         errStream << "error: Received an empty string path";
         ret_c = EINVAL;
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
         continue;
       }
 
-      eosLog.addParam(EosCtaReportParam::PATH, path);
+      eosLog.addParam(cta::ReportParam::PATH, path);
       break;
 
     case eos::console::EvictProto::FileProto::kFid:
@@ -112,17 +112,17 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       if (0 == path.length()) {
         errStream << "error: Received an unknown fid: value=" << file.fid();
         ret_c = EINVAL;
-        eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+        eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
         continue;
       }
 
-      eosLog.addParam(EosCtaReportParam::PATH, path);
+      eosLog.addParam(cta::ReportParam::PATH, path);
       break;
 
     default:
       errStream << "error: Received a file with neither a path nor an fid";
       ret_c = EINVAL;
-      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      eosLog.addParam(cta::ReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 
@@ -134,7 +134,7 @@ eos::mgm::EvictCmd::ProcessRequest() noexcept
       errStream << "error: you don't have 'p' acl flag permission on path '"
                 << cPath.GetParentPath() << "'";
       ret_c = EPERM;
-      eosLog.addParam(EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
+      eosLog.addParam(cta::EosCtaReportParam::EVICTCMD_ERROR, errStream.str());
       continue;
     }
 

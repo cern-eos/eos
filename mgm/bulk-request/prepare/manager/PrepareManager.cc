@@ -27,7 +27,7 @@
 #include "PrepareManager.hh"
 #include "common/Constants.hh"
 #include "mgm/Stat.hh"
-#include "mgm/EosCtaReporter.hh"
+#include "mgm/cta/EosCtaReporter.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "common/Path.hh"
 #include "common/Timing.hh"
@@ -118,7 +118,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
                               nbFilesProvidedByUser);
   }
   std::string cmd = "mgm.pcmd=event";
-  std::list<std::tuple<char**, char**, EosCtaReporterPrepareReq>> pathsToPrepare;
+  std::list<std::tuple<char**, char**, cta::ReporterPrepareReq>> pathsToPrepare;
   // Initialise the request ID for the Prepare request to the one provided by XRootD
   XrdOucString reqid(pargs.reqid);
   // Validate the event type
@@ -206,18 +206,18 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     XrdOucString prep_path = (pptr->text ? pptr->text : "");
     std::string orig_path = prep_path.c_str();
     std::unique_ptr<bulk::File> currentFile = nullptr;
-    EosCtaReporterPrepareReq eosLog([&](const std::string & in) {
+    cta::ReporterPrepareReq eosLog([&](const std::string & in) {
       mMgmFsInterface->writeEosReportRecord(in);
     });
     eosLog
-    .addParam(EosCtaReportParam::SEC_APP, "tape_prepare")
-    .addParam(EosCtaReportParam::LOG, std::string(mMgmFsInterface->get_logId()))
-    .addParam(EosCtaReportParam::PATH, orig_path)
-    .addParam(EosCtaReportParam::RUID, vid.uid)
-    .addParam(EosCtaReportParam::RGID, vid.gid)
-    .addParam(EosCtaReportParam::TD, vid.tident.c_str())
-    .addParam(EosCtaReportParam::HOST, mMgmFsInterface->get_host())
-    .addParam(EosCtaReportParam::PREP_REQ_REQID, reqid.c_str())
+    .addParam(cta::ReportParam::SEC_APP, "tape_prepare")
+    .addParam(cta::ReportParam::LOG, std::string(mMgmFsInterface->get_logId()))
+    .addParam(cta::ReportParam::PATH, orig_path)
+    .addParam(cta::ReportParam::RUID, vid.uid)
+    .addParam(cta::ReportParam::RGID, vid.gid)
+    .addParam(cta::ReportParam::TD, vid.tident.c_str())
+    .addParam(cta::ReportParam::HOST, mMgmFsInterface->get_host())
+    .addParam(cta::ReportParam::PREP_REQ_REQID, reqid.c_str())
     .addParam(EosCtaReportParam::TS, ts_now.tv_sec)
     .addParam(EosCtaReportParam::TNS, ts_now.tv_nsec);
     eos_info("msg=\"checking file exists\" path=\"%s\"", prep_path.c_str());

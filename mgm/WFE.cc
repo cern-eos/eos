@@ -36,7 +36,7 @@
 #include "mgm/Stat.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/EosCtaReporter.hh"
+#include "mgm/cta/EosCtaReporter.hh"
 #include "mgm/CtaUtils.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
 #include "namespace/interface/IView.hh"
@@ -1876,9 +1876,9 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   bool onTape;
   struct timespec ts_now;
   eos::common::Timing::GetTimeSpec(ts_now);
-  EosCtaReporterPrepareWfe eosLog;
+  cta::ReporterPrepareWfe eosLog;
   eosLog
-  .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
+  .addParam(cta::ReportParam::SEC_APP, "tape_wfe")
   .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
   .addParam(EosCtaReportParam::PATH, fullPath)
   .addParam(EosCtaReportParam::RUID, mVid.uid)
@@ -2139,9 +2139,9 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
 {
   EXEC_TIMING_BEGIN("Proto::Prepare::Abort");
   gOFS->MgmStats.Add("Proto::Prepare::Abort", 0, 0, 1);
-  EosCtaReporterPrepareWfe eosLog;
+  cta::ReporterPrepareWfe eosLog;
   eosLog
-  .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
+  .addParam(cta::ReportParam::SEC_APP, "tape_wfe")
   .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
   .addParam(EosCtaReportParam::PATH, fullPath)
   .addParam(EosCtaReportParam::RUID, mVid.uid)
@@ -2295,9 +2295,9 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
   XrdOucErrInfo errInfo;
   bool onDisk;
   bool onTape;
-  EosCtaReporterPrepareWfe eosLog;
+  cta::ReporterPrepareWfe eosLog;
   eosLog
-  .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
+  .addParam(cta::ReportParam::SEC_APP, "tape_wfe")
   .addParam(EosCtaReportParam::LOG, std::string(gOFS->logId))
   .addParam(EosCtaReportParam::PATH, fullPath)
   .addParam(EosCtaReportParam::RUID, mVid.uid)
@@ -2372,7 +2372,7 @@ WFE::Job::HandleProtoMethodCreateEvent(const std::string& fullPath,
   EXEC_TIMING_BEGIN("Proto::Create");
   gOFS->MgmStats.Add("Proto::Create", 0, 0, 1);
   cta::xrd::Request request;
-  EosCtaReporterFileCreation eosLog;
+  cta::ReporterFileCreation eosLog;
   struct timespec ts_now;
   eos::common::Timing::GetTimeSpec(ts_now);
   auto notification = request.mutable_notification();
@@ -2499,7 +2499,7 @@ WFE::Job::HandleProtoMethodDeleteEvent(const std::string& fullPath,
   {
     struct timespec ts_now;
     eos::common::Timing::GetTimeSpec(ts_now);
-    EosCtaReporterFileDeletion eosLog;
+    cta::ReporterFileDeletion eosLog;
     auto fmd = gOFS->eosFileService->getFileMD(mFid);
     auto locations = fmd->getLocations();
     std::ostringstream locationsOStream;
