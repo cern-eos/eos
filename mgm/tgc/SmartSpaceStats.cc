@@ -25,7 +25,7 @@
 #include "common/ShellCmd.hh"
 #include "common/StringUtils.hh"
 #include "mgm/tgc/SmartSpaceStats.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/cta/Utils.hh"
 
 #include <sstream>
 

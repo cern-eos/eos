@@ -25,7 +25,7 @@
 #include "mgm/tgc/MaxLenExceeded.hh"
 #include "mgm/tgc/TapeGc.hh"
 #include "mgm/tgc/SpaceNotFound.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/cta/Utils.hh"
 
 #include <cstring>
 #include <functional>

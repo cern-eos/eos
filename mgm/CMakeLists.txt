@@ -82,7 +82,7 @@ set (MGM_TGC_SRC_FILES
   tgc/SpaceNotFound.cc
   tgc/SpaceToTapeGcMap.cc
   tgc/TapeGc.cc
-  CtaUtils.cc)
+  cta/Utils.cc)
 
 #-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library

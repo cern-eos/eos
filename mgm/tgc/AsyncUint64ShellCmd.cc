@@ -23,7 +23,7 @@
 
 #include "mgm/tgc/AsyncUint64ShellCmd.hh"
 #include "mgm/tgc/SmartSpaceStats.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/cta/Utils.hh"
 
 #include <chrono>
 #include <thread>

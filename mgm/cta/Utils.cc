@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "common/StringUtils.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/cta/Utils.hh"
 
 #include <cstring>
 

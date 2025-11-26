@@ -28,7 +28,7 @@
 #include "mgm/tgc/Constants.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/SpaceNotFound.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/cta/Utils.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"

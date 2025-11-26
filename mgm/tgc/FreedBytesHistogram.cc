@@ -23,7 +23,7 @@
 
 #include "mgm/tgc/Constants.hh"
 #include "mgm/tgc/FreedBytesHistogram.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/cta/Utils.hh"
 
 #include <algorithm>
 #include <sstream>

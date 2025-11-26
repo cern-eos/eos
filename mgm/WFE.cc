@@ -37,7 +37,7 @@
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/cta/Reporter.hh"
-#include "mgm/CtaUtils.hh"
+#include "mgm/cta/Utils.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
