@@ -41,7 +41,7 @@
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Stat.hh"
 #include "namespace/utils/Etag.hh"
-#include <mgm/Access.hh>
+#include <mgm/access/Access.hh>
 #include <namespace/Prefetcher.hh>
 
 EOSMGMNAMESPACE_BEGIN
