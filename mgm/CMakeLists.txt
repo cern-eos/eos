@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/) 
+include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/ ${CMAKE_SOURCE_DIR}/mgm/ofs/) 
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -164,10 +164,10 @@ add_library(
   scheduler/Scheduler.cc
   vid/Vid.cc
   fsview/FsView.cc
-  XrdMgmOfsConfigure.cc
-  XrdMgmOfsFile.cc
-  XrdMgmOfsDirectory.cc
-  XrdMgmOfs.cc
+  ofs/XrdMgmOfsConfigure.cc
+  ofs/XrdMgmOfsFile.cc
+  ofs/XrdMgmOfsDirectory.cc
+  ofs/XrdMgmOfs.cc
   XrdMgmAuthz.cc
   XrdMgmOfs/fsctl/Access.cc
   XrdMgmOfs/fsctl/AdjustReplica.cc
