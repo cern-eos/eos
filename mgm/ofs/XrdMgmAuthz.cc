@@ -23,7 +23,7 @@
 
 #include "common/token/EosTok.hh"
 #include "common/SecEntity.hh"
-#include "mgm/XrdMgmAuthz.hh"
+#include "mgm/ofs/XrdMgmAuthz.hh"
 #include <XrdSys/XrdSysError.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <XrdOuc/XrdOucEnv.hh>

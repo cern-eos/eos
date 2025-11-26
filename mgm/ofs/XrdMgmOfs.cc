@@ -56,7 +56,7 @@
 #include "mgm/access/Access.hh"
 #include "mgm/filesystem/FileSystem.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/XrdMgmAuthz.hh"
+#include "mgm/ofs/XrdMgmAuthz.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
 #include "mgm/ofs/XrdMgmOfsFile.hh"
 #include "mgm/ofs/XrdMgmOfsTrace.hh"
