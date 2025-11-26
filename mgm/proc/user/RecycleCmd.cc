@@ -76,8 +76,8 @@ RecycleCmd::ProcessRequest() noexcept
       rtype = "rid";
     }
 
-    reply.set_retc(Recycle::Purge(std_out, std_err, mVid, purge.date(),
-                                  rtype, purge.recycleid(), purge.key()));
+    reply.set_retc(Recycle::Purge(std_out, std_err, mVid, purge.key(),
+                                  purge.date(), rtype, purge.recycleid()));
 
     if (reply.retc()) {
       reply.set_std_err(std_err.c_str());
