@@ -25,8 +25,8 @@
 #define __EOSMGMTGC_ASYNCUINT64SHELLCMD_HH__
 
 #include "mgm/Namespace.hh"
-#include "mgm/tgc/AsyncResult.hh"
-#include "mgm/tgc/ITapeGcMgm.hh"
+#include "mgm/cta/tgc/AsyncResult.hh"
+#include "mgm/cta/tgc/ITapeGcMgm.hh"
 
 #include <cstdint>
 #include <future>
