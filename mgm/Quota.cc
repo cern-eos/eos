@@ -2092,18 +2092,10 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
   // Check if quota enabled for current space
   if (FsView::gFsView.IsQuotaEnabled(*args->spacename)) {
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-    SpaceQuota* squota = GetResponsibleSpaceQuota(args->path);
-
-    if (squota) {
-      bool has_quota = false;
-      long long desired_vol = 1ll * nfilesystems * args->bookingsize;
-      has_quota = squota->CheckWriteQuota(args->vid->uid, args->vid->gid,
-                                          desired_vol, 1);
-
-      if (!has_quota) {
-        eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u "
-                         "has no quota left!", args->vid->uid, args->vid->gid, args->grouptag,
-                         nfilesystems);
+    if (SpaceQuota* squota = GetResponsibleSpaceQuota(args->path)) {
+      if (!squota->CheckWriteQuota(args->vid->uid, args->vid->gid, args->bookingsize, 1)) {
+        eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u has no quota left!",
+                         args->vid->uid, args->vid->gid, args->grouptag, nfilesystems);
         return EDQUOT;
       }
     }
