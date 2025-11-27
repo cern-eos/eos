@@ -2075,13 +2075,6 @@ Quota::CleanUp()
 int
 Quota::FilePlacement(Scheduler::PlacementArguments* args)
 {
-  // 0 = 1 replica !
-  unsigned int nfilesystems = eos::common::LayoutId::GetStripeNumber(
-                                args->lid) + 1;
-  // First figure out how many filesystems we need
-  eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u",
-                   args->vid->uid, args->vid->gid, args->grouptag,
-                   nfilesystems);
   if (FsView::gFsView.mSpaceGroupView.count(*args->spacename) == 0) {
     eos_static_err("msg=\"no filesystem in space\" space=\"%s\"",
                    args->spacename->c_str());
@@ -2094,8 +2087,8 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
     if (SpaceQuota* squota = GetResponsibleSpaceQuota(args->path)) {
       if (!squota->CheckWriteQuota(args->vid->uid, args->vid->gid, args->bookingsize, 1)) {
-        eos_static_debug("uid=%u gid=%u grouptag=%s place filesystems=%u has no quota left!",
-                         args->vid->uid, args->vid->gid, args->grouptag, nfilesystems);
+        eos_static_debug("not enough quota for uid=%u gid=%u grouptag=%s bookingsize=%lu at path=%s",
+                         args->vid->uid, args->vid->gid, args->grouptag, args->bookingsize, args->path);
         return EDQUOT;
       }
     }
