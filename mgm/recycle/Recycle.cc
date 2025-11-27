@@ -780,9 +780,9 @@ Recycle::IsAllowedToRestore(std::string_view recycle_path,
   eos_static_debug("msg=\"attempt file restore\" path=\"%s\"", recycle_path);
 
   // Root is allowed to restore anything
-  if (vid.uid == 0) {
-    return 0;
-  }
+  // if (vid.uid == 0) {
+  //   return 0;
+  // }
 
   // If this is a user area then restore is allowed only for the owner
   if (recycle_path.find(sUserRecyclePrefix) == 0) {
