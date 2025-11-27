@@ -55,29 +55,26 @@ public:
   template <typename T>
   static auto
   GetEnv(XrdOucEnv& env, const char* key,
-         T default_val)
-  -> std::enable_if_t<std::is_arithmetic_v<T>, T> {
+         T& out, T default_val={})
+    -> std::enable_if_t<std::is_arithmetic_v<T>, bool> {
     char* val = 0;
-    T ret {default_val};
-
-    if ((val = env.Get(key)))
-    {
-      eos::common::StringToNumeric(std::string_view(val), ret, default_val);
+    if ((val = env.Get(key))) {
+      return eos::common::StringToNumeric(std::string_view(val), out, default_val);
     }
 
-    return ret;
+    return false;
   }
 
+  // Variant for GetEnv for getting from system environment variables
   template <typename T>
   static auto
-  GetEnv(const char* key, T default_val)
-      -> std::enable_if_t<std::is_arithmetic_v<T>, T> {
-    char* val = 0;
-    T ret {default_val};
+  GetEnv(const char* key, T& out, T default_val={})
+    -> std::enable_if_t<std::is_arithmetic_v<T>, bool> {
+    char *val = nullptr;
     if ((val = getenv(key))) {
-      eos::common::StringToNumeric(std::string_view(val), ret, default_val);
+      return common::StringToNumeric(std::string_view(val), out, default_val);
     }
-    return ret;
+    return false;
   }
 };
 
