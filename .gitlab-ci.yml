@@ -16,13 +16,6 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-workflow:
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "wip-reshuffle"'
-      when: never
-    - when: always
-
-
 stages:
   - build:manual
   - prebuild
