@@ -44,17 +44,17 @@ RecycleCmd::ProcessRequest() noexcept
 
   if (subcmd == RecycleProto::kLs) {
     const eos::console::RecycleProto_LsProto& ls = recycle.ls();
-    std::string display_type = "uid";
+    std::string rtype = "uid";
 
-    if (ls.display() == eos::console::RecycleProto::ALL) {
-      display_type = "all";
-    } else if (ls.display() == eos::console::RecycleProto::RID) {
-      display_type = "rid";
+    if (ls.type() == eos::console::RecycleProto::ALL) {
+      rtype = "all";
+    } else if (ls.type() == eos::console::RecycleProto::RID) {
+      rtype = "rid";
     }
 
     rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(),
-                        !ls.numericids(), ls.fulldetails(), display_type,
-                        ls.displayval(), ls.date(), nullptr, true,
+                        !ls.numericids(), ls.fulldetails(), rtype,
+                        ls.recycleid(), ls.date(), nullptr, true,
                         ls.maxentries());
 
     if (std_out.length()) {
@@ -68,8 +68,16 @@ RecycleCmd::ProcessRequest() noexcept
     reply.set_retc(rc);
   } else if (subcmd == RecycleProto::kPurge) {
     const eos::console::RecycleProto_PurgeProto& purge = recycle.purge();
+    std::string rtype = "uid";
+
+    if (purge.type() == eos::console::RecycleProto::ALL) {
+      rtype = "all";
+    } else if (purge.type() == eos::console::RecycleProto::RID) {
+      rtype = "rid";
+    }
+
     reply.set_retc(Recycle::Purge(std_out, std_err, mVid, purge.date(),
-                                  purge.all(), purge.key()));
+                                  rtype, purge.recycleid(), purge.key()));
 
     if (reply.retc()) {
       reply.set_std_err(std_err.c_str());
@@ -78,8 +86,7 @@ RecycleCmd::ProcessRequest() noexcept
     }
   } else if (subcmd == RecycleProto::kRestore) {
     const eos::console::RecycleProto_RestoreProto& restore = recycle.restore();
-    reply.set_retc(Recycle::Restore(std_out, std_err, mVid,
-                                    restore.key(), restore.recycleid(),
+    reply.set_retc(Recycle::Restore(std_out, std_err, mVid, restore.key(),
                                     restore.forceorigname(),
                                     restore.restoreversions(),
                                     restore.makepath()));
