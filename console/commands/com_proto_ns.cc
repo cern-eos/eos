@@ -663,9 +663,10 @@ void com_ns_help()
   std::ostringstream oss;
   oss << "Usage: ns [stat|mutex|compact|master|cache|benchmark]" << std::endl
       << "    print or configure basic namespace parameters" << std::endl
-      << "  ns stat [-a] [-m] [-n] [--reset]" << std::endl
+      << "  ns stat [-a] [-x] [-m] [-n] [--reset]" << std::endl
       << "    print namespace statistics" << std::endl
       << "    -a      : break down by uid/gid" << std::endl
+      << "    -x      : break down by application" << std::endl
       << "    -m      : display in monitoring format <key>=<value>" << std::endl
       << "    -n      : display numerical uid/gid(s)" << std::endl
       << "    --reset : reset namespace counters" << std::endl
