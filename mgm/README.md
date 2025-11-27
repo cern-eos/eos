@@ -34,6 +34,9 @@ This directory contains the EOS MGM (Management) service sources. The code is or
 - `convert/`: data conversion pipeline elements.
 - `egroup/`, `devices/`, `drain/`, `fsck/`: service‑specific subsystems.
 
+### CTA Implementation
+- `cta/`: CTA related sources (will appear when the CTA branch is merged)
+
 ### Build notes
 - Include paths are set in `mgm/CMakeLists.txt` to expose:
   - project root (`${CMAKE_SOURCE_DIR}`),
