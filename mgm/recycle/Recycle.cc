@@ -916,19 +916,11 @@ Recycle::DemanglePath(std::string_view recycle_path)
   std::string orig_path(recycle_path);
 
   // This should not contain any '/'
-  if (orig_path.find('/') != std::string::npos) {
+  if (orig_path.empty() || orig_path.find('/') != std::string::npos) {
     return std::string();
   }
 
   eos::common::replace_all(orig_path, "#.#", "/");
-
-  if (eos::common::endsWith(orig_path, Recycle::gRecyclingPostFix)) {
-    orig_path.erase(orig_path.length() - Recycle::gRecyclingPostFix.length() -
-                    16 - 1);
-  } else {
-    orig_path.erase(orig_path.length() - 16 - 1);
-  }
-
   return orig_path;
 }
 
@@ -1444,7 +1436,7 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
   }
 
   // Apply recursively the sys.forced.recycleid=<cid_val> to the entire
-  // original subtree and make sure to sub-dir was skipped
+  // original subtree and make sure no sub-dir was skipped
   unsigned int attempts = 5;
 
   do {
