@@ -76,10 +76,10 @@ RecycleHelper::ParseCommand(const char* arg)
 
   if ((cmd == "ls") || cmd.empty() || (cmd == "-m")) {
     eos::console::RecycleProto_LsProto* ls = recycle->mutable_ls();
-    ls->set_display(eos::console::RecycleProto::UID);
+    ls->set_type(eos::console::RecycleProto::UID);
 
     if (cmd.empty()) {
-      ls->set_display(eos::console::RecycleProto::ALL);
+      ls->set_type(eos::console::RecycleProto::ALL);
     } else if (cmd == "-m") {
       ls->set_monitorfmt(true);
     } else {
@@ -89,16 +89,16 @@ RecycleHelper::ParseCommand(const char* arg)
         soption = option;
 
         if (soption == "--all") {
-          ls->set_display(eos::console::RecycleProto::ALL);
+          ls->set_type(eos::console::RecycleProto::ALL);
         } else if (soption == "--uid") {
-          ls->set_display(eos::console::RecycleProto::UID);
+          ls->set_type(eos::console::RecycleProto::UID);
         } else if (soption == "--rid") {
-          ls->set_display(eos::console::RecycleProto::RID);
+          ls->set_type(eos::console::RecycleProto::RID);
 
           // Get recycle id value
           if ((option = tokenizer.GetToken())) {
             soption = option;
-            ls->set_displayval(soption);
+            ls->set_recycleid(soption);
           }
         } else if (soption == "-m") {
           ls->set_monitorfmt(true);
@@ -124,23 +124,43 @@ RecycleHelper::ParseCommand(const char* arg)
     }
   } else if (cmd == "purge") {
     eos::console::RecycleProto_PurgeProto* purge = recycle->mutable_purge();
+    purge->set_type(eos::console::RecycleProto::UID);
 
     while ((option = tokenizer.GetToken())) {
       soption = option;
 
-      if (soption == "-g") {
-        purge->set_all(true);
-      } else if (soption == "-k") {
-        option = tokenizer.GetToken();
+      if (soption == "--all") {
+        purge->set_type(eos::console::RecycleProto::ALL);
+      } else if (soption == "--uid") {
+        purge->set_type(eos::console::RecycleProto::UID);
+      } else if (soption == "--rid") {
+        if (!(option = tokenizer.GetToken())) {
+          // Parse the recycle id value
+          std::cerr << "error: need to specify a recycle id after --rid option"
+                    << std::endl;
+          return false;
+        }
 
-        if (option) {
-          purge->set_key(option);
-        } else {
+        soption = option;
+
+        // Make sure this is a number
+        try {
+          (void) std::stoull(soption);
+        } catch (...) {
+          std::cerr << "error: recycle id needs to be numeric" << std::endl;
+          return false;
+        }
+
+        purge->set_recycleid(soption);
+      } else if (soption == "-k") {
+        if (!(option = tokenizer.GetToken())) {
           std::cerr << "error: you have to provide a key when using the -k option" <<
                     std::endl;
           return false;
         }
-      } else {
+
+        purge->set_key(option);
+      } else { // This must be a date
         if (!CheckDateFormat(soption)) {
           std::cerr << "error: \"" << soption << "\" does not respect the "
                     << "date format" << std::endl;
@@ -151,8 +171,8 @@ RecycleHelper::ParseCommand(const char* arg)
       }
     }
 
-    if (purge->all() && (!purge->date().empty())) {
-      std::cerr << "error: -g and <date> can not be used together"
+    if (!purge->date().empty() && !purge->key().empty()) {
+      std::cerr << "error: recycle key and date can not be used together"
                 << std::endl;
       return false;
     }
@@ -168,25 +188,6 @@ RecycleHelper::ParseCommand(const char* arg)
         restore->set_restoreversions(true);
       } else if (soption == "-p") {
         restore->set_makepath(true);
-      } else if (soption == "--rid") {
-        if (!(option = tokenizer.GetToken())) {
-          // Parse the recycle id value
-          std::cerr << "error: need to specify a recycle id after --rid option"
-                    << std::endl;
-          return EINVAL;
-        }
-
-        soption = option;
-
-        // Make sure this is a number
-        try {
-          (void) std::stoull(soption);
-        } catch (...) {
-          std::cerr << "error: recycle id needs to be numeric" << std::endl;
-          return EINVAL;
-        }
-
-        restore->set_recycleid(soption);
       } else {
         // This must be the recycle-key
         restore->set_key(soption);
