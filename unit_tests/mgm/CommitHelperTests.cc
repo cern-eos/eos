@@ -23,7 +23,7 @@
 
 #include "gtest/gtest.h"
 #define IN_TEST_HARNESS
-#include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
+#include "mgm/ofs/fsctl/CommitHelper.hh"
 #undef IN_TEST_HARNESS
 
 using eos::mgm::CommitHelper;
