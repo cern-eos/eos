@@ -920,7 +920,7 @@ Recycle::DemanglePath(std::string_view recycle_path)
     return std::string();
   }
 
-  eos::common::replace_all(orig_path, "#.#", "/");
+  eos::common::replace_all(orig_path, "#:#", "/");
   return orig_path;
 }
 

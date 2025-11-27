@@ -1424,7 +1424,7 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
     break;
 
   case eos::rpc::NSRequest::kRecycle:
-    return Recycle(vid, reply->mutable_recycle(), &(request->recycle()));
+    return Recycle(vid, reply->mutable_recycle(), &(request->old_recycle()));
     break;
 
   case eos::rpc::NSRequest::kChown:

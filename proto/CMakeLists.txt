@@ -100,6 +100,8 @@ set_target_properties(EosAuditProto-Objects PROPERTIES
 # Generate protocol buffer object for the CLI
 #-------------------------------------------------------------------------------
 set(EOS_PROTO_ROOT eos-protobuf-spec)
+set(Protobuf_IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/eos-protobuf-spec ${CMAKE_SOURCE_DIR}/common/grpc-proto)
+set(PROTOBUF3_IMPORT_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/eos-protobuf-spec ${CMAKE_SOURCE_DIR}/common/grpc-proto)
 PROTOBUF_GENERATE_CPP(REQ_SRCS REQ_HDRS ${EOS_PROTO_ROOT}/ConsoleRequest.proto)
 PROTOBUF_GENERATE_CPP(REP_SRCS REP_HDRS ${EOS_PROTO_ROOT}/ConsoleReply.proto)
 PROTOBUF_GENERATE_CPP(RECY_SRCS RECY_HDRS ${EOS_PROTO_ROOT}/Recycle.proto)
