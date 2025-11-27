@@ -34,6 +34,23 @@ This directory contains the EOS MGM (Management) service sources. The code is or
 - `convert/`: data conversion pipeline elements.
 - `egroup/`, `devices/`, `drain/`, `fsck/`: service‑specific subsystems.
 
+### FUSE support
+- `FuseServer/`: FUSE server handlers (caps, clients, locks, flush, server).
+- `fuse-locks/`: FUSE lock tracking helpers.
+
+### Directory index (quick reference)
+- Core logic: `access/`, `acl/`, `filesystem/`, `fsview/`, `policy/`, `quota/`, `scheduler/`,
+  `pathrouting/`, `routeendpoint/`, `groupbalancer/`, `groupdrainer/`, `balancer/`,
+  `recycle/`, `namespacestats/`, `inspector/`, `utils/`, `misc/`, `xattr/`,
+  `messaging/`, `iostat/`, `lru/`, `imaster/`, `inflighttracker/`, `stat/`
+- OFS plugin: `ofs/`, `ofs/cmds/`, `ofs/fsctl/`, `authz/`
+- Frontends: `grpc/`, `http/`
+- Commands: `proc/`, `commandmap/`
+- Subsystems: `convert/`, `devices/`, `drain/`, `egroup/`, `fsck/`, `qdbmaster/`,
+  `qos/`, `recycle/`, `tracker/`, `placement/`
+- Structures/trees: `geotree/`, `geotreeengine/`, `geobalancer/`
+- Other: `FuseServer/`, `fuse-locks/`, `workflow/`, `vid/`, `xattr/`
+
 ### CTA Implementation
 - `cta/`: CTA related sources (will appear when the CTA branch is merged)
 
