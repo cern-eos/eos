@@ -65,6 +65,7 @@
 #include <XrdOuc/XrdOucPgrwUtils.hh>
 #include "mgm/XrdMgmOfsTrace.hh"
 #include "mgm/AuditHelpers.hh"
+#include "utils/XrdUtils.hh"
 
 
 #ifdef __APPLE__
@@ -557,6 +558,7 @@ XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
  *
  */
 /*----------------------------------------------------------------------------*/
+using eos::common::XrdUtils;
 int
 XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                     const char* inpath,
@@ -691,7 +693,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   MAYSTALL;
   MAYREDIRECT;
-  XrdOucString currentWorkflow = "default";
+  std::string currentWorkflow = "default";
   unsigned long long byfid = 0;
   unsigned long long bypid = 0;
   COMMONTIMING("fid::fetch", &tm);
@@ -764,87 +766,40 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  {
+
     // handle io priority
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("eos.iopriority"))) {
-      if (vid.hasUid(11)) {  // operator role
-        // admin members can set iopriority
-        ioPriority = val;
-      } else {
-        eos_info("msg=\"suppressing IO priority setting '%s', no operator role\"",
-                 val);
-      }
+  if (auto ioprio = XrdUtils::GetEnv(*openOpaque, "eos.iopriority");
+      !ioprio.empty()) {
+    // only operator/admins can set iopriority
+    if (vid.hasUid(11)) {
+      ioPriority = std::move(ioprio);
+    } else {
+      eos_info("msg=\"suppressing IO priority setting '%s', no operator role\"",
+               ioprio.c_str());
     }
   }
-
-  {
-    // Handle obfuscation and encryption
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("eos.obfuscate"))) {
-      try {
-        mEosObfuscate = std::strtoul(val, 0, 10);
-      } catch (...) {
-        eos_warning("msg=\"ignore invalid eos.obfuscate\" value=\"%s\"", val);
-      }
-    }
-
-    if ((val = openOpaque->Get("eos.key"))) {
-      mEosKey = val;
-
-      if (mEosObfuscate == 0) {
-        mEosObfuscate = 1;
-      }
+  // handle various values from CGI
+  XrdUtils::GetEnv(*openOpaque, "eos.obfuscate", mEosObfuscate, -1);
+  mEosKey = XrdUtils::GetEnv(*openOpaque, "eos.key");
+  if (!mEosKey.empty()) {
+    if (mEosObfuscate == 0) {
+      mEosObfuscate = 1;
     }
   }
-
-  {
-    // figure out if this is an OC upload
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("oc-chunk-uuid"))) {
-      ocUploadUuid = val;
-    }
+  // Populate ocuploaduuid from openopaque
+  if (auto _ocuuid = XrdUtils::GetEnv(*openOpaque, "oc-chunk-uuid");
+      !_ocuuid.empty()) {
+      ocUploadUuid = _ocuuid.c_str();
   }
 
-  {
-    // populate tried hosts from the CGI
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("tried"))) {
-      tried_cgi = val;
-      tried_cgi += ",";
-    }
+  if (auto _tried = XrdUtils::GetEnv(*openOpaque, "tried");
+      !_tried.empty()) {
+      tried_cgi = _tried + ",";
   }
 
-  {
-    // extract the workflow name from the CGI
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("eos.workflow"))) {
-      currentWorkflow = val;
-    }
-  }
-
-  {
-    // populate versioning cgi from the CGI
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("eos.versioning"))) {
-      versioning_cgi = val;
-    }
-  }
-
-  {
-    // are we a TPC transfer?
-    const char* val = 0;
-
-    if ((val = openOpaque->Get("tpc.stage"))) {
-      isTpc = true;
-    }
-  }
+  currentWorkflow = XrdUtils::GetEnv(*openOpaque, "eos.workflow", "default");
+  versioning_cgi = XrdUtils::GetEnv(*openOpaque, "eos.versioning");
+  isTpc = openOpaque->Get("tpc.stage") != nullptr;
 
   if (!isFuse && isRW) {
     // resolve symbolic links
@@ -879,29 +834,17 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // ---------------------------------------------------------------------------
   // discover PIO mode
   // ---------------------------------------------------------------------------
-  XrdOucString sPio = (openOpaque) ? openOpaque->Get("eos.cli.access") : "";
-
-  if (sPio == "pio") {
-    isPio = true;
-  }
-
-  // Discover PIO reconstruction mode
-  XrdOucString sPioRecover = (openOpaque) ?
-                             openOpaque->Get("eos.pio.action") : "";
-
-  if (sPioRecover == "reconstruct") {
-    isPioReconstruct = true;
-  }
+  isPio = XrdUtils::GetEnv(*openOpaque, "eos.cli.access") == "pio";
+  isPioReconstruct = XrdUtils::GetEnv(*openOpaque, "eos.pio.action") == "reconstruct";
 
   {
     // Discover PIO reconstruction filesystems (stripes to be replaced)
-    std::string sPioRecoverFs = (openOpaque) ?
-                                (openOpaque->Get("eos.pio.recfs") ? openOpaque->Get("eos.pio.recfs") : "")
-                                : "";
+    std::string sPioRecoverFs = XrdUtils::GetEnv(*openOpaque, "eos.pio.recfs");
+
     std::vector<std::string> fsToken;
     eos::common::StringConversion::Tokenize(sPioRecoverFs, fsToken, ",");
 
-    if (openOpaque->Get("eos.pio.recfs") && fsToken.empty()) {
+    if (!sPioRecoverFs.empty() && fsToken.empty()) {
       return Emsg(epname, error, EINVAL, "open - you specified a list of"
                   " reconstruction filesystems but the list is empty", path);
     }
@@ -1373,7 +1316,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   isAtomicUpload = !isFuse &&
                    attr::checkAtomicUpload(attrmap, openOpaque->Get("eos.atomic"));
   // check for injection in non fuse clients with cgi
-  isInjection = !isFuse && openOpaque->Get("eos.injection");
+  isInjection = !isFuse && openOpaque->Get("eos.injection") != nullptr;
   isRepair = openOpaque->Get("eos.repair") != nullptr;
   isRepairRead = openOpaque->Get("eos.repairread") != nullptr;
 
@@ -2044,9 +1987,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     }
   }
 
-  if (openOpaque->Get("eos.etag")) {
-    ext_etag = openOpaque->Get("eos.etag");
-  }
+  ext_etag = XrdUtils::GetEnv(*openOpaque, "eos.etag");
 
   if (openOpaque->Get("eos.xattr")) {
     std::vector<std::string> xattr_keys;
@@ -2256,29 +2197,18 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (attr::getValue(attrmap, "user.forced.bookingsize", bookingsize)) {
       // fallback to user booking size
     } else {
-      bookingsize = 1024ll; // 1k as default
-
-      if (openOpaque->Get("eos.bookingsize")) {
-        bookingsize = strtoull(openOpaque->Get("eos.bookingsize"), 0, 10);
+      if (XrdUtils::GetEnv(*openOpaque, "eos.bookingsize", bookingsize, 1024ull)) {
         hasClientBookingSize = true;
       } else {
-        if (openOpaque->Get("oss.asize")) {
-          bookingsize = strtoull(openOpaque->Get("oss.asize"), 0, 10);
-          hasClientBookingSize = true;
-        }
+        hasClientBookingSize = XrdUtils::GetEnv(*openOpaque, "oss.asize", bookingsize, 1024ull);
       }
     }
   }
   attr::getValue(attrmap, "sys.forced.minsize", minimumsize);
   attr::getValue(attrmap, "sys.forced.maxsize", maximumsize);
 
-  if (openOpaque->Get("oss.asize")) {
-    targetsize = strtoull(openOpaque->Get("oss.asize"), 0, 10);
-  }
-
-  if (openOpaque->Get("eos.targetsize")) {
-    targetsize = strtoull(openOpaque->Get("eos.targetsize"), 0, 10);
-  }
+  XrdUtils::GetEnv(*openOpaque, "oss.asize", targetsize);
+  XrdUtils::GetEnv(*openOpaque, "eos.targetsize", targetsize);
 
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int> excludefs = GetExcludedFsids();
@@ -2346,10 +2276,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       // Fire and forget a sync::offline workflow event
       errno = 0;
       workflow.SetFile(path, mFid);
-      const auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
-                                openOpaque->Get("eos.workflow") : "default";
       std::string workflowErrorMsg;
-      const auto ret_wfe = workflow.Trigger("sync::offline", std::string{workflowType},
+      const auto ret_wfe = workflow.Trigger("sync::offline", currentWorkflow,
                                             vid,
                                             ininfo, workflowErrorMsg);
 
@@ -2444,11 +2372,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // Normal read failed, try to reply with the triedrc value if this
         // exists in the URL otherwise we'll return ENETUNREACH which is a
         // client recoverable error.
-        char* triedrc = openOpaque->Get("triedrc");
-
-        if (triedrc) {
+        if (auto triedrc = XrdUtils::GetEnv(*openOpaque, "triedrc");
+            !triedrc.empty()) {
           int errno_tried = GetTriedrcErrno(triedrc);
-
           if (errno_tried) {
             return Emsg(epname, error, errno_tried, "open file", path);
           }
@@ -3265,12 +3191,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     redirectionhost += capabilityenv->Env(caplen);
     redirectionhost += "&mgm.logid=";
     redirectionhost += this->logId;
-
-    if (openOpaque->Get("eos.blockchecksum")) {
-      redirectionhost += "&mgm.blockchecksum=";
-      redirectionhost += openOpaque->Get("eos.blockchecksum");
+    if (std::string _blockxs = XrdUtils::GetEnv(*openOpaque, "eos.blockchecksum");
+        !_blockxs.empty()) {
+      redirectionhost += "&eos.blockchecksum=";
+      redirectionhost += _blockxs.c_str();
     } else {
-      if ((!isRW) && (LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica)) {
+      if (!isRW && LayoutId::GetLayoutType(layoutId) == LayoutId::kReplica) {
         redirectionhost += "&mgm.blockchecksum=ignore";
       }
     }
@@ -3331,10 +3257,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (isCreation) {
     errno = 0;
     workflow.SetFile(path, mFid);
-    auto workflowType = openOpaque->Get("eos.workflow") != nullptr ?
-                        openOpaque->Get("eos.workflow") : "default";
+
     std::string errorMsg;
-    auto ret_wfe = workflow.Trigger("sync::create", std::string{workflowType}, vid,
+    auto ret_wfe = workflow.Trigger("sync::create", currentWorkflow, vid,
                                     ininfo, errorMsg);
 
     if (ret_wfe < 0 && errno == ENOKEY) {
@@ -3362,9 +3287,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   workflow.SetFile(path, mFid);
 
   if (isRW) {
-    redirectionhost += workflow.getCGICloseW(currentWorkflow.c_str(), vid).c_str();
+    redirectionhost += workflow.getCGICloseW(currentWorkflow, vid).c_str();
   } else {
-    redirectionhost += workflow.getCGICloseR(currentWorkflow.c_str()).c_str();
+    redirectionhost += workflow.getCGICloseR(currentWorkflow).c_str();
   }
 
   // Notify tape garbage collector if tape support is enabled
