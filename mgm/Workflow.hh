@@ -65,10 +65,10 @@ public:
               eos::common::VirtualIdentity& vid,
               const char * const ininfo, std::string& errorMessage);
 
-  std::string getCGICloseW(std::string workflow,
+  std::string getCGICloseW(const std::string& workflow,
                            const eos::common::VirtualIdentity& vid);
 
-  std::string getCGICloseR(std::string workflow);
+  std::string getCGICloseR(const std::string& workflow);
 
 
   bool IsSync()
