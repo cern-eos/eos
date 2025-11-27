@@ -168,7 +168,7 @@ add_library(
   ofs/XrdMgmOfsFile.cc
   ofs/XrdMgmOfsDirectory.cc
   ofs/XrdMgmOfs.cc
-  ofs/XrdMgmAuthz.cc
+  authz/XrdMgmAuthz.cc
   ofs/fsctl/Access.cc
   ofs/fsctl/AdjustReplica.cc
   ofs/fsctl/Checksum.cc
