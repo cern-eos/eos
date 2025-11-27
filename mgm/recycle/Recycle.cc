@@ -90,7 +90,7 @@ bool AllHierarchyHasXattr(std::string_view path, std::string_view xattr_key,
 EOSMGMNAMESPACE_BEGIN
 
 // MgmOfsConfigure prepends the proc directory path e.g. the bin is
-// /eos/<instance/proc/recycle/
+// /eos/<instance>/proc/recycle/
 std::string Recycle::gRecyclingPrefix = "/recycle/";
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
 std::string Recycle::gRecyclingTimeAttribute = "sys.recycle.keeptime";
@@ -768,16 +768,34 @@ Recycle::Print(std::string& std_out, std::string& std_err,
   return 0;
 }
 
-//----------------------------------------------------------------------------
-//! Check if client is allowed to restore the given recyle path
-//----------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// Check if client is allowed to restore the given recyle path
+//------------------------------------------------------------------------------
 int
 Recycle::IsAllowedToRestore(std::string_view recycle_path,
                             const eos::common::VirtualIdentity& vid)
 {
-  struct stat buf;
-  XrdOucErrInfo lerror;
+  static const std::string sUserRecyclePrefix =
+    SSTR(Recycle::gRecyclingPrefix << "uid:");
   eos_static_debug("msg=\"attempt file restore\" path=\"%s\"", recycle_path);
+
+  // Root is allowed to restore anything
+  if (vid.uid == 0) {
+    return 0;
+  }
+
+  // If this is a user area then restore is allowed only for the owner
+  if (recycle_path.find(sUserRecyclePrefix) == 0) {
+    std::string usr_recycle = SSTR(sUserRecyclePrefix << vid.uid);
+
+    if (recycle_path.find(usr_recycle) != 0) {
+      return EPERM;
+    }
+  }
+
+  struct stat buf;
+
+  XrdOucErrInfo lerror;
 
   if (gOFS->_stat(recycle_path.data(), &buf, lerror,
                   mRootVid, "", nullptr, false)) {
@@ -802,8 +820,8 @@ Recycle::IsAllowedToRestore(std::string_view recycle_path,
 
       return EPERM;
     } catch (const eos::MDException& e) {
-      eos_static_err("msg=\"missing directory for restore\" path=\"%s\"",
-                     parent_dir.c_str());
+      eos_static_err("msg=\"missing parent directory for restore check\" "
+                     "path=\"%s\"", parent_dir.c_str());
       return ENOENT;
     }
   }
@@ -816,7 +834,6 @@ Recycle::IsAllowedToRestore(std::string_view recycle_path,
 //------------------------------------------------------------------------------
 int
 Recycle::GetPathFromRestoreKey(std::string_view key,
-                               std::string_view recycle_id,
                                const eos::common::VirtualIdentity& vid,
                                std::string& std_err, std::string& recycle_path)
 {
@@ -850,21 +867,6 @@ Recycle::GetPathFromRestoreKey(std::string_view key,
     return EINVAL;
   }
 
-  // Construct recycle path prefix depending if this is a project or
-  // a simple user recycle bin path
-  XrdOucString prefix = Recycle::gRecyclingPrefix.c_str();
-
-  if (recycle_id.empty()) {
-    prefix += "/uid:";
-    prefix += (int) vid.uid;
-  } else {
-    prefix += "/rid:";
-    prefix += recycle_id.data();
-  }
-
-  while (prefix.replace("//", "/")) {
-  }
-
   // Full path of the target inside the recycle bin
   {
     std::shared_ptr<eos::IFileMD> fmd;
@@ -874,12 +876,6 @@ Recycle::GetPathFromRestoreKey(std::string_view key,
         eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, id);
         auto fmd = gOFS->eosFileService->getFileMD(id);
         recycle_path = gOFS->eosView->getUri(fmd.get());
-
-        if (recycle_path.find(prefix.c_str()) != 0) {
-          std_err = "error: this is not a file in your recycle bin - try to "
-                    "prefix the key with pxid:<key>";
-          return EPERM;
-        }
       } catch (const eos::MDException& e) {
         // empty
       }
@@ -890,11 +886,6 @@ Recycle::GetPathFromRestoreKey(std::string_view key,
         eos::Prefetcher::prefetchContainerMDWithParentsAndWait(gOFS->eosView, id);
         auto cmd = gOFS->eosDirectoryService->getContainerMD(id);
         recycle_path = gOFS->eosView->getUri(cmd.get());
-
-        if (recycle_path.find(prefix.c_str()) != 0) {
-          std_err = "error: this is not a directory in your recycle bin";
-          return EPERM;
-        }
       } catch (const eos::MDException& e) {
         // empty
       }
@@ -909,7 +900,7 @@ Recycle::GetPathFromRestoreKey(std::string_view key,
 
   // Check that this is a path to recycle
   if (recycle_path.find(Recycle::gRecyclingPrefix.c_str()) != 0) {
-    std_err = "error: referenced object cannot be recycled";
+    std_err = "error: referenced object is not in the recycle bin";
     return EINVAL;
   }
 
@@ -946,14 +937,21 @@ Recycle::DemanglePath(std::string_view recycle_path)
 //------------------------------------------------------------------------------
 int
 Recycle::Restore(std::string& std_out, std::string& std_err,
-                 eos::common::VirtualIdentity& vid,
-                 std::string_view key, std::string_view recycle_id,
+                 eos::common::VirtualIdentity& vid, std::string_view key,
                  bool force_orig_name, bool restore_versions, bool make_path)
 {
   std::string recycle_path;
-  int retc = GetPathFromRestoreKey(key, recycle_id, vid, std_err, recycle_path);
+  int retc = GetPathFromRestoreKey(key, vid, std_err, recycle_path);
 
   if (retc) {
+    return retc;
+  }
+
+  // Check if client is allowed to restore the given entry
+  retc = IsAllowedToRestore(recycle_path, vid);
+
+  if (retc) {
+    std_err = "error: client not allowed to restore given path";
     return retc;
   }
 
@@ -966,17 +964,9 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
     return EINVAL;
   }
 
-  // Check if client is allowed to restore the given entry
-  retc = IsAllowedToRestore(recycle_path, vid);
-
-  if (retc) {
-    std_err = "error: client not allowed to restore given path";
-    return retc;
-  }
-
   eos::common::Path oPath(orig_path.c_str());
-  struct stat buf;
   XrdOucErrInfo lerror;
+  struct stat buf;
 
   // Check if original parent path exists
   if (gOFS->_stat(oPath.GetParentPath(), &buf, lerror, mRootVid, "")) {
@@ -1051,7 +1041,7 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
     return 0;
   }
 
-  retc = Restore(std_out, std_err, vid, vkey.c_str(), recycle_id,
+  retc = Restore(std_out, std_err, vid, vkey.c_str(),
                  force_orig_name, restore_versions);
 
   // Mask an non existent version reference
@@ -1062,26 +1052,40 @@ Recycle::Restore(std::string& std_out, std::string& std_err,
   return retc;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Purge files in the recycle bin
+//------------------------------------------------------------------------------
 int
 Recycle::Purge(std::string& std_out, std::string& std_err,
                eos::common::VirtualIdentity& vid,
-               std::string date,
-               bool global,
-               std::string key)
+               std::string key, std::string date,
+               std::string_view type, std::string_view recycle_id)
 {
+  // Basic permission checks
+  if (vid.uid && !vid.sudoer &&
+      !(vid.hasUid(eos::common::ADM_UID)) &&
+      !(vid.hasGid(eos::common::ADM_GID))) {
+    std_err = "error: you cannot purge your recycle bin without being a "
+              "sudo or having an admin role";
+    return EPERM;
+  }
+
+  // Sanitize user input
+  if (!date.empty()) {
+    for (const auto& ch : date) {
+      if (!isdigit(ch) && (ch != '/')) {
+        std_err = "error: invalid date format";
+        return EINVAL;
+      }
+    }
+  }
+
   XrdMgmOfsDirectory dirl;
   char sdir[4096];
   XrdOucErrInfo lerror;
   int nfiles_deleted = 0;
   int nbulk_deleted = 0;
   std::string rpath;
-
-  // fix security hole
-  if (date.find("..") != std::string::npos) {
-    std_err = "error: the date contains an illegal character sequence";
-    return EINVAL;
-  }
 
   // translate key into search pattern
   if (key.length()) {
@@ -1101,15 +1105,7 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     }
   }
 
-  if (vid.uid && !vid.sudoer &&
-      !(vid.hasUid(eos::common::ADM_UID)) &&
-      !(vid.hasGid(eos::common::ADM_GID))) {
-    std_err = "error: you cannot purge your recycle bin without being a sudor "
-              "or having an admin role";
-    return EPERM;
-  }
-
-  if (!global || (global && vid.uid)) {
+  if ((type != "all") || ((type == "all") && vid.uid)) {
     snprintf(sdir, sizeof(sdir) - 1, "%s/uid:%u/%s",
              Recycle::gRecyclingPrefix.c_str(),
              (unsigned int) vid.uid,
@@ -1119,7 +1115,12 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
   }
 
   std::map<std::string, std::set < std::string>> find_map;
-  int depth = 5 + (int) global;
+  int depth = 5;
+
+  if (type == "all") {
+    ++depth;
+  }
+
   eos::common::Path dPath(std::string("/") + date);
 
   if (dPath.GetSubPathSize()) {
@@ -1213,18 +1214,11 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     }
   }
 
-  std_out += "success: purged ";
-  std_out += std::to_string(nbulk_deleted);
-  std_out += " bulk deletions and ";
-  std_out += std::to_string(nfiles_deleted);
-  std_out += " individual files from the recycle bin!";
+  std_out += SSTR("success: purged " << nbulk_deleted << " bulk deletions and "
+                  << nfiles_deleted << " individual files from recycle bin!");
 
-  if (key.length() &&
-      (!nbulk_deleted) &&
-      (!nfiles_deleted)) {
-    std_err += "error: no entry for key='";
-    std_err += key;
-    std_err += "'";
+  if (key.length() && !nbulk_deleted && !nfiles_deleted) {
+    std_err = SSTR("error: no entry for key='" << key << "'");
     return ENODATA;
   }
 
