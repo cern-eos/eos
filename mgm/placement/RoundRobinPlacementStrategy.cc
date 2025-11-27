@@ -1,5 +1,6 @@
 #include "mgm/placement/RoundRobinPlacementStrategy.hh"
 #include "common/utils/ContainerUtils.hh"
+#include "common/utils/RandUtils.hh"
 
 namespace eos::mgm::placement {
 
@@ -81,7 +82,8 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
 int
 RoundRobinPlacement::access(const ClusterData &cluster_data, AccessArguments args)
 {
-  return EINVAL;
+  args.selectedIndex = common::getRandom((size_t)0, args.selectedfs.size()-1);
+  return 0;
 }
 
 
