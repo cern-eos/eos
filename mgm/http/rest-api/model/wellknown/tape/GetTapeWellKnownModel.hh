@@ -38,8 +38,9 @@ class GetTapeWellKnownModel
   : public common::Jsonifiable<GetTapeWellKnownModel>
 {
 public:
-  GetTapeWellKnownModel(const TapeWellKnownInfos* tapeWellKnownInfos);
-  const TapeWellKnownInfos* getTapeWellKnownInfos() const;
+  inline GetTapeWellKnownModel(const TapeWellKnownInfos* tapeWellKnownInfos)
+    : mTapeWellKnownInfos(tapeWellKnownInfos) {}
+  inline const TapeWellKnownInfos* getTapeWellKnownInfos() const { return mTapeWellKnownInfos; }
 private:
   const TapeWellKnownInfos* mTapeWellKnownInfos;
 };

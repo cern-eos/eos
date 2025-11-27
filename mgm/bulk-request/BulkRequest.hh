@@ -53,12 +53,12 @@ public:
    * Initializes the bulk request with the id passed in parameter
    * @param id the unique identifier of the bulk request
    */
-  BulkRequest(const std::string& id);
+  BulkRequest(const std::string& id): mId(id) {}
   /**
    * Returns the id of this bulk request
    * @return the id of this bulk request
    */
-  std::string getId() const;
+  std::string getId() const { return mId; }
   /**
    * Returns the type of this bulk request
    * @return the type of this bulk request
@@ -69,15 +69,15 @@ public:
    * Returns the files contained in this bulk request
    * @return the map containing the files this bulk request contains
    */
-  std::shared_ptr<FileCollection::Files> getFiles() const;
+  std::shared_ptr<FileCollection::Files> getFiles() const { return mFileCollection.getAllFiles(); }
 
-  std::shared_ptr<FileCollection::FilesMap> getFilesMap() const;
+  std::shared_ptr<FileCollection::FilesMap> getFilesMap() const { return mFileCollection.getFilesMap(); }
 
   /**
    * Adds a File to the bulk-request
    * @param file the file to add to the bulk-request File container
    */
-  virtual void addFile(std::unique_ptr<File>&& file);
+  virtual void addFile(std::unique_ptr<File>&& file) { mFileCollection.addFile(std::move(file)); }
 
   virtual ~BulkRequest() {}
 
@@ -86,13 +86,13 @@ public:
    * @param type the type of the bulk request
    * @return the string representation of the bulk request type passed in parameter
    */
-  static std::string bulkRequestTypeToString(const Type& bulkRequestType);
+  static std::string bulkRequestTypeToString(const Type& bulkRequestType) { return BULK_REQ_TYPE_TO_STRING_MAP.at(bulkRequestType); }
 
   /**
    * Returns the set of files that have an error
    * @return the set of files that have an error
    */
-  std::shared_ptr<std::set<File>> getAllFilesInError() const;
+  std::shared_ptr<std::set<File>> getAllFilesInError() const { return mFileCollection.getAllFilesInError(); }
 private:
   //Id of the bulk request
   std::string mId;

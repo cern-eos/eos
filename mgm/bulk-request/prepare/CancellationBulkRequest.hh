@@ -36,8 +36,8 @@ EOSBULKNAMESPACE_BEGIN
 class CancellationBulkRequest : public BulkRequest
 {
 public:
-  CancellationBulkRequest(const std::string& id);
-  BulkRequest::Type getType() const override;
+  CancellationBulkRequest(const std::string& id) : BulkRequest(id) {}
+  BulkRequest::Type getType() const override { return BulkRequest::Type::PREPARE_CANCEL; }
 private:
 };
 

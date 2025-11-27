@@ -26,10 +26,11 @@
 
 #include <string>
 #include <memory>
+#include <map>
+#include <functional>
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/handler/RestHandler.hh"
 #include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
-#include "mgm/http/rest-api/handler/factory/TapeRestHandlerFactory.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -73,9 +74,9 @@ public:
 private:
   //The Tape REST API configuration object
   std::unique_ptr<TapeRestApiConfig> mTapeRestApiConfig;
-  //A map of <URL, RestHandlerFactory>
-  std::map<std::string, std::unique_ptr<RestHandlerFactory>>
-      mMapAccessURLRestHandlerFactory;
+  //A map of <URL, RestHandlerCreator>
+  std::map<std::string, std::function<std::unique_ptr<rest::RestHandler>()>>
+      mMapAccessURLRestHandlerCreator;
   //URL of the wellknown access URL
   std::string mWellKnownAccessURL;
 };

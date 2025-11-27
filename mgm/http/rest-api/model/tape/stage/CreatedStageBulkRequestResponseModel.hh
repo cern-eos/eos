@@ -40,8 +40,9 @@ class CreatedStageBulkRequestResponseModel : public
   common::Jsonifiable<CreatedStageBulkRequestResponseModel>
 {
 public:
-  CreatedStageBulkRequestResponseModel(const std::string& requestId);
-  const std::string& getRequestId() const;
+  inline CreatedStageBulkRequestResponseModel(const std::string& requestId)
+    : Jsonifiable(), mRequestId(requestId) {}
+  inline const std::string& getRequestId() const { return mRequestId; }
 private:
   const std::string mRequestId;
 };
