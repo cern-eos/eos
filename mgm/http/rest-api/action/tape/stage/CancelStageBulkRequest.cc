@@ -25,10 +25,8 @@
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/utils/URLBuilder.hh"
 #include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
-#include "mgm/http/rest-api/exception/JsonValidationException.hh"
-#include "mgm/http/rest-api/exception/ObjectNotFoundException.hh"
-#include "mgm/http/rest-api/exception/tape/FileDoesNotBelongToBulkRequestException.hh"
-#include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
+#include "mgm/http/rest-api/Constants.hh"
 #include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -44,22 +42,22 @@ common::HttpResponse* CancelStageBulkRequest::run(common::HttpRequest* request,
   try {
     paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
   } catch (const JsonValidationException& ex) {
-    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
+    return mResponseFactory.BadRequest(ex).getHttpResponse();
   }
 
   //Get the id of the request from the URL
   parser.matchesAndExtractParameters(this->mAccessURLPattern, requestParameters);
-  const std::string& requestId = requestParameters[URLParametersConstants::ID];
+  const std::string& requestId = requestParameters[URLPARAM_ID];
 
   try {
     mTapeRestApiBusiness->cancelStageBulkRequest(requestId, paths.get(), vid);
   } catch (const ObjectNotFoundException& ex) {
-    return mResponseFactory.createNotFoundError().getHttpResponse();
+    return mResponseFactory.NotFound().getHttpResponse();
   } catch (const FileDoesNotBelongToBulkRequestException& ex) {
-    return mResponseFactory.createBadRequestError(ex.what()).getHttpResponse();
+    return mResponseFactory.BadRequest(ex.what()).getHttpResponse();
   }
 
-  return mResponseFactory.createOkEmptyResponse().getHttpResponse();
+  return mResponseFactory.OkEmpty().getHttpResponse();
 }
 
 

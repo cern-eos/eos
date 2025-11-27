@@ -29,7 +29,6 @@
 #include "common/http/HttpRequest.hh"
 #include "common/VirtualIdentity.hh"
 #include <XrdHttp/XrdHttpExtHandler.hh>
-#include "mgm/http/rest-api/controllers/ControllerManager.hh"
 #include <memory>
 #include <map>
 
@@ -68,7 +67,6 @@ public:
 
   virtual ~RestHandler() {}
 protected:
-  ControllerManager mControllerManager;
   std::string mEntryPointURL;
 private:
   void verifyRestApiEntryPoint(const std::string& entryPointURL) const;

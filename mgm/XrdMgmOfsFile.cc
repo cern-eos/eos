@@ -2804,7 +2804,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   // If behaviour enabled then add preference to always select the file system
   // with the lowest fsid as the server entry point
-  if (gOFS->mBehaviourCfg->Exists(eos::common::BehaviourType::RainMinFsidEntry)) {
+  if (LayoutId::IsRain(layoutId) &&
+      gOFS->mBehaviourCfg->Exists(eos::common::BehaviourType::RainMinFsidEntry)) {
     fsIndex = EnforceRainMinFsidEntry(selectedfs);
   }
 
