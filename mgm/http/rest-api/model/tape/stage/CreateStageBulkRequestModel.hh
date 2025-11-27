@@ -38,8 +38,11 @@ class CreateStageBulkRequestModel
 {
 public:
   CreateStageBulkRequestModel() {}
-  void addFile(const std::string& path, const std::string& opaqueInfos);
-  const FilesContainer& getFiles() const;
+  inline void addFile(const std::string& path, const std::string& opaqueInfos)
+  {
+    mFilesContainer.addFile(path, opaqueInfos);
+  }
+  inline const FilesContainer& getFiles() const { return mFilesContainer; }
 private:
   FilesContainer mFilesContainer;
 };

@@ -39,7 +39,7 @@ class GetArchiveInfoResponseModel
 public:
   GetArchiveInfoResponseModel(std::shared_ptr<bulk::QueryPrepareResponse>
                               queryPrepareResponse): mQueryPrepareResponse(queryPrepareResponse) {}
-  std::shared_ptr<bulk::QueryPrepareResponse> getQueryPrepareResponse() const;
+  inline std::shared_ptr<bulk::QueryPrepareResponse> getQueryPrepareResponse() const { return mQueryPrepareResponse; }
 private:
   std::shared_ptr<bulk::QueryPrepareResponse> mQueryPrepareResponse;
 };

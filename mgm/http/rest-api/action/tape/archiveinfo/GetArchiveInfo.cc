@@ -22,8 +22,7 @@
  ************************************************************************/
 
 #include "GetArchiveInfo.hh"
-#include "mgm/http/rest-api/exception/JsonValidationException.hh"
-#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -36,7 +35,7 @@ common::HttpResponse* GetArchiveInfo::run(common::HttpRequest* request,
   try {
     paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
   } catch (const JsonValidationException& ex) {
-    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
+    return mResponseFactory.BadRequest(ex).getHttpResponse();
   }
 
   //Get the information about the files
@@ -45,7 +44,7 @@ common::HttpResponse* GetArchiveInfo::run(common::HttpRequest* request,
   try {
     queryPrepareResponse = mTapeRestApiBusiness->getFileInfo(paths.get(), vid);
   } catch (const TapeRestApiBusinessException& ex) {
-    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+    return mResponseFactory.InternalError(ex.what()).getHttpResponse();
   }
 
   //Build the json response and return it to the client

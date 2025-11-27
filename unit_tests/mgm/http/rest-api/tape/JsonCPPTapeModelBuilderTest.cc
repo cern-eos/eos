@@ -23,7 +23,7 @@
 
 #include "JsonCPPTapeModelBuilderTest.hh"
 #include "mgm/http/rest-api/exception/JsonValidationException.hh"
-#include "mgm/http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.hh"
+#include "mgm/http/rest-api/json/tape/TapeModelBuilders.hh"
 
 using namespace eos::mgm::rest;
 

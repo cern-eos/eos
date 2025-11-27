@@ -28,8 +28,8 @@
 #include "mgm/bulk-request/BulkRequestFactory.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/exception/JsonValidationException.hh"
-#include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
-#include "mgm/http/rest-api/exception/tape/TapeRestApiBusinessException.hh"
+#include "mgm/http/rest-api/Constants.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "common/SymKeys.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
@@ -44,7 +44,7 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request,
     createStageBulkRequestModel = mInputJsonModelBuilder->buildFromJson(
                                     request->GetBody());
   } catch (const JsonValidationException& ex) {
-    return mResponseFactory.createBadRequestError(ex).getHttpResponse();
+    return mResponseFactory.BadRequest(ex).getHttpResponse();
   }
 
   //Create the prepare arguments
@@ -54,7 +54,7 @@ common::HttpResponse* CreateStageBulkRequest::run(common::HttpRequest* request,
     bulkRequest = mTapeRestApiBusiness->createStageBulkRequest(
                     createStageBulkRequestModel.get(), vid);
   } catch (const TapeRestApiBusinessException& ex) {
-    return mResponseFactory.createInternalServerError(ex.what()).getHttpResponse();
+    return mResponseFactory.InternalError(ex.what()).getHttpResponse();
   }
 
   //Prepare the response and return it
