@@ -609,26 +609,28 @@ int main(int argc, const char* argv[])
   } else if (cmd == "recycle") {
     if ((subcmd == "")  ||
         (subcmd == "ls")) {
-      request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::LIST);
+      request.mutable_old_recycle()->set_cmd(
+        eos::rpc::NSRequest::RecycleRequest::LIST);
     } else if (subcmd == "purge") {
       if (year) {
-        request.mutable_recycle()->mutable_purgedate()->set_year(year);
+        request.mutable_old_recycle()->mutable_purgedate()->set_year(year);
       }
 
       if (month) {
-        request.mutable_recycle()->mutable_purgedate()->set_month(month);
+        request.mutable_old_recycle()->mutable_purgedate()->set_month(month);
       }
 
       if (day) {
-        request.mutable_recycle()->mutable_purgedate()->set_day(day);
+        request.mutable_old_recycle()->mutable_purgedate()->set_day(day);
       }
 
-      request.mutable_recycle()->set_key(path);
-      request.mutable_recycle()->set_cmd(eos::rpc::NSRequest::RecycleRequest::PURGE);
+      request.mutable_old_recycle()->set_key(path);
+      request.mutable_old_recycle()->set_cmd(
+        eos::rpc::NSRequest::RecycleRequest::PURGE);
     } else if (subcmd == "restore") {
-      request.mutable_recycle()->set_cmd(
+      request.mutable_old_recycle()->set_cmd(
         eos::rpc::NSRequest::RecycleRequest::RESTORE);
-      request.mutable_recycle()->set_key(path);
+      request.mutable_old_recycle()->set_key(path);
     } else {
       std::cerr << "invalid recycle request" << std::endl;
       return EINVAL;
