@@ -75,11 +75,9 @@ make html
 - `namespace/`: Namespace implementation
 - `nginx/`: Nginx patches for EOS integration
 - `proto/`: Protobuf definitions for various components
-- `srm/`: SRM BestMan utility scripts
 - `test/`: Instance test scripts and dedicated test executables
 - `unit_tests/`: Unit tests for individual modules
 - `utils/`: Utilities and uninstall scripts
-- `var/`: Placeholder to create log, http and namespace directories
 
 ## Git submodules
 
