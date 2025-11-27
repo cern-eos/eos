@@ -36,7 +36,7 @@
 #include "common/Definitions.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include <mgm/XattrSet.hh>
+#include <mgm/xattr/XattrSet.hh>
 #include "mgm/bulk-request/File.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/bulk-request/prepare/PrepareUtils.hh"
