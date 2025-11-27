@@ -176,7 +176,7 @@ public:
   //----------------------------------------------------------------------------
   //! Demangle path from recycle bin to obtain the original path
   //!
-  //! @param recyle_path recycle path using the #.# encoding. This only
+  //! @param recyle_path recycle path using the #:# encoding. This only
   //!        contains the flattened structure without the path location
   //!        inside the recycle bin.
   //!
