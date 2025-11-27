@@ -24,24 +24,13 @@
 #include "TapeRestHandler.hh"
 #include "mgm/IMaster.hh"
 #include "mgm/http/rest-api/Constants.hh"
-#include "mgm/http/rest-api/action/tape/archiveinfo/GetArchiveInfo.hh"
-#include "mgm/http/rest-api/action/tape/release/CreateReleaseBulkRequest.hh"
-#include "mgm/http/rest-api/action/tape/stage/CancelStageBulkRequest.hh"
-#include "mgm/http/rest-api/action/tape/stage/CreateStageBulkRequest.hh"
-#include "mgm/http/rest-api/action/tape/stage/DeleteStageBulkRequest.hh"
-#include "mgm/http/rest-api/action/tape/stage/GetStageBulkRequest.hh"
+#include "mgm/http/rest-api/action/tape/TapeActions.hh"
 #include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
-#include "mgm/http/rest-api/controllers/tape/URLParametersConstants.hh"
-#include "mgm/http/rest-api/controllers/tape/factories/TapeControllerFactory.hh"
-#include "mgm/http/rest-api/exception/ControllerNotFoundException.hh"
-#include "mgm/http/rest-api/exception/ForbiddenException.hh"
-#include "mgm/http/rest-api/exception/MethodNotAllowedException.hh"
-#include "mgm/http/rest-api/exception/NotImplementedException.hh"
-#include "mgm/http/rest-api/json/tape/jsonifiers/archiveinfo/GetArchiveInfoResponseJsonifier.hh"
-#include "mgm/http/rest-api/json/tape/jsonifiers/stage/CreatedStageBulkRequestJsonifier.hh"
-#include "mgm/http/rest-api/json/tape/jsonifiers/stage/GetStageBulkRequestJsonifier.hh"
-#include "mgm/http/rest-api/json/tape/model-builders/CreateStageRequestModelBuilder.hh"
-#include "mgm/http/rest-api/json/tape/model-builders/PathsModelBuilder.hh"
+#include "mgm/http/rest-api/Constants.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
+#include "mgm/http/rest-api/json/tape/TapeJsonifiers.hh"
+#include "mgm/http/rest-api/json/tape/TapeModelBuilders.hh"
+#include "mgm/http/rest-api/response/ErrorHandling.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -75,81 +64,86 @@ TapeRestHandler::TapeRestHandler(const TapeRestApiConfig* config): RestHandler(
 void TapeRestHandler::initialize(TapeRestHandler::ApiVersion apiVersion) {
   std::shared_ptr<TapeRestApiBusiness> restApiBusiness =
       std::make_shared<TapeRestApiBusiness>();
-  std::unique_ptr<Controller> stageController;
   switch (apiVersion) {
   case ApiVersion::V0Dot1:
-    stageController = TapeControllerFactory::getNotImplementedController(mEntryPointURL + apiVersionToStr(apiVersion) +"/stage/");
+    // No routes exposed for v0.1
     break;
   case ApiVersion::V1:
-    stageController = initializeStageController(apiVersion, restApiBusiness);
+    initializeStageRoutes(apiVersion, restApiBusiness);
     break ;
   default:
     throw std::invalid_argument("Unknown Tape REST API version. Failed to initialize.");
   }
-  mControllerManager.addController(std::move(stageController));
-  std::unique_ptr<Controller> fileInfoController = initializeArchiveinfoController(apiVersion, restApiBusiness);
-  mControllerManager.addController(std::move(fileInfoController));
-  std::unique_ptr<Controller> releaseController = initializeReleaseController(apiVersion, restApiBusiness);
-  mControllerManager.addController(std::move(releaseController));
+  initializeArchiveinfoRoutes(apiVersion, restApiBusiness);
+  initializeReleaseRoutes(apiVersion, restApiBusiness);
 }
 
-std::unique_ptr<Controller> TapeRestHandler::initializeStageController(
+void TapeRestHandler::initializeStageRoutes(
   TapeRestHandler::ApiVersion apiVersion,
   std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness)
 {
-  std::unique_ptr<Controller> stageController(
-    TapeControllerFactory::getStageController(mEntryPointURL + apiVersionToStr(apiVersion) +
-        "/stage/", mTapeRestApiConfig));
-  const std::string& controllerAccessURL = stageController->getAccessURL();
-  stageController->addAction(std::make_unique<CreateStageBulkRequest>
-                             (controllerAccessURL, common::HttpHandler::Methods::POST, tapeRestApiBusiness,
-                              std::make_shared<CreateStageRequestModelBuilder>
-                              (mTapeRestApiConfig->getSiteName()),
-                              std::make_shared<CreatedStageBulkRequestJsonifier>(), this));
-  stageController->addAction(std::make_unique<CancelStageBulkRequest>
-                             (controllerAccessURL + "/" + URLParametersConstants::ID + "/cancel",
-                              common::HttpHandler::Methods::POST, tapeRestApiBusiness,
-                              std::make_shared<PathsModelBuilder>()));
-  stageController->addAction(std::make_unique<GetStageBulkRequest>
-                             (controllerAccessURL + "/" + URLParametersConstants::ID,
-                              common::HttpHandler::Methods::GET, tapeRestApiBusiness,
-                              std::make_shared<GetStageBulkRequestJsonifier>()));
-  stageController->addAction(std::make_unique<DeleteStageBulkRequest>
-                             (controllerAccessURL + "/" + URLParametersConstants::ID,
-                              common::HttpHandler::Methods::DELETE, tapeRestApiBusiness));
-  return stageController;
+  const std::string controllerAccessURL = mEntryPointURL + apiVersionToStr(apiVersion) + "/stage/";
+  mActions.emplace_back(std::make_unique<CreateStageBulkRequest>(
+                           controllerAccessURL, common::HttpHandler::Methods::POST, tapeRestApiBusiness,
+                           std::make_shared<CreateStageRequestModelBuilder>(mTapeRestApiConfig->getSiteName()),
+                           std::make_shared<CreatedStageBulkRequestJsonifier>(), this));
+  auto* createStage = mActions.back().get();
+  mRouter.add(controllerAccessURL, common::HttpHandler::Methods::POST,
+              [createStage](auto* req, auto* vid) { return createStage->run(req, vid); });
+
+  mActions.emplace_back(std::make_unique<CancelStageBulkRequest>(
+                           controllerAccessURL + "/" + URLPARAM_ID + "/cancel",
+                           common::HttpHandler::Methods::POST, tapeRestApiBusiness,
+                           std::make_shared<PathsModelBuilder>()));
+  auto* cancelStage = mActions.back().get();
+  mRouter.add(controllerAccessURL + "/" + URLPARAM_ID + "/cancel",
+              common::HttpHandler::Methods::POST,
+              [cancelStage](auto* req, auto* vid) { return cancelStage->run(req, vid); });
+
+  mActions.emplace_back(std::make_unique<GetStageBulkRequest>(
+                           controllerAccessURL + "/" + URLPARAM_ID,
+                           common::HttpHandler::Methods::GET, tapeRestApiBusiness,
+                           std::make_shared<GetStageBulkRequestJsonifier>()));
+  auto* getStage = mActions.back().get();
+  mRouter.add(controllerAccessURL + "/" + URLPARAM_ID,
+              common::HttpHandler::Methods::GET,
+              [getStage](auto* req, auto* vid) { return getStage->run(req, vid); });
+
+  mActions.emplace_back(std::make_unique<DeleteStageBulkRequest>(
+                           controllerAccessURL + "/" + URLPARAM_ID,
+                           common::HttpHandler::Methods::DELETE, tapeRestApiBusiness));
+  auto* deleteStage = mActions.back().get();
+  mRouter.add(controllerAccessURL + "/" + URLPARAM_ID,
+              common::HttpHandler::Methods::DELETE,
+              [deleteStage](auto* req, auto* vid) { return deleteStage->run(req, vid); });
 }
 
-std::unique_ptr<Controller> TapeRestHandler::initializeArchiveinfoController(
+void TapeRestHandler::initializeArchiveinfoRoutes(
   TapeRestHandler::ApiVersion apiVersion,
   std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness)
 {
-  std::unique_ptr<Controller> archiveInfoController(
-    TapeControllerFactory::getArchiveInfoController(mEntryPointURL + apiVersionToStr(apiVersion) +
-        "/archiveinfo/"));
-  const std::string& archiveinfoControllerAccessURL =
-    archiveInfoController->getAccessURL();
-  archiveInfoController->addAction(std::make_unique<GetArchiveInfo>(
-                                     archiveinfoControllerAccessURL, common::HttpHandler::Methods::POST,
-                                     tapeRestApiBusiness, std::make_shared<PathsModelBuilder>(),
-                                     std::make_shared<GetArchiveInfoResponseJsonifier>()));
-  return archiveInfoController;
+  const std::string accessURL = mEntryPointURL + apiVersionToStr(apiVersion) + "/archiveinfo/";
+  mActions.emplace_back(std::make_unique<GetArchiveInfo>(
+                           accessURL, common::HttpHandler::Methods::POST,
+                           tapeRestApiBusiness, std::make_shared<PathsModelBuilder>(),
+                           std::make_shared<GetArchiveInfoResponseJsonifier>()));
+  auto* getArchiveInfo = mActions.back().get();
+  mRouter.add(accessURL, common::HttpHandler::Methods::POST,
+              [getArchiveInfo](auto* req, auto* vid) { return getArchiveInfo->run(req, vid); });
 }
 
-std::unique_ptr<Controller> TapeRestHandler::initializeReleaseController(
+void TapeRestHandler::initializeReleaseRoutes(
   TapeRestHandler::ApiVersion apiVersion,
   std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness)
 {
-  std::unique_ptr<Controller> releaseController(
-    TapeControllerFactory::getReleaseController(mEntryPointURL + apiVersionToStr(apiVersion) +
-        "/release/"));
-  const std::string& releaseControllerAccessURL =
-    releaseController->getAccessURL();
-  releaseController->addAction(std::make_unique<CreateReleaseBulkRequest>
-                               (releaseControllerAccessURL + URLParametersConstants::ID,
-                                common::HttpHandler::Methods::POST, tapeRestApiBusiness,
-                                std::make_shared<PathsModelBuilder>()));
-  return releaseController;
+  const std::string accessURL = mEntryPointURL + apiVersionToStr(apiVersion) + "/release/";
+  mActions.emplace_back(std::make_unique<CreateReleaseBulkRequest>(
+                           accessURL + URLPARAM_ID,
+                           common::HttpHandler::Methods::POST, tapeRestApiBusiness,
+                           std::make_shared<PathsModelBuilder>()));
+  auto* createRelease = mActions.back().get();
+  mRouter.add(accessURL + URLPARAM_ID, common::HttpHandler::Methods::POST,
+              [createRelease](auto* req, auto* vid) { return createRelease->run(req, vid); });
 }
 
 void TapeRestHandler::initializeTapeWellKnownInfos()
@@ -224,36 +218,12 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest*
   std::string url = request->GetUrl();
 
   if (gOFS != nullptr && !gOFS->mMaster->IsMaster()) {
-    return mTapeRestApiResponseFactory.createInternalServerError("The tape REST API can only be called on a MASTER MGM").getHttpResponse();
+    return mTapeRestApiResponseFactory.InternalError("The tape REST API can only be called on a MASTER MGM").getHttpResponse();
   }
 
-  try {
-    Controller* controller = mControllerManager.getController(url);
-    return controller->handleRequest(request, vid);
-  } catch (const NotFoundException& ex) {
-    eos_static_info(ex.what());
-    return mTapeRestApiResponseFactory.createNotFoundError().getHttpResponse();
-  } catch (const MethodNotAllowedException& ex) {
-    eos_static_info(ex.what());
-    return mTapeRestApiResponseFactory.createMethodNotAllowedError(
-             ex.what()).getHttpResponse();
-  } catch (const ForbiddenException& ex) {
-    eos_static_info(ex.what());
-    return mTapeRestApiResponseFactory.createForbiddenError(
-             ex.what()).getHttpResponse();
-  } catch (const NotImplementedException& ex) {
-    eos_static_info(ex.what());
-    return mTapeRestApiResponseFactory.createNotImplementedError().getHttpResponse();
-  } catch (const RestException& ex) {
-    eos_static_info(ex.what());
-    return mTapeRestApiResponseFactory.createInternalServerError(
-             ex.what()).getHttpResponse();
-  } catch (...) {
-    std::string errorMsg = "Unknown exception occured";
-    eos_static_err(errorMsg.c_str());
-    return mTapeRestApiResponseFactory.createInternalServerError(
-             errorMsg).getHttpResponse();
-  }
+  return HandleWithErrors(mTapeRestApiResponseFactory, [&]() {
+    return mRouter.dispatch(request, vid);
+  });
 }
 
 std::unique_ptr<URLBuilder> TapeRestHandler::getAccessURLBuilder() const

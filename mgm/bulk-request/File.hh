@@ -38,24 +38,32 @@ EOSBULKNAMESPACE_BEGIN
 class File
 {
 public:
-
-  File();
-  File(const std::string& path);
-  void setPath(const std::string& path);
-  void setError(const std::string& error);
-  void setError(const std::optional<std::string>& error);
+  File() {}
+  File(const std::string& path): mPath(path) {}
+  void setPath(const std::string& path) { mPath = path; }
+  void setError(const std::string& error) {
+    if (!error.empty()) {
+      std::optional<std::string> errorOpt(error);
+      setError(errorOpt);
+    }
+  }
+  void setError(const std::optional<std::string>& error) { mError = error; }
   /**
    * Set the error passed in parameter to the file
    * only if there is not already an error set
    * @param error the error to set
    */
-  void setErrorIfNotAlreadySet(const std::string& error);
+  void setErrorIfNotAlreadySet(const std::string& error) {
+    if (!getError()) {
+      setError(error);
+    }
+  }
 
-  const std::string getPath() const;
-  const std::optional<std::string> getError() const;
+  const std::string getPath() const { return mPath; }
+  const std::optional<std::string> getError() const { return mError; }
 
-  bool operator==(const File& other) const;
-  bool operator<(const File& other) const;
+  bool operator==(const File& other) const { return getPath() == other.getPath(); }
+  bool operator<(const File& other) const { return getPath() < other.getPath(); }
 
 private:
   /**

@@ -26,42 +26,11 @@
 #define EOS_CREATESTAGEBULKREQUEST_HH
 
 #include "mgm/Namespace.hh"
-#include "mgm/http/rest-api/action/tape/TapeAction.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
-#include "mgm/http/rest-api/json/builder/JsonModelBuilder.hh"
-#include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
-#include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
-#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
-#include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
-#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/action/tape/TapeActions.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-class CreateStageBulkRequest : public TapeAction
-{
-public:
-  CreateStageBulkRequest(const std::string& accessURL,
-                         const common::HttpHandler::Methods method,
-                         std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness,
-                         std::shared_ptr<JsonModelBuilder<CreateStageBulkRequestModel>>
-                         inputJsonModelBuilder,
-                         std::shared_ptr<TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>>
-                         outputObjectJsonifier,
-                         const TapeRestHandler* tapeRestHandler): TapeAction(accessURL, method,
-                               tapeRestApiBusiness),
-    mInputJsonModelBuilder(inputJsonModelBuilder),
-    mOutputObjectJsonifier(outputObjectJsonifier),
-    mTapeRestHandler(tapeRestHandler) {}
-  common::HttpResponse* run(common::HttpRequest* request,
-                            const common::VirtualIdentity* vid) override;
-private:
-  const std::string generateAccessURL(const std::string& bulkRequestId);
-  std::shared_ptr<JsonModelBuilder<CreateStageBulkRequestModel>>
-      mInputJsonModelBuilder;
-  std::shared_ptr<TapeRestApiJsonifier<CreatedStageBulkRequestResponseModel>>
-      mOutputObjectJsonifier;
-  const TapeRestHandler* mTapeRestHandler;
-};
+using CreateStageBulkRequest = CreateStageBulkRequest;
 
 EOSMGMRESTNAMESPACE_END
 

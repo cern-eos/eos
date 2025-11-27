@@ -37,8 +37,10 @@ EOSMGMRESTNAMESPACE_BEGIN
 class JsonValidationException : public RestException
 {
 public:
-  JsonValidationException(const std::string& exceptionMsg);
-  JsonValidationException(std::unique_ptr<ValidationErrors>&& validationErrors);
+  inline JsonValidationException(const std::string& exceptionMsg)
+    : RestException(exceptionMsg) {}
+  inline JsonValidationException(std::unique_ptr<ValidationErrors>&& validationErrors)
+    : RestException("JSON validation error"), mValidationErrors(std::move(validationErrors)) {}
   inline const ValidationErrors* getValidationErrors() const
   {
     return mValidationErrors.get();

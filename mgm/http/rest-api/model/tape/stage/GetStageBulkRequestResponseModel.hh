@@ -47,12 +47,12 @@ public:
     bool mOnDisk;
   };
   GetStageBulkRequestResponseModel() {}
-  void addFile(std::unique_ptr<File>&& file);
-  const std::vector<std::unique_ptr<File>>& getFiles() const;
-  time_t getCreationTime() const;
-  std::string getId() const;
-  void setCreationTime(const time_t& creationTime);
-  void setId(const std::string& id);
+  inline void addFile(std::unique_ptr<File>&& file) { mFiles.emplace_back(std::move(file)); }
+  inline const std::vector<std::unique_ptr<File>>& getFiles() const { return mFiles; }
+  inline time_t getCreationTime() const { return mCreationTime; }
+  inline std::string getId() const { return mId; }
+  inline void setCreationTime(const time_t& creationTime) { mCreationTime = creationTime; }
+  inline void setId(const std::string& id) { mId = id; }
 private:
   std::vector<std::unique_ptr<File>> mFiles;
   time_t mCreationTime;

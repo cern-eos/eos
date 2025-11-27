@@ -32,8 +32,8 @@ EOSBULKNAMESPACE_BEGIN
 class EvictBulkRequest : public BulkRequest
 {
 public:
-  EvictBulkRequest(const std::string& id);
-  BulkRequest::Type getType() const override;
+  EvictBulkRequest(const std::string& id) : BulkRequest(id) {}
+  BulkRequest::Type getType() const override { return BulkRequest::Type::PREPARE_EVICT; }
 };
 
 EOSBULKNAMESPACE_END

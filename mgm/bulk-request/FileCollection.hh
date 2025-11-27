@@ -39,8 +39,16 @@ EOSBULKNAMESPACE_BEGIN
 class FileCollection
 {
 public:
-  FileCollection();
-  FileCollection& operator=(const FileCollection& other);
+  FileCollection() {
+    mFiles.reset(new FilesMap());
+    mFilesInsertOrder.reset(new FilesInsertOrder());
+  }
+  FileCollection& operator=(const FileCollection& other) {
+    if (this != &other) {
+      this->mFiles = other.mFiles;
+    }
+    return *this;
+  }
   /**
    * The collection is a map of <path,File>
    */
@@ -53,23 +61,41 @@ public:
    * will be the file itself
    * @param file the file to add to this collection
    */
-  void addFile(std::unique_ptr<File>&& file);
+  void addFile(std::unique_ptr<File>&& file) {
+    auto insertedElementItor = mFiles->insert(
+      std::pair<std::string, std::unique_ptr<File>>(file->getPath(), std::move(file)));
+    mFilesInsertOrder->emplace_back(insertedElementItor);
+  }
   /**
    * Returns all the files that belongs to this collection
    * @return the pointer of the collection (map) managed by this class
    */
-  const std::shared_ptr<FileCollection::Files> getAllFiles() const;
+  const std::shared_ptr<FileCollection::Files> getAllFiles() const {
+    std::shared_ptr<FileCollection::Files> ret = std::make_shared<FileCollection::Files>();
+    for (auto& itor : *mFilesInsertOrder) {
+      ret->emplace_back(itor->second.get());
+    }
+    return ret;
+  }
 
   /**
    * Returns the pointer of the map<path,File> that contains the files of this collection
    * @return the pointer of the map<path,File> that contains the files of this collection
    */
-  const std::shared_ptr<FileCollection::FilesMap> getFilesMap() const;
+  const std::shared_ptr<FileCollection::FilesMap> getFilesMap() const { return mFiles; }
   /**
    * Returns the files that have an error
    * @return the files that have an error
    */
-  const std::shared_ptr<std::set<File>> getAllFilesInError() const;
+  const std::shared_ptr<std::set<File>> getAllFilesInError() const {
+    std::shared_ptr<std::set<File>> filesInError(new std::set<File>());
+    for (const auto& pathFile : *mFiles) {
+      if (pathFile.second->getError()) {
+        filesInError->insert(*pathFile.second);
+      }
+    }
+    return filesInError;
+  }
 private:
   std::shared_ptr<FileCollection::FilesMap> mFiles;
   std::shared_ptr<FileCollection::FilesInsertOrder> mFilesInsertOrder;

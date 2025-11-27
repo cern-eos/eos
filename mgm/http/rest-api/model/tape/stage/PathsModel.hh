@@ -39,8 +39,8 @@ class PathsModel
 {
 public:
   PathsModel() = default;
-  void addFile(const std::string& path);
-  const FilesContainer& getFiles() const;
+  inline void addFile(const std::string& path) { mFilesContainer.addFile(path); }
+  inline const FilesContainer& getFiles() const { return mFilesContainer; }
 private:
   FilesContainer mFilesContainer;
 };

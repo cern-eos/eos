@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: CreateReleaseBulkRequest.cc
-// Author: Cedric Caffy - CERN
+// File: ErrorHandling.hh
+// Author: Refactor - Centralized error to response mapping
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2013 CERN/Switzerland                                  *
+ * Copyright (C) CERN/Switzerland                                       *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,31 +21,44 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "CreateReleaseBulkRequest.hh"
+#ifndef EOS_REST_ERROR_HANDLING_HH
+#define EOS_REST_ERROR_HANDLING_HH
+
+#include "common/Logging.hh"
+#include "common/http/HttpResponse.hh"
 #include "mgm/http/rest-api/exception/Exceptions.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-common::HttpResponse*
-CreateReleaseBulkRequest::run(common::HttpRequest* request,
-                              const common::VirtualIdentity* vid)
+template <typename ResponseFactory, typename Fn>
+common::HttpResponse* HandleWithErrors(ResponseFactory & responseFactory, Fn fn)
 {
-  std::unique_ptr<PathsModel> paths;
-
   try {
-    paths = mInputJsonModelBuilder->buildFromJson(request->GetBody());
-  } catch (const JsonValidationException& ex) {
-    return mResponseFactory.BadRequest(ex).getHttpResponse();
+    return fn();
+  } catch (const NotFoundException& ex) {
+    eos_static_info(ex.what());
+    return responseFactory.NotFound().getHttpResponse();
+  } catch (const MethodNotAllowedException& ex) {
+    eos_static_info(ex.what());
+    return responseFactory.MethodNotAllowed(ex.what()).getHttpResponse();
+  } catch (const ForbiddenException& ex) {
+    eos_static_info(ex.what());
+    return responseFactory.Forbidden(ex.what()).getHttpResponse();
+  } catch (const NotImplementedException& ex) {
+    eos_static_info(ex.what());
+    return responseFactory.NotImplemented().getHttpResponse();
+  } catch (const RestException& ex) {
+    eos_static_info(ex.what());
+    return responseFactory.InternalError(ex.what()).getHttpResponse();
+  } catch (...) {
+    std::string errorMsg = "Unknown exception occured";
+    eos_static_err(errorMsg.c_str());
+    return responseFactory.InternalError(errorMsg).getHttpResponse();
   }
-
-  //release the files provided by the user
-  try {
-    mTapeRestApiBusiness->releasePaths(paths.get(), vid);
-  } catch (const TapeRestApiBusinessException& ex) {
-    return mResponseFactory.InternalError(ex.what()).getHttpResponse();
-  }
-
-  return mResponseFactory.OkEmpty().getHttpResponse();
 }
 
 EOSMGMRESTNAMESPACE_END
+
+#endif // EOS_REST_ERROR_HANDLING_HH
+
+
