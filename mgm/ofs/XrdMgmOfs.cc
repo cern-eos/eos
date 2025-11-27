@@ -50,7 +50,7 @@
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
 #include "grpc/GrpcRestGwServer.hh"
-#include "mgm/Constants.hh"
+#include "mgm/misc/Constants.hh"
 #include "mgm/adminsocket/AdminSocket.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/access/Access.hh"

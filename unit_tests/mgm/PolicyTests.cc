@@ -1,5 +1,5 @@
 #include "mgm/policy/Policy.hh"
-#include "mgm/Constants.hh"
+#include "mgm/misc/Constants.hh"
 #include "gtest/gtest.h"
 
 using namespace eos::mgm;

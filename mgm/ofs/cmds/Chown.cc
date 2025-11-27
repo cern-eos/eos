@@ -28,7 +28,7 @@
 // -----------------------------------------------------------------------
 #include "proto/Audit.pb.h"
 #include "mgm/stat/Stat.hh"
-#include "mgm/AuditHelpers.hh"
+#include "mgm/misc/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/
 int

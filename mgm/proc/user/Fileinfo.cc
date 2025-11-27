@@ -23,7 +23,7 @@
 
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/Constants.hh"
+#include "mgm/misc/Constants.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/quota/Quota.hh"

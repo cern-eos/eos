@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/FuseServer/Server.hh"
-#include "mgm/Constants.hh"
+#include "mgm/misc/Constants.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
@@ -50,7 +50,7 @@
 #include <thread>
 #include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"
-#include "mgm/AuditHelpers.hh"
+#include "mgm/misc/AuditHelpers.hh"
 
 USE_EOSMGMNAMESPACE
 

@@ -29,7 +29,7 @@
 #include "proto/Audit.pb.h"
 #include <time.h>
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/AuditHelpers.hh"
+#include "mgm/misc/AuditHelpers.hh"
 
 /*----------------------------------------------------------------------------*/
 int

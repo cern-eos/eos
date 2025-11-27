@@ -32,7 +32,7 @@
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/xattr/XattrLock.hh"
-#include "mgm/Constants.hh"
+#include "mgm/misc/Constants.hh"
 #include "common/Utils.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"

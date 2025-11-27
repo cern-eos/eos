@@ -32,7 +32,7 @@
 #include "common/Strerror_r_wrapper.hh"
 #include "common/BehaviourConfig.hh"
 #include "common/Utils.hh"
-#include "mgm/Constants.hh"
+#include "mgm/misc/Constants.hh"
 #include "mgm/access/Access.hh"
 #include "mgm/convert/ConversionTag.hh"
 #include "mgm/filesystem/FileSystem.hh"
@@ -64,7 +64,7 @@
 #include "common/Constants.hh"
 #include <XrdOuc/XrdOucPgrwUtils.hh>
 #include "mgm/ofs/XrdMgmOfsTrace.hh"
-#include "mgm/AuditHelpers.hh"
+#include "mgm/misc/AuditHelpers.hh"
 
 
 #ifdef __APPLE__

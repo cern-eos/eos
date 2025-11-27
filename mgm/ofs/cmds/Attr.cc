@@ -28,7 +28,7 @@
 
 #include "mgm/ofs/XrdMgmOfsTrace.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/AuditHelpers.hh"
+#include "mgm/misc/AuditHelpers.hh"
 
 //------------------------------------------------------------------------------
 // List extended attributes for a given file/directory - high-level API.
