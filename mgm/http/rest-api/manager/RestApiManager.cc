@@ -22,18 +22,21 @@
  ************************************************************************/
 
 #include "RestApiManager.hh"
-#include "mgm/http/rest-api/handler/factory/WellKnownRestHandlerFactory.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/handler/wellknown/WellKnownHandler.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 RestApiManager::RestApiManager()
 {
   mTapeRestApiConfig = std::make_unique<TapeRestApiConfig>();
-  mMapAccessURLRestHandlerFactory[mTapeRestApiConfig->getAccessURL()] =
-    std::make_unique<TapeRestHandlerFactory>(mTapeRestApiConfig.get());
-  mMapAccessURLRestHandlerFactory[getWellKnownAccessURL()] =
-    std::make_unique<WellKnownRestHandlerFactory>(this);
+  mMapAccessURLRestHandlerCreator[mTapeRestApiConfig->getAccessURL()] = [this]() {
+    return std::unique_ptr<rest::RestHandler>(new rest::TapeRestHandler(mTapeRestApiConfig.get()));
+  };
+  mMapAccessURLRestHandlerCreator[getWellKnownAccessURL()] = [this]() {
+    return std::unique_ptr<rest::RestHandler>(new rest::WellKnownHandler(getWellKnownAccessURL(), this));
+  };
 }
 
 bool RestApiManager::isRestRequest(const std::string& requestURL) const
@@ -55,14 +58,14 @@ std::unique_ptr<rest::RestHandler> RestApiManager::getRestHandler(
   const std::string& requestURL) const
 {
   const auto& restHandlerFactory = std::find_if(
-                                     mMapAccessURLRestHandlerFactory.begin(),
-  mMapAccessURLRestHandlerFactory.end(), [&requestURL](const auto & kv) {
+                                     mMapAccessURLRestHandlerCreator.begin(),
+  mMapAccessURLRestHandlerCreator.end(), [&requestURL](const auto & kv) {
     URLParser parser(requestURL);
     return parser.startsBy(kv.first);
   });
 
-  if (restHandlerFactory != mMapAccessURLRestHandlerFactory.end()) {
-    return restHandlerFactory->second->createRestHandler();
+  if (restHandlerFactory != mMapAccessURLRestHandlerCreator.end()) {
+    return restHandlerFactory->second();
   }
 
   return nullptr;

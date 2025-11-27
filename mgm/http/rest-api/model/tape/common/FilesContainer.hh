@@ -27,6 +27,7 @@
 #include "mgm/Namespace.hh"
 #include <vector>
 #include <string>
+#include "mgm/http/rest-api/utils/URLParser.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -38,10 +39,16 @@ class FilesContainer
 {
 public:
   FilesContainer() = default;
-  void addFile(const std::string& path);
-  void addFile(const std::string& path, const std::string& opaqueInfo);
-  const std::vector<std::string>& getPaths() const;
-  const std::vector<std::string>& getOpaqueInfos() const;
+  inline void addFile(const std::string& path) { addFile(path, ""); }
+  inline void addFile(const std::string& path, const std::string& opaqueInfo)
+  {
+    mPaths.push_back(path);
+    std::string& insertedPath = mPaths.back();
+    URLParser::removeDuplicateSlashes(insertedPath);
+    mOpaqueInfos.push_back(opaqueInfo);
+  }
+  inline const std::vector<std::string>& getPaths() const { return mPaths; }
+  inline const std::vector<std::string>& getOpaqueInfos() const { return mOpaqueInfos; }
 private:
   std::vector<std::string> mPaths;
   std::vector<std::string> mOpaqueInfos;

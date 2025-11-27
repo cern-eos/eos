@@ -26,10 +26,15 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/handler/RestHandler.hh"
-#include "mgm/http/rest-api/manager/RestApiManager.hh"
-#include "mgm/http/rest-api/response/wellknown/WellKnownResponseFactory.hh"
+#include "mgm/http/rest-api/response/RestResponseFactory.hh"
+#include "mgm/http/rest-api/router/Router.hh"
+#include "mgm/http/rest-api/action/Action.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include <memory>
 
 EOSMGMRESTNAMESPACE_BEGIN
+
+class RestApiManager;
 
 class WellKnownHandler : public RestHandler
 {
@@ -46,9 +51,11 @@ public:
                                       const common::VirtualIdentity* vid) override;
 
 private:
-  void initializeControllers();
+  void initializeRoutes();
   const RestApiManager* mRestApiManager;
-  WellKnownResponseFactory mWellknownResponseFactory;
+  RestResponseFactory mWellknownResponseFactory;
+  Router mRouter;
+  std::vector<std::unique_ptr<Action>> mActions;
 };
 
 EOSMGMRESTNAMESPACE_END

@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "RestHandler.hh"
-#include "mgm/http/rest-api/exception/RestException.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "common/Logging.hh"
 #include "common/RegexWrapper.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"

@@ -28,7 +28,7 @@
 #include "mgm/http/rest-api/json/builder/JsonModelBuilder.hh"
 #include <json/json.h>
 #include <sstream>
-#include "mgm/http/rest-api/exception/JsonValidationException.hh"
+#include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/http/rest-api/json/builder/ValidationError.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN

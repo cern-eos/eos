@@ -33,6 +33,9 @@ static constexpr auto TAPE_REST_API_SWITCH_ON_OFF = "taperestapi.status";
 //The name of the tape REST API STAGE resource switch on/off
 static constexpr auto TAPE_REST_API_STAGE_SWITCH_ON_OFF = "taperestapi.stage";
 
+// URL parameter tokens
+static const inline std::string URLPARAM_ID = "{id}";
+
 EOSMGMRESTNAMESPACE_END
 
 #endif // EOS_RESTAPI_CONSTANTS_HH

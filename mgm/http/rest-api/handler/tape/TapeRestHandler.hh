@@ -27,9 +27,10 @@
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/handler/RestHandler.hh"
 #include "mgm/http/rest-api/business/tape/ITapeRestApiBusiness.hh"
-#include "mgm/http/rest-api/controllers/Controller.hh"
+#include "mgm/http/rest-api/router/Router.hh"
+#include "mgm/http/rest-api/action/Action.hh"
 #include "common/VirtualIdentity.hh"
-#include "mgm/http/rest-api/response/tape/factories/TapeRestApiResponseFactory.hh"
+#include "mgm/http/rest-api/response/RestResponseFactory.hh"
 #include "mgm/http/rest-api/config/tape/TapeRestApiConfig.hh"
 #include "mgm/http/rest-api/utils/URLBuilder.hh"
 #include "mgm/http/rest-api/wellknown/tape/TapeWellKnownInfos.hh"
@@ -106,9 +107,8 @@ private:
    * @param config the configuration of the tape REST API
    * @return the StageController for a specific version
    */
-  std::unique_ptr<Controller>
-  initializeStageController(TapeRestHandler::ApiVersion apiVersion,
-                            std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+  void initializeStageRoutes(TapeRestHandler::ApiVersion apiVersion,
+                             std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
 
   /**
    * Initializes the ARCHIVEINFO controller for a specific version
@@ -116,18 +116,16 @@ private:
    * @param tapeRestApiBusiness the business layer of the tape REST API
    * @return the ArchiveInfoController for a specific version
    */
-  std::unique_ptr<Controller> initializeArchiveinfoController(
-      TapeRestHandler::ApiVersion apiVersion,
-      std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+  void initializeArchiveinfoRoutes(TapeRestHandler::ApiVersion apiVersion,
+                                   std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
   /**
    * Initializes the RELEASE controller for a specific version
    * @param apiVersion the version to apply to this RELEASE controller
    * @param tapeRestApiBusiness the business layer of the tape REST API
    * @return the ReleaseController for a specific version
    */
-  std::unique_ptr<Controller> initializeReleaseController(
-      TapeRestHandler::ApiVersion apiVersion,
-      std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
+  void initializeReleaseRoutes(TapeRestHandler::ApiVersion apiVersion,
+                               std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness);
 
   /**
    * Initialize the well-known information
@@ -153,9 +151,11 @@ private:
   /**
    * HttpResponse factory for the tape REST API
    */
-  TapeRestApiResponseFactory mTapeRestApiResponseFactory;
+  RestResponseFactory mTapeRestApiResponseFactory;
   const TapeRestApiConfig* mTapeRestApiConfig;
   std::unique_ptr<TapeWellKnownInfos> mTapeWellKnownInfos;
+  Router mRouter;
+  std::vector<std::unique_ptr<Action>> mActions;
 };
 
 EOSMGMRESTNAMESPACE_END
