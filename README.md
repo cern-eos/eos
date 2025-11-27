@@ -101,6 +101,17 @@ Use the EOS Diopside dependency repository.
 Follow the official installation instructions here:
 [EOS Diopside Manual – Installation](https://eos-docs.web.cern.ch/diopside/manual/hardware-installation.html#installation).
 
+```bash
+yum install -y git gcc cmake cmake3 readline readline-devel fuse fuse-devel \
+leveldb leveldb-devel binutils-devel zlib zlib-devel zlib-static \
+bzip2 bzip2-devel libattr libattr-devel libuuid libuuid-devel \
+xfsprogs xfsprogs-devel sparsehash-devel e2fsprogs e2fsprogs-devel \
+openssl openssl-devel openssl-static eos-folly eos-rocksdb ncurses \
+ncurses-devel ncurses-static protobuf3-devel openldap-devel \
+hiredis-devel zeromq-devel jsoncpp-devel xrootd xrootd-server-devel \
+xrootd-client-devel xrootd-private-devel cppzmq-devel libcurl-devel \
+libevent-devel jemalloc jemalloc-devel
+```
 ## Build
 
 To build **EOS**, you need **gcc (>=7)** with **C++17 features** and **CMake**
