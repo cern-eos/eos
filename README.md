@@ -67,7 +67,6 @@ make html
 - `doc/`: Doxygen and Sphinx documentation
 - `etc/`: Log rotation files
 - `fst/`: The Storage Server Plugin (FST)
-- `fuse/`: The FUSE mount client (eosd low-level API)
 - `fusex/`: Next generation bi-directional FUSE mount client with high-end features
 - `man/`: Manual pages
 - `mgm/`: Metadata Namespace and Scheduling Redirector Plugin (MGM)
@@ -77,11 +76,26 @@ make html
 - `nginx/`: Nginx patches for EOS integration
 - `proto/`: Protobuf definitions for various components
 - `srm/`: SRM BestMan utility scripts
-- `sync/`: File/directory synchronization programs
 - `test/`: Instance test scripts and dedicated test executables
 - `unit_tests/`: Unit tests for individual modules
 - `utils/`: Utilities and uninstall scripts
 - `var/`: Placeholder to create log, http and namespace directories
+
+## Git submodules
+
+Some components are maintained in separate upstream repositories and brought in as git submodules. Make sure submodules are initialized and kept up-to-date:
+
+```bash
+git submodule update --init --recursive
+# To refresh later
+git submodule update --recursive --remote
+```
+
+Submodules currently used:
+- `quarkdb/`: QuarkDB client/server sources used by MGM for QuarkDB-backed services (e.g., QDB master, metadata/services that rely on QuarkDB).
+- `common/xrootd-ssi-protobuf-interface/`: XRootD SSI + Protobuf interface headers used by EOS gRPC/SSI integrations and CTA-related workflows.
+
+Tip: See `.gitmodules` for the authoritative list and remote URLs.
 
 ## Dependencies
 
