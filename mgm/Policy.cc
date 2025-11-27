@@ -233,7 +233,7 @@ Policy::GetLayoutAndSpace(const char* path,
     }
   }
 
-  forcedgroup = eos::common::XrdUtils::GetEnv(env, "eos.group", (long) -1);
+  common::XrdUtils::GetEnv(env, "eos.group", forcedgroup,  -1l);
 
   if ((xsum != eos::common::LayoutId::kNone) &&
       (val = env.Get("eos.checksum.noforce"))) {
@@ -473,7 +473,7 @@ Policy::GetLayoutAndSpace(const char* path,
       eos_static_debug("<sys|user>.forced.nofsselection in %s", path);
       forcedfsid = 0;
     } else {
-      forcedfsid = eos::common::XrdUtils::GetEnv(env, "eos.force.fsid", 0l);
+      common::XrdUtils::GetEnv(env, "eos.force.fsid", forcedfsid, 0ul);
     }
   }
 
