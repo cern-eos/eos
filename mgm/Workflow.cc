@@ -111,7 +111,7 @@ Workflow::Trigger(const std::string& event, std::string workflow,
 
 /*----------------------------------------------------------------------------*/
 std::string
-Workflow::getCGICloseW(std::string workflow,
+Workflow::getCGICloseW(const std::string& workflow,
                        const eos::common::VirtualIdentity& vid)
 {
   std::string cgi;
@@ -176,7 +176,7 @@ Workflow::getCGICloseW(std::string workflow,
 
 /*----------------------------------------------------------------------------*/
 std::string
-Workflow::getCGICloseR(std::string workflow)
+Workflow::getCGICloseR(const std::string& workflow)
 {
   std::string cgi;
   std::string key = "sys.workflow.closer." + workflow;
