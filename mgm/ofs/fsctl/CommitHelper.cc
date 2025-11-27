@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
+#include "mgm/ofs/fsctl/CommitHelper.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
 #include "mgm/stat/Stat.hh"

@@ -30,7 +30,7 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
+#include "mgm/ofs/fsctl/CommitHelper.hh"
 #include "namespace/Prefetcher.hh"
 #include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"

@@ -85,7 +85,7 @@
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/XrdMgmOfs/fsctl/CommitHelper.hh"
+#include "mgm/ofs/fsctl/CommitHelper.hh"
 #include "mgm/xattr/XattrLock.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "mgm/config/IConfigEngine.hh"

@@ -169,28 +169,28 @@ add_library(
   ofs/XrdMgmOfsDirectory.cc
   ofs/XrdMgmOfs.cc
   ofs/XrdMgmAuthz.cc
-  XrdMgmOfs/fsctl/Access.cc
-  XrdMgmOfs/fsctl/AdjustReplica.cc
-  XrdMgmOfs/fsctl/Checksum.cc
-  XrdMgmOfs/fsctl/Chmod.cc
-  XrdMgmOfs/fsctl/Chown.cc
-  XrdMgmOfs/fsctl/Commit.cc
-  XrdMgmOfs/fsctl/CommitHelper.cc
-  XrdMgmOfs/fsctl/Drop.cc
-  XrdMgmOfs/fsctl/Event.cc
-  XrdMgmOfs/fsctl/Fusex.cc
-  XrdMgmOfs/fsctl/Getfmd.cc
-  XrdMgmOfs/fsctl/GetFusex.cc
-  XrdMgmOfs/fsctl/Mkdir.cc
-  XrdMgmOfs/fsctl/Open.cc
-  XrdMgmOfs/fsctl/Readlink.cc
-  XrdMgmOfs/fsctl/Redirect.cc
-  XrdMgmOfs/fsctl/Schedule2Delete.cc
-  XrdMgmOfs/fsctl/Stat.cc
-  XrdMgmOfs/fsctl/Statvfs.cc
-  XrdMgmOfs/fsctl/Symlink.cc
-  XrdMgmOfs/fsctl/Utimes.cc
-  XrdMgmOfs/fsctl/Version.cc
+  ofs/fsctl/Access.cc
+  ofs/fsctl/AdjustReplica.cc
+  ofs/fsctl/Checksum.cc
+  ofs/fsctl/Chmod.cc
+  ofs/fsctl/Chown.cc
+  ofs/fsctl/Commit.cc
+  ofs/fsctl/CommitHelper.cc
+  ofs/fsctl/Drop.cc
+  ofs/fsctl/Event.cc
+  ofs/fsctl/Fusex.cc
+  ofs/fsctl/Getfmd.cc
+  ofs/fsctl/GetFusex.cc
+  ofs/fsctl/Mkdir.cc
+  ofs/fsctl/Open.cc
+  ofs/fsctl/Readlink.cc
+  ofs/fsctl/Redirect.cc
+  ofs/fsctl/Schedule2Delete.cc
+  ofs/fsctl/Stat.cc
+  ofs/fsctl/Statvfs.cc
+  ofs/fsctl/Symlink.cc
+  ofs/fsctl/Utimes.cc
+  ofs/fsctl/Version.cc
   balancer/FsBalancer.cc
   balancer/FsBalancerStats.cc
   commandmap/CommandMap.cc
