@@ -678,8 +678,6 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
 {
 
   if (apps) {
-    out += apps;
-    out += "\n";
     details = true;
   }
   mMutex.Lock();
@@ -1137,11 +1135,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       for (auto it = tapp->second.begin(); it != tapp->second.end(); ++it) {
         std::string appname;
 
-        if (numerical) {
-          appname = it->first;
-        } else {
-          appname = it->first;
-        }
+        appname = it->first;
 
         table_data.push_back(std::make_tuple(2, appname, tapp->first.c_str(),
                                              StatsApp[tapp->first.c_str()][it->first],
@@ -1155,11 +1149,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       for (auto it = tapp_ext->second.begin(); it != tapp_ext->second.end(); ++it) {
         std::string appname;
 
-        if (numerical) {
-          appname = it->first;
-        } else {
-          appname = it->first;
-        }
+        appname = it->first;
 
         table_data_ext.push_back(std::make_tuple(
                                    2, appname, tapp_ext->first.c_str(),
