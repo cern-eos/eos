@@ -2138,8 +2138,7 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
                     request->restoreflag().force(),
                     request->restoreflag().versions(),
                     request->restoreflag().mkpath());
-    int retc = Recycle::Restore(std_out, std_err, vid,
-                                request->key(), request->recycleid(),
+    int retc = Recycle::Restore(std_out, std_err, vid, request->key(),
                                 request->restoreflag().force(),
                                 request->restoreflag().versions(),
                                 request->restoreflag().mkpath());
@@ -2176,12 +2175,7 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
     eos_static_info("purge: date=%s", date.c_str());
     // we need a sudoer flag to purge a recycle bin via grpc
     vid.sudoer = true;
-    int retc = Recycle::Purge(std_out,
-                              std_err,
-                              vid,
-                              date,
-                              false,
-                              request->key());
+    int retc = Recycle::Purge(std_out, std_err, vid, request->key(), date);
 
     if (retc) {
       reply->set_code(retc);
