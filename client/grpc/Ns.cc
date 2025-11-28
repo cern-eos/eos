@@ -3,6 +3,8 @@
 #include "client/grpc/GrpcClient.hh"
 #include <stdio.h>
 #include "common/StringConversion.hh"
+#include "proto/Recycle.pb.h"
+#include "console/commands/helpers/RecycleHelper.hh"
 #include <google/protobuf/util/json_util.h>
 
 int usage(const char* prog)
@@ -28,15 +30,52 @@ int usage(const char* prog)
           "                [--max-version <max> -p <path> create-version\n"
           "                                     -p <path> list-version\n"
           "                [--max-version <max> -p <path> purge-version\n"
-          "                                               recycle ls\n"
-          "                                     -p <key>  recycle restore\n"
-          " --year <year> [--month <month> [--day <day>]] recycle purge\n"
-          "                                     -p <key>  recycle purge\n"
+          "                [--max-version <max> -p <path> purge-version\n"
+          "                [--max-version <max> -p <path> purge-version\n"
+          "                                               old_recycle ls\n"
+          "                                     -p <key>  old_recycle restore\n"
+          " --year <year> [--month <month> [--day <day>]] old_recycle purge\n"
+          "                                     -p <key>  old_recycle purge\n"
+          "                                               recycle ls [--all] [--uid] [--rid <val>] [--monitoring] [--numeric] [-p <date>]\n"
+          "                                               recycle purge [--all] [--uid] [--rid <val>] [-p <date>|<key>]\n"
+          "                                               recycle restore [-p <key>] [--force-original-name] [--restore-versions] [--make-path]\n"
+          "                                               recycle project --path <path> [--acl <val>]\n"
+          "                                               recycle config [--add-bin|--remove-bin <subtree>] [--lifetime <seconds>] [--ratio <ratio>] [--size <size>] [--inodes <inodes>] [--collect-interval <seconds>] [--remove-interval <seconds>] [--dry-run <val>] [--dump]\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota get\n"
           "[--username <u> | --groupname <g>] [-p <path>] --inodes <#> --volume <#> --quota user|group|project quota set\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota rm\n"
           "                                   [-p <path>] quota rmnode\n");
   return -1;
+}
+
+int ParseRecycleCommand(int argc, const char* argv[], int arg_index,
+                        std::string& subcmd, std::string& path,
+                        eos::rpc::NSRequest& request)
+{
+  std::string command_line;
+
+  for (int i = arg_index; i < argc; i++) {
+    command_line += argv[i];
+    command_line += " ";
+  }
+
+  if (command_line.empty()) {
+    return EINVAL;
+  }
+
+  // Remove trailing space
+  command_line.pop_back();
+  GlobalOptions opts;
+  RecycleHelper recycle_helper(opts);
+
+  if (recycle_helper.ParseCommand(command_line.c_str())) {
+    request.mutable_recycle()->CopyFrom(recycle_helper.GetRequest().recycle());
+    return 0;
+  } else {
+    std::cerr << "error: failed to parse recycle command "
+              << command_line << std::endl;
+    return EINVAL;
+  }
 }
 
 int main(int argc, const char* argv[])
@@ -75,6 +114,7 @@ int main(int argc, const char* argv[])
   bool sysacl = false;
   uint32_t position = 0;
   std::string eostoken = "";
+  int arg_index = 0;
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -377,12 +417,27 @@ int main(int argc, const char* argv[])
     cmd = option;
 
     if (argc > (i + 1)) {
-      if (cmd == "recycle") {
+      if (cmd == "old_recycle") {
         subcmd = argv[i + 1];
 
         if ((subcmd != "ls") &&
             (subcmd != "restore") &&
             (subcmd != "purge")) {
+          return usage(argv[0]);
+        }
+
+        break;
+      }
+
+      if (cmd == "recycle") {
+        arg_index = i;
+        subcmd = argv[i + 1];
+
+        if ((subcmd != "ls") &&
+            (subcmd != "restore") &&
+            (subcmd != "purge") &&
+            (subcmd != "config") &&
+            (subcmd != "project")) {
           return usage(argv[0]);
         }
 
@@ -412,7 +467,8 @@ int main(int argc, const char* argv[])
     }
   }
 
-  if (cmd.empty() || ((cmd != "quota") && (cmd != "recycle") && path.empty() &&
+  if (cmd.empty() || ((cmd != "quota") && (cmd != "old_recycle") &&
+                      (cmd != "recycle") && path.empty() &&
                       eostoken.empty())) {
     return usage(argv[0]);
   }
@@ -606,7 +662,7 @@ int main(int argc, const char* argv[])
     if (subcmd == "rmnode") {
       request.mutable_quota()->set_op(eos::rpc::RMNODE);
     }
-  } else if (cmd == "recycle") {
+  } else if (cmd == "old_recycle") {
     if ((subcmd == "")  ||
         (subcmd == "ls")) {
       request.mutable_old_recycle()->set_cmd(
@@ -633,6 +689,10 @@ int main(int argc, const char* argv[])
       request.mutable_old_recycle()->set_key(path);
     } else {
       std::cerr << "invalid recycle request" << std::endl;
+      return EINVAL;
+    }
+  } else if (cmd == "recycle") {
+    if (ParseRecycleCommand(argc, argv, arg_index + 1, subcmd, path, request)) {
       return EINVAL;
     }
   }

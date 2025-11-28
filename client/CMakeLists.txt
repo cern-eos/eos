@@ -78,6 +78,7 @@ target_link_libraries(eos-grpc-find PUBLIC
 target_link_libraries(eos-grpc-ns PUBLIC
   EosGrpcProto-Objects
   EosGrpcClient-Objects
+  EosConsoleHelpers-Objects
   EosCommon)
 
 target_link_libraries(eos-grpc-insert PUBLIC
