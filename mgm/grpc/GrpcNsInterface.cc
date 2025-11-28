@@ -38,6 +38,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/XrdMgmOfsDirectory.hh"
 #include "mgm/recycle/Recycle.hh"
+#include "mgm/proc/user/RecycleCmd.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/MDException.hh"
 #include "namespace/interface/ContainerIterators.hh"
@@ -1423,8 +1424,12 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
     return Version(vid, reply->mutable_version(), &(request->version()));
     break;
 
-  case eos::rpc::NSRequest::kRecycle:
+  case eos::rpc::NSRequest::kOldRecycle:
     return Recycle(vid, reply->mutable_recycle(), &(request->old_recycle()));
+    break;
+
+  case eos::rpc::NSRequest::kRecycle:
+    return Recycle(vid, reply->mutable_recycle(), &(request->recycle()));
     break;
 
   case eos::rpc::NSRequest::kChown:
@@ -2258,6 +2263,30 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
     reply->set_msg("error: command is currently not supported");
     return grpc::Status::OK;
   }
+}
+
+grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
+                                      eos::rpc::NSResponse::RecycleResponse* reply,
+                                      const eos::console::RecycleProto* request)
+{
+  eos_static_info("msg=\"processing recycle cmd\" vid.uid=%i vid.gid=%i vid.prot=%s",
+                  vid.uid, vid.gid, vid.prot);
+  eos::console::RequestProto req;
+  req.mutable_recycle()->CopyFrom(*request);
+  eos::mgm::RecycleCmd cmd(std::move(req), vid);
+  eos::console::ReplyProto reply_proto = cmd.ProcessRequest();
+  eos_static_info("msg=\"new recycle output: %s\"",
+                  reply_proto.std_out().c_str());
+
+  if (reply_proto.retc()) {
+    reply->set_code(reply_proto.retc());
+    reply->set_msg(reply_proto.std_err());
+  } else {
+    reply->set_code(0);
+    reply->set_msg(reply_proto.std_out());
+  }
+
+  return grpc::Status::OK;
 }
 
 

@@ -133,6 +133,10 @@ public:
                               eos::rpc::NSResponse::RecycleResponse* reply,
                               const eos::rpc::NSRequest::RecycleRequest* request);
 
+  static grpc::Status Recycle(eos::common::VirtualIdentity& vid,
+                              eos::rpc::NSResponse::RecycleResponse* reply,
+                              const eos::console::RecycleProto* request);
+
   static grpc::Status Chown(eos::common::VirtualIdentity& vid,
                             eos::rpc::NSResponse::ErrorResponse* reply,
                             const eos::rpc::NSRequest::ChownRequest* request);

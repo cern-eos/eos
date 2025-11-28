@@ -130,6 +130,14 @@ public:
     return mNeedsConfirmation;
   }
 
+  //----------------------------------------------------------------------------
+  //! Get the request object
+  //----------------------------------------------------------------------------
+  inline const eos::console::RequestProto& GetRequest() const
+  {
+    return mReq;
+  }
+
   //------------------------------------------------------------------------------
   //! Method used for user confirmation of the specified command
   //!
@@ -202,7 +210,8 @@ public:
   //----------------------------------------------------------------------------
   //! Print debug message to console
   //----------------------------------------------------------------------------
-  inline void PrintDebugMsg(const std::string& message) const {
+  inline void PrintDebugMsg(const std::string& message) const
+  {
     std::cout << "> " << message << std::endl;
   }
 
