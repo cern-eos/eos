@@ -42,6 +42,10 @@ EOSMGMNAMESPACE_BEGIN
 #define BIRTH_TIME_VOLUME_KEY "birth-time-volume"
 #define BIRTH_VS_ACCESS_TIME_FILES_KEY "birth-vs-access-time-files"
 #define BIRTH_VS_ACCESS_TIME_VOLUME_KEY "birth-vs-access-volume-files"
+#define SIZE_DISTRIBUTION_FILES_KEY "size-distribution-files"
+#define SIZE_DISTRIBUTION_VOLUME_KEY "size-distribution-volume"
+#define SIZE_VS_BIRTH_FILES_KEY "size-vs-birth-files"
+#define SIZE_VS_BIRTH_VOLUME_KEY "size-vs-birth-volume"
 #define USER_COSTS_KEY "user-costs"
 #define GROUP_COSTS_KEY "group-costs"
 #define TOTAL_COSTS_KEY "total-costs"
@@ -90,6 +94,14 @@ struct FileInspectorStats {
   std::map<time_t, std::map<time_t, uint64_t>> BirthVsAccessTimeFiles;
   std::map<time_t, std::map<time_t, uint64_t>> BirthVsAccessTimeVolume;
 
+  //! File size distribution (bins expressed as upper-bound in bytes; 0 => >= last bin)
+  std::map<uint64_t, uint64_t> SizeBinsFiles;
+  std::map<uint64_t, uint64_t> SizeBinsVolume;
+
+  //! File size vs birth time (outer key: birth time bin in seconds since now; inner key: size bin as above)
+  std::map<time_t, std::map<uint64_t, uint64_t>> BirthVsSizeFiles;
+  std::map<time_t, std::map<uint64_t, uint64_t>> BirthVsSizeVolume;
+
   //! User Cost Bins
   std::map<uid_t, uint64_t> UserCosts[2];
 
@@ -108,6 +120,10 @@ struct FileInspectorStats {
 
   //! Running count of number of time files have been classed faulty
   uint64_t NumFaultyFiles = 0;
+
+  //! Totals for convenience
+  uint64_t TotalFileCount = 0;
+  uint64_t TotalLogicalBytes = 0;
 
   time_t TimeScan;
 };
