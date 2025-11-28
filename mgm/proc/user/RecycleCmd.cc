@@ -43,6 +43,7 @@ RecycleCmd::ProcessRequest() noexcept
   int rc = 0;
 
   if (subcmd == RecycleProto::kLs) {
+    eos_static_info("%s", "msg=\"handling recycle ls command\"");
     const eos::console::RecycleProto_LsProto& ls = recycle.ls();
     std::string rtype = "uid";
 
