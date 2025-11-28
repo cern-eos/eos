@@ -54,6 +54,10 @@ FileInspectorStats& FileInspectorStats::operator=(const FileInspectorStats&
   BirthTimeVolume = other.BirthTimeVolume;
   BirthVsAccessTimeFiles = other.BirthVsAccessTimeFiles;
   BirthVsAccessTimeVolume = other.BirthVsAccessTimeVolume;
+  SizeBinsFiles = other.SizeBinsFiles;
+  SizeBinsVolume = other.SizeBinsVolume;
+  BirthVsSizeFiles = other.BirthVsSizeFiles;
+  BirthVsSizeVolume = other.BirthVsSizeVolume;
   clone(UserCosts, other.UserCosts);
   clone(TotalCosts, other.TotalCosts);
   clone(GroupCosts, other.GroupCosts);
@@ -61,6 +65,8 @@ FileInspectorStats& FileInspectorStats::operator=(const FileInspectorStats&
   clone(TotalBytes, other.TotalBytes);
   clone(UserBytes, other.UserBytes);
   NumFaultyFiles = other.NumFaultyFiles;
+  TotalFileCount = other.TotalFileCount;
+  TotalLogicalBytes = other.TotalLogicalBytes;
   TimeScan = other.TimeScan;
   return *this;
 }
@@ -93,6 +99,10 @@ noexcept
   BirthTimeVolume = std::move(other.BirthTimeVolume);
   BirthVsAccessTimeFiles = std::move(other.BirthVsAccessTimeFiles);
   BirthVsAccessTimeVolume = std::move(other.BirthVsAccessTimeVolume);
+  SizeBinsFiles = std::move(other.SizeBinsFiles);
+  SizeBinsVolume = std::move(other.SizeBinsVolume);
+  BirthVsSizeFiles = std::move(other.BirthVsSizeFiles);
+  BirthVsSizeVolume = std::move(other.BirthVsSizeVolume);
   move(UserCosts, other.UserCosts);
   move(TotalCosts, other.TotalCosts);
   move(GroupCosts, other.GroupCosts);
@@ -100,6 +110,8 @@ noexcept
   move(TotalBytes, other.TotalBytes);
   move(UserBytes, other.UserBytes);
   NumFaultyFiles = other.NumFaultyFiles;
+  TotalFileCount = other.TotalFileCount;
+  TotalLogicalBytes = other.TotalLogicalBytes;
   TimeScan = other.TimeScan;
   return *this;
 }
