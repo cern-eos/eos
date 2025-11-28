@@ -301,6 +301,9 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
 
   uint64_t lid = fmd->getLayoutId();
   std::lock_guard<std::mutex> lock(mutexScanStats);
+  // Totals
+  mCurrentStats.TotalFileCount++;
+  mCurrentStats.TotalLogicalBytes += fmd->getSize();
   double disksize = 1.0 * fmd->getSize() * eos::common::LayoutId::GetSizeFactor(
                       lid);
   bool ontape = eos::modeFromMetadataEntry(fmd) & EOS_TAPE_MODE_T;
@@ -417,6 +420,20 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
     double ageInYears = 0; // stores the ages of a file in years as a double
     eos::IFileMD::ctime_t btime {0, 0};
     eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
+    uint64_t sizeBytes = fmd->getSize();
+    // size bins upper bounds in bytes; 0 => >= 1TB
+    static const uint64_t KB = 1024ull;
+    static const uint64_t MB = KB * 1024ull;
+    static const uint64_t GB = MB * 1024ull;
+    static const uint64_t TB = GB * 1024ull;
+    static const std::vector<uint64_t> size_bins {
+      4 * KB, 1 * MB, 16 * MB, 64 * MB, 128 * MB, 256 * MB,
+      1 * GB, 4 * GB, 16 * GB, 128 * GB, 512 * GB, 1 * TB
+    };
+    uint64_t size_bin_key = 0; // default for >= 1TB
+    for (auto ub : size_bins) {
+      if (sizeBytes < ub) { size_bin_key = ub; break; }
+    }
 
     if (xattrs.count("sys.eos.btime")) {
       eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
@@ -443,6 +460,11 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
       mCurrentStats.BirthTimeVolume[0] += fmd->getSize();
       mCurrentStats.BirthVsAccessTimeFiles[0][atime_bin]++;
       mCurrentStats.BirthVsAccessTimeVolume[0][atime_bin] += fmd->getSize();
+      // size distributions
+      mCurrentStats.SizeBinsFiles[size_bin_key]++;
+      mCurrentStats.SizeBinsVolume[size_bin_key] += sizeBytes;
+      mCurrentStats.BirthVsSizeFiles[0][size_bin_key]++;
+      mCurrentStats.BirthVsSizeVolume[0][size_bin_key] += sizeBytes;
     } else {
       for (auto rev_it = time_bin.rbegin(); rev_it != time_bin.rend(); rev_it++) {
         if ((mCurrentStats.TimeScan - (int64_t)btime.tv_sec) >= (int64_t) *rev_it) {
@@ -450,6 +472,11 @@ FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
           mCurrentStats.BirthTimeVolume[*rev_it] += fmd->getSize();
           mCurrentStats.BirthVsAccessTimeFiles[*rev_it][atime_bin]++;
           mCurrentStats.BirthVsAccessTimeVolume[*rev_it][atime_bin] += fmd->getSize();
+          // size distributions
+          mCurrentStats.SizeBinsFiles[size_bin_key]++;
+          mCurrentStats.SizeBinsVolume[size_bin_key] += sizeBytes;
+          mCurrentStats.BirthVsSizeFiles[*rev_it][size_bin_key]++;
+          mCurrentStats.BirthVsSizeVolume[*rev_it][size_bin_key] += sizeBytes;
           break;
         }
       }
@@ -554,6 +581,129 @@ FileInspector::Dump(std::string& out, std::string_view options,
     out += "# ";
     out += eos::common::Timing::ltime(now);
     out += "\n";
+    // Summary at top: total files and average filesize
+    if (mLastStats.TotalFileCount > 0) {
+      char sum[256];
+      double avg = static_cast<double>(mLastStats.TotalLogicalBytes) /
+                   static_cast<double>(mLastStats.TotalFileCount);
+      std::string totals =
+        eos::common::StringConversion::GetReadableSizeString(
+          mLastStats.TotalLogicalBytes, "B");
+      std::string avgReadable =
+        eos::common::StringConversion::GetReadableSizeString(avg, "B");
+      snprintf(sum, sizeof(sum), "# total_files: %lu\n# total_size: %s\n# average_filesize: %s\n",
+               (unsigned long)mLastStats.TotalFileCount, avg);
+      // Insert total size string between the tokens
+      {
+        // Reconstruct with totals
+        char buf[512];
+        snprintf(buf, sizeof(buf), "# total_files: %lu\n# total_size: %s\n# average_filesize: %s\n",
+                 (unsigned long)mLastStats.TotalFileCount, totals.c_str(), avgReadable.c_str());
+        out += buf;
+      }
+    } else {
+      out += "# total_files: 0\n# total_size: 0B\n# average_filesize: 0B\n";
+    }
+    // Size histogram (files) using predefined bins
+    {
+      out += "# Size histogram (files)\n";
+      // Define bins in the desired order (upper bound in bytes; 0 => >= 1TB)
+      static const uint64_t KB = 1024ull;
+      static const uint64_t MB = KB * 1024ull;
+      static const uint64_t GB = MB * 1024ull;
+      static const uint64_t TB = GB * 1024ull;
+      static const std::vector<uint64_t> bins {
+        4 * KB, 1 * MB, 16 * MB, 64 * MB, 128 * MB, 256 * MB,
+        1 * GB, 4 * GB, 16 * GB, 128 * GB, 512 * GB, 1 * TB, 0ull
+      };
+      static const std::vector<std::string> labels {
+        "<4K", "<1M", "<16M", "<64M", "<128M", "<256M",
+        "<1G", "<4G", "<16G", "<128G", "<512G", "<1T", ">=1T"
+      };
+      std::vector<uint64_t> counts;
+      counts.reserve(bins.size());
+      uint64_t maxc = 0;
+      for (auto ub : bins) {
+        uint64_t c = 0;
+        auto it = mLastStats.SizeBinsFiles.find(ub);
+        if (it != mLastStats.SizeBinsFiles.end()) c = it->second;
+        counts.push_back(c);
+        if (c > maxc) maxc = c;
+      }
+      // Render vertical columns with a maximum height and axes
+      const int colWidth = 6;       // width per bin column
+      const int yLabelW  = 8;       // width for Y-axis numeric labels
+      const int maxHeight = 20;
+      uint64_t scale = (maxc > (uint64_t)maxHeight) ? ((maxc + maxHeight - 1) / maxHeight) : 1;
+      std::vector<uint64_t> heights;
+      heights.reserve(counts.size());
+      for (auto c : counts) {
+        uint64_t h = (c + scale - 1) / scale;
+        heights.push_back(h);
+      }
+      uint64_t hmax = 0;
+      for (auto h : heights) if (h > hmax) hmax = h;
+      // Top arrow for Y axis, aligned under the Y label field
+      {
+        std::string line = "# ";
+        for (int i = 0; i < yLabelW; ++i) line += " ";
+        line += "\xE2\x86\x91"; // "↑"
+        line += "\n";
+        out += line;
+      }
+      for (uint64_t row = hmax; row >= 1; --row) {
+        std::string line = "# ";
+        // Y-axis numeric label (approximate count at this tick)
+        char ybuf[32];
+        snprintf(ybuf, sizeof(ybuf), "%6lu ", (unsigned long)(row * scale));
+        // right align in yLabelW
+        char yfield[32];
+        snprintf(yfield, sizeof(yfield), "%*s", yLabelW, ybuf);
+        line += yfield;
+        line += "\xE2\x94\x82"; // "│"
+        for (size_t i = 0; i < heights.size(); ++i) {
+          if (heights[i] >= row) {
+            line += "  \xE2\x96\x88   "; // "█"
+          } else {
+            line += "      ";
+          }
+        }
+        line += "\n";
+        out += line;
+        if (row == 1) break; // avoid unsigned wrap
+      }
+      // X-axis base with arrow
+      {
+        std::string line = "# ";
+        for (int i = 0; i < yLabelW; ++i) line += " ";
+        line += "\xE2\x94\x94"; // "└"
+        for (size_t i = 0; i < labels.size(); ++i) {
+          for (int k = 0; k < colWidth; ++k) line += "\xE2\x94\x80"; // "─"
+        }
+        line += "\xE2\x86\x92"; // "→"
+        line += "\n";
+        out += line;
+      }
+      // X-axis labels
+      {
+        std::string line = "# ";
+        for (int i = 0; i < yLabelW; ++i) line += " ";
+        line += " ";
+        for (size_t i = 0; i < labels.size(); ++i) {
+          char buf[16];
+          snprintf(buf, sizeof(buf), "%-6s", labels[i].c_str());
+          line += buf;
+        }
+        line += "\n";
+        out += line;
+      }
+      // Scale note
+      {
+        char buf[128];
+        snprintf(buf, sizeof(buf), "# (each \xE2\x96\x88 ~ %lu files)\n", (unsigned long)scale); // "█"
+        out += buf;
+      }
+    }
   }
 
   if (!enabled()) {
@@ -569,6 +719,20 @@ FileInspector::Dump(std::string& out, std::string_view options,
   std::lock_guard<std::mutex> lock(mutexScanStats);
 
   if (options.find("m") != std::string::npos) {
+    // Monitoring: emit summary as two lines
+    {
+      std::string l;
+      l = "key=last tag=summary::total_files value=";
+      l += std::to_string(mLastStats.TotalFileCount);
+      out += l; out += "\n";
+      l = "key=last tag=summary::avg_filesize value=";
+      if (mLastStats.TotalFileCount > 0) {
+        l += std::to_string(mLastStats.TotalLogicalBytes / mLastStats.TotalFileCount);
+      } else {
+        l += "0";
+      }
+      out += l; out += "\n";
+    }
     for (auto it = mLastStats.ScanStats.begin(); it != mLastStats.ScanStats.end();
          ++it) {
       snprintf(line, sizeof(line),
@@ -671,6 +835,62 @@ FileInspector::Dump(std::string& out, std::string_view options,
         bvolume += std::to_string(it->second);
         out += bvolume;
         out += "\n";
+      }
+    }
+
+    // Size distributions (files/volume)
+    if (mLastStats.SizeBinsFiles.size()) {
+      for (auto it = mLastStats.SizeBinsFiles.begin();
+           it != mLastStats.SizeBinsFiles.end(); ++it) {
+        std::string sfiles = "key=last tag=size::files bin=";
+        sfiles += std::to_string(it->first);
+        sfiles += " value=";
+        sfiles += std::to_string(it->second);
+        out += sfiles;
+        out += "\n";
+      }
+    }
+    if (mLastStats.SizeBinsVolume.size()) {
+      for (auto it = mLastStats.SizeBinsVolume.begin();
+           it != mLastStats.SizeBinsVolume.end(); ++it) {
+        std::string svol = "key=last tag=size::volume bin=";
+        svol += std::to_string(it->first);
+        svol += " value=";
+        svol += std::to_string(it->second);
+        out += svol;
+        out += "\n";
+      }
+    }
+
+    // Birth vs Size (files/volume)
+    if (mLastStats.BirthVsSizeFiles.size()) {
+      for (auto it = mLastStats.BirthVsSizeFiles.begin();
+           it != mLastStats.BirthVsSizeFiles.end(); ++it) {
+        for (auto jt = it->second.begin(); jt != it->second.end(); ++jt) {
+          std::string bs = "key=last tag=birthvssize::files xbin=";
+          bs += std::to_string(it->first);
+          bs += " ybin=";
+          bs += std::to_string(jt->first);
+          bs += " value=";
+          bs += std::to_string(jt->second);
+          out += bs;
+          out += "\n";
+        }
+      }
+    }
+    if (mLastStats.BirthVsSizeVolume.size()) {
+      for (auto it = mLastStats.BirthVsSizeVolume.begin();
+           it != mLastStats.BirthVsSizeVolume.end(); ++it) {
+        for (auto jt = it->second.begin(); jt != it->second.end(); ++jt) {
+          std::string bsv = "key=last tag=birthvssize::volume xbin=";
+          bsv += std::to_string(it->first);
+          bsv += " ybin=";
+          bsv += std::to_string(jt->first);
+          bsv += " value=";
+          bsv += std::to_string(jt->second);
+          out += bsv;
+          out += "\n";
+        }
       }
     }
 
