@@ -44,7 +44,7 @@ class IoShaping : public eos::common::LogId{
 		std::atomic<bool> 	_mPublishing;
 		std::atomic<bool> 	_mShaping;
 
-		std::unordered_map<std::string, std::string>	_shapings;
+		IoBuffer::summarys	_shapings;
 
 		std::atomic<size_t>	_receivingTime;
 
@@ -71,6 +71,9 @@ class IoShaping : public eos::common::LogId{
 		/// @param assistant reference to thread object
 		//----------------------------------------------------------------------------
 		void shaping(ThreadAssistant &assistant) noexcept;
+
+		IoBuffer::summarys aggregateSummarys(std::vector<IoBuffer::summarys> &);
+		bool calculeScalerNodes(Shaping::Scaler &) const;
 		
 	public:
 		//--------------------------------------------
@@ -140,6 +143,8 @@ class IoShaping : public eos::common::LogId{
 		bool stopShaping();
 
 		void setReceivingTime(size_t);
+
+		IoBuffer::summarys getShaping() const;
 };
 
 EOSMGMNAMESPACE_END

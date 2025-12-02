@@ -2,6 +2,24 @@ syntax = "proto3";
 
 package Shaping;
 
-message received{
-  map<string, double> data = 1;
+message AppsTraffic{
+  map<string, float> read = 1;
+  map<string, float> write = 2;
+}
+
+message UidsTraffic{
+  map<uint64, float> read = 1;
+  map<uint64, float> write = 2;
+}
+
+message GidsTraffic{
+  map<uint64, float> read = 1;
+  map<uint64, float> write = 2;
+}
+
+message Scaler {
+  repeated uint64 windows = 1;
+  AppsTraffic apps = 2;
+  UidsTraffic uids = 3;
+  GidsTraffic gids = 4;
 }
