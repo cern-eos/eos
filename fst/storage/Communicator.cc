@@ -38,7 +38,8 @@ EOSFSTNAMESPACE_BEGIN
 // Set of keys updates to be tracked at the node level
 std::set<std::string> Storage::sNodeUpdateKeys {
   "stat.refresh_fs", "manager", "symkey", "publish.interval",
-  "debug.level", "error.simulation", "stripexs", "stat.monitor" };
+  "debug.level", "error.simulation", "stripexs", "stat.monitor",
+  "stat.scaler.xyz"};
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
@@ -179,7 +180,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   return FsRegisterStatus::kRegistered;
 }
 
-int setTrack(IoAggregateMap &map, std::stringstream &stream){
+static int setTrack(IoAggregateMap &map, std::stringstream &stream){
 	int code = 0;
 	size_t winTime = 0;
 	size_t uid = 0;
@@ -217,7 +218,7 @@ int setTrack(IoAggregateMap &map, std::stringstream &stream){
 	return 0;
 }
 
-int addWindow(IoAggregateMap &map, std::stringstream &stream){
+static int addWindow(IoAggregateMap &map, std::stringstream &stream){
 	char *tmp = NULL;
 	long winTime = 0;
 	std::string cmd;
@@ -267,7 +268,7 @@ static int printSummary(std::stringstream &os, IoAggregateMap &map, size_t winTi
 	return 0;
 }
 
-int printSums(IoAggregateMap &map, std::stringstream &stream, std::stringstream &os){
+static int printSums(IoAggregateMap &map, std::stringstream &stream, std::stringstream &os){
 	size_t winTime = 0;
 	std::string cmd;
 	int code = 0;
@@ -298,7 +299,7 @@ int printSums(IoAggregateMap &map, std::stringstream &stream, std::stringstream 
 	return 0;
 }
 
-int printProto(IoAggregateMap &map, std::stringstream &stream, std::stringstream &os){
+static int printProto(IoAggregateMap &map, std::stringstream &stream, std::stringstream &os){
 	size_t winTime = 0;
 	std::string cmd;
 	size_t uid = 0;
@@ -350,7 +351,7 @@ int printProto(IoAggregateMap &map, std::stringstream &stream, std::stringstream
 	return 0;
 }
 
-void fillThread(IoAggregateMap &map, std::mutex &mutex,
+static void fillThread(IoAggregateMap &map, std::mutex &mutex,
 			   size_t nbrOfLoop,
 			   size_t fileId,
 			   std::string appName,
@@ -371,7 +372,7 @@ void fillThread(IoAggregateMap &map, std::mutex &mutex,
 	}
 }
 
-int fillData(IoAggregateMap &map, std::mutex &mutex,std::stringstream &stream, std::stringstream &os){
+static int fillData(IoAggregateMap &map, std::mutex &mutex,std::stringstream &stream, std::stringstream &os){
 	std::string input;
 	std::string appName;
 	size_t fileId = 0;
@@ -428,6 +429,28 @@ int fillData(IoAggregateMap &map, std::mutex &mutex,std::stringstream &stream, s
 	return 0;
 }
 
+static int rm(IoAggregateMap &map, std::stringstream &os){
+	std::string cmd;
+	uid_t uid = 0;
+	uid_t gid = 0;
+	size_t winTime = 0;
+
+	if (os >> winTime){
+		if (os >> cmd){
+			if (cmd == "uid" && os >> uid && os.eof())
+				return map.rm(winTime, io::TYPE::UID, uid);
+			if (cmd == "gid" && os >> gid && os.eof())
+				return map.rm(winTime, io::TYPE::GID, gid);
+			else if (os.eof())
+				return map.rm(winTime, cmd);
+		}
+		else if (os.eof())
+			return map.rm(winTime);
+	}
+
+	return -1;
+}
+
 std::string Storage::MonitorCmd(const std::string &input){
 	std::stringstream stream(input);
 	std::mutex mutex;
@@ -445,7 +468,7 @@ std::string Storage::MonitorCmd(const std::string &input){
 			else
 				os << "track set failed" << std::endl;
 		}
-		else if (cmd == "show"){
+		else if (cmd == "ls"){
 			size_t len = 1;
 			if (stream >> len){
 				if (stream >> cmd){
@@ -519,6 +542,8 @@ std::string Storage::MonitorCmd(const std::string &input){
 			if (printProto(gOFS.ioMap, stream, os) < 0)
 				os << "protobuf conversion failed" << std::endl;
 		}
+		else if (cmd == "rm")
+			os << "rm : " << rm(gOFS.ioMap, stream) << std::endl;
 		else
 			os << "Monitor: command not found: " << input << std::endl;
 	}
@@ -592,8 +617,14 @@ Storage::ProcessFstConfigChange(const std::string& key,
   }
 
   if (key == "stat.monitor"){
-	std::string reply = MonitorCmd(value);
+	std::string reply(MonitorCmd(value));
 	eos_static_info("msg=\"stat.monitor | %s\"", reply.c_str());
+	return;
+  }
+
+  if (key == "stat.scaler.xyz"){
+	// std::string reply(MonitorCmd(value));
+	eos_static_info("msg=\"stat.scaler.xyz\"");
 	return;
   }
 }

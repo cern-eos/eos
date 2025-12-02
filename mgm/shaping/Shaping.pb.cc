@@ -20,91 +20,339 @@ namespace _pb = ::PROTOBUF_NAMESPACE_ID;
 namespace _pbi = ::PROTOBUF_NAMESPACE_ID::internal;
 namespace Shaping {
 template <typename>
-PROTOBUF_CONSTEXPR received_DataEntry_DoNotUse::received_DataEntry_DoNotUse(
+PROTOBUF_CONSTEXPR AppsTraffic_ReadEntry_DoNotUse::AppsTraffic_ReadEntry_DoNotUse(
     ::_pbi::ConstantInitialized) {}
-struct received_DataEntry_DoNotUseDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR received_DataEntry_DoNotUseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
-  ~received_DataEntry_DoNotUseDefaultTypeInternal() {}
+struct AppsTraffic_ReadEntry_DoNotUseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR AppsTraffic_ReadEntry_DoNotUseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~AppsTraffic_ReadEntry_DoNotUseDefaultTypeInternal() {}
   union {
-    received_DataEntry_DoNotUse _instance;
+    AppsTraffic_ReadEntry_DoNotUse _instance;
   };
 };
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
-    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 received_DataEntry_DoNotUseDefaultTypeInternal _received_DataEntry_DoNotUse_default_instance_;
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 AppsTraffic_ReadEntry_DoNotUseDefaultTypeInternal _AppsTraffic_ReadEntry_DoNotUse_default_instance_;
 template <typename>
-PROTOBUF_CONSTEXPR received::received(
-    ::_pbi::ConstantInitialized): _impl_{
-    /*decltype(_impl_.data_)*/{}
-  , /*decltype(_impl_._cached_size_)*/{}} {}
-struct receivedDefaultTypeInternal {
-  PROTOBUF_CONSTEXPR receivedDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
-  ~receivedDefaultTypeInternal() {}
+PROTOBUF_CONSTEXPR AppsTraffic_WriteEntry_DoNotUse::AppsTraffic_WriteEntry_DoNotUse(
+    ::_pbi::ConstantInitialized) {}
+struct AppsTraffic_WriteEntry_DoNotUseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR AppsTraffic_WriteEntry_DoNotUseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~AppsTraffic_WriteEntry_DoNotUseDefaultTypeInternal() {}
   union {
-    received _instance;
+    AppsTraffic_WriteEntry_DoNotUse _instance;
   };
 };
 
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
-    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 receivedDefaultTypeInternal _received_default_instance_;
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 AppsTraffic_WriteEntry_DoNotUseDefaultTypeInternal _AppsTraffic_WriteEntry_DoNotUse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR AppsTraffic::AppsTraffic(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.read_)*/{}
+  , /*decltype(_impl_.write_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct AppsTrafficDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR AppsTrafficDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~AppsTrafficDefaultTypeInternal() {}
+  union {
+    AppsTraffic _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 AppsTrafficDefaultTypeInternal _AppsTraffic_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR UidsTraffic_ReadEntry_DoNotUse::UidsTraffic_ReadEntry_DoNotUse(
+    ::_pbi::ConstantInitialized) {}
+struct UidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR UidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~UidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    UidsTraffic_ReadEntry_DoNotUse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 UidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal _UidsTraffic_ReadEntry_DoNotUse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR UidsTraffic_WriteEntry_DoNotUse::UidsTraffic_WriteEntry_DoNotUse(
+    ::_pbi::ConstantInitialized) {}
+struct UidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR UidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~UidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    UidsTraffic_WriteEntry_DoNotUse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 UidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal _UidsTraffic_WriteEntry_DoNotUse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR UidsTraffic::UidsTraffic(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.read_)*/{}
+  , /*decltype(_impl_.write_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct UidsTrafficDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR UidsTrafficDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~UidsTrafficDefaultTypeInternal() {}
+  union {
+    UidsTraffic _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 UidsTrafficDefaultTypeInternal _UidsTraffic_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR GidsTraffic_ReadEntry_DoNotUse::GidsTraffic_ReadEntry_DoNotUse(
+    ::_pbi::ConstantInitialized) {}
+struct GidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR GidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~GidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    GidsTraffic_ReadEntry_DoNotUse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 GidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal _GidsTraffic_ReadEntry_DoNotUse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR GidsTraffic_WriteEntry_DoNotUse::GidsTraffic_WriteEntry_DoNotUse(
+    ::_pbi::ConstantInitialized) {}
+struct GidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR GidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~GidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal() {}
+  union {
+    GidsTraffic_WriteEntry_DoNotUse _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 GidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal _GidsTraffic_WriteEntry_DoNotUse_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR GidsTraffic::GidsTraffic(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.read_)*/{}
+  , /*decltype(_impl_.write_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct GidsTrafficDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR GidsTrafficDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~GidsTrafficDefaultTypeInternal() {}
+  union {
+    GidsTraffic _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 GidsTrafficDefaultTypeInternal _GidsTraffic_default_instance_;
+template <typename>
+PROTOBUF_CONSTEXPR Scaler::Scaler(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.windows_)*/ {}
+  ,/* _impl_._windows_cached_byte_size_ = */ { 0 }
+
+  , /*decltype(_impl_.apps_)*/nullptr
+  , /*decltype(_impl_.uids_)*/nullptr
+  , /*decltype(_impl_.gids_)*/nullptr} {}
+struct ScalerDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR ScalerDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~ScalerDefaultTypeInternal() {}
+  union {
+    Scaler _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ScalerDefaultTypeInternal _Scaler_default_instance_;
 }  // namespace Shaping
-static ::_pb::Metadata file_level_metadata_Shaping_2eproto[2];
+static ::_pb::Metadata file_level_metadata_Shaping_2eproto[10];
 static constexpr const ::_pb::EnumDescriptor**
     file_level_enum_descriptors_Shaping_2eproto = nullptr;
 static constexpr const ::_pb::ServiceDescriptor**
     file_level_service_descriptors_Shaping_2eproto = nullptr;
 const ::uint32_t TableStruct_Shaping_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(
     protodesc_cold) = {
-    PROTOBUF_FIELD_OFFSET(::Shaping::received_DataEntry_DoNotUse, _has_bits_),
-    PROTOBUF_FIELD_OFFSET(::Shaping::received_DataEntry_DoNotUse, _internal_metadata_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_ReadEntry_DoNotUse, _has_bits_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_ReadEntry_DoNotUse, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
     ~0u,  // no _weak_field_map_
     ~0u,  // no _inlined_string_donated_
     ~0u,  // no _split_
     ~0u,  // no sizeof(Split)
-    PROTOBUF_FIELD_OFFSET(::Shaping::received_DataEntry_DoNotUse, key_),
-    PROTOBUF_FIELD_OFFSET(::Shaping::received_DataEntry_DoNotUse, value_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_ReadEntry_DoNotUse, key_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_ReadEntry_DoNotUse, value_),
+    0,
+    1,
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_WriteEntry_DoNotUse, _has_bits_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_WriteEntry_DoNotUse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_WriteEntry_DoNotUse, key_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_WriteEntry_DoNotUse, value_),
     0,
     1,
     ~0u,  // no _has_bits_
-    PROTOBUF_FIELD_OFFSET(::Shaping::received, _internal_metadata_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic, _internal_metadata_),
     ~0u,  // no _extensions_
     ~0u,  // no _oneof_case_
     ~0u,  // no _weak_field_map_
     ~0u,  // no _inlined_string_donated_
     ~0u,  // no _split_
     ~0u,  // no sizeof(Split)
-    PROTOBUF_FIELD_OFFSET(::Shaping::received, _impl_.data_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic, _impl_.read_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic, _impl_.write_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic_ReadEntry_DoNotUse, _has_bits_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic_ReadEntry_DoNotUse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic_ReadEntry_DoNotUse, key_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic_ReadEntry_DoNotUse, value_),
+    0,
+    1,
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic_WriteEntry_DoNotUse, _has_bits_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic_WriteEntry_DoNotUse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic_WriteEntry_DoNotUse, key_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic_WriteEntry_DoNotUse, value_),
+    0,
+    1,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic, _impl_.read_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::UidsTraffic, _impl_.write_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic_ReadEntry_DoNotUse, _has_bits_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic_ReadEntry_DoNotUse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic_ReadEntry_DoNotUse, key_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic_ReadEntry_DoNotUse, value_),
+    0,
+    1,
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic_WriteEntry_DoNotUse, _has_bits_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic_WriteEntry_DoNotUse, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic_WriteEntry_DoNotUse, key_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic_WriteEntry_DoNotUse, value_),
+    0,
+    1,
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic, _impl_.read_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::GidsTraffic, _impl_.write_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::Scaler, _impl_._has_bits_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::Scaler, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::Scaler, _impl_.windows_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::Scaler, _impl_.apps_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::Scaler, _impl_.uids_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::Scaler, _impl_.gids_),
+    ~0u,
+    0,
+    1,
+    2,
 };
 
 static const ::_pbi::MigrationSchema
     schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-        { 0, 10, -1, sizeof(::Shaping::received_DataEntry_DoNotUse)},
-        { 12, -1, -1, sizeof(::Shaping::received)},
+        { 0, 10, -1, sizeof(::Shaping::AppsTraffic_ReadEntry_DoNotUse)},
+        { 12, 22, -1, sizeof(::Shaping::AppsTraffic_WriteEntry_DoNotUse)},
+        { 24, -1, -1, sizeof(::Shaping::AppsTraffic)},
+        { 34, 44, -1, sizeof(::Shaping::UidsTraffic_ReadEntry_DoNotUse)},
+        { 46, 56, -1, sizeof(::Shaping::UidsTraffic_WriteEntry_DoNotUse)},
+        { 58, -1, -1, sizeof(::Shaping::UidsTraffic)},
+        { 68, 78, -1, sizeof(::Shaping::GidsTraffic_ReadEntry_DoNotUse)},
+        { 80, 90, -1, sizeof(::Shaping::GidsTraffic_WriteEntry_DoNotUse)},
+        { 92, -1, -1, sizeof(::Shaping::GidsTraffic)},
+        { 102, 114, -1, sizeof(::Shaping::Scaler)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
-    &::Shaping::_received_DataEntry_DoNotUse_default_instance_._instance,
-    &::Shaping::_received_default_instance_._instance,
+    &::Shaping::_AppsTraffic_ReadEntry_DoNotUse_default_instance_._instance,
+    &::Shaping::_AppsTraffic_WriteEntry_DoNotUse_default_instance_._instance,
+    &::Shaping::_AppsTraffic_default_instance_._instance,
+    &::Shaping::_UidsTraffic_ReadEntry_DoNotUse_default_instance_._instance,
+    &::Shaping::_UidsTraffic_WriteEntry_DoNotUse_default_instance_._instance,
+    &::Shaping::_UidsTraffic_default_instance_._instance,
+    &::Shaping::_GidsTraffic_ReadEntry_DoNotUse_default_instance_._instance,
+    &::Shaping::_GidsTraffic_WriteEntry_DoNotUse_default_instance_._instance,
+    &::Shaping::_GidsTraffic_default_instance_._instance,
+    &::Shaping::_Scaler_default_instance_._instance,
 };
 const char descriptor_table_protodef_Shaping_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-    "\n\rShaping.proto\022\007Shaping\"b\n\010received\022)\n\004"
-    "data\030\001 \003(\0132\033.Shaping.received.DataEntry\032"
-    "+\n\tDataEntry\022\013\n\003key\030\001 \001(\t\022\r\n\005value\030\002 \001(\001"
-    ":\0028\001b\006proto3"
+    "\n\rShaping.proto\022\007Shaping\"\306\001\n\013AppsTraffic"
+    "\022,\n\004read\030\001 \003(\0132\036.Shaping.AppsTraffic.Rea"
+    "dEntry\022.\n\005write\030\002 \003(\0132\037.Shaping.AppsTraf"
+    "fic.WriteEntry\032+\n\tReadEntry\022\013\n\003key\030\001 \001(\t"
+    "\022\r\n\005value\030\002 \001(\002:\0028\001\032,\n\nWriteEntry\022\013\n\003key"
+    "\030\001 \001(\t\022\r\n\005value\030\002 \001(\002:\0028\001\"\306\001\n\013UidsTraffi"
+    "c\022,\n\004read\030\001 \003(\0132\036.Shaping.UidsTraffic.Re"
+    "adEntry\022.\n\005write\030\002 \003(\0132\037.Shaping.UidsTra"
+    "ffic.WriteEntry\032+\n\tReadEntry\022\013\n\003key\030\001 \001("
+    "\004\022\r\n\005value\030\002 \001(\002:\0028\001\032,\n\nWriteEntry\022\013\n\003ke"
+    "y\030\001 \001(\004\022\r\n\005value\030\002 \001(\002:\0028\001\"\306\001\n\013GidsTraff"
+    "ic\022,\n\004read\030\001 \003(\0132\036.Shaping.GidsTraffic.R"
+    "eadEntry\022.\n\005write\030\002 \003(\0132\037.Shaping.GidsTr"
+    "affic.WriteEntry\032+\n\tReadEntry\022\013\n\003key\030\001 \001"
+    "(\004\022\r\n\005value\030\002 \001(\002:\0028\001\032,\n\nWriteEntry\022\013\n\003k"
+    "ey\030\001 \001(\004\022\r\n\005value\030\002 \001(\002:\0028\001\"\205\001\n\006Scaler\022\017"
+    "\n\007windows\030\001 \003(\004\022\"\n\004apps\030\002 \001(\0132\024.Shaping."
+    "AppsTraffic\022\"\n\004uids\030\003 \001(\0132\024.Shaping.Uids"
+    "Traffic\022\"\n\004gids\030\004 \001(\0132\024.Shaping.GidsTraf"
+    "ficb\006proto3"
 };
 static ::absl::once_flag descriptor_table_Shaping_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_Shaping_2eproto = {
     false,
     false,
-    132,
+    771,
     descriptor_table_protodef_Shaping_2eproto,
     "Shaping.proto",
     &descriptor_table_Shaping_2eproto_once,
     nullptr,
     0,
-    2,
+    10,
     schemas,
     file_default_instances,
     TableStruct_Shaping_2eproto::offsets,
@@ -133,50 +381,66 @@ static ::_pbi::AddDescriptorsRunner dynamic_init_dummy_Shaping_2eproto(&descript
 namespace Shaping {
 // ===================================================================
 
-received_DataEntry_DoNotUse::received_DataEntry_DoNotUse() {}
-received_DataEntry_DoNotUse::received_DataEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+AppsTraffic_ReadEntry_DoNotUse::AppsTraffic_ReadEntry_DoNotUse() {}
+AppsTraffic_ReadEntry_DoNotUse::AppsTraffic_ReadEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
     : SuperType(arena) {}
-void received_DataEntry_DoNotUse::MergeFrom(const received_DataEntry_DoNotUse& other) {
+void AppsTraffic_ReadEntry_DoNotUse::MergeFrom(const AppsTraffic_ReadEntry_DoNotUse& other) {
   MergeFromInternal(other);
 }
-::PROTOBUF_NAMESPACE_ID::Metadata received_DataEntry_DoNotUse::GetMetadata() const {
+::PROTOBUF_NAMESPACE_ID::Metadata AppsTraffic_ReadEntry_DoNotUse::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
       file_level_metadata_Shaping_2eproto[0]);
 }
 // ===================================================================
 
-class received::_Internal {
+AppsTraffic_WriteEntry_DoNotUse::AppsTraffic_WriteEntry_DoNotUse() {}
+AppsTraffic_WriteEntry_DoNotUse::AppsTraffic_WriteEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+    : SuperType(arena) {}
+void AppsTraffic_WriteEntry_DoNotUse::MergeFrom(const AppsTraffic_WriteEntry_DoNotUse& other) {
+  MergeFromInternal(other);
+}
+::PROTOBUF_NAMESPACE_ID::Metadata AppsTraffic_WriteEntry_DoNotUse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[1]);
+}
+// ===================================================================
+
+class AppsTraffic::_Internal {
  public:
 };
 
-received::received(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+AppsTraffic::AppsTraffic(::PROTOBUF_NAMESPACE_ID::Arena* arena)
   : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
   SharedCtor(arena);
-  // @@protoc_insertion_point(arena_constructor:Shaping.received)
+  // @@protoc_insertion_point(arena_constructor:Shaping.AppsTraffic)
 }
-received::received(const received& from)
+AppsTraffic::AppsTraffic(const AppsTraffic& from)
   : ::PROTOBUF_NAMESPACE_ID::Message() {
-  received* const _this = this; (void)_this;
+  AppsTraffic* const _this = this; (void)_this;
   new (&_impl_) Impl_{
-      /*decltype(_impl_.data_)*/{}
+      /*decltype(_impl_.read_)*/{}
+    , /*decltype(_impl_.write_)*/{}
     , /*decltype(_impl_._cached_size_)*/{}};
 
   _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
-  _this->_impl_.data_.MergeFrom(from._impl_.data_);
-  // @@protoc_insertion_point(copy_constructor:Shaping.received)
+  _this->_impl_.read_.MergeFrom(from._impl_.read_);
+  _this->_impl_.write_.MergeFrom(from._impl_.write_);
+  // @@protoc_insertion_point(copy_constructor:Shaping.AppsTraffic)
 }
 
-inline void received::SharedCtor(::_pb::Arena* arena) {
+inline void AppsTraffic::SharedCtor(::_pb::Arena* arena) {
   (void)arena;
   new (&_impl_) Impl_{
-      /*decltype(_impl_.data_)*/{::_pbi::ArenaInitialized(), arena}
+      /*decltype(_impl_.read_)*/{::_pbi::ArenaInitialized(), arena}
+    , /*decltype(_impl_.write_)*/{::_pbi::ArenaInitialized(), arena}
     , /*decltype(_impl_._cached_size_)*/{}
   };
 }
 
-received::~received() {
-  // @@protoc_insertion_point(destructor:Shaping.received)
+AppsTraffic::~AppsTraffic() {
+  // @@protoc_insertion_point(destructor:Shaping.AppsTraffic)
   if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
   (void)arena;
     return;
@@ -184,41 +448,57 @@ received::~received() {
   SharedDtor();
 }
 
-inline void received::SharedDtor() {
+inline void AppsTraffic::SharedDtor() {
   ABSL_DCHECK(GetArenaForAllocation() == nullptr);
-  _impl_.data_.~MapField();
+  _impl_.read_.~MapField();
+  _impl_.write_.~MapField();
 }
 
-void received::SetCachedSize(int size) const {
+void AppsTraffic::SetCachedSize(int size) const {
   _impl_._cached_size_.Set(size);
 }
 
-void received::Clear() {
-// @@protoc_insertion_point(message_clear_start:Shaping.received)
+void AppsTraffic::Clear() {
+// @@protoc_insertion_point(message_clear_start:Shaping.AppsTraffic)
   ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  _impl_.data_.Clear();
+  _impl_.read_.Clear();
+  _impl_.write_.Clear();
   _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
 }
 
-const char* received::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+const char* AppsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
 #define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
   while (!ctx->Done(&ptr)) {
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // map<string, double> data = 1;
+      // map<string, float> read = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
           do {
             ptr += 1;
-            ptr = ctx->ParseMessage(&_impl_.data_, ptr);
+            ptr = ctx->ParseMessage(&_impl_.read_, ptr);
             CHK_(ptr);
             if (!ctx->DataAvailable(ptr)) break;
           } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // map<string, float> write = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(&_impl_.write_, ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
         } else {
           goto handle_unusual;
         }
@@ -246,22 +526,22 @@ failure:
 #undef CHK_
 }
 
-::uint8_t* received::_InternalSerialize(
+::uint8_t* AppsTraffic::_InternalSerialize(
     ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
-  // @@protoc_insertion_point(serialize_to_array_start:Shaping.received)
+  // @@protoc_insertion_point(serialize_to_array_start:Shaping.AppsTraffic)
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // map<string, double> data = 1;
-  if (!this->_internal_data().empty()) {
-    using MapType = ::_pb::Map<std::string, double>;
-    using WireHelper = received_DataEntry_DoNotUse::Funcs;
-    const auto& map_field = this->_internal_data();
+  // map<string, float> read = 1;
+  if (!this->_internal_read().empty()) {
+    using MapType = ::_pb::Map<std::string, float>;
+    using WireHelper = AppsTraffic_ReadEntry_DoNotUse::Funcs;
+    const auto& map_field = this->_internal_read();
     auto check_utf8 = [](const MapType::value_type& entry) {
       (void)entry;
       ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
           entry.first.data(), static_cast<int>(entry.first.length()),
- ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "Shaping.received.data");
+ ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "Shaping.AppsTraffic.read");
     };
 
     if (stream->IsSerializationDeterministic() && map_field.size() > 1) {
@@ -277,85 +557,1039 @@ failure:
     }
   }
 
+  // map<string, float> write = 2;
+  if (!this->_internal_write().empty()) {
+    using MapType = ::_pb::Map<std::string, float>;
+    using WireHelper = AppsTraffic_WriteEntry_DoNotUse::Funcs;
+    const auto& map_field = this->_internal_write();
+    auto check_utf8 = [](const MapType::value_type& entry) {
+      (void)entry;
+      ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(
+          entry.first.data(), static_cast<int>(entry.first.length()),
+ ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::SERIALIZE, "Shaping.AppsTraffic.write");
+    };
+
+    if (stream->IsSerializationDeterministic() && map_field.size() > 1) {
+      for (const auto& entry : ::_pbi::MapSorterPtr<MapType>(map_field)) {
+        target = WireHelper::InternalSerialize(2, entry.first, entry.second, target, stream);
+        check_utf8(entry);
+      }
+    } else {
+      for (const auto& entry : map_field) {
+        target = WireHelper::InternalSerialize(2, entry.first, entry.second, target, stream);
+        check_utf8(entry);
+      }
+    }
+  }
+
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
         _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
   }
-  // @@protoc_insertion_point(serialize_to_array_end:Shaping.received)
+  // @@protoc_insertion_point(serialize_to_array_end:Shaping.AppsTraffic)
   return target;
 }
 
-::size_t received::ByteSizeLong() const {
-// @@protoc_insertion_point(message_byte_size_start:Shaping.received)
+::size_t AppsTraffic::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:Shaping.AppsTraffic)
   ::size_t total_size = 0;
 
   ::uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // map<string, double> data = 1;
+  // map<string, float> read = 1;
   total_size += 1 *
-      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_data_size());
-  for (::PROTOBUF_NAMESPACE_ID::Map< std::string, double >::const_iterator
-      it = this->_internal_data().begin();
-      it != this->_internal_data().end(); ++it) {
-    total_size += received_DataEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_read_size());
+  for (::PROTOBUF_NAMESPACE_ID::Map< std::string, float >::const_iterator
+      it = this->_internal_read().begin();
+      it != this->_internal_read().end(); ++it) {
+    total_size += AppsTraffic_ReadEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
+  }
+
+  // map<string, float> write = 2;
+  total_size += 1 *
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_write_size());
+  for (::PROTOBUF_NAMESPACE_ID::Map< std::string, float >::const_iterator
+      it = this->_internal_write().begin();
+      it != this->_internal_write().end(); ++it) {
+    total_size += AppsTraffic_WriteEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
   }
 
   return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
 }
 
-const ::PROTOBUF_NAMESPACE_ID::Message::ClassData received::_class_data_ = {
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData AppsTraffic::_class_data_ = {
     ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
-    received::MergeImpl
+    AppsTraffic::MergeImpl
 };
-const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*received::GetClassData() const { return &_class_data_; }
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*AppsTraffic::GetClassData() const { return &_class_data_; }
 
 
-void received::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
-  auto* const _this = static_cast<received*>(&to_msg);
-  auto& from = static_cast<const received&>(from_msg);
-  // @@protoc_insertion_point(class_specific_merge_from_start:Shaping.received)
+void AppsTraffic::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<AppsTraffic*>(&to_msg);
+  auto& from = static_cast<const AppsTraffic&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:Shaping.AppsTraffic)
   ABSL_DCHECK_NE(&from, _this);
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  _this->_impl_.data_.MergeFrom(from._impl_.data_);
+  _this->_impl_.read_.MergeFrom(from._impl_.read_);
+  _this->_impl_.write_.MergeFrom(from._impl_.write_);
   _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
 }
 
-void received::CopyFrom(const received& from) {
-// @@protoc_insertion_point(class_specific_copy_from_start:Shaping.received)
+void AppsTraffic::CopyFrom(const AppsTraffic& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:Shaping.AppsTraffic)
   if (&from == this) return;
   Clear();
   MergeFrom(from);
 }
 
-bool received::IsInitialized() const {
+bool AppsTraffic::IsInitialized() const {
   return true;
 }
 
-void received::InternalSwap(received* other) {
+void AppsTraffic::InternalSwap(AppsTraffic* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  _impl_.data_.InternalSwap(&other->_impl_.data_);
+  _impl_.read_.InternalSwap(&other->_impl_.read_);
+  _impl_.write_.InternalSwap(&other->_impl_.write_);
 }
 
-::PROTOBUF_NAMESPACE_ID::Metadata received::GetMetadata() const {
+::PROTOBUF_NAMESPACE_ID::Metadata AppsTraffic::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[1]);
+      file_level_metadata_Shaping_2eproto[2]);
+}
+// ===================================================================
+
+UidsTraffic_ReadEntry_DoNotUse::UidsTraffic_ReadEntry_DoNotUse() {}
+UidsTraffic_ReadEntry_DoNotUse::UidsTraffic_ReadEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+    : SuperType(arena) {}
+void UidsTraffic_ReadEntry_DoNotUse::MergeFrom(const UidsTraffic_ReadEntry_DoNotUse& other) {
+  MergeFromInternal(other);
+}
+::PROTOBUF_NAMESPACE_ID::Metadata UidsTraffic_ReadEntry_DoNotUse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[3]);
+}
+// ===================================================================
+
+UidsTraffic_WriteEntry_DoNotUse::UidsTraffic_WriteEntry_DoNotUse() {}
+UidsTraffic_WriteEntry_DoNotUse::UidsTraffic_WriteEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+    : SuperType(arena) {}
+void UidsTraffic_WriteEntry_DoNotUse::MergeFrom(const UidsTraffic_WriteEntry_DoNotUse& other) {
+  MergeFromInternal(other);
+}
+::PROTOBUF_NAMESPACE_ID::Metadata UidsTraffic_WriteEntry_DoNotUse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[4]);
+}
+// ===================================================================
+
+class UidsTraffic::_Internal {
+ public:
+};
+
+UidsTraffic::UidsTraffic(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:Shaping.UidsTraffic)
+}
+UidsTraffic::UidsTraffic(const UidsTraffic& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  UidsTraffic* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      /*decltype(_impl_.read_)*/{}
+    , /*decltype(_impl_.write_)*/{}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_impl_.read_.MergeFrom(from._impl_.read_);
+  _this->_impl_.write_.MergeFrom(from._impl_.write_);
+  // @@protoc_insertion_point(copy_constructor:Shaping.UidsTraffic)
+}
+
+inline void UidsTraffic::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      /*decltype(_impl_.read_)*/{::_pbi::ArenaInitialized(), arena}
+    , /*decltype(_impl_.write_)*/{::_pbi::ArenaInitialized(), arena}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+UidsTraffic::~UidsTraffic() {
+  // @@protoc_insertion_point(destructor:Shaping.UidsTraffic)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void UidsTraffic::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.read_.~MapField();
+  _impl_.write_.~MapField();
+}
+
+void UidsTraffic::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void UidsTraffic::Clear() {
+// @@protoc_insertion_point(message_clear_start:Shaping.UidsTraffic)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.read_.Clear();
+  _impl_.write_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* UidsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // map<uint64, float> read = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(&_impl_.read_, ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // map<uint64, float> write = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(&_impl_.write_, ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* UidsTraffic::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:Shaping.UidsTraffic)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // map<uint64, float> read = 1;
+  if (!this->_internal_read().empty()) {
+    using MapType = ::_pb::Map<::uint64_t, float>;
+    using WireHelper = UidsTraffic_ReadEntry_DoNotUse::Funcs;
+    const auto& map_field = this->_internal_read();
+
+    if (stream->IsSerializationDeterministic() && map_field.size() > 1) {
+      for (const auto& entry : ::_pbi::MapSorterFlat<MapType>(map_field)) {
+        target = WireHelper::InternalSerialize(1, entry.first, entry.second, target, stream);
+      }
+    } else {
+      for (const auto& entry : map_field) {
+        target = WireHelper::InternalSerialize(1, entry.first, entry.second, target, stream);
+      }
+    }
+  }
+
+  // map<uint64, float> write = 2;
+  if (!this->_internal_write().empty()) {
+    using MapType = ::_pb::Map<::uint64_t, float>;
+    using WireHelper = UidsTraffic_WriteEntry_DoNotUse::Funcs;
+    const auto& map_field = this->_internal_write();
+
+    if (stream->IsSerializationDeterministic() && map_field.size() > 1) {
+      for (const auto& entry : ::_pbi::MapSorterFlat<MapType>(map_field)) {
+        target = WireHelper::InternalSerialize(2, entry.first, entry.second, target, stream);
+      }
+    } else {
+      for (const auto& entry : map_field) {
+        target = WireHelper::InternalSerialize(2, entry.first, entry.second, target, stream);
+      }
+    }
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:Shaping.UidsTraffic)
+  return target;
+}
+
+::size_t UidsTraffic::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:Shaping.UidsTraffic)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // map<uint64, float> read = 1;
+  total_size += 1 *
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_read_size());
+  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >::const_iterator
+      it = this->_internal_read().begin();
+      it != this->_internal_read().end(); ++it) {
+    total_size += UidsTraffic_ReadEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
+  }
+
+  // map<uint64, float> write = 2;
+  total_size += 1 *
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_write_size());
+  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >::const_iterator
+      it = this->_internal_write().begin();
+      it != this->_internal_write().end(); ++it) {
+    total_size += UidsTraffic_WriteEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData UidsTraffic::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    UidsTraffic::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*UidsTraffic::GetClassData() const { return &_class_data_; }
+
+
+void UidsTraffic::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<UidsTraffic*>(&to_msg);
+  auto& from = static_cast<const UidsTraffic&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:Shaping.UidsTraffic)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_impl_.read_.MergeFrom(from._impl_.read_);
+  _this->_impl_.write_.MergeFrom(from._impl_.write_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void UidsTraffic::CopyFrom(const UidsTraffic& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:Shaping.UidsTraffic)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool UidsTraffic::IsInitialized() const {
+  return true;
+}
+
+void UidsTraffic::InternalSwap(UidsTraffic* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _impl_.read_.InternalSwap(&other->_impl_.read_);
+  _impl_.write_.InternalSwap(&other->_impl_.write_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata UidsTraffic::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[5]);
+}
+// ===================================================================
+
+GidsTraffic_ReadEntry_DoNotUse::GidsTraffic_ReadEntry_DoNotUse() {}
+GidsTraffic_ReadEntry_DoNotUse::GidsTraffic_ReadEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+    : SuperType(arena) {}
+void GidsTraffic_ReadEntry_DoNotUse::MergeFrom(const GidsTraffic_ReadEntry_DoNotUse& other) {
+  MergeFromInternal(other);
+}
+::PROTOBUF_NAMESPACE_ID::Metadata GidsTraffic_ReadEntry_DoNotUse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[6]);
+}
+// ===================================================================
+
+GidsTraffic_WriteEntry_DoNotUse::GidsTraffic_WriteEntry_DoNotUse() {}
+GidsTraffic_WriteEntry_DoNotUse::GidsTraffic_WriteEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+    : SuperType(arena) {}
+void GidsTraffic_WriteEntry_DoNotUse::MergeFrom(const GidsTraffic_WriteEntry_DoNotUse& other) {
+  MergeFromInternal(other);
+}
+::PROTOBUF_NAMESPACE_ID::Metadata GidsTraffic_WriteEntry_DoNotUse::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[7]);
+}
+// ===================================================================
+
+class GidsTraffic::_Internal {
+ public:
+};
+
+GidsTraffic::GidsTraffic(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:Shaping.GidsTraffic)
+}
+GidsTraffic::GidsTraffic(const GidsTraffic& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  GidsTraffic* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      /*decltype(_impl_.read_)*/{}
+    , /*decltype(_impl_.write_)*/{}
+    , /*decltype(_impl_._cached_size_)*/{}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  _this->_impl_.read_.MergeFrom(from._impl_.read_);
+  _this->_impl_.write_.MergeFrom(from._impl_.write_);
+  // @@protoc_insertion_point(copy_constructor:Shaping.GidsTraffic)
+}
+
+inline void GidsTraffic::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      /*decltype(_impl_.read_)*/{::_pbi::ArenaInitialized(), arena}
+    , /*decltype(_impl_.write_)*/{::_pbi::ArenaInitialized(), arena}
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+GidsTraffic::~GidsTraffic() {
+  // @@protoc_insertion_point(destructor:Shaping.GidsTraffic)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void GidsTraffic::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.read_.~MapField();
+  _impl_.write_.~MapField();
+}
+
+void GidsTraffic::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void GidsTraffic::Clear() {
+// @@protoc_insertion_point(message_clear_start:Shaping.GidsTraffic)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _impl_.read_.Clear();
+  _impl_.write_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* GidsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // map<uint64, float> read = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(&_impl_.read_, ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<10>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // map<uint64, float> write = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr -= 1;
+          do {
+            ptr += 1;
+            ptr = ctx->ParseMessage(&_impl_.write_, ptr);
+            CHK_(ptr);
+            if (!ctx->DataAvailable(ptr)) break;
+          } while (::PROTOBUF_NAMESPACE_ID::internal::ExpectTag<18>(ptr));
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* GidsTraffic::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:Shaping.GidsTraffic)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // map<uint64, float> read = 1;
+  if (!this->_internal_read().empty()) {
+    using MapType = ::_pb::Map<::uint64_t, float>;
+    using WireHelper = GidsTraffic_ReadEntry_DoNotUse::Funcs;
+    const auto& map_field = this->_internal_read();
+
+    if (stream->IsSerializationDeterministic() && map_field.size() > 1) {
+      for (const auto& entry : ::_pbi::MapSorterFlat<MapType>(map_field)) {
+        target = WireHelper::InternalSerialize(1, entry.first, entry.second, target, stream);
+      }
+    } else {
+      for (const auto& entry : map_field) {
+        target = WireHelper::InternalSerialize(1, entry.first, entry.second, target, stream);
+      }
+    }
+  }
+
+  // map<uint64, float> write = 2;
+  if (!this->_internal_write().empty()) {
+    using MapType = ::_pb::Map<::uint64_t, float>;
+    using WireHelper = GidsTraffic_WriteEntry_DoNotUse::Funcs;
+    const auto& map_field = this->_internal_write();
+
+    if (stream->IsSerializationDeterministic() && map_field.size() > 1) {
+      for (const auto& entry : ::_pbi::MapSorterFlat<MapType>(map_field)) {
+        target = WireHelper::InternalSerialize(2, entry.first, entry.second, target, stream);
+      }
+    } else {
+      for (const auto& entry : map_field) {
+        target = WireHelper::InternalSerialize(2, entry.first, entry.second, target, stream);
+      }
+    }
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:Shaping.GidsTraffic)
+  return target;
+}
+
+::size_t GidsTraffic::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:Shaping.GidsTraffic)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // map<uint64, float> read = 1;
+  total_size += 1 *
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_read_size());
+  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >::const_iterator
+      it = this->_internal_read().begin();
+      it != this->_internal_read().end(); ++it) {
+    total_size += GidsTraffic_ReadEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
+  }
+
+  // map<uint64, float> write = 2;
+  total_size += 1 *
+      ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_write_size());
+  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >::const_iterator
+      it = this->_internal_write().begin();
+      it != this->_internal_write().end(); ++it) {
+    total_size += GidsTraffic_WriteEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData GidsTraffic::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    GidsTraffic::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GidsTraffic::GetClassData() const { return &_class_data_; }
+
+
+void GidsTraffic::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<GidsTraffic*>(&to_msg);
+  auto& from = static_cast<const GidsTraffic&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:Shaping.GidsTraffic)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_impl_.read_.MergeFrom(from._impl_.read_);
+  _this->_impl_.write_.MergeFrom(from._impl_.write_);
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void GidsTraffic::CopyFrom(const GidsTraffic& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:Shaping.GidsTraffic)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool GidsTraffic::IsInitialized() const {
+  return true;
+}
+
+void GidsTraffic::InternalSwap(GidsTraffic* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  _impl_.read_.InternalSwap(&other->_impl_.read_);
+  _impl_.write_.InternalSwap(&other->_impl_.write_);
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata GidsTraffic::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[8]);
+}
+// ===================================================================
+
+class Scaler::_Internal {
+ public:
+  using HasBits = decltype(std::declval<Scaler>()._impl_._has_bits_);
+  static constexpr ::int32_t kHasBitsOffset =
+    8 * PROTOBUF_FIELD_OFFSET(Scaler, _impl_._has_bits_);
+  static const ::Shaping::AppsTraffic& apps(const Scaler* msg);
+  static void set_has_apps(HasBits* has_bits) {
+    (*has_bits)[0] |= 1u;
+  }
+  static const ::Shaping::UidsTraffic& uids(const Scaler* msg);
+  static void set_has_uids(HasBits* has_bits) {
+    (*has_bits)[0] |= 2u;
+  }
+  static const ::Shaping::GidsTraffic& gids(const Scaler* msg);
+  static void set_has_gids(HasBits* has_bits) {
+    (*has_bits)[0] |= 4u;
+  }
+};
+
+const ::Shaping::AppsTraffic&
+Scaler::_Internal::apps(const Scaler* msg) {
+  return *msg->_impl_.apps_;
+}
+const ::Shaping::UidsTraffic&
+Scaler::_Internal::uids(const Scaler* msg) {
+  return *msg->_impl_.uids_;
+}
+const ::Shaping::GidsTraffic&
+Scaler::_Internal::gids(const Scaler* msg) {
+  return *msg->_impl_.gids_;
+}
+Scaler::Scaler(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:Shaping.Scaler)
+}
+Scaler::Scaler(const Scaler& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message() {
+  Scaler* const _this = this; (void)_this;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.windows_) { from._impl_.windows_ }
+    ,/* _impl_._windows_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.apps_){nullptr}
+    , decltype(_impl_.uids_){nullptr}
+    , decltype(_impl_.gids_){nullptr}};
+
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+  if ((from._impl_._has_bits_[0] & 0x00000001u) != 0) {
+    _this->_impl_.apps_ = new ::Shaping::AppsTraffic(*from._impl_.apps_);
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000002u) != 0) {
+    _this->_impl_.uids_ = new ::Shaping::UidsTraffic(*from._impl_.uids_);
+  }
+  if ((from._impl_._has_bits_[0] & 0x00000004u) != 0) {
+    _this->_impl_.gids_ = new ::Shaping::GidsTraffic(*from._impl_.gids_);
+  }
+  // @@protoc_insertion_point(copy_constructor:Shaping.Scaler)
+}
+
+inline void Scaler::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.windows_) { arena }
+    ,/* _impl_._windows_cached_byte_size_ = */ { 0 }
+
+    , decltype(_impl_.apps_){nullptr}
+    , decltype(_impl_.uids_){nullptr}
+    , decltype(_impl_.gids_){nullptr}
+  };
+}
+
+Scaler::~Scaler() {
+  // @@protoc_insertion_point(destructor:Shaping.Scaler)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void Scaler::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+  _impl_.windows_.~RepeatedField();
+  if (this != internal_default_instance()) delete _impl_.apps_;
+  if (this != internal_default_instance()) delete _impl_.uids_;
+  if (this != internal_default_instance()) delete _impl_.gids_;
+}
+
+void Scaler::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void Scaler::Clear() {
+// @@protoc_insertion_point(message_clear_start:Shaping.Scaler)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  _internal_mutable_windows()->Clear();
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000007u) {
+    if (cached_has_bits & 0x00000001u) {
+      ABSL_DCHECK(_impl_.apps_ != nullptr);
+      _impl_.apps_->Clear();
+    }
+    if (cached_has_bits & 0x00000002u) {
+      ABSL_DCHECK(_impl_.uids_ != nullptr);
+      _impl_.uids_->Clear();
+    }
+    if (cached_has_bits & 0x00000004u) {
+      ABSL_DCHECK(_impl_.gids_ != nullptr);
+      _impl_.gids_->Clear();
+    }
+  }
+  _impl_._has_bits_.Clear();
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* Scaler::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  _Internal::HasBits has_bits{};
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // repeated uint64 windows = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
+          ptr = ::PROTOBUF_NAMESPACE_ID::internal::PackedUInt64Parser(_internal_mutable_windows(), ptr, ctx);
+          CHK_(ptr);
+        } else if (static_cast<::uint8_t>(tag) == 8) {
+          _internal_add_windows(::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr));
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .Shaping.AppsTraffic apps = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
+          ptr = ctx->ParseMessage(_internal_mutable_apps(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .Shaping.UidsTraffic uids = 3;
+      case 3:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 26)) {
+          ptr = ctx->ParseMessage(_internal_mutable_uids(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // .Shaping.GidsTraffic gids = 4;
+      case 4:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 34)) {
+          ptr = ctx->ParseMessage(_internal_mutable_gids(), ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  _impl_._has_bits_.Or(has_bits);
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* Scaler::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:Shaping.Scaler)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // repeated uint64 windows = 1;
+  {
+    int byte_size = _impl_._windows_cached_byte_size_.Get();
+    if (byte_size > 0) {
+      target = stream->WriteUInt64Packed(1, _internal_windows(),
+                                                 byte_size, target);
+    }
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  // .Shaping.AppsTraffic apps = 2;
+  if (cached_has_bits & 0x00000001u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(2, _Internal::apps(this),
+        _Internal::apps(this).GetCachedSize(), target, stream);
+  }
+
+  // .Shaping.UidsTraffic uids = 3;
+  if (cached_has_bits & 0x00000002u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(3, _Internal::uids(this),
+        _Internal::uids(this).GetCachedSize(), target, stream);
+  }
+
+  // .Shaping.GidsTraffic gids = 4;
+  if (cached_has_bits & 0x00000004u) {
+    target = ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::
+      InternalWriteMessage(4, _Internal::gids(this),
+        _Internal::gids(this).GetCachedSize(), target, stream);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:Shaping.Scaler)
+  return target;
+}
+
+::size_t Scaler::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:Shaping.Scaler)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // repeated uint64 windows = 1;
+  {
+    std::size_t data_size = ::_pbi::WireFormatLite::UInt64Size(
+        this->_internal_windows())
+    ;
+    _impl_._windows_cached_byte_size_.Set(::_pbi::ToCachedSize(data_size));
+    std::size_t tag_size = data_size == 0
+        ? 0
+        : 1 + ::_pbi::WireFormatLite::Int32Size(
+                            static_cast<int32_t>(data_size))
+    ;
+    total_size += tag_size + data_size;
+  }
+
+  cached_has_bits = _impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000007u) {
+    // .Shaping.AppsTraffic apps = 2;
+    if (cached_has_bits & 0x00000001u) {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.apps_);
+    }
+
+    // .Shaping.UidsTraffic uids = 3;
+    if (cached_has_bits & 0x00000002u) {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.uids_);
+    }
+
+    // .Shaping.GidsTraffic gids = 4;
+    if (cached_has_bits & 0x00000004u) {
+      total_size += 1 +
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::MessageSize(
+          *_impl_.gids_);
+    }
+
+  }
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Scaler::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    Scaler::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Scaler::GetClassData() const { return &_class_data_; }
+
+
+void Scaler::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<Scaler*>(&to_msg);
+  auto& from = static_cast<const Scaler&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:Shaping.Scaler)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  _this->_impl_.windows_.MergeFrom(from._impl_.windows_);
+  cached_has_bits = from._impl_._has_bits_[0];
+  if (cached_has_bits & 0x00000007u) {
+    if (cached_has_bits & 0x00000001u) {
+      _this->_internal_mutable_apps()->::Shaping::AppsTraffic::MergeFrom(
+          from._internal_apps());
+    }
+    if (cached_has_bits & 0x00000002u) {
+      _this->_internal_mutable_uids()->::Shaping::UidsTraffic::MergeFrom(
+          from._internal_uids());
+    }
+    if (cached_has_bits & 0x00000004u) {
+      _this->_internal_mutable_gids()->::Shaping::GidsTraffic::MergeFrom(
+          from._internal_gids());
+    }
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void Scaler::CopyFrom(const Scaler& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:Shaping.Scaler)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool Scaler::IsInitialized() const {
+  return true;
+}
+
+void Scaler::InternalSwap(Scaler* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
+  _impl_.windows_.InternalSwap(&other->_impl_.windows_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(Scaler, _impl_.gids_)
+      + sizeof(Scaler::_impl_.gids_)
+      - PROTOBUF_FIELD_OFFSET(Scaler, _impl_.apps_)>(
+          reinterpret_cast<char*>(&_impl_.apps_),
+          reinterpret_cast<char*>(&other->_impl_.apps_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata Scaler::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[9]);
 }
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace Shaping
 PROTOBUF_NAMESPACE_OPEN
-template<> PROTOBUF_NOINLINE ::Shaping::received_DataEntry_DoNotUse*
-Arena::CreateMaybeMessage< ::Shaping::received_DataEntry_DoNotUse >(Arena* arena) {
-  return Arena::CreateMessageInternal< ::Shaping::received_DataEntry_DoNotUse >(arena);
+template<> PROTOBUF_NOINLINE ::Shaping::AppsTraffic_ReadEntry_DoNotUse*
+Arena::CreateMaybeMessage< ::Shaping::AppsTraffic_ReadEntry_DoNotUse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::AppsTraffic_ReadEntry_DoNotUse >(arena);
 }
-template<> PROTOBUF_NOINLINE ::Shaping::received*
-Arena::CreateMaybeMessage< ::Shaping::received >(Arena* arena) {
-  return Arena::CreateMessageInternal< ::Shaping::received >(arena);
+template<> PROTOBUF_NOINLINE ::Shaping::AppsTraffic_WriteEntry_DoNotUse*
+Arena::CreateMaybeMessage< ::Shaping::AppsTraffic_WriteEntry_DoNotUse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::AppsTraffic_WriteEntry_DoNotUse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Shaping::AppsTraffic*
+Arena::CreateMaybeMessage< ::Shaping::AppsTraffic >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::AppsTraffic >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Shaping::UidsTraffic_ReadEntry_DoNotUse*
+Arena::CreateMaybeMessage< ::Shaping::UidsTraffic_ReadEntry_DoNotUse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::UidsTraffic_ReadEntry_DoNotUse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Shaping::UidsTraffic_WriteEntry_DoNotUse*
+Arena::CreateMaybeMessage< ::Shaping::UidsTraffic_WriteEntry_DoNotUse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::UidsTraffic_WriteEntry_DoNotUse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Shaping::UidsTraffic*
+Arena::CreateMaybeMessage< ::Shaping::UidsTraffic >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::UidsTraffic >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Shaping::GidsTraffic_ReadEntry_DoNotUse*
+Arena::CreateMaybeMessage< ::Shaping::GidsTraffic_ReadEntry_DoNotUse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::GidsTraffic_ReadEntry_DoNotUse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Shaping::GidsTraffic_WriteEntry_DoNotUse*
+Arena::CreateMaybeMessage< ::Shaping::GidsTraffic_WriteEntry_DoNotUse >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::GidsTraffic_WriteEntry_DoNotUse >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Shaping::GidsTraffic*
+Arena::CreateMaybeMessage< ::Shaping::GidsTraffic >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::GidsTraffic >(arena);
+}
+template<> PROTOBUF_NOINLINE ::Shaping::Scaler*
+Arena::CreateMaybeMessage< ::Shaping::Scaler >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::Scaler >(arena);
 }
 PROTOBUF_NAMESPACE_CLOSE
 // @@protoc_insertion_point(global_scope)

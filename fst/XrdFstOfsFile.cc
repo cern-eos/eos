@@ -837,6 +837,10 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
   return rc;
 }
 
+static size_t trafficRegulation(size_t traficSpeed){
+	return traficSpeed;
+}
+
 //------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
@@ -889,6 +893,15 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     float abs_time = static_cast<float>((currentTime.tv_sec -
                                          openTime.tv_sec) * 1000 +
                                         (currentTime.tv_usec - openTime.tv_usec) / 1000);
+
+    /// Regulate the io according to the last scaler change point in time
+	// std::int64_t sleepTime = trafficRegulation(gOFS.ioMap.read());
+    
+    // if (sleepTime) {
+    //   std::int64_t thisSleep = 1000.0 * (exp_time - abs_time);
+    //   std::this_thread::sleep_for(std::chrono::microseconds(thisSleep));
+    // }
+    //
     // Regulate the io - sleep as desired
     float exp_time = totalBytes / mBandwidth / 1000.0;
 
@@ -902,6 +915,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   int rc = mLayout->Read(fileOffset, buffer, buffer_size);
   if (rc > 0)
     gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rc);
+
   eos_debug("layout read %d checkSum %d", rc,
             mChecksumGroup ? nullptr : mChecksumGroup->GetDefault());
 
