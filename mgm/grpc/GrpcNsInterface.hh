@@ -129,9 +129,9 @@ public:
                               eos::rpc::NSResponse::VersionResponse* reply,
                               const eos::rpc::NSRequest::VersionRequest* request);
 
-  static grpc::Status Recycle(eos::common::VirtualIdentity& vid,
-                              eos::rpc::NSResponse::RecycleResponse* reply,
-                              const eos::rpc::NSRequest::RecycleRequest* request);
+  static grpc::Status OldRecycle(eos::common::VirtualIdentity& vid,
+                                 eos::rpc::NSResponse::RecycleResponse* reply,
+                                 const eos::rpc::NSRequest::RecycleRequest* request);
 
   static grpc::Status Recycle(eos::common::VirtualIdentity& vid,
                               eos::rpc::NSResponse::RecycleResponse* reply,
