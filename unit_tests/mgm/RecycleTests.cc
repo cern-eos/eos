@@ -51,7 +51,7 @@ TEST(Recycle, DemangleTest)
   ASSERT_STREQ("", Recycle::DemanglePath("/some/real/path/").c_str());
   ASSERT_STREQ("", Recycle::DemanglePath("").c_str());
   ASSERT_STREQ("/eos/top/dir/path",
-               Recycle::DemanglePath("#.#eos#.#top#.#dir#.#path").c_str());
+               Recycle::DemanglePath("#:#eos#:#top#:#dir#:#path.000000000000000a").c_str());
   ASSERT_STREQ("/eos/top/with_funny_chars!#?/file",
-               Recycle::DemanglePath("#.#eos#.#top#.#with_funny_chars!#?#.#file").c_str());
+               Recycle::DemanglePath("#:#eos#:#top#:#with_funny_chars!#?#:#file.000000000000000b").c_str());
 }
