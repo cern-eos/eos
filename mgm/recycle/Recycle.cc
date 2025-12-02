@@ -921,6 +921,13 @@ Recycle::DemanglePath(std::string_view recycle_path)
   }
 
   eos::common::replace_all(orig_path, "#:#", "/");
+
+  // The recycle path also contains a dot and the hex value of the
+  // namespace object it references - written with 16 padding.
+  if (orig_path.length() >= 17) {
+    orig_path.erase(orig_path.length() - 17);
+  }
+
   return orig_path;
 }
 
