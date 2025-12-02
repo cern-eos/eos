@@ -165,6 +165,71 @@ static std::string GetEosVersion()
 }
 
 //------------------------------------------------------------------------------
+/// get ioMap info
+//------------------------------------------------------------------------------
+static std::string getIoMap(){
+  IoBuffer::Summary protoBuff;
+  IoBuffer::summarys finalBuffer;
+  std::string output = "0";
+
+  std::optional<std::vector<size_t> > win(gOFS.ioMap.getAvailableWindows());
+  if (!win.has_value())
+    return output;
+
+  for (auto winTime = win.value().begin(); winTime != win->end(); winTime++){
+    std::vector<gid_t> gids(gOFS.ioMap.getGids(*winTime));
+    std::vector<uid_t> uids(gOFS.ioMap.getUids(*winTime));
+	std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
+	IoBuffer::data winTimeSummarys;
+
+	if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0)
+	  continue;
+
+	for (auto it : apps){
+	  auto sum = gOFS.ioMap.getSummary(*winTime, it);
+	  if (sum.has_value()){
+	    sum->winTime = *winTime;
+	    winTimeSummarys.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
+	  }
+     protoBuff.Clear();
+    }
+    for (auto it : uids){
+	  auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::UID, it);
+	  if (sum.has_value()){
+	    sum->winTime =*winTime;
+		winTimeSummarys.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
+	  }
+      protoBuff.Clear();
+    }
+	for (auto it : gids){
+	  auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::GID, it);
+	  if (sum.has_value()){
+	    sum->winTime =*winTime;
+		winTimeSummarys.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
+	  }
+	  protoBuff.Clear();
+	}
+	if (winTimeSummarys.apps_size() > 0 || winTimeSummarys.gids_size() > 0 || winTimeSummarys.uids_size() > 0)
+	  finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummarys);
+  }
+
+  if (finalBuffer.aggregated_size() > 0){
+    std::string out;
+	google::protobuf::util::JsonPrintOptions options;
+
+	// options.add_whitespace = true;
+	// options.always_print_primitive_fields = true;
+	// options.preserve_proto_field_names = true;
+	auto it = google::protobuf::util::MessageToJsonString(finalBuffer, &out, options);
+	if (it.ok())
+	  output = out;
+	}
+
+	return output;
+}
+
+
+//------------------------------------------------------------------------------
 // Retrieve FST network interface
 //------------------------------------------------------------------------------
 static std::string GetNetworkInterface()
@@ -521,62 +586,7 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   // publish timestamp
   output["stat.publishtimestamp"] = SSTR(
                                       eos::common::getEpochInMilliseconds().count());
-  output["stat.iomap"] = "0";
-  /// get ioMap info
-  IoBuffer::Summary protoBuff;
-  IoBuffer::summarys finalBuffer;
-
-  std::optional<std::vector<size_t> > win(gOFS.ioMap.getAvailableWindows());
-  if (!win.has_value())
-		return output;
-
-   for (auto winTime = win.value().begin(); winTime != win->end(); winTime++){
-	  std::vector<gid_t> gids(gOFS.ioMap.getGids(*winTime));
-	  std::vector<uid_t> uids(gOFS.ioMap.getUids(*winTime));
-	  std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
-	  if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0)
-			continue;
-		IoBuffer::data winTimeSummarys;
-
-		for (auto it : apps){
-		  auto sum = gOFS.ioMap.getSummary(*winTime, it);
-		  if (sum.has_value()){
-			sum->winTime = *winTime;
-			winTimeSummarys.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
-		  }
-		  protoBuff.Clear();
-	   }
-		for (auto it : uids){
-		  auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::UID, it);
-		  if (sum.has_value()){
-			sum->winTime =*winTime;
-			winTimeSummarys.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
-		  }
-		  protoBuff.Clear();
-	   }
-		 for (auto it : gids){
-		   auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::GID, it);
-		   if (sum.has_value()){
-			  sum->winTime =*winTime;
-			  winTimeSummarys.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
-		   }
-			protoBuff.Clear();
-		 }
-		if (winTimeSummarys.apps_size() > 0 || winTimeSummarys.gids_size() > 0 || winTimeSummarys.uids_size() > 0)
-			finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummarys);
-  }
-
-	if (finalBuffer.aggregated_size() > 0){
-		std::string out;
-		google::protobuf::util::JsonPrintOptions options;
-
-		options.add_whitespace = true;
-		// options.always_print_primitive_fields = true;
-		// options.preserve_proto_field_names = true;
-		auto it = google::protobuf::util::MessageToJsonString(finalBuffer, &out, options);
-		if (it.ok())
-		  output["stat.iomap"] = out;
-	}
+  output["stat.iomap"] = getIoMap();
 
   return output;
 }
