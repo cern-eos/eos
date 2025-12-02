@@ -1425,7 +1425,7 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
     break;
 
   case eos::rpc::NSRequest::kOldRecycle:
-    return Recycle(vid, reply->mutable_recycle(), &(request->old_recycle()));
+    return OldRecycle(vid, reply->mutable_recycle(), &(request->old_recycle()));
     break;
 
   case eos::rpc::NSRequest::kRecycle:
@@ -2126,9 +2126,9 @@ grpc::Status GrpcNsInterface::Version(eos::common::VirtualIdentity& vid,
   return grpc::Status::OK;
 }
 
-grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
-                                      eos::rpc::NSResponse::RecycleResponse* reply,
-                                      const eos::rpc::NSRequest::RecycleRequest* request)
+grpc::Status GrpcNsInterface::OldRecycle(eos::common::VirtualIdentity& vid,
+    eos::rpc::NSResponse::RecycleResponse* reply,
+    const eos::rpc::NSRequest::RecycleRequest* request)
 {
   if (request->cmd() == eos::rpc::NSRequest::RecycleRequest::RESTORE) {
     if (!request->key().length()) {
@@ -2274,9 +2274,34 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
   eos::console::RequestProto req;
   req.mutable_recycle()->CopyFrom(*request);
   eos::mgm::RecycleCmd cmd(std::move(req), vid);
-  eos::console::ReplyProto reply_proto = cmd.ProcessRequest();
-  eos_static_info("msg=\"new recycle output: %s\"",
-                  reply_proto.std_out().c_str());
+  eos::console::ReplyProto reply_proto;
+
+  if (request->subcmd_case() == eos::console::RecycleProto::kLs) {
+    eos::mgm::Recycle::RecycleListing rvec;
+    reply_proto = cmd.ProcessRequest(&rvec);
+
+    for (auto item : rvec) {
+      eos::rpc::NSResponse::RecycleResponse::RecycleInfo* info =
+        reply->add_recycles();
+
+      if (item["type"] == "file") {
+        info->set_type(eos::rpc::NSResponse::RecycleResponse::RecycleInfo::FILE);
+      } else if (item["type"]  == "recursive-dir") {
+        info->set_type(eos::rpc::NSResponse::RecycleResponse::RecycleInfo::TREE);
+      }
+
+      info->mutable_dtime()->set_sec((strtoull(item["dtime"].c_str(), 0, 10)));
+      info->mutable_owner()->set_username(item["username"]);
+      info->mutable_owner()->set_groupname(item["groupname"]);
+      info->mutable_owner()->set_uid(strtoul(item["uid"].c_str(), 0, 10));
+      info->mutable_owner()->set_gid(strtoul(item["gid"].c_str(), 0, 10));
+      info->set_size(strtoull(item["size"].c_str(), 0, 10));
+      info->mutable_id()->set_path(item["path"]);
+      info->set_key(item["key"]);
+    }
+  } else {
+    reply_proto = cmd.ProcessRequest();
+  }
 
   if (reply_proto.retc()) {
     reply->set_code(reply_proto.retc());

@@ -54,6 +54,16 @@ public:
   //! asynchronous thread
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
+
+  //----------------------------------------------------------------------------
+  //! Method implementing the specific behaviour of the command executed by the
+  //! asynchronous thread
+  //!
+  //! @param rvec vector to hold the listing results
+  //----------------------------------------------------------------------------
+  eos::console::ReplyProto
+  ProcessRequest(std::vector<std::map<std::string, std::string>>* rvec)
+  noexcept;
 };
 
 EOSMGMNAMESPACE_END
