@@ -203,17 +203,11 @@ bool IoHelper::ParseCommand(const char* arg)
 		eos::console::IoProto_MonitorProto* monitor = io->mutable_monitor();
 		std::string options;
 
-		if (!*arg || !tokenizer.NextToken(token))
-			return false;
-		monitor->set_node(token);
-
 		if (!tokenizer.NextToken(token) || !isCommand(token.c_str()))
 			return false;
 		monitor->set_cmd(token);
 
-		const char *firstToken = tokenizer.GetToken();
-		if (firstToken)
-			options = firstToken;
+		tokenizer.NextToken(options);
 		while (tokenizer.NextToken(token))
 			options += " " + token;
 
@@ -302,16 +296,16 @@ void com_io_help()
       << "\t      -w :  show history for the last 7 days\n"
       << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens\n"
       << std::endl
-	  << "io monitor <queue-name>|<host:port> [command] [options...] : interact with IoMap's\n"
+	  << "io monitor [command] [options...] : interact with IoMap's\n"
       << std::endl
 	  << "  COMMANDS\n"
+      << "\t                          ls [...] : print the IoAggregate map, can add a number to print the map N seconds\n"
 	  << "\t                        add [window] : add a window to the map\n"
-	  << "\t                     delete [window] : add a window to the map\n"
+	  << "\t                rm window|target : add a window to the map\n"
 	  << "\t           set [window][tracks][...] : set track to a window, multiple track can be set\n"
 	  << "\t         proto [window][tracks][...] : print ProtoBuff JSON format of given tracks (get directly the summary)\n"
       << "     read [fileId][appName][uid][gid][bytes] : add a read input to the map\n"
       << "    write [fileId][appName][uid][gid][bytes] : add a write input to the map\n"
-      << "\t                          show [...] : print the IoAggregate map, can add a number to print the map N seconds\n"
       << "\t                 sum [window][track] : print the summary of a track\n"
       << "\t                                fill : fill the map with I/O\n"
 	  << "\t                       shift [index] : shift the window to the next Bin, or to the index given as a parametre\n"
@@ -345,11 +339,12 @@ void com_io_help()
 static bool isCommand(const char *cmd){
   if (cmd &&
     (!strcmp(cmd, "add")
+	|| !strcmp(cmd, "rm")
 	|| !strcmp(cmd, "set")
 	|| !strcmp(cmd, "proto")
 	|| !strcmp(cmd, "read")
 	|| !strcmp(cmd, "write")
-	|| !strcmp(cmd, "show")
+	|| !strcmp(cmd, "ls")
 	|| !strcmp(cmd, "sum")
 	|| !strcmp(cmd, "fill")
 	|| !strcmp(cmd, "shift")))

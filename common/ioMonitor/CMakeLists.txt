@@ -9,10 +9,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-set(PROTOBUF_INCLUDE_DIR "/opt/eos/grpc/include")
-set(PROTOBUF_LIB "/opt/eos/grpc/lib64/libprotobuf.so")
-set(GRPCPP_LIB "/opt/eos/grpc/lib64/libgrpc++.so")
-set(PROTOC "/opt/eos/grpc/bin/protoc")
 
 include(FetchContent)
 FetchContent_Declare(
