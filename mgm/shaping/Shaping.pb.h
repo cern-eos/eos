@@ -54,18 +54,58 @@ struct TableStruct_Shaping_2eproto {
 extern const ::PROTOBUF_NAMESPACE_ID::internal::DescriptorTable
     descriptor_table_Shaping_2eproto;
 namespace Shaping {
-class received;
-struct receivedDefaultTypeInternal;
-extern receivedDefaultTypeInternal _received_default_instance_;
-class received_DataEntry_DoNotUse;
-struct received_DataEntry_DoNotUseDefaultTypeInternal;
-extern received_DataEntry_DoNotUseDefaultTypeInternal _received_DataEntry_DoNotUse_default_instance_;
+class AppsTraffic;
+struct AppsTrafficDefaultTypeInternal;
+extern AppsTrafficDefaultTypeInternal _AppsTraffic_default_instance_;
+class AppsTraffic_ReadEntry_DoNotUse;
+struct AppsTraffic_ReadEntry_DoNotUseDefaultTypeInternal;
+extern AppsTraffic_ReadEntry_DoNotUseDefaultTypeInternal _AppsTraffic_ReadEntry_DoNotUse_default_instance_;
+class AppsTraffic_WriteEntry_DoNotUse;
+struct AppsTraffic_WriteEntry_DoNotUseDefaultTypeInternal;
+extern AppsTraffic_WriteEntry_DoNotUseDefaultTypeInternal _AppsTraffic_WriteEntry_DoNotUse_default_instance_;
+class GidsTraffic;
+struct GidsTrafficDefaultTypeInternal;
+extern GidsTrafficDefaultTypeInternal _GidsTraffic_default_instance_;
+class GidsTraffic_ReadEntry_DoNotUse;
+struct GidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal;
+extern GidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal _GidsTraffic_ReadEntry_DoNotUse_default_instance_;
+class GidsTraffic_WriteEntry_DoNotUse;
+struct GidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal;
+extern GidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal _GidsTraffic_WriteEntry_DoNotUse_default_instance_;
+class Scaler;
+struct ScalerDefaultTypeInternal;
+extern ScalerDefaultTypeInternal _Scaler_default_instance_;
+class UidsTraffic;
+struct UidsTrafficDefaultTypeInternal;
+extern UidsTrafficDefaultTypeInternal _UidsTraffic_default_instance_;
+class UidsTraffic_ReadEntry_DoNotUse;
+struct UidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal;
+extern UidsTraffic_ReadEntry_DoNotUseDefaultTypeInternal _UidsTraffic_ReadEntry_DoNotUse_default_instance_;
+class UidsTraffic_WriteEntry_DoNotUse;
+struct UidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal;
+extern UidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal _UidsTraffic_WriteEntry_DoNotUse_default_instance_;
 }  // namespace Shaping
 PROTOBUF_NAMESPACE_OPEN
 template <>
-::Shaping::received* Arena::CreateMaybeMessage<::Shaping::received>(Arena*);
+::Shaping::AppsTraffic* Arena::CreateMaybeMessage<::Shaping::AppsTraffic>(Arena*);
 template <>
-::Shaping::received_DataEntry_DoNotUse* Arena::CreateMaybeMessage<::Shaping::received_DataEntry_DoNotUse>(Arena*);
+::Shaping::AppsTraffic_ReadEntry_DoNotUse* Arena::CreateMaybeMessage<::Shaping::AppsTraffic_ReadEntry_DoNotUse>(Arena*);
+template <>
+::Shaping::AppsTraffic_WriteEntry_DoNotUse* Arena::CreateMaybeMessage<::Shaping::AppsTraffic_WriteEntry_DoNotUse>(Arena*);
+template <>
+::Shaping::GidsTraffic* Arena::CreateMaybeMessage<::Shaping::GidsTraffic>(Arena*);
+template <>
+::Shaping::GidsTraffic_ReadEntry_DoNotUse* Arena::CreateMaybeMessage<::Shaping::GidsTraffic_ReadEntry_DoNotUse>(Arena*);
+template <>
+::Shaping::GidsTraffic_WriteEntry_DoNotUse* Arena::CreateMaybeMessage<::Shaping::GidsTraffic_WriteEntry_DoNotUse>(Arena*);
+template <>
+::Shaping::Scaler* Arena::CreateMaybeMessage<::Shaping::Scaler>(Arena*);
+template <>
+::Shaping::UidsTraffic* Arena::CreateMaybeMessage<::Shaping::UidsTraffic>(Arena*);
+template <>
+::Shaping::UidsTraffic_ReadEntry_DoNotUse* Arena::CreateMaybeMessage<::Shaping::UidsTraffic_ReadEntry_DoNotUse>(Arena*);
+template <>
+::Shaping::UidsTraffic_WriteEntry_DoNotUse* Arena::CreateMaybeMessage<::Shaping::UidsTraffic_WriteEntry_DoNotUse>(Arena*);
 PROTOBUF_NAMESPACE_CLOSE
 
 namespace Shaping {
@@ -75,24 +115,24 @@ namespace Shaping {
 
 // -------------------------------------------------------------------
 
-class received_DataEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<received_DataEntry_DoNotUse, 
-    std::string, double,
+class AppsTraffic_ReadEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<AppsTraffic_ReadEntry_DoNotUse, 
+    std::string, float,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_DOUBLE> {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
 public:
-  typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<received_DataEntry_DoNotUse, 
-    std::string, double,
+  typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<AppsTraffic_ReadEntry_DoNotUse, 
+    std::string, float,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_DOUBLE> SuperType;
-  received_DataEntry_DoNotUse();
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+  AppsTraffic_ReadEntry_DoNotUse();
   template <typename = void>
-  explicit PROTOBUF_CONSTEXPR received_DataEntry_DoNotUse(
+  explicit PROTOBUF_CONSTEXPR AppsTraffic_ReadEntry_DoNotUse(
       ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
-  explicit received_DataEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
-  void MergeFrom(const received_DataEntry_DoNotUse& other);
-  static const received_DataEntry_DoNotUse* internal_default_instance() { return reinterpret_cast<const received_DataEntry_DoNotUse*>(&_received_DataEntry_DoNotUse_default_instance_); }
+  explicit AppsTraffic_ReadEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void MergeFrom(const AppsTraffic_ReadEntry_DoNotUse& other);
+  static const AppsTraffic_ReadEntry_DoNotUse* internal_default_instance() { return reinterpret_cast<const AppsTraffic_ReadEntry_DoNotUse*>(&_AppsTraffic_ReadEntry_DoNotUse_default_instance_); }
   static bool ValidateKey(std::string* s) {
-    return ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(s->data(), static_cast<int>(s->size()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::PARSE, "Shaping.received.DataEntry.key");
+    return ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(s->data(), static_cast<int>(s->size()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::PARSE, "Shaping.AppsTraffic.ReadEntry.key");
  }
   static bool ValidateValue(void*) { return true; }
   using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
@@ -101,25 +141,51 @@ public:
 };
 // -------------------------------------------------------------------
 
-class received final :
-    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Shaping.received) */ {
- public:
-  inline received() : received(nullptr) {}
-  ~received() override;
-  template<typename = void>
-  explicit PROTOBUF_CONSTEXPR received(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+class AppsTraffic_WriteEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<AppsTraffic_WriteEntry_DoNotUse, 
+    std::string, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+public:
+  typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<AppsTraffic_WriteEntry_DoNotUse, 
+    std::string, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+  AppsTraffic_WriteEntry_DoNotUse();
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR AppsTraffic_WriteEntry_DoNotUse(
+      ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  explicit AppsTraffic_WriteEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void MergeFrom(const AppsTraffic_WriteEntry_DoNotUse& other);
+  static const AppsTraffic_WriteEntry_DoNotUse* internal_default_instance() { return reinterpret_cast<const AppsTraffic_WriteEntry_DoNotUse*>(&_AppsTraffic_WriteEntry_DoNotUse_default_instance_); }
+  static bool ValidateKey(std::string* s) {
+    return ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::VerifyUtf8String(s->data(), static_cast<int>(s->size()), ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::PARSE, "Shaping.AppsTraffic.WriteEntry.key");
+ }
+  static bool ValidateValue(void*) { return true; }
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  friend struct ::TableStruct_Shaping_2eproto;
+};
+// -------------------------------------------------------------------
 
-  received(const received& from);
-  received(received&& from) noexcept
-    : received() {
+class AppsTraffic final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Shaping.AppsTraffic) */ {
+ public:
+  inline AppsTraffic() : AppsTraffic(nullptr) {}
+  ~AppsTraffic() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR AppsTraffic(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  AppsTraffic(const AppsTraffic& from);
+  AppsTraffic(AppsTraffic&& from) noexcept
+    : AppsTraffic() {
     *this = ::std::move(from);
   }
 
-  inline received& operator=(const received& from) {
+  inline AppsTraffic& operator=(const AppsTraffic& from) {
     CopyFrom(from);
     return *this;
   }
-  inline received& operator=(received&& from) noexcept {
+  inline AppsTraffic& operator=(AppsTraffic&& from) noexcept {
     if (this == &from) return *this;
     if (GetOwningArena() == from.GetOwningArena()
   #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
@@ -149,20 +215,20 @@ class received final :
   static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
     return default_instance().GetMetadata().reflection;
   }
-  static const received& default_instance() {
+  static const AppsTraffic& default_instance() {
     return *internal_default_instance();
   }
-  static inline const received* internal_default_instance() {
-    return reinterpret_cast<const received*>(
-               &_received_default_instance_);
+  static inline const AppsTraffic* internal_default_instance() {
+    return reinterpret_cast<const AppsTraffic*>(
+               &_AppsTraffic_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    1;
+    2;
 
-  friend void swap(received& a, received& b) {
+  friend void swap(AppsTraffic& a, AppsTraffic& b) {
     a.Swap(&b);
   }
-  inline void Swap(received* other) {
+  inline void Swap(AppsTraffic* other) {
     if (other == this) return;
   #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
     if (GetOwningArena() != nullptr &&
@@ -175,7 +241,7 @@ class received final :
       ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
     }
   }
-  void UnsafeArenaSwap(received* other) {
+  void UnsafeArenaSwap(AppsTraffic* other) {
     if (other == this) return;
     ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
     InternalSwap(other);
@@ -183,14 +249,14 @@ class received final :
 
   // implements Message ----------------------------------------------
 
-  received* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
-    return CreateMaybeMessage<received>(arena);
+  AppsTraffic* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<AppsTraffic>(arena);
   }
   using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
-  void CopyFrom(const received& from);
+  void CopyFrom(const AppsTraffic& from);
   using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
-  void MergeFrom( const received& from) {
-    received::MergeImpl(*this, from);
+  void MergeFrom( const AppsTraffic& from) {
+    AppsTraffic::MergeImpl(*this, from);
   }
   private:
   static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
@@ -208,15 +274,15 @@ class received final :
   void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
   void SharedDtor();
   void SetCachedSize(int size) const final;
-  void InternalSwap(received* other);
+  void InternalSwap(AppsTraffic* other);
 
   private:
   friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
   static ::absl::string_view FullMessageName() {
-    return "Shaping.received";
+    return "Shaping.AppsTraffic";
   }
   protected:
-  explicit received(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  explicit AppsTraffic(::PROTOBUF_NAMESPACE_ID::Arena* arena);
   public:
 
   static const ClassData _class_data_;
@@ -230,26 +296,44 @@ class received final :
   // accessors -------------------------------------------------------
 
   enum : int {
-    kDataFieldNumber = 1,
+    kReadFieldNumber = 1,
+    kWriteFieldNumber = 2,
   };
-  // map<string, double> data = 1;
-  int data_size() const;
+  // map<string, float> read = 1;
+  int read_size() const;
   private:
-  int _internal_data_size() const;
+  int _internal_read_size() const;
 
   public:
-  void clear_data() ;
+  void clear_read() ;
   private:
-  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, double >&
-      _internal_data() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< std::string, double >*
-      _internal_mutable_data();
+  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+      _internal_read() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+      _internal_mutable_read();
   public:
-  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, double >&
-      data() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< std::string, double >*
-      mutable_data();
-  // @@protoc_insertion_point(class_scope:Shaping.received)
+  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+      read() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+      mutable_read();
+  // map<string, float> write = 2;
+  int write_size() const;
+  private:
+  int _internal_write_size() const;
+
+  public:
+  void clear_write() ;
+  private:
+  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+      _internal_write() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+      _internal_mutable_write();
+  public:
+  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+      write() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+      mutable_write();
+  // @@protoc_insertion_point(class_scope:Shaping.AppsTraffic)
  private:
   class _Internal;
 
@@ -258,11 +342,707 @@ class received final :
   typedef void DestructorSkippable_;
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::internal::MapField<
-        received_DataEntry_DoNotUse,
-        std::string, double,
+        AppsTraffic_ReadEntry_DoNotUse,
+        std::string, float,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_DOUBLE> data_;
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> read_;
+    ::PROTOBUF_NAMESPACE_ID::internal::MapField<
+        AppsTraffic_WriteEntry_DoNotUse,
+        std::string, float,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> write_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_Shaping_2eproto;
+};// -------------------------------------------------------------------
+
+class UidsTraffic_ReadEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<UidsTraffic_ReadEntry_DoNotUse, 
+    ::uint64_t, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+public:
+  typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<UidsTraffic_ReadEntry_DoNotUse, 
+    ::uint64_t, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+  UidsTraffic_ReadEntry_DoNotUse();
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR UidsTraffic_ReadEntry_DoNotUse(
+      ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  explicit UidsTraffic_ReadEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void MergeFrom(const UidsTraffic_ReadEntry_DoNotUse& other);
+  static const UidsTraffic_ReadEntry_DoNotUse* internal_default_instance() { return reinterpret_cast<const UidsTraffic_ReadEntry_DoNotUse*>(&_UidsTraffic_ReadEntry_DoNotUse_default_instance_); }
+  static bool ValidateKey(void*) { return true; }
+  static bool ValidateValue(void*) { return true; }
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  friend struct ::TableStruct_Shaping_2eproto;
+};
+// -------------------------------------------------------------------
+
+class UidsTraffic_WriteEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<UidsTraffic_WriteEntry_DoNotUse, 
+    ::uint64_t, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+public:
+  typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<UidsTraffic_WriteEntry_DoNotUse, 
+    ::uint64_t, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+  UidsTraffic_WriteEntry_DoNotUse();
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR UidsTraffic_WriteEntry_DoNotUse(
+      ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  explicit UidsTraffic_WriteEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void MergeFrom(const UidsTraffic_WriteEntry_DoNotUse& other);
+  static const UidsTraffic_WriteEntry_DoNotUse* internal_default_instance() { return reinterpret_cast<const UidsTraffic_WriteEntry_DoNotUse*>(&_UidsTraffic_WriteEntry_DoNotUse_default_instance_); }
+  static bool ValidateKey(void*) { return true; }
+  static bool ValidateValue(void*) { return true; }
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  friend struct ::TableStruct_Shaping_2eproto;
+};
+// -------------------------------------------------------------------
+
+class UidsTraffic final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Shaping.UidsTraffic) */ {
+ public:
+  inline UidsTraffic() : UidsTraffic(nullptr) {}
+  ~UidsTraffic() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR UidsTraffic(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  UidsTraffic(const UidsTraffic& from);
+  UidsTraffic(UidsTraffic&& from) noexcept
+    : UidsTraffic() {
+    *this = ::std::move(from);
+  }
+
+  inline UidsTraffic& operator=(const UidsTraffic& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline UidsTraffic& operator=(UidsTraffic&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const UidsTraffic& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const UidsTraffic* internal_default_instance() {
+    return reinterpret_cast<const UidsTraffic*>(
+               &_UidsTraffic_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    5;
+
+  friend void swap(UidsTraffic& a, UidsTraffic& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(UidsTraffic* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(UidsTraffic* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  UidsTraffic* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<UidsTraffic>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const UidsTraffic& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const UidsTraffic& from) {
+    UidsTraffic::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(UidsTraffic* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "Shaping.UidsTraffic";
+  }
+  protected:
+  explicit UidsTraffic(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kReadFieldNumber = 1,
+    kWriteFieldNumber = 2,
+  };
+  // map<uint64, float> read = 1;
+  int read_size() const;
+  private:
+  int _internal_read_size() const;
+
+  public:
+  void clear_read() ;
+  private:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+      _internal_read() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+      _internal_mutable_read();
+  public:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+      read() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+      mutable_read();
+  // map<uint64, float> write = 2;
+  int write_size() const;
+  private:
+  int _internal_write_size() const;
+
+  public:
+  void clear_write() ;
+  private:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+      _internal_write() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+      _internal_mutable_write();
+  public:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+      write() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+      mutable_write();
+  // @@protoc_insertion_point(class_scope:Shaping.UidsTraffic)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::MapField<
+        UidsTraffic_ReadEntry_DoNotUse,
+        ::uint64_t, float,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> read_;
+    ::PROTOBUF_NAMESPACE_ID::internal::MapField<
+        UidsTraffic_WriteEntry_DoNotUse,
+        ::uint64_t, float,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> write_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_Shaping_2eproto;
+};// -------------------------------------------------------------------
+
+class GidsTraffic_ReadEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<GidsTraffic_ReadEntry_DoNotUse, 
+    ::uint64_t, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+public:
+  typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<GidsTraffic_ReadEntry_DoNotUse, 
+    ::uint64_t, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+  GidsTraffic_ReadEntry_DoNotUse();
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR GidsTraffic_ReadEntry_DoNotUse(
+      ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  explicit GidsTraffic_ReadEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void MergeFrom(const GidsTraffic_ReadEntry_DoNotUse& other);
+  static const GidsTraffic_ReadEntry_DoNotUse* internal_default_instance() { return reinterpret_cast<const GidsTraffic_ReadEntry_DoNotUse*>(&_GidsTraffic_ReadEntry_DoNotUse_default_instance_); }
+  static bool ValidateKey(void*) { return true; }
+  static bool ValidateValue(void*) { return true; }
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  friend struct ::TableStruct_Shaping_2eproto;
+};
+// -------------------------------------------------------------------
+
+class GidsTraffic_WriteEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<GidsTraffic_WriteEntry_DoNotUse, 
+    ::uint64_t, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+public:
+  typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<GidsTraffic_WriteEntry_DoNotUse, 
+    ::uint64_t, float,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+  GidsTraffic_WriteEntry_DoNotUse();
+  template <typename = void>
+  explicit PROTOBUF_CONSTEXPR GidsTraffic_WriteEntry_DoNotUse(
+      ::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+  explicit GidsTraffic_WriteEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void MergeFrom(const GidsTraffic_WriteEntry_DoNotUse& other);
+  static const GidsTraffic_WriteEntry_DoNotUse* internal_default_instance() { return reinterpret_cast<const GidsTraffic_WriteEntry_DoNotUse*>(&_GidsTraffic_WriteEntry_DoNotUse_default_instance_); }
+  static bool ValidateKey(void*) { return true; }
+  static bool ValidateValue(void*) { return true; }
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+  friend struct ::TableStruct_Shaping_2eproto;
+};
+// -------------------------------------------------------------------
+
+class GidsTraffic final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Shaping.GidsTraffic) */ {
+ public:
+  inline GidsTraffic() : GidsTraffic(nullptr) {}
+  ~GidsTraffic() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR GidsTraffic(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  GidsTraffic(const GidsTraffic& from);
+  GidsTraffic(GidsTraffic&& from) noexcept
+    : GidsTraffic() {
+    *this = ::std::move(from);
+  }
+
+  inline GidsTraffic& operator=(const GidsTraffic& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline GidsTraffic& operator=(GidsTraffic&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const GidsTraffic& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const GidsTraffic* internal_default_instance() {
+    return reinterpret_cast<const GidsTraffic*>(
+               &_GidsTraffic_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    8;
+
+  friend void swap(GidsTraffic& a, GidsTraffic& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(GidsTraffic* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(GidsTraffic* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  GidsTraffic* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<GidsTraffic>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const GidsTraffic& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const GidsTraffic& from) {
+    GidsTraffic::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(GidsTraffic* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "Shaping.GidsTraffic";
+  }
+  protected:
+  explicit GidsTraffic(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kReadFieldNumber = 1,
+    kWriteFieldNumber = 2,
+  };
+  // map<uint64, float> read = 1;
+  int read_size() const;
+  private:
+  int _internal_read_size() const;
+
+  public:
+  void clear_read() ;
+  private:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+      _internal_read() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+      _internal_mutable_read();
+  public:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+      read() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+      mutable_read();
+  // map<uint64, float> write = 2;
+  int write_size() const;
+  private:
+  int _internal_write_size() const;
+
+  public:
+  void clear_write() ;
+  private:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+      _internal_write() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+      _internal_mutable_write();
+  public:
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+      write() const;
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+      mutable_write();
+  // @@protoc_insertion_point(class_scope:Shaping.GidsTraffic)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::MapField<
+        GidsTraffic_ReadEntry_DoNotUse,
+        ::uint64_t, float,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> read_;
+    ::PROTOBUF_NAMESPACE_ID::internal::MapField<
+        GidsTraffic_WriteEntry_DoNotUse,
+        ::uint64_t, float,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> write_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_Shaping_2eproto;
+};// -------------------------------------------------------------------
+
+class Scaler final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Shaping.Scaler) */ {
+ public:
+  inline Scaler() : Scaler(nullptr) {}
+  ~Scaler() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR Scaler(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  Scaler(const Scaler& from);
+  Scaler(Scaler&& from) noexcept
+    : Scaler() {
+    *this = ::std::move(from);
+  }
+
+  inline Scaler& operator=(const Scaler& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Scaler& operator=(Scaler&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Scaler& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const Scaler* internal_default_instance() {
+    return reinterpret_cast<const Scaler*>(
+               &_Scaler_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    9;
+
+  friend void swap(Scaler& a, Scaler& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(Scaler* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Scaler* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  Scaler* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<Scaler>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const Scaler& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const Scaler& from) {
+    Scaler::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(Scaler* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "Shaping.Scaler";
+  }
+  protected:
+  explicit Scaler(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kWindowsFieldNumber = 1,
+    kAppsFieldNumber = 2,
+    kUidsFieldNumber = 3,
+    kGidsFieldNumber = 4,
+  };
+  // repeated uint64 windows = 1;
+  int windows_size() const;
+  private:
+  int _internal_windows_size() const;
+
+  public:
+  void clear_windows() ;
+  ::uint64_t windows(int index) const;
+  void set_windows(int index, ::uint64_t value);
+  void add_windows(::uint64_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>& windows() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>* mutable_windows();
+
+  private:
+  ::uint64_t _internal_windows(int index) const;
+  void _internal_add_windows(::uint64_t value);
+  const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>& _internal_windows() const;
+  ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>* _internal_mutable_windows();
+
+  public:
+  // .Shaping.AppsTraffic apps = 2;
+  bool has_apps() const;
+  void clear_apps() ;
+  const ::Shaping::AppsTraffic& apps() const;
+  PROTOBUF_NODISCARD ::Shaping::AppsTraffic* release_apps();
+  ::Shaping::AppsTraffic* mutable_apps();
+  void set_allocated_apps(::Shaping::AppsTraffic* apps);
+  private:
+  const ::Shaping::AppsTraffic& _internal_apps() const;
+  ::Shaping::AppsTraffic* _internal_mutable_apps();
+  public:
+  void unsafe_arena_set_allocated_apps(
+      ::Shaping::AppsTraffic* apps);
+  ::Shaping::AppsTraffic* unsafe_arena_release_apps();
+  // .Shaping.UidsTraffic uids = 3;
+  bool has_uids() const;
+  void clear_uids() ;
+  const ::Shaping::UidsTraffic& uids() const;
+  PROTOBUF_NODISCARD ::Shaping::UidsTraffic* release_uids();
+  ::Shaping::UidsTraffic* mutable_uids();
+  void set_allocated_uids(::Shaping::UidsTraffic* uids);
+  private:
+  const ::Shaping::UidsTraffic& _internal_uids() const;
+  ::Shaping::UidsTraffic* _internal_mutable_uids();
+  public:
+  void unsafe_arena_set_allocated_uids(
+      ::Shaping::UidsTraffic* uids);
+  ::Shaping::UidsTraffic* unsafe_arena_release_uids();
+  // .Shaping.GidsTraffic gids = 4;
+  bool has_gids() const;
+  void clear_gids() ;
+  const ::Shaping::GidsTraffic& gids() const;
+  PROTOBUF_NODISCARD ::Shaping::GidsTraffic* release_gids();
+  ::Shaping::GidsTraffic* mutable_gids();
+  void set_allocated_gids(::Shaping::GidsTraffic* gids);
+  private:
+  const ::Shaping::GidsTraffic& _internal_gids() const;
+  ::Shaping::GidsTraffic* _internal_mutable_gids();
+  public:
+  void unsafe_arena_set_allocated_gids(
+      ::Shaping::GidsTraffic* gids);
+  ::Shaping::GidsTraffic* unsafe_arena_release_gids();
+  // @@protoc_insertion_point(class_scope:Shaping.Scaler)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t> windows_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _windows_cached_byte_size_;
+    ::Shaping::AppsTraffic* apps_;
+    ::Shaping::UidsTraffic* uids_;
+    ::Shaping::GidsTraffic* gids_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_Shaping_2eproto;
@@ -284,35 +1064,507 @@ class received final :
 
 // -------------------------------------------------------------------
 
-// received
+// -------------------------------------------------------------------
 
-// map<string, double> data = 1;
-inline int received::_internal_data_size() const {
-  return _impl_.data_.size();
+// AppsTraffic
+
+// map<string, float> read = 1;
+inline int AppsTraffic::_internal_read_size() const {
+  return _impl_.read_.size();
 }
-inline int received::data_size() const {
-  return _internal_data_size();
+inline int AppsTraffic::read_size() const {
+  return _internal_read_size();
 }
-inline void received::clear_data() {
-  _impl_.data_.Clear();
+inline void AppsTraffic::clear_read() {
+  _impl_.read_.Clear();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, double >&
-received::_internal_data() const {
-  return _impl_.data_.GetMap();
+inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+AppsTraffic::_internal_read() const {
+  return _impl_.read_.GetMap();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, double >&
-received::data() const {
-  // @@protoc_insertion_point(field_map:Shaping.received.data)
-  return _internal_data();
+inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+AppsTraffic::read() const {
+  // @@protoc_insertion_point(field_map:Shaping.AppsTraffic.read)
+  return _internal_read();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, double >*
-received::_internal_mutable_data() {
-  return _impl_.data_.MutableMap();
+inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+AppsTraffic::_internal_mutable_read() {
+  return _impl_.read_.MutableMap();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, double >*
-received::mutable_data() {
-  // @@protoc_insertion_point(field_mutable_map:Shaping.received.data)
-  return _internal_mutable_data();
+inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+AppsTraffic::mutable_read() {
+  // @@protoc_insertion_point(field_mutable_map:Shaping.AppsTraffic.read)
+  return _internal_mutable_read();
+}
+
+// map<string, float> write = 2;
+inline int AppsTraffic::_internal_write_size() const {
+  return _impl_.write_.size();
+}
+inline int AppsTraffic::write_size() const {
+  return _internal_write_size();
+}
+inline void AppsTraffic::clear_write() {
+  _impl_.write_.Clear();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+AppsTraffic::_internal_write() const {
+  return _impl_.write_.GetMap();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+AppsTraffic::write() const {
+  // @@protoc_insertion_point(field_map:Shaping.AppsTraffic.write)
+  return _internal_write();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+AppsTraffic::_internal_mutable_write() {
+  return _impl_.write_.MutableMap();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+AppsTraffic::mutable_write() {
+  // @@protoc_insertion_point(field_mutable_map:Shaping.AppsTraffic.write)
+  return _internal_mutable_write();
+}
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// UidsTraffic
+
+// map<uint64, float> read = 1;
+inline int UidsTraffic::_internal_read_size() const {
+  return _impl_.read_.size();
+}
+inline int UidsTraffic::read_size() const {
+  return _internal_read_size();
+}
+inline void UidsTraffic::clear_read() {
+  _impl_.read_.Clear();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+UidsTraffic::_internal_read() const {
+  return _impl_.read_.GetMap();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+UidsTraffic::read() const {
+  // @@protoc_insertion_point(field_map:Shaping.UidsTraffic.read)
+  return _internal_read();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+UidsTraffic::_internal_mutable_read() {
+  return _impl_.read_.MutableMap();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+UidsTraffic::mutable_read() {
+  // @@protoc_insertion_point(field_mutable_map:Shaping.UidsTraffic.read)
+  return _internal_mutable_read();
+}
+
+// map<uint64, float> write = 2;
+inline int UidsTraffic::_internal_write_size() const {
+  return _impl_.write_.size();
+}
+inline int UidsTraffic::write_size() const {
+  return _internal_write_size();
+}
+inline void UidsTraffic::clear_write() {
+  _impl_.write_.Clear();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+UidsTraffic::_internal_write() const {
+  return _impl_.write_.GetMap();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+UidsTraffic::write() const {
+  // @@protoc_insertion_point(field_map:Shaping.UidsTraffic.write)
+  return _internal_write();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+UidsTraffic::_internal_mutable_write() {
+  return _impl_.write_.MutableMap();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+UidsTraffic::mutable_write() {
+  // @@protoc_insertion_point(field_mutable_map:Shaping.UidsTraffic.write)
+  return _internal_mutable_write();
+}
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// -------------------------------------------------------------------
+
+// GidsTraffic
+
+// map<uint64, float> read = 1;
+inline int GidsTraffic::_internal_read_size() const {
+  return _impl_.read_.size();
+}
+inline int GidsTraffic::read_size() const {
+  return _internal_read_size();
+}
+inline void GidsTraffic::clear_read() {
+  _impl_.read_.Clear();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+GidsTraffic::_internal_read() const {
+  return _impl_.read_.GetMap();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+GidsTraffic::read() const {
+  // @@protoc_insertion_point(field_map:Shaping.GidsTraffic.read)
+  return _internal_read();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+GidsTraffic::_internal_mutable_read() {
+  return _impl_.read_.MutableMap();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+GidsTraffic::mutable_read() {
+  // @@protoc_insertion_point(field_mutable_map:Shaping.GidsTraffic.read)
+  return _internal_mutable_read();
+}
+
+// map<uint64, float> write = 2;
+inline int GidsTraffic::_internal_write_size() const {
+  return _impl_.write_.size();
+}
+inline int GidsTraffic::write_size() const {
+  return _internal_write_size();
+}
+inline void GidsTraffic::clear_write() {
+  _impl_.write_.Clear();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+GidsTraffic::_internal_write() const {
+  return _impl_.write_.GetMap();
+}
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+GidsTraffic::write() const {
+  // @@protoc_insertion_point(field_map:Shaping.GidsTraffic.write)
+  return _internal_write();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+GidsTraffic::_internal_mutable_write() {
+  return _impl_.write_.MutableMap();
+}
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+GidsTraffic::mutable_write() {
+  // @@protoc_insertion_point(field_mutable_map:Shaping.GidsTraffic.write)
+  return _internal_mutable_write();
+}
+
+// -------------------------------------------------------------------
+
+// Scaler
+
+// repeated uint64 windows = 1;
+inline int Scaler::_internal_windows_size() const {
+  return _impl_.windows_.size();
+}
+inline int Scaler::windows_size() const {
+  return _internal_windows_size();
+}
+inline void Scaler::clear_windows() {
+  _internal_mutable_windows()->Clear();
+}
+inline ::uint64_t Scaler::windows(int index) const {
+  // @@protoc_insertion_point(field_get:Shaping.Scaler.windows)
+  return _internal_windows(index);
+}
+inline void Scaler::set_windows(int index, ::uint64_t value) {
+  _internal_mutable_windows()->Set(index, value);
+  // @@protoc_insertion_point(field_set:Shaping.Scaler.windows)
+}
+inline void Scaler::add_windows(::uint64_t value) {
+  _internal_add_windows(value);
+  // @@protoc_insertion_point(field_add:Shaping.Scaler.windows)
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>& Scaler::windows() const {
+  // @@protoc_insertion_point(field_list:Shaping.Scaler.windows)
+  return _internal_windows();
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>* Scaler::mutable_windows() {
+  // @@protoc_insertion_point(field_mutable_list:Shaping.Scaler.windows)
+  return _internal_mutable_windows();
+}
+
+inline ::uint64_t Scaler::_internal_windows(int index) const {
+  return _internal_windows().Get(index);
+}
+inline void Scaler::_internal_add_windows(::uint64_t value) {
+  _internal_mutable_windows()->Add(value);
+}
+inline const ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>& Scaler::_internal_windows() const {
+  return _impl_.windows_;
+}
+inline ::PROTOBUF_NAMESPACE_ID::RepeatedField<::uint64_t>* Scaler::_internal_mutable_windows() {
+  return &_impl_.windows_;
+}
+
+// .Shaping.AppsTraffic apps = 2;
+inline bool Scaler::has_apps() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.apps_ != nullptr);
+  return value;
+}
+inline void Scaler::clear_apps() {
+  if (_impl_.apps_ != nullptr) _impl_.apps_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000001u;
+}
+inline const ::Shaping::AppsTraffic& Scaler::_internal_apps() const {
+  const ::Shaping::AppsTraffic* p = _impl_.apps_;
+  return p != nullptr ? *p : reinterpret_cast<const ::Shaping::AppsTraffic&>(
+      ::Shaping::_AppsTraffic_default_instance_);
+}
+inline const ::Shaping::AppsTraffic& Scaler::apps() const {
+  // @@protoc_insertion_point(field_get:Shaping.Scaler.apps)
+  return _internal_apps();
+}
+inline void Scaler::unsafe_arena_set_allocated_apps(
+    ::Shaping::AppsTraffic* apps) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.apps_);
+  }
+  _impl_.apps_ = apps;
+  if (apps) {
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:Shaping.Scaler.apps)
+}
+inline ::Shaping::AppsTraffic* Scaler::release_apps() {
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::Shaping::AppsTraffic* temp = _impl_.apps_;
+  _impl_.apps_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::Shaping::AppsTraffic* Scaler::unsafe_arena_release_apps() {
+  // @@protoc_insertion_point(field_release:Shaping.Scaler.apps)
+  _impl_._has_bits_[0] &= ~0x00000001u;
+  ::Shaping::AppsTraffic* temp = _impl_.apps_;
+  _impl_.apps_ = nullptr;
+  return temp;
+}
+inline ::Shaping::AppsTraffic* Scaler::_internal_mutable_apps() {
+  _impl_._has_bits_[0] |= 0x00000001u;
+  if (_impl_.apps_ == nullptr) {
+    auto* p = CreateMaybeMessage<::Shaping::AppsTraffic>(GetArenaForAllocation());
+    _impl_.apps_ = p;
+  }
+  return _impl_.apps_;
+}
+inline ::Shaping::AppsTraffic* Scaler::mutable_apps() {
+  ::Shaping::AppsTraffic* _msg = _internal_mutable_apps();
+  // @@protoc_insertion_point(field_mutable:Shaping.Scaler.apps)
+  return _msg;
+}
+inline void Scaler::set_allocated_apps(::Shaping::AppsTraffic* apps) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete _impl_.apps_;
+  }
+  if (apps) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(apps);
+    if (message_arena != submessage_arena) {
+      apps = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, apps, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000001u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000001u;
+  }
+  _impl_.apps_ = apps;
+  // @@protoc_insertion_point(field_set_allocated:Shaping.Scaler.apps)
+}
+
+// .Shaping.UidsTraffic uids = 3;
+inline bool Scaler::has_uids() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.uids_ != nullptr);
+  return value;
+}
+inline void Scaler::clear_uids() {
+  if (_impl_.uids_ != nullptr) _impl_.uids_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000002u;
+}
+inline const ::Shaping::UidsTraffic& Scaler::_internal_uids() const {
+  const ::Shaping::UidsTraffic* p = _impl_.uids_;
+  return p != nullptr ? *p : reinterpret_cast<const ::Shaping::UidsTraffic&>(
+      ::Shaping::_UidsTraffic_default_instance_);
+}
+inline const ::Shaping::UidsTraffic& Scaler::uids() const {
+  // @@protoc_insertion_point(field_get:Shaping.Scaler.uids)
+  return _internal_uids();
+}
+inline void Scaler::unsafe_arena_set_allocated_uids(
+    ::Shaping::UidsTraffic* uids) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.uids_);
+  }
+  _impl_.uids_ = uids;
+  if (uids) {
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:Shaping.Scaler.uids)
+}
+inline ::Shaping::UidsTraffic* Scaler::release_uids() {
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::Shaping::UidsTraffic* temp = _impl_.uids_;
+  _impl_.uids_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::Shaping::UidsTraffic* Scaler::unsafe_arena_release_uids() {
+  // @@protoc_insertion_point(field_release:Shaping.Scaler.uids)
+  _impl_._has_bits_[0] &= ~0x00000002u;
+  ::Shaping::UidsTraffic* temp = _impl_.uids_;
+  _impl_.uids_ = nullptr;
+  return temp;
+}
+inline ::Shaping::UidsTraffic* Scaler::_internal_mutable_uids() {
+  _impl_._has_bits_[0] |= 0x00000002u;
+  if (_impl_.uids_ == nullptr) {
+    auto* p = CreateMaybeMessage<::Shaping::UidsTraffic>(GetArenaForAllocation());
+    _impl_.uids_ = p;
+  }
+  return _impl_.uids_;
+}
+inline ::Shaping::UidsTraffic* Scaler::mutable_uids() {
+  ::Shaping::UidsTraffic* _msg = _internal_mutable_uids();
+  // @@protoc_insertion_point(field_mutable:Shaping.Scaler.uids)
+  return _msg;
+}
+inline void Scaler::set_allocated_uids(::Shaping::UidsTraffic* uids) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete _impl_.uids_;
+  }
+  if (uids) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(uids);
+    if (message_arena != submessage_arena) {
+      uids = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, uids, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000002u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000002u;
+  }
+  _impl_.uids_ = uids;
+  // @@protoc_insertion_point(field_set_allocated:Shaping.Scaler.uids)
+}
+
+// .Shaping.GidsTraffic gids = 4;
+inline bool Scaler::has_gids() const {
+  bool value = (_impl_._has_bits_[0] & 0x00000004u) != 0;
+  PROTOBUF_ASSUME(!value || _impl_.gids_ != nullptr);
+  return value;
+}
+inline void Scaler::clear_gids() {
+  if (_impl_.gids_ != nullptr) _impl_.gids_->Clear();
+  _impl_._has_bits_[0] &= ~0x00000004u;
+}
+inline const ::Shaping::GidsTraffic& Scaler::_internal_gids() const {
+  const ::Shaping::GidsTraffic* p = _impl_.gids_;
+  return p != nullptr ? *p : reinterpret_cast<const ::Shaping::GidsTraffic&>(
+      ::Shaping::_GidsTraffic_default_instance_);
+}
+inline const ::Shaping::GidsTraffic& Scaler::gids() const {
+  // @@protoc_insertion_point(field_get:Shaping.Scaler.gids)
+  return _internal_gids();
+}
+inline void Scaler::unsafe_arena_set_allocated_gids(
+    ::Shaping::GidsTraffic* gids) {
+  if (GetArenaForAllocation() == nullptr) {
+    delete reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(_impl_.gids_);
+  }
+  _impl_.gids_ = gids;
+  if (gids) {
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  // @@protoc_insertion_point(field_unsafe_arena_set_allocated:Shaping.Scaler.gids)
+}
+inline ::Shaping::GidsTraffic* Scaler::release_gids() {
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::Shaping::GidsTraffic* temp = _impl_.gids_;
+  _impl_.gids_ = nullptr;
+#ifdef PROTOBUF_FORCE_COPY_IN_RELEASE
+  auto* old =  reinterpret_cast<::PROTOBUF_NAMESPACE_ID::MessageLite*>(temp);
+  temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  if (GetArenaForAllocation() == nullptr) { delete old; }
+#else  // PROTOBUF_FORCE_COPY_IN_RELEASE
+  if (GetArenaForAllocation() != nullptr) {
+    temp = ::PROTOBUF_NAMESPACE_ID::internal::DuplicateIfNonNull(temp);
+  }
+#endif  // !PROTOBUF_FORCE_COPY_IN_RELEASE
+  return temp;
+}
+inline ::Shaping::GidsTraffic* Scaler::unsafe_arena_release_gids() {
+  // @@protoc_insertion_point(field_release:Shaping.Scaler.gids)
+  _impl_._has_bits_[0] &= ~0x00000004u;
+  ::Shaping::GidsTraffic* temp = _impl_.gids_;
+  _impl_.gids_ = nullptr;
+  return temp;
+}
+inline ::Shaping::GidsTraffic* Scaler::_internal_mutable_gids() {
+  _impl_._has_bits_[0] |= 0x00000004u;
+  if (_impl_.gids_ == nullptr) {
+    auto* p = CreateMaybeMessage<::Shaping::GidsTraffic>(GetArenaForAllocation());
+    _impl_.gids_ = p;
+  }
+  return _impl_.gids_;
+}
+inline ::Shaping::GidsTraffic* Scaler::mutable_gids() {
+  ::Shaping::GidsTraffic* _msg = _internal_mutable_gids();
+  // @@protoc_insertion_point(field_mutable:Shaping.Scaler.gids)
+  return _msg;
+}
+inline void Scaler::set_allocated_gids(::Shaping::GidsTraffic* gids) {
+  ::PROTOBUF_NAMESPACE_ID::Arena* message_arena = GetArenaForAllocation();
+  if (message_arena == nullptr) {
+    delete _impl_.gids_;
+  }
+  if (gids) {
+    ::PROTOBUF_NAMESPACE_ID::Arena* submessage_arena =
+        ::PROTOBUF_NAMESPACE_ID::Arena::InternalGetOwningArena(gids);
+    if (message_arena != submessage_arena) {
+      gids = ::PROTOBUF_NAMESPACE_ID::internal::GetOwnedMessage(
+          message_arena, gids, submessage_arena);
+    }
+    _impl_._has_bits_[0] |= 0x00000004u;
+  } else {
+    _impl_._has_bits_[0] &= ~0x00000004u;
+  }
+  _impl_.gids_ = gids;
+  // @@protoc_insertion_point(field_set_allocated:Shaping.Scaler.gids)
 }
 
 #ifdef __GNUC__

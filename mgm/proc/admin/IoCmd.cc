@@ -22,9 +22,18 @@
  ************************************************************************/
 
 #include "IoCmd.hh"
+#include "ioMonitor/proto/IoBuffer.pb.h"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/iostat/Iostat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Iostat.hh"
+#include "mgm/XrdMgmOfs.hh"
+#include "mgm/Iostat.hh"
+#include "zmq.hpp"
+#include <algorithm>
+#include <iomanip>
+#include <string>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -292,45 +301,127 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns,
   reply.set_retc(0);
 }
 
+size_t findSize(IoBuffer::summarys &sums, size_t winTime){
+	size_t size = 0;
+
+	IoBuffer::data data(sums.aggregated().at(winTime));
+	for (auto app : data.apps())
+		if (app.first.length() > size)
+			size = app.first.length();
+	for (auto uid : data.uids())
+		if (std::to_string(uid.first).length() > size)
+			size = std::to_string(uid.first).length();
+	for (auto gid : data.gids())
+		if (std::to_string(gid.first).length() > size)
+			size = std::to_string(gid.first).length();
+
+	return size + 8;
+}
+
+std::string toMega(google::uint32 byte){
+	std::ostringstream os;
+	if (byte == 0)
+		return "0  MB/s";
+
+	float finalByte = static_cast<float>(byte) / 1000000;
+	os << std::fixed << std::setprecision(4) << finalByte << " MB/s";
+	return os.str();
+}
+
 void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply)
 {
-	std::string nodename = mn.node();
-	std::string cmd = mn.cmd();
-	std::string options = mn.options();
-
-	if ((nodename.find(':') == std::string::npos)) {
-		nodename += ":1095"; // default eos fst port
-	}
-
-	if ((nodename.find("/eos/") == std::string::npos)) {
-		nodename.insert(0, "/eos/");
-		nodename.append("/fst");
-	}
-
 	eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
-	if (!FsView::gFsView.mNodeView.count(nodename)) {
-		reply.set_std_err("error: cannot find node - no node with name '" + nodename +
-						  "'");
-		reply.set_retc(ENOENT);
-		return;
-	}
 
-	std::string std_out;
+	std::string cmd(mn.cmd());
+	std::stringstream options(mn.options());
+	std::stringstream std_out;
 	std::vector<std::string> keylist;
+	IoBuffer::summarys sums(gOFS->mIoShaper.getShaping());
 
-	auto *node = FsView::gFsView.mNodeView[nodename];
-	if (node->GetStatus() != "online"){
-		reply.set_std_err("error: node offline '" + nodename +
-			  "'");
-		reply.set_retc(ENOENT);
-		return;
+	if (cmd == "ls"){
+		size_t W1 = 20;
+		const size_t W2 = 13;
+
+		size_t winTime = !sums.aggregated().empty() ?
+			std::min_element(sums.aggregated().begin(), sums.aggregated().end(), [](auto &a, auto &b){return a.first < b.first;})->first
+			: 0;
+
+		if (!mn.options().empty()){
+			std::string cmdOptions;
+			if (options >> cmdOptions){
+				if (cmdOptions == "-w"){
+				  if (options >> winTime && options.eof()){
+				    if (sums.aggregated().find(winTime) == sums.aggregated().end()){
+					  reply.set_std_err("No matching found for window " + std::to_string(winTime));
+					  return ;
+					}
+				  } else {
+					  std::string windows("[Available window]:");
+					  for (auto it : sums.aggregated())
+					    windows += " " + std::to_string(it.first);
+					  if (sums.aggregated().empty())
+						windows += " (empty)";
+					  reply.set_std_out(windows.c_str());
+					  return ;
+			      }
+				} else{
+					reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor:  " + "Command not found");
+					return ;
+				}
+			}
+		}
+		if (sums.aggregated().empty()){
+			std_out << "(empty)" << std::endl;
+			reply.set_std_out(std_out.str());
+			return ;
+		}
+		W1 = findSize(sums, winTime);
+		std_out << "Window := " << winTime << "\n\n";
+		std_out << std::left << std::setw(W1) << "who"
+              << std::right << std::setw(W2) << "read BW"
+              << std::setw(W2) << "write BW"
+              << std::setw(W2) << "read IOPS"
+              << std::setw(W2) << "write IOPS";
+		std_out << '\n';
+		for (size_t it = 54 + W1; it > 0; it--)
+			std_out << "─";
+		std_out << "\n" << std::setprecision(2) << std::fixed;
+
+		IoBuffer::data data(sums.aggregated().at(winTime));
+		for (auto app : data.apps()){
+			std_out << std::left << std::setw(W1) << "user (" + app.first + ")"
+				<< std::right << std::setw(W2) << toMega(app.second.ravrg())
+				<< std::setw(W2) << toMega(app.second.wavrg())
+				<< std::setw(W2) << app.second.riops()
+				<< std::setw(W2) << app.second.wiops() << "\n";
+		}
+		for (auto uid : data.uids()){
+			std_out << std::left << std::setw(W1) << "uid (" + std::to_string(uid.first) + ")"
+				<< std::right << std::setw(W2) << toMega(uid.second.ravrg())
+				<< std::setw(W2) << toMega(uid.second.wavrg())
+				<< std::setw(W2) << uid.second.riops()
+				<< std::setw(W2) << uid.second.wiops() << "\n";
+		}
+		for (auto gid : data.gids()){
+			std_out << std::left << std::setw(W1) << "gid (" + std::to_string(gid.first) + ")"
+				<< std::right << std::setw(W2) << toMega(gid.second.ravrg())
+				<< std::setw(W2) << toMega(gid.second.wavrg())
+				<< std::setw(W2) << gid.second.riops()
+				<< std::setw(W2) << gid.second.wiops() << "\n";
+		}
+
+		reply.set_std_out(std_out.str().c_str());
+		return ;
+	}else{
+		for (auto it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++){
+			if (it->second->GetStatus() == "online"){
+				it->second->SetConfigMember("stat.monitor", (cmd + " " + options.str()).c_str(), true);
+				reply.set_std_out(it->first + " : " + cmd + " " + options.str());
+				reply.set_retc(0);
+			}
+		}
 	}
-
-	node->SetConfigMember("stat.monitor", (cmd + " " + options).c_str(), true);
-	reply.set_std_out(nodename + " : " + cmd + " " + options);
-	// reply.set_std_out(nodename + " : " + cmd + " " + options);
-	reply.set_retc(0);
 }
 
 EOSMGMNAMESPACE_END
