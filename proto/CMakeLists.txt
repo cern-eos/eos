@@ -409,7 +409,7 @@ set_source_files_properties(
 # protoc command for http.proto and annotations.proto
 add_custom_command(
     OUTPUT ${ANN_SRCS} ${ANN_HDRS}
-    COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway -I${GRPC_INCLUDE_DIR}
+    COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/common/grpc-proto/ -I${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway -I${GRPC_INCLUDE_DIR}
             --cpp_out=../ ${ANN_PROTOS})
 
 add_library(RestAnnot-Objects OBJECT
@@ -436,6 +436,7 @@ add_custom_command(
     "LD_LIBRARY_PATH=${GRPC_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}"
     ${PROTOBUF3_PROTOC_EXECUTABLE}
             -I${CMAKE_SOURCE_DIR}
+            -I${CMAKE_SOURCE_DIR}/common/grpc-proto/
             -I${CMAKE_SOURCE_DIR}/proto/${EOS_PROTO_ROOT}
             -I${GRPC_INCLUDE_DIR}
             --plugin=protoc-gen-grpc=${GRPC_CPP_PLUGIN}
