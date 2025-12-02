@@ -183,4 +183,52 @@ RecycleCmd::ProcessRequest() noexcept
   return reply;
 }
 
+//------------------------------------------------------------------------------
+// Process request
+//------------------------------------------------------------------------------
+eos::console::ReplyProto
+RecycleCmd::ProcessRequest(std::vector<std::map<std::string, std::string>>*
+                           rvec) noexcept
+{
+  using eos::mgm::Recycle;
+  using eos::console::RecycleProto;
+  std::string err_msg;
+  eos::console::ReplyProto reply;
+  RecycleProto recycle = mReqProto.recycle();
+  RecycleProto::SubcmdCase subcmd = recycle.subcmd_case();
+  std::string std_out, std_err;
+  int rc = 0;
+
+  if (subcmd == RecycleProto::kLs) {
+    eos_static_info("%s", "msg=\"handling recycle ls command\"");
+    const eos::console::RecycleProto_LsProto& ls = recycle.ls();
+    std::string rtype = "uid";
+
+    if (ls.type() == eos::console::RecycleProto::ALL) {
+      rtype = "all";
+    } else if (ls.type() == eos::console::RecycleProto::RID) {
+      rtype = "rid";
+    }
+
+    rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(),
+                        !ls.numericids(), ls.fulldetails(), rtype,
+                        ls.recycleid(), ls.date(), rvec, true,
+                        ls.maxentries());
+
+    if (std_out.length()) {
+      reply.set_std_out(std_out.c_str());
+    }
+
+    if (std_err.length()) {
+      reply.set_std_err(std_err.c_str());
+    }
+
+    reply.set_retc(rc);
+  } else {
+    return ProcessRequest();
+  }
+
+  return reply;
+}
+
 EOSMGMNAMESPACE_END
