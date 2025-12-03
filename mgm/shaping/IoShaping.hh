@@ -45,6 +45,7 @@ class IoShaping : public eos::common::LogId{
 		std::atomic<bool> 	_mShaping;
 
 		IoBuffer::summarys	_shapings;
+		Shaping::Scaler		_scaler;
 
 		std::atomic<size_t>	_receivingTime;
 
@@ -145,6 +146,8 @@ class IoShaping : public eos::common::LogId{
 		void setReceivingTime(size_t);
 
 		IoBuffer::summarys getShaping() const;
+
+		Shaping::Scaler getScaler() const;
 };
 
 EOSMGMNAMESPACE_END

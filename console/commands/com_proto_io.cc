@@ -296,11 +296,20 @@ void com_io_help()
       << "\t      -w :  show history for the last 7 days\n"
       << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens\n"
       << std::endl
-	  << "io monitor [command] [options...] : interact with IoMap's\n"
+	  << "io monitor [command] [options...] : interact with the Monitor and the IoAggregate map's\n"
       << std::endl
 	  << "  COMMANDS\n"
-      << "\t                          ls [...] : print the IoAggregate map, can add a number to print the map N seconds\n"
-	  << "\t                        add [window] : add a window to the map\n"
+      << "\tls [-w] [-a] [-u] [-g] [-s] [-std] [-j] [WINDOW]: print the IoAggregate map\n"
+      << "\t                               [-w] : print all available windows\n"
+      << "\t                               [-a] : print only apps\n"
+      << "\t                               [-u] : print only uids\n"
+      << "\t                               [-g] : print only gids\n"
+      << "\t                               [-s] : print the size\n"
+      << "\t                             [-std] : print the standard deviation\n"
+      << "\t                               [-j] : change the output to JSON format\n"
+      << "\t                 [WINDOW](Optional) : Target a specific window\n\n"
+
+	  << "\t                       add [window] : add a window to the map\n"
 	  << "\t                rm window|target : add a window to the map\n"
 	  << "\t           set [window][tracks][...] : set track to a window, multiple track can be set\n"
 	  << "\t         proto [window][tracks][...] : print ProtoBuff JSON format of given tracks (get directly the summary)\n"
