@@ -460,7 +460,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 			for (auto app : data.apps()){
 				std_out << std::left << std::setw(W1) << "app (" + app.first + ")"
 					<< std::right << std::setw(W2) << toMega(app.second.ravrg())
-					<< std::setw(W3) << 0;
+					<< std::setw(W3) << 1;
 
 				if (printStd)
 					std_out << std::setw(W4) << app.second.rstd();
@@ -468,7 +468,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 					std_out << std::setw(W3) << app.second.rsize();
 
 				std_out << std::setw(W2) << toMega(app.second.wavrg())
-					<< std::setw(W3)<< 0;
+					<< std::setw(W3)<< 1;
 
 				if (printStd)
 					std_out << std::setw(W4) << app.second.wstd();
@@ -482,7 +482,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 			for (auto uid : data.uids()){
 				std_out << std::left << std::setw(W1) << "uid (" + std::to_string(uid.first) + ")"
 					<< std::right << std::setw(W2) << toMega(uid.second.ravrg())
-					<< std::setw(W3) << 0;
+					<< std::setw(W3) << 1;
 
 				if (printStd)
 					std_out << std::setw(W4) << uid.second.rstd();
@@ -490,7 +490,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 					std_out << std::setw(W3) << uid.second.rsize();
 
 				std_out << std::setw(W2) << toMega(uid.second.wavrg())
-					<< std::setw(W3) << 0;
+					<< std::setw(W3) << 1;
 				
 				if (printStd)
 					std_out << std::setw(W4) << uid.second.wstd();
@@ -505,7 +505,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 			for (auto gid : data.gids()){
 				std_out << std::left << std::setw(W1) << "gid (" + std::to_string(gid.first) + ")"
 					<< std::right << std::setw(W2) << toMega(gid.second.ravrg())
-					<< std::setw(W3) << 0;
+					<< std::setw(W3) << 1;
 				
 				if (printStd)
 					std_out << std::setw(W4) << gid.second.rstd();
@@ -513,7 +513,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 					std_out << std::setw(W3) << gid.second.rsize();
 				
 				std_out << std::setw(W2) << toMega(gid.second.wavrg())
-					<< std::setw(W3) << 0;
+					<< std::setw(W3) << 1;
 				
 				if (printStd)
 					std_out << std::setw(W4) << gid.second.wstd();

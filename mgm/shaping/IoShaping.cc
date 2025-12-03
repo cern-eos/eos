@@ -218,25 +218,6 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
   eos_static_info("%s", "msg=\"stopping IoShaping receiver thread\"");
 }
 
-bool IoShaping::calculeScalerNodes(Shaping::Scaler &scaler) const{
-
-	if (_shapings.aggregated_size() <= 0)
-		return false;
-
-	for (auto it : _shapings.aggregated()){
-		scaler.add_windows(it.first);
-		for (auto apps : it.second.apps()){
-			// float scaler = 0;
-		}
-
-		for (auto apps : it.second.uids()){}
-
-		for (auto apps : it.second.gids()){}
-	}
-
-	return true;
-}
-
 void IoShaping::publishing(ThreadAssistant &assistant){
 	ThreadAssistant::setSelfThreadName("IoShapingPublishing");
 	eos_static_info("%s", "msg=\"starting IoShaping publishing thread\"");
@@ -248,21 +229,15 @@ void IoShaping::publishing(ThreadAssistant &assistant){
 		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 		std::lock_guard<std::mutex> lock(_mSyncThread);
 		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
-		Shaping::Scaler scaler;
 		std::string publish;
 		google::protobuf::util::JsonPrintOptions options;
 
 		if (_shapings.aggregated().empty()){
-			eos_static_info("msg=\"Nothing to scale\"");
+			eos_static_info("msg=\"Nothing to publish\"");
 			continue;
 		}
 
-		if (!calculeScalerNodes(scaler)){
-			eos_static_err("msg=\"Calcule scaler failed\"");
-			continue;
-		}
-		_scaler = scaler;
-		auto abslStatus = google::protobuf::util::MessageToJsonString(scaler, &publish, options);
+		auto abslStatus = google::protobuf::util::MessageToJsonString(_scaler, &publish, options);
 		if (!abslStatus.ok()){
 			eos_static_err("%s", "msg=\"Failed to convert Shaping::Scaler object to JSON String\"");
 			continue;
@@ -276,6 +251,45 @@ void IoShaping::publishing(ThreadAssistant &assistant){
   eos_static_info("%s", "msg=\"stopping IoShaping publishing thread\"");
 }
 
+bool IoShaping::calculeScalerNodes(){
+
+	Shaping::Scaler scaler;
+
+	if (_shapings.aggregated_size() <= 0)
+		return false;
+
+	for (auto it : _shapings.aggregated()){
+		_scaler.add_windows(it.first);
+		for (auto apps : it.second.apps()){
+			if (_limiter.rApps.find(apps.first) != _limiter.rApps.end()){
+				if (apps.second.ravrg()
+					&& _limiter.rApps[apps.first] / apps.second.ravrg() < 1)
+						scaler.mutable_apps()->mutable_read()->insert({apps.first,
+							_limiter.rApps[apps.first] / apps.second.ravrg()});
+				else
+					scaler.mutable_apps()->mutable_read()->insert({apps.first, 1.0});
+			}else
+				scaler.mutable_apps()->mutable_read()->insert({apps.first, 1.0});
+
+			if (_limiter.wApps.find(apps.first) != _limiter.wApps.end()){
+				if (apps.second.wavrg()
+					&& _limiter.wApps[apps.first] / apps.second.wavrg() < 1)
+						scaler.mutable_apps()->mutable_write()->insert({apps.first,
+							_limiter.wApps[apps.first] / apps.second.wavrg()});
+				else
+					scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
+			}else
+				scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
+		}
+		for (auto apps : it.second.uids()){}
+
+		for (auto apps : it.second.gids()){}
+	}
+
+	return true;
+}
+
+
 void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
 	ThreadAssistant::setSelfThreadName("IoShaping");
 	eos_static_info("%s", "msg=\"starting IoShaping shaping thread\"");
@@ -286,6 +300,11 @@ void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
 		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 		std::lock_guard<std::mutex> lock(_mSyncThread);
 		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+
+		if (!calculeScalerNodes()){
+			eos_static_err("msg=\"Calcule scaler failed\"");
+			continue;
+		}
 	}
 
   eos_static_info("%s", "msg=\"stopping IoShaping publishing thread\"");
