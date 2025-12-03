@@ -36,9 +36,9 @@ int usage(const char* prog)
           "                                     -p <key>  old_recycle restore\n"
           " --year <year> [--month <month> [--day <day>]] old_recycle purge\n"
           "                                     -p <key>  old_recycle purge\n"
-          "                                               recycle ls [--all] [--uid] [--rid <val>] [--monitoring] [--numeric] [-p <date>]\n"
-          "                                               recycle purge [--all] [--uid] [--rid <val>] [-p <date>|<key>]\n"
-          "                                               recycle restore [-p <key>] [--force-original-name] [--restore-versions] [--make-path]\n"
+          "                                               recycle ls [<date> [<limit>]] [-m] [-n] [--all] [--rid <val>]\n"
+          "                                               recycle purge [--all] [--uid] [--rid <val>] <date> | -k <key>]\n"
+          "                                               recycle restore [-p <key>] [-f|--force-original-name] [-r|--restore-versions] [-p] <recycle-key>\n"
           "                                               recycle project --path <path> [--acl <val>]\n"
           "                                               recycle config [--add-bin|--remove-bin <subtree>] [--lifetime <seconds>] [--ratio <ratio>] [--size <size>] [--inodes <inodes>] [--collect-interval <seconds>] [--remove-interval <seconds>] [--dry-run <val>] [--dump]\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota get\n"
@@ -54,17 +54,18 @@ int ParseRecycleCommand(int argc, const char* argv[], int arg_index,
 {
   std::string command_line;
 
-  for (int i = arg_index; i < argc; i++) {
-    command_line += argv[i];
-    command_line += " ";
+  if (subcmd.empty()) {
+    command_line = subcmd;
+  } else {
+    for (int i = arg_index; i < argc; i++) {
+      command_line += argv[i];
+      command_line += " ";
+    }
+
+    // Remove trailing space
+    command_line.pop_back();
   }
 
-  if (command_line.empty()) {
-    return EINVAL;
-  }
-
-  // Remove trailing space
-  command_line.pop_back();
   GlobalOptions opts;
   RecycleHelper recycle_helper(opts);
 
