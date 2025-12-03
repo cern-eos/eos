@@ -997,7 +997,7 @@ runtest "### Quota     " unix 0 "" eos quota set -g 99 -p /eos/$EOS_TEST_INSTANC
 runtest "### Upload    " unix 0 "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/testproj/1k" "-ODeos.ruid=3"
 runtest "### QUpdate   " unix 0 "" eos quota ls -m "/eos/$EOS_TEST_INSTANCE/test/testproj" | grep "gid=project space=/eos/$EOS_TEST_INSTANCE/test/testproj"
 runtest "### Rem       " unix 2 "" eos rm  "/eos/$EOS_TEST_INSTANCE/test/testproj/1k"
-runtest "### RmdQuota   " unix 0 "" eos quota rmnode --really-want -p "/eos/$EOS_TEST_INSTANCE/test/testproj/"
+runtest "### RmdQuota  " unix 0 "" eos quota rmnode --really-want -p "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 fi
 ################################################################################
@@ -1030,6 +1030,7 @@ runtest "### Recycle-Ls" unix 0 "" eos recycle ls | grep /eos/$EOS_TEST_INSTANCE
 runtest "### Restore   " unix 1 "" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
+rm -rf "$EOS_TEST_TESTSYS/dumpit"
 runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b  root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
@@ -1038,6 +1039,28 @@ runtest "### Recycle   " unix 0 "" eos recycle config --lifetime 2d
 runtest "### Recycle   " unix 0 "" eos recycle -m | grep -q "lifetime=172800 "
 runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
 runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
+# Test project recycle functionality
+runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle"
+runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle"
+runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
+runtest "### Setup     " unix 0 "" eos recycle project --path /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
+rid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle | jq -r .id)
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### NoFile    " unix 0 "" eos recycle ls --rid | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
+runtest "### Restore   " unix 1 "EOSROLE='-r 99 99'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
+runtest "### Download  " unix 0 "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+rm -rf "$EOS_TEST_TESTSYS/dumpit"
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore -f `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### Purge     " unix 0 "EOSROLE='-r 3 4'" eos recycle purge --rid $rid -k `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
+runtest "### NoFile    " unix 1 "" eos recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
+runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
+runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
 
 ################################################################################
 # STRESS

@@ -85,9 +85,8 @@ void com_recycle_help()
       << "                  and can't be used together with a recycle key\n"
       << "    -k <key>    : purge only the given key\n"
       << std::endl
-      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions]\n"
-      << "                  [--rid <val>] <recycle-key>\n"
-      << "    undo the deletion identified by the <recycle-key>\n"
+      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <key>\n"
+      << "    undo the deletion identified by the recycle <key>\n"
       << "    -p          : create all missing parent directories\n"
       << "    -f          : move deleted files/dirs back to their original location\n"
       << "                  (otherwise the key entry will have a <.inode> suffix)\n"
