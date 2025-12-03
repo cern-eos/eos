@@ -261,6 +261,7 @@ void IoShaping::publishing(ThreadAssistant &assistant){
 			eos_static_err("msg=\"Calcule scaler failed\"");
 			continue;
 		}
+		_scaler = scaler;
 		auto abslStatus = google::protobuf::util::MessageToJsonString(scaler, &publish, options);
 		if (!abslStatus.ok()){
 			eos_static_err("%s", "msg=\"Failed to convert Shaping::Scaler object to JSON String\"");
@@ -285,8 +286,6 @@ void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
 		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 		std::lock_guard<std::mutex> lock(_mSyncThread);
 		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
-		std::string msg;
-		XrdOucString body(msg.c_str());
 	}
 
   eos_static_info("%s", "msg=\"stopping IoShaping publishing thread\"");
@@ -307,7 +306,6 @@ bool IoShaping::startReceiving(){
 bool IoShaping::stopReceiving(){
 
   if (_mReceiving.load()){
-	std::lock_guard<std::mutex> lock(_mSyncThread);
 	_mReceiving.store(false);
 	return true;
   }
@@ -328,7 +326,6 @@ bool IoShaping::startPublishing(){
 bool IoShaping::stopPublishing(){
 
   if (_mPublishing.load()){
-	std::lock_guard<std::mutex> lock(_mSyncThread);
 	_mPublishing.store(false);
 	return true;
   }
@@ -349,7 +346,6 @@ bool IoShaping::startShaping(){
 bool IoShaping::stopShaping(){
 
   if (_mShaping.load()){
-    std::lock_guard<std::mutex> lock(_mSyncThread);
 	_mShaping.store(false);
 	return true;
   }
@@ -361,6 +357,11 @@ void IoShaping::setReceivingTime(size_t time){_receivingTime.store(time);}
 IoBuffer::summarys IoShaping::getShaping() const{
     std::lock_guard<std::mutex> lock(_mSyncThread);
 	return _shapings;
+}
+
+Shaping::Scaler IoShaping::getScaler() const{
+    std::lock_guard<std::mutex> lock(_mSyncThread);
+	return _scaler;
 }
 
 EOSMGMNAMESPACE_END
