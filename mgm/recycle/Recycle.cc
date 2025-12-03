@@ -853,7 +853,8 @@ Recycle::GetPathFromRestoreKey(std::string_view key,
     skey.erase(0, 5);
     force_dir = true;
   } else {
-    std_err = "error: unknow recycle key format";
+    std_err = SSTR("error: unknow recycle key format \""
+                   << skey << "\"");
     return EINVAL;
   }
 
