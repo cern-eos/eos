@@ -15,7 +15,7 @@ int usage(const char* prog)
           "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--app <app>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] [--position <position>] [--front] -p <path> <command>\n",
           prog);
   fprintf(stderr,
-          "                                     -p <path> mkdir\n"
+          "                                [-r] -p <path> mkdir\n"
           "                                [-r] -p <path> rmdir\n"
           "                                     -p <path> touch\n"
           "                       [--norecycle] -p <path> rm\n"
@@ -38,7 +38,7 @@ int usage(const char* prog)
           "                                     -p <key>  old_recycle purge\n"
           "                                               recycle ls [<date> [<limit>]] [-m] [-n] [--all] [--rid <val>]\n"
           "                                               recycle purge [--all] [--uid] [--rid <val>] <date> | -k <key>]\n"
-          "                                               recycle restore [-p <key>] [-f|--force-original-name] [-r|--restore-versions] [-p] <recycle-key>\n"
+          "                                               recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <recycle-key>\n"
           "                                               recycle project --path <path> [--acl <val>]\n"
           "                                               recycle config [--add-bin|--remove-bin <subtree>] [--lifetime <seconds>] [--ratio <ratio>] [--size <size>] [--inodes <inodes>] [--collect-interval <seconds>] [--remove-interval <seconds>] [--dry-run <val>] [--dump]\n"
           "[--username <u> | --groupname <g>] [-p <path>] quota get\n"
