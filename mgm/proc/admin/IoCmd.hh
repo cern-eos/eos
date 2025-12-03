@@ -25,6 +25,7 @@
 #include "mgm/Namespace.hh"
 #include "proto/Io.pb.h"
 #include "mgm/proc/ProcCommand.hh"
+#include "ioMonitor/proto/IoBuffer.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -96,11 +97,14 @@ private:
   //----------------------------------------------------------------------------
   //! Execute monitor subcommand
   //!
-  //! @param ns ns subcommand proto object
+  //! @param ms ms subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void MonitorSubcmd(const eos::console::IoProto_MonitorProto& ns,
+  void MonitorSubcmd(const eos::console::IoProto_MonitorProto& ms,
                 eos::console::ReplyProto& reply);
+
+  void MonitorLs(const eos::console::IoProto_MonitorProto& mn,
+                     eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END
