@@ -26,7 +26,7 @@
 #include "common/AssistedThread.hh"
 #include "mgm/FsView.hh"
 #include "common/ioMonitor/proto/IoBuffer.pb.h"
-// #include "mgm/XrdMgmOfs.hh"
+#include "ioMonitor/include/IoMonitor.hh"
 #include <google/protobuf/util/json_util.h>
 #include <unordered_map>
 #include "Shaping.pb.h"
@@ -35,6 +35,18 @@ EOSMGMNAMESPACE_BEGIN
 
 class IoShaping : public eos::common::LogId{
 	private:
+
+		struct Limiter{
+			std::map<std::string, size_t> rApps;
+			std::map<std::string, size_t> wApps;
+
+			std::map<uid_t, size_t> rUids;
+			std::map<uid_t, size_t> wUids;
+
+			std::map<gid_t, size_t> rGids;
+			std::map<gid_t, size_t> wGids;
+		};
+
 		AssistedThread 		_mReceivingThread;
 		AssistedThread 		_mPublishingThread;
 		AssistedThread 		_mShapingThread;
@@ -46,6 +58,7 @@ class IoShaping : public eos::common::LogId{
 
 		IoBuffer::summarys	_shapings;
 		Shaping::Scaler		_scaler;
+		Limiter				_limiter;
 
 		std::atomic<size_t>	_receivingTime;
 
@@ -74,7 +87,7 @@ class IoShaping : public eos::common::LogId{
 		void shaping(ThreadAssistant &assistant) noexcept;
 
 		IoBuffer::summarys aggregateSummarys(std::vector<IoBuffer::summarys> &);
-		bool calculeScalerNodes(Shaping::Scaler &) const;
+		bool calculeScalerNodes();
 		
 	public:
 		//--------------------------------------------
@@ -148,6 +161,27 @@ class IoShaping : public eos::common::LogId{
 		IoBuffer::summarys getShaping() const;
 
 		Shaping::Scaler getScaler() const;
+
+		Limiter getLimiter() const;
+
+		template<typename T>
+		void setLimiter(T app, size_t limits) noexcept{
+			std::lock_guard<std::mutex> lock(_mSyncThread);
+			_limiter.apps[app] = limits;
+		}
+
+		template<typename T>
+		bool setLimiter(const io::TYPE type, T id, size_t limits) noexcept{
+			std::lock_guard<std::mutex> lock(_mSyncThread);
+
+			if (type != io::TYPE::UID && type != io::TYPE::GID)
+				return false;
+			if (type == io::TYPE::UID)
+				_limiter.uids[id] = limits;
+			else if (type == io::TYPE::GID)
+				_limiter.gids[id] = limits;
+			return true;
+		}
 };
 
 EOSMGMNAMESPACE_END
