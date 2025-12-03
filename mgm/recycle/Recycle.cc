@@ -1112,10 +1112,15 @@ Recycle::Purge(std::string& std_out, std::string& std_err,
     recycle_path = sdir;
   }
 
+  if (recycle_path.empty()) {
+    std_err = "error: empty recycle path";
+    return EINVAL;
+  }
+
   // Make sure the path to purge is inside the recycle bine
   if (recycle_path.find(Recycle::gRecyclingPrefix) != 0) {
-    std_err = SSTR("error: purge path is " << recycle_path
-                   << " not in the recyle bin ");
+    std_err = SSTR("error: purge path \"" << recycle_path
+                   << "\" is not in the recyle bin ");
     return EINVAL;
   }
 
