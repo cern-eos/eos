@@ -590,14 +590,50 @@ com_file(char* arg1)
     in += "&mgm.subcmd=adjustreplica";
     in += Path2FileDenominator(path) ? "&mgm.file.id=" : "&mgm.path=";
     in += path;
+    std::vector<std::string> args;
 
     if (fsid1.length()) {
-      in += "&mgm.file.desiredspace=";
-      in += fsid1;
+      args.push_back(fsid1.c_str());
+    }
 
-      if (fsid2.length()) {
-        in += "&mgm.file.desiredsubgroup=";
-        in += fsid2;
+    if (fsid2.length()) {
+      args.push_back(fsid2.c_str());
+    }
+
+    if (fsid3.length()) {
+      args.push_back(fsid3.c_str());
+    }
+
+    const char* token;
+
+    while ((token = subtokenizer.GetToken())) {
+      args.push_back(token);
+    }
+
+    int positional_index = 0;
+
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (args[i] == "--exclude-fs") {
+        if (i + 1 < args.size()) {
+          in += "&mgm.file.excludefs=";
+          in += args[i + 1].c_str();
+          i++; // skip value
+        } else {
+          goto com_file_usage;
+        }
+      } else {
+        // Positional
+        if (positional_index == 0) {
+          in += "&mgm.file.desiredspace=";
+          in += args[i].c_str();
+          positional_index++;
+        } else if (positional_index == 1) {
+          in += "&mgm.file.desiredsubgroup=";
+          in += args[i].c_str();
+          positional_index++;
+        } else {
+          goto com_file_usage;
+        }
       }
     }
   }
@@ -1056,9 +1092,11 @@ com_file_usage:
           "'[eos] file ..' provides the file management interface of EOS.\n");
   fprintf(stdout, "Options:\n");
   fprintf(stdout,
-          "file adjustreplica [--nodrop] <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] :\n");
+          "file adjustreplica [--nodrop] <path>|fid:<fid-dec>|fxid:<fid-hex> [space [subgroup]] [--exclude-fs <fsid>] :\n");
   fprintf(stdout,
           "                                                  tries to bring a files with replica layouts to the nominal replica level [ need to be root ]\n");
+  fprintf(stdout,
+          "       --exclude-fs <fsid>                                            :  exclude the given filesystem from being used for the replica adjustment\n");
   fprintf(stdout,
           "file check [<path>|fid:<fid-dec>|fxid:<fid-hex>] [%%size%%checksum%%nrep%%diskchecksum%%force%%output%%silent] :\n");
   fprintf(stdout,
