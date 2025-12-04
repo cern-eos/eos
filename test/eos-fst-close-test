@@ -186,8 +186,9 @@ test_read_xs_error() {
   local error_msg="Unable to read file - wrong file checksum"
   exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}"
   local min_fsid=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '[.locations | .[] | .fsid] | sort | first'")
+  local max_fsid=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '[.locations | .[] | .fsid] | sort | last'")
   local local_path=$(exec_cmd eos-cli1 "eos -j fileinfo ${eos_fn} | jq '.locations | .[] | select(.fsid==${min_fsid}) | .fstpath' | tr -d '\"' ")
-  # Corrupt the raw file on disk
+  # Corrupt the raw file on disk for the min_fsid
   local orig_xs=$(exec_cmd eos-fst${min_fsid} "eos-adler32 ${local_path} | awk -F '[ =]' '{print \$NF;}'")
   exec_cmd eos-fst${min_fsid} "printf '\xab' | dd status=none of=${local_path} bs=1 seek=$((0xbeef)) conv=notrunc"
   exec_cmd eos-fst${min_fsid} "printf '\x12' | dd status=none of=${local_path} bs=1 seek=$((0xdead)) conv=notrunc"
@@ -198,26 +199,27 @@ test_read_xs_error() {
       exit 1
   fi
 
+  # Disable the max_fsid file system to be sure we always read from the bad replica
+  exec_cmd eos-cli1 "eos -r 0 0 fs config ${max_fsid} configstatus=off"
   local cp_output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${EOS_MGM_URL}/${eos_fn} /tmp/test_file_copy.dat 2>&1")
+  local rc1=0
   # Check if output contains the expected error message
-  [[ ${cp_output} =~ ${error_msg} ]]
-  local rc1=$?
-
-  if [[ $rc1 -ne 0 ]]; then
+  if [[ ! ${cp_output} =~ ${error_msg} ]]; then
+    rc1=$?
     echo "error: command output is \"${cp_output}\""
   fi
 
   # Read the file in reverse so that the checksum check on close gets triggered
   error_msg="error: close failed with retc=-1 errno=5"
   cp_output=$(exec_cmd eos-cli1 "xrdcpbackward ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
+  local rc2=0
   # Check if output contains the expected error message
-  [[ ${cp_output} =~ ${error_msg} ]]
-  local rc2=$?
-
-  if [[ $rc2 -ne 0 ]]; then
+  if [[ ! ${cp_output} =~ ${error_msg} ]]; then
+    rc2=$?
     echo "error: command output is \"${cp_output}\""
   fi
 
+  exec_cmd eos-cli1 "eos -r 0 0 fs config ${max_fsid} configstatus=rw"
   exec_cmd eos-cli1 "eos -r 0 0 rm -rF ${eos_fn}"
   echo "info: return value is ${rc1}${rc2}"
   return ${rc1}${rc2}
@@ -235,19 +237,18 @@ test_write_min_filesize() {
   local error_msg="Unable to open - bookingsize violates minimum allowed filesize"
   exec_cmd eos-cli1 "eos -r 0 0 attr set sys.forced.minsize=$((25*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
   output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
-  [[ ${output} =~ ${error_msg} ]]
-  local rc1=$?
+  local rc1=0
 
-  if [[ ${rc1} -ne 0 ]]; then
+  if [[ ! ${output} =~ ${error_msg} ]]; then
+    rc1=$?
     echo "error: message \"${output}\" different from expected \"${error_msg}\""
   fi
 
   error_msg="No such file or directory"
   output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
-  [[ ${output} =~ ${error_msg} ]]
-  local rc2=$?
-
-  if [[ ${rc2} -ne 0 ]]; then
+  local rc2=0
+  if [[ ! ${output} =~ ${error_msg} ]]; then
+    rc2=$?
     echo "error: message \"${output}\" different from expected \"${error_msg}\""
   fi
 
@@ -267,12 +268,22 @@ test_write_max_filesize() {
   local error_msg="Unable to open - bookingsize violates maximum allowed filesize"
   exec_cmd eos-cli1 "eos -r 0 0 attr set sys.forced.maxsize=$((1*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
   output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
-  [[ ${output} =~ ${error_msg} ]]
-  local rc1=$?
+  local rc1=0
+
+  if [[ ! ${output} =~ ${error_msg} ]]; then
+    rc1=$?
+    echo "error: message \"${output}\" different from expected \"${error_msg}\""
+  fi
+
   error_msg="No such file or directory"
   output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
-  [[ ${output} =~ ${error_msg} ]]
-  local rc2=$?
+  local rc2=0
+
+  if [[ ! ${output} =~ ${error_msg} ]]; then
+    rc3=$?
+    echo "error: message \"${output}\" different from expected \"${error_msg}\""
+  fi
+
   exec_cmd eos-cli1 "eos -r 0 0 attr rm sys.forced.maxsize ${EOS_REPLICA_DIR} >& /dev/null"
   return ${rc1}${rc2}
 }
@@ -289,12 +300,22 @@ test_write_targetsize() {
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_targetsize.dat"
   local error_msg="Unable to store file - file has been cleaned because the stored file does not match the provided targetsize"
   output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}?eos.targetsize=10000 2>&1 || true")
-  [[ ${output} =~ ${error_msg} ]]
-  local rc1=$?
+  local rc1=0
+
+  if [[ ! ${output} =~ ${error_msg} ]]; then
+    rc1=$?
+    echo "error: message \"${output}\" different from expected \"${error_msg}\""
+  fi
+
   error_msg="No such file or directory"
   output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
-  [[ ${output} =~ ${error_msg} ]]
-  local rc2=$?
+  local rc2=0
+
+  if [[ ! ${output} =~ ${error_msg} ]]; then
+    rc2=$?
+    echo "error: message \"${output}\" different from expected \"${error_msg}\""
+  fi
+
   return ${rc1}${rc2}
 }
 
@@ -309,12 +330,21 @@ test_write_xs_preset() {
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_xs_preset.dat"
   local error_msg="Unable to store file - file has been cleaned because of a checksum error"
   local output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn}?eos.checksum=deadbeef 2>&1 || true")
-  [[ ${output} =~ ${error_msg} ]]
-  local rc1=$?
+  local rc1=0
+
+  if [[ ! ${output} =~ ${error_msg} ]]; then
+    rc1=$?
+    echo "error: message \"${output}\" different from expected \"${error_msg}\""
+  fi
+
   error_msg="No such file or directory"
   output=$(exec_cmd eos-cli1 "eos fileinfo ${eos_fn} 2>&1 || true")
-  [[ ${output} =~ ${error_msg} ]]
-  local rc2=$?
+  local rc2=0
+  if [[ ! ${output} =~ ${error_msg} ]]; then
+    rc2=$?
+    echo "error: message \"${output}\" different from expected \"${error_msg}\""
+  fi
+
   return ${rc1}${rc2}
 }
 
