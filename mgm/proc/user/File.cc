@@ -1621,6 +1621,17 @@ ProcCommand::File()
           std::vector<unsigned int> selectedfs;
           std::vector<unsigned int> unavailfs;
           std::vector<unsigned int> excludefs;
+
+          if (pOpaque->Get("mgm.file.excludefs")) {
+            unsigned int exclude_fsid = strtoul(pOpaque->Get("mgm.file.excludefs"), 0, 10);
+
+            if (exclude_fsid) {
+              excludefs.push_back(exclude_fsid);
+              src_fs.erase(std::remove(src_fs.begin(), src_fs.end(), exclude_fsid),
+                           src_fs.end());
+            }
+          }
+
           std::string tried_cgi;
           // Now we just need to ask for <n> targets
           int layoutId = eos::common::LayoutId::GetId(eos::common::LayoutId::kReplica,
