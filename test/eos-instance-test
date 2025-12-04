@@ -1918,7 +1918,7 @@ runtest "### Mkdir     " unix 0 "" eos attr set default=replica  ${ADJUST_TEST_D
 runtest "### Upload    " unix 0 "" eos cp ${TESTSYSFILE1K} ${ADJUST_TEST_FILE}
 adj_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Drop fsid " unix 0 "" eos file drop ${ADJUST_TEST_FILE} ${adj_fsid}
-runtest "### Adjust -  " unix 0 "" eos file adjustreplica ${ADJUST_TEST_FILE}
+runtest "### Adjust    " unix 0 "" eos file adjustreplica ${ADJUST_TEST_FILE} --exclude-fs ${adj_fsid}
 runtest "### Delay     " unix 0 "" delay 4
 runtest "### Check     " unix 0 "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
 # Find a new file system where to over-replicate the current file
