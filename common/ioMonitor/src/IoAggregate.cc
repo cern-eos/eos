@@ -166,6 +166,8 @@ int IoAggregate::shiftWindow(const size_t index){
 std::optional<IoStatSummary> IoAggregate::summaryWeighted(const std::vector<IoStatSummary> &summarys, size_t winTime){
 	size_t rDivisor = 0;
 	size_t wDivisor = 0;
+	size_t rEmptyDivisor = 0;
+	size_t wEmptyDivisor = 0;
 	IoStatSummary weighted;
 
 	if (io::IoAggregateDebug)
@@ -181,36 +183,46 @@ std::optional<IoStatSummary> IoAggregate::summaryWeighted(const std::vector<IoSt
 			weighted.writeBandwidth->first += (it.writeBandwidth->first * it.wSize);
 			weighted.wIops += it.wIops * it.wSize;
 		}
-		rDivisor += it.rSize;
-		wDivisor += it.wSize;
+		it.rSize == 0 ? rEmptyDivisor++ : rDivisor += it.rSize;
+		it.wSize == 0 ? wEmptyDivisor++ : wDivisor += it.wSize;
 	}
 
 	if (rDivisor > 0){
-		weighted.readBandwidth->first /= rDivisor;
-		weighted.rIops /= rDivisor;
+		weighted.readBandwidth->first /=
+			rDivisor + rEmptyDivisor;
+		weighted.rIops /=
+			rDivisor + rEmptyDivisor;
 	}
 	if (wDivisor > 0){
-		weighted.writeBandwidth->first /= wDivisor;
-		weighted.wIops /= wDivisor;
+		weighted.writeBandwidth->first /=
+			wDivisor + wEmptyDivisor;
+		weighted.wIops /=
+			wDivisor + wEmptyDivisor;
 	}
 
 	/// Calcule standard deviation
 	for (const auto &it : summarys){
 		if (weighted.readBandwidth.has_value())
-			weighted.readBandwidth->second += (it.rSize * \
-				(std::pow(it.readBandwidth->second, 2) + std::pow(it.readBandwidth->first - \
-													  weighted.readBandwidth->first, 2)));
+			weighted.readBandwidth->second += (it.rSize *
+				((std::pow(it.readBandwidth->second, 2) +
+				std::pow(it.readBandwidth->first - weighted.readBandwidth->first, 2))));
+
 		if (weighted.writeBandwidth.has_value())
-			weighted.writeBandwidth->second += (it.wSize * \
-				(std::pow(it.writeBandwidth->second, 2) + std::pow(it.writeBandwidth->first - \
-													  weighted.writeBandwidth->first, 2)));
+			weighted.writeBandwidth->second += (it.wSize *
+				((std::pow(it.writeBandwidth->second, 2) +
+				std::pow(it.writeBandwidth->first - weighted.writeBandwidth->first, 2))));
 	}
+	if (rEmptyDivisor > 0)
+		weighted.readBandwidth->second += rEmptyDivisor * (std::pow(0 - weighted.readBandwidth->first, 2));
+	if (wEmptyDivisor > 0)
+		weighted.writeBandwidth->second += wEmptyDivisor * (std::pow(0 - weighted.writeBandwidth->first, 2));
+
 
 	if (rDivisor > 0 && weighted.readBandwidth.has_value())
-			weighted.readBandwidth->second = std::sqrt(weighted.readBandwidth->second / rDivisor);
+			weighted.readBandwidth->second = std::sqrt(weighted.readBandwidth->second / (rDivisor + rEmptyDivisor));
 
 	if (wDivisor > 0 && weighted.writeBandwidth.has_value())
-			weighted.writeBandwidth->second = std::sqrt(weighted.writeBandwidth->second / wDivisor);
+			weighted.writeBandwidth->second = std::sqrt(weighted.writeBandwidth->second / (wDivisor + wEmptyDivisor));
 
 
 	weighted.rSize = rDivisor;

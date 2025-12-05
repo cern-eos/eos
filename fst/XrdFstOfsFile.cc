@@ -837,9 +837,9 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
   return rc;
 }
 
-static size_t trafficRegulation(size_t traficSpeed){
-	return traficSpeed;
-}
+// static size_t trafficRegulation(float traficSpeed){
+// 	return traficSpeed;
+// }
 
 //------------------------------------------------------------------------------
 // Read from file
@@ -894,6 +894,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                                          openTime.tv_sec) * 1000 +
                                         (currentTime.tv_usec - openTime.tv_usec) / 1000);
 
+	// if (gOFS.Storage->_scaler.apps().read().contains(vid.app);
     /// Regulate the io according to the last scaler change point in time
 	// std::int64_t sleepTime = trafficRegulation(gOFS.ioMap.read());
     

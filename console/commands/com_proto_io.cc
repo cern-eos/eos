@@ -208,6 +208,8 @@ bool IoHelper::ParseCommand(const char* arg)
 		monitor->set_cmd(token);
 
 		tokenizer.NextToken(options);
+		if (monitor->cmd() == "set" && options.empty())
+			return false;
 		while (tokenizer.NextToken(token))
 			options += " " + token;
 
