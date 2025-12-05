@@ -618,11 +618,7 @@ int testIoAggregateMapDelete(){
 
 	fillDataInteract(map, mutex);
 
-	std::cout << map << std::endl;
-
 	map = IoAggregateMap();
-
-	std::cout << map << std::endl;
 
 	map.addWindow(300);
 	map.addWindow(500);
@@ -640,8 +636,6 @@ int testIoAggregateMapDelete(){
 	map.setTrack(500, io::TYPE::UID, 1);
 
 	fillDataInteract(map, mutex);
-
-	std::cout << map << std::endl;
 
 	return 0;
 }
