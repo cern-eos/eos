@@ -623,8 +623,10 @@ Storage::ProcessFstConfigChange(const std::string& key,
   }
 
   if (key == "stat.scaler.xyz"){
-	// std::string reply(MonitorCmd(value));
-	eos_static_info("msg=\"stat.scaler.xyz\"");
+		google::protobuf::util::JsonParseOptions option;
+		auto absel = google::protobuf::json::JsonStringToMessage(value, &mScaler, option);
+		if (!absel.ok())
+			eos_static_err("msg=\"Failed to convert scaler value to variable\"");
 	return;
   }
 }

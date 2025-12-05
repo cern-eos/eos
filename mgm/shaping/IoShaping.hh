@@ -29,7 +29,7 @@
 #include "ioMonitor/include/IoMonitor.hh"
 #include <google/protobuf/util/json_util.h>
 #include <unordered_map>
-#include "Shaping.pb.h"
+#include "common/ioMonitor/proto/Shaping.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -165,21 +165,33 @@ class IoShaping : public eos::common::LogId{
 		Limiter getLimiter() const;
 
 		template<typename T>
-		void setLimiter(T app, size_t limits) noexcept{
+		void setLimiter(T app, size_t limits, const std::string rw) noexcept{
 			std::lock_guard<std::mutex> lock(_mSyncThread);
-			_limiter.apps[app] = limits;
+			if (rw == "read")
+				_limiter.rApps[app] = limits;
+			if (rw == "write")
+				_limiter.wApps[app] = limits;
 		}
 
 		template<typename T>
-		bool setLimiter(const io::TYPE type, T id, size_t limits) noexcept{
+		bool setLimiter(const io::TYPE type, T id, size_t limits, const std::string rw) noexcept{
 			std::lock_guard<std::mutex> lock(_mSyncThread);
 
 			if (type != io::TYPE::UID && type != io::TYPE::GID)
 				return false;
-			if (type == io::TYPE::UID)
-				_limiter.uids[id] = limits;
-			else if (type == io::TYPE::GID)
-				_limiter.gids[id] = limits;
+
+			if (type == io::TYPE::UID){
+				if (rw == "read")
+					_limiter.rUids[id] = limits;
+				if (rw == "write")
+					_limiter.wUids[id] = limits;
+			}
+			else if (type == io::TYPE::GID){
+				if (rw == "read")
+					_limiter.rGids[id] = limits;
+				if (rw == "write")
+					_limiter.wGids[id] = limits;
+			}
 			return true;
 		}
 };
