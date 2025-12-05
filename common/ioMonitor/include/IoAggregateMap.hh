@@ -393,7 +393,7 @@ class IoAggregateMap{
 			std::lock_guard<std::mutex> lock(_mutex);
 			if (_aggregates.find(winTime) == _aggregates.end())
 				return std::nullopt;
-			return (_aggregates[winTime]->getSummary(index));
+			return (_aggregates[winTime]->getSummary(index, winTime));
 		}
 
 		//--------------------------------------------
@@ -417,6 +417,6 @@ class IoAggregateMap{
 			std::lock_guard<std::mutex> lock(_mutex);
 			if (_aggregates.find(winTime) == _aggregates.end())
 				return std::nullopt;
-			return (_aggregates[winTime]->getSummary(type, index));
+			return (_aggregates[winTime]->getSummary(type, index, winTime));
 		}
 };
