@@ -21,10 +21,8 @@
  *************************************************************************/
 
 #include "IoShaping.hh"
-#include "FileSystem.hh"
 #include "ioMonitor/include/IoAggregateMap.hh"
 #include "mgm/FsView.hh"
-#include "qclient/shared/SharedHashSubscription.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -64,7 +62,6 @@ IoBuffer::summarys IoShaping::aggregateSummarys(std::vector<IoBuffer::summarys> 
 	std::map<uint64_t, std::map<std::string, std::vector<IoStatSummary> > > apps;
 	std::map<uint64_t, std::map<gid_t, std::vector<IoStatSummary> > > uids;
 	std::map<uint64_t, std::map<uid_t, std::vector<IoStatSummary> > > gids;
-	eos_static_info("msg=\"aggregateSummarys begin\"");
 
 	for (auto it = received.begin(); it != received.end(); it++){
 		auto aggregate = it->mutable_aggregated();
@@ -232,11 +229,6 @@ void IoShaping::publishing(ThreadAssistant &assistant){
 		std::string publish;
 		google::protobuf::util::JsonPrintOptions options;
 
-		if (_shapings.aggregated().empty()){
-			eos_static_info("msg=\"Nothing to publish\"");
-			continue;
-		}
-
 		auto abslStatus = google::protobuf::util::MessageToJsonString(_scaler, &publish, options);
 		if (!abslStatus.ok()){
 			eos_static_err("%s", "msg=\"Failed to convert Shaping::Scaler object to JSON String\"");
@@ -252,38 +244,77 @@ void IoShaping::publishing(ThreadAssistant &assistant){
 }
 
 bool IoShaping::calculeScalerNodes(){
-
-	Shaping::Scaler scaler;
+	eos_static_info("msg=\"Calculate the scaler begin\"");
 
 	if (_shapings.aggregated_size() <= 0)
 		return false;
 
 	for (auto it : _shapings.aggregated()){
-		_scaler.add_windows(it.first);
+		if (std::find(_scaler.windows().begin(), _scaler.windows().end(), it.first) == _scaler.windows().end())
+			_scaler.add_windows(it.first);
 		for (auto apps : it.second.apps()){
 			if (_limiter.rApps.find(apps.first) != _limiter.rApps.end()){
 				if (apps.second.ravrg()
 					&& _limiter.rApps[apps.first] / apps.second.ravrg() < 1)
-						scaler.mutable_apps()->mutable_read()->insert({apps.first,
+						_scaler.mutable_apps()->mutable_read()->insert({apps.first,
 							_limiter.rApps[apps.first] / apps.second.ravrg()});
 				else
-					scaler.mutable_apps()->mutable_read()->insert({apps.first, 1.0});
+					_scaler.mutable_apps()->mutable_read()->insert({apps.first, 1.0});
 			}else
-				scaler.mutable_apps()->mutable_read()->insert({apps.first, 1.0});
+				_scaler.mutable_apps()->mutable_read()->insert({apps.first, 1.0});
 
 			if (_limiter.wApps.find(apps.first) != _limiter.wApps.end()){
 				if (apps.second.wavrg()
 					&& _limiter.wApps[apps.first] / apps.second.wavrg() < 1)
-						scaler.mutable_apps()->mutable_write()->insert({apps.first,
+						_scaler.mutable_apps()->mutable_write()->insert({apps.first,
 							_limiter.wApps[apps.first] / apps.second.wavrg()});
 				else
-					scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
+					_scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
 			}else
-				scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
+				_scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
 		}
-		for (auto apps : it.second.uids()){}
+		for (auto uids : it.second.uids()){
+			if (_limiter.rUids.find(uids.first) != _limiter.rUids.end()){
+				if (uids.second.ravrg()
+					&& _limiter.rUids[uids.first] / uids.second.ravrg() < 1)
+						_scaler.mutable_uids()->mutable_read()->insert({uids.first,
+							_limiter.rUids[uids.first] / uids.second.ravrg()});
+				else
+					_scaler.mutable_uids()->mutable_read()->insert({uids.first, 1.0});
+			}else
+				_scaler.mutable_uids()->mutable_read()->insert({uids.first, 1.0});
 
-		for (auto apps : it.second.gids()){}
+			if (_limiter.wUids.find(uids.first) != _limiter.wUids.end()){
+				if (uids.second.wavrg()
+					&& _limiter.wUids[uids.first] / uids.second.wavrg() < 1)
+						_scaler.mutable_uids()->mutable_write()->insert({uids.first,
+							_limiter.wUids[uids.first] / uids.second.wavrg()});
+				else
+					_scaler.mutable_uids()->mutable_write()->insert({uids.first, 1.0});
+			}else
+				_scaler.mutable_uids()->mutable_write()->insert({uids.first, 1.0});
+		}
+		for (auto gids : it.second.gids()){
+			if (_limiter.rGids.find(gids.first) != _limiter.rGids.end()){
+				if (gids.second.ravrg()
+					&& _limiter.rGids[gids.first] / gids.second.ravrg() < 1)
+						_scaler.mutable_gids()->mutable_read()->insert({gids.first,
+							_limiter.rGids[gids.first] / gids.second.ravrg()});
+				else
+					_scaler.mutable_gids()->mutable_read()->insert({gids.first, 1.0});
+			}else
+				_scaler.mutable_gids()->mutable_read()->insert({gids.first, 1.0});
+
+			if (_limiter.wGids.find(gids.first) != _limiter.wGids.end()){
+				if (gids.second.wavrg()
+					&& _limiter.wGids[gids.first] / gids.second.wavrg() < 1)
+						_scaler.mutable_gids()->mutable_write()->insert({gids.first,
+							_limiter.wGids[gids.first] / gids.second.wavrg()});
+				else
+					_scaler.mutable_gids()->mutable_write()->insert({gids.first, 1.0});
+			}else
+				_scaler.mutable_gids()->mutable_write()->insert({gids.first, 1.0});
+		}
 	}
 
 	return true;

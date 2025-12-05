@@ -58,7 +58,7 @@ target_link_libraries(EosSciToken-Objects PUBLIC
 #-------------------------------------------------------------------------------
 
 include_directories(ioMonitor/proto)
-set(PROTO_FILES ioMonitor/IoBuffer.proto)
+set(PROTO_FILES ioMonitor/IoBuffer.proto ioMonitor/Shaping.proto)
 protobuf_generate_cpp(PROTO_IO_MONITORSRCS PROTO_IO_MONITOR_HDRS ${PROTO_FILES})
 
 #-------------------------------------------------------------------------------
@@ -284,6 +284,7 @@ if (NOT CLIENT AND Linux)
 	ioMonitor/src/IoMap.cc
 	ioMonitor/src/IoStat.cc
 	ioMonitor/proto/IoBuffer.pb.cc
+	ioMonitor/proto/Shaping.pb.cc
 	ioMonitor/src/IoAggregate.cc)
 
   target_link_libraries(EosCommonServer-Objects PUBLIC

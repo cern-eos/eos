@@ -317,12 +317,12 @@ static size_t findSize(IoBuffer::summarys &sums, size_t winTime){
 	return size + 8;
 }
 
-static std::string toMega(google::uint32 byte){
+static std::string toMega(google::uint32 byte, float iops){
 	std::ostringstream os;
 	if (byte == 0)
-		return "0  MB/s";
+		return "0 MB/s";
 
-	float finalByte = static_cast<float>(byte) / 1000000;
+	float finalByte = (static_cast<float>(byte) / 1000000) * iops;
 	os << std::fixed << std::setprecision(3) << finalByte << " MB/s";
 	return os.str();
 }
@@ -332,7 +332,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 	size_t W1 = 20;
 	const size_t W2 = 14;
 	const size_t W3 = 7;
-	const size_t W4 = 9;
+	const size_t W4 = 13;
 	std::stringstream options(mn.options());
 	std::string cmdOptions;
 	std::stringstream std_out;
@@ -349,7 +349,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 		std::min_element(sums.aggregated().begin(), sums.aggregated().end(),
 				   [](auto &a, auto &b){return a.first < b.first;})->first : 0;
 
-	if (mn.options() == "-w"){
+	if (options.str() == "-w"){
 		std::string windows("[Available window]:");
 		for (auto it : sums.aggregated())
 			windows += " " + std::to_string(it.first);
@@ -463,19 +463,19 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 		if (printApps){
 			for (auto app : data.apps()){
 				std_out << std::left << std::setw(W1) << "app (" + app.first + ")"
-					<< std::right << std::setw(W2) << toMega(app.second.ravrg())
+					<< std::right << std::setw(W2) << toMega(app.second.ravrg(), app.second.riops())
 					<< std::setw(W3) << 1;
 
 				if (printStd)
-					std_out << std::setw(W4) << app.second.rstd();
+					std_out << std::setw(W4) << toMega(app.second.rstd(), app.second.riops());
 				if (printSize)
 					std_out << std::setw(W3) << app.second.rsize();
 
-				std_out << std::setw(W2) << toMega(app.second.wavrg())
+				std_out << std::setw(W2) << toMega(app.second.wavrg(), app.second.wiops())
 					<< std::setw(W3)<< 1;
 
 				if (printStd)
-					std_out << std::setw(W4) << app.second.wstd();
+					std_out << std::setw(W4) << toMega(app.second.wstd(), app.second.wiops());
 				if (printSize)
 					std_out << std::setw(W3) << app.second.wsize();
 
@@ -485,19 +485,19 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 		if (printUids){
 			for (auto uid : data.uids()){
 				std_out << std::left << std::setw(W1) << "uid (" + std::to_string(uid.first) + ")"
-					<< std::right << std::setw(W2) << toMega(uid.second.ravrg())
+					<< std::right << std::setw(W2) << toMega(uid.second.ravrg(), uid.second.riops())
 					<< std::setw(W3) << 1;
 
 				if (printStd)
-					std_out << std::setw(W4) << uid.second.rstd();
+					std_out << std::setw(W4) << toMega(uid.second.rstd(), uid.second.riops());
 				if (printSize)
 					std_out << std::setw(W3) << uid.second.rsize();
 
-				std_out << std::setw(W2) << toMega(uid.second.wavrg())
+				std_out << std::setw(W2) << toMega(uid.second.wavrg(), uid.second.wiops())
 					<< std::setw(W3) << 1;
 				
 				if (printStd)
-					std_out << std::setw(W4) << uid.second.wstd();
+					std_out << std::setw(W4) << toMega(uid.second.wstd(), uid.second.wiops());
 				if (printSize)
 					std_out << std::setw(W3) << uid.second.wsize();
 				
@@ -508,19 +508,19 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 		if (printGids){
 			for (auto gid : data.gids()){
 				std_out << std::left << std::setw(W1) << "gid (" + std::to_string(gid.first) + ")"
-					<< std::right << std::setw(W2) << toMega(gid.second.ravrg())
+					<< std::right << std::setw(W2) << toMega(gid.second.ravrg(), gid.second.riops())
 					<< std::setw(W3) << 1;
 				
 				if (printStd)
-					std_out << std::setw(W4) << gid.second.rstd();
+					std_out << std::setw(W4) << toMega(gid.second.rstd(), gid.second.riops());
 				if (printSize)
 					std_out << std::setw(W3) << gid.second.rsize();
 				
-				std_out << std::setw(W2) << toMega(gid.second.wavrg())
+				std_out << std::setw(W2) << toMega(gid.second.wavrg(), gid.second.wiops())
 					<< std::setw(W3) << 1;
 				
 				if (printStd)
-					std_out << std::setw(W4) << gid.second.wstd();
+					std_out << std::setw(W4) << toMega(gid.second.wstd(), gid.second.wiops());
 				if (printSize)
 					std_out << std::setw(W3) << gid.second.wsize();
 				
@@ -534,6 +534,27 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 	return ;
 }
 
+void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
+                     eos::console::ReplyProto& reply){
+	std::stringstream cmdOption(mn.options());
+	std::string input;
+	size_t		limits;
+
+	if (cmdOption >> input){
+		if (input == "ls"){
+			;
+		} else {
+			if (input == "uid" && cmdOption >> input >> limits){
+				std::stringstream target(input);
+				if (!cmdOption.eof()){
+					reply.set_std_err("bad input");
+					return ;
+				}
+			} else if (input == "uid" && cmdOption >> input >> limits){}
+		}
+	}
+}
+
 void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply)
 {
@@ -542,9 +563,11 @@ void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn,
 	std::string cmd(mn.cmd());
 	std::stringstream options(mn.options());
 
-	if (cmd == "ls"){
+	if (cmd == "ls")
 		MonitorLs(mn, reply);
-	}else{
+	else if (cmd == "set")
+		MonitorSet(mn, reply);
+	else{
 		for (auto it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++){
 			if (it->second->GetStatus() == "online"){
 				it->second->SetConfigMember("stat.monitor", (cmd + " " + options.str()).c_str(), true);

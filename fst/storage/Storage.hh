@@ -34,6 +34,7 @@
 #include <google/protobuf/util/json_util.h>
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "common/ioMonitor/proto/Shaping.pb.h"
 #include <atomic>
 #include <vector>
 #include <list>
@@ -309,6 +310,8 @@ private:
   AssistedThread mFsConfigThread; ///< Thread applying FS config updates
   //! Trigger automatic drain if S.M.A.R.T. errros detected
   bool mDrainOnSmartErr {false};
+  Shaping::Scaler mScaler; ///< Scaler to limit the data flow
+
   //----------------------------------------------------------------------------
   //! Struct modelling a file system configuration update
   //----------------------------------------------------------------------------

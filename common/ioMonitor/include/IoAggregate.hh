@@ -372,7 +372,7 @@ class IoAggregate{
 		/// Total index summary of the window
 		//--------------------------------------------
 		template <typename T>
-		std::optional<IoStatSummary> getSummary(const T index){
+		std::optional<IoStatSummary> getSummary(const T index, size_t winTime){
 			std::vector<IoStatSummary> summarys;
 
 			if constexpr (io::IoAggregateDebug)
@@ -391,7 +391,7 @@ class IoAggregate{
 			if constexpr (io::IoAggregateDebug)
 				printInfo(std::cout, "get Summary succeeded");
 
-			return summaryWeighted(summarys);
+			return summaryWeighted(summarys, winTime);
 		}
 
 		//--------------------------------------------
@@ -409,7 +409,7 @@ class IoAggregate{
 		/// Total index summary of the window
 		//--------------------------------------------
 		template <typename T>
-		std::optional<IoStatSummary> getSummary(io::TYPE type, const T index){
+		std::optional<IoStatSummary> getSummary(io::TYPE type, const T index, size_t winTime){
 			std::vector<IoStatSummary> summarys;
 
 			if constexpr (io::IoAggregateDebug)
@@ -437,6 +437,6 @@ class IoAggregate{
 			if constexpr (io::IoAggregateDebug)
 				printInfo(std::cout, "get Summary succeeded");
 
-			return summaryWeighted(summarys);
+			return summaryWeighted(summarys, winTime);
 		}
 };

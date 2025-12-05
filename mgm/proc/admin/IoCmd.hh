@@ -105,6 +105,9 @@ private:
 
   void MonitorLs(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply);
+
+  void MonitorSet(const eos::console::IoProto_MonitorProto& mn,
+                     eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END
