@@ -305,6 +305,18 @@ public:
     return mPolicy.Dump();
   }
 
+  //----------------------------------------------------------------------------
+  //! Check if the recycle bin is enabled
+  //!
+  //! @return true if enabled, otherwise false
+  //----------------------------------------------------------------------------
+  inline bool IsEnabled() const
+  {
+    return mPolicy.mEnforced.load();
+  }
+
+
+
 private:
 #ifdef IN_TEST_HARNESS
 public:
