@@ -269,12 +269,12 @@ XrdMgmOfs::_rem(const char* path,
       XrdOucString sPath = path;
 
       if (!(no_recycling) &&
-          (gOFS->enforceRecycleBin || attrmap.count(Recycle::gRecyclingAttribute)) &&
+          (gOFS->mRecycler->IsEnabled() || attrmap.count(Recycle::gRecyclingAttribute)) &&
           (!sPath.beginswith(Recycle::gRecyclingPrefix.c_str()))) {
         // ---------------------------------------------------------------------
         // this is two-step deletion via a recyle bin
         // ---------------------------------------------------------------------
-        if (gOFS->enforceRecycleBin) {
+        if (gOFS->mRecycler->IsEnabled()) {
           // add the recycle attribute to enable recycling funcionality
           attrmap[Recycle::gRecyclingAttribute] = Recycle::gRecyclingPrefix;
         }

@@ -48,12 +48,12 @@ public:
 TEST(RecyclePolicyTests, NoLimits)
 {
   NiceMock<MockRecyclePolicy> mock_policy;
-  ASSERT_FALSE(mock_policy.mEnforced);
+  ASSERT_FALSE(mock_policy.mEnforced.load());
   EXPECT_CALL(mock_policy, GetQuotaStats)
   .WillOnce(Return(std::map<int, unsigned long long>()));
   mock_policy.RefreshWatermarks();
-  ASSERT_EQ(mock_policy.mLowInodeWatermark, 0ull);
-  ASSERT_EQ(mock_policy.mLowSpaceWatermark,  0ull);
+  ASSERT_EQ(mock_policy.mLowInodeWatermark.load(), 0ull);
+  ASSERT_EQ(mock_policy.mLowSpaceWatermark.load(),  0ull);
   // There are no space limits yet so clean up should be performed
   ASSERT_FALSE(mock_policy.IsWithinLimits());
 }
@@ -76,10 +76,10 @@ TEST(RecyclePolicyTests, AboveWatermark)
     {eos::mgm::SpaceQuota::kGroupFilesTarget, 200}
   }));
   mock_policy.RefreshWatermarks();
-  ASSERT_DOUBLE_EQ((mock_policy.mSpaceKeepRatio - 0.1) * 10000,
-                   mock_policy.mLowSpaceWatermark);
-  ASSERT_DOUBLE_EQ((mock_policy.mSpaceKeepRatio - 0.1) * 200,
-                   mock_policy.mLowInodeWatermark);
+  ASSERT_DOUBLE_EQ((mock_policy.mSpaceKeepRatio.load() - 0.1) * 10000,
+                   mock_policy.mLowSpaceWatermark.load());
+  ASSERT_DOUBLE_EQ((mock_policy.mSpaceKeepRatio.load() - 0.1) * 200,
+                   mock_policy.mLowInodeWatermark.load());
   ASSERT_FALSE(mock_policy.IsWithinLimits());
 }
 
@@ -100,10 +100,10 @@ TEST(RecyclePolicyTests, BelowWatermark)
     {eos::mgm::SpaceQuota::kGroupFilesTarget, 200}
   }));
   mock_policy.RefreshWatermarks();
-  ASSERT_DOUBLE_EQ((mock_policy.mSpaceKeepRatio - 0.1) * 10000,
-                   mock_policy.mLowSpaceWatermark);
-  ASSERT_DOUBLE_EQ((mock_policy.mSpaceKeepRatio - 0.1) * 200,
-                   mock_policy.mLowInodeWatermark);
+  ASSERT_DOUBLE_EQ((mock_policy.mSpaceKeepRatio.load() - 0.1) * 10000,
+                   mock_policy.mLowSpaceWatermark.load());
+  ASSERT_DOUBLE_EQ((mock_policy.mSpaceKeepRatio.load() - 0.1) * 200,
+                   mock_policy.mLowInodeWatermark.load());
   ASSERT_FALSE(mock_policy.IsWithinLimits());
   // Update the quota information so that we are back withing the limits
   EXPECT_CALL(mock_policy, GetQuotaStats)
@@ -125,20 +125,28 @@ TEST(RecyclePolicyTests, ConfigTest)
   EXPECT_CALL(policy, StoreConfig).WillRepeatedly(Return(true));
   std::string msg;
   // Test valid configurations
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sEnforceKey, "on", msg));
+  ASSERT_TRUE(policy.mEnforced.load());
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sEnforceKey, "off", msg));
+  ASSERT_FALSE(policy.mEnforced.load());
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sEnforceKey, "on", msg));
   ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sKeepTimeKey, "3600", msg));
-  ASSERT_EQ(policy.mKeepTimeSec, 3600ull);
-  ASSERT_TRUE(policy.mEnforced);
+  ASSERT_EQ(policy.mKeepTimeSec.load(), 3600ull);
+  ASSERT_TRUE(policy.mEnforced.load());
   ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sRatioKey, "0.5", msg));
-  ASSERT_DOUBLE_EQ(policy.mSpaceKeepRatio, 0.5);
-  ASSERT_TRUE(policy.mEnforced);
+  ASSERT_DOUBLE_EQ(policy.mSpaceKeepRatio.load(), 0.5);
+  ASSERT_TRUE(policy.mEnforced.load());
   ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sCollectKey, "300", msg));
   ASSERT_EQ(policy.mCollectInterval.load().count(), 300);
   ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sRemoveKey, "60", msg));
   ASSERT_EQ(policy.mRemoveInterval.load().count(), 60);
   ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sDryRunKey, "yes", msg));
-  ASSERT_TRUE(policy.mDryRun);
+  ASSERT_TRUE(policy.mDryRun.load());
   ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sDryRunKey, "no", msg));
-  ASSERT_FALSE(policy.mDryRun);
+  ASSERT_FALSE(policy.mDryRun.load());
+  // Verify that turning it off disables enforcement even with other configs set
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sEnforceKey, "off", msg));
+  ASSERT_FALSE(policy.mEnforced.load());
   // Test invalid configurations
   ASSERT_FALSE(policy.Config(eos::mgm::RecyclePolicy::sKeepTimeKey, "invalid",
                              msg));
@@ -148,8 +156,11 @@ TEST(RecyclePolicyTests, ConfigTest)
   ASSERT_FALSE(policy.Config(eos::mgm::RecyclePolicy::sRemoveKey, "invalid",
                              msg));
   // Test reset/unenforce
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sEnforceKey, "off", msg));
+  ASSERT_FALSE(policy.mEnforced.load());
   ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sKeepTimeKey, "0", msg));
   ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sRatioKey, "0.0", msg));
-  ASSERT_FALSE(policy.mEnforced);
+  // mEnforced should still be false because we explicitly set it off
+  ASSERT_FALSE(policy.mEnforced.load());
 }
 

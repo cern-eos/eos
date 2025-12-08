@@ -722,10 +722,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
       if (value == "remove") {
         applied = true;
 
-        if ((key == "policy.recycle")) {
-          gOFS->enforceRecycleBin = false;
-        }
-
         if (!space->DeleteConfigMember(key)) {
           ret_c = ENOENT;
           std_err.str("error: key has not been deleted");
@@ -743,14 +739,6 @@ void SpaceCmd::ConfigSubcmd(const eos::console::SpaceProto_ConfigProto& config,
           std_out.str("success: configured policy in space='" + space_name +
                       "' as " + key + "='" + value + "'\n");
           ret_c = 0;
-        }
-
-        if ((key == "policy.recycle")) {
-          if (value == "on") {
-            gOFS->enforceRecycleBin = true;
-          } else {
-            gOFS->enforceRecycleBin = false;
-          }
         }
       }
     } else if (key == eos::mgm::tgc::TGC_NAME_FREE_BYTES_SCRIPT) {

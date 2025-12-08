@@ -149,6 +149,8 @@ RecycleCmd::ProcessRequest() noexcept
                              std::to_string(config.size()));
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::DRY_RUN) {
       retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.value());
+    } else if (config.op() == eos::console::RecycleProto_ConfigProto::ENABLE) {
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.value());
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::DUMP) {
       retc = 0;
       std_out = gOFS->mRecycler->Dump();
