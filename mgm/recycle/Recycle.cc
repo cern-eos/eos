@@ -23,6 +23,7 @@
 
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/recycle/RecyclePolicy.hh"
+#include "mgm/FsView.hh"
 #include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
@@ -393,7 +394,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 
   assistant.wait_for(std::chrono::seconds(10));
   eos::common::BackOffInvoker backoff_logger;
-  mPolicy.Refresh(Recycle::gRecyclingPrefix);
+  mPolicy.ApplyConfig(&FsView::gFsView);
 
   while (!assistant.terminationRequested()) {
     // Every now and then we wake up
@@ -402,16 +403,9 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
                       mPolicy.mRemoveInterval.load().count());
     });
     {
-      // Wait for configuration update request or timeout, we don't care
-      // about spurious wakeups.
+      // Wait for configuration update request or timeout
       std::unique_lock<std::mutex> lock(mCvMutex);
-      bool do_refresh = mCvCfgUpdate.wait_for(lock, getCvWaitFor(),
-                                              [&] {return mTriggerRefresh;});
-
-      if (do_refresh) {
-        mTriggerRefresh = false;
-        mPolicy.Refresh(Recycle::gRecyclingPrefix);
-      }
+      mCvCfgUpdate.wait_for(lock, getCvWaitFor());
     }
 
     if (!gOFS->mMaster->IsMaster() || (mPolicy.mEnforced == false)) {
@@ -1227,17 +1221,9 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       return EINVAL;
     }
 
-    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
-                        lerror, mRootVid, "",
-                        Recycle::gRecyclingTimeAttribute.c_str(),
-                        value.c_str())) {
-      std_err = "error: failed to set extended attribute '";
-      std_err += Recycle::gRecyclingTimeAttribute.c_str();
-      std_err += "'";
-      std_err += " at '";
-      std_err += Recycle::gRecyclingPrefix.c_str();
-      std_err += "'";
-      return EIO;
+    if (!gOFS->mRecycler->mPolicy.Config(RecyclePolicy::sKeepTimeKey, value,
+                                         std_err)) {
+      return EINVAL;
     } else {
       std_out += "success: recycle bin lifetime configured!\n";
     }
@@ -1255,27 +1241,14 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       ratio = 0.0;
     }
 
-    if (!ratio) {
-      std_err = "error: ratio must be != 0";
-      return EINVAL;
-    }
-
     if ((ratio <= 0) || (ratio > 0.99)) {
       std_err = "error: a recycle bin ratio has to be 0 < ratio < 1.0!";
       return EINVAL;
     }
 
-    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
-                        lerror, mRootVid, "",
-                        Recycle::gRecyclingKeepRatio.c_str(),
-                        value.c_str())) {
-      std_err = "error: failed to set extended attribute '";
-      std_err += Recycle::gRecyclingKeepRatio.c_str();
-      std_err += "'";
-      std_err += " at '";
-      std_err += Recycle::gRecyclingPrefix.c_str();
-      std_err += "'";
-      return EIO;
+    if (!gOFS->mRecycler->mPolicy.Config(RecyclePolicy::sRatioKey, value,
+                                         std_err)) {
+      return EINVAL;
     } else {
       std_out += "success: recycle bin ratio configured!";
     }
@@ -1298,17 +1271,9 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       return EINVAL;
     }
 
-    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
-                        lerror, mRootVid, "",
-                        Recycle::gRecyclingCollectInterval.c_str(),
-                        value.c_str())) {
-      std_err = "error: failed to set extended attribute '";
-      std_err += Recycle::gRecyclingCollectInterval.c_str();
-      std_err += "'";
-      std_err += " at '";
-      std_err += Recycle::gRecyclingPrefix.c_str();
-      std_err += "'";
-      return EIO;
+    if (!gOFS->mRecycler->mPolicy.Config(RecyclePolicy::sCollectKey, value,
+                                         std_err)) {
+      return EINVAL;
     } else {
       std_out += "success: recycle bin update collect interval";
     }
@@ -1337,17 +1302,9 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       return EINVAL;
     }
 
-    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
-                        lerror, mRootVid, "",
-                        Recycle::gRecyclingRemoveInterval.c_str(),
-                        value.c_str())) {
-      std_err = "error: failed to set extended attribute '";
-      std_err += Recycle::gRecyclingRemoveInterval.c_str();
-      std_err += "'";
-      std_err += " at '";
-      std_err += Recycle::gRecyclingPrefix.c_str();
-      std_err += "'";
-      return EIO;
+    if (!gOFS->mRecycler->mPolicy.Config(RecyclePolicy::sRemoveKey, value,
+                                         std_err)) {
+      return EINVAL;
     } else {
       std_out += "success: recycle bin update remove interval";
     }
@@ -1357,17 +1314,9 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       return EINVAL;
     }
 
-    if (gOFS->_attr_set(Recycle::gRecyclingPrefix.c_str(),
-                        lerror, mRootVid, "",
-                        Recycle::gRecyclingDryRunAttribute.c_str(),
-                        value.c_str())) {
-      std_err = "error: failed to set extended attribute '";
-      std_err += Recycle::gRecyclingDryRunAttribute.c_str();
-      std_err += "'";
-      std_err += " at '";
-      std_err += Recycle::gRecyclingPrefix.c_str();
-      std_err += "'";
-      return EIO;
+    if (!gOFS->mRecycler->mPolicy.Config(RecyclePolicy::sDryRunKey, value,
+                                         std_err)) {
+      return EINVAL;
     } else {
       std_out += "success: recycle bin update dry-run option";
     }
