@@ -38,8 +38,8 @@ using ::testing::NiceMock;
 class MockRecyclePolicy: public eos::mgm::RecyclePolicy
 {
 public:
-  MOCK_METHOD(void, Refresh, (const std::string&), (override));
   MOCK_METHOD((std::map<int, unsigned long long>), GetQuotaStats, (), (override));
+  MOCK_METHOD(bool, StoreConfig, (), (override));
 };
 
 //------------------------------------------------------------------------------
@@ -115,3 +115,41 @@ TEST(RecyclePolicyTests, BelowWatermark)
   }));
   ASSERT_TRUE(mock_policy.IsWithinLimits());
 }
+
+//------------------------------------------------------------------------------
+// Recycle policy configuration tests
+//------------------------------------------------------------------------------
+TEST(RecyclePolicyTests, ConfigTest)
+{
+  NiceMock<MockRecyclePolicy> policy;
+  EXPECT_CALL(policy, StoreConfig).WillRepeatedly(Return(true));
+  std::string msg;
+  // Test valid configurations
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sKeepTimeKey, "3600", msg));
+  ASSERT_EQ(policy.mKeepTimeSec, 3600ull);
+  ASSERT_TRUE(policy.mEnforced);
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sRatioKey, "0.5", msg));
+  ASSERT_DOUBLE_EQ(policy.mSpaceKeepRatio, 0.5);
+  ASSERT_TRUE(policy.mEnforced);
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sCollectKey, "300", msg));
+  ASSERT_EQ(policy.mCollectInterval.load().count(), 300);
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sRemoveKey, "60", msg));
+  ASSERT_EQ(policy.mRemoveInterval.load().count(), 60);
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sDryRunKey, "yes", msg));
+  ASSERT_TRUE(policy.mDryRun);
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sDryRunKey, "no", msg));
+  ASSERT_FALSE(policy.mDryRun);
+  // Test invalid configurations
+  ASSERT_FALSE(policy.Config(eos::mgm::RecyclePolicy::sKeepTimeKey, "invalid",
+                             msg));
+  ASSERT_FALSE(policy.Config(eos::mgm::RecyclePolicy::sRatioKey, "invalid", msg));
+  ASSERT_FALSE(policy.Config(eos::mgm::RecyclePolicy::sCollectKey, "invalid",
+                             msg));
+  ASSERT_FALSE(policy.Config(eos::mgm::RecyclePolicy::sRemoveKey, "invalid",
+                             msg));
+  // Test reset/unenforce
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sKeepTimeKey, "0", msg));
+  ASSERT_TRUE(policy.Config(eos::mgm::RecyclePolicy::sRatioKey, "0.0", msg));
+  ASSERT_FALSE(policy.mEnforced);
+}
+
