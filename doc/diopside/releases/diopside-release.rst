@@ -16,13 +16,25 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.0 Diopside``
+===================
+
+2025-12-08
+
+Major Change
+------------
+
+* **Recycle Bin Configuration Update**: The recycle bin configuration has been refactored.
+  Please see :doc:`5.4.0/recycle_bin_config` for important migration instructions regarding new configuration commands and cleanup of legacy attributes.
+
+
 ``v5.3.31 Diopside``
 ====================
 
 2026-02-27
 
 Feature
----
+-------
 
 * [EOS-6563] MGM: LRU - Add LRU option to clean files based on their size and age
 

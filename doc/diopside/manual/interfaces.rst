@@ -2715,6 +2715,17 @@ If you want to list all the parameter affecting the recycle bin you running
    collect_interval_sec=20
    remove_interval_sec=10
 
+Enable/Disable the recycle bin
+""""""""""""""""""""""""""""""
+
+If you want to enable or disable the recycle bin globally you run
+**recycle config --enable <on|off>**:
+
+.. code-block:: bash
+
+   EOS Console [root://localhost] |/eos/> recycle config --enable on
+
+
 Define the object lifetime
 """"""""""""""""""""""""""
 
