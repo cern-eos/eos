@@ -33,19 +33,19 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+struct Limiter{
+	std::map<std::string, std::pair<bool, size_t> > rApps;
+	std::map<std::string, std::pair<bool, size_t> > wApps;
+
+	std::map<uid_t, std::pair<bool, size_t> > rUids;
+	std::map<uid_t, std::pair<bool, size_t> > wUids;
+
+	std::map<gid_t, std::pair<bool, size_t> > rGids;
+	std::map<gid_t, std::pair<bool, size_t> > wGids;
+};
+
 class IoShaping : public eos::common::LogId{
 	private:
-
-		struct Limiter{
-			std::map<std::string, size_t> rApps;
-			std::map<std::string, size_t> wApps;
-
-			std::map<uid_t, size_t> rUids;
-			std::map<uid_t, size_t> wUids;
-
-			std::map<gid_t, size_t> rGids;
-			std::map<gid_t, size_t> wGids;
-		};
 
 		AssistedThread 		_mReceivingThread;
 		AssistedThread 		_mPublishingThread;
@@ -87,6 +87,7 @@ class IoShaping : public eos::common::LogId{
 		void shaping(ThreadAssistant &assistant) noexcept;
 
 		IoBuffer::summarys aggregateSummarys(std::vector<IoBuffer::summarys> &);
+
 		bool calculeScalerNodes();
 		
 	public:
@@ -165,33 +166,77 @@ class IoShaping : public eos::common::LogId{
 		Limiter getLimiter() const;
 
 		template<typename T>
-		void setLimiter(T app, size_t limits, const std::string rw) noexcept{
+		bool setLimiter(T app, const std::string rw, bool status) noexcept{
 			std::lock_guard<std::mutex> lock(_mSyncThread);
-			if (rw == "read")
-				_limiter.rApps[app] = limits;
-			if (rw == "write")
-				_limiter.wApps[app] = limits;
+
+			if (rw == "read" && _limiter.rApps.find(app) != _limiter.rApps.end())
+				_limiter.rApps[app].first = status;
+			else if (rw == "write" && _limiter.wApps.find(app) != _limiter.wApps.end())
+				_limiter.wApps[app].first = status;
+			else
+				return false;
+			return true;
+		}
+
+		template<typename T>
+		bool setLimiter(const io::TYPE type, T id, const std::string rw, bool status) noexcept{
+			std::lock_guard<std::mutex> lock(_mSyncThread);
+
+			if (type == io::TYPE::UID){
+				if (rw == "read" && _limiter.rUids.find(id) != _limiter.rUids.end())
+					_limiter.rUids[id].first = status;
+				else if (rw == "write" && _limiter.wUids.find(id) != _limiter.wUids.end())
+					_limiter.wUids[id].first = status;
+				else
+					return false;
+			}
+			else if (type == io::TYPE::GID){
+				if (rw == "read" && _limiter.rGids.find(id) != _limiter.rGids.end())
+					_limiter.rGids[id].first = status;
+				else if (rw == "write" && _limiter.wGids.find(id) != _limiter.wGids.end())
+					_limiter.wGids[id].first = status;
+				else
+					return false;
+			}
+			else
+				return false;
+			return true;
 		}
 
 		template<typename T>
 		bool setLimiter(const io::TYPE type, T id, size_t limits, const std::string rw) noexcept{
 			std::lock_guard<std::mutex> lock(_mSyncThread);
 
-			if (type != io::TYPE::UID && type != io::TYPE::GID)
-				return false;
-
 			if (type == io::TYPE::UID){
-				if (rw == "read")
-					_limiter.rUids[id] = limits;
-				if (rw == "write")
-					_limiter.wUids[id] = limits;
+				if (rw == "read"){
+					if (_limiter.rUids.find(id) == _limiter.rUids.end())
+						return false;
+					_limiter.rUids[id].second = limits * 1000000;
+				}
+				if (rw == "write"){
+					_limiter.wUids[id].second = limits * 1000000;
+				}
 			}
 			else if (type == io::TYPE::GID){
 				if (rw == "read")
-					_limiter.rGids[id] = limits;
+					_limiter.rGids[id].second = limits * 1000000;
 				if (rw == "write")
-					_limiter.wGids[id] = limits;
+					_limiter.wGids[id].second = limits * 1000000;
 			}
+			else
+				return false;
+			return true;
+		}
+
+		template<typename T>
+		bool setLimiter(T app, size_t limits, const std::string rw) noexcept{
+			std::lock_guard<std::mutex> lock(_mSyncThread);
+			if (rw == "read")
+				_limiter.rApps[app].second = limits * 1000000;
+			else if (rw == "write")
+				_limiter.wApps[app].second = limits * 1000000;
+			else
+				return false;
 			return true;
 		}
 };
