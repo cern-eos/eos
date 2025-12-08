@@ -32,6 +32,7 @@
 #include <future>
 #include <mutex>
 #include <string>
+#include <optional>
 
 /**
  * @file AsyncUint64ShellCmd.hh
