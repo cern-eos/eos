@@ -1062,6 +1062,7 @@ runtest "### Purge     " unix 0 "EOSROLE='-r 3 4'" eos recycle purge --rid $rid 
 runtest "### NoFile    " unix 1 "" eos recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
 runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
 runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
+runtest "### Recycle   " unix 0 "" eos recycle config --enable "off"
 
 ################################################################################
 # STRESS
