@@ -31,6 +31,7 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <optional>
 
 class WFEClient {
 public:
