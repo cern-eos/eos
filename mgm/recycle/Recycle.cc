@@ -94,25 +94,12 @@ EOSMGMNAMESPACE_BEGIN
 // /eos/<instance>/proc/recycle/
 std::string Recycle::gRecyclingPrefix = "/recycle/";
 std::string Recycle::gRecyclingAttribute = "sys.recycle";
-std::string Recycle::gRecyclingTimeAttribute = "sys.recycle.keeptime";
-std::string Recycle::gRecyclingKeepRatio = "sys.recycle.keepratio";
-std::string Recycle::gRecyclingCollectInterval = "sys.recycle.collectinterval";
-std::string Recycle::gRecyclingRemoveInterval = "sys.recycle.removeinterval";
-std::string Recycle::gRecyclingDryRunAttribute = "sys.recycle.dryrun";
+std::string Recycle::gRecyclingPostFix = ".d";
 std::string Recycle::gRecyclingVersionKey = "sys.recycle.version.key";
 std::string Recycle::gRecycleIdXattrKey = "sys.forced.recycleid";
-std::string Recycle::gRecyclingPostFix = ".d";
 eos::common::VirtualIdentity Recycle::mRootVid =
   eos::common::VirtualIdentity::Root();
 std::chrono::seconds Recycle::mLastRemoveTs = std::chrono::seconds(0);
-
-//------------------------------------------------------------------------------
-// Default constructor
-//------------------------------------------------------------------------------
-Recycle::Recycle(bool fake_clock) :
-  mPath(""), mRecycleDir(""), mRecyclePath(""), mOwnerUid(DAEMONUID),
-  mOwnerGid(DAEMONGID), mId(0), mClock(fake_clock)
-{}
 
 //------------------------------------------------------------------------------
 // Collect entries to recycle based on the current policy
@@ -714,30 +701,19 @@ Recycle::Print(std::string& std_out, std::string& std_err,
       unsigned long long used_inodes = map_quotas[SpaceQuota::kGroupFilesIs];
       unsigned long long max_inodes = map_quotas[SpaceQuota::kGroupFilesTarget];
       char sline[4096];
-      eos::IContainerMD::XAttrMap attrmap;
-      XrdOucErrInfo error;
-
-      // Check if this path has a recycle attribute
-      if (gOFS->_attr_ls(Recycle::gRecyclingPrefix.c_str(), error, mRootVid, "",
-                         attrmap)) {
-        eos_static_err("msg=\"unable to get attribute on recycle path\" "
-                       "recycle-path=%s", Recycle::gRecyclingPrefix.c_str());
-      }
 
       if (!monitoring) {
         oss_out << "# _________________________________________________________"
                 << "___________________________________________________________"
                 << "___________________________" << std::endl;
         snprintf(sline, sizeof(sline) - 1, "# used %s out of %s (%.02f%% volume) "
-                 "used %llu out of %llu (%.02f%% inodes used) Object-Lifetime %s [s] Keep-Ratio %s",
+                 "used %llu out of %llu (%.02f%% inodes used) Object-Lifetime %lu [s] Keep-Ratio %.02f",
                  StringConversion::GetReadableSizeString(used_bytes, "B").c_str(),
                  StringConversion::GetReadableSizeString(max_bytes, "B").c_str(),
                  used_bytes * 100.0 / max_bytes,
                  used_inodes, max_inodes, used_inodes * 100.0 / max_inodes,
-                 attrmap.count(Recycle::gRecyclingTimeAttribute) ?
-                 attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "not configured",
-                 attrmap.count(Recycle::gRecyclingKeepRatio) ?
-                 attrmap[Recycle::gRecyclingKeepRatio].c_str() : "not configured");
+                 gOFS->mRecycler->GetKeepTime(),
+                 gOFS->mRecycler->GetKeepRatio());
         oss_out << sline << std::endl
                 << "# _________________________________________________________"
                 << "___________________________________________________________"
@@ -745,14 +721,12 @@ Recycle::Print(std::string& std_out, std::string& std_err,
       } else {
         snprintf(sline, sizeof(sline) - 1, "recycle-bin=%s usedbytes=%llu "
                  "maxbytes=%llu volumeusage=%.02f%% usedinodes=%llu "
-                 "maxinodes=%llu inodeusage=%.02f%% lifetime=%s ratio=%s",
+                 "maxinodes=%llu inodeusage=%.02f%% lifetime=%lu ratio=%.02f",
                  Recycle::gRecyclingPrefix.c_str(),
                  used_bytes, max_bytes, used_bytes * 100.0 / max_bytes,
                  used_inodes, max_inodes, used_inodes * 100.0 / max_inodes,
-                 attrmap.count(Recycle::gRecyclingTimeAttribute) ?
-                 attrmap[Recycle::gRecyclingTimeAttribute].c_str() : "-1",
-                 attrmap.count(Recycle::gRecyclingKeepRatio) ?
-                 attrmap[Recycle::gRecyclingKeepRatio].c_str() : "-1");
+                 gOFS->mRecycler->GetKeepTime(),
+                 gOFS->mRecycler->GetKeepRatio());
         oss_out << sline << std::endl;
       }
     }
