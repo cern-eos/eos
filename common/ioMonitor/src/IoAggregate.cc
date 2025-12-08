@@ -176,28 +176,30 @@ std::optional<IoStatSummary> IoAggregate::summaryWeighted(const std::vector<IoSt
 	/// Calcule average and IOPS
 	for (const auto &it : summarys){
 		if (it.readBandwidth.has_value()){
-			weighted.readBandwidth->first += (it.readBandwidth->first * it.rSize);
-			weighted.rIops += it.rIops * it.rSize;
+			// weighted.readBandwidth->first += (it.readBandwidth->first * it.rSize);
+			weighted.readBandwidth->first += (it.readBandwidth->first);
+			weighted.rIops += it.rIops;
 		}
 		if (it.writeBandwidth.has_value()){
-			weighted.writeBandwidth->first += (it.writeBandwidth->first * it.wSize);
-			weighted.wIops += it.wIops * it.wSize;
+			// weighted.writeBandwidth->first += (it.writeBandwidth->first * it.wSize);
+			weighted.writeBandwidth->first += (it.writeBandwidth->first);
+			weighted.wIops += it.wIops;
 		}
 		it.rSize == 0 ? rEmptyDivisor++ : rDivisor += it.rSize;
 		it.wSize == 0 ? wEmptyDivisor++ : wDivisor += it.wSize;
 	}
 
 	if (rDivisor > 0){
-		weighted.readBandwidth->first /=
-			rDivisor + rEmptyDivisor;
-		weighted.rIops /=
-			rDivisor + rEmptyDivisor;
+		weighted.readBandwidth->first /= summarys.size();
+		// weighted.readBandwidth->first /=
+		// 	rDivisor + rEmptyDivisor;
+		weighted.rIops /= summarys.size();
 	}
 	if (wDivisor > 0){
-		weighted.writeBandwidth->first /=
-			wDivisor + wEmptyDivisor;
-		weighted.wIops /=
-			wDivisor + wEmptyDivisor;
+		weighted.writeBandwidth->first /= summarys.size();
+		// weighted.writeBandwidth->first /=
+		// 	(wDivisor + wEmptyDivisor);
+		weighted.wIops /= summarys.size();
 	}
 
 	/// Calcule standard deviation
