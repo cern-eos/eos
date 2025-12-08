@@ -320,7 +320,6 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 {
   eDest = ep;
   ConfigFN = 0;
-  enforceRecycleBin = false;
 
   if (getenv("EOS_MGM_HTTP_PORT")) {
     mHttpdPort = strtol(getenv("EOS_MGM_HTTP_PORT"), 0, 10);
@@ -374,9 +373,14 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   {
     const char* am = getenv("EOS_MGM_AUDIT");
     std::string mode = (am ? am : "");
+
     // normalize to lowercase
-    for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-    if (mode.empty() || mode == "none" || mode == "false" || mode == "no" || mode == "off") {
+    for (auto& c : mode) {
+      c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    }
+
+    if (mode.empty() || mode == "none" || mode == "false" || mode == "no" ||
+        mode == "off") {
       mEnvAuditDisableAll = true;
       mEnvAuditAttributeMode = false;
       mEnvAuditAttributeOnly = false;
@@ -415,16 +419,22 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
     }
 
     const char* rs = getenv("EOS_MGM_AUDIT_READ_SUFFIX");
+
     if (rs && *rs) {
       std::string s = rs;
       std::string token;
+
       for (size_t i = 0; i <= s.size(); ++i) {
         if (i == s.size() || s[i] == ',' || s[i] == ';' || s[i] == ' ') {
           if (!token.empty()) {
             // normalize
             for (auto& c : token) c = static_cast<char>(
-                std::tolower(static_cast<unsigned char>(c)));
-            if (!token.empty() && token[0] == '.') token.erase(token.begin());
+                                          std::tolower(static_cast<unsigned char>(c)));
+
+            if (!token.empty() && token[0] == '.') {
+              token.erase(token.begin());
+            }
+
             mEnvAuditReadSuffixes.push_back(token);
             token.clear();
           }
@@ -432,10 +442,10 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
           token.push_back(s[i]);
         }
       }
+
       mEnvAuditReadSuffixesSet = true;
     }
   }
-
   EgroupRefresh.reset(new eos::mgm::Egroup());
   mRecycler.reset(new eos::mgm::Recycle());
   mDeviceTracker.reset(new eos::mgm::Devices());
@@ -1805,65 +1815,119 @@ XrdMgmOfs::IsMaster(const char* path,
 bool
 XrdMgmOfs::AllowAuditModification(const std::string& path)
 {
-  if (!mAudit) return false;
-  if (!mEnvAuditAttributeOnly) return true;
+  if (!mAudit) {
+    return false;
+  }
+
+  if (!mEnvAuditAttributeOnly) {
+    return true;
+  }
+
   // attribute-only: parent sys.audit must enable modifications
   std::string pdir;
-  { eos::common::Path cP(path.c_str()); pdir = cP.GetParentPath(); }
+  {
+    eos::common::Path cP(path.c_str());
+    pdir = cP.GetParentPath();
+  }
+
   try {
     auto pd = eosView->getContainer(pdir);
     eos::MDLocking::ContainerReadLock cmd_lock(pd.get());
     auto amap = pd->getAttributes();
     auto it = amap.find("sys.audit");
+
     if (it != amap.end()) {
       std::string mode = it->second;
-      for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-      if (mode == "all" || mode == "detail" || mode == "default" || mode == "modifications") return true;
+
+      for (auto& c : mode) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      }
+
+      if (mode == "all" || mode == "detail" || mode == "default" ||
+          mode == "modifications") {
+        return true;
+      }
     }
   } catch (...) {}
+
   return false;
 }
 
 bool
 XrdMgmOfs::AllowAuditList(const std::string& dirPath)
 {
-  if (!mAudit) return false;
-  if (!mEnvAuditAttributeOnly) return mAudit->isListAuditingEnabled();
+  if (!mAudit) {
+    return false;
+  }
+
+  if (!mEnvAuditAttributeOnly) {
+    return mAudit->isListAuditingEnabled();
+  }
+
   // attribute-only: dir sys.audit must be 'all'
   try {
     auto dh = eosView->getContainer(dirPath);
     eos::MDLocking::ContainerReadLock cmd_lock(dh.get());
     auto amap = dh->getAttributes();
     auto it = amap.find("sys.audit");
+
     if (it != amap.end()) {
       std::string mode = it->second;
-      for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-      if (mode == "all") return true;
+
+      for (auto& c : mode) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      }
+
+      if (mode == "all") {
+        return true;
+      }
     }
   } catch (...) {}
+
   return false;
 }
 
 bool
 XrdMgmOfs::AllowAuditRead(const std::string& path)
 {
-  if (!mAudit) return false;
-  if (!mEnvAuditAttributeOnly) return (mAudit->isReadAuditingEnabled() && mAudit->shouldAuditReadPath(path));
+  if (!mAudit) {
+    return false;
+  }
+
+  if (!mEnvAuditAttributeOnly) {
+    return (mAudit->isReadAuditingEnabled() && mAudit->shouldAuditReadPath(path));
+  }
+
   // attribute-only: parent sys.audit governs; default/detail/all enable; default uses suffix filter
   std::string pdir;
-  { eos::common::Path cP(path.c_str()); pdir = cP.GetParentPath(); }
+  {
+    eos::common::Path cP(path.c_str());
+    pdir = cP.GetParentPath();
+  }
+
   try {
     auto pd = eosView->getContainer(pdir);
     eos::MDLocking::ContainerReadLock cmd_lock(pd.get());
     auto amap = pd->getAttributes();
     auto it = amap.find("sys.audit");
+
     if (it != amap.end()) {
       std::string mode = it->second;
-      for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-      if (mode == "detail" || mode == "all") return true;
-      if (mode == "default") return mAudit->shouldAuditReadPath(path);
+
+      for (auto& c : mode) {
+        c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+      }
+
+      if (mode == "detail" || mode == "all") {
+        return true;
+      }
+
+      if (mode == "default") {
+        return mAudit->shouldAuditReadPath(path);
+      }
     }
   } catch (...) {}
+
   return false;
 }
 
@@ -1871,32 +1935,73 @@ XrdMgmOfs::AllowAuditRead(const std::string& path)
 bool
 XrdMgmOfs::AllowAuditModificationAttr(const std::string& auditMode)
 {
-  if (!mAudit) return false;
-  if (!mEnvAuditAttributeOnly) return true;
+  if (!mAudit) {
+    return false;
+  }
+
+  if (!mEnvAuditAttributeOnly) {
+    return true;
+  }
+
   std::string mode = auditMode;
-  for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  if (mode == "all" || mode == "detail" || mode == "default" || mode == "modifications") return true;
+
+  for (auto& c : mode) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+
+  if (mode == "all" || mode == "detail" || mode == "default" ||
+      mode == "modifications") {
+    return true;
+  }
+
   return false;
 }
 
 bool
 XrdMgmOfs::AllowAuditListAttr(const std::string& auditMode)
 {
-  if (!mAudit) return false;
-  if (!mEnvAuditAttributeOnly) return mAudit->isListAuditingEnabled();
+  if (!mAudit) {
+    return false;
+  }
+
+  if (!mEnvAuditAttributeOnly) {
+    return mAudit->isListAuditingEnabled();
+  }
+
   std::string mode = auditMode;
-  for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+
+  for (auto& c : mode) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+
   return (mode == "all");
 }
 
 bool
-XrdMgmOfs::AllowAuditReadAttr(const std::string& auditMode, const std::string& path)
+XrdMgmOfs::AllowAuditReadAttr(const std::string& auditMode,
+                              const std::string& path)
 {
-  if (!mAudit) return false;
-  if (!mEnvAuditAttributeOnly) return (mAudit->isReadAuditingEnabled() && mAudit->shouldAuditReadPath(path));
+  if (!mAudit) {
+    return false;
+  }
+
+  if (!mEnvAuditAttributeOnly) {
+    return (mAudit->isReadAuditingEnabled() && mAudit->shouldAuditReadPath(path));
+  }
+
   std::string mode = auditMode;
-  for (auto& c : mode) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
-  if (mode == "detail" || mode == "all") return true;
-  if (mode == "default") return mAudit->shouldAuditReadPath(path);
+
+  for (auto& c : mode) {
+    c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+  }
+
+  if (mode == "detail" || mode == "all") {
+    return true;
+  }
+
+  if (mode == "default") {
+    return mAudit->shouldAuditReadPath(path);
+  }
+
   return false;
 }
