@@ -408,7 +408,7 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
       mCvCfgUpdate.wait_for(lock, getCvWaitFor());
     }
 
-    if (!gOFS->mMaster->IsMaster() || (mPolicy.mEnforced == false)) {
+    if (!gOFS->mMaster->IsMaster() || (IsEnabled() == false)) {
       continue;
     }
 
@@ -1319,6 +1319,22 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       return EINVAL;
     } else {
       std_out += "success: recycle bin update dry-run option";
+    }
+  } else if (op == eos::console::RecycleProto_ConfigProto::ENABLE) {
+    if (value.empty() || ((value != "on") && (value != "off"))) {
+      std_err = "error: missing/wrong enable value\n";
+      return EINVAL;
+    }
+
+    if (!gOFS->mRecycler->mPolicy.Config(RecyclePolicy::sEnforceKey, value,
+                                         std_err)) {
+      return EINVAL;
+    } else {
+      if (value == "on") {
+        std_out += "success: recycle bin enabled";
+      } else {
+        std_out += "success: recycle bin disabled";
+      }
     }
   } else {
     std_err = "error: unknown configuration operation";

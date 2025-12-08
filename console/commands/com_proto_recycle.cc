@@ -108,6 +108,8 @@ void com_recycle_help()
       << "    [--add-bin|--remove-bin] <sub-tree>\n"
       << "      --add-bin    : enable recycle bin for deletion in <sub-tree>\n"
       << "      --remove-bin : disable recycle bin for <sub-tree>\n"
+      << "    --enable <on/off>\n"
+      << "      enable or disable global recycle bin enforcement\n"
       << "    --lifetime <seconds>\n"
       << "      configure FIFO lifetime for the recycle bin\n"
       << "    --ratio <0..1.0>\n"

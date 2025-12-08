@@ -31,12 +31,6 @@
 
 EOSMGMNAMESPACE_BEGIN
 
-const std::string RecyclePolicy::sKeepTimeKey {"recycle-keep-time"};
-const std::string RecyclePolicy::sRatioKey {"recycle-ratio"};
-const std::string RecyclePolicy::sCollectKey {"recycle-collect-time"};
-const std::string RecyclePolicy::sRemoveKey {"recycle-remove-time"};
-const std::string RecyclePolicy::sDryRunKey {"recycle-dry-run"};
-
 //----------------------------------------------------------------------------
 // Apply the recycle configuration stored in the configuration engine
 //----------------------------------------------------------------------------
@@ -78,11 +72,12 @@ void RecyclePolicy::ApplyConfig(eos::mgm::FsView* fsview)
 bool RecyclePolicy::StoreConfig()
 {
   std::ostringstream oss;
-  oss << sKeepTimeKey << "=" << mKeepTimeSec << " "
-      << sRatioKey << "=" << mSpaceKeepRatio << " "
+  oss << sKeepTimeKey << "=" << mKeepTimeSec.load() << " "
+      << sRatioKey << "=" << mSpaceKeepRatio.load() << " "
       << sCollectKey << "=" << mCollectInterval.load().count() << " "
       << sRemoveKey << "=" << mRemoveInterval.load().count() << " "
-      << sDryRunKey << "=" << (mDryRun ? "yes" : "no");
+      << sDryRunKey << "=" << (mDryRun.load() ? "yes" : "no") << " "
+      << sEnforceKey << "=" << (mEnforced.load() ? "on" : "off");
   return FsView::gFsView.SetGlobalConfig("recycle", oss.str());
 }
 
@@ -126,18 +121,21 @@ bool RecyclePolicy::Config(const std::string& key, const std::string& value,
     }
   } else if (key == sDryRunKey) {
     mDryRun = (value == "yes");
+  } else if (key == sEnforceKey) {
+    if (value == "on") {
+      mEnforced = true;
+    } else if (value == "off") {
+      mEnforced = false;
+    } else {
+      msg = "error: unknown value for recycle-enforce - expected on|off";
+      return false;
+    }
   } else {
     // Ignore unknown keys
     return true;
   }
 
-  if (mKeepTimeSec || mSpaceKeepRatio) {
-    mEnforced = true;
-  } else {
-    mEnforced = false;
-  }
-
-  eos_static_info("msg=\"recycle config refresh\" %s", Dump(" ").c_str());
+  eos_static_info("msg=\"recycle config updated\" %s", Dump(" ").c_str());
   return StoreConfig();
 }
 
@@ -148,12 +146,12 @@ std::string
 RecyclePolicy::Dump(const std::string& delim) const
 {
   std::ostringstream oss;
-  oss << "enforced=" << (mEnforced ? "yes" : "no") << delim
-      << "dry_run=" << (mDryRun ? "yes" : "no") << delim
-      << "keep_time_sec=" << mKeepTimeSec << delim
-      << "space_keep_ratio=" << mSpaceKeepRatio << delim
-      << "low_space_watermark=" << mLowSpaceWatermark << delim
-      << "low_inode_watermark=" << mLowInodeWatermark << delim
+  oss << "enforced=" << (mEnforced.load() ? "on" : "off") << delim
+      << "dry_run=" << (mDryRun.load() ? "yes" : "no") << delim
+      << "keep_time_sec=" << mKeepTimeSec.load() << delim
+      << "space_keep_ratio=" << mSpaceKeepRatio.load() << delim
+      << "low_space_watermark=" << mLowSpaceWatermark.load() << delim
+      << "low_inode_watermark=" << mLowInodeWatermark.load() << delim
       << "collect_interval_sec=" << mCollectInterval.load().count() << delim
       << "remove_interval_sec=" << mRemoveInterval.load().count() << delim;
   return oss.str();
@@ -183,17 +181,19 @@ RecyclePolicy::RefreshWatermarks()
     unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
     unsigned long long maxfiles = map_quotas[SpaceQuota::kGroupFilesTarget];
 
-    if ((mSpaceKeepRatio > (1.0 * usedbytes / (maxbytes ? maxbytes : 999999999))) &&
-        (mSpaceKeepRatio > (1.0 * usedfiles / (maxfiles ? maxfiles : 999999999)))) {
+    if ((mSpaceKeepRatio.load() > (1.0 * usedbytes / (maxbytes ? maxbytes :
+                                   999999999))) &&
+        (mSpaceKeepRatio.load() > (1.0 * usedfiles / (maxfiles ? maxfiles :
+                                   999999999)))) {
       eos_static_debug("msg=\"skip recycle watermark update - ratio still low\" "
                        "space-ratio=%.02f inode-ratio=%.02f ratio=%.02f",
                        1.0 * usedbytes / (maxbytes ? maxbytes : 999999999),
                        1.0 * usedfiles / (maxfiles ? maxfiles : 999999999),
-                       mSpaceKeepRatio);
+                       mSpaceKeepRatio.load());
       return;
     } else {
       // Make local copy to avoid modifying the original space ratio
-      double space_ratio = mSpaceKeepRatio;
+      double space_ratio = mSpaceKeepRatio.load();
 
       if (space_ratio - 0.1 > 0) {
         space_ratio -= 0.1;
@@ -202,8 +202,8 @@ RecyclePolicy::RefreshWatermarks()
       mLowInodeWatermark = (maxfiles * space_ratio);
       mLowSpaceWatermark = (maxbytes * space_ratio);
       eos_static_info("msg=\"cleaning by ratio policy\" low-inodes-mark=%lld "
-                      "low-space-mark=%lld ratio=%.02f", mLowInodeWatermark,
-                      mLowSpaceWatermark, mSpaceKeepRatio);
+                      "low-space-mark=%lld ratio=%.02f", mLowInodeWatermark.load(),
+                      mLowSpaceWatermark.load(), mSpaceKeepRatio.load());
     }
   } else {
     mLowInodeWatermark = 0ull;
@@ -217,7 +217,7 @@ RecyclePolicy::RefreshWatermarks()
 bool
 RecyclePolicy::IsWithinLimits()
 {
-  if (mSpaceKeepRatio) {
+  if (mSpaceKeepRatio.load()) {
     auto map_quotas = GetQuotaStats();
 
     if (!map_quotas.empty()) {
@@ -225,11 +225,11 @@ RecyclePolicy::IsWithinLimits()
       unsigned long long usedfiles = map_quotas[SpaceQuota::kGroupFilesIs];
       eos_static_debug("volume=%lld volume_low_wm=%lld "
                        "inodes=%lld inodes_low_wm=%lld",
-                       usedbytes, mLowSpaceWatermark,
-                       usedfiles, mLowInodeWatermark);
+                       usedbytes, mLowSpaceWatermark.load(),
+                       usedfiles, mLowInodeWatermark.load());
 
-      if ((mLowInodeWatermark && (mLowInodeWatermark > usedfiles)) ||
-          (mLowSpaceWatermark && (mLowSpaceWatermark > usedbytes))) {
+      if ((mLowInodeWatermark.load() && (mLowInodeWatermark.load() > usedfiles)) ||
+          (mLowSpaceWatermark.load() && (mLowSpaceWatermark.load() > usedbytes))) {
         return true;
       }
     }
