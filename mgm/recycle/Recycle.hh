@@ -57,19 +57,7 @@ public:
   static std::string gRecyclingPrefix;
   //! Attribute key defining a recycling location
   static std::string gRecyclingAttribute;
-  //! Attribute key defining the max. time a file stays in the garbage directory
-  static std::string gRecyclingTimeAttribute;
-  //! Ratio from 0 ..1.0 defining a threshold when the recycle bin is not yet
-  //! cleaned even if files have expired their lifetime attributel.
-  static std::string gRecyclingKeepRatio;
-  //! Postfix which identifies a name in the garbage bin as a bulk deletion of a directory
   static std::string gRecyclingPostFix;
-  //! Attribute defining how often the collection of entries is attempted
-  static std::string gRecyclingCollectInterval;
-  //! Attribute defining how often the removeal of collected entries is attempted
-  static std::string gRecyclingRemoveInterval;
-  //! Attribute key defining whether the recycler runs in dry-run mode or not
-  static std::string gRecyclingDryRunAttribute;
   //! Attribute key storing the recycling key of the version directory
   //! belonging to a given file
   static std::string gRecyclingVersionKey;
@@ -159,6 +147,26 @@ public:
                      bool make_path = false);
 
   //----------------------------------------------------------------------------
+  //! Get the configured keep time
+  //!
+  //! @return keep time in seconds
+  //----------------------------------------------------------------------------
+  inline uint64_t GetKeepTime() const
+  {
+    return mPolicy.mKeepTimeSec.load();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get the configured keep ratio
+  //!
+  //! @return keep ratio
+  //----------------------------------------------------------------------------
+  inline double GetKeepRatio() const
+  {
+    return mPolicy.mSpaceKeepRatio.load();
+  }
+
+  //----------------------------------------------------------------------------
   //! Get recycle bin path from the given restore key information
   //!
   //! @param key restore key fxid:<val> or pxid:<val>
@@ -237,7 +245,9 @@ public:
   //----------------------------------------------------------------------------
   //! Default constructor
   //----------------------------------------------------------------------------
-  Recycle(bool fake_clock = false);
+  Recycle(bool fake_clock = false):
+    mClock(fake_clock)
+  {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -315,19 +325,11 @@ public:
     return mPolicy.mEnforced.load();
   }
 
-
-
 private:
 #ifdef IN_TEST_HARNESS
 public:
 #endif
   AssistedThread mThread; ///< Thread doing the recycling
-  std::string mPath; ///< Path of file to be recycled
-  std::string mRecycleDir;
-  std::string mRecyclePath; ///< Final path of file in the recycle bin
-  uid_t mOwnerUid;
-  gid_t mOwnerGid;
-  unsigned long long mId;
   RecyclePolicy mPolicy;
   //! Map holding the container identifier and the full path of the directories
   //! to be deleted.
