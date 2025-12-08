@@ -161,18 +161,6 @@ int testIoAggregateMap(){
 	if (map.containe(3600, "notrack"))
 		return -1;
 
-	auto apps(map.getApps(3600));
-	for (auto it : apps){
-		std::cout << it << std::endl;
-	}
-	auto uids(map.getUids(3600));
-	for (auto it : uids){
-		std::cout << it << std::endl;
-	}
-	auto gids(map.getUids(3600));
-	for (auto it : gids){
-		std::cout << it << std::endl;
-	}
 	return 0;
 }
 

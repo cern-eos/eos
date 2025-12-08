@@ -28,11 +28,29 @@ EOSMGMNAMESPACE_BEGIN
 
 IoShaping::IoShaping(size_t time) : _mReceiving(false),  _mPublishing(false),
   _mShaping(false),_receivingTime(time){
+	_scaler.add_windows(10);
+	_scaler.add_windows(60);
+	_scaler.add_windows(300);
 }
 
-IoShaping::IoShaping(const IoShaping &other) : _mReceiving(other._mReceiving.load()),
-  _mPublishing(other._mPublishing.load()), _mShaping(other._mShaping.load()),
-  _receivingTime(other._receivingTime.load()){
+IoShaping::IoShaping(const IoShaping &other){
+	if (this != &other){
+		std::scoped_lock lock(other._mSyncThread, _mSyncThread);
+		_mReceiving.store(other._mReceiving.load());
+		_mPublishing.store(other._mPublishing.load());
+		_mShaping.store(other._mShaping.load());
+		_receivingTime.store(other._receivingTime.load());
+
+		_shapings = other._shapings;
+		_scaler = other._scaler;
+		_limiter = other._limiter;
+		if (_mPublishing.load())
+			startPublishing();
+		if (_mReceiving.load())
+			startReceiving();
+		if (_mShaping.load())
+			startShaping();
+	}
 }
 
 IoShaping::~IoShaping(){
@@ -51,8 +69,23 @@ IoShaping::~IoShaping(){
 }
 
 IoShaping& IoShaping::operator=(const IoShaping &other){
-  if (this != &other)
-	std::scoped_lock lock(_mSyncThread, other._mSyncThread);
+	if (this != &other){
+		std::scoped_lock lock(other._mSyncThread, _mSyncThread);
+		_mReceiving.store(other._mReceiving.load());
+		_mPublishing.store(other._mPublishing.load());
+		_mShaping.store(other._mShaping.load());
+		_receivingTime.store(other._receivingTime.load());
+
+		_shapings = other._shapings;
+		_scaler = other._scaler;
+		_limiter = other._limiter;
+		if (_mPublishing.load())
+			startPublishing();
+		if (_mReceiving.load())
+			startReceiving();
+		if (_mShaping.load())
+			startShaping();
+	}
 
   return *this;
 }
@@ -249,72 +282,72 @@ bool IoShaping::calculeScalerNodes(){
 	if (_shapings.aggregated_size() <= 0)
 		return false;
 
-	for (auto it : _shapings.aggregated()){
-		if (std::find(_scaler.windows().begin(), _scaler.windows().end(), it.first) == _scaler.windows().end())
-			_scaler.add_windows(it.first);
-		for (auto apps : it.second.apps()){
-			if (_limiter.rApps.find(apps.first) != _limiter.rApps.end()){
-				if (apps.second.ravrg()
-					&& _limiter.rApps[apps.first] / apps.second.ravrg() < 1)
-						_scaler.mutable_apps()->mutable_read()->insert({apps.first,
-							_limiter.rApps[apps.first] / apps.second.ravrg()});
-				else
-					_scaler.mutable_apps()->mutable_read()->insert({apps.first, 1.0});
-			}else
-				_scaler.mutable_apps()->mutable_read()->insert({apps.first, 1.0});
 
-			if (_limiter.wApps.find(apps.first) != _limiter.wApps.end()){
-				if (apps.second.wavrg()
-					&& _limiter.wApps[apps.first] / apps.second.wavrg() < 1)
-						_scaler.mutable_apps()->mutable_write()->insert({apps.first,
-							_limiter.wApps[apps.first] / apps.second.wavrg()});
-				else
-					_scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
-			}else
-				_scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
-		}
-		for (auto uids : it.second.uids()){
-			if (_limiter.rUids.find(uids.first) != _limiter.rUids.end()){
-				if (uids.second.ravrg()
-					&& _limiter.rUids[uids.first] / uids.second.ravrg() < 1)
-						_scaler.mutable_uids()->mutable_read()->insert({uids.first,
-							_limiter.rUids[uids.first] / uids.second.ravrg()});
-				else
-					_scaler.mutable_uids()->mutable_read()->insert({uids.first, 1.0});
-			}else
-				_scaler.mutable_uids()->mutable_read()->insert({uids.first, 1.0});
+	size_t winTime = !_shapings.aggregated().empty() ?
+		std::min_element(_shapings.aggregated().begin(), _shapings.aggregated().end(),
+				   [](auto &a, auto &b){return a.first < b.first;})->first : 0;
+	if (winTime == 0)
+		return false;
+	auto &it = _shapings.aggregated().at(winTime);
+	for (auto apps : it.apps()){
+		if ((_limiter.rApps.find(apps.first) != _limiter.rApps.end())
+			&& apps.second.ravrg()
+			&& _limiter.rApps[apps.first].second / (apps.second.ravrg() * apps.second.riops()) < 1
+			&& _limiter.rApps[apps.first].first)
+				(*_scaler.mutable_apps()->mutable_read())[apps.first]
+				= static_cast<float>(_limiter.rApps[apps.first].second) / (apps.second.ravrg() * apps.second.riops());
+		else
+			(*_scaler.mutable_apps()->mutable_read())[apps.first] = 1.0;
+		// eos_static_info("msg=\"app: %s, limit: %d, running: %d, division: %f, value: %f\"",
+		// 		apps.first.c_str(), _limiter.rApps[apps.first].second, _limiter.rApps[apps.first].first, _limiter.rApps[apps.first].second / (apps.second.ravrg() * apps.second.riops()),
+		// 	   apps.second.ravrg() * apps.second.riops());
 
-			if (_limiter.wUids.find(uids.first) != _limiter.wUids.end()){
-				if (uids.second.wavrg()
-					&& _limiter.wUids[uids.first] / uids.second.wavrg() < 1)
-						_scaler.mutable_uids()->mutable_write()->insert({uids.first,
-							_limiter.wUids[uids.first] / uids.second.wavrg()});
-				else
-					_scaler.mutable_uids()->mutable_write()->insert({uids.first, 1.0});
-			}else
-				_scaler.mutable_uids()->mutable_write()->insert({uids.first, 1.0});
-		}
-		for (auto gids : it.second.gids()){
-			if (_limiter.rGids.find(gids.first) != _limiter.rGids.end()){
-				if (gids.second.ravrg()
-					&& _limiter.rGids[gids.first] / gids.second.ravrg() < 1)
-						_scaler.mutable_gids()->mutable_read()->insert({gids.first,
-							_limiter.rGids[gids.first] / gids.second.ravrg()});
-				else
-					_scaler.mutable_gids()->mutable_read()->insert({gids.first, 1.0});
-			}else
-				_scaler.mutable_gids()->mutable_read()->insert({gids.first, 1.0});
+		if ((_limiter.wApps.find(apps.first) != _limiter.wApps.end())
+			&& apps.second.wavrg()
+			&& _limiter.wApps[apps.first].second / apps.second.wavrg() < 1
+			&& _limiter.wApps[apps.first].first)
+				(*_scaler.mutable_apps()->mutable_write())[apps.first] =
+					static_cast<float>(_limiter.wApps[apps.first].second) / apps.second.wavrg();
+		else
+			_scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
+	}
+	for (auto uids : it.uids()){
+		if ((_limiter.rUids.find(uids.first) != _limiter.rUids.end())
+			&& (uids.second.ravrg()
+			&& _limiter.rUids[uids.first].second / uids.second.ravrg() < 1
+			&& _limiter.rUids[uids.first].first))
+				(*_scaler.mutable_uids()->mutable_read())[uids.first] =
+					static_cast<float>(_limiter.rUids[uids.first].second) / uids.second.ravrg();
+		else
+			_scaler.mutable_uids()->mutable_read()->insert({uids.first, 1.0});
 
-			if (_limiter.wGids.find(gids.first) != _limiter.wGids.end()){
-				if (gids.second.wavrg()
-					&& _limiter.wGids[gids.first] / gids.second.wavrg() < 1)
-						_scaler.mutable_gids()->mutable_write()->insert({gids.first,
-							_limiter.wGids[gids.first] / gids.second.wavrg()});
-				else
-					_scaler.mutable_gids()->mutable_write()->insert({gids.first, 1.0});
-			}else
-				_scaler.mutable_gids()->mutable_write()->insert({gids.first, 1.0});
-		}
+		if ((_limiter.wUids.find(uids.first) != _limiter.wUids.end())
+			&& uids.second.wavrg()
+			&& _limiter.wUids[uids.first].second / uids.second.wavrg() < 1
+			&& _limiter.wUids[uids.first].first)
+				(*_scaler.mutable_uids()->mutable_write())[uids.first] =
+					static_cast<float>(_limiter.wUids[uids.first].second) / uids.second.wavrg();
+		else
+			_scaler.mutable_uids()->mutable_write()->insert({uids.first, 1.0});
+	}
+	for (auto gids : it.gids()){
+		if ((_limiter.rGids.find(gids.first) != _limiter.rGids.end())
+			&& gids.second.ravrg()
+			&& _limiter.rGids[gids.first].second / gids.second.ravrg() < 1
+			&& _limiter.rGids[gids.first].first)
+				(*_scaler.mutable_gids()->mutable_read())[gids.first] =
+					static_cast<float>(_limiter.rGids[gids.first].second) / gids.second.ravrg();
+		else
+			_scaler.mutable_gids()->mutable_read()->insert({gids.first, 1.0});
+
+		if ((_limiter.wGids.find(gids.first) != _limiter.wGids.end())
+			&& gids.second.wavrg()
+			&& _limiter.wGids[gids.first].second / gids.second.wavrg() < 1
+			&& _limiter.wGids[gids.first].first)
+				(*_scaler.mutable_gids()->mutable_write())[gids.first] =
+					static_cast<float>(_limiter.wGids[gids.first].second) / gids.second.wavrg();
+		else
+			_scaler.mutable_gids()->mutable_write()->insert({gids.first, 1.0});
 	}
 
 	return true;
@@ -412,6 +445,11 @@ IoBuffer::summarys IoShaping::getShaping() const{
 Shaping::Scaler IoShaping::getScaler() const{
     std::lock_guard<std::mutex> lock(_mSyncThread);
 	return _scaler;
+}
+
+Limiter IoShaping::getLimiter() const{
+    std::lock_guard<std::mutex> lock(_mSyncThread);
+	return _limiter;
 }
 
 EOSMGMNAMESPACE_END
