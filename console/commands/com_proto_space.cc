@@ -562,8 +562,6 @@ void com_space_help()
       << "                                                                      : configure default file layout creation settings as a space policy - a value='remove' deletes the space policy\n"
       << std::endl
       << "space config <space-name> space.altxs=on|off                          : enable/disable the alternative checksums computation when the file is uploaded\n"
-      << "space config <space-name> space.policy.recycle=on\n"
-      << "                                                                      : globally enforce using always a recycle bin\n"
       << std::endl
       << "TAPE REST API specific parameters:\n"
       << "space config default " << eos::mgm::rest::TAPE_REST_API_SWITCH_ON_OFF <<

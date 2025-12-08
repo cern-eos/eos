@@ -3256,14 +3256,6 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
   if (tokens[1] == "token.generation") {
     eos_static_info("token-generation := %s", val.c_str());
     eos::common::EosTok::sTokenGeneration = strtoull(val.c_str(), 0, 10);
-  }  else if (tokens[1] == "policy.recycle") {
-    eos_static_info("policy-recycle := %s", val.c_str());
-
-    if (val == "on") {
-      gOFS->enforceRecycleBin = true;
-    } else {
-      gOFS->enforceRecycleBin = false;
-    }
   } else if (tokens[1] == "fusex.hbi") {
     gOFS->zMQ->gFuseServer.Client().SetHeartbeatInterval(atoi(val.c_str()));
   } else if (tokens[1] == "fusex.qti") {

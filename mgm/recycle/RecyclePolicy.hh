@@ -85,19 +85,18 @@ public:
   //----------------------------------------------------------------------------
   bool IsWithinLimits();
 
-  static const std::string sKeepTimeKey;
-  static const std::string sRatioKey;
-  static const std::string sCollectKey;
-  static const std::string sRemoveKey;
-  static const std::string sDryRunKey;
-
-private:
+  static constexpr auto sKeepTimeKey = "recycle-keep-time";
+  static constexpr auto sRatioKey = "recycle-ratio";
+  static constexpr auto sCollectKey = "recycle-collect-time";
+  static constexpr auto sRemoveKey = "recycle-remove-time";
+  static constexpr auto sDryRunKey = "recycle-dry-run";
+  static constexpr auto sEnforceKey = "recycle-enforce";
 #ifdef IN_TEST_HARNESS
 public:
 #endif
-  bool mEnforced {false};
-  uint64_t mKeepTimeSec {0};
-  double mSpaceKeepRatio {0.0};
+  std::atomic<bool> mEnforced {false};
+  std::atomic<uint64_t> mKeepTimeSec {0};
+  std::atomic<double> mSpaceKeepRatio {0.0};
   //! Flag if we are in dry-run mode or not
   std::atomic<bool> mDryRun {false};
   //! How often the collection of entries is happening, default 1 day
@@ -107,8 +106,8 @@ public:
   std::atomic<std::chrono::seconds> mRemoveInterval =
     std::chrono::seconds(3600);
 
-  unsigned long long mLowSpaceWatermark {0ull};
-  unsigned long long mLowInodeWatermark {0ull};
+  std::atomic<unsigned long long> mLowSpaceWatermark {0ull};
+  std::atomic<unsigned long long> mLowInodeWatermark {0ull};
 
   //----------------------------------------------------------------------------
   //! Get quota statistics for the recycle bin

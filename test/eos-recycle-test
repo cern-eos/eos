@@ -55,6 +55,7 @@ function configure_recycler() {
   # Update the remove and collect intervals
   exec_cmd eos-mgm1 "eos -r 0 0 recycle config --remove-interval ${RECYCLE_REMOVE_INTERVAL}"
   exec_cmd eos-mgm1 "eos -r 0 0 recycle config --collect-interval ${RECYCLE_COLLECT_INTERVAL}"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --enable on"
 }
 
 
@@ -130,6 +131,7 @@ function cleanup() {
   exec_cmd eos-mgm1 "eos -r 0 0 recycle config --ratio 0.95"
   exec_cmd eos-mgm1 "eos -r 0 0 rm -rF ${EOS_RECYCLE}/${CURRENT_YEAR}/ || true"
   exec_cmd eos-mgm1 "eos -r 0 0 rm -rF ${EOS_RECYCLE}/${PREVIOUS_YEAR}/ || true"
+  exec_cmd eos-mgm1 "eos -r 0 0 recycle config --enable off"
 }
 
 # Make sure we always clean up on exit
