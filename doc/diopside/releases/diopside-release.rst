@@ -16,7 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.0 Diopside``
+===================
 
+2025-12-08
+
+Major Change
+------------
+
+* **Recycle Bin Configuration Update**: The recycle bin configuration has been refactored.
+  Please see :doc:`5.4.0/recycle_bin_config` for important migration instructions regarding new configuration commands and cleanup of legacy attributes.
+
+  
 ``v5.3.28 Diopside``
 ====================
 
