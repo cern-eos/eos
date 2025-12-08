@@ -31,6 +31,7 @@
 #include <vector>
 #include <string>
 #include <list>
+#include <optional>
 
 class XrdFstOfsFile;
 

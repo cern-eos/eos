@@ -44,6 +44,8 @@
 #include <queue>
 #include <memory>
 #include <chrono>
+#include <optional>
+#include <atomic>
 
 //------------------------------------------------------------------------------
 //! Apple does not know these errnos
