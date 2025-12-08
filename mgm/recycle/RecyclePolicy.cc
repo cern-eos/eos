@@ -25,116 +25,120 @@
 #include "mgm/recycle/Recycle.hh"
 #include "mgm/Quota.hh"
 #include "mgm/XrdMgmOfs.hh"
+#include "mgm/FsView.hh"
+#include "common/StringTokenizer.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 
 EOSMGMNAMESPACE_BEGIN
 
+const std::string RecyclePolicy::sKeepTimeKey {"recycle-keep-time"};
+const std::string RecyclePolicy::sRatioKey {"recycle-ratio"};
+const std::string RecyclePolicy::sCollectKey {"recycle-collect-time"};
+const std::string RecyclePolicy::sRemoveKey {"recycle-remove-time"};
+const std::string RecyclePolicy::sDryRunKey {"recycle-dry-run"};
+
 //----------------------------------------------------------------------------
-// Refresh recycle policy if needed
+// Apply the recycle configuration stored in the configuration engine
 //----------------------------------------------------------------------------
-void RecyclePolicy::Refresh(const std::string& path)
+void RecyclePolicy::ApplyConfig(eos::mgm::FsView* fsview)
 {
-  // Check if recycle directory metadata modified in the meantime
-  eos::IContainerMD::ctime_t new_ctime;
+  using eos::common::StringTokenizer;
+  std::string config = fsview->GetGlobalConfig("recycle");
+  std::map<std::string, std::string> kv_map;
+  auto pairs = StringTokenizer::split<std::list<std::string>>(config, ' ');
 
-  try {
-    auto cmd = gOFS->eosView->getContainer(path, false);
-    auto cmd_rlock = eos::MDLocking::readLock(cmd.get());
-    cmd->getCTime(new_ctime);
-  } catch (eos::MDException& e) {
-    errno = e.getErrno();
-    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n", e.getErrno(),
-              e.getMessage().str().c_str());
-    mEnforced = false;
-    return;
-  }
+  for (const auto& pair : pairs) {
+    auto kv = StringTokenizer::split<std::vector<std::string>>(pair, '=');
 
-  if ((mRecycleDirCtime.tv_sec == new_ctime.tv_sec) &&
-      (mRecycleDirCtime.tv_nsec == new_ctime.tv_nsec)) {
-    // No need for a refresh
-    return;
-  }
-
-  mRecycleDirCtime = new_ctime;
-  // Do a refresh
-  XrdOucErrInfo err_obj;
-  eos::IContainerMD::XAttrMap attr_map;
-  eos::common::VirtualIdentity root_vid = eos::common::VirtualIdentity::Root();
-
-  if (gOFS->_attr_ls(path.c_str(), err_obj, root_vid, "", attr_map)) {
-    eos_static_err("msg=\"unable to get attributes for recycle\" path=\"%s\"",
-                   path.c_str());
-    mEnforced = false;
-    return;
-  }
-
-  // Get the space keep ratio
-  if (auto it = attr_map.find(Recycle::gRecyclingKeepRatio);
-      it != attr_map.end()) {
-    try {
-      mSpaceKeepRatio = std::stod(it->second);
-    } catch (...) {
-      mSpaceKeepRatio = 0.0;
-      eos_static_err("msg=\"recycle keep ratio conversion to double failed\""
-                     " val=\"%s\"", it->second.c_str());
+    if (kv.empty()) {
+      eos_err("msg=\"unknown recycle config data\" data=\"%s\"", config.c_str());
+      continue;
     }
+
+    if (kv.size() == 1) {
+      kv.emplace_back("");
+    }
+
+    kv_map.emplace(kv[0], kv[1]);
+  }
+
+  std::string msg;
+
+  for (const auto& [key, value] : kv_map) {
+    if (!Config(key, value, msg)) {
+      eos_err("msg=\"failed to apply recycle config\" key=\"%s\" value=\"%s\" "
+              "error=\"%s\"", key.c_str(), value.c_str(), msg.c_str());
+    }
+  }
+}
+
+//----------------------------------------------------------------------------
+// Store the current running recycle configuration in the config engine
+//----------------------------------------------------------------------------
+bool RecyclePolicy::StoreConfig()
+{
+  std::ostringstream oss;
+  oss << sKeepTimeKey << "=" << mKeepTimeSec << " "
+      << sRatioKey << "=" << mSpaceKeepRatio << " "
+      << sCollectKey << "=" << mCollectInterval.load().count() << " "
+      << sRemoveKey << "=" << mRemoveInterval.load().count() << " "
+      << sDryRunKey << "=" << (mDryRun ? "yes" : "no");
+  return FsView::gFsView.SetGlobalConfig("recycle", oss.str());
+}
+
+//----------------------------------------------------------------------------
+// Apply configuration options to the recycle mechanism
+//----------------------------------------------------------------------------
+bool RecyclePolicy::Config(const std::string& key, const std::string& value,
+                           std::string& msg)
+{
+  if (value.empty()) {
+    return true;
+  }
+
+  if (key == sKeepTimeKey) {
+    try {
+      mKeepTimeSec = std::stoull(value);
+    } catch (...) {
+      msg = "error: recycle keep time conversion to ull failed";
+      return false;
+    }
+  } else if (key == sRatioKey) {
+    try {
+      mSpaceKeepRatio = std::stod(value);
+    } catch (...) {
+      msg = "error: recycle keep ratio conversion to double failed";
+      return false;
+    }
+  } else if (key == sCollectKey) {
+    try {
+      mCollectInterval = std::chrono::seconds(std::stoull(value));
+    } catch (...) {
+      msg = "error: recycle collect interval conversion failed";
+      return false;
+    }
+  } else if (key == sRemoveKey) {
+    try {
+      mRemoveInterval = std::chrono::seconds(std::stoull(value));
+    } catch (...) {
+      msg = "error: recycle remove interval conversion failed";
+      return false;
+    }
+  } else if (key == sDryRunKey) {
+    mDryRun = (value == "yes");
   } else {
-    mSpaceKeepRatio = 0.0;
-  }
-
-  // Get the time keep value
-  if (auto it = attr_map.find(Recycle::gRecyclingTimeAttribute);
-      it != attr_map.end()) {
-    try {
-      mKeepTimeSec = std::stoull(it->second);
-    } catch (...) {
-      mKeepTimeSec = 0ull;
-      eos_static_err("msg=\"recycle keep time conversion to ull failed\""
-                     " val=\"%s\"", it->second.c_str());
-    }
-  } else {
-    mKeepTimeSec = 0ull;
-  }
-
-  // Get the collect interval
-  if (auto it = attr_map.find(Recycle::gRecyclingCollectInterval);
-      it != attr_map.end()) {
-    try {
-      mCollectInterval = std::chrono::seconds(std::stoull(it->second));
-    } catch (...) {
-      // No changes to the default collect interval
-      eos_static_err("msg=\"recycle collect interval conversion failed\" "
-                     "val=\"%s\"", it->second.c_str());
-    }
-  }
-
-  // Get the remove interval
-  if (auto it = attr_map.find(Recycle::gRecyclingRemoveInterval);
-      it != attr_map.end()) {
-    try {
-      mRemoveInterval = std::chrono::seconds(std::stoull(it->second));
-    } catch (...) {
-      // No changes to the default remove interval
-      eos_static_err("msg=\"recycle remove interval conversion failed\" "
-                     "val=\"%s\"", it->second.c_str());
-    }
-  }
-
-  // Get the dry-run mode
-  if (auto it = attr_map.find(Recycle::gRecyclingDryRunAttribute);
-      it != attr_map.end()) {
-    if (it->second == "yes") {
-      mDryRun = true;
-    } else {
-      mDryRun = false;
-    }
+    // Ignore unknown keys
+    return true;
   }
 
   if (mKeepTimeSec || mSpaceKeepRatio) {
     mEnforced = true;
+  } else {
+    mEnforced = false;
   }
 
   eos_static_info("msg=\"recycle config refresh\" %s", Dump(" ").c_str());
+  return StoreConfig();
 }
 
 //----------------------------------------------------------------------------
@@ -144,7 +148,7 @@ std::string
 RecyclePolicy::Dump(const std::string& delim) const
 {
   std::ostringstream oss;
-  oss << "enforced=" << (mEnforced ? "on" : "off") << delim
+  oss << "enforced=" << (mEnforced ? "yes" : "no") << delim
       << "dry_run=" << (mDryRun ? "yes" : "no") << delim
       << "keep_time_sec=" << mKeepTimeSec << delim
       << "space_keep_ratio=" << mSpaceKeepRatio << delim

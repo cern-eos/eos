@@ -30,6 +30,9 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+//! Forward declarations
+class FsView;
+
 //------------------------------------------------------------------------------
 //! Class RecyclePolicy
 //------------------------------------------------------------------------------
@@ -44,11 +47,29 @@ public:
   RecyclePolicy() = default;
 
   //----------------------------------------------------------------------------
-  //! Refresh policy if needed
+  //! Apply the recycle configuration stored in the configuration engine
   //!
-  //! @param path path to recycle bin
+  //! @param fsview file system view info
   //----------------------------------------------------------------------------
-  virtual void Refresh(const std::string& path);
+  void ApplyConfig(eos::mgm::FsView* fsview);
+
+  //----------------------------------------------------------------------------
+  //! Store the current running recycle configuration in the config engine
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  virtual bool StoreConfig();
+
+  //----------------------------------------------------------------------------
+  //! Apply configuration options to the recycle mechanism
+  //!
+  //! @param key configuration key
+  //! @param value configuration value
+  //! @param msg output message/error
+  //!
+  //! @return true if successful, otherwise false
+  //----------------------------------------------------------------------------
+  bool Config(const std::string& key, const std::string& value, std::string& msg);
 
   //----------------------------------------------------------------------------
   //! Refresh watermark values based on the configured quota
@@ -63,6 +84,12 @@ public:
   //! @return true if within watermark limits, false otherwise
   //----------------------------------------------------------------------------
   bool IsWithinLimits();
+
+  static const std::string sKeepTimeKey;
+  static const std::string sRatioKey;
+  static const std::string sCollectKey;
+  static const std::string sRemoveKey;
+  static const std::string sDryRunKey;
 
 private:
 #ifdef IN_TEST_HARNESS
@@ -79,7 +106,7 @@ public:
   //! How often the removal of entries is happening, default 1 hour
   std::atomic<std::chrono::seconds> mRemoveInterval =
     std::chrono::seconds(3600);
-  eos::IContainerMD::ctime_t mRecycleDirCtime {0, 0};
+
   unsigned long long mLowSpaceWatermark {0ull};
   unsigned long long mLowInodeWatermark {0ull};
 
