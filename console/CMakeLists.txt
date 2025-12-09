@@ -75,6 +75,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   # RemainingLegacyNativeCommands removed
   commands/native/rmdir-native.cc
   commands/native/touch-native.cc
+  commands/native/cat-native.cc
   commands/native/who-native.cc
   commands/native/whoami-native.cc
   commands/native/archive-native.cc

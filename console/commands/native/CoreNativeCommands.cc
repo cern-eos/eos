@@ -47,22 +47,37 @@ public:
 class ToggleFlagCommand : public IConsoleCommand {
 public:
   enum Which { JSON, SILENT, TIMING };
-  ToggleFlagCommand(const char* n, const char* d, Which w, bool value)
-    : mName(n), mDesc(d), mWhich(w), mValue(value) {}
+  ToggleFlagCommand(const char* n, const char* d, Which w)
+    : mName(n), mDesc(d), mWhich(w) {}
   const char* name() const override { return mName.c_str(); }
   const char* description() const override { return mDesc.c_str(); }
   bool requiresMgm(const std::string&) const override { return false; }
   int run(const std::vector<std::string>&, CommandContext&) override {
     switch (mWhich) {
-      case JSON:   ::json = mValue; ::interactive = false; ::global_highlighting = false; ::runpipe = false; break;
-      case SILENT: ::silent = mValue; break;
-      case TIMING: ::timing = mValue; break;
+      case JSON:
+        ::json = (!::json);
+        gGlobalOpts.mJsonFormat = ::json;
+        if (::json) {
+          ::interactive = false;
+          ::global_highlighting = false;
+          ::runpipe = false;
+        }
+        if (!::silent) {
+          fprintf(stderr, "json=%d\n", ::json);
+        }
+        break;
+      case SILENT:
+        ::silent = (!::silent);
+        break;
+      case TIMING:
+        ::timing = (!::timing);
+        break;
     }
     return 0;
   }
   void printHelp() const override {}
 private:
-  std::string mName; std::string mDesc; Which mWhich; bool mValue;
+  std::string mName; std::string mDesc; Which mWhich;
 };
 
 class QuitCommand : public IConsoleCommand {
@@ -83,9 +98,9 @@ void RegisterCoreNativeCommands()
   CommandRegistry::instance().reg(std::make_unique<HelpCommand>());
   class HelpAlias : public HelpCommand { public: const char* name() const override { return "?"; } };
   CommandRegistry::instance().reg(std::make_unique<HelpAlias>());
-  CommandRegistry::instance().reg(std::make_unique<ToggleFlagCommand>("json",   "Toggle JSON output flag for stdout", ToggleFlagCommand::JSON,   true));
-  CommandRegistry::instance().reg(std::make_unique<ToggleFlagCommand>("silent", "Toggle silent flag for stdout",     ToggleFlagCommand::SILENT, true));
-  CommandRegistry::instance().reg(std::make_unique<ToggleFlagCommand>("timing", "Toggle timing flag for execution time measurement", ToggleFlagCommand::TIMING, true));
+  CommandRegistry::instance().reg(std::make_unique<ToggleFlagCommand>("json",   "Toggle JSON output flag for stdout", ToggleFlagCommand::JSON));
+  CommandRegistry::instance().reg(std::make_unique<ToggleFlagCommand>("silent", "Toggle silent flag for stdout",     ToggleFlagCommand::SILENT));
+  CommandRegistry::instance().reg(std::make_unique<ToggleFlagCommand>("timing", "Toggle timing flag for execution time measurement", ToggleFlagCommand::TIMING));
   CommandRegistry::instance().reg(std::make_unique<QuitCommand>("quit"));
   CommandRegistry::instance().reg(std::make_unique<QuitCommand>("exit"));
   CommandRegistry::instance().reg(std::make_unique<QuitCommand>(".q"));

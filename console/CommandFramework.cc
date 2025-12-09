@@ -112,6 +112,9 @@ void RegisterNativeConsoleCommands()
   // Touch
   extern void RegisterTouchNativeCommand();
   RegisterTouchNativeCommand();
+  // Cat
+  extern void RegisterCatNativeCommand();
+  RegisterCatNativeCommand();
   // Who
   extern void RegisterWhoNativeCommand();
   RegisterWhoNativeCommand();
