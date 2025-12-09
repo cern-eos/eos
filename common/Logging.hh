@@ -596,14 +596,9 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Set the log priority (like syslog)
+  //! Set the log priority
   //----------------------------------------------------------------------------
-  void
-  SetLogPriority(int pri)
-  {
-    gLogMask = LOG_UPTO(pri);
-    gPriorityLevel = pri;
-  }
+  void SetLogPriority(int pri);
 
   //----------------------------------------------------------------------------
   //! Set the log unit name
@@ -868,7 +863,10 @@ public:
   //----------------------------------------------------------------------------
   //! Query if ZSTD logging is enabled
   //----------------------------------------------------------------------------
-  bool IsZstdEnabled() const { return gZstdEnable; }
+  bool IsZstdEnabled() const
+  {
+    return gZstdEnable;
+  }
   //----------------------------------------------------------------------------
   //! Compute the main ZSTD tag (e.g. "xrdlog.mgm") based on configured dir
   //----------------------------------------------------------------------------
@@ -876,7 +874,8 @@ public:
   //----------------------------------------------------------------------------
   //! Public resolver for canonical per-tag names (maps aliases, filters to allowed tags)
   //----------------------------------------------------------------------------
-  std::string ResolveZstdTag(const char* sourceTag, const char* fanOutTag) const {
+  std::string ResolveZstdTag(const char* sourceTag, const char* fanOutTag) const
+  {
     return resolveZstdTag(sourceTag, fanOutTag);
   }
 private:
@@ -896,7 +895,8 @@ private:
   bool gZstdSuppressStdErr = true; // when enabled, prefer compressed logs
   int gZstdRotationSeconds = 3600; // default 1 hour
   int gZstdLevel = 1;
-  std::string gZstdBaseDir;   // base directory for logs (XRDLOGDIR or /var/log/eos)
+  std::string
+  gZstdBaseDir;   // base directory for logs (XRDLOGDIR or /var/log/eos)
   std::string gZstdUnitDir;   // derived from gUnit at open time
 
   std::mutex gZstdMutex;
@@ -918,13 +918,13 @@ private:
     "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts", "OAuth", "TokenCmd"
   };
   const std::vector<std::pair<const char*, const char*>> gZstdAliasPairs {
-    {"HttpHandler","Http"}, {"HttpServer","Http"}, {"GrpcServer","Grpc"}, {"GrpcWncServer","Wnc"},
-    {"ProtocolHandler","Http"}, {"PropFindResponse","Http"}, {"WebDAV","Http"},
-    {"WebDAVHandler","Http"}, {"WebDAVReponse","Http"}, {"S3","Http"}, {"S3Store","Http"},
-    {"S3Handler","Http"},
-    {"DrainTransferJob","DrainJob"}, {"DrainFs","DrainJob"}, {"Drainer","DrainJob"},
-    {"Clients","Mounts"},
-    {"ConversionInfo","Converter"}, {"ConversionJob","Converter"}, {"ConverterEngine","Converter"}
+    {"HttpHandler", "Http"}, {"HttpServer", "Http"}, {"GrpcServer", "Grpc"}, {"GrpcWncServer", "Wnc"},
+    {"ProtocolHandler", "Http"}, {"PropFindResponse", "Http"}, {"WebDAV", "Http"},
+    {"WebDAVHandler", "Http"}, {"WebDAVReponse", "Http"}, {"S3", "Http"}, {"S3Store", "Http"},
+    {"S3Handler", "Http"},
+    {"DrainTransferJob", "DrainJob"}, {"DrainFs", "DrainJob"}, {"Drainer", "DrainJob"},
+    {"Clients", "Mounts"},
+    {"ConversionInfo", "Converter"}, {"ConversionJob", "Converter"}, {"ConverterEngine", "Converter"}
   };
 };
 
