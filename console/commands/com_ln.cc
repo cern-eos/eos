@@ -23,11 +23,11 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-extern int com_file (char*);
+extern int com_file(char*);
 /*----------------------------------------------------------------------------*/
 
 int
-com_ln (char *arg1)
+com_ln(char* arg1)
 {
   XrdOucString cmd = "symlink ";
   cmd += arg1;

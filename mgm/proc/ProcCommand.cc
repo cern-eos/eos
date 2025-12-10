@@ -26,6 +26,7 @@
 #include "common/CommentLog.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include <XrdOuc/XrdOucEnv.hh>
+#include "mgm/proc/user/FileCmd.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "json/json.h"
@@ -293,11 +294,6 @@ ProcCommand::open(const char* inpath, const char* info,
       return Fuse();
     } else if (mCmd == "fuseX") {
       return FuseX();
-    } else if (mCmd == "file") {
-      File();
-      mDoSort = false;
-    } else if (mCmd == "fileinfo") {
-      Fileinfo();
       mDoSort = false;
     } else if (mCmd == "mkdir") {
       Mkdir();
