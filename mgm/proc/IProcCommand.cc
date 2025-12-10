@@ -31,6 +31,7 @@
 #include "json/json.h"
 #include <google/protobuf/util/json_util.h>
 
+
 EOSMGMNAMESPACE_BEGIN
 
 std::atomic_uint_least64_t IProcCommand::uuid{0};
@@ -541,5 +542,6 @@ IProcCommand::HasSlot()
 
   return true;
 }
+
 
 EOSMGMNAMESPACE_END

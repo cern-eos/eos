@@ -42,6 +42,7 @@
 #include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/DfCmd.hh"
+#include "mgm/proc/user/FileCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
@@ -296,6 +297,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 
   case RequestProto::kRecord:
     cmd.reset(new FileRegisterCmd(std::move(req), vid));
+    break;
+
+  case RequestProto::kFile:
+    cmd.reset(new FileCmd(std::move(req), vid));
     break;
 
   default:

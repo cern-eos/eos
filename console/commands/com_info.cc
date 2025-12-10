@@ -23,13 +23,13 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-extern int com_file (char*);
+extern int com_proto_file(char*);
 /*----------------------------------------------------------------------------*/
 
 int
-com_info (char *arg1)
+com_info(char* arg1)
 {
   XrdOucString cmd = "info ";
   cmd += arg1;
-  return com_file((char*)cmd.c_str());
+  return com_proto_file((char*)cmd.c_str());
 }

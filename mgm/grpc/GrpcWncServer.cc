@@ -80,10 +80,6 @@ class WncService final : public EosWnc::Service
       command = "File";
       break;
 
-    case eos::console::RequestProto::kFileinfo:
-      command = "Fileinfo";
-      break;
-
     case eos::console::RequestProto::kFs:
       command = "Fs";
       break;
@@ -166,10 +162,6 @@ class WncService final : public EosWnc::Service
 
     case eos::console::RequestProto::kToken:
       command = "Token";
-      break;
-
-    case eos::console::RequestProto::kTouch:
-      command = "Touch";
       break;
 
     case eos::console::RequestProto::kVersion:

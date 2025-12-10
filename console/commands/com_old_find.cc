@@ -30,7 +30,7 @@
 #include <XrdOuc/XrdOucEnv.hh>
 /*----------------------------------------------------------------------------*/
 
-extern int com_file(char*);
+extern int com_proto_file(char*);
 
 /* Find files/directories */
 int
@@ -633,7 +633,7 @@ com_old_find(char* arg1)
       cline += files_found[i].c_str();
       cline += " -stripes ";
       cline += stripes;
-      rc = com_file((char*) cline.c_str());
+      rc = com_proto_file((char*) cline.c_str());
 
       if (rc) {
         badentries++;
@@ -676,7 +676,7 @@ com_old_find(char* arg1)
       cline += files_found[i].c_str();
       cline += " ";
       cline += filter;
-      rc = com_file((char*) cline.c_str());
+      rc = com_proto_file((char*) cline.c_str());
 
       if (rc) {
         badentries++;
