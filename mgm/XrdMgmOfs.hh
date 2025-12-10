@@ -1476,12 +1476,14 @@ public:
   // Create Stall response
   //!
   //! @param error error object with text/code
+  //! @param vid client virtual identity
   //! @param stime seconds to stall
   //! @param msg message for the client
   //!
   //! @return number of seconds of stalling
   //----------------------------------------------------------------------------
-  int Stall(XrdOucErrInfo& error, int stime, const char* msg);
+  int Stall(XrdOucErrInfo& error, eos::common::VirtualIdentity& vid,
+            int stime, const char* msg);
 
   //----------------------------------------------------------------------------
   //! Create Redirection response
