@@ -91,7 +91,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       int stalltime=0;                                                    \
       if (gOFS->ShouldStall(__FUNCTION__,__AccessMode__, vid, stalltime, stallmsg)) { \
         if (stalltime) {                                                  \
-          return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
+          return gOFS->Stall(error, vid, stalltime, stallmsg.c_str());   \
         } else {                                                          \
           return gOFS->Emsg("maystall", error, EPERM, stallmsg.c_str(), ""); \
         }                                                                 \
@@ -99,7 +99,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
         if (!tracker_helper->IsOK()) {                                     \
           stallmsg="track request, stall the client 5 seconds";           \
           stalltime = 5;                                                  \
-          return gOFS->Stall(error,stalltime, stallmsg.c_str());          \
+          return gOFS->Stall(error, vid, stalltime, stallmsg.c_str());   \
         }                                                                 \
       }                                                                   \
     }                                                                     \
@@ -110,7 +110,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     XrdOucString stallmsg="";                                           \
     int stalltime=0;                                                    \
     for (size_t i=0; i<20;++i) {          \
-      if (gOFS->ShouldStall((FUNCTION),__AccessMode__, (VID), stalltime, stallmsg)) { \
+      if (gOFS->ShouldStall((FUNCTION), __AccessMode__, (VID), stalltime, stallmsg)) { \
         std::this_thread::sleep_for(std::chrono::milliseconds(5));  \
       } else {                                        \
   break;                \
@@ -119,13 +119,14 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
   }                 \
 }
 
-#define FUNCTIONMAYSTALL(FUNCTION, VID, ERROR) eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, (VID) ); \
+#define FUNCTIONMAYSTALL(FUNCTION, VID, ERROR) \
+  eos::mgm::InFlightRegistration tracker_helper(gOFS->mTracker, (VID) );\
   if (gOFS->IsStall) {                                                  \
     XrdOucString stallmsg="";                                           \
     int stalltime=0;                                                    \
     if (gOFS->ShouldStall((FUNCTION),__AccessMode__, (VID), stalltime, stallmsg)) { \
       if (stalltime) {                                                  \
-        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());  \
+        return gOFS->Stall((ERROR), (VID), stalltime, stallmsg.c_str());\
       } else {                                                          \
         return gOFS->Emsg("maystall", (ERROR), EPERM, stallmsg.c_str(), ""); \
       }                                                                 \
@@ -133,7 +134,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       if (!tracker_helper.IsOK()) {                                     \
         stallmsg="track request, stall the client 5 seconds";           \
         stalltime = 5;                                                  \
-        return gOFS->Stall((ERROR),stalltime, stallmsg.c_str());  \
+        return gOFS->Stall((ERROR), (VID), stalltime, stallmsg.c_str());\
       }                                                                 \
     }                                                                   \
   }
@@ -156,7 +157,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
         if (gOFS->ShouldRoute(__FUNCTION__, __AccessMode__, vid, path, ininfo, \
                               host, port, stall_timeout)) {             \
           if (stall_timeout) {                                          \
-            return gOFS->Stall(error, stall_timeout, stall_msg.c_str()); \
+            return gOFS->Stall(error, vid, stall_timeout, stall_msg.c_str()); \
           } else {                                                      \
             XrdCl::URL url; url.SetParams(ininfo ? ininfo : "");        \
             if (gOFS->Tried(url, host, "enoent"))                       \
@@ -214,7 +215,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       XrdOucString stallmsg="";                                                \
       int stalltime;                                                           \
       if (gOFS->HasStall(path, "ENOENT:*", stalltime, stallmsg)) {             \
-        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;               \
+        return gOFS->Stall(error, vid, stalltime, stallmsg.c_str()) ;    \
       }                                                                        \
     }                                                                          \
   }
@@ -226,7 +227,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       XrdOucString stallmsg="";                                                \
       int stalltime;                                                           \
       if (gOFS->HasStall(path,"ENONET:*", stalltime, stallmsg)) {              \
-        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;               \
+        return gOFS->Stall(error, vid, stalltime, stallmsg.c_str()) ;    \
       }                                                                        \
     }                                                                          \
   }
@@ -238,7 +239,7 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
       XrdOucString stallmsg="";                                                \
       int stalltime;                                                           \
       if (gOFS->HasStall(path,"ENETUNREACH:*", stalltime, stallmsg)) {         \
-        return gOFS->Stall(error, stalltime, stallmsg.c_str()) ;               \
+        return gOFS->Stall(error, vid, stalltime, stallmsg.c_str()) ;    \
       }                                                                        \
     }                                                                          \
   }
@@ -269,11 +270,11 @@ extern XrdMgmOfs* gOFS; //< global handle to XrdMgmOfs object
     }                                                                     \
     size_t __i = 0;                                                         \
     size_t __n = store_path.length();                                     \
-    for (__i = 0; __i < __n; __i++) {					\
+    for (__i = 0; __i < __n; __i++) {         \
       if (((store_path[__i] != 0xa) && (store_path[__i] != 0xd)) /* CR,LF*/) { \
-	continue;                                                       \
+  continue;                                                       \
       } else {                                                          \
-	break;                                                          \
+  break;                                                          \
       }                                                                 \
     }                                                                   \
     /* root can use all letters */                                        \
