@@ -469,68 +469,73 @@ XrdMgmOfsFile::GetXrdAccessOperation(int open_flags)
 
 XrdMgmOfsFile::targetParams
 XrdMgmOfsFile::setProxyFwEntrypoint(const std::vector<std::string>& firewalleps,
-                                     const std::vector<std::string>& proxys,
-                                     size_t fsIndex,
-                                     std::string_view fs_hostport,
-                                     std::string_view fs_prefix)
+                                    const std::vector<std::string>& proxys,
+                                    size_t fsIndex,
+                                    std::string_view fs_hostport,
+                                    std::string_view fs_prefix)
 {
-
   bool hasFirewall = fsIndex < firewalleps.size() &&
-                   !firewalleps[fsIndex].empty();
+                     !firewalleps[fsIndex].empty();
   bool hasProxy = fsIndex < proxys.size() && !proxys[fsIndex].empty();
+
   if (!hasFirewall && !hasProxy) {
     return {};
   }
 
   targetParams out;
-    // Set the FST gateway for clients who are geo-tagged with default
-    // Do this with forwarding proxy syntax only if the firewall entrypoint is
-    // different from the endpoint
-    if (hasFirewall &&
-        ((hasProxy && firewalleps[fsIndex] != proxys[fsIndex]) ||
-        (firewalleps[fsIndex] != fs_hostport))) {
-      // Build the URL for the forwarding proxy and must have the following
-      // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
-      if (auto idx = firewalleps[fsIndex].rfind(':');
+
+  // Set the FST gateway for clients who are geo-tagged with default
+  // Do this with forwarding proxy syntax only if the firewall entrypoint is
+  // different from the endpoint
+  if (hasFirewall &&
+      ((hasProxy && firewalleps[fsIndex] != proxys[fsIndex]) ||
+       (firewalleps[fsIndex] != fs_hostport))) {
+    // Build the URL for the forwarding proxy and must have the following
+    // redirection proxy:port?eos.fstfrw=endpoint:port/abspath
+    if (auto idx = firewalleps[fsIndex].rfind(':');
         idx != std::string::npos) {
-        out.targethost = firewalleps[fsIndex].substr(0, idx);
-        out.targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
-                          std::string::npos).c_str());
-        out.targethttpport = 8001;
-      } else {
-        out.targethost = firewalleps[fsIndex].c_str();
-        out.targetport = 0;
-        out.targethttpport = 8001;
-      }
-
-      out.redirectionhost = out.targethost + ":" +
-                            std::to_string(out.targetport) + "?eos.fstfrw=";
-      if (hasProxy) {
-        out.redirectionhost += proxys[fsIndex];
-      } else {
-        out.redirectionhost += fs_hostport;
-      }
-    } else if (hasProxy) {
-        if (auto idx = proxys[fsIndex].rfind(':');
-            idx != std::string::npos) {
-          out.targethost = proxys[fsIndex].substr(0, idx);
-          out.targetport = atoi(proxys[fsIndex].substr(idx + 1, std::string::npos).c_str());
-          out.targethttpport = 8001;
-        } else {
-          out.targethost = proxys[fsIndex];
-          out.targetport = 0;
-          out.targethttpport = 0;
-        }
-      out.redirectionhost = out.targethost;
+      out.targethost = firewalleps[fsIndex].substr(0, idx);
+      out.targetport = atoi(firewalleps[fsIndex].substr(idx + 1,
+                            std::string::npos).c_str());
+      out.targethttpport = 8001;
+    } else {
+      out.targethost = firewalleps[fsIndex].c_str();
+      out.targetport = 0;
+      out.targethttpport = 8001;
     }
 
-    if (hasProxy && !fs_prefix.empty()) {
-      std::string _s = "mgm.fsprefix=";
-      _s.append(fs_prefix);
-      eos::common::replace_all(_s, ":", "#COL#");
-      out.redirectionhost += _s;
-      out.redirectionsuffix = std::move(_s);
+    out.redirectionhost = out.targethost + ":" +
+                          std::to_string(out.targetport) + "?eos.fstfrw=";
+
+    if (hasProxy) {
+      out.redirectionhost += proxys[fsIndex];
+    } else {
+      out.redirectionhost += fs_hostport;
     }
+  } else if (hasProxy) {
+    if (auto idx = proxys[fsIndex].rfind(':');
+        idx != std::string::npos) {
+      out.targethost = proxys[fsIndex].substr(0, idx);
+      out.targetport = atoi(proxys[fsIndex].substr(idx + 1,
+                            std::string::npos).c_str());
+      out.targethttpport = 8001;
+    } else {
+      out.targethost = proxys[fsIndex];
+      out.targetport = 0;
+      out.targethttpport = 0;
+    }
+
+    out.redirectionhost = out.targethost;
+  }
+
+  if (hasProxy && !fs_prefix.empty()) {
+    std::string _s = "mgm.fsprefix=";
+    _s.append(fs_prefix);
+    eos::common::replace_all(_s, ":", "#COL#");
+    out.redirectionhost += _s;
+    out.redirectionsuffix = std::move(_s);
+  }
+
   return out;
 }
 
@@ -1467,6 +1472,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         truncPath = path;
         auditTruncate = true;
       }
+
       // check if this directory is write-once for the mapped user
       if (acl.HasAcl()) {
         if (acl.CanWriteOnce()) {
@@ -1531,10 +1537,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
 
         gOFS->MgmStats.Add("OpenWrite", vid.uid, vid.gid, 1, vid.app);
+
         // Emit UPDATE audit for opening existing file for update (non-create, non-truncate)
         if (gOFS->mAudit) {
           eos::audit::Stat beforeStat;
-          eos::mgm::auditutil::buildStatFromFileMD(fmd, beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
+          eos::mgm::auditutil::buildStatFromFileMD(fmd,
+              beforeStat, /*includeSize=*/true, /*includeChecksum=*/true, /*includeNs=*/true);
           gOFS->mAudit->audit(eos::audit::UPDATE, path, vid, logId, cident, "mgm",
                               std::string(), &beforeStat, nullptr);
         }
@@ -1610,7 +1618,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             // Emit CREATE or TRUNCATE audit after creation
             if (gOFS->mAudit) {
               eos::audit::Stat afterStat;
-              eos::mgm::auditutil::buildStatFromFileMD(fmd, afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
+              eos::mgm::auditutil::buildStatFromFileMD(fmd,
+                  afterStat, /*includeSize=*/false, /*includeChecksum=*/false, /*includeNs=*/true);
+
               if (auditTruncate) {
                 gOFS->mAudit->audit(eos::audit::TRUNCATE,
                                     truncPath.empty() ? path : truncPath,
@@ -1814,7 +1824,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   if (gOFS->zMQ->gFuseServer.Flushs().hasFlush(eos::common::FileId::FidToInode(
         mFid))) {
     // the first 255ms are covered inside hasFlush, otherwise we stall clients for a sec
-    return gOFS->Stall(error, 1, "file is currently being flushed");
+    return gOFS->Stall(error, vid, 1, "file is currently being flushed");
   }
 
   // ---------------------------------------------------------------------------
@@ -2173,6 +2183,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     if (isAtomicName || (!LayoutId::IsRain(layoutId))) {
       eos_info("msg=\"0-size file read from the MGM\" path=%s", path);
       mIsZeroSize = true;
+
       // ---------------------------------------------------------------------
       // Per-directory sys.audit override for READ auditing
       if (gOFS->AllowAuditRead(path)) {
@@ -2181,6 +2192,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                             std::string(), std::string(), std::string(),
                             __FILE__, __LINE__, VERSION);
       }
+
       // ---------------------------------------------------------------------
       return SFS_OK;
     }
@@ -2230,13 +2242,13 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // add the mgm.sec information to the capability
   capability += "&mgm.sec=";
   capability += eos::common::SecEntity::ToKey(client, app_name.c_str()).c_str();
-
-
   std::string containertag;
+
   if (attr::getValue(attrmap, "user.tag", containertag)) {
     capability += "&mgm.container=";
     capability += containertag.c_str();
   }
+
   // Size which will be reserved with a placement of one replica for the file
   unsigned long long bookingsize = 0;
   bool hasClientBookingSize = false;
@@ -2292,27 +2304,26 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   int retc = 0;
   bool isRecreation = false;
 
-
   // Place a new file
   if (isCreation || (!fmd->getNumLocation()) || isInjection) {
-
     Scheduler::PlacementArguments plctargs;
     {
       unsigned long long _bookingsize;
+
       if (isRepair) {
         _bookingsize = bookingsize ? bookingsize : gOFS->getFuseBookingSize();
       } else {
         _bookingsize = isFuse ? (isTouch ? 0 : gOFS->getFuseBookingSize()) :
-                               bookingsize;
+                       bookingsize;
       }
 
       using namespace eos::mgm::scheduler;
       plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
                              Lid(layoutId), (ino64_t)fmd->getId(),
                              BookingSize(_bookingsize), open_flags & O_TRUNC, vid)
-              .setFsParams(&selectedfs, &excludefs, &selectedfs)
-              .setPlctParams(plctplcy, &targetgeotag, forced_group,
-                             openOpaque->Get("eos.schedulingstrategy"));
+      .setFsParams(&selectedfs, &excludefs, &selectedfs)
+      .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                     openOpaque->Get("eos.schedulingstrategy"));
       plctargs.dataproxys = &proxys;
       plctargs.firewallentpts = &firewalleps;
 
@@ -2320,12 +2331,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
       }
     }
-
     COMMONTIMING("Scheduler::FilePlacement", &tm);
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     retc = Quota::FilePlacement(&plctargs);
     COMMONTIMING("Scheduler::FilePlaced", &tm);
-
     Scheduler::ReshuffleFs(selectedfs);
   } else {
     // Access existing file - fill the vector with the existing locations
@@ -2426,9 +2435,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
                                  Lid(layoutId), (ino64_t)fmd->getId(),
                                  BookingSize(bookingsize), open_flags & O_TRUNC, vid)
-                  .setFsParams(&excludefs, &excludefs, &selectedfs)
-                  .setPlctParams(plctplcy, &targetgeotag, forced_group,
-                                 openOpaque->Get("eos.schedulingstrategy"));
+          .setFsParams(&excludefs, &excludefs, &selectedfs)
+          .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                         openOpaque->Get("eos.schedulingstrategy"));
           plctargs.dataproxys = &proxys;
           plctargs.firewallentpts = &firewalleps;
 
@@ -2436,12 +2445,10 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
           }
         }
-
         COMMONTIMING("Scheduler::FilePlacement", &tm);
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
         retc = Quota::FilePlacement(&plctargs);
         COMMONTIMING("Scheduler::FilePlaced", &tm);
-
         eos_info("msg=\"file-recreation due to offline/full locations\" path=%s retc=%d",
                  path, retc);
         isRecreation = true;
@@ -2481,7 +2488,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       if ((stalltime = workflow.Trigger("open", "enonet", vid, ininfo,
                                         errorMsg)) > 0) {
         eos_info("msg=\"triggered ENOENT workflow\" path=%s", path);
-        return gOFS->Stall(error, stalltime, ""
+        return gOFS->Stall(error, vid, stalltime, ""
                            "File is currently unavailable - triggered workflow!");
       }
 
@@ -2500,7 +2507,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1, vid.app);
           eos_info("attr=sys info=\"stalling file since replica's are down\" path=%s rw=%d",
                    path, isRW);
-          return gOFS->Stall(error, stalltime,
+          return gOFS->Stall(error, vid, stalltime,
                              "Required filesystems are currently unavailable!");
         }
       }
@@ -2513,7 +2520,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           gOFS->MgmStats.Add("OpenStalled", vid.uid, vid.gid, 1, vid.app);
           eos_info("attr=user info=\"stalling file since replica's are down\" path=%s rw=%d",
                    path, isRW);
-          return gOFS->Stall(error, stalltime,
+          return gOFS->Stall(error, vid, stalltime,
                              "Required filesystems are currently unavailable!");
         }
       }
@@ -2778,6 +2785,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         // also if this is not a rain file
         if (!isFuse && !LayoutId::IsRain(layoutId)) {
           mIsZeroSize = true;
+
           // ----------f---------------------------------------------------------
           // Per-directory sys.audit override for READ auditing
           if (gOFS->AllowAuditRead(path)) {
@@ -2786,6 +2794,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                                 std::string(), std::string(), std::string(),
                                 __FILE__, __LINE__, VERSION);
           }
+
           // -------------------------------------------------------------------
           return SFS_OK;
         }
@@ -2854,8 +2863,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   } // fs_rd_lock scope
 
   if (auto result = setProxyFwEntrypoint(firewalleps, proxys, fsIndex,
-                            fs_hostport, fs_prefix);
-                            result.valid()) {
+                                         fs_hostport, fs_prefix);
+      result.valid()) {
     targetport = result.targetport;
     targethttpport = result.targethttpport;
     targethost = std::move(result.targethost);
@@ -2868,6 +2877,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     redirectionhost = targethost.c_str();
     redirectionhost += "?";
   }
+
   // ---------------------------------------------------------------------------
   // Rebuild the layout ID (for read it should indicate only the number of
   // available stripes for reading);
@@ -3021,9 +3031,9 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
                                Lid(plain_lid), (ino64_t)fmd->getId(),
                                BookingSize(plain_book_sz), false, rootvid)
-                .setFsParams(&selectedfs, &excludefs, &pio_replacement_fs)
-                .setPlctParams(plctplcy, &targetgeotag, forced_group,
-                               openOpaque->Get("eos.schedulingstrategy"));
+        .setFsParams(&selectedfs, &excludefs, &pio_replacement_fs)
+        .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                       openOpaque->Get("eos.schedulingstrategy"));
         plctargs.dataproxys = &proxys;
         plctargs.firewallentpts = &firewalleps;
 
@@ -3031,7 +3041,6 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
           return Emsg(epname, error, EIO, "open - invalid placement argument", path);
         }
       }
-
       COMMONTIMING("Scheduler::FilePlacement", &tm);
       {
         eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
@@ -3117,18 +3126,20 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                    "path=\"%s\" fsid=%d", path, selectedfs[i]);
           continue;
         }
+
         std::string replicahost;
         std::string redirectionsuffix;
         int replicaport{0};
         bool hasreplaceProxy {false};
+
         if (replace) {
           fsIndex = i;
 
-          if  (auto result = setProxyFwEntrypoint(firewalleps, proxys,
-                                                  fsIndex,
-                                                  repfilesystem->GetString("hostport"),
-                                                  repfilesystem->GetPath());
-            result.valid()) {
+          if (auto result = setProxyFwEntrypoint(firewalleps, proxys,
+                                                 fsIndex,
+                                                 repfilesystem->GetString("hostport"),
+                                                 repfilesystem->GetPath());
+              result.valid()) {
             targetport = result.targetport;
             targethttpport = result.targethttpport;
             targethost = std::move(result.targethost);
@@ -3136,7 +3147,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             redirectionsuffix = std::move(result.redirectionsuffix);
             hasreplaceProxy = true;
           } else {
-              // There is no proxy to use
+            // There is no proxy to use
             targethost  = repfilesystem->GetString("host").c_str();
             targetport  = atoi(repfilesystem->GetString("port").c_str());
             targethttpport  = atoi(repfilesystem->GetString("stat.http.port").c_str());
@@ -3145,6 +3156,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             replicahost += repfilesystem->GetString("host").c_str();
             replicaport = atoi(repfilesystem->GetString("port").c_str());
           }
+
           // point at the right vector entry
           fsIndex = i;
         }
@@ -3165,15 +3177,16 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
         replicahost = repfilesystem->GetString("host");
         replicaport = atoi(repfilesystem->GetString("port").c_str());
+
         // if there was a replacement and proxy, copy replica
         // details from target
         if (hasreplaceProxy) {
           replicahost = targethost;
           replicaport = targetport;
         } else if (auto result = setProxyFwEntrypoint(firewalleps, proxys,
-                                                  i,
-                                                  repfilesystem->GetString("hostport"),
-                                                  repfilesystem->GetPath());
+                                 i,
+                                 repfilesystem->GetString("hostport"),
+                                 repfilesystem->GetPath());
                    result.valid()) {
           replicahost = std::move(result.targethost);
           replicaport = result.targetport;
@@ -3441,6 +3454,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   eos_info("path=%s %s duration=%0.03fms timing=%s",
            path, clientinfo, tm.RealTime(), tm.Dump().c_str());
+
   // Audit READ for successful open if read-only using global or per-dir override
   if (!isRW && gOFS->AllowAuditRead(path)) {
     gOFS->mAudit->audit(eos::audit::READ, path, vid, logId, cident, "mgm",
@@ -3448,6 +3462,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                         std::string(), std::string(), std::string(),
                         __FILE__, __LINE__, VERSION);
   }
+
   return rcode;
 }
 

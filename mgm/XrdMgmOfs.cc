@@ -966,18 +966,15 @@ XrdMgmOfs::Emsg(const char* pfx,
 // Create stall response
 //------------------------------------------------------------------------------
 int
-XrdMgmOfs::Stall(XrdOucErrInfo& error,
-                 int stime,
-                 const char* msg)
+XrdMgmOfs::Stall(XrdOucErrInfo& error, eos::common::VirtualIdentity& vid,
+                 int stime, const char* msg)
 
 {
   XrdOucString smessage = msg;
   smessage += "; come back in ";
   smessage += stime;
   smessage += " seconds!";
-  EPNAME("Stall");
-  const char* tident = error.getErrUser();
-  ZTRACE(delay, "Stall " << stime << ": " << smessage.c_str());
+  eos_info("msg=\"%s\"", smessage.c_str());
   // Place the error message in the error object and return
   error.setErrInfo(0, smessage.c_str());
   return stime;
