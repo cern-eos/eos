@@ -42,6 +42,7 @@
 #include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/DfCmd.hh"
+#include "mgm/proc/user/FileCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
@@ -298,6 +299,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new FileRegisterCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kFile:
+    cmd.reset(new FileCmd(std::move(req), vid));
+    break;
+
   default:
     eos_static_err("error: unknown request type");
     break;
@@ -486,17 +491,7 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
   XrdOucString subcmd = procEnv.Get("mgm.subcmd");
 
   // Filter here all namespace modifying proc messages
-  if (((cmd == "file") &&
-       ((subcmd == "adjustreplica") ||
-        (subcmd == "drop") ||
-        (subcmd == "layout") ||
-        (subcmd == "touch") ||
-        (subcmd == "verify") ||
-        (subcmd == "version") ||
-        (subcmd == "versions") ||
-        (subcmd == "move") ||
-        (subcmd == "rename"))) ||
-      ((cmd == "attr") &&
+  if (((cmd == "attr") &&
        ((subcmd == "set") ||
         (subcmd == "rm"))) ||
       ((cmd == "archive") &&
