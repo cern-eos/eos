@@ -108,10 +108,6 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
     return File();
     break;
 
-  case eos::console::RequestProto::kFileinfo:
-    return Fileinfo();
-    break;
-
   case eos::console::RequestProto::kFs:
     return Fs();
     break;
@@ -201,10 +197,6 @@ GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
 
   case eos::console::RequestProto::kToken:
     return Token();
-    break;
-
-  case eos::console::RequestProto::kTouch:
-    return Touch();
     break;
 
   case eos::console::RequestProto::kVersion:
@@ -917,6 +909,14 @@ grpc::Status GrpcWncInterface::File()
   std::string cmd_in = "mgm.cmd=file";
 
   switch (mRequest->file().FileCommand_case()) {
+  case eos::console::FileProto::kFileinfo: {
+    return Fileinfo();
+  }
+
+  case eos::console::FileProto::kTouch: {
+    return Touch();
+  }
+
   case eos::console::FileProto::kAdjustreplica: {
     cmd_in += "&mgm.subcmd=adjustreplica";
 
@@ -1579,16 +1579,16 @@ grpc::Status GrpcWncInterface::File()
 
 grpc::Status GrpcWncInterface::Fileinfo()
 {
-  std::string path = mRequest->fileinfo().md().path();
+  std::string path = mRequest->file().fileinfo().md().path();
 
   if (path.empty()) {
     // get by inode
-    if (mRequest->fileinfo().md().ino()) {
-      path = "inode:" + std::to_string(mRequest->fileinfo().md().ino());
+    if (mRequest->file().fileinfo().md().ino()) {
+      path = "inode:" + std::to_string(mRequest->file().fileinfo().md().ino());
     }
     // get by fileid
-    else if (mRequest->fileinfo().md().id()) {
-      path = "fid:" + std::to_string(mRequest->fileinfo().md().id());
+    else if (mRequest->file().fileinfo().md().id()) {
+      path = "fid:" + std::to_string(mRequest->file().fileinfo().md().id());
     }
 
     if (path.empty()) {
@@ -1604,47 +1604,53 @@ grpc::Status GrpcWncInterface::Fileinfo()
   std::string cmd_in = "mgm.cmd=fileinfo";
   cmd_in += "&mgm.path=" + path;
 
-  if (mRequest->fileinfo().path() || mRequest->fileinfo().fid() ||
-      mRequest->fileinfo().fxid() || mRequest->fileinfo().size() ||
-      mRequest->fileinfo().checksum() || mRequest->fileinfo().fullpath() ||
-      mRequest->fileinfo().proxy() || mRequest->fileinfo().monitoring() ||
-      mRequest->fileinfo().wnc() || mRequest->fileinfo().env()) {
+  if (mRequest->file().fileinfo().path() ||
+      mRequest->file().fileinfo().fid() ||
+      mRequest->file().fileinfo().fxid() ||
+      mRequest->file().fileinfo().size() ||
+      mRequest->file().fileinfo().checksum() ||
+      mRequest->file().fileinfo().fullpath() ||
+      mRequest->file().fileinfo().proxy() ||
+      mRequest->file().fileinfo().monitoring() ||
+      mRequest->file().fileinfo().wnc() ||
+      mRequest->file().fileinfo().env()) {
     cmd_in += "&mgm.file.info.option=";
   }
 
-  if (mRequest->fileinfo().path()) {
+  if (mRequest->file().fileinfo().path()) {
     cmd_in += "--path";
   }
 
-  if (mRequest->fileinfo().fid()) {
+  if (mRequest->file().fileinfo().fid()) {
     cmd_in += "--fid";
   }
 
-  if (mRequest->fileinfo().fxid()) {
+  if (mRequest->file().fileinfo().fxid()) {
     cmd_in += "--fxid";
   }
 
-  if (mRequest->fileinfo().size()) {
+  if (mRequest->file().fileinfo().size()) {
     cmd_in += "--size";
   }
 
-  if (mRequest->fileinfo().checksum()) {
+  if (mRequest->file().fileinfo().checksum()) {
     cmd_in += "--checksum";
   }
 
-  if (mRequest->fileinfo().fullpath()) {
+  if (mRequest->file().fileinfo().fullpath()) {
     cmd_in += "--fullpath";
   }
 
-  if (mRequest->fileinfo().proxy()) {
+  if (mRequest->file().fileinfo().proxy()) {
     cmd_in += "--proxy";
   }
 
-  if (mRequest->fileinfo().monitoring() || mRequest->fileinfo().wnc()) {
+  if (mRequest->file().fileinfo().monitoring() ||
+      mRequest->file().fileinfo().wnc()) {
     cmd_in += "-m";
   }
 
-  if (mRequest->fileinfo().env()) {
+  if (mRequest->file().fileinfo().env()) {
     cmd_in += "--env";
   }
 
@@ -1662,7 +1668,7 @@ grpc::Status GrpcWncInterface::Fileinfo()
   cmd.close();
 
   // Complement EOS-Drive output with usernames and groupnames
-  if (!std_out.empty() && mRequest->fileinfo().wnc()) {
+  if (!std_out.empty() && mRequest->file().fileinfo().wnc()) {
     size_t pos;
     int errc = 0;
 
@@ -1694,7 +1700,7 @@ grpc::Status GrpcWncInterface::Fileinfo()
     eos::console::RequestProto acl_request;
     eos::console::ReplyProto acl_reply;
     acl_request.mutable_acl()->set_op(eos::console::AclProto_OpType_LIST);
-    acl_request.mutable_acl()->set_path(mRequest->fileinfo().md().path());
+    acl_request.mutable_acl()->set_path(mRequest->file().fileinfo().md().path());
     GrpcWncInterface exec_acl;
     exec_acl.ExecCmd(*mVid, &acl_request, &acl_reply);
 
@@ -2486,21 +2492,21 @@ grpc::Status GrpcWncInterface::Token()
 
 grpc::Status GrpcWncInterface::Touch()
 {
-  std::string path = mRequest->touch().md().path();
+  std::string path = mRequest->file().md().path();
   std::string cmd_in = "mgm.cmd=file&mgm.subcmd=touch&mgm.path=" + path;
 
-  if (mRequest->touch().nolayout()) {
+  if (mRequest->file().touch().nolayout()) {
     cmd_in += "&mgm.file.touch.nolayout=true";
   }
 
-  if (mRequest->touch().truncate()) {
+  if (mRequest->file().touch().truncate()) {
     cmd_in += "&mgm.file.touch.truncate=true";
   }
 
   ExecProcCmd(cmd_in, false);
 
   // Create parent directories
-  if (mRequest->touch().parents() && mReply->retc() == 2) {
+  if (mRequest->file().touch().parents() && mReply->retc() == 2) {
     size_t pos = 0;
 
     if (!path.empty() && path[path.size() - 1] != '/' &&

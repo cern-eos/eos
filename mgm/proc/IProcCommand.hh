@@ -216,7 +216,6 @@ public:
   }
 
   virtual void SetError(XrdOucErrInfo* error) {};
-
 protected:
   virtual bool OpenTemporaryOutputFiles();
   virtual bool CloseTemporaryOutputFiles();

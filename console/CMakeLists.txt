@@ -58,6 +58,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/helpers/NewfindHelper.cc commands/helpers/NewfindHelper.hh
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
+  commands/helpers/FileHelper.cc     commands/helpers/FileHelper.hh
   commands/com_accounting.cc
   commands/com_archive.cc
   commands/com_attr.cc
@@ -68,7 +69,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_clear.cc
   commands/com_cp.cc
   commands/com_daemon.cc
-  commands/com_file.cc
   commands/com_old_find.cc
   commands/com_proto_find.cc
   commands/com_fuse.cc
@@ -117,6 +117,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_proto_ns.cc
   commands/com_proto_debug.cc
   commands/com_du.cc
+  commands/com_proto_file.cc
   commands/com_proto_df.cc
   commands/com_proto_group.cc
   commands/com_proto_recycle.cc

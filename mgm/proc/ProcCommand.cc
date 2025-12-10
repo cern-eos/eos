@@ -26,9 +26,11 @@
 #include "common/CommentLog.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include <XrdOuc/XrdOucEnv.hh>
+#include "mgm/proc/user/FileCmd.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "json/json.h"
+
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -293,12 +295,6 @@ ProcCommand::open(const char* inpath, const char* info,
       return Fuse();
     } else if (mCmd == "fuseX") {
       return FuseX();
-    } else if (mCmd == "file") {
-      File();
-      mDoSort = false;
-    } else if (mCmd == "fileinfo") {
-      Fileinfo();
-      mDoSort = false;
     } else if (mCmd == "mkdir") {
       Mkdir();
     } else if (mCmd == "rmdir") {
@@ -580,7 +576,7 @@ ProcCommand::MakeResult()
           fprintf(fresultStream, "%s", sentry.c_str());
         }
 
-        // Close and remove - if this fails there is nothing to recover anyway
+        // Close and remove
         fclose(fstdout);
         fstdout = 0;
         unlink(fstdoutfilename.c_str());
@@ -594,7 +590,7 @@ ProcCommand::MakeResult()
           fprintf(fresultStream, "%s", sentry.c_str());
         }
 
-        // Close and remove - if this fails there is nothing to recover anyway
+        // Close and remove
         fclose(fstderr);
         fstderr = 0;
         unlink(fstderrfilename.c_str());
@@ -714,6 +710,7 @@ table
   }
   return ok;
 }
+
 
 Json::Value ProcCommand::CallJsonFormatter(const std::string& output)
 {
