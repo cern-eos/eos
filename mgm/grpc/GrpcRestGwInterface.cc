@@ -28,13 +28,11 @@
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
-#include "mgm/proc/user/QoSCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
 #include "mgm/XrdMgmOfs.hh"
-
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IView.hh"
@@ -2069,17 +2067,6 @@ grpc::Status GrpcRestGwInterface::NsCall(VirtualIdentity& vid,
   req.mutable_ns()->CopyFrom(*nsRequest);
   eos::mgm::NsCmd nscmd(std::move(req), vid);
   *reply = nscmd.ProcessRequest();
-  return grpc::Status::OK;
-}
-
-grpc::Status GrpcRestGwInterface::QoSCall(VirtualIdentity& vid,
-    const QoSProto* qosRequest, ReplyProto* reply)
-{
-  // wrap the QoSProto object into a RequestProto object
-  eos::console::RequestProto req;
-  req.mutable_qos()->CopyFrom(*qosRequest);
-  eos::mgm::QoSCmd qoscmd(std::move(req), vid);
-  *reply = qoscmd.ProcessRequest();
   return grpc::Status::OK;
 }
 

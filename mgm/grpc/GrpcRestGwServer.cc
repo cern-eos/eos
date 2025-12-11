@@ -46,7 +46,6 @@ using eos::console::MkdirProto;
 using eos::console::MoveProto;
 using eos::console::NodeProto;
 using eos::console::NsProto;
-using eos::console::QoSProto;
 using eos::console::QuotaProto;
 using eos::console::RecycleProto;
 using eos::console::ReplyProto;
@@ -322,15 +321,6 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
     return restGwInterface.NsCall(vid, request, reply);
-  }
-
-  Status QoSRequest(ServerContext* context, const QoSProto* request,
-                    ReplyProto* reply) override
-  {
-    eos::common::VirtualIdentity vid;
-    GrpcRestGwServer::Vid(context, vid);
-    GrpcRestGwInterface restGwInterface;
-    return restGwInterface.QoSCall(vid, request, reply);
   }
 
   Status QuotaRequest(ServerContext* context, const QuotaProto* request,

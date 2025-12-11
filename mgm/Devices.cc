@@ -32,6 +32,7 @@
 #include "mgm/Stat.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IView.hh"
+#include "common/json/Json.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -64,12 +65,15 @@ Devices::Recorder(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName("Devices");
   time_t snoozetime = 900;
+
   if (getenv("EOS_MGM_DEVICES_PUBLISHING_INTERVAL")) {
     auto rtime = std::atoi(getenv("EOS_MGM_DEVICES_PUBLISHING_INTERVAL"));
-    if (rtime==0 || rtime > 86400) {
+
+    if (rtime == 0 || rtime > 86400) {
       rtime = 900;
     }
   }
+
   gOFS->WaitUntilNamespaceIsBooted(assistant);
 
   if (assistant.terminationRequested()) {
@@ -95,12 +99,13 @@ Devices::Recorder(ThreadAssistant& assistant) noexcept
     Extract();
     // store in the namespace
     Store();
+
     for (int i = 0; i < snoozetime / 1; i++) {
       if (assistant.terminationRequested()) {
         eos_static_info("%s", "msg=\"devices thread exiting\"");
         return;
       }
-      
+
       assistant.wait_for(std::chrono::seconds(1));
     }
   }
@@ -112,39 +117,45 @@ Devices::Recorder(ThreadAssistant& assistant) noexcept
 void
 Devices::Extract()
 {
-  gOFS->MgmStats.Add("Devices::Extract", 0,0 , 1);
+  gOFS->MgmStats.Add("Devices::Extract", 0, 0, 1);
   json_map_t jm = std::make_shared<json_map>();
   space_map_t sp = std::make_shared<space_map>();
   smart_map_t sm = std::make_shared<smart_map>();
-  
   std::set<uint64_t> fsids;
   {
     // get all the filesystem which are currently visible quickly
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
-    for ( auto it = FsView::gFsView.mSpaceView.begin(); it != FsView::gFsView.mSpaceView.end(); ++it ) {
+
+    for (auto it = FsView::gFsView.mSpaceView.begin();
+         it != FsView::gFsView.mSpaceView.end(); ++it) {
       // loop over all filesystems
-      for (auto fsit = FsView::gFsView.mIdView.begin(); fsit != FsView::gFsView.mIdView.end(); ++fsit) {
-	FileSystem* fs = fsit->second;
-	if (fs->GetSpace() != it->first) {
-	  // only look at the current space
-	  continue;
-	}
-	fsids.insert(fs->GetId());
-	(*sp)[fs->GetId()]=fs->GetSpace();
+      for (auto fsit = FsView::gFsView.mIdView.begin();
+           fsit != FsView::gFsView.mIdView.end(); ++fsit) {
+        FileSystem* fs = fsit->second;
+
+        if (fs->GetSpace() != it->first) {
+          // only look at the current space
+          continue;
+        }
+
+        fsids.insert(fs->GetId());
+        (*sp)[fs->GetId()] = fs->GetSpace();
       }
     }
   }
-  
+
   // loop over the filesystems and take short locks to extract
-  for ( auto it= fsids.begin(); it != fsids.end(); ++it ) {
+  for (auto it = fsids.begin(); it != fsids.end(); ++it) {
     uint64_t id = *it;
     {
       eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       FileSystem* fs = FsView::gFsView.mIdView.lookupByID(id);
+
       if (!fs) {
-	// skip this disappeared
-	continue;
+        // skip this disappeared
+        continue;
       }
+
       // store the compressed maps
       (*jm)[id] = fs->GetString("stat.health.z64smart");
       (*sm)[id] = fs->GetString("stat.health");
@@ -154,13 +165,14 @@ Devices::Extract()
   }
 
   // decompress without any lock
-  for ( auto it = (*jm).begin(); it != (*jm).end(); ++it) {
+  for (auto it = (*jm).begin(); it != (*jm).end(); ++it) {
     std::string compressedjson = it->second;
     std::string ojson;
     bool done = eos::common::SymKey::ZDeBase64(compressedjson, ojson);
+
     if (!done) {
       eos_static_err("msg=\"failed to decompress JSON smart info from fsid=%lu\"",
-		     it->first);
+                     it->first);
       it->second = "";
     } else {
       it->second = ojson;
@@ -168,7 +180,6 @@ Devices::Extract()
   }
 
   lastExtraction = time(NULL);
-  
   // swap the new map with the current one
   setJson(jm);
   setSpaceMap(sp);
@@ -178,30 +189,33 @@ Devices::Extract()
 void
 Devices::Store()
 {
-  gOFS->MgmStats.Add("Devices::Store", 0,0 , 1);
+  gOFS->MgmStats.Add("Devices::Store", 0, 0, 1);
   auto jinfo = getJson();
   auto sminfo = getSmartMap();
-  for (auto it=jinfo->begin(); it != jinfo->end(); ++it) {
+
+  for (auto it = jinfo->begin(); it != jinfo->end(); ++it) {
     std::string storagepath = mDevicesPath;
     storagepath += "/";
-    std::string smartstatus="unknown";
+    std::string smartstatus = "unknown";
+
     if (sminfo->count(it->first)) {
       smartstatus = (*sminfo)[it->first];
     }
 
     std::string serial;
-    
     {
       Json::Value root;
       std::string errs;
       Json::CharReaderBuilder jsonReaderBuilder;
-      std::unique_ptr<Json::CharReader> const reader(jsonReaderBuilder.newCharReader());
+      std::unique_ptr<Json::CharReader> const reader(
+        jsonReaderBuilder.newCharReader());
       const std::string& ojson = it->second;
 
       if (reader->parse(ojson.c_str(), ojson.c_str() + ojson.size(), &root, &errs)) {
         try {
-	  serial     = root.isMember("serial_number")?root["serial_number"].asString():"";
-	} catch (Json::Exception const&) {
+          serial     = root.isMember("serial_number") ? root["serial_number"].asString() :
+                       "";
+        } catch (Json::Exception const&) {
         }
       }
     }
@@ -213,11 +227,10 @@ Devices::Store()
     storagepath += serial; // serial number
     storagepath += ".";
     storagepath += std::to_string(it->first); // fsid
-
     eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, storagepath.c_str());
-
     eos::MDLocking::FileWriteLockPtr fmdLock;
     eos::IFileMDPtr fmd = nullptr;
+
     try {
       fmd = gOFS->eosView->getFile(storagepath.c_str());
       fmdLock = eos::MDLocking::writeLock(fmd.get());
@@ -225,39 +238,40 @@ Devices::Store()
     } catch (eos::MDException& e) {
       errno = e.getErrno();
       eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		e.getErrno(), e.getMessage().str().c_str());
+                       e.getErrno(), e.getMessage().str().c_str());
     }
+
     if (!fmd) {
       // if it does not exist, create it
       try {
-	fmd = gOFS->eosView->createFile(storagepath.c_str(), 0, 0);
-	fmdLock = eos::MDLocking::writeLock(fmd.get());
-	fmd->setMTimeNow();
-	fmd->setCTimeNow();
-	eos::IFileMD::ctime_t mtime;
-	fmd->getMTime(mtime);
-	char btime[256];
-	snprintf(btime, sizeof(btime), "%lu.%lu", mtime.tv_sec, mtime.tv_nsec);
-	fmd->setAttribute("sys.eos.btime", btime);
-	errno = 0;
+        fmd = gOFS->eosView->createFile(storagepath.c_str(), 0, 0);
+        fmdLock = eos::MDLocking::writeLock(fmd.get());
+        fmd->setMTimeNow();
+        fmd->setCTimeNow();
+        eos::IFileMD::ctime_t mtime;
+        fmd->getMTime(mtime);
+        char btime[256];
+        snprintf(btime, sizeof(btime), "%lu.%lu", mtime.tv_sec, mtime.tv_nsec);
+        fmd->setAttribute("sys.eos.btime", btime);
+        errno = 0;
       } catch (eos::MDException& e) {
-	errno = e.getErrno();
-	eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
-		  e.getErrno(), e.getMessage().str().c_str());
+        errno = e.getErrno();
+        eos_static_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                         e.getErrno(), e.getMessage().str().c_str());
       }
     }
+
     // if it exists now, store the latest json and update the mtime
     if (fmd) {
       fmd->setAttribute("sys.smart.json", it->second);
       fmd->setAttribute("sys.smart.status", smartstatus);
-      
       fmd->setMTimeNow();
       fmdLock.reset(nullptr);
       gOFS->eosView->updateFileStore(fmd.get());
-    } 
+    }
   }
 }
 
 
-  
+
 EOSMGMNAMESPACE_END

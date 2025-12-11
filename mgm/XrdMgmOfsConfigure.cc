@@ -54,8 +54,6 @@
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
 #include "mgm/inspector/FileInspector.hh"
-#include "mgm/qos/QoSClass.hh"
-#include "mgm/qos/QoSConfig.hh"
 #include "common/RWMutex.hh"
 #include "common/Utils.hh"
 #include "common/StacktraceHere.hh"
@@ -215,7 +213,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   XrdCl::DefaultEnv::GetEnv()->PutInt("ConnectionRetry", 1);
   // set stream error window
   XrdCl::DefaultEnv::GetEnv()->PutInt("StreamErrorWindow", 0);
-  MgmQoSEnabled = getenv("EOS_ENABLE_QOS") != nullptr;
 
   // Setup the concatenated CA file (done by the XRootD server)
   if (getenv("XRDADMINPATH")) {
@@ -236,8 +233,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   MgmMetaLogDir = "";
   MgmAuthDir = "";
   MgmArchiveDir = "";
-  MgmQoSDir = "";
-  MgmQoSConfigFile = "";
   IoReportStorePath = "/var/tmp/eos/report";
   TmpStorePath = "/var/tmp/eos/mgm";
   mQClientDir = "/var/eos/ns-queue/";
@@ -802,15 +797,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
-        if (!strcmp("qoscfg", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for qoscfg invalid.");
-            NoGo = 1;
-          } else {
-            MgmQoSConfigFile = val;
-          }
-        }
-
         if (!strcmp("alias", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument for alias missing.");
@@ -887,36 +873,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
               NoGo = 1;
             } else {
               Eroute.Say("=====> mgmofs.authdir:   ", MgmAuthDir.c_str(), "");
-            }
-          }
-        }
-
-        if (!strcmp("qosdir", var)) {
-          if (!(val = Config.GetWord())) {
-            Eroute.Emsg("Config", "argument for qosdir invalid.");
-            NoGo = 1;
-          } else {
-            MgmQoSDir = val;
-
-            if (!MgmQoSDir.endswith("/")) {
-              MgmQoSDir += "/";
-            }
-
-            // attempt to change ownership
-            XrdOucString chownit = "chown -R daemon ";
-            chownit += MgmQoSDir;
-            int src = system(chownit.c_str());
-
-            if (src) {
-              eos_err("%s returned %d", chownit.c_str(), src);
-            }
-
-            if (::access(MgmQoSDir.c_str(), W_OK | R_OK | X_OK)) {
-              Eroute.Emsg("Config", "cannot access the QoS directory for r/w!",
-                          MgmQoSDir.c_str());
-              NoGo = 1;
-            } else {
-              Eroute.Say("=====> mgmofs.qosdir:   ", MgmQoSDir.c_str(), "");
             }
           }
         }
@@ -1288,12 +1244,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     return 1;
   }
 
-  if (MgmQoSEnabled && !MgmQoSDir.length()) {
-    Eroute.Say("Config error: QoS is enabled but QoS directory not defined: "
-               "mgm.qosdir=</var/eos/qos/>");
-    return 1;
-  }
-
   if (!MgmArchiveDir.length()) {
     Eroute.Say("Config notice: archive directory is not defined - archiving is disabled");
   }
@@ -1459,20 +1409,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
              "Deletion,PrintOut,SharedHash,work");
   mConfigEngine = new QuarkDBConfigEngine(gOFS->mQdbContactDetails);
   mConfigEngine->SetAutoSave(true);
-
-  // Read QoS config file
-  if (MgmQoSEnabled) {
-    eos::mgm::QoSConfig qosConfig(MgmQoSConfigFile.c_str());
-
-    if (qosConfig.IsValid()) {
-      mQoSClassMap = qosConfig.LoadConfig();
-    } else {
-      Eroute.Emsg("Config", "Could not load QoS config file!",
-                  MgmQoSConfigFile.c_str());
-      NoGo = 1;
-    }
-  }
-
   using eos::common::CommentLog;
   // Create comment log to save all proc commands executed with a comment
   mCommentLog.reset(new CommentLog("/var/log/eos/mgm/logbook.log"));

@@ -394,14 +394,12 @@ The EOS server installation
 %config(noreplace) %{_sysconfdir}/cron.d/eos-reports
 %config(noreplace) %{_sysconfdir}/logrotate.d/eos-logs
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos
-%dir %attr(700,daemon,daemon) %{_localstatedir}/eos/qos
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/wfe
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/wfe/bash/
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/ns-queue
 %dir %attr(700,daemon,daemon) %{_localstatedir}/eos/ns-queue/default
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos
 %dir %attr(755,daemon,daemon) %{_localstatedir}/log/eos/tx
-%attr(644,daemon,daemon) %{_localstatedir}/eos/qos/qos.conf
 %attr(555,daemon,daemon) %{_localstatedir}/eos/wfe/bash/shell
 
 %post -n eos-server
@@ -848,7 +846,6 @@ Contains an instance and fuse test script and some test executables and test arc
 %{_sbindir}/eos-fsck-test
 %{_sbindir}/eos-recycle-test
 %{_sbindir}/eos-fst-close-test
-%{_sbindir}/eos-qos-test
 %{_sbindir}/eos-rename-test
 %{_sbindir}/eos-acl-concurrent
 %{_sbindir}/eos-grpc-test

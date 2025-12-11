@@ -166,7 +166,7 @@ install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
   eos-http-upload-test eos-https-functional-test eos-token-test
   eos-fst-close-test eos-rename-test eos-grpc-test eos-fsck-test
   eos-squash-test eos-backup eos-backup-browser eos-test-utils
-  eos-convert-test eos-balance-test eos-qos-test eos-timestamp-test
+  eos-convert-test eos-balance-test eos-timestamp-test
   eos-squash-test eos-defaultcc-test eos-quota-test eos-macaroon-init
   eos-synctime-test eos-rclone-test eos-bash test-eos-iam-mapfile.py
   fusex/eos-test-credential-bindings fusex/eos-fusex-functional-test

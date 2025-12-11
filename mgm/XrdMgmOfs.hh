@@ -112,8 +112,6 @@
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/IdTrackerWithValidity.hh"
-#include "mgm/qos/QoSConfig.hh"
-#include "mgm/qos/QoSClass.hh"
 #include "mgm/IMaster.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -1145,55 +1143,6 @@ public:
                 eos::common::VirtualIdentity& vid,
                 const char* opaque, const char* key);
 
-  //----------------------------------------------------------------------------
-  //! List QoS properties for a given entry - low-level API
-  //!
-  //! @param path entry path
-  //! @param out_error error object
-  //! @param vid virtual identity of the client
-  //! @param map map containing all QoS values
-  //! @param only_cdmi flag to list only CDMI-specific QoS properties
-  //!
-  //! @return SFS_OK if success, otherwise SFS_ERROR
-  //----------------------------------------------------------------------------
-  int _qos_ls(const char* path, XrdOucErrInfo& out_error,
-              eos::common::VirtualIdentity& vid,
-              eos::IFileMD::QoSAttrMap& map,
-              bool only_cdmi = false);
-
-  //----------------------------------------------------------------------------
-  //! Get QoS property for a given entry by key - low-level API
-  //!
-  //! @param path entry path
-  //! @param out_error error object
-  //! @param vid virtual identity of the client
-  //! @param key QoS key to retrieve
-  //! @param value QoS value
-  //!
-  //! @return SFS_OK if success, otherwise SFS_ERROR
-  //----------------------------------------------------------------------------
-  int _qos_get(const char* path, XrdOucErrInfo& out_error,
-               eos::common::VirtualIdentity& vid,
-               const char* key,
-               XrdOucString& value);
-
-  //----------------------------------------------------------------------------
-  //! Schedule QoS properties for a given entry - low-level API
-  //! If no value is provided for a QoS property, it will be left unchanged.
-  //!
-  //! @param path the entry path
-  //! @param out_error error object
-  //! @param vid virtual identity of the client
-  //! @param qos desired QoS class
-  //! @param conversion_id will hold the name of the conversion file
-  //!
-  //! @return SFS_OK if success, otherwise SFS_ERROR
-  //----------------------------------------------------------------------------
-  int _qos_set(const char* path, XrdOucErrInfo& out_error,
-               eos::common::VirtualIdentity& vid,
-               const eos::mgm::QoSClass& qos,
-               std::string& conversion_id);
-
   // ---------------------------------------------------------------------------
   // drop stripe by vid
   // ---------------------------------------------------------------------------
@@ -1797,8 +1746,6 @@ public:
   XrdOucString MgmConfigAutoLoad;
   //! Directory where tmp. archive transfer files are saved
   XrdOucString MgmArchiveDir;
-  XrdOucString MgmQoSDir; ///< Directory where QoS config files are stored
-  XrdOucString MgmQoSConfigFile; ///< Name of the QoS config file
   XrdOucString MgmProcPath; ///< Directory with proc files
   //! Directory with conversion files (used as temporary files when a layout
   //! is changed using third party copy)
@@ -1873,7 +1820,6 @@ public:
   //! Writes error log with cluster wide collected errors in
   //! /var/log/eos/mgm/error.log
   bool mErrLogEnabled;
-  bool MgmQoSEnabled; ///< True if QoS support is enabled
   std::optional<std::string> ConcatenatedServerRootCA;
 
   //----------------------------------------------------------------------------
@@ -2109,9 +2055,6 @@ public:
 
   //! Global path routing
   std::unique_ptr<PathRouting> mRouting; ///< Path routing mechanism
-
-  //! Global QoS Classes map
-  std::map<std::string, eos::mgm::QoSClass> mQoSClassMap;
 
   //! Global Attrbute Map Space=>map(key,val)
   std::mutex mSpaceAttributesMutex; ///< Mutex protecting space attributes
