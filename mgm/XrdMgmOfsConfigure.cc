@@ -1230,6 +1230,20 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Config.Close();
   }
 
+  // Make sure we have a proper QuarkDB configuration present
+  if (mQdbContactDetails.empty()) {
+    Eroute.Say("=====> ERROR: No QuarkDB configuration - missing mgmofs.qdbcluster!");
+    return 1;
+  }
+
+  if (mQdbContactDetails.password.empty()) {
+    Eroute.Say("=====> ERROR: No QuarkDB password configuration - missing "
+               "mgmofs.qdbpassword/mgmofs.qdbpassword_file!");
+    Eroute.Say("=====> ERROR: EOS will not connect to a QuarkDB instance "
+               "which is not protected by a password!");
+    return 1;
+  }
+
   if (protowfusegrpc) {
     Eroute.Say("=====> mgmofs.protowfusegrpc : true");
   } else {
@@ -1240,13 +1254,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     Eroute.Say("=====> mgmofs.protowfusegrpctls : true");
   } else {
     Eroute.Say("=====> mgmofs.protowfusegrpctls : false");
-  }
-
-  if (!mQdbContactDetails.members.empty() &&
-      mQdbContactDetails.password.empty()) {
-    Eroute.Say("=====> Configuration error: Found QDB cluster members, but no password."
-               " EOS will only connect to password-protected QDB instances. (mgmofs.qdbpassword / mgmofs.qdbpassword_file missing)");
-    return 1;
   }
 
   if (NoGo) {
@@ -1450,14 +1457,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   g_logging.SetFilter(filter.c_str());
   Eroute.Say("=====> setting message filter: Process,AddQuota,Update,UpdateHint,"
              "Deletion,PrintOut,SharedHash,work");
-
-  if (gOFS->mQdbCluster.empty()) {
-    Eroute.Emsg("Config", "The QuarkDB configuration is empty!");
-    NoGo = 1;
-  } else {
-    mConfigEngine = new QuarkDBConfigEngine(gOFS->mQdbContactDetails);
-  }
-
+  mConfigEngine = new QuarkDBConfigEngine(gOFS->mQdbContactDetails);
   mConfigEngine->SetAutoSave(true);
 
   // Read QoS config file
