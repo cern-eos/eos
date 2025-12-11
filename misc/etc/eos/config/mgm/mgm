@@ -171,9 +171,6 @@ EOS_NO_STACKTRACE=1
 # Disable shutdown/signal handlers for debugging
 #EOS_NO_SHUTDOWN
 
-# Allow UTF-8 path names excluding only CR,LF
-EOS_UTF8=""
-
 # Add secondary group information from database/LDAP (set to 1 to enable)
 #EOS_SECONDARY_GROUPS=0
 
