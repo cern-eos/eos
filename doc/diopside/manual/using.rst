@@ -243,18 +243,18 @@ To issue a multipath token you concatenate your paths using '://:' as a delimite
 .. code-block:: bash
 
    # create a token for a generic EOS path and to call the Tape Rest API endpoitn
-   
+
    eos token --path /eos/://:/api/
 
    # allow 'rwx' in /eos/user/ and /eos/group/ to 1234:1234
    eos token --path /eos/user/://:/eos/group/ --permission rwx --owner 1234 --group 1234
-   
+
 .. index::
    pair: EOS Tokens; Multi-path Token
 
-   
-   
-   
+
+
+
 Token Mapping
 ^^^^^^^^^^^^^
 
@@ -1959,7 +1959,7 @@ In order to safely archive an EOS subtree to tape (CTA) the following steps deta
 be performed. Assume we want to archive the EOS subtree rooted at /eos/dir/archive/test. First of all,
 the user needs to make sure that he/she has the necessary permissions to submit archiving commands.
 The permissions check is enforced at directory level by using the **sys.acl** extended attribute
-and it allows setting permissions at user, group or egroup level. The **ACL flag** for achiving
+and it allows setting permissions at user, group or egroup level. The **ACL flag** for archiving
 is **'a'**.
 
 .. code-block:: bash
@@ -1975,7 +1975,36 @@ the *EOS Console*:
 
    archive create /eos/dir/archive/test
 
-After issuing this command the EOS subtree is **immutable** and no updates are allowed either to the
+There are some restrictions that apply to the contents for the archived hierarchy. These come
+either from restrictions imposed by the tape backend or the type of files that can be created
+on an EOS instance from an external client - as it's the case for the archive daemon. Therefore,
+the archive creation will fail if any of the following types of files are present in the hierarchy.
+Below you have different types of files that are **NOT** supported by the archive tool and
+the corresponding eos command that you can run to determine if there are any such files in
+your target hierarchy:
+
+* 0 size files
+
+.. code-bloc:: bash
+
+   eos find --format fid,checksumtype,size /eos/<instance>/archive_dir/ | grep " size=0 "
+
+
+* symlink/hardlink files
+
+.. code-block:: bash
+
+   eos find --format fid,checksumtype,size /eos/<instance>/archive_dir/ | grep " checksumtype=none "
+
+
+* atomic, version or atomic-version files
+
+.. code-block:: bash
+
+   eos find --name ".sys.*" /eos/<instance>/archive_dir/
+
+
+After creating an archive the EOS subtree is **immutable** and no updates are allowed either to the
 data or the metadata. Transferring the data to tape (CTA) is done using the **archive put** command:
 
 .. code-block:: bash
@@ -2041,7 +2070,7 @@ To enable obfuscation for all new files created in in a directory use:
 
 .. code-block:: bash
 
-		[root@host~] eos attr set sys.file.obfuscate=1 /eos/obfuscate/
+                [root@host~] eos attr set sys.file.obfuscate=1 /eos/obfuscate/
 
 
 Obfuscated files are accessible with any protocol. For remote access protocols like xrdcp,eoscp,http files are unobfuscated by the FST gateway node. For FUSE mounts files are unobfuscated by the FUSE client.
@@ -2054,26 +2083,26 @@ Encryption requires obfuscation to be enabled! This is done by defining on the t
 
 .. code-block:: bash
 
-		[root@host~] eos attr set sys.file.obfuscate=1 /eos/encryption/
+                [root@host~] eos attr set sys.file.obfuscate=1 /eos/encryption/
 
 Encryption is additionally enabled client-side by defining the environment variable `EOS_FUSE_SECRET`. It is used automatically by the `eoscp` command or the `eosxd` FUSE mounts, but not when using `xrdcp` or `http` access:
 
 .. code-block:: bash
 
-		[root@host~] eos attr set sys.file.obfuscate=1 /eos/encryption/
-		[root@host~] export EOS_FUSE_SECRET=858aa9f8-545f-4b10-a823-3b7d822291a3
-		[root@host~] eosxd get eos.reconnect /eos/ #after defining a new encryption key you have to reconnect the FUSE mount or create a new subshell
-		[root@host~] eos cp /tmp/file root://localhost//eos/encryption/encrypted-file
-		[root@host~] eos file info /eos/encryption/encrypted-file
-		  File: '/eos/encryption/encrypted-file'  Flags: 0640
-		  Size: 13
-		 ...
-		  #Rep: 1
-		 Crypt: encrypted
-		 ...
+                [root@host~] eos attr set sys.file.obfuscate=1 /eos/encryption/
+                [root@host~] export EOS_FUSE_SECRET=858aa9f8-545f-4b10-a823-3b7d822291a3
+                [root@host~] eosxd get eos.reconnect /eos/ #after defining a new encryption key you have to reconnect the FUSE mount or create a new subshell
+                [root@host~] eos cp /tmp/file root://localhost//eos/encryption/encrypted-file
+                [root@host~] eos file info /eos/encryption/encrypted-file
+                  File: '/eos/encryption/encrypted-file'  Flags: 0640
+                  Size: 13
+                 ...
+                  #Rep: 1
+                 Crypt: encrypted
+                 ...
 
-		[root@host~] cat /eos/encryption/encrypted-file
-		Hello World!
+                [root@host~] cat /eos/encryption/encrypted-file
+                Hello World!
 
 
 When using `eoscp` files are decrypted by the FST and the encryption has to be forwared to the FST as part of the encrypted capability issued by the MGM node. When using FUSE mounts, encryption keys never leave the clients and decryption is done only on client side.
@@ -2089,8 +2118,8 @@ The syntax in the FUSE configuration file is as shown:
 
 .. code-block:: bash
 
-		cat /etc/eos/fuse.my.conf
-		{"encryptionkey":"655361ab-5af9-4697-8a32-8069ade18a27"}
+                cat /etc/eos/fuse.my.conf
+                {"encryptionkey":"655361ab-5af9-4697-8a32-8069ade18a27"}
 
 .. NOTE:: To create an unencrypted and encrypted area using single FUSE mounts, it is sufficient to define an encryption key in the FUSE configuration file, have a storage area where the `sys.eos.obfuscate` exteneded attribute is not defined (unencrypted) and one where the `sys.eos.obfuscate` attribute is defined (encrypted).
 
@@ -2105,17 +2134,17 @@ To enable a standard MGM to allow connections from an authentication front-end u
 
 .. code-block:: bash
 
-		#-------------------------------------------------------------------------------
-		# Configuration for the authentication plugin EosAuth
-		#-------------------------------------------------------------------------------
-		# Set the number of authentication worker threads running on the MGM
-		mgmofs.auththreads 64
+                #-------------------------------------------------------------------------------
+                # Configuration for the authentication plugin EosAuth
+                #-------------------------------------------------------------------------------
+                # Set the number of authentication worker threads running on the MGM
+                mgmofs.auththreads 64
 
-		# Set the front end port number for incoming authentication requests
-		mgmofs.authport 15555
+                # Set the front end port number for incoming authentication requests
+                mgmofs.authport 15555
 
-		# Only listen on localhost connections
-		mgmofs.authlocal 1
+                # Only listen on localhost connections
+                mgmofs.authlocal 1
 
 
 If you want to run your authentication front-end on a separate machine from the MGM service, you can use ```mgm.authlocal 0```.
@@ -2126,28 +2155,28 @@ An example configuration file for a front-end server on the back-end MGM node lo
 
 .. code-block:: bash
 
-		# ------------------------------------------------------------ #
-		[mgm:xrootd:auth]
-		# ------------------------------------------------------------ #
-		xrd.port 2094
-		all.export /
+                # ------------------------------------------------------------ #
+                [mgm:xrootd:auth]
+                # ------------------------------------------------------------ #
+                xrd.port 2094
+                all.export /
 
-		# the back-end server - localhost in our case
-		eosauth.mgm localhost:15555
-		# number of socket connections - should match thread-pool size if only one front-end exists
-		eosauth.numsockets 64
-		# loglevel
-		eosauth.loglevel info
+                # the back-end server - localhost in our case
+                eosauth.mgm localhost:15555
+                # number of socket connections - should match thread-pool size if only one front-end exists
+                eosauth.numsockets 64
+                # loglevel
+                eosauth.loglevel info
 
-		xrootd.fslib /usr/lib64/libEosAuthOfs.so
-		xrootd.seclib libXrdSec.so
-		xrootd.chksum adler
+                xrootd.fslib /usr/lib64/libEosAuthOfs.so
+                xrootd.seclib libXrdSec.so
+                xrootd.chksum adler
 
-		# UNIX authentication + any other type of authentication wanted
-		sec.protocol unix
-		sec.protbind localhost.localdomain unix
-		sec.protbind localhost unix
-		sec.protbind * only unix
+                # UNIX authentication + any other type of authentication wanted
+                sec.protocol unix
+                sec.protbind localhost.localdomain unix
+                sec.protbind localhost unix
+                sec.protbind * only unix
 
 
 If an authentication front-end receives a redirection e.g. from a passive to an active MGM due to HA changes,
@@ -2158,7 +2187,7 @@ One can overwrite the port used for a collapsing redirection using:
 
 .. code-block:: bash
 
-		eosauth.collapseport 3094
+                eosauth.collapseport 3094
 
 
 .. NOTE:: This feature is useful if you want to run several front-ends on the same back-end node.
@@ -2175,19 +2204,19 @@ is a bottleneck encountered in your clusters.
 
 .. code-block:: bash
 
-		#-------------------------------------------------------------------------------
-		# Configuration for Qclient settings
-		#-------------------------------------------------------------------------------
-		# flusher type controls the temporary backend storage for qclient, which can
-		# be utilized in case of crashes where the not acknowledged QuarkDB messages
-		# are replayed. For purely developer clusters options like MEMORY &
-		# MEMORY_MULTI provide faster interfaces which can help debug performance
-		# problems and aid in future development; also TESTING_NULL_UNSAFE_IN_PROD
-		# completely eliminates journalling for pure interface adherence tests
+                #-------------------------------------------------------------------------------
+                # Configuration for Qclient settings
+                #-------------------------------------------------------------------------------
+                # flusher type controls the temporary backend storage for qclient, which can
+                # be utilized in case of crashes where the not acknowledged QuarkDB messages
+                # are replayed. For purely developer clusters options like MEMORY &
+                # MEMORY_MULTI provide faster interfaces which can help debug performance
+                # problems and aid in future development; also TESTING_NULL_UNSAFE_IN_PROD
+                # completely eliminates journalling for pure interface adherence tests
     # In multithreaded scenarios, we currently track the highest acknowledged message
     # this behaviour can be controlled by setting ROCKSDB_MULIT:LOW or HIGH respectively
 
-		mgmofs.qclient_flusher_type ROCKSDB # choose between ROCKSDB (default) & ROCKSDB_MULTI
+                mgmofs.qclient_flusher_type ROCKSDB # choose between ROCKSDB (default) & ROCKSDB_MULTI
 
     # For tuning ROCKSDB itself, we provide the following option, please exercise caution
     # eg: "write_buffer_size=1073741824;max_write_buffer_number=5;min_write_buffer_number_to_merge=2"
@@ -2290,7 +2319,7 @@ Synchronous computation (during file upload) is controlled at the space level. T
 The following settings control the asynchronous computation and policy synchronization for the entire filesystem.
 
 .. code-block:: bash
-   
+
    # Enables or disables the periodic synchronization of alternative checksum
    # policies (from 'sys.altxs' attributes) from the namespace.
    # Set to 1 to enable, 0 to disable.
