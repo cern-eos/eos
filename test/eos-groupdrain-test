@@ -38,12 +38,28 @@ fi
 EOS_MGM_HOSTNAME=$1
 eos fs ls
 # Check preconditions and make sure draining is enabled
-FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
+MAX_DELAY_SEC=300
+START_TIME=$(date +%s)
 
-if [[ ${FST_ONLINE} -lt 14 ]]; then
-      echo "error: not enough FSTs configured"
+while
+  CURRENT_TIME=$(date +%s)
+  FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
+
+  if [[ ${FST_ONLINE} -lt 14 ]]; then
+    if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY_SEC} )); then
+      echo "error: not enough FSTs booted"
       exit 1
-fi
+    else
+      echo "info: sleep 5 seconds waiting for FSTs to boot"
+      sleep 5
+    fi
+  else
+    echo "info: all FSTs booted"
+    false # to end the loop
+  fi
+do
+    :
+done
 
 # Create dummy test files
 TEST_FN0=/tmp/zero.dat
