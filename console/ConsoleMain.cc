@@ -106,7 +106,6 @@ extern int com_reconnect(char*);
 extern int com_protorecycle(char*);
 extern int com_rm(char*);
 extern int com_route(char*);
-extern int com_qos(char*);
 extern int com_protorm(char*);
 extern int com_protoregister(char*);
 extern int com_rclone(char*);
@@ -188,7 +187,6 @@ COMMAND commands[] = {
   { (char*) "node", com_protonode, (char*) "Node configuration"},
   { (char*) "ns", com_ns, (char*) "Namespace Interface"},
   { (char*) "pwd", com_pwd, (char*) "Print working directory"},
-  { (char*) "qos", com_qos, (char*) "QoS configuration"},
   { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "quota", com_protoquota, (char*) "Quota System configuration"},
   { (char*) "rclone", com_rclone, (char*) "RClone like command"},

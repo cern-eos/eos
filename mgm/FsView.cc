@@ -48,6 +48,7 @@
 #include "common/token/EosTok.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
+#include "common/json/Json.hh"
 
 using eos::common::RWMutexReadLock;
 
