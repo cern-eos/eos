@@ -63,16 +63,13 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   mLocalBootStatus = eos::common::BootStatus::kDown;
   mRecoverable = false;
   mFileIO.reset(FileIoPlugin::GetIoObject(mLocator.getStoragePath()));
-
-  if (mRealm->haveQDB()) {
-    // Subscribe to the underlying SharedHash object to get updates
-    mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
-
-    if (mSubscription) {
-      using namespace std::placeholders;
-      mSubscription->attachCallback(std::bind(&FileSystem::ProcessUpdateCb,
-                                              this, _1));
-    }
+  // Subscribe to the underlying SharedHash object to get updates
+  mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
+  
+  if (mSubscription) {
+    using namespace std::placeholders;
+    mSubscription->attachCallback(std::bind(&FileSystem::ProcessUpdateCb,
+                                            this, _1));
   }
 }
 
@@ -89,12 +86,9 @@ FileSystem::~FileSystem()
   mFileIO.release();
   // Notify the MGM this file system is down
   SetStatus(eos::common::BootStatus::kDown);
-
   // Delete the local SharedHash object attached to it without touching the
-  // shared object in QDB, this only for QDB pub-sub mode
-  if (mRealm->haveQDB()) {
-    DeleteSharedHash(false);
-  }
+  // shared object in QDB
+  DeleteSharedHash(false);
 }
 
 //------------------------------------------------------------------------------

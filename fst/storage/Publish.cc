@@ -736,62 +736,54 @@ Storage::Publish(ThreadAssistant& assistant) noexcept
     std::chrono::milliseconds randomizedReportInterval =
       gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
+    std::set<eos::common::FileSystem::fsid_t> set_fsids;
     {
-      // Publish with a MuxTransaction all file system changes
-      if (!gOFS.ObjectManager.OpenMuxTransaction()) {
-        eos_static_err("%s", "msg=\"cannot open mux transaction\"");
-      } else {
-        std::set<eos::common::FileSystem::fsid_t> set_fsids;
-        {
-          // Reduce lock scope and avoid recursive locks of mFsMutex
-          // which is also taken inside PublishFsStatistics
-          eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
+      // Reduce lock scope and avoid recursive locks of mFsMutex
+      // which is also taken inside PublishFsStatistics
+      eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
 
-          for (const auto& elem : mFsMap) {
-            if (elem.first) {
-              set_fsids.insert(elem.first);
-            }
-          }
+      for (const auto& elem : mFsMap) {
+        if (elem.first) {
+          set_fsids.insert(elem.first);
         }
-        std::map<eos::common::FileSystem::fsid_t, std::future<bool>> map_futures;
-
-        // Copy out statfs info in parallel to speed-up things
-        for (const auto& fsid : set_fsids) {
-          try {
-            map_futures.emplace(fsid, std::async(std::launch::async,
-                                                 &Storage::PublishFsStatistics,
-                                                 this, fsid));
-          } catch (const std::system_error& e) {
-            eos_static_err("msg=\"exception while collecting fs statistics\" "
-                           "fsid=%lu msg=\"%s\"", fsid, e.what());
-          }
-        }
-
-        for (auto& elem : map_futures) {
-          if (elem.second.get() == false) {
-            eos_static_err("msg=\"failed to publish fs stats\" fsid=%lu",
-                           elem.first);
-          }
-        }
-
-        // Collect and publish node status info
-        auto fst_stats = GetFstStatistics(tmp_name, GetNetSpeed());
-        common::SharedHashLocator locator = gConfig.getNodeHashLocator("Publish");
-
-        if (!locator.empty()) {
-          mq::SharedHashWrapper::Batch batch;
-
-          for (auto it = fst_stats.begin(); it != fst_stats.end(); ++it) {
-            batch.SetTransient(it->first, it->second);
-          }
-
-          mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
-          hash.set(batch);
-        }
-
-        gOFS.ObjectManager.CloseMuxTransaction();
       }
     }
+    std::map<eos::common::FileSystem::fsid_t, std::future<bool>> map_futures;
+
+    // Copy out statfs info in parallel to speed-up things
+    for (const auto& fsid : set_fsids) {
+      try {
+        map_futures.emplace(fsid, std::async(std::launch::async,
+                                             &Storage::PublishFsStatistics,
+                                             this, fsid));
+      } catch (const std::system_error& e) {
+        eos_static_err("msg=\"exception while collecting fs statistics\" "
+                       "fsid=%lu msg=\"%s\"", fsid, e.what());
+      }
+    }
+
+    for (auto& elem : map_futures) {
+      if (elem.second.get() == false) {
+        eos_static_err("msg=\"failed to publish fs stats\" fsid=%lu",
+                       elem.first);
+      }
+    }
+
+    // Collect and publish node status info
+    auto fst_stats = GetFstStatistics(tmp_name, GetNetSpeed());
+    common::SharedHashLocator locator = gConfig.getNodeHashLocator("Publish");
+
+    if (!locator.empty()) {
+      mq::SharedHashWrapper::Batch batch;
+
+      for (auto it = fst_stats.begin(); it != fst_stats.end(); ++it) {
+        batch.SetTransient(it->first, it->second);
+      }
+
+      mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
+      hash.set(batch);
+    }
+
     std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
 
     if (sleepTime == std::chrono::milliseconds(0)) {

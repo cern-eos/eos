@@ -24,7 +24,7 @@
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
 #include "common/StringTokenizer.hh"
-#include "mq/XrdMqTiming.hh"
+#include "common/mq/XrdMqTiming.hh"
 /*----------------------------------------------------------------------------*/
 
 extern int com_mkdir(char*);

@@ -21,10 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/QdbListener.hh"
-
-#include <common/AssistedThread.hh>
-
+#include "common/mq/QdbListener.hh"
+#include "common/AssistedThread.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "qclient/pubsub/Message.hh"
 

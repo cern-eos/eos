@@ -96,7 +96,6 @@ add_library(
   Access.cc
   Macros.cc
   GeoTreeEngine.cc
-  Messaging.cc
   ${MGM_TGC_SRC_FILES}
   Policy.cc
   namespacestats/NamespaceStats.cc

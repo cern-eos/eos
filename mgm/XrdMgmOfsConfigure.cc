@@ -50,7 +50,6 @@
 #include "mgm/LRU.hh"
 #include "mgm/WFE.hh"
 #include "mgm/QdbMaster.hh"
-#include "mgm/Messaging.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
@@ -81,6 +80,8 @@
 #include <XrdNet/XrdNetAddr.hh>
 #include <XrdSys/XrdSysPlugin.hh>
 #include <XrdOuc/XrdOucTrace.hh>
+#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdOuc/XrdOucStream.hh>
 #include "qclient/shared/SharedManager.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
@@ -1389,8 +1390,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   Eroute.Say("=====> mgmofs.defaultreceiverqueue : ",
              MgmDefaultReceiverQueue.c_str(), "");
-  // set our Eroute for XrdMqMessage
-  XrdMqMessage::Eroute = *eDest;
 
   if (!MgmOfsName.length()) {
     Eroute.Say("Config error: no mgmofs fs has been defined (mgmofs.fs /...)",
@@ -1510,36 +1509,47 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Initialize Audit logger under <logdir>/audit (ensure directory exists)
   {
     std::string baseLogDir = "/var/log/eos";
+
     if (logdir && *logdir) {
       baseLogDir = logdir;
     }
+
     const std::string auditDir = baseLogDir + "/audit";
-    struct stat st{};
+    struct stat st {};
+
     if (::stat(auditDir.c_str(), &st) != 0 || !S_ISDIR(st.st_mode)) {
       eos::common::Path p((auditDir + "/.keep").c_str());
+
       if (!p.MakeParentPath(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
         Eroute.Emsg("Config", "cannot create audit directory", auditDir.c_str());
         NoGo = 1;
       } else {
-        (void)::chmod(auditDir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
+        (void)::chmod(auditDir.c_str(),
+                      S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH);
         (void)::chown(auditDir.c_str(), 2, 2);
       }
     }
+
     try {
       // Optional rotation override via EOS_AUDIT_ROTATION (seconds)
       unsigned rotationSeconds = 3600; // default 1 hour
+
       if (const char* envRot = ::getenv("EOS_AUDIT_ROTATION")) {
         if (*envRot) {
           char* endp = nullptr;
           errno = 0;
           long v = ::strtol(envRot, &endp, 10);
-          if (errno == 0 && endp && *endp == '\0' && v > 0 && v <= static_cast<long>(std::numeric_limits<unsigned>::max())) {
+
+          if (errno == 0 && endp && *endp == '\0' && v > 0 &&
+              v <= static_cast<long>(std::numeric_limits<unsigned>::max())) {
             rotationSeconds = static_cast<unsigned>(v);
           }
         }
       }
+
       mAudit.reset(new eos::common::Audit(auditDir, rotationSeconds));
       Eroute.Say("=====> audit log directory: ", auditDir.c_str(), "");
+
       // Apply audit environment configuration
       if (mEnvAuditDisableAll) {
         mAudit.reset();
@@ -1552,9 +1562,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           mAudit->setReadAuditing(mEnvAuditRead);
           mAudit->setListAuditing(mEnvAuditList);
         }
+
         if (mEnvAuditReadSuffixesSet) {
           mAudit->setReadAuditSuffixes(mEnvAuditReadSuffixes);
         }
+
         if (mEnvAuditReadAll) {
           mAudit->setReadAuditAll(true);
         }
@@ -1658,29 +1670,11 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   configbasequeue += MgmOfsInstanceName.c_str();
   MgmConfigQueue = configbasequeue;
   MgmConfigQueue += "/mgm/";
-  // Shared object manager to be used
-  qclient::SharedManager* qsm = nullptr;
-
-  if (getenv("EOS_USE_MQ_ON_QDB")) {
-    eos_static_notice("%s", "msg=\"running SharedManager via QDB i.e NO-MQ\"");
-    qsm = new qclient::SharedManager(
-      mQdbContactDetails.members,
-      mQdbContactDetails.constructSubscriptionOptions());
-    mMessagingRealm.reset(new eos::mq::MessagingRealm(nullptr,
-                          nullptr, nullptr, qsm));
-  } else {
-    ObjectNotifier.SetShareObjectManager(&ObjectManager);
-    eos_static_notice("%s", "msg=\"running SharedManager via MQ\"");
-    mMessagingRealm.reset(new eos::mq::MessagingRealm(&ObjectManager,
-                          &ObjectNotifier, &XrdMqMessaging::gMessageClient,
-                          qsm));
-    // set the object manager to listener only
-    mMessagingRealm->DisableBroadcast();
-    ObjectManager.EnableBroadCast(false);
-    // setup the modifications which the fs listener thread is waiting for
-    ObjectManager.SetDebug(false);
-  }
-
+  eos_static_notice("%s", "msg=\"running SharedManager via QDB i.e NO-MQ\"");
+  qclient::SharedManager* qsm =
+    new qclient::SharedManager(mQdbContactDetails.members,
+                               mQdbContactDetails.constructSubscriptionOptions());
+  mMessagingRealm.reset(new eos::mq::MessagingRealm(qsm));
   eos::common::InstanceName::set(MgmOfsInstanceName.c_str());
 
   if (!mMessagingRealm->setInstanceName(MgmOfsInstanceName.c_str())) {
@@ -1691,34 +1685,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   // Disable some features if we are only a redirector
   if (!MgmRedirector) {
-    // Create the specific listener class when running with MQ
-    if (!mMessagingRealm->haveQDB()) {
-      mMgmMessaging = new Messaging(MgmOfsBrokerUrl.c_str(),
-                                    MgmDefaultReceiverQueue.c_str(),
-                                    mMessagingRealm.get());
-      mMgmMessaging->SetLogId("MgmMessaging");
-
-      if (!mMgmMessaging->StartListenerThread() || mMgmMessaging->IsZombie()) {
-        eos_static_crit("%s", "msg=\"failed to start messaging\"");
-        Eroute.Emsg("Config", "cannot start messaging thread)");
-        return 1;
-      }
-
-      ObjectManager.SetAutoReplyQueueDerive(true);
-      ObjectManager.CreateSharedHash("/eos/*", "/eos/*/fst");
-      XrdOucString dumperfile = MgmMetaLogDir;
-      dumperfile += "/so.mgm.dump.";
-      dumperfile += ManagerId;
-      char* ptr = getenv("EOS_MGM_DISABLE_FILE_DUMPER");
-
-      if ((ptr == nullptr) || (strncmp(ptr, "1", 1) != 0)) {
-        eos_static_info("%s", "msg=\"mgm file dumper enabled");
-        ObjectManager.StartDumper(dumperfile.c_str());
-      } else {
-        eos_static_info("%s", "msg=\"mgm file dumper disabled");
-      }
-    }
-
     // Create the ZMQ processor used especially for fuse
     XrdOucString zmq_port = "tcp://*:";
     zmq_port += (int) mFusexPort;
@@ -1732,7 +1698,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     zMQ->ServeFuse();
   }
 
-  SetupGlobalConfig();
   // Initialize geotree engine
   mGeoTreeEngine.reset(new eos::mgm::GeoTreeEngine(mMessagingRealm.get()));
 
@@ -2177,30 +2142,13 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
 
   if (!MgmRedirector) {
     if (mErrLogEnabled) {
-      if (mMessagingRealm->haveQDB()) {
-        // Start ErrorReportListener and log entries in the local file
-        eos_static_info("%s", "msg=\"starting error logger thread\"");
+      // Start ErrorReportListener and log entries in the local file
+      eos_static_info("%s", "msg=\"starting error logger thread\"");
 
-        try {
-          mErrLoggerTid.reset(&XrdMgmOfs::ErrorLogListenerThread, this);
-        } catch (const std::system_error& e) {
-          eos_static_err("%s", "msg=\"failed to start error logger thread\"");
-        }
-      } else {
-        // Run the error log console
-        XrdOucString errorlogkillline = "pkill -9 -f \"eos -b console log _MGMID_\"";
-        int rrc = system(errorlogkillline.c_str());
-
-        if (WEXITSTATUS(rrc)) {
-          eos_static_info("%s returned %d", errorlogkillline.c_str(), rrc);
-        }
-
-        XrdOucString errorlogline = "eos -b console log _MGMID_ >& /dev/null &";
-        rrc = system(errorlogline.c_str());
-
-        if (WEXITSTATUS(rrc)) {
-          eos_static_info("%s returned %d", errorlogline.c_str(), rrc);
-        }
+      try {
+        mErrLoggerTid.reset(&XrdMgmOfs::ErrorLogListenerThread, this);
+      } catch (const std::system_error& e) {
+        eos_static_err("%s", "msg=\"failed to start error logger thread\"");
       }
     }
 
@@ -2214,12 +2162,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     }
 
     mFsMonitorTid.reset(&XrdMgmOfs::FileSystemMonitorThread, this);
-  }
-
-  if (!mMessagingRealm->haveQDB()) {
-    if (!ObjectNotifier.Start()) {
-      eos_static_crit("error starting the shared object change notifier");
-    }
   }
 
   if (!mHttpd) {
@@ -2338,18 +2280,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     eos_static_warning("%s", "msg=\"failed to initialize IoStat object\"");
   } else {
     eos_static_notice("%s", "msg=\"successfully initalized IoStat object\"");
-  }
-
-  if (!MgmRedirector && !mMessagingRealm->haveQDB()) {
-    ObjectManager.HashMutex.LockRead();
-    XrdMqSharedHash* hash = ObjectManager.GetHash("/eos/*");
-
-    // Ask for a broadcast from FSTs
-    if (hash) {
-      hash->BroadcastRequest("/eos/*/fst");
-    }
-
-    ObjectManager.HashMutex.UnLockRead();
   }
 
   if (!getenv("EOS_NO_SHUTDOWN")) {
@@ -2693,39 +2623,5 @@ XrdMgmOfs::SetupProcFiles()
   if (fmd) {
     fmd->setSize(4096);
     eosView->updateFileStore(fmd.get());
-  }
-}
-
-//------------------------------------------------------------------------------
-// Set up global config - to be dropped when we drop support for MQ!
-//------------------------------------------------------------------------------
-void
-XrdMgmOfs::SetupGlobalConfig()
-{
-  if (!mMessagingRealm->haveQDB()) {
-    std::string configQueue = SSTR("/config/"
-                                   << eos::common::InstanceName::get()
-                                   << "/mgm/");
-
-    if (!ObjectManager.CreateSharedHash(configQueue.c_str(), "/eos/*/mgm")) {
-      eos_static_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
-                      configQueue.c_str());
-    }
-
-    configQueue = SSTR("/config/" << eos::common::InstanceName::get()
-                       << "/all/");
-
-    if (!ObjectManager.CreateSharedHash(configQueue.c_str(), "/eos/*")) {
-      eos_static_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
-                      configQueue.c_str());
-    }
-
-    configQueue = SSTR("/config/" << eos::common::InstanceName::get()
-                       << "/fst/");
-
-    if (!ObjectManager.CreateSharedHash(configQueue.c_str(), "/eos/*/fst")) {
-      eos_static_crit("msg=\"cannot add global config queue\" qpath=\"%s\"",
-                      configQueue.c_str());
-    }
   }
 }

@@ -31,7 +31,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Macros.hh"
 #include "mgm/FsView.hh"
-#include "mgm/Messaging.hh"
 #include "proto/Delete.pb.h"
 #include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/util/json_util.h>

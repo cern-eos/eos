@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/SharedDequeProvider.hh"
+#include "common/mq/SharedDequeProvider.hh"
 #include <qclient/shared/SharedDeque.hh>
 
 EOSMQNAMESPACE_BEGIN
@@ -29,23 +29,24 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-SharedDequeProvider::SharedDequeProvider(qclient::SharedManager *manager)
-: mSharedManager(manager) {}
+SharedDequeProvider::SharedDequeProvider(qclient::SharedManager* manager)
+  : mSharedManager(manager) {}
 
 //------------------------------------------------------------------------------
 // Get shared deque
 //------------------------------------------------------------------------------
-std::shared_ptr<qclient::SharedDeque> SharedDequeProvider::get(const std::string &key) {
+std::shared_ptr<qclient::SharedDeque> SharedDequeProvider::get(
+  const std::string& key)
+{
   std::unique_lock lock(mMutex);
-
   auto it = mStore.find(key);
-  if(it != mStore.end()) {
+
+  if (it != mStore.end()) {
     return it->second;
   }
 
   std::shared_ptr<qclient::SharedDeque> deque;
   deque.reset(new qclient::SharedDeque(mSharedManager, key));
-
   mStore[key] = deque;
   return deque;
 }

@@ -1425,65 +1425,17 @@ grpc::Status GrpcWncInterface::File()
   }
 
   case eos::console::FileProto::kResync: {
-    XrdMqMessage message("resync");
-    std::string msgbody = "mgm.cmd=resync";
-    unsigned long fsid = mRequest->file().resync().fsid();
-    msgbody = "&mgm.fsid=" + std::to_string(fsid);
-    msgbody = "&mgm.fid=" + std::to_string(fid);
-    message.SetBody(msgbody.c_str());
-    // figure out the receiver
-    std::string receiver = "/eos/*/fst";
-    XrdMqClient mqc;
-
-    if (!mqc.IsInitOK()) {
-      mReply->set_std_err("error: failed to initialize MQ Client\n");
-      mReply->set_retc(-1);
-      return grpc::Status::OK;
-    }
-
-    XrdOucString broker = "root://localhost";
-
-    if (getenv("EOS_MGM_URL")) {
-      broker = getenv("EOS_MGM_URL");
-    }
-
-    if (!broker.endswith("//")) {
-      if (!broker.endswith("/")) {
-        broker += ":1097//";
-      } else {
-        broker.erase(broker.length() - 2);
-        broker += ":1097//";
-      }
+    auto fsid = mRequest->file().resync().fsid();
+    
+    if (gOFS->QueryResync(fid, fsid)) {
+      std_out = "info: resynced fid=" + std::to_string(fid);
+      std_out += " on fs=" + std::to_string(fsid);
+      mReply->set_std_out(std_out);
+      mReply->set_retc(0);
     } else {
-      broker.erase(broker.length() - 3);
-      broker += ":1097//";
-    }
-
-    broker += "eos/";
-    broker += getenv("HOSTNAME");
-    broker += ":";
-    broker += (int) getpid();
-    broker += ":";
-    broker += (int) getppid();
-    broker += "/cli";
-
-    if (!mqc.AddBroker(broker.c_str())) {
-      std_err = "error: failed to add broker";
-      std_err += broker.c_str();
-      std_err += "\n";
+      std_err = "error: failed to resync";
       mReply->set_std_err(std_err);
       mReply->set_retc(-1);
-    } else {
-      if (!mqc.SendMessage(message, receiver.c_str())) {
-        std_err = "unable to send resync message to " + receiver;
-        mReply->set_std_err(std_err);
-        mReply->set_retc(-1);
-      } else {
-        std_out = "info: resynced fid=" + std::to_string(fid);
-        std_out += " on fs=" + std::to_string(fsid) + "\n";
-        mReply->set_std_out(std_out);
-        mReply->set_retc(0);
-      }
     }
 
     return grpc::Status::OK;

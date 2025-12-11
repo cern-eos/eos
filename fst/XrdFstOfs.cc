@@ -29,7 +29,6 @@
 #include "fst/http/HttpServer.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
-#include "fst/Messaging.hh"
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/utils/XrdOfsPathHandler.hh"
@@ -259,14 +258,6 @@ XrdFstOfs::xrdfstofs_shutdown(int sig)
     kill(getpid(), 9);
   }
 
-  // Handler to shutdown the daemon for valgrinding and clean server stop
-  // (e.g. let time to finish write operations)
-  if (gOFS.mFstMessaging) {
-    gOFS.mFstMessaging->StopListener();  // stop any communication
-    delete gOFS.mFstMessaging;
-    gOFS.mFstMessaging = nullptr;
-  }
-
   eos_static_warning("%s", "op=shutdown msg=\"stopped messaging\"");
   gOFS.Storage->Shutdown();
   eos_static_warning("%s", "op=shutdown msg=\"stopped storage activities\"");
@@ -319,15 +310,6 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
     kill(getpid(), 9);
   }
 
-  // Stop any communication - this will also stop scheduling to this node
-  eos_static_warning("op=shutdown msg=\"stop messaging\"");
-
-  if (gOFS.mFstMessaging) {
-    gOFS.mFstMessaging->StopListener();  // stop any communication
-    delete gOFS.mFstMessaging;
-    gOFS.mFstMessaging = nullptr;
-  }
-
   // Wait for 60 seconds heartbeat timeout (see mgm/FsView) + 30 seconds
   // for in-flight redirections
   eos_static_warning("op=shutdown msg=\"wait 90 seconds for configuration "
@@ -367,8 +349,8 @@ XrdFstOfs::xrdfstofs_graceful_shutdown(int sig)
 // Constructor
 //------------------------------------------------------------------------------
 XrdFstOfs::XrdFstOfs() :
-  eos::common::LogId(), mFstMessaging(nullptr), Storage(nullptr),
-  mHostName(NULL), mMqOnQdb(false), mHttpd(nullptr),
+  eos::common::LogId(), Storage(nullptr),
+  mHostName(NULL), mHttpd(nullptr),
   mGeoTag("nogeotag"), mXrdBuffPool(eos::common::KB, 32 * eos::common::MB),
   mAsyncOpThreadPool(8, 64, 5, 6, 5, "async_op"),
   mMgmXrdPool(nullptr),
@@ -468,6 +450,7 @@ XrdFstOfs::~XrdFstOfs()
   if (mHostName) {
     free(const_cast<char*>(mHostName));
   }
+
   // Free configuration file name allocated via strdup during initialization
   if (ConfigFN) {
     free(ConfigFN);
@@ -761,23 +744,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           std::string pwlen = std::to_string(mQdbContactDetails.password.size());
           Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
         }
-
-        if (!strcmp("mq_implementation", var)) {
-          std::string value;
-
-          while ((val = Config.GetWord())) {
-            value += val;
-          }
-
-          if (value == "qdb") {
-            mMqOnQdb = true;
-          } else {
-            Eroute.Emsg("Config", "unrecognized value for mq_implementation");
-            NoGo = 1;
-          }
-
-          Eroute.Say("=====> fstofs.mq_implementation : ", value.c_str());
-        }
       }
     }
 
@@ -892,8 +858,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
 
   Eroute.Say("=====> fstofs.defaultreceiverqueue : ",
              gConfig.FstDefaultReceiverQueue.c_str(), "");
-  // Set our Eroute for XrdMqMessage
-  XrdMqMessage::Eroute = OfsEroute;
   {
     // Setup auth dir
     XrdOucString scmd = "mkdir -p ";
@@ -918,47 +882,11 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Eroute.Say("=====> fstofs.authdir : ",
                gConfig.FstAuthDir.c_str());
   }
-  // Enable the shared object notification queue
-  ObjectManager.mEnableQueue = true;
-  ObjectManager.SetAutoReplyQueue("/eos/*/mgm");
-  ObjectManager.SetDebug(false);
-  // Enable experimental MQ on QDB? Note that any functionality not supported
-  // will fallback to regular MQ, which is still required.
-  // Shared object manager to be used
-  qclient::SharedManager* qsm = nullptr;
-
-  if (getenv("EOS_USE_MQ_ON_QDB")) {
-    eos_static_notice("%s", "msg=\"running SharedManager via QDB i.e NO-MQ\"");
-    qsm = new qclient::SharedManager(mQdbContactDetails.members,
-                                     mQdbContactDetails.constructSubscriptionOptions());
-    mMessagingRealm.reset(new mq::MessagingRealm(nullptr, nullptr, nullptr, qsm));
-  } else {
-    eos_static_notice("%s", "msg=\"running SharedManager via MQ\"");
-    mMessagingRealm.reset(new mq::MessagingRealm(&ObjectManager, &ObjectNotifier,
-                          &XrdMqMessaging::gMessageClient, qsm));
-  }
-
-  if (!mMessagingRealm->haveQDB()) {
-    ObjectNotifier.SetShareObjectManager(&ObjectManager);
-
-    if (!ObjectNotifier.Start()) {
-      eos_crit("%s", "msg=\"error starting the shared object change notifier\"");
-      return 1;
-    }
-
-    // Create the specific listener class when running with MQ
-    mFstMessaging = new eos::fst::Messaging(gConfig.FstOfsBrokerUrl.c_str(),
-                                            gConfig.FstDefaultReceiverQueue.c_str(),
-                                            false, false, &ObjectManager);
-    mFstMessaging->SetLogId("FstOfsMessaging", "<service>");
-
-    if (!mFstMessaging->StartListenerThread() || mFstMessaging->IsZombie()) {
-      eos_static_crit("%s", "msg=\"failed to start messaging\"");
-      Eroute.Emsg("Config", "cannot create messaging object(thread)");
-      return 1;
-    }
-  }
-
+  eos_static_notice("%s", "msg=\"running SharedManager via QDB i.e NO-MQ\"");
+  qclient::SharedManager* qsm =
+    new qclient::SharedManager(mQdbContactDetails.members,
+                               mQdbContactDetails.constructSubscriptionOptions());
+  mMessagingRealm.reset(new mq::MessagingRealm(qsm));
   // Attach Storage to the meta log dir
   Storage = eos::fst::Storage::Create(
               gConfig.FstMetaLogDir.c_str());
@@ -969,21 +897,6 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     Eroute.Emsg("Config", "cannot setup meta data storage using directory: ",
                 gConfig.FstMetaLogDir.c_str());
     return 1;
-  }
-
-  // Request broadcasts after the Communicator thread is started inside the
-  // Storage class otherwise we might miss the updates. Practice show this is
-  // not enough and we might need to sleep for a couple of seconds to have the
-  // communicator thread up and running.
-  std::this_thread::sleep_for(std::chrono::seconds(2));
-
-  if (!mMessagingRealm->haveQDB()) {
-    RequestBroadcasts();
-    // Start dumper thread
-    XrdOucString dumperfile = gConfig.FstMetaLogDir;
-    dumperfile += "so.fst.dump.";
-    dumperfile += gConfig.FstHostPort;
-    ObjectManager.StartDumper(dumperfile.c_str());
   }
 
   // Start the embedded HTTP server
@@ -1973,47 +1886,6 @@ XrdFstOfs::MakeDeletionReport(eos::common::FileSystem::fsid_t fsid,
   return report;
 }
 
-//------------------------------------------------------------------------------
-// Request broadcasts from all the registered queues
-//------------------------------------------------------------------------------
-void
-XrdFstOfs::RequestBroadcasts()
-{
-  using eos::fst::Config;
-  eos_static_notice("%s", "msg=\"requesting broadcasts\"");
-  // Create a wildcard broadcast
-  XrdMqSharedHash* hash = 0;
-  // Create a node broadcast
-  ObjectManager.CreateSharedHash(gConfig.FstConfigQueueWildcard.c_str(),
-                                 gConfig.FstDefaultReceiverQueue.c_str());
-  {
-    eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
-    hash = ObjectManager.GetHash(gConfig.FstConfigQueueWildcard.c_str());
-
-    while (!hash->BroadcastRequest(
-             gConfig.FstDefaultReceiverQueue.c_str())) {
-      eos_static_notice("msg=\"retry broadcast request in 1 second\" hash=\"%s\"",
-                        gConfig.FstConfigQueueWildcard.c_str());
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
-  // Create a filesystem broadcast
-  ObjectManager.CreateSharedHash(gConfig.FstQueueWildcard.c_str(),
-                                 gConfig.FstDefaultReceiverQueue.c_str());
-  {
-    eos::common::RWMutexReadLock rd_lock(ObjectManager.HashMutex);
-    hash = ObjectManager.GetHash(gConfig.FstQueueWildcard.c_str());
-
-    while (!hash->BroadcastRequest(
-             gConfig.FstDefaultReceiverQueue.c_str())) {
-      eos_static_notice("msg=\"retry broadcast request in 1 second\" hash=\"%s\"",
-                        gConfig.FstQueueWildcard.c_str());
-      std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
-  }
-  eos_static_notice("%s", "msg=\"done requesting broadcasts\"");
-}
-
 //----------------------------------------------------------------------------
 // Update the TPC key min/max validity values, default [2, 15] min
 //----------------------------------------------------------------------------
@@ -2118,13 +1990,6 @@ XrdFstOfs::HandleDebug(XrdOucEnv& env, XrdOucErrInfo& err_obj)
     eos_err("msg=\"%s\"", msg.c_str());
     err_obj.setErrInfo(EINVAL, msg.c_str());
     return SFS_ERROR;
-  }
-
-  // We set the shared hash debug for the lowest 'debug' level
-  if (dbg_level == "debug") {
-    //ObjectManager.SetDebug(true);
-  } else {
-    ObjectManager.SetDebug(false);
   }
 
   g_logging.SetLogPriority(dbg_val);

@@ -22,18 +22,14 @@
  ************************************************************************/
 
 #pragma once
-#include "mq/Namespace.hh"
-#include "mq/SharedHashProvider.hh"
-#include "mq/SharedDequeProvider.hh"
+#include "common/mq/Namespace.hh"
+#include "common/mq/SharedHashProvider.hh"
+#include "common/mq/SharedDequeProvider.hh"
 #include "common/RWMutex.hh"
 #include <string>
 #include <set>
 
 //! Forward declarations
-class XrdMqSharedObjectManager;
-class XrdMqSharedObjectChangeNotifier;
-class XrdMqClient;
-
 namespace qclient
 {
 class SharedManager;
@@ -64,26 +60,9 @@ public:
   };
 
   //----------------------------------------------------------------------------
-  //! Initialize legacy-MQ-based messaging realm.
+  //! Constructor
   //----------------------------------------------------------------------------
-  MessagingRealm(XrdMqSharedObjectManager* som,
-                 XrdMqSharedObjectChangeNotifier* notifier,
-                 XrdMqClient* messageClient, qclient::SharedManager* qsom);
-
-  //----------------------------------------------------------------------------
-  //! Have access to QDB?
-  //----------------------------------------------------------------------------
-  bool haveQDB() const;
-
-  //----------------------------------------------------------------------------
-  //! Get som
-  //----------------------------------------------------------------------------
-  XrdMqSharedObjectManager* getSom() const;
-
-  //----------------------------------------------------------------------------
-  //! Get legacy change notifier
-  //----------------------------------------------------------------------------
-  XrdMqSharedObjectChangeNotifier* getChangeNotifier() const;
+  MessagingRealm(qclient::SharedManager* qsom);
 
   //----------------------------------------------------------------------------
   //! Get qclient shared manager
@@ -159,12 +138,7 @@ public:
 private:
   //! Flag to mark when broadcasting should be done
   std::atomic<bool> mBroadcast {false};
-  XrdMqSharedObjectManager* mSom;
-  XrdMqSharedObjectChangeNotifier* mNotifier;
-  XrdMqClient* mMessageClient;
-
   qclient::SharedManager* mQSom;
-
   SharedHashProvider mHashProvider;
   SharedDequeProvider mDequeProvider;
   eos::common::RWMutex mMutexListeners;

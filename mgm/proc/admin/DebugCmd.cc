@@ -182,16 +182,6 @@ void DebugCmd::SetSubcmd(const eos::console::DebugProto_SetProto& set,
       eos_static_notice("msg=\"setting message logid filter to <%s>\"",
                         set.filter().c_str());
     }
-
-    if (set.debuglevel() == "debug" &&
-        ((g_logging.gAllowFilter.Num() &&
-          g_logging.gAllowFilter.Find("SharedHash")) ||
-         ((g_logging.gDenyFilter.Num() == 0) ||
-          (g_logging.gDenyFilter.Find("SharedHash") == 0)))) {
-      gOFS->ObjectManager.SetDebug(true);
-    } else {
-      gOFS->ObjectManager.SetDebug(false);
-    }
   }
 
   if ((set.nodename() == "/eos/*/mgm") || set.nodename().empty()) {

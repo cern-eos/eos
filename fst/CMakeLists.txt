@@ -280,7 +280,6 @@ set(XRDEOSFST_SRCS
   Load.cc
   Health.cc
   ScanDir.cc
-  Messaging.cc
   io/FileIoPlugin-Server.cc
   # OFS layer implementation
   XrdFstOfs.cc                   XrdFstOfs.hh
