@@ -388,17 +388,10 @@ Inside you need to fill in various pieces of information:
     # XRD_ROLES depends on what you wish to run, each separate mgm, mq or fst needs to be specified, e.g. for 3 fsts daemons we put fst1 fst2 fst3.
     # Delete "fed" and "sync" if present as they are not used anymore.
     XRD_ROLES="mq mgm fst1 fst2 fst3"
-    EOS_MGM_HOST=<myhostname>.cern.ch`
-    EOS_MGM_HOST_TARGET` # was used for the sync and can be commented out
     EOS_INSTANCE_NAME=eostest` # has to start with "eos" and has the form "eos<name>".
-    EOS_MGM_MASTER1=<myhostname>.cern.ch`
-    EOS_MGM_MASTER2=<myhostname>.cern.ch`
     EOS_MGM_ALIAS=<myhostname>.cern.ch`
     EOS_MAIL_CC=<email>`
     EOS_GEOTAG="\:\:<anything>"` # needs to be filled
-    EOS_NS_ACCOUNTING=1`
-    EOS_SYNCTIME_ACCOUNTING=1`
-    EOS_USE_SHARED_MUTEX=1`
 
 
 Then you need Kerberos security keys on your machine:
