@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #pragma once
-#include "mq/Namespace.hh"
+#include "common/mq/Namespace.hh"
 #include "common/RWMutex.hh"
 #include <string>
 #include <map>
@@ -33,10 +33,6 @@
 
 //! Forward declarations
 class ThreadAssistant;
-
-class XrdMqSharedHash;
-class XrdMqSharedObjectManager;
-class XrdMqSharedObjectChangeNotifier;
 
 namespace eos
 {
@@ -125,11 +121,6 @@ public:
   std::set<std::string> GetInterests(const std::string& channel) const;
 
   //----------------------------------------------------------------------------
-  //! Start listening - no more subscriptions from this point on
-  //----------------------------------------------------------------------------
-  bool startListening();
-
-  //----------------------------------------------------------------------------
   //! Consume next event, block until there's one or timeout expires
   //!
   //! @param assistant thread executing this method
@@ -170,7 +161,6 @@ public:
 private:
   static std::string sAllMatchTag;
   mq::MessagingRealm* mMessagingRealm;
-  XrdMqSharedObjectChangeNotifier* mNotifier;
   std::string mListenerName;
   mutable std::mutex mMutex;
   std::condition_variable mCv;

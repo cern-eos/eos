@@ -37,9 +37,7 @@ install(FILES
   xrd.cf.auth
   xrd.cf.fed
   xrd.cf.fst
-  xrd.cf.global-mq
   xrd.cf.mgm
-  xrd.cf.mq
   xrd.cf.prefix
   xrd.cf.quarkdb
   xrd.cf.sync

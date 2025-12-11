@@ -147,27 +147,9 @@ target_link_libraries(threadpooltest PRIVATE EosCommon)
 #-------------------------------------------------------------------------------
 if (NOT CLIENT)
   add_executable(eos-shared-hash-test mq/SharedHashLoadTest.cc)
-  add_executable(xrdmqclienttest mq/XrdMqClientTest.cc)
-  add_executable(eos-mq-dumper mq/XrdMqQueueDumper.cc)
-  add_executable(eos-mq-feeder mq/XrdMqQueueFeeder.cc)
-  add_executable(xrdmqinjection mq/XrdMqQueueInjection.cc)
-  add_executable(xrdmqclientmaster mq/XrdMqClientMaster.cc)
-  add_executable(xrdmqclientworker mq/XrdMqClientWorker.cc)
-  add_executable(xrdmqsharedobjectclient mq/XrdMqSharedObjectClient.cc)
-  add_executable(xrdmqsharedobjectqueueclient mq/XrdMqSharedObjectQueueClient.cc)
-  add_executable(xrdmqsharedobjectbroadcastclient mq/XrdMqSharedObjectBroadCastClient.cc)
-  target_link_libraries(eos-shared-hash-test PRIVATE XrdMqClient-Static qclient)
-  target_link_libraries(xrdmqclienttest PRIVATE XrdMqClient-Static)
-  target_link_libraries(eos-mq-dumper PRIVATE XrdMqClient-Static)
-  target_link_libraries(eos-mq-feeder PRIVATE XrdMqClient-Static)
-  target_link_libraries(xrdmqinjection PRIVATE XrdMqClient-Static)
-  target_link_libraries(xrdmqclientmaster PRIVATE XrdMqClient-Static)
-  target_link_libraries(xrdmqclientworker PRIVATE XrdMqClient-Static)
-  target_link_libraries(xrdmqsharedobjectclient PRIVATE XrdMqClient-Static)
-  target_link_libraries(xrdmqsharedobjectqueueclient PRIVATE XrdMqClient-Static)
-  target_link_libraries(xrdmqsharedobjectbroadcastclient PRIVATE XrdMqClient-Static)
+  target_link_libraries(eos-shared-hash-test PRIVATE EosCommonServer-Static EosCommon-Static qclient)
 
-  install(TARGETS eos-mq-feeder eos-mq-dumper eos-shared-hash-test
+  install(TARGETS eos-shared-hash-test
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
 endif()
 
@@ -180,7 +162,7 @@ install(TARGETS xrdstress.exe xrdcpabort xrdcprandom xrdcppgread
 
 install(PROGRAMS xrdstress eos-instance-test eos-instance-test-ci eos-altxs-test
   fuse/eos-fuse-test eos-rain-test eoscp-rain-test eos-io-test eos-accounting-test
-  eos-file-cont-detached-test eos-lru-test eos-oc-test eos-drain-test eos-groupdrain-test eos-mq-tests
+  eos-file-cont-detached-test eos-lru-test eos-oc-test eos-drain-test eos-groupdrain-test
   eos-http-upload-test eos-https-functional-test eos-token-test
   eos-fst-close-test eos-rename-test eos-grpc-test eos-fsck-test
   eos-squash-test eos-backup eos-backup-browser eos-test-utils

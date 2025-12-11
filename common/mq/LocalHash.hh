@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: GlobalConfigChangeListener.hh
-// Author: Georgios Bitzes - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// File: LocalHash.hh
+// Author: Elvin Sindrilaru - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2020 CERN/Switzerland                                  *
+ * Copyright (C) 2023 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,96 +21,82 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_MQ_GLOBAL_CONFIG_CHANGE_LISTENER_HH
-#define EOS_MQ_GLOBAL_CONFIG_CHANGE_LISTENER_HH
-
-#include "mq/Namespace.hh"
+#pragma once
+#include "common/mq/Namespace.hh"
+#include "qclient/shared/SharedHash.hh"
+#include "qclient/shared/PersistentSharedHash.hh"
+#include "qclient/shared/TransientSharedHash.hh"
+#include "qclient/Reply.hh"
+#include <map>
 #include <string>
-#include <memory>
-#include <list>
 #include <mutex>
-#include <condition_variable>
 
+//! Forward declarations
 namespace qclient
 {
-class SharedHash;
-class SharedHashSubscription;
-struct SharedHashUpdate;
+class UpdateBatch;
 }
-
-class ThreadAssistant;
-class XrdMqSharedObjectChangeNotifier;
 
 EOSMQNAMESPACE_BEGIN
 
-class MessagingRealm;
-
 //------------------------------------------------------------------------------
-//! Utility class for listening to global MGM configuration changes.
+//! Hash that stores the key values locally
 //------------------------------------------------------------------------------
-class GlobalConfigChangeListener
+class LocalHash: public qclient::SharedHash
 {
 public:
   //----------------------------------------------------------------------------
-  //! Event struct
-  //----------------------------------------------------------------------------
-  struct Event {
-    std::string key;
-    bool deletion = false;
-
-    bool isDeletion() const
-    {
-      return deletion;
-    }
-  };
-
-  //----------------------------------------------------------------------------
   //! Constructor
   //----------------------------------------------------------------------------
-  GlobalConfigChangeListener(mq::MessagingRealm* realm, const std::string& name,
-                             const std::string& configQueue);
+  LocalHash(const std::string& key);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~GlobalConfigChangeListener();
+  ~LocalHash() = default;
 
   //----------------------------------------------------------------------------
-  //! Consume next event, block until there's one.
+  //! Set value
   //----------------------------------------------------------------------------
-  bool fetch(ThreadAssistant& assistant, Event& out);
+  std::future<qclient::redisReplyPtr>
+  set(const qclient::UpdateBatch& batch) override;
+
+  //----------------------------------------------------------------------------
+  //! Get value
+  //----------------------------------------------------------------------------
+  bool get(const std::string& key, std::string& value) const override;
+
+  //----------------------------------------------------------------------------
+  //! Get a list of values, returns a map of kv pairs of found values, expects
+  //! empty map as the out param, returns true if all the values have been found
+  //!
+  //! @param keys vector of string keys
+  //! @param out empty map, which will be populated
+  //!
+  //! @return true if all keys were found, false otherwise or in case of
+  //! non empty map
+  //----------------------------------------------------------------------------
+  bool get(const std::vector<std::string>& keys,
+           std::map<std::string, std::string>& out) const override;
+
+  //----------------------------------------------------------------------------
+  //! Get the set of keys in the current hash
+  //!
+  //! @return set of keys in the hash, or empty if none
+  //----------------------------------------------------------------------------
+  std::vector<std::string> getKeys() const override;
+
+  //----------------------------------------------------------------------------
+  //! Get contents of the hash
+  //!
+  //! @return map of the key value pairs
+  //----------------------------------------------------------------------------
+  std::map<std::string, std::string> getContents() const override;
 
 private:
-  //----------------------------------------------------------------------------
-  //! Callback to process update for the shared hash
-  //!
-  //! @param upd SharedHashUpdate object
-  //----------------------------------------------------------------------------
-  void ProcessUpdateCb(qclient::SharedHashUpdate&& upd);
-
-  //----------------------------------------------------------------------------
-  //! Waiting at most timout seconds for an event
-  //!
-  //! @param out update event
-  //! @param timeout max time we're willing to wait
-  //!
-  //! @return true if there was an event, otherwise false
-  //----------------------------------------------------------------------------
-  bool WaitForEvent(Event& out,
-                    std::chrono::seconds timeout = std::chrono::seconds(5));
-
-  mq::MessagingRealm* mMessagingRealm;
-  XrdMqSharedObjectChangeNotifier* mNotifier;
-  std::string mListenerName;
-  std::string mConfigQueue;
-
-  std::shared_ptr<qclient::SharedHash> mSharedHash;
-  std::unique_ptr<qclient::SharedHashSubscription> mSubscription;
-  std::mutex mMutex;
-  std::condition_variable mCv;
-  std::list<qclient::SharedHashUpdate> mPendingUpdates;
+  std::string mKey;
+  mutable std::mutex mMutex;
+  std::map<std::string, std::string> mMap;
 };
 
 EOSMQNAMESPACE_END
-
-#endif

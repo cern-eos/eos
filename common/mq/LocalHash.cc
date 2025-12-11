@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/LocalHash.hh"
+#include "common/mq/LocalHash.hh"
 #include "qclient/shared/UpdateBatch.hh"
 
 EOSMQNAMESPACE_BEGIN

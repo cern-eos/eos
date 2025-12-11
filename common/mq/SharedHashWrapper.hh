@@ -24,7 +24,7 @@
 #ifndef EOS_MQ_SHARED_HASH_WRAPPER_HH
 #define EOS_MQ_SHARED_HASH_WRAPPER_HH
 
-#include "mq/Namespace.hh"
+#include "common/mq/Namespace.hh"
 #include "common/Locators.hh"
 #include "common/RWMutex.hh"
 #include <string>
@@ -38,9 +38,6 @@ class UpdateBatch;
 class SharedHash;
 class SharedHashSubscription;
 }
-
-class XrdMqSharedHash;
-class XrdMqSharedObjectManager;
 
 EOSMQNAMESPACE_BEGIN
 
@@ -119,7 +116,7 @@ public:
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~SharedHashWrapper();
+  ~SharedHashWrapper() = default;
 
   //----------------------------------------------------------------------------
   //! Release any interal locks - DO NOT use this object any further
@@ -184,10 +181,7 @@ public:
   std::unique_ptr<qclient::SharedHashSubscription> subscribe();
 
 private:
-  XrdMqSharedObjectManager* mSom;
   common::SharedHashLocator mLocator;
-  common::RWMutexReadLock mReadLock;
-  XrdMqSharedHash* mHash {nullptr};
   std::shared_ptr<qclient::SharedHash> mSharedHash;
 };
 

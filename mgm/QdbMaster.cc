@@ -555,7 +555,6 @@ QdbMaster::ApplyMasterConfig(std::string& stdOut, std::string& stdErr,
     }
   }
 
-  gOFS->SetupGlobalConfig();
   return mConfigLoaded;
 }
 

@@ -502,11 +502,6 @@ FileSystem::FileSystem(const FileSystemLocator& locator,
     upd_batch.SetDurable("host", locator.getHost());
     upd_batch.SetDurable("port", std::to_string(locator.getPort()));
     upd_batch.SetLocal("local.drain", "nodrain");
-
-    if (!mRealm->haveQDB() && !bc2mgm) {
-      upd_batch.SetDurable("configstatus", "down");
-    }
-
     mq::SharedHashWrapper(mRealm, mHashLocator).set(upd_batch);
   }
 }

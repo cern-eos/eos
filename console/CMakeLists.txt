@@ -66,7 +66,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_chmod.cc
   commands/com_chown.cc
   commands/com_clear.cc
-  commands/com_console.cc
   commands/com_cp.cc
   commands/com_daemon.cc
   commands/com_file.cc
@@ -148,10 +147,7 @@ target_link_libraries(EosConsoleCommands-Objects PUBLIC
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
-add_executable(eos ConsoleMainExecutable.cc
-  ${CMAKE_SOURCE_DIR}/mq/XrdMqClient.cc
-  ${CMAKE_SOURCE_DIR}/mq/XrdMqMessage.cc
-  ${CMAKE_SOURCE_DIR}/mq/ErrorReportListener.cc)
+add_executable(eos ConsoleMainExecutable.cc)
 
 #-------------------------------------------------------------------------------
 # Add dependency which guarantees that the protocol buffer files are generated

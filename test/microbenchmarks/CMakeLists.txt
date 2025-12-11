@@ -85,7 +85,8 @@ if (NOT CLIENT AND Linux)
 
   target_link_libraries(eos-flatscheduler-microbenchmark PRIVATE
     benchmark::benchmark
-    EosCommonServer-Static)
+    EosCommonServer-Static
+    EosCommon-Static)
 endif()
 
 target_link_libraries(eos-nslocking-microbenchmark PRIVATE

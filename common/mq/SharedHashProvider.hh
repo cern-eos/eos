@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: ReportListener.cc
+// File: SharedHashProvider.hh
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
@@ -21,54 +21,64 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/ReportListener.hh"
+#ifndef EOS_MQ_SHARED_HASH_PROVIDER_HH
+#define EOS_MQ_SHARED_HASH_PROVIDER_HH
+
+#include "common/mq/Namespace.hh"
+#include <memory>
+#include <map>
+#include <mutex>
+
+namespace qclient
+{
+class SharedManager;
+class SharedHash;
+}
+
+namespace eos
+{
+namespace common
+{
+class SharedHashLocator;
+}
+}
 
 EOSMQNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Constructor
+//! Class to keep ownership of qclient SharedHashes
 //------------------------------------------------------------------------------
-ReportListener::ReportListener(const std::string& broker,
-                               const std::string& hostname,
-                               bool use_qdb_listener,
-                               eos::QdbContactDetails& qdb_details,
-                               const std::string& channel)
+class SharedHashProvider
 {
-  if (use_qdb_listener) {
-    mQdbListener.reset(new QdbListener(qdb_details, channel));
-  } else {
-    XrdOucString queue = broker.c_str();
-    queue += hostname.c_str();
-    queue += "/report";
-    queue.replace("root://", "root://daemon@");
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  SharedHashProvider(qclient::SharedManager* manager);
 
-    if (!mClient.AddBroker(queue.c_str())) {
-      eos_static_err("msg=\"failed to add broker\" queue=%s", queue.c_str());
-    } else {
-      mClient.Subscribe();
-    }
-  }
-}
+  //----------------------------------------------------------------------------
+  //! Get shared hash
+  //----------------------------------------------------------------------------
+  std::shared_ptr<qclient::SharedHash>
+  Get(const eos::common::SharedHashLocator& locator);
 
-//------------------------------------------------------------------------------
-// Fetch report
-//------------------------------------------------------------------------------
-bool
-ReportListener::fetch(std::string& out, ThreadAssistant* assistant)
-{
-  if (mQdbListener) {
-    return mQdbListener->fetch(out, assistant);
-  } else {
-    std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>
-                                            (mClient.RecvMessage(assistant));
+  //----------------------------------------------------------------------------
+  //! Delete shared hash
+  //!
+  //! @param locator locator object for the given hash
+  //! @param delete_from_qdb if true delete the backing SharedHash from QDB
+  //----------------------------------------------------------------------------
+  void Delete(const eos::common::SharedHashLocator& locator,
+              bool delete_from_qdb);
 
-    if (message) {
-      out = message->GetBody();
-      return true;
-    }
+private:
+  qclient::SharedManager* mSharedManager;
 
-    return false;
-  }
-}
+  std::mutex mMutex;
+  std::map<std::string, std::shared_ptr<qclient::SharedHash>> mStore;
+
+};
 
 EOSMQNAMESPACE_END
+
+#endif

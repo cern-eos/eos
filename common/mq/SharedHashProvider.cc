@@ -21,8 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/SharedHashProvider.hh"
-#include "mq/LocalHash.hh"
+#include "common/mq/SharedHashProvider.hh"
+#include "common/mq/LocalHash.hh"
 #include "common/Locators.hh"
 #include "qclient/QClient.hh"
 #include "qclient/shared/SharedHash.hh"

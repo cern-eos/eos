@@ -33,9 +33,6 @@ set(EOS_UT_RPATH
   "${CMAKE_BINARY_DIR}/auth_plugin/;${CMAKE_BINARY_DIR}/namespace/ns_quarkdb/;"
   "${CMAKE_BINARY_DIR}/namespace/;${CMAKE_BINARY_DIR}/proto/;")
 
-set(MQ_UT_SRCS
-  mq/XrdMqMessageTests.cc)
-
 set(CONSOLE_UT_SRCS
   console/AclCmdTest.cc
   console/ParseCommentTest.cc
@@ -168,7 +165,6 @@ set(FST_UT_SRCS
 # unit tests source files
 #-------------------------------------------------------------------------------
 set(UT_SRCS
-  ${MQ_UT_SRCS}
   ${CONSOLE_UT_SRCS}
   ${MGM_UT_SRCS}
   ${COMMON_UT_SRCS}
