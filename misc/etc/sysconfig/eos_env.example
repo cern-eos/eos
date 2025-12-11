@@ -20,7 +20,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-# Should we run with another limit on the core file size other than the default?
+# Allow unlimited core files sizes.
 DAEMON_COREFILE_LIMIT=unlimited
 
 # Preload jemalloc
@@ -65,20 +65,11 @@ EOS_MGM_ALIAS=eosdev.cern.ch
 # EOS_HA_REDIRECT_READS=1
 
 # The mail notification in case of fail-over
-EOS_MAIL_CC="apeters@mail.cern.ch"
-EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
-
-# Enable core dumps initiated internally [disabled by default]
-#EOS_CORE_DUMP=0
-
-# Disable shutdown/signal handlers for debugging [enabled by default]
-#EOS_NO_SHUTDOWN=0
-
-# Enable coverage report signal handler [disabled by default]
-#EOS_COVERAGE_REPORT=0
+# EOS_MAIL_CC="apeters@mail.cern.ch"
+# EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
 # Add secondary group information from database/LDAP (set to 1 to enable)
-#EOS_SECONDARY_GROUPS=0
+# EOS_SECONDARY_GROUPS=0
 
 # By default statvfs reports the total space if the path deepness is < 4
 # If you want to report only quota accouting you can define
@@ -148,7 +139,7 @@ EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
 #-------------------------------------------------------------------------------
 # MGM token generation configuration
 #-------------------------------------------------------------------------------
-# by default the token generation key is derived from an sss key
+# By default the token generation key is derived from an sss key
 # EOS_MGM_TOKEN_KEYFILE=/etc/eos/token.key
 
 #-------------------------------------------------------------------------------
@@ -213,9 +204,6 @@ EOS_AUDIT_ROTATION=3600
 
 # Specify in seconds how often FSTs should query for new delete operations
 # EOS_FST_DELETE_QUERY_INTERVAL=300
-
-# Disable fast boot and always do a full resync when a fs is booting
-# EOS_FST_NO_FAST_BOOT=0 (default off)
 
 # If variable defined then enable the use of xrootd connection pool i.e.
 # create/share different physical connections for queries done from the FST
@@ -284,10 +272,10 @@ EOS_AUDIT_ROTATION=3600
 # XFS filesystems will use file allocation by default unless explicitly disabled.
 #
 # XFS on zoned storage (e.g Host managed SMR drives) does not support fallocate
-# and requires the following variable to be defined to avoid write errors:
-# EOS_FST_DISABLE_XFS_FALLOCATE=1
+# and requires the following variable to be defined to avoid write errors.
 # (the value is not considered)
-#
+# EOS_FST_DISABLE_XFS_FALLOCATE=1
+
 # Other filesystems like EXT4 and BTRFS will not use fallocation by default
 # unless the following variable is defined (the value is not considered)
 # EOS_FST_POSIX_FALLOCATE=1
@@ -311,8 +299,8 @@ EOS_AUDIT_ROTATION=3600
 # EOS_MGM_GRPC_SSL_CA
 
 # If this is set then the GRPC server does not request a client certificate
-# from the user contacting it
-# EOS_MGM_GRPC_DONT_REQUEST_CLIENT_CERTIFICATE
+# from the user contacting it (the value is not considered).
+# EOS_MGM_GRPC_DONT_REQUEST_CLIENT_CERTIFICATE=1
 
 #-------------------------------------------------------------------------------
 # Configure GRPC server dedicated for access via Windows native client (EOS-wnc)
@@ -355,20 +343,29 @@ EOS_AUDIT_ROTATION=3600
 #-------------------------------------------------------------------------------
 
 # The host[:port] name of the meta manager (global redirector)
-#EOS_FED_MANAGER=eos.cern.ch:1094
+# EOS_FED_MANAGER=eos.cern.ch:1094
 
 # The port of the PSS xrootd server
-#EOS_PSS_PORT=1098
+# EOS_PSS_PORT=1098
 
 # The hostname[:port] of the EOS MGM service
-#EOS_PSS_MGM=$EOS_MGM_ALIAS:1094
+# EOS_PSS_MGM=$EOS_MGM_ALIAS:1094
 
 # The path which should be proxied (/ for all)
-#EOS_PSS_PATH=/
+# EOS_PSS_PATH=/
 
 #-------------------------------------------------------------------------------
 # Common configuration for MGM and FST
 #-------------------------------------------------------------------------------
+
+# Enable core dumps initiated internally (the value is not considered)
+# EOS_CORE_DUMP=1
+
+# Disable shutdown/signal handlers for debugging (the value is not considered)
+# EOS_NO_SHUTDOWN=1
+
+# Enable coverage report signal handler (the value is not considered)
+# EOS_COVERAGE_REPORT=1
 
 # If variable defined then enable the use of xrootd connection pool i.e.
 # create/share different physical connections for transfers to the same
@@ -387,30 +384,29 @@ EOS_AUDIT_ROTATION=3600
 #-------------------------------------------------------------------------------
 
 # Mail notification for failed tests
-#EOS_TEST_MAILNOTIFY=apeters@mail.cern.ch
+# EOS_TEST_MAILNOTIFY=apeters@mail.cern.ch
 
 # SMS notification for failed tests
-#EOS_TEST_GSMNOTIFY="0041764875002@mail2sms.cern.ch"
+# EOS_TEST_GSMNOTIFY="0041764875002@mail2sms.cern.ch"
 
 # Instance name = name of directory at deepness 2 /eos/<instance>/
-#EOS_TEST_INSTANCE="dev"
+# EOS_TEST_INSTANCE="dev"
 
 # MGM host redirector
-#EOS_TEST_REDIRECTOR=localhost
+# EOS_TEST_REDIRECTOR=localhost
 
 # Local test output directory
-#EOS_TEST_TESTSYS=/tmp/eos-instance-test
+# EOS_TEST_TESTSYS=/tmp/eos-instance-test
 
 # Time to lock re-sending of SMS for consecutively failing tests
-#EOS_TEST_GSMLOCKTIME=3600
+# EOS_TEST_GSMLOCKTIME=3600
 
 # Max. time given to the test to finish
-#EOS_TEST_TESTTIMESLICE=600
+# EOS_TEST_TESTTIMESLICE=600
 
 #-------------------------------------------------------------------------------
-# QuarkDB Configuration
+# QuarkDB Configuration - used for testing
 #-------------------------------------------------------------------------------
-
 # QuarkDB Hostport
 # EOS_QUARKDB_HOSTPORT=localhost:9999
 
