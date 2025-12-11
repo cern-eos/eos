@@ -174,15 +174,9 @@ Fsck::Config(const std::string& key, const std::string& value, std::string& msg)
   std::unique_lock<std::mutex> serialize_lock(mutex);
 
   if (mQcl == nullptr) {
-    if (!gOFS->mQdbCluster.empty()) {
-      mQcl = std::make_shared<qclient::QClient>
-             (gOFS->mQdbContactDetails.members,
-              gOFS->mQdbContactDetails.constructOptions());
-    } else {
-      msg = "error: no qclient configuration for fsck";
-      eos_err("msg=\"%s\"", msg.c_str());
-      return false;
-    }
+    mQcl = std::make_shared<qclient::QClient>
+           (gOFS->mQdbContactDetails.members,
+            gOFS->mQdbContactDetails.constructOptions());
   }
 
   if (key == sCollectIntervalKey) {

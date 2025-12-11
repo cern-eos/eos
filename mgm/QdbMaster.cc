@@ -100,13 +100,6 @@ QdbMaster::BootNamespace()
   // Collect namespace options, and initialize namespace group
   std::map<std::string, std::string> namespaceConfig;
   std::string err;
-
-  if (gOFS->mQdbCluster.empty()) {
-    eos_alert("%s", "msg=\"mgmofs.qdbcluster configuration is missing\"");
-    gOFS->mNamespaceState = NamespaceState::kFailed;
-    return false;
-  }
-
   std::string instance_id =
     SSTR(gOFS->MgmOfsInstanceName << ":" << gOFS->ManagerPort);
   namespaceConfig["queue_path"] = gOFS->mQClientDir;
