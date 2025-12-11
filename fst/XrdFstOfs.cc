@@ -755,10 +755,17 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
     return 1;
   }
 
-  if (!mQdbContactDetails.members.empty() &&
-      mQdbContactDetails.password.empty()) {
-    Eroute.Say("=====> Configuration error: Found QDB cluster members, but no password."
-               " EOS will only connect to password-protected QDB instances. (fstofs.qdbpassword / fstofs.qdbpassword_file missing)");
+  // Make sure we have a proper QuarkDB configuration present
+  if (mQdbContactDetails.empty()) {
+    Eroute.Say("=====> ERROR: No QuarkDB configuration - missing fstofs.qdbcluster!");
+    return 1;
+  }
+
+  if (mQdbContactDetails.password.empty()) {
+    Eroute.Say("=====> ERROR: No QuarkDB password configuration - missing "
+               "fstofs.qdbpassword/fstofs.qdbpassword_file!");
+    Eroute.Say("=====> ERROR: EOS will not connect to a QuarkDB instance "
+               "which is not protected by a password!");
     return 1;
   }
 
