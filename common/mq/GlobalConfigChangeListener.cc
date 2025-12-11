@@ -21,9 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/GlobalConfigChangeListener.hh"
-#include "mq/XrdMqSharedObject.hh"
-#include "mq/MessagingRealm.hh"
+#include "common/mq/GlobalConfigChangeListener.hh"
+#include "common/mq/MessagingRealm.hh"
 #include "common/Locators.hh"
 
 #include <qclient/shared/SharedHashSubscription.hh>
@@ -36,29 +35,14 @@ EOSMQNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 GlobalConfigChangeListener::GlobalConfigChangeListener(mq::MessagingRealm*
     realm, const std::string& name, const std::string& configQueue)
-  : mMessagingRealm(realm), mNotifier(nullptr),
-    mListenerName(name), mConfigQueue(configQueue),
-    mSubscription(nullptr)
+  : mMessagingRealm(realm), mSubscription(nullptr)
 {
-  if (mMessagingRealm->haveQDB()) {
-    mSharedHash = mMessagingRealm->getHashProvider()->Get(
-                    eos::common::SharedHashLocator::makeForGlobalHash());
-    mSubscription = mSharedHash->subscribe(true);
-    using namespace std::placeholders;
-    mSubscription->attachCallback(std::bind(
-                                    &GlobalConfigChangeListener::ProcessUpdateCb,
-                                    this, _1));
-  } else {
-    mNotifier = mMessagingRealm->getChangeNotifier();
-    mNotifier->SubscribesToSubject(mListenerName.c_str(), mConfigQueue.c_str(),
-                                   XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-    mNotifier->SubscribesToSubject(mListenerName.c_str(), mConfigQueue.c_str(),
-                                   XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
-    mNotifier->SubscribesToSubject(mListenerName.c_str(), mConfigQueue.c_str(),
-                                   XrdMqSharedObjectChangeNotifier::kMqSubjectKeyDeletion);
-    mNotifier->BindCurrentThread(mListenerName);
-    mNotifier->StartNotifyCurrentThread();
-  }
+  using namespace std::placeholders;
+  mSharedHash = mMessagingRealm->getHashProvider()->Get(
+                  eos::common::SharedHashLocator::makeForGlobalHash());
+  mSubscription = mSharedHash->subscribe(true);
+  mSubscription->attachCallback(std::bind(
+                                  &GlobalConfigChangeListener::ProcessUpdateCb, this, _1));
 }
 
 //------------------------------------------------------------------------------
@@ -112,38 +96,7 @@ GlobalConfigChangeListener::WaitForEvent(Event& out,
 //------------------------------------------------------------------------------
 bool GlobalConfigChangeListener::fetch(ThreadAssistant& assistant, Event& out)
 {
-  if (mSharedHash) {
-    // New QDB implementation
-    return WaitForEvent(out);
-  } else {
-    // Old implementation
-    mNotifier->tlSubscriber->mSubjMtx.Lock();
-
-    if (mNotifier->tlSubscriber->NotificationSubjects.size() == 0u) {
-      mNotifier->tlSubscriber->mSubjMtx.UnLock();
-      mNotifier->tlSubscriber->mSubjSem.Wait(1);
-      mNotifier->tlSubscriber->mSubjMtx.Lock();
-    }
-
-    if (mNotifier->tlSubscriber->NotificationSubjects.size() == 0u) {
-      mNotifier->tlSubscriber->mSubjMtx.UnLock();
-      return false;
-    }
-
-    XrdMqSharedObjectManager::Notification event;
-    event = mNotifier->tlSubscriber->NotificationSubjects.front();
-    mNotifier->tlSubscriber->NotificationSubjects.pop_front();
-    mNotifier->tlSubscriber->mSubjMtx.UnLock();
-    out.key = event.mSubject.c_str();
-    size_t dpos = out.key.find(";");
-
-    if (dpos != std::string::npos) {
-      out.key.erase(0, dpos + 1);
-    }
-
-    out.deletion = (event.mType == XrdMqSharedObjectManager::kMqSubjectKeyDeletion);
-    return true;
-  }
+  return WaitForEvent(out);
 }
 
 EOSMQNAMESPACE_END

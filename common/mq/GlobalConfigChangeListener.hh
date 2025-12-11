@@ -1,11 +1,11 @@
-//------------------------------------------------------------------------------
-// File: QdbListener.hh
-// Author: Elvin Sindrilaru - CERN
-//------------------------------------------------------------------------------
+// ----------------------------------------------------------------------
+// File: GlobalConfigChangeListener.hh
+// Author: Georgios Bitzes - CERN
+// ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2023 CERN/Switzerland                                  *
+ * Copyright (C) 2020 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,73 +21,91 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#pragma once
-#include "mq/Namespace.hh"
-#include "qclient/pubsub/Subscriber.hh"
-#include <list>
+#ifndef EOS_MQ_GLOBAL_CONFIG_CHANGE_LISTENER_HH
+#define EOS_MQ_GLOBAL_CONFIG_CHANGE_LISTENER_HH
+
+#include "common/mq/Namespace.hh"
 #include <string>
+#include <memory>
+#include <list>
 #include <mutex>
 #include <condition_variable>
 
-//! Forward declarations
-class ThreadAssistant;
-
-namespace eos
-{
-class QdbContactDetails;
-}
-
 namespace qclient
 {
-class QClient;
-class Message;
-class Subscriber;
-class Subscription;
+class SharedHash;
+class SharedHashSubscription;
+struct SharedHashUpdate;
 }
+
+class ThreadAssistant;
 
 EOSMQNAMESPACE_BEGIN
 
+class MessagingRealm;
+
 //------------------------------------------------------------------------------
-//! Helper class for listening to error report messages sent through QDB
+//! Utility class for listening to global MGM configuration changes.
 //------------------------------------------------------------------------------
-class QdbListener
+class GlobalConfigChangeListener
 {
 public:
   //----------------------------------------------------------------------------
-  //! Constructor
-  //!
-  //! @param qdb details QDB contact details
-  //! @param channel subscription channel for receiving messages
+  //! Event struct
   //----------------------------------------------------------------------------
-  QdbListener(eos::QdbContactDetails& qdb_details, const std::string& channel);
+  struct Event {
+    std::string key;
+    bool deletion = false;
+
+    bool isDeletion() const
+    {
+      return deletion;
+    }
+  };
+
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  GlobalConfigChangeListener(mq::MessagingRealm* realm, const std::string& name,
+                             const std::string& configQueue);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~QdbListener();
+  ~GlobalConfigChangeListener();
 
   //----------------------------------------------------------------------------
-  //! Fetch error report
-  //!
-  //! @param out recived message
-  //! @oaram assistant thread running method
+  //! Consume next event, block until there's one.
   //----------------------------------------------------------------------------
-  bool fetch(std::string& out, ThreadAssistant* assistant = nullptr);
+  bool fetch(ThreadAssistant& assistant, Event& out);
 
 private:
-  qclient::Subscriber mSubscriber; ///< Subscriber to notifications
-  //! Subscription to channel
-  std::unique_ptr<qclient::Subscription> mSubscription;
-  std::mutex mMutex;
-  std::condition_variable mCv;
-  std::list<qclient::Message> mPendingUpdates;
+  //----------------------------------------------------------------------------
+  //! Callback to process update for the shared hash
+  //!
+  //! @param upd SharedHashUpdate object
+  //----------------------------------------------------------------------------
+  void ProcessUpdateCb(qclient::SharedHashUpdate&& upd);
 
   //----------------------------------------------------------------------------
-  //! Callback to process message
+  //! Waiting at most timout seconds for an event
   //!
-  //! @param msg subscription message
+  //! @param out update event
+  //! @param timeout max time we're willing to wait
+  //!
+  //! @return true if there was an event, otherwise false
   //----------------------------------------------------------------------------
-  void ProcessUpdateCb(qclient::Message&& msg);
+  bool WaitForEvent(Event& out,
+                    std::chrono::seconds timeout = std::chrono::seconds(5));
+
+  mq::MessagingRealm* mMessagingRealm;
+  std::shared_ptr<qclient::SharedHash> mSharedHash;
+  std::unique_ptr<qclient::SharedHashSubscription> mSubscription;
+  std::mutex mMutex;
+  std::condition_variable mCv;
+  std::list<qclient::SharedHashUpdate> mPendingUpdates;
 };
 
 EOSMQNAMESPACE_END
+
+#endif

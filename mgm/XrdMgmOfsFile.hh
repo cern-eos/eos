@@ -50,7 +50,6 @@
 
 #include "common/Mapping.hh"
 #include "common/Logging.hh"
-#include "mgm/Messaging.hh"
 #include "mgm/proc/IProcCommand.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
 #include <XrdSfs/XrdSfsInterface.hh>
@@ -342,11 +341,13 @@ public:
     std::string  redirectionsuffix;
     std::string  redirectionhost;
 
-    bool validPort(int port) const {
+    bool validPort(int port) const
+    {
       return port > 0 && port < 65536;
     }
 
-    bool valid() const {
+    bool valid() const
+    {
       return !targethost.empty() &&
              validPort(targetport) && validPort(targethttpport);
     }

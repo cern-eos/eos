@@ -30,7 +30,6 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mgm/Messaging.hh"
 #include "mgm/FsView.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFsView.hh"

@@ -1143,65 +1143,17 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
   }
 
   case eos::console::FileProto::kResync: {
-    XrdMqMessage message("resync");
-    std::string msgbody = "mgm.cmd=resync";
-    unsigned long fsid = req.file().resync().fsid();
-    msgbody = "&mgm.fsid=" + std::to_string(fsid);
-    msgbody = "&mgm.fid=" + std::to_string(fid);
-    message.SetBody(msgbody.c_str());
-    // figure out the receiver
-    std::string receiver = "/eos/*/fst";
-    XrdMqClient mqc;
+    auto fsid = req.file().resync().fsid();
 
-    if (!mqc.IsInitOK()) {
-      reply->set_std_err("error: failed to initialize MQ Client\n");
-      reply->set_retc(-1);
-      return grpc::Status::OK;
-    }
-
-    XrdOucString broker = "root://localhost";
-
-    if (getenv("EOS_MGM_URL")) {
-      broker = getenv("EOS_MGM_URL");
-    }
-
-    if (!broker.endswith("//")) {
-      if (!broker.endswith("/")) {
-        broker += ":1097//";
-      } else {
-        broker.erase(broker.length() - 2);
-        broker += ":1097//";
-      }
+    if (gOFS->QueryResync(fid, fsid)) {
+      std_out = "info: resynced fid=" + std::to_string(fid);
+      std_out += " on fs=" + std::to_string(fsid);
+      reply->set_std_out(std_out);
+      reply->set_retc(0);
     } else {
-      broker.erase(broker.length() - 3);
-      broker += ":1097//";
-    }
-
-    broker += "eos/";
-    broker += getenv("HOSTNAME");
-    broker += ":";
-    broker += (int) getpid();
-    broker += ":";
-    broker += (int) getppid();
-    broker += "/cli";
-
-    if (!mqc.AddBroker(broker.c_str())) {
-      std_err = "error: failed to add broker";
-      std_err += broker.c_str();
-      std_err += "\n";
+      std_err = "error: failed to resync";
       reply->set_std_err(std_err);
       reply->set_retc(-1);
-    } else {
-      if (!mqc.SendMessage(message, receiver.c_str())) {
-        std_err = "unable to send resync message to " + receiver;
-        reply->set_std_err(std_err);
-        reply->set_retc(-1);
-      } else {
-        std_out = "info: resynced fid=" + std::to_string(fid);
-        std_out += " on fs=" + std::to_string(fsid) + "\n";
-        reply->set_std_out(std_out);
-        reply->set_retc(0);
-      }
     }
 
     return grpc::Status::OK;
@@ -1785,7 +1737,6 @@ grpc::Status GrpcRestGwInterface::LsCall(VirtualIdentity& vid,
   // wrap the LsProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_ls()->CopyFrom(*lsRequest);
-
   std::string path = req.ls().md().path();
   eos::console::ReplyProto StreamReply;
   errno = 0;

@@ -21,9 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/FsChangeListener.hh"
-#include "mq/XrdMqSharedObject.hh"
-#include "mq/MessagingRealm.hh"
+#include "common/mq/FsChangeListener.hh"
+#include "common/mq/MessagingRealm.hh"
 
 EOSMQNAMESPACE_BEGIN
 
@@ -34,12 +33,8 @@ std::string FsChangeListener::sAllMatchTag = "*";
 //------------------------------------------------------------------------------
 FsChangeListener::FsChangeListener(mq::MessagingRealm* realm,
                                    const std::string& name)
-  : mMessagingRealm(realm), mNotifier(nullptr), mListenerName(name)
-{
-  if (!mMessagingRealm->haveQDB()) {
-    mNotifier = mMessagingRealm->getChangeNotifier();
-  }
-}
+  : mMessagingRealm(realm), mListenerName(name)
+{}
 
 //------------------------------------------------------------------------------
 // Subscribe to the given key, such as "stat.errc" or "stat.geotag"
@@ -47,14 +42,9 @@ FsChangeListener::FsChangeListener(mq::MessagingRealm* realm,
 bool
 FsChangeListener::subscribe(const std::string& key)
 {
-  if (mNotifier) {
-    return mNotifier->SubscribesToKey(mListenerName.c_str(), key,
-                                      XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  } else {
-    eos::common::RWMutexWriteLock wr_lock(mMutexMap);
-    mMapInterests[sAllMatchTag].insert(key);
-    return true;
-  }
+  eos::common::RWMutexWriteLock wr_lock(mMutexMap);
+  mMapInterests[sAllMatchTag].insert(key);
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -65,16 +55,11 @@ bool
 FsChangeListener::subscribe(const std::string& channel,
                             const std::set<std::string>& keys)
 {
-  if (mNotifier) {
-    return mNotifier->SubscribesToSubjectAndKey(mListenerName.c_str(), channel,
-           keys, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  } else {
-    eos::common::RWMutexWriteLock wr_lock(mMutexMap);
-    auto resp = mMapInterests.emplace(channel, std::set<std::string>());
-    auto& set_keys = resp.first->second;
-    set_keys.insert(keys.begin(), keys.end());
-    return true;
-  }
+  eos::common::RWMutexWriteLock wr_lock(mMutexMap);
+  auto resp = mMapInterests.emplace(channel, std::set<std::string>());
+  auto& set_keys = resp.first->second;
+  set_keys.insert(keys.begin(), keys.end());
+  return true;
 }
 
 //----------------------------------------------------------------------------
@@ -85,25 +70,20 @@ bool
 FsChangeListener::unsubscribe(const std::string& channel,
                               const std::set<std::string>& keys)
 {
-  if (mNotifier) {
-    return mNotifier->UnsubscribesToSubjectAndKey(mListenerName.c_str(), channel,
-           keys, XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  } else {
-    eos::common::RWMutexWriteLock wr_lock(mMutexMap);
-    auto it = mMapInterests.find(channel);
-
-    if (it != mMapInterests.end()) {
-      for (const auto& key : keys) {
-        it->second.erase(key);
-      }
-
-      if (it->second.empty()) {
-        mMapInterests.erase(it);
-      }
+  eos::common::RWMutexWriteLock wr_lock(mMutexMap);
+  auto it = mMapInterests.find(channel);
+  
+  if (it != mMapInterests.end()) {
+    for (const auto& key : keys) {
+      it->second.erase(key);
     }
-
-    return true;
+    
+    if (it->second.empty()) {
+      mMapInterests.erase(it);
+    }
   }
+  
+  return true;
 }
 
 //------------------------------------------------------------------------------
@@ -133,58 +113,12 @@ FsChangeListener::GetInterests(const std::string& channel) const
 }
 
 //------------------------------------------------------------------------------
-// Start listening
-//------------------------------------------------------------------------------
-bool FsChangeListener::startListening()
-{
-  if (mNotifier) {
-    mNotifier->BindCurrentThread(mListenerName);
-    return mNotifier->StartNotifyCurrentThread();
-  }
-
-  return true;
-}
-
-//------------------------------------------------------------------------------
 // Consume next event, block until there's one
 //------------------------------------------------------------------------------
 bool FsChangeListener::fetch(ThreadAssistant& assistant, Event& out,
                              std::chrono::seconds timeout)
 {
-  if (mNotifier == nullptr) {
-    // New QDB implementation
-    return WaitForEvent(out, timeout);
-  } else {
-    // Old implementation
-    mNotifier->tlSubscriber->mSubjMtx.Lock();
-
-    if (mNotifier->tlSubscriber->NotificationSubjects.size() == 0u) {
-      mNotifier->tlSubscriber->mSubjMtx.UnLock();
-      mNotifier->tlSubscriber->mSubjSem.Wait(1);
-      mNotifier->tlSubscriber->mSubjMtx.Lock();
-    }
-
-    if (mNotifier->tlSubscriber->NotificationSubjects.size() == 0u) {
-      mNotifier->tlSubscriber->mSubjMtx.UnLock();
-      return false;
-    }
-
-    XrdMqSharedObjectManager::Notification event;
-    event = mNotifier->tlSubscriber->NotificationSubjects.front();
-    mNotifier->tlSubscriber->NotificationSubjects.pop_front();
-    mNotifier->tlSubscriber->mSubjMtx.UnLock();
-    out.fileSystemQueue = event.mSubject.c_str();
-    size_t dpos = out.fileSystemQueue.find(";");
-
-    if (dpos != std::string::npos) {
-      out.key = out.fileSystemQueue;
-      out.key.erase(0, dpos + 1);
-      out.fileSystemQueue.erase(dpos);
-    }
-
-    out.deletion = (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion);
-    return true;
-  }
+  return WaitForEvent(out, timeout);
 }
 
 //------------------------------------------------------------------------------

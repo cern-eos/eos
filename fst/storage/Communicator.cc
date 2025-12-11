@@ -170,11 +170,9 @@ Storage::RegisterFileSystem(const std::string& queuepath)
 
   mFsMap[fs->GetLocalId()] = fs;
 
-  if (gOFS.mMessagingRealm->haveQDB()) {
-    if (gConfig.autoBoot &&
-        (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
-      RunBootThread(fs, "");
-    }
+  if (gConfig.autoBoot &&
+      (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
+    RunBootThread(fs, "");
   }
 
   mFsMutex.UnLockWrite();
@@ -229,13 +227,6 @@ Storage::ProcessFstConfigChange(const std::string& key,
       eos_static_err("msg=\"unknown debug level\" level=\"%s\"",
                      debuglevel.c_str());
     } else {
-      // we set the shared hash debug for the lowest 'debug' level
-      if (debuglevel == "debug") {
-        gOFS.ObjectManager.SetDebug(true);
-      } else {
-        gOFS.ObjectManager.SetDebug(false);
-      }
-
       g_logging.SetLogPriority(debugval);
     }
 
@@ -347,127 +338,7 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
     return;
   }
 
-  hash.releaseLocks();
   return ProcessFsConfigChange(fs, key, value);
-}
-
-//------------------------------------------------------------------------------
-// Communicator
-//------------------------------------------------------------------------------
-void
-Storage::Communicator(ThreadAssistant& assistant) noexcept
-{
-  eos_static_info("%s", "msg=\"starting communicator thread\"");
-  std::set<std::string> watch_modification_keys { "id", "uuid", "bootsenttime",
-      eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
-      eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME, eos::common::SCAN_DISK_INTERVAL_NAME,
-      eos::common::SCAN_NS_INTERVAL_NAME, eos::common::SCAN_NS_RATE_NAME, "symkey",
-      "manager", "publish.interval", "debug.level", "error.simulation", "stripexs"};
-  bool ok = true;
-
-  for (const auto& key : watch_modification_keys) {
-    ok &= gOFS.ObjectNotifier.SubscribesToKey("communicator", key,
-          XrdMqSharedObjectChangeNotifier::kMqSubjectModification);
-  }
-
-  std::string watch_regex = ".*";
-  ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator", watch_regex,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectCreation);
-  ok &= gOFS.ObjectNotifier.SubscribesToSubjectRegex("communicator", watch_regex,
-        XrdMqSharedObjectChangeNotifier::kMqSubjectDeletion);
-
-  if (!ok) {
-    eos_crit("%s", "msg=\"error subscribing to shared object change "
-             "notifications\"");
-  }
-
-  gOFS.ObjectNotifier.BindCurrentThread("communicator");
-
-  if (!gOFS.ObjectNotifier.StartNotifyCurrentThread()) {
-    eos_crit("%s", "msg=\"error starting shared object change notifier\"");
-  }
-
-  while (!assistant.terminationRequested()) {
-    // Wait for new filesystem definitions
-    gOFS.ObjectNotifier.tlSubscriber->mSubjSem.Wait();
-
-    do {
-      if (assistant.terminationRequested()) {
-        break;
-      }
-
-      XrdMqSharedObjectManager::Notification event;
-      {
-        // Take an event from the queue under lock
-        XrdSysMutexHelper lock(gOFS.ObjectNotifier.tlSubscriber->mSubjMtx);
-
-        if (gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.size() == 0) {
-          break;
-        } else {
-          event = gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.front();
-          gOFS.ObjectNotifier.tlSubscriber->NotificationSubjects.pop_front();
-        }
-      }
-      eos_static_info("msg=\"shared object notification\" type=%i subject=\"%s\"",
-                      event.mType, event.mSubject.c_str());
-      XrdOucString queue = event.mSubject.c_str();
-
-      if (event.mType == XrdMqSharedObjectManager::kMqSubjectCreation) {
-        // Skip fst wildcard queue creation
-        if (queue == gConfig.FstQueueWildcard) {
-          continue;
-        }
-
-        if (!queue.beginswith(gConfig.FstQueue)) {
-          // ! endswith seems to be buggy if the comparable suffix is longer than the string !
-          if (queue.beginswith("/config/") &&
-              (queue.length() > gConfig.FstHostPort.length()) &&
-              queue.endswith(gConfig.FstHostPort)) {
-            // This is the configuration entry and we should store it to have
-            // access to it since its name depends on the instance name and
-            // we don't know (yet)
-            gConfig.setFstNodeConfigQueue(queue.c_str());
-            eos_static_info("msg=\"storing config queue name\" qpath=\"%s\"",
-                            queue.c_str());
-          } else {
-            eos_static_info("msg=\"no action on subject creation\" qpath=\"%s\" "
-                            "own_id=\"%s\"", queue.c_str(),
-                            gConfig.FstQueue.c_str());
-          }
-
-          continue;
-        }
-
-        (void) RegisterFileSystem(queue.c_str());
-      } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectDeletion) {
-        // Skip deletions that don't concern us
-        if (queue.beginswith(gConfig.FstQueue) == false) {
-          continue;
-        } else {
-          UnregisterFileSystem(event.mSubject);
-        }
-      } else if (event.mType == XrdMqSharedObjectManager::kMqSubjectModification) {
-        // Handle subject modification, seperate <path> from <key>
-        std::string key = queue.c_str();
-        int dpos = 0;
-
-        if ((dpos = queue.find(";")) != STR_NPOS) {
-          key.erase(0, dpos + 1);
-          queue.erase(dpos);
-        }
-
-        if (queue == gConfig.getFstNodeConfigQueue("communicator", false)) {
-          std::string value;
-
-          if (GetFstConfigValue(key, value)) {
-            ProcessFstConfigChange(key, value);
-          }
-        } else {
-          ProcessFsConfigChange(queue.c_str(), key);
-        }
-      }
-    } while (true);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -479,7 +350,6 @@ static std::string ExtractFsPath(const std::string& key)
     common::StringTokenizer::split<std::vector<std::string>>(key, '|');
   return parts[parts.size() - 1];
 }
-
 
 //------------------------------------------------------------------------------
 // Handle FS configuration updates in a separate thread to avoid deadlocks
@@ -627,12 +497,6 @@ void
 Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept
 {
   using namespace std::placeholders;
-
-  if (!gOFS.mMessagingRealm->haveQDB()) {
-    eos_static_info("%s", "msg=\"disable QDB communicator\"");
-    return;
-  }
-
   eos_static_info("%s", "msg=\"starting QDB communicator thread\"");
   // Process initial FST configuration ... discover instance name
   std::string instance_name;

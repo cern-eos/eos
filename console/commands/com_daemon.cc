@@ -187,10 +187,9 @@ com_daemon(char* arg)
   service = subtokenizer.GetToken();
 
   if ((option != "jwk") && ((!service.length()) ||
-      ((service != "mgm") &&
-       (service != "mq") &&
-       (service != "fst") &&
-       (service != "qdb")))) {
+                            ((service != "mgm") &&
+                             (service != "fst") &&
+                             (service != "qdb")))) {
     goto com_daemon_usage;
   }
 
@@ -308,21 +307,25 @@ com_daemon(char* arg)
           return (0);
         }
       } else if (subcmd == "add") {
-	XrdOucString member = subtokenizer.GetToken();
-	if (!member.length()) {
-	  fprintf(stderr,"error: add misses member argument host:port : 'eos daemon config qdb qdb add host:port'\n");
-	  global_retc = EINVAL;
-	  return 0;
-	} else {
-	  std::string kline;
-	  kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat "; kline += cfile; kline += "|grep xrd.port | cut -d ' ' -f 2` \"<<< raft-add-observer ";
-	  kline += member.c_str();
-	  kline += "\"";
-	  int rc = system(kline.c_str());
-	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
-	  global_retc = WEXITSTATUS(rc);
-	  return (0);
-	}
+        XrdOucString member = subtokenizer.GetToken();
+
+        if (!member.length()) {
+          fprintf(stderr,
+                  "error: add misses member argument host:port : 'eos daemon config qdb qdb add host:port'\n");
+          global_retc = EINVAL;
+          return 0;
+        } else {
+          std::string kline;
+          kline = "export REDISCLI_AUTH=`cat /etc/eos.keytab`; redis-cli -p `cat ";
+          kline += cfile;
+          kline += "|grep xrd.port | cut -d ' ' -f 2` \"<<< raft-add-observer ";
+          kline += member.c_str();
+          kline += "\"";
+          int rc = system(kline.c_str());
+          fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+          global_retc = WEXITSTATUS(rc);
+          return (0);
+        }
       } else if (subcmd == "promote") {
         XrdOucString member = subtokenizer.GetToken();
 
@@ -344,59 +347,73 @@ com_daemon(char* arg)
           return (0);
         }
       } else if (subcmd == "new") {
-	XrdOucString member = subtokenizer.GetToken();
-	if (member != "observer") {
-	  fprintf(stderr,"error: new misses 'observer' arguement : 'eos daemon config qdb qdb new observer'\n");
-	  global_retc = EINVAL;
-	  return 0;
-	} else {
-	  std::string stopqdb = "systemctl stop qdb ";
-	  stopqdb += name.c_str();
-	  system(stopqdb.c_str());
-	  
-	  std::string qdbpath=getenv("QDB_PATH")?getenv("QDB_PATH"):"";
-	  std::string qdbcluster=getenv("QDB_CLUSTER_ID")?getenv("QDB_CLUSTER_ID"):"";
-	  std::string qdbnode=getenv("QDB_NODE")?getenv("QDB_NODE"):"";
-	  if (qdbpath.empty())    {
-	    fprintf(stderr,"error: QDB_PATH is undefined in your configuration\n");
-	    global_retc = EINVAL;
-	    return 0;
-	  }
-	  if (qdbcluster.empty()) {
-	    fprintf(stderr,"error: QDB_CLUSTER_ID is undefined in your configuration\n");
-	    global_retc = EINVAL;
-	    return 0;
-	  }
-	  if (qdbnode.empty()) {
-	    fprintf(stderr,"error: QDB_NODE is undefined in your configuration\n");
-	    global_retc = EINVAL;
-	    return 0;
-	  }
-	  struct stat buf;
-	  if (!::stat(qdbpath.c_str(), &buf)) {
-	    fprintf(stderr,"error: path '%s' exists - to create a new observer this path has to be changed or removed\n",qdbpath.c_str());
-	    global_retc = EINVAL;
-	    return 0;
-	  } else {
-	    fprintf(stderr,"info: creating QDB under %s ...\n", qdbpath.c_str());
-	  }
-	  
-	  std::string kline;
-	  kline = "quarkdb-create --path ";
-	  kline += qdbpath;
-	  kline += " --clusterID ";
-	  kline += qdbcluster;
-	  int rc = system(kline.c_str());
-	  fprintf(stderr,"info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
-	  global_retc = WEXITSTATUS(rc);
-	  if(!global_retc) {
-	    fprintf(stderr,"info: to get this node joining the cluster you do:\n");
-	    fprintf(stderr,"1 [ this node ] : systemctl start eos5-@qdb@%s\n",name.c_str());
-	    fprintf(stderr,"2 [ leader    ] : eos daemon config qdb %s add %s\n",name.c_str(),qdbnode.c_str());
-	    fprintf(stderr,"3 [ leader    ] : eos daemon config qdb %s promote %s\n",name.c_str(),qdbnode.c_str());
-	  }
-	  return (0);
-	}
+        XrdOucString member = subtokenizer.GetToken();
+
+        if (member != "observer") {
+          fprintf(stderr,
+                  "error: new misses 'observer' arguement : 'eos daemon config qdb qdb new observer'\n");
+          global_retc = EINVAL;
+          return 0;
+        } else {
+          std::string stopqdb = "systemctl stop qdb ";
+          stopqdb += name.c_str();
+          system(stopqdb.c_str());
+          std::string qdbpath = getenv("QDB_PATH") ? getenv("QDB_PATH") : "";
+          std::string qdbcluster = getenv("QDB_CLUSTER_ID") ? getenv("QDB_CLUSTER_ID") :
+                                   "";
+          std::string qdbnode = getenv("QDB_NODE") ? getenv("QDB_NODE") : "";
+
+          if (qdbpath.empty())    {
+            fprintf(stderr, "error: QDB_PATH is undefined in your configuration\n");
+            global_retc = EINVAL;
+            return 0;
+          }
+
+          if (qdbcluster.empty()) {
+            fprintf(stderr, "error: QDB_CLUSTER_ID is undefined in your configuration\n");
+            global_retc = EINVAL;
+            return 0;
+          }
+
+          if (qdbnode.empty()) {
+            fprintf(stderr, "error: QDB_NODE is undefined in your configuration\n");
+            global_retc = EINVAL;
+            return 0;
+          }
+
+          struct stat buf;
+
+          if (!::stat(qdbpath.c_str(), &buf)) {
+            fprintf(stderr,
+                    "error: path '%s' exists - to create a new observer this path has to be changed or removed\n",
+                    qdbpath.c_str());
+            global_retc = EINVAL;
+            return 0;
+          } else {
+            fprintf(stderr, "info: creating QDB under %s ...\n", qdbpath.c_str());
+          }
+
+          std::string kline;
+          kline = "quarkdb-create --path ";
+          kline += qdbpath;
+          kline += " --clusterID ";
+          kline += qdbcluster;
+          int rc = system(kline.c_str());
+          fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+          global_retc = WEXITSTATUS(rc);
+
+          if (!global_retc) {
+            fprintf(stderr, "info: to get this node joining the cluster you do:\n");
+            fprintf(stderr, "1 [ this node ] : systemctl start eos5-@qdb@%s\n",
+                    name.c_str());
+            fprintf(stderr, "2 [ leader    ] : eos daemon config qdb %s add %s\n",
+                    name.c_str(), qdbnode.c_str());
+            fprintf(stderr, "3 [ leader    ] : eos daemon config qdb %s promote %s\n",
+                    name.c_str(), qdbnode.c_str());
+          }
+
+          return (0);
+        }
       } else if (subcmd == "backup") {
         std::string qdbpath = "/var/lib/qdb1";
 
@@ -480,11 +497,13 @@ com_daemon(char* arg)
   } else if (option == "jwk") {
     XrdOucString jwkfile = name.c_str();
     struct stat buf;
+
     if (::stat(jwkfile.c_str(), &buf)) {
       fprintf(stderr, "error: jwk key file '%s' does not exist!\n", jwkfile.c_str());
       global_retc = ENOENT;
       return (0);
     }
+
     std::string kline;
     kline = "env EOS_JWK=\"$(cat \"";
     kline += jwkfile.c_str();
@@ -669,7 +688,7 @@ com_daemon_usage:
   fprintf(stdout,
           "usage: daemon config|sss|kill|run|stack|stop|jwk|module-init <service> [name] [subcmd]                                     :  \n");
   fprintf(stdout,
-          "                <service> := mq | mgm | fst | qdb\n");
+          "                <service> := mgm | fst | qdb\n");
   fprintf(stdout,
           "                config                                                -  configure a service / show configuration\n");
   fprintf(stdout,
@@ -683,7 +702,7 @@ com_daemon_usage:
   fprintf(stdout,
           "                stop                                                  -  kill -15 a given service\n");
   fprintf(stdout,
-	  "                jwk                                                   -  run a 'jwk' public key server on port 4443\n");
+          "                jwk                                                   -  run a 'jwk' public key server on port 4443\n");
   fprintf(stdout,
           "                module-init                                           -  run the init procedure for a module\n");
   fprintf(stdout, "\n");
@@ -702,9 +721,9 @@ com_daemon_usage:
   fprintf(stdout,
           "                eos daemon config fst fst.1                           -  show the init,sysconfig and xrootd config for the [fst.1] FST service\n");
   fprintf(stdout,
-          "                eos daemon kill mq                                    -  shoot the MQ service with signal -9\n");
+          "                eos daemon kill mgm                                   -  shoot the MGM service with signal -9\n");
   fprintf(stdout,
-          "                eos daemon stop mq                                    -  gracefully shut down the MQ service with signal -15\n");
+          "                eos daemon stop MGM                                   -  gracefully shut down the MGM service with signal -15\n");
   fprintf(stdout,
           "                eos daemon stack mgm                                  -  take an 'eu-stack' of the MGM service\n");
   fprintf(stdout,

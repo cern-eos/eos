@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: ErrorReportListener.cc
+// File: SharedDequeProvider.hh
 // Author: Georgios Bitzes - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2019 CERN/Switzerland                                  *
+ * Copyright (C) 2020 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -21,59 +21,46 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "mq/ErrorReportListener.hh"
+#ifndef EOS_MQ_SHARED_DEQUE_PROVIDER_HH
+#define EOS_MQ_SHARED_DEQUE_PROVIDER_HH
+
+#include "common/mq/Namespace.hh"
+#include <memory>
+#include <map>
+#include <mutex>
+
+namespace qclient
+{
+class SharedManager;
+class SharedDeque;
+}
 
 EOSMQNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Constructor
+//! Class to keep ownership of qclient SharedDeques
 //------------------------------------------------------------------------------
-ErrorReportListener::ErrorReportListener(const std::string& serveruri,
-    const std::string& hostname)
+class SharedDequeProvider
 {
-  XrdOucString broker = serveruri.c_str();
+public:
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //----------------------------------------------------------------------------
+  SharedDequeProvider(qclient::SharedManager* manager);
 
-  if (!broker.endswith("//")) {
-    if (!broker.endswith("/")) {
-      broker += ":1097//";
-    } else {
-      broker.erase(broker.length() - 2);
-      broker += ":1097//";
-    }
-  } else {
-    broker.erase(broker.length() - 3);
-    broker += ":1097//";
-  }
+  //----------------------------------------------------------------------------
+  //! Get shared deque
+  //----------------------------------------------------------------------------
+  std::shared_ptr<qclient::SharedDeque> get(const std::string& key);
 
-  broker += "eos/";
-  broker += hostname.c_str();
-  broker += ":";
-  broker += (int) getpid();
-  broker += ":";
-  broker += (int) getppid();
-  broker += "/errorreport";
+private:
+  qclient::SharedManager* mSharedManager;
 
-  if (!mClient.AddBroker(broker.c_str())) {
-    eos_static_err("failed to add broker %s", broker.c_str());
-  } else {
-    mClient.Subscribe();
-  }
-}
+  std::mutex mMutex;
+  std::map<std::string, std::shared_ptr<qclient::SharedDeque>> mStore;
 
-//----------------------------------------------------------------------------
-// Fetch error report
-//----------------------------------------------------------------------------
-bool ErrorReportListener::fetch(std::string& out, ThreadAssistant* assistant)
-{
-  std::unique_ptr<XrdMqMessage> message = std::unique_ptr<XrdMqMessage>
-                                          (mClient.RecvMessage(assistant));
-
-  if (message) {
-    out = message->GetBody();
-    return true;
-  }
-
-  return false;
-}
+};
 
 EOSMQNAMESPACE_END
+
+#endif

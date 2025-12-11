@@ -291,7 +291,7 @@ extern "C" {
 //------------------------------------------------------------------------------
 XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
   ConfigFN(0), mConfigEngine(0), mCapabilityValidity(3600),
-  mMgmMessaging(nullptr), ManagerPort(1094), LinuxStatsStartup{0},
+  ManagerPort(1094), LinuxStatsStartup{0},
   HostName(0), HostPref(0),   protowfusegrpc(false),
   mNamespaceState(NamespaceState::kDown),
   mFileInitTime(0), mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)),
@@ -502,19 +502,6 @@ XrdMgmOfs::OrderlyShutdown()
   auto stop_fsconfiglistener = std::thread([&]() {
     mFsConfigTid.join();
   });
-
-  if (!mMessagingRealm->haveQDB()) {
-    // We now need to signal to the FsConfigListener thread to unblock it
-    XrdMqSharedObjectChangeNotifier::Subscriber*
-    subscriber = ObjectNotifier.GetSubscriberFromCatalog("fsconfiglistener", false);
-
-    if (subscriber) {
-      std::this_thread::sleep_for(std::chrono::milliseconds(500));
-      XrdSysMutexHelper lock(subscriber->mSubjMtx);
-      subscriber->mSubjSem.Post();
-    }
-  }
-
   stop_fsconfiglistener.join();
   eos_warning("%s", "msg=\"disable configuration engine autosave\"");
   mConfigEngine->SetAutoSave(false);
@@ -573,11 +560,6 @@ XrdMgmOfs::OrderlyShutdown()
   mFsckEngine->Stop();
   eos_warning("%s", "msg=\"stopping messaging\"");
 
-  if (mMgmMessaging) {
-    delete mMgmMessaging;
-    mMgmMessaging = nullptr;
-  }
-
   if (mRecycler) {
     eos_warning("%s", "msg=\"stopping and deleting recycler server\"");
     mRecycler.reset();
@@ -604,11 +586,6 @@ XrdMgmOfs::OrderlyShutdown()
   if (WNCd) {
     eos_warning("%s", "msg=\"stopping gRPC server for EOS-wnc\"");
     WNCd.reset();
-  }
-
-  if (!mMessagingRealm->haveQDB()) {
-    eos_warning("%s", "msg=\"stopping the shared object notifier thread\"");
-    ObjectNotifier.Stop();
   }
 
   eos_warning("%s", "msg=\"cleanup quota information\"");

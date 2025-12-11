@@ -27,7 +27,8 @@
 #include <qclient/shared/SharedManager.hh>
 #include <fstream>
 
-namespace eos{
+namespace eos
+{
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -43,8 +44,8 @@ FlushAllOnConstruction::FlushAllOnConstruction(const QdbContactDetails& cd)
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-UnitTestsWithQDBFixture::UnitTestsWithQDBFixture() {
-
+UnitTestsWithQDBFixture::UnitTestsWithQDBFixture()
+{
   // Connection parameters
   std::string qdb_hostport = getenv("EOS_QUARKDB_HOSTPORT") ?
                              getenv("EOS_QUARKDB_HOSTPORT") : "localhost:9999";
@@ -62,7 +63,7 @@ UnitTestsWithQDBFixture::UnitTestsWithQDBFixture() {
   }
 
   mContactDetails = QdbContactDetails(qclient::Members::fromString(qdb_hostport),
-    qdb_passwd);
+                                      qdb_passwd);
   mFlushGuard.reset(new FlushAllOnConstruction(mContactDetails));
 }
 
@@ -74,24 +75,25 @@ UnitTestsWithQDBFixture::~UnitTestsWithQDBFixture() {}
 //------------------------------------------------------------------------------
 //! Make QClient object
 //------------------------------------------------------------------------------
-std::unique_ptr<qclient::QClient> UnitTestsWithQDBFixture::makeQClient() const {
+std::unique_ptr<qclient::QClient> UnitTestsWithQDBFixture::makeQClient() const
+{
   return std::unique_ptr<qclient::QClient>(
-           new qclient::QClient(mContactDetails.members, mContactDetails.constructOptions())
-  );
+           new qclient::QClient(mContactDetails.members,
+                                mContactDetails.constructOptions())
+         );
 }
 
 //------------------------------------------------------------------------------
 // Get MessagingRealm object, lazy init
 //------------------------------------------------------------------------------
-mq::MessagingRealm* UnitTestsWithQDBFixture::getMessagingRealm(int tag) {
+mq::MessagingRealm* UnitTestsWithQDBFixture::getMessagingRealm(int tag)
+{
   auto it = mMessagingRealms.find(tag);
 
-  if(it == mMessagingRealms.end()) {
-    mMessagingRealms[tag].reset(new mq::MessagingRealm(nullptr, nullptr,
-      nullptr, getSharedManager(tag)));
+  if (it == mMessagingRealms.end()) {
+    mMessagingRealms[tag].reset(new mq::MessagingRealm(getSharedManager(tag)));
     return mMessagingRealms[tag].get();
-  }
-  else {
+  } else {
     return it->second.get();
   }
 }
@@ -99,15 +101,15 @@ mq::MessagingRealm* UnitTestsWithQDBFixture::getMessagingRealm(int tag) {
 //------------------------------------------------------------------------------
 // Get SharedManager object, lazy init
 //------------------------------------------------------------------------------
-qclient::SharedManager* UnitTestsWithQDBFixture::getSharedManager(int tag) {
+qclient::SharedManager* UnitTestsWithQDBFixture::getSharedManager(int tag)
+{
   auto it = mSharedManagers.find(tag);
 
-  if(it == mSharedManagers.end()) {
+  if (it == mSharedManagers.end()) {
     mSharedManagers[tag].reset(new qclient::SharedManager(mContactDetails.members,
-      mContactDetails.constructSubscriptionOptions()));
+                               mContactDetails.constructSubscriptionOptions()));
     return mSharedManagers[tag].get();
-  }
-  else {
+  } else {
     return it->second.get();
   }
 }
@@ -115,7 +117,8 @@ qclient::SharedManager* UnitTestsWithQDBFixture::getSharedManager(int tag) {
 //------------------------------------------------------------------------------
 // Retrieve contact details
 //------------------------------------------------------------------------------
-QdbContactDetails UnitTestsWithQDBFixture::getContactDetails() const {
+QdbContactDetails UnitTestsWithQDBFixture::getContactDetails() const
+{
   return mContactDetails;
 }
 

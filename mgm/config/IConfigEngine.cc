@@ -254,7 +254,6 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
     std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
     gOFS->mSpaceAttributes.clear();
   }
-  
   {
     eos::common::RWMutexWriteLock wr_view_lock(eos::mgm::FsView::gFsView.ViewMutex);
     std::lock_guard lock(mMutex);
@@ -450,7 +449,6 @@ IConfigEngine::ResetConfig(bool apply_stall_redirect)
   gOFS->ResetPathMap();
   gOFS->mRouting->Clear();
   FsView::gFsView.Reset();
-  gOFS->ObjectManager.Clear();
   {
     std::lock_guard lock(mMutex);
     sConfigDefinitions.clear();
