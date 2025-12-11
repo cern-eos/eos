@@ -37,7 +37,7 @@ fi
 
 EOS_MGM_HOSTNAME=$1
 eos fs ls
-# Check preconditions and make sure central draining is enabled
+# Check preconditions and make sure draining is enabled
 FST_ONLINE=$(eos fs ls | grep "online" | wc -l)
 
 if [[ ${FST_ONLINE} -lt 14 ]]; then

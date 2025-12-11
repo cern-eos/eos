@@ -34,6 +34,7 @@
 #include "common/SymKeys.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
 #include "common/table_formatter/TableFormatting.hh"
+#include "common/json/Json.hh"
 
 EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------

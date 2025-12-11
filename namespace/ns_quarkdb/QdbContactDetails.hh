@@ -102,8 +102,6 @@ public:
     return opts;
   }
 
-
-
   qclient::Members members;
   std::string password;
 };

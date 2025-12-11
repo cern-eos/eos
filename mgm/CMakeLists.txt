@@ -147,7 +147,6 @@ add_library(
   proc/user/Member.cc
   proc/user/Mkdir.cc
   proc/user/Motd.cc
-  proc/user/QoSCmd.cc
   proc/user/RecycleCmd.cc
   proc/user/Rm.cc
   proc/user/RmCmd.cc
@@ -157,8 +156,6 @@ add_library(
   proc/user/Version.cc
   proc/user/Who.cc
   proc/user/Whoami.cc
-  qos/QoSConfig.cc                                  qos/QoSConfig.hh
-  qos/QoSClass.hh
   Quota.cc
   Scheduler.cc
   Vid.cc

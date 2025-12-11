@@ -112,7 +112,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/com_proto_acl.cc
   commands/com_proto_convert.cc
   commands/com_proto_fs.cc
-  commands/com_proto_qos.cc
   commands/com_proto_route.cc
   commands/com_evict.cc
   commands/com_proto_ns.cc
