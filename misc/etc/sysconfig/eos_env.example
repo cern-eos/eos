@@ -1,12 +1,10 @@
 #-------------------------------------------------------------------------------
 # File: eos_env.example
-# Author: Ivan Arizanovic <ivan.arizanovic@comtrade.com>
-# Author: Branko Blagojevic <branko.blagojevic@comtrade.com>
 #-------------------------------------------------------------------------------
 
 # ************************************************************************
 # * EOS - the CERN Disk Storage System                                   *
-# * Copyright (C) 2018 CERN/Switzerland                                  *
+# * Copyright (C) 2025 CERN/Switzerland                                  *
 # *                                                                      *
 # * This program is free software: you can redistribute it and/or modify *
 # * it under the terms of the GNU General Public License as published by *
@@ -40,40 +38,26 @@ KRB5RCACHETYPE=none
 #-------------------------------------------------------------------------------
 # EOS roles - Systemd Services
 #-------------------------------------------------------------------------------
-XRD_ROLES="mq mgm fed sync fst"
+XRD_ROLES="mq mgm fst"
 
 #-------------------------------------------------------------------------------
 # EOS Configuration
 #-------------------------------------------------------------------------------
 
-# The fully qualified hostname of current MGM
-EOS_MGM_HOST=mgm-master.localdomain
-
-# The fully qualified hostname of target MGM
-EOS_MGM_HOST_TARGET=mgm-slave.localdomain
-
-# The EOS instance name N.B.! It MUST start with "eos" and then some alphanumeric characters
-# This is important since there are some special files and directories created inside the /eos/<instance_name> subtree
+# The EOS instance name N.B.! It MUST start with "eos" and then some
+# alphanumeric characters. This is important since there are some special
+# files and directories created inside the /eos/<instance_name> subtree
 # indispensable for the proper functioning of the instance.
 EOS_INSTANCE_NAME=eosdev
+
+# EOS host geo location used to sort hosts into geographical (rack) locations
+# !!! REQUIRED !!! list of ":" separated tokens of up to 8 chars
+EOS_GEOTAG=""
 
 # The EOS configuration to load after daemon start
 EOS_AUTOLOAD_CONFIG=default
 
-# The EOS broker URL
-EOS_BROKER_URL=root://localhost:1097//eos/
-
-# The EOS host geo location tag used to sort hosts into geographical (rack) locations
-# !!! REQUIRED !!! list of ":" separated tokens of up to 8 chars
-EOS_GEOTAG=""
-
-# The fully qualified hostname of MGM master1
-EOS_MGM_MASTER1=eosdevsrv1.cern.ch
-
-# The fully qualified hostname of MGM master2
-EOS_MGM_MASTER2=eosdevsrv2.cern.ch
-
-# The alias which selects master 1 or 2
+# The alias for machines running MGMs
 EOS_MGM_ALIAS=eosdev.cern.ch
 
 # In HA mode, presence of this env enables the redirection of the
@@ -84,33 +68,17 @@ EOS_MGM_ALIAS=eosdev.cern.ch
 EOS_MAIL_CC="apeters@mail.cern.ch"
 EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 
-# Enable core dumps initiated internally
-#EOS_CORE_DUMP
+# Enable core dumps initiated internally [disabled by default]
+#EOS_CORE_DUMP=0
 
-# Disable shutdown/signal handlers for debugging
-#EOS_NO_SHUTDOWN
+# Disable shutdown/signal handlers for debugging [enabled by default]
+#EOS_NO_SHUTDOWN=0
 
-# Enable coverage report signal handler
-#EOS_COVERAGE_REPORT
-
-# Enable QoS support
-#EOS_ENABLE_QOS=""
-
-# Allow UTF-8 path names excluding only CR,LF
-#EOS_UTF8=""
+# Enable coverage report signal handler [disabled by default]
+#EOS_COVERAGE_REPORT=0
 
 # Add secondary group information from database/LDAP (set to 1 to enable)
 #EOS_SECONDARY_GROUPS=0
-
-# Do subtree accounting on directories (set to 1 to enable)
-#EOS_NS_ACCOUNTING=0
-
-# Do sync time propagation (set to 1 to enable)
-#EOS_SYNCTIME_ACCOUNTING=0
-
-# Use std::shared_timed_mutex for the RWMutex implementation - uncomment to
-# enable.
-# EOS_USE_SHARED_MUTEX=1
 
 # By default statvfs reports the total space if the path deepness is < 4
 # If you want to report only quota accouting you can define
@@ -122,17 +90,77 @@ EOS_NOTIFY="mail -s `date +%s`-`hostname`-eos-notify $EOS_MAIL_CC"
 # Set to 1 if you want eos quota set by logical space (default is by raw)
 # EOS_MGM_QUOTA_SET_BY_LOGICAL=1
 
-# If variable defined then enable the use of xrootd connection pool i.e.
-# create/share different physical connections for transfers to the same
-# destination xrootd server. By default this is disabled.
-# This applies both in context of the MGM server when it comes to TPC jobs and
-# also on the FST server for FST to FST transfers.
-# EOS_XRD_USE_CONNECTION_POOL=1
+#-------------------------------------------------------------------------------
+# Archive configuration
+#-------------------------------------------------------------------------------
 
-# When xrootd connection pool is enabled, one can control the maximum number
-# of physical connection that can be established with the destination server.
-# The min value is 1 and the max 1024. By default this 1024.
-# EOS_XRD_CONNECTION_POOL_SIZE=128
+# Set the root destination for all archives beloging to this instance
+# EOS_ARCHIVE_URL=root://castorpps.cern.ch//user/cern.ch/c3/archive/
+
+# Set the service class (svcClass) for all file transfers to CTA
+# EOS_ARCHIVE_SVCCLASS=default
+
+#-------------------------------------------------------------------------------
+# MGM TTY Console Broadcast Configuration
+#-------------------------------------------------------------------------------
+
+# define the log file where you want to grep
+EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
+
+# define the log file regex you want to broad cast to all consoles
+EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
+
+#-------------------------------------------------------------------------------
+# MGM FUSE configuration
+#-------------------------------------------------------------------------------
+
+# uncomment to change the minimum needed size available to create a new file
+# EOS_MGM_FUSE_BOOKING_SIZE=5368709120
+
+# define the name of the FUSE application, which can by-pass throttling & stalling
+# EOS_MGM_FUSEX_NOSTALL_APP="fuse::restic"
+
+#-------------------------------------------------------------------------------
+# MGM 'xrdfs query space' configuration
+#-------------------------------------------------------------------------------
+
+# uncoment to set the EOS space name to be used by 'xrdfs query space' commands
+# that do not explicitly specify an EOS space name
+# EOS_MGM_STATVFS_DEFAULT_SPACE="default"
+
+#-------------------------------------------------------------------------------
+# MGM Directory Listing Cache configuration
+#-------------------------------------------------------------------------------
+
+# Set to 0 to disable listing cache for 'xrdfs ls' and 'eos ls', or a number
+# with the number of dirs to cache. If not defined the caching is disabled.
+# EOS_MGM_LISTING_CACHE=1024
+
+#-------------------------------------------------------------------------------
+# MGM OIDC configuration
+#-------------------------------------------------------------------------------
+# By default the sub field is mapped from OIDC tokens
+# EOS_MGM_OIDC_MAP_FIELD=sub
+# By default (undefined) the server certificate and hostname are verified,
+# to skip this define the followin env variable.
+# EOS_MGM_OIDC_INSECURE=1
+
+#-------------------------------------------------------------------------------
+# MGM token generation configuration
+#-------------------------------------------------------------------------------
+# by default the token generation key is derived from an sss key
+# EOS_MGM_TOKEN_KEYFILE=/etc/eos/token.key
+
+#-------------------------------------------------------------------------------
+# MGM device tracking
+#-------------------------------------------------------------------------------
+# Interval at which the MGM takes out compressed JSON S.M.A.R.T info and publishes them
+# EOS_MGM_DEVICES_PUBLISHING_INTERVAL=900
+
+#-------------------------------------------------------------------------------
+# MGM SciTokens cache directory
+#-------------------------------------------------------------------------------
+XDG_CACHE_HOME=/var/tmp/
 
 #-------------------------------------------------------------------------------
 # MGM Audit Configuration
@@ -327,16 +355,32 @@ EOS_AUDIT_ROTATION=3600
 #-------------------------------------------------------------------------------
 
 # The host[:port] name of the meta manager (global redirector)
-EOS_FED_MANAGER=eos.cern.ch:1094
+#EOS_FED_MANAGER=eos.cern.ch:1094
 
 # The port of the PSS xrootd server
-EOS_PSS_PORT=1098
+#EOS_PSS_PORT=1098
 
 # The hostname[:port] of the EOS MGM service
-EOS_PSS_MGM=$EOS_MGM_ALIAS:1094
+#EOS_PSS_MGM=$EOS_MGM_ALIAS:1094
 
 # The path which should be proxied (/ for all)
-EOS_PSS_PATH=/
+#EOS_PSS_PATH=/
+
+#-------------------------------------------------------------------------------
+# Common configuration for MGM and FST
+#-------------------------------------------------------------------------------
+
+# If variable defined then enable the use of xrootd connection pool i.e.
+# create/share different physical connections for transfers to the same
+# destination xrootd server. By default this is disabled.
+# This applies both in context of the MGM server when it comes to TPC jobs and
+# also on the FST server for FST to FST transfers.
+# EOS_XRD_USE_CONNECTION_POOL=1
+
+# When xrootd connection pool is enabled, one can control the maximum number
+# of physical connection that can be established with the destination server.
+# The min value is 1 and the max 1024. By default this 1024.
+# EOS_XRD_CONNECTION_POOL_SIZE=128
 
 #-------------------------------------------------------------------------------
 # Test Configuration
@@ -372,93 +416,3 @@ EOS_PSS_PATH=/
 
 # QuarkDB Password
 # EOS_QUARKDB_PASSWD=password_must_be_atleast_32_characters
-
-#-------------------------------------------------------------------------------
-# Archive configuration
-#-------------------------------------------------------------------------------
-
-# Set the root destination for all archives beloging to this instance
-# EOS_ARCHIVE_URL=root://castorpps.cern.ch//user/cern.ch/c3/archive/
-
-# Set the CASTOR service class (svcClass) for all file transfers to CASTOR
-# EOS_ARCHIVE_SVCCLASS=default
-
-#-------------------------------------------------------------------------------
-# MGM TTY Console Broadcast Configuration
-#-------------------------------------------------------------------------------
-
-# define the log file where you want to grep
-EOS_TTY_BROADCAST_LISTEN_LOGFILE="/var/log/eos/mgm/xrdlog.mgm"
-
-# define the log file regex you want to broad cast to all consoles
-EOS_TTY_BROACAST_EGREP="\"CRIT|ALERT|EMERG|PROGRESS\""
-
-#-------------------------------------------------------------------------------
-# MGM Namespace Preset Size - this can safe memory for large namespaces if you
-# know an upper limit for the namespace size
-#-------------------------------------------------------------------------------
-
-# EOS_NS_DIR_SIZE=1000000
-# EOS_NS_FILE_SIZE=1000000
-
-# ------------------------------------------------------------------
-# MGM Boot options
-# ------------------------------------------------------------------
-# uncomment to avoid mmaping a changelog file
-# EOS_NS_BOOT_NOMMAP
-
-# uncomment to speed up the scanning phase skipping CRC32 computation
-# EOS_NS_BOOT_NOCRC32
-
-# uncomment to allow a multi-threaded boot process using maximum number of cores available
-# EOS_NS_BOOT_PARALLEL
-
-
-# ------------------------------------------------------------------
-# MGM FUSE configuration
-# ------------------------------------------------------------------
-
-# uncomment to change the minimum needed size available to create a new file
-# EOS_MGM_FUSE_BOOKING_SIZE=5368709120
-
-# define the name of the FUSE application, which can by-pass throttling & stalling
-# EOS_MGM_FUSEX_NOSTALL_APP="fuse::restic"
-
-# ------------------------------------------------------------------
-# MGM 'xrdfs query space' configuration
-# ------------------------------------------------------------------
-
-# uncoment to set the EOS space name to be used by 'xrdfs query space' commands
-# that do not explicitly specify an EOS space name
-# EOS_MGM_STATVFS_DEFAULT_SPACE="default"
-
-# ------------------------------------------------------------------
-# MGM Directory Listing Cache configuration
-
-# set to 0 to disable listing cache for 'xrdfs ls' and 'eos ls', or a number with the number of dirs to cache
-# EOS_MGM_LISTING_CACHE=1024
-
-# ------------------------------------------------------------------
-# MGM OIDC configuration
-# ------------------------------------------------------------------
-# by default the sub field is mapped from OIDC tokens
-# EOS_MGM_OIDC_MAP_FIELD=sub
-# by default (undefined) the server certificate and hostname are verified, to skip this, define
-# EOS_MGM_OIDC_INSECURE=1
-
-# ------------------------------------------------------------------
-# MGM token generation configuration
-# ------------------------------------------------------------------
-# by default the token generation key is derived from an sss key
-# EOS_MGM_TOKEN_KEYFILE=/etc/eos/token.key
-
-# ------------------------------------------------------------------
-# MGM Device Tracking
-# ------------------------------------------------------------------
-# change the interval at which the MGM takes out compressed JSON S.M.A.R.T info and publishes them
-# EOS_MGM_DEVICES_PUBLISHING_INTERVAL=900
-
-# ------------------------------------------------------------------
-# MGM SciToken Cache
-# ------------------------------------------------------------------
-XDG_CACHE_HOME=/var/tmp/
