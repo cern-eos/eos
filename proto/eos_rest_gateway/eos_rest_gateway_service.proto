@@ -33,7 +33,6 @@ import "Member.proto";
 import "Move.proto";
 import "Node.proto";
 import "Ns.proto";
-import "QoS.proto";
 import "Quota.proto";
 import "Recycle.proto";
 import "Rm.proto";
@@ -300,15 +299,6 @@ service EosRestGatewayService {
 	rpc NsRequest(eos.console.NsProto) returns (eos.console.ReplyProto) {
 		option (google.api.http) = {
 			post: "/v1/eos/rest/gateway/ns_cmd"
-			body: "*"
-		};
-	}
-
-	// QoSRequest method receives a request for an eos qos command
-	// and returns the result of the command
-	rpc QoSRequest(eos.console.QoSProto) returns (eos.console.ReplyProto) {
-		option (google.api.http) = {
-			post: "/v1/eos/rest/gateway/qos_cmd"
 			body: "*"
 		};
 	}

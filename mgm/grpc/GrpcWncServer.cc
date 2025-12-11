@@ -132,10 +132,6 @@ class WncService final : public EosWnc::Service
       command = "Ns";
       break;
 
-    case eos::console::RequestProto::kQos:
-      command = "Qos";
-      break;
-
     case eos::console::RequestProto::kQuota:
       command = "Quota";
       break;
