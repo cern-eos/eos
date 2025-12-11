@@ -303,17 +303,10 @@ Storage::Storage(const char* meta_dir)
 
   mFsConfigThread.reset(&Storage::FsConfigUpdate, this);
   mFsConfigThread.setName("FsConfigUpdate Thread");
-
-  if (gOFS.mMessagingRealm->haveQDB()) {
-    mRegisterFsThread.reset(&Storage::UpdateRegisteredFs, this);
-    mRegisterFsThread.setName("RegisterFS Thread");
-    mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
-    mQdbCommunicatorThread.setName("QDB Communicator Thread");
-  } else {
-    mCommunicatorThread.reset(&Storage::Communicator, this);
-    mCommunicatorThread.setName("Communicator Thread");
-  }
-
+  mRegisterFsThread.reset(&Storage::UpdateRegisteredFs, this);
+  mRegisterFsThread.setName("RegisterFS Thread");
+  mQdbCommunicatorThread.reset(&Storage::QdbCommunicator, this);
+  mQdbCommunicatorThread.setName("QDB Communicator Thread");
   XrdSysMutexHelper tsLock(mThreadsMutex);
   mThreadSet.insert(tid);
   eos_info("starting deletion thread");
@@ -429,7 +422,6 @@ Storage::Shutdown()
 void
 Storage::ShutdownThreads()
 {
-  mCommunicatorThread.join();
   mQdbCommunicatorThread.join();
   mPublisherThread.join();
   mErrorReportThread.join();

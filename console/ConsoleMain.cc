@@ -35,8 +35,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
 #include "common/StringUtils.hh"
-#include "mq/XrdMqMessage.hh"
-#include "mq/XrdMqTiming.hh"
+#include "common/mq/XrdMqTiming.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdCl/XrdClFile.hh>
@@ -68,7 +67,6 @@ extern int com_chmod(char*);
 extern int com_chown(char*);
 extern int com_clear(char*);
 extern int com_protoconfig(char*);
-extern int com_console(char*);
 extern int com_convert(char*);
 extern int com_cp(char*);
 extern int com_protodebug(char*);
@@ -154,7 +152,6 @@ COMMAND commands[] = {
   { (char*) "chmod", com_chmod, (char*) "Mode Interface"},
   { (char*) "chown", com_chown, (char*) "Chown Interface"},
   { (char*) "config", com_protoconfig, (char*) "Configuration System"},
-  { (char*) "console", com_console, (char*) "Run Error Console"},
   { (char*) "convert", com_convert, (char*) "Convert Interface"},
   { (char*) "cp", com_cp, (char*) "Cp command"},
   { (char*) "daemon", com_daemon, (char*) "Handle service daemon"},
@@ -822,8 +819,8 @@ Run(int argc, char* argv[])
   auto stopPostMaster = [&](void*) {
     XrdCl::DefaultEnv::GetPostMaster()->Stop();
   };
-  std::unique_ptr<void, decltype(stopPostMaster)> stopPostMasterDeleter((void *)1, stopPostMaster);
-
+  std::unique_ptr<void, decltype(stopPostMaster)> stopPostMasterDeleter((void*)1,
+      stopPostMaster);
   char* line, *s;
   serveruri = (char*) "root://localhost";
   // Enable fork handlers for XrdCl
@@ -1169,13 +1166,12 @@ Run(int argc, char* argv[])
     struct rlimit newrlimit;
     newrlimit.rlim_cur = fdlimit;
     newrlimit.rlim_max = fdlimit;
+
     if ((setrlimit(RLIMIT_NOFILE, &newrlimit) != 0) && (!geteuid())) {
       fprintf(stderr, "warning: unable to set fd limit to %d - errno %d\n",
-	      fdlimit, errno);
+              fdlimit, errno);
     }
   }
-
-
   char prompt[4096];
 
   if (pipemode) {
@@ -1562,8 +1558,7 @@ bool RequiresMgm(const std::string& name, const std::string& args)
       (name == "exit") || (name == "help") || (name == "json") ||
       (name == "pwd") || (name == "quit") || (name == "role") ||
       (name == "silent") || (name == "timing") || (name == "?") ||
-      (name == ".q") || (name == "daemon") || (name == "scitoken"))
-    {
+      (name == ".q") || (name == "daemon") || (name == "scitoken")) {
     return false;
   }
 

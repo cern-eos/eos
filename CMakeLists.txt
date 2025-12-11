@@ -141,7 +141,6 @@ add_subdirectory(fusex)
 add_subdirectory(misc)
 add_subdirectory(test)
 add_subdirectory(namespace/ns_quarkdb/qclient)
-add_subdirectory(mq)
 
 if (GRPC_FOUND)
   add_subdirectory(client)

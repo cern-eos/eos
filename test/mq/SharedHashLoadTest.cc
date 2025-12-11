@@ -413,7 +413,8 @@ int main(int argc, char* argv[])
     } else if (input == "local")
     {
       return std::to_string(UpdateType::kLocal);
-    } else {
+    } else
+    {
       throw CLI::ValidationError(SSTR("unknown update type " << input));
     }
   };
@@ -459,9 +460,8 @@ int main(int argc, char* argv[])
   // Build the shared hash object
   std::unique_ptr<qclient::SharedManager> qsm {
     new qclient::SharedManager(contact_details.members,
-    contact_details.constructSubscriptionOptions())};
-  gMsgRealm.reset(new eos::mq::MessagingRealm(nullptr, nullptr, nullptr,
-                  qsm.get()));
+                               contact_details.constructSubscriptionOptions())};
+  gMsgRealm.reset(new eos::mq::MessagingRealm(qsm.get()));
   eos::common::SharedHashLocator hash_locator("dummy",
       SharedHashLocator::Type::kNode,
       hash_name);

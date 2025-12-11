@@ -323,7 +323,7 @@ Requires: eos-folly = 2019.11.11.00
 BuildRequires: perl-generators
 
 %description -n eos-server
-The EOS server installation containing MGM, FST & MQ service.
+The EOS server installation
 
 %files -n eos-server
 %defattr(-, root, root, -)
@@ -365,19 +365,15 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_libdir}/libXrdEosFst-*.so
 %{_libdir}/libXrdEosMgm-*.so
 %{_libdir}/libEosMgmHttp-*.so
-%{_libdir}/libXrdMqOfs-*.so
 %{_libdir}/libEosNsQuarkdb.so
 %config(noreplace) %{_sysconfdir}/xrd.cf.fst
 %config(noreplace) %{_sysconfdir}/xrd.cf.mgm
-%config(noreplace) %{_sysconfdir}/xrd.cf.mq
-%config(noreplace) %{_sysconfdir}/xrd.cf.global-mq
 %config(noreplace) %{_sysconfdir}/xrd.cf.sync
 %config(noreplace) %{_sysconfdir}/xrd.cf.fed
 %config(noreplace) %{_sysconfdir}/xrd.cf.prefix
 %config(noreplace) %{_sysconfdir}/xrd.cf.quarkdb
 %config(noreplace) %{_sysconfdir}/eos/config/mgm/mgm
 %config(noreplace) %{_sysconfdir}/eos/config/mgm/mgm.modules
-%config(noreplace) %{_sysconfdir}/eos/config/mq/mq
 %config(noreplace) %{_sysconfdir}/eos/config/fst/fst
 %config(noreplace) %{_sysconfdir}/eos/config/generic/all
 %config(noreplace) %{_sysconfdir}/eos/config/qdb/qdb
@@ -390,7 +386,6 @@ The EOS server installation containing MGM, FST & MQ service.
 %{_prefix}/lib/systemd/system/eos@slave.service
 %{_prefix}/lib/systemd/system/eos5-fst@.service
 %{_prefix}/lib/systemd/system/eos5-mgm@.service
-%{_prefix}/lib/systemd/system/eos5-mq@.service
 %{_prefix}/lib/systemd/system/eos5-qdb@.service
 %{_prefix}/lib/systemd/system/eos5.service
 %{_sbindir}/eos_start_pre.sh
@@ -492,9 +487,6 @@ The EOS shell client.
 %defattr(-, root, root, -)
 %{_bindir}/eos
 %{_bindir}/eoscp
-%{_libdir}/libXrdMqClient.so.%{version}
-%{_libdir}/libXrdMqClient.so.%{major_version}
-%{_libdir}/libXrdMqClient.so
 %{_libdir}/libEosCommon.so.%{version}
 %{_libdir}/libEosCommon.so.%{major_version}
 %{_libdir}/libEosCommon.so
@@ -837,14 +829,11 @@ Contains an instance and fuse test script and some test executables and test arc
 
 %files -n eos-test
 %defattr(-, root, root, -)
-%{_bindir}/eos-mq-dumper
-%{_bindir}/eos-mq-feeder
 %{_bindir}/eos-grpc-ping
 %{_bindir}/eos-grpc-md
 %{_bindir}/eos-grpc-ns
 %{_bindir}/eos-grpc-insert
 %{_bindir}/eos-shared-hash-test
-%{_sbindir}/eos-mq-tests
 %{_sbindir}/eos-instance-test
 %{_sbindir}/eos-instance-test-ci
 %{_sbindir}/eos-accounting-test

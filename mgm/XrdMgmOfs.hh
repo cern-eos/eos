@@ -107,7 +107,6 @@
 #include "common/XrdConnPool.hh"
 #include "common/MutexLatencyWatcher.hh"
 #include "common/Audit.hh"
-#include "mq/XrdMqMessaging.hh"
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
@@ -1777,11 +1776,6 @@ public:
   void WaitUntilNamespaceIsBooted(ThreadAssistant& assistant);
 
   //----------------------------------------------------------------------------
-  //! Set up global config
-  //----------------------------------------------------------------------------
-  void SetupGlobalConfig();
-
-  //----------------------------------------------------------------------------
   // Configuration variables
   //----------------------------------------------------------------------------
   char* ConfigFN; ///< name of the configuration file
@@ -1791,7 +1785,6 @@ public:
   XrdOucString MgmOfsBrokerUrl; ///< Url of the message broker with MGM subject
   XrdOucString MgmArchiveDstUrl; ////< URL where all archives are saved
   XrdOucString MgmArchiveSvcClass; ////< CASTOR svcClass for archive transfers
-  Messaging* mMgmMessaging; ///< messaging interface class
   //! Queue where we are sending to by default
   XrdOucString MgmDefaultReceiverQueue;
   XrdOucString MgmOfsName; ///< mount point of the filesystem
@@ -2123,10 +2116,6 @@ public:
   //! Global Attrbute Map Space=>map(key,val)
   std::mutex mSpaceAttributesMutex; ///< Mutex protecting space attributes
   std::map<std::string, std::map<std::string, std::string>> mSpaceAttributes;
-
-  XrdMqSharedObjectManager ObjectManager; ///< Shared Hash/Queue ObjectManager
-  //! Shared Hash/Queue Object Change Notifier
-  XrdMqSharedObjectChangeNotifier ObjectNotifier;
 
   std::unique_ptr<eos::mq::MessagingRealm> mMessagingRealm;
   Drainer mDrainEngine; ///< Draining engine

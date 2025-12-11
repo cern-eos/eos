@@ -28,6 +28,7 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
 #include "namespace/interface/IView.hh"
+#include <regex.h>
 #include <thread>
 #include <string>
 #include <cstdlib>

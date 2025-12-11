@@ -24,48 +24,19 @@
 #include <qclient/QClient.hh>
 #include <qclient/shared/SharedManager.hh>
 #include <qclient/ResponseParsing.hh>
-
-#include "mq/MessagingRealm.hh"
-#include "mq/XrdMqMessage.hh"
-#include "mq/XrdMqClient.hh"
-#include "mq/FsChangeListener.hh"
-#include "mq/XrdMqSharedObject.hh"
+#include "common/Logging.hh"
+#include "common/mq/MessagingRealm.hh"
+#include "common/mq/FsChangeListener.hh"
 
 EOSMQNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-// Initialize legacy-MQ-based messaging realm.
+// Constructor
 //------------------------------------------------------------------------------
-MessagingRealm::MessagingRealm(XrdMqSharedObjectManager* som,
-                               XrdMqSharedObjectChangeNotifier* notif, XrdMqClient* mqcl,
-                               qclient::SharedManager* qsom)
+MessagingRealm::MessagingRealm(qclient::SharedManager* qsom)
 
-  : mSom(som), mNotifier(notif), mMessageClient(mqcl), mQSom(qsom),
-    mHashProvider(qsom), mDequeProvider(qsom) {}
-
-//------------------------------------------------------------------------------
-// Is this a QDB realm?
-//------------------------------------------------------------------------------
-bool MessagingRealm::haveQDB() const
-{
-  return mQSom != nullptr;
-}
-
-//------------------------------------------------------------------------------
-// Get som
-//------------------------------------------------------------------------------
-XrdMqSharedObjectManager* MessagingRealm::getSom() const
-{
-  return mSom;
-}
-
-//------------------------------------------------------------------------------
-// Get legacy change notifier
-//------------------------------------------------------------------------------
-XrdMqSharedObjectChangeNotifier* MessagingRealm::getChangeNotifier() const
-{
-  return mNotifier;
-}
+  : mQSom(qsom), mHashProvider(qsom), mDequeProvider(qsom)
+{}
 
 //------------------------------------------------------------------------------
 // Get qclient shared manager
@@ -100,30 +71,14 @@ MessagingRealm::sendMessage(const std::string& descr,
                             const std::string& receiver, bool is_monitor)
 {
   Response resp;
+  // The reply to publish is the number of subscribers that receive the msg
+  qclient::redisReplyPtr reply = mQSom->getQClient()->exec("PUBLISH", receiver,
+                                 payload).get();
 
-  if (haveQDB()) {
-    // The reply to publish is the number of subscribers that receive the msg
-    qclient::redisReplyPtr reply = mQSom->getQClient()->exec("PUBLISH", receiver,
-                                   payload).get();
-
-    if (reply->type == REDIS_REPLY_INTEGER) {
-      resp.status = (reply->integer == 0 ? 1 : 0);
-    } else {
-      resp.status = 1;
-    }
+  if (reply->type == REDIS_REPLY_INTEGER) {
+    resp.status = (reply->integer == 0 ? 1 : 0);
   } else {
-    XrdMqMessage message(descr.c_str());
-    message.SetBody(payload.c_str());
-
-    if (is_monitor) {
-      message.MarkAsMonitor();
-    }
-
-    if (mMessageClient->SendMessage(message, receiver.c_str())) {
-      resp.status = 0;
-    } else {
-      resp.status = 1;
-    }
+    resp.status = 1;
   }
 
   return resp;
@@ -134,10 +89,6 @@ MessagingRealm::sendMessage(const std::string& descr,
 //------------------------------------------------------------------------------
 bool MessagingRealm::setInstanceName(const std::string& name)
 {
-  if (!haveQDB()) {
-    return true;
-  }
-
   qclient::QClient* qcl = mQSom->getQClient();
   qclient::redisReplyPtr reply = qcl->exec("SET", "eos-instance-name",
                                  name).get();
@@ -163,10 +114,6 @@ bool MessagingRealm::setInstanceName(const std::string& name)
 //------------------------------------------------------------------------------
 bool MessagingRealm::getInstanceName(std::string& name)
 {
-  if (!haveQDB()) {
-    return false;
-  }
-
   qclient::QClient* qcl = mQSom->getQClient();
   qclient::redisReplyPtr reply = qcl->exec("GET", "eos-instance-name").get();
   qclient::StringParser parser(reply);
@@ -238,10 +185,6 @@ void
 MessagingRealm::EnableBroadcast()
 {
   mBroadcast = true;
-
-  if (!haveQDB() && mSom) {
-    mSom->EnableBroadCast(true);
-  }
 }
 
 //------------------------------------------------------------------------------
@@ -251,10 +194,6 @@ void
 MessagingRealm::DisableBroadcast()
 {
   mBroadcast = false;
-
-  if (!haveQDB() && mSom) {
-    mSom->EnableBroadCast(false);
-  }
 }
 
 EOSMQNAMESPACE_END

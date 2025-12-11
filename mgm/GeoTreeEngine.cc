@@ -1403,6 +1403,7 @@ GeoTreeEngine::placeNewReplicasOneGroup(FsGroup* group,
     auto rc = accessProxyFirewall(newReplicasIdx, entries,
                                   inode, dataProxys, firewallEntryPoint,
                                   clientGeoTag);
+
     if (rc != 0) {
       success = false;
     }
@@ -1976,7 +1977,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
         // if the box is unsaturated, give an advantage to this FS
         if (retCode == 2) {
           geoScore += 100;
-          eos_debug("%s","found unsaturated fs");
+          eos_debug("%s", "found unsaturated fs");
         }
 
         geoScore2Fs[geoScore].push_back(
@@ -1990,14 +1991,16 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
       // return the corresponding index
       for (it = existingReplicas.cbegin(); it != existingReplicas.cend(); it++) {
         if (*it == selectedFsId) {
-          fsIndex = static_cast<unsigned long>(std::distance(existingReplicas.cbegin(), it));
+          fsIndex = static_cast<unsigned long>(std::distance(existingReplicas.cbegin(),
+                                               it));
           break;
         }
       }
 
       // check we found it
       if (it == existingReplicas.cend()) {
-        eos_err("%s","inconsistency : unable to find the selected fs but it should be there");
+        eos_err("%s",
+                "inconsistency : unable to find the selected fs but it should be there");
         returnCode = EIO;
         goto cleanup;
       }
@@ -2008,7 +2011,7 @@ int GeoTreeEngine::accessHeadReplicaMultipleGroup(size_t nAccessReplicas,
       buffer[0] = 0;
       char* buf = buffer;
 
-      for (const auto& it: existingReplicas) {
+      for (const auto& it : existingReplicas) {
         buf += sprintf(buf, "%u  ", it);
       }
 
@@ -2088,12 +2091,13 @@ cleanup:
   return returnCode;
 }
 
-int GeoTreeEngine::accessProxyFirewall(const std::vector<SchedTreeBase::tFastTreeIdx> &ERIdx,
-                                       const std::vector<SchedTME *> &entries,
+int GeoTreeEngine::accessProxyFirewall(const
+                                       std::vector<SchedTreeBase::tFastTreeIdx>& ERIdx,
+                                       const std::vector<SchedTME*>& entries,
                                        ino64_t inode,
-                                       std::vector<std::string> *dataProxys,
-                                       std::vector<std::string> *firewallEntryPoint,
-                                       const std::string &accesserGeotag)
+                                       std::vector<std::string>* dataProxys,
+                                       std::vector<std::string>* firewallEntryPoint,
+                                       const std::string& accesserGeotag)
 {
   if (!dataProxys && !firewallEntryPoint) {
     return 0;
@@ -2115,6 +2119,7 @@ int GeoTreeEngine::accessProxyFirewall(const std::vector<SchedTreeBase::tFastTre
     if (pAccessGeotagMapping.inuse && pAccessProxygroup.inuse)
       for (size_t i = 0; i < ERIdx.size(); i++) {
         const auto& tree_Info = (*entries[i]->foregroundFastStruct->treeInfo)[ERIdx[i]];
+
         if (accesserGeotag.empty() ||
             accessReqFwEP(tree_Info.fullGeotag,
                           accesserGeotag)) {
@@ -2161,14 +2166,7 @@ void GeoTreeEngine::listenFsChange(ThreadAssistant& assistant)
 {
   gUpdaterStarted = true;
   ThreadAssistant::setSelfThreadName(FS_LISTENER_THREAD_NAME);
-
-  if (!mFsListener->startListening()) {
-    eos_crit("%s", "msg=\"failed starting shared object change notifications "
-             "listener\"");
-  } else {
-    eos_info("%s", "msg=\"started GeoTreeEngine change listener\"");
-  }
-
+  eos_info("%s", "msg=\"started GeoTreeEngine change listener\"");
   std::chrono::seconds timeout {1};
   mq::FsChangeListener::Event event;
   // Counter to check regularly if the collection stopwatch has expired,

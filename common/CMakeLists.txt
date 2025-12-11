@@ -262,7 +262,15 @@ if (NOT CLIENT AND Linux)
     http/HttpRequest.cc
     http/HttpResponse.cc
     http/s3/S3Handler.cc
-    stringencoders/modp_numtoa.c)
+    stringencoders/modp_numtoa.c
+    mq/QdbListener.cc                 mq/QdbListener.hh
+    mq/FsChangeListener.cc            mq/FsChangeListener.hh
+    mq/GlobalConfigChangeListener.cc  mq/GlobalConfigChangeListener.hh
+    mq/MessagingRealm.cc              mq/MessagingRealm.hh
+    mq/SharedDequeProvider.cc         mq/SharedDequeProvider.hh
+    mq/SharedHashProvider.cc          mq/SharedHashProvider.hh
+    mq/SharedHashWrapper.cc           mq/SharedHashWrapper.hh
+    mq/LocalHash.cc                   mq/LocalHash.hh)
 
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
@@ -270,8 +278,7 @@ if (NOT CLIENT AND Linux)
     XROOTD::UTILS
     EosCliProto-Objects
     ActiveMQCPP::ActiveMQCPP
-    GRPC::grpc++
-  )
+    GRPC::grpc++)
 
   target_compile_definitions(EosCommonServer-Objects PUBLIC
     -DSQLITE_NO_SYNC=1)
@@ -287,7 +294,7 @@ if (NOT CLIENT AND Linux)
     XrdSsiPbEosCta-Objects
     EosCliProto-Objects
     EosGrpcProto-Objects
-    XrdMqClient)
+    EosCommon)
 
   target_compile_definitions(EosCommonServer PUBLIC
     -DSQLITE_NO_SYNC=1)
@@ -303,8 +310,8 @@ if (NOT CLIENT AND Linux)
   target_link_libraries(EosCommonServer-Static PUBLIC
     EosCommonServer-Objects
     XrdSsiPbEosCta-Objects
-    XrdMqClient-Static
-    qclient)
+    qclient
+    EosCommon-Static)
 
   target_compile_definitions(EosCommonServer-Static PUBLIC
     -DSQLITE_NO_SYNC=1)

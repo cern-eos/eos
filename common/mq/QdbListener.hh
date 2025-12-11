@@ -1,11 +1,11 @@
-// ----------------------------------------------------------------------
-// File: ErrorReportListener.hh
-// Author: Georgios Bitzes - CERN
-// ----------------------------------------------------------------------
+//------------------------------------------------------------------------------
+// File: QdbListener.hh
+// Author: Elvin Sindrilaru - CERN
+//------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2019 CERN/Switzerland                                  *
+ * Copyright (C) 2023 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -22,37 +22,72 @@
  ************************************************************************/
 
 #pragma once
-#include "mq/Namespace.hh"
-#include "mq/XrdMqClient.hh"
+#include "common/mq/Namespace.hh"
+#include "qclient/pubsub/Subscriber.hh"
+#include <list>
+#include <string>
+#include <mutex>
+#include <condition_variable>
 
+//! Forward declarations
 class ThreadAssistant;
+
+namespace eos
+{
+class QdbContactDetails;
+}
+
+namespace qclient
+{
+class QClient;
+class Message;
+class Subscriber;
+class Subscription;
+}
 
 EOSMQNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Helper class for listening to error report messages.
+//! Helper class for listening to error report messages sent through QDB
 //------------------------------------------------------------------------------
-class ErrorReportListener
+class QdbListener
 {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
+  //!
+  //! @param qdb details QDB contact details
+  //! @param channel subscription channel for receiving messages
   //----------------------------------------------------------------------------
-  ErrorReportListener(const std::string& serveruri, const std::string& hostname);
+  QdbListener(eos::QdbContactDetails& qdb_details, const std::string& channel);
 
   //----------------------------------------------------------------------------
   //! Destructor
   //----------------------------------------------------------------------------
-  ~ErrorReportListener() = default;
+  ~QdbListener();
 
   //----------------------------------------------------------------------------
   //! Fetch error report
+  //!
+  //! @param out recived message
+  //! @oaram assistant thread running method
   //----------------------------------------------------------------------------
   bool fetch(std::string& out, ThreadAssistant* assistant = nullptr);
 
 private:
-  XrdMqClient mClient;
+  qclient::Subscriber mSubscriber; ///< Subscriber to notifications
+  //! Subscription to channel
+  std::unique_ptr<qclient::Subscription> mSubscription;
+  std::mutex mMutex;
+  std::condition_variable mCv;
+  std::list<qclient::Message> mPendingUpdates;
+
+  //----------------------------------------------------------------------------
+  //! Callback to process message
+  //!
+  //! @param msg subscription message
+  //----------------------------------------------------------------------------
+  void ProcessUpdateCb(qclient::Message&& msg);
 };
 
 EOSMQNAMESPACE_END
-

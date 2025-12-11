@@ -27,7 +27,6 @@
 #include "mgm/Stat.hh"
 #include "mgm/FsView.hh"
 #include "mgm/XrdMgmOfs.hh"
-#include "mq/XrdMqSharedObject.hh"
 #include "mgm/Quota.hh"
 #include <XrdOuc/XrdOucString.hh>
 
@@ -35,12 +34,12 @@ EOSMGMNAMESPACE_BEGIN
 
 /*----------------------------------------------------------------------------*/
 void
-Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val, const std::string app)
+Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val,
+          const std::string app)
 {
   XrdSysMutexHelper lock(mMutex);
   StatsUid[tag][uid] += val;
   StatsGid[tag][gid] += val;
-
   StatAvgUid[tag][uid].Add(val);
   StatAvgGid[tag][gid].Add(val);
 
@@ -53,11 +52,13 @@ Stat::Add(const char* tag, uid_t uid, gid_t gid, unsigned long val, const std::s
 /*----------------------------------------------------------------------------*/
 void
 Stat::AddExt(const char* tag, uid_t uid, gid_t gid, unsigned long nsample,
-             const double& avgv, const double& minv, const double& maxv, const std::string app)
+             const double& avgv, const double& minv, const double& maxv,
+             const std::string app)
 {
   XrdSysMutexHelper lock(mMutex);
   StatExtUid[tag][uid].Insert(nsample, avgv, minv, maxv);
   StatExtGid[tag][gid].Insert(nsample, avgv, minv, maxv);
+
   if (!app.empty()) {
     StatExtApp[tag][app].Insert(nsample, avgv, minv, maxv);
   }
@@ -676,10 +677,10 @@ void
 Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
                     bool numerical, bool apps)
 {
-
   if (apps) {
     details = true;
   }
+
   mMutex.Lock();
   std::vector<std::string> tags, tags_ext;
   std::vector<std::string>::iterator it;
@@ -902,7 +903,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     std::set<uid_t> set_uids;
     std::set<gid_t> set_gids;
     std::set<std::string> set_apps;
-    
+
     for (auto tuit = StatAvgUid.begin(); tuit != StatAvgUid.end(); tuit++) {
       for (auto it = tuit->second.begin(); it != tuit->second.end(); ++it) {
         set_uids.insert(it->first);
@@ -928,7 +929,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         set_gids.insert(it->first);
       }
     }
-    
+
     for (auto tgit = StatAvgApp.begin(); tgit != StatAvgApp.end(); tgit++) {
       for (auto it = tgit->second.begin(); it != tgit->second.end(); ++it) {
         set_apps.insert(it->first);
@@ -1036,7 +1037,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       }
     }
 
-    //! Group statistic   
+    //! Group statistic
     TableFormatterBase table_group;
 
     if (!monitoring) {
@@ -1044,7 +1045,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         std::make_tuple("group", 5, format_ss),
         std::make_tuple("command", 24, format_cmd),
         std::make_tuple("sum", 8, format_l),
-        std::make_tuple("5s", 8, format_f),       
+        std::make_tuple("5s", 8, format_f),
         std::make_tuple("1min", 8, format_f),
         std::make_tuple("5min", 8, format_f),
         std::make_tuple("1h", 8, format_f)
@@ -1106,7 +1107,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
       }
     }
 
-    //! App statistic-   
+    //! App statistic-
     TableFormatterBase table_app;
 
     if (!monitoring) {
@@ -1114,7 +1115,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
         std::make_tuple("fuse-app", 5, format_ss),
         std::make_tuple("command", 24, format_cmd),
         std::make_tuple("sum", 8, format_l),
-        std::make_tuple("5s", 8, format_f),        
+        std::make_tuple("5s", 8, format_f),
         std::make_tuple("1min", 8, format_f),
         std::make_tuple("5min", 8, format_f),
         std::make_tuple("1h", 8, format_f)
@@ -1134,9 +1135,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
     for (auto tapp = StatAvgApp.begin(); tapp != StatAvgApp.end(); tapp++) {
       for (auto it = tapp->second.begin(); it != tapp->second.end(); ++it) {
         std::string appname;
-
         appname = it->first;
-
         table_data.push_back(std::make_tuple(2, appname, tapp->first.c_str(),
                                              StatsApp[tapp->first.c_str()][it->first],
                                              it->second.GetAvg5(), it->second.GetAvg60(),
@@ -1148,9 +1147,7 @@ Stat::PrintOutTotal(XrdOucString& out, bool details, bool monitoring,
          tapp_ext++) {
       for (auto it = tapp_ext->second.begin(); it != tapp_ext->second.end(); ++it) {
         std::string appname;
-
         appname = it->first;
-
         table_data_ext.push_back(std::make_tuple(
                                    2, appname, tapp_ext->first.c_str(),
                                    it->second.GetN5(), it->second.GetAvg5(),
@@ -1301,10 +1298,6 @@ void
 Stat::Circulate(ThreadAssistant& assistant) noexcept
 {
   ThreadAssistant::setSelfThreadName("StatCirculate");
-  unsigned long long l1 = 0;
-  unsigned long long l2 = 0;
-  unsigned long long l3 = 0;
-  unsigned long long l1tmp, l2tmp, l3tmp;
 #ifdef EOS_INSTRUMENTED_RWMUTEX
   unsigned long long qu1 = 0;
   unsigned long long qu2 = 0;
@@ -1323,11 +1316,6 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::milliseconds(512));
     chrononow = std::chrono::system_clock::now();
-    // --------------------------------------------
-    // mq statistics extraction
-    l1tmp = XrdMqSharedHash::sSetCounter.load();
-    l2tmp = XrdMqSharedHash::sSetNLCounter.load();
-    l3tmp = XrdMqSharedHash::sGetCounter.load();
 #ifdef EOS_INSTRUMENTED_RWMUTEX
     eos::common::RWMutex* fs_mtx = &FsView::gFsView.ViewMutex;
     eos::common::RWMutex* quota_mtx = &Quota::pMapMutex;
@@ -1347,11 +1335,6 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
     qu2tmp = quota_mtx->GetWriteLockCounter();
     quota_mtx->GetTimingStatistics(qu12stmp);
     quota_mtx->ResetTimingStatistics();
-#endif
-    Add("HashSet", 0, 0, l1tmp - l1);
-    Add("HashSetNoLock", 0, 0, l2tmp - l2);
-    Add("HashGet", 0, 0, l3tmp - l3);
-#ifdef EOS_INSTRUMENTED_RWMUTEX
     Add("ViewLockR", 0, 0, view1tmp - view1);
     Add("ViewLockW", 0, 0, view2tmp - view2);
     Add("NsLockR", 0, 0, ns1tmp - ns1);
@@ -1383,9 +1366,6 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
     Add("NsLeadR", 0, 0, ns_mtx->GetReadLockLeadTime() / elapsed.count());
     Add("NsLeadW", 0, 0, ns_mtx->GetWriteLockLeadTime() / elapsed.count());
 #endif
-    l1 = l1tmp;
-    l2 = l2tmp;
-    l3 = l3tmp;
     XrdSysMutexHelper lock(mMutex);
     time_t now = time(NULL);
 
@@ -1403,7 +1383,7 @@ Stat::Circulate(ThreadAssistant& assistant) noexcept
         it->second.StampZero(now);
       }
     }
-    
+
     for (auto tit = StatAvgApp.begin(); tit != StatAvgApp.end(); ++tit) {
       // loop over vids
       for (auto it = tit->second.begin(); it != tit->second.end(); ++it) {

@@ -31,8 +31,6 @@
 #include "common/Logging.hh"
 #include "common/XrdConnPool.hh"
 #include "common/ThreadPool.hh"
-#include "mq/XrdMqMessaging.hh"
-#include "mq/XrdMqSharedObject.hh"
 #include "mq/MessagingRealm.hh"
 #include <XrdOfs/XrdOfs.hh>
 #include <XrdOfs/XrdOfsTrace.hh>
@@ -76,7 +74,6 @@ class ReplicaParLayout;
 class RainMetaLayout;
 class HttpServer;
 class Storage;
-class Messaging;
 class XrdFstOfsFile;
 class FmdHandler;
 
@@ -375,11 +372,6 @@ public:
   void SetSimulationError(const std::string& tag);
 
   //----------------------------------------------------------------------------
-  //! Request broadcasts from all the registered queues
-  //----------------------------------------------------------------------------
-  void RequestBroadcasts();
-
-  //----------------------------------------------------------------------------
   //! Get node geotag (each token needs to be less then 8 characters)
   //!
   //! @return geotag value
@@ -406,7 +398,6 @@ public:
                                  bool viamq = true);
 
   XrdSysError* Eroute;
-  eos::fst::Messaging* mFstMessaging; ///< messaging interface class
   eos::fst::Storage* Storage; ///< Meta data & filesystem store object
   mutable XrdSysMutex OpenFidMutex;
 
@@ -431,9 +422,6 @@ public:
   //! Queue where log error are stored and picked up by a thread running in Storage
   std::mutex WrittenFilesQueueMutex;
   std::queue<eos::common::FmdHelper> WrittenFilesQueue;
-  XrdMqSharedObjectManager ObjectManager; ///< Managing shared objects
-  //! Notifying any shared object changes
-  XrdMqSharedObjectChangeNotifier ObjectNotifier;
   std::unique_ptr<mq::MessagingRealm> mMessagingRealm;
   XrdScheduler* TransferScheduler; ///< TransferScheduler
   XrdSysMutex TransferSchedulerMutex; ///< protecting the TransferScheduler
@@ -441,7 +429,6 @@ public:
   const char* mHostName; ///< FST hostname
   QdbContactDetails mQdbContactDetails; ///< QDB contact details
   std::shared_ptr<qclient::QClient> mQcl; ///< Qclient
-  bool mMqOnQdb; ///< Are we using QDB as an MQ?
   int mHttpdPort; ///< listening port of the http server
   //! Embedded http server if available
   std::unique_ptr<eos::fst::HttpServer> mHttpd;

@@ -296,7 +296,6 @@ private:
   std::list< std::unique_ptr<Deletion> > mListDeletions; ///< List of deletions
   Load mFstLoad; ///< Net/IO load monitor
   Health mFstHealth; ///< Local disk S.M.A.R.T monitor
-  AssistedThread mCommunicatorThread;
   AssistedThread mQdbCommunicatorThread;
   std::set<std::string> mLastRoundFilesystems;
   AssistedThread mPublisherThread; ///< Thread publishing FST/FS info
@@ -403,11 +402,6 @@ private:
   //! Worker threads implementation
   //----------------------------------------------------------------------------
   void Supervisor();
-
-  //----------------------------------------------------------------------------
-  //! Communicator used for processing updates coming through MQ
-  //----------------------------------------------------------------------------
-  void Communicator(ThreadAssistant& assistant) noexcept;
 
   //----------------------------------------------------------------------------
   //! Communicator used for processing updates coming through QDB

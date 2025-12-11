@@ -43,19 +43,16 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
 {
   eos_static_info("msg=\"create file system\" queue_path=%s",
                   locator.getQueuePath().c_str());
+  // Register with FsChangeListeners interested in key updates related
+  // to this file system object
+  RegisterWithExistingListeners();
+  // Subscribe to the underlying SharedHash object to get updates
+  mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
 
-  if (mRealm->haveQDB()) {
-    // Register with FsChangeListeners interested in key updates related
-    // to this file system object
-    RegisterWithExistingListeners();
-    // Subscribe to the underlying SharedHash object to get updates
-    mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
-
-    if (mSubscription) {
-      using namespace std::placeholders;
-      mSubscription->attachCallback(std::bind(&FileSystem::ProcessUpdateCb,
-                                              this, _1));
-    }
+  if (mSubscription) {
+    using namespace std::placeholders;
+    mSubscription->attachCallback(std::bind(&FileSystem::ProcessUpdateCb,
+                                            this, _1));
   }
 }
 

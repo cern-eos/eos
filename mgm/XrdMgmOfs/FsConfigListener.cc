@@ -187,11 +187,6 @@ void XrdMgmOfs::FileSystemMonitorThread(ThreadAssistant& assistant) noexcept
 
   FsView::gFsView.AddFsChangeListener(fs_listener, interests);
 
-  if (!fs_listener->startListening()) {
-    eos_static_crit("%s", "msg=\"unspecified problem when attempting to "
-                    "subscribe to filesystem key changes\"");
-  }
-
   while (!assistant.terminationRequested()) {
     eos::mq::FsChangeListener::Event event;
 
