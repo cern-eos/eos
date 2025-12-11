@@ -244,20 +244,6 @@ EOS_MGM_AUDIT=off
 # MGM
 EOS_MGM_HTTP_PORT=8000
 
-# HTTP uses by default one thread per connection
-# EOS_HTTP_THREADPOOL=threads
-
-# Use EPOLL and 16 threads
-EOS_HTTP_THREADPOOL=epoll
-EOS_HTTP_THREADPOOL_SIZE=16
-
-# Memory buffer size per connection
-# EOS_HTTP_CONNECTION_MEMORY_LIMIT=134217728 (default 128M)
-EOS_HTTP_CONNECTION_MEMORY_LIMIT=4194304
-
-# Timeout after which an idle connection is considered to be closed (default 2 min)
-# EOS_HTTP_CONNECTION_TIMEOUT=120
-
 #-------------------------------------------------------------------------------
 # FUSEX Configuration
 #-------------------------------------------------------------------------------
