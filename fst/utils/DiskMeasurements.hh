@@ -56,6 +56,24 @@ bool FillFileGivenSize(int fd, uint64_t length);
 std::string MakeTemporaryFile(std::string base_path);
 
 //------------------------------------------------------------------------------
+//! Get block device for a given path
+//!
+//! @param path input path
+//!
+//! @return device path if found, otherwise empty string
+//------------------------------------------------------------------------------
+std::string GetDevicePath(const std::string& path);
+
+//------------------------------------------------------------------------------
+//! Get file/device size
+//!
+//! @param fd file descriptor
+//!
+//! @return size of the file or device
+//------------------------------------------------------------------------------
+uint64_t GetBlkSize(int fd);
+
+//------------------------------------------------------------------------------
 //! Get IOPS measurement using the given file descriptor
 //!
 //! @param fd file descriptor with flags O_RDRW | O_TRUNC | O_DIRECT | O_SYNC

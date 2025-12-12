@@ -28,7 +28,12 @@
 #include <chrono>
 #include <random>
 #include <sys/stat.h>
+#include <sys/sysmacros.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <cstring>
+#include <sys/ioctl.h>
+#include <linux/fs.h>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -100,6 +105,106 @@ std::string MakeTemporaryFile(std::string base_path)
 }
 
 //------------------------------------------------------------------------------
+// Get block device for a given path
+//------------------------------------------------------------------------------
+std::string GetDevicePath(const std::string& path)
+{
+  struct stat st;
+
+  if (stat(path.c_str(), &st)) {
+    return "";
+  }
+
+  dev_t dev = st.st_dev;
+  FILE* file = fopen("/proc/self/mountinfo", "r");
+
+  if (!file) {
+    file = fopen("/proc/mounts", "r");
+  }
+
+  if (!file) {
+    return "";
+  }
+
+  char* line = NULL;
+  size_t len = 0;
+  unsigned int major, minor;
+  std::string device_path;
+
+  while (getline(&line, &len, file) != -1) {
+    // Try parsing mountinfo format first: "id parent major:minor ..."
+    // If not, it might be /proc/mounts format, but /proc/self/mountinfo is standard on modern linux
+    // Scan for major:minor
+    int num_scanned = sscanf(line, "%*d %*d %u:%u", &major, &minor);
+
+    if (num_scanned == 2) {
+      if (makedev(major, minor) == dev) {
+        // Found it in mountinfo format
+        // The device is usually the field after " - "
+        // Format: ... - <fstype> <device> <options>
+        char* sep = strstr(line, " - ");
+
+        if (sep) {
+          char* fstype = strtok(sep + 3, " ");
+          char* dev_str = strtok(NULL, " ");
+          (void) fstype;
+
+          if (dev_str) {
+            device_path = dev_str;
+            break;
+          }
+        }
+      }
+    } else {
+      // Fallback for simple /proc/mounts format: <device> <mountpoint> ...
+      // We need to stat the mountpoint to see if it matches our dev
+      char dev_str[1024];
+      char mount_str[1024];
+
+      if (sscanf(line, "%1023s %1023s", dev_str, mount_str) == 2) {
+        struct stat mp_st;
+
+        if (stat(mount_str, &mp_st) == 0) {
+          if (mp_st.st_dev == dev) {
+            // This mountpoint corresponds to our device
+            // But wait, st_dev of a file IS the device ID of the filesystem it is on.
+            // So if st_dev matches mp_st.st_dev, then dev_str is likely our device.
+            device_path = dev_str;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  free(line);
+  fclose(file);
+  return device_path;
+}
+
+//------------------------------------------------------------------------------
+// Get file/device size
+//------------------------------------------------------------------------------
+uint64_t GetBlkSize(int fd)
+{
+  struct stat st;
+
+  if (fstat(fd, &st)) {
+    return 0;
+  }
+
+  if (S_ISBLK(st.st_mode)) {
+    uint64_t size = 0;
+
+    if (ioctl(fd, BLKGETSIZE64, &size) == 0) {
+      return size;
+    }
+  }
+
+  return st.st_size;
+}
+
+//------------------------------------------------------------------------------
 // Get IOPS measurement for the given path
 //------------------------------------------------------------------------------
 int ComputeIops(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
@@ -107,16 +212,14 @@ int ComputeIops(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
   using namespace eos::common;
   using namespace std::chrono;
   int IOPS = -1;
-  // Get file size
-  struct stat info;
+  uint64_t fn_size = GetBlkSize(fd);
 
-  if (fstat(fd, &info)) {
-    std::cerr << "err: failed to stat file fd=" << fd << std::endl;
-    eos_static_err("msg=\"failed to stat file\" fd=%i", fd);
+  if (fn_size == 0) {
+    std::cerr << "err: failed to get file size fd=" << fd << std::endl;
+    eos_static_err("msg=\"failed to get file size\" fd=%i", fd);
     return IOPS;
   }
 
-  uint64_t fn_size = info.st_size;
   auto buf = GetAlignedBuffer(rd_buf_size);
   // Get a uniform int distribution for offset generation
   std::random_device rd;
@@ -161,23 +264,39 @@ int ComputeBandwidth(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
   using namespace eos::common;
   using namespace std::chrono;
   int bandwidth = -1;
-  // Get file size
-  struct stat info;
+  uint64_t fn_size = GetBlkSize(fd);
 
-  if (fstat(fd, &info)) {
-    std::cerr << "err: failed to stat file fd=" << fd << std::endl;
-    eos_static_err("msg=\"failed to stat file\" fd=%i", fd);
+  if (fn_size == 0) {
+    std::cerr << "err: failed to get file size fd=" << fd << std::endl;
+    eos_static_err("msg=\"failed to get file size\" fd=%i", fd);
     return bandwidth;
   }
 
-  uint64_t fn_size = info.st_size;
   auto buf = GetAlignedBuffer(rd_buf_size);
-  uint64_t offset = 0ull;
   uint64_t max_read = 1 << 28; // 256 MB
+  // Randomize start offset if file is large enough
+  uint64_t offset = 0;
+
+  if (fn_size > max_read) {
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    // Align to rd_buf_size (4MB)
+    uint64_t max_blocks = (fn_size - max_read) / rd_buf_size;
+    std::uniform_int_distribution<uint64_t> distrib(0, max_blocks);
+    offset = distrib(gen) * rd_buf_size;
+  }
+
+  uint64_t start_offset = offset;
+  uint64_t end_offset = offset + max_read;
+
+  if (end_offset > fn_size) {
+    end_offset = fn_size;
+  }
+
   time_point<high_resolution_clock> start, end;
   start = high_resolution_clock::now();
 
-  while ((offset < fn_size)  && (offset < max_read)) {
+  while (offset < end_offset) {
     if (pread(fd, buf.get(), rd_buf_size, offset) == -1) {
       std::cerr << "error: failed to read at offset=" << offset << std::endl;
       eos_static_err("msg=\"failed read\" offset=%llu", offset);
@@ -195,7 +314,7 @@ int ComputeBandwidth(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
 
   end = high_resolution_clock::now();
   auto duration = duration_cast<microseconds> (end - start).count();
-  bandwidth = ((offset >> 20) * 1000000.0) / duration;
+  bandwidth = (((offset - start_offset) >> 20) * 1000000.0) / duration;
   return bandwidth;
 }
 
