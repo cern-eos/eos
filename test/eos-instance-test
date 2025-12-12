@@ -1926,6 +1926,8 @@ runtest "### Check     " unix 0 "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .l
 # Find a new file system where to over-replicate the current file
 list_fsids=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid)
 array_fsids=($list_fsids)
+# Avoid the file system where we dropped the first replica
+array_fsids+=${adj_fsid}
 source_fsid=${array_fsids[0]}
 target_fsid=0
 NUM_FST=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
