@@ -26,6 +26,8 @@
 #include <chrono>
 #include <iostream>
 #include <fcntl.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 //------------------------------------------------------------------------------
 // Main
@@ -37,47 +39,32 @@ int main(int argc, char** argv)
     return -1;
   }
 
-  std::string base_path = argv[1];
-  auto start = std::chrono::system_clock::now();
-  uint64_t fn_size = 1 << 30; // 1 GB
-  // Create temporary file name given the base path
-  const std::string fn_path = eos::fst::MakeTemporaryFile(base_path);
+  std::string input_path = argv[1];
+  std::string device_path = eos::fst::GetDevicePath(input_path);
+  std::string measure_path = device_path.empty() ? input_path : device_path;
 
-  if (fn_path.empty()) {
-    std::cerr << "err: failed to create tmp file" << std::endl;
-    eos_static_err("msg=\"failed to create tmp file\" base_path=%s",
-                   base_path.c_str());
-    return -1;
+  if (device_path.empty()) {
+    std::cerr << "warning: could not resolve block device for " << input_path <<
+              ", using path as is." << std::endl;
+  } else {
+    std::cout << "info: resolved " << input_path << " to device " << device_path <<
+              std::endl;
   }
 
   // Open the file for direct access
-  int fd = open(fn_path.c_str(), O_RDWR | O_TRUNC | O_DIRECT | O_SYNC);
+  int fd = open(measure_path.c_str(), O_RDONLY | O_DIRECT);
 
   if (fd == -1) {
-    std::cerr << "err: failed to create tmp file" << std::endl;
-    eos_static_err("msg=\"failed to open file\" path=%s", fn_path.c_str());
+    std::cerr << "err: failed to open file/device " << measure_path << std::endl;
+    eos_static_err("msg=\"failed to open file/device\" path=%s",
+                   measure_path.c_str());
     return -1;
   }
 
-  // Unlink the file so that we don't leave any behind even in the case of
-  // a crash of the FST. The file descritor will still be valid for use.
-  (void) unlink(fn_path.c_str());
-
-  // Fill the file up to the given size with random data
-  if (!eos::fst::FillFileGivenSize(fd, fn_size)) {
-    std::cerr << "err: failed to fill file" << std::endl;
-    eos_static_err("msg=\"failed to fill file\" path=%s", fn_path.c_str());
-    return -1;
-  }
-
-  auto end = std::chrono::system_clock::now();
-  auto duration = std::chrono::duration_cast<std::chrono::milliseconds>
-                  (end - start).count();
-  std::cout << "File generation took: " << duration << " ms" << std::endl;
   uint64_t rd_buf_size = 4 * (1 << 20); // 4MB
-  std::cout << "Path=" << fn_path << std::endl
+  std::cout << "Path=" << measure_path << std::endl
             << "IOPS=" << eos::fst::ComputeIops(fd) << std::endl
-            << "  BW=" << eos::fst::ComputeBandwidth(fd, rd_buf_size) << " MB/s"
+            << "BW=" << eos::fst::ComputeBandwidth(fd, rd_buf_size) << " MB/s"
             << std::endl;
   (void) close(fd);
   return 0;

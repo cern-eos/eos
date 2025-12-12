@@ -33,6 +33,66 @@
 #define O_DIRECT 0
 #endif
 
+namespace
+{
+//----------------------------------------------------------------------------
+//! Struct SwitchToRootEuid takes care of switching the current effective UID
+//! of the **current thread** to root (uid=0) and then revert to the original
+//! setup once this object is destroyed. We need this to be able to access
+//! the block devices on the machine during start up to measure the IO
+//! performance.
+//----------------------------------------------------------------------------
+struct SwitchToRootEuid {
+  //--------------------------------------------------------------------------
+  //! Constructor
+  //--------------------------------------------------------------------------
+  SwitchToRootEuid()
+  {
+    if (syscall(SYS_getresuid, &mRuid, &mEuid, &mSuid) == -1) {
+      eos_static_err("%s", "msg=\"failed to get uids\"");
+      mFailed = true;
+      return;
+    }
+
+    eos_static_info("msg=\"initial user identity\" ruid=%i euid=%i suid=%i",
+                    mRuid, mEuid, mSuid);
+
+    // Switch to target user
+    if (syscall(SYS_setresuid, sRootUid, sRootUid, sRootUid) == -1) {
+      eos_static_err("msg=\"insuffcient priviledges to switch to root\" "
+                     "euid=%i", mEuid);
+      mFailed = true;
+      return;
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  //! Destructor
+  //--------------------------------------------------------------------------
+  ~SwitchToRootEuid()
+  {
+    // Put back the original effective UID
+    if (syscall(SYS_setresuid, mRuid, mEuid, mSuid) == -1) {
+      eos_static_err("msg=\"insuffcient priviledges to switch to user\" "
+                     "euid=%i", mEuid);
+    }
+
+    if (syscall(SYS_getresuid, &mRuid, &mEuid, &mSuid) == -1) {
+      eos_static_err("%s", "msg=\"failed to get uids\"");
+    }
+
+    eos_static_info("msg=\"reverted user identity\" ruid=%i euid=%i suid=%i",
+                    mRuid, mEuid, mSuid);
+  }
+
+  static constexpr uid_t sRootUid = 0;
+  //! Real, effective and saved UID
+  uid_t mRuid, mEuid, mSuid;
+  //! Flag to mark any failures
+  bool mFailed {false};
+};
+}
+
 EOSFSTNAMESPACE_BEGIN
 
 // Set of key updates to be tracked at the file system level
@@ -65,7 +125,7 @@ FileSystem::FileSystem(const common::FileSystemLocator& locator,
   mFileIO.reset(FileIoPlugin::GetIoObject(mLocator.getStoragePath()));
   // Subscribe to the underlying SharedHash object to get updates
   mSubscription = mq::SharedHashWrapper(mRealm, mHashLocator).subscribe();
-  
+
   if (mSubscription) {
     using namespace std::placeholders;
     mSubscription->attachCallback(std::bind(&FileSystem::ProcessUpdateCb,
@@ -266,35 +326,25 @@ FileSystem::IoPing()
     return;
   }
 
-  // Create temporary file (1GB) name on the mountpoint
-  uint64_t fn_size = 1 << 30; // 1 GB
-  const std::string fn_path = eos::fst::MakeTemporaryFile(GetPath());
+  std::string device_path = eos::fst::GetDevicePath(GetPath());
 
-  if (fn_path.empty()) {
-    eos_static_err("msg=\"failed to create tmp file\" base_path=%s",
+  if (device_path.empty()) {
+    eos_static_err("msg=\"failed to resolve block device\" path=%s",
                    GetPath().c_str());
     return;
   }
 
+  // Switch to root euid will be reverted upon destruction
+  SwitchToRootEuid root_euid;
+
+  if (root_euid.mFailed) {
+    eos_static_err("%s", "msg=\"failed to switch euid for IO perfmance "
+                   "measurements\"");
+    return;
+  }
+
   // Open the file for direct access
-  int fd = open(fn_path.c_str(), O_RDWR | O_TRUNC | O_DIRECT | O_SYNC);
-
-  if (fd == -1) {
-    eos_static_err("msg=\"failed to open file\" path=%s", fn_path.c_str());
-    return;
-  }
-
-  // Unlink the file so that we don't leave any behind even in the case of
-  // a crash of the FST. The file descritor will still be valid for use.
-  (void) unlink(fn_path.c_str());
-
-  // Fill the file up to the given size with random data
-  if (!eos::fst::FillFileGivenSize(fd, fn_size)) {
-    eos_static_err("msg=\"failed to fill file\" path=%s", fn_path.c_str());
-    (void) close(fd);
-    return;
-  }
-
+  int fd = open(device_path.c_str(), O_RDONLY | O_DIRECT);
   using namespace std::chrono;
   auto start_iops = high_resolution_clock::now();
   IOPS = eos::fst::ComputeIops(fd);
