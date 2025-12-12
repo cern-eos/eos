@@ -404,10 +404,9 @@ The EOS server installation
 
 %post -n eos-server
 if [ ! -f /etc/sysconfig/eos-yum-noscripts ]; then
-echo "Starting conditional EOS services"
-sleep 1
-systemctl daemon-reload > /dev/null 2>&1 || :
-systemctl --no-legend list-units "eos@*" | grep -v "q.*db" | awk '{print $1}' | xargs --no-run-if-empty -n1 systemctl restart || :
+  echo "Starting conditional EOS services"
+  systemctl daemon-reload > /dev/null 2>&1 || :
+  systemctl --no-legend list-units "eos@*" | grep -v "q.*db" | awk '{print $1}' | xargs --no-run-if-empty -n1 systemctl restart || :
 fi
 
 %preun -n eos-server
