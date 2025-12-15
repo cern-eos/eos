@@ -57,6 +57,7 @@ public:
   int Init(const char* cfgfile);
 
 private:
+  //! Pointer to the OFS plugin
   eos::fst::XrdFstOfs* OFS;
 
   //----------------------------------------------------------------------------
@@ -100,10 +101,13 @@ private:
   //! @param normalized_headers the normalized headers coming from the client
   //! @param verb the HTTP verb allowing to determine if that transfer is a PUT or a GET
   //!
-  //! @return the packet marking handle if the packet marking is enabled and if the normalized_headers contain
-  //! a scitag, nullptr otherwise
+  //! @return the packet marking handle if the packet marking is enabled and
+  //!         if the normalized_headers contain a scitag, nullptr otherwise
   //----------------------------------------------------------------------------
-  std::unique_ptr<XrdNetPMark::Handle> getPMarkHandle(XrdHttpExtReq& req,const std::map<std::string, std::string> & normalized_headers, const std::string & verb);
+  std::unique_ptr<XrdNetPMark::Handle>
+  getPMarkHandle(XrdHttpExtReq& req,
+                 const std::map<std::string, std::string>& normalized_headers,
+                 const std::string& verb);
 };
 
 /******************************************************************************/

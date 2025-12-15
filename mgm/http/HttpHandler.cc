@@ -352,10 +352,13 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
   } else {
     eos_static_info("method=GET file=%s tident=%s query=%s",
                     url.c_str(), client.tident, query.c_str());
-    if(statOK && (buf.st_rdev & XRDSFS_HASBKUP) && (buf.st_rdev & XRDSFS_OFFLINE)) {
+
+    if (statOK && (buf.st_rdev & XRDSFS_HASBKUP) &&
+        (buf.st_rdev & XRDSFS_OFFLINE)) {
       // File is located on tape, not on disk - EOS-6132
-      response = HttpServer::HttpError("File is stored on tape - no disk replica exists",
-                            response->FAILED_DEPENDENCY);
+      response =
+        HttpServer::HttpError("File is stored on tape - no disk replica exists",
+                              response->FAILED_DEPENDENCY);
       return response;
     }
 
@@ -442,7 +445,6 @@ eos::common::HttpResponse*
 HttpHandler::Head(eos::common::HttpRequest* request)
 {
   eos::common::HttpResponse* response = Get(request, true);
-  response->mUseFileReaderCallback = false;
   response->SetBody("");
   return response;
 }
@@ -613,6 +615,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         if (query.length()) {
           query += "&";
         }
+
         query += "archivemetadata=";
         query += request->GetHeaders()["archivemetadata"];
       }
@@ -662,10 +665,10 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           response = HttpServer::HttpStall(file->error.getErrText(),
                                            file->error.getErrInfo());
         } else {
-          if(getenv("EOS_MGM_ALLOW_HTTP_STALL") && rc >= SFS_STALL) {
+          if (getenv("EOS_MGM_ALLOW_HTTP_STALL") && rc >= SFS_STALL) {
             // HTTP stall mechanism was enabled and the rc of the open is >= the minimum stalling time
             // in seconds, return a Service Unavailable error.
-            response = HttpServer::HttpError("Access limit reached",ETXTBSY);
+            response = HttpServer::HttpError("Access limit reached", ETXTBSY);
           } else {
             response = HttpServer::HttpError("Unexpected result from file open",
                                              EOPNOTSUPP);

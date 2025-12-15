@@ -22,9 +22,8 @@
  ************************************************************************/
 
 #include "fst/http/HttpServer.hh"
-#include "fst/http/ProtocolHandlerFactory.hh"
+#include "fst/http/HttpHandler.hh"
 #include "fst/XrdFstOfsFile.hh"
-#include "common/http/ProtocolHandler.hh"
 #include "common/SecEntity.hh"
 #include "fst/XrdFstOfs.hh"
 #include <XrdSys/XrdSysPthread.hh>
@@ -32,299 +31,63 @@
 
 EOSFSTNAMESPACE_BEGIN
 
-#ifdef EOS_MICRO_HTTPD
-/*----------------------------------------------------------------------------*/
-
-int
-HttpServer::Handler(void* cls,
-                    struct MHD_Connection* connection,
-                    const char* url,
-                    const char* method,
-                    const char* version,
-                    const char* uploadData,
-                    size_t* uploadDataSize,
-                    void** ptr)
+//------------------------------------------------------------------------------
+// HTTP object handler function on FST called by XrdHttp
+//------------------------------------------------------------------------------
+std::unique_ptr<eos::common::ProtocolHandler>
+HttpServer::XrdHttpHandler(std::string& method,
+                           std::string& uri,
+                           std::map<std::string, std::string>& headers,
+                           std::string& query,
+                           std::map<std::string, std::string>& cookies,
+                           std::string& body,
+                           const XrdSecEntity& client)
 {
-  // The handler function is called in a 'stateless' fashion, so to keep state
-  // the implementation stores a HttpHandler object using **ptr.
-  // libmicrohttpd moreover deals with 100-continue responses used by PUT/POST
-  // in the upper protocol level, so the handler has to return for GET requests
-  // just MHD_YES if there is not yet an HttpHandler and for PUT requests
-  // should only create a response object if the open for the PUT fails for
-  // whatever reason.
-  // So when the HTTP header have arrived Handler is called the first time
-  // and in following Handler calls we should not decode the headers again and
-  // again for performance reasons. So there is a difference between handling of
-  // GET and PUT because in GET we just don't do anything but return and decode
-  // the HTTP headers with the second call, while for PUT we do it in the first
-  // call and open the output file immediately to return evt. an error.
-  std::map<std::string, std::string> headers;
-
-  // If this is the first call, create an appropriate protocol handler based
-  // on the headers and store it in *ptr. We should only return MHD_YES here
-  // (unless error)
-  if (*ptr == 0) {
-    // Get the headers
-    MHD_get_connection_values(connection, MHD_HEADER_KIND,
-                              &HttpServer::BuildHeaderMap, (void*) &headers);
-    eos::common::ProtocolHandler* handler;
-    ProtocolHandlerFactory factory = ProtocolHandlerFactory();
-    handler = factory.CreateProtocolHandler(method, headers, 0);
-
-    if (!handler) {
-      eos_static_err("msg=No matching protocol for request");
-      return MHD_NO;
-    }
-
-    *ptr = handler;
-    return MHD_YES;
+  if (client.moninfo && strlen(client.moninfo)) {
+    headers["ssl_client_s_dn"] = client.moninfo;
+    headers["x-real-ip"] = client.host;
   }
 
+  std::unique_ptr<eos::common::ProtocolHandler> handler {nullptr};
+
+  if (HttpHandler::Matches(method, headers)) {
+    handler = std::make_unique<eos::fst::HttpHandler>();
+  } else {
+    eos_static_err("msg=\"no matching protocol for request method %s\"",
+                   method.c_str());
+    return nullptr;
+  }
+
+  size_t bodySize = body.length();
   // Retrieve the protocol handler stored in *ptr
-  eos::common::ProtocolHandler* protocolHandler = (eos::common::ProtocolHandler*)
-      * ptr;
+  std::unique_ptr<eos::common::HttpRequest> request(new eos::common::HttpRequest(
+        headers, method, uri,
+        query.c_str() ? query : "",
+        body, &bodySize, cookies, true));
 
-  // For requests which have a body (i.e. uploadDataSize != 0) we must handle
-  // the body data on the second reentrant call to this function. We must
-  // create the response and store it inside the protocol handler, but we must
-  // NOT queue the response until the third call.
-  if (!protocolHandler->GetResponse() ||
-      !protocolHandler->GetResponse()->GetResponseCode()) {
-    // Get the request headers again
-    MHD_get_connection_values(connection, MHD_HEADER_KIND,
-                              &HttpServer::BuildHeaderMap, (void*) &headers);
-    // Get the request query string
-    std::string query;
-    MHD_get_connection_values(connection, MHD_GET_ARGUMENT_KIND,
-                              &HttpServer::BuildQueryString, (void*) &query);
-    // Get the cookies
-    std::map<std::string, std::string> cookies;
-    MHD_get_connection_values(connection, MHD_COOKIE_KIND,
-                              &HttpServer::BuildHeaderMap, (void*) &cookies);
-    // Make a request object
-    std::string body(uploadData, *uploadDataSize);
-    eos::common::HttpRequest* request = new eos::common::HttpRequest(
-      headers, method, url,
-      query.c_str() ? query : "",
-      body, uploadDataSize, cookies);
-    eos_static_debug("\n\n%s", request->ToString().c_str());
-    // Handle the request and build a response based on the specific protocol
-    protocolHandler->HandleRequest(request);
-    delete request;
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
+                     request->GetBody().c_str());
   }
 
-  eos::common::HttpResponse* response = protocolHandler->GetResponse();
+  handler->HandleRequest(request.get());
 
-  if (!response) {
-    eos_static_crit("msg=\"response creation failed\"");
-    return MHD_NO;
+  if (EOS_LOGS_DEBUG) {
+    eos_static_debug("method=%s uri='%s' %s (warning this is not the mapped identity)",
+                     method.c_str(), uri.c_str(), eos::common::SecEntity::ToString(&client,
+                         "xrdhttp").c_str());
   }
 
-  if (*uploadDataSize != 0) {
-    eos_static_debug("returning MHD_NO response-code=%d to stop upload",
-                     response->GetResponseCode());
-
-    if (response->GetResponseCode()) {
-      eos_static_debug("setting uploadDataSize to 0");
-      *uploadDataSize = 0;
-
-      if (response->GetResponseCode() >= 300) {
-        eos_static_debug("failing request with response code %d",
-                         response->GetResponseCode());
-        protocolHandler->DeleteResponse();
-        return MHD_NO;
-      }
-    }
-
-    protocolHandler->DeleteResponse();
-    return MHD_YES;
-  }
-
-  eos_static_debug("\n\n%s", response->ToString().c_str());
-  // Create the MHD response
-  struct MHD_Response* mhdResponse;
-
-  if (response->mUseFileReaderCallback) {
-    eos_static_debug("response length=%d", response->mResponseLength);
-    mhdResponse = MHD_create_response_from_callback(response->mResponseLength,
-                  4 * 1024 * 1024, /* 4M page size */
-                  &HttpServer::FileReaderCallback,
-                  (void*) protocolHandler, 0);
-  } else {
-    mhdResponse = MHD_create_response_from_buffer(response->GetBodySize(),
-                  (void*) response->GetBody().c_str(),
-                  MHD_RESPMEM_PERSISTENT);
-  }
-
-  if (mhdResponse) {
-    // Add all the response header tags
-    headers = response->GetHeaders();
-
-    for (auto it = headers.begin(); it != headers.end(); it++) {
-      MHD_add_response_header(mhdResponse, it->first.c_str(), it->second.c_str());
-    }
-
-    // Queue the response
-    int ret = MHD_queue_response(connection, response->GetResponseCode(),
-                                 mhdResponse);
-    eos_static_debug("MHD_queue_response ret=%d", ret);
-    MHD_destroy_response(mhdResponse);
-    return ret;
-  } else {
-    eos_static_crit("msg=\"response creation failed\"");
-    return MHD_NO;
-  }
+  return handler;
 }
 
-void
-HttpServer::CompleteHandler(void*                              cls,
-                            struct MHD_Connection*             connection,
-                            void**                             con_cls,
-                            enum MHD_RequestTerminationCode    toe)
-{
-  std::string scode = "";
-
-  if (toe == MHD_REQUEST_TERMINATED_COMPLETED_OK) {
-    scode = "OK";
-  }
-
-  if (toe == MHD_REQUEST_TERMINATED_WITH_ERROR) {
-    scode = "Error";
-  }
-
-  if (toe == MHD_REQUEST_TERMINATED_TIMEOUT_REACHED) {
-    scode = "Timeout";
-  }
-
-  if (toe == MHD_REQUEST_TERMINATED_DAEMON_SHUTDOWN) {
-    scode = "Shutdown";
-  }
-
-  if (toe == MHD_REQUEST_TERMINATED_READ_ERROR) {
-    scode = "ReadError";
-  }
-
-  eos_static_info("msg=\"http connection disconnect\" reason=\"Request %s\" ",
-                  scode.c_str());
-  eos::fst::HttpHandler* httpHandle = 0;
-
-  if ((con_cls && (*con_cls))) {
-    eos::common::ProtocolHandler* handler =
-      static_cast<eos::common::ProtocolHandler*>(*con_cls);
-    httpHandle = dynamic_cast<eos::fst::HttpHandler*>(handler);
-  }
-
-  if (httpHandle) {
-    // deal with delete-on-close logic
-    if ((toe != MHD_REQUEST_TERMINATED_COMPLETED_OK)) {
-      eos_static_info("msg=\"http connection disconnect\" action=\"Cleanup\" ");
-
-      if (httpHandle && httpHandle->mFile) {
-        eos_static_err("msg=\"clean-up interrupted PUT/GET request\" path=\"%s\"",
-                       httpHandle->mFile->GetPath().c_str());
-
-        // we have to disable delete-on-close for chunked uploads since files are stateful
-        if (httpHandle->mFile->IsChunkedUpload()) {
-          httpHandle->mFile->close();
-        }
-      }
-    }
-
-    // clean-up file objects
-    if (httpHandle->mFile) {
-      delete(httpHandle->mFile);
-      httpHandle->mFile = 0;
-    }
-
-    delete httpHandle;
-    *con_cls = 0;
-  }
-}
-
-#endif
-
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 ssize_t
 HttpServer::FileReader(eos::common::ProtocolHandler* handler, uint64_t pos,
                        char* buf, size_t max)
 {
-  return HttpServer::FileReaderCallback(handler, pos, buf, max);
-}
-
-/*----------------------------------------------------------------------------*/
-ssize_t
-HttpServer::FileWriter(eos::common::ProtocolHandler* handler,
-                       std::string& method,
-                       std::string& uri,
-                       std::map<std::string, std::string>& headers,
-                       std::string& query,
-                       std::map<std::string, std::string>& cookies,
-                       std::string& body)
-
-{
-  eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
-                                      (handler);
-  size_t uploadSize = body.size();
-  std::unique_ptr<eos::common::HttpRequest> request(new eos::common::HttpRequest(
-        headers, method, uri,
-        query.c_str(),
-        body, &uploadSize, cookies,
-        true));
-  eos_static_debug("\n\n%s", request->ToString().c_str());
-  // Handle the request and build a response based on the specific protocol
-  httpHandle->HandleRequest(request.get());
-  eos::common::HttpResponse* response = handler->GetResponse();
-
-  if (response->GetResponseCode() == response->CREATED) {
-    return 0;
-  } else {
-    return -1;
-  }
-}
-
-
-/*----------------------------------------------------------------------------*/
-ssize_t
-HttpServer::FileClose(eos::common::ProtocolHandler* handler, int rc, bool eskip)
-{
-  eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
-                                      (handler);
-
-  if (httpHandle && httpHandle->mFile) {
-    if (rc) {
-      eos_static_err("msg=\"clean-up interrupted or IO error related PUT/GET request\" path=\"%s\"",
-                     httpHandle->mFile->GetPath().c_str());
-
-      // we have to disable delete-on-close for chunked uploads since files are stateful
-      if (httpHandle->mFile->IsChunkedUpload()) {
-        httpHandle->FileClose(HttpHandler::CanCache::YES);
-      } else if (!eskip) {
-        // under error eskip avoids closing the file before destorying
-        // (closing may cause httpHandler to cache the file handle)
-        httpHandle->FileClose(HttpHandler::CanCache::YES);
-      }
-    } else {
-      httpHandle->FileClose(HttpHandler::CanCache::YES);
-    }
-
-    // clean-up file objects
-    if (httpHandle->mFile) {
-      delete(httpHandle->mFile);
-      httpHandle->mFile = 0;
-    }
-  }
-
-  return 0;
-}
-
-
-/*----------------------------------------------------------------------------*/
-ssize_t
-HttpServer::FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max)
-{
-  // Ugly ugly casting hack
-  eos::common::ProtocolHandler* handler =
-    static_cast<eos::common::ProtocolHandler*>(cls);
   eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
                                       (handler);
 
@@ -450,51 +213,73 @@ HttpServer::FileReaderCallback(void* cls, uint64_t pos, char* buf, size_t max)
   return 0;
 }
 
-std::unique_ptr<eos::common::ProtocolHandler>
-HttpServer::XrdHttpHandler(std::string& method,
-                           std::string& uri,
-                           std::map<std::string, std::string>& headers,
-                           std::string& query,
-                           std::map<std::string, std::string>& cookies,
-                           std::string& body,
-                           const XrdSecEntity& client)
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+ssize_t
+HttpServer::FileWriter(eos::common::ProtocolHandler* handler,
+                       std::string& method,
+                       std::string& uri,
+                       std::map<std::string, std::string>& headers,
+                       std::string& query,
+                       std::map<std::string, std::string>& cookies,
+                       std::string& body)
+
 {
-  if (client.moninfo && strlen(client.moninfo)) {
-    headers["ssl_client_s_dn"] = client.moninfo;
-    headers["x-real-ip"] = client.host;
-  }
-
-  ProtocolHandlerFactory factory = ProtocolHandlerFactory();
-  std::unique_ptr<eos::common::ProtocolHandler> handler(
-    factory.CreateProtocolHandler(method, headers, 0));
-
-  if (!handler) {
-    eos_static_err("msg=\"no matching protocol for request method %s\"",
-                   method.c_str());
-    return 0;
-  }
-
-  size_t bodySize = body.length();
-  // Retrieve the protocol handler stored in *ptr
+  eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
+                                      (handler);
+  size_t uploadSize = body.size();
   std::unique_ptr<eos::common::HttpRequest> request(new eos::common::HttpRequest(
         headers, method, uri,
-        query.c_str() ? query : "",
-        body, &bodySize, cookies, true));
+        query.c_str(),
+        body, &uploadSize, cookies,
+        true));
+  eos_static_debug("\n\n%s", request->ToString().c_str());
+  // Handle the request and build a response based on the specific protocol
+  httpHandle->HandleRequest(request.get());
+  eos::common::HttpResponse* response = handler->GetResponse();
 
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
-                     request->GetBody().c_str());
+  if (response->GetResponseCode() == response->CREATED) {
+    return 0;
+  } else {
+    return -1;
+  }
+}
+
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
+ssize_t
+HttpServer::FileClose(eos::common::ProtocolHandler* handler, int rc, bool eskip)
+{
+  eos::fst::HttpHandler* httpHandle = dynamic_cast<eos::fst::HttpHandler*>
+                                      (handler);
+
+  if (httpHandle && httpHandle->mFile) {
+    if (rc) {
+      eos_static_err("msg=\"clean-up interrupted or IO error related PUT/GET request\" path=\"%s\"",
+                     httpHandle->mFile->GetPath().c_str());
+
+      // we have to disable delete-on-close for chunked uploads since files are stateful
+      if (httpHandle->mFile->IsChunkedUpload()) {
+        httpHandle->FileClose(HttpHandler::CanCache::YES);
+      } else if (!eskip) {
+        // under error eskip avoids closing the file before destorying
+        // (closing may cause httpHandler to cache the file handle)
+        httpHandle->FileClose(HttpHandler::CanCache::YES);
+      }
+    } else {
+      httpHandle->FileClose(HttpHandler::CanCache::YES);
+    }
+
+    // clean-up file objects
+    if (httpHandle->mFile) {
+      delete (httpHandle->mFile);
+      httpHandle->mFile = 0;
+    }
   }
 
-  handler->HandleRequest(request.get());
-
-  if (EOS_LOGS_DEBUG) {
-    eos_static_debug("method=%s uri='%s' %s (warning this is not the mapped identity)",
-                     method.c_str(), uri.c_str(), eos::common::SecEntity::ToString(&client,
-                         "xrdhttp").c_str());
-  }
-
-  return handler;
+  return 0;
 }
 
 EOSFSTNAMESPACE_END

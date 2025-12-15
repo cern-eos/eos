@@ -42,26 +42,32 @@ XrdSysMutex HttpHandler::mOpenMutexMapMutex;
 std::map<unsigned short, XrdSysMutex*> HttpHandler::mOpenMutexMap;
 eos::common::MimeTypes HttpHandler::gMime;
 HttpHandlerFstFileCache HttpHandler::sFileCache;
-static constexpr const char* HTTP_TIDENT= "http";
+static constexpr const char* HTTP_TIDENT = "http";
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Destructor
+//------------------------------------------------------------------------------
 HttpHandler::~HttpHandler()
 {
   if (mFile) {
     delete mFile;
     mFile = nullptr;
   }
+
   if (mClient.name) {
     free(mClient.name);
     mClient.name = nullptr;
   }
+
   if (mClient.host) {
     free(mClient.host);
     mClient.host = nullptr;
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 bool
 HttpHandler::Matches(const std::string& meth, HeaderMap& headers)
 {
@@ -76,7 +82,9 @@ HttpHandler::Matches(const std::string& meth, HeaderMap& headers)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+//
+//------------------------------------------------------------------------------
 void
 HttpHandler::HandleRequest(eos::common::HttpRequest* request)
 {
@@ -262,7 +270,9 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
   }
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Initialize handler
+//------------------------------------------------------------------------------
 void
 HttpHandler::Initialize(eos::common::HttpRequest* request)
 {
@@ -290,7 +300,9 @@ HttpHandler::Initialize(eos::common::HttpRequest* request)
   mClient.tident = HTTP_TIDENT;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Get implementation
+//------------------------------------------------------------------------------
 eos::common::HttpResponse*
 HttpHandler::Get(eos::common::HttpRequest* request)
 {
@@ -411,20 +423,19 @@ HttpHandler::Get(eos::common::HttpRequest* request)
   if (mFile) {
     time_t mtime = mFile->GetMtime();
     response->AddHeader("Last-Modified", eos::common::Timing::utctime(mtime));
-    // We want to use the file callbacks
-    response->mUseFileReaderCallback = true;
   }
 
   return response;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Head implementation
+//------------------------------------------------------------------------------
 eos::common::HttpResponse*
 HttpHandler::Head(eos::common::HttpRequest* request)
 {
   eos::common::HttpResponse* response = Get(request);
   response->SetBody("");
-  response->mUseFileReaderCallback = false;
 
   if (mFile) {
     FileClose(CanCache::NO);
@@ -435,7 +446,9 @@ HttpHandler::Head(eos::common::HttpRequest* request)
   return response;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Put implementation
+//------------------------------------------------------------------------------
 eos::common::HttpResponse*
 HttpHandler::Put(eos::common::HttpRequest* request)
 {
@@ -797,7 +810,9 @@ HttpHandler::Put(eos::common::HttpRequest* request)
   return response;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Decode byte range
+//------------------------------------------------------------------------------
 bool
 HttpHandler::DecodeByteRange(std::string rangeheader,
                              std::map<off_t, ssize_t>& offsetmap,
@@ -921,7 +936,9 @@ HttpHandler::DecodeByteRange(std::string rangeheader,
   return true;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// File close taking care of cached files
+//------------------------------------------------------------------------------
 void
 HttpHandler::FileClose(enum HttpHandler::CanCache cache)
 {
@@ -945,5 +962,48 @@ HttpHandler::FileClose(enum HttpHandler::CanCache cache)
   return;
 }
 
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+// Create the map of multipart headers for each offset/length pair
+//------------------------------------------------------------------------------
+void
+HttpHandler::CreateMultipartHeader(std::string contenttype)
+{
+  mRequestSize = mRangeRequestSize;
+
+  if (mOffsetMap.size() != 1) {
+    mRequestSize += mBoundaryEnd.length();
+  }
+
+  size_t index = 0;
+
+  for (auto it = mOffsetMap.begin(); it != mOffsetMap.end(); it++) {
+    std::string header = "\n--EOSMULTIPARTBOUNDARY\nContent-Type: ";
+    header += contenttype;
+    header += "\nContent-Range: ";
+    char srange[256];
+    snprintf(srange,
+             sizeof(srange) - 1,
+             "bytes %llu-%llu/%llu",
+             (unsigned long long) it->first,
+             (unsigned long long)((it->second) ? (it->first + it->second - 1)
+                                  : mRangeRequestSize),
+             (unsigned long long) mFileSize
+            );
+
+    if (mOffsetMap.size() == 1) {
+      mSinglepartHeader = srange;
+    }
+
+    header += srange;
+    header += "\n\n";
+    mMultipartHeaderMap[index] = header;
+
+    if (mOffsetMap.size() != 1) {
+      mRequestSize += mMultipartHeaderMap[index].length();
+    }
+
+    index++;
+  }
+}
+
 EOSFSTNAMESPACE_END

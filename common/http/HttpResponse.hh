@@ -97,7 +97,6 @@ protected:
 
 public:
   off_t        mResponseLength;        //!< length of the response
-  bool         mUseFileReaderCallback; //!< read the file using callbacks
 
 public:
 
@@ -105,7 +104,7 @@ public:
    * Constructor
    */
   HttpResponse() :
-    mResponseCode(OK), mResponseLength(0), mUseFileReaderCallback(false) {};
+    mResponseCode(OK), mResponseLength(0) {};
 
   /**
    * Destructor
