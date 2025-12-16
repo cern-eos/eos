@@ -160,7 +160,7 @@ COMMAND commands[] = {
   { (char*) "df", com_protodf, (char*) "Get df output"},
   { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
   { (char*) "file", com_proto_file, (char*) "File Handling PROTO"},
-  { (char*) "fileinfo", com_info, (char*) "File Information"},
+  { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
   { (char*) "oldfind", com_old_find, (char*) "Find files/directories (old implementation)"},
   { (char*) "find", com_proto_find, (char*) "Find files/directories (new implementation)"},
   { (char*) "newfind", com_proto_find, (char*) "Find files/directories (new implementation)"},

@@ -58,7 +58,6 @@
 #include <XrdCl/XrdClCopyProcess.hh>
 #include <math.h>
 #include <memory>
-#include "mgm/proc/ResultFormatter.hh"
 #include "namespace/utils/Etag.hh"
 
 EOSMGMNAMESPACE_BEGIN
@@ -135,35 +134,21 @@ FileCmd::ProcessRequest() noexcept
 
   return reply;
 }
-
 //------------------------------------------------------------------------------
-// Fileinfo subcommand - returns file metadata information
+// Touch subcommand - simplified without helper methods
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
 FileCmd::TouchSubcmd(const eos::console::FileProto& file) noexcept
 {
   eos::console::ReplyProto reply;
   const auto& touch = file.touch();
-  const auto& md = file.md();
-  std::string path = md.path();
+  // Get path directly
+  std::string path = file.md().path();
 
-  // Get path from file ID if path is empty
   if (path.empty()) {
-    if (md.id()) {
-      try {
-        eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
-        auto fmd = gOFS->eosFileService->getFileMD(md.id());
-        path = gOFS->eosView->getUri(fmd.get());
-      } catch (eos::MDException& e) {
-        reply.set_std_err("error: There is no file with given id!");
-        reply.set_retc(ENOENT);
-        return reply;
-      }
-    } else {
-      reply.set_std_err("error: path is empty and no file id provided");
-      reply.set_retc(EINVAL);
-      return reply;
-    }
+    reply.set_std_err("error: path is required");
+    reply.set_retc(EINVAL);
+    return reply;
   }
 
   // Extract touch options
@@ -314,281 +299,160 @@ FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
   }
 
   const auto& fileinfo = file.fileinfo();
+  // Get path directly
   std::string path = file.md().path();
 
   if (path.empty()) {
-    reply.set_std_err("error: you have to give a path name");
+    reply.set_std_err("error: path is required");
     reply.set_retc(EINVAL);
     return reply;
   }
 
   gOFS->MgmStats.Add("FileInfo", mVid.uid, mVid.gid, 1);
-  XrdOucString spath = path.c_str();
-  bool detached = false;
-  uint64_t clock = 0;
-  eos::common::RWMutexReadLock viewReadLock;
+  // Get file metadata directly
+  eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
+  XrdOucString spath = path.c_str();
 
   try {
     if (spath.beginswith("fid:") || spath.beginswith("fxid:")) {
       unsigned long long fid = Resolver::retrieveFileIdentifier(
                                  spath).getUnderlyingUInt64();
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, fid);
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
-      std::string nspath;
-
-      try {
-        fmd = gOFS->eosFileService->getFileMD(fid, &clock);
-        nspath = gOFS->eosView->getUri(fmd.get());
-
-        if (fmd->isLink()) {
-          try {
-            spath = gOFS->eosView->getRealPath(nspath).c_str();
-          } catch (const eos::MDException& e) {
-            spath = nspath.c_str();
-          }
-        } else {
-          spath = nspath.c_str();
-        }
-      } catch (eos::MDException& e) {
-        reply.set_std_err(SSTR("error: cannot retrieve file meta data - "
-                               << e.getMessage().str()));
-        reply.set_retc(e.getErrno());
-        return reply;
-      }
-
-      detached = nspath.empty();
+      fmd = gOFS->eosFileService->getFileMD(fid);
     } else {
-      eos::Prefetcher::prefetchFileMDAndWait(gOFS->eosView, spath.c_str());
-      viewReadLock.Grab(gOFS->eosViewRWMutex);
-
-      try {
-        fmd = gOFS->eosView->getFile(spath.c_str(), false);
-      } catch (eos::MDException& e) {
-        reply.set_std_err(SSTR("error: cannot retrieve file meta data - "
-                               << e.getMessage().str()));
-        reply.set_retc(e.getErrno());
-        return reply;
-      }
-
-      if (fmd) {
-        try {
-          std::string nspath = gOFS->eosView->getUri(fmd.get());
-
-          if (fmd->isLink()) {
-            spath = gOFS->eosView->getRealPath(nspath).c_str();
-          } else {
-            spath = nspath.c_str();
-          }
-        } catch (eos::MDException& e) {
-          reply.set_std_err(SSTR("error: cannot retrieve file meta data - "
-                                 << e.getMessage().str()));
-          reply.set_retc(e.getErrno());
-          return reply;
-        }
-      }
+      fmd = gOFS->eosView->getFile(spath.c_str());
     }
-  } catch (...) {
-    reply.set_std_err("error: exception during file metadata retrieval");
-    reply.set_retc(EIO);
+  } catch (eos::MDException& e) {
+    reply.set_std_err(SSTR("error: cannot retrieve file meta data - "
+                           << e.getMessage().str()));
+    reply.set_retc(e.getErrno());
     return reply;
   }
 
   if (!fmd) {
     reply.set_std_err("error: file not found");
-    reply.set_retc(ENOENT);
+    reply.set_retc(errno);
     return reply;
   }
 
-  using eos::common::Timing;
-  using eos::common::FileId;
+  // Format output based on requested format
   using eos::common::LayoutId;
-  using eos::common::StringConversion;
-  // Make a copy and release lock
-  std::shared_ptr<eos::IFileMD> fmd_copy(fmd->clone());
-  fmd.reset();
-  viewReadLock.Release();
-  uint32_t lid = fmd_copy->getLayoutId();
-  bool monitoring = fileinfo.monitoring();
-  bool env_format = fileinfo.env();
-  std::ostringstream out;
-  const std::string hex_fid = FileId::Fid2Hex(fmd_copy->getId());
-  const std::string hex_pid = FileId::Fid2Hex(fmd_copy->getContainerId());
+  using eos::common::FileId;
+  uint32_t lid = fmd->getLayoutId();
+  const std::string hex_fid = FileId::Fid2Hex(fmd->getId());
 
-  if (env_format) {
+  if (fileinfo.env()) {
+    // ENV format
     std::string env;
-    fmd_copy->getEnv(env);
-    eos::common::Path cPath(spath.c_str());
-    out << env << "&container=" << cPath.GetParentPath();
-    reply.set_std_out(out.str());
+    fmd->getEnv(env);
+    eos::common::Path cPath(path.c_str());
+    std::ostringstream oss;
+    oss << env << "&container=" << cPath.GetParentPath();
+    reply.set_std_out(oss.str());
     reply.set_retc(0);
     return reply;
-  }
-
-  // Get timestamps
-  eos::IFileMD::ctime_t mtime;
-  eos::IFileMD::ctime_t ctime;
-  eos::IFileMD::ctime_t btime {0, 0};
-  eos::IFileMD::ctime_t atime {0, 0};
-  fmd_copy->getCTime(ctime);
-  fmd_copy->getMTime(mtime);
-  fmd_copy->getATime(atime);
-  eos::IFileMD::XAttrMap xattrs = fmd_copy->getAttributes();
-
-  if (xattrs.count("sys.eos.btime")) {
-    Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
-  }
-
-  time_t filectime = (time_t) ctime.tv_sec;
-  time_t filemtime = (time_t) mtime.tv_sec;
-  time_t filebtime = (time_t) btime.tv_sec;
-  time_t fileatime = (time_t) atime.tv_sec;
-  std::string etag, xs;
-  eos::calculateEtag(fmd_copy.get(), etag);
-  eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs);
-
-  if (!monitoring) {
-    // Check for output filters
-    bool outputFilter = false;
-
-    if (fileinfo.path()) {
-      out << "path:   " << spath.c_str() << "\n";
-      outputFilter = true;
-    }
-
-    if (fileinfo.fxid()) {
-      out << "fxid:   " << hex_fid << "\n";
-      outputFilter = true;
-    }
-
-    if (fileinfo.fid()) {
-      out << "fid:    " << fmd_copy->getId() << "\n";
-      outputFilter = true;
-    }
-
-    if (fileinfo.size()) {
-      out << "size:   " << fmd_copy->getSize() << "\n";
-      outputFilter = true;
-    }
-
-    if (fileinfo.checksum()) {
-      out << "xstype: " << LayoutId::GetChecksumString(lid) << "\n"
-          << "xs:     " << xs << "\n";
-      outputFilter = true;
-    }
-
-    // If no filters or want full output, show everything
-    if (!outputFilter) {
-      std::string redundancy = eos::common::LayoutId::GetRedundancySymbol(
-                                 fmd_copy->hasLocation(EOS_TAPE_FSID),
-                                 eos::common::LayoutId::GetRedundancy(lid,
-                                     fmd_copy->getNumLocation()),
-                                 fmd_copy->getSize());
-      out << "  File: '" << spath.c_str() << "'"
-          << "  Flags: " << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4);
-
-      if (clock) {
-        out << "  Clock: " << FileId::Fid2Hex(clock);
-      }
-
-      out << "\n"
-          << "  Size: " << fmd_copy->getSize() << "\n"
-          << "Modify: " << Timing::ltime(filemtime)
-          << " Timestamp: " << Timing::TimespecToString(mtime) << "\n"
-          << "Change: " << Timing::ltime(filectime)
-          << " Timestamp: " << Timing::TimespecToString(ctime) << "\n"
-          << "Access: " << Timing::ltime(fileatime)
-          << " Timestamp: " << Timing::TimespecToString(atime) << "\n"
-          << " Birth: " << Timing::ltime(filebtime)
-          << " Timestamp: " << Timing::TimespecToString(btime) << "\n"
-          << "  CUid: " << fmd_copy->getCUid()
-          << " CGid: " << fmd_copy->getCGid()
-          << " Fxid: " << hex_fid
-          << " Fid: " << fmd_copy->getId()
-          << " Pid: " << fmd_copy->getContainerId()
-          << " Pxid: " << hex_pid << "\n"
-          << "XStype: " << std::left << std::setw(9)
-          << LayoutId::GetChecksumString(fmd_copy->getLayoutId())
-          << "    XS: " << xs << "\n"
-          << " ETAGs: " << etag << "\n"
-          << "Layout: " << LayoutId::GetLayoutTypeString(fmd_copy->getLayoutId())
-          << " Stripes: " << (LayoutId::GetStripeNumber(fmd_copy->getLayoutId()) + 1)
-          << " Blocksize: " << LayoutId::GetBlockSizeString(fmd_copy->getLayoutId())
-          << " LayoutId: " << FileId::Fid2Hex(fmd_copy->getLayoutId())
-          << " Redundancy: " << redundancy << "\n"
-          << "  #Rep: " << fmd_copy->getNumLocation() << "\n";
-
-      // Show filesystem locations if fullpath option
-      if (fileinfo.fullpath()) {
-        eos::IFileMD::LocationVector loc_vect = fmd_copy->getLocations();
-        int i = 0;
-
-        for (auto loc_it = loc_vect.begin(); loc_it != loc_vect.end(); ++loc_it) {
-          if (!(*loc_it)) {
-            continue;
-          }
-
-          eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
-          eos::common::FileSystem* filesystem =
-            FsView::gFsView.mIdView.lookupByID(*loc_it);
-
-          if (filesystem) {
-            std::string fullpath = FileId::FidPrefix2FullPath(
-                                     hex_fid.c_str(), filesystem->GetPath().c_str());
-            out << std::setw(3) << i << " fsid=" << *loc_it
-                << " path=" << fullpath << "\n";
-          }
-
-          i++;
-        }
-      }
-
-      out << "*******";
-    }
-  } else {
+  } else if (fileinfo.monitoring()) {
     // Monitoring format
+    eos::IFileMD::ctime_t mtime, ctime, atime{0, 0}, btime{0, 0};
+    fmd->getCTime(ctime);
+    fmd->getMTime(mtime);
+    fmd->getATime(atime);
+    eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
+
+    if (xattrs.count("sys.eos.btime")) {
+      eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
+    }
+
+    std::string xs;
+
     if (LayoutId::GetChecksumLen(lid)) {
-      eos::appendChecksumOnStringAsHex(fmd_copy.get(), xs);
+      eos::appendChecksumOnStringAsHex(fmd.get(), xs);
     } else {
       xs = "0";
     }
 
-    out << "keylength.file=" << spath.length()
-        << " file=" << spath.c_str()
-        << " size=" << fmd_copy->getSize()
+    std::string etag;
+    eos::calculateEtag(fmd.get(), etag);
+    std::ostringstream oss;
+    oss << "keylength.file=" << path.length()
+        << " file=" << path
+        << " size=" << fmd->getSize()
         << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
         << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
         << " btime=" << btime.tv_sec << "." << btime.tv_nsec
         << " atime=" << atime.tv_sec << "." << atime.tv_nsec
-        << " clock=" << clock
-        << " mode=" << StringConversion::IntToOctal((int) fmd_copy->getFlags(), 4)
-        << " uid=" << fmd_copy->getCUid()
-        << " gid=" << fmd_copy->getCGid()
+        << " mode=" << eos::common::StringConversion::IntToOctal((int)fmd->getFlags(),
+            4)
+        << " uid=" << fmd->getCUid()
+        << " gid=" << fmd->getCGid()
         << " fxid=" << hex_fid
-        << " fid=" << fmd_copy->getId()
-        << " ino=" << FileId::FidToInode(fmd_copy->getId())
-        << " pid=" << fmd_copy->getContainerId()
-        << " pxid=" << hex_pid
+        << " fid=" << fmd->getId()
+        << " ino=" << FileId::FidToInode(fmd->getId())
+        << " pid=" << fmd->getContainerId()
+        << " pxid=" << FileId::Fid2Hex(fmd->getContainerId())
         << " xstype=" << LayoutId::GetChecksumString(lid)
         << " xs=" << xs
         << " etag=" << etag
-        << " detached=" << detached
         << " layout=" << LayoutId::GetLayoutTypeString(lid)
         << " nstripes=" << (LayoutId::GetStripeNumber(lid) + 1)
         << " lid=" << FileId::Fid2Hex(lid)
-        << " nrep=" << fmd_copy->getNumLocation()
+        << " nrep=" << fmd->getNumLocation()
         << " ";
 
     for (const auto& elem : xattrs) {
-      out << "xattrn=" << elem.first << " xattrv=" << elem.second << " ";
+      oss << "xattrn=" << elem.first << " xattrv=" << elem.second << " ";
     }
+
+    reply.set_std_out(oss.str());
+    reply.set_retc(0);
+    return reply;
+  } else {
+    // Standard format
+    eos::IFileMD::ctime_t mtime, ctime, atime{0, 0}, btime{0, 0};
+    fmd->getCTime(ctime);
+    fmd->getMTime(mtime);
+    fmd->getATime(atime);
+    eos::IFileMD::XAttrMap xattrs = fmd->getAttributes();
+
+    if (xattrs.count("sys.eos.btime")) {
+      eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
+    }
+
+    std::string etag, xs;
+    eos::calculateEtag(fmd.get(), etag);
+    eos::appendChecksumOnStringAsHex(fmd.get(), xs);
+    std::ostringstream oss;
+    oss << "  File: '" << path << "'"
+        << "  Flags: " << eos::common::StringConversion::IntToOctal((
+              int)fmd->getFlags(), 4)
+        << std::endl
+        << "  Size: " << fmd->getSize() << std::endl
+        << "Modify: " << eos::common::Timing::ltime((time_t)mtime.tv_sec)
+        << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+        << std::endl
+        << "Change: " << eos::common::Timing::ltime((time_t)ctime.tv_sec)
+        << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+        << std::endl
+        << "  CUid: " << fmd->getCUid()
+        << " CGid: " << fmd->getCGid()
+        << " Fxid: " << hex_fid
+        << " Fid: " << fmd->getId()
+        << " Pid: " << fmd->getContainerId()
+        << " Pxid: " << FileId::Fid2Hex(fmd->getContainerId())
+        << std::endl
+        << " ETAGs: " << etag << std::endl
+        << "XStype: " << LayoutId::GetChecksumString(lid)
+        << " XS: " << xs << std::endl
+        << "Layout: " << LayoutId::GetLayoutTypeString(lid)
+        << " Stripes: " << (LayoutId::GetStripeNumber(lid) + 1)
+        << " LayoutId: " << FileId::Fid2Hex(lid)
+        << std::endl
+        << "  #Rep: " << fmd->getNumLocation() << std::endl;
+    reply.set_std_out(oss.str());
+    reply.set_retc(0);
+    return reply;
   }
-
-  reply.set_std_out(out.str());
-  reply.set_retc(0);
-  return reply;
 }
-
 //------------------------------------------------------------------------------
 // GetMdLocation subcommand - returns metadata location information - file check
 //------------------------------------------------------------------------------
@@ -600,7 +464,7 @@ FileCmd::GetMdLocationSubcmd(const eos::console::FileProto& file) noexcept
   gOFS->MgmStats.Add("GetMdLocation", mVid.uid, mVid.gid, 1);
 
   if (!spath.length()) {
-    reply.set_std_err("error: you have to give a path name to call 'getmdlocation'");
+    reply.set_std_err("error: you have to give a path name to call 'fileinfo'");
     reply.set_retc(EINVAL);
     return reply;
   }
@@ -643,22 +507,26 @@ FileCmd::GetMdLocationSubcmd(const eos::console::FileProto& file) noexcept
     }
 
     XrdOucString sizestring;
-    std::ostringstream out;
-    int i = 0;
-    out << "&mgm.nrep=" << (int) fmd->getNumLocation()
-        << "&mgm.checksumtype=" << eos::common::LayoutId::GetChecksumString(
-          fmd->getLayoutId())
-        << "&mgm.size=" << eos::common::StringConversion::GetSizeString(sizestring,
-            (unsigned long long) fmd->getSize())
-        << "&mgm.checksum=";
-    std::string checksum;
-    eos::appendChecksumOnStringAsHex(fmd.get(), checksum, 0x00,
+    XrdOucString out;  // Use XrdOucString like old code
+    const std::string hex_fid = eos::common::FileId::Fid2Hex(fmd->getId());
+    // Build CGI-style output WITHOUT leading & (important for protobuf version!)
+    out += "mgm.nrep=";
+    out += (int) fmd->getNumLocation();
+    out += "&mgm.checksumtype=";
+    out += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+    out += "&mgm.size=";
+    out += eos::common::StringConversion::GetSizeString(sizestring,
+           (unsigned long long) fmd->getSize());
+    out += "&mgm.checksum=";
+    XrdOucString checksum_str;
+    eos::appendChecksumOnStringAsHex(fmd.get(), checksum_str, 0x00,
                                      SHA256_DIGEST_LENGTH);
-    out << checksum;
-    out << "&mgm.stripes=" << (int)(eos::common::LayoutId::GetStripeNumber(
-                                      fmd->getLayoutId()) + 1)
-        << "&";
+    out += checksum_str;
+    out += "&mgm.stripes=";
+    out += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+    out += "&";
     eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+    int i = 0;
 
     for (auto loc_it = loc_vect.begin(); loc_it != loc_vect.end(); ++loc_it) {
       // Ignore filesystem id 0
@@ -671,25 +539,43 @@ FileCmd::GetMdLocationSubcmd(const eos::console::FileProto& file) noexcept
                                               *loc_it);
 
       if (filesystem) {
-        std::string hostport = filesystem->GetString("hostport");
-        const std::string hex_fid = eos::common::FileId::Fid2Hex(fmd->getId());
-        out << "mgm.replica.url" << i << "=" << hostport
-            << "&mgm.fid" << i << "=" << hex_fid
-            << "&mgm.fsid" << i << "=" << (int) *loc_it
-            << "&mgm.fsbootstat" << i << "=" << filesystem->GetString("stat.boot")
-            << "&mgm.fstpath" << i << "="
-            << eos::common::FileId::FidPrefix2FullPath(hex_fid.c_str(),
-                filesystem->GetPath().c_str())
-            << "&mgm.nspath=" << ns_path
-            << "&";
+        XrdOucString hostport = filesystem->GetString("hostport").c_str();
+        std::string fstpath = eos::common::FileId::FidPrefix2FullPath(
+                                hex_fid.c_str(),
+                                filesystem->GetPath().c_str());
+        out += "mgm.replica.url";
+        out += i;
+        out += "=";
+        out += hostport;
+        out += "&mgm.fid";
+        out += i;
+        out += "=";
+        out += hex_fid.c_str();
+        out += "&mgm.fsid";
+        out += i;
+        out += "=";
+        out += (int) * loc_it;
+        out += "&mgm.fsbootstat";
+        out += i;
+        out += "=";
+        out += filesystem->GetString("stat.boot").c_str();
+        out += "&mgm.fstpath";
+        out += i;
+        out += "=";
+        out += fstpath.c_str();
+        out += "&";
       } else {
-        out << "NA&";
+        out += "NA&";
       }
 
       i++;
     }
 
-    reply.set_std_out(out.str());
+    // Add the namespace path once at the end
+    out += "mgm.nspath=";
+    out += ns_path.c_str();
+    eos_static_info("GetMdLocation output: %s", out.c_str());
+    reply.set_std_out(out.c_str());
     reply.set_retc(0);
   }
   return reply;
@@ -705,9 +591,9 @@ FileCmd::LayoutSubcmd(const eos::console::FileProto& file) noexcept
   XrdOucString spath = file.md().path().c_str();
   const auto& layout = file.layout();
 
-  // Check permissions - only root can do that
+  // Check root permission inline
   if (mVid.uid != 0) {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
+    reply.set_std_err("error: you need to be root to execute this command");
     reply.set_retc(EPERM);
     return reply;
   }
@@ -1013,8 +899,9 @@ FileCmd::VersionSubcmd(const eos::console::FileProto& file) noexcept
   XrdOucString spath = file.md().path().c_str();
   const auto& version = file.version();
   int maxversion = version.purge_version();
-  struct stat buf;
   XrdOucErrInfo error;
+  // Validate file exists inline
+  struct stat buf;
 
   if (gOFS->_stat(spath.c_str(), &buf, error, mVid, "")) {
     reply.set_std_err(SSTR("error: unable to stat path=" << spath.c_str()));
@@ -1530,9 +1417,9 @@ FileCmd::PurgeSubcmd(const eos::console::FileProto& file) noexcept
   XrdOucString spath = file.md().path().c_str();
   const auto& purge = file.purge();
   int max_versions = purge.purge_version();
-  // Check that the requested file exists
-  struct stat buf;
   XrdOucErrInfo error;
+  // Validate file exists inline
+  struct stat buf;
 
   if (gOFS->_stat(spath.c_str(), &buf, error, mVid, "")) {
     reply.set_std_err(SSTR("error: unable to stat path=" << spath.c_str()));
@@ -1576,9 +1463,9 @@ FileCmd::AdjustReplicaSubcmd(const eos::console::FileProto& file) noexcept
   XrdOucString spath = file.md().path().c_str();
   const auto& adjustreplica = file.adjustreplica();
 
-  // Only root can do that
-  if (mVid.uid) {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
+  // Check root permission inline
+  if (mVid.uid != 0) {
+    reply.set_std_err("error: you need to be root to execute this command");
     reply.set_retc(EPERM);
     return reply;
   }
@@ -2096,9 +1983,9 @@ FileCmd::VerifySubcmd(const eos::console::FileProto& file) noexcept
   std::string path = file.md().path();
   const auto& verify = file.verify();
 
-  // Check permissions - only root can do that
+  // Check permissions inline - only root can do that
   if (mVid.uid != 0) {
-    reply.set_std_err("error: you have to take role 'root' to execute this command");
+    reply.set_std_err("error: you need to be root to execute this command");
     reply.set_retc(EPERM);
     return reply;
   }
@@ -2490,45 +2377,6 @@ FileCmd::RenameSubcmd(const eos::console::FileProto& file) noexcept
   }
 
   return reply;
-}
-
-//------------------------------------------------------------------------------
-// Format reply for different output formats
-//------------------------------------------------------------------------------
-std::string
-FileCmd::FormatReply(const eos::console::ReplyProto& reply,
-                     const std::string& subcmd) const
-{
-  // Determine format from request
-  std::string format;
-  std::string callback;
-
-  switch (mReqProto.format()) {
-  case eos::console::RequestProto::FUSE:
-    format = "fuse";
-    break;
-
-  case eos::console::RequestProto::JSON:
-    format = "json";
-    break;
-
-  case eos::console::RequestProto::HTTP:
-    format = "http";
-    break;
-
-  default:
-    format = ""; // Default format
-    break;
-  }
-
-  return ResultFormatter::FormatFromProto(
-           reply,
-           format,
-           "file",
-           subcmd,
-           callback,
-           &mVid
-         );
 }
 
 EOSMGMNAMESPACE_END

@@ -216,17 +216,9 @@ public:
   }
 
   virtual void SetError(XrdOucErrInfo* error) {};
-  friend class ResultFormatter;
 protected:
   virtual bool OpenTemporaryOutputFiles();
   virtual bool CloseTemporaryOutputFiles();
-
-  //----------------------------------------------------------------------------
-  //! Format reply based on request format
-  //----------------------------------------------------------------------------
-  std::string FormatReply(const eos::console::ReplyProto& reply,
-                          const std::string& cmd,
-                          const std::string& subcmd) const;
 
   //----------------------------------------------------------------------------
   //! Retrieve the file's full path given its numeric id.

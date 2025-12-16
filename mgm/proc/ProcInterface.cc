@@ -491,7 +491,17 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
   XrdOucString subcmd = procEnv.Get("mgm.subcmd");
 
   // Filter here all namespace modifying proc messages
-  if (((cmd == "attr") &&
+  if (((cmd == "file") &&
+       ((subcmd == "adjustreplica") ||
+        (subcmd == "drop") ||
+        (subcmd == "layout") ||
+        (subcmd == "touch") ||
+        (subcmd == "verify") ||
+        (subcmd == "version") ||
+        (subcmd == "versions") ||
+        (subcmd == "move") ||
+        (subcmd == "rename"))) ||
+      ((cmd == "attr") &&
        ((subcmd == "set") ||
         (subcmd == "rm"))) ||
       ((cmd == "archive") &&

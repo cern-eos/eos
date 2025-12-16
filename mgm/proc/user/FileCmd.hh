@@ -58,6 +58,27 @@ public:
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
 private:
+  // Helper methods for common operations
+  std::shared_ptr<eos::IFileMD> GetFileMD(const std::string& path,
+                                          eos::console::ReplyProto& reply);
+  std::string ResolvePath(const eos::console::FileProto& file,
+                          eos::console::ReplyProto& reply);
+  bool CheckRootPermission(eos::console::ReplyProto& reply);
+  bool ValidateFileExists(const std::string& path,
+                          eos::console::ReplyProto& reply);
+
+  // Output formatting helpers
+  eos::console::ReplyProto FormatMonitoringOutput(
+    std::shared_ptr<eos::IFileMD> fmd,
+    const std::string& path);
+  eos::console::ReplyProto FormatEnvOutput(
+    std::shared_ptr<eos::IFileMD> fmd,
+    const std::string& path);
+  eos::console::ReplyProto FormatStandardOutput(
+    std::shared_ptr<eos::IFileMD> fmd,
+    const std::string& path,
+    const eos::console::FileProto& file);
+
 //----------------------------------------------------------------------------
   //! Format reply for different output formats
   //!

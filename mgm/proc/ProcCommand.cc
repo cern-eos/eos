@@ -30,7 +30,6 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "json/json.h"
-#include "mgm/proc/ResultFormatter.hh"
 
 
 EOSMGMNAMESPACE_BEGIN
@@ -296,6 +295,11 @@ ProcCommand::open(const char* inpath, const char* info,
       return Fuse();
     } else if (mCmd == "fuseX") {
       return FuseX();
+    } else if (mCmd == "file") {
+      File();
+      mDoSort = false;
+    } else if (mCmd == "fileinfo") {
+      Fileinfo();
       mDoSort = false;
     } else if (mCmd == "mkdir") {
       Mkdir();
@@ -435,6 +439,7 @@ ProcCommand::close()
 void
 ProcCommand::MakeResult()
 {
+  using eos::common::StringConversion;
   mResultStream = "";
 
   if (!fstdout) {
@@ -442,31 +447,110 @@ ProcCommand::MakeResult()
       eos::common::StringConversion::SortLines(stdOut);
     }
 
-    // Determine format
-    std::string format;
-
-    if (mFuseFormat) {
-      format = "fuse";
-    } else if (mJsonFormat) {
-      format = "json";
-    } else if (mHttpFormat) {
-      format = "http";
+    if ((!mFuseFormat && !mJsonFormat && !mHttpFormat)) {
+      // The default format
+      mResultStream = "mgm.proc.stdout=";
+      mResultStream += StringConversion::Seal(stdOut);
+      mResultStream += "&mgm.proc.stderr=";
+      mResultStream += StringConversion::Seal(stdErr);
+      mResultStream += "&mgm.proc.retc=";
+      mResultStream += std::to_string(retc);
     }
 
-    // Use ResultFormatter for consistent formatting
-    mResultStream = ResultFormatter::Format(
-                      stdOut,
-                      stdErr,
-                      retc,
-                      format,
-                      mCmd,
-                      mSubCmd,
-                      mJsonCallback,
-                      pVid
-                    );
+    if (mFuseFormat || mHttpFormat) {
+      if (mFuseFormat) {
+        mResultStream += stdOut.c_str();
+      } else {
+        mResultStream +=
+          "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.1//EN\" \"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd\">\n";
+        mResultStream += "<html>\n";
+        mResultStream +=
+          "<TITLE>EOS-HTTP</TITLE> <link rel=\"stylesheet\" href=\"http://www.w3.org/StyleSheets/Core/Midnight\"> \n";
+        mResultStream += "<meta charset=\"utf-8\"> \n";
 
-    if (!mResultStream.empty() &&
-        mResultStream[mResultStream.length() - 1] != '\n') {
+        // block cross-site scripting in responses
+        if (stdErr.length()) {
+          mResultStream +=
+            "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src https://code.jquery.com 'self';\">\n";
+        }
+
+        mResultStream += "<div class=\"httptable\" id=\"";
+        mResultStream += mCmd.c_str();
+        mResultStream += "_";
+        mResultStream += mSubCmd.c_str();
+        mResultStream += "\">\n";
+
+        // FUSE format contains only STDOUT
+        if (stdOut.length() && KeyValToHttpTable(stdOut)) {
+          mResultStream += stdOut.c_str();
+        } else {
+          if (stdErr.length() || retc) {
+            mResultStream += stdOut.c_str();
+            mResultStream += "<h3>&#9888;&nbsp;<font color=\"red\">";
+            mResultStream += stdErr.c_str();
+            mResultStream += "</font></h3>";
+          } else {
+            if (!stdOut.length()) {
+              mResultStream += "<h3>&#10004;&nbsp;";
+              mResultStream += "Success!";
+              mResultStream += "</h3>";
+            } else {
+              mResultStream += stdOut.c_str();
+            }
+          }
+        }
+
+        mResultStream += "</div>";
+      }
+    }
+
+    if (mJsonFormat) {
+      if (!stdJson.length()) {
+        Json::Value json;
+
+        try {
+          Json::Value jsonOut;
+          json["errormsg"] = stdErr.c_str();
+          json["retc"] = std::to_string(retc);
+          jsonOut = IProcCommand::ConvertOutputToJsonFormat(stdOut.c_str());
+
+          if (mCmd.length()) {
+            if (mSubCmd.length()) {
+              json[mCmd.c_str()][mSubCmd.c_str()] = jsonOut;
+            } else {
+              json[mCmd.c_str()] = jsonOut;
+            }
+          } else {
+            json["result"] = jsonOut;
+          }
+        } catch (Json::Exception& e) {
+          eos_static_err("Json conversion exception cmd=%s subcmd=%s "
+                         "emsg=\"%s\"", mCmd.c_str(), mSubCmd.c_str(), e.what());
+          json["errormsg"] = "illegal string in json conversion";
+          json["retc"] = std::to_string(EFAULT);
+        }
+
+        stdJson = SSTR(json).c_str();
+      }
+
+      if (mJsonCallback.length()) {
+        // JSONP
+        mResultStream = mJsonCallback.c_str();
+        mResultStream += "([\n";
+        mResultStream += stdJson.c_str();
+        mResultStream += "\n]);";
+      } else {
+        // JSON
+        if (vid.prot.beginswith("http")) {
+          mResultStream = stdJson.c_str();
+        } else {
+          mResultStream = "mgm.proc.json=";
+          mResultStream += StringConversion::Seal(stdJson);
+        }
+      }
+    }
+
+    if (mResultStream.length() && (*(mResultStream.rbegin()) != '\n')) {
       mResultStream += "\n";
     }
 
@@ -492,13 +576,13 @@ ProcCommand::MakeResult()
           sentry += "\n";
 
           if (!mFuseFormat) {
-            eos::common::StringConversion::Seal(sentry);
+            StringConversion::Seal(sentry);
           }
 
           fprintf(fresultStream, "%s", sentry.c_str());
         }
 
-        // Close and remove
+        // Close and remove - if this fails there is nothing to recover anyway
         fclose(fstdout);
         fstdout = 0;
         unlink(fstdoutfilename.c_str());
@@ -508,11 +592,11 @@ ProcCommand::MakeResult()
         while (std::getline(inStderr, entry)) {
           XrdOucString sentry = entry.c_str();
           sentry += "\n";
-          eos::common::StringConversion::Seal(sentry);
+          StringConversion::Seal(sentry);
           fprintf(fresultStream, "%s", sentry.c_str());
         }
 
-        // Close and remove
+        // Close and remove - if this fails there is nothing to recover anyway
         fclose(fstderr);
         fstderr = 0;
         unlink(fstderrfilename.c_str());
@@ -528,10 +612,112 @@ ProcCommand::MakeResult()
 }
 
 //------------------------------------------------------------------------------
-// Convert output to json format for EOS-wnc
+// Try to detect and convert a monitor output format and convert it into a
+// nice http table
 //------------------------------------------------------------------------------
-Json::Value
-ProcCommand::CallJsonFormatter(const std::string& output)
+bool
+ProcCommand::KeyValToHttpTable(XrdOucString& stdOut)
+{
+  while (stdOut.replace("= ", "=\"\"")) {
+  }
+
+  std::string stmp = stdOut.c_str();
+  XrdOucTokenizer tokenizer((char*) stmp.c_str());
+  const char* line;
+  bool ok = true;
+  std::vector<std::string> keys;
+  std::vector < std::map < std::string, std::string >> keyvaluetable;
+  std::string table;
+
+  while ((line = tokenizer.GetLine())) {
+    if (strlen(line) <= 1) {
+      continue;
+    }
+
+    std::map<std::string, std::string> keyval;
+
+    if (eos::common::StringConversion::GetKeyValueMap(line,
+        keyval,
+        "=",
+        " ",
+        &keys)) {
+      keyvaluetable.push_back(keyval);
+    } else {
+      ok = false;
+      break;
+    }
+  }
+
+  if (ok) {
+    table +=
+      R"literal(<style>
+table
+{
+  table-layout:auto;
+}
+</style>
+)literal";
+
+    table += "<table border=\"8\" cellspacing=\"10\" cellpadding=\"20\">\n";
+    // build the header
+    table += "<tr>\n";
+    for (size_t i = 0; i < keys.size(); i++)
+    {
+      table += "<th>";
+      table += "<font size=\"2\">";
+      // for keys don't print lengthy strings like a.b.c.d ... just print d
+      std::string dotkeys = keys[i];
+      size_t pos = dotkeys.rfind(".");
+      if (pos != std::string::npos)
+        dotkeys.erase(0, pos + 1);
+      //table += dotkeys;
+      table += keys[i];
+      table += "</font>";
+      table += "</th>";
+      table += "\n";
+    }
+    table += "</tr>\n";
+
+    // build the rows
+
+    for (size_t i = 0; i < keyvaluetable.size(); i++)
+    {
+      table += "<tr>\n";
+      for (size_t j = 0; j < keys.size(); j++)
+      {
+        table += "<td nowrap=\"nowrap\">";
+        table += "<font size=\"2\">";
+        XrdOucString sizestring = keyvaluetable[i][keys[j]].c_str();
+        unsigned long long val = eos::common::StringConversion::GetSizeFromString(sizestring);
+        if (errno || val == 0 || (!sizestring.isdigit()))
+        {
+          XrdOucString decodeURI = keyvaluetable[i][keys[j]].c_str();
+          // we need to remove URI encoded spaces now
+          while (decodeURI.replace("%20", " "))
+          {
+          }
+          table += decodeURI.c_str();
+        }
+        else
+        {
+          eos::common::StringConversion::GetReadableSizeString(sizestring, val, "");
+          table += sizestring.c_str();
+        }
+        table += "</font>";
+        table += "</td>";
+      }
+      table += "</tr>\n";
+      table += "\n";
+    }
+
+
+    table += "</table>\n";
+    stdOut = table.c_str();
+  }
+  return ok;
+}
+
+Json::Value ProcCommand::CallJsonFormatter(const std::string& output)
 {
   return IProcCommand::ConvertOutputToJsonFormat(output);
 }

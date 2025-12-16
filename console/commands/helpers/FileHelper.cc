@@ -230,7 +230,12 @@ FileHelper::FormatCheckOutput(const std::string& response,
   const char* stripes_str = env.Get("mgm.stripes");
 
   if (!ns_path || !checksum || !size_str || !nrep) {
-    std::cerr << "error: incomplete metadata from server" << std::endl;
+    std::cerr << "error: incomplete metadata from server\n";
+    std::cerr << response << "\n";
+    std::cerr << "ns_path  = " << (ns_path  ? ns_path  : "<null>") << '\n';
+    std::cerr << "checksum = " << (checksum ? checksum : "<null>") << '\n';
+    std::cerr << "size_str = " << (size_str ? size_str : "<null>") << '\n';
+    std::cerr << "nrep     = " << (nrep     ? nrep     : "<null>") << '\n';
     return;
   }
 

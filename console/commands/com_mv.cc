@@ -23,7 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "console/ConsoleMain.hh"
-extern int com_proto_file(char*);
+extern int com_file(char*);
 /*----------------------------------------------------------------------------*/
 
 int
@@ -31,5 +31,5 @@ com_mv(char* arg1)
 {
   XrdOucString cmd = "rename ";
   cmd += arg1;
-  return com_proto_file((char*)cmd.c_str());
+  return com_file((char*)cmd.c_str());
 }
