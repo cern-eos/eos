@@ -113,7 +113,7 @@ class IoStat {
 		/// @param	enumMark READ or WRITE variable comes
 		/// from the IoStat::Marks enumerator
 		//--------------------------------------------
-		void add(size_t bytes, IoStat::Marks enumMark);
+		void add(size_t bytes, IoStat::Marks enumMark, double limit = 1.0);
 
 		//--------------------------------------------
 		/// @brief Keep all I/O from the last N seconds.
@@ -158,7 +158,7 @@ class IoStat {
 		/// @return std::pair<double, double> fisrt is the
 		/// average, the second is the standard deviation 
 		//--------------------------------------------
-		std::pair<double, double> bandWidth(Marks EnumMark, size_t *range = NULL, size_t seconds = 10) const;
+		std::pair<double, double> bandWidth(Marks EnumMark, size_t *range = NULL, size_t seconds = 10, double *limit = NULL) const;
 
 		//--------------------------------------------
 		/// @brief Calculate the write or read IOPS

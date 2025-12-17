@@ -151,7 +151,7 @@ void IoMap::cleanerLoop(){
 /// Adds an IoStat object to the multimap with
 /// the corresponding elements
 //--------------------------------------------
-void IoMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes){
+void IoMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes, double limit){
 	std::lock_guard<std::mutex> lock(_mutex);
 
 	auto it = _filesMap.equal_range(inode);
@@ -160,7 +160,7 @@ void IoMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid
 		if (io::IoMapDebug)
 			printInfo(std::cout, "add new");
 		auto newIo = _filesMap.insert({inode, std::make_shared<IoStat>(inode, app, uid, gid)});
-		newIo->second->add(rbytes, IoStat::Marks::READ);
+		newIo->second->add(rbytes, IoStat::Marks::READ, limit);
 		_apps.insert(app);
 		_uids.insert(uid);
 		_gids.insert(gid);
@@ -169,7 +169,7 @@ void IoMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid
 	while (it.first != it.second){
 		auto &io = it.first->second;
 		if (io->getApp() == app && io->getGid() == gid && io->getUid() == uid){
-			io->add(rbytes, IoStat::Marks::READ);
+			io->add(rbytes, IoStat::Marks::READ, limit);
 			if (io::IoMapDebug)
 				printInfo(std::cout, "addRead");
 			break ;
@@ -179,7 +179,7 @@ void IoMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid
 			if (io::IoMapDebug)
 				printInfo(std::cout, "add new");
 			auto newIo = _filesMap.insert({inode, std::make_shared<IoStat>(inode, app, uid, gid)});
-			newIo->second->add(rbytes, IoStat::Marks::READ);
+			newIo->second->add(rbytes, IoStat::Marks::READ, limit);
 			_apps.insert(app);
 			_uids.insert(uid);
 			_gids.insert(gid);
@@ -192,7 +192,7 @@ void IoMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid
 /// Adds an IoStat object to the multimap
 /// with the corresponding elements
 //--------------------------------------------
-void IoMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes){
+void IoMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes, double limit){
 	std::lock_guard<std::mutex> lock(_mutex);
 
 	auto it = _filesMap.equal_range(inode);
@@ -201,7 +201,7 @@ void IoMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gi
 		if (io::IoMapDebug)
 			printInfo(std::cout, "add new");
 		auto newIo = _filesMap.insert({inode, std::make_shared<IoStat>(inode, app, uid, gid)});
-		newIo->second->add(wbytes, IoStat::Marks::WRITE);
+		newIo->second->add(wbytes, IoStat::Marks::WRITE, limit);
 		_apps.insert(app);
 		_uids.insert(uid);
 		_gids.insert(gid);
@@ -210,7 +210,7 @@ void IoMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gi
 	while (it.first != it.second){
 		auto &io = it.first->second;
 		if (io->getApp() == app && io->getGid() == gid && io->getUid() == uid){
-			io->add(wbytes, IoStat::Marks::WRITE);
+			io->add(wbytes, IoStat::Marks::WRITE, limit);
 			if (io::IoMapDebug)
 				printInfo(std::cout, "addWrite");
 			break ;
@@ -220,7 +220,7 @@ void IoMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gi
 			if (io::IoMapDebug)
 				printInfo(std::cout, "add new");
 			auto newIo = _filesMap.insert({inode, std::make_shared<IoStat>(inode, app, uid, gid)});
-			newIo->second->add(wbytes, IoStat::Marks::WRITE);
+			newIo->second->add(wbytes, IoStat::Marks::WRITE, limit);
 			_apps.insert(app);
 			_uids.insert(uid);
 			_gids.insert(gid);
@@ -322,7 +322,7 @@ std::unordered_multimap<uint64_t, std::shared_ptr<IoStat> >::iterator IoMap::end
 /// Calculates the weighted average and
 /// standard deviation
 //--------------------------------------------
-std::pair<double, double> IoMap::calculeWeighted(std::map<std::pair<double, double>, size_t> &indexData) const{
+std::pair<double, double> IoMap::calculeWeighted(std::map<std::pair<double, double>, size_t> &indexData, std::vector<double> &limit, double *finalLimit) const{
 	size_t divisor = 0;
 	std::pair<double, double> weighted = {0, 0};
 
@@ -333,6 +333,19 @@ std::pair<double, double> IoMap::calculeWeighted(std::map<std::pair<double, doub
 	}
 	if (divisor > 0)
 		weighted.first /= divisor;
+
+	/// Calcule limit
+	if (finalLimit && indexData.size() == limit.size()){
+		double tmpLimit = 0;
+		auto itMap = indexData.begin();
+		auto itLimit = limit.begin();
+		for (;(itMap != indexData.end()) && (itLimit != limit.end());itMap++, itLimit++){
+			tmpLimit += (*itLimit * (itMap->second == 0 ? 1 : itMap->second));
+		}
+		if (divisor > 0)
+			tmpLimit /= divisor;
+		*finalLimit = tmpLimit;
+	}
 
 	/// Calcule Standard deviation
 	for (const auto &it : indexData)

@@ -39,8 +39,8 @@ void fillData(T &map){
 		int gid = std::abs(rand() % 100);
 		for (size_t it = 0, max = std::abs(rand())% 100; it < max;it++){
 			size_t bytes = std::abs(rand() % 100000);
-			map.addRead(i, "mgm", uid, gid, bytes);
-			map.addWrite(i, "mgm", uid, gid, bytes * 3);
+			map.addRead(i, "mgm", uid, gid, bytes, static_cast<double>(std::abs(rand()) % 1000) / 1000);
+			map.addWrite(i, "mgm", uid, gid, bytes * 3, static_cast<double>(std::abs(rand()) % 1000) / 1000);
 		}
 	}
 	for (size_t i = 10; i < 20; i++){
@@ -48,8 +48,8 @@ void fillData(T &map){
 		int gid = std::abs(rand() % 100);
 		for (size_t it = 0, max = std::abs(rand()) % 100; it < max;it++){
 			size_t bytes = std::abs(rand() % 100000);
-			map.addRead(i, "fdf", uid, gid, bytes);
-			map.addWrite(i, "fdf", uid, gid, bytes * 4);
+			map.addRead(i, "fdf", uid, gid, bytes, static_cast<double>(std::abs(rand()) % 1000) / 1000);
+			map.addWrite(i, "fdf", uid, gid, bytes * 4, static_cast<double>(std::abs(rand()) % 1000) / 1000);
 		}
 	}
 	for (size_t i = 20; i < 30; i++){
@@ -57,8 +57,8 @@ void fillData(T &map){
 		int gid = std::abs(rand() % 100);
 		for (size_t it = 0, max = std::abs(rand()) % 100; it < max;it++){
 			size_t bytes = std::abs(rand() % 100000);
-			map.addRead(i, "miniRT", uid, gid, bytes);
-			map.addWrite(i, "miniRT", uid, gid, bytes * 9);
+			map.addRead(i, "miniRT", uid, gid, bytes, static_cast<double>(std::abs(rand()) % 1000) / 1000);
+			map.addWrite(i, "miniRT", uid, gid, bytes * 9, static_cast<double>(std::abs(rand()) % 1000) / 1000);
 		}
 	}
 }
@@ -78,9 +78,9 @@ void fillThread(T &map, std::mutex &mutex,
 		std::lock_guard<std::mutex> lock(mutex);
 		for (size_t j = (std::abs(rand()) % maxInteraction); j < maxInteraction; j++){
 			if (!rw)
-				map.addRead(fileId, appName, uid, gid, std::abs(rand()) % maxByte);
+				map.addRead(fileId, appName, uid, gid, std::abs(rand()) % maxByte, static_cast<double>(std::abs(rand()) % 1000) / 1000);
 			else
-				map.addWrite(fileId, appName, uid, gid, std::abs(rand()) % maxByte);
+				map.addWrite(fileId, appName, uid, gid, std::abs(rand()) % maxByte, static_cast<double>(std::abs(rand()) % 1000) / 1000);
 		}
 	}
 }
@@ -177,9 +177,9 @@ int fillDataInteract(T &map, std::mutex &mutex){
 				for (size_t i = 0; i < nbrOfLoop; i++){
 					for (size_t j = (std::abs(rand()) % maxInteraction); j < maxInteraction; j++){
 						if (!rw)
-							map.addRead(fileId, appName, uid, gid, std::abs(rand()) % maxByte);
+							map.addRead(fileId, appName, uid, gid, std::abs(rand()) % maxByte, static_cast<double>(std::abs(rand()) % 1000) / 1000);
 						else
-							map.addWrite(fileId, appName, uid, gid, std::abs(rand()) % maxByte);
+							map.addWrite(fileId, appName, uid, gid, std::abs(rand()) % maxByte, static_cast<double>(std::abs(rand()) % 1000) / 1000);
 					}
 					std::cout << "\033[F\033[K";
 					std::cout << "fill the map[" << (i + 1) << "/" << nbrOfLoop << "]" << std::endl;
@@ -221,4 +221,5 @@ int fillDataInteract(T &map, std::mutex &mutex){
 }
 
 std::ostream& operator<<(std::ostream &os, const std::pair<double, double> &other);
+
 std::ostream& operator<<(std::ostream &os, const std::optional<IoStatSummary> &opt);

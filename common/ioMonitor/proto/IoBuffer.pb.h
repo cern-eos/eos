@@ -237,6 +237,8 @@ class Summary final :
     kRIopsFieldNumber = 7,
     kWIopsFieldNumber = 8,
     kWinTimeFieldNumber = 9,
+    kRLimitFieldNumber = 10,
+    kWLimitFieldNumber = 11,
   };
   // optional uint32 rAvrg = 1;
   bool has_ravrg() const;
@@ -333,6 +335,26 @@ class Summary final :
   void _internal_set_wintime(::uint64_t value);
 
   public:
+  // double rLimit = 10;
+  void clear_rlimit() ;
+  double rlimit() const;
+  void set_rlimit(double value);
+
+  private:
+  double _internal_rlimit() const;
+  void _internal_set_rlimit(double value);
+
+  public:
+  // double wLimit = 11;
+  void clear_wlimit() ;
+  double wlimit() const;
+  void set_wlimit(double value);
+
+  private:
+  double _internal_wlimit() const;
+  void _internal_set_wlimit(double value);
+
+  public:
   // @@protoc_insertion_point(class_scope:IoBuffer.Summary)
  private:
   class _Internal;
@@ -352,6 +374,8 @@ class Summary final :
     double riops_;
     double wiops_;
     ::uint64_t wintime_;
+    double rlimit_;
+    double wlimit_;
   };
   union { Impl_ _impl_; };
   friend struct ::TableStruct_IoBuffer_2eproto;
@@ -1054,6 +1078,46 @@ inline ::uint64_t Summary::_internal_wintime() const {
 inline void Summary::_internal_set_wintime(::uint64_t value) {
   _impl_._has_bits_[0] |= 0x00000010u;
   _impl_.wintime_ = value;
+}
+
+// double rLimit = 10;
+inline void Summary::clear_rlimit() {
+  _impl_.rlimit_ = 0;
+}
+inline double Summary::rlimit() const {
+  // @@protoc_insertion_point(field_get:IoBuffer.Summary.rLimit)
+  return _internal_rlimit();
+}
+inline void Summary::set_rlimit(double value) {
+  _internal_set_rlimit(value);
+  // @@protoc_insertion_point(field_set:IoBuffer.Summary.rLimit)
+}
+inline double Summary::_internal_rlimit() const {
+  return _impl_.rlimit_;
+}
+inline void Summary::_internal_set_rlimit(double value) {
+  ;
+  _impl_.rlimit_ = value;
+}
+
+// double wLimit = 11;
+inline void Summary::clear_wlimit() {
+  _impl_.wlimit_ = 0;
+}
+inline double Summary::wlimit() const {
+  // @@protoc_insertion_point(field_get:IoBuffer.Summary.wLimit)
+  return _internal_wlimit();
+}
+inline void Summary::set_wlimit(double value) {
+  _internal_set_wlimit(value);
+  // @@protoc_insertion_point(field_set:IoBuffer.Summary.wLimit)
+}
+inline double Summary::_internal_wlimit() const {
+  return _impl_.wlimit_;
+}
+inline void Summary::_internal_set_wlimit(double value) {
+  ;
+  _impl_.wlimit_ = value;
 }
 
 // -------------------------------------------------------------------
