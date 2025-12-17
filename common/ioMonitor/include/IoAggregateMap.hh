@@ -132,8 +132,9 @@ class IoAggregateMap{
 		/// @param	uid		ID of the corresponding user
 		/// @param	gid		ID of the corresponding group
 		/// @param	rbytes	Number of bytes read
+		/// @param	rLimit	Limit wanted to set
 		//--------------------------------------------
-		void addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes);
+		void addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes, double rLimit = 1.0);
 
 		//--------------------------------------------
 		/// @brief Adds an IoStat object to the map
@@ -143,9 +144,10 @@ class IoAggregateMap{
 		/// @param	app		Name of the application
 		/// @param	uid		ID of the corresponding user
 		/// @param	gid		ID of the corresponding group
-		/// @param	rbytes	Number of bytes read
+		/// @param	rbyters	Number of bytes read
+		/// @param	wLimit	Limit wanted to set
 		//--------------------------------------------
-		void addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes);
+		void addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes, double wLimit = 1.0);
 
 		//--------------------------------------------
 		/// @brief	Add a new window time to the aggregatation
