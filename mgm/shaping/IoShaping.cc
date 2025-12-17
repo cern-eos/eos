@@ -28,9 +28,22 @@ EOSMGMNAMESPACE_BEGIN
 
 IoShaping::IoShaping(size_t time) : _mReceiving(false),  _mPublishing(false),
   _mShaping(false),_receivingTime(time){
+
+	/// The windows send to the FST's by default
 	_scaler.add_windows(10);
 	_scaler.add_windows(60);
 	_scaler.add_windows(300);
+}
+
+IoShaping::~IoShaping(){
+  if (_mShaping.load())
+  	_mShaping.store(false);
+
+  if (_mPublishing.load())
+	_mPublishing.store(false);
+
+  if (_mReceiving.load())
+	_mReceiving.store(false);
 }
 
 IoShaping::IoShaping(const IoShaping &other){
@@ -51,21 +64,6 @@ IoShaping::IoShaping(const IoShaping &other){
 		if (_mShaping.load())
 			startShaping();
 	}
-}
-
-IoShaping::~IoShaping(){
-  if (_mShaping.load()){
-  	std::lock_guard<std::mutex> lock(_mSyncThread);
-  	_mShaping.store(false);
-  }
-  if (_mPublishing.load()){
-    std::lock_guard<std::mutex> lock(_mSyncThread);
-	_mPublishing.store(false);
-  }
-  if (_mReceiving.load()){
-	std::lock_guard<std::mutex> lock(_mSyncThread);
-	_mReceiving.store(false);
-  }
 }
 
 IoShaping& IoShaping::operator=(const IoShaping &other){
@@ -242,7 +240,6 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
 	} else{
 		if (_shapings.aggregated_size() > 0)
 			_shapings.Clear();
-		eos_static_info("msg=\"No data\"");
 	}
   }
   eos_static_info("%s", "msg=\"stopping IoShaping receiver thread\"");
@@ -256,7 +253,7 @@ void IoShaping::publishing(ThreadAssistant &assistant){
 	while (!assistant.terminationRequested()){
 		if (!_mPublishing.load())
 			break ;
-		assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
+		assistant.wait_for(std::chrono::seconds(1));
 		std::lock_guard<std::mutex> lock(_mSyncThread);
 		eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
 		std::string publish;
@@ -277,7 +274,6 @@ void IoShaping::publishing(ThreadAssistant &assistant){
 }
 
 bool IoShaping::calculeScalerNodes(){
-	eos_static_info("msg=\"Calculate the scaler begin\"");
 
 	if (_shapings.aggregated_size() <= 0)
 		return false;
@@ -288,66 +284,113 @@ bool IoShaping::calculeScalerNodes(){
 				   [](auto &a, auto &b){return a.first < b.first;})->first : 0;
 	if (winTime == 0)
 		return false;
+
 	auto &it = _shapings.aggregated().at(winTime);
+	Shaping::Traffic tmp;
+
+	/// Apps
 	for (auto apps : it.apps()){
-		if ((_limiter.rApps.find(apps.first) != _limiter.rApps.end())
-			&& apps.second.ravrg()
-			&& _limiter.rApps[apps.first].second / (apps.second.ravrg() * apps.second.riops()) < 1
-			&& _limiter.rApps[apps.first].first)
-				(*_scaler.mutable_apps()->mutable_read())[apps.first]
-				= static_cast<float>(_limiter.rApps[apps.first].second) / (apps.second.ravrg() * apps.second.riops());
-		else
-			(*_scaler.mutable_apps()->mutable_read())[apps.first] = 1.0;
-		// eos_static_info("msg=\"app: %s, limit: %d, running: %d, division: %f, value: %f\"",
-		// 		apps.first.c_str(), _limiter.rApps[apps.first].second, _limiter.rApps[apps.first].first, _limiter.rApps[apps.first].second / (apps.second.ravrg() * apps.second.riops()),
-		// 	   apps.second.ravrg() * apps.second.riops());
+		/// Calcule read apps
+		if ((_limiter.rApps.find(apps.first) != _limiter.rApps.end()) && apps.second.ravrg()
+			&& _limiter.rApps[apps.first].limit / (apps.second.ravrg() * apps.second.riops()) < 1
+			&& _limiter.rApps[apps.first].isEnable){
+			tmp.set_limit(static_cast<double>(_limiter.rApps[apps.first].limit) / (apps.second.ravrg() * apps.second.riops()));
+			tmp.set_istrivial(_limiter.rApps[apps.first].isTrivial);
+				(*_scaler.mutable_apps()->mutable_read())[apps.first] = tmp;
+			tmp.Clear();
+		}
+		else{
+			tmp.set_limit(1);
+			tmp.set_istrivial(false);
+			(*_scaler.mutable_apps()->mutable_read())[apps.first] = tmp;
+			tmp.Clear();
+		}
 
-		if ((_limiter.wApps.find(apps.first) != _limiter.wApps.end())
-			&& apps.second.wavrg()
-			&& _limiter.wApps[apps.first].second / apps.second.wavrg() < 1
-			&& _limiter.wApps[apps.first].first)
-				(*_scaler.mutable_apps()->mutable_write())[apps.first] =
-					static_cast<float>(_limiter.wApps[apps.first].second) / apps.second.wavrg();
-		else
-			_scaler.mutable_apps()->mutable_write()->insert({apps.first, 1.0});
+		/// Calcule write apps
+		if ((_limiter.wApps.find(apps.first) != _limiter.wApps.end()) && apps.second.wavrg()
+			&& _limiter.wApps[apps.first].limit / (apps.second.wavrg() * apps.second.wiops()) < 1
+			&& _limiter.wApps[apps.first].isEnable){
+			tmp.set_limit(static_cast<double>(_limiter.wApps[apps.first].limit) / (apps.second.wavrg() * apps.second.wiops()));
+			tmp.set_istrivial(_limiter.wApps[apps.first].isTrivial);
+				(*_scaler.mutable_apps()->mutable_write())[apps.first] = tmp;
+			tmp.Clear();
+		}
+		else{
+			tmp.set_limit(1);
+			tmp.set_istrivial(false);
+			(*_scaler.mutable_apps()->mutable_write())[apps.first] = tmp;
+			tmp.Clear();
+		}
 	}
+
+	/// Uids
 	for (auto uids : it.uids()){
-		if ((_limiter.rUids.find(uids.first) != _limiter.rUids.end())
-			&& (uids.second.ravrg()
-			&& _limiter.rUids[uids.first].second / uids.second.ravrg() < 1
-			&& _limiter.rUids[uids.first].first))
-				(*_scaler.mutable_uids()->mutable_read())[uids.first] =
-					static_cast<float>(_limiter.rUids[uids.first].second) / uids.second.ravrg();
-		else
-			_scaler.mutable_uids()->mutable_read()->insert({uids.first, 1.0});
+		/// Calcule read uids
+		if ((_limiter.rUids.find(uids.first) != _limiter.rUids.end()) && uids.second.ravrg()
+			&& _limiter.rUids[uids.first].limit / (uids.second.ravrg() * uids.second.riops()) < 1
+			&& _limiter.rUids[uids.first].isEnable){
+			tmp.set_limit(static_cast<double>(_limiter.rUids[uids.first].limit) / (uids.second.ravrg() * uids.second.riops()));
+			tmp.set_istrivial(_limiter.rUids[uids.first].isTrivial);
+				(*_scaler.mutable_uids()->mutable_read())[uids.first] = tmp;
+			tmp.Clear();
+		}
+		else{
+			tmp.set_limit(1);
+			tmp.set_istrivial(false);
+			(*_scaler.mutable_uids()->mutable_read())[uids.first] = tmp;
+			tmp.Clear();
+		}
 
-		if ((_limiter.wUids.find(uids.first) != _limiter.wUids.end())
-			&& uids.second.wavrg()
-			&& _limiter.wUids[uids.first].second / uids.second.wavrg() < 1
-			&& _limiter.wUids[uids.first].first)
-				(*_scaler.mutable_uids()->mutable_write())[uids.first] =
-					static_cast<float>(_limiter.wUids[uids.first].second) / uids.second.wavrg();
-		else
-			_scaler.mutable_uids()->mutable_write()->insert({uids.first, 1.0});
+		/// Calcule write uids
+		if ((_limiter.wUids.find(uids.first) != _limiter.wUids.end()) && uids.second.wavrg()
+			&& _limiter.wUids[uids.first].limit / (uids.second.wavrg() * uids.second.wiops()) < 1
+			&& _limiter.wUids[uids.first].isEnable){
+			tmp.set_limit(static_cast<double>(_limiter.wUids[uids.first].limit) / (uids.second.wavrg() * uids.second.wiops()));
+			tmp.set_istrivial(_limiter.wUids[uids.first].isTrivial);
+				(*_scaler.mutable_uids()->mutable_write())[uids.first] = tmp;
+			tmp.Clear();
+		}
+		else{
+			tmp.set_limit(1);
+			tmp.set_istrivial(false);
+			(*_scaler.mutable_uids()->mutable_write())[uids.first] = tmp;
+			tmp.Clear();
+		}
 	}
-	for (auto gids : it.gids()){
-		if ((_limiter.rGids.find(gids.first) != _limiter.rGids.end())
-			&& gids.second.ravrg()
-			&& _limiter.rGids[gids.first].second / gids.second.ravrg() < 1
-			&& _limiter.rGids[gids.first].first)
-				(*_scaler.mutable_gids()->mutable_read())[gids.first] =
-					static_cast<float>(_limiter.rGids[gids.first].second) / gids.second.ravrg();
-		else
-			_scaler.mutable_gids()->mutable_read()->insert({gids.first, 1.0});
 
-		if ((_limiter.wGids.find(gids.first) != _limiter.wGids.end())
-			&& gids.second.wavrg()
-			&& _limiter.wGids[gids.first].second / gids.second.wavrg() < 1
-			&& _limiter.wGids[gids.first].first)
-				(*_scaler.mutable_gids()->mutable_write())[gids.first] =
-					static_cast<float>(_limiter.wGids[gids.first].second) / gids.second.wavrg();
-		else
-			_scaler.mutable_gids()->mutable_write()->insert({gids.first, 1.0});
+	/// Gids
+	for (auto gids : it.gids()){
+		/// Calcule read gids
+		if ((_limiter.rGids.find(gids.first) != _limiter.rGids.end()) && gids.second.ravrg()
+			&& _limiter.rGids[gids.first].limit / (gids.second.ravrg() * gids.second.riops()) < 1
+			&& _limiter.rGids[gids.first].isEnable){
+			tmp.set_limit(static_cast<double>(_limiter.rGids[gids.first].limit) / (gids.second.ravrg() * gids.second.riops()));
+			tmp.set_istrivial(_limiter.rGids[gids.first].isTrivial);
+				(*_scaler.mutable_gids()->mutable_read())[gids.first] = tmp;
+			tmp.Clear();
+		}
+		else{
+			tmp.set_limit(1);
+			tmp.set_istrivial(false);
+			(*_scaler.mutable_gids()->mutable_read())[gids.first] = tmp;
+			tmp.Clear();
+		}
+
+		/// Calcule write gids
+		if ((_limiter.wGids.find(gids.first) != _limiter.wGids.end()) && gids.second.wavrg()
+			&& _limiter.wGids[gids.first].limit / (gids.second.wavrg() * gids.second.wiops()) < 1
+			&& _limiter.wGids[gids.first].isEnable){
+			tmp.set_limit(static_cast<double>(_limiter.wGids[gids.first].limit) / (gids.second.wavrg() * gids.second.wiops()));
+			tmp.set_istrivial(_limiter.wGids[gids.first].isTrivial);
+				(*_scaler.mutable_gids()->mutable_write())[gids.first] = tmp;
+			tmp.Clear();
+		}
+		else{
+			tmp.set_limit(1);
+			tmp.set_istrivial(false);
+			(*_scaler.mutable_gids()->mutable_write())[gids.first] = tmp;
+			tmp.Clear();
+		}
 	}
 
 	return true;
@@ -375,7 +418,6 @@ void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
 }
 
 bool IoShaping::startReceiving(){
-  std::lock_guard<std::mutex> lock(_mSyncThread);
 
   if (!_mReceiving.load()){
 	_mReceiving.store(true);
@@ -396,7 +438,6 @@ bool IoShaping::stopReceiving(){
 }
 
 bool IoShaping::startPublishing(){
-  std::lock_guard<std::mutex> lock(_mSyncThread);
 
   if (!_mPublishing.load()){
 	_mPublishing.store(true);
@@ -450,6 +491,58 @@ Shaping::Scaler IoShaping::getScaler() const{
 Limiter IoShaping::getLimiter() const{
     std::lock_guard<std::mutex> lock(_mSyncThread);
 	return _limiter;
+}
+
+bool IoShaping::addWindow(size_t winTime){
+	std::lock_guard<std::mutex> lock(_mSyncThread);
+	if (winTime < 10)
+		return false;
+
+	if (std::find(_scaler.windows().begin(), _scaler.windows().end(), winTime) == _scaler.windows().end())
+		_scaler.add_windows(winTime);
+	return true;
+}
+
+bool IoShaping::rm(size_t winTime){
+	std::lock_guard<std::mutex> lock(_mSyncThread);
+	if (std::find(_scaler.windows().begin(), _scaler.windows().end(), winTime) == _scaler.windows().end())
+		return false;
+
+	_scaler.mutable_windows()->erase(std::find(_scaler.windows().begin(), _scaler.windows().end(), winTime));
+	return true;
+}
+
+bool IoShaping::rmAppsLimit(){
+	std::lock_guard<std::mutex> lock(_mSyncThread);
+
+	if (_limiter.rApps.size() + _limiter.wApps.size() <= 0)
+		return false;
+
+	_limiter.rApps.clear();
+	_limiter.wApps.clear();
+	return true;
+}
+
+bool IoShaping::rmUidsLimit(){
+	std::lock_guard<std::mutex> lock(_mSyncThread);
+
+	if (_limiter.rUids.size() + _limiter.wUids.size() <= 0)
+		return false;
+
+	_limiter.rUids.clear();
+	_limiter.wUids.clear();
+	return true;
+}
+
+bool IoShaping::rmGidsLimit(){
+	std::lock_guard<std::mutex> lock(_mSyncThread);
+
+	if (_limiter.rGids.size() + _limiter.wGids.size() <= 0)
+		return false;
+
+	_limiter.rGids.clear();
+	_limiter.wGids.clear();
+	return true;
 }
 
 EOSMGMNAMESPACE_END

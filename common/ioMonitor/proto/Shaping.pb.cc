@@ -20,6 +20,24 @@ namespace _pb = ::PROTOBUF_NAMESPACE_ID;
 namespace _pbi = ::PROTOBUF_NAMESPACE_ID::internal;
 namespace Shaping {
 template <typename>
+PROTOBUF_CONSTEXPR Traffic::Traffic(
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_.limit_)*/ 0
+
+  , /*decltype(_impl_.istrivial_)*/ false
+
+  , /*decltype(_impl_._cached_size_)*/{}} {}
+struct TrafficDefaultTypeInternal {
+  PROTOBUF_CONSTEXPR TrafficDefaultTypeInternal() : _instance(::_pbi::ConstantInitialized{}) {}
+  ~TrafficDefaultTypeInternal() {}
+  union {
+    Traffic _instance;
+  };
+};
+
+PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
+    PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 TrafficDefaultTypeInternal _Traffic_default_instance_;
+template <typename>
 PROTOBUF_CONSTEXPR AppsTraffic_ReadEntry_DoNotUse::AppsTraffic_ReadEntry_DoNotUse(
     ::_pbi::ConstantInitialized) {}
 struct AppsTraffic_ReadEntry_DoNotUseDefaultTypeInternal {
@@ -167,13 +185,23 @@ struct ScalerDefaultTypeInternal {
 PROTOBUF_ATTRIBUTE_NO_DESTROY PROTOBUF_CONSTINIT
     PROTOBUF_ATTRIBUTE_INIT_PRIORITY1 ScalerDefaultTypeInternal _Scaler_default_instance_;
 }  // namespace Shaping
-static ::_pb::Metadata file_level_metadata_Shaping_2eproto[10];
+static ::_pb::Metadata file_level_metadata_Shaping_2eproto[11];
 static constexpr const ::_pb::EnumDescriptor**
     file_level_enum_descriptors_Shaping_2eproto = nullptr;
 static constexpr const ::_pb::ServiceDescriptor**
     file_level_service_descriptors_Shaping_2eproto = nullptr;
 const ::uint32_t TableStruct_Shaping_2eproto::offsets[] PROTOBUF_SECTION_VARIABLE(
     protodesc_cold) = {
+    ~0u,  // no _has_bits_
+    PROTOBUF_FIELD_OFFSET(::Shaping::Traffic, _internal_metadata_),
+    ~0u,  // no _extensions_
+    ~0u,  // no _oneof_case_
+    ~0u,  // no _weak_field_map_
+    ~0u,  // no _inlined_string_donated_
+    ~0u,  // no _split_
+    ~0u,  // no sizeof(Split)
+    PROTOBUF_FIELD_OFFSET(::Shaping::Traffic, _impl_.limit_),
+    PROTOBUF_FIELD_OFFSET(::Shaping::Traffic, _impl_.istrivial_),
     PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_ReadEntry_DoNotUse, _has_bits_),
     PROTOBUF_FIELD_OFFSET(::Shaping::AppsTraffic_ReadEntry_DoNotUse, _internal_metadata_),
     ~0u,  // no _extensions_
@@ -296,19 +324,21 @@ const ::uint32_t TableStruct_Shaping_2eproto::offsets[] PROTOBUF_SECTION_VARIABL
 
 static const ::_pbi::MigrationSchema
     schemas[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-        { 0, 10, -1, sizeof(::Shaping::AppsTraffic_ReadEntry_DoNotUse)},
-        { 12, 22, -1, sizeof(::Shaping::AppsTraffic_WriteEntry_DoNotUse)},
-        { 24, -1, -1, sizeof(::Shaping::AppsTraffic)},
-        { 34, 44, -1, sizeof(::Shaping::UidsTraffic_ReadEntry_DoNotUse)},
-        { 46, 56, -1, sizeof(::Shaping::UidsTraffic_WriteEntry_DoNotUse)},
-        { 58, -1, -1, sizeof(::Shaping::UidsTraffic)},
-        { 68, 78, -1, sizeof(::Shaping::GidsTraffic_ReadEntry_DoNotUse)},
-        { 80, 90, -1, sizeof(::Shaping::GidsTraffic_WriteEntry_DoNotUse)},
-        { 92, -1, -1, sizeof(::Shaping::GidsTraffic)},
-        { 102, 114, -1, sizeof(::Shaping::Scaler)},
+        { 0, -1, -1, sizeof(::Shaping::Traffic)},
+        { 10, 20, -1, sizeof(::Shaping::AppsTraffic_ReadEntry_DoNotUse)},
+        { 22, 32, -1, sizeof(::Shaping::AppsTraffic_WriteEntry_DoNotUse)},
+        { 34, -1, -1, sizeof(::Shaping::AppsTraffic)},
+        { 44, 54, -1, sizeof(::Shaping::UidsTraffic_ReadEntry_DoNotUse)},
+        { 56, 66, -1, sizeof(::Shaping::UidsTraffic_WriteEntry_DoNotUse)},
+        { 68, -1, -1, sizeof(::Shaping::UidsTraffic)},
+        { 78, 88, -1, sizeof(::Shaping::GidsTraffic_ReadEntry_DoNotUse)},
+        { 90, 100, -1, sizeof(::Shaping::GidsTraffic_WriteEntry_DoNotUse)},
+        { 102, -1, -1, sizeof(::Shaping::GidsTraffic)},
+        { 112, 124, -1, sizeof(::Shaping::Scaler)},
 };
 
 static const ::_pb::Message* const file_default_instances[] = {
+    &::Shaping::_Traffic_default_instance_._instance,
     &::Shaping::_AppsTraffic_ReadEntry_DoNotUse_default_instance_._instance,
     &::Shaping::_AppsTraffic_WriteEntry_DoNotUse_default_instance_._instance,
     &::Shaping::_AppsTraffic_default_instance_._instance,
@@ -321,38 +351,42 @@ static const ::_pb::Message* const file_default_instances[] = {
     &::Shaping::_Scaler_default_instance_._instance,
 };
 const char descriptor_table_protodef_Shaping_2eproto[] PROTOBUF_SECTION_VARIABLE(protodesc_cold) = {
-    "\n\rShaping.proto\022\007Shaping\"\306\001\n\013AppsTraffic"
-    "\022,\n\004read\030\001 \003(\0132\036.Shaping.AppsTraffic.Rea"
-    "dEntry\022.\n\005write\030\002 \003(\0132\037.Shaping.AppsTraf"
-    "fic.WriteEntry\032+\n\tReadEntry\022\013\n\003key\030\001 \001(\t"
-    "\022\r\n\005value\030\002 \001(\002:\0028\001\032,\n\nWriteEntry\022\013\n\003key"
-    "\030\001 \001(\t\022\r\n\005value\030\002 \001(\002:\0028\001\"\306\001\n\013UidsTraffi"
-    "c\022,\n\004read\030\001 \003(\0132\036.Shaping.UidsTraffic.Re"
-    "adEntry\022.\n\005write\030\002 \003(\0132\037.Shaping.UidsTra"
-    "ffic.WriteEntry\032+\n\tReadEntry\022\013\n\003key\030\001 \001("
-    "\004\022\r\n\005value\030\002 \001(\002:\0028\001\032,\n\nWriteEntry\022\013\n\003ke"
-    "y\030\001 \001(\004\022\r\n\005value\030\002 \001(\002:\0028\001\"\306\001\n\013GidsTraff"
-    "ic\022,\n\004read\030\001 \003(\0132\036.Shaping.GidsTraffic.R"
-    "eadEntry\022.\n\005write\030\002 \003(\0132\037.Shaping.GidsTr"
-    "affic.WriteEntry\032+\n\tReadEntry\022\013\n\003key\030\001 \001"
-    "(\004\022\r\n\005value\030\002 \001(\002:\0028\001\032,\n\nWriteEntry\022\013\n\003k"
-    "ey\030\001 \001(\004\022\r\n\005value\030\002 \001(\002:\0028\001\"\205\001\n\006Scaler\022\017"
-    "\n\007windows\030\001 \003(\004\022\"\n\004apps\030\002 \001(\0132\024.Shaping."
-    "AppsTraffic\022\"\n\004uids\030\003 \001(\0132\024.Shaping.Uids"
-    "Traffic\022\"\n\004gids\030\004 \001(\0132\024.Shaping.GidsTraf"
-    "ficb\006proto3"
+    "\n\rShaping.proto\022\007Shaping\"+\n\007Traffic\022\r\n\005l"
+    "imit\030\001 \001(\001\022\021\n\tisTrivial\030\002 \001(\010\"\352\001\n\013AppsTr"
+    "affic\022,\n\004read\030\001 \003(\0132\036.Shaping.AppsTraffi"
+    "c.ReadEntry\022.\n\005write\030\002 \003(\0132\037.Shaping.App"
+    "sTraffic.WriteEntry\032=\n\tReadEntry\022\013\n\003key\030"
+    "\001 \001(\t\022\037\n\005value\030\002 \001(\0132\020.Shaping.Traffic:\002"
+    "8\001\032>\n\nWriteEntry\022\013\n\003key\030\001 \001(\t\022\037\n\005value\030\002"
+    " \001(\0132\020.Shaping.Traffic:\0028\001\"\352\001\n\013UidsTraff"
+    "ic\022,\n\004read\030\001 \003(\0132\036.Shaping.UidsTraffic.R"
+    "eadEntry\022.\n\005write\030\002 \003(\0132\037.Shaping.UidsTr"
+    "affic.WriteEntry\032=\n\tReadEntry\022\013\n\003key\030\001 \001"
+    "(\004\022\037\n\005value\030\002 \001(\0132\020.Shaping.Traffic:\0028\001\032"
+    ">\n\nWriteEntry\022\013\n\003key\030\001 \001(\004\022\037\n\005value\030\002 \001("
+    "\0132\020.Shaping.Traffic:\0028\001\"\352\001\n\013GidsTraffic\022"
+    ",\n\004read\030\001 \003(\0132\036.Shaping.GidsTraffic.Read"
+    "Entry\022.\n\005write\030\002 \003(\0132\037.Shaping.GidsTraff"
+    "ic.WriteEntry\032=\n\tReadEntry\022\013\n\003key\030\001 \001(\004\022"
+    "\037\n\005value\030\002 \001(\0132\020.Shaping.Traffic:\0028\001\032>\n\n"
+    "WriteEntry\022\013\n\003key\030\001 \001(\004\022\037\n\005value\030\002 \001(\0132\020"
+    ".Shaping.Traffic:\0028\001\"\205\001\n\006Scaler\022\017\n\007windo"
+    "ws\030\001 \003(\004\022\"\n\004apps\030\002 \001(\0132\024.Shaping.AppsTra"
+    "ffic\022\"\n\004uids\030\003 \001(\0132\024.Shaping.UidsTraffic"
+    "\022\"\n\004gids\030\004 \001(\0132\024.Shaping.GidsTrafficb\006pr"
+    "oto3"
 };
 static ::absl::once_flag descriptor_table_Shaping_2eproto_once;
 const ::_pbi::DescriptorTable descriptor_table_Shaping_2eproto = {
     false,
     false,
-    771,
+    924,
     descriptor_table_protodef_Shaping_2eproto,
     "Shaping.proto",
     &descriptor_table_Shaping_2eproto_once,
     nullptr,
     0,
-    10,
+    11,
     schemas,
     file_default_instances,
     TableStruct_Shaping_2eproto::offsets,
@@ -381,6 +415,223 @@ static ::_pbi::AddDescriptorsRunner dynamic_init_dummy_Shaping_2eproto(&descript
 namespace Shaping {
 // ===================================================================
 
+class Traffic::_Internal {
+ public:
+};
+
+Traffic::Traffic(::PROTOBUF_NAMESPACE_ID::Arena* arena)
+  : ::PROTOBUF_NAMESPACE_ID::Message(arena) {
+  SharedCtor(arena);
+  // @@protoc_insertion_point(arena_constructor:Shaping.Traffic)
+}
+Traffic::Traffic(const Traffic& from)
+  : ::PROTOBUF_NAMESPACE_ID::Message(), _impl_(from._impl_) {
+  _internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(
+      from._internal_metadata_);
+  // @@protoc_insertion_point(copy_constructor:Shaping.Traffic)
+}
+
+inline void Traffic::SharedCtor(::_pb::Arena* arena) {
+  (void)arena;
+  new (&_impl_) Impl_{
+      decltype(_impl_.limit_) { 0 }
+
+    , decltype(_impl_.istrivial_) { false }
+
+    , /*decltype(_impl_._cached_size_)*/{}
+  };
+}
+
+Traffic::~Traffic() {
+  // @@protoc_insertion_point(destructor:Shaping.Traffic)
+  if (auto *arena = _internal_metadata_.DeleteReturnArena<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>()) {
+  (void)arena;
+    return;
+  }
+  SharedDtor();
+}
+
+inline void Traffic::SharedDtor() {
+  ABSL_DCHECK(GetArenaForAllocation() == nullptr);
+}
+
+void Traffic::SetCachedSize(int size) const {
+  _impl_._cached_size_.Set(size);
+}
+
+void Traffic::Clear() {
+// @@protoc_insertion_point(message_clear_start:Shaping.Traffic)
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  ::memset(&_impl_.limit_, 0, static_cast<::size_t>(
+      reinterpret_cast<char*>(&_impl_.istrivial_) -
+      reinterpret_cast<char*>(&_impl_.limit_)) + sizeof(_impl_.istrivial_));
+  _internal_metadata_.Clear<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+}
+
+const char* Traffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx) {
+#define CHK_(x) if (PROTOBUF_PREDICT_FALSE(!(x))) goto failure
+  while (!ctx->Done(&ptr)) {
+    ::uint32_t tag;
+    ptr = ::_pbi::ReadTag(ptr, &tag);
+    switch (tag >> 3) {
+      // double limit = 1;
+      case 1:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 9)) {
+          _impl_.limit_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<double>(ptr);
+          ptr += sizeof(double);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      // bool isTrivial = 2;
+      case 2:
+        if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 16)) {
+          _impl_.istrivial_ = ::PROTOBUF_NAMESPACE_ID::internal::ReadVarint64(&ptr);
+          CHK_(ptr);
+        } else {
+          goto handle_unusual;
+        }
+        continue;
+      default:
+        goto handle_unusual;
+    }  // switch
+  handle_unusual:
+    if ((tag == 0) || ((tag & 7) == 4)) {
+      CHK_(ptr);
+      ctx->SetLastTag(tag);
+      goto message_done;
+    }
+    ptr = UnknownFieldParse(
+        tag,
+        _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(),
+        ptr, ctx);
+    CHK_(ptr != nullptr);
+  }  // while
+message_done:
+  return ptr;
+failure:
+  ptr = nullptr;
+  goto message_done;
+#undef CHK_
+}
+
+::uint8_t* Traffic::_InternalSerialize(
+    ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const {
+  // @@protoc_insertion_point(serialize_to_array_start:Shaping.Traffic)
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  // double limit = 1;
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
+  double tmp_limit = this->_internal_limit();
+  ::uint64_t raw_limit;
+  memcpy(&raw_limit, &tmp_limit, sizeof(tmp_limit));
+  if (raw_limit != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteDoubleToArray(
+        1, this->_internal_limit(), target);
+  }
+
+  // bool isTrivial = 2;
+  if (this->_internal_istrivial() != 0) {
+    target = stream->EnsureSpace(target);
+    target = ::_pbi::WireFormatLite::WriteBoolToArray(
+        2, this->_internal_istrivial(), target);
+  }
+
+  if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
+    target = ::_pbi::WireFormat::InternalSerializeUnknownFieldsToArray(
+        _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance), target, stream);
+  }
+  // @@protoc_insertion_point(serialize_to_array_end:Shaping.Traffic)
+  return target;
+}
+
+::size_t Traffic::ByteSizeLong() const {
+// @@protoc_insertion_point(message_byte_size_start:Shaping.Traffic)
+  ::size_t total_size = 0;
+
+  ::uint32_t cached_has_bits = 0;
+  // Prevent compiler warnings about cached_has_bits being unused
+  (void) cached_has_bits;
+
+  // double limit = 1;
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
+  double tmp_limit = this->_internal_limit();
+  ::uint64_t raw_limit;
+  memcpy(&raw_limit, &tmp_limit, sizeof(tmp_limit));
+  if (raw_limit != 0) {
+    total_size += 9;
+  }
+
+  // bool isTrivial = 2;
+  if (this->_internal_istrivial() != 0) {
+    total_size += 2;
+  }
+
+  return MaybeComputeUnknownFieldsSize(total_size, &_impl_._cached_size_);
+}
+
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData Traffic::_class_data_ = {
+    ::PROTOBUF_NAMESPACE_ID::Message::CopyWithSourceCheck,
+    Traffic::MergeImpl
+};
+const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*Traffic::GetClassData() const { return &_class_data_; }
+
+
+void Traffic::MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg) {
+  auto* const _this = static_cast<Traffic*>(&to_msg);
+  auto& from = static_cast<const Traffic&>(from_msg);
+  // @@protoc_insertion_point(class_specific_merge_from_start:Shaping.Traffic)
+  ABSL_DCHECK_NE(&from, _this);
+  ::uint32_t cached_has_bits = 0;
+  (void) cached_has_bits;
+
+  static_assert(sizeof(::uint64_t) == sizeof(double), "Code assumes ::uint64_t and double are the same size.");
+  double tmp_limit = from._internal_limit();
+  ::uint64_t raw_limit;
+  memcpy(&raw_limit, &tmp_limit, sizeof(tmp_limit));
+  if (raw_limit != 0) {
+    _this->_internal_set_limit(from._internal_limit());
+  }
+  if (from._internal_istrivial() != 0) {
+    _this->_internal_set_istrivial(from._internal_istrivial());
+  }
+  _this->_internal_metadata_.MergeFrom<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(from._internal_metadata_);
+}
+
+void Traffic::CopyFrom(const Traffic& from) {
+// @@protoc_insertion_point(class_specific_copy_from_start:Shaping.Traffic)
+  if (&from == this) return;
+  Clear();
+  MergeFrom(from);
+}
+
+bool Traffic::IsInitialized() const {
+  return true;
+}
+
+void Traffic::InternalSwap(Traffic* other) {
+  using std::swap;
+  _internal_metadata_.InternalSwap(&other->_internal_metadata_);
+  ::PROTOBUF_NAMESPACE_ID::internal::memswap<
+      PROTOBUF_FIELD_OFFSET(Traffic, _impl_.istrivial_)
+      + sizeof(Traffic::_impl_.istrivial_)
+      - PROTOBUF_FIELD_OFFSET(Traffic, _impl_.limit_)>(
+          reinterpret_cast<char*>(&_impl_.limit_),
+          reinterpret_cast<char*>(&other->_impl_.limit_));
+}
+
+::PROTOBUF_NAMESPACE_ID::Metadata Traffic::GetMetadata() const {
+  return ::_pbi::AssignDescriptors(
+      &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
+      file_level_metadata_Shaping_2eproto[0]);
+}
+// ===================================================================
+
 AppsTraffic_ReadEntry_DoNotUse::AppsTraffic_ReadEntry_DoNotUse() {}
 AppsTraffic_ReadEntry_DoNotUse::AppsTraffic_ReadEntry_DoNotUse(::PROTOBUF_NAMESPACE_ID::Arena* arena)
     : SuperType(arena) {}
@@ -390,7 +641,7 @@ void AppsTraffic_ReadEntry_DoNotUse::MergeFrom(const AppsTraffic_ReadEntry_DoNot
 ::PROTOBUF_NAMESPACE_ID::Metadata AppsTraffic_ReadEntry_DoNotUse::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[0]);
+      file_level_metadata_Shaping_2eproto[1]);
 }
 // ===================================================================
 
@@ -403,7 +654,7 @@ void AppsTraffic_WriteEntry_DoNotUse::MergeFrom(const AppsTraffic_WriteEntry_DoN
 ::PROTOBUF_NAMESPACE_ID::Metadata AppsTraffic_WriteEntry_DoNotUse::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[1]);
+      file_level_metadata_Shaping_2eproto[2]);
 }
 // ===================================================================
 
@@ -475,7 +726,7 @@ const char* AppsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // map<string, float> read = 1;
+      // map<string, .Shaping.Traffic> read = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
@@ -489,7 +740,7 @@ const char* AppsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
           goto handle_unusual;
         }
         continue;
-      // map<string, float> write = 2;
+      // map<string, .Shaping.Traffic> write = 2;
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
           ptr -= 1;
@@ -532,9 +783,9 @@ failure:
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // map<string, float> read = 1;
+  // map<string, .Shaping.Traffic> read = 1;
   if (!this->_internal_read().empty()) {
-    using MapType = ::_pb::Map<std::string, float>;
+    using MapType = ::_pb::Map<std::string, ::Shaping::Traffic>;
     using WireHelper = AppsTraffic_ReadEntry_DoNotUse::Funcs;
     const auto& map_field = this->_internal_read();
     auto check_utf8 = [](const MapType::value_type& entry) {
@@ -557,9 +808,9 @@ failure:
     }
   }
 
-  // map<string, float> write = 2;
+  // map<string, .Shaping.Traffic> write = 2;
   if (!this->_internal_write().empty()) {
-    using MapType = ::_pb::Map<std::string, float>;
+    using MapType = ::_pb::Map<std::string, ::Shaping::Traffic>;
     using WireHelper = AppsTraffic_WriteEntry_DoNotUse::Funcs;
     const auto& map_field = this->_internal_write();
     auto check_utf8 = [](const MapType::value_type& entry) {
@@ -598,19 +849,19 @@ failure:
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // map<string, float> read = 1;
+  // map<string, .Shaping.Traffic> read = 1;
   total_size += 1 *
       ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_read_size());
-  for (::PROTOBUF_NAMESPACE_ID::Map< std::string, float >::const_iterator
+  for (::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >::const_iterator
       it = this->_internal_read().begin();
       it != this->_internal_read().end(); ++it) {
     total_size += AppsTraffic_ReadEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
   }
 
-  // map<string, float> write = 2;
+  // map<string, .Shaping.Traffic> write = 2;
   total_size += 1 *
       ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_write_size());
-  for (::PROTOBUF_NAMESPACE_ID::Map< std::string, float >::const_iterator
+  for (::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >::const_iterator
       it = this->_internal_write().begin();
       it != this->_internal_write().end(); ++it) {
     total_size += AppsTraffic_WriteEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
@@ -660,7 +911,7 @@ void AppsTraffic::InternalSwap(AppsTraffic* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata AppsTraffic::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[2]);
+      file_level_metadata_Shaping_2eproto[3]);
 }
 // ===================================================================
 
@@ -673,7 +924,7 @@ void UidsTraffic_ReadEntry_DoNotUse::MergeFrom(const UidsTraffic_ReadEntry_DoNot
 ::PROTOBUF_NAMESPACE_ID::Metadata UidsTraffic_ReadEntry_DoNotUse::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[3]);
+      file_level_metadata_Shaping_2eproto[4]);
 }
 // ===================================================================
 
@@ -686,7 +937,7 @@ void UidsTraffic_WriteEntry_DoNotUse::MergeFrom(const UidsTraffic_WriteEntry_DoN
 ::PROTOBUF_NAMESPACE_ID::Metadata UidsTraffic_WriteEntry_DoNotUse::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[4]);
+      file_level_metadata_Shaping_2eproto[5]);
 }
 // ===================================================================
 
@@ -758,7 +1009,7 @@ const char* UidsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // map<uint64, float> read = 1;
+      // map<uint64, .Shaping.Traffic> read = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
@@ -772,7 +1023,7 @@ const char* UidsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
           goto handle_unusual;
         }
         continue;
-      // map<uint64, float> write = 2;
+      // map<uint64, .Shaping.Traffic> write = 2;
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
           ptr -= 1;
@@ -815,9 +1066,9 @@ failure:
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // map<uint64, float> read = 1;
+  // map<uint64, .Shaping.Traffic> read = 1;
   if (!this->_internal_read().empty()) {
-    using MapType = ::_pb::Map<::uint64_t, float>;
+    using MapType = ::_pb::Map<::uint64_t, ::Shaping::Traffic>;
     using WireHelper = UidsTraffic_ReadEntry_DoNotUse::Funcs;
     const auto& map_field = this->_internal_read();
 
@@ -832,9 +1083,9 @@ failure:
     }
   }
 
-  // map<uint64, float> write = 2;
+  // map<uint64, .Shaping.Traffic> write = 2;
   if (!this->_internal_write().empty()) {
-    using MapType = ::_pb::Map<::uint64_t, float>;
+    using MapType = ::_pb::Map<::uint64_t, ::Shaping::Traffic>;
     using WireHelper = UidsTraffic_WriteEntry_DoNotUse::Funcs;
     const auto& map_field = this->_internal_write();
 
@@ -865,19 +1116,19 @@ failure:
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // map<uint64, float> read = 1;
+  // map<uint64, .Shaping.Traffic> read = 1;
   total_size += 1 *
       ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_read_size());
-  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >::const_iterator
+  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >::const_iterator
       it = this->_internal_read().begin();
       it != this->_internal_read().end(); ++it) {
     total_size += UidsTraffic_ReadEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
   }
 
-  // map<uint64, float> write = 2;
+  // map<uint64, .Shaping.Traffic> write = 2;
   total_size += 1 *
       ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_write_size());
-  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >::const_iterator
+  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >::const_iterator
       it = this->_internal_write().begin();
       it != this->_internal_write().end(); ++it) {
     total_size += UidsTraffic_WriteEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
@@ -927,7 +1178,7 @@ void UidsTraffic::InternalSwap(UidsTraffic* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata UidsTraffic::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[5]);
+      file_level_metadata_Shaping_2eproto[6]);
 }
 // ===================================================================
 
@@ -940,7 +1191,7 @@ void GidsTraffic_ReadEntry_DoNotUse::MergeFrom(const GidsTraffic_ReadEntry_DoNot
 ::PROTOBUF_NAMESPACE_ID::Metadata GidsTraffic_ReadEntry_DoNotUse::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[6]);
+      file_level_metadata_Shaping_2eproto[7]);
 }
 // ===================================================================
 
@@ -953,7 +1204,7 @@ void GidsTraffic_WriteEntry_DoNotUse::MergeFrom(const GidsTraffic_WriteEntry_DoN
 ::PROTOBUF_NAMESPACE_ID::Metadata GidsTraffic_WriteEntry_DoNotUse::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[7]);
+      file_level_metadata_Shaping_2eproto[8]);
 }
 // ===================================================================
 
@@ -1025,7 +1276,7 @@ const char* GidsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
     ::uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // map<uint64, float> read = 1;
+      // map<uint64, .Shaping.Traffic> read = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 10)) {
           ptr -= 1;
@@ -1039,7 +1290,7 @@ const char* GidsTraffic::_InternalParse(const char* ptr, ::_pbi::ParseContext* c
           goto handle_unusual;
         }
         continue;
-      // map<uint64, float> write = 2;
+      // map<uint64, .Shaping.Traffic> write = 2;
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<::uint8_t>(tag) == 18)) {
           ptr -= 1;
@@ -1082,9 +1333,9 @@ failure:
   ::uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  // map<uint64, float> read = 1;
+  // map<uint64, .Shaping.Traffic> read = 1;
   if (!this->_internal_read().empty()) {
-    using MapType = ::_pb::Map<::uint64_t, float>;
+    using MapType = ::_pb::Map<::uint64_t, ::Shaping::Traffic>;
     using WireHelper = GidsTraffic_ReadEntry_DoNotUse::Funcs;
     const auto& map_field = this->_internal_read();
 
@@ -1099,9 +1350,9 @@ failure:
     }
   }
 
-  // map<uint64, float> write = 2;
+  // map<uint64, .Shaping.Traffic> write = 2;
   if (!this->_internal_write().empty()) {
-    using MapType = ::_pb::Map<::uint64_t, float>;
+    using MapType = ::_pb::Map<::uint64_t, ::Shaping::Traffic>;
     using WireHelper = GidsTraffic_WriteEntry_DoNotUse::Funcs;
     const auto& map_field = this->_internal_write();
 
@@ -1132,19 +1383,19 @@ failure:
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  // map<uint64, float> read = 1;
+  // map<uint64, .Shaping.Traffic> read = 1;
   total_size += 1 *
       ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_read_size());
-  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >::const_iterator
+  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >::const_iterator
       it = this->_internal_read().begin();
       it != this->_internal_read().end(); ++it) {
     total_size += GidsTraffic_ReadEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
   }
 
-  // map<uint64, float> write = 2;
+  // map<uint64, .Shaping.Traffic> write = 2;
   total_size += 1 *
       ::PROTOBUF_NAMESPACE_ID::internal::FromIntSize(this->_internal_write_size());
-  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >::const_iterator
+  for (::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >::const_iterator
       it = this->_internal_write().begin();
       it != this->_internal_write().end(); ++it) {
     total_size += GidsTraffic_WriteEntry_DoNotUse::Funcs::ByteSizeLong(it->first, it->second);
@@ -1194,7 +1445,7 @@ void GidsTraffic::InternalSwap(GidsTraffic* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata GidsTraffic::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[8]);
+      file_level_metadata_Shaping_2eproto[9]);
 }
 // ===================================================================
 
@@ -1546,11 +1797,15 @@ void Scaler::InternalSwap(Scaler* other) {
 ::PROTOBUF_NAMESPACE_ID::Metadata Scaler::GetMetadata() const {
   return ::_pbi::AssignDescriptors(
       &descriptor_table_Shaping_2eproto_getter, &descriptor_table_Shaping_2eproto_once,
-      file_level_metadata_Shaping_2eproto[9]);
+      file_level_metadata_Shaping_2eproto[10]);
 }
 // @@protoc_insertion_point(namespace_scope)
 }  // namespace Shaping
 PROTOBUF_NAMESPACE_OPEN
+template<> PROTOBUF_NOINLINE ::Shaping::Traffic*
+Arena::CreateMaybeMessage< ::Shaping::Traffic >(Arena* arena) {
+  return Arena::CreateMessageInternal< ::Shaping::Traffic >(arena);
+}
 template<> PROTOBUF_NOINLINE ::Shaping::AppsTraffic_ReadEntry_DoNotUse*
 Arena::CreateMaybeMessage< ::Shaping::AppsTraffic_ReadEntry_DoNotUse >(Arena* arena) {
   return Arena::CreateMessageInternal< ::Shaping::AppsTraffic_ReadEntry_DoNotUse >(arena);

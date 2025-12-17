@@ -2,19 +2,24 @@ syntax = "proto3";
 
 package Shaping;
 
+message Traffic{
+  double limit = 1;
+  bool isTrivial = 2;
+}
+
 message AppsTraffic{
-  map<string, float> read = 1;
-  map<string, float> write = 2;
+  map<string, Traffic> read = 1;
+  map<string, Traffic> write = 2;
 }
 
 message UidsTraffic{
-  map<uint64, float> read = 1;
-  map<uint64, float> write = 2;
+  map<uint64, Traffic> read = 1;
+  map<uint64, Traffic> write = 2;
 }
 
 message GidsTraffic{
-  map<uint64, float> read = 1;
-  map<uint64, float> write = 2;
+  map<uint64, Traffic> read = 1;
+  map<uint64, Traffic> write = 2;
 }
 
 message Scaler {
