@@ -286,6 +286,13 @@ EOS_AUDIT_ROTATION=3600
 # disabled by default. To enable it must be set to "1".
 # EOS_FST_DRAIN_ON_SMART_ERROR=0
 
+# EOS does not allow adding/booting a file system storing data on the root
+# partition without the .eosfsuuid file existing already. This protection is
+# in place in case the partition holding /data01 can not be mounted, then the
+# directory /data01 will sit on the root partition. This check can be disabled
+# by setting the following env variable (value is not considered).
+# EOS_FST_DISABLE_ROOT_PARTITION_CHECK=1
+
 #-------------------------------------------------------------------------------
 # GRPC Configuration
 #-------------------------------------------------------------------------------

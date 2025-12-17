@@ -220,6 +220,19 @@ CheckFsXattrConverted(std::string fs_path)
 
 EOSFSTNAMESPACE_BEGIN
 
+//-------------------------------------------------------------------------------
+// Determine if check for file system running on the root partition is disabled
+//------------------------------------------------------------------------------
+bool
+Storage::IsRootFsCheckDisabled()
+{
+  if (getenv("EOS_FST_DISABLE_ROOT_PARTITION_CHECK")) {
+    return true;
+  }
+
+  return false;
+}
+
 //------------------------------------------------------------------------------
 // Create new Storage object
 //------------------------------------------------------------------------------
@@ -486,6 +499,8 @@ Storage::StartBoot(void* pp)
 void
 Storage::Boot(FileSystem* fs)
 {
+  static bool is_root_check_disabled = IsRootFsCheckDisabled();
+
   if (!fs) {
     eos_static_warning("%s", "msg=\"skip booting of NULL file system\"");
     return;
@@ -568,11 +583,11 @@ Storage::Boot(FileSystem* fs)
 
     if (::stat("/", &root_buf)) {
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
-      fs->SetError(errno ? errno : EIO, "cannot stat root / filesystems");
+      fs->SetError(errno ? errno : EIO, "cannot stat root partition");
       return;
     }
 
-    if (root_buf.st_dev == buf.st_dev) {
+    if (!is_root_check_disabled && (root_buf.st_dev == buf.st_dev)) {
       // This filesystem is on the ROOT partition
       if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true)) {
         fs->SetStatus(eos::common::BootStatus::kBootFailure);
@@ -582,6 +597,24 @@ Storage::Boot(FileSystem* fs)
       }
     }
   }
+
+  // Check if there is a label on the disk and that the configuration
+  // shows the same fsid + uuid
+  if (!CheckLabel(fs->GetPath(), fsid, uuid)) {
+    fs->SetStatus(eos::common::BootStatus::kBootFailure);
+    fs->SetError(EFAULT, SSTR("filesystem has a different label (fsid="
+                              << fsid << ", uuid=" << uuid << ") than "
+                              << "the configuration").c_str());
+    return;
+  }
+
+  if (!FsLabel(fs->GetPath(), fsid, uuid)) {
+    fs->SetStatus(eos::common::BootStatus::kBootFailure);
+    fs->SetError(EFAULT, "cannot write the filesystem label (fsid+uuid) - "
+                 "please check filesystem state/permissions");
+    return;
+  }
+
 
   // Make sure the Fmd info was moved to xattrs
   if (!CheckFsXattrConverted(fs->GetPath())) {
@@ -646,23 +679,6 @@ Storage::Boot(FileSystem* fs)
     eos_info("msg=\"finished mgm synchronization\" fsid=%u", fsid);
   } else {
     eos_info("msg=\"skip mgm resynchronization\" fsid=%u", fsid);
-  }
-
-  // Check if there is a label on the disk and if the configuration shows the
-  // same fsid + uuid
-  if (!CheckLabel(fs->GetPath(), fsid, uuid)) {
-    fs->SetStatus(eos::common::BootStatus::kBootFailure);
-    fs->SetError(EFAULT, SSTR("filesystem has a different label (fsid="
-                              << fsid << ", uuid=" << uuid << ") than "
-                              << "the configuration").c_str());
-    return;
-  }
-
-  if (!FsLabel(fs->GetPath(), fsid, uuid)) {
-    fs->SetStatus(eos::common::BootStatus::kBootFailure);
-    fs->SetError(EFAULT, "cannot write the filesystem label (fsid+uuid) - "
-                 "please check filesystem state/permissions");
-    return;
   }
 
   fs->SetLongLong("stat.bootdonetime", (unsigned long long) time(NULL));
