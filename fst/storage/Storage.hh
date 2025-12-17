@@ -562,6 +562,14 @@ private:
   //! Signal the thread responsible with registered file systems
   //----------------------------------------------------------------------------
   void SignalRegisterThread();
+
+  //----------------------------------------------------------------------------
+  //! Determine if check for file system running on the root partition
+  //! is disabled
+  //!
+  //! @return true if check disabled, otherwise false
+  //----------------------------------------------------------------------------
+  static bool IsRootFsCheckDisabled();
 };
 
 EOSFSTNAMESPACE_END
