@@ -342,16 +342,36 @@ static size_t findSize(Limiter &limit){
 	return size + 7;
 }
 
-static std::string toMega(google::uint32 byte, float iops = 1, size_t precision = 3, bool printMega = true){
+static std::string toMega(size_t byte,
+			float iops = 1, size_t precision = 3,
+			bool print = true, bool isTrivial = false){
 	std::ostringstream os;
+
 	if (byte == 0)
 		return "0 MB/s";
 
 	float finalByte = (static_cast<float>(byte) / 1000000) * iops;
-	if (printMega)
-		os << std::fixed << std::setprecision(precision) << finalByte << " MB/s";
-	else
-		os << std::fixed << std::setprecision(precision) << finalByte;
+
+	os << std::fixed << std::setprecision(precision);
+	if (isTrivial)
+		os << "*";
+	
+	if (print && finalByte >= 1000){
+		finalByte /= 1000;
+		if (finalByte >= 1000){
+			finalByte /= 1000;
+			os << std::setprecision(2) << finalByte;
+			os << " TB/s";
+		} else {
+			os << std::setprecision(2) <<  finalByte;
+			os << " GB/s";
+		}
+	} else if (print){
+		os << finalByte;
+		os << " MB/s";
+	} else
+		os << finalByte;
+	
 	return os.str();
 }
 
@@ -378,12 +398,22 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 				   [](auto &a, auto &b){return a.first < b.first;})->first : 0;
 
 	if (options.str() == "-w"){
-		std::string windows("[Available window]:");
-		for (auto it : sums.aggregated())
-			windows += " " + std::to_string(it.first);
+		std_out << "[FST's Available windows] :=";
 		if (sums.aggregated().empty())
-			windows += " (empty)";
-		reply.set_std_out(windows.c_str());
+			std_out <<" (empty)";
+		else
+			for (auto it : sums.aggregated())
+				std_out << " " + std::to_string(it.first);
+
+		std_out << "\n[MGM set windows]         :=";
+		auto scaler(gOFS->mIoShaper.getScaler());
+		if (scaler.windows().empty())
+			std_out << " (empty)\n";
+		else
+			for (auto it : scaler.windows())
+				std_out << " " + std::to_string(it);
+
+		reply.set_std_out(std_out.str());
 		return ;
 	}
 
@@ -412,7 +442,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 				winTime = std::strtol(cmdOptions.c_str(), &delemiter, 10);
 
 				if (*delemiter || !options.eof()){
-					reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor:  " + "Command not found");
+					reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: ls: command not found");
 					return ;
 				}
 			} 
@@ -424,12 +454,12 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 		return reply.set_std_out("(empty)\n");
 
 	if (sums.aggregated().find(winTime) == sums.aggregated().end()){
-		reply.set_std_err("No matching found for window " + std::to_string(winTime));
+		reply.set_std_err("no matching found for window " + std::to_string(winTime));
 		return ;
 	}
 
-	if (!printApps && !printUids & !printGids){
-		reply.set_std_err("You cannot select multiple targets");
+	if (!printApps && !printUids && !printGids){
+		reply.set_std_err("you cannot select multiple targets");
 		return ;
 	}
 
@@ -452,7 +482,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 	size_t size = ((W2 * 5) + W1) + (printSize ? W3 * 2 : 0) + (printStd ? W4 * 2 : 0);
 	while (size--)
 		std_out << "─";
-	std_out << '\n' << std::setprecision(3);
+	std_out << '\n' << std::setprecision(3) << std::fixed;
 
 	IoBuffer::data data(sums.aggregated().at(winTime));
 	Shaping::Scaler scaler(gOFS->mIoShaper.getScaler());
@@ -479,7 +509,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 		}
 		absl = google::protobuf::json::MessageToJsonString(data, &out, jsonOption);
 		if (!absl.ok()){
-			reply.set_std_err("Failed to parse data protobuf object");
+			reply.set_std_err("failed to parse data protobuf object");
 			return ;
 		}
 		std_out.str("");
@@ -489,13 +519,13 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 			for (auto app : data.apps()){
 				auto &appScaler = scaler.apps();
 				std_out << std::left << std::setw(W1) << "app (" + app.first + ")"
-					<< std::right << std::setw(W2) << toMega(app.second.ravrg(), app.second.riops())
-					<< std::setw(W3);
-				
+					<< std::right << std::setw(W2) << toMega(app.second.ravrg(), app.second.riops());
+				/// Read apps
 				if (appScaler.read().find(app.first) != appScaler.read().end())
-					std_out << appScaler.read().at(app.first);
+					std_out << std::setprecision(3) << std::setw(2) << (appScaler.read().at(app.first).istrivial() ? " *" : "  ")
+						<< std::setw(5) << appScaler.read().at(app.first).limit();
 				else
-					std_out << 1;
+					std_out << std::setw(8) << 1.00;
 
 				if (printStd)
 					std_out << std::setw(W4) << toMega(app.second.rstd(), app.second.riops());
@@ -505,10 +535,12 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 				std_out << std::setw(W2) << toMega(app.second.wavrg(), app.second.wiops())
 					<< std::setw(W3);
 
+				/// Write apps
 				if (appScaler.write().find(app.first) != appScaler.write().end())
-					std_out << appScaler.write().at(app.first);
+					std_out << std::setprecision(3) << std::setw(2) << (appScaler.write().at(app.first).istrivial() ? " *" : "  ")
+						<< std::setw(5) << appScaler.write().at(app.first).limit();
 				else
-					std_out << 1;
+					std_out << std::setw(8) << 1.00;
 
 				if (printStd)
 					std_out << std::setw(W4) << toMega(app.second.wstd(), app.second.wiops());
@@ -518,30 +550,32 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 				std_out << std::setw(W2) << app.second.riops() << std::setw(W2) << app.second.wiops() << "\n";
 			}
 		}
+
 		if (printUids){
 			for (auto uid : data.uids()){
 				auto &uidScaler = scaler.uids();
 				std_out << std::left << std::setw(W1) << "uid (" + std::to_string(uid.first) + ")"
-					<< std::right << std::setw(W2) << toMega(uid.second.ravrg(), uid.second.riops())
-					<< std::setw(W3);
-
+					<< std::right << std::setw(W2) << toMega(uid.second.ravrg(), uid.second.riops());
+				/// Read uid
 				if (uidScaler.read().find(uid.first) != uidScaler.read().end())
-					std_out << uidScaler.read().at(uid.first);
+					std_out << std::setprecision(3) << std::setw(2) << (uidScaler.read().at(uid.first).istrivial() ? " *" : "  ")
+						<< std::setw(5) << uidScaler.read().at(uid.first).limit();
 				else
-					std_out << 1;
+					std_out << std::setw(8) << 1.00;
 
 				if (printStd)
 					std_out << std::setw(W4) << toMega(uid.second.rstd(), uid.second.riops());
 				if (printSize)
 					std_out << std::setw(W3) << uid.second.rsize();
 
-				std_out << std::setw(W2) << toMega(uid.second.wavrg(), uid.second.wiops())
-					<< std::setw(W3);
+				std_out << std::setw(W2) << toMega(uid.second.wavrg(), uid.second.wiops());
 
+				/// Write uid
 				if (uidScaler.write().find(uid.first) != uidScaler.write().end())
-					std_out << uidScaler.write().at(uid.first);
+					std_out << std::setprecision(3) << std::setw(2) << (uidScaler.write().at(uid.first).istrivial() ? " *" : "  ")
+						<< std::setw(5) << uidScaler.write().at(uid.first).limit();
 				else
-					std_out << 1;
+					std_out << std::setw(8) << 1.00;
 				
 				if (printStd)
 					std_out << std::setw(W4) << toMega(uid.second.wstd(), uid.second.wiops());
@@ -552,30 +586,33 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 					<< std::setw(W2) << uid.second.wiops() << "\n";
 			}
 		}
+
 		if (printGids){
 			for (auto gid : data.gids()){
-				auto &gidScaler = scaler.uids();
+				auto &gidScaler = scaler.gids();
 				std_out << std::left << std::setw(W1) << "gid (" + std::to_string(gid.first) + ")"
-					<< std::right << std::setw(W2) << toMega(gid.second.ravrg(), gid.second.riops())
-					<< std::setw(W3);
+					<< std::right << std::setw(W2) << toMega(gid.second.ravrg(), gid.second.riops());
 
+				/// Read gid
 				if (gidScaler.read().find(gid.first) != gidScaler.read().end())
-					std_out << gidScaler.read().at(gid.first);
+					std_out << std::setprecision(3) << std::setw(2) << (gidScaler.read().at(gid.first).istrivial() ? " *" :  "  ")
+						<< std::setw(5) << std::right << gidScaler.read().at(gid.first).limit();
 				else
-					std_out << 1;
+					std_out << std::setw(8) << 1.00;
 				
 				if (printStd)
 					std_out << std::setw(W4) << toMega(gid.second.rstd(), gid.second.riops());
 				if (printSize)
 					std_out << std::setw(W3) << gid.second.rsize();
 				
-				std_out << std::setw(W2) << toMega(gid.second.wavrg(), gid.second.wiops())
-					<< std::setw(W3);
+				std_out << std::setw(W2) << toMega(gid.second.wavrg(), gid.second.wiops());
 
+				/// Write gid
 				if (gidScaler.write().find(gid.first) != gidScaler.write().end())
-					std_out << gidScaler.write().at(gid.first);
+					std_out << std::setprecision(3) << std::setw(2) << (gidScaler.write().at(gid.first).istrivial() ? " *" : "  ")
+						<< std::setw(5) << gidScaler.write().at(gid.first).limit();
 				else
-					std_out << 1;
+					std_out << std::setw(8) << 1.00;
 				
 				if (printStd)
 					std_out << std::setw(W4) << toMega(gid.second.wstd(), gid.second.wiops());
@@ -600,14 +637,9 @@ void IoCmd::MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream &os)
 	size_t W1 = findSize(limit);
 	const size_t W2 = 16;
 	const size_t W3 = 8;
-
-	/// Handle errors
-	size_t fullSize = limit.rApps.size() + limit.wApps.size()
-		+ limit.rGids.size() + limit.wGids.size()
-		+ limit.rUids.size() + limit.wUids.size();
-
-	if (!fullSize)
-		return reply.set_std_out("(empty)\n");
+	bool printApps = true;
+	bool printUids = true;
+	bool printGids = true;
 
 	/// Display layout
 	std_out << std::left << std::setw(W1) << "who"
@@ -622,91 +654,224 @@ void IoCmd::MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream &os)
 		std_out << "─";
 	std_out << '\n' << std::setprecision(3);
 
-	for (auto app : limit.rApps){
-		std_out << std::left << std::setw(W1) << ("app (" + app.first + ")")
-		<< std::right << std::setw(W2)
-		<< (app.second.second == 0 ? "N/A" : toMega(app.second.second, 1, 0))
-		<< std::right << std::setw(W3) << (app.second.first == 0 ? "off" : "on");
-		if (limit.wApps.find(app.first) != limit.wApps.end()){
-			auto write = limit.wApps.find(app.first);
-			std_out << std::right << std::setw(W2)
-				<< (write->second.second == 0 ? "N/A" : toMega(write->second.second, 1, 0))
-				<< std::setw(W3) << (write->second.first == 0 ? "off" : "on");
-		} else{
-			std_out << std::right << std::setw(W2) << "N/A"
-				<< std::setw(W3) << "off";
-		}
-		std_out << '\n';
+	if (!os.eof()){
+		while (os >> options){
+			if (options == "-a"){
+				printUids = false;
+				printGids = false;
+			}
+			else if (options == "-u"){
+				printApps = false;
+				printGids = false;
+			}
+			else if (options == "-g"){
+				printApps = false;
+				printUids = false;
+			} else {
+				reply.set_std_err("Monitor: set ls: option not found");
+				return ;
+			}
+		} 
 	}
-	for (auto app : limit.wApps){
-		if (limit.rApps.find(app.first) == limit.rApps.end()){
+
+	/// Handle errors
+	if (!printApps && !printUids && !printGids){
+		reply.set_std_err("you cannot select multiple targets");
+		return ;
+	}
+
+	size_t fullSize = limit.rApps.size() + limit.wApps.size()
+		+ limit.rGids.size() + limit.wGids.size()
+		+ limit.rUids.size() + limit.wUids.size();
+
+	if (!fullSize)
+		return reply.set_std_out("(empty)\n");
+
+
+	/// Read apps
+	if (printApps){
+		for (auto app : limit.rApps){
 			std_out << std::left << std::setw(W1) << ("app (" + app.first + ")")
-			<< std::right << std::setw(W2) << "N/A MB/s"
-				<< std::setw(W3) << "off";
-			std_out << std::right << std::setw(W2)
-				<< (app.second.second == 0 ? "N/A" : toMega(app.second.second, 1, 0))
-				<< std::setw(W3) << (app.second.first == 0 ? "off" : "on");
+			<< std::right << std::setw(W2)
+			<< (app.second.limit == 0 ? "N/A" : toMega(app.second.limit, 1, 0, true, app.second.isTrivial))
+			<< std::right << std::setw(W3) << (app.second.isEnable == 0 ? "off" : "on");
+			if (limit.wApps.find(app.first) != limit.wApps.end()){
+				auto write = limit.wApps.find(app.first);
+				std_out << std::right << std::setw(W2)
+					<< (write->second.limit == 0 ? "N/A" : toMega(write->second.limit, 1, 0, true, app.second.isTrivial))
+					<< std::setw(W3) << (write->second.isEnable == 0 ? "off" : "on");
+			} else{
+				std_out << std::right << std::setw(W2) << "N/A"
+					<< std::setw(W3) << "off";
+			}
 			std_out << '\n';
+		}
+		/// Write apps
+		for (auto app : limit.wApps){
+			if (limit.rApps.find(app.first) == limit.rApps.end()){
+				std_out << std::left << std::setw(W1) << ("app (" + app.first + ")")
+				<< std::right << std::setw(W2) << "N/A MB/s"
+					<< std::setw(W3) << "off";
+				std_out << std::right << std::setw(W2)
+					<< (app.second.limit == 0 ? "N/A" : toMega(app.second.limit, 1, 0, true, app.second.isTrivial))
+					<< std::setw(W3) << (app.second.isEnable == 0 ? "off" : "on");
+				std_out << '\n';
+			}
 		}
 	}
 
-	for (auto uid : limit.rUids){
-		std_out << std::left << std::setw(W1) << ("uid (" + std::to_string(uid.first) + ")")
-		<< std::right << std::setw(W2)
-			<< (uid.second.second == 0 ? "N/A" : toMega(uid.second.second, 1, 0))
-		<< std::right << std::setw(W3) << (uid.second.first == 0 ? "off" : "on");
-		if (limit.wUids.find(uid.first) != limit.wUids.end()){
-			auto write = limit.wUids.find(uid.first);
-			std_out << std::right << std::setw(W2)
-				<< (write->second.second == 0 ? "N/A" : toMega(write->second.second, 1, 0))
-				<< std::setw(W3) << (write->second.first == 0 ? "off" : "on");
-		} else{
-			std_out << std::right << std::setw(W2) << "N/A"
-				<< std::setw(W3) << "off";
-		}
-		std_out << '\n';
-	}
-	for (auto uid : limit.wUids){
-		if (limit.rUids.find(uid.first) == limit.rUids.end()){
+	if (printUids){
+		/// Read uids
+		for (auto uid : limit.rUids){
 			std_out << std::left << std::setw(W1) << ("uid (" + std::to_string(uid.first) + ")")
 			<< std::right << std::setw(W2)
-				<< "N/A" << std::setw(W3) << "off";
-			std_out << std::right << std::setw(W2)
-				<< (uid.second.second == 0 ? "N/A" : toMega(uid.second.second, 1, 0))
-				<< std::setw(W3) << (uid.second.first == 0 ? "off" : "on");
+			<< (uid.second.limit == 0 ? "N/A" : toMega(uid.second.limit, 1, 0, true, uid.second.isTrivial))
+			<< std::right << std::setw(W3) << (uid.second.isEnable == 0 ? "off" : "on");
+			if (limit.wUids.find(uid.first) != limit.wUids.end()){
+				auto write = limit.wUids.find(uid.first);
+				std_out << std::right << std::setw(W2)
+					<< (write->second.limit == 0 ? "N/A" : toMega(write->second.limit, 1, 0, true, uid.second.isTrivial))
+					<< std::setw(W3) << (write->second.isEnable == 0 ? "off" : "on");
+			} else{
+				std_out << std::right << std::setw(W2) << "N/A"
+					<< std::setw(W3) << "off";
+			}
 			std_out << '\n';
+		}
+		/// Write uids
+		for (auto uid : limit.wUids){
+			if (limit.rUids.find(uid.first) == limit.rUids.end()){
+				std_out << std::left << std::setw(W1) << ("uid (" + std::to_string(uid.first) + ")")
+				<< std::right << std::setw(W2)
+					<< "N/A" << std::setw(W3) << "off";
+				std_out << std::right << std::setw(W2)
+					<< (uid.second.limit == 0 ? "N/A" : toMega(uid.second.limit, 1, 0, true, uid.second.isTrivial))
+					<< std::setw(W3) << (uid.second.isEnable == 0 ? "off" : "on");
+				std_out << '\n';
+			}
 		}
 	}
 
-	for (auto gid : limit.rGids){
-		std_out << std::left << std::setw(W1) << ("gid (" + std::to_string(gid.first) + ")")
-		<< std::right << std::setw(W2)
-			<< (gid.second.second == 0 ? "N/A" : toMega(gid.second.second, 1, 0))
-		<< std::right << std::setw(W3) << (gid.second.first == 0 ? "off" : "on");
-		if (limit.wGids.find(gid.first) != limit.wGids.end()){
-			auto write = limit.wGids.find(gid.first);
-			std_out << std::right << std::setw(W2)
-				<< (write->second.second == 0 ? "N/A" : toMega(write->second.second, 1, 0))
-				<< std::setw(W3) << (write->second.first == 0 ? "off" : "on");
-		} else{
-			std_out << std::right << std::setw(W2) << "N/A" << std::setw(W3) << "off";
-		}
-		std_out << '\n';
-	}
-	for (auto gid : limit.wGids){
-		if (limit.rGids.find(gid.first) == limit.rGids.end()){
+	if (printGids){
+		/// Read gids
+		for (auto gid : limit.rGids){
 			std_out << std::left << std::setw(W1) << ("gid (" + std::to_string(gid.first) + ")")
-			<< std::right << std::setw(W2) << "N/A" << std::setw(W3) << (gid.second.first == 0 ? "off" : "on");
-			std_out << std::right << std::setw(W2)
-				<< (gid.second.second == 0 ? "N/A" : toMega(gid.second.second, 1, 0))
-				<< std::setw(W3) << (gid.second.first == 0 ? "off" : "on");
+			<< std::right << std::setw(W2)
+				<< (gid.second.limit == 0 ? "N/A" : toMega(gid.second.limit, 1, 0, true, gid.second.isTrivial))
+			<< std::right << std::setw(W3) << (gid.second.isEnable == 0 ? "off" : "on");
+			if (limit.wGids.find(gid.first) != limit.wGids.end()){
+				auto write = limit.wGids.find(gid.first);
+				std_out << std::right << std::setw(W2)
+					<< (write->second.limit == 0 ? "N/A" : toMega(write->second.limit, 1, 0, true, gid.second.isTrivial))
+					<< std::setw(W3) << (write->second.isEnable == 0 ? "off" : "on");
+			} else{
+				std_out << std::right << std::setw(W2) << "N/A" << std::setw(W3) << "off";
+			}
 			std_out << '\n';
+		}
+		/// Write gids
+		for (auto gid : limit.wGids){
+			if (limit.rGids.find(gid.first) == limit.rGids.end()){
+				std_out << std::left << std::setw(W1) << ("gid (" + std::to_string(gid.first) + ")")
+				<< std::right << std::setw(W2) << "N/A" << std::setw(W3) << (gid.second.isEnable == 0 ? "off" : "on");
+				std_out << std::right << std::setw(W2)
+					<< (gid.second.limit == 0 ? "N/A" : toMega(gid.second.limit, 1, 0, true, gid.second.isTrivial))
+					<< std::setw(W3) << (gid.second.isEnable == 0 ? "off" : "on");
+				std_out << '\n';
+			}
 		}
 	}
 
 	reply.set_std_out(std_out.str());
 	return ;
 }
+
+void IoCmd::MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream &os){
+	std::stringstream std_out;
+	std::string input;
+
+	std::string app;
+	gid_t		gid = 0;
+	uid_t		uid = 0;
+
+	if (os.eof()){
+		reply.set_std_out("Try eos io monitor --help\n");
+		return ;
+	}
+
+	if (os.str().find(':') != std::string::npos && std::getline(os, input, ':')){
+		if (input == "uid" && os >> uid && os.eof()){
+			if (gOFS->mIoShaper.rmLimit(io::TYPE::UID, uid))
+				std_out << "Uid " << uid << " set successfully removed\n";
+			else
+				std_out << "Remove uid " << uid << " failed\n";
+		}
+		else if (input == "gid" && os >> gid && os.eof()){
+			if (gOFS->mIoShaper.rmLimit(io::TYPE::GID, gid))
+				std_out << "Gid " << gid << " set successfully removed\n";
+			else
+				std_out << "Remove gid " << gid << " failed\n";
+		}
+		else if (input == "app" && os >> app && os.eof()){
+			if (gOFS->mIoShaper.rmLimit(app))
+				std_out << "App " << app << " set successfully removed\n";
+			else
+				std_out << "Remove app " << app << " failed\n";
+		}
+		else{
+			reply.set_std_err("Monitor: set rm: target can only be <app|uid|gid>:<id> || [-a] [-u] [-g] [--all]\n");
+			return ;
+		}
+	} else if (os >> input){
+		if (input == "-a"){
+			if (gOFS->mIoShaper.rmAppsLimit())
+				std_out << "All apps set successfuly removed\n";
+			else
+				std_out << "Removed all apps set failed\n";
+		}
+		else if (input == "-u"){
+			if (gOFS->mIoShaper.rmUidsLimit())
+				std_out << "All uids set successfuly removed\n";
+			else
+				std_out << "Removed all uids set failed\n";
+		}
+		else if (input == "-g"){
+			if (gOFS->mIoShaper.rmGidsLimit())
+				std_out << "All gids set successfuly removed\n";
+			else
+				std_out << "Removed all gids set failed\n";
+		}
+		else if (input == "--all"){
+			if (gOFS->mIoShaper.rmAppsLimit())
+				std_out << "All apps set successfuly removed\n";
+			else
+				std_out << "Removed all apps set failed\n";
+			if (gOFS->mIoShaper.rmUidsLimit())
+				std_out << "All uids set successfuly removed\n";
+			else
+				std_out << "Removed all uids set failed\n";
+			if (gOFS->mIoShaper.rmGidsLimit())
+				std_out << "All gids set successfuly removed\n";
+			else
+				std_out << "Removed all gids set failed\n";
+		} else{
+			reply.set_std_err("Monitor: set rm: option not found\n");
+			return ;
+		}
+	} else{
+		reply.set_std_err("Monitor: set rm: command not found");
+		return ;
+	}
+
+
+	if (!os.eof()){
+		reply.set_std_err("Monitor: set rm: bad number of information\n");
+		return ;
+	}
+
+	reply.set_std_out(std_out.str());
+}
+
 
 void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply){
@@ -723,15 +888,21 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
 	bool		isUid = false;
 	bool		isApp = false;
 	bool		isStatus = false;
+	bool		isTrivial = false;
 	std::string		rw;
 
 	if (cmdOption >> input){
 		if (input == "ls"){
 			MonitorSetLs(reply, cmdOption);
 			return ;
+		}
+		else if (input == "rm"){
+			cmdOption.get();
+			MonitorSetRm(reply, cmdOption);
+			return ;
 		} else {
 			std::stringstream target(input);
-			if (std::getline(target, input, ':')){
+			if (input.find(':') != std::string::npos && std::getline(target, input, ':')){
 				if (input == "uid" && target >> uid && target.eof())
 					isUid = true;
 				else if (input == "gid" && target >> gid && target.eof())
@@ -739,11 +910,11 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
 				else if (input == "app" && target >> app && target.eof())
 					isApp = true;
 				else{
-					reply.set_std_err("Bad target");
+					reply.set_std_err("Monitor: target can only be <app|uid|gid>:<id>");
 					return ;
 				}
 			} else {
-				reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: target not found");
+				reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: set: command not found");
 				return ;
 			}
 			if (cmdOption >> input){
@@ -753,7 +924,7 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
 					if (input == "read" || input == "write")
 						rw = input;
 					else{
-						reply.set_std_err("Read or write but choise bro");
+						reply.set_std_err("Monitor: only read|write accepted");
 						return ;
 					}
 					if (target >> input){
@@ -761,15 +932,26 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
 							isStatus = true;
 							status = input;
 						} else {
-							char *str = NULL;
-							limits = std::strtol(input.c_str(), &str, 10);
-							if (*str || limits == 0){
-								reply.set_std_err("bad limite input");
+							cmdOption.clear();
+							cmdOption.str(input);
+
+							char c = 0;
+							if (!(cmdOption >> limits) || limits == 0){
+								reply.set_std_err("Monitor: bad limite input");
 								return ;
+							}
+							if (!cmdOption.eof()){
+								cmdOption >> c;
+								if (c == '*')
+									isTrivial = true;
+								else{
+									reply.set_std_err("Monitor: bad limite input");
+									return ;
+								}
 							}
 						}
 					} else{
-						reply.set_std_err("bad read or write target");
+						reply.set_std_err("Monitor: bad read or write target");
 						return ;
 					}
 				} else {
@@ -781,67 +963,124 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
 					return ;
 			}
 		}
+	} else{
+		reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: set: command not found");
+		return ;
 	}
+
+
+	cmdOption.str("");
+	cmdOption.clear();
 
 	if (isApp){
 		if (isStatus){
-			if (!gOFS->mIoShaper.setLimiter(app, rw, (status == "on" ? true : false))){
+			if (!gOFS->mIoShaper.setStatus(app, rw, (status == "on" ? true : false))){
 				reply.set_std_err("Set app limit status failed");
 				return ;
 			}
 			if (status == "on")
-				reply.set_std_out("Enable the " + rw + " limit for (app) " + app);
+				cmdOption << "Enable the " + rw + " limit for (app) " + app;
 			else
-				reply.set_std_out("Disable the " + rw + " limit for (app) " + app);
+				cmdOption << "Disable the " + rw + " limit for (app) " + app;
 		}
 		else{
 			gOFS->mIoShaper.setLimiter(app, limits, rw);
-			reply.set_std_out("Set limit for (app) " + app + " with limit of " + std::to_string(limits) + " MB/s");
+			cmdOption <<  "Set limit for (app) " + app + " with limit of " + std::to_string(limits) + " MB/s";
+			if (!gOFS->mIoShaper.setTrivial(app, rw, isTrivial)){
+				reply.set_std_err("Set apps trivial option failed");
+				return ;
+			} else if (isTrivial)
+				cmdOption << " (*)";
 		}
 	}
 	else if (isUid){
 		if (isStatus){
-			if (!gOFS->mIoShaper.setLimiter(io::TYPE::UID, uid, rw, (status == "on" ? true : false))){
+			if (!gOFS->mIoShaper.setStatus(io::TYPE::UID, uid, rw, (status == "on" ? true : false))){
 				reply.set_std_err("Set uid limit status failed");
 				return ;
 			}
 			if (status == "on")
-				reply.set_std_out("Enable the " + rw + " limit for (uid) " + std::to_string(uid));
+				cmdOption << "Enable the " + rw + " limit for (uid) " + std::to_string(uid);
 			else
-				reply.set_std_out("Disable the " + rw + " limit for (uid) " + std::to_string(uid));
+				cmdOption << "Disable the " + rw + " limit for (uid) " + std::to_string(uid);
 		}
 		else{
 			gOFS->mIoShaper.setLimiter(io::TYPE::UID, uid, limits, rw);
-			reply.set_std_out("Set limit for (uid) " + std::to_string(uid) + " with limit of " + std::to_string(limits) + " MB/s");
+			cmdOption << "Set limit for (uid) " + std::to_string(uid) + " with limit of " + std::to_string(limits) + " MB/s";
+			if (!gOFS->mIoShaper.setTrivial(io::TYPE::UID, uid, rw, isTrivial)){
+				reply.set_std_err("Set uid trivial option failed");
+				return ;
+			}  else if (isTrivial)
+				cmdOption << " (*)";
 		}
 	}
 	else if (isGid){
 		if (isStatus){
-			if (!gOFS->mIoShaper.setLimiter(io::TYPE::GID, gid, rw, (status == "on" ? true : false))){
+			if (!gOFS->mIoShaper.setStatus(io::TYPE::GID, gid, rw, (status == "on" ? true : false))){
 				reply.set_std_err("Set gid limit status failed");
 				return ;
 			}
 			if (status == "on")
-				reply.set_std_out("Enable the " + rw + " limit for (gid) " + std::to_string(gid));
+				cmdOption << "Enable the " + rw + " limit for (gid) " + std::to_string(gid);
 			else
-				reply.set_std_out("Disable the " + rw + " limit for (gid) " + std::to_string(gid));
+				cmdOption << "Disable the " + rw + " limit for (gid) " + std::to_string(gid);
 		}
 		else{
 			gOFS->mIoShaper.setLimiter(io::TYPE::GID, gid, limits, rw);
-			reply.set_std_out("Set limit for (gid) " + std::to_string(gid) + " with limit of " + std::to_string(limits) + " MB/s");
+			cmdOption << "Set limit for (gid) " + std::to_string(gid) + " with limit of " + std::to_string(limits) + " MB/s";
+			if (!gOFS->mIoShaper.setTrivial(io::TYPE::GID, gid, rw, isTrivial)){
+				reply.set_std_err("Set gid trivial option failed");
+				return ;
+			} else if (isTrivial)
+				cmdOption << " (*)";
 		}
 	}else{
 		reply.set_std_err("???");
 		return ;
 	}
+
+	reply.set_std_out(cmdOption.str());
 }
+
 
 void IoCmd::MonitorAdd(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply){
+	size_t window = 0;
+	std::stringstream options(mn.options());
+	std::stringstream std_out;
+	
+	while (options >> window){
+		if (gOFS->mIoShaper.addWindow(window))
+			std_out << "Window " << window << " successfully added\n";
+		else
+			std_out << "Add window " << window << " failed\n";
+	}
+	if (!options.eof()){
+			reply.set_std_err("Monitor: bad add window input");
+		return ;
+	}
+
+	reply.set_std_out(std_out.str());
 }
 
 void IoCmd::MonitorRm(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply){
+	size_t window = 0;
+	std::stringstream options(mn.options());
+	std::stringstream std_out;
+	
+	while (options >> window){
+		if (gOFS->mIoShaper.rm(window))
+			std_out << "Window " << window << " successfully removed\n";
+		else
+			std_out << "Remove window " << window << " failed\n";
+	}
+	if (!options.eof()){
+			reply.set_std_err("Monitor: bad add window input");
+		return ;
+	}
+
+	reply.set_std_out(std_out.str());
 }
 
 void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn,
@@ -856,18 +1095,12 @@ void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn,
 		MonitorLs(mn, reply);
 	else if (cmd == "set")
 		MonitorSet(mn, reply);
-	// else if (cmd == "add")
-	// 	MonitorAdd(mn, reply);
+	else if (cmd == "add")
+		MonitorAdd(mn, reply);
 	else if (cmd == "rm")
 		MonitorRm(mn, reply);
 	else{
-		for (auto it = FsView::gFsView.mNodeView.begin(); it != FsView::gFsView.mNodeView.end(); it++){
-			if (it->second->GetStatus() == "online"){
-				it->second->SetConfigMember("stat.monitor", (cmd + " " + options.str()).c_str(), true);
-				reply.set_std_out(it->first + " : " + cmd + " " + options.str());
-				reply.set_retc(0);
-			}
-		}
+		reply.set_std_err(cmd +  " " + mn.options() + " :Monitor: command not found");
 	}
 }
 
