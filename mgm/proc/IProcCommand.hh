@@ -324,6 +324,16 @@ protected:
   //----------------------------------------------------------------------------
   bool HasSlot();
 
+
+  friend class ResultFormatter;
+
+  //----------------------------------------------------------------------------
+  //! Format reply based on request format
+  //----------------------------------------------------------------------------
+  std::string FormatReply(const eos::console::ReplyProto& reply,
+                          const std::string& cmd,
+                          const std::string& subcmd) const;
+
   //----------------------------------------------------------------------------
   //! Store routing information
   //----------------------------------------------------------------------------

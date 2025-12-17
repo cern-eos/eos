@@ -58,26 +58,36 @@ public:
   //----------------------------------------------------------------------------
   eos::console::ReplyProto ProcessRequest() noexcept override;
 private:
-  // Helper methods for common operations
-  std::shared_ptr<eos::IFileMD> GetFileMD(const std::string& path,
-                                          eos::console::ReplyProto& reply);
-  std::string ResolvePath(const eos::console::FileProto& file,
-                          eos::console::ReplyProto& reply);
-  bool CheckRootPermission(eos::console::ReplyProto& reply);
-  bool ValidateFileExists(const std::string& path,
-                          eos::console::ReplyProto& reply);
 
-  // Output formatting helpers
-  eos::console::ReplyProto FormatMonitoringOutput(
-    std::shared_ptr<eos::IFileMD> fmd,
-    const std::string& path);
-  eos::console::ReplyProto FormatEnvOutput(
-    std::shared_ptr<eos::IFileMD> fmd,
-    const std::string& path);
-  eos::console::ReplyProto FormatStandardOutput(
+  //----------------------------------------------------------------------------
+  //! Handle directory information output
+  //!
+  //! @param cmd the container metadata object
+  //! @param path the full path to the directory
+  //! @param file the fileinfo request parameters
+  //! @param reply the reply proto to populate
+  //! @return the populated reply proto
+  //----------------------------------------------------------------------------
+  eos::console::ReplyProto HandleDirectoryInfo(
+    std::shared_ptr<eos::IContainerMD> cmd,
+    const std::string& path,
+    const eos::console::FileProto& file,
+    eos::console::ReplyProto& reply) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Handle file information output
+  //!
+  //! @param fmd the file metadata object
+  //! @param path the full path to the file
+  //! @param file the fileinfo request parameters
+  //! @param reply the reply proto to populate
+  //! @return the populated reply proto
+  //----------------------------------------------------------------------------
+  eos::console::ReplyProto HandleFileInfo(
     std::shared_ptr<eos::IFileMD> fmd,
     const std::string& path,
-    const eos::console::FileProto& file);
+    const eos::console::FileProto& file,
+    eos::console::ReplyProto& reply) noexcept;
 
 //----------------------------------------------------------------------------
   //! Format reply for different output formats

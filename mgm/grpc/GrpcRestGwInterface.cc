@@ -1305,19 +1305,19 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
 {
   // wrap the FileinfoProto object into a RequestProto object
   eos::console::RequestProto req;
-  req.mutable_fileinfo()->CopyFrom(*fileinfoRequest);
+  req.mutable_file()->mutable_fileinfo()->CopyFrom(*fileinfoRequest);
   // initialise VirtualIdentity object
   auto rootvid = eos::common::VirtualIdentity::Root();
-  std::string path = req.fileinfo().md().path();
+  std::string path = req.file().fileinfo().md().path();
 
   if (path.empty()) {
     // get by inode
-    if (req.fileinfo().md().ino()) {
-      path = "inode:" + std::to_string(req.fileinfo().md().ino());
+    if (req.file().fileinfo().md().ino()) {
+      path = "inode:" + std::to_string(req.file().fileinfo().md().ino());
     }
     // get by fileid
-    else if (req.fileinfo().md().id()) {
-      path = "fid:" + std::to_string(req.fileinfo().md().id());
+    else if (req.file().fileinfo().md().id()) {
+      path = "fid:" + std::to_string(req.file().fileinfo().md().id());
     }
 
     if (path.empty()) {
@@ -1333,47 +1333,47 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
   std::string cmd_in = "mgm.cmd=fileinfo";
   cmd_in += "&mgm.path=" + path;
 
-  if (req.fileinfo().path() || req.fileinfo().fid() ||
-      req.fileinfo().fxid() || req.fileinfo().size() ||
-      req.fileinfo().checksum() || req.fileinfo().fullpath() ||
-      req.fileinfo().proxy() || req.fileinfo().monitoring() ||
-      req.fileinfo().wnc() || req.fileinfo().env()) {
+  if (req.file().fileinfo().path() || req.file().fileinfo().fid() ||
+      req.file().fileinfo().fxid() || req.file().fileinfo().size() ||
+      req.file().fileinfo().checksum() || req.file().fileinfo().fullpath() ||
+      req.file().fileinfo().proxy() || req.file().fileinfo().monitoring() ||
+      req.file().fileinfo().wnc() || req.file().fileinfo().env()) {
     cmd_in += "&mgm.file.info.option=";
   }
 
-  if (req.fileinfo().path()) {
+  if (req.file().fileinfo().path()) {
     cmd_in += "--path";
   }
 
-  if (req.fileinfo().fid()) {
+  if (req.file().fileinfo().fid()) {
     cmd_in += "--fid";
   }
 
-  if (req.fileinfo().fxid()) {
+  if (req.file().fileinfo().fxid()) {
     cmd_in += "--fxid";
   }
 
-  if (req.fileinfo().size()) {
+  if (req.file().fileinfo().size()) {
     cmd_in += "--size";
   }
 
-  if (req.fileinfo().checksum()) {
+  if (req.file().fileinfo().checksum()) {
     cmd_in += "--checksum";
   }
 
-  if (req.fileinfo().fullpath()) {
+  if (req.file().fileinfo().fullpath()) {
     cmd_in += "--fullpath";
   }
 
-  if (req.fileinfo().proxy()) {
+  if (req.file().fileinfo().proxy()) {
     cmd_in += "--proxy";
   }
 
-  if (req.fileinfo().monitoring() || req.fileinfo().wnc()) {
+  if (req.file().fileinfo().monitoring() || req.file().fileinfo().wnc()) {
     cmd_in += "-m";
   }
 
-  if (req.fileinfo().env()) {
+  if (req.file().fileinfo().env()) {
     cmd_in += "--env";
   }
 
@@ -1382,7 +1382,7 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
   cmd.close();
 
   // Complement EOS-Drive output with usernames and groupnames
-  if (!std_out.empty() && req.fileinfo().wnc()) {
+  if (!std_out.empty() && req.file().fileinfo().wnc()) {
     size_t pos;
     int errc = 0;
 
@@ -1414,7 +1414,7 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
     eos::console::AclProto acl_request;
     eos::console::ReplyProto acl_reply;
     acl_request.set_op(eos::console::AclProto_OpType_LIST);
-    acl_request.set_path(req.fileinfo().md().path());
+    acl_request.set_path(req.file().fileinfo().md().path());
     GrpcRestGwInterface exec_acl;
     exec_acl.AclCall(vid, &acl_request, &acl_reply);
 
@@ -2270,22 +2270,22 @@ grpc::Status GrpcRestGwInterface::TouchCall(VirtualIdentity& vid,
 {
   // wrap the TokenProto object into a RequestProto object
   eos::console::RequestProto req;
-  req.mutable_touch()->CopyFrom(*touchRequest);
-  std::string path = req.touch().md().path();
+  req.mutable_file()->mutable_touch()->CopyFrom(*touchRequest);
+  std::string path = req.file().touch().md().path();
   std::string cmd_in = "mgm.cmd=file&mgm.subcmd=touch&mgm.path=" + path;
 
-  if (req.touch().nolayout()) {
+  if (req.file().touch().nolayout()) {
     cmd_in += "&mgm.file.touch.nolayout=true";
   }
 
-  if (req.touch().truncate()) {
+  if (req.file().touch().truncate()) {
     cmd_in += "&mgm.file.touch.truncate=true";
   }
 
   ExecProcCmd(vid, reply, cmd_in, false);
 
   // Create parent directories
-  if (req.touch().parents() && reply->retc() == 2) {
+  if (req.file().touch().parents() && reply->retc() == 2) {
     size_t pos = 0;
 
     if (!path.empty() && path[path.size() - 1] != '/' &&

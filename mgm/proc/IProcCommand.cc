@@ -30,6 +30,8 @@
 #include "namespace/interface/IView.hh"
 #include "json/json.h"
 #include <google/protobuf/util/json_util.h>
+#include "mgm/proc/ResultFormatter.hh"
+
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -106,6 +108,38 @@ IProcCommand::open(const char* path, const char* info,
         // @todo This format should be dropped once Quarkdb migration is complete
         //       and the NS will be queried directly
         oss << reply.std_out();
+      } else if (mReqProto.format() == eos::console::RequestProto::JSON ||
+                 mReqProto.format() == eos::console::RequestProto::HTTP) {
+        // Use ResultFormatter for JSON and HTTP formats
+        std::string format_str;
+
+        if (mReqProto.format() == eos::console::RequestProto::JSON) {
+          format_str = "json";
+        } else {
+          format_str = "http";
+        }
+
+        std::string callback;
+        // Determine command and subcommand names
+        std::string cmd_name;
+        std::string subcmd_name;
+
+        // Extract from request proto
+        if (mReqProto.has_file()) {
+          cmd_name = "file";
+          // Determine subcommand - you might want to add a helper for this
+          // For now, we'll use empty string
+          subcmd_name = "";
+        }
+
+        oss << ResultFormatter::FormatFromProto(
+              reply,
+              format_str,
+              cmd_name,
+              subcmd_name,
+              callback,
+              &mVid
+            );
       } else {
         oss << "mgm.proc.stdout=" << reply.std_out().c_str()
             << "&mgm.proc.stderr=" << reply.std_err().c_str()

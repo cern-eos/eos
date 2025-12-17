@@ -59,6 +59,7 @@
 #include <math.h>
 #include <memory>
 #include "namespace/utils/Etag.hh"
+#include "common/Fmd.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -285,7 +286,7 @@ FileCmd::TouchSubcmd(const eos::console::FileProto& file) noexcept
 }
 
 //------------------------------------------------------------------------------
-// Fileinfo subcommand - returns file metadata information
+// Fileinfo subcommand - returns file or directory metadata information
 //------------------------------------------------------------------------------
 eos::console::ReplyProto
 FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
@@ -298,7 +299,6 @@ FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
     return reply;
   }
 
-  const auto& fileinfo = file.fileinfo();
   // Get path directly
   std::string path = file.md().path();
 
@@ -309,9 +309,11 @@ FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
   }
 
   gOFS->MgmStats.Add("FileInfo", mVid.uid, mVid.gid, 1);
-  // Get file metadata directly
+  // Get metadata - check if it's a file or directory
   eos::common::RWMutexReadLock viewReadLock(gOFS->eosViewRWMutex);
   std::shared_ptr<eos::IFileMD> fmd;
+  std::shared_ptr<eos::IContainerMD> cmd;
+  bool is_directory = false;
   XrdOucString spath = path.c_str();
 
   try {
@@ -319,25 +321,183 @@ FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
       unsigned long long fid = Resolver::retrieveFileIdentifier(
                                  spath).getUnderlyingUInt64();
       fmd = gOFS->eosFileService->getFileMD(fid);
+    } else if (spath.beginswith("pid:") || spath.beginswith("pxid:")) {
+      unsigned long long cid = Resolver::retrieveFileIdentifier(
+                                 spath).getUnderlyingUInt64();
+      cmd = gOFS->eosDirectoryService->getContainerMD(cid);
+      is_directory = true;
     } else {
-      fmd = gOFS->eosView->getFile(spath.c_str());
+      // Try as file first
+      try {
+        fmd = gOFS->eosView->getFile(spath.c_str());
+      } catch (eos::MDException& e) {
+        // If file lookup fails, try as directory
+        try {
+          cmd = gOFS->eosView->getContainer(spath.c_str());
+          is_directory = true;
+        } catch (eos::MDException& e2) {
+          // Neither file nor directory found
+          reply.set_std_err(SSTR("error: cannot retrieve file or directory meta data - "
+                                 << e2.getMessage().str()));
+          reply.set_retc(e2.getErrno());
+          return reply;
+        }
+      }
     }
   } catch (eos::MDException& e) {
-    reply.set_std_err(SSTR("error: cannot retrieve file meta data - "
+    reply.set_std_err(SSTR("error: cannot retrieve meta data - "
                            << e.getMessage().str()));
     reply.set_retc(e.getErrno());
     return reply;
   }
 
-  if (!fmd) {
-    reply.set_std_err("error: file not found");
+  if (!fmd && !cmd) {
+    reply.set_std_err("error: file or directory not found");
     reply.set_retc(errno);
     return reply;
   }
 
+  // Handle directory info
+  if (is_directory && cmd) {
+    return HandleDirectoryInfo(cmd, path, file, reply);
+  }
+
+  // Handle file info (existing code)
+  return HandleFileInfo(fmd, path, file, reply);
+}
+
+//------------------------------------------------------------------------------
+// Handle directory information output
+//------------------------------------------------------------------------------
+eos::console::ReplyProto
+FileCmd::HandleDirectoryInfo(std::shared_ptr<eos::IContainerMD> cmd,
+                             const std::string& path,
+                             const eos::console::FileProto& file,
+                             eos::console::ReplyProto& reply) noexcept
+{
+  using eos::common::FileId;
+  const std::string hex_fid = FileId::Fid2Hex(cmd->getId());
+  auto fileinfo = file.fileinfo();
+
+  if (fileinfo.env()) {
+    // ENV format for directory
+    std::string env;
+    cmd->getEnv(env);
+    eos::common::Path cPath(path.c_str());
+    std::ostringstream oss;
+    oss << env << "&container=" << cPath.GetParentPath();
+    reply.set_std_out(oss.str());
+    reply.set_retc(0);
+    return reply;
+  } else if (fileinfo.monitoring()) {
+    // Monitoring format for directory
+    eos::IContainerMD::ctime_t mtime, ctime, stime, btime{0, 0};
+    cmd->getCTime(ctime);
+    cmd->getMTime(mtime);
+    cmd->getTMTime(stime); // Sync time
+    eos::IContainerMD::XAttrMap xattrs = cmd->getAttributes();
+
+    if (xattrs.count("sys.eos.btime")) {
+      eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
+    }
+
+    std::string etag;
+    eos::calculateEtag(cmd.get(), etag);
+    std::ostringstream oss;
+    oss << "keylength.directory=" << path.length()
+        << " directory=" << path
+        << " treesize=" << cmd->getTreeSize()
+        << " treecontainers=" << (cmd->getNumContainers() ? cmd->getNumContainers() : 0)
+        << " treefiles=" << (cmd->getNumFiles() ? cmd->getNumFiles() : 0)
+        << " container=" << cmd->getNumContainers()
+        << " files=" << cmd->getNumFiles()
+        << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
+        << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
+        << " stime=" << stime.tv_sec << "." << stime.tv_nsec
+        << " btime=" << btime.tv_sec << "." << btime.tv_nsec
+        << " mode=" << eos::common::StringConversion::IntToOctal((int)cmd->getMode(), 5)
+        << " uid=" << cmd->getCUid()
+        << " gid=" << cmd->getCGid()
+        << " fxid=" << hex_fid
+        << " fid=" << cmd->getId()
+        << " ino=" << FileId::FidToInode(cmd->getId())
+        << " pid=" << cmd->getParentId()
+        << " pxid=" << FileId::Fid2Hex(cmd->getParentId())
+        << " etag=" << etag
+        << " ";
+
+    for (const auto& elem : xattrs) {
+      oss << "xattrn=" << elem.first << " xattrv=" << elem.second << " ";
+    }
+
+    reply.set_std_out(oss.str());
+    reply.set_retc(0);
+    return reply;
+  } else {
+    // Standard format for directory
+    eos::IContainerMD::ctime_t mtime, ctime, stime, btime{0, 0};
+    cmd->getCTime(ctime);
+    cmd->getMTime(mtime);
+    cmd->getTMTime(stime); // Sync time
+    eos::IContainerMD::XAttrMap xattrs = cmd->getAttributes();
+
+    if (xattrs.count("sys.eos.btime")) {
+      eos::common::Timing::Timespec_from_TimespecStr(xattrs["sys.eos.btime"], btime);
+    }
+
+    std::string etag;
+    eos::calculateEtag(cmd.get(), etag);
+    std::ostringstream oss;
+    oss << "Directory: '" << path << "'" << std::endl
+        << " Treesize: " << cmd->getTreeSize() << std::endl
+        << " Treecontainers: " << (cmd->getNumContainers() ? cmd->getNumContainers() :
+                                   0)
+        << std::endl
+        << " Treefiles: " << (cmd->getNumFiles() ? cmd->getNumFiles() : 0) << std::endl
+        << " Container: " << cmd->getNumContainers() << std::endl
+        << " Files: " << cmd->getNumFiles() << std::endl
+        << " Flags: " << eos::common::StringConversion::IntToOctal((int)cmd->getMode(),
+            5)
+        << std::endl
+        << "Modify: " << eos::common::Timing::ltime((time_t)mtime.tv_sec)
+        << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
+        << std::endl
+        << "Change: " << eos::common::Timing::ltime((time_t)ctime.tv_sec)
+        << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+        << std::endl
+        << " Sync : " << eos::common::Timing::ltime((time_t)stime.tv_sec)
+        << " Timestamp: " << eos::common::Timing::TimespecToString(stime)
+        << std::endl
+        << " Birth: " << eos::common::Timing::ltime((time_t)btime.tv_sec)
+        << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
+        << std::endl
+        << "  CUid: " << cmd->getCUid()
+        << " CGid: " << cmd->getCGid()
+        << " Fxid: " << hex_fid
+        << " Fid: " << cmd->getId()
+        << " Pid: " << cmd->getParentId()
+        << " Pxid: " << FileId::Fid2Hex(cmd->getParentId())
+        << std::endl
+        << "  ETAG: " << etag << std::endl;
+    reply.set_std_out(oss.str());
+    reply.set_retc(0);
+    return reply;
+  }
+}
+
+//------------------------------------------------------------------------------
+// Handle file information output (refactored from original code)
+//------------------------------------------------------------------------------
+eos::console::ReplyProto
+FileCmd::HandleFileInfo(std::shared_ptr<eos::IFileMD> fmd,
+                        const std::string& path,
+                        const eos::console::FileProto& file,
+                        eos::console::ReplyProto& reply) noexcept
+{
   // Format output based on requested format
   using eos::common::LayoutId;
   using eos::common::FileId;
+  auto fileinfo = file.fileinfo();
   uint32_t lid = fmd->getLayoutId();
   const std::string hex_fid = FileId::Fid2Hex(fmd->getId());
 
@@ -373,14 +533,25 @@ FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
 
     std::string etag;
     eos::calculateEtag(fmd.get(), etag);
+    // Determine file status
+    std::string status = "healthy";
+    size_t nrep = fmd->getNumLocation();
+    size_t nstripes = LayoutId::GetStripeNumber(lid) + 1;
+
+    if (nrep < nstripes) {
+      status = "offline";
+    }
+
     std::ostringstream oss;
     oss << "keylength.file=" << path.length()
         << " file=" << path
         << " size=" << fmd->getSize()
+        << " status=" << status
         << " mtime=" << mtime.tv_sec << "." << mtime.tv_nsec
         << " ctime=" << ctime.tv_sec << "." << ctime.tv_nsec
         << " btime=" << btime.tv_sec << "." << btime.tv_nsec
         << " atime=" << atime.tv_sec << "." << atime.tv_nsec
+        << " clock=0"
         << " mode=" << eos::common::StringConversion::IntToOctal((int)fmd->getFlags(),
             4)
         << " uid=" << fmd->getCUid()
@@ -393,16 +564,32 @@ FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
         << " xstype=" << LayoutId::GetChecksumString(lid)
         << " xs=" << xs
         << " etag=" << etag
+        << " detached=0"
         << " layout=" << LayoutId::GetLayoutTypeString(lid)
-        << " nstripes=" << (LayoutId::GetStripeNumber(lid) + 1)
+        << " nstripes=" << nstripes
         << " lid=" << FileId::Fid2Hex(lid)
-        << " nrep=" << fmd->getNumLocation()
+        << " nrep=" << nrep
         << " ";
 
     for (const auto& elem : xattrs) {
       oss << "xattrn=" << elem.first << " xattrv=" << elem.second << " ";
     }
 
+    // Add filesystem IDs
+    for (auto lociter : fmd->getLocations()) {
+      oss << "fsid=" << lociter << " ";
+    }
+
+    reply.set_std_out(oss.str());
+    reply.set_retc(0);
+    return reply;
+  } else if (fileinfo.checksum()) {
+    std::ostringstream oss;
+    std::string etag, xs;
+    eos::appendChecksumOnStringAsHex(fmd.get(), xs);
+    oss << "XStype: " << std::left << std::setw(9)
+        << LayoutId::GetChecksumString(lid) << std::endl
+        << "XS:     " << xs << std::endl;
     reply.set_std_out(oss.str());
     reply.set_retc(0);
     return reply;
@@ -421,17 +608,55 @@ FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
     std::string etag, xs;
     eos::calculateEtag(fmd.get(), etag);
     eos::appendChecksumOnStringAsHex(fmd.get(), xs);
+    // Determine file status (reuse from ProcCommand)
+    std::string status = "healthy";
+    int tape_copy = 0;
+
+    if (fmd->hasAttribute(SYS_HARD_LINK)) {
+      status = "hardlink";
+    } else if (fmd->isLink()) {
+      status = "symlink";
+    } else if (fmd->hasLocation(EOS_TAPE_FSID)) {
+      tape_copy++;
+    }
+
+    if (status == "healthy") {
+      size_t nrep = fmd->getNumLocation();
+      size_t expected_locations = LayoutId::GetStripeNumber(lid) + 1 + tape_copy;
+
+      if (nrep == 0) {
+        if (fmd->getSize() != 0) {
+          if (fmd->getNumUnlinkedLocation()) {
+            status = "pending_deletion";
+          } else {
+            status = "locations::uncommitted";
+          }
+        }
+      } else if (nrep < expected_locations) {
+        status = "locations::incomplete";
+      } else if (nrep > expected_locations) {
+        status = "locations::overreplicated";
+      }
+    }
+
     std::ostringstream oss;
     oss << "  File: '" << path << "'"
         << "  Flags: " << eos::common::StringConversion::IntToOctal((
               int)fmd->getFlags(), 4)
         << std::endl
         << "  Size: " << fmd->getSize() << std::endl
+        << "Status: " << status << std::endl
         << "Modify: " << eos::common::Timing::ltime((time_t)mtime.tv_sec)
         << " Timestamp: " << eos::common::Timing::TimespecToString(mtime)
         << std::endl
         << "Change: " << eos::common::Timing::ltime((time_t)ctime.tv_sec)
         << " Timestamp: " << eos::common::Timing::TimespecToString(ctime)
+        << std::endl
+        << "Access: " << eos::common::Timing::ltime((time_t)atime.tv_sec)
+        << " Timestamp: " << eos::common::Timing::TimespecToString(atime)
+        << std::endl
+        << " Birth: " << eos::common::Timing::ltime((time_t)btime.tv_sec)
+        << " Timestamp: " << eos::common::Timing::TimespecToString(btime)
         << std::endl
         << "  CUid: " << fmd->getCUid()
         << " CGid: " << fmd->getCGid()
@@ -441,18 +666,140 @@ FileCmd::FileinfoSubcmd(const eos::console::FileProto& file) noexcept
         << " Pxid: " << FileId::Fid2Hex(fmd->getContainerId())
         << std::endl
         << " ETAGs: " << etag << std::endl
-        << "XStype: " << LayoutId::GetChecksumString(lid)
-        << " XS: " << xs << std::endl
-        << "Layout: " << LayoutId::GetLayoutTypeString(lid)
+        << "XStype: " << std::left << std::setw(9)
+        << LayoutId::GetChecksumString(lid)
+        << "XS: " << xs
+        << std::endl;
+    // Add alternative checksums if available
+    auto altchecksums = fmd->getAltXs();
+
+    for (auto [type, altxs] : altchecksums) {
+      oss << "XStype: " << std::left << std::setw(9)
+          << LayoutId::GetChecksumString(type)
+          << "XS: " << altxs << std::endl;
+    }
+
+    std::string redundancy = eos::common::LayoutId::GetRedundancySymbol(
+                               fmd->hasLocation(EOS_TAPE_FSID),
+                               eos::common::LayoutId::GetRedundancy(lid, fmd->getNumLocation()),
+                               fmd->getSize());
+    oss << "Layout: " << LayoutId::GetLayoutTypeString(lid)
         << " Stripes: " << (LayoutId::GetStripeNumber(lid) + 1)
+        << " Blocksize: " << LayoutId::GetBlockSizeString(lid)
         << " LayoutId: " << FileId::Fid2Hex(lid)
+        << " Redundancy: " << redundancy
         << std::endl
         << "  #Rep: " << fmd->getNumLocation() << std::endl;
+
+    // Add tape information if applicable
+    if (fmd->hasLocation(EOS_TAPE_FSID)) {
+      std::string storage_class = xattrs["sys.archive.storage_class"];
+      std::string archive_id = xattrs["sys.archive.file_id"];
+      oss << "TapeID: " << (archive_id.length() ? archive_id : "undef")
+          << " StorageClass: " << (storage_class.length() ? storage_class : "none");
+    }
+
+    // Add encryption information
+    if (xattrs.count("user.obfuscate.key")) {
+      if (xattrs.count("user.encrypted")) {
+        oss << " Crypt: encrypted" << std::endl;
+      } else {
+        oss << " Crypt: obfuscated" << std::endl;
+      }
+    }
+
+    // Build filesystem table
+    eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+
+    if (!loc_vect.empty()) {
+      TableHeader table_mq_header;
+      TableData table_mq_data;
+      TableFormatterBase table_mq;
+      bool table_mq_header_exist = false;
+      int i = 0;
+
+      for (auto lociter : loc_vect) {
+        // Ignore filesystem id 0
+        if (!lociter) {
+          eos_err("msg=\"found file on fsid=0\" fxid=%08llx", fmd->getId());
+          continue;
+        }
+
+        eos::common::RWMutexReadLock lock(FsView::gFsView.ViewMutex);
+        eos::common::FileSystem* filesystem =
+          FsView::gFsView.mIdView.lookupByID(lociter);
+
+        if (filesystem) {
+          std::string format =
+            "header=1|key=host:width=24:format=s|key=schedgroup:width=16:format=s|"
+            "key=path:width=16:format=s|key=stat.boot:width=10:format=s|"
+            "key=configstatus:width=14:format=s|key=local.drain:width=12:format=s|"
+            "key=stat.active:width=8:format=s|key=stat.geotag:width=24:format=s";
+          filesystem->Print(table_mq_header, table_mq_data, format);
+
+          // Build header
+          if (!table_mq_header.empty()) {
+            TableHeader table_mq_header_temp;
+            table_mq_header_temp.push_back(std::make_tuple("no.", 3, "-l"));
+            table_mq_header_temp.push_back(std::make_tuple("fs-id", 6, "l"));
+            std::copy(table_mq_header.begin(), table_mq_header.end(),
+                      std::back_inserter(table_mq_header_temp));
+
+            if (fileinfo.fullpath()) {
+              table_mq_header_temp.push_back(std::make_tuple("physical location", 25, "-s"));
+            }
+
+            table_mq.SetHeader(table_mq_header_temp);
+            table_mq_header_exist = true;
+          }
+
+          // Build body
+          if (table_mq_header_exist) {
+            TableData table_mq_data_temp;
+
+            for (auto& row : table_mq_data) {
+              if (!row.empty()) {
+                table_mq_data_temp.emplace_back();
+                table_mq_data_temp.back().push_back(TableCell(i, "l"));
+                table_mq_data_temp.back().push_back(TableCell(lociter, "l"));
+
+                for (auto& cell : row) {
+                  table_mq_data_temp.back().push_back(cell);
+                }
+
+                if (fileinfo.fullpath()) {
+                  std::string fstpath = eos::common::FileId::FidPrefix2FullPath(
+                                          hex_fid.c_str(),
+                                          filesystem->GetPath().c_str());
+                  table_mq_data_temp.back().push_back(TableCell(fstpath, "-s"));
+                }
+              }
+            }
+
+            table_mq.AddRows(table_mq_data_temp);
+            table_mq_data.clear();
+            table_mq_data_temp.clear();
+          }
+        } else {
+          if (lociter != EOS_TAPE_FSID) {
+            oss << std::setw(3) << i << std::setw(8) << lociter
+                << " NA" << std::endl;
+          }
+        }
+
+        i++;
+      }
+
+      oss << table_mq.GenerateTable(HEADER);
+      oss << "*******";
+    }
+
     reply.set_std_out(oss.str());
     reply.set_retc(0);
     return reply;
   }
 }
+
 //------------------------------------------------------------------------------
 // GetMdLocation subcommand - returns metadata location information - file check
 //------------------------------------------------------------------------------
@@ -471,8 +818,8 @@ FileCmd::GetMdLocationSubcmd(const eos::console::FileProto& file) noexcept
 
   std::shared_ptr<eos::IFileMD> fmd;
   std::string ns_path {};
+  XrdOucString out;
   {
-    eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
     try {
@@ -501,31 +848,34 @@ FileCmd::GetMdLocationSubcmd(const eos::console::FileProto& file) noexcept
       try {
         ns_path = gOFS->eosView->getUri(fmd.get());
       } catch (const eos::MDException& e) {
-        // File is no longer attached to a container, put only the name
         ns_path = fmd->getName();
       }
     }
 
-    XrdOucString sizestring;
-    XrdOucString out;  // Use XrdOucString like old code
     const std::string hex_fid = eos::common::FileId::Fid2Hex(fmd->getId());
-    // Build CGI-style output WITHOUT leading & (important for protobuf version!)
+    uint32_t lid = fmd->getLayoutId();
+    XrdOucString sizestring;
     out += "mgm.nrep=";
-    out += (int) fmd->getNumLocation();
+    out += (int)fmd->getNumLocation();
     out += "&mgm.checksumtype=";
-    out += eos::common::LayoutId::GetChecksumString(fmd->getLayoutId());
+    out += eos::common::LayoutId::GetChecksumString(lid);
     out += "&mgm.size=";
     out += eos::common::StringConversion::GetSizeString(sizestring,
-           (unsigned long long) fmd->getSize());
+           (unsigned long long)fmd->getSize());
     out += "&mgm.checksum=";
     XrdOucString checksum_str;
     eos::appendChecksumOnStringAsHex(fmd.get(), checksum_str, 0x00,
                                      SHA256_DIGEST_LENGTH);
     out += checksum_str;
     out += "&mgm.stripes=";
-    out += (int)(eos::common::LayoutId::GetStripeNumber(fmd->getLayoutId()) + 1);
+    out += (int)(eos::common::LayoutId::GetStripeNumber(lid) + 1);
+    out += "&mgm.fid0=";
+    out += hex_fid.c_str();
+    out += "&mgm.nspath=";
+    out += ns_path.c_str();
     out += "&";
     eos::IFileMD::LocationVector loc_vect = fmd->getLocations();
+    ns_rd_lock.Release();
     int i = 0;
 
     for (auto loc_it = loc_vect.begin(); loc_it != loc_vect.end(); ++loc_it) {
@@ -535,45 +885,44 @@ FileCmd::GetMdLocationSubcmd(const eos::console::FileProto& file) noexcept
         continue;
       }
 
+      eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
       eos::common::FileSystem* filesystem = FsView::gFsView.mIdView.lookupByID(
                                               *loc_it);
 
-      if (filesystem) {
-        XrdOucString hostport = filesystem->GetString("hostport").c_str();
-        std::string fstpath = eos::common::FileId::FidPrefix2FullPath(
-                                hex_fid.c_str(),
-                                filesystem->GetPath().c_str());
-        out += "mgm.replica.url";
-        out += i;
-        out += "=";
-        out += hostport;
-        out += "&mgm.fid";
-        out += i;
-        out += "=";
-        out += hex_fid.c_str();
-        out += "&mgm.fsid";
-        out += i;
-        out += "=";
-        out += (int) * loc_it;
-        out += "&mgm.fsbootstat";
-        out += i;
-        out += "=";
-        out += filesystem->GetString("stat.boot").c_str();
-        out += "&mgm.fstpath";
-        out += i;
-        out += "=";
-        out += fstpath.c_str();
-        out += "&";
-      } else {
-        out += "NA&";
+      if (!filesystem) {
+        i++;
+        continue;
       }
 
+      XrdOucString hostport = filesystem->GetString("hostport").c_str();
+      std::string fstpath = eos::common::FileId::FidPrefix2FullPath(
+                              hex_fid.c_str(),
+                              filesystem->GetPath().c_str());
+      out += "mgm.replica.url";
+      out += i;
+      out += "=";
+      out += hostport;
+      out += "&mgm.fid";
+      out += i;
+      out += "=";
+      out += hex_fid.c_str();
+      out += "&mgm.fsid";
+      out += i;
+      out += "=";
+      out += (int) * loc_it;
+      out += "&mgm.fsbootstat";
+      out += i;
+      out += "=";
+      out += filesystem->GetString("stat.boot").c_str();
+      out += "&mgm.fstpath";
+      out += i;
+      out += "=";
+      out += fstpath.c_str();
+      out += "&";
+      fs_rd_lock.Release();
       i++;
     }
 
-    // Add the namespace path once at the end
-    out += "mgm.nspath=";
-    out += ns_path.c_str();
     eos_static_info("GetMdLocation output: %s", out.c_str());
     reply.set_std_out(out.c_str());
     reply.set_retc(0);

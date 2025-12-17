@@ -306,12 +306,6 @@ public:
   void MakeResult();
 
   //----------------------------------------------------------------------------
-  //! Helper function able to detect key value pair output and convert to http
-  //! table format
-  //----------------------------------------------------------------------------
-  bool KeyValToHttpTable(XrdOucString& stdOut);
-
-  //----------------------------------------------------------------------------
   //! Helper function to classify the current file state
   //----------------------------------------------------------------------------
 

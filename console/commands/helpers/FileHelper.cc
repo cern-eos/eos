@@ -47,8 +47,6 @@ FileHelper::ParseCommand(const char* arg)
 
   if (subcommand == "info") {
     isOk = ParseInfo(tokenizer);
-  } else if (subcommand == "fileinfo") {
-    isOk = ParseInfo(tokenizer);
   } else if (subcommand == "touch") {
     isOk = ParseTouch(tokenizer);
   } else if (subcommand == "adjustreplica") {
@@ -193,7 +191,7 @@ int
 FileHelper::Execute(bool print_err, bool add_route)
 {
   // Check if this is a check command - needs special formatting
-  if (mReq.has_file() && mReq.file().has_check()) {
+  if (mReq.file().has_check()) {
     int retc = ICmdHelper::ExecuteWithoutPrint(add_route);
 
     if (retc == 0 && !mOutcome.result.empty()) {
@@ -231,11 +229,6 @@ FileHelper::FormatCheckOutput(const std::string& response,
 
   if (!ns_path || !checksum || !size_str || !nrep) {
     std::cerr << "error: incomplete metadata from server\n";
-    std::cerr << response << "\n";
-    std::cerr << "ns_path  = " << (ns_path  ? ns_path  : "<null>") << '\n';
-    std::cerr << "checksum = " << (checksum ? checksum : "<null>") << '\n';
-    std::cerr << "size_str = " << (size_str ? size_str : "<null>") << '\n';
-    std::cerr << "nrep     = " << (nrep     ? nrep     : "<null>") << '\n';
     return;
   }
 
@@ -465,9 +458,7 @@ FileHelper::ParseTouch(eos::common::StringTokenizer& tokenizer)
 
       options += token.substr(pos);
     } else {
-      // First non-option token is the path
       path = token;
-      break;
     }
   }
 
@@ -570,7 +561,11 @@ FileHelper::ParseInfo(eos::common::StringTokenizer& tokenizer)
   while ((temp = tokenizer.GetToken(false)) != 0) {
     token = std::string(temp);
 
-    if (token[0] == '-') {
+    if (token == "--fullpath") {
+      fileinfo->set_fullpath(true);
+    } else if (token == "--checksum") {
+      fileinfo->set_checksum(true);
+    } else if (token[0] == '-') {
       // Remove leading dashes
       size_t pos = 0;
 
@@ -596,15 +591,13 @@ FileHelper::ParseInfo(eos::common::StringTokenizer& tokenizer)
           fileinfo->set_monitoring(true);
         } else if (c == 'e') {
           fileinfo->set_env(true);
-        } else {
+        } else  {
           std::cerr << "error: unrecognized info option: -" << c << std::endl;
           return false;
         }
       }
     } else {
-      // First non-option token is the path
       path = token;
-      break;
     }
   }
 
