@@ -6439,20 +6439,26 @@ EosFuse::setxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
                 rc = EINVAL;                          // fail loudly if not supported
 #endif /*HAVE_RICHACL*/
               } else {
-                auto map = (*md)()->mutable_attr();
-                bool exists = false;
-
-                if ((*map).count(key)) {
-                  exists = true;
-                }
-
-                if (exists && (flags == XATTR_CREATE)) {
-                  rc = EEXIST;
-                } else if (!exists && (flags == XATTR_REPLACE)) {
-                  rc = ENOATTR;
+                if ((key == s_obfuscate_key) || (key == s_encrypted_fp)) {
+                  eos_static_err("msg=\"not allowed to set obfuscate or "
+                                 "encrypted xattrs\" ino=%llu", ino);
+                  rc = EPERM;
                 } else {
-                  (*map)[key] = value;
-                  Instance().mds.update(req, md, (*pcap)()->authid());
+                  auto map = (*md)()->mutable_attr();
+                  bool exists = false;
+
+                  if ((*map).count(key)) {
+                    exists = true;
+                  }
+
+                  if (exists && (flags == XATTR_CREATE)) {
+                    rc = EEXIST;
+                  } else if (!exists && (flags == XATTR_REPLACE)) {
+                    rc = ENOATTR;
+                  } else {
+                    (*map)[key] = value;
+                    Instance().mds.update(req, md, (*pcap)()->authid());
+                  }
                 }
               }
       }
