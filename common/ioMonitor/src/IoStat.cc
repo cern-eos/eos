@@ -92,8 +92,9 @@ void	IoStat::printInfo(std::ostream &os, const std::string &msg){
 //--------------------------------------------
 /// Add bytes to the corresponding Read/Write deque
 //--------------------------------------------
-void IoStat::add(size_t bytes, IoStat::Marks enumMark){
-	IoMark io(bytes);
+void IoStat::add(size_t bytes, IoStat::Marks enumMark, double limit){
+	IoMark io(bytes, limit);
+
 	if (enumMark == Marks::READ)
 		_readMarks.push_back(io);
 	else if (enumMark == Marks::WRITE)
@@ -150,7 +151,7 @@ uint64_t IoStat::cleanOldsMarks(Marks enumMark, size_t seconds){
 //--------------------------------------------
 /// Calculate the write or read bandwidth
 //--------------------------------------------
-std::pair<double, double> IoStat::bandWidth(Marks enumMark, size_t *range, size_t seconds) const{
+std::pair<double, double> IoStat::bandWidth(Marks enumMark, size_t *range, size_t seconds, double *limit) const{
 	if ((enumMark != Marks::READ && enumMark != Marks::WRITE) || seconds == 0){
 		if constexpr (io::IoStatDebug){
 			if (seconds == 0)
@@ -183,6 +184,15 @@ std::pair<double, double> IoStat::bandWidth(Marks enumMark, size_t *range, size_
 	if (begin == end)
 		return (std::pair(0, 0));
 
+	// Calcule limit
+	if (limit){
+		double tmpLimit = 0;
+		for (std::deque<IoMark>::const_iterator it = begin; it < end; it++)
+			tmpLimit += it->limit;
+		if (std::distance(begin, end) > 0)
+			*limit = tmpLimit / std::distance(begin, end);
+	}
+	
 	// Calcule average
 	for (std::deque<IoMark>::const_iterator it = begin; it < end; it++)
 		avrg += static_cast<double>(it->bytes);
@@ -260,16 +270,23 @@ double IoStat::getIOPS(Marks enumMark, size_t seconds) const{
 /// Overload operator << 
 //--------------------------------------------
 std::ostream& operator<<(std::ostream &os, const IoStat &other){
-	std::pair<double, double> read = other.bandWidth(IoStat::Marks::READ);
-	std::pair<double, double> write = other.bandWidth(IoStat::Marks::WRITE);
+	double rLimit = 0;
+	double wLimit = 0;
+	size_t rSize = 0;
+	size_t wSize = 0;
+
+	std::pair<double, double> read = other.bandWidth(IoStat::Marks::READ, &rSize, 10, &rLimit);
+	std::pair<double, double> write = other.bandWidth(IoStat::Marks::WRITE, &wSize, 10, &wLimit);
 	os << "[IoStat bandwidth from last 10s] " << std::endl;
 	os << std::fixed << std::setprecision(2) << C_BLUE
 		<< "[READ][avrg: " << read.first << "][std: " << read.second
-		<< "][s: " << other.getSize(IoStat::Marks::READ)
+		<< "][s: " << rSize
+		<< "][limit: " << rLimit
 		<<  "][IOPS: " << other.getIOPS(IoStat::Marks::READ) << "]";
 	os << " / ";
 	os <<  "[WRITE][avrg: " << write.first << "][std: " << write.second
-		<< "][s: " << other.getSize(IoStat::Marks::WRITE)
+		<< "][s: " << wSize
+		<< "][limit: " << wLimit
 		<< "][IOPS: " << other.getIOPS(IoStat::Marks::WRITE)
 		<< "]" << C_RESET;
 	return os;
@@ -308,6 +325,7 @@ std::ostream& operator<<(std::ostream &os, const std::optional<IoStatSummary> &o
 		os << "[avrg: " << other.readBandwidth->first
 			<< "][std: " << other.readBandwidth->second
 			<< "][s: " << other.rSize
+			<< "][limit: " << other.rLimit
 			<< "][IOPS: " << other.rIops
 			<< "] / ";
 	else
@@ -317,6 +335,7 @@ std::ostream& operator<<(std::ostream &os, const std::optional<IoStatSummary> &o
 		os << "[avrg: " << other.writeBandwidth->first
 			<< "][std: " << other.writeBandwidth->second
 			<< "][s: " << other.wSize
+			<< "][limit: " << other.wLimit
 			<< "][IOPS: " << other.wIops
 			<< "]";
 	else
@@ -334,6 +353,7 @@ std::ostream& operator<<(std::ostream &os, const IoStatSummary &other){
 		os << "[avrg: " << other.readBandwidth->first
 			<< "][std: " << other.readBandwidth->second
 			<< "][s: " << other.rSize
+			<< "][limit: " << other.rLimit
 			<< "][IOPS: " << other.rIops
 			<< "] / ";
 	else
@@ -343,6 +363,7 @@ std::ostream& operator<<(std::ostream &os, const IoStatSummary &other){
 		os << "[avrg: " << other.writeBandwidth->first
 			<< "][std: " << other.writeBandwidth->second
 			<< "][s: " << other.wSize
+			<< "][limit: " << other.wLimit
 			<< "][IOPS: " << other.wIops
 			<< "]";
 	else

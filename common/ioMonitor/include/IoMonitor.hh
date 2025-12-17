@@ -57,22 +57,22 @@
 struct IoMark {
 	struct timespec io_time;
     size_t bytes;
+	double limit;
 
 	//--------------------------------------------
 	/// Main contructor
 	//--------------------------------------------
-    IoMark(size_t bytes) : bytes(bytes){
+    IoMark(size_t bytesN, double limitN = 1.0) : bytes(bytesN), limit(limitN){
 		clock_gettime(CLOCK_REALTIME, &io_time);
 	}
 
 	//--------------------------------------------
 	/// Default contructor
 	//--------------------------------------------
-    IoMark() : bytes(0){
+    IoMark() : bytes(0), limit(1){
 		clock_gettime(CLOCK_REALTIME, &io_time);
 	}
 };
-
 
 //--------------------------------------------
 /// @brief Get the current time
@@ -80,7 +80,6 @@ struct IoMark {
 /// @return const char* the current time
 //--------------------------------------------
 const char*	getCurrentTime();
-
 
 //--------------------------------------------
 /// Namespace
@@ -138,12 +137,19 @@ struct IoStatSummary {
 	size_t winTime;
 
 	//--------------------------------------------
+	// Limits
+	//--------------------------------------------
+	double rLimit;
+	double wLimit;
+
+	//--------------------------------------------
 	/// Default constructor to initialize the class
 	//--------------------------------------------
 	IoStatSummary() :
 		readBandwidth(std::pair<double, double>(0,0)),
 		writeBandwidth(std::pair<double, double>(0, 0)),
-		rSize(0), wSize(0), rIops(0), wIops(0), winTime(0){
+		rSize(0), wSize(0), rIops(0), wIops(0), winTime(0),
+		rLimit(1.0), wLimit(1.0){
 			clock_gettime(CLOCK_REALTIME, &io_time);
 		}
 
@@ -151,7 +157,8 @@ struct IoStatSummary {
 		readBandwidth({sum.ravrg(), sum.rstd()}),
 		writeBandwidth({sum.wavrg(), sum.wstd()}),
 		rSize(sum.rsize()), wSize(sum.wsize()), rIops(sum.riops()), wIops(sum.wiops()),
-		winTime(sum.wintime()){
+		winTime(sum.wintime()),
+		rLimit(sum.rlimit()), wLimit(sum.wlimit()){
 			clock_gettime(CLOCK_REALTIME, &io_time);
 		}
 
@@ -169,6 +176,8 @@ struct IoStatSummary {
 		sum.set_riops(rIops);
 		sum.set_wiops(wIops);
 		sum.set_wintime(winTime);
+		sum.set_rlimit(rLimit);
+		sum.set_wlimit(wLimit);
 
 		return sum;
 	};
@@ -186,6 +195,9 @@ struct IoStatSummary {
 		wSize = sum.wsize();
 		rIops = sum.riops();
 		wIops = sum.wiops();
+		winTime = sum.wintime();
+		rLimit = sum.rlimit();
+		wLimit = sum.wlimit();
 
 		return this;
 	};

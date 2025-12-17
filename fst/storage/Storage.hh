@@ -574,6 +574,13 @@ private:
   //! @return true if check disabled, otherwise false
   //----------------------------------------------------------------------------
   static bool IsRootFsCheckDisabled();
+
+  //----------------------------------------------------------------------------
+  /// Parse the scaler for the IoAggregateMap
+  ///
+  /// @param reply the reply of the function
+  //----------------------------------------------------------------------------
+  void ScalerCmd(const std::string &cmd);
 };
 
 EOSFSTNAMESPACE_END

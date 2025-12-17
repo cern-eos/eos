@@ -259,8 +259,8 @@ static void printUsage(){
 	std::cout << "  rm [window]|[uid/gid/appName], \t\tremove target" << std::endl;
 	std::cout << "  set [window][tracks][...], \t\t\tset track to a window, multiple track can be set" << std::endl;
 	std::cout << "  proto [window][tracks][...], \t\t\tprint ProtoBuff JSON format of given tracks (get directly the summary)" << std::endl;
-	std::cout << "  r [fileId][appName][uid][gid][bytes], \tadd a read input to the map" << std::endl;
-	std::cout << "  w [fileId][appName][uid][gid][bytes], \tadd a write input to the map" << std::endl;
+	std::cout << "  r [fileId][appName][uid][gid][bytes][limit], \tadd a read input to the map" << std::endl;
+	std::cout << "  w [fileId][appName][uid][gid][bytes][limit], \tadd a write input to the map" << std::endl;
 	std::cout << "  m [...], \t\t\t\t\tprint the IoAggregate map, can add a number to print the map N seconds" << std::endl;
 	std::cout << "  p [window][track], \t\t\t\tprint the summary of a track" << std::endl;
 	std::cout << "  fill, \t\t\t\t\tfill the map with I/O" << std::endl;
@@ -511,10 +511,16 @@ int testIoAggregateMapInteract(){
 				}
 				else if (cmd == "r"){
 					int fileId = 0;
+					double limit = 1;
 					std::string appName;
+					
 					if (stream >> fileId >> appName >> uid >> gid >> bytes){
 						std::lock_guard<std::mutex> lock(mutex);
-						map.addRead(fileId, appName, uid, gid, bytes);
+						if (!stream.eof())
+							stream >> limit;
+						if (limit > 1)
+							limit = 1;
+						map.addRead(fileId, appName, uid, gid, bytes, limit);
 						std::cout << "add read succeed" << std::endl;
 					}
 					else
@@ -523,9 +529,15 @@ int testIoAggregateMapInteract(){
 				else if (cmd == "w"){
 					int fileId = 0;
 					std::string appName;
+					double limit = 1;
+
 					if (stream >> fileId >> appName >> uid >> gid >> bytes){
 						std::lock_guard<std::mutex> lock(mutex);
-						map.addWrite(fileId, appName, uid, gid, bytes);
+						if (!stream.eof())
+							stream >> limit;
+						if (limit > 1)
+							limit = 1;
+						map.addWrite(fileId, appName, uid, gid, bytes, limit);
 						std::cout << "add write succeed" << std::endl;
 					}
 					else

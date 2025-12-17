@@ -117,18 +117,18 @@ std::optional<std::vector<size_t> > IoAggregateMap::getAvailableWindows() const{
 /// @brief Adds an IoStat object to the map
 /// with the corresponding elements
 //--------------------------------------------
-void IoAggregateMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes){
+void IoAggregateMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes, double rLimit){
 	std::lock_guard<std::mutex> lock(_mutex);
-	_map.addRead(inode, app, uid, gid, rbytes);
+	_map.addRead(inode, app, uid, gid, rbytes, rLimit);
 }
 
 //--------------------------------------------
 /// @brief Adds an IoStat object to the map
 /// with the corresponding elements
 //--------------------------------------------
-void IoAggregateMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes){
+void IoAggregateMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes, double wLimit){
 	std::lock_guard<std::mutex> lock(_mutex);
-	_map.addWrite(inode, app, uid, gid, wbytes);
+	_map.addWrite(inode, app, uid, gid, wbytes, wLimit);
 }
 
 //--------------------------------------------

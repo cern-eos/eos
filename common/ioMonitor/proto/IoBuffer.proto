@@ -12,6 +12,8 @@ message Summary {
   double rIops = 7;
   double wIops = 8;
   optional uint64 winTime = 9;
+  double rLimit = 10;
+  double wLimit = 11;
 }
 
 message data{

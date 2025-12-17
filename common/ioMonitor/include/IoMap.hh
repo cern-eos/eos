@@ -153,7 +153,7 @@ class IoMap {
 		/// @param	gid		ID of the corresponding group
 		/// @param	rbytes	Number of bytes read
 		//--------------------------------------------
-		void addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes);
+		void addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes, double limit = 1.0);
 
 		//--------------------------------------------
 		/// @brief Adds an IoStat object to the multimap
@@ -165,7 +165,7 @@ class IoMap {
 		/// @param	gid		ID of the corresponding group
 		/// @param	rbytes	Number of bytes read
 		//--------------------------------------------
-		void addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes);
+		void addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes, double limit = 1.0);
 
 		//--------------------------------------------
 		/// @brief Delete the appName of 
@@ -259,7 +259,7 @@ class IoMap {
 		/// @return std::pair<double, double> first is
 		/// the average, second the standard deviation
 		//--------------------------------------------
-		std::pair<double, double> calculeWeighted(std::map<std::pair<double, double>, size_t> &indexData) const;
+		std::pair<double, double> calculeWeighted(std::map<std::pair<double, double>, size_t> &indexData, std::vector<double> &limit, double *finalLimit = NULL) const;
 
 		//--------------------------------------------
 		/// Template
@@ -277,7 +277,7 @@ class IoMap {
 		/// index type can be const char*/std::string.
 		/// Calculates the weighted bandwidth according to
 		/// the type of the variable and get the data from
-		/// all the corresponding I/Os
+		/// all the corresponding I/O's
 		/// @param	enumMark READ or WRITE variable comes
 		/// from the IoStat::Marks enumerator
 		/// @param seconds(optional) The second range during
@@ -290,7 +290,7 @@ class IoMap {
 		/// weighted standard deviation 
 		//--------------------------------------------
 		template <typename T>
-		std::optional<std::pair<double, double> > getBandwidth(io::TYPE type, const T index, IoStat::Marks enumMark, size_t seconds = 10) const{
+		std::optional<std::pair<double, double> > getBandwidth(io::TYPE type, const T index, IoStat::Marks enumMark, size_t seconds = 10, double *finalLimit = NULL) const{
 			std::lock_guard<std::mutex> lock(_mutex);
 			if ((enumMark != IoStat::Marks::READ && enumMark != IoStat::Marks::WRITE)
 				|| (type != io::TYPE::GID && type != io::TYPE::UID))
@@ -301,14 +301,18 @@ class IoMap {
 			std::map<std::pair<double, double>, size_t> indexData;
 			std::pair<double, double> tmp = {0, 0};
 			size_t size = 0;
+			double tmpLimit = 0;
+			std::vector<double> limit;
 
 			/// Check the type of the index variable and store necessary bandwidth
 			if (type == io::TYPE::UID || type == io::TYPE::GID){
 				for (auto it : _filesMap){
 					if ((type == io::TYPE::UID && it.second->getUid() == static_cast<uid_t>(index))
 					|| (type == io::TYPE::GID && it.second->getGid() == static_cast<gid_t>(index))){
-						tmp = it.second->bandWidth(enumMark, &size, seconds);
+						tmp = it.second->bandWidth(enumMark, &size, seconds, &tmpLimit);
+						limit.push_back(tmpLimit);
 						indexData.insert({tmp, size});
+						tmpLimit = 0;
 						size = 0;
 						tmp = {0, 0};
 					}
@@ -322,7 +326,7 @@ class IoMap {
 				return std::nullopt;
 
 			/// Calcule weighted average/standard deviation
-			return (calculeWeighted(indexData));
+			return (calculeWeighted(indexData, limit, finalLimit));
 		}
 
 		//--------------------------------------------
@@ -351,7 +355,7 @@ class IoMap {
 		/// weighted standard deviation 
 		//--------------------------------------------
 		template <typename T>
-		std::optional<std::pair<double, double> > getBandwidth(const T index, IoStat::Marks enumMark, size_t seconds = 10) const{
+		std::optional<std::pair<double, double> > getBandwidth(const T index, IoStat::Marks enumMark, size_t seconds = 10, double *finalLimit = NULL) const{
 			std::lock_guard<std::mutex> lock(_mutex);
 
 			if (enumMark != IoStat::Marks::READ && enumMark != IoStat::Marks::WRITE)
@@ -362,14 +366,18 @@ class IoMap {
 			std::map<std::pair<double, double>, size_t> indexData;
 			std::pair<double, double> tmp = {0, 0};
 			size_t size = 0;
+			double tmpLimit = 0;
+			std::vector<double> limit;
 
 			/// Check the type of the index variable and store necessary bandwidth
 			if (std::is_same_v<T, std::string> || std::is_same_v<T, const char *>){
 				std::string id(index);
 				for (auto it : _filesMap){
 					if (it.second->getApp() == id){
-						tmp = it.second->bandWidth(enumMark, &size, seconds);
+						tmp = it.second->bandWidth(enumMark, &size, seconds, &tmpLimit);
+						limit.push_back(tmpLimit);
 						indexData.insert({tmp, size});
+						tmpLimit = 0;
 						size = 0;
 						tmp = {0, 0};
 					}
@@ -383,7 +391,7 @@ class IoMap {
 				return std::nullopt;
 
 			/// Calcule weighted average/standard deviation
-			return (calculeWeighted(indexData));
+			return (calculeWeighted(indexData, limit, finalLimit));
 		}
 
 	
@@ -420,7 +428,11 @@ class IoMap {
 
 			std::map<std::pair<double, double>, size_t> readData;
 			std::map<std::pair<double, double>, size_t> writeData;
+			std::vector<double> rLimit;
+			std::vector<double> wLimit;
+
 			size_t size = 0;
+			double tmpLimit = 0;
 
 			IoStatSummary summary;
 
@@ -430,16 +442,20 @@ class IoMap {
 					if ((type == io::TYPE::UID && it.second->getUid() == static_cast<uid_t>(index))
 					|| (type == io::TYPE::GID && it.second->getGid() == static_cast<gid_t>(index))){
 						/// Get read bandwidth and size
-						readData.insert({it.second->bandWidth(IoStat::Marks::READ, &size, seconds), size});
+						readData.insert({it.second->bandWidth(IoStat::Marks::READ, &size, seconds, &tmpLimit), size});
+						rLimit.push_back(tmpLimit);
 						summary.rSize += size;
 						summary.rIops += it.second->getIOPS(IoStat::Marks::READ, seconds) * size;
 						size = 0;
+						tmpLimit = 0;
 
 						/// Get write bandwidth and size
-						writeData.insert({it.second->bandWidth(IoStat::Marks::WRITE, &size, seconds), size});
+						writeData.insert({it.second->bandWidth(IoStat::Marks::WRITE, &size, seconds, &tmpLimit), size});
+						wLimit.push_back(tmpLimit);
 						summary.wSize += size;
 						summary.wIops += it.second->getIOPS(IoStat::Marks::WRITE, seconds) * size;
 						size = 0;
+						tmpLimit = 0;
 					}
 				}
 			} else {
@@ -456,11 +472,18 @@ class IoMap {
 			if (readData.size() <= 0)
 				summary.readBandwidth = std::nullopt;
 
-			/// Calcule read/write weighted average and standard deviation
-			if (summary.readBandwidth.has_value())
-				summary.readBandwidth = calculeWeighted(readData);
-			if (summary.writeBandwidth.has_value())
-				summary.writeBandwidth = calculeWeighted(writeData);
+			/// Calcule read/write weighted average, standard deviation and limit
+			double finalLimit = 0;
+			if (summary.readBandwidth.has_value()){
+				summary.readBandwidth = calculeWeighted(readData, rLimit, &finalLimit);
+				summary.rLimit = finalLimit;
+				finalLimit = 0;
+			}
+			if (summary.writeBandwidth.has_value()){
+				summary.writeBandwidth = calculeWeighted(writeData, wLimit, &finalLimit);
+				summary.wLimit = finalLimit;
+				finalLimit = 0;
+			}
 
 			/// Calcule read/write IOPS
 			if (summary.rSize > 0)
@@ -504,7 +527,11 @@ class IoMap {
 
 			std::map<std::pair<double, double>, size_t> readData;
 			std::map<std::pair<double, double>, size_t> writeData;
+			std::vector<double> rLimit;
+			std::vector<double> wLimit;
+
 			size_t size = 0;
+			double tmpLimit = 1;
 
 			IoStatSummary summary;
 
@@ -514,16 +541,20 @@ class IoMap {
 				for (auto it : _filesMap){
 					if (it.second->getApp() == id){
 						/// Get read bandwidth/IOPS and size
-						readData.insert({it.second->bandWidth(IoStat::Marks::READ, &size, seconds), size});
+						readData.insert({it.second->bandWidth(IoStat::Marks::READ, &size, seconds, &tmpLimit), size});
+						rLimit.push_back(tmpLimit);
 						summary.rSize += size;
 						summary.rIops += it.second->getIOPS(IoStat::Marks::READ, seconds) * size;
 						size = 0;
+						tmpLimit = 1;
 
 						/// Get write bandwidth/IOPS and size
-						writeData.insert({it.second->bandWidth(IoStat::Marks::WRITE, &size, seconds), size});
+						writeData.insert({it.second->bandWidth(IoStat::Marks::WRITE, &size, seconds, &tmpLimit), size});
+						wLimit.push_back(tmpLimit);
 						summary.wSize += size;
 						summary.wIops += it.second->getIOPS(IoStat::Marks::WRITE, seconds) * size;
 						size = 0;
+						tmpLimit = 1;
 					}
 				}
 			} else{
@@ -533,6 +564,7 @@ class IoMap {
 			}
 
 			/// Check empty I/O case
+
 			if (writeData.size() <= 0 && readData.size() <= 0)
 				return std::nullopt;
 			if (writeData.size() <= 0)
@@ -540,11 +572,27 @@ class IoMap {
 			if (readData.size() <= 0)
 				summary.readBandwidth = std::nullopt;
 
-			/// Calcule read/write weighted average and standard deviation
-			if (summary.readBandwidth.has_value())
-				summary.readBandwidth = calculeWeighted(readData);
-			if (summary.writeBandwidth.has_value())
-				summary.writeBandwidth = calculeWeighted(writeData);
+			size_t rSize = 0;
+			size_t wSize = 0;
+			for (auto it : writeData)
+				wSize += it.second;
+			for (auto it : readData)
+				rSize += it.second;
+			if (rSize == 0 && wSize == 0)
+				return IoStatSummary();
+
+			/// Calcule read/write weighted average, standard deviation and limit
+			double finalLimit = 1;
+			if (summary.readBandwidth.has_value()){
+				summary.readBandwidth = calculeWeighted(readData, rLimit, &finalLimit);
+				summary.rLimit = finalLimit;
+				finalLimit = 1;
+			}
+			if (summary.writeBandwidth.has_value()){
+				summary.writeBandwidth = calculeWeighted(writeData, wLimit, &finalLimit);
+				summary.wLimit = finalLimit;
+				finalLimit = 1;
+			}
 
 			/// Calcule read/write IOPS
 			if (summary.rSize > 0)
