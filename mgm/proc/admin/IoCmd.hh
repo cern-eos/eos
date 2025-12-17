@@ -112,6 +112,8 @@ private:
 
   void MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream &);
 
+  void MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream &);
+
   void MonitorAdd(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply);
 

@@ -75,6 +75,9 @@ extern GidsTraffic_WriteEntry_DoNotUseDefaultTypeInternal _GidsTraffic_WriteEntr
 class Scaler;
 struct ScalerDefaultTypeInternal;
 extern ScalerDefaultTypeInternal _Scaler_default_instance_;
+class Traffic;
+struct TrafficDefaultTypeInternal;
+extern TrafficDefaultTypeInternal _Traffic_default_instance_;
 class UidsTraffic;
 struct UidsTrafficDefaultTypeInternal;
 extern UidsTrafficDefaultTypeInternal _UidsTraffic_default_instance_;
@@ -101,6 +104,8 @@ template <>
 template <>
 ::Shaping::Scaler* Arena::CreateMaybeMessage<::Shaping::Scaler>(Arena*);
 template <>
+::Shaping::Traffic* Arena::CreateMaybeMessage<::Shaping::Traffic>(Arena*);
+template <>
 ::Shaping::UidsTraffic* Arena::CreateMaybeMessage<::Shaping::UidsTraffic>(Arena*);
 template <>
 ::Shaping::UidsTraffic_ReadEntry_DoNotUse* Arena::CreateMaybeMessage<::Shaping::UidsTraffic_ReadEntry_DoNotUse>(Arena*);
@@ -115,15 +120,182 @@ namespace Shaping {
 
 // -------------------------------------------------------------------
 
+class Traffic final :
+    public ::PROTOBUF_NAMESPACE_ID::Message /* @@protoc_insertion_point(class_definition:Shaping.Traffic) */ {
+ public:
+  inline Traffic() : Traffic(nullptr) {}
+  ~Traffic() override;
+  template<typename = void>
+  explicit PROTOBUF_CONSTEXPR Traffic(::PROTOBUF_NAMESPACE_ID::internal::ConstantInitialized);
+
+  Traffic(const Traffic& from);
+  Traffic(Traffic&& from) noexcept
+    : Traffic() {
+    *this = ::std::move(from);
+  }
+
+  inline Traffic& operator=(const Traffic& from) {
+    CopyFrom(from);
+    return *this;
+  }
+  inline Traffic& operator=(Traffic&& from) noexcept {
+    if (this == &from) return *this;
+    if (GetOwningArena() == from.GetOwningArena()
+  #ifdef PROTOBUF_FORCE_COPY_IN_MOVE
+        && GetOwningArena() != nullptr
+  #endif  // !PROTOBUF_FORCE_COPY_IN_MOVE
+    ) {
+      InternalSwap(&from);
+    } else {
+      CopyFrom(from);
+    }
+    return *this;
+  }
+
+  inline const ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet& unknown_fields() const {
+    return _internal_metadata_.unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>(::PROTOBUF_NAMESPACE_ID::UnknownFieldSet::default_instance);
+  }
+  inline ::PROTOBUF_NAMESPACE_ID::UnknownFieldSet* mutable_unknown_fields() {
+    return _internal_metadata_.mutable_unknown_fields<::PROTOBUF_NAMESPACE_ID::UnknownFieldSet>();
+  }
+
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* descriptor() {
+    return GetDescriptor();
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Descriptor* GetDescriptor() {
+    return default_instance().GetMetadata().descriptor;
+  }
+  static const ::PROTOBUF_NAMESPACE_ID::Reflection* GetReflection() {
+    return default_instance().GetMetadata().reflection;
+  }
+  static const Traffic& default_instance() {
+    return *internal_default_instance();
+  }
+  static inline const Traffic* internal_default_instance() {
+    return reinterpret_cast<const Traffic*>(
+               &_Traffic_default_instance_);
+  }
+  static constexpr int kIndexInFileMessages =
+    0;
+
+  friend void swap(Traffic& a, Traffic& b) {
+    a.Swap(&b);
+  }
+  inline void Swap(Traffic* other) {
+    if (other == this) return;
+  #ifdef PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() != nullptr &&
+        GetOwningArena() == other->GetOwningArena()) {
+   #else  // PROTOBUF_FORCE_COPY_IN_SWAP
+    if (GetOwningArena() == other->GetOwningArena()) {
+  #endif  // !PROTOBUF_FORCE_COPY_IN_SWAP
+      InternalSwap(other);
+    } else {
+      ::PROTOBUF_NAMESPACE_ID::internal::GenericSwap(this, other);
+    }
+  }
+  void UnsafeArenaSwap(Traffic* other) {
+    if (other == this) return;
+    ABSL_DCHECK(GetOwningArena() == other->GetOwningArena());
+    InternalSwap(other);
+  }
+
+  // implements Message ----------------------------------------------
+
+  Traffic* New(::PROTOBUF_NAMESPACE_ID::Arena* arena = nullptr) const final {
+    return CreateMaybeMessage<Traffic>(arena);
+  }
+  using ::PROTOBUF_NAMESPACE_ID::Message::CopyFrom;
+  void CopyFrom(const Traffic& from);
+  using ::PROTOBUF_NAMESPACE_ID::Message::MergeFrom;
+  void MergeFrom( const Traffic& from) {
+    Traffic::MergeImpl(*this, from);
+  }
+  private:
+  static void MergeImpl(::PROTOBUF_NAMESPACE_ID::Message& to_msg, const ::PROTOBUF_NAMESPACE_ID::Message& from_msg);
+  public:
+  PROTOBUF_ATTRIBUTE_REINITIALIZES void Clear() final;
+  bool IsInitialized() const final;
+
+  ::size_t ByteSizeLong() const final;
+  const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
+  ::uint8_t* _InternalSerialize(
+      ::uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
+
+  private:
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  void SharedDtor();
+  void SetCachedSize(int size) const final;
+  void InternalSwap(Traffic* other);
+
+  private:
+  friend class ::PROTOBUF_NAMESPACE_ID::internal::AnyMetadata;
+  static ::absl::string_view FullMessageName() {
+    return "Shaping.Traffic";
+  }
+  protected:
+  explicit Traffic(::PROTOBUF_NAMESPACE_ID::Arena* arena);
+  public:
+
+  static const ClassData _class_data_;
+  const ::PROTOBUF_NAMESPACE_ID::Message::ClassData*GetClassData() const final;
+
+  ::PROTOBUF_NAMESPACE_ID::Metadata GetMetadata() const final;
+
+  // nested types ----------------------------------------------------
+
+  // accessors -------------------------------------------------------
+
+  enum : int {
+    kLimitFieldNumber = 1,
+    kIsTrivialFieldNumber = 2,
+  };
+  // double limit = 1;
+  void clear_limit() ;
+  double limit() const;
+  void set_limit(double value);
+
+  private:
+  double _internal_limit() const;
+  void _internal_set_limit(double value);
+
+  public:
+  // bool isTrivial = 2;
+  void clear_istrivial() ;
+  bool istrivial() const;
+  void set_istrivial(bool value);
+
+  private:
+  bool _internal_istrivial() const;
+  void _internal_set_istrivial(bool value);
+
+  public:
+  // @@protoc_insertion_point(class_scope:Shaping.Traffic)
+ private:
+  class _Internal;
+
+  template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
+  typedef void InternalArenaConstructable_;
+  typedef void DestructorSkippable_;
+  struct Impl_ {
+    double limit_;
+    bool istrivial_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+  };
+  union { Impl_ _impl_; };
+  friend struct ::TableStruct_Shaping_2eproto;
+};// -------------------------------------------------------------------
+
 class AppsTraffic_ReadEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<AppsTraffic_ReadEntry_DoNotUse, 
-    std::string, float,
+    std::string, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> {
 public:
   typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<AppsTraffic_ReadEntry_DoNotUse, 
-    std::string, float,
+    std::string, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> SuperType;
   AppsTraffic_ReadEntry_DoNotUse();
   template <typename = void>
   explicit PROTOBUF_CONSTEXPR AppsTraffic_ReadEntry_DoNotUse(
@@ -142,14 +314,14 @@ public:
 // -------------------------------------------------------------------
 
 class AppsTraffic_WriteEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<AppsTraffic_WriteEntry_DoNotUse, 
-    std::string, float,
+    std::string, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> {
 public:
   typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<AppsTraffic_WriteEntry_DoNotUse, 
-    std::string, float,
+    std::string, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> SuperType;
   AppsTraffic_WriteEntry_DoNotUse();
   template <typename = void>
   explicit PROTOBUF_CONSTEXPR AppsTraffic_WriteEntry_DoNotUse(
@@ -223,7 +395,7 @@ class AppsTraffic final :
                &_AppsTraffic_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    2;
+    3;
 
   friend void swap(AppsTraffic& a, AppsTraffic& b) {
     a.Swap(&b);
@@ -299,7 +471,7 @@ class AppsTraffic final :
     kReadFieldNumber = 1,
     kWriteFieldNumber = 2,
   };
-  // map<string, float> read = 1;
+  // map<string, .Shaping.Traffic> read = 1;
   int read_size() const;
   private:
   int _internal_read_size() const;
@@ -307,16 +479,16 @@ class AppsTraffic final :
   public:
   void clear_read() ;
   private:
-  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >&
       _internal_read() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >*
       _internal_mutable_read();
   public:
-  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >&
       read() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >*
       mutable_read();
-  // map<string, float> write = 2;
+  // map<string, .Shaping.Traffic> write = 2;
   int write_size() const;
   private:
   int _internal_write_size() const;
@@ -324,14 +496,14 @@ class AppsTraffic final :
   public:
   void clear_write() ;
   private:
-  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >&
       _internal_write() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >*
       _internal_mutable_write();
   public:
-  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >&
       write() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >*
       mutable_write();
   // @@protoc_insertion_point(class_scope:Shaping.AppsTraffic)
  private:
@@ -343,14 +515,14 @@ class AppsTraffic final :
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::internal::MapField<
         AppsTraffic_ReadEntry_DoNotUse,
-        std::string, float,
+        std::string, ::Shaping::Traffic,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> read_;
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> read_;
     ::PROTOBUF_NAMESPACE_ID::internal::MapField<
         AppsTraffic_WriteEntry_DoNotUse,
-        std::string, float,
+        std::string, ::Shaping::Traffic,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_STRING,
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> write_;
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> write_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -358,14 +530,14 @@ class AppsTraffic final :
 };// -------------------------------------------------------------------
 
 class UidsTraffic_ReadEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<UidsTraffic_ReadEntry_DoNotUse, 
-    ::uint64_t, float,
+    ::uint64_t, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> {
 public:
   typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<UidsTraffic_ReadEntry_DoNotUse, 
-    ::uint64_t, float,
+    ::uint64_t, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> SuperType;
   UidsTraffic_ReadEntry_DoNotUse();
   template <typename = void>
   explicit PROTOBUF_CONSTEXPR UidsTraffic_ReadEntry_DoNotUse(
@@ -382,14 +554,14 @@ public:
 // -------------------------------------------------------------------
 
 class UidsTraffic_WriteEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<UidsTraffic_WriteEntry_DoNotUse, 
-    ::uint64_t, float,
+    ::uint64_t, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> {
 public:
   typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<UidsTraffic_WriteEntry_DoNotUse, 
-    ::uint64_t, float,
+    ::uint64_t, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> SuperType;
   UidsTraffic_WriteEntry_DoNotUse();
   template <typename = void>
   explicit PROTOBUF_CONSTEXPR UidsTraffic_WriteEntry_DoNotUse(
@@ -461,7 +633,7 @@ class UidsTraffic final :
                &_UidsTraffic_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    5;
+    6;
 
   friend void swap(UidsTraffic& a, UidsTraffic& b) {
     a.Swap(&b);
@@ -537,7 +709,7 @@ class UidsTraffic final :
     kReadFieldNumber = 1,
     kWriteFieldNumber = 2,
   };
-  // map<uint64, float> read = 1;
+  // map<uint64, .Shaping.Traffic> read = 1;
   int read_size() const;
   private:
   int _internal_read_size() const;
@@ -545,16 +717,16 @@ class UidsTraffic final :
   public:
   void clear_read() ;
   private:
-  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
       _internal_read() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
       _internal_mutable_read();
   public:
-  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
       read() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
       mutable_read();
-  // map<uint64, float> write = 2;
+  // map<uint64, .Shaping.Traffic> write = 2;
   int write_size() const;
   private:
   int _internal_write_size() const;
@@ -562,14 +734,14 @@ class UidsTraffic final :
   public:
   void clear_write() ;
   private:
-  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
       _internal_write() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
       _internal_mutable_write();
   public:
-  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
       write() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
       mutable_write();
   // @@protoc_insertion_point(class_scope:Shaping.UidsTraffic)
  private:
@@ -581,14 +753,14 @@ class UidsTraffic final :
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::internal::MapField<
         UidsTraffic_ReadEntry_DoNotUse,
-        ::uint64_t, float,
+        ::uint64_t, ::Shaping::Traffic,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> read_;
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> read_;
     ::PROTOBUF_NAMESPACE_ID::internal::MapField<
         UidsTraffic_WriteEntry_DoNotUse,
-        ::uint64_t, float,
+        ::uint64_t, ::Shaping::Traffic,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> write_;
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> write_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -596,14 +768,14 @@ class UidsTraffic final :
 };// -------------------------------------------------------------------
 
 class GidsTraffic_ReadEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<GidsTraffic_ReadEntry_DoNotUse, 
-    ::uint64_t, float,
+    ::uint64_t, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> {
 public:
   typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<GidsTraffic_ReadEntry_DoNotUse, 
-    ::uint64_t, float,
+    ::uint64_t, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> SuperType;
   GidsTraffic_ReadEntry_DoNotUse();
   template <typename = void>
   explicit PROTOBUF_CONSTEXPR GidsTraffic_ReadEntry_DoNotUse(
@@ -620,14 +792,14 @@ public:
 // -------------------------------------------------------------------
 
 class GidsTraffic_WriteEntry_DoNotUse final : public ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<GidsTraffic_WriteEntry_DoNotUse, 
-    ::uint64_t, float,
+    ::uint64_t, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> {
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> {
 public:
   typedef ::PROTOBUF_NAMESPACE_ID::internal::MapEntry<GidsTraffic_WriteEntry_DoNotUse, 
-    ::uint64_t, float,
+    ::uint64_t, ::Shaping::Traffic,
     ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> SuperType;
+    ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> SuperType;
   GidsTraffic_WriteEntry_DoNotUse();
   template <typename = void>
   explicit PROTOBUF_CONSTEXPR GidsTraffic_WriteEntry_DoNotUse(
@@ -699,7 +871,7 @@ class GidsTraffic final :
                &_GidsTraffic_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    8;
+    9;
 
   friend void swap(GidsTraffic& a, GidsTraffic& b) {
     a.Swap(&b);
@@ -775,7 +947,7 @@ class GidsTraffic final :
     kReadFieldNumber = 1,
     kWriteFieldNumber = 2,
   };
-  // map<uint64, float> read = 1;
+  // map<uint64, .Shaping.Traffic> read = 1;
   int read_size() const;
   private:
   int _internal_read_size() const;
@@ -783,16 +955,16 @@ class GidsTraffic final :
   public:
   void clear_read() ;
   private:
-  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
       _internal_read() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
       _internal_mutable_read();
   public:
-  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
       read() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
       mutable_read();
-  // map<uint64, float> write = 2;
+  // map<uint64, .Shaping.Traffic> write = 2;
   int write_size() const;
   private:
   int _internal_write_size() const;
@@ -800,14 +972,14 @@ class GidsTraffic final :
   public:
   void clear_write() ;
   private:
-  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
       _internal_write() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
       _internal_mutable_write();
   public:
-  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+  const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
       write() const;
-  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+  ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
       mutable_write();
   // @@protoc_insertion_point(class_scope:Shaping.GidsTraffic)
  private:
@@ -819,14 +991,14 @@ class GidsTraffic final :
   struct Impl_ {
     ::PROTOBUF_NAMESPACE_ID::internal::MapField<
         GidsTraffic_ReadEntry_DoNotUse,
-        ::uint64_t, float,
+        ::uint64_t, ::Shaping::Traffic,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> read_;
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> read_;
     ::PROTOBUF_NAMESPACE_ID::internal::MapField<
         GidsTraffic_WriteEntry_DoNotUse,
-        ::uint64_t, float,
+        ::uint64_t, ::Shaping::Traffic,
         ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_UINT64,
-        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_FLOAT> write_;
+        ::PROTOBUF_NAMESPACE_ID::internal::WireFormatLite::TYPE_MESSAGE> write_;
     mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
   };
   union { Impl_ _impl_; };
@@ -889,7 +1061,7 @@ class Scaler final :
                &_Scaler_default_instance_);
   }
   static constexpr int kIndexInFileMessages =
-    9;
+    10;
 
   friend void swap(Scaler& a, Scaler& b) {
     a.Swap(&b);
@@ -1062,13 +1234,57 @@ class Scaler final :
 #endif  // __GNUC__
 // -------------------------------------------------------------------
 
+// Traffic
+
+// double limit = 1;
+inline void Traffic::clear_limit() {
+  _impl_.limit_ = 0;
+}
+inline double Traffic::limit() const {
+  // @@protoc_insertion_point(field_get:Shaping.Traffic.limit)
+  return _internal_limit();
+}
+inline void Traffic::set_limit(double value) {
+  _internal_set_limit(value);
+  // @@protoc_insertion_point(field_set:Shaping.Traffic.limit)
+}
+inline double Traffic::_internal_limit() const {
+  return _impl_.limit_;
+}
+inline void Traffic::_internal_set_limit(double value) {
+  ;
+  _impl_.limit_ = value;
+}
+
+// bool isTrivial = 2;
+inline void Traffic::clear_istrivial() {
+  _impl_.istrivial_ = false;
+}
+inline bool Traffic::istrivial() const {
+  // @@protoc_insertion_point(field_get:Shaping.Traffic.isTrivial)
+  return _internal_istrivial();
+}
+inline void Traffic::set_istrivial(bool value) {
+  _internal_set_istrivial(value);
+  // @@protoc_insertion_point(field_set:Shaping.Traffic.isTrivial)
+}
+inline bool Traffic::_internal_istrivial() const {
+  return _impl_.istrivial_;
+}
+inline void Traffic::_internal_set_istrivial(bool value) {
+  ;
+  _impl_.istrivial_ = value;
+}
+
+// -------------------------------------------------------------------
+
 // -------------------------------------------------------------------
 
 // -------------------------------------------------------------------
 
 // AppsTraffic
 
-// map<string, float> read = 1;
+// map<string, .Shaping.Traffic> read = 1;
 inline int AppsTraffic::_internal_read_size() const {
   return _impl_.read_.size();
 }
@@ -1078,26 +1294,26 @@ inline int AppsTraffic::read_size() const {
 inline void AppsTraffic::clear_read() {
   _impl_.read_.Clear();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >&
 AppsTraffic::_internal_read() const {
   return _impl_.read_.GetMap();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >&
 AppsTraffic::read() const {
   // @@protoc_insertion_point(field_map:Shaping.AppsTraffic.read)
   return _internal_read();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >*
 AppsTraffic::_internal_mutable_read() {
   return _impl_.read_.MutableMap();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >*
 AppsTraffic::mutable_read() {
   // @@protoc_insertion_point(field_mutable_map:Shaping.AppsTraffic.read)
   return _internal_mutable_read();
 }
 
-// map<string, float> write = 2;
+// map<string, .Shaping.Traffic> write = 2;
 inline int AppsTraffic::_internal_write_size() const {
   return _impl_.write_.size();
 }
@@ -1107,20 +1323,20 @@ inline int AppsTraffic::write_size() const {
 inline void AppsTraffic::clear_write() {
   _impl_.write_.Clear();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >&
 AppsTraffic::_internal_write() const {
   return _impl_.write_.GetMap();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >&
 AppsTraffic::write() const {
   // @@protoc_insertion_point(field_map:Shaping.AppsTraffic.write)
   return _internal_write();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >*
 AppsTraffic::_internal_mutable_write() {
   return _impl_.write_.MutableMap();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< std::string, ::Shaping::Traffic >*
 AppsTraffic::mutable_write() {
   // @@protoc_insertion_point(field_mutable_map:Shaping.AppsTraffic.write)
   return _internal_mutable_write();
@@ -1134,7 +1350,7 @@ AppsTraffic::mutable_write() {
 
 // UidsTraffic
 
-// map<uint64, float> read = 1;
+// map<uint64, .Shaping.Traffic> read = 1;
 inline int UidsTraffic::_internal_read_size() const {
   return _impl_.read_.size();
 }
@@ -1144,26 +1360,26 @@ inline int UidsTraffic::read_size() const {
 inline void UidsTraffic::clear_read() {
   _impl_.read_.Clear();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
 UidsTraffic::_internal_read() const {
   return _impl_.read_.GetMap();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
 UidsTraffic::read() const {
   // @@protoc_insertion_point(field_map:Shaping.UidsTraffic.read)
   return _internal_read();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
 UidsTraffic::_internal_mutable_read() {
   return _impl_.read_.MutableMap();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
 UidsTraffic::mutable_read() {
   // @@protoc_insertion_point(field_mutable_map:Shaping.UidsTraffic.read)
   return _internal_mutable_read();
 }
 
-// map<uint64, float> write = 2;
+// map<uint64, .Shaping.Traffic> write = 2;
 inline int UidsTraffic::_internal_write_size() const {
   return _impl_.write_.size();
 }
@@ -1173,20 +1389,20 @@ inline int UidsTraffic::write_size() const {
 inline void UidsTraffic::clear_write() {
   _impl_.write_.Clear();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
 UidsTraffic::_internal_write() const {
   return _impl_.write_.GetMap();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
 UidsTraffic::write() const {
   // @@protoc_insertion_point(field_map:Shaping.UidsTraffic.write)
   return _internal_write();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
 UidsTraffic::_internal_mutable_write() {
   return _impl_.write_.MutableMap();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
 UidsTraffic::mutable_write() {
   // @@protoc_insertion_point(field_mutable_map:Shaping.UidsTraffic.write)
   return _internal_mutable_write();
@@ -1200,7 +1416,7 @@ UidsTraffic::mutable_write() {
 
 // GidsTraffic
 
-// map<uint64, float> read = 1;
+// map<uint64, .Shaping.Traffic> read = 1;
 inline int GidsTraffic::_internal_read_size() const {
   return _impl_.read_.size();
 }
@@ -1210,26 +1426,26 @@ inline int GidsTraffic::read_size() const {
 inline void GidsTraffic::clear_read() {
   _impl_.read_.Clear();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
 GidsTraffic::_internal_read() const {
   return _impl_.read_.GetMap();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
 GidsTraffic::read() const {
   // @@protoc_insertion_point(field_map:Shaping.GidsTraffic.read)
   return _internal_read();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
 GidsTraffic::_internal_mutable_read() {
   return _impl_.read_.MutableMap();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
 GidsTraffic::mutable_read() {
   // @@protoc_insertion_point(field_mutable_map:Shaping.GidsTraffic.read)
   return _internal_mutable_read();
 }
 
-// map<uint64, float> write = 2;
+// map<uint64, .Shaping.Traffic> write = 2;
 inline int GidsTraffic::_internal_write_size() const {
   return _impl_.write_.size();
 }
@@ -1239,20 +1455,20 @@ inline int GidsTraffic::write_size() const {
 inline void GidsTraffic::clear_write() {
   _impl_.write_.Clear();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
 GidsTraffic::_internal_write() const {
   return _impl_.write_.GetMap();
 }
-inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >&
+inline const ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >&
 GidsTraffic::write() const {
   // @@protoc_insertion_point(field_map:Shaping.GidsTraffic.write)
   return _internal_write();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
 GidsTraffic::_internal_mutable_write() {
   return _impl_.write_.MutableMap();
 }
-inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, float >*
+inline ::PROTOBUF_NAMESPACE_ID::Map< ::uint64_t, ::Shaping::Traffic >*
 GidsTraffic::mutable_write() {
   // @@protoc_insertion_point(field_mutable_map:Shaping.GidsTraffic.write)
   return _internal_mutable_write();

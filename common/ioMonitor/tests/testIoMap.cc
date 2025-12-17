@@ -102,13 +102,13 @@ void fill(IoMap &map, std::mutex &mutex){
 	}
 }
 
-void purge(bool &isMultiT, IoMap *map){
+void purge(bool &isMultiT, IoMap **map){
 	if (map){
-		delete map;
+		delete *map;
 		if (isMultiT)
-			map = new IoMap();
+			*map = new IoMap();
 		else
-			map = new IoMap(0);
+			*map = new IoMap(0);
 	}
 }
 
@@ -146,7 +146,7 @@ static int rm(IoMap *map, std::stringstream &os){
 	return -1;
 }
 
-int execCmd(std::string &input, IoMap *map, bool &isMultiT, std::mutex &mutex){
+int execCmd(std::string &input, IoMap **map, bool &isMultiT, std::mutex &mutex){
 	std::stringstream os(input);
 	std::string cmd;
 	os >> cmd;
@@ -155,12 +155,12 @@ int execCmd(std::string &input, IoMap *map, bool &isMultiT, std::mutex &mutex){
 		return 1;
 	}
 	else if (cmd == "print" || cmd == "p")
-		print(map);
+		print(*map);
 	else if (cmd == "fill"){
 		if (os >> cmd)
 			std::cerr << "IoMap: " << input << " :command not found" << std::endl;
 		else
-			fill(*map, mutex);
+			fill(**map, mutex);
 	}
 	else if (cmd == "clear" || cmd == "c")
 		std::cout << "\033c";
@@ -169,7 +169,7 @@ int execCmd(std::string &input, IoMap *map, bool &isMultiT, std::mutex &mutex){
 	else if (cmd == "h" || cmd == "help")
 		printUsage();
 	else if (cmd == "rm")
-		std::cout << "rm: " << rm(map, os) << std::endl;
+		std::cout << "rm: " << rm(*map, os) << std::endl;
 	else
 		std::cerr << "IoMap: " << input << " :command not found" << std::endl;
 	if (cmd != "clear" && cmd != "c")
@@ -203,10 +203,13 @@ int testInteractiveIoMap(){
 		if (isMultiT)
 			lock.unlock();
 		prompt(isMultiT, input);
-		if (execCmd(input, map, isMultiT, mutex) == 1)
+		if (execCmd(input, &map, isMultiT, mutex) == 1)
 			break ;
+		if (!map)
+			break;
 	}
-	delete map;
+	if (map)
+		delete map;
 	return 0;
 }
 
