@@ -252,7 +252,7 @@ void IoShaping::publishing(ThreadAssistant &assistant){
   while (!assistant.terminationRequested()){
     if (!_mPublishing.load())
       break ;
-  	assistant.wait_for(std::chrono::seconds(1));
+  	assistant.wait_for(std::chrono::seconds(2));
   	std::lock_guard<std::mutex> lock(_mSyncThread);
   	eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
   	std::string publish;
