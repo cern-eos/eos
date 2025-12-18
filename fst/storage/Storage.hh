@@ -576,11 +576,11 @@ private:
   static bool IsRootFsCheckDisabled();
 
   //----------------------------------------------------------------------------
-  /// Parse the scaler for the IoAggregateMap
+  /// Parse the scaler for the IoAggregateMap and regule the bandwidth
   ///
-  /// @param reply the reply of the function
+  /// @param cmd The new scaler data
   //----------------------------------------------------------------------------
-  void ScalerCmd(const std::string &cmd);
+  void ScalerCmd(const std::string &);
 };
 
 EOSFSTNAMESPACE_END
