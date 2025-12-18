@@ -837,9 +837,43 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
   return rc;
 }
 
-// static size_t trafficRegulation(float traficSpeed){
-// 	return traficSpeed;
-// }
+//------------------------------------------------------------------------------
+//! Return the corresponding scaler value
+//------------------------------------------------------------------------------
+std::uint64_t XrdFstOfsFile::reguleBandwidth(const std::string rw) const{
+	double	scaler = 1.0;
+
+	auto &it = gOFS.Storage->mScaler;
+	auto &app = it.apps();
+	auto &uid = it.uids();
+	auto &gid = it.gids();
+	
+	if (rw == "read"){
+		if (app.read().contains(vid.app))
+			if (app.read().at(vid.app).limit() < scaler)
+				scaler = app.read().at(vid.app).limit();
+		if (uid.read().contains(vid.uid))
+			if (uid.read().at(vid.uid).limit() < scaler)
+				scaler = uid.read().at(vid.uid).limit();
+		if (gid.read().contains(vid.gid))
+			if (gid.read().at(vid.gid).limit() < scaler)
+				scaler = gid.read().at(vid.gid).limit();
+	}else if (rw == "write"){
+		if (app.write().contains(vid.app))
+			if (app.write().at(vid.app).limit() < scaler)
+				scaler = app.write().at(vid.app).limit();
+		if (uid.write().contains(vid.uid))
+			if (uid.write().at(vid.uid).limit() < scaler)
+				scaler = uid.write().at(vid.uid).limit();
+		if (gid.write().contains(vid.gid))
+			if (gid.write().at(vid.gid).limit() < scaler)
+				scaler = gid.write().at(vid.gid).limit();
+	}
+
+	if (scaler == 1)
+		return 0;
+	return (100 / scaler);
+}
 
 //------------------------------------------------------------------------------
 // Read from file
@@ -888,21 +922,25 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
+ //  std::int64_t sleep_time = reguleBandwidth("read");
+ //  if (sleep_time) {
+ //    eos_static_info("msg=\"scaler: %ld\"", sleep_time);
+ //    float exp_time = totalBytes / sleep_time / 1000.0;
+ //    eos_static_info("msg=\"exp_time: %f\"", exp_time);
+ //    float abs_time = static_cast<float>((currentTime.tv_sec -
+ //                                         openTime.tv_sec) * 1000 +
+ //                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
+ //    eos_static_info("msg=\"abs_time: %f\"", abs_time);
+ //    std::int64_t thisSleep = 1000.0 * (exp_time - abs_time);
+	// eos_static_info("msg=\"thisSleep: %ld\"", thisSleep);
+ //    std::this_thread::sleep_for(std::chrono::microseconds(thisSleep));
+ //  }
+
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);
     float abs_time = static_cast<float>((currentTime.tv_sec -
                                          openTime.tv_sec) * 1000 +
                                         (currentTime.tv_usec - openTime.tv_usec) / 1000);
-
-	// if (gOFS.Storage->_scaler.apps().read().contains(vid.app);
-    /// Regulate the io according to the last scaler change point in time
-	// std::int64_t sleepTime = trafficRegulation(gOFS.ioMap.read());
-    
-    // if (sleepTime) {
-    //   std::int64_t thisSleep = 1000.0 * (exp_time - abs_time);
-    //   std::this_thread::sleep_for(std::chrono::microseconds(thisSleep));
-    // }
-    //
     // Regulate the io - sleep as desired
     float exp_time = totalBytes / mBandwidth / 1000.0;
 
