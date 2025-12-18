@@ -113,6 +113,14 @@ public:
            const char* opaque = 0) override;
 
   //----------------------------------------------------------------------------
+  //! Regule the bandwidth with the Scaler data from the IoAggregateMap
+  //!
+  //! @param std::string "read" or "write" to know the context
+  //! @return the scaler
+  //----------------------------------------------------------------------------
+  std::uint64_t reguleBandwidth(const std::string) const;
+
+  //----------------------------------------------------------------------------
   //! Read from file
   //----------------------------------------------------------------------------
   XrdSfsXferSize read(XrdSfsFileOffset fileOffset, char* buffer,
