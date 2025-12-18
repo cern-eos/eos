@@ -300,7 +300,7 @@ void com_io_help()
       << std::endl
 	  << "io monitor [command] [options...] : interact with the Monitor and the IoAggregate map's\n"
       << std::endl
-	  << "  COMMANDS\n"
+	  << "   COMMANDS\n"
       << "\tls [-w] [-a] [-u] [-g] [-s] [-std] [-j] [WINDOW]: print the IoAggregate map\n"
       << "\t     -w : print the available FST's windows and also the windows already set MGM side.\n"
       << "\t     -a : print only apps\n"
@@ -309,36 +309,41 @@ void com_io_help()
       << "\t     -s : print the size\n"
       << "\t   -std : print the standard deviation\n"
       << "\t     -j : change the output to JSON format\n"
-      << "   [WINDOW] : Target a specific window\n\n"
+      << "       [WINDOW] : Target a specific window\n\n"
 
-	  << "\tset [command][options...] || app|uid|gid:<id> read|write:<limit>|on|off : set bandwidth limit\n"
-	  << "\t                       COMMANDS\n"
-      << "\t                           ls : print all limit set\n"
-      << "\t                                [-a] : print only apps\n"
-      << "\t                                [-u] : print only uids\n"
-      << "\t                                [-g] : print only gids\n\n"
-      << "\t                           rm [-a] [-u] [-g] [--all] || app|uid|gid:<id> : remove one or multiple set\n"
-      << "\t                                [-a] : remove all apps\n"
-      << "\t                                [-u] : remove all uids\n"
-      << "\t                                [-g] : remove all gids\n"
-      << "\t                             [--all] : remove all apps/uids/gids\n\n"
-	  << "\n\n\t                   EXAMPLE\n"
-      << "\t                  eos io monitor set app:eoscp read:10 (Set limit of 10 MB/s for eoscp)\n"
-      << "\t                  eos io monitor set app:eoscp read:on (don't forget to enable the read limit for eoscp!)\n\n"
-      << "\t                  eos io monitor set ls (Display all the limits)\n"
-      << "\t                  eos io monitor set ls -a (Display apps limits)\n\n"
-      << "\t                  eos io monitor set rm app:eoscp (remove a limits)\n"
-      << "\t                  eos io monitor set rm -a (remove all set apps)\n\n"
+	  << "\tset [command] [options...] || app|uid|gid:<id> read|write:<limit>|on|off : set bandwidth limit\n"
+      << "\t     ls : print all limit set\n"
+      << "\t        -a : print only apps\n"
+      << "\t        -u : print only uids\n"
+      << "\t        -g : print only gids\n"
+      << "\t     rm [-a] [-u] [-g] [--all] || app|uid|gid:<id> : remove one or multiple set\n"
+      << "\t        -a : remove all apps\n"
+      << "\t        -u : remove all uids\n"
+      << "\t        -g : remove all gids\n"
+      << "\t     --all : remove all apps/uids/gids\n\n"
 
-	  << "\tadd [window][...] : add one or multiple window to the monitor \n"
-	  << "\t                       EXAMPLE\n"
-      << "\t                  eos io monitor add 86400\n"
-      << "\t                  eos io monitor add 86400 600 200\n\n"
-	  << "\trm [window][...] : remove one or multiple window from the monitor \n"
-	  << "\t                       EXAMPLE\n"
-      << "\t                  eos io monitor rm 86400\n"
-      << "\t                  eos io monitor rm 86400 600 200\n\n"
-	  << "\tshift [index] : shift the window to the next Bin, or to the index given as a parametre\n"
+	  << "\tadd [window][...] : add one or multiple window to the monitor \n\n"
+
+	  << "\tshift [index] : shift the window to the next Bin, or to the index given as a parametre\n\n"
+
+	  << "\trm [window][...] : remove one or multiple window from the monitor \n\n"
+
+	  << "\t EXAMPLES\n"
+      << "\t  eos io monitor set app:eoscp read:10 (Set limit of 10 MB/s for eoscp)\n"
+      << "\t  eos io monitor set app:eoscp read:on (don't forget to enable the read limit for eoscp!)\n\n"
+
+      << "\t  eos io monitor set ls (Display all the limits)\n"
+      << "\t  eos io monitor set ls -a (Display apps limits)\n\n"
+
+      << "\t  eos io monitor set rm app:eoscp (remove a limits)\n"
+      << "\t  eos io monitor set rm -a (remove all set apps)\n\n"
+
+      << "\t  eos io monitor add 86400\n"
+      << "\t  eos io monitor add 86400 600 200\n\n"
+
+      << "\t  eos io monitor rm 86400\n"
+      << "\t  eos io monitor rm 86400 600 200\n\n"
+
       << std::endl;
   std::cerr << oss.str() << std::endl;
 }
