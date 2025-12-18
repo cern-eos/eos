@@ -26,45 +26,45 @@
 /// Constructor by copy constructor
 //--------------------------------------------
 IoAggregate::IoAggregate(const IoAggregate &other){
-	std::lock_guard<std::mutex> otherLock(other._mutex);
-	_intervalSec = other._intervalSec;
-	_currentIndex = other._currentIndex;
-	_bins = other._bins;
-	_currentTime = other._currentTime;
-	_apps = other._apps;
-	_uids = other._uids;
-	_gids = other._gids;
+  std::lock_guard<std::mutex> otherLock(other._mutex);
+  _intervalSec = other._intervalSec;
+  _currentIndex = other._currentIndex;
+  _bins = other._bins;
+  _currentTime = other._currentTime;
+  _apps = other._apps;
+  _uids = other._uids;
+  _gids = other._gids;
 }
 
 //--------------------------------------------
 /// Overload the operator =
 //--------------------------------------------
 IoAggregate& IoAggregate::operator=(const IoAggregate &other){
-	if (this != &other){
-		std::scoped_lock lock(_mutex, other._mutex);
-		_intervalSec = other._intervalSec;
-		_winTime = other._winTime;
-		_currentIndex = other._currentIndex;
-		_currentTime = other._currentTime;
-		_apps = other._apps;
-		_uids = other._uids;
-		_gids = other._gids;
-		_bins = other._bins;
-	}
-	return *this;
+  if (this != &other){
+    std::scoped_lock lock(_mutex, other._mutex);
+    _intervalSec = other._intervalSec;
+    _winTime = other._winTime;
+    _currentIndex = other._currentIndex;
+    _currentTime = other._currentTime;
+    _apps = other._apps;
+    _uids = other._uids;
+    _gids = other._gids;
+    _bins = other._bins;
+  }
+  return *this;
 }
 
 //--------------------------------------------
 /// Main constructor
 //--------------------------------------------
 IoAggregate::IoAggregate(size_t winTime)
-	: _intervalSec(10), _currentIndex(0) ,_currentTime(std::chrono::system_clock::now()){
-	if (winTime < 10)
-		winTime = 10;
-	if (winTime % _intervalSec != 0)
-		winTime -= winTime % _intervalSec;
-	_winTime = winTime;
-	_bins.emplace_back(Bin());
+  : _intervalSec(10), _currentIndex(0) ,_currentTime(std::chrono::system_clock::now()){
+  if (winTime < 10)
+    winTime = 10;
+  if (winTime % _intervalSec != 0)
+    winTime -= winTime % _intervalSec;
+  _winTime = winTime;
+  _bins.emplace_back(Bin());
 }
 
 //--------------------------------------------
@@ -78,60 +78,60 @@ IoAggregate::~IoAggregate(){}
 /// (depending on this->_intervalSec)
 //--------------------------------------------
 void IoAggregate::update(const IoMap &maps){
-	auto diff = std::chrono::system_clock::now() - _currentTime;
+  auto diff = std::chrono::system_clock::now() - _currentTime;
 
-	/// If time to update
-	if (diff >= std::chrono::seconds(_intervalSec)){
-		if constexpr (io::IoAggregateDebug)
-			printInfo(std::cout, "updating window " + std::to_string(_winTime));
-		/// for each object in app/uid/gid, get and add summary
-	
-		for (auto it = _apps.begin(); it != _apps.end(); it++){
-			auto summary = maps.getSummary(*it, _intervalSec);
-			if (!summary.has_value())
-				summary.emplace(IoStatSummary());
-			addSample(*it, summary.value());
-		}
+  /// If time to update
+  if (diff >= std::chrono::seconds(_intervalSec)){
+    if constexpr (io::IoAggregateDebug)
+      printInfo(std::cout, "updating window " + std::to_string(_winTime));
+    /// for each object in app/uid/gid, get and add summary
 
-		for (auto it = _uids.begin(); it != _uids.end(); it++){
-			auto summary = maps.getSummary(io::TYPE::UID, *it, _intervalSec);
-			if (!summary.has_value())
-				summary.emplace(IoStatSummary());
-			addSample(io::TYPE::UID, *it, summary.value());
-		}
+    for (auto it = _apps.begin(); it != _apps.end(); it++){
+      auto summary = maps.getSummary(*it, _intervalSec);
+      if (!summary.has_value())
+        summary.emplace(IoStatSummary());
+      addSample(*it, summary.value());
+    }
 
-		for (auto it = _gids.begin(); it != _gids.end(); it++){
-			auto summary = maps.getSummary(io::TYPE::GID, *it, _intervalSec);
-			if (!summary.has_value())
-				summary.emplace(IoStatSummary());
-			addSample(io::TYPE::GID, *it, summary.value());
-		}
-		_currentTime = std::chrono::system_clock::now();
-	}
+    for (auto it = _uids.begin(); it != _uids.end(); it++){
+      auto summary = maps.getSummary(io::TYPE::UID, *it, _intervalSec);
+      if (!summary.has_value())
+        summary.emplace(IoStatSummary());
+      addSample(io::TYPE::UID, *it, summary.value());
+    }
+
+    for (auto it = _gids.begin(); it != _gids.end(); it++){
+      auto summary = maps.getSummary(io::TYPE::GID, *it, _intervalSec);
+      if (!summary.has_value())
+        summary.emplace(IoStatSummary());
+      addSample(io::TYPE::GID, *it, summary.value());
+    }
+    _currentTime = std::chrono::system_clock::now();
+  }
 }
 
 bool IoAggregate::rm(std::string &appName){
-	if (_apps.find(appName) == _apps.end())
-		return false;
+  if (_apps.find(appName) == _apps.end())
+    return false;
 
-	_apps.erase(appName);
-	auto appsRange = _bins.at(_currentIndex).appStats.equal_range(appName);
-	_bins.at(_currentIndex).appStats.erase(appsRange.first, appsRange.second);
-	return true;
+  _apps.erase(appName);
+  auto appsRange = _bins.at(_currentIndex).appStats.equal_range(appName);
+  _bins.at(_currentIndex).appStats.erase(appsRange.first, appsRange.second);
+  return true;
 }
 
 bool IoAggregate::rm(io::TYPE type, size_t id){
-	if (type != io::TYPE::UID && type != io::TYPE::GID)
-		return false;
-	else if (type == io::TYPE::UID ? _uids.find(id) == _uids.end() : _gids.find(id) == _gids.end())
-		return false;
+  if (type != io::TYPE::UID && type != io::TYPE::GID)
+    return false;
+  else if (type == io::TYPE::UID ? _uids.find(id) == _uids.end() : _gids.find(id) == _gids.end())
+    return false;
 
-	type == io::TYPE::UID ? _uids.erase(id) : _gids.erase(id);
+  type == io::TYPE::UID ? _uids.erase(id) : _gids.erase(id);
 
-	auto idRange = (type == io::TYPE::UID ? _bins.at(_currentIndex).uidStats : _bins.at(_currentIndex).gidStats).equal_range(id);
-	(type == io::TYPE::UID ? _bins.at(_currentIndex).uidStats : _bins.at(_currentIndex).gidStats).erase(idRange.first, idRange.second);
+  auto idRange = (type == io::TYPE::UID ? _bins.at(_currentIndex).uidStats : _bins.at(_currentIndex).gidStats).equal_range(id);
+  (type == io::TYPE::UID ? _bins.at(_currentIndex).uidStats : _bins.at(_currentIndex).gidStats).erase(idRange.first, idRange.second);
 
-	return true;
+  return true;
 }
 
 //--------------------------------------------
@@ -139,11 +139,11 @@ bool IoAggregate::rm(io::TYPE type, size_t id){
 /// to that Bin
 //--------------------------------------------
 int IoAggregate::shiftWindow(){
-	_bins.emplace_back(Bin());
-	_currentIndex = _bins.size() - 1;
-	if constexpr (io::IoAggregateDebug)
-		printInfo(std::cout, "shift Window succeeded");
-	return _currentIndex;
+  _bins.emplace_back(Bin());
+  _currentIndex = _bins.size() - 1;
+  if constexpr (io::IoAggregateDebug)
+    printInfo(std::cout, "shift Window succeeded");
+  return _currentIndex;
 }
 
 //--------------------------------------------
@@ -151,12 +151,12 @@ int IoAggregate::shiftWindow(){
 /// index (_currentIndex)
 //--------------------------------------------
 int IoAggregate::shiftWindow(const size_t index){
-	if (index >= _bins.size())
-		return -1;
-	_currentIndex = index;
-	if constexpr (io::IoAggregateDebug)
-		printInfo(std::cout, "shift Window succeeded");
-	return _currentIndex;
+  if (index >= _bins.size())
+    return -1;
+  _currentIndex = index;
+  if constexpr (io::IoAggregateDebug)
+    printInfo(std::cout, "shift Window succeeded");
+  return _currentIndex;
 }
 
 //--------------------------------------------
@@ -164,107 +164,107 @@ int IoAggregate::shiftWindow(const size_t index){
 /// into a single one
 //--------------------------------------------
 std::optional<IoStatSummary> IoAggregate::summaryWeighted(const std::vector<IoStatSummary> &summarys, size_t winTime){
-	size_t rDivisor = 0;
-	size_t wDivisor = 0;
-	size_t rEmptyDivisor = 0;
-	size_t wEmptyDivisor = 0;
-	IoStatSummary weighted;
+  size_t rDivisor = 0;
+  size_t wDivisor = 0;
+  size_t rEmptyDivisor = 0;
+  size_t wEmptyDivisor = 0;
+  IoStatSummary weighted;
 
-	if (io::IoAggregateDebug)
-		printInfo(std::cout, "summary weighted called");
+  if (io::IoAggregateDebug)
+    printInfo(std::cout, "summary weighted called");
 
-	/// Calcule average, IOPS and limit
-	for (const auto &it : summarys){
-		if (it.readBandwidth.has_value()){
-			weighted.readBandwidth->first += (it.readBandwidth->first * it.rSize);
-			weighted.rLimit += it.rSize == 0 ? 1 : it.rLimit * it.rSize ;
-			weighted.rIops += it.rIops;
-		}
-		if (it.writeBandwidth.has_value()){
-			weighted.writeBandwidth->first += (it.writeBandwidth->first * it.wSize);
-			weighted.wLimit += it.wSize == 0 ? 1 : it.wLimit * it.wSize;
-			weighted.wIops += it.wIops;
-		}
-		it.rSize == 0 ? rEmptyDivisor++ : rDivisor += it.rSize;
-		it.wSize == 0 ? wEmptyDivisor++ : wDivisor += it.wSize;
-	}
+  /// Calcule average, IOPS and limit
+  for (const auto &it : summarys){
+    if (it.readBandwidth.has_value()){
+      weighted.readBandwidth->first += (it.readBandwidth->first * it.rSize);
+      weighted.rLimit += it.rSize == 0 ? 1 : it.rLimit * it.rSize ;
+      weighted.rIops += it.rIops;
+    }
+    if (it.writeBandwidth.has_value()){
+      weighted.writeBandwidth->first += (it.writeBandwidth->first * it.wSize);
+      weighted.wLimit += it.wSize == 0 ? 1 : it.wLimit * it.wSize;
+      weighted.wIops += it.wIops;
+    }
+    it.rSize == 0 ? rEmptyDivisor++ : rDivisor += it.rSize;
+    it.wSize == 0 ? wEmptyDivisor++ : wDivisor += it.wSize;
+  }
 
-	if (rDivisor + rEmptyDivisor > 0){
-		weighted.readBandwidth->first /=
-			rDivisor + rEmptyDivisor;
-		weighted.rLimit /=
-			rDivisor + rEmptyDivisor;
-		weighted.rIops /= summarys.size();
-	}
-	if (wDivisor + wEmptyDivisor > 0){
-		weighted.writeBandwidth->first /=
-			(wDivisor + wEmptyDivisor);
-		weighted.wLimit /=
-			wDivisor + wEmptyDivisor;
-		weighted.wIops /= summarys.size();
-	}
+  if (rDivisor + rEmptyDivisor > 0){
+    weighted.readBandwidth->first /=
+      rDivisor + rEmptyDivisor;
+    weighted.rLimit /=
+      rDivisor + rEmptyDivisor;
+    weighted.rIops /= summarys.size();
+  }
+  if (wDivisor + wEmptyDivisor > 0){
+    weighted.writeBandwidth->first /=
+      (wDivisor + wEmptyDivisor);
+    weighted.wLimit /=
+      wDivisor + wEmptyDivisor;
+    weighted.wIops /= summarys.size();
+  }
 
-	/// Calcule standard deviation
-	for (const auto &it : summarys){
-		if (weighted.readBandwidth.has_value())
-			weighted.readBandwidth->second += (it.rSize *
-				((std::pow(it.readBandwidth->second, 2) +
-				std::pow(it.readBandwidth->first - weighted.readBandwidth->first, 2))));
+  /// Calcule standard deviation
+  for (const auto &it : summarys){
+    if (weighted.readBandwidth.has_value())
+      weighted.readBandwidth->second += (it.rSize *
+        ((std::pow(it.readBandwidth->second, 2) +
+        std::pow(it.readBandwidth->first - weighted.readBandwidth->first, 2))));
 
-		if (weighted.writeBandwidth.has_value())
-			weighted.writeBandwidth->second += (it.wSize *
-				((std::pow(it.writeBandwidth->second, 2) +
-				std::pow(it.writeBandwidth->first - weighted.writeBandwidth->first, 2))));
-	}
-	if (rEmptyDivisor > 0)
-		weighted.readBandwidth->second += rEmptyDivisor * (std::pow(0 - weighted.readBandwidth->first, 2));
-	if (wEmptyDivisor > 0)
-		weighted.writeBandwidth->second += wEmptyDivisor * (std::pow(0 - weighted.writeBandwidth->first, 2));
-
-
-	if (rDivisor > 0 && weighted.readBandwidth.has_value())
-			weighted.readBandwidth->second = std::sqrt(weighted.readBandwidth->second / (rDivisor + rEmptyDivisor));
-
-	if (wDivisor > 0 && weighted.writeBandwidth.has_value())
-			weighted.writeBandwidth->second = std::sqrt(weighted.writeBandwidth->second / (wDivisor + wEmptyDivisor));
+    if (weighted.writeBandwidth.has_value())
+      weighted.writeBandwidth->second += (it.wSize *
+        ((std::pow(it.writeBandwidth->second, 2) +
+        std::pow(it.writeBandwidth->first - weighted.writeBandwidth->first, 2))));
+  }
+  if (rEmptyDivisor > 0)
+    weighted.readBandwidth->second += rEmptyDivisor * (std::pow(0 - weighted.readBandwidth->first, 2));
+  if (wEmptyDivisor > 0)
+    weighted.writeBandwidth->second += wEmptyDivisor * (std::pow(0 - weighted.writeBandwidth->first, 2));
 
 
-	weighted.rSize = rDivisor;
-	weighted.wSize = wDivisor;
-	
-	/// Check empty case
-	if (io::IoAggregateDebug)
-		printInfo(std::cout, "summary weighted succeeded");
-	if (weighted.wSize == 0 && weighted.rSize == 0)
-		return std::nullopt;
-	if (weighted.rSize == 0)
-		weighted.readBandwidth = std::nullopt;
-	if (weighted.wSize == 0)
-		weighted.writeBandwidth = std::nullopt;
+  if (rDivisor > 0 && weighted.readBandwidth.has_value())
+      weighted.readBandwidth->second = std::sqrt(weighted.readBandwidth->second / (rDivisor + rEmptyDivisor));
 
-	weighted.winTime = winTime;
-	return weighted;
+  if (wDivisor > 0 && weighted.writeBandwidth.has_value())
+      weighted.writeBandwidth->second = std::sqrt(weighted.writeBandwidth->second / (wDivisor + wEmptyDivisor));
+
+
+  weighted.rSize = rDivisor;
+  weighted.wSize = wDivisor;
+ 
+  /// Check empty case
+  if (io::IoAggregateDebug)
+    printInfo(std::cout, "summary weighted succeeded");
+  if (weighted.wSize == 0 && weighted.rSize == 0)
+    return std::nullopt;
+  if (weighted.rSize == 0)
+    weighted.readBandwidth = std::nullopt;
+  if (weighted.wSize == 0)
+    weighted.writeBandwidth = std::nullopt;
+
+  weighted.winTime = winTime;
+  return weighted;
 }
 
 //--------------------------------------------
 /// Get available apps
 //--------------------------------------------
 std::vector<std::string> IoAggregate::getApps() const{
-	return (std::vector(_apps.begin(), _apps.end()));
+  return (std::vector(_apps.begin(), _apps.end()));
 }
 
 //--------------------------------------------
 /// IoAggregateMap::Get available uids
 //--------------------------------------------
 std::vector<uid_t> IoAggregate::getUids() const{
-	return (std::vector(_uids.begin(), _uids.end()));
+  return (std::vector(_uids.begin(), _uids.end()));
 }
 
 //--------------------------------------------
 /// IoAggregateMap::Get available gids
 //--------------------------------------------
 std::vector<gid_t> IoAggregate::getGids() const{
-	return (std::vector(_gids.begin(), _gids.end()));
+  return (std::vector(_gids.begin(), _gids.end()));
 }
 
 //--------------------------------------------
@@ -276,18 +276,18 @@ size_t IoAggregate::getIndex() const{ return _currentIndex;}
 /// Display the string given as parameter in
 /// specific format with the current time
 //--------------------------------------------
-void	IoAggregate::printInfo(std::ostream &os, const char *msg){
-	const char *time = getCurrentTime();
-	os << IOAGGREGATE_NAME << " [" << time << "]: " << msg << std::endl;
+void  IoAggregate::printInfo(std::ostream &os, const char *msg){
+  const char *time = getCurrentTime();
+  os << IOAGGREGATE_NAME << " [" << time << "]: " << msg << std::endl;
 }
 
 //--------------------------------------------
 /// Display the string given as parameter in
 /// specific format with the current time
 //--------------------------------------------
-void	IoAggregate::printInfo(std::ostream &os, const std::string &msg){
-	const char *time = getCurrentTime();
-	os << IOAGGREGATE_NAME << " [" << time << "]: " << msg << std::endl;
+void  IoAggregate::printInfo(std::ostream &os, const std::string &msg){
+  const char *time = getCurrentTime();
+  os << IOAGGREGATE_NAME << " [" << time << "]: " << msg << std::endl;
 }
 
 //--------------------------------------------
@@ -295,42 +295,42 @@ void	IoAggregate::printInfo(std::ostream &os, const std::string &msg){
 /// a IoAggregate object
 //--------------------------------------------
 std::ostream& operator<<(std::ostream &os, const IoAggregate &other){
-	std::lock_guard<std::mutex> lock(other._mutex);
-	os << C_GREEN << "[" << C_CYAN << "IoAggregate" << C_GREEN << "]" << C_RESET << std::endl;
-	os << C_GREEN << "[" << C_YELLOW << "window time: " << other._winTime << C_GREEN << "]" << C_RESET;
-	os << C_GREEN << "[" << C_YELLOW << "interval/win: " << other._intervalSec << C_GREEN << "]" << C_RESET;
-	os << C_GREEN << "[" << C_YELLOW << "nbr of bin: " << other._bins.size() << C_GREEN << "]" << C_RESET;
-	os << C_GREEN << "[" << C_YELLOW << "currentIndex: " << other._currentIndex << C_GREEN << "]" << C_RESET << std::endl;
-	
-	os << C_BLUE;
-	os << "\t[Tracks]" << std::endl;
-	os << "\t apps:" << std::endl;
-	for (auto it : other._apps)
-		os << "\t  - " << it << std::endl;
-	os << "\t uids:" << std::endl;
-	for (auto it : other._uids)
-		os << "\t  - " << it << std::endl;
-	os << "\t gids:" << std::endl;
-	for (auto it : other._gids)
-		os << "\t  - " << it << std::endl;
+  std::lock_guard<std::mutex> lock(other._mutex);
+  os << C_GREEN << "[" << C_CYAN << "IoAggregate" << C_GREEN << "]" << C_RESET << std::endl;
+  os << C_GREEN << "[" << C_YELLOW << "window time: " << other._winTime << C_GREEN << "]" << C_RESET;
+  os << C_GREEN << "[" << C_YELLOW << "interval/win: " << other._intervalSec << C_GREEN << "]" << C_RESET;
+  os << C_GREEN << "[" << C_YELLOW << "nbr of bin: " << other._bins.size() << C_GREEN << "]" << C_RESET;
+  os << C_GREEN << "[" << C_YELLOW << "currentIndex: " << other._currentIndex << C_GREEN << "]" << C_RESET << std::endl;
+ 
+  os << C_BLUE;
+  os << "\t[Tracks]" << std::endl;
+  os << "\t apps:" << std::endl;
+  for (auto it : other._apps)
+    os << "\t  - " << it << std::endl;
+  os << "\t uids:" << std::endl;
+  for (auto it : other._uids)
+    os << "\t  - " << it << std::endl;
+  os << "\t gids:" << std::endl;
+  for (auto it : other._gids)
+    os << "\t  - " << it << std::endl;
 
-	auto it = other._bins.at(other._currentIndex);
-	if (it.appStats.size() > 0){
-		os << "apps: [" << it.appStats.size() << "]" << std::endl;
-		for (auto apps : it.appStats)
-			os << "\t[" << apps.first << "]" << std::endl << "\t- " << apps.second << std::endl;
-	}
-	if (it.uidStats.size() > 0){
-		os << "uids: [" << it.uidStats.size() << "]" << std::endl;
-		for (auto uids : it.uidStats)
-			os << "\t[" << uids.first << "]" << std::endl << "\t- " << uids.second << std::endl;
-	}
-	if (it.gidStats.size() > 0){
-		os << "gids: [" << it.gidStats.size() << "]" << std::endl;
-		for (auto gids : it.gidStats)
-			os << "\t[" << gids.first << "]" << std::endl << "\t- " << gids.second << std::endl;
-	}
+  auto it = other._bins.at(other._currentIndex);
+  if (it.appStats.size() > 0){
+    os << "apps: [" << it.appStats.size() << "]" << std::endl;
+    for (auto apps : it.appStats)
+      os << "\t[" << apps.first << "]" << std::endl << "\t- " << apps.second << std::endl;
+  }
+  if (it.uidStats.size() > 0){
+    os << "uids: [" << it.uidStats.size() << "]" << std::endl;
+    for (auto uids : it.uidStats)
+      os << "\t[" << uids.first << "]" << std::endl << "\t- " << uids.second << std::endl;
+  }
+  if (it.gidStats.size() > 0){
+    os << "gids: [" << it.gidStats.size() << "]" << std::endl;
+    for (auto gids : it.gidStats)
+      os << "\t[" << gids.first << "]" << std::endl << "\t- " << gids.second << std::endl;
+  }
 
-	os << C_RESET;
-	return os;
+  os << C_RESET;
+  return os;
 }

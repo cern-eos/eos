@@ -95,28 +95,65 @@ private:
                 eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Execute monitor subcommand
+  //! Manage monitor subcommand to manage all the comands of io monitor
   //!
   //! @param ms ms subcommand proto object
-  //! @param reply reply proto object
+  //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
   void MonitorSubcmd(const eos::console::IoProto_MonitorProto& ms,
                 eos::console::ReplyProto& reply);
 
+  //----------------------------------------------------------------------------
+  //! Monitor command to display the bandwidth
+  //!
+  //! @param mn mn subcommand proto object
+  //! @param reply the reply of the mgm
+  //----------------------------------------------------------------------------
   void MonitorLs(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply);
 
 
+  //----------------------------------------------------------------------------
+  //! Monitor command to set the limits
+  //!
+  //! @param mn mn subcommand proto object
+  //! @param reply the reply of the mgm
+  //----------------------------------------------------------------------------
   void MonitorSet(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply);
 
+  //----------------------------------------------------------------------------
+  //! Monitor command to display the limits
+  //!
+  //! @param reply the reply of the mgm
+  //! @param stringstream & the options of teh commands
+  //----------------------------------------------------------------------------
   void MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream &);
 
+  //----------------------------------------------------------------------------
+  //! Monitor command to remove a limits
+  //!
+  //! @param reply the reply of the mgm
+  //! @param stringstream & the options of teh commands
+  //----------------------------------------------------------------------------
   void MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream &);
 
+
+  //----------------------------------------------------------------------------
+  //! Monitor command to add a window
+  //!
+  //! @param mn mn subcommand proto object
+  //! @param reply the reply of the mgm
+  //----------------------------------------------------------------------------
   void MonitorAdd(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply);
 
+  //----------------------------------------------------------------------------
+  //! Monitor command to remove a window
+  //!
+  //! @param mn mn subcommand proto object
+  //! @param reply the reply of the mgm
+  //----------------------------------------------------------------------------
   void MonitorRm(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply);
 };

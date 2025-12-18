@@ -17,9 +17,9 @@ target_link_libraries(
   PUBLIC protobuf
          pthread
          absl_log_internal_check_op
-		 absl_log_internal_nullguard
+  	     absl_log_internal_nullguard
          absl_base
-		 absl_hash
+         absl_hash
          absl_log_internal_message
          absl_status
          absl_base
