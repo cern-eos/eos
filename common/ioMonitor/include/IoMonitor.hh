@@ -55,23 +55,24 @@
 /// Keep the time of class creation
 //--------------------------------------------
 struct IoMark {
-	struct timespec io_time;
-    size_t bytes;
+  struct timespec io_time;
+
+	size_t bytes;
 	double limit;
 
-	//--------------------------------------------
-	/// Main contructor
-	//--------------------------------------------
+  //--------------------------------------------
+  /// Main contructor
+  //--------------------------------------------
     IoMark(size_t bytesN, double limitN = 1.0) : bytes(bytesN), limit(limitN){
-		clock_gettime(CLOCK_REALTIME, &io_time);
-	}
+    clock_gettime(CLOCK_REALTIME, &io_time);
+  }
 
-	//--------------------------------------------
-	/// Default contructor
-	//--------------------------------------------
+  //--------------------------------------------
+  /// Default contructor
+  //--------------------------------------------
     IoMark() : bytes(0), limit(1){
-		clock_gettime(CLOCK_REALTIME, &io_time);
-	}
+    clock_gettime(CLOCK_REALTIME, &io_time);
+  }
 };
 
 //--------------------------------------------
@@ -79,7 +80,7 @@ struct IoMark {
 ///
 /// @return const char* the current time
 //--------------------------------------------
-const char*	getCurrentTime();
+const char*  getCurrentTime();
 
 //--------------------------------------------
 /// Namespace
@@ -88,117 +89,117 @@ const char*	getCurrentTime();
 /// the corresponding class will be displayed
 //--------------------------------------------
 namespace io {
-	constexpr bool IoStatDebug = false;
-	constexpr bool IoMapDebug = false;
-	constexpr bool IoMarkDebug = false;
-	constexpr bool IoAggregateMapDebug = false;
-	constexpr bool IoAggregateDebug = false;
+  constexpr bool IoStatDebug = false;
+  constexpr bool IoMapDebug = false;
+  constexpr bool IoMarkDebug = false;
+  constexpr bool IoAggregateMapDebug = false;
+  constexpr bool IoAggregateDebug = false;
 
-	//--------------------------------------------
-	/// Enumerator that allows to keep the context
-	/// of UID or GID type of a variable
-	//--------------------------------------------
-	enum class TYPE {
-		UID,
-		GID
-	};
+  //--------------------------------------------
+  /// Enumerator that allows to keep the context
+  /// of UID or GID type of a variable
+  //--------------------------------------------
+  enum class TYPE {
+    UID,
+    GID
+  };
 }
 
 //--------------------------------------------
 /// Summary of a IoStat bandwidth
 //--------------------------------------------
 struct IoStatSummary {
-	//--------------------------------------------
-	/// Read/Write bandwidth
-	//--------------------------------------------
-	std::optional<std::pair<double, double> > readBandwidth;
-	std::optional<std::pair<double, double> > writeBandwidth;
+  //--------------------------------------------
+  /// Read/Write bandwidth
+  //--------------------------------------------
+  std::optional<std::pair<double, double> > readBandwidth;
+  std::optional<std::pair<double, double> > writeBandwidth;
 
-	//--------------------------------------------
-	/// Size of the read and write bandwidth
-	//--------------------------------------------
-	size_t rSize;
-	size_t wSize;
+  //--------------------------------------------
+  /// Size of the read and write bandwidth
+  //--------------------------------------------
+  size_t rSize;
+  size_t wSize;
 
-	//--------------------------------------------
-	/// read and write IOPS
-	//--------------------------------------------
-	double rIops;
-	double wIops;
+  //--------------------------------------------
+  /// read and write IOPS
+  //--------------------------------------------
+  double rIops;
+  double wIops;
 
-	//--------------------------------------------
-	// Keep the time of class creation
-	//--------------------------------------------
-	struct timespec io_time;
+  //--------------------------------------------
+  // Keep the time of class creation
+  //--------------------------------------------
+  struct timespec io_time;
 
-	//--------------------------------------------
-	// Keep the time of class creation
-	//--------------------------------------------
-	size_t winTime;
+  //--------------------------------------------
+  // Keep the time of class creation
+  //--------------------------------------------
+  size_t winTime;
 
-	//--------------------------------------------
-	// Limits
-	//--------------------------------------------
-	double rLimit;
-	double wLimit;
+  //--------------------------------------------
+  // Limits
+  //--------------------------------------------
+  double rLimit;
+  double wLimit;
 
-	//--------------------------------------------
-	/// Default constructor to initialize the class
-	//--------------------------------------------
-	IoStatSummary() :
-		readBandwidth(std::pair<double, double>(0,0)),
-		writeBandwidth(std::pair<double, double>(0, 0)),
-		rSize(0), wSize(0), rIops(0), wIops(0), winTime(0),
-		rLimit(1.0), wLimit(1.0){
-			clock_gettime(CLOCK_REALTIME, &io_time);
-		}
+  //--------------------------------------------
+  /// Default constructor to initialize the class
+  //--------------------------------------------
+  IoStatSummary() :
+    readBandwidth(std::pair<double, double>(0,0)),
+    writeBandwidth(std::pair<double, double>(0, 0)),
+    rSize(0), wSize(0), rIops(0), wIops(0), winTime(0),
+    rLimit(1.0), wLimit(1.0){
+      clock_gettime(CLOCK_REALTIME, &io_time);
+    }
 
-	IoStatSummary(const IoBuffer::Summary &sum) :
-		readBandwidth({sum.ravrg(), sum.rstd()}),
-		writeBandwidth({sum.wavrg(), sum.wstd()}),
-		rSize(sum.rsize()), wSize(sum.wsize()), rIops(sum.riops()), wIops(sum.wiops()),
-		winTime(sum.wintime()),
-		rLimit(sum.rlimit()), wLimit(sum.wlimit()){
-			clock_gettime(CLOCK_REALTIME, &io_time);
-		}
+  IoStatSummary(const IoBuffer::Summary &sum) :
+    readBandwidth({sum.ravrg(), sum.rstd()}),
+    writeBandwidth({sum.wavrg(), sum.wstd()}),
+    rSize(sum.rsize()), wSize(sum.wsize()), rIops(sum.riops()), wIops(sum.wiops()),
+    winTime(sum.wintime()),
+    rLimit(sum.rlimit()), wLimit(sum.wlimit()){
+      clock_gettime(CLOCK_REALTIME, &io_time);
+    }
 
-	IoBuffer::Summary& Serialize(IoBuffer::Summary &sum){
-		if (readBandwidth.has_value()){
-			sum.set_ravrg(readBandwidth->first);
-			sum.set_rstd(readBandwidth->second);
-		}
-		if (writeBandwidth.has_value()){
-			sum.set_wavrg(writeBandwidth->first);
-			sum.set_wstd(writeBandwidth->second);
-		}
-		sum.set_rsize(rSize);
-		sum.set_wsize(wSize);
-		sum.set_riops(rIops);
-		sum.set_wiops(wIops);
-		sum.set_wintime(winTime);
-		sum.set_rlimit(rLimit);
-		sum.set_wlimit(wLimit);
+  IoBuffer::Summary& Serialize(IoBuffer::Summary &sum){
+    if (readBandwidth.has_value()){
+      sum.set_ravrg(readBandwidth->first);
+      sum.set_rstd(readBandwidth->second);
+    }
+    if (writeBandwidth.has_value()){
+      sum.set_wavrg(writeBandwidth->first);
+      sum.set_wstd(writeBandwidth->second);
+    }
+    sum.set_rsize(rSize);
+    sum.set_wsize(wSize);
+    sum.set_riops(rIops);
+    sum.set_wiops(wIops);
+    sum.set_wintime(winTime);
+    sum.set_rlimit(rLimit);
+    sum.set_wlimit(wLimit);
 
-		return sum;
-	};
+    return sum;
+  };
 
-	IoStatSummary* Deserialize(const IoBuffer::Summary &sum){
-		if (readBandwidth.has_value()){
-			readBandwidth->first = sum.ravrg();
-			readBandwidth->second = sum.rstd();
-		}
-		if (writeBandwidth.has_value()){
-			writeBandwidth->first = sum.wavrg();
-			writeBandwidth->second = sum.wstd();
-		}
-		rSize = sum.rsize();
-		wSize = sum.wsize();
-		rIops = sum.riops();
-		wIops = sum.wiops();
-		winTime = sum.wintime();
-		rLimit = sum.rlimit();
-		wLimit = sum.wlimit();
+  IoStatSummary* Deserialize(const IoBuffer::Summary &sum){
+    if (readBandwidth.has_value()){
+      readBandwidth->first = sum.ravrg();
+      readBandwidth->second = sum.rstd();
+    }
+    if (writeBandwidth.has_value()){
+      writeBandwidth->first = sum.wavrg();
+      writeBandwidth->second = sum.wstd();
+    }
+    rSize = sum.rsize();
+    wSize = sum.wsize();
+    rIops = sum.riops();
+    wIops = sum.wiops();
+    winTime = sum.wintime();
+    rLimit = sum.rlimit();
+    wLimit = sum.wlimit();
 
-		return this;
-	};
+    return this;
+  };
 };
