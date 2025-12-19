@@ -841,38 +841,39 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
 //! Return the corresponding scaler value
 //------------------------------------------------------------------------------
 std::uint64_t XrdFstOfsFile::reguleBandwidth(const std::string rw) const{
-	double	scaler = 1.0;
+  double  scaler = 1.0;
 
-	auto &it = gOFS.Storage->mScaler;
-	auto &app = it.apps();
-	auto &uid = it.uids();
-	auto &gid = it.gids();
-	
-	if (rw == "read"){
-		if (app.read().contains(vid.app))
-			if (app.read().at(vid.app).limit() < scaler)
-				scaler = app.read().at(vid.app).limit();
-		if (uid.read().contains(vid.uid))
-			if (uid.read().at(vid.uid).limit() < scaler)
-				scaler = uid.read().at(vid.uid).limit();
-		if (gid.read().contains(vid.gid))
-			if (gid.read().at(vid.gid).limit() < scaler)
-				scaler = gid.read().at(vid.gid).limit();
-	}else if (rw == "write"){
-		if (app.write().contains(vid.app))
-			if (app.write().at(vid.app).limit() < scaler)
-				scaler = app.write().at(vid.app).limit();
-		if (uid.write().contains(vid.uid))
-			if (uid.write().at(vid.uid).limit() < scaler)
-				scaler = uid.write().at(vid.uid).limit();
-		if (gid.write().contains(vid.gid))
-			if (gid.write().at(vid.gid).limit() < scaler)
-				scaler = gid.write().at(vid.gid).limit();
-	}
+  auto &it = gOFS.Storage->mScaler;
+  auto &app = it.apps();
+  auto &uid = it.uids();
+  auto &gid = it.gids();
+ 
+  if (rw == "read"){
+    if (app.read().contains(vid.app))
+      if (app.read().at(vid.app).limit() < scaler)
+        scaler = app.read().at(vid.app).limit();
+    if (uid.read().contains(vid.uid))
+      if (uid.read().at(vid.uid).limit() < scaler)
+        scaler = uid.read().at(vid.uid).limit();
+    if (gid.read().contains(vid.gid))
+      if (gid.read().at(vid.gid).limit() < scaler)
+        scaler = gid.read().at(vid.gid).limit();
+  }else if (rw == "write"){
+    if (app.write().contains(vid.app))
+      if (app.write().at(vid.app).limit() < scaler)
+        scaler = app.write().at(vid.app).limit();
+    if (uid.write().contains(vid.uid))
+      if (uid.write().at(vid.uid).limit() < scaler)
+        scaler = uid.write().at(vid.uid).limit();
+    if (gid.write().contains(vid.gid))
+      if (gid.write().at(vid.gid).limit() < scaler)
+        scaler = gid.write().at(vid.gid).limit();
+  }
 
-	if (scaler == 1)
-		return 0;
-	return (10000 / scaler);
+  /// This is still in the testing phase and deserves improvement.
+  if (scaler == 1)
+    return 0;
+  return (10000 / scaler);
 }
 
 //------------------------------------------------------------------------------
@@ -884,14 +885,14 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 {
   auto win = gOFS.ioMap.getAvailableWindows();
   if (win.has_value()){
-	for (auto it : win.value()){
-	  if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
-		gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
-	  if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
-		gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
-	  if (!gOFS.ioMap.containe(it, vid.app))
-		gOFS.ioMap.setTrack(it, vid.app);
-	}
+    for (auto it : win.value()){
+      if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
+        gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
+      if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
+        gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
+      if (!gOFS.ioMap.containe(it, vid.app))
+        gOFS.ioMap.setTrack(it, vid.app);
+    }
   }
 
   gettimeofday(&rStart, &tz);
@@ -922,10 +923,13 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
+  //------------------------------------------------------------------------------
+  /// This is still in the testing phase and deserves improvement.
   std::int64_t sleep_time = reguleBandwidth("read");
   if (sleep_time) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
   }
+  //------------------------------------------------------------------------------
 
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);
@@ -1045,14 +1049,14 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 
   auto win = gOFS.ioMap.getAvailableWindows();
   if (win.has_value()){
-	for (auto it : win.value()){
-	  if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
-		gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
-	  if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
-		gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
-	  if (!gOFS.ioMap.containe(it, vid.app))
-		gOFS.ioMap.setTrack(it, vid.app);
-	}
+    for (auto it : win.value()){
+      if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
+        gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
+      if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
+        gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
+      if (!gOFS.ioMap.containe(it, vid.app))
+        gOFS.ioMap.setTrack(it, vid.app);
+    }
   }
 
   gettimeofday(&rvStart, &tz);
@@ -1090,7 +1094,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 
   int64_t rv = mLayout->ReadV(chunkList, total_read);
   if (rv > 0)
-	gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rv);
+    gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rv);
   totalBytes += rv;
 
   if (EOS_LOGS_DEBUG) {
@@ -1121,14 +1125,14 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 {
   auto win = gOFS.ioMap.getAvailableWindows();
   if (win.has_value()){
-	for (auto it : win.value()){
-	  if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
-		gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
-	  if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
-		gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
-	  if (!gOFS.ioMap.containe(it, vid.app))
-		gOFS.ioMap.setTrack(it, vid.app);
-	}
+    for (auto it : win.value()){
+      if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
+        gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
+      if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
+        gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
+      if (!gOFS.ioMap.containe(it, vid.app))
+        gOFS.ioMap.setTrack(it, vid.app);
+    }
   }
 
   gettimeofday(&wStart, &tz);
@@ -1179,10 +1183,13 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
 
+  //------------------------------------------------------------------------------
+  /// This is still in the testing phase and deserves improvement.
   std::int64_t sleep_time = reguleBandwidth("write");
   if (sleep_time) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
   }
+  //------------------------------------------------------------------------------
 
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);

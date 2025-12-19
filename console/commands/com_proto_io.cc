@@ -324,7 +324,7 @@ void com_io_help()
 
 	  << "\tadd [window][...] : add one or multiple window to the monitor \n\n"
 
-	  << "\tshift [index] : shift the window to the next Bin, or to the index given as a parametre\n\n"
+	  // << "\tshift [index] : shift the window to the next Bin, or to the index given as a parametre\n\n"
 
 	  << "\trm [window][...] : remove one or multiple window from the monitor \n\n"
 
