@@ -62,7 +62,7 @@ IoCmd::ProcessRequest() noexcept
     NsSubcmd(io.ns(), reply);
     break;
 
-	case eos::console::IoProto::kMonitor:
+  case eos::console::IoProto::kMonitor:
     MonitorSubcmd(io.monitor(), reply);
     break;
 
