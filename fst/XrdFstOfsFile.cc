@@ -872,7 +872,7 @@ std::uint64_t XrdFstOfsFile::reguleBandwidth(const std::string rw) const{
 
 	if (scaler == 1)
 		return 0;
-	return (100 / scaler);
+	return (10000 / scaler);
 }
 
 //------------------------------------------------------------------------------
@@ -922,19 +922,10 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
- //  std::int64_t sleep_time = reguleBandwidth("read");
- //  if (sleep_time) {
- //    eos_static_info("msg=\"scaler: %ld\"", sleep_time);
- //    float exp_time = totalBytes / sleep_time / 1000.0;
- //    eos_static_info("msg=\"exp_time: %f\"", exp_time);
- //    float abs_time = static_cast<float>((currentTime.tv_sec -
- //                                         openTime.tv_sec) * 1000 +
- //                                        (currentTime.tv_usec - openTime.tv_usec) / 1000);
- //    eos_static_info("msg=\"abs_time: %f\"", abs_time);
- //    std::int64_t thisSleep = 1000.0 * (exp_time - abs_time);
-	// eos_static_info("msg=\"thisSleep: %ld\"", thisSleep);
- //    std::this_thread::sleep_for(std::chrono::microseconds(thisSleep));
- //  }
+  std::int64_t sleep_time = reguleBandwidth("read");
+  if (sleep_time) {
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
+  }
 
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);
@@ -1187,6 +1178,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   auto lockScope = (mutex == nullptr) ?
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
+
+  std::int64_t sleep_time = reguleBandwidth("write");
+  if (sleep_time) {
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
+  }
 
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);

@@ -32,8 +32,6 @@
 #include "common/XrdConnPool.hh"
 #include "common/ThreadPool.hh"
 #include "common/ioMonitor/include/IoAggregateMap.hh"
-#include "mq/XrdMqMessaging.hh"
-#include "mq/XrdMqSharedObject.hh"
 #include "mq/MessagingRealm.hh"
 #include <XrdOfs/XrdOfs.hh>
 #include <XrdOfs/XrdOfsTrace.hh>
