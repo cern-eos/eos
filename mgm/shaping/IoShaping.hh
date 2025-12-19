@@ -33,6 +33,9 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+//----------------------------------------------------------------------------
+/// structure that represents a limit for a single app/uid/gid
+//----------------------------------------------------------------------------
 struct Limiter{
     struct limitsData{
       limitsData():limit(0), isEnable(false), isTrivial(false){};
@@ -45,12 +48,21 @@ struct Limiter{
       bool isTrivial;
     };
 
+    //----------------------------------------------------------------------------
+    /// All limited apps in read/write
+    //----------------------------------------------------------------------------
     std::map<std::string, limitsData> rApps;
     std::map<std::string, limitsData > wApps;
 
+    //----------------------------------------------------------------------------
+    /// All limited uids in read/write
+    //----------------------------------------------------------------------------
     std::map<uid_t, limitsData> rUids;
     std::map<uid_t, limitsData> wUids;
 
+    //----------------------------------------------------------------------------
+    /// All limited gids in read/write
+    //----------------------------------------------------------------------------
     std::map<gid_t, limitsData> rGids;
     std::map<gid_t, limitsData> wGids;
 };
@@ -58,19 +70,52 @@ struct Limiter{
 class IoShaping : public eos::common::LogId{
   private:
 
+    //--------------------------------------------
+    /// Thread that takes data from all FSTs
+    /// and aggregates them all into one
+    //--------------------------------------------
     AssistedThread     _mReceivingThread;
-    AssistedThread     _mPublishingThread;
-    AssistedThread     _mShapingThread;
-    mutable std::mutex  _mSyncThread;
 
+    //--------------------------------------------
+    /// Thread that publishes the IoMonitor
+    /// configuration to each FST
+    //--------------------------------------------
+    AssistedThread     _mPublishingThread;
+
+    //--------------------------------------------
+    /// Thread that calculates, using the _scaler
+    /// and limiter variables, the limits that must
+    /// be returned to the FSTs
+    //--------------------------------------------
+    AssistedThread     _mShapingThread;
+
+    //--------------------------------------------
+    /// Variables to manage multithreading
+    //--------------------------------------------
+    mutable std::mutex  _mSyncThread;
     std::atomic<bool>   _mReceiving;
     std::atomic<bool>   _mPublishing;
     std::atomic<bool>   _mShaping;
 
+    //--------------------------------------------
+    /// The aggregated data of the FSTs
+    //--------------------------------------------
     IoBuffer::summarys  _shapings;
+
+    //--------------------------------------------
+    /// The limits calculated by _mShapingThread
+    /// and send back to the FSTs
+    //--------------------------------------------
     Shaping::Scaler    _scaler;
+
+    //--------------------------------------------
+    /// Where the limits are stored
+    //--------------------------------------------
     Limiter        _limiter;
 
+    //--------------------------------------------
+    /// The time the Receiving thread has to wait
+    //--------------------------------------------
     std::atomic<size_t>  _receivingTime;
 
     //----------------------------------------------------------------------------
@@ -90,17 +135,28 @@ class IoShaping : public eos::common::LogId{
     void publishing(ThreadAssistant &assistant);
 
     //----------------------------------------------------------------------------
-    /// Shape
+    /// Calculates, using the _scaler
+    /// and limiter variables, the limits that must
+    /// be returned to the FSTs
     /// every "_receivingTime" (aka std::atomic<size_t>) second.
     ///
     /// @param assistant reference to thread object
     //----------------------------------------------------------------------------
     void shaping(ThreadAssistant &assistant) noexcept;
 
-    IoBuffer::summarys aggregateSummarys(std::vector<IoBuffer::summarys> &);
+    //----------------------------------------------------------------------------
+    /// Aggregates data from IoBuffer (aka the protobuf version of ioStatSummary)
+    ///
+    /// @param data reference to vector of IoBuffer
+    /// @return The final aggregate variable
+    //----------------------------------------------------------------------------
+    IoBuffer::summarys aggregateSummarys(std::vector<IoBuffer::summarys> &data);
 
+    //----------------------------------------------------------------------------
+    /// Function that calculates the limits for each app/uid/gid
+    //----------------------------------------------------------------------------
     bool calculeScalerNodes();
-    
+ 
   public:
     //--------------------------------------------
     /// Orthodoxe canonical form
@@ -168,24 +224,70 @@ class IoShaping : public eos::common::LogId{
     //----------------------------------------------------------------------------
     bool stopShaping();
 
+    //----------------------------------------------------------------------------
+    /// Set new receiving time
+    //----------------------------------------------------------------------------
     void setReceivingTime(size_t);
 
+    //----------------------------------------------------------------------------
+    /// Get _shaping variable
+    //----------------------------------------------------------------------------
     IoBuffer::summarys getShaping() const;
 
+    //----------------------------------------------------------------------------
+    /// Get _scaler variable
+    //----------------------------------------------------------------------------
     Shaping::Scaler getScaler() const;
 
+    //----------------------------------------------------------------------------
+    /// Get _limiter variable
+    //----------------------------------------------------------------------------
     Limiter getLimiter() const;
 
+    //----------------------------------------------------------------------------
+    /// Add a new window to the MGM ioMonitor configuration
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     bool addWindow(size_t);
 
+    //----------------------------------------------------------------------------
+    /// Remove a new window from the MGM ioMonitor configuration
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     bool rm(size_t winTime);
 
+    //----------------------------------------------------------------------------
+    /// Remove all the apps limit from the MGM ioMonitor configuration
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     bool rmAppsLimit();
 
+    //----------------------------------------------------------------------------
+    /// Remove all the uids limit from the MGM ioMonitor configuration
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     bool rmUidsLimit();
-  
+ 
+    //----------------------------------------------------------------------------
+    /// Remove all the gids limit from the MGM ioMonitor configuration
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     bool rmGidsLimit();
 
+    //----------------------------------------------------------------------------
+    /// Set the new "on"/"off" status to a app limit
+    ///
+    /// @param app the target app limit
+    /// @param rw context of "read" or "write"
+    /// @param status the new status to set
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     template<typename T>
     bool setStatus(T app, const std::string rw, bool status) noexcept{
       std::lock_guard<std::mutex> lock(_mSyncThread);
@@ -199,6 +301,16 @@ class IoShaping : public eos::common::LogId{
       return true;
     }
 
+    //----------------------------------------------------------------------------
+    /// Set the new "on"/"off" status to a uid/gid limit
+    ///
+    /// @param type keep the context of UID/GID
+    /// @param id the target uid/gid limit
+    /// @param rw context of "read" or "write"
+    /// @param status the new status to set
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     template<typename T>
     bool setStatus(const io::TYPE type, T id, const std::string rw, bool status) noexcept{
       std::lock_guard<std::mutex> lock(_mSyncThread);
@@ -224,6 +336,16 @@ class IoShaping : public eos::common::LogId{
       return true;
     }
 
+    //----------------------------------------------------------------------------
+    /// Set the new "isTrivial" bool variable to a uid/gid limit
+    ///
+    /// @param type keep the context of UID/GID
+    /// @param id the target uid/gid limit
+    /// @param rw context of "read" or "write"
+    /// @param isTrivial the new trivial to set
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     template<typename T>
     bool setTrivial(const io::TYPE type, T id, const std::string rw, bool isTrivial) noexcept{
       std::lock_guard<std::mutex> lock(_mSyncThread);
@@ -249,6 +371,15 @@ class IoShaping : public eos::common::LogId{
       return true;
     }
 
+    //----------------------------------------------------------------------------
+    /// Set the new "isTrivial" bool variable to a app limit
+    ///
+    /// @param id the target app limit
+    /// @param rw context of "read" or "write"
+    /// @param isTrivial the new trivial to set
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     template<typename T>
     bool setTrivial(T id, const std::string rw, bool isTrivial) noexcept{
       std::lock_guard<std::mutex> lock(_mSyncThread);
@@ -262,6 +393,16 @@ class IoShaping : public eos::common::LogId{
       return true;
     }
 
+    //----------------------------------------------------------------------------
+    /// Set a limit for a uid/gid
+    ///
+    /// @param type keep the context of UID/GID
+    /// @param id the target uid/gid
+    /// @param limits the new limit to set
+    /// @param rw context of "read" or "write"
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     template<typename T>
     bool setLimiter(const io::TYPE type, T id, size_t limits, const std::string rw) noexcept{
       std::lock_guard<std::mutex> lock(_mSyncThread);
@@ -287,6 +428,15 @@ class IoShaping : public eos::common::LogId{
       return true;
     }
 
+    //----------------------------------------------------------------------------
+    /// Set a limit for a app
+    ///
+    /// @param app the target app
+    /// @param limits the new limit to set
+    /// @param rw context of "read" or "write"
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     template<typename T>
     bool setLimiter(T app, size_t limits, const std::string rw) noexcept{
       std::lock_guard<std::mutex> lock(_mSyncThread);
@@ -299,6 +449,14 @@ class IoShaping : public eos::common::LogId{
       return true;
     }
 
+    //----------------------------------------------------------------------------
+    /// Remove a uid/gid limit
+    ///
+    /// @param type keep the context of UID/GID
+    /// @param id the target uid/gid
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     template<typename T>
     bool rmLimit(io::TYPE type, T id){
       std::lock_guard<std::mutex> lock(_mSyncThread);
@@ -326,6 +484,13 @@ class IoShaping : public eos::common::LogId{
       return true;
     }
 
+    //----------------------------------------------------------------------------
+    /// Remove a app limit
+    ///
+    /// @param appName the target app
+    ///
+    /// @return true if successful, otherwise false
+    //----------------------------------------------------------------------------
     template<typename T>
     bool rmLimit(T appName){
       std::lock_guard<std::mutex> lock(_mSyncThread);

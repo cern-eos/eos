@@ -566,7 +566,7 @@ public:
   //! Destructor
   //----------------------------------------------------------------------------
   ~Logging() = default;
-	// ~Logging();
+  // ~Logging();
 
   void
   shutDown(bool gracefully = false)

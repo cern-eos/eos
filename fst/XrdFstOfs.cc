@@ -439,10 +439,6 @@ XrdFstOfs::XrdFstOfs() :
     mEnvFsckDeleteByMove = true;
   }
 
-  // ioMap.addWindow(10);
-  // ioMap.addWindow(60);
-  // ioMap.addWindow(300);
-
   UpdateTpcKeyValidity();
 }
 
