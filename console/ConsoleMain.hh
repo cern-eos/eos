@@ -57,7 +57,6 @@ extern bool runpipe;
 extern bool ispipe;
 extern bool json;
 extern int output_result(XrdOucEnv* result, bool highlighting = true);
-extern bool isRunning(const char *app);
 extern void command_result_stdout_to_vector(std::vector<std::string>&
     string_vector);
 extern XrdOucEnv* CommandEnv;
