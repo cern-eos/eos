@@ -1582,8 +1582,117 @@ Example:
 This examples shows the how replicas are attached on filesystems
 1,2,3,4, then unlinked on 1,2 and finally deleted on 1,2.
 
+
 .. index::
-   pair: FUSE;SquahsFS Support
+   pair: Using; EOS FUSE Ubuntu
+
+
+EOS FUSE mount on Ubuntu/Debian
+--------------------------------
+
+The following releases of Ubuntu are currently supported:
+
+* Ubuntu 22.04.5 LTS (Jammy Jellyfish)
+* Ubuntu 24.04.3 LTS (Noble Numbat)
+* Ubuntu 25.04 (Plucky Puffin) - starting with eos version 5.4.0
+
+
+Follow these steps to configure the necessary APT repositories and install
+the EOS client and FUSE packages:
+
+.. code-blocK:: bash
+
+   Setup the APT repositories holding the EOS packaage:
+   # Import the EOS GPG key of the repository
+   curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/storage-ci.gpg
+   # Create the APT repository configuration
+   echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/debian/eos/ $(lsb_release -cs) release" | sudo tee /etc/apt/sources.list.d/eos-client.list > /dev/null
+
+
+Install the EOS packages and their dependency - requires root privileges and
+create the local directory for the local mounts:
+
+.. code-block:: bash
+
+   sudo apt update
+   sudo apt install -y eos-fusex
+   # All mounts will be in this directory by default, but this can be chaged
+   # by using the "localmountdir" in the configuration below.
+   sudo mkdir /eos/
+
+
+Create the configuration files for the EOS FUSE mountpoints. Depending on the EOS
+instances that need to be accessed, one can create one configuration file per
+instance, using the following convention:
+
+* Configuration for accessing data stored on CERNBox can be placed in
+  `/etc/eos/fuse.home-<initial>.conf` where <initial> should be replaced by a
+  sigle letter eg. 'e', 'a', etc. The contents of this file should at least
+  contain the following (note: this needs to be a valid JSON object):
+
+  .. code-block:: bash
+
+     {"name": "home-<initial>", "hostport":"eoshome-<initial>.cern.ch", "remotemountdir":"/eos/user/<initial>/"}
+
+
+Example:
+
+* Mount configuration for user account "userx" whose data is stored in CERNBox
+
+  .. code-block:: bash
+
+     {"name": "home-u", "hostport": "eoshome-u.cern.ch", "remotemountdir": "/eos/user/u/userx/"}
+
+
+* Mount configuration for project "asdf" whose data is stored in the EOSPROJECT instance
+
+  .. code-block:: bash
+
+     {"name": "project-a", "hostport": "eosproject-a.cern.ch", "remotemountdir": "/eos/project/a/asdf/"}
+
+
+* Mount configuration for accessing the EOSCMS instance
+
+  .. code-block:: bash
+
+     {"name": "cms", "hostport":"eoscms.cern.ch", "remotemountdir":"/eos/cms/"}
+
+
+With the above configuration in place, one can setup automount to take care of managing the mountpoints.
+
+.. code-block:: bash
+
+   # Ensure the autofs package is installed:
+   sudo apt install -y autofs
+
+   # Check that the autofs service is up and running
+   sudo systemctl status autofs
+
+   # Create a file called "/etc/auto.eos" which containts the mountpoints to be managed by autofs.
+   # Example contents of /etc/auto.eos
+   home-a -fstype=eosx,fsname=home-a :eosxd
+   # ... same for each user letter
+   home-z -fstype=eosx,fsname=home-z :eosxd
+   project-a -fstype=eosx,fsname=project-a :eosxd
+   # ... some for each project letter
+   project-z -fstype=eosx,fsname=project-z :eosxd
+   cms -fstype=eosx,fsname=cms :eosxd
+
+   #Create a file called "/etc/auto.master.d/eos.autofs" like this:
+   echo "/eos /etc/auto.eos" > /etc/auto.master.d/eos.autofs
+
+
+At this point the mountpoints are managed automatically by the autofs daemon.
+Therefore, trying to access the local path `/eos/home-u/` given the above
+configuration for user `userx` would display their CERNBox contents.
+All mounts will be created inside the `/eos/` directory on the local file
+system and can be accessed by concatenating the first column in the
+`/etc/auto.eos` with the `/eos/` path.
+
+For further configuration options when it comes to handling EOS FUSE mountpoints
+please consult the following document:
+https://gitlab.cern.ch/dss/eos/-/blob/master/fusex/README.md
+
 
 SquashFS images for software distribution
 -----------------------------------------
