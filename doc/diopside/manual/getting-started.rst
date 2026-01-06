@@ -482,7 +482,7 @@ In a production environment we need to have QDB and MGM service high-available. 
   @node1: 127.0.0.1:7777> raft-add-observer node2.domain:7777
   @node1: 127.0.0.1:7777> raft-add-observer node3.domain:7777
 
-  ( this is equivalent to 'eos daemon config qdb qdb add node2.domain:7777' but broken in the release version )
+  # ( this is equivalent to 'eos daemon config qdb qdb add node2.domain:7777' but broken in the release version )
 
   # node2 & node3 get contacted by node1 and start syncing the raft log
 
@@ -491,13 +491,13 @@ In a production environment we need to have QDB and MGM service high-available. 
   @node1: 127.0.0.1:7777> raft-promote-observer node2.domain:7777
   @node1: 127.0.0.1:7777> raft-promote-observer node3.domain:7777
 
-  ( this is equivalent to 'eos daemon config qdb qdb promote node2.domain:7777 )
+  # ( this is equivalent to 'eos daemon config qdb qdb promote node2.domain:7777 )
   
   # Verify RAFT status on any QDB node
   redis-cli -p 777
   127.0.0.1:7777> raft-info
   
-  ( this is equivalent to 'eos daemon config qdb qdb info' )
+  # ( this is equivalent to 'eos daemon config qdb qdb info' )
   
   # Startup MGM services
   @node2: systemctl start eos5-mgm@mgm
