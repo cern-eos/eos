@@ -2271,7 +2271,7 @@ grpc::Status GrpcNsInterface::Recycle(eos::common::VirtualIdentity& vid,
 {
   eos_static_info("msg=\"processing recycle cmd\" vid.uid=%i vid.gid=%i "
                   "vid.sudoer=%i vid.prot=%s",
-                  vid.uid, vid.gid, vid.sudoer, vid.prot);
+                  vid.uid, vid.gid, vid.sudoer, vid.prot.c_str());
   eos::console::RequestProto req;
   req.mutable_recycle()->CopyFrom(*request);
   eos::mgm::RecycleCmd cmd(std::move(req), vid);
