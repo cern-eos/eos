@@ -1101,6 +1101,7 @@ Examples to define these are shown here:
 
 
 .. index::
+
    pair: Interfaces; Space Attributes
 
 
