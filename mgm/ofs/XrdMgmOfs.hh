@@ -1496,7 +1496,7 @@ public:
   //!
   //! @return true if client should get a redirected otherwise false
   //----------------------------------------------------------------------------
-  bool ShouldRoute(const char* function, int accessmode,
+  virtual bool ShouldRoute(const char* function, int accessmode,
                    eos::common::VirtualIdentity& vid,
                    const char* path, const char* info,
                    std::string& host, int& port, int& stall_timeout);

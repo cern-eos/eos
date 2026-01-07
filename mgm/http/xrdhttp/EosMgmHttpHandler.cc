@@ -205,6 +205,44 @@ EosMgmHttpHandler::MatchesPath(const char* verb, const char* path)
   return true;
 }
 
+void
+EosMgmHttpHandler::generateResponseHeaders(
+    eos::common::HttpResponse* response,
+    std::map<std::string, std::string> & normalized_headers,
+    std::ostringstream& oss) {
+
+  response->AddHeader("Date",  eos::common::Timing::utctime(time(NULL)));
+  const auto& headers = response->GetHeaders();
+
+  for (const auto& hdr : headers) {
+    std::string key = hdr.first;
+    std::string val = hdr.second;
+
+    // This is added by SendSimpleResp, don't add it here
+    if (key == "Content-Length") {
+      continue;
+    }
+
+    if (mRedirectToHttps) {
+      if (key == "Location") {
+        if (normalized_headers["xrd-http-prot"] == "https") {
+          if (!normalized_headers.count("xrd-http-redirect-http") ||
+              (normalized_headers["xrd-http-redirect-http"] == "0")) {
+            // Re-write http: as https:
+            val.insert(4, "s");
+          }
+        }
+      }
+    }
+
+    if (!oss.str().empty()) {
+      oss << "\r\n";
+    }
+
+    oss << key << ": " << val;
+  }
+}
+
 //------------------------------------------------------------------------------
 // Process the HTTP request and send the response using by calling the
 // XrdHttpProtocol directly
@@ -239,6 +277,31 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   if (IsMacaroonRequest(req)) {
+    // call the routing module before doing anything with macaroon
+    int port;
+    std::string host;
+    int stall_timeout = 0;
+    eos::common::VirtualIdentity vid;
+    // Set the protocol to http so that the ShouldRoute() function knows that we
+    // want to be redirected to the HTTP port and not the xrootd one
+    vid.prot =  "http";
+    std::string opaque;
+    std::string path;
+    HttpServer::extractPathAndOpaque(req.resource,path,opaque);
+    if (mMgmOfsHandler->ShouldRoute(
+          __FUNCTION__, 0, vid, path.c_str(),
+          opaque.c_str(), host, port, stall_timeout)) {
+      std::unique_ptr<eos::common::HttpResponse> response(eos::common::HttpServer::HttpRedirect(req.resource,host.c_str(),port,false));
+      std::ostringstream oss_header;
+      generateResponseHeaders(response.get(),normalized_headers,oss_header);
+      eos_debug("response-header=\"%s\"", oss_header.str().c_str());
+
+      return req.SendSimpleResp(response->GetResponseCode(),
+                              response->GetResponseCodeDescription().c_str(),
+                              oss_header.str().c_str(),
+                              response->GetBody().c_str(),
+                              response->GetBody().length());
+    }
     if (mTokenHttpHandler) {
       // Delegate request to the XrdMacaroons library
       eos_info("%s", "msg=\"delegate request to XrdMacaroons library\"");
@@ -294,36 +357,8 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   std::ostringstream oss_header;
-  response->AddHeader("Date",  eos::common::Timing::utctime(time(NULL)));
   const auto& headers = response->GetHeaders();
-
-  for (const auto& hdr : headers) {
-    std::string key = hdr.first;
-    std::string val = hdr.second;
-
-    // This is added by SendSimpleResp, don't add it here
-    if (key == "Content-Length") {
-      continue;
-    }
-
-    if (mRedirectToHttps) {
-      if (key == "Location") {
-        if (normalized_headers["xrd-http-prot"] == "https") {
-          if (!normalized_headers.count("xrd-http-redirect-http") ||
-              (normalized_headers["xrd-http-redirect-http"] == "0")) {
-            // Re-write http: as https:
-            val.insert(4, "s");
-          }
-        }
-      }
-    }
-
-    if (!oss_header.str().empty()) {
-      oss_header << "\r\n";
-    }
-
-    oss_header << key << ": " << val;
-  }
+  generateResponseHeaders(response,normalized_headers,oss_header);
 
   eos_debug("response-header=\"%s\"", oss_header.str().c_str());
 
