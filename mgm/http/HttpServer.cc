@@ -527,21 +527,6 @@ HttpServer::BuildPathAndEnvOpaque
   return true;
 }
 
-void HttpServer::extractPathAndOpaque(const std::string& fullpath,
-                                      std::string& path, std::string& opaque)
-{
-  path = fullpath;
-  size_t pos = fullpath.find('?');
-
-  if ((pos != std::string::npos) && (pos != fullpath.length())) {
-    opaque = path.substr(pos + 1);
-    path = path.substr(0, pos);
-  }
-
-  eos::common::Path canonical_path(path);
-  path = canonical_path.GetFullPath().c_str();
-}
-
 void HttpServer::extractOpaqueWithoutAuthz(const std::string& fullpath,
     std::string& opaque)
 {

@@ -23,6 +23,7 @@
 #pragma once
 #include <XrdHttp/XrdHttpExtHandler.hh>
 #include "common/Logging.hh"
+#include "common/http/HttpResponse.hh"
 #include <XrdVersion.hh>
 #include <optional>
 #include <list>
@@ -282,4 +283,6 @@ public:
   //----------------------------------------------------------------------------
   static size_t WriteCallback(void* contents, size_t size, size_t nmemb,
                               std::string* output);
+
+  void generateResponseHeaders(eos::common::HttpResponse * response, std::map<std::string, std::string> & normalized_headers,std::ostringstream & oss);
 };
