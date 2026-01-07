@@ -130,11 +130,13 @@ HttpServer::Handler(void* cls,
 
     // Authenticate the client
     std::unique_ptr<eos::common::VirtualIdentity> vid = Authenticate(headers);
+
     if (!vid) {
       eos_static_info("msg=\"could not build VirtualIdentity based on headers\" "
                       "method=%s", method);
       return MHD_NO;
     }
+
     eos_static_info("request=%s client-real-ip=%s client-real-host=%s vid.uid=%s vid.gid=%s vid.host=%s vid.tident=%s\n",
                     method, headers["client-real-ip"].c_str(), headers["client-real-host"].c_str(),
                     vid->uid_string.c_str(), vid->gid_string.c_str(), vid->host.c_str(),
@@ -399,11 +401,10 @@ HttpServer::XrdHttpHandler(std::string& method,
     headers["client-real-ip"] = "NOIPLOOKUP";
     headers["client-real-host"] = client.host;
     headers["x-real-ip"] = client.host;
-
     auto it = headers.find("xrd-http-fullresource");
 
     if (it != headers.end()) {
-      extractOpaqueWithoutAuthz(it->second,query);
+      extractOpaqueWithoutAuthz(it->second, query);
     }
 
     if (client.moninfo && strlen(client.moninfo)) {
@@ -411,6 +412,7 @@ HttpServer::XrdHttpHandler(std::string& method,
     }
 
     vid = Authenticate(headers);
+
     if (!vid) {
       eos_static_info("msg=\"could not build VirtualIdentity based on headers\" "
                       "method=%s", method.c_str());
@@ -446,8 +448,8 @@ HttpServer::XrdHttpHandler(std::string& method,
   // Retrieve the protocol handler stored in *ptr
   std::unique_ptr<eos::common::HttpRequest> request {
     new eos::common::HttpRequest(headers, method, uri,
-    (query.c_str() ? query : ""),
-    body, &bodySize, cookies)};
+                                 (query.c_str() ? query : ""),
+                                 body, &bodySize, cookies)};
   eos_static_debug("\n\n%s\n%s\n", request->ToString().c_str(),
                    request->GetBody().c_str());
   handler->HandleRequest(request.get());
@@ -478,8 +480,7 @@ HttpServer::BuildPathAndEnvOpaque
   }
 
   std::string opaque;
-  extractPathAndOpaque(it->second,path,opaque);
-
+  extractPathAndOpaque(it->second, path, opaque);
   // Check if there is an explicit authorization header
   std::string http_authz;
   it = normalized_headers.find("authorization");
@@ -520,35 +521,39 @@ HttpServer::BuildPathAndEnvOpaque
   }
 
   // Append eos.app tag
-  eos::common::AddEosApp(opaque,"http");
-
+  eos::common::AddEosApp(opaque, "http");
   env_opaque = std::make_unique<XrdOucEnv>(opaque.c_str(), opaque.length());
   return true;
 }
 
-void HttpServer::extractPathAndOpaque(const std::string & fullpath, std::string & path, std::string & opaque)
+void HttpServer::extractPathAndOpaque(const std::string& fullpath,
+                                      std::string& path, std::string& opaque)
 {
   path = fullpath;
-
   size_t pos = fullpath.find('?');
+
   if ((pos != std::string::npos) && (pos != fullpath.length())) {
     opaque = path.substr(pos + 1);
     path = path.substr(0, pos);
-    eos::common::Path canonical_path(path);
-    path = canonical_path.GetFullPath().c_str();
   }
 
+  eos::common::Path canonical_path(path);
+  path = canonical_path.GetFullPath().c_str();
 }
 
-void HttpServer::extractOpaqueWithoutAuthz(const std::string & fullpath, std::string & opaque) {
+void HttpServer::extractOpaqueWithoutAuthz(const std::string& fullpath,
+    std::string& opaque)
+{
   std::string path;
   opaque.clear();
-  extractPathAndOpaque(fullpath,path,opaque);
-  if(opaque.size()) {
+  extractPathAndOpaque(fullpath, path, opaque);
+
+  if (opaque.size()) {
     auto env_opaque = std::make_unique<XrdOucEnv>(opaque.c_str(), opaque.length());
     int envTidyLen;
-    char * envTidy = env_opaque->EnvTidy(envTidyLen);
-    if(envTidyLen > 1) {
+    char* envTidy = env_opaque->EnvTidy(envTidyLen);
+
+    if (envTidyLen > 1) {
       // Seen during unit tests, EnvTidy puts an ampersand at the beginning of the resulting string
       opaque.assign(envTidy + 1, envTidyLen - 1);
     }
