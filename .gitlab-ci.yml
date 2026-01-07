@@ -151,6 +151,11 @@ clone_docker:
     CMAKE_BIN: cmake
   script:
     - git submodule sync --recursive && git submodule update --init -f --recursive
+    - mkdir eosxrootd-test eosxrootd-test-repo
+    - cd eosxrootd-test; curl "https://gitlab.cern.ch/eos/eos-xrootd/-/jobs/67368727/artifacts/download" -o artifacts.zip; unzip artifacts.zip; cd ..
+    - ${PKG_MGR} install -y createrepo_c
+    - cd eosxrootd-test-repo; cp ../eosxrootd-test/el-$(rpm --eval '%{rhel}')/RPMS/$(uname -m)/eos-xrootd-*.rpm .; createrepo .; cd ..
+    - echo -e "[eos-xrootd-test]\nname=EOS xroot test\nbaseurl=file://`pwd`/eosxrootd-test-repo\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend-test.repo
     - mkdir build; cd build; ${CMAKE_BIN} .. -DPACKAGEONLY=1 -DEOS_GRPC_GW=1 -Wno-dev; make srpm; cd ..;
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-$(rpm --eval '%{rhel}')/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
     - |
@@ -455,6 +460,21 @@ build_el9_coverage:
     - DESTINATION="${IMAGE_REPO}:${IMAGE_TAG}"
     - echo "CACHE=$CACHE - DESTINATION=$DESTINATION"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
+    - if [[ "x$DOCKERFILE" == "xeos-docker/Dockerfile_el9" ]]; then
+      echo -e "
+      RUN dnf install -y  createrepo_c \n
+      RUN   mkdir eosxrootd-test eosxrootd-test-repo \\ \n
+      && cd eosxrootd-test \\ \n
+      && curl \"https://gitlab.cern.ch/eos/eos-xrootd/-/jobs/67368727/artifacts/download\" -o artifacts.zip \\ \n
+      && unzip artifacts.zip \\ \n
+      && cd ../eosxrootd-test-repo \\ \n
+      && cp ../eosxrootd-test/el-\$(rpm --eval '%{rhel}')/RPMS/\$(uname -m)/eos-xrootd-*.rpm . \\ \n
+      && createrepo . \\ \n
+      && cd .. \\ \n
+      && echo -e \"[eos-xrootd-test]\\\nname=EOS xroot test\\\nbaseurl=file://\`pwd\`/eosxrootd-test-repo\\\ngpgcheck=0\\\nenabled=1\\\npriority=2\\\n\" >> /etc/yum.repos.d/eos-depend-test.repo" > docker.extra;
+      sed -e '55r docker.extra' $DOCKERFILE > $DOCKERFILE.mod;
+      mv $DOCKERFILE.mod $DOCKERFILE;
+      fi
     - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --compressed-caching=false --use-new-run
   retry: 1
 
