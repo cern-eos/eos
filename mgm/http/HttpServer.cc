@@ -26,7 +26,6 @@
 #include "mgm/XrdMgmOfs.hh"
 #include "mgm/Stat.hh"
 #include "mgm/Macros.hh"
-#include "common/Path.hh"
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/ErrnoToString.hh"
@@ -524,21 +523,6 @@ HttpServer::BuildPathAndEnvOpaque
   eos::common::AddEosApp(opaque, "http");
   env_opaque = std::make_unique<XrdOucEnv>(opaque.c_str(), opaque.length());
   return true;
-}
-
-void HttpServer::extractPathAndOpaque(const std::string& fullpath,
-                                      std::string& path, std::string& opaque)
-{
-  path = fullpath;
-  size_t pos = fullpath.find('?');
-
-  if ((pos != std::string::npos) && (pos != fullpath.length())) {
-    opaque = path.substr(pos + 1);
-    path = path.substr(0, pos);
-  }
-
-  eos::common::Path canonical_path(path);
-  path = canonical_path.GetFullPath().c_str();
 }
 
 void HttpServer::extractOpaqueWithoutAuthz(const std::string& fullpath,

@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #include "common/http/HttpServer.hh"
-#include "common/http/PlainHttpResponse.hh"
 #include "common/StringConversion.hh"
 #include <XrdSys/XrdSysPthread.hh>
 #include <XrdSys/XrdSysLogger.hh>
@@ -303,57 +302,6 @@ HttpServer::BuildQueryString(void* cls,
   return MHD_YES;
 }
 #endif
-
-HttpResponse*
-HttpServer::HttpRedirect(const std::string& url,
-                         const std::string& hostCGI,
-                         int port,
-                         bool cookie)
-{
-  eos_static_info("info=redirecting");
-  HttpResponse* response = new PlainHttpResponse();
-  response->SetResponseCode(HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
-  std::string host = hostCGI;
-  std::string cgi = "";
-  size_t qpos;
-
-  if ((qpos = host.find("?")) != std::string::npos) {
-    cgi = host;
-    cgi.erase(0, qpos + 1);
-    host.erase(qpos);
-  }
-
-  eos_static_debug("host=%s", host.c_str());
-  eos_static_debug("cgi=%s", cgi.c_str());
-  std::string redirect;
-  redirect = "http://";
-  redirect += host;
-  char sport[16];
-  snprintf(sport, sizeof(sport) - 1, ":%d", port);
-  redirect += sport;
-  redirect += url;
-  EncodeURI(cgi); // encode '+' '/' '='
-
-  if (cookie) {
-    response->AddHeader("Set-Cookie", "EOSCAPABILITY="
-                        + cgi
-                        + ";Max-Age=60;"
-                        + "Path="
-                        + url
-                        + ";Version=1"
-                        + ";Domain="
-                        + "cern.ch");
-  } else {
-    redirect += "?";
-    redirect += cgi;
-  }
-
-  response->AddHeader("Location", redirect);
-  redirect = "/internal_redirect/" + redirect.substr(7);
-  response->AddHeader("X-Accel-Redirect", redirect);
-  response->AddHeader("X-Sendfile", redirect);
-  return response;
-}
 
 /*----------------------------------------------------------------------------*/
 HttpResponse*

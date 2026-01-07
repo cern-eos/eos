@@ -32,6 +32,7 @@
 
 #include "mgm/Namespace.hh"
 #include "common/http/HttpServer.hh"
+#include "common/Path.hh"
 #include "common/http/ProtocolHandler.hh"
 #include "common/Mapping.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
@@ -133,6 +134,27 @@ public:
                  XrdAccAuthorize* authz_obj,
                  std::string& err_msg);
 
+  //----------------------------------------------------------------------------
+  //! Extract opaque query from the full path passed in parameter
+  //!
+  //! @param fullpath the path from which we extract the opaque infos
+  //! @param path, the extracted path
+  //! @param opaque, the extracted opaque without the '?'
+  //----------------------------------------------------------------------------
+  inline static void extractPathAndOpaque(const std::string & fullpath, std::string & path, std::string & opaque)
+  {
+    path = fullpath;
+    size_t pos = fullpath.find('?');
+
+    if ((pos != std::string::npos) && (pos != fullpath.length())) {
+      opaque = path.substr(pos + 1);
+      path = path.substr(0, pos);
+    }
+
+    eos::common::Path canonical_path(path);
+    path = canonical_path.GetFullPath().c_str();
+  }
+
 private:
 #ifdef IN_TEST_HARNESS
 public:
@@ -167,15 +189,6 @@ public:
                         std::unique_ptr<XrdOucEnv>& env_opaque);
 
   //----------------------------------------------------------------------------
-  //! Extract opaque query from the full path passed in parameter
-  //!
-  //! @param fullpath the path from which we extract the opaque infos
-  //! @param path, the extracted path
-  //! @param opaque, the extracted opaque without the '?'
-  //----------------------------------------------------------------------------
-  static void extractPathAndOpaque(const std::string & fullpath, std::string & path, std::string & opaque);
-
-  //----------------------------------------------------------------------------
   //! Extract opaque query from the full path passed in parameter and remove everything
   //! related to authz
   //!
@@ -183,6 +196,7 @@ public:
   //! @param opaque, the extracted opaque without the '?' and without authz opaque query
   //----------------------------------------------------------------------------
   static void extractOpaqueWithoutAuthz(const std::string & fullpath, std::string & opaque);
+
 };
 
 EOSMGMNAMESPACE_END
