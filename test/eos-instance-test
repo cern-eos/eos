@@ -2385,6 +2385,58 @@ runtest "### Http GET     " unix 1 "" curl -v --capath "${capath}" --cert "${cer
 runtest "### HttpXUpload  " unix 0 "" eos attr set sys.forced.checksum=adler $HTTPDIR
 runtest "### HttpXUpload  " unix 0 "" shell eos-http-upload-test rangeupload multipartfile /$HTTPDIR/
 runtest "### Cleanup      " unix 0 "" eos rm "-r" "/$HTTPDIR"
+
+# ------------------------------------------------------------------------------
+categorie="gateway"
+# ------------------------------------------------------------------------------
+# Create structure
+runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway"
+runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway"
+runtest "### Upload    " unix 0 "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1"
+# We will use the "bin user"
+runtest "### Chown     " unix 0 "" eos chown -r bin:bin "/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway"
+runtest "### Chmod     " unix 0 "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway"
+runtest "### Access    " unix 0 "" eos access allow user bin
+runtest "### Vid       " unix 0 "" eos vid set membership 1 -sudo
+# Create a dummy key so that the gateway authentication can work
+runtest "### Vid       " unix 0 "" eos vid set map -https key:1234 vuid:1 vgid:1
+# Try to read the file without impersonation, it should fail
+runtest "### Http GET  " unix 1 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# As the bin user (uid=1) is not sudoer, the file should not be readable
+runtest "### Http GET  " unix 1 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:1 --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# Set the bin user as a sudoer
+runtest "### Vid       " unix 0 "" eos vid set membership 1 +sudo
+# Impersonate by himself should allow to read the file
+runtest "### Http GET  " unix 0 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:1 --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# Impersonate to a non-authorized user will not allow to read the file
+runtest "### Http GET  " unix 1 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:3 --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1--output $EOS_TEST_TESTSYS/dumpit
+# Change the owner of the directory to the adm user (uid=3)
+runtest "### Chown     " unix 0 "" eos chown -r adm:adm "/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway"
+# The bin user should not be able to access the file anymore
+runtest "### Http GET  " unix 1 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:1  --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# Allow adm to access the instance
+runtest "### Access    " unix 0 "" eos access allow user adm
+# Remove the bin user from the sudoer, we should not be able to read the file as we cannot impersonate
+runtest "### Vid       " unix 0 "" eos vid set membership 1 -sudo
+runtest "### Http GET  " unix 1 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:3 --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# Add the bin user to the sudoer and verity the file can be read if we impersonate adm (uid=3)
+runtest "### Vid       " unix 0 "" eos vid set membership 1 +sudo
+runtest "### Http GET  " unix 0 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:3 --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# Read the file again without any impersonation
+runtest "### Http GET  " unix 1 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# Impersonate with the header 'Remote-User' and the username instead of the user id
+runtest "### Http GET  " unix 0 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:adm --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+runtest "### Http GET  " unix 1 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:bin --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# Remove sudoer and retry the impersonation with the 'Remote-User'
+runtest "### Cleanup   " unix 0 "" eos vid set membership 1 -sudo
+runtest "### Http GET  " unix 1 "" curl -v -H X-Gateway-Authorization:1234 -H X-Forwarded-For:dummy -H Remote-User:adm --location --fail https://$EOS_TEST_FULL_REDIRECTOR:${EOS_HTTPS_PORT}/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway/file.gateway.1 --output $EOS_TEST_TESTSYS/dumpit
+# Cleanup
+runtest "### Cleanup   " unix 0 "" eos access unallow user bin
+runtest "### Cleanup   " unix 0 "" eos access unallow user adm
+runtest "### Cleanup   " unix 0 "" eos vid rm 'vid:https:\"key:1234\":gid'
+runtest "### Cleanup   " unix 0 "" eos vid rm 'vid:https:\"key:1234\":uid'
+runtest "### Cleanup   " unix 0 "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/gateway"
+
 ################################################################################
 # WebDAV tests
 ################################################################################
