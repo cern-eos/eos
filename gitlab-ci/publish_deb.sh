@@ -25,13 +25,12 @@ fi
 EOS_CODENAME="diopside"
 STCI_ROOT_PATH="/eos/project/s/storage-ci/www/debian"
 
-for RELEASE in "jammy" "noble" "noble-arm"; do
+for RELEASE in "jammy" "noble" "noble-arm" "plucky"; do
   if [ -d ./ubuntu-${RELEASE} ]; then
     EXPORT_REPO="${STCI_ROOT_PATH}/eos/${EOS_CODENAME}"
     RELEASE_LTS="$(echo ${RELEASE} | cut -d '-' -f1)"
     mkdir -p ${EXPORT_REPO}/pool/${RELEASE_LTS}/${BUILD_TYPE}/e/eos/ || true
-    echo "info: Publishing for: ${RELEASE} in location: ${EXPORT_REPO}"
-
+    echo "info: Publishing for: ${RELEASE} in location: ${EXPORT_REPO}/pool/${RELEASE_LTS}/${BUILD_TYPE}/e/eos/"
 
     if ! reprepro -C ${RELEASE_LTS}/${BUILD_TYPE} -Vb ${EXPORT_REPO} includedeb ${RELEASE_LTS} ./ubuntu-${RELEASE}/*.deb; then
         # Delete offending package and retry
