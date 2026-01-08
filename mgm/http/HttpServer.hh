@@ -103,11 +103,12 @@ public:
    * user "nobody" and have limited access.
    *
    * @param headers  the map of client request headers
+   * @param query    the opaque query extracted from the user-provided URL
    *
    * @return an appropriately filled virtual identity
    */
   std::unique_ptr<eos::common::VirtualIdentity>
-  Authenticate(std::map<std::string, std::string>& headers);
+  Authenticate(std::map<std::string, std::string>& headers, const std::string & query);
 
   //----------------------------------------------------------------------------
   //! HTTP object handler function on MGM called by XrdHttp

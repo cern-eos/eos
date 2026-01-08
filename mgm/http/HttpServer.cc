@@ -29,6 +29,7 @@
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "common/ErrnoToString.hh"
 #include <XrdNet/XrdNetAddr.hh>
 #include <XrdAcc/XrdAccAuthorize.hh>
@@ -315,6 +316,7 @@ HttpServer::XrdHttpHandler(std::string& method,
   using namespace eos::common;
   WAIT_BOOT;
 
+  bool canImpersonate = false;
   // Clients which are gateways/sudoer can pass x-forwarded-for and remote-user
   if (headers.count("x-forwarded-for")) {
     // Check if this is a http gateway and sudoer by calling the mapping function
@@ -344,6 +346,20 @@ HttpServer::XrdHttpHandler(std::string& method,
 
       eos_static_debug("vid trace: %s gw:%d", vid_tmp->getTrace().c_str(),
                        vid_tmp->isGateway());
+
+      if (headers.count("x-gateway-authorization")) {
+        if (vid_tmp->sudoer) {
+          canImpersonate = true;
+        } else {
+          // If the person is not a sudoer
+          // no impersonation can be done
+          // remove the remote-user header
+          // and keep the canImpersonate boolean to false
+          // to prevent the authenticate() function later on
+          // to impersonate
+          headers.erase("remote-user");
+        }
+      }
 
       if (headers.count("x-gateway-authorization") && !vid_tmp->sudoer) {
         headers.erase("remote-user");
@@ -411,7 +427,7 @@ HttpServer::XrdHttpHandler(std::string& method,
       headers["ssl_client_s_dn"] = client.moninfo;
     }
 
-    vid = Authenticate(headers);
+    vid = Authenticate(headers, canImpersonate ? query : "");
 
     if (!vid) {
       eos_static_info("msg=\"could not build VirtualIdentity based on headers\" "
@@ -594,7 +610,7 @@ HttpServer::ProcessClientDN(const std::string& cdn) const
 
 /*----------------------------------------------------------------------------*/
 std::unique_ptr<eos::common::VirtualIdentity>
-HttpServer::Authenticate(std::map<std::string, std::string>& headers)
+HttpServer::Authenticate(std::map<std::string, std::string>& headers, const std::string & query)
 {
   std::unique_ptr<eos::common::VirtualIdentity> vid;
   std::string clientDN = headers["ssl_client_s_dn"];
@@ -602,102 +618,118 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
   std::string dn;
   std::string username;
   unsigned pos;
+  XrdOucEnv env(query.c_str());
+  char * eosruid = env.Get("eos.ruid");
 
-  if (clientDN.empty() && remoteUser.empty()) {
+  if (clientDN.empty() && remoteUser.empty() && !eosruid) {
     eos_static_debug("msg=\"client supplied neither SSL_CLIENT_S_DN nor "
-                     "Remote-User headers\"");
-  } else {
-    if (clientDN.length()) {
-      clientDN = ProcessClientDN(clientDN);
-      // Stat the gridmap file
-      struct stat info;
+                     "Remote-User headers nor eos.ruid opaque parameter\"");
+  } else if (clientDN.length()) {
+    clientDN = ProcessClientDN(clientDN);
+    // Stat the gridmap file
+    struct stat info;
 
-      if (stat("/etc/grid-security/grid-mapfile", &info) == -1) {
-        eos_static_warning("msg=\"error stating gridmap file: %s\"",
-                           eos::common::ErrnoToString(errno).c_str());
+    if (stat("/etc/grid-security/grid-mapfile", &info) == -1) {
+      eos_static_warning("msg=\"error stating gridmap file: %s\"",
+                         eos::common::ErrnoToString(errno).c_str());
+    } else {
+      {
+        static XrdSysMutex mGridMapMutex;
+        XrdSysMutexHelper gLock(mGridMapMutex);
+
+        // Initially load the file, or reload it if it was modified
+        if (!mGridMapFileLastModTime.tv_sec ||
+            mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec) {
+          eos_static_info("msg=\"reloading gridmap file\"");
+          std::ifstream in("/etc/grid-security/grid-mapfile");
+          std::stringstream buffer;
+          buffer << in.rdbuf();
+          mGridMapFile = buffer.str();
+          mGridMapFileLastModTime = info.st_mtim;
+          in.close();
+        }
+      }
+      // For proxy certificates clientDN can have multiple ../CN=... appended
+      size_t pos = 0;
+      int num_cns = 0;
+
+      while ((pos = clientDN.find("/CN=", pos)) != std::string::npos) {
+        ++num_cns;
+        ++pos;
+      }
+
+      // Remove the CNs from the end one by one to check if the remaining
+      // DN is in the map
+      std::set<std::string> proxy_dns;
+      std::string clientDNproxy = clientDN;
+
+      while (num_cns >= 2) {
+        clientDNproxy.erase(clientDNproxy.rfind("/CN="));
+        proxy_dns.insert(clientDNproxy);
+        --num_cns;
+      }
+
+      // Process each mapping
+      std::vector<std::string> mappings;
+      eos::common::StringConversion::Tokenize(mGridMapFile, mappings, "\n");
+
+      for (auto it = mappings.begin(); it != mappings.end(); ++it) {
+        eos_static_debug("grid mapping: %s", (*it).c_str());
+        // Split off the last whitespace-separated token (i.e. username)
+        pos = (*it).find_last_of(" \t");
+
+        if (pos == std::string::npos) {
+          eos_static_err("msg=malformed gridmap file");
+          return nullptr;
+        }
+
+        dn = (*it).substr(1, pos - 2); // Remove quotes around DN
+        username = (*it).substr(pos + 1);
+
+        // Try to match with SSL header
+        if (dn == clientDN) {
+          eos_static_info("msg=\"mapped client certificate successfully\" "
+                          "dn=\"%s\" username=\"%s\"", dn.c_str(), username.c_str());
+          break;
+        }
+
+        // Check if any of the proxy dns matches
+        if (proxy_dns.find(dn) != proxy_dns.end()) {
+          eos_static_info("msg=\"mapped client proxy certificate successfully\" "
+                          "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
+          break;
+        }
+
         username = "";
-      } else {
-        {
-          static XrdSysMutex mGridMapMutex;
-          XrdSysMutexHelper gLock(mGridMapMutex);
-
-          // Initially load the file, or reload it if it was modified
-          if (!mGridMapFileLastModTime.tv_sec ||
-              mGridMapFileLastModTime.tv_sec != info.st_mtim.tv_sec) {
-            eos_static_info("msg=\"reloading gridmap file\"");
-            std::ifstream in("/etc/grid-security/grid-mapfile");
-            std::stringstream buffer;
-            buffer << in.rdbuf();
-            mGridMapFile = buffer.str();
-            mGridMapFileLastModTime = info.st_mtim;
-            in.close();
-          }
-        }
-        // For proxy certificates clientDN can have multiple ../CN=... appended
-        size_t pos = 0;
-        int num_cns = 0;
-
-        while ((pos = clientDN.find("/CN=", pos)) != std::string::npos) {
-          ++num_cns;
-          ++pos;
-        }
-
-        // Remove the CNs from the end one by one to check if the remaining
-        // DN is in the map
-        std::set<std::string> proxy_dns;
-        std::string clientDNproxy = clientDN;
-
-        while (num_cns >= 2) {
-          clientDNproxy.erase(clientDNproxy.rfind("/CN="));
-          proxy_dns.insert(clientDNproxy);
-          --num_cns;
-        }
-
-        // Process each mapping
-        std::vector<std::string> mappings;
-        eos::common::StringConversion::Tokenize(mGridMapFile, mappings, "\n");
-
-        for (auto it = mappings.begin(); it != mappings.end(); ++it) {
-          eos_static_debug("grid mapping: %s", (*it).c_str());
-          // Split off the last whitespace-separated token (i.e. username)
-          pos = (*it).find_last_of(" \t");
-
-          if (pos == std::string::npos) {
-            eos_static_err("msg=malformed gridmap file");
-            return nullptr;
-          }
-
-          dn = (*it).substr(1, pos - 2); // Remove quotes around DN
-          username = (*it).substr(pos + 1);
-
-          // Try to match with SSL header
-          if (dn == clientDN) {
-            eos_static_info("msg=\"mapped client certificate successfully\" "
-                            "dn=\"%s\" username=\"%s\"", dn.c_str(), username.c_str());
-            break;
-          }
-
-          // Check if any of the proxy dns matches
-          if (proxy_dns.find(dn) != proxy_dns.end()) {
-            eos_static_info("msg=\"mapped client proxy certificate successfully\" "
-                            "dn=\"%s\"username=\"%s\"", dn.c_str(), username.c_str());
-            break;
-          }
-
+      }
+    }
+  } else if (remoteUser.length()) {
+    // extract kerberos username
+    pos = remoteUser.find_last_of("@");
+    std::string remoteUserName = remoteUser.substr(0, pos);
+    username = remoteUserName;
+    eos_static_info("msg=\"mapped client remote username successfully\" "
+                    "username=\"%s\"", username.c_str());
+  } else {
+    // Take eos.ruid from the opaque query
+    if (eosruid) {
+      // convert eos.ruid
+      uid_t uid;
+      std::string eosruidstr {eosruid};
+      if (common::StringToNumeric(eosruidstr,uid)) {
+        int err;
+        username = common::Mapping::UidToUserName(uid,err);
+        if (!err) {
+          eos_static_info("msg=\"mapped client remote username successfully from eos.ruid\" "
+                      "username=\"%s\" uid=\"%d\"", username.c_str(),uid);
+        } else {
+          // Error during Uid resolution, empty the username
           username = "";
         }
       }
-    } else {
-      if (remoteUser.length()) {
-        // extract kerberos username
-        pos = remoteUser.find_last_of("@");
-        std::string remoteUserName = remoteUser.substr(0, pos);
-        username = remoteUserName;
-        eos_static_info("msg=\"mapped client remote username successfully\" "
-                        "username=\"%s\"", username.c_str());
-      }
     }
   }
+
 
   if (username.empty()) {
     eos_static_info("msg=\"unauthenticated client mapped to nobody"
