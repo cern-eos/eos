@@ -29,8 +29,8 @@
     - apt-get install -y git cmake g++ debhelper devscripts equivs gdebi-core ccache gawk wget
     - wget -qO- http://storage-ci.web.cern.ch/storage-ci/storageci.key | tee /etc/apt/trusted.gpg.d/stci.asc
     - echo -e "\ndeb http://storage-ci.web.cern.ch/storage-ci/debian/eos/${CODENAME} ${BUILD_NAME} ${BUILD_NAME}/tag" >> /etc/apt/sources.list
-    - wget -qO- https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt | tee /etc/apt/trusted.gpg.d/xrootd.asc
-    - echo -e "\ndeb https://xrootd.web.cern.ch/ubuntu ${BUILD_NAME} stable" >> /etc/apt/sources.list.d/xrootd.list
+#    - wget -qO- https://xrootd.web.cern.ch/repo/RPM-GPG-KEY.txt | tee /etc/apt/trusted.gpg.d/xrootd.asc
+#    - echo -e "\ndeb https://xrootd.web.cern.ch/ubuntu ${BUILD_NAME} stable" >> /etc/apt/sources.list.d/xrootd.list
     - apt-get update
     - git submodule update --init -f --recursive
     # Priority >= 1000 causes a version to be installed even if this constitutes a downgrade of the package
