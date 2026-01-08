@@ -73,6 +73,8 @@ int Scheduler::FlatSchedulerFilePlacement(PlacementArguments *args)
 
   auto ret = gOFS->mFsScheduler->schedule(*args->spacename, plct_args);
   if (!ret) {
+    eos_static_err("unable to place files with FlatScheduler err=%s",
+                   ret.error_string().c_str());
     return ENOSPC;
   }
 
