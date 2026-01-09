@@ -763,3 +763,23 @@ The same thing now but for a HTTP TPC PUSH transfer.
 
    HTTP TPC transfer triggered by FTS
    """""""""""""""""""""""""""""""""""""""""""""""
+
+Scitags and packet marking
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+More information about scitags can be found here: https://scitags.org/
+
+Enable packet marking for SciTags support
+"""""""""""""""""""""""""""""""""""""""""
+
+The packet marking needs to be enabled on all the FSTs via the FST configuration file:
+
+.. code-block:: bash
+
+    # in xrd.cf.fst
+    xrootd.pmark  use firefly scitag
+    xrootd.pmark  domain any
+    xrootd.pmark  ffdest <FIREFLY_COLLECTOR_IP>:<FIREFLY_COLLECTOR_PORT>
+    xrootd.pmark  defsfile curl https://scitags.docs.cern.ch/api.json
+
+More configuration can be found in the XRootD documentation related to packet marking: https://xrootd.web.cern.ch/doc/dev6/xrd_config.htm#_Toc204020828
