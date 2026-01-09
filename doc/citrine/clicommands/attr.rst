@@ -60,8 +60,8 @@ attr
     sys.lru.expire.match=[match1:<age1>,match2:<age2>..]
     : defines the rule that files with a given match will be removed if
     they haven't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,1y...
-    sys.lru.watermark=<low>:<high>        : if the watermark reaches more than <high> %, files will be removed
-    until the usage is reaching <low> %.
+    sys.lru.lowwatermark=<low>
+    sys.lru.highwatermark=<high>          : if the watermark reaches more than <high> %, files will be removed until the usage is reaching <low> %.
     sys.lru.convert.match=[match1:<age1>,match2:<age2>,match3:<age3>:<<size3>,match4:<age4>:><size4>...]
     defines the rule that files with a given match will be converted to the layouts defined by sys.conversion.<match> when their access time reaches <age>. Optionally a size limitation can be given e.g. '*:1w:>1G' as 1 week old and larger than 1G or '*:1d:<1k' as one day old and smaller than 1k
     sys.stall.unavailable=<sec>           : stall clients for <sec> seconds if a needed file system is unavailable
@@ -150,7 +150,8 @@ attr
   - configure a volume based LRU cache with a low/high watermark 
     e.g. when the cache reaches the high watermark it cleans the oldest files until low-watermark is reached ...
     |eos> quota set -g 99 -v 1T /eos/instance/cache/                           # define project quota on the cache
-    |eos> attr set sys.lru.watermark=90:95  /eos/instance/cache/               # define 90 as low and 95 as high watermark
+    |eos> attr set sys.lru.lowwatermark=90  /eos/instance/cache/
+    |eos> attr set sys.lru.highwatermark=95  /eos/instance/cache/              # define 90 as low and 95 as high watermark
     |eos> attr set sys.force.atime=300 /eos/dev/instance/cache/                # track atime with a time resolution of 5 minutes
   --------------------------------------------------------------------------------
   - configure clean-up of empty directories ...
