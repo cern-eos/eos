@@ -72,10 +72,11 @@ When the cache reaches the high watermark it cleans the oldest files untile low-
 .. code-block:: bash
 
    # define project quota on the cache directory
-   eps quota set -g 99 -v 1T /eos/instance/cache/
+   eos quota set -g 99 -v 1T /eos/instance/cache/
 
    # define 90 as low and 95 as high watermark
-   eos attr set sys.lru.watermark=90:95  /eos/instance/cache/
+   eos attr set sys.lru.lowwatermark=90 /eos/instance/cache/
+   eos attr set sys.lru.highwatermark=95 /eos/instance/cache/
 
    # track atime with a time resolution of 5 minutes
    eos attr set sys.force.atime=300 /eos/dev/instance/cache/

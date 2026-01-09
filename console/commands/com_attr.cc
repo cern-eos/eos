@@ -539,9 +539,9 @@ com_attr_usage:
   fprintf(stdout,
           "                                                 they haven't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,1y...\n");
   fprintf(stdout,
-          "         sys.lru.watermark=<low>:<high>        : if the watermark reaches more than <high> %%, files will be removed \n");
+          "         sys.lru.lowwatermark=<low>\n");
   fprintf(stdout,
-          "                                                 until the usage is reaching <low> %%.\n");
+          "         sys.lru.highwatermark=<high>        : if the watermark reaches more than <high> %%, files will be removed until the usage is reaching <low> %%.\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "         sys.lru.convert.match=[match1:<age1>,match2:<age2>,match3:<age3>:<<size3>,match4:<age4>:><size4>...]\n");
@@ -702,7 +702,9 @@ com_attr_usage:
   fprintf(stdout,
           "     |eos> quota set -g 99 -v 1T /eos/instance/cache/                           # define project quota on the cache\n");
   fprintf(stdout,
-          "     |eos> attr set sys.lru.watermark=90:95  /eos/instance/cache/               # define 90 as low and 95 as high watermark\n");
+          "     |eos> attr set sys.lru.lowwatermark=90  /eos/instance/cache/               \n");
+  fprintf(stdout,
+          "     |eos> attr set sys.lru.highwatermark=95  /eos/instance/cache/               # define 90 as low and 95 as high watermark\n");
   fprintf(stdout, "\n");
   fprintf(stdout,
           "--------------------------------------------------------------------------------\n");
