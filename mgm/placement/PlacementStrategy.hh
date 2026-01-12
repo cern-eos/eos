@@ -27,6 +27,7 @@
 #include "mgm/placement/RRSeed.hh"
 #include <algorithm>
 #include <optional>
+#include <xxhash.h>
 
 namespace eos::mgm::placement
 {
@@ -95,7 +96,6 @@ enum class PlacementStrategyT : uint8_t {
   kGeoScheduler,
   Count
 };
-
 
 // Determining placement of replicas for a file
 // We need to understand how many storage elements we select at each level
@@ -323,5 +323,15 @@ struct PlacementStrategy {
   virtual ~PlacementStrategy() = default;
 };
 
+static inline uint64_t hashFid(uint64_t fid, uint64_t fsid, uint64_t salt=0) {
+// Using XXH3 as it provides good distribution and performance
+// ensure little-endian encoding for cross platform consistency
+  uint64_t buf[3] = {
+    htole64(fid),
+    htole64(fsid),
+    htole64(salt)
+  };
+  return XXH3_64bits(buf, sizeof(buf));
+}
 
 } // namespace eos::mgm::placement

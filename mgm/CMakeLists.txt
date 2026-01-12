@@ -346,7 +346,8 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::POSIX
   LDAP::LDAP
-  ZMQ::ZMQ)
+  ZMQ::ZMQ
+  XXHASH::XXHASH)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
