@@ -123,7 +123,47 @@ PlacementResult WeightedRandomPlacement::placeFiles(const ClusterData& data,
 
 int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments args)
 {
-  return EINVAL;
+
+  //TODO move all of the common validation to base class!
+  if (args.selectedfs.empty()) {
+    return ENOENT;
+  }
+
+  uint64_t best_score = 0;
+  size_t best_index = std::numeric_limits<size_t>::max();
+
+  for (const auto& fsid: args.selectedfs) {
+    if (args.unavailfs &&
+        std::find(args.unavailfs->begin(),
+                   args.unavailfs->end(),
+                   fsid) != args.unavailfs->end()) {
+      continue;
+    }
+
+    const auto& disk = data.disks.at(fsid - 1);
+
+    if (disk.active_status.load(std::memory_order_acquire) !=
+        ActiveStatus::kOnline) {
+      continue;
+    }
+
+    auto h = hashFid(args.inode, fsid);
+    auto wt = disk.weight.load(std::memory_order_relaxed);
+    uint64_t score = h/wt;
+    if (best_index == std::numeric_limits<size_t>::max() ||
+        score < best_score) {
+      best_score = score;
+      best_index = fsid;
+    }
+
+  }
+
+  if (best_index <= args.selectedfs.size()) {
+    args.selectedIndex = best_index;
+    return 0;
+  }
+
+  return ENOENT;
 }
 
 WeightedRandomPlacement::~WeightedRandomPlacement() = default;
