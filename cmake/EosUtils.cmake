@@ -55,7 +55,15 @@ function(EOS_GetVersion MAJOR MINOR PATCH RELEASE)
     execute_process(
       COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh ${CMAKE_SOURCE_DIR}
       OUTPUT_VARIABLE VERSION_INFO
+      RESULT_VARIABLE VERSION_INFO_RESULT
       OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+    if(NOT VERSION_INFO_RESULT EQUAL 0)
+      message(FATAL_ERROR
+              "Error getting EOS version info.\n"
+              "Make sure the `.git` directory is present and the `git log` command works."
+      )
+    endif()
 
     string(REPLACE "." ";" VERSION_LIST ${VERSION_INFO})
     list(GET VERSION_LIST 0 MAJOR)
