@@ -240,8 +240,9 @@ struct ScopedRCUWrite {
 
   ~ScopedRCUWrite()
   {
-    rcu_domain.rcu_synchronize();
+    rcu_domain.rcu_write_unlock();
     delete old_val;
+
   }
 
   RCUDomain& rcu_domain;
