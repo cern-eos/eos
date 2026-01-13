@@ -1076,15 +1076,15 @@ runtest "### Restore   " unix ERROR "EOSROLE='-r 99 99'" eos recycle restore `co
 runtest "### Restore   " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
 runtest "### Download  " unix SUCCESS "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
 rm -rf "$EOS_TEST_TESTSYS/dumpit"
-runtest "### Rem       " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
-runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
-runtest "### Restore   " unix ERROR "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
-runtest "### Restore   " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle restore -f `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
-runtest "### Rem       " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
-runtest "### Purge     " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle purge --rid $rid -k `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
-runtest "### NoFile    " unix ERROR "" eos recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
-runtest "### Recycle   " unix SUCCESS "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
-runtest "### Rem       " unix SUCCESS "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### Upload    " unix 0 "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### Restore   " unix 1 "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix 0 "EOSROLE='-r 3 4'" eos recycle restore -f `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
+runtest "### Rem       " unix 0 "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### Purge     " unix 0 "EOSROLE='-r 3 4'" eos recycle purge --rid $rid -k `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
+runtest "### NoFile    " unix 1 "" eos recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
+runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
+runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
 
 ################################################################################
 # STRESS
@@ -1964,10 +1964,10 @@ runtest "### Mkdir     " unix SUCCESS "" eos mkdir ${ADJUST_TEST_DIR}
 runtest "### Mkdir     " unix SUCCESS "" eos attr set default=replica  ${ADJUST_TEST_DIR}
 runtest "### Upload    " unix SUCCESS "" eos cp ${TESTSYSFILE1K} ${ADJUST_TEST_FILE}
 adj_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
-runtest "### Drop fsid " unix SUCCESS "" eos file drop ${ADJUST_TEST_FILE} ${adj_fsid}
-runtest "### Adjust -  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
-runtest "### Delay     " unix SUCCESS "" delay 4
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
+runtest "### Drop fsid " unix 0 "" eos file drop ${ADJUST_TEST_FILE} ${adj_fsid}
+runtest "### Adjust -  " unix 0 "" eos file adjustreplica ${ADJUST_TEST_FILE}
+runtest "### Delay     " unix 0 "" delay 4
+runtest "### Check     " unix 0 "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
 # Find a new file system where to over-replicate the current file
 list_fsids=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid)
 array_fsids=($list_fsids)

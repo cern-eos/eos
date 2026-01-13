@@ -116,15 +116,15 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/drain/Drainer.hh"
-#include "mgm/IdTrackerWithValidity.hh"
-#include "mgm/IMaster.hh"
+#include "mgm/misc/IdTrackerWithValidity.hh"
+#include "mgm/imaster/IMaster.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
-
+#include "mgm/inflighttracker/InFlightTracker.hh"
+#include "mgm/namespacestats/NamespaceStats.hh"
 #include <XrdAcc/XrdAccPrivs.hh>
 #include <chrono>
 #include <mutex>

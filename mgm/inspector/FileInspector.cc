@@ -34,7 +34,6 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
-#include "misc/Constants.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"

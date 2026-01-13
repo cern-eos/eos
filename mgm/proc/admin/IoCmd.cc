@@ -25,11 +25,8 @@
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "proto/Io.pb.h"
-#include "zmq.hpp"
-
-#include <iomanip>
-#include <string>
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/iostat/Iostat.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
