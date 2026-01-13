@@ -1146,7 +1146,9 @@ proc_sort_groups_by_priority(FsView& fs_view, const std::string& space,
       set_grps.erase(it->first);
 
       if (it->second->size() < grp_size) {
-        grps.push_back(it->second);
+        if (it->second->GetConfigMember("status") == "on") {
+          grps.push_back(it->second);
+        }
       }
     }
   }
