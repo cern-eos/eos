@@ -23,7 +23,7 @@ o *                                                                      *
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

@@ -1,5 +1,5 @@
 #include "gtest/gtest.h"
-#include "mgm/GroupDrainer.hh"
+#include "mgm/groupdrainer/GroupDrainer.hh"
 
 using eos::mgm::GroupDrainer;
 using eos::mgm::GroupStatus;

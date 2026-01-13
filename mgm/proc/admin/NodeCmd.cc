@@ -23,7 +23,7 @@
 
 #include "NodeCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IFsView.hh"

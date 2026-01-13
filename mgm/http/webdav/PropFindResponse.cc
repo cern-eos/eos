@@ -22,12 +22,12 @@
  ************************************************************************/
 
 #include "mgm/http/webdav/PropFindResponse.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Quota.hh"
-#include "mgm/Access.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/Macros.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/macros/Macros.hh"
 #include "common/Logging.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"

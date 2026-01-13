@@ -26,7 +26,7 @@
 #include "common/Logging.hh"
 #include "mgm/Namespace.hh"
 #include "mgm/EosCtaReporter.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/bulk-request/interface/IMgmFileSystemInterface.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 #include <mgm/bulk-request/FileCollection.hh>

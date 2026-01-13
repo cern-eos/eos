@@ -26,7 +26,7 @@
 
 #include "IMgmFileSystemInterface.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 
 EOSBULKNAMESPACE_BEGIN
 

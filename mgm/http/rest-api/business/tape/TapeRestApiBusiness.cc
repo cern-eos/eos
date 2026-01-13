@@ -31,7 +31,7 @@
 #include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
 #include "mgm/http/rest-api/exception/Exceptions.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 
 EOSMGMRESTNAMESPACE_BEGIN
 

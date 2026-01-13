@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "mgm/convert/ConverterEngine.hh"
-#include "mgm/IMaster.hh"
-#include "mgm/FsView.hh"
+#include "mgm/imaster/IMaster.hh"
+#include "mgm/fsview/FsView.hh"
 #include "common/StringTokenizer.hh"
 #include "common/Logging.hh"
 

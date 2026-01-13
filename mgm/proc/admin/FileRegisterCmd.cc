@@ -23,8 +23,8 @@
 
 #include "QuotaCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/Policy.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/policy/Policy.hh"
 #include "common/Path.hh"
 #include "common/Constants.hh"
 #include "namespace/Prefetcher.hh"

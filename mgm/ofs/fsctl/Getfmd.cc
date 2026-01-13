@@ -1,0 +1,126 @@
+// ----------------------------------------------------------------------
+// File: Getfmd.cc
+// Author: Andreas-Joachim Peters - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#include "common/Logging.hh"
+#include "common/Path.hh"
+#include "common/BufferManager.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/macros/Macros.hh"
+#include "namespace/Prefetcher.hh"
+#include <XrdOuc/XrdOucEnv.hh>
+
+//----------------------------------------------------------------------------
+// Return metadata in env representation
+//----------------------------------------------------------------------------
+int
+XrdMgmOfs::Getfmd(const char* path,
+                  const char* ininfo,
+                  XrdOucEnv& env,
+                  XrdOucErrInfo& error,
+                  eos::common::VirtualIdentity& vid,
+                  const XrdSecEntity* client)
+{
+  ACCESSMODE_W;
+  MAYSTALL;
+  MAYREDIRECT;
+  gOFS->MgmStats.Add("GetMd", 0, 0, 1);
+  char* afid = env.Get("mgm.getfmd.fid"); // decimal fid
+  eos::common::FileId::fileid_t fid = afid ? strtoull(afid, 0, 10) : 0;
+  XrdOucString response;
+
+  if (fid) {
+    std::string fullpath;
+    std::shared_ptr<eos::IFileMD> fmd;
+    eos::Prefetcher::prefetchFileMDWithParentsAndWait(gOFS->eosView, fid);
+    eos::common::RWMutexReadLock vlock(gOFS->eosViewRWMutex);
+
+    try {
+      fmd = gOFS->eosFileService->getFileMD(fid);
+      fullpath = gOFS->eosView->getUri(fmd.get());
+    } catch (eos::MDException& e) {
+      response = "getfmd: retc=";
+      response += e.getErrno();
+      error.setErrInfo(response.length() + 1, response.c_str());
+      return SFS_DATA;
+    }
+
+    eos::common::Path cPath(fullpath.c_str());
+    std::string fmdEnv = "";
+    fmd->getEnv(fmdEnv, true);
+    vlock.Release();
+    fmdEnv += "&container=";
+    // Patch parent name
+    XrdOucString safepath = cPath.GetParentPath();
+    eos::common::StringConversion::SealXrdPath(safepath);
+    fmdEnv += safepath.c_str();
+    response = "getfmd: retc=0 ";
+    response += fmdEnv.c_str();
+
+    if (response.find("checksum=&") != STR_NPOS) {
+      // XrdOucEnv does not deal with empty values [... sigh ...]
+      response.replace("checksum=&", "checksum=none&");
+    }
+
+    // Patch the file name
+    safepath = cPath.GetName();
+
+    if (safepath.find("&") != STR_NPOS) {
+      XrdOucString initial_name = "name=";
+      initial_name += safepath;
+      eos::common::StringConversion::SealXrdPath(safepath);
+      XrdOucString safe_name = "name=";
+      safe_name += safepath;
+      response.replace(initial_name, safe_name);
+    }
+  } else {
+    response = "getfmd: retc=";
+    response += EINVAL;
+  }
+
+  if (response.length() + 1 > 2 * eos::common::KB) {
+    const uint32_t aligned_sz = eos::common::GetPowerCeil(response.length() + 1,
+                                2 * eos::common::KB);
+    XrdOucBuffer* buff = mXrdBuffPool.Alloc(aligned_sz);
+
+    if (buff == nullptr) {
+      eos_static_err("msg=\"requested buffer allocation size too big\" "
+                     "req_sz=%llu max_sz=%i", response.length(),
+                     mXrdBuffPool.MaxSize());
+      response = "getfmd: retc=";
+      response += ENOMEM;
+      error.setErrInfo(response.length() + 1, response.c_str());
+    } else {
+      (void) strncpy(buff->Buffer(), response.c_str(), response.length() + 1);
+      buff->SetLen(response.length() + 1);
+      error.setErrInfo(buff->DataLen(), buff);
+    }
+  } else {
+    error.setErrInfo(response.length() + 1, response.c_str());
+  }
+
+  return SFS_DATA;
+}

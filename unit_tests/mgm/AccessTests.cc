@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "mgm/Access.hh"
-#include "mgm/Acl.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/acl/Acl.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/auth/AccessChecker.hh"
 #include "common/Definitions.hh"

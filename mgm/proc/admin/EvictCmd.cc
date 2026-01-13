@@ -24,7 +24,7 @@
 #include "common/Path.hh"
 #include "common/Timing.hh"
 #include "EvictCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/EosCtaReporter.hh"
 #include "common/Definitions.hh"
 #include "common/Constants.hh"

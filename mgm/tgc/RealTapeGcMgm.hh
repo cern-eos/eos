@@ -26,7 +26,7 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/tgc/ITapeGcMgm.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "namespace/interface/IFileMD.hh"
 
 /*----------------------------------------------------------------------------*/

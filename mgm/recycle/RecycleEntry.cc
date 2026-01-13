@@ -23,7 +23,7 @@
 
 #include "mgm/recycle/RecycleEntry.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/VirtualIdentity.hh"
 #include <sys/stat.h>
 

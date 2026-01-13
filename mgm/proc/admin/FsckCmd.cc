@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "FsckCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/fsck/Fsck.hh"
 
 EOSMGMNAMESPACE_BEGIN

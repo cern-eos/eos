@@ -23,7 +23,7 @@
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #define IN_TEST_HARNESS
 #include "mgm/balancer/FsBalancerStats.hh"
 #include "mgm/balancer/FsBalancer.hh"

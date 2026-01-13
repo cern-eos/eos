@@ -14,16 +14,16 @@ protocol, a **POSIX-like FUSE** client or **HTTP(S) & WebDav** protocol.
 
 ## Documentation
 
-The most up to date documentation can be found at:
-http://eos-docs.web.cern.ch/eos-docs/
+The most up-to-date documentation can be found at:
+[eos-docs.web.cern.ch/eos-docs](http://eos-docs.web.cern.ch/eos-docs/)
 
-You will need to install sphinx, doxygen & solar_theme (for sphinx) in order to
-generate them. For up to date information on getting sphinx refer to the [sphinx
-docs](https://www.sphinx-doc.org/en/master/usage/installation.html)
+You will need to install Sphinx, Doxygen and the `solar_theme` (for Sphinx) in order to
+generate the docs. For up-to-date information on getting Sphinx refer to the
+[Sphinx docs](https://www.sphinx-doc.org/en/master/usage/installation.html).
 
 ```bash
 ## RHEL instructions
-# Please choose the revelant python version based on the distro
+# Please choose the relevant python version based on the distro
 sudo yum install python-sphinx doxygen
 pip install solar_theme
 
@@ -32,62 +32,74 @@ sudo apt install python3-sphinx doxygen
 pip3 install solar_theme
 ```
 
-**Doxygen** documentation of the API is available in the ``./doc`` directory
- and can be generated using the following command:
+**Doxygen** documentation of the API is available in the `./doc` directory
+and can be generated using the following command:
 
 ```bash
 # Inside the EOS git clone directory
 cd doc
 doxygen
 ....
-# Documentation generated in the ./html directory which can be accessed using any browser
-# file:///eos_git_clone_dir/doc/html/index.html
+# Documentation generated in the ./html directory, viewable with any browser:
+#   file:///eos_git_clone_dir/doc/html/index.html
 ```
 
-**Sphinx** documentation of installation and application is also in the ``./doc'' directory.
-This is what is published in https://eos-docs.web.cern.ch .
-Documentation can be generated using the following command:
+**Sphinx** documentation of installation and application is also in the `./doc` directory.
+This is what is published at https://eos-docs.web.cern.ch.
+Documentation can be generated using:
 ```bash
 cd doc
 make html
-# Documentation can be found in build/html/index.html which can be viewed in a browser
-# The make interface can output types as well.
-
+# Documentation can be found in build/html/index.html (view in a browser).
+# The make interface supports other targets (e.g. latexpdf).
 ```
 
-## Project Directory Structure
+## Project directory structure
 
-* archive - Archive tool implementation in Python
-* auth_plugin - Authorization delegation plugin
-* authz - Authorization capability functionality
-* client - GRPC clients
-* cmake - CMake related scripts and functions
-* common - Common helper files and classes
-* console - Command line client implementation
-* coverage - Test coverage config for LCOV
-* doc - Doxygen documentation
-* etc - Log rotation files
-* fst - The Storage Server Plugin (FST)
-* fuse - The FUSE mount Client (eosd low level API)
-* fusex- Next generation bi-directional FUSE mount Client with high-end features
-* man - Manual pages
-* mgm - Meta Data Namespace and Scheduling Redirector Plugin (MGM)
-* misc - systemd, sysconfig and service scripts
-* mq - Message Queue Server Plugin
-* namespace - Namespace Implementation
-* nginx - Nginx related patches for EOS integration
-* proto - Protobuf definitions for various components
-* srm - SRM BestMan utility scripts
-* sync - file/directory synchronization programs
-* test - Instance test script with some dedicated test executables
-* unit_tests - Various unit tests for individual modules
-* utils - Useful utilities and the uninstall scripts
-* var - Placeholder directory to create log, http and namespace directories
+- `archive/`: Archive tool implementation in Python
+- `auth_plugin/`: Authorization delegation plugin
+- `authz/`: Authorization capability functionality
+- `client/`: gRPC clients
+- `cmake/`: CMake scripts and functions
+- `common/`: Common helper files and classes
+- `console/`: Command line client implementation
+- `coverage/`: Test coverage config for LCOV
+- `doc/`: Doxygen and Sphinx documentation
+- `etc/`: Log rotation files
+- `fst/`: The Storage Server Plugin (FST)
+- `fusex/`: Next generation bi-directional FUSE mount client with high-end features
+- `man/`: Manual pages
+- `mgm/`: Metadata Namespace and Scheduling Redirector Plugin (MGM)
+- `misc/`: systemd, sysconfig and service scripts
+- `mq/`: Message Queue server plugin
+- `namespace/`: Namespace implementation
+- `nginx/`: Nginx patches for EOS integration
+- `proto/`: Protobuf definitions for various components
+- `test/`: Instance test scripts and dedicated test executables
+- `unit_tests/`: Unit tests for individual modules
+- `utils/`: Utilities and uninstall scripts
+
+## Git submodules
+
+Some components are maintained in separate upstream repositories and brought in as git submodules. Make sure submodules are initialized and kept up-to-date:
+
+```bash
+git submodule update --init --recursive
+# To refresh later
+git submodule update --recursive --remote
+```
+
+Submodules currently used:
+- `quarkdb/`: QuarkDB client/server sources used by MGM for QuarkDB-backed services (e.g., QDB master, metadata/services that rely on QuarkDB).
+- `common/xrootd-ssi-protobuf-interface/`: XRootD SSI + Protobuf interface headers used by EOS gRPC/SSI integrations and CTA-related workflows.
+
+Tip: See `.gitmodules` for the authoritative list and remote URLs.
 
 ## Dependencies
 
-It is recommended to set up xrootd and eos-citrine-dependency repositories,
-as seen in the [documentation][1].
+Use the EOS Diopside dependency repository.
+Follow the official installation instructions here:
+[EOS Diopside Manual – Installation](https://eos-docs.web.cern.ch/diopside/manual/hardware-installation.html#installation).
 
 ```bash
 yum install -y git gcc cmake cmake3 readline readline-devel fuse fuse-devel \
@@ -100,7 +112,6 @@ hiredis-devel zeromq-devel jsoncpp-devel xrootd xrootd-server-devel \
 xrootd-client-devel xrootd-private-devel cppzmq-devel libcurl-devel \
 libevent-devel jemalloc jemalloc-devel
 ```
-
 ## Build
 
 To build **EOS**, you need **gcc (>=7)** with **C++17 features** and **CMake**
@@ -110,21 +121,21 @@ installed on your system. If you can install ninja, **EOS** supports ninja for b
 git submodule update --init --recursive
 # Create build workdir
 mkdir build-with-ninja
-cd build
+cd build-with-ninja
 # Run CMake (pass -DCLIENT=1 if you only need the client binaries)
 cmake3 -GNinja ..
 # Build
 ninja -j 4
 ```
 
-Otherwise standard make builds are of course possible
+Otherwise, standard Makefile builds are of course possible:
 
 ```bash
 git submodule update --init --recursive
 # Create build workdir
 mkdir build
 cd build
-# # Run CMake (pass -DCLIENT=1 if you only need the client binaries)
+# Run CMake (pass -DCLIENT=1 if you only need the client binaries)
 cmake3 ..
 # Build
 make -j 4

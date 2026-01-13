@@ -22,7 +22,7 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "mgm/FileSystem.hh"
+#include "mgm/filesystem/FileSystem.hh"
 #include "namespace/interface/IFsView.hh"
 #include "common/Logging.hh"
 #include <thread>

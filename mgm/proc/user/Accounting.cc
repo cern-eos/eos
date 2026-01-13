@@ -26,8 +26,8 @@
 #include "common/Logging.hh"
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/proc/ProcCommand.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/Quota.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/quota/Quota.hh"
 #include "json/json.h"
 
 EOSMGMNAMESPACE_BEGIN

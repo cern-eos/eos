@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "RealMgmFileSystemInterface.hh"
-#include "mgm/Stat.hh"
-#include "mgm/Iostat.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/iostat/Iostat.hh"
 
 EOSBULKNAMESPACE_BEGIN
 

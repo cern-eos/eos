@@ -23,7 +23,7 @@
 
 
 #include "mgm/proc/admin/SchedCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/placement/PlacementStrategy.hh"
 #include "mgm/placement/FsScheduler.hh"
 
