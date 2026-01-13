@@ -1,5 +1,5 @@
 #include "mgm/groupbalancer/GroupsInfoFetcher.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 
 namespace eos::mgm::group_balancer
 {

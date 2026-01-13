@@ -27,7 +27,7 @@
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/dao/IBulkRequestDAO.hh"
 #include <common/Logging.hh>
-#include <mgm/XrdMgmOfs.hh>
+#include <mgm/ofs/XrdMgmOfs.hh>
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirBulkRequestFile.hh"
 #include "mgm/bulk-request/prepare/CancellationBulkRequest.hh"

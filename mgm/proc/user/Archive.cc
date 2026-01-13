@@ -23,16 +23,16 @@
 
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Access.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Acl.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/acl/Acl.hh"
 #include "common/SymKeys.hh"
 #include "common/Path.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include "mgm/ZMQ.hh"
+#include "mgm/zmq/ZMQ.hh"
 #include <XrdCl/XrdClCopyProcess.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <iomanip>

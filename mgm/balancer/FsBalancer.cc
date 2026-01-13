@@ -23,8 +23,8 @@
 
 #include "common/utils/BackOffInvoker.hh"
 #include "mgm/balancer/FsBalancer.hh"
-#include "mgm/FsView.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/drain/DrainTransferJob.hh"
 #include "namespace/interface/IFsView.hh"
 #include "namespace/Prefetcher.hh"

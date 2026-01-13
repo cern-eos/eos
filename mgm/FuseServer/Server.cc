@@ -22,19 +22,19 @@
  ************************************************************************/
 
 #include "mgm/FuseServer/Server.hh"
-#include "mgm/Constants.hh"
-#include "mgm/Acl.hh"
-#include "mgm/Policy.hh"
-#include "mgm/Quota.hh"
+#include "mgm/misc/Constants.hh"
+#include "mgm/acl/Acl.hh"
+#include "mgm/policy/Policy.hh"
+#include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsFile.hh"
-#include "mgm/ZMQ.hh"
-#include "mgm/Stat.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/zmq/ZMQ.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/GeoTreeEngine.hh"
-#include "mgm/Workflow.hh"
-#include "mgm/XattrLock.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/workflow/Workflow.hh"
+#include "mgm/xattr/XattrLock.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/IContainerMD.hh"
@@ -50,7 +50,7 @@
 #include <thread>
 #include "proto/Audit.pb.h"
 #include "namespace/utils/Checksum.hh"
-#include "mgm/AuditHelpers.hh"
+#include "mgm/misc/AuditHelpers.hh"
 
 USE_EOSMGMNAMESPACE
 

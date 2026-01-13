@@ -23,12 +23,12 @@
 
 #include <XrdOuc/XrdOucEnv.hh>
 #include "common/SymKeys.hh"
-#include "mgm/ZMQ.hh"
+#include "mgm/zmq/ZMQ.hh"
 #include "mgm/FuseServer/Server.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/Access.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Stat.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/stat/Stat.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/Prefetcher.hh"
 

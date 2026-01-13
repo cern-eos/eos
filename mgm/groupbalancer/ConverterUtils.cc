@@ -4,7 +4,7 @@
 #include "common/Logging.hh"
 #include "common/LayoutId.hh"
 #include "namespace/Prefetcher.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "namespace/interface/IView.hh"
 #include <XrdOuc/XrdOucString.hh>
 

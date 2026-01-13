@@ -2,7 +2,7 @@
 #include <google/protobuf/util/json_util.h>
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
-#include "mgm/Macros.hh"
+#include "mgm/macros/Macros.hh"
 #include <XrdSec/XrdSecEntity.hh>
 
 #ifdef EOS_GRPC_GATEWAY

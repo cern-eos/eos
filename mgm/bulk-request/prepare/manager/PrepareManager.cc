@@ -26,7 +26,7 @@
 #include <XrdSfs/XrdSfsFlags.hh>
 #include "PrepareManager.hh"
 #include "common/Constants.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/EosCtaReporter.hh"
 #include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "common/Path.hh"
@@ -34,9 +34,9 @@
 #include "common/SecEntity.hh"
 #include "common/utils/XrdUtils.hh"
 #include "common/Definitions.hh"
-#include "mgm/Macros.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include <mgm/XattrSet.hh>
+#include "mgm/macros/Macros.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include <mgm/xattr/XattrSet.hh>
 #include "mgm/bulk-request/File.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include "mgm/bulk-request/prepare/PrepareUtils.hh"

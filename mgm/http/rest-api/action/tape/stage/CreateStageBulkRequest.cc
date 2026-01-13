@@ -24,7 +24,7 @@
 
 #include "CreateStageBulkRequest.hh"
 #include <memory>
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/bulk-request/BulkRequestFactory.hh"
 #include "mgm/http/HttpHandler.hh"
 #include "mgm/http/rest-api/exception/JsonValidationException.hh"

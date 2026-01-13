@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/Vid.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/vid/Vid.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

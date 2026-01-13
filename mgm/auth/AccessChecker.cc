@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/auth/AccessChecker.hh"
-#include "mgm/Acl.hh"
+#include "mgm/acl/Acl.hh"
 #include "common/Definitions.hh"
 #include "namespace/interface/IFileMD.hh"
 #include <common/Path.hh>

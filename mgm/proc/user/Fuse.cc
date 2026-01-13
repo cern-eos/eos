@@ -22,11 +22,11 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Access.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Stat.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/stat/Stat.hh"
 #include "namespace/interface/IView.hh"
 #include "common/Path.hh"
 
