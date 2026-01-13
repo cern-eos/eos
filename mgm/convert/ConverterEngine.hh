@@ -27,7 +27,7 @@
 #include "common/Logging.hh"
 #include "common/ObserverMgr.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/convert/ConversionJob.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"

@@ -25,7 +25,7 @@
 #include <XrdSec/XrdSecEntity.hh>
 #include <XrdSec/XrdSecEntityAttr.hh>
 #define IN_TEST_HARNESS
-#include "mgm/XrdMgmOfsFile.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
 #undef IN_TEST_HARNESS
 #include "gtest/gtest.h"
 

@@ -43,7 +43,7 @@
 #include "google/protobuf/repeated_field.h"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QSet.hh"
-#include "mgm/Constants.hh"
+#include "mgm/misc/Constants.hh"
 #include <memory>
 #include <sys/stat.h>
 #include <sys/types.h>

@@ -26,7 +26,7 @@
 #define IN_TEST_HARNESS
 #include "mgm/recycle/RecyclePolicy.hh"
 #undef IN_TEST_HARNESS
-#include "mgm/Quota.hh"
+#include "mgm/quota/Quota.hh"
 #include <map>
 
 using ::testing::Return;

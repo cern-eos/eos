@@ -22,8 +22,8 @@
 
 #include "RecycleCmd.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/Quota.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

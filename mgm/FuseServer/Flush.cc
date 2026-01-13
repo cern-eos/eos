@@ -26,7 +26,7 @@
 
 #include "mgm/FuseServer/Flush.hh"
 #include "common/Logging.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 
 
 EOSMGMNAMESPACE_BEGIN

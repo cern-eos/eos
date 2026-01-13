@@ -22,9 +22,9 @@
  ************************************************************************/
 
 #include "mgm/convert/ConversionJob.hh"
-#include "mgm/Stat.hh"
-#include "mgm/Quota.hh"
-#include "mgm/FsView.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
 #include "common/Constants.hh"
 #include "common/Timing.hh"

@@ -9,7 +9,7 @@
 //-----------------------------------------------------------------------------
 #include "console/ConsoleMain.hh"
 #include "GrpcServer.hh"
-#include "mgm/Macros.hh"
+#include "mgm/macros/Macros.hh"
 //-----------------------------------------------------------------------------
 #ifdef EOS_GRPC
 #include "proto/EosWnc.grpc.pb.h"

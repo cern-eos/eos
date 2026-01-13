@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #include "WellKnownHandler.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 #include "mgm/http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.hh"

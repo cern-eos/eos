@@ -24,8 +24,8 @@
 
 #include "gtest/gtest.h"
 #include "mgm/FuseServer/Caps.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/ZMQ.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/zmq/ZMQ.hh"
 
 using namespace eos::mgm::FuseServer;
 using namespace std::chrono_literals;

@@ -23,7 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include "mgm/http/s3/S3Handler.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"

@@ -21,8 +21,8 @@
  ************************************************************************/
 
 #include "DfCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include <sstream>
 

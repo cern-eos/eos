@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "mgm/IdTrackerWithValidity.hh"
+#include "mgm/misc/IdTrackerWithValidity.hh"
 
 //------------------------------------------------------------------------------
 // Test tracker basic functionality

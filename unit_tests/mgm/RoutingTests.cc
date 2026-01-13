@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "mgm/RouteEndpoint.hh"
-#include "mgm/PathRouting.hh"
+#include "mgm/routeendpoint/RouteEndpoint.hh"
+#include "mgm/pathrouting/PathRouting.hh"
 
 //------------------------------------------------------------------------------
 // Test basic RouteEndpoint construction and parsing

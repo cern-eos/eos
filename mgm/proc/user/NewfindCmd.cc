@@ -26,12 +26,12 @@
 #include "common/Timing.hh"
 #include "common/Constants.hh"
 #include "common/RegexWrapper.hh"
-#include "mgm/Acl.hh"
-#include "mgm/FsView.hh"
-#include "mgm/Stat.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/acl/Acl.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/auth/AccessChecker.hh"
-#include "mgm/Macros.hh"
+#include "mgm/macros/Macros.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/ContainerMD.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -41,7 +41,7 @@
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/Stat.hh"
 #include "namespace/utils/Etag.hh"
-#include <mgm/Access.hh>
+#include <mgm/access/Access.hh>
 #include <namespace/Prefetcher.hh>
 
 EOSMGMNAMESPACE_BEGIN

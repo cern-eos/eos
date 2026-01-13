@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/) 
+include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/ ${CMAKE_SOURCE_DIR}/mgm ${CMAKE_SOURCE_DIR}/mgm/ofs/) 
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -93,11 +93,11 @@ add_library(
   config/IConfigEngine.cc                           config/IConfigEngine.hh
   config/QuarkConfigHandler.cc                      config/QuarkConfigHandler.hh
   config/QuarkDBConfigEngine.cc                     config/QuarkDBConfigEngine.hh
-  Access.cc
-  Macros.cc
-  GeoTreeEngine.cc
+  access/Access.cc
+  macros/Macros.cc
+  geotreeengine/GeoTreeEngine.cc
   ${MGM_TGC_SRC_FILES}
-  Policy.cc
+  policy/Policy.cc
   namespacestats/NamespaceStats.cc
   proc/IProcCommand.cc
   proc/ProcInterface.cc
@@ -156,60 +156,60 @@ add_library(
   proc/user/Version.cc
   proc/user/Who.cc
   proc/user/Whoami.cc
-  Quota.cc
-  Scheduler.cc
-  Vid.cc
-  FsView.cc
-  XrdMgmOfsConfigure.cc
-  XrdMgmOfsFile.cc
-  XrdMgmOfsDirectory.cc
-  XrdMgmOfs.cc
-  XrdMgmAuthz.cc
-  XrdMgmOfs/fsctl/Access.cc
-  XrdMgmOfs/fsctl/AdjustReplica.cc
-  XrdMgmOfs/fsctl/Checksum.cc
-  XrdMgmOfs/fsctl/Chmod.cc
-  XrdMgmOfs/fsctl/Chown.cc
-  XrdMgmOfs/fsctl/Commit.cc
-  XrdMgmOfs/fsctl/CommitHelper.cc
-  XrdMgmOfs/fsctl/Drop.cc
-  XrdMgmOfs/fsctl/Event.cc
-  XrdMgmOfs/fsctl/Fusex.cc
-  XrdMgmOfs/fsctl/Getfmd.cc
-  XrdMgmOfs/fsctl/GetFusex.cc
-  XrdMgmOfs/fsctl/Mkdir.cc
-  XrdMgmOfs/fsctl/Open.cc
-  XrdMgmOfs/fsctl/Readlink.cc
-  XrdMgmOfs/fsctl/Redirect.cc
-  XrdMgmOfs/fsctl/Schedule2Delete.cc
-  XrdMgmOfs/fsctl/Stat.cc
-  XrdMgmOfs/fsctl/Statvfs.cc
-  XrdMgmOfs/fsctl/Symlink.cc
-  XrdMgmOfs/fsctl/Utimes.cc
-  XrdMgmOfs/fsctl/Version.cc
+  quota/Quota.cc
+  scheduler/Scheduler.cc
+  vid/Vid.cc
+  fsview/FsView.cc
+  ofs/XrdMgmOfsConfigure.cc
+  ofs/XrdMgmOfsFile.cc
+  ofs/XrdMgmOfsDirectory.cc
+  ofs/XrdMgmOfs.cc
+  authz/XrdMgmAuthz.cc
+  ofs/fsctl/Access.cc
+  ofs/fsctl/AdjustReplica.cc
+  ofs/fsctl/Checksum.cc
+  ofs/fsctl/Chmod.cc
+  ofs/fsctl/Chown.cc
+  ofs/fsctl/Commit.cc
+  ofs/fsctl/CommitHelper.cc
+  ofs/fsctl/Drop.cc
+  ofs/fsctl/Event.cc
+  ofs/fsctl/Fusex.cc
+  ofs/fsctl/Getfmd.cc
+  ofs/fsctl/GetFusex.cc
+  ofs/fsctl/Mkdir.cc
+  ofs/fsctl/Open.cc
+  ofs/fsctl/Readlink.cc
+  ofs/fsctl/Redirect.cc
+  ofs/fsctl/Schedule2Delete.cc
+  ofs/fsctl/Stat.cc
+  ofs/fsctl/Statvfs.cc
+  ofs/fsctl/Symlink.cc
+  ofs/fsctl/Utimes.cc
+  ofs/fsctl/Version.cc
   balancer/FsBalancer.cc
   balancer/FsBalancerStats.cc
-  CommandMap.cc
-  FileSystem.cc
+  commandmap/CommandMap.cc
+  filesystem/FileSystem.cc
   convert/ConversionInfo.cc
   convert/ConversionJob.cc
   convert/ConverterEngine.cc
   drain/DrainFs.cc
   drain/DrainTransferJob.cc
   drain/Drainer.cc
-  Egroup.cc
-  AdminSocket.cc
-  Acl.cc
-  Stat.cc
-  Iostat.cc
+  egroup/Egroup.cc
+  adminsocket/AdminSocket.cc
+  acl/Acl.cc
+  stat/Stat.cc
+  iostat/Iostat.cc
   fsck/Fsck.cc
   fsck/FsckEntry.cc
   utils/AttrHelper.cc
   utils/FileSystemRegistry.cc                  utils/FileSystemRegistry.hh
   utils/FilesystemUuidMapper.cc                utils/FilesystemUuidMapper.hh
   utils/FileSystemStatusUtils.cc
-  GroupBalancer.cc
-  GroupDrainer.cc
+  groupbalancer/GroupBalancer.cc
+  groupdrainer/GroupDrainer.cc
   groupbalancer/BalancerEngine.cc
   groupbalancer/ConverterUtils.cc
   groupbalancer/FreeSpaceBalancerEngine.cc
@@ -218,28 +218,28 @@ add_library(
   groupbalancer/StdDrainerEngine.cc
   groupbalancer/GroupsInfoFetcher.cc
   groupdrainer/DrainProgressTracker.cc
-  GeoBalancer.cc
-  Features.cc
-  ZMQ.cc
+  geobalancer/GeoBalancer.cc
+  features/Features.cc
+  zmq/ZMQ.cc
   FuseServer/Server.cc FuseServer/Server.hh
   FuseServer/Clients.cc FuseServer/Clients.hh
   FuseServer/Locks.cc FuseServer/Locks.hh
   FuseServer/Caps.cc FuseServer/Caps.hh
   FuseServer/Flush.cc FuseServer/Flush.hh
   fuse-locks/LockTracker.cc   fuse-locks/LockTracker.hh
-  IMaster.cc                  IMaster.hh
-  QdbMaster.cc
-  Devices.cc
+  imaster/IMaster.cc                  imaster/IMaster.hh
+  qdbmaster/QdbMaster.cc
+  devices/Devices.cc
   recycle/RecyclePolicy.cc      recycle/RecyclePolicy.hh
   recycle/RecycleEntry.cc       recycle/RecycleEntry.hh
   recycle/Recycle.cc            recycle/Recycle.hh
-  PathRouting.cc
-  RouteEndpoint.cc
-  LRU.cc
-  WFE.cc
+  pathrouting/PathRouting.cc
+  routeendpoint/RouteEndpoint.cc
+  lru/LRU.cc
+  wfe/WFE.cc
   EosCtaReporter.cc
-  Workflow.cc
-  InFlightTracker.cc
+  workflow/Workflow.cc
+  inflighttracker/InFlightTracker.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcWncServer.cc      grpc/GrpcWncServer.hh

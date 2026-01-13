@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "ProcDirectoryBulkRequestDAO.hh"
-#include "mgm/Stat.hh"
+#include "mgm/stat/Stat.hh"
 #include "mgm/bulk-request/exception/PersistencyException.hh"
 #include <common/StringConversion.hh>
 #include <namespace/Prefetcher.hh>
