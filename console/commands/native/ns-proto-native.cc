@@ -1,0 +1,674 @@
+// ----------------------------------------------------------------------
+// File: ns-proto-native.cc
+// ----------------------------------------------------------------------
+
+#include "common/ParseUtils.hh"
+#include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
+#include "console/CommandFramework.hh"
+#include "console/ConsoleMain.hh"
+#include "console/commands/helpers/ICmdHelper.hh"
+#include <memory>
+#include <sstream>
+
+// Native helper implementing the protobuf request (ported from legacy)
+class NsNativeHelper : public ICmdHelper {
+public:
+  NsNativeHelper(const GlobalOptions& opts) : ICmdHelper(opts)
+  {
+    mIsAdmin = true;
+  }
+  ~NsNativeHelper() override = default;
+  bool ParseCommand(const char* arg);
+};
+
+// Parse command line input (ported logic)
+bool
+NsNativeHelper::ParseCommand(const char* arg)
+{
+  const char* option;
+  std::string soption;
+  eos::console::NsProto* ns = mReq.mutable_ns();
+  eos::common::StringTokenizer tokenizer(arg);
+  tokenizer.GetLine();
+  option = tokenizer.GetToken();
+  std::string cmd = (option ? option : "");
+
+  if (cmd == "stat") {
+    eos::console::NsProto_StatProto* stat = ns->mutable_stat();
+    if (!(option = tokenizer.GetToken())) {
+      stat->set_monitor(false);
+    } else {
+      while (true) {
+        soption = option;
+        if (soption == "-a") {
+          stat->set_groupids(true);
+        } else if (soption == "-x") {
+          stat->set_apps(true);
+        } else if (soption == "-m") {
+          stat->set_monitor(true);
+        } else if (soption == "-n") {
+          stat->set_numericids(true);
+        } else if (soption == "--reset") {
+          stat->set_reset(true);
+        } else {
+          return false;
+        }
+        if (!(option = tokenizer.GetToken())) {
+          break;
+        }
+      }
+    }
+  } else if (cmd == "mutex") {
+    using eos::console::NsProto_MutexProto;
+    NsProto_MutexProto* mutex = ns->mutable_mutex();
+    if (!(option = tokenizer.GetToken())) {
+      mutex->set_list(true);
+    } else {
+      while (true) {
+        soption = option;
+        if (soption == "--toggletime") {
+          mutex->set_toggle_timing(true);
+        } else if (soption == "--toggleorder") {
+          mutex->set_toggle_order(true);
+        } else if (soption == "--toggledeadlock") {
+          mutex->set_toggle_deadlock(true);
+        } else if (soption == "--smplrate1") {
+          mutex->set_sample_rate1(true);
+        } else if (soption == "--smplrate10") {
+          mutex->set_sample_rate10(true);
+        } else if (soption == "--smplrate100") {
+          mutex->set_sample_rate100(true);
+        } else if (soption == "--setblockedtime") {
+          option = tokenizer.GetToken();
+          if (option) {
+            mutex->set_blockedtime(std::stoul(option));
+          } else {
+            return false;
+          }
+        } else {
+          return false;
+        }
+        if (!(option = tokenizer.GetToken())) {
+          break;
+        }
+      }
+    }
+  } else if (cmd == "compact") {
+    using eos::console::NsProto_CompactProto;
+    NsProto_CompactProto* compact = ns->mutable_compact();
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    soption = option;
+    if (soption == "off") {
+      compact->set_on(false);
+    } else if (soption == "on") {
+      compact->set_on(true);
+      if ((option = tokenizer.GetToken())) {
+        soption = option;
+        int64_t delay = 0;
+        try {
+          delay = std::stol(soption);
+        } catch (...) {
+          return false;
+        }
+        compact->set_delay(delay);
+        if ((option = tokenizer.GetToken())) {
+          soption = option;
+          int64_t interval = 0;
+          try {
+            interval = std::stol(soption);
+          } catch (...) {
+            return false;
+          }
+          compact->set_interval(interval);
+          if ((option = tokenizer.GetToken())) {
+            soption = option;
+            if (soption == "files")
+              compact->set_type(NsProto_CompactProto::FILES);
+            else if (soption == "directories")
+              compact->set_type(NsProto_CompactProto::DIRS);
+            else if (soption == "all")
+              compact->set_type(NsProto_CompactProto::ALL);
+            else if (soption == "files-repair")
+              compact->set_type(NsProto_CompactProto::FILES_REPAIR);
+            else if (soption == "directories-repair")
+              compact->set_type(NsProto_CompactProto::DIRS_REPAIR);
+            else if (soption == "all-repair")
+              compact->set_type(NsProto_CompactProto::ALL_REPAIR);
+            else {
+              return false;
+            }
+          }
+        }
+      }
+    } else {
+      return false;
+    }
+  } else if (cmd == "master") {
+    using eos::console::NsProto_MasterProto;
+    NsProto_MasterProto* master = ns->mutable_master();
+    if (!(option = tokenizer.GetToken())) {
+      master->set_op(NsProto_MasterProto::LOG);
+    } else {
+      soption = option;
+      if (soption == "--log") {
+        master->set_op(NsProto_MasterProto::LOG);
+      } else if (soption == "--log-clear") {
+        master->set_op(NsProto_MasterProto::LOG_CLEAR);
+      } else if (soption == "--enable") {
+        master->set_op(NsProto_MasterProto::ENABLE);
+      } else if (soption == "--disable") {
+        master->set_op(NsProto_MasterProto::DISABLE);
+      } else {
+        master->set_host(soption);
+      }
+    }
+  } else if (cmd == "recompute_tree_size") {
+    using eos::console::NsProto_TreeSizeProto;
+    NsProto_TreeSizeProto* tree = ns->mutable_tree();
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    while (true) {
+      int pos = 0;
+      soption = option;
+      if (soption == "--depth") {
+        if (!(option = tokenizer.GetToken())) {
+          return false;
+        }
+        soption = option;
+        try {
+          tree->set_depth(std::stoul(soption));
+        } catch (...) {
+          return false;
+        }
+      } else if ((soption.find("cid:") == 0)) {
+        pos = soption.find(':') + 1;
+        tree->mutable_container()->set_cid(soption.substr(pos));
+      } else if (soption.find("cxid:") == 0) {
+        pos = soption.find(':') + 1;
+        tree->mutable_container()->set_cxid(soption.substr(pos));
+      } else {
+        tree->mutable_container()->set_path(soption);
+      }
+      if (!(option = tokenizer.GetToken())) {
+        break;
+      }
+    }
+  } else if (cmd == "recompute_quotanode") {
+    using eos::console::NsProto_QuotaSizeProto;
+    NsProto_QuotaSizeProto* quota = ns->mutable_quota();
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    while (true) {
+      int pos = 0;
+      soption = option;
+      if ((soption.find("cid:") == 0)) {
+        pos = soption.find(':') + 1;
+        quota->mutable_container()->set_cid(soption.substr(pos));
+      } else if (soption.find("cxid:") == 0) {
+        pos = soption.find(':') + 1;
+        quota->mutable_container()->set_cxid(soption.substr(pos));
+      } else {
+        quota->mutable_container()->set_path(soption);
+      }
+      if (!(option = tokenizer.GetToken())) {
+        break;
+      }
+    }
+  } else if (cmd == "update_quotanode") {
+    using eos::console::NsProto_QuotaSizeProto;
+    NsProto_QuotaSizeProto* quota = ns->mutable_quota();
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    int npar = 0;
+    while (true) {
+      int pos = 0;
+      soption = option;
+      if ((soption.find("cid:") == 0)) {
+        pos = soption.find(':') + 1;
+        quota->mutable_container()->set_cid(soption.substr(pos));
+      } else if (soption.find("cxid:") == 0) {
+        pos = soption.find(':') + 1;
+        quota->mutable_container()->set_cxid(soption.substr(pos));
+      } else if (soption.find("uid:") == 0) {
+        pos = soption.find(':') + 1;
+        quota->set_uid(soption.substr(pos));
+      } else if (soption.find("gid:") == 0) {
+        pos = soption.find(':') + 1;
+        quota->set_gid(soption.substr(pos));
+      } else if (soption.find("bytes:") == 0) {
+        pos = soption.find(':') + 1;
+        quota->set_used_bytes(strtoul(soption.substr(pos).c_str(), 0, 10));
+        npar++;
+      } else if (soption.find("physicalbytes:") == 0) {
+        pos = soption.find(':') + 1;
+        quota->set_physical_bytes(strtoul(soption.substr(pos).c_str(), 0, 10));
+        npar++;
+      } else if (soption.find("inodes:") == 0) {
+        pos = soption.find(':') + 1;
+        quota->set_used_inodes(strtoul(soption.substr(pos).c_str(), 0, 10));
+        npar++;
+      } else {
+        quota->mutable_container()->set_path(soption);
+      }
+      if (!(option = tokenizer.GetToken())) {
+        break;
+      }
+    }
+    if (npar && (npar != 3)) {
+      return false;
+    }
+  } else if (cmd == "cache") {
+    eos::console::NsProto_CacheProto* cache = ns->mutable_cache();
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    soption = option;
+    if (soption == "set") {
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+      soption = option;
+      if (soption == "-f") {
+        cache->set_op(eos::console::NsProto_CacheProto::SET_FILE);
+      } else if (soption == "-d") {
+        cache->set_op(eos::console::NsProto_CacheProto::SET_DIR);
+      } else {
+        return false;
+      }
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+      uint64_t max_num = 0ull, max_size = 0ull;
+      try {
+        max_num = std::stoull(option);
+      } catch (...) {
+        return false;
+      }
+      if ((option = tokenizer.GetToken())) {
+        try {
+          max_size =
+              eos::common::StringConversion::GetDataSizeFromString(option);
+        } catch (...) {
+          return false;
+        }
+      }
+      cache->set_max_num(max_num);
+      cache->set_max_size(max_size);
+    } else if (soption == "drop") {
+      if (!(option = tokenizer.GetToken())) {
+        cache->set_op(eos::console::NsProto_CacheProto::DROP_ALL);
+      } else {
+        soption = option;
+        if (soption == "-f") {
+          cache->set_op(eos::console::NsProto_CacheProto::DROP_FILE);
+        } else if (soption == "-d") {
+          cache->set_op(eos::console::NsProto_CacheProto::DROP_DIR);
+        } else {
+          return false;
+        }
+      }
+    } else if (soption == "drop-single-file") {
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+      uint64_t target;
+      try {
+        target = std::stoull(option);
+      } catch (...) {
+        return false;
+      }
+      cache->set_op(eos::console::NsProto_CacheProto::DROP_SINGLE_FILE);
+      cache->set_single_to_drop(target);
+    } else if (soption == "drop-single-container") {
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+      uint64_t target;
+      try {
+        target = std::stoull(option);
+      } catch (...) {
+        return false;
+      }
+      cache->set_op(eos::console::NsProto_CacheProto::DROP_SINGLE_CONTAINER);
+      cache->set_single_to_drop(target);
+    } else {
+      return false;
+    }
+  } else if (cmd == "drain") {
+    using eos::console::NsProto_DrainProto;
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    NsProto_DrainProto* drain = ns->mutable_drain();
+    soption = option;
+    if (soption == "list") {
+      drain->set_op(eos::console::NsProto_DrainProto::LIST);
+    } else if (soption == "set") {
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+      soption = option;
+      size_t pos = soption.find("=");
+      if ((pos == std::string::npos) || (pos == soption.length() - 1)) {
+        return false;
+      }
+      drain->set_op(eos::console::NsProto_DrainProto::SET);
+      drain->set_key(soption.substr(0, pos));
+      drain->set_value(soption.substr(pos + 1));
+    } else {
+      return false;
+    }
+  } else if (cmd == "reserve-ids") {
+    using eos::console::NsProto_ReserveIdsProto;
+    NsProto_ReserveIdsProto* reserve = ns->mutable_reserve();
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    int64_t fileID = 0;
+    if (!eos::common::ParseInt64(option, fileID) || fileID < 0) {
+      return false;
+    }
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    int64_t containerID = 0;
+    if (!eos::common::ParseInt64(option, containerID) || containerID < 0) {
+      return false;
+    }
+    reserve->set_fileid(fileID);
+    reserve->set_containerid(containerID);
+  } else if (cmd == "benchmark") {
+    using eos::console::NsProto_BenchmarkProto;
+    NsProto_BenchmarkProto* benchmark = ns->mutable_benchmark();
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    int64_t n_threads = 0;
+    int64_t n_subdirs = 0;
+    int64_t n_subfiles = 0;
+    if (!eos::common::ParseInt64(option, n_threads) || n_threads < 0) {
+      return false;
+    }
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    if (!eos::common::ParseInt64(option, n_subdirs) || n_subdirs < 0) {
+      return false;
+    }
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    if (!eos::common::ParseInt64(option, n_subfiles) || n_subfiles < 0) {
+      return false;
+    }
+    if ((option = tokenizer.GetToken())) {
+      benchmark->set_prefix(option);
+    }
+    benchmark->set_threads(n_threads);
+    benchmark->set_subdirs(n_subdirs);
+    benchmark->set_subfiles(n_subfiles);
+  } else if (cmd == "tracker") {
+    eos::console::NsProto_TrackerProto* tracker = ns->mutable_tracker();
+    tracker->set_op(eos::console::NsProto_TrackerProto::NONE);
+    while ((option = tokenizer.GetToken())) {
+      soption = option;
+      if (soption == "list") {
+        if (tracker->op() != eos::console::NsProto_TrackerProto::NONE) {
+          std::cerr << "error: only one operation per command" << std::endl;
+          return false;
+        } else {
+          tracker->set_op(eos::console::NsProto_TrackerProto::LIST);
+        }
+      } else if (soption == "clear") {
+        if (tracker->op() != eos::console::NsProto_TrackerProto::NONE) {
+          std::cerr << "error: only one operation per command" << std::endl;
+          return false;
+        } else {
+          tracker->set_op(eos::console::NsProto_TrackerProto::CLEAR);
+        }
+      } else if (soption == "--name") {
+        if (!(option = tokenizer.GetToken())) {
+          return false;
+        }
+        tracker->set_name(option);
+      } else {
+        return false;
+      }
+    }
+    if (tracker->op() == eos::console::NsProto_TrackerProto::NONE) {
+      std::cerr << "error: no operation specified" << std::endl;
+      return false;
+    }
+  } else if (cmd == "behaviour") {
+    eos::console::NsProto_BehaviourProto* behaviour = ns->mutable_behaviour();
+    behaviour->set_op(eos::console::NsProto_BehaviourProto::NONE);
+    if (!(option = tokenizer.GetToken())) {
+      return false;
+    }
+    soption = option;
+    if (soption == "list") {
+      behaviour->set_op(eos::console::NsProto_BehaviourProto::LIST);
+    } else if (soption == "set") {
+      behaviour->set_op(eos::console::NsProto_BehaviourProto::SET);
+      while ((option = tokenizer.GetToken())) {
+        soption = option;
+        if (behaviour->name().empty()) {
+          if (soption == "all") {
+            std::cerr << "error: \"all\" is a reserved keyword" << std::endl;
+            return false;
+          }
+          behaviour->set_name(soption);
+        } else {
+          behaviour->set_value(soption);
+          break;
+        }
+      }
+      if (behaviour->name().empty() || behaviour->value().empty()) {
+        return false;
+      }
+    } else if (soption == "get") {
+      behaviour->set_op(eos::console::NsProto_BehaviourProto::GET);
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+      soption = option;
+      behaviour->set_name(soption);
+    } else if (soption == "clear") {
+      behaviour->set_op(eos::console::NsProto_BehaviourProto::CLEAR);
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+      soption = option;
+      behaviour->set_name(soption);
+    } else {
+      std::cerr << "error: unknown behaviour subcommand" << std::endl;
+      return false;
+    }
+  } else if (cmd == "") {
+    eos::console::NsProto_StatProto* stat = ns->mutable_stat();
+    stat->set_summary(true);
+  } else {
+    return false;
+  }
+  return true;
+}
+
+namespace {
+class NsProtoCommand : public IConsoleCommand {
+public:
+  const char*
+  name() const override
+  {
+    return "ns";
+  }
+  const char*
+  description() const override
+  {
+    return "Namespace Interface";
+  }
+  bool
+  requiresMgm(const std::string& args) const override
+  {
+    return !wants_help(args.c_str());
+  }
+  int
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
+  {
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
+    }
+    std::string joined = oss.str();
+    if (wants_help(joined.c_str())) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+    NsNativeHelper helper(*ctx.globalOpts);
+    if (!helper.ParseCommand(joined.c_str())) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+    global_retc = helper.Execute();
+    return 0;
+  }
+  void
+  printHelp() const override
+  {
+    fprintf(
+        stderr,
+        "Usage: ns [stat|mutex|compact|master|cache|benchmark]\n"
+        "    print or configure basic namespace parameters\n"
+        "  ns stat [-a] [-m] [-n] [--reset]\n"
+        "    print namespace statistics\n"
+        "    -a      : break down by uid/gid\n"
+        "    -m      : display in monitoring format <key>=<value>\n"
+        "    -n      : display numerical uid/gid(s)\n"
+        "    --reset : reset namespace counters\n\n"
+        "  ns mutex [<option>]\n"
+        "    manage mutex monitoring. Option can be:\n"
+        "    --toggletime     : toggle the timing\n"
+        "    --toggleorder    : toggle the order\n"
+        "    --toggledeadlock : toggle deadlock check\n"
+        "    --smplrate1      : set timing sample rate at 1%% (default, no "
+        "slow-down)\n"
+        "    --smplrate10     : set timing sample rate at 10%% (medium "
+        "slow-down)\n"
+        "    --smplrate100    : set timing sample rate at 100%% (severe "
+        "slow-down)\n"
+        "    --setblockedtime <ms>\n"
+        "                     : set minimum time when a mutex lock lasting "
+        "longer than <ms> \n"
+        "                       is reported in the log file [default=10000]\n\n"
+        "  ns compact off|on <delay> [<interval>] [<type>]\n"
+        "    enable online compaction after <delay> seconds\n"
+        "    <interval> : if >0 then compaction is repeated automatically \n"
+        "                 after so many seconds\n"
+        "    <type>     : can be 'files', 'directories' or 'all'. By default  "
+        "only the file\n"
+        "                 changelog is compacted. The repair flag can be "
+        "indicated by using:\n"
+        "                 'files-repair', 'directories-repair' or "
+        "'all-repair'\n\n"
+        "  ns master [<option>]\n"
+        "    master/slave operations. Option can be:\n"
+        "    <master_hostname> : set hostname of MGM master RW daemon\n"
+        "    --log             : show master log\n"
+        "    --log-clear       : clean master log\n"
+        "    --enable          : enable the slave/master supervisor thread "
+        "modifying stall/\n"
+        "                        redirectorion rules\n"
+        "    --disable         : disable supervisor thread\n\n"
+        "  ns recompute_tree_size <path>|cid:<decimal_id>|cxid:<hex_id> "
+        "[--depth <val>]\n"
+        "    recompute the tree size of a directory and all its "
+        "subdirectories\n"
+        "    --depth : maximum depth for recomputation, default 0 i.e no "
+        "limit\n\n"
+        "  ns recompute_quotanode <path>|cid:<decimal_id>|cxid:<hex_id>\n"
+        "    recompute the specified quotanode\n\n"
+        "  ns update_quotanode <path>|cid:<decimal_id>|cxid:<hex_id> "
+        "uid:<uid>|gid:<gid> bytes:<bytes> physicalbytes:<bytes> "
+        "inodes:<inodes>\n"
+        "    update the specified quotanode, with the specified (and "
+        "unchecked) values\n\n"
+        "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]\n"
+        "    set the max number of entries or the max size of the cache. Use "
+        "the\n"
+        "    ns stat command to see the current values.\n"
+        "    set        : update cache size for files or directories\n"
+        "    drop       : drop cached file and/or directory entries\n"
+        "    -d         : control the directory cache\n"
+        "    -f         : control the file cache\n"
+        "    <max_num>  : max number of entries\n"
+        "    <max_size> : max size of the cache - not implemented yet\n\n"
+        "  ns cache drop-single-file <id of file to drop>\n"
+        "    force refresh of the given FileMD by dropping it from the "
+        "cache\n\n"
+        "  ns cache drop-single-container <id of container to drop>\n"
+        "    force refresh of the given ContainerMD by dropping it from the "
+        "cache\n\n"
+        "  ns drain list|set [<key>=<value>]                                 \n"
+        "    list : list the global drain configuration parameters           \n"
+        "    set  : set one of the following drain configuration parameters  \n"
+        "           max-thread-pool-size : max number of threads in drain "
+        "pool\n"
+        "                                  [default 100, minimum 5]          \n"
+        "           max-fs-per-node      : max number of file systems per node "
+        "that\n"
+        "                                  can be drained in parallel [default "
+        "5]\n\n"
+        "  ns reserve-ids <file id> <container id>\n"
+        "    blacklist file and container IDs below the given threshold. The "
+        "namespace\n"
+        "    will not allocate any file or container with IDs less than, or "
+        "equal to the\n"
+        "    given blacklist thresholds.\n\n"
+        "  ns benchmark <n-threads> <n-subdirs> <n-subfiles> "
+        "[prefix=/benchmark]\n"
+        "     run metadata benchmark inside the MGM - results are printed into "
+        "the MGM logfile and the shell\n"
+        "                n-threads  : number of parallel threads running a "
+        "benchmark in the MGM\n"
+        "                n-subdirs  : directories created by each threads\n"
+        "                n-subfiles : number of files created in each "
+        "sub-directory\n"
+        "                prefix     : absolute directory where to write the "
+        "benchmarkf iles - default is /benchmark\n\n"
+        "     example: eos ns benchmark 100 10 10\n\n"
+        " ns tracker list|clear --name tracker_type\n"
+        "     list or clear the different file identifier trackers\n"
+        "     tracker_type : one of the following: drain, balance, fsck, "
+        "convert, all\n\n"
+        " ns behaviour list|set|clear\n"
+        "     modify the behaviour of internal mechanisms for the manager "
+        "node\n"
+        "     list                    : list all the behaviour changes "
+        "enforced\n"
+        "     set <behaviour> <value> : enforce given behavior\n"
+        "     get <behaviour>         : get behaviour configuration\n"
+        "     clear <behaviour>|all   : remove enforced behavior\n\n"
+        "     The following behaviours are supported:\n"
+        "       rain_min_fsid_entry : for RAIN files the entry server will "
+        "deterministically\n"
+        "         be the file system with the lowest fsid from the list of "
+        "stripes\n"
+        "         Accepted values: \"on\" or \"off\" [default off]\n");
+  }
+};
+} // namespace
+
+void
+RegisterNsProtoNativeCommand()
+{
+  CommandRegistry::instance().reg(std::make_unique<NsProtoCommand>());
+}

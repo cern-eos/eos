@@ -21,7 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "console/commands/ICmdHelper.hh"
+#include "console/commands/helpers/ICmdHelper.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
 #include <XrdCl/XrdClFile.hh>

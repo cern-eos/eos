@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #pragma once
+#include <sys/stat.h>
 #include "common/Logging.hh"
 
 #define S_XATTR 0xa0000000

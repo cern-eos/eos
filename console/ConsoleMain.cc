@@ -22,15 +22,14 @@
  ************************************************************************/
 
 #include "ConsoleMain.hh"
-#include "ConsolePipe.hh"
 #include "ConsoleCompletion.hh"
+#include "CommandFramework.hh"
 #include "console/RegexUtil.hh"
 #include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClURL.hh>
 #include "License"
 #include "common/FileId.hh"
 #include "common/Path.hh"
-#include "common/IoPipe.hh"
 #include "common/SymKeys.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
@@ -53,173 +52,6 @@
 #define ENONET 64
 #endif
 
-//------------------------------------------------------------------------------
-// Implemented commands
-//------------------------------------------------------------------------------
-extern int com_protoaccess(char*);
-extern int com_acl(char*);
-extern int com_archive(char*);
-extern int com_attr(char*);
-extern int com_backup(char*);
-extern int com_cat(char*);
-extern int com_cd(char*);
-extern int com_chmod(char*);
-extern int com_chown(char*);
-extern int com_clear(char*);
-extern int com_protoconfig(char*);
-extern int com_convert(char*);
-extern int com_cp(char*);
-extern int com_protodebug(char*);
-extern int com_du(char*);
-extern int com_protodf(char*);
-extern int com_file(char*);
-extern int com_fileinfo(char*);
-extern int com_old_find(char*);
-extern int com_proto_find(char*);
-extern int com_protofs(char*);
-extern int com_proto_fsck(char*);
-extern int com_fuse(char*);
-extern int com_fusex(char*);
-extern int com_geosched(char*);
-extern int com_protogroup(char*);
-extern int com_health(char*);
-extern int com_help(char*);
-extern int com_info(char*);
-extern int com_inspector(char*);
-extern int com_protoio(char*);
-extern int com_json(char*);
-extern int com_license(char*);
-extern int com_ln(char*);
-extern int com_ls(char*);
-extern int com_map(char*);
-extern int com_member(char*);
-extern int com_mkdir(char*);
-extern int com_motd(char*);
-extern int com_mv(char*);
-extern int com_protonode(char*);
-extern int com_ns(char*);
-extern int com_pwd(char*);
-extern int com_quit(char*);
-extern int com_protoquota(char*);
-extern int com_report(char*);
-extern int com_reconnect(char*);
-extern int com_protorecycle(char*);
-extern int com_rm(char*);
-extern int com_route(char*);
-extern int com_protorm(char*);
-extern int com_protoregister(char*);
-extern int com_rclone(char*);
-extern int com_rmdir(char*);
-extern int com_role(char*);
-extern int com_rtlog(char*);
-extern int com_scitoken(char*);
-extern int com_status(char*);
-extern int com_silent(char*);
-extern int com_proto_devices(char*);
-extern int com_proto_space(char*);
-extern int com_evict(char*);
-extern int com_stat(char*);
-extern int com_squash(char*);
-extern int com_test(char*);
-extern int com_timing(char*);
-extern int com_tracker(char*);
-extern int com_touch(char*);
-extern int com_proto_token(char*);
-extern int com_prot_token(char*);
-extern int com_version(char*);
-extern int com_vid(char*);
-extern int com_whoami(char*);
-extern int com_who(char*);
-extern int com_accounting(char*);
-extern int com_quota(char*);
-extern int com_daemon(char*);
-extern int com_proto_sched(char*);
-
-//------------------------------------------------------------------------------
-// Command mapping array
-//------------------------------------------------------------------------------
-COMMAND commands[] = {
-  { (char*) "access", com_protoaccess, (char*) "Access Interface"},
-  { (char*) "accounting", com_accounting, (char*) "Accounting Interface"},
-  { (char*) "acl", com_acl, (char*) "Acl Interface"},
-  { (char*) "archive", com_archive, (char*) "Archive Interface"},
-  { (char*) "attr", com_attr, (char*) "Attribute Interface"},
-  { (char*) "backup", com_backup, (char*) "Backup Interface"},
-  { (char*) "clear", com_clear, (char*) "Clear the terminal"},
-  { (char*) "cat", com_cat, (char*) "Cat a file"},
-  { (char*) "cd", com_cd, (char*) "Change directory"},
-  { (char*) "chmod", com_chmod, (char*) "Mode Interface"},
-  { (char*) "chown", com_chown, (char*) "Chown Interface"},
-  { (char*) "config", com_protoconfig, (char*) "Configuration System"},
-  { (char*) "convert", com_convert, (char*) "Convert Interface"},
-  { (char*) "cp", com_cp, (char*) "Cp command"},
-  { (char*) "daemon", com_daemon, (char*) "Handle service daemon"},
-  { (char*) "debug", com_protodebug, (char*) "Set debug level"},
-  { (char*) "devices", com_proto_devices, (char*) "Get Device Information"},
-  { (char*) "du", com_du, (char*) "Get du output"},
-  { (char*) "df", com_protodf, (char*) "Get df output"},
-  { (char*) "exit", com_quit, (char*) "Exit from EOS console"},
-  { (char*) "file", com_file, (char*) "File Handling"},
-  { (char*) "fileinfo", com_fileinfo, (char*) "File Information"},
-  { (char*) "oldfind", com_old_find, (char*) "Find files/directories (old implementation)"},
-  { (char*) "find", com_proto_find, (char*) "Find files/directories (new implementation)"},
-  { (char*) "newfind", com_proto_find, (char*) "Find files/directories (new implementation)"},
-  { (char*) "fs", com_protofs, (char*) "File System configuration"},
-  { (char*) "fsck", com_proto_fsck, (char*) "File System Consistency Checking"},
-  { (char*) "fuse", com_fuse, (char*) "Fuse Mounting"},
-  { (char*) "fusex", com_fusex, (char*) "Fuse(x) Administration"},
-  { (char*) "geosched", com_geosched, (char*) "Geoscheduler Interface"},
-  { (char*) "group", com_protogroup, (char*) "Group configuration"},
-  { (char*) "health", com_health, (char*) "Health information about system"},
-  { (char*) "help", com_help, (char*) "Display this text"},
-  { (char*) "info", com_info, (char*) "Retrieve file or directory information"},
-  { (char*) "inspector", com_inspector, (char*) "Interact with File Inspector"},
-  { (char*) "io", com_protoio, (char*) "IO Interface"},
-  { (char*) "json", com_json, (char*) "Toggle JSON output flag for stdout"},
-  { (char*) "license", com_license, (char*) "Display Software License"},
-  { (char*) "ls", com_ls, (char*) "List a directory"},
-  { (char*) "ln", com_ln, (char*) "Create a symbolic link"},
-  { (char*) "map", com_map, (char*) "Path mapping interface"},
-  { (char*) "member", com_member, (char*) "Check Egroup membership"},
-  { (char*) "mkdir", com_mkdir, (char*) "Create a directory"},
-  { (char*) "motd", com_motd, (char*) "Message of the day"},
-  { (char*) "mv", com_mv, (char*) "Rename file or directory"},
-  { (char*) "node", com_protonode, (char*) "Node configuration"},
-  { (char*) "ns", com_ns, (char*) "Namespace Interface"},
-  { (char*) "pwd", com_pwd, (char*) "Print working directory"},
-  { (char*) "quit", com_quit, (char*) "Exit from EOS console"},
-  { (char*) "quota", com_protoquota, (char*) "Quota System configuration"},
-  { (char*) "rclone", com_rclone, (char*) "RClone like command"},
-  { (char*) "report", com_report, (char*) "Analyze report log files on the local machine"},
-  { (char*) "reconnect", com_reconnect, (char*) "Forces a re-authentication of the shell"},
-  { (char*) "recycle", com_protorecycle, (char*) "Recycle Bin Functionality"},
-  { (char*) "register", com_protoregister, (char*) "Register a file"},
-  { (char*) "rmdir", com_rmdir, (char*) "Remove a directory"},
-  { (char*) "rm", com_protorm, (char*) "Remove a file"},
-  { (char*) "role", com_role, (char*) "Set the client role"},
-  { (char*) "route", com_route, (char*) "Routing interface"},
-  { (char*) "rtlog", com_rtlog, (char*) "Get realtime log output from mgm & fst servers"},
-  { (char*) "sched", com_proto_sched, (char*) "Configure the various scheduler options"},
-  { (char*) "silent", com_silent, (char*) "Toggle silent flag for stdout"},
-  { (char*) "status", com_status, (char*) "Display status information on an MGM"},
-  { (char*) "space", com_proto_space, (char*) "Space configuration"},
-  { (char*) "evict", com_evict, (char*) "Evict disk replicas of a file if it has tape replicas"},
-  { (char*) "stat", com_stat, (char*) "Run 'stat' on a file or directory"},
-  { (char*) "squash", com_squash, (char*) "Run 'squashfs' utility function"},
-  { (char*) "test", com_test, (char*) "Run performance test"},
-  { (char*) "timing", com_timing, (char*) "Toggle timing flag for execution time measurement"},
-  { (char*) "touch", com_touch, (char*) "Touch a file"},
-  { (char*) "token", com_proto_token, (char*) "Token interface"},
-  { (char*) "scitoken", com_scitoken, (char*) "SciToken interface"},
-  { (char*) "tracker", com_tracker, (char*) "Interact with File Tracker"},
-  { (char*) "version", com_version, (char*) "Verbose client/server version"},
-  { (char*) "vid", com_vid, (char*) "Virtual ID System Configuration"},
-  { (char*) "whoami", com_whoami, (char*) "Determine how we are mapped on server side"},
-  { (char*) "who", com_who, (char*) "Statistics about connected users"},
-  { (char*) "?", com_help, (char*) "Synonym for 'help'"},
-  { (char*) ".q", com_quit, (char*) "Exit from EOS console"},
-  { (char*) 0, (int (*)(char*))0, (char*) 0}
-};
 
 //------------------------------------------------------------------------------
 // Global variables
@@ -243,14 +75,8 @@ bool interactive = true;
 bool hasterminal = true;
 bool silent = false;
 bool timing = false;
-bool pipemode = false;
-bool runpipe = false;
-bool ispipe = false;
 bool json = false;
 GlobalOptions gGlobalOpts;
-
-eos::common::IoPipe iopipe;
-int retcfd = 0;
 //! When non-zero, this global means the user is done using this program. */
 int done;
 
@@ -258,6 +84,56 @@ int done;
 // output_result function is called.
 XrdOucEnv* CommandEnv = 0;
 static sigjmp_buf sigjump_buf;
+
+// Registry initialization helper
+static bool registryInitialized = false;
+
+static void EnsureRegistryInitialized()
+{
+  if (!registryInitialized) {
+    RegisterNativeConsoleCommands();
+    registryInitialized = true;
+  }
+}
+
+// Convenience runner using the registered native commands
+static int RunRegisteredCommand(const std::string& cmdName,
+                                const std::vector<std::string>& argsVec)
+{
+  EnsureRegistryInitialized();
+  IConsoleCommand* icmd = CommandRegistry::instance().find(cmdName);
+  if (!icmd) {
+    fprintf(stderr, "%s: No such command for EOS Console.\n", cmdName.c_str());
+    return -1;
+  }
+
+  std::string rest;
+  for (size_t i = 0; i < argsVec.size(); ++i) {
+    if (i) rest.push_back(' ');
+    rest += argsVec[i];
+  }
+
+  if (icmd->requiresMgm(rest) &&
+      !CheckMgmOnline(serveruri.c_str())) {
+    std::cerr << "error: MGM " << serveruri.c_str()
+              << " not online/reachable" << std::endl;
+    exit(ENONET);
+  }
+
+  CommandContext ctx;
+  ctx.serverUri = serveruri.c_str();
+  ctx.globalOpts = &gGlobalOpts;
+  ctx.json = json;
+  ctx.silent = silent;
+  ctx.interactive = interactive;
+  ctx.timing = timing;
+  ctx.userRole = user_role.c_str();
+  ctx.groupRole = group_role.c_str();
+  ctx.clientCommand = &client_command;
+  ctx.outputResult = &output_result;
+
+  return icmd->run(argsVec, ctx);
+}
 
 //------------------------------------------------------------------------------
 // Exit handler
@@ -268,11 +144,6 @@ exit_handler(int a)
   fprintf(stdout, "\n");
   fprintf(stderr, "<Control-C>\n");
   write_history(historyfile.c_str());
-
-  if (ispipe) {
-    iopipe.UnLockProducer();
-  }
-
   exit(-1);
 }
 
@@ -372,54 +243,6 @@ wants_help(const char* args_line, bool no_h)
 
   return false;
 }
-
-//------------------------------------------------------------------------------
-// Switches stdin, stdout, stderr to pipe mode where we are a persistent
-// communication daemon for a the eospipe command forwarding commands.
-//------------------------------------------------------------------------------
-bool
-startpipe()
-{
-  XrdOucString pipedir = "";
-  XrdOucString stdinname = "";
-  XrdOucString stdoutname = "";
-  XrdOucString stderrname = "";
-  XrdOucString retcname = "";
-  ispipe = true;
-  close(STDIN_FILENO);
-  close(STDOUT_FILENO);
-  close(STDERR_FILENO);
-
-  if (!iopipe.Init()) {
-    fprintf(stderr, "error: cannot set IoPipe\n");
-    return false;
-  }
-
-  XrdSysLogger* logger = new XrdSysLogger();
-  XrdSysError eDest(logger);
-  int stdinfd = iopipe.AttachStdin(eDest);
-  int stdoutfd = iopipe.AttachStdout(eDest);
-  int stderrfd = iopipe.AttachStderr(eDest);
-  retcfd = iopipe.AttachRetc(eDest);
-
-  if ((stdinfd < 0) ||
-      (stdoutfd < 0) ||
-      (stderrfd < 0) ||
-      (retcfd < 0)) {
-    fprintf(stderr, "error: cannot attach to pipes\n");
-    return false;
-  }
-
-  if (!iopipe.LockProducer()) {
-    return false;
-  }
-
-  stdin = fdopen(stdinfd, "r");
-  stdout = fdopen(stdoutfd, "w");
-  stderr = fdopen(stderrfd, "w");
-  return true;
-}
-
 
 /* **************************************************************** */
 /*                                                                  */
@@ -718,7 +541,7 @@ read_pwdfile()
   eos::common::StringConversion::LoadFileIntoString(pwdfile.c_str(), lpwd);
 
   if (lpwd.length()) {
-    com_cd((char*) lpwd.c_str());
+    RunRegisteredCommand("cd", {lpwd});
   }
 }
 
@@ -745,17 +568,15 @@ usage()
   fprintf(stderr,
           "`eos' is the command line interface (CLI) of the EOS storage system.\n");
   fprintf(stderr,
-          "Usage: eos [-r|--role <uid> <gid>] [-s] [-a|--app <app>] [-b|--batch] [-v|--version] [-p|--pipe] [-j|--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
+          "Usage: eos [-r|--role <uid> <gid>] [-s] [-a|--app <app>] [-b|--batch] [-v|--version] [-j|--json] [<mgm-url>] [<cmd> {<argN>}|<filename>.eosh]\n");
   fprintf(stderr,
           "            -r, --role <uid> <gid>              : select user role <uid> and group role <gid>\n");
   fprintf(stderr,
           "            -a, --app <application>             : set the application name for the CLI\n");
   fprintf(stderr,
-          "            -b, --batch                         : run in batch mode without colour and syntax highlighting and without pipe\n");
+          "            -b, --batch                         : run in batch mode without colour and syntax highlighting\n");
   fprintf(stderr,
           "            -j, --json                          : switch to json output format\n");
-  fprintf(stderr,
-          "            -p, --pipe                          : run stdin,stdout,stderr on local pipes and go to background\n");
   fprintf(stderr,
           "            -h, --help                          : print help text\n");
   fprintf(stderr,
@@ -779,8 +600,6 @@ usage()
           "            EOS_NEWGRP                          : requests for each command the group ID of the current shell\n");
   fprintf(stderr,
           "            EOS_PWD_FILE                        : sets the file where the last working directory is stored- by default '$HOME/.eos_pwd\n\n");
-  fprintf(stderr,
-          "            EOS_ENABLE_PIPEMODE                 : allows the EOS shell to split into a session and pipe executable to avoid useless re-authentication\n");
   fprintf(stderr, "Return Value: \n");
   fprintf(stderr,
           "            The return code of the last executed command is returned. 0 is returned in case of success otherwise <errno> (!=0).\n\n");
@@ -848,12 +667,6 @@ Run(int argc, char* argv[])
   int argindex = 1;
   int retc = system("test -t 0 && test -t 1");
 
-  if (getenv("EOS_ENABLE_PIPEMODE")) {
-    runpipe = true;
-  } else {
-    runpipe = false;
-  }
-
   if (getenv("EOS_CONSOLE_DEBUG")) {
     global_debug = true;
     gGlobalOpts.mDebug = true;
@@ -876,13 +689,11 @@ Run(int argc, char* argv[])
       if ((in1 != "--help") &&
           (in1 != "--version") &&
           (in1 != "--batch") &&
-          (in1 != "--pipe") &&
           (in1 != "--role") &&
           (in1 != "--json") &&
           (in1 != "--app") &&
           (in1 != "-h") &&
           (in1 != "-b") &&
-          (in1 != "-p") &&
           (in1 != "-v") &&
           (in1 != "-s") &&
           (in1 != "-j") &&
@@ -899,7 +710,7 @@ Run(int argc, char* argv[])
     }
 
     if ((in1 == "-s")) {
-      return com_status(0);
+      return RunRegisteredCommand("status", {});
     }
 
     if ((in1 == "--version") || (in1 == "-v")) {
@@ -911,7 +722,6 @@ Run(int argc, char* argv[])
     if ((in1 == "--batch") || (in1 == "-b")) {
       interactive = false;
       global_highlighting = false;
-      runpipe = false;
       argindex++;
       in1 = argv[argindex];
     }
@@ -920,7 +730,6 @@ Run(int argc, char* argv[])
       interactive = false;
       global_highlighting = false;
       json = true;
-      runpipe = false;
       argindex++;
       in1 = argv[argindex];
       gGlobalOpts.mJsonFormat = true;
@@ -929,19 +738,6 @@ Run(int argc, char* argv[])
     if ((in1 == "fuse")) {
       interactive = false;
       global_highlighting = false;
-      runpipe = false;
-    }
-
-    if ((in1 == "--pipe") || (in1 == "-p")) {
-      pipemode = true;
-      argindex++;
-      in1 = argv[argindex];
-
-      if (!startpipe()) {
-        fprintf(stderr, "error: unable to start the pipe - maybe there is "
-                "already a process with 'eos -p' running?\n");
-        exit(-1);
-      }
     }
 
     if ((in1 == "--role") || (in1 == "-r")) {
@@ -987,7 +783,6 @@ Run(int argc, char* argv[])
     if ((in1 == "cp")) {
       interactive = false;
       global_highlighting = false;
-      runpipe = false;
     }
 
     if ((in1 == "fuse")) {
@@ -1077,47 +872,8 @@ Run(int argc, char* argv[])
           cmdline.erase(cmdline.length() - 1, 1);
         }
 
-        // Here we can use the 'eospipe' mechanism if allowed
-        if (runpipe) {
-          cmdline += "\n";
-          // put the eos daemon into batch mode
-          interactive = false;
-          global_highlighting = false;
-          iopipe.Init(); // need to initialize for CheckProducer
-
-          if (!iopipe.CheckProducer()) {
-            // We need to run a pipe daemon, so we fork here and let the fork
-            // run the code like 'eos -p'
-            if (!fork()) {
-              for (int i = 1; i < argc; i++) {
-                for (size_t j = 0; j < strlen(argv[i]); j++) {
-                  argv[i][j] = '*';
-                }
-              }
-
-              // detach from the session id
-              pid_t sid;
-
-              if ((sid = setsid()) < 0) {
-                fprintf(stderr, "ERROR: failed to create new session (setsid())\n");
-                exit(-1);
-              }
-
-              startpipe();
-              pipemode = true;
-              // enters down the readline loop with modified stdin,stdout,stderr
-            } else {
-              // now we just deal with the pipes from the client end
-              exit(pipe_command(cmdline.c_str()));
-            }
-          } else {
-            // now we just deal with the pipes from the client end
-            exit(pipe_command(cmdline.c_str()));
-          }
-        } else {
-          execute_line((char*) cmdline.c_str());
-          exit(global_retc);
-        }
+        execute_line((char*) cmdline.c_str());
+        exit(global_retc);
       }
     }
   }
@@ -1177,12 +933,8 @@ Run(int argc, char* argv[])
   }
   char prompt[4096];
 
-  if (pipemode) {
-    prompt[0] = 0;
-  } else {
-    sprintf(prompt, "%sEOS Console%s [%s%s%s] |> ", textbold.c_str(),
-            textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str());
-  }
+  sprintf(prompt, "%sEOS Console%s [%s%s%s] |> ", textbold.c_str(),
+          textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str());
 
   // Bind our completer
   rl_readline_name = (char*) "EOS Console";
@@ -1219,18 +971,9 @@ Run(int argc, char* argv[])
   for (; done == 0;) {
     char prompt[4096];
 
-    if (pipemode) {
-      prompt[0] = 0;
-    } else {
-      sprintf(prompt, "%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(),
-              textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str(),
-              gPwd.c_str());
-    }
-
-    if (pipemode) {
-      signal(SIGALRM, exit_handler);
-      alarm(60);
-    }
+    sprintf(prompt, "%sEOS Console%s [%s%s%s] |%s> ", textbold.c_str(),
+            textunbold.c_str(), textred.c_str(), serveruri.c_str(), textnormal.c_str(),
+            gPwd.c_str());
 
     signal(SIGINT, jump_handler);
 
@@ -1241,10 +984,6 @@ Run(int argc, char* argv[])
 
     line = readline(prompt);
     signal(SIGINT, exit_handler);
-
-    if (pipemode) {
-      alarm(0);
-    }
 
     if (!line) {
       fprintf(stdout, "\n");
@@ -1262,28 +1001,10 @@ Run(int argc, char* argv[])
       alarm(3600);
       execute_line(s);
       alarm(0);
-      char newline = '\n';
-      int n = 0;
       std::cout << std::flush;
       std::cerr << std::flush;
       fflush(stdout);
       fflush(stderr);
-
-      if (pipemode) {
-        n = write(retcfd, &global_retc, sizeof(global_retc));
-        n = write(retcfd, &newline, sizeof(newline));
-
-        if (n != 1) {
-          fprintf(stderr, "error: unable to write retc to retc-socket\n");
-          exit(-1);
-        }
-
-        // we send the stop sequence to the pipe thread listeners
-        fprintf(stdout, "#__STOP__#\n");
-        fprintf(stderr, "#__STOP__#\n");
-        fflush(stdout);
-        fflush(stderr);
-      }
     }
 
     free(line);
@@ -1321,45 +1042,59 @@ execute_line(char* line)
     return (-1);
   }
 
-  COMMAND* command = find_command(tokens.begin()->c_str());
+  // Initialize registry on first use
+  EnsureRegistryInitialized();
 
-  if (!command) {
-    fprintf(stderr, "%s: No such command for EOS Console.\n",
-            tokens.begin()->c_str());
+  std::string cmdName = *tokens.begin();
+  IConsoleCommand* icmd = CommandRegistry::instance().find(cmdName);
+  if (!icmd) {
+    fprintf(stderr, "%s: No such command for EOS Console.\n", cmdName.c_str());
     global_retc = -1;
     return (-1);
   }
 
-  // Extract arguments string from full command line
+  // Extract arguments vector from full command line
   line_without_comment = line_without_comment.substr(tokens.begin()->size());
   eos::common::trim(line_without_comment);
-  std::string args = line_without_comment;
+  std::string rest = line_without_comment;
+  // Quote-aware tokenization: preserve spaces within quoted strings, drop quotes
+  std::vector<std::string> argsVec;
+  {
+    bool inD = false, inS = false; std::string cur;
+    for (size_t i = 0; i < rest.size(); ++i) {
+      char c = rest[i];
+      if (c == '"' && !inS) { inD = !inD; continue; }
+      if (c == '\'' && !inD) { inS = !inS; continue; }
+      if (c == ' ' && !inD && !inS) {
+        if (!cur.empty()) { argsVec.push_back(cur); cur.clear(); }
+        continue;
+      }
+      cur.push_back(c);
+    }
+    if (!cur.empty()) argsVec.push_back(cur);
+  }
 
   // Check MGM availability
-  if (RequiresMgm(command->name, args) &&
+  if (icmd->requiresMgm(rest) &&
       !CheckMgmOnline(serveruri.c_str())) {
     std::cerr << "error: MGM " << serveruri.c_str()
               << " not online/reachable" << std::endl;
     exit(ENONET);
   }
 
-  return ((*(command->func))((char*)args.c_str()));
-}
+  CommandContext ctx;
+  ctx.serverUri = serveruri.c_str();
+  ctx.globalOpts = &gGlobalOpts;
+  ctx.json = json;
+  ctx.silent = silent;
+  ctx.interactive = interactive;
+  ctx.timing = timing;
+  ctx.userRole = user_role.c_str();
+  ctx.groupRole = group_role.c_str();
+  ctx.clientCommand = &client_command;
+  ctx.outputResult = &output_result;
 
-//------------------------------------------------------------------------------
-// Look up NAME as the name of a command, and return a pointer to that command.
-// Return a 0 pointer if NAME isn't a command name.
-//------------------------------------------------------------------------------
-COMMAND*
-find_command(const char* name)
-{
-  for (int i = 0; commands[i].name; ++i) {
-    if (strcmp(name, commands[i].name) == 0) {
-      return (&commands[i]);
-    }
-  }
-
-  return ((COMMAND*) 0);
+  return icmd->run(argsVec, ctx);
 }
 
 //------------------------------------------------------------------------------
@@ -1631,7 +1366,6 @@ std::string DefaultRoute()
 //------------------------------------------------------------------------------
 int filesystems::Load(bool verbose)
 {
-  std::string cmd = "ls -m -s";
   struct stat buf;
   std::string cachefile = "/tmp/.eos.filesystems.";
   XrdOucString serverflat = serveruri;
@@ -1656,7 +1390,7 @@ int filesystems::Load(bool verbose)
     rstdout = eos::common::StringConversion::LoadFileIntoString(cachefile.c_str(),
               out);
   } else {
-    retc = com_protofs((char*)cmd.c_str());
+    retc = RunRegisteredCommand("fs", {"-m", "-s"});
     std::string in = rstdout.c_str();
     eos::common::StringConversion::SaveStringIntoFile(cachefiletmp.c_str(), in);
     ::rename(cachefiletmp.c_str(), cachefile.c_str());
@@ -1715,7 +1449,9 @@ int files::Find(const char* path, bool verbose)
   cmd += path;
   bool old_silent = silent;
   silent = true;
-  int retc = com_proto_find((char*)cmd.c_str());
+  int retc = RunRegisteredCommand("find",
+                                  {"-f", "--nrep", "--fid", "--fs", "--checksum",
+                                   "--size", path});
   silent = old_silent;
 
   if (!retc) {
