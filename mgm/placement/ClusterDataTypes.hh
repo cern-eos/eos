@@ -26,6 +26,7 @@
 
 #include "common/FileSystem.hh"
 #include <array>
+#include <unordered_map>
 
 namespace eos::mgm::placement
 {
@@ -188,6 +189,8 @@ struct Bucket {
   uint32_t total_weight;
   uint8_t bucket_type;
   std::vector<item_id_t> items;
+  std::string location;
+  std::string full_geotag;
 
   Bucket() = default;
 
@@ -230,6 +233,7 @@ struct Bucket {
 struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
+  std::unordered_map<fsid_t, std::string> disk_tags;
 
   bool setDiskStatus(fsid_t id, ConfigStatus status)
   {
@@ -292,6 +296,10 @@ struct ClusterData {
     return result_str;
   }
 
+  void setDiskTag(std::string_view tag, fsid_t id)
+  {
+    disk_tags.insert_or_assign(id, tag);
+  }
 };
 
 inline bool isValidBucketId(item_id_t id, const ClusterData& data)
