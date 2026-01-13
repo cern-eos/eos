@@ -28,7 +28,7 @@
 #include "common/FileId.hh"
 #include "common/AssistedThread.hh"
 #include "common/ThreadPool.hh"
-#include "mgm/IdTrackerWithValidity.hh"
+#include "mgm/misc/IdTrackerWithValidity.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/qclient/include/qclient/QClient.hh"
 #include <sys/types.h>

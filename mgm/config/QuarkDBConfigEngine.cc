@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "mgm/config/QuarkDBConfigEngine.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/Timing.hh"
 #include "common/StringUtils.hh"
 #include <qclient/ResponseParsing.hh>

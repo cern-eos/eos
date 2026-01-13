@@ -23,9 +23,9 @@
 
 #include "gtest/gtest.h"
 #define IN_TEST_HARNESS
-#include "mgm/Iostat.hh"
+#include "mgm/iostat/Iostat.hh"
 #undef IN_TEST_HARNESS
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include <map>
 #include <random>
 

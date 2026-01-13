@@ -22,12 +22,12 @@
  ************************************************************************/
 
 #include "TokenCmd.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/XrdMgmOfsDirectory.hh"
-#include "mgm/Quota.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/Macros.hh"
-#include "mgm/Access.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/access/Access.hh"
 #include "common/Path.hh"
 #include "common/Definitions.hh"
 #include "common/token/EosTok.hh"

@@ -27,8 +27,8 @@
 #include "mgm/Namespace.hh"
 #include "common/Logging.hh"
 #include "common/Mapping.hh"
-#include "mgm/FileSystem.hh"
-#include "mgm/FsView.hh"
+#include "mgm/filesystem/FileSystem.hh"
+#include "mgm/fsview/FsView.hh"
 #include "namespace/interface/IFileMD.hh"
 #include <XrdSec/XrdSecEntity.hh>
 #include <set>

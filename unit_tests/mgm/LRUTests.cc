@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "mgm/LRU.hh"
+#include "mgm/lru/LRU.hh"
 
 //------------------------------------------------------------------------------
 // Test "sys.lru.expire.match" policy parsing, just one entry

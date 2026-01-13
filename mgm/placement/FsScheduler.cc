@@ -1,6 +1,6 @@
 #include "common/utils/ContainerUtils.hh"
 #include "common/Logging.hh"
-#include "mgm/FsView.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/placement/FsScheduler.hh"
 
 namespace eos::mgm::placement

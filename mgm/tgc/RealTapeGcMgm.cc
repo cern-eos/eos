@@ -23,8 +23,8 @@
 
 #include "common/ShellCmd.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
-#include "mgm/FsView.hh"
-#include "mgm/Policy.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/policy/Policy.hh"
 #include "mgm/tgc/Constants.hh"
 #include "mgm/tgc/RealTapeGcMgm.hh"
 #include "mgm/tgc/SpaceNotFound.hh"

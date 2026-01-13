@@ -23,9 +23,9 @@
 
 #include "GroupCmd.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/FsView.hh"
-#include "mgm/GeoTreeEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

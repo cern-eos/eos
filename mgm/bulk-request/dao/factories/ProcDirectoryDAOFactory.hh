@@ -25,7 +25,7 @@
 #define EOS_PROCDIRECTORYDAOFACTORY_HH
 #include "mgm/Namespace.hh"
 #include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 
 EOSBULKNAMESPACE_BEGIN

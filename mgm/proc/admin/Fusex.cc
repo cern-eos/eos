@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/ZMQ.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/zmq/ZMQ.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

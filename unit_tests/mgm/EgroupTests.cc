@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "mgm/Egroup.hh"
+#include "mgm/egroup/Egroup.hh"
 
 using namespace eos::mgm;
 using namespace eos::common;

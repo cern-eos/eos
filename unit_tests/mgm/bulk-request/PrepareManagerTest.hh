@@ -24,7 +24,7 @@
 #ifndef EOS_PREPAREMANAGERTEST_HH
 #define EOS_PREPAREMANAGERTEST_HH
 
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 
 #include <XrdVersion.hh>
 #include <gtest/gtest.h>

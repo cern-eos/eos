@@ -22,7 +22,7 @@
 
 #include "ProcCommand.hh"
 #include "common/Path.hh"
-#include "mgm/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "common/CommentLog.hh"
 #include <XrdOuc/XrdOucTokenizer.hh>
 #include <XrdOuc/XrdOucEnv.hh>
