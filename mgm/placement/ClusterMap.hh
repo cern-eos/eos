@@ -101,16 +101,20 @@ public:
   bool addBucket(uint8_t bucket_type, item_id_t bucket_id,
                  item_id_t parent_bucket_id=0);
 
-  bool addDisk(Disk d, item_id_t bucket_id);
+  bool addDisk(Disk d, item_id_t bucket_id, std::string_view tag="");
 
   // We store disks sequentially with index as fsid - 1;
-  bool addDiskSequential(Disk d, item_id_t bucket_id);
+  bool addDiskSequential(Disk d, item_id_t bucket_id, std::string_view tag="");
 
   bool isValidBucketID(item_id_t bucket_id) const;
 
   ~StorageHandler() {
     mClusterMgr.addClusterData(std::move(mData));
   }
+
+  // helpers for storing geotag data
+  void addGeoTag(item_id_t item_id, std::string_view tag);
+  uint64_t getUniqueHash(std::string_view tag);
 private:
   ClusterMgr& mClusterMgr;
   ClusterData mData;
