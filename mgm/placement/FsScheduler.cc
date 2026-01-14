@@ -61,7 +61,9 @@ std::map<std::string, std::unique_ptr<ClusterMgr>>
           auto add_status = storage_handler.addDisk(Disk(fs->GetId(),
                             fs->GetConfigStatus(),
                             active_status, weight, used),
-                            group_id);
+                            group_id,
+                            fs->GetString("stat.geotag"));
+
           eos_static_info("msg=\"Adding disk at \" ID=%d group_id=%d status=%d",
                           fs->GetId(), group_id, add_status);
         }
@@ -113,7 +115,7 @@ EosClusterMgrHandler::make_cluster_mgr(const std::string& spaceName)
                                              fs->GetStatus());
         storage_handler.addDisk(Disk(fs->GetId(), fs->GetConfigStatus(),
                                      active_status, weight, used),
-                                group_id);
+                                group_id, fs->GetString("stat.geotag"));
       }
     }
   }
