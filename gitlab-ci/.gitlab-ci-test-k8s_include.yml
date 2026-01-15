@@ -105,7 +105,7 @@ k8s_cbox:
 
 k8s_reva:
   extends: .dock8s_reva_test_template
-  image: alpine/k8s:1.32.1
+  image: registry.cern.ch/docker.io/alpine/k8s:1.32.1
   needs:
     - job: el9_docker_image
       artifacts: false

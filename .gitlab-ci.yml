@@ -732,18 +732,22 @@ el9_asan_docker_image:
     - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user@TEST.EOS -k -t /home/eos-user/eos-user.keytab"'
     - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user/eosclient-tests && pip install -r requirements.txt"'
+    
     # clone reva, install dependencies
     - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
     - apk update
     - apk upgrade
     - apk add --no-cache git make nodejs npm
     - apk add --no-cache go@edge
+    - export PATH="$(go env GOPATH)/bin:$PATH"
     - npm install -g @intuit/judo
     - git clone https://github.com/cs3org/reva.git
     - cd reva
+    - git checkout feat/eos-ci
     - make reva
-    - make revad
+    - make cernbox-revad
     - mkdir -p tmp
+    
     # create users.json
     - |
         cat > tmp/users.json << 'EOF'
@@ -759,9 +763,9 @@ el9_asan_docker_image:
             "display_name": "Test User",
             "mail": "test@example.com",
             "mail_verified": true,
-            "groups": ["users"],
-            "uid_number": 1000,
-            "gid_number": 1000
+            "groups": ["myusers"],
+            "uid_number": 1255,
+            "gid_number": 123
           }, 
           {
             "username": "testreceivinguser",
@@ -774,9 +778,9 @@ el9_asan_docker_image:
             "display_name": "Test User",
             "mail": "test2@example.com",
             "mail_verified": true,
-            "groups": ["users"],
-            "uid_number": 1001,
-            "gid_number": 1000
+            "groups": ["myusers"],
+            "uid_number": 1256,
+            "gid_number": 123
           }
         ]
         EOF
@@ -786,10 +790,10 @@ el9_asan_docker_image:
         [
           {
             "id": {
-              "opaque_id": "users",
+              "opaque_id": "myusers",
               "idp": "http://localhost:20080"
             },
-            "group_name": "users",
+            "group_name": "myusers",
             "mail": "sailing-lovers@example.org",
             "display_name": "Sailing Lovers",
             "gid_number": 123,
@@ -808,11 +812,33 @@ el9_asan_docker_image:
           }
         ]
         EOF
+
+    # Put eos path as basepath for tests:
+    - |
+        find tests/integration/reva-cli -type f -name '*.yaml' -exec sed -i 's|^[[:space:]]*BASEDIR: "/localfs"$|  BASEDIR: "/eos/test"|' {} +
+    
+    # Prepare mgm (add users, set vid mapping, create directory)
+    - exec_cmd eos-mgm1 "groupadd -g 123 myusers"
+    - exec_cmd eos-mgm1 "useradd -u 1255 -g myusers testuser"
+    - exec_cmd eos-mgm1 "useradd -u 1256 -g myusers testreceivinguser"
+    - exec_cmd eos-mgm1 "eos mkdir /eos/test"
+    - exec_cmd eos-mgm1 "eos chown 1255:123 /eos/test"
+    - exec_cmd eos-mgm1 "eos vid set map -grpc key:auth_key vuid:11"
+    - exec_cmd eos-mgm1 "eos vid set map -grpc key:auth_key vgid:11"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 +sudo"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 -uids 3"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 -gids 4"
+    - MGM_POD_HOSTNAME="$(exec_cmd eos-mgm1 'hostname -f')"
+    - echo ${MGM_POD_HOSTNAME}
+    - sed -i "s|\"localhost:50051\"|\"${MGM_POD_HOSTNAME}:50051\"|g" tests/integration/reva-cli/config/revad-eos.toml
+    
     # Start revad
     - |
-        ./cmd/revad/revad -c tests/integration/reva-cli/config/revad-localfs.toml &
+        ./cmd/revad/revad -c tests/integration/reva-cli/config/revad-eos.toml &
         echo $! > revad.pid
         sleep 2
+    
+    # Tests
     - make test-reva-cli
 
   artifacts:
