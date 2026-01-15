@@ -133,6 +133,19 @@ public:
           }
         }
       }
+    } else if (token == "quota") {
+      if (!tokenizer.NextToken(token))
+        return false;
+      eos::console::SpaceProto_QuotaProto* quota = space->mutable_quota();
+      quota->set_mgmspace(token);
+      if (!tokenizer.NextToken(token))
+        return false;
+      if (token == "on")
+        quota->set_quota_switch(true);
+      else if (token == "off")
+        quota->set_quota_switch(false);
+      else
+        return false;
     } else {
       return false;
     }
