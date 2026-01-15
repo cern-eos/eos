@@ -715,6 +715,84 @@ el9_asan_docker_image:
     paths:
       - eos-logs-${CI_JOB_ID}/
 
+.dock8s_reva_test_template:
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
+  script:
+    # enable converter and prepare eoshome folder, cernbox alike
+    - exec_cmd eos-mgm1 'eos convert config set status=on'
+    - exec_cmd eos-mgm1 './eos_create_userhome.sh eos-user'
+    # prepare mountpoints
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos/ && mount -t fuse eosxd -ofsname=eosdockertest /eos/"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+
+    # install dependencies
+    - exec_cmd eos-mgm1 'yum -y install nodejs npm git make tar'
+    
+    # Install go
+    - exec_cmd eos-mgm1 "export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH\" && /usr/bin/wget https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && /usr/bin/tar -C /usr/local -xzf go1.25.1.linux-amd64.tar.gz && ln -s /usr/local/go/bin/go /usr/bin/go && ln -s /usr/local/go/bin/gofmt /usr/bin/gofmt || echo Failed to install golang"
+    - exec_cmd eos-mgm1 'npm install -g @intuit/judo'
+
+    # Build reva from latest tag
+    - exec_cmd eos-mgm1 'git clone https://github.com/cs3org/reva.git'
+    - exec_cmd eos-mgm1 'export PATH="$(/usr/bin/go env GOPATH)/bin:$PATH"; cd reva; git fetch --tags ;
+      export latest_tag=$(git describe --tags "$(git rev-list --tags --max-count=1)") ;
+      git checkout "$latest_tag"; make reva; make cernbox-revad; mkdir -p reva/tmp'
+    
+    # Put users.json and groups.json in the right place
+    - exec_cmd eos-mgm1 'cp reva/tests/integration/reva-cli/config/users.json tmp/users.json'
+    - exec_cmd eos-mgm1 'cp reva/tests/integration/reva-cli/config/groups.json tmp/groups.json'
+
+    # Put eos path as basepath for tests:
+    - | 
+      exec_cmd eos-mgm1 \
+      "find reva/tests/integration/reva-cli -type f -name '*.yaml' -exec sed -i 's|^[[:space:]]*BASEDIR: \"/localfs\"$|  BASEDIR: \"/eos/test\"|' {} +"
+    
+    # Prepare mgm (add users, set vid mapping, create directory)
+    - exec_cmd eos-mgm1 "groupadd -g 123 myusers"
+    - exec_cmd eos-mgm1 "useradd -u 1255 -g myusers testuser"
+    - exec_cmd eos-mgm1 "useradd -u 1256 -g myusers testreceivinguser"
+    - exec_cmd eos-mgm1 "eos mkdir /eos/test"
+    - exec_cmd eos-mgm1 "eos chown 1255:123 /eos/test"
+    - exec_cmd eos-mgm1 "eos acl --sys u:1255=rwx /eos"
+    - exec_cmd eos-mgm1 "eos recycle config --add-bin /eos/"
+    - exec_cmd eos-mgm1 "eos attr set sys.versioning=\"10\" /eos/test"
+    - exec_cmd eos-mgm1 "eos attr set sys.forced.atomic=\"1\" /eos/test"
+    - exec_cmd eos-mgm1 "eos attr set sys.allow.oc.sync=\"1\" /eos/test"
+    - exec_cmd eos-mgm1 "eos attr ls /eos/test"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"127.0.0.1\" grpc"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"[:1]\" grpc"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"[::1]\" grpc"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"127.0.0.1\" https"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"[:1]\" https"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"[::1]\" https"
+    - exec_cmd eos-mgm1 "eos vid set map -grpc key:auth_key vuid:11  vgid:11"
+    - exec_cmd eos-mgm1 "eos vid set map -https key:auth_key vuid:11  vgid:11"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 +sudo"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 -uids 3"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 -gids 4"
+    - exec_cmd eos-mgm1 "eos access allow group myusers"
+    - echo ${MGM_POD_HOSTNAME}
+
+    # We connect over https, and the certificate is only valid for the hostname, so replace localhost with the MGM's hostname
+    - exec_cmd eos-mgm1 'sed -i "s/^\(master_url = \"https:\/\/\)localhost\(:[0-9][0-9]*\"\)/\1$(hostname -f)\2/" reva/tests/integration/reva-cli/config/revad-eos.toml'
+    
+    # Start revad
+    - exec_cmd eos-mgm1 './reva/cmd/revad/revad -c reva/tests/integration/reva-cli/config/revad-eos.toml </dev/null >revad.log 2>&1 & echo $! > revad.pid'    
+    
+    # Tests and debug output
+    - exec_cmd eos-mgm1 "cd reva; make test-reva-cli" 
+    - exec_cmd eos-mgm1 "eos vid ls"
+    - exec_cmd eos-mgm1 "eos access ls"
+    - exec_cmd eos-mgm1 "cat revad.log"
+
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+
 
 .dock8s_flamegraph_test_template:
   extends:
