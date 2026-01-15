@@ -2029,8 +2029,6 @@ Mapping::addSecondaryGroups(VirtualIdentity& vid, const std::string& name,
 
 }
 
-
-
 void
 Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
 {
@@ -2056,6 +2054,7 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
   if (auto id_ptr = gShardedPhysicalUidCache.retrieve(name)) {
     vid.uid = id_ptr->uid;
     vid.gid = id_ptr->gid;
+    vid.uid_string = name;
     // FIXME use a value type!
     idp.reset(new id_pair(vid.uid, vid.gid));
     in_uid_cache = true;

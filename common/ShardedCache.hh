@@ -112,7 +112,7 @@ private:
     CacheEntry() = default;
 
     explicit CacheEntry(Value value_) : value(std::make_shared<Value>(value_)),
-                                        marked(false) {}
+      marked(false) {}
   };
 
 public:
@@ -240,6 +240,7 @@ public:
     auto shard = guard.getShard();
     Value old_val{};
     auto it = mContents[shard].find(key);
+
     if (it != mContents[shard].end()) {
       Value* value = it->second.value.get();
       old_val = *value;
@@ -247,6 +248,7 @@ public:
     } else {
       mContents[shard].emplace(key, CacheEntry(inc_val));
     }
+
     return old_val;
   }
 
@@ -267,7 +269,7 @@ public:
 
   void clear()
   {
-    for (size_t i = 0; i < mContents.size(); ++i) {
+    for (size_t i = 0; i < mNumShards; ++i) {
       std::lock_guard guard(mMutexes[i]);
       mContents[i].clear();
     }
@@ -284,7 +286,7 @@ public:
   {
     size_t count = 0;
 
-    for (size_t i = 0; i < mContents.size(); ++i) {
+    for (size_t i = 0; i < mNumShards; ++i) {
       std::lock_guard guard(mMutexes[i]);
       count += mContents[i].size();
     }
@@ -373,6 +375,7 @@ private:
       }
 
       collectorPass();
+
       if (mForceExpiry.load(std::memory_order_acquire)) {
         if (++mForceExpiryCounter == mForceExpiryCycles) {
           clear();
