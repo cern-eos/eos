@@ -305,7 +305,9 @@ public:
   SetLogId(const char* newlogid)
   {
     if (newlogid && (strncmp(newlogid, logId, sizeof(logId) - 1) != 0)) {
-      snprintf(logId, sizeof(logId), "%s", newlogid);
+      // ensure bounded copy; accept truncation
+      strncpy(logId, newlogid, sizeof(logId) - 1);
+      logId[sizeof(logId) - 1] = '\0';
     }
   }
 
@@ -316,7 +318,8 @@ public:
   SetLogId(const char* newlogid, const char* td)
   {
     if (newlogid && (newlogid != logId)) {
-      snprintf(logId, sizeof(logId), "%s", newlogid);
+      strncpy(logId, newlogid, sizeof(logId) - 1);
+      logId[sizeof(logId) - 1] = '\0';
     }
 
     if (td) {
