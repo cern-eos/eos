@@ -716,6 +716,111 @@ el9_asan_docker_image:
     paths:
       - eos-logs-${CI_JOB_ID}/
 
+.dock8s_reva_test_template:
+  extends:
+    - .dock8s_before_script_template
+    - .dock8s_after_script_template
+  script:
+    # enable converter and prepare eoshome folder, cernbox alike
+    - exec_cmd eos-mgm1 'eos convert config set status=on'
+    - exec_cmd eos-mgm1 './eos_create_userhome.sh eos-user'
+    # prepare mountpoints
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos/ && mount -t fuse eosxd -ofsname=eosdockertest /eos/"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # set krb5 ticket and download tests repo @note the 'export KRB5CCNAME to FILE: type' is a spooky trick, can be made nicer.
+    - exec_cmd eos-cli1 'echo -e "export KRB5CCNAME=FILE:/tmp/krb5cc_$(id -u eos-user)" >> ~/.bashrc'
+    - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user@TEST.EOS -k -t /home/eos-user/eos-user.keytab"'
+    - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user/eosclient-tests && pip install -r requirements.txt"'
+    # clone reva, install dependencies
+    - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
+    - apk update
+    - apk upgrade
+    - apk add --no-cache git make nodejs npm
+    - apk add --no-cache go@edge
+    - npm install -g @intuit/judo
+    - git clone https://github.com/cs3org/reva.git
+    - cd reva
+    - make reva
+    - make revad
+    - mkdir -p tmp
+    # create users.json
+    - |
+        cat > tmp/users.json << 'EOF'
+        [
+          {
+            "username": "testuser",
+            "id": {
+              "idp": "http://localhost:20080",
+              "opaque_id": "testuser",
+              "type": 1
+            },
+            "secret": "testpass",
+            "display_name": "Test User",
+            "mail": "test@example.com",
+            "mail_verified": true,
+            "groups": ["users"],
+            "uid_number": 1000,
+            "gid_number": 1000
+          }, 
+          {
+            "username": "testreceivinguser",
+            "id": {
+              "idp": "http://localhost:20080",
+              "opaque_id": "testreceivinguser",
+              "type": 1
+            },
+            "secret": "testpass",
+            "display_name": "Test User",
+            "mail": "test2@example.com",
+            "mail_verified": true,
+            "groups": ["users"],
+            "uid_number": 1001,
+            "gid_number": 1000
+          }
+        ]
+        EOF
+    # Create groups.json
+    - |
+        cat > tmp/groups.json << 'EOF'
+        [
+          {
+            "id": {
+              "opaque_id": "users",
+              "idp": "http://localhost:20080"
+            },
+            "group_name": "users",
+            "mail": "sailing-lovers@example.org",
+            "display_name": "Sailing Lovers",
+            "gid_number": 123,
+            "members": [
+              {
+                "id": {
+                  "idp": "http://localhost:20080",
+                  "opaque_id": "testuser"
+                }
+              },
+              {
+                "idp": "http://localhost:20080",
+                "opaque_id": "testreceivinguser"
+              }
+            ]
+          }
+        ]
+        EOF
+    # Start revad
+    - |
+        ./cmd/revad/revad -c tests/integration/reva-cli/config/revad-localfs.toml &
+        echo $! > revad.pid
+        sleep 2
+    - make test-reva-cli
+
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+
 
 .dock8s_flamegraph_test_template:
   extends:

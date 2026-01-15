@@ -103,6 +103,15 @@ k8s_cbox:
     - docker_node
     - k8s
 
+k8s_reva:
+  extends: .dock8s_reva_test_template
+  image: alpine/k8s:1.32.1
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  tags:
+    - docker_node
+    - k8s
 
 k8s_stress:
   extends:
