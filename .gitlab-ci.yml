@@ -733,11 +733,13 @@ el9_asan_docker_image:
     - apk upgrade
     - apk add --no-cache git make nodejs npm
     - apk add --no-cache go@edge
+    - export PATH="$(go env GOPATH)/bin:$PATH"
     - npm install -g @intuit/judo
     - git clone https://github.com/cs3org/reva.git
     - cd reva
+    - git checkout feat/eos-ci
     - make reva
-    - make revad
+    - make cernbox-revad
     - mkdir -p tmp
     # create users.json
     - |
@@ -805,9 +807,23 @@ el9_asan_docker_image:
         EOF
     # Start revad
     - |
-        ./cmd/revad/revad -c tests/integration/reva-cli/config/revad-localfs.toml &
+        ./cmd/revad/revad -c tests/integration/reva-cli/config/revad-eos.toml &
         echo $! > revad.pid
         sleep 2
+    # Put eos path as basepath for tests:
+    - |
+        find tests/integration/reva-cli -type f -name '*.yaml' -exec sed -i 's|^[[:space:]]*BASEDIR: "/localfs"$|  BASEDIR: "/eos"|' {} +
+    # Prepare mgm (add users, set vid mapping, create directory)
+    - exec_cmd eos-mgm1 "groupadd -g 123 users"
+    - exec_cmd eos-mgm1 "useradd -u 1000 -g users testuser"
+    - exec_cmd eos-mgm1 "useradd -u 1000 -g users testreceivinguser"
+    - exec_cmd eos-mgm1 "eos mkdir /eos"
+    - exec_cmd eos-mgm1 "eos chown 1000:123 /eos"
+    - exec_cmd eos-mgm1 "eos vid set map -grpc key:auth_key vuid:11"
+    - exec_cmd eos-mgm1 "eos vid set map -grpc key:auth_key vgid:11"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 +sudo"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 -uids 3"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 -gids 4"
     - make test-reva-cli
 
   artifacts:
