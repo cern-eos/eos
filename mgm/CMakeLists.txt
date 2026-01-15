@@ -321,6 +321,7 @@ add_library(
   placement/ClusterMap.cc
   placement/FsScheduler.cc
   placement/FlatScheduler.cc
+  placement/PlacementStrategy.cc
   placement/RoundRobinPlacementStrategy.cc
   placement/WeightedRoundRobinStrategy.cc
   placement/WeightedRandomStrategy.cc
