@@ -321,6 +321,24 @@ struct PlacementStrategy {
   }
 
   virtual ~PlacementStrategy() = default;
+
+  /**
+   * Calculates the maximum topological overlap between a candidate and existing replicas.
+   * Lower score is better.
+   * * @param candidate_id The disk ID we are considering adding.
+   * @param data The cluster data containing the GeoTag vectors.
+   * @param current_result The list of replicas already selected for this file.
+   * @param items_added How many items in current_result are valid.
+   * @return The number of shared hierarchy levels with the NEAREST existing replica.
+   */
+  size_t calculateMaxGeoOverlap(item_id_t candidate_id,
+                                const ClusterData& data,
+                                const PlacementResult& current_result,
+                                int items_added) const;
+
+  PlacementResult placeWithGeoFilter(const ClusterData& cluster_data,
+                                     const Args& args,
+                                     const std::vector<item_id_t>& sorted_candidates);
 };
 
 static inline uint64_t hashFid(uint64_t fid, uint64_t fsid, uint64_t salt=0) {
@@ -333,5 +351,15 @@ static inline uint64_t hashFid(uint64_t fid, uint64_t fsid, uint64_t salt=0) {
   };
   return XXH3_64bits(buf, sizeof(buf));
 }
+// Simple helper struct to help sort items based on score
+struct RankedItem {
+  item_id_t id;
+  uint64_t score;
+
+  bool operator<(const RankedItem& other) const
+  {
+    return score < other.score;
+  }
+};
 
 } // namespace eos::mgm::placement
