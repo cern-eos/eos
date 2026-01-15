@@ -46,8 +46,15 @@
 
 // grpc
 #ifdef EOS_GRPC
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
 #include <grpc++/grpc++.h>
 #include "proto/Rpc.grpc.pb.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 using eos::rpc::Eos;
 using eos::rpc::NotificationRequest;
 using eos::rpc::NotificationResponse;
