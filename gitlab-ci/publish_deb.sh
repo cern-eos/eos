@@ -39,7 +39,7 @@ for RELEASE in "jammy" "noble" "noble-arm" "plucky"; do
             PKG_NAME=$(echo -n "$file" | cut -d '_' -f1)
             PKG_VERSION=$(echo -n "$file" | cut -d '_' -f2)
             PKG_ARCH=$(echo -n "$file" | cut -d '_' -f3 | cut -d '.' -f 1)
-            reprepro -Vb ${EXPORT_REPO} removefilter ${RELEASE_LTS} \
+            reprepro --keepdirectories -Vb ${EXPORT_REPO} removefilter ${RELEASE_LTS} \
                      'Package (=='${PKG_NAME}'), $Version (=='${PKG_VERSION}'), $Architecture (=='${PKG_ARCH}')'
         done
         # Retry
