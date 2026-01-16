@@ -709,6 +709,13 @@ metad::get(fuse_req_t req,
                   pmd ? (*pmd)()->id() : 0, name, listing);
   shared_md md;
 
+  // Acquire mutex for inode (if inode is non zero).
+  // Avoid race between testing any already-held md and fetching
+  // a new one from the server, and also a race within apply() when
+  // fetching a listing of dir including child entries the md is
+  // first created as type MD and then upgraded to MDLS after processing.
+  auto getLockHelper = GetMtxAcquire(ino);
+
   if (ino) {
     if (!mdmap.retrieveTS(ino, md)) {
       md = std::make_shared<mdx>();

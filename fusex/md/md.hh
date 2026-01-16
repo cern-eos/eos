@@ -518,6 +518,62 @@ public:
 
   typedef std::shared_ptr<mdx> shared_md;
 
+  // used to provide serialisaiton during get() for an inode
+  XrdSysMutex mGetMapLock;
+  std::map<uint64_t, std::shared_ptr<XrdSysCondVar>> mGetMap;
+  struct GetLockHelper_s {
+      GetLockHelper_s(metad *meta, fuse_ino_t ino) : meta_(meta), ino_(ino) { }
+      GetLockHelper_s( const GetLockHelper_s& ) = delete;
+      GetLockHelper_s &operator=( const GetLockHelper_s& ) = delete;
+      ~GetLockHelper_s() { UnLock(); }
+
+      void UnLock() {
+        if (meta_) meta_->GetMtxRelease(*this);
+      }
+
+      fuse_ino_t InoAndClear() {
+        fuse_ino_t ino = ino_;
+        meta_ = 0;
+        ino_  = 0;
+        return ino;
+      }
+
+      metad *meta_;
+      fuse_ino_t ino_;
+  };
+
+  GetLockHelper_s GetMtxAcquire(fuse_ino_t ino) {
+    if (!ino) return GetLockHelper_s(nullptr, 0);
+    std::shared_ptr<XrdSysCondVar> cv;
+    do {
+      XrdSysCondVarHelper lkcv;
+      {
+        XrdSysMutexHelper lk(mGetMapLock);
+        auto it = mGetMap.find(ino);
+        if (it == mGetMap.end()) {
+          if (!cv) cv = std::make_shared<XrdSysCondVar>(0);
+          mGetMap[ino] = cv;
+          break;
+        }
+        cv = it->second;
+        lkcv.Lock(cv.get());
+      }
+      cv->Wait();
+    } while(1);
+    return GetLockHelper_s(this, ino);
+  }
+
+  void GetMtxRelease(GetLockHelper_s &lh) {
+    fuse_ino_t ino = lh.InoAndClear();
+    XrdSysMutexHelper lk(mGetMapLock);
+    auto it = mGetMap.find(ino);
+    if (it == mGetMap.end()) return;
+    auto cv = it->second;
+    mGetMap.erase(it);
+    XrdSysCondVarHelper lkcv(*cv);
+    cv->Broadcast();
+  }
+
   //----------------------------------------------------------------------------
 
   class vmap
