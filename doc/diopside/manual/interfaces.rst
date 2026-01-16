@@ -2816,7 +2816,7 @@ that contains the recycle project identifier. Example:
 
 .. code-block:: bash
 
-   EOS Console [root://localhost] |/eos> recycle project /eos/dev/plain --acl u:1234:rx
+   EOS Console [root://localhost] |/eos> recycle project --path /eos/dev/plain --acl u:1234:rx
 
 Listing the extended attributes of the given path will display a new pair
 called **sys.forced.recycleid** that coresponds to the container identifier
