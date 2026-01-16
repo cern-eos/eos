@@ -276,6 +276,7 @@ public:
   //----------------------------------------------------------------------------
   static int FileAccess(AccessArguments* args);
 
+  static int FlatSchedulerFileAccess(AccessArguments* args);
   //----------------------------------------------------------------------------
   //! Translate placement policy type to string
   //----------------------------------------------------------------------------
