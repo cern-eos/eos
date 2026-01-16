@@ -42,8 +42,10 @@ public:
                            PlacementArguments args);
 
   int access(const ClusterData& cluster_data,
-             AccessArguments args);
+             AccessArguments& args);
 
+  static constexpr size_t
+  accessStategyIndex(PlacementStrategyT strategy);
 private:
   PlacementResult scheduleDefault(const ClusterData& cluster_data,
                                   PlacementArguments args);
