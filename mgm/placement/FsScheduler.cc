@@ -196,6 +196,29 @@ FSScheduler::schedule(const std::string& spaceName, uint8_t n_replicas)
                   getPlacementStrategy(spaceName)));
 }
 
+int
+FSScheduler::access(const std::string &spaceName, AccessArguments &args)
+{
+  if (!is_valid_placement_strategy(args.strategy)) {
+    args.strategy = getPlacementStrategy(spaceName);
+    eos_static_info("msg=\"Overriding access strategy to space default\": %s",
+                    strategy_to_str(args.strategy).c_str());
+  }
+
+  eos::common::RCUReadLock rlock(cluster_rcu_mutex);
+  auto cluster_mgr = get_cluster_mgr(spaceName);
+
+  if (!cluster_mgr) {
+    eos_static_crit("msg=\"Scheduler is not yet initialized for space=%s\"",
+                    spaceName.c_str());
+    return EINVAL;
+  }
+
+  auto cluster_data_ptr = cluster_mgr->getClusterData();
+  return scheduler->access(cluster_data_ptr(), args);
+
+}
+
 bool
 FSScheduler::setDiskStatus(const std::string& spaceName, fsid_t disk_id,
                            ConfigStatus status)
