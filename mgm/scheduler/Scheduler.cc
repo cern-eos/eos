@@ -307,6 +307,26 @@ static GeoTreeEngine::SchedType toGeoTreeSchedtype(Scheduler::tSchedType in_type
   return out_type;
 }
 
+int Scheduler::FlatSchedulerFileAccess(AccessArguments *args) {
+  std::string spaceName(args->forcedspace);
+  auto strategy = gOFS->mFsScheduler->getPlacementStrategy(spaceName);
+  if (strategy == placement::PlacementStrategyT::kGeoScheduler) {
+    return EINVAL;
+  }
+
+  placement::AccessArguments access_args {
+    getRequiredReplicas(args->lid),
+    *args->fsindex,
+    args->inode,
+    strategy,
+    args->vid->geolocation,
+    args->unavailfs,
+    *args->locationsfs
+  };
+
+  return gOFS->mFsScheduler->access(spaceName, access_args);
+}
+
 //------------------------------------------------------------------------------
 // File access method
 //------------------------------------------------------------------------------
@@ -333,6 +353,11 @@ int Scheduler::FileAccess(AccessArguments* args)
     return ENODATA;
   }
 
+  if (!FlatSchedulerFileAccess(args)) {
+    eos_static_debug("msg=\"successfully accessed file via FlatScheduler\" index=%zu",
+                     *args->fsindex);
+    return 0;
+  }
 
   eos_static_debug("requesting file access from geolocation %s",
                    args->vid->geolocation.c_str());
