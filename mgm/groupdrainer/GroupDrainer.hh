@@ -47,6 +47,7 @@ constexpr uint32_t FID_CACHE_LIST_SZ = 1000;
 constexpr uint32_t DEFAULT_NUM_TX = 1000;
 constexpr uint64_t DEFAULT_CACHE_EXPIRY_TIME = 300;
 constexpr uint16_t MAX_RETRIES = 5;
+constexpr const char* DEFAULT_THRESHOLD = "0.0";
 
 
 using mgm::group_balancer::GroupStatus;
