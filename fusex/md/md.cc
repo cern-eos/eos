@@ -709,6 +709,16 @@ metad::get(fuse_req_t req,
                   pmd ? (*pmd)()->id() : 0, name, listing);
   shared_md md;
 
+  // For two concurrent get requests for the same ino, one
+  // with and one without listing, we may leave the object with
+  // type MDLS but without the child listing. (This is due
+  // to the order apply() may apply changes). So we acquire a
+  // mutex in terms of the ino to serialise get requests for
+  // identical inodes. The serialised order listing/no-listing
+  // is then correctly handled as we test if the ino is already
+  // available (assuming a covering cap) and avoid the second get.
+  auto getLockHelper = GetMtxAcquire(ino ? ino: (*pmd)()->id());
+
   if (ino) {
     if (!mdmap.retrieveTS(ino, md)) {
       md = std::make_shared<mdx>();

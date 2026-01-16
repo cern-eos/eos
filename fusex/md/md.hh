@@ -518,6 +518,49 @@ public:
 
   typedef std::shared_ptr<mdx> shared_md;
 
+  // used to provide serialisaiton during get() for an inode
+  XrdSysCondVar mGetMapLock{0};
+  std::set<uint64_t> mGetMap;
+  struct GetLockHelper_s {
+      GetLockHelper_s(metad *meta, fuse_ino_t ino) : meta_(meta), ino_(ino) { }
+      GetLockHelper_s( const GetLockHelper_s& ) = delete;
+      GetLockHelper_s &operator=( const GetLockHelper_s& ) = delete;
+      ~GetLockHelper_s() { UnLock(); }
+
+      void UnLock() {
+        if (meta_) meta_->GetMtxRelease(*this);
+      }
+
+      fuse_ino_t InoAndClear() {
+        fuse_ino_t ino = ino_;
+        meta_ = 0;
+        ino_  = 0;
+        return ino;
+      }
+
+      metad *meta_;
+      fuse_ino_t ino_;
+  };
+
+  GetLockHelper_s GetMtxAcquire(fuse_ino_t ino) {
+    XrdSysCondVarHelper getLock(mGetMapLock);
+    do {
+      auto const [it, inserted] = mGetMap.insert(ino);
+      if (inserted) break;
+      mGetMapLock.Wait();
+    } while(1);
+    return GetLockHelper_s(this, ino);
+  }
+
+  void GetMtxRelease(GetLockHelper_s &lh) {
+    fuse_ino_t ino = lh.InoAndClear();
+    XrdSysCondVarHelper getLock(mGetMapLock);
+    auto it = mGetMap.find(ino);
+    if (it == mGetMap.end()) return;
+    mGetMap.erase(it);
+    mGetMapLock.Broadcast();
+  }
+
   //----------------------------------------------------------------------------
 
   class vmap
