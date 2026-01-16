@@ -29,7 +29,7 @@ int usage(const char* name)
       << " [--key <ssl-key-file> --cert <ssl-cert-file> --ca <ca-cert-file>]"
       << " [--token <auth-token>]"
       << std::endl << std::setw(strlen(name) + 8) << ""
-      << "[--endpoint <host:port>] [-d|--debug] [-h|--help]"
+      << "[--endpoint <host:port>] [-d|--debug] [-h|--help] [--force-ssl]"
       << std::endl;
   std::cerr << oss.str();
   return -1;
@@ -44,6 +44,7 @@ int main(int argc, char* argv[])
   std::string cafile;
   std::string token;
   bool debug = false;
+  bool force_ssl = false;
 
   while (true) {
     static struct option long_options[] {
@@ -54,10 +55,11 @@ int main(int argc, char* argv[])
       {"token",    required_argument, 0, 't'},
       {"debug",    no_argument,       0, 'd'},
       {"help",     no_argument,       0, 'h'},
+      {"force-ssl", no_argument,      0, 's'},
       {0, 0,                          0, 0}
     };
     int option_index = 0;
-    int c = getopt_long(argc, argv, "k:c:a:e:t:dh", long_options, &option_index);
+    int c = getopt_long(argc, argv, "k:c:a:e:t:dhs", long_options, &option_index);
 
     // Detect end of the options
     if (c == -1) {
@@ -89,6 +91,10 @@ int main(int argc, char* argv[])
       debug = true;
       break;
 
+    case 's':
+      force_ssl = true;
+      break;
+
     case 'h':
       return usage(argv[0]);
 
@@ -105,7 +111,7 @@ int main(int argc, char* argv[])
   }
 
   std::unique_ptr<GrpcClient> eosgrpc =
-    GrpcClient::Create(endpoint, token, keyfile, certfile, cafile);
+    GrpcClient::Create(endpoint, token, keyfile, certfile, cafile, force_ssl);
 
   if (!eosgrpc) {
     std::cerr << "Failed to create grpc client object!" << std::endl;
