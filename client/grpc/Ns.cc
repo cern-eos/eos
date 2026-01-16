@@ -12,7 +12,8 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--app <app>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] [--position <position>] [--front] -p <path> <command>\n",
+          "--ca <ca-cert-file>] "
+          "[--endpoint <host:port>] [--token <auth-token>] [--xattr <key:val>] [--mode <mode>] [--username <username>] [ [--groupname <groupname>] [--uid <uid>] [--gid <gid>] [--app <app>] [--owner-uid <uid>] [--owner-gid <gid>] [--acl <acl>] [--sysacl] [--norecycle] [--force-ssl] [-r] [--max-version <max-version>] [--target <target>] [--year <year>] [--month <month>] [--day <day>] [--inodes <#>] [--volume <#>] [--quota volume|inode] [--position <position>] [--front] -p <path> <command>\n",
           prog);
   fprintf(stderr,
           "                                [-r] -p <path> mkdir\n"
@@ -115,6 +116,7 @@ int main(int argc, const char* argv[])
   bool sysacl = false;
   uint32_t position = 0;
   std::string eostoken = "";
+  bool force_ssl = false;
   int arg_index = 0;
 
   for (auto i = 1; i < argc; ++i) {
@@ -415,6 +417,11 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--force-ssl") {
+      force_ssl = true;
+      continue;
+    }
+
     cmd = option;
 
     if (argc > (i + 1)) {
@@ -480,7 +487,8 @@ int main(int argc, const char* argv[])
       token,
       keyfile,
       certfile,
-      cafile);
+      cafile,
+      force_ssl);
 
   if (!eosgrpc) {
     return usage(argv[0]);

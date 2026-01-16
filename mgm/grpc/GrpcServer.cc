@@ -291,6 +291,7 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
     }
   }
 
+  int selected_port = 0;
   RequestServiceImpl service;
   std::string bind_address = "0.0.0.0:";
   bind_address += std::to_string(mPort);
@@ -311,7 +312,8 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
     grpc::SslServerCredentialsOptions sslOps(gsccrt);
     sslOps.pem_root_certs = mSSLCa;
     sslOps.pem_key_cert_pairs.push_back(keycert);
-    builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps));
+    builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps),
+                             &selected_port);
   } else {
     builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   }
@@ -319,7 +321,14 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
   builder.RegisterService(&service);
   mServer = builder.BuildAndStart();
 
+  if (mSSL && (selected_port == 0)) {
+    eos_static_err("msg=\"server failed to bind to port with SSL, "
+                   "port %i is taken or certs not valid\"", mPort);
+    return;
+  }
+
   if (mServer) {
+    eos_static_info("msg=\"gRPC server for EOS is running\" port=%i.", mPort);
     mServer->Wait();
   }
 

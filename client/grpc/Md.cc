@@ -9,7 +9,8 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [-l] <path>\n", prog);
+          "[--endpoint <host:port>] [--token <auth-token>] [-l] [--force-ssl] <path>\n",
+          prog);
   return -1;
 }
 
@@ -25,6 +26,7 @@ int main(int argc, const char* argv[])
   std::string cafile;
   std::string path = "";
   bool listing = false;
+  bool force_ssl = false;
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -84,6 +86,11 @@ int main(int argc, const char* argv[])
       continue;
     }
 
+    if (option == "--force-ssl") {
+      force_ssl = true;
+      continue;
+    }
+
     path = option;
 
     if (argc > (i + 1)) {
@@ -96,7 +103,7 @@ int main(int argc, const char* argv[])
       return usage(argv[0]);
     }
   }
-  
+
   if (path.empty()) {
     return usage(argv[0]);
   }
@@ -107,7 +114,8 @@ int main(int argc, const char* argv[])
       token,
       keyfile,
       certfile,
-      cafile);
+      cafile,
+      force_ssl);
 
   if (!eosgrpc) {
     return usage(argv[0]);
