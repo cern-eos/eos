@@ -11,21 +11,19 @@ int usage(const char* prog)
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
           "[--endpoint <host:port>] [--token <auth-token>] "
-	  "[--prefix prefix] "
-	  "[--treefile <treefile>] \n", prog);
-
-  fprintf(stderr, 
-	  "treefile format providing inodes: \n"
-	  "----------------------------------\n"
-	  "ino:000000000000ffff:/eos/mydir/\n"
-	  "ino:000000000000ff01:/eos/mydir/myfile\n\n");
-
-  fprintf(stderr, 
-	  "treefile format without inodes: \n"
-	  "----------------------------------\n"
-	  "/eos/mydir/\n"
-	  "/eos/mydir/myfile\n\n");
-
+          "[--prefix prefix] "
+          "[--treefile <treefile>] "
+          "[--force-ssl] \n", prog);
+  fprintf(stderr,
+          "treefile format providing inodes: \n"
+          "----------------------------------\n"
+          "ino:000000000000ffff:/eos/mydir/\n"
+          "ino:000000000000ff01:/eos/mydir/myfile\n\n");
+  fprintf(stderr,
+          "treefile format without inodes: \n"
+          "----------------------------------\n"
+          "/eos/mydir/\n"
+          "/eos/mydir/myfile\n\n");
   return -1;
 }
 
@@ -39,8 +37,9 @@ int main(int argc, const char* argv[])
   std::string keyfile;
   std::string certfile;
   std::string cafile;
-  std::string prefix="/grpc";
+  std::string prefix = "/grpc";
   std::string treefile = "namespace.txt";
+  bool force_ssl = false;
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -115,6 +114,11 @@ int main(int argc, const char* argv[])
       }
     }
 
+    if (option == "--force-ssl") {
+      force_ssl = true;
+      continue;
+    }
+
     return usage(argv[0]);
   }
 
@@ -130,69 +134,71 @@ int main(int argc, const char* argv[])
       token,
       keyfile,
       certfile,
-      cafile);
+      cafile,
+      force_ssl);
 
   if (!eosgrpc) {
     return usage(argv[0]);
   }
 
-  std::cout << "=> settings: prefix=" << prefix << " treefile=" << treefile << std::endl;
-
-
+  std::cout << "=> settings: prefix=" << prefix << " treefile=" << treefile <<
+            std::endl;
   std::ifstream input(treefile);
-
   size_t n = 0;
   size_t bulk = 1000;
   bool dirmode = true;
   std::vector<std::string> paths;
-
   std::chrono::steady_clock::time_point watch_global =
     std::chrono::steady_clock::now();
 
-  for ( std::string line ; std::getline ( input, line ); ) {
+  for (std::string line ; std::getline(input, line);) {
     n++;
-    if (line.substr(0,4) == "ino:") {
+
+    if (line.substr(0, 4) == "ino:") {
       line.insert(21, prefix);
     } else {
-      line.insert(0,prefix);
+      line.insert(0, prefix);
     }
+
     std::cout << n << " " << line << std::endl;
+
     if (line.back() == '/') {
       // dir
       if (dirmode) {
-	paths.push_back(line);
+        paths.push_back(line);
       } else {
-	// SEND OFF DIRS
-	int retc = eosgrpc->FileInsert(paths);
-	std::cout << "::send::files" << " retc=" << retc << std::endl;
-	paths.clear();
-	paths.push_back(line);
-	dirmode = true;
+        // SEND OFF DIRS
+        int retc = eosgrpc->FileInsert(paths);
+        std::cout << "::send::files" << " retc=" << retc << std::endl;
+        paths.clear();
+        paths.push_back(line);
+        dirmode = true;
       }
     } else {
       // file
       if (dirmode) {
-	// SEND OFF FILES
-	int retc = eosgrpc->ContainerInsert(paths);
-	std::cout << "::send::dirs " << " retc=" << retc << std::endl;
-	paths.clear();
-	paths.push_back(line);
-	dirmode = false;
+        // SEND OFF FILES
+        int retc = eosgrpc->ContainerInsert(paths);
+        std::cout << "::send::dirs " << " retc=" << retc << std::endl;
+        paths.clear();
+        paths.push_back(line);
+        dirmode = false;
       } else {
-	paths.push_back(line);
+        paths.push_back(line);
       }
     }
+
     if (paths.size() >= bulk) {
       if (dirmode) {
-	// SEND OF DIRS
-	int retc = eosgrpc->ContainerInsert(paths);
-	std::cout << "::send::dirs" << " retc=" << retc << std::endl;
-	paths.clear();
+        // SEND OF DIRS
+        int retc = eosgrpc->ContainerInsert(paths);
+        std::cout << "::send::dirs" << " retc=" << retc << std::endl;
+        paths.clear();
       } else {
-	// SEND OF FILES
-	int retc = eosgrpc->FileInsert(paths);
-	std::cout << "::send::files" << " retc=" << retc << std::endl;
-	paths.clear();
+        // SEND OF FILES
+        int retc = eosgrpc->FileInsert(paths);
+        std::cout << "::send::files" << " retc=" << retc << std::endl;
+        paths.clear();
       }
     }
   }

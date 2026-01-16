@@ -9,7 +9,7 @@ int usage(const char* prog)
   fprintf(stderr, "usage: %s [--key <ssl-key-file> "
           "--cert <ssl-cert-file> "
           "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>] [--export <exportfs>] [--depth <depth>] [--select <filter-string>] [-f | -d] <path>\n",
+          "[--endpoint <host:port>] [--token <auth-token>] [--export <exportfs>] [--depth <depth>] [--select <filter-string>] [--force-ssl] [-f | -d] <path>\n",
           prog);
   fprintf(stderr,
           " <filter-string> is setup as \"key1:val1,key2:val2,key3:val3 ... where keyN:valN is one of \n");
@@ -69,6 +69,7 @@ int main(int argc, const char* argv[])
   bool dirs  = false;
   uint64_t depth = 1024;
   std::string exportfs = "";
+  bool force_ssl = false;
 
   for (auto i = 1; i < argc; ++i) {
     std::string option = argv[i];
@@ -163,6 +164,11 @@ int main(int argc, const char* argv[])
       continue;
     }
 
+    if (option == "--force-ssl") {
+      force_ssl = true;
+      continue;
+    }
+
     path = option;
 
     if (argc > (i + 1)) {
@@ -195,7 +201,8 @@ int main(int argc, const char* argv[])
       token,
       keyfile,
       certfile,
-      cafile);
+      cafile,
+      force_ssl);
 
   if (!eosgrpc) {
     return usage(argv[0]);
