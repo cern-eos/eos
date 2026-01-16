@@ -117,7 +117,7 @@ inline constexpr bool is_valid_placement_strategy(PlacementStrategyT strategy)
   return strategy != PlacementStrategyT::Count;
 }
 
-inline size_t strategy_index(PlacementStrategyT strategy)
+inline constexpr size_t strategy_index(PlacementStrategyT strategy)
 {
   return static_cast<size_t>(strategy);
 }
