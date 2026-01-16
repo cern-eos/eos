@@ -154,15 +154,36 @@ FlatScheduler::scheduleDefault(const ClusterData& cluster_data,
   return {};
 }
 
+constexpr size_t FlatScheduler::accessStategyIndex(PlacementStrategyT strategy) {
+  size_t s_index = strategy_index(PlacementStrategyT::kGeoScheduler);
+  switch (strategy) {
+    case PlacementStrategyT::kThreadLocalRoundRobin: [[fallthrough]];
+    case PlacementStrategyT::kRandom: [[fallthrough]];
+    case PlacementStrategyT::kFidRandom: [[fallthrough]];
+    case PlacementStrategyT::kRoundRobin:
+      s_index = strategy_index(PlacementStrategyT::kRoundRobin);
+      break;
+    case PlacementStrategyT::kWeightedRoundRobin: [[fallthrough]];
+    case PlacementStrategyT::kWeightedRandom:
+      s_index = strategy_index(PlacementStrategyT::kWeightedRandom);
+      break;
+    default:
+      break;
+  }
+  return s_index;
+}
+
 int
 FlatScheduler::access(const ClusterData& cluster_data,
-   AccessArguments args) {
+                      AccessArguments& args)
+  {
   if (!is_valid_placement_strategy(args.strategy) ||
       mPlacementStrategy[strategy_index(args.strategy)] == nullptr) {
     return EINVAL;
   }
 
-  mPlacementStrategy[strategy_index(args.strategy)]->access(cluster_data, args);
+  auto s_index = accessStategyIndex(args.strategy);
+  mPlacementStrategy[s_index]->access(cluster_data, args);
 
 
   return 0;
