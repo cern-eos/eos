@@ -6,10 +6,14 @@
 
 int usage(const char* prog)
 {
-  fprintf(stderr, "usage: %s [--size pingsize (max 4M)] [--key <ssl-key-file> "
-          "--cert <ssl-cert-file> "
-          "--ca <ca-cert-file>] "
-          "[--endpoint <host:port>] [--token <auth-token>]\n", prog);
+  fprintf(stderr,
+          "usage: %s [--size pingsize (max 4M)] \n"
+          "         [--key <ssl-key-file>\n"
+          "          --cert <ssl-cert-file>\n"
+          "           --ca <ca-cert-file>]\n"
+          "         [--endpoint <host:port>]\n"
+          "         [--token <auth-token>]\n"
+          "         [--force-ssl]", prog);
   return -1;
 }
 
@@ -23,6 +27,7 @@ int main(int argc, const char* argv[])
   std::string keyfile;
   std::string certfile;
   std::string cafile;
+  bool force_ssl = false;
   size_t ping_size = 0 ;
 
   for (auto i = 1; i < argc; ++i) {
@@ -80,12 +85,18 @@ int main(int argc, const char* argv[])
 
     if (option == "--size") {
       if (argc > i + 1) {
-        ping_size = std::strtoul(argv[i + 1],0,10);
+        ping_size = std::strtoul(argv[i + 1], 0, 10);
         ++i;
         continue;
       } else {
         return usage(argv[0]);
       }
+    }
+
+    if (option == "--force-ssl") {
+      force_ssl = true;
+      ++i;
+      continue;
     }
 
     return usage(argv[0]);
@@ -97,25 +108,20 @@ int main(int argc, const char* argv[])
     }
   }
 
-
-  if (ping_size > (4*1000000)) {
+  if (ping_size > (4 * 1000000)) {
     return usage(argv[0]);
   }
 
   std::unique_ptr<eos::client::GrpcClient> eosgrpc =
-    eos::client::GrpcClient::Create(
-      endpoint,
-      token,
-      keyfile,
-      certfile,
-      cafile);
+    eos::client::GrpcClient::Create
+    (endpoint, token, keyfile, certfile, cafile, force_ssl);
 
   if (!eosgrpc) {
     return usage(argv[0]);
   }
 
   std::string message("ping");
-  
+
   if (ping_size) {
     message.resize(ping_size);
   }
@@ -135,7 +141,8 @@ int main(int argc, const char* argv[])
       std::chrono::microseconds elapsed_local =
         std::chrono::duration_cast<std::chrono::microseconds>
         (std::chrono::steady_clock::now() - watch_local);
-      std::cout << "request: " << message.length() << " reply: " << reply.length() << " timing: " <<
+      std::cout << "request: " << message.length() << " reply: " << reply.length() <<
+                " timing: " <<
                 elapsed_local.count() << " micro seconds" << std::endl;
     }
   }

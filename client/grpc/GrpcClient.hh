@@ -53,12 +53,13 @@ public:
     : stub_(eos::rpc::Eos::NewStub(channel)) { }
 
   // convenience factory function
-  static std::unique_ptr<GrpcClient> Create(std::string endpoint =
-        "localhost:50051",
-      std::string token = "",
-      std::string keyfile = "",
-      std::string certfile = "",
-      std::string cafile = "");
+  static std::unique_ptr<GrpcClient>
+  Create(std::string endpoint = "localhost:50051",
+         std::string token = "",
+         std::string keyfile = "",
+         std::string certfile = "",
+         std::string cafile = "",
+         bool force_ssl = false);
 
   std::string Ping(const std::string& payload);
 
@@ -82,16 +83,6 @@ public:
   int FileInsert(const std::vector<std::string>& paths);
   int ContainerInsert(const std::vector<std::string>& paths);
 
-  void set_ssl(bool onoff)
-  {
-    mSSL = onoff;
-  }
-
-  bool ssl() const
-  {
-    return mSSL;
-  }
-
   void set_token(const std::string& _token)
   {
     mToken = _token;
@@ -104,7 +95,6 @@ public:
 
 private:
   std::unique_ptr<eos::rpc::Eos::Stub> stub_;
-  bool mSSL;
   std::string mToken;
   std::map<uint64_t, std::string> tree;
 };
@@ -112,4 +102,3 @@ private:
 #endif
 
 EOSCLIENTNAMESPACE_END
-

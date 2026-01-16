@@ -543,24 +543,21 @@ GrpcClient::ContainerInsert(const std::vector<std::string>& paths)
 
 
 std::unique_ptr<GrpcClient>
-GrpcClient::Create(std::string endpoint,
-                   std::string token,
-                   std::string keyfile,
-                   std::string certfile,
-                   std::string cafile
-                  )
+GrpcClient::Create(std::string endpoint, std::string token, std::string keyfile,
+                   std::string certfile, std::string cafile, bool force_ssl)
 {
   std::string key;
   std::string cert;
   std::string ca;
-  bool ssl = false;
+  bool ssl_cred = false;
 
   if (keyfile.length() || certfile.length() || cafile.length()) {
     if (!keyfile.length() || !certfile.length() || !cafile.length()) {
       return 0;
     }
 
-    ssl = true;
+    force_ssl = true;
+    ssl_cred = true;
 
     if (eos::common::StringConversion::LoadFileIntoString(certfile.c_str(),
         cert) && !cert.length()) {
@@ -582,17 +579,20 @@ GrpcClient::Create(std::string endpoint,
     }
   }
 
-  grpc::SslCredentialsOptions opts = {
-    ca,
-    key,
-    cert
-  };
+  grpc::SslCredentialsOptions opts;
+
+  if (ssl_cred) {
+    opts.pem_root_certs = ca;
+    opts.pem_private_key = key;
+    opts.pem_cert_chain = cert;
+  }
+
   std::unique_ptr<eos::client::GrpcClient> p(new eos::client::GrpcClient(
         grpc::CreateChannel(
           endpoint,
-          ssl ? grpc::SslCredentials(opts)
-          : grpc::InsecureChannelCredentials())));
-  p->set_ssl(ssl);
+          (force_ssl ?
+           grpc::SslCredentials(opts) :
+           grpc::InsecureChannelCredentials()))));
   p->set_token(token);
   return p;
 }
@@ -693,4 +693,3 @@ GrpcClient::ExportFs(const eos::rpc::MDResponse& response,
 
 
 EOSCLIENTNAMESPACE_END
-
