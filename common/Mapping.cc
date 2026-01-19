@@ -1004,13 +1004,16 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (vid.token->VerifyOrigin(vid.host, vid.uid_string,
                                   std::string(vid.prot.c_str()))) {
         // invalidate this token
-        eos_static_debug("invalidating token - origin mismatch %s:%s:%s",
-                         vid.host.c_str(), vid.uid_string.c_str(),
-                         vid.prot.c_str());
+        eos_static_err("msg=\"invalid token due to origin mismatc\" "
+                       "\"%s#%s#%s\"", vid.host.c_str(),
+                       vid.uid_string.c_str(), vid.prot.c_str());
         vid.token->Reset();
         // reset the vid to nobody if the origin does not match
         vid.toNobody();
       }
+    } else {
+      eos_static_debug("msg=\"token invalid\" host=\"%s\" uid=\"%s\" prot=\"%s\"",
+                       vid.host.c_str(), vid.uid_string.c_str(), vid.prot.c_str());
     }
   }
 
