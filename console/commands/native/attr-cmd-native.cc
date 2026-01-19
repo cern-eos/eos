@@ -8,6 +8,8 @@
 #include "console/ConsoleArgParser.hh"
 #include <memory>
 #include <sstream>
+#include <utility>
+#include <vector>
 
 namespace {
 class AttrCommand : public IConsoleCommand {
@@ -69,6 +71,36 @@ public:
       }
     };
 
+    auto send_set = [&](const std::string& key,
+                        const std::string& value,
+                        const std::string& path,
+                        bool conditional) -> int {
+      XrdOucString cmd = "mgm.cmd=attr&mgm.enc=b64";
+      std::string opt = optionStr;
+      if (conditional && opt.find('c') == std::string::npos) {
+        opt.push_back('c');
+      }
+      if (!opt.empty()) {
+        cmd += "&mgm.option=";
+        cmd += opt.c_str();
+      }
+      XrdOucString k = key.c_str();
+      XrdOucString v = value.c_str();
+      if (key != "default" && key != "sys.attr.link") {
+        XrdOucString v64;
+        eos::common::SymKey::Base64(v, v64);
+        v = v64;
+      }
+      XrdOucString p = PathIdentifier(path.c_str(), true).c_str();
+      cmd += "&mgm.subcmd=set&mgm.attr.key=";
+      cmd += k;
+      cmd += "&mgm.attr.value=";
+      cmd += v;
+      cmd += "&mgm.path=";
+      cmd += p;
+      return ctx.outputResult(ctx.clientCommand(cmd, false, nullptr), true);
+    };
+
     if (sub == "ls") {
       std::string identifier;
       if (!next(identifier)) { printHelp(); global_retc = EINVAL; return 0; }
@@ -100,6 +132,101 @@ public:
         printHelp(); global_retc = EINVAL; return 0;
       }
       XrdOucString p = PathIdentifier(path.c_str(), true).c_str();
+
+      if (sub == "set" && k == "default") {
+        std::vector<std::pair<std::string, std::string>> defaults;
+        if (v == "replica") {
+          defaults = {
+            {"sys.forced.blocksize", "4k"},
+            {"sys.forced.checksum", "adler"},
+            {"sys.forced.layout", "replica"},
+            {"sys.forced.nstripes", "2"},
+            {"sys.forced.space", "default"},
+          };
+        } else if (v == "raiddp") {
+          defaults = {
+            {"sys.forced.blocksize", "1M"},
+            {"sys.forced.checksum", "adler"},
+            {"sys.forced.layout", "raiddp"},
+            {"sys.forced.nstripes", "6"},
+            {"sys.forced.space", "default"},
+            {"sys.forced.blockchecksum", "crc32c"},
+          };
+        } else if (v == "raid5") {
+          defaults = {
+            {"sys.forced.blocksize", "1M"},
+            {"sys.forced.checksum", "adler"},
+            {"sys.forced.layout", "raid5"},
+            {"sys.forced.nstripes", "5"},
+            {"sys.forced.space", "default"},
+            {"sys.forced.blockchecksum", "crc32c"},
+          };
+        } else if (v == "raid6") {
+          defaults = {
+            {"sys.forced.blocksize", "1M"},
+            {"sys.forced.checksum", "adler"},
+            {"sys.forced.layout", "raid6"},
+            {"sys.forced.nstripes", "6"},
+            {"sys.forced.space", "default"},
+            {"sys.forced.blockchecksum", "crc32c"},
+          };
+        } else if (v == "archive") {
+          defaults = {
+            {"sys.forced.blocksize", "1M"},
+            {"sys.forced.checksum", "adler"},
+            {"sys.forced.layout", "archive"},
+            {"sys.forced.nstripes", "8"},
+            {"sys.forced.space", "default"},
+            {"sys.forced.blockchecksum", "crc32c"},
+          };
+        } else if (v == "qrain") {
+          defaults = {
+            {"sys.forced.blocksize", "1M"},
+            {"sys.forced.checksum", "adler"},
+            {"sys.forced.layout", "qrain"},
+            {"sys.forced.nstripes", "12"},
+            {"sys.forced.space", "default"},
+            {"sys.forced.blockchecksum", "crc32c"},
+          };
+        } else {
+          printHelp();
+          global_retc = EINVAL;
+          return 0;
+        }
+
+        int retc = 0;
+        for (const auto& entry : defaults) {
+          retc = retc || send_set(entry.first, entry.second, path, conditional);
+        }
+        global_retc = retc;
+        return 0;
+      }
+
+      if (sub == "set" && k.endswith(".forced.placementpolicy")) {
+        XrdOucString ouc_policy;
+        eos::common::SymKey::DeBase64(v, ouc_policy);
+        std::string policy = ouc_policy.c_str();
+
+        if (policy != "scattered" &&
+            policy.rfind("hybrid:", 0) != 0 &&
+            policy.rfind("gathered:", 0) != 0) {
+          fprintf(stderr, "Error: placement policy '%s' is invalid\n",
+                  policy.c_str());
+          global_retc = EINVAL;
+          return 0;
+        }
+
+        if (policy != "scattered") {
+          std::string targetgeotag = policy.substr(policy.find(':') + 1);
+          std::string tmp_geotag = eos::common::SanitizeGeoTag(targetgeotag);
+          if (tmp_geotag != targetgeotag) {
+            fprintf(stderr, "%s\n", tmp_geotag.c_str());
+            global_retc = EINVAL;
+            return 0;
+          }
+        }
+      }
+
       appendOption(conditional);
       in += "&mgm.subcmd=set&mgm.attr.key=";
       in += k;

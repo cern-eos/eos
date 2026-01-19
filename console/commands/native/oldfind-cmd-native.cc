@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: oldfind-native.cc
+// File: oldfind-cmd-native.cc
 // ----------------------------------------------------------------------
 
 #include "common/StringConversion.hh"
@@ -9,11 +9,76 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <dirent.h>
+#include <errno.h>
+#include <iostream>
 #include <memory>
 #include <sstream>
+#include <string>
+#include <vector>
 #include <sys/stat.h>
 
-extern int com_file(char*);
+static void
+EnsureRegistryInitialized()
+{
+  static bool registryInitialized = false;
+  if (!registryInitialized) {
+    RegisterNativeConsoleCommands();
+    registryInitialized = true;
+  }
+}
+
+static std::vector<std::string>
+TokenizeArgs(const std::string& line)
+{
+  eos::common::StringTokenizer tokenizer(line.c_str());
+  tokenizer.GetLine();
+  std::vector<std::string> args;
+  std::string token;
+  while (tokenizer.NextToken(token)) {
+    args.push_back(token);
+  }
+  return args;
+}
+
+static int
+RunRegisteredCommand(const std::string& cmdName,
+                     const std::vector<std::string>& argsVec)
+{
+  EnsureRegistryInitialized();
+  IConsoleCommand* icmd = CommandRegistry::instance().find(cmdName);
+  if (!icmd) {
+    fprintf(stderr, "error: '%s' command not available\n", cmdName.c_str());
+    return EINVAL;
+  }
+
+  std::string rest;
+  for (size_t i = 0; i < argsVec.size(); ++i) {
+    if (i) {
+      rest.push_back(' ');
+    }
+    rest += argsVec[i];
+  }
+
+  if (icmd->requiresMgm(rest) && !CheckMgmOnline(serveruri.c_str())) {
+    std::cerr << "error: MGM " << serveruri.c_str()
+              << " not online/reachable" << std::endl;
+    return ENONET;
+  }
+
+  CommandContext ctx;
+  ctx.serverUri = serveruri.c_str();
+  ctx.globalOpts = &gGlobalOpts;
+  ctx.json = json;
+  ctx.silent = silent;
+  ctx.interactive = interactive;
+  ctx.timing = timing;
+  ctx.userRole = user_role.c_str();
+  ctx.groupRole = group_role.c_str();
+  ctx.clientCommand = &client_command;
+  ctx.outputResult = &output_result;
+
+  return icmd->run(argsVec, ctx);
+}
 
 static int
 native_com_old_find(char* arg1)
@@ -466,7 +531,7 @@ native_com_old_find(char* arg1)
       cline += files_found[i].c_str();
       cline += " -stripes ";
       cline += stripes;
-      rc = com_file((char*)cline.c_str());
+      rc = RunRegisteredCommand("file", TokenizeArgs(cline.c_str()));
       if (rc)
         badentries++;
       else
@@ -497,7 +562,7 @@ native_com_old_find(char* arg1)
       cline += files_found[i].c_str();
       cline += " ";
       cline += filter;
-      rc = com_file((char*)cline.c_str());
+      rc = RunRegisteredCommand("file", TokenizeArgs(cline.c_str()));
       if (rc)
         badentries++;
       else
