@@ -276,10 +276,17 @@ AclCmd::ModifyAcls(const eos::console::AclProto& acl)
 // Get ACL rule from string by creating a pair of identifier for the ACL and
 // the bitmask representation
 //------------------------------------------------------------------------------
-Rule AclCmd::GetRuleFromString(const std::string& single_acl)
+std::optional<Rule> AclCmd::GetRuleFromString(const std::string& single_acl)
 {
   Rule ret;
   auto acl_delimiter = single_acl.rfind(':');
+
+  if (acl_delimiter == std::string::npos) {
+    eos_static_err("msg=\"invalid acl string\" acl=\"%s\"",
+                   single_acl.c_str());
+    return std::nullopt;
+  }
+
   ret.first = std::string(single_acl.begin(),
                           single_acl.begin() + acl_delimiter);
   unsigned long rule_int = 0;
@@ -384,6 +391,7 @@ Rule AclCmd::GetRuleFromString(const std::string& single_acl)
   return ret;
 }
 
+
 //------------------------------------------------------------------------------
 // Generate rule map from the string representation of the acls
 //------------------------------------------------------------------------------
@@ -406,8 +414,17 @@ AclCmd::GenerateRuleMap(const std::string& acl_string, RuleMap& rmap)
 
     std::string single_acl = std::string(acl_string.begin() + curr_pos,
                                          acl_string.begin() + pos);
-    insert_or_assign(rmap, GetRuleFromString(single_acl));
+    auto rule = GetRuleFromString(single_acl);
+
+    if (rule) {
+      insert_or_assign(rmap, std::move(*rule));
+    } else {
+      eos_static_err("msg=\"failed to parse ACL rule\" rule=\"%s\"",
+                     single_acl.c_str());
+    }
+
     curr_pos = pos + 1;
+
 
     if (curr_pos > acl_string.length()) {
       break;
