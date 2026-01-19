@@ -115,18 +115,19 @@ public:
           global_retc = EINVAL;
           return 0;
         }
+        in += "&mgm.vid.source.uid=";
+        in += uid;
+
         if (type == "-uids") {
           XrdOucString list = tok.GetTokenUnquoted();
-          in += "&mgm.vid.cmd=membership&mgm.vid.source.uid=";
-          in += uid;
+          in += "&mgm.vid.cmd=membership";
           in += "&mgm.vid.key=";
           in += (XrdOucString)(uid + ":uids");
           in += "&mgm.vid.target.uid=";
           in += list;
         } else if (type == "-gids") {
           XrdOucString list = tok.GetTokenUnquoted();
-          in += "&mgm.vid.cmd=membership&mgm.vid.source.uid=";
-          in += uid;
+          in += "&mgm.vid.cmd=membership";
           in += "&mgm.vid.key=";
           in += (XrdOucString)(uid + ":gids");
           in += "&mgm.vid.target.gid=";
