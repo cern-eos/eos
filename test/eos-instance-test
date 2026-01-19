@@ -1019,7 +1019,7 @@ if [ $recycletime -eq 0 ]; then
 runtest "### Recycle   " unix 0 "" eos recycle config --lifetime 86400
 fi
 
-runtest "### Recycle on" unix 0 "" eos recycle config --enable "on"
+runtest "### Recycle   " unix 0 "" eos recycle config --enable "on"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle"
@@ -1062,7 +1062,6 @@ runtest "### Purge     " unix 0 "EOSROLE='-r 3 4'" eos recycle purge --rid $rid 
 runtest "### NoFile    " unix 1 "" eos recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
 runtest "### Recycle   " unix 0 "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
 runtest "### Rem       " unix 0 "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
-runtest "### Recycl off" unix 0 "" eos recycle config --enable "off"
 
 ################################################################################
 # STRESS
@@ -2134,7 +2133,7 @@ runtest "### stat l2   " unix 1 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instan
 runtest "### stat l1   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.3"
 runtest "### stat l2   " unix 0 "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
 #hardlinks
-#runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink
+runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink
 runtest "### mkdir     " unix 0 "" shell mkdir -p "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/"
 runtest "### cp        " unix 0 "" shell cp /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/file"
 runtest "### link      " unix 0 "" shell cd "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/hardlink/ && ln file file.hardlink"
@@ -2243,7 +2242,7 @@ ls -la /eos/
 if [ -e "/eos/$EOS_TEST_INSTANCE" ]; then
 # simple sqash packages
 runtest "### Mkdir     " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
-#runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/
+runtest "### Recycle   " unix 0 "" eos recycle config --add-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### Chmod     " unix 0 "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash"
 runtest "### New SQFS  " unix 0 "" eos squash new "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1"
 runtest "### cp        " unix 0 "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/package1
