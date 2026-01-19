@@ -313,10 +313,16 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
     {
       if (item.file) {
         auto amap = item.file->getAttributes();
-        if (amap.count(skey)) prev_value = amap[skey];
+
+        if (amap.count(skey)) {
+          prev_value = amap[skey];
+        }
       } else if (item.container) {
         auto amap = item.container->getAttributes();
-        if (amap.count(skey)) prev_value = amap[skey];
+
+        if (amap.count(skey)) {
+          prev_value = amap[skey];
+        }
       }
     }
     eos::FileOrContWriteLocked item_wlock;
@@ -336,24 +342,38 @@ XrdMgmOfs::_attr_set(const char* path, XrdOucErrInfo& error,
                     " lock existing)", path);
       }
     }
+
     // Fetch new value
     std::string new_value;
     {
       if (item.file) {
         auto amap = item.file->getAttributes();
-        if (amap.count(skey)) new_value = amap[skey];
+
+        if (amap.count(skey)) {
+          new_value = amap[skey];
+        }
       } else if (item.container) {
         auto amap = item.container->getAttributes();
-        if (amap.count(skey)) new_value = amap[skey];
+
+        if (amap.count(skey)) {
+          new_value = amap[skey];
+        }
       }
     }
+
     // Emit audit for attribute set
     if (mAudit) {
-      if (gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::SET_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
-                    std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__, __LINE__, VERSION);
-      if ((skey == "sys.acl" || skey == "user.acl") && gOFS->AllowAuditModification(path)) {
-        mAudit->audit(eos::audit::SET_ACL, path, vid, std::string(logId), std::string(cident), "mgm",
-                      std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__, __LINE__, VERSION);
+      if (gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::SET_XATTR,
+            path, vid, std::string(logId), std::string(cident), "mgm",
+            std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__,
+            __LINE__, VERSION);
+
+      if ((skey == "sys.acl" || skey == "user.acl") &&
+          gOFS->AllowAuditModification(path)) {
+        mAudit->audit(eos::audit::SET_ACL, path, vid, std::string(logId),
+                      std::string(cident), "mgm",
+                      std::string(), nullptr, nullptr, skey, prev_value, new_value, __FILE__,
+                      __LINE__, VERSION);
       }
     }
   } catch (eos::MDException& e) {
@@ -515,7 +535,10 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           std::string prev;
           {
             auto amap = fmd->getAttributes();
-            if (amap.count(skey)) prev = amap[skey];
+
+            if (amap.count(skey)) {
+              prev = amap[skey];
+            }
           }
           fmd->removeAttribute(skey);
           eosView->updateFileStore(fmd.get());
@@ -525,8 +548,12 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           fmd_lock.reset(nullptr);
           gOFS->FuseXCastRefresh(f_id, d_id);
           errno = 0;
-          if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
-                          std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__, VERSION);
+
+          if (mAudit &&
+              gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::RM_XATTR, path,
+                    vid, std::string(logId), std::string(cident), "mgm",
+                    std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__,
+                    VERSION);
         }
       }
     } else { // container
@@ -545,7 +572,10 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           std::string prev;
           {
             auto amap = cmd->getAttributes();
-            if (amap.count(skey)) prev = amap[skey];
+
+            if (amap.count(skey)) {
+              prev = amap[skey];
+            }
           }
           cmd->removeAttribute(skey);
           eos::ContainerIdentifier d_id = cmd->getIdentifier();
@@ -555,8 +585,12 @@ XrdMgmOfs::_attr_rem(const char* path, XrdOucErrInfo& error,
           cmd_lock.reset(nullptr);
           gOFS->FuseXCastRefresh(d_id, d_pid);
           errno = 0;
-          if (mAudit && gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::RM_XATTR, path, vid, std::string(logId), std::string(cident), "mgm",
-                          std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__, VERSION);
+
+          if (mAudit &&
+              gOFS->AllowAuditModification(path)) mAudit->audit(eos::audit::RM_XATTR, path,
+                    vid, std::string(logId), std::string(cident), "mgm",
+                    std::string(), nullptr, nullptr, skey, prev, std::string(), __FILE__, __LINE__,
+                    VERSION);
         }
       }
     }
@@ -615,7 +649,7 @@ XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix,
         // > append acl to the existing ones
         // < prepend acl to the existing ones
         // | add only if acls not set at all
-        // none of the above means overwrite existring acls
+        // none of the above means overwrite existing acls
         char op = '\0';
 
         if (!x.second.empty()) {
@@ -631,7 +665,8 @@ XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix,
 
         // ACL handling
         if (((op != '>') && (op != '<') && (op != '|')) || // Full overwrite
-            ((op == '|') && old_acls.empty())) {       // Overwrite if empty
+            // Overwrite if empty
+            (old_acls.empty() && ((op == '>') || (op == '<') || (op == '|')))) {
           out[outkey] = space_acls;
         } else {
           // If existing acls already include the space acls then
@@ -658,10 +693,6 @@ XrdMgmOfs::mergeSpaceAttributes(eos::IContainerMD::XAttrMap& out, bool prefix,
             out[outkey] = old_acls + std::string(",") + space_acls;
           } else if (op == '<') { // Prepend rule
             out[outkey] = space_acls + std::string(",") + old_acls;
-          }
-
-          if (op == '|') {
-            out[outkey] = old_acls;
           }
         }
       } else {
