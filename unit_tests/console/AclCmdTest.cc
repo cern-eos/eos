@@ -196,19 +196,19 @@ TEST(AclCmd, AclRuleFromString)
   // Method AclRuleFromString is called to parse acl data which MGM Node
   // sends. So string in incorrect format is not possible, hence there is
   // no checking for that.
-  Rule temp;
+  std::optional<Rule> temp;
   eos::console::RequestProto req;
   eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
   AclCmd test(std::move(req), vid);
   temp = test.GetRuleFromString("u:user1:rwx!u");
-  ASSERT_EQ(temp.first, "u:user1");
-  ASSERT_EQ(temp.second, 135);
+  ASSERT_EQ(temp->first, "u:user1");
+  ASSERT_EQ(temp->second, 135);
   temp = test.GetRuleFromString("g:group1:wx!u");
-  ASSERT_EQ(temp.first, "g:group1");
-  ASSERT_EQ(temp.second, 134);
+  ASSERT_EQ(temp->first, "g:group1");
+  ASSERT_EQ(temp->second, 134);
   temp = test.GetRuleFromString("egroup:group1:rx!u");
-  ASSERT_EQ(temp.first, "egroup:group1");
-  ASSERT_EQ(temp.second, 133);
+  ASSERT_EQ(temp->first, "egroup:group1");
+  ASSERT_EQ(temp->second, 133);
 }
 
 TEST(AclHelper, TestParseCommand)
