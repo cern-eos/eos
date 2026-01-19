@@ -1011,6 +1011,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         // reset the vid to nobody if the origin does not match
         vid.toNobody();
       }
+    } else {
+      eos_static_debug("msg=\"token invalid\" host=\"%s\" uid=\"%s\" prot=\"%s\"",
+                       vid.host.c_str(), vid.uid_string.c_str(), vid.prot.c_str());
     }
   }
 
