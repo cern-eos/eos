@@ -25,6 +25,8 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "proto/Acl.pb.h"
 #include <list>
+#include <optional>
+
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -166,10 +168,10 @@ public:
   //!
   //! @param in ACL string
   //!
-  //! @return std::pair containing ACL identifier (ie. u:user1 or g:group1)
+  //! @return std::optional containing ACL identifier (ie. u:user1 or g:group1)
   //! and the bitmask representation
   //----------------------------------------------------------------------------
-  static Rule GetRuleFromString(const std::string& in);
+  static std::optional<Rule> GetRuleFromString(const std::string& in);
 
   //----------------------------------------------------------------------------
   //! Convert acl modification command into bitmask rule format
