@@ -72,7 +72,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   # Native com wrappers
   commands/native/cat-com-native.cc
   commands/native/cp-com-native.cc
-  commands/native/oldfind-com-native.cc
+  commands/native/oldfind-cmd-native.cc
   commands/native/rclone-com-native.cc
   commands/native/squash-com-native.cc
 

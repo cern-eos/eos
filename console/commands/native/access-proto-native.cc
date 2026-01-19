@@ -88,6 +88,11 @@ public:
       p.addOption({"", 'n', false, false, "", "numeric ids", ""});
       std::vector<std::string> rest(args.begin() + 1, args.end());
       auto r = p.parse(rest);
+      if (!r.errors.empty() || !r.unknownTokens.empty() || !r.positionals.empty()) {
+        printHelp();
+        global_retc = EINVAL;
+        return 0;
+      }
       std::string option;
       if (r.has("m"))
         option += "m";
@@ -110,8 +115,10 @@ public:
         return 0;
       }
       std::string id;
-      if (!next(id)) {
-        if (sub == "rm") { /* rm type-as-id */
+      bool has_id = next(id);
+      if (!has_id) {
+        if (sub == "rm") {
+          id = "dummy";
         } else {
           printHelp();
           global_retc = EINVAL;
@@ -120,7 +127,9 @@ public:
       }
       std::string rtype;
       if (sub == "rm") {
-        rtype = id;
+        if (has_id) {
+          rtype = id;
+        }
       } else {
         next(rtype);
       }
@@ -134,8 +143,14 @@ public:
       } else if (type == "limit") {
         in += "&mgm.access.stall=";
         in += id.c_str();
-        if (rtype.rfind("rate:user:", 0) == 0 ||
-            rtype.rfind("rate:group:", 0) == 0) {
+        if (rtype.empty()) {
+          printHelp();
+          global_retc = EINVAL;
+          return 0;
+        }
+        if ((rtype.rfind("rate:user:", 0) == 0 ||
+             rtype.rfind("rate:group:", 0) == 0) &&
+            (rtype.find(':', 11) != std::string::npos)) {
           in += "&mgm.access.type=";
           in += rtype.c_str();
         } else if (!rtype.empty()) {
@@ -172,32 +187,32 @@ public:
   printHelp() const override
   {
     fprintf(
-        stdout,
+        stderr,
         " Usage:\n"
-        "access ban|unban|allow|unallow|set|rm|stallhosts|ls [OPTIONS]\n"
+        "access ban|unban|allow|unallow|set|rm|ls [OPTIONS]\n"
         "'[eos] access ..' provides the access interface of EOS to "
         "allow/disallow hosts/domains and/or users\n\n"
         "Subcommands:\n"
-        "access ban user|group|host|domain|token <identifier> : ban user, "
-        "group, host, domain or token with identifier <identifier>\n"
+        "access ban user|group|host|domain <identifier> : ban user, "
+        "group, host or domain with identifier <identifier>\n"
         "\t <identifier> : can be a user name, user id, group name, group id, "
-        "hostname or IP or domainname or token voucher id\n\n"
-        "access unban user|group|host|domain|token <identifier> : unban user, "
-        "group, host, domain or token with identifier <identifier>\n"
+        "hostname or IP or domainname\n\n"
+        "access unban user|group|host|domain <identifier> : unban user, "
+        "group, host or domain with identifier <identifier>\n"
         "\t <identifier> : can be a user name, user id, group name, group id, "
-        "hostname or IP or domainname or token voucher id\n\n"
-        "access allow user|group|host|domain|token <identifier> : allows this "
-        "user, group, host, domain or token access\n"
+        "hostname or IP or domainname\n\n"
+        "access allow user|group|host|domain <identifier> : allows this "
+        "user, group, host or domain access\n"
         "\t <identifier> : can be a user name, user id, group name, group id, "
-        "hostname or IP or domainname or token voucher id\n\n"
-        "access unallow user|group|host|domain|token <identifier> : unallows "
-        "this user,group, host, domain or token access\n"
+        "hostname or IP or domainname\n\n"
+        "access unallow user|group|host|domain <identifier> : unallows "
+        "this user,group, host or domain access\n"
         "\t <identifier> : can be a user name, user id, group name, group id, "
-        "hostname or IP or domainname or token voucher id\n\n"
+        "hostname or IP or domainname\n\n"
         "\t HINT: if you add any 'allow' the instance allows only the listed "
         "identity. A banned identifier will still overrule an allowed "
         "identifier!\n\n"
-        "access set redirect <target-host> [r|w|ENOENT|ENONET|ENETUNREACH] : "
+        "access set redirect <target-host> [r|w|ENOENT|ENONET] : "
         "allows to set a global redirection to <target-host>\n"
         "\t <target-host>      : hostname to which all requests get "
         "redirected\n"
@@ -206,11 +221,10 @@ public:
         "\t      [ENOENT]      : optional set a redirect if a file is not "
         "existing\n"
         "\t      [ENONET]      : optional set a redirect if a file is offline\n"
-        "\t      [ENETUNREACH] : optional set a redirect if @todo \n"
         "\t                      <taget-hosts> can be structured like "
         "<host>:<port[:<delay-in-ms>] where <delay> holds each request for a "
         "given time before redirecting\n\n"
-        "access set stall <stall-time> [r|w|ENOENT|ENONET|ENETUNREACH] : "
+        "access set stall <stall-time> [r|w|ENOENT|ENONET] : "
         "allows to set a global stall time\n"
         "\t <stall-time> : time in seconds after which clients should "
         "rebounce\n"
@@ -219,7 +233,7 @@ public:
         "\t      [ENOENT]      : optional set stall time if a file is not "
         "existing\n"
         "\t      [ENONET]      : optional set stall time if a file is offline\n"
-        "\t      [ENETUNREACH] : optional set a stall time if @todo \n\n"
+        "\n"
         "access set limit <frequency> rate:{user,group}:{name}:<counter>\n"
         "\t rate:{user:group}:{name}:<counter> : stall the defined user group "
         "for 5s if the <counter> exceeds a frequency of <frequency> in a 5s "
@@ -253,15 +267,14 @@ public:
         "query limit to <ndirss> for everybody\n\n"
         "\t HINT : rule strength => user-limit >> group-limit >> "
         "wildcard-limit\n\n"
-        "access rm redirect [r|w|ENOENT|ENONET|ENETUNREACH] : removes global "
+        "access rm redirect [r|w|ENOENT|ENONET] : removes global "
         "redirection\n\n"
-        "access rm stall [r|w|ENOENT|ENONET|ENETUNREACH] : removes global "
+        "access rm stall [r|w|ENOENT|ENONET] : removes global "
         "stall time\n\n"
         "access rm limit rate:{user,group}:{name}:<counter> : remove rate "
         "limitation\n\n"
         "access rm limit threads:{max,*,<uid/username>} : remove thread pool "
         "limit\n\n"
-        "access stallhosts add|remove stall|nostall <pattern>\n\n"
         "access ls [-m] [-n] : print banned,unbanned user,group, hosts\n"
         "\t -m : output in monitoring format with <key>=<value>\n"
         "\t -n : don't translate uid/gids to names\n\n"
