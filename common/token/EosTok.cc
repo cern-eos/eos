@@ -349,6 +349,7 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
     int m1 = Match(host, auth.host());
     int m2 = Match(name, auth.name());
     int m3 = Match(prot, auth.prot());
+    eos_static_debug("m1=%i m2=%i m3=%i", m1, m2, m3);
 
     if ((m1 < 0) || (m2 < 0) || (m3 < 0)) {
       return -EBADE;
@@ -365,6 +366,10 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
 int
 EosTok::Match(const std::string& input, const std::string& regexString)
 {
+  if (input == regexString) {
+    return 1;
+  }
+
   return eos::common::eos_regex_match(input, regexString);
 }
 
@@ -379,36 +384,41 @@ EosTok::ValidatePath(const std::string& path) const
 {
   // this function can now deal to have several paths listed in the token path e.g.
   // '/eos/dir1/://:/eos/dir2/://:/eos/dir3/' using '://:' as separator which cannot occur in a regular normalized path!
-
   std::vector<std::string> paths;
   eos::common::StringConversion::MulticharTokenize(share->token().path(),
-						   paths, "://:");
-  for (auto p:paths) {
+      paths, "://:");
+
+  for (auto p : paths) {
     if (share->token().allowtree()) {
-      eos_static_debug("comparing %s <=> %s", path.substr(0, p.length()).c_str(), p.c_str());
+      eos_static_debug("comparing %s <=> %s", path.substr(0, p.length()).c_str(),
+                       p.c_str());
+
       // this is a tree permission
       if (path.substr(0, p.length()) != p) {
-	continue;
+        continue;
       }
+
       // we have a match!
       return 0;
     } else {
       if ((path.back() == '/') && (p.back() != '/')) {
-	eos::common::Path cPath(p);
+        eos::common::Path cPath(p);
 
-	if (path == cPath.GetParentPath()) {
-	  return 0;
-	}
+        if (path == cPath.GetParentPath()) {
+          return 0;
+        }
       }
 
       // this is an exact permission
       if (path != p) {
-	continue;
+        continue;
       }
+
       // we have an exact path match
       return 0;
     }
   }
+
   return -EACCES;
 }
 
