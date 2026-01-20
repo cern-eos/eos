@@ -25,11 +25,9 @@
 #include "mgm/proc/ProcInterface.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/iostat/Iostat.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/Iostat.hh"
-#include "mgm/XrdMgmOfs.hh"
-#include "mgm/Iostat.hh"
+
 #include "zmq.hpp"
+
 #include <algorithm>
 #include <iomanip>
 #include <string>
