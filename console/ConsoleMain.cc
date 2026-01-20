@@ -1060,18 +1060,40 @@ execute_line(char* line)
   // Quote-aware tokenization: preserve spaces within quoted strings, drop quotes
   std::vector<std::string> argsVec;
   {
-    bool inD = false, inS = false; std::string cur;
+    bool inD = false, inS = false;
+    std::string cur;
     for (size_t i = 0; i < rest.size(); ++i) {
       char c = rest[i];
-      if (c == '"' && !inS) { inD = !inD; continue; }
-      if (c == '\'' && !inD) { inS = !inS; continue; }
+      if (c == '\\' && i + 1 < rest.size()) {
+        char next = rest[i + 1];
+        if (next == '"' || next == '\'') {
+          // Preserve escaped quotes as literals and avoid toggling state.
+          cur.push_back(c);
+          cur.push_back(next);
+          ++i;
+          continue;
+        }
+      }
+      if (c == '"' && !inS) {
+        inD = !inD;
+        continue;
+      }
+      if (c == '\'' && !inD) {
+        inS = !inS;
+        continue;
+      }
       if (c == ' ' && !inD && !inS) {
-        if (!cur.empty()) { argsVec.push_back(cur); cur.clear(); }
+        if (!cur.empty()) {
+          argsVec.push_back(cur);
+          cur.clear();
+        }
         continue;
       }
       cur.push_back(c);
     }
-    if (!cur.empty()) argsVec.push_back(cur);
+    if (!cur.empty()) {
+      argsVec.push_back(cur);
+    }
   }
 
   // Check MGM availability

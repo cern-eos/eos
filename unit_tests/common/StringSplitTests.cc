@@ -1,5 +1,13 @@
 #include "gtest/gtest.h"
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#pragma GCC diagnostic ignored "-Wuninitialized"
+#endif
 #include "common/StringSplit.hh"
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 #include <unordered_set>
 
 using namespace eos::common;
@@ -14,16 +22,9 @@ TEST(StringSplit, Empty)
   ASSERT_EQ(StringSplit("////", "/"), emptyv);
   ASSERT_EQ(StringSplit("abcd", ""), sv_vector({"abcd"}));
   ASSERT_EQ(CharSplitIt("abcd", '/'), sv_vector({"abcd"}));
-  // We explicitly want to test that passing an unitialized char variable
-  // does not cause any issues - therefore deactivate the warning for
-  // this piece of code.
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
-#pragma GCC diagnostic ignored "-Wuninitialized"
   char un_init;
   ASSERT_EQ(CharSplitIt("abcd", un_init), sv_vector({"abcd"}));
   ASSERT_EQ(CharSplitIt("abcd", '\0'), sv_vector({"abcd"}));
-#pragma GCC diagnostic pop
 }
 
 TEST(StringSplit, BasicIt)
