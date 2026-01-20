@@ -112,7 +112,24 @@ public:
       bool conditional = false;
       if (idx < args.size() && args[idx] == "-c") { conditional = true; ++idx; }
       std::string keyval, path;
-      if (!next(keyval) || !next(path)) { printHelp(); global_retc = EINVAL; return 0; }
+      if (!next(keyval) || !next(path)) {
+        // Recover if the arg parser swallowed the path due to embedded quotes.
+        std::string recovered;
+        if (!keyval.empty()) {
+          std::size_t split = keyval.find_last_of(' ');
+          if (split != std::string::npos && split + 1 < keyval.size()) {
+            recovered = keyval.substr(split + 1);
+            keyval.erase(split);
+          }
+        }
+        if (!recovered.empty()) {
+          path = recovered;
+        } else {
+          printHelp();
+          global_retc = EINVAL;
+          return 0;
+        }
+      }
       XrdOucString k = keyval.c_str();
       XrdOucString v = "";
       int epos = k.find("=");
