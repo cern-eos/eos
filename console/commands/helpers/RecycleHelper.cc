@@ -350,6 +350,14 @@ RecycleHelper::ParseCommand(const char* arg)
       }
 
       config->set_value(option);
+    } else if (soption == "--enforce") {
+      config->set_op(eos::console::RecycleProto::ConfigProto::ENFORCE);
+
+      if (!(option = tokenizer.GetToken())) {
+        return false;
+      }
+
+      config->set_value(option);
     } else if (soption == "--enable") {
       config->set_op(eos::console::RecycleProto::ConfigProto::ENABLE);
 

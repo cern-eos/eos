@@ -1294,9 +1294,9 @@ Recycle::Config(std::string& std_out, std::string& std_err,
     } else {
       std_out += "success: recycle bin update dry-run option";
     }
-  } else if (op == eos::console::RecycleProto_ConfigProto::ENABLE) {
+  } else if (op == eos::console::RecycleProto_ConfigProto::ENFORCE) {
     if (value.empty() || ((value != "on") && (value != "off"))) {
-      std_err = "error: missing/wrong enable value\n";
+      std_err = "error: missing/wrong enforce value\n";
       return EINVAL;
     }
 

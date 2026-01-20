@@ -1019,7 +1019,6 @@ if [ $recycletime -eq 0 ]; then
 runtest "### Recycle   " unix 0 "" eos recycle config --lifetime 86400
 fi
 
-runtest "### Recycle   " unix 0 "" eos recycle config --enable "on"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
 runtest "### Mkdir     " unix 0 "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle"
 runtest "### Chmod     " unix 0 "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle"
