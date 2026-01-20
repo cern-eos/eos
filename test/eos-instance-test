@@ -1176,6 +1176,7 @@ runtest "### Rmdir     " unix 0 "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/insta
 ###################################################A############################
 categorie="fileinfo"
 runtest "### Mkdir      " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
+runtest "### Rm_recycle " unit 0 "" eos recycle config --remove-bin "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo"
 runtest "### Mkdir      " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/"
 runtest "### Mkdir      " unix 0 "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/"
 runtest "### Chmod      " unix 0 "" eos chmod -r "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
