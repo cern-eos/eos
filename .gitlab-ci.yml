@@ -729,88 +729,27 @@ el9_asan_docker_image:
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user/eosclient-tests && pip install -r requirements.txt"'
     
     # clone reva, install dependencies
-    - echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories
-    - apk update
-    - apk upgrade
-    - apk add --no-cache git make nodejs npm
-    - apk add --no-cache go@edge
-    - export PATH="$(go env GOPATH)/bin:$PATH"
-    - npm install -g @intuit/judo
-    - git clone https://github.com/cs3org/reva.git
-    - cd reva
-    - git checkout feat/eos-ci
-    - make reva
-    - make cernbox-revad
-    - mkdir -p tmp
+    # - exec_cmd eos-mgm1 'echo "@edge http://dl-cdn.alpinelinux.org/alpine/edge/community" >> /etc/apk/repositories'
+    # - exec_cmd eos-mgm1 'apk update'
+    # - exec_cmd eos-mgm1 'apk upgrade'
+    # - exec_cmd eos-mgm1 'apk add --no-cache git make nodejs npm'
+    # - exec_cmd eos-mgm1 'apk add --no-cache go@edge'
+    - exec_cmd eos-mgm1 'yum -y install nodejs npm git make tar'
+    # Install go
+    - exec_cmd eos-mgm1 "export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH\" && /usr/bin/wget https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && /usr/bin/tar -C /usr/local -xzf go1.25.1.linux-amd64.tar.gz && ln -s /usr/local/go/bin/go /usr/bin/go && ln -s /usr/local/go/bin/gofmt /usr/bin/gofmt || echo Failed to install golang"
+    - exec_cmd eos-mgm1 'npm install -g @intuit/judo'
+    - exec_cmd eos-mgm1 'git clone https://github.com/cs3org/reva.git'
+    - exec_cmd eos-mgm1 'export PATH="$(/usr/bin/go env GOPATH)/bin:$PATH"; cd reva; git checkout feat/eos-ci; make reva; make cernbox-revad; mkdir -p reva/tmp'
     
-    # create users.json
-    - |
-        cat > tmp/users.json << 'EOF'
-        [
-          {
-            "username": "testuser",
-            "id": {
-              "idp": "http://localhost:20080",
-              "opaque_id": "testuser",
-              "type": 1
-            },
-            "secret": "testpass",
-            "display_name": "Test User",
-            "mail": "test@example.com",
-            "mail_verified": true,
-            "groups": ["myusers"],
-            "uid_number": 1255,
-            "gid_number": 123
-          }, 
-          {
-            "username": "testreceivinguser",
-            "id": {
-              "idp": "http://localhost:20080",
-              "opaque_id": "testreceivinguser",
-              "type": 1
-            },
-            "secret": "testpass",
-            "display_name": "Test User",
-            "mail": "test2@example.com",
-            "mail_verified": true,
-            "groups": ["myusers"],
-            "uid_number": 1256,
-            "gid_number": 123
-          }
-        ]
-        EOF
-    # Create groups.json
-    - |
-        cat > tmp/groups.json << 'EOF'
-        [
-          {
-            "id": {
-              "opaque_id": "myusers",
-              "idp": "http://localhost:20080"
-            },
-            "group_name": "myusers",
-            "mail": "sailing-lovers@example.org",
-            "display_name": "Sailing Lovers",
-            "gid_number": 123,
-            "members": [
-              {
-                "id": {
-                  "idp": "http://localhost:20080",
-                  "opaque_id": "testuser"
-                }
-              },
-              {
-                "idp": "http://localhost:20080",
-                "opaque_id": "testreceivinguser"
-              }
-            ]
-          }
-        ]
-        EOF
+    # Set users.json and groups.json in the right place
+    - exec_cmd eos-mgm1 'cp reva/tests/integration/reva-cli/config/users.json tmp/users.json'
+    - exec_cmd eos-mgm1 'cp reva/tests/integration/reva-cli/config/groups.json tmp/groups.json'
+       
 
     # Put eos path as basepath for tests:
-    - |
-        find tests/integration/reva-cli -type f -name '*.yaml' -exec sed -i 's|^[[:space:]]*BASEDIR: "/localfs"$|  BASEDIR: "/eos/test"|' {} +
+    - | 
+      exec_cmd eos-mgm1 \
+      "find reva/tests/integration/reva-cli -type f -name '*.yaml' -exec sed -i 's|^[[:space:]]*BASEDIR: \"/localfs\"$|  BASEDIR: \"/eos/test\"|' {} +"
     
     # Prepare mgm (add users, set vid mapping, create directory)
     - exec_cmd eos-mgm1 "groupadd -g 123 myusers"
@@ -823,18 +762,14 @@ el9_asan_docker_image:
     - exec_cmd eos-mgm1 "eos vid set membership 11 +sudo"
     - exec_cmd eos-mgm1 "eos vid set membership 11 -uids 3"
     - exec_cmd eos-mgm1 "eos vid set membership 11 -gids 4"
-    - MGM_POD_HOSTNAME="$(exec_cmd eos-mgm1 'hostname -f')"
+    # -
     - echo ${MGM_POD_HOSTNAME}
-    - sed -i "s|\"localhost:50051\"|\"${MGM_POD_HOSTNAME}:50051\"|g" tests/integration/reva-cli/config/revad-eos.toml
+    # - exec_cmd eos-mgm1 ' MGM_POD_HOSTNAME=$(hostname -f); sed -i "s|\"localhost:50051\"|\"${MGM_POD_HOSTNAME}:50051\"|g" reva/tests/integration/reva-cli/config/revad-eos.toml'
     
     # Start revad
-    - |
-        ./cmd/revad/revad -c tests/integration/reva-cli/config/revad-eos.toml &
-        echo $! > revad.pid
-        sleep 2
-    
+    - exec_cmd eos-mgm1 './reva/cmd/revad/revad -c reva/tests/integration/reva-cli/config/revad-eos.toml </dev/null >revad.log 2>&1 & echo $! > revad.pid; sleep 5; cat revad.log'    
     # Tests
-    - make test-reva-cli
+    - exec_cmd eos-mgm1 "cd reva; make test-reva-cli || cat ../revad.log"
 
   artifacts:
     when: on_failure
