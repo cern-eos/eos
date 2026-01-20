@@ -24,12 +24,12 @@
 
 #include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
-#include "mgm/FsView.hh"
 #include "common/ioMonitor/proto/IoBuffer.pb.h"
 #include "ioMonitor/include/IoMonitor.hh"
 #include <google/protobuf/util/json_util.h>
 #include <unordered_map>
 #include "common/ioMonitor/proto/Shaping.pb.h"
+#include "common/Logging.hh"
 
 EOSMGMNAMESPACE_BEGIN
 

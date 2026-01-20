@@ -123,7 +123,7 @@
 #include "namespace/locking/BulkNsObjectLocker.hh"
 #include "mgm/inflighttracker/InFlightTracker.hh"
 #include "mgm/namespacestats/NamespaceStats.hh"
-#include "shaping/IoShaping.hh"
+#include "mgm/shaping/IoShaping.hh"
 #include <XrdAcc/XrdAccPrivs.hh>
 #include <google/sparse_hash_map>
 #include <chrono>
