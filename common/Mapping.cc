@@ -140,6 +140,7 @@ Mapping::Init()
           "UidCacheGC");
       gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000,
           "GidCacheGC");
+      gShardedNegativeUserNameCache.set_force_expiry(true, 8);
       gShardedNegativeUserNameCache.reset_cleanup_thread(3600 * 1000,
           "NegUserNameGC");
       gShardedNegativeGroupNameCache.reset_cleanup_thread(3600 * 1000,
