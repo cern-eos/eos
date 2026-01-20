@@ -21,8 +21,8 @@
  *************************************************************************/
 
 #include "IoShaping.hh"
+#include "mgm/fsview/FsView.hh"
 #include "ioMonitor/include/IoAggregateMap.hh"
-#include "mgm/FsView.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
