@@ -133,18 +133,18 @@ Mapping::Init()
     std::call_once(g_cache_map_init, []() {
       // Force expiry of UID/GID cache every 2 cycles
       gShardedPhysicalUidCache.set_force_expiry(true, 2);
-      gShardedPhysicalGidCache.set_force_expiry(true, 2);
-      gShardedNegativeGroupNameCache.set_force_expiry(true, 2);
-      gShardedNegativePhysicalUidCache.set_force_expiry(true, 2);
       gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000,
           "UidCacheGC");
+      gShardedPhysicalGidCache.set_force_expiry(true, 2);
       gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000,
           "GidCacheGC");
       gShardedNegativeUserNameCache.set_force_expiry(true, 8);
       gShardedNegativeUserNameCache.reset_cleanup_thread(3600 * 1000,
           "NegUserNameGC");
+      gShardedNegativeGroupNameCache.set_force_expiry(true, 8);
       gShardedNegativeGroupNameCache.reset_cleanup_thread(3600 * 1000,
           "NegGroupNameGC");
+      gShardedNegativePhysicalUidCache.set_force_expiry(true, 2);
       gShardedNegativePhysicalUidCache.reset_cleanup_thread(3600 * 1000,
           "NegUidGC");
       ActiveUidsSharded.reset_cleanup_thread(300 * 1000,
@@ -166,12 +166,13 @@ Mapping::Reset()
 {
   {
     std::scoped_lock lock{gPhysicalUserNameCacheMutex, gPhysicalGroupNameCacheMutex};
-    gPhysicalGroupNameCache.clear();
     gPhysicalUserNameCache.clear();
+    gPhysicalGroupNameCache.clear();
     gPhysicalGroupIdCache.clear();
     gPhysicalUserIdCache.clear();
     gShardedPhysicalUidCache.clear();
     gShardedPhysicalGidCache.clear();
+    gShardedNegativeUserNameCache.clear();
     gShardedNegativeGroupNameCache.clear();
     gShardedNegativePhysicalUidCache.clear();
   }
