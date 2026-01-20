@@ -451,6 +451,8 @@ GroupDrainer::Configure(const std::string& spaceName)
 
   if (!threshold_str.empty()) {
     mDrainerEngineConf.insert_or_assign("threshold", std::move(threshold_str));
+  } else {
+    mDrainerEngineConf.insert_or_assign("threshold", DEFAULT_THRESHOLD);
   }
 
   return true;
@@ -584,7 +586,15 @@ GroupDrainer::getStatus(StatusFormat status_fmt) const
   }
   auto failed_tx_sz = mFailedTransfers.size();
   ss << "Transfers Failed       : " << failed_tx_sz << "\n";
-  ss << mEngine->get_status_str();
+  auto threshold_it = mDrainerEngineConf.find("threshold");
+
+  if (threshold_it != mDrainerEngineConf.end()) {
+    ss << "Configured Threshold   : " << threshold_it->second << "%\n";
+  } else {
+    ss << "Configured Threshold   : <not set>\n";
+  }
+
+  ss << mEngine->get_status_str(true);
 
   if (mDrainFsMap.empty()) {
     return ss.str();
