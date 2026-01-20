@@ -72,12 +72,13 @@ void RecyclePolicy::ApplyConfig(eos::mgm::FsView* fsview)
 bool RecyclePolicy::StoreConfig()
 {
   std::ostringstream oss;
-  oss << sKeepTimeKey << "=" << mKeepTimeSec.load() << " "
+  oss << sEnforceKey << "=" << (mEnforced.load() ? "on" : "off")
+      << sEnforceKey << "=" << (mEnforced.load() ? "on" : "off")
+      << sKeepTimeKey << "=" << mKeepTimeSec.load() << " "
       << sRatioKey << "=" << mSpaceKeepRatio.load() << " "
       << sCollectKey << "=" << mCollectInterval.load().count() << " "
       << sRemoveKey << "=" << mRemoveInterval.load().count() << " "
-      << sDryRunKey << "=" << (mDryRun.load() ? "yes" : "no") << " "
-      << sEnforceKey << "=" << (mEnforced.load() ? "on" : "off");
+      << sDryRunKey << "=" << (mDryRun.load() ? "yes" : "no");
   return FsView::gFsView.SetGlobalConfig("recycle", oss.str());
 }
 
@@ -128,6 +129,15 @@ bool RecyclePolicy::Config(const std::string& key, const std::string& value,
       mEnforced = false;
     } else {
       msg = "error: unknown value for recycle-enforce - expected on|off";
+      return false;
+    }
+  } else if (key == sEnableKey) {
+    if (value == "on") {
+      mEnabled = true;
+    } else if (value == "off") {
+      mEnabled = false;
+    } else {
+      msg = "error: unknown value for recycle-enable - expected on|off";
       return false;
     }
   } else {

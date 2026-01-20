@@ -311,13 +311,23 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  //! Check if the recycling is enforced instance wide
+  //!
+  //! @return true if enforced, otherwise false
+  //----------------------------------------------------------------------------
+  inline bool IsEnforced() const
+  {
+    return mPolicy.mEnforced.load();
+  }
+
+  //----------------------------------------------------------------------------
   //! Check if the recycle bin is enabled
   //!
   //! @return true if enabled, otherwise false
   //----------------------------------------------------------------------------
   inline bool IsEnabled() const
   {
-    return mPolicy.mEnforced.load();
+    return mPolicy.mEnabled.load();
   }
 
 private:

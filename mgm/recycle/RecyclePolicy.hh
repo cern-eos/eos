@@ -91,9 +91,13 @@ public:
   static constexpr auto sRemoveKey = "recycle-remove-time";
   static constexpr auto sDryRunKey = "recycle-dry-run";
   static constexpr auto sEnforceKey = "recycle-enforce";
+  static constexpr auto sEnableKey = "recycle-enable";
 #ifdef IN_TEST_HARNESS
 public:
 #endif
+  //! Mark that recycle is enabled
+  std::atomic<bool> mEnabled {true};
+  //! Mark if recycle is enforced instance wide
   std::atomic<bool> mEnforced {false};
   std::atomic<uint64_t> mKeepTimeSec {0};
   std::atomic<double> mSpaceKeepRatio {0.0};
