@@ -134,6 +134,27 @@ std::string BalancerEngine::get_status_str(bool detail, bool monitoring) const
       "\n";
 
   if (detail) {
+    if (!data.mGroupSizes.empty()) {
+      double min_filled = 100.0, max_filled = 0.0;
+
+      for (const auto& [name, info] : data.mGroupSizes) {
+        double filled = info.filled();
+
+        if (filled < min_filled) {
+          min_filled = filled;
+        }
+
+        if (filled > max_filled) {
+          max_filled = filled;
+        }
+      }
+
+      oss << "Average Fill Level: " << std::fixed << std::setprecision(2)
+          << calculateAvg(data.mGroupSizes) << "%\n"
+          << "Fill Level Range: " << std::fixed << std::setprecision(2)
+          << min_filled << "% - " << max_filled << "%\n";
+    }
+
     oss << "Groups Over Threshold (Source Groups)\n";
     oss << generate_table(data.mGroupsOverThreshold) << "\n";
     oss << "Groups Under Threshold (Target Groups)\n";
