@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "common/Path.hh"
+#include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
@@ -56,8 +57,11 @@ public:
     if (parents)
       in += "&mgm.option=p";
     XrdOucString ap = abspath(p.c_str());
+    XrdOucString esc =
+        eos::common::StringConversion::curl_escaped(ap.c_str()).c_str();
     in += "&mgm.path=";
-    in += ap;
+    in += esc;
+    in += "&eos.encodepath=1";
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }

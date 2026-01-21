@@ -2,8 +2,8 @@
 // File: rmdir-native.cc
 // ----------------------------------------------------------------------
 
+#include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
@@ -34,9 +34,13 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    XrdOucString in = "mgm.cmd=rmdir&mgm.path=";
+    XrdOucString in = "mgm.cmd=rmdir";
     XrdOucString p = abspath(args[0].c_str());
-    in += p;
+    XrdOucString esc =
+        eos::common::StringConversion::curl_escaped(p.c_str()).c_str();
+    in += "&mgm.path=";
+    in += esc;
+    in += "&eos.encodepath=1";
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }
