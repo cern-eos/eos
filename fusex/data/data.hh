@@ -466,7 +466,7 @@ public:
   std::string url(fuse_ino_t ino);
 
   void release(fuse_req_t req,
-               fuse_ino_t ino);
+               fuse_ino_t ino, shared_data io);
 
   uint64_t commit(fuse_req_t req,
                   shared_data io);

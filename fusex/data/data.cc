@@ -192,21 +192,14 @@ data::retrieve_wr_md(fuse_ino_t ino)
 void
 /* -------------------------------------------------------------------------- */
 data::release(fuse_req_t req,
-              fuse_ino_t ino)
+              fuse_ino_t ino, shared_data io)
 /* -------------------------------------------------------------------------- */
 {
   XrdSysMutexHelper mLock(datamap);
 
-  if (datamap.count(ino)) {
-    shared_data io = datamap[ino];
+  if (datamap.count(ino) || datamap.count(ino + 0xffffffff)) {
     io->detach();
     // the object is cleaned by the flush thread
-  }
-
-  if (datamap.count(ino + 0xffffffff)) {
-    // in case this is an unlinked object
-    shared_data io = datamap[ino + 0xffffffff];
-    io->detach();
   }
 }
 
@@ -3485,8 +3478,14 @@ data::dmap::ioflush(ThreadAssistant& assistant)
           // here we make the data object unreachable for new clients
           (*it)->detach_nolock();
           cachehandler::instance().rm((*it)->id());
-          this->erase((*it)->id());
-          this->erase((*it)->id() + 0xffffffff);
+          auto it2 = this->find((*it)->id());
+          if (it2 != this->end() && it2->second == *it) {
+            this->erase((*it)->id());
+          }
+          it2 = this->find((*it)->id() + 0xffffffff);
+          if (it2 != this->end() && it2->second == *it) {
+            this->erase((*it)->id() + 0xffffffff);
+          }
         }
       }
 
