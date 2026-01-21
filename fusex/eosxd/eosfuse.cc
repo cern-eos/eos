@@ -3185,7 +3185,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                 rc |= io->flush(req);
                 rc |= io->detach(req, cookie, true);
                 rc = rc ? (errno ? errno : rc) : 0;
-                Instance().datas.release(req, (*md)()->id());
+                Instance().datas.release(req, (*md)()->id(), io);
                 struct timespec tsnow;
                 eos::common::Timing::GetTimeSpec(tsnow);
                 (*md)()->set_mtime(tsnow.tv_sec);
@@ -3193,7 +3193,7 @@ EosFuse::setattr(fuse_req_t req, fuse_ino_t ino, struct stat* attr, int op,
                 (*md)()->set_ctime(tsnow.tv_sec);
                 (*md)()->set_ctime_ns(tsnow.tv_nsec);
               } else {
-                Instance().datas.release(req, (*md)()->id());
+                Instance().datas.release(req, (*md)()->id(), io);
               }
             }
 
@@ -3283,7 +3283,6 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
       XrdSysMutexHelper mLock(md->Locker());
       (*md)()->set_pid(parent);
       eos_static_info("%s", md->dump(e).c_str());
-      md->lookup_inc();
       {
         auto attrMap = (*md)()->attr();
 
@@ -3292,6 +3291,11 @@ EosFuse::lookup(fuse_req_t req, fuse_ino_t parent, const char* name)
           uint64_t mdino = std::stoull(attrMap[k_mdino]);
           uint64_t local_ino = EosFuse::Instance().mds.vmaps().forward(mdino);
           metad::shared_md tmd = EosFuse::Instance().mds.get(req, local_ino, "");
+          // as we're a hard-link don't increase our lookup count as we
+          // return the target's inode to the fuse layer not our own.
+          tmd->lookup_inc();
+        } else {
+          md->lookup_inc();
         }
       }
       md->convert(e, pcap->lifetime());
@@ -5444,8 +5448,9 @@ EosFuse::release(fuse_req_t req, fuse_ino_t ino, struct fuse_file_info* fi)
     std::string cookie = "";
     io->ioctx()->detach(req, cookie, io->rw);
     Instance().caps.close_writer_inode(io->cap_);
+    data::shared_data ioctx = io->ioctx();
     delete io;
-    Instance().datas.release(req, ino);
+    Instance().datas.release(req, ino, ioctx);
   }
 
   EXEC_TIMING_END(__func__);
@@ -7089,6 +7094,7 @@ EosFuse::link(fuse_req_t req, fuse_ino_t ino, fuse_ino_t parent,
           }
 
           // reply with the target entry
+          tmd->lookup_inc();
           fuse_reply_entry(req, &e);
         }
       }
