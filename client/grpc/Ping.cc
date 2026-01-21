@@ -13,7 +13,7 @@ int usage(const char* prog)
           "           --ca <ca-cert-file>]\n"
           "         [--endpoint <host:port>]\n"
           "         [--token <auth-token>]\n"
-          "         [--force-ssl]", prog);
+          "         [--force-ssl]\n", prog);
   return -1;
 }
 
