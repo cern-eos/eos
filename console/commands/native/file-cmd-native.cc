@@ -37,6 +37,15 @@ namespace {
 void
 AppendEncodedPath(XrdOucString& in, const XrdOucString& raw, bool absolutize)
 {
+  XrdOucString raw_copy = raw;
+  if (raw_copy.beginswith("fid:") || raw_copy.beginswith("fxid:") ||
+      raw_copy.beginswith("pid:") || raw_copy.beginswith("pxid:") ||
+      raw_copy.beginswith("inode:") || raw_copy.beginswith("cid:") ||
+      raw_copy.beginswith("cxid:")) {
+    in += "&mgm.path=";
+    in += raw;
+    return;
+  }
   XrdOucString path = raw;
   if (absolutize) {
     path = abspath(path.c_str());
