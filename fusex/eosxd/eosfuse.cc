@@ -4059,6 +4059,12 @@ EROFS  pathname refers to a file on a read-only filesystem.
           struct timespec ts;
           eos::common::Timing::GetTimeSpec(ts);
           (*md)()->set_name(name);
+	  std::string pfullpath = (*pmd)()->fullpath();
+	  if (pfullpath.back() != '/') {
+	    pfullpath += "/";
+	  }
+
+	  (*md)()->set_fullpath(pfullpath + name);
           (*md)()->set_atime(ts.tv_sec);
           (*md)()->set_atime_ns(ts.tv_nsec);
           (*md)()->set_mtime(ts.tv_sec);
@@ -5048,6 +5054,9 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
 
             obfuscate = pmd->obfuscate();
             pfullpath = (*pmd)()->fullpath();
+	    if (pfullpath.back() != '/') {
+	      pfullpath += "/";
+	    }
           }
 
           if (del_ino) {
@@ -6021,7 +6030,10 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
               value += Instance().Config().hostport;
               value += "/";
               value += (*md)()->fullpath().c_str();
-            }
+	      if (S_ISDIR((*md)()->mode()) && ((*md)()->fullpath().back()!='/')) {
+		value += "/";
+	      }
+	    }
 
             if (key == "eos.quota") {
               pcap = Instance().caps.acquire(req, ino,
