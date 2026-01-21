@@ -74,8 +74,8 @@ void RegisterNativeConsoleCommands()
   // Mkdir/Rm
   extern void RegisterMkdirNativeCommand();
   RegisterMkdirNativeCommand();
-  extern void RegisterRmNativeCommand();
-  RegisterRmNativeCommand();
+  extern void RegisterRmProtoNativeCommand();
+  RegisterRmProtoNativeCommand();
   // Info
   extern void RegisterInfoNativeCommand();
   RegisterInfoNativeCommand();
