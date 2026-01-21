@@ -28,6 +28,8 @@
 #include "fst/utils/DiskMeasurements.hh"
 #include "common/Constants.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
+#include <sys/syscall.h>
+#include <unistd.h>
 
 #ifdef __APPLE__
 #define O_DIRECT 0
