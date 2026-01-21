@@ -9,6 +9,7 @@
 #include "common/Fmd.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
+#include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleArgParser.hh"
@@ -33,6 +34,20 @@
 #endif
 
 namespace {
+void
+AppendEncodedPath(XrdOucString& in, const XrdOucString& raw, bool absolutize)
+{
+  XrdOucString path = raw;
+  if (absolutize) {
+    path = abspath(path.c_str());
+  }
+  XrdOucString esc =
+      eos::common::StringConversion::curl_escaped(path.c_str()).c_str();
+  in += "&mgm.path=";
+  in += esc;
+  in += "&eos.encodepath=1";
+}
+
 int
 GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
                         const char* sfsid, eos::common::FmdHelper& fmd)
@@ -124,14 +139,11 @@ RunFileCheck(XrdOucString path, const std::string& option, CommandContext& ctx)
 {
   XrdOucString in = "mgm.cmd=file";
 
-  if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:"))) {
-    path = abspath(path.c_str());
-  }
+  bool absolutize = (!path.beginswith("fid:")) && (!path.beginswith("fxid:"));
 
   in += "&mgm.subcmd=getmdlocation";
   in += "&mgm.format=fuse";
-  in += "&mgm.path=";
-  in += path;
+  AppendEncodedPath(in, path, absolutize);
 
   // Eventually disable json format to avoid parsing issues
   bool old_json = json;
@@ -454,9 +466,7 @@ public:
         in += "&mgm.file.id=";
         in += path;
       } else {
-        path = abspath(path.c_str());
-        in += "&mgm.path=";
-        in += path;
+        AppendEncodedPath(in, path, true);
       }
     };
 
@@ -663,8 +673,7 @@ public:
       in += "&mgm.subcmd=";
       in += cmd;
       XrdOucString p = rest[0].c_str();
-      in += "&mgm.path=";
-      in += abspath(p.c_str());
+      AppendEncodedPath(in, p, true);
       in += "&mgm.purge.version=";
       if (rest.size() > 1)
         in += rest[1].c_str();
@@ -760,8 +769,8 @@ public:
         return 0;
       }
       XrdOucString p = rest[0].c_str();
-      in += "&mgm.subcmd=verify&mgm.path=";
-      in += abspath(p.c_str());
+      in += "&mgm.subcmd=verify";
+      AppendEncodedPath(in, p, true);
       for (size_t i = 1; i < rest.size(); ++i) {
         const std::string& opt = rest[i];
         if (opt == "-checksum")
@@ -844,8 +853,8 @@ public:
         return 0;
       }
       XrdOucString p = rest[0].c_str();
-      in += "&mgm.subcmd=share&mgm.path=";
-      in += abspath(p.c_str());
+      in += "&mgm.subcmd=share";
+      AppendEncodedPath(in, p, true);
       unsigned long long expires = (28ull * 86400ull);
       if (rest.size() > 1) {
         in += "&mgm.file.expires=";
@@ -863,8 +872,8 @@ public:
         return 0;
       }
       XrdOucString p = rest[0].c_str();
-      in += "&mgm.subcmd=workflow&mgm.path=";
-      in += abspath(p.c_str());
+      in += "&mgm.subcmd=workflow";
+      AppendEncodedPath(in, p, true);
       in += "&mgm.workflow=";
       in += rest[1].c_str();
       in += "&mgm.event=";
@@ -876,13 +885,11 @@ public:
         return 0;
       }
       XrdOucString path = rest[0].c_str();
-      if ((!path.beginswith("fid:")) && (!path.beginswith("fxid:")) &&
-          (!path.beginswith("pid:")) && (!path.beginswith("pxid:")) &&
-          (!path.beginswith("inode:"))) {
-        path = abspath(path.c_str());
-      }
-      XrdOucString fin = "mgm.cmd=fileinfo&mgm.path=";
-      fin += path;
+      bool absolutize = (!path.beginswith("fid:")) && (!path.beginswith("fxid:")) &&
+                        (!path.beginswith("pid:")) && (!path.beginswith("pxid:")) &&
+                        (!path.beginswith("inode:"));
+      XrdOucString fin = "mgm.cmd=fileinfo";
+      AppendEncodedPath(fin, path, absolutize);
       XrdOucString option = "";
       for (size_t i = 1; i < rest.size(); ++i) {
         XrdOucString tok = rest[i].c_str();
