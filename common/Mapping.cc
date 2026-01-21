@@ -78,7 +78,8 @@ std::map<std::string, gid_t> Mapping::gPhysicalGroupIdCache;
 
 Mapping::ip_cache Mapping::gIpCache(300);
 
-std::unique_ptr<UnixGroupsFetcher> Mapping::gGroupsFetcher(new UnixGroupListFetcher());
+std::unique_ptr<UnixGroupsFetcher> Mapping::gGroupsFetcher(
+  new UnixGroupListFetcher());
 
 OAuth Mapping::gOAuth;
 
@@ -122,10 +123,11 @@ Mapping::Init()
   if (getenv("EOS_SECONDARY_GROUPS") &&
       !strcmp("1", getenv("EOS_SECONDARY_GROUPS"))) {
     gSecondaryGroups = true;
+
     if (getenv("EOS_SECONDARY_GROUPS_GRENT") &&
         !strcmp("1", getenv("EOS_SECONDARY_GROUPS_GRENT"))) {
       gGroupsFetcher.reset(new UnixGrentFetcher());
-      }
+    }
   }
 
   gOAuth.Init();
@@ -137,7 +139,6 @@ Mapping::Init()
       gShardedPhysicalGidCache.set_force_expiry(true, 2);
       gShardedNegativeGroupNameCache.set_force_expiry(true, 2);
       gShardedNegativePhysicalUidCache.set_force_expiry(true, 2);
-
       gShardedPhysicalUidCache.reset_cleanup_thread(3600 * 1000,
           "UidCacheGC");
       gShardedPhysicalGidCache.reset_cleanup_thread(3600 * 1000,
@@ -950,9 +951,9 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (vid.token->VerifyOrigin(vid.host, vid.uid_string,
                                   std::string(vid.prot.c_str()))) {
         // invalidate this token
-        eos_static_debug("invalidating token - origin mismatch %s:%s:%s",
-                         vid.host.c_str(), vid.uid_string.c_str(),
-                         vid.prot.c_str());
+        eos_static_err("msg=\"invalid token due to origin mismatch\" "
+                       "\"%s#%s#%s\"", vid.host.c_str(),
+                       vid.uid_string.c_str(), vid.prot.c_str());
         vid.token->Reset();
         // reset the vid to nobody if the origin does not match
         vid.toNobody();
@@ -1727,8 +1728,7 @@ Mapping::CommaListToUidSet(const char* list, std::set<uid_t>& uids_set)
       })
       != username.end()) {
         uid = eos::common::Mapping::UserNameToUid(username, errc);
-      }
-      else {
+      } else {
         try {
           uid = std::stoul(username);
         } catch (const std::exception& e) {
@@ -2025,8 +2025,8 @@ Mapping::addSecondaryGroups(VirtualIdentity& vid, const std::string& name,
   if (!gSecondaryGroups) {
     return;
   }
-  populateGroups(name,gid,vid, gGroupsFetcher.get());
 
+  populateGroups(name, gid, vid, gGroupsFetcher.get());
 }
 
 void
@@ -2206,7 +2206,7 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
     return;
   }
 
-  addSecondaryGroups(vid, vid.uid_string, idp->gid);
+  addSecondaryGroups(vid, name, idp->gid);
 
   // add to the cache
   if (!in_uid_cache) {
