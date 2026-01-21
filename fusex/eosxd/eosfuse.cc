@@ -5071,7 +5071,7 @@ The O_NONBLOCK flag was specified, and an incompatible lease was held on the fil
           (*md)()->set_md_ino(0);
           (*md)()->set_err(0);
           (*md)()->set_mode(mode | (S_ISFIFO(mode) ? S_IFIFO : S_IFREG));
-          (*md)()->set_fullpath(pfullpath + "/" + name);
+          (*md)()->set_fullpath(pfullpath + name);
 
           if (S_ISFIFO(mode)) {
             (*(*md)()->mutable_attr())[k_fifo] = "";
