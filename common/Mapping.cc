@@ -2217,8 +2217,8 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
         vid.gid = idp->gid;
         vid.allowed_uids.insert(vid.uid);
         vid.allowed_gids.insert(vid.gid);
-        vid.allowed_uids.insert(99);
-        vid.allowed_gids.insert(99);
+        vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
+        vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
 
         // If uid_string empty try best effort with the given "name"
         if (vid.uid_string.empty()) {
