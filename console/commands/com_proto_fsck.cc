@@ -69,7 +69,7 @@ void com_fsck_help()
       << "    best-effort          : control best-effort repair mode - on/off\n"
       << "    repair-category      : specify error types that the repair thread will handle\n"
       << "                           e.g all, m_cx_diff, m_mem_sz_diff, d_cx_diff, d_mem_sz_diff,\n"
-      << "                           unreg_n, rep_diff_n, rep_missing_n, blockxs_err\n"
+      << "                           unreg_n, rep_diff_n, rep_missing_n, blockxs_err, stripe_err\n"
       << "    max-queued-jobs      : maximum number of queued jobs\n"
       << "    max-thread-pool-size : maximum number of threads in the fsck pool\n"
       << "    show-dark-files      : on/off [default off] - might affect instance performance\n"
