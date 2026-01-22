@@ -1594,7 +1594,7 @@ The following releases of Ubuntu are currently supported:
 
 * Ubuntu 22.04.5 LTS (Jammy Jellyfish)
 * Ubuntu 24.04.3 LTS (Noble Numbat)
-* Ubuntu 25.04 (Plucky Puffin) - starting with eos version 5.4.0
+* Ubuntu 25.04 (Plucky Puffin)
 
 
 Follow these steps to configure the necessary APT repositories and install
@@ -1602,22 +1602,23 @@ the EOS client and FUSE packages:
 
 .. code-blocK:: bash
 
-   Setup the APT repositories holding the EOS packaage:
+   # make sure we have a few utilities
+   sudo apt update
+   sudo apt install -y curl gpg lsb-release
+   # Setup the APT repositories holding the EOS packaage:
    # Import the EOS GPG key of the repository
    curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/storage-ci.gpg
    # Create the APT repository configuration
-   echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/debian/eos/ $(lsb_release -cs) release" | sudo tee /etc/apt/sources.list.d/eos-client.list > /dev/null
+   echo "deb [arch=$(dpkg --print-architecture)] http://storage-ci.web.cern.ch/storage-ci/debian/eos/diopside $(lsb_release -cs) $(lsb_release -cs)/tag $(lsb_release -cs)/commit" | sudo tee /etc/apt/sources.list.d/eos-client.list > /dev/null
 
 
-Install the EOS packages and their dependency - requires root privileges and
+Install the EOS packages and their dependencies. Root privileges are required. Also
 create the local directory for the local mounts:
 
 .. code-block:: bash
 
    sudo apt update
    sudo apt install -y eos-fusex
-   # All mounts will be in this directory by default, but this can be chaged
-   # by using the "localmountdir" in the configuration below.
    sudo mkdir /eos/
 
 
@@ -1680,17 +1681,28 @@ With the above configuration in place, one can setup automount to take care of m
 
    #Create a file called "/etc/auto.master.d/eos.autofs" like this:
    echo "/eos /etc/auto.eos" > /etc/auto.master.d/eos.autofs
+   sudo systemctl restart autofs
 
 
 At this point the mountpoints are managed automatically by the autofs daemon.
 Therefore, trying to access the local path `/eos/home-u/` given the above
-configuration for user `userx` would display their CERNBox contents.
+configuration, would display "userx" CERNBox contents.
+
 All mounts will be created inside the `/eos/` directory on the local file
 system and can be accessed by concatenating the first column in the
 `/etc/auto.eos` with the `/eos/` path.
 
-For further configuration options when it comes to handling EOS FUSE mountpoints
-please consult the following document:
+Kerberos is commonly used to authenticate with the mount points. To have
+the kerberos client available:
+
+.. code-block:: bash
+
+   # Ensure the autofs package is installed:
+   sudo apt install -y krb5-user
+
+
+After which "kinit" could be used to obtain a ticket. For further configuration options
+when it comes to handling EOS FUSE mountpoints please consult the following document:
 https://gitlab.cern.ch/dss/eos/-/blob/master/fusex/README.md
 
 
