@@ -2212,9 +2212,9 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
         vid.gid = idp->gid;
         vid.allowed_uids.insert(vid.uid);
         vid.allowed_gids.insert(vid.gid);
-        vid.allowed_uids.insert(VirtualIdentity::kNobodyUid);
-        vid.allowed_gids.insert(VirtualIdentity::kNobodyGid);
-        addSecondaryGroups(vid, vid.uid_string, idp->gid);
+        vid.allowed_uids.insert(99);
+        vid.allowed_gids.insert(99);
+        addSecondaryGroups(vid, name, idp->gid);
         auto gs = std::make_unique<gid_set>(vid.allowed_gids);
         eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
         gShardedPhysicalUidCache.store(name, std::move(idp));
