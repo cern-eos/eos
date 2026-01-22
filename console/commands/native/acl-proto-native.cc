@@ -3,6 +3,7 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/commands/helpers/AclHelper.hh"
 #include <memory>
 #include <sstream>
 
@@ -27,6 +28,7 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
+    (void)ctx;
     std::ostringstream oss;
     for (size_t i = 0; i < args.size(); ++i) {
       if (i)
@@ -39,92 +41,14 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-
-    // Minimal native mapping of 'acl' to 'attr' operations
-    bool list = false;
-    bool recursive = false;
-    bool userAcl = false;
-    bool sysAcl = false;
-    std::vector<std::string> positionals;
-
-    for (size_t i = 0; i < args.size(); ++i) {
-      const std::string& t = args[i];
-      if (t == "-l" || t == "--list") {
-        list = true;
-        continue;
-      }
-      if (t == "-R" || t == "--recursive") {
-        recursive = true;
-        continue;
-      }
-      if (t == "--user") {
-        userAcl = true;
-        continue;
-      }
-      if (t == "--sys") {
-        sysAcl = true;
-        continue;
-      }
-      // ignore position/front for now (ordering handled server-side)
-      if (t == "-p" || t == "--position") {
-        if (i + 1 < args.size()) {
-          ++i;
-        }
-        continue;
-      }
-      if (t == "-f" || t == "--front") {
-        continue;
-      }
-      positionals.push_back(t);
-    }
-
-    const char* key = sysAcl ? "sys.acl" : (userAcl ? "user.acl" : "sys.acl");
-
-    IConsoleCommand* attrCmd = CommandRegistry::instance().find("attr");
-    if (!attrCmd) {
-      fprintf(stderr,
-              "error: 'attr' command not available for ACL operations\n");
-      global_retc = EINVAL;
-      return 0;
-    }
-
-    if (list) {
-      if (positionals.empty()) {
-        printHelp();
-        global_retc = EINVAL;
-        return 0;
-      }
-      std::vector<std::string> attrArgs;
-      attrArgs.push_back("ls");
-      // attr ls key <path>
-      attrArgs.push_back(key);
-      attrArgs.push_back(positionals.back());
-      return attrCmd->run(attrArgs, ctx);
-    }
-
-    // Set rule
-    if (positionals.size() < 2) {
+    AclHelper acl(gGlobalOpts);
+    if (!acl.ParseCommand(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-    // Interpret last positional as identifier, prior ones as rule segments
-    // (join with space to preserve quoted input)
-    std::string identifier = positionals.back();
-    std::string rule;
-    for (size_t i = 0; i + 1 < positionals.size(); ++i) {
-      if (i)
-        rule.push_back(' ');
-      rule += positionals[i];
-    }
-    std::vector<std::string> attrArgs;
-    attrArgs.push_back("set");
-    if (recursive)
-      attrArgs.push_back("-r");
-    std::string kv = std::string(key) + "=" + rule;
-    attrArgs.push_back(kv);
-    attrArgs.push_back(identifier);
-    return attrCmd->run(attrArgs, ctx);
+    global_retc = acl.Execute(true, true);
+    return global_retc;
   }
   void
   printHelp() const override
