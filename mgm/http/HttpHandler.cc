@@ -84,6 +84,8 @@ HttpHandler::HandleRequest(eos::common::HttpRequest* request)
       if (gOFS->ShouldRoute(
             __FUNCTION__, 0, *mVirtualIdentity, request->GetUrl().c_str(),
             request->GetQuery().c_str(), host, port, stall_timeout)) {
+        std::string url_enc = eos::common::StringConversion::curl_path_escaped
+                              (request->GetUrl().c_str());
         response = HttpServer::HttpRedirect(request->GetUrl().c_str(),
                                             host.c_str(), port, false);
         mHttpResponse = response;
@@ -352,10 +354,13 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
   } else {
     eos_static_info("method=GET file=%s tident=%s query=%s",
                     url.c_str(), client.tident, query.c_str());
-    if(statOK && (buf.st_rdev & XRDSFS_HASBKUP) && (buf.st_rdev & XRDSFS_OFFLINE)) {
+
+    if (statOK && (buf.st_rdev & XRDSFS_HASBKUP) &&
+        (buf.st_rdev & XRDSFS_OFFLINE)) {
       // File is located on tape, not on disk - EOS-6132
-      response = HttpServer::HttpError("File is stored on tape - no disk replica exists",
-                            response->FAILED_DEPENDENCY);
+      response =
+        HttpServer::HttpError("File is stored on tape - no disk replica exists",
+                              response->FAILED_DEPENDENCY);
       return response;
     }
 
@@ -377,9 +382,9 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 
       if (rc != SFS_OK) {
         if (rc == SFS_REDIRECT) {
-          std::string urlenc = eos::common::StringConversion::curl_path_escaped(
-                                 request->GetUrl().c_str());
-          response = HttpServer::HttpRedirect(urlenc,
+          std::string url_enc = eos::common::StringConversion::curl_path_escaped
+                                (request->GetUrl().c_str());
+          response = HttpServer::HttpRedirect(url_enc,
                                               file->error.getErrText(),
                                               file->error.getErrInfo(), false);
         } else if (rc == SFS_ERROR) {
@@ -613,6 +618,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         if (query.length()) {
           query += "&";
         }
+
         query += "archivemetadata=";
         query += request->GetHeaders()["archivemetadata"];
       }
@@ -633,10 +639,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       if (rc != SFS_OK) {
         if (rc == SFS_REDIRECT) {
           std::string redirection_cgi = file->error.getErrText();
+          std::string url_enc = eos::common::StringConversion::curl_path_escaped
+                                (request->GetUrl().c_str());
 
           if (file->error.getErrInfo() == 1094) {
             // MGM redirect
-            response = HttpServer::HttpRedirect(request->GetUrl(),
+            response = HttpServer::HttpRedirect(url_enc,
                                                 redirection_cgi,
                                                 gOFS->mHttpdPort, false);
           } else {
@@ -645,7 +653,7 @@ HttpHandler::Put(eos::common::HttpRequest* request)
             }
 
             // FST redirect
-            response = HttpServer::HttpRedirect(request->GetUrl(),
+            response = HttpServer::HttpRedirect(url_enc,
                                                 redirection_cgi,
                                                 file->error.getErrInfo(), false);
           }
@@ -662,10 +670,10 @@ HttpHandler::Put(eos::common::HttpRequest* request)
           response = HttpServer::HttpStall(file->error.getErrText(),
                                            file->error.getErrInfo());
         } else {
-          if(getenv("EOS_MGM_ALLOW_HTTP_STALL") && rc >= SFS_STALL) {
+          if (getenv("EOS_MGM_ALLOW_HTTP_STALL") && rc >= SFS_STALL) {
             // HTTP stall mechanism was enabled and the rc of the open is >= the minimum stalling time
             // in seconds, return a Service Unavailable error.
-            response = HttpServer::HttpError("Access limit reached",ETXTBSY);
+            response = HttpServer::HttpError("Access limit reached", ETXTBSY);
           } else {
             response = HttpServer::HttpError("Unexpected result from file open",
                                              EOPNOTSUPP);
