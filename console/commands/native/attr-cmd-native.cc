@@ -153,6 +153,7 @@ public:
       std::string key = arg;
       std::string value;
       int epos = XrdOucString(key.c_str()).find("=");
+      const bool has_equals = (sub == "set" && epos != STR_NPOS);
       if (sub == "link") {
         key = "sys.attr.link";
         value = arg;
@@ -176,7 +177,7 @@ public:
         }
       }
 
-      if (value.empty()) {
+      if (value.empty() && !has_equals) {
         printHelp();
         global_retc = EINVAL;
         return 0;
