@@ -37,18 +37,12 @@
 #include <openssl/sha.h>
 #include <time.h>
 #include <string.h>
-#include <memory>
 #include <mutex>
 #include <uuid/uuid.h>
 #define EOSCOMMONSYMKEYS_GRACEPERIOD 5
 #define EOSCOMMONSYMKEYS_DELETIONOFFSET 60
 
 EOSCOMMONNAMESPACE_BEGIN
-
-class UriCapCipher;
-struct UriCapCipherDeleter {
-  void operator()(UriCapCipher* ptr) const;
-};
 
 ///-----------------------------------------------------------------------------
 //! Class wrapping a symmetric key object and its encoding/decoding methods
@@ -402,11 +396,6 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Return a cached UriCapCipher instance for this key (thread-safe)
-  //----------------------------------------------------------------------------
-  UriCapCipher& GetUriCapCipher();
-
-  //----------------------------------------------------------------------------
   //! Return the expiration timestamp of the key
   //----------------------------------------------------------------------------
   inline time_t GetValidity()
@@ -445,8 +434,6 @@ private:
   char keydigest64[SHA_DIGEST_LENGTH * 2];
   XrdOucString key64; //< the key in base64 format
   time_t mValidity; //< unix time when the validity of the key stops
-  std::mutex mUriCapMutex;
-  std::unique_ptr<UriCapCipher, UriCapCipherDeleter> mUriCapCipher;
 };
 
 //------------------------------------------------------------------------------
