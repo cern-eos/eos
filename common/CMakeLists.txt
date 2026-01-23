@@ -143,7 +143,6 @@ add_library(EosCommon-Objects OBJECT
   CommentLog.cc
   RateLimit.cc
   IntervalStopwatch.cc
-  UriCapCipher.cc
   VirtualIdentity.cc
   XrdConnPool.cc
   XrdErrorMap.cc
