@@ -365,6 +365,7 @@ public:
             "      List attributes of path\n"
             "      -r : list recursive on all directory children\n"
             "  attr [-r] set [-c] <key>=<value> <identifier>\n"
+            "      Use <key>= to set an empty value (e.g. sys.acl=)\n"
             "      Set attributes of path (-r recursive, -c only if absent)\n"
             "  attr [-r] set default=replica|raiddp|raid5|raid6|archive|qrain <identifier>\n"
             "      Set EOS default layout attributes for the path\n"
