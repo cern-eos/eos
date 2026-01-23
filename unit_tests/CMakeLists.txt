@@ -121,6 +121,7 @@ set(COMMON_UT_SRCS
   common/XrdConnPoolTests.cc
   common/RateLimitTests.cc
   common/EosTokenTests.cc
+  common/UriCapCipherTests.cc
   common/ConfigTests.cc
   common/BufferManagerTests.cc
   common/ConcurrentQueueTests.cc
