@@ -35,7 +35,6 @@
 #include <openssl/crypto.h>
 #include "common/Namespace.hh"
 #include "common/SymKeys.hh"
-#include "common/UriCapCipher.hh"
 #include "google/protobuf/io/zero_copy_stream_impl.h"
 #include "zlib.h"
 
@@ -48,26 +47,6 @@ EOSCOMMONNAMESPACE_BEGIN
 
 SymKeyStore gSymKeyStore; //< global SymKey store singleton
 XrdSysMutex SymKey::msMutex;
-
-void
-UriCapCipherDeleter::operator()(UriCapCipher* ptr) const
-{
-  delete ptr;
-}
-
-UriCapCipher&
-SymKey::GetUriCapCipher()
-{
-  std::lock_guard<std::mutex> lock(mUriCapMutex);
-  if (!mUriCapCipher) {
-    std::string password(key, SHA_DIGEST_LENGTH);
-    mUriCapCipher = std::unique_ptr<UriCapCipher, UriCapCipherDeleter>(
-        new UriCapCipher(UriCapCipher::PasswordTag{},
-                         UriCapCipher::FixedSaltTag{},
-                         std::move(password)));
-  }
-  return *mUriCapCipher;
-}
 
 // Add compatibility methods present in OpenSSL >= 1.1.0 if we use an older
 // version of OpenSSL
@@ -789,20 +768,17 @@ SymKey::CreateCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv,
   snprintf(svalidity, 32, "%llu",
            (long long unsigned int)(time(NULL) + validity.count()));
   toencrypt += svalidity;
-  std::string cgi;
-  try {
-    cgi = key->GetUriCapCipher().encryptToCgiFields(toencrypt.c_str());
-  } catch (...) {
+  XrdOucString encrypted = "";
+
+  if (!SymmetricStringEncrypt(toencrypt, encrypted, (char*)key->GetKey())) {
     return EKEYREJECTED;
   }
 
   XrdOucString encenv = "";
-  encenv += "cap.key=";
+  encenv += "cap.sym=";
   encenv += key->GetDigest64();
-  encenv += "&";
-  encenv += "cap.format=AEAD";
-  encenv += "&";
-  encenv += cgi.c_str();
+  encenv += "&cap.msg=";
+  encenv += encrypted;
 
   while (encenv.replace('\n', '#')) {};
 
@@ -833,8 +809,8 @@ SymKey::ExtractCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv)
 
   XrdOucEnv fixedenv(instring.c_str());
 
-  const char* keydigest = fixedenv.Get("cap.key");
   const char* symkey = fixedenv.Get("cap.sym");
+
   const char* symmsg = fixedenv.Get("cap.msg");
 
   //  fprintf(stderr,"%s\n%s\n", symkey, symmsg);
@@ -843,30 +819,15 @@ SymKey::ExtractCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv)
   }
 
   eos::common::SymKey* key {nullptr};
-  const char* lookup = keydigest ? keydigest : symkey;
 
-  if (!(key = eos::common::gSymKeyStore.GetKey(lookup))) {
+  if (!(key = eos::common::gSymKeyStore.GetKey(symkey))) {
     return ENOKEY;
   }
 
-  std::string decrypted;
-  if (keydigest) {
-    try {
-      decrypted = key->GetUriCapCipher().decryptFromCgiFields(instring.c_str());
-    } catch (...) {
-      return EKEYREJECTED;
-    }
-  } else {
-    // Legacy format (cap.sym holds digest, cap.msg is base64 ciphertext)
-    XrdOucString todecrypt = symmsg;
-    XrdOucString legacy = "";
-    if (!SymmetricStringDecrypt(todecrypt, legacy, (char*)key->GetKey())) {
-      return EKEYREJECTED;
-    }
-    decrypted = legacy.c_str();
-  }
+  XrdOucString todecrypt = symmsg;
+  XrdOucString decrypted = "";
 
-  if (decrypted.empty()) {
+  if (!SymmetricStringDecrypt(todecrypt, decrypted, (char*)key->GetKey())) {
     return EKEYREJECTED;
   }
 
