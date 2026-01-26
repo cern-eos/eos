@@ -834,6 +834,7 @@ SymKey::ExtractCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv)
   XrdOucEnv fixedenv(instring.c_str());
 
   const char* keydigest = fixedenv.Get("cap.key");
+  const char* capformat = fixedenv.Get("cap.format");
   const char* symkey = fixedenv.Get("cap.sym");
   const char* symmsg = fixedenv.Get("cap.msg");
 
@@ -850,7 +851,7 @@ SymKey::ExtractCapability(XrdOucEnv* inenv, XrdOucEnv*& outenv)
   }
 
   std::string decrypted;
-  if (keydigest) {
+  if (capformat && (std::string(capformat) == "AEAD")) {
     try {
       decrypted = key->GetUriCapCipher().decryptFromCgiFields(instring.c_str());
     } catch (...) {
