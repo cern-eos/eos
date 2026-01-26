@@ -52,18 +52,25 @@ function(EOS_GetVersion MAJOR MINOR PATCH RELEASE)
   if(("${MAJOR}" STREQUAL "") OR
      ("${MINOR}" STREQUAL "") OR
      ("${PATCH}" STREQUAL ""))
-    execute_process(
-      COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh ${CMAKE_SOURCE_DIR}
-      OUTPUT_VARIABLE VERSION_INFO
-      RESULT_VARIABLE VERSION_INFO_RESULT
-      OUTPUT_STRIP_TRAILING_WHITESPACE)
-
-    if(NOT VERSION_INFO_RESULT EQUAL 0)
-      message(FATAL_ERROR
-              "Error getting EOS version info.\n"
-              "Make sure the `.git` directory is present and the `git log` command works."
+      message(VERBOSE "Determining EOS version with `${CMAKE_SOURCE_DIR}/genversion.sh` script")
+      execute_process(
+              COMMAND ${CMAKE_SOURCE_DIR}/genversion.sh ${CMAKE_SOURCE_DIR}
+              OUTPUT_VARIABLE VERSION_INFO
+              RESULT_VARIABLE VERSION_INFO_RESULT
+              OUTPUT_STRIP_TRAILING_WHITESPACE
       )
-    endif()
+
+      if(NOT VERSION_INFO_RESULT EQUAL 0)
+          set(VERSION_ERR_MSG "Error getting EOS version info using `${CMAKE_SOURCE_DIR}/genversion.sh`")
+          if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+              # for debug builds, we allow to continue with a dummy version
+              message(WARNING "${VERSION_ERR_MSG}")
+              set(VERSION_INFO "0.0.0-unknown")
+              message(WARNING "Setting EOS version to ${VERSION_INFO} for debug build")
+          else()
+              message(FATAL_ERROR "${VERSION_ERR_MSG}")
+          endif()
+      endif()
 
     string(REPLACE "." ";" VERSION_LIST ${VERSION_INFO})
     list(GET VERSION_LIST 0 MAJOR)
