@@ -104,6 +104,9 @@ set_source_files_properties(
   ofs/cmds/Version.inc
   PROPERTIES HEADER_FILE_ONLY TRUE
 )
+# for verifying token format is correct
+include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/ ${CMAKE_BINARY_DIR})
+
 #-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
