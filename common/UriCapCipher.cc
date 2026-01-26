@@ -50,9 +50,9 @@ UriCapCipher::UriCapCipher(PasswordTag, std::string password)
 UriCapCipher::UriCapCipher(PasswordTag, FixedSaltTag, std::string password)
   : pw_(std::move(password))
 {
-  if (RAND_bytes(cached_salt_.data(), cached_salt_.size()) != 1) {
-    throw_openssl("RAND_bytes(salt)");
-  }
+  unsigned char digest[SHA256_DIGEST_LENGTH];
+  SHA256(reinterpret_cast<const unsigned char*>(pw_.data()), pw_.size(), digest);
+  std::memcpy(cached_salt_.data(), digest, cached_salt_.size());
   std::vector<uint8_t> salt_vec(cached_salt_.begin(), cached_salt_.end());
   cached_key_ = kdf_scrypt(pw_, salt_vec, kN, kR, kP, 32);
   has_cached_key_ = true;

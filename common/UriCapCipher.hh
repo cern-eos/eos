@@ -40,9 +40,9 @@
 //! Performance notes:
 //! - Default mode generates a fresh random salt per message and runs scrypt for
 //!   each encrypt/decrypt.
-//! - The FixedSaltTag constructor caches the derived key using one random salt
-//!   at startup; encryption still uses a fresh nonce per message. Decryption
-//!   reuses the cached key only when the message salt matches.
+//! - The FixedSaltTag constructor caches the derived key using a deterministic
+//!   salt derived from the password; encryption still uses a fresh nonce per
+//!   message. Decryption reuses the cached key when the message salt matches.
 //------------------------------------------------------------------------------
 
 #pragma once
