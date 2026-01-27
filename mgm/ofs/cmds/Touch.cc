@@ -293,7 +293,7 @@ XrdMgmOfs::_touch(const char* path,
               // try with links
               int rc = ::link(linkpath, local_path.c_str());
 
-              if (rc && (errno = EXDEV)) {
+              if (rc && (errno == EXDEV)) {
                 eos_info("cross-device registration detected - using symlink for path='%s'",
                          linkpath);
 
