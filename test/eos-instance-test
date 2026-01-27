@@ -1926,6 +1926,29 @@ runtest "### Ls          " unix SUCCESS "" command eos ls -N "$lsTestDir/regexx*
 runtest "### Cleanup     " unix SUCCESS "" eos rm -rF $lsTestDir/
 
 # ------------------------------------------------------------------------------
+categorie="touch"
+# ------------------------------------------------------------------------------
+touchTestDir="/eos/$EOS_TEST_INSTANCE/test/instancetest/touch_test"
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p "$touchTestDir"
+runtest "### Stat        " unix 14 "" eos stat "$touchTestDir/dir1/" # touch directory does not exist yet
+runtest "### Touch       " unix 21 "" eos touch "$touchTestDir/dir1/"
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir "$touchTestDir/dir1/"
+runtest "### Stat        " unix SUCCESS "" eos stat "$touchTestDir/dir1/"
+# touch on the dir and file uri should return in the same error
+runtest "### Touch       " unix 21 "" eos touch "$touchTestDir/dir1"
+runtest "### Touch       " unix 21 "" eos touch "$touchTestDir/dir1/"
+# touch a file in a directory that does not exist
+runtest "### Touch       " unix 2 "" eos touch "$touchTestDir/dir2/file2"
+# touch a file that does not previously exist
+runtest "### Stat       " unix 14 "" eos stat "$touchTestDir/dir1/file1"
+runtest "### Touch      " unix SUCCESS "" eos touch "$touchTestDir/dir1/file1"
+runtest "### Stat       " unix SUCCESS "" eos stat "$touchTestDir/dir1/file1"
+# touch a file that already exists
+runtest "### Touch      " unix SUCCESS "" eos touch "$touchTestDir/dir1/file1"
+# cleanup
+runtest "### Cleanup     " unix SUCCESS "" eos rm -rF "$touchTestDir"
+
+# ------------------------------------------------------------------------------
 categorie="adjustreplica"
 # ------------------------------------------------------------------------------
 ADJUST_TEST_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/adjustreplica"
