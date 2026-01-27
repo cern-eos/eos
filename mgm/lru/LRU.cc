@@ -233,18 +233,32 @@ void LRU::backgroundThread(ThreadAssistant& assistant) noexcept
     assistant.wait_for(std::chrono::seconds(10));
   } while (!assistant.terminationRequested() && !gOFS->mMaster->IsMaster());
 
+  // run LRU scan every `interval` seconds but never faster than every 5 seconds
+  constexpr std::chrono::seconds minimumWaitTime{5};
+
   while (!assistant.terminationRequested()) {
-    // every now and then we wake up
-    Options opts = getOptions();
-    common::IntervalStopwatch stopwatch(opts.interval);
+    const auto [enabled, interval] = getOptions();
+    auto stopWatchInterval = interval;
+    if (stopWatchInterval < minimumWaitTime) {
+      eos_static_warning("msg=\"LRU scan interval is set to %lds which is less than minimum allowed %lds, setting to minimum!\"",
+                              static_cast<long>(stopWatchInterval.count()),
+                              static_cast<long>(minimumWaitTime.count()));
+      stopWatchInterval = minimumWaitTime;
+    }
+    common::IntervalStopwatch stopwatch(stopWatchInterval);
 
     // Only a master needs to run LRU
-    if (opts.enabled && gOFS->mMaster->IsMaster()) {
+    if (enabled && gOFS->mMaster->IsMaster()) {
       performCycleQDB(assistant);
     }
 
-    while (stopwatch.timeRemainingInCycle() >= std::chrono::seconds(5)) {
-      assistant.wait_for(std::chrono::seconds(5));
+    // Make sure we are waiting at least `minimumWaitTime` between cycles
+    while (stopwatch.timeRemainingInCycle() > std::chrono::milliseconds(0)) {
+      // Wait for the min wait time OR the remaining time, whichever is smaller
+
+      assistant.wait_for(
+        std::min<std::chrono::milliseconds>(minimumWaitTime, stopwatch.timeRemainingInCycle())
+      );
 
       if (assistant.terminationRequested() || mRefresh) {
         mRefresh = false;
