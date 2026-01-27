@@ -89,6 +89,17 @@ XrdMgmOfs::_touch(const char* path,
   }
 
   try {
+    gOFS->eosView->getContainer(path);
+    errno = EISDIR;
+    return SFS_ERROR;
+
+  } catch (eos::MDException& e) {
+    errno = e.getErrno();
+    eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+              e.getErrno(), e.getMessage().str().c_str());
+  }
+
+  try {
     fmd = gOFS->eosView->getFile(path);
     existedAlready = true;
     errno = 0;
