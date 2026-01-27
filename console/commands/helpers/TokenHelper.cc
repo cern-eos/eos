@@ -42,7 +42,7 @@ TokenHelper::ParseCommand(const char* arg)
 
   do {
     std::string element;
-    option = tokenizer.GetToken();
+    option = tokenizer.GetTokenUnquoted();
 
     if (option) {
       element = option;
@@ -58,7 +58,7 @@ TokenHelper::ParseCommand(const char* arg)
       element.erase(0, 2);
 
       if (element != "tree") {
-        option = tokenizer.GetToken();
+        option = tokenizer.GetTokenUnquoted();
 
         if (option) {
           std::string value = option;

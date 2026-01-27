@@ -366,11 +366,14 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
 int
 EosTok::Match(const std::string& input, const std::string& regexString)
 {
+  eos_static_debug("input=\"%s\" regex=\"%s\"", input.c_str(),
+                   regexString.c_str());
+
   if (input == regexString) {
     return 1;
   }
 
-  return eos::common::eos_regex_match(input, regexString);
+  return (eos::common::eos_regex_match(input, regexString) ? 1 : -1);
 }
 
 bool
