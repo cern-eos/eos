@@ -26,10 +26,20 @@
 // This file is included source code in XrdMgmOfs.cc to make the code more
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
-#include <sys/types.h>
-#include <sys/fsuid.h>
+
 #include "fst/checksum/ChecksumPlugins.hh"
 #include "common/XattrCompat.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/Prefetcher.hh"
+#include "namespace/MDException.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/fsview/FsView.hh"
+#include "common/Constants.hh"
+#include "namespace/interface/IQuota.hh"
+
 /*----------------------------------------------------------------------------*/
 int
 XrdMgmOfs::_touch(const char* path,
@@ -126,7 +136,7 @@ XrdMgmOfs::_touch(const char* path,
   if ((absorb || (linkpath && strlen(linkpath))) && vid.uid) {
     error.setErrInfo(EINVAL,
                      "error: external files can only be registered by the root user\n");
-    eos_err("external files can only be registred by the root user\n");
+    eos_err("external files can only be registered by the root user\n");
 
     if (errmsg) {
       *errmsg += "error: external files can only be registered by the root user\n";
@@ -188,12 +198,12 @@ XrdMgmOfs::_touch(const char* path,
   } else {
     if (absorb) {
       error.setErrInfo(EINVAL,
-                       "error: link path has to be provdied to absorb a file");
+                       "error: link path has to be provided to absorb a file");
       eos_err("link path has to be provided to absorb a file");
 
       if (errmsg) {
         *errmsg +=
-          "error: when using -a to absorb a file you have to privde the source path";
+          "error: when using -a to absorb a file you have to provide the source path";
       }
 
       return SFS_ERROR;
@@ -208,7 +218,7 @@ XrdMgmOfs::_touch(const char* path,
         XrdOucString opaque = ininfo;
 
         if (file) {
-          int rc = file->open(&vid, path, SFS_O_RDWR | SFS_O_CREAT, 0755, 0,
+          int rc = file->open(&vid, path, SFS_O_RDWR | SFS_O_CREAT, 0755, nullptr,
                               "eos.bookingsize=0&eos.app=touch");
           error.setErrInfo(strlen(file->error.getErrText()) + 1,
                            file->error.getErrText());
