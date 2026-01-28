@@ -62,8 +62,31 @@ eos attr set 'sys.conversion.*=20640542' "$convertLruDir"
 eos attr set 'sys.lru.convert.match=*:4s:>2k' "$convertLruDir"
 seq 1 100 | xargs -I{} -P 30 eos cp $oneKBFile "$url/$convertLruDir/1KB{}"
 seq 1 100 | xargs -I{} -P 30 eos cp $threeKBFile "$url/$convertLruDir/3KB{}"
-sleep 15
-assert_eq 100 "$(eos convert list | grep -c '#')" "convert LRU test: conversion list size mismatch"
+
+TARGET_VALUE=100
+TIMEOUT=20
+INTERVAL=0.1
+ELAPSED=0
+SUCCESS=false
+
+# Loop until timeout or the test condition is met
+while (( $(echo "$ELAPSED < $TIMEOUT" | bc -l) )); do
+    CURRENT_COUNT=$(eos convert list | grep -c '#')
+
+    if [ "$CURRENT_COUNT" -eq "$TARGET_VALUE" ]; then
+        echo "Success: Conversion list size reached $TARGET_VALUE after ${ELAPSED}s."
+        SUCCESS=true
+        break
+    fi
+
+    sleep $INTERVAL
+    ELAPSED=$(echo "$ELAPSED + $INTERVAL" | bc -l)
+done
+
+if [ "$SUCCESS" = false ]; then
+    echo "Error: convert LRU test: conversion list size mismatch (timed out after ${TIMEOUT}s)"
+    exit 1
+fi
 
 # Test the low/high watermark
 watermarkLruDir="$EOS_LRU_DIR/watermarkLruDir"
