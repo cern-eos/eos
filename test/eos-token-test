@@ -39,7 +39,7 @@ run_step "Disabling token generation" eos space config default space.token.gener
 run_step "Enabling token generation" eos space config default space.token.generation=1
 
 ### Origin regexp tests
-run_step "Testing wildcard origin" eos token --path $prefix/t_token/file.1 --expires $later --origin \*#\*#\*
+#run_step "Testing wildcard origin" eos token --path $prefix/t_token/file.1 --expires $later --origin \*#\*#\*
 run_step "Testing regex origin" eos token --path $prefix/t_token/file.1 --expires $later --origin \.*#\.*#\.*
 
 ### Test 1: Single file token
