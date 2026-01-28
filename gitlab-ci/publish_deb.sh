@@ -25,7 +25,7 @@ fi
 EOS_CODENAME="diopside"
 STCI_ROOT_PATH="/eos/project/s/storage-ci/www/debian"
 
-for RELEASE in "jammy" "noble" "noble-arm" "plucky"; do
+for RELEASE in "jammy" "noble" "noble-arm" "plucky" "questing"; do
   if [ -d ./ubuntu-${RELEASE} ]; then
     EXPORT_REPO="${STCI_ROOT_PATH}/eos/${EOS_CODENAME}"
     RELEASE_LTS="$(echo ${RELEASE} | cut -d '-' -f1)"
