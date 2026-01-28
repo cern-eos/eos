@@ -745,7 +745,8 @@ Recycle::IsAllowedToRestore(std::string_view recycle_path,
 {
   static const std::string sUserRecyclePrefix =
     SSTR(Recycle::gRecyclingPrefix << "uid:");
-  eos_static_debug("msg=\"attempt file restore\" path=\"%s\"", recycle_path);
+  eos_static_debug("msg=\"attempt file restore\" path=\"%s\"",
+                   recycle_path.data());
 
   // Root is allowed to restore anything
   // if (vid.uid == 0) {
@@ -890,11 +891,18 @@ Recycle::DemanglePath(std::string_view recycle_path)
   }
 
   eos::common::replace_all(orig_path, "#:#", "/");
-
   // The recycle path also contains a dot and the hex value of the
-  // namespace object it references - written with 16 padding.
-  if (orig_path.length() >= 17) {
-    orig_path.erase(orig_path.length() - 17);
+  // namespace object it references - written with 16 padding. For directories
+  // it also contains a ".d" at the end that needs to be removed
+  size_t olen = orig_path.length();
+
+  if ((olen > 2) && (orig_path.rfind(Recycle::gRecyclingPostFix) == olen - 2)) {
+    orig_path.erase(olen - 2);
+    olen -= 2;
+  }
+
+  if (olen >= 17) {
+    orig_path.erase(olen - 17);
   }
 
   return orig_path;

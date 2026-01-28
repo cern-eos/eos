@@ -703,20 +703,20 @@ showtoken >> $EOSCERTLOG 2>&1
 # ------------------------------------------------------------------------------
 categorie="prep"
 # ------------------------------------------------------------------------------
-runtest "### Access    " unix IGNORE "" eos "access rm stall r"
-runtest "### Access    " unix IGNORE "" eos "access rm redirect"
-runtest "### Access    " unix IGNORE "" eos "access unban user nobody"
+runtest "### Access    " unix IGNORE  "" eos "access rm stall r"
+runtest "### Access    " unix IGNORE  "" eos "access rm redirect"
+runtest "### Access    " unix IGNORE  "" eos "access unban user nobody"
 runtest "### Stat      " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/"
-runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
-runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/"
-runtest "### Cleanup   " unix IGNORE "" eos attr rm sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test/
-runtest "### Cleanup   " unix IGNORE "" eos attr rm sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test/
-runtest "### Cleanup   " unix IGNORE "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/
-runtest "### Cleanup   " unix IGNORE "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/test/
-runtest "### Cleanup   " unix IGNORE "" eos attr rm sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/test/
-runtest "### Cleanup   " unix IGNORE "" eos attr rm sys.forced.space /eos/$EOS_TEST_INSTANCE/test/
-runtest "### Cleanup   " unix IGNORE "" eos attr rm sys.forced.atomic /eos/$EOS_TEST_INSTANCE/test/
-runtest "### Cleanup   " unix IGNORE "" eos attr rm sys.versioning /eos/$EOS_TEST_INSTANCE/test
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/"
+runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.blockchecksum /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.blocksize /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.nstripes /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.space /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.forced.atomic /eos/$EOS_TEST_INSTANCE/test/
+runtest "### Cleanup   " unix IGNORE  "" eos attr rm sys.versioning /eos/$EOS_TEST_INSTANCE/test
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Quota     " unix SUCCESS "" eos quota set -u ${NOBODY_UID} -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix ERROR "" eos quota set -u ${NOBODY_UID} /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
@@ -834,31 +834,31 @@ runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test
 # --------------------------
 runtest "### Abort     " unix ERROR "" abort /eos/$EOS_TEST_INSTANCE/test/instancetest/abort
 runtest "### FileInfo  " unix ERROR "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/abort"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/abort"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/abort"
 # --------------------------
 # Extend a file via truncate
 # --------------------------
 runtest "### Extend    " unix SUCCESS "" extend /eos/$EOS_TEST_INSTANCE/test/instancetest/extend
 runtest "### Download  " unix SUCCESS "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/extend"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/extend"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/extend"
 # --------------------------
 # Shrink a file via truncate
 # --------------------------
 runtest "### Shrink    " unix SUCCESS "" shrink /eos/$EOS_TEST_INSTANCE/test/instancetest/shrink
 runtest "### Download  " unix SUCCESS "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/shrink"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/shrink"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/shrink"
 # --------------------------
 # Write file in random order
 # --------------------------
 runtest "### Random    " unix SUCCESS "" random /eos/$EOS_TEST_INSTANCE/test/instancetest/random
 runtest "### Download  " unix SUCCESS "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/random"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/random"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/random"
 # --------------------------
 # Extend file and rewrite the beginning
 # --------------------------
 runtest "### Truncate  " unix SUCCESS "" truncate /eos/$EOS_TEST_INSTANCE/test/instancetest/truncate
 runtest "### Download  " unix SUCCESS "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/truncate"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/truncate"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/truncate"
 # --------------------------
 # Expand file several times
 # --------------------------
@@ -866,7 +866,7 @@ runtest "### holes     " unix SUCCESS "" holes /eos/$EOS_TEST_INSTANCE/test/inst
 runtest "### Download  " unix SUCCESS "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes"
 runtest "### backward  " unix SUCCESS "" backward  /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
 runtest "### downrnd   " unix SUCCESS "" downloadrandom  /eos/$EOS_TEST_INSTANCE/test/instancetest/holes
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/holes"
 # --------------------------
 runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.checksum=adler /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### UploadCks " unix SUCCESS "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=$CKS1K"
@@ -875,16 +875,16 @@ runtest "### UploadCks " unix SUCCESS "" upload    "$TESTSYSFILE0K" "/eos/$EOS_T
 runtest "### Rem       " unix SUCCESS "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/good-checksum0k"
 runtest "### UploadCks " unix ERROR "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
 runtest "### FileInfo  " unix ERROR "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=0"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
 runtest "### UploadCks " unix ERROR "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k" "-ODeos.checksum=00000000"
 runtest "### FileInfo  " unix ERROR "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k -m | grep nrep=0"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-checksum1k"
 runtest "### Attr      " unix SUCCESS "" eos attr rm sys.forced.checksum /eos/$EOS_TEST_INSTANCE/test/instancetest/
 runtest "### UploadSz  " unix SUCCESS "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1024"
 runtest "### FileInfo  " unix SUCCESS "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=1"
 runtest "### UploadSz  " unix ERROR "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k" "-ODeos.targetsize=1000"
 runtest "### FileInfo  " unix ERROR "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k -m | grep nrep=0"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/faulty-size1k"
 
 # --------------------------
 # Alternative Space test
@@ -1002,18 +1002,18 @@ runtest "### Quota     " unix SUCCESS "" eos quota set -u ${NOBODY_UID} -p /eos/
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=${NOBODY_UID}" "-DITransactionTimeout 30"
 runtest "### Quota     " unix SUCCESS "" eos quota set -u ${NOBODY_UID} -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota" "-ODeos.ruid=${NOBODY_UID}" "-DITransactionTimeout 30"
-runtest "### Rem       " unix IGNORE "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
+runtest "### Rem       " unix IGNORE  "" eos rm    "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd.quota"
 runtest "### Quota     " unix SUCCESS "" eos quota set -u ${NOBODY_UID} -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Quota     " unix ERROR "" eos quota set -u ${NOBODY_UID} -p /doesnotexist -v 1T -i 1M
 runtest "### Quota     " unix SUCCESS "" eos quota set -u 3 -p /eos/$EOS_TEST_INSTANCE/test -v 1T -i 1M
 runtest "### Upload    " unix SUCCESS "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k" "-ODeos.ruid=3" "-DITransactionTimeout 30"
 runtest "### QUpdate   " unix SUCCESS "" eos_quota "/eos/$EOS_TEST_INSTANCE/test/" "uid=adm"
-runtest "### Rem       " unix IGNORE "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k"
+runtest "### Rem       " unix IGNORE  "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/1k"
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir /eos/$EOS_TEST_INSTANCE/test/testproj
 runtest "### Quota     " unix SUCCESS "" eos quota set -g 99 -p /eos/$EOS_TEST_INSTANCE/test/testproj -v 1T -i 1M
 runtest "### Upload    " unix SUCCESS "" upload "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/testproj/1k" "-ODeos.ruid=3"
 runtest "### QUpdate   " unix SUCCESS "" eos quota ls -m "/eos/$EOS_TEST_INSTANCE/test/testproj" | grep "gid=project space=/eos/$EOS_TEST_INSTANCE/test/testproj"
-runtest "### Rem       " unix IGNORE "" eos rm  "/eos/$EOS_TEST_INSTANCE/test/testproj/1k"
+runtest "### Rem       " unix IGNORE  "" eos rm  "/eos/$EOS_TEST_INSTANCE/test/testproj/1k"
 runtest "### RmdQuota  " unix SUCCESS "" eos quota rmnode --really-want -p "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/testproj/"
 fi
@@ -1044,14 +1044,21 @@ runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_IN
 runtest "### Rem       " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Find      " unix SUCCESS "" eos find -f /eos/$EOS_TEST_INSTANCE/proc/recycle/ | grep passwd.recycle | wc -l |grep -w 1
 runtest "### Recycle-Ls" unix SUCCESS "" eos recycle ls | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | wc -l | grep -w 1
-runtest "### Restore   " unix ERROR "" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix ERROR   "" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Restore   " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle restore `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Download  " unix SUCCESS "" download  "$EOS_TEST_TESTSYS/dumpit" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 rm -rf "$EOS_TEST_TESTSYS/dumpit"
 runtest "### Rem       " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle"
-runtest "### Restore   " unix ERROR "EOSROLE='-r 3 4'" eos recycle restore `command eos -b  root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix ERROR   "EOSROLE='-r 3 4'" eos recycle restore `command eos -b  root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
 runtest "### Restore   " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle restore -f `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/passwd.recycle | awk '{print $10}' | tail -1`
+# Directory recycle restor
+runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir/passwd.recycle"
+runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir"
+runtest "### List      " unix 2       "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir"
+runtest "### Restore   " unix SUCCESS   "EOSROLE='-r 3 4'" eos recycle restore `command eos -b  root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir/ | awk '{print $10}' | tail -1`
+runtest "### List      " unix SUCCESS "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir"
 runtest "### Recycle   " unix SUCCESS "" eos recycle config --lifetime 2d
 runtest "### Recycle   " unix SUCCESS "" eos recycle -m | grep -q "lifetime=172800 "
 runtest "### Recycle   " unix SUCCESS "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle
@@ -1092,7 +1099,7 @@ runtest "### Stress Wp  " unix SUCCESS "" stress "-d root://localhost//eos/$EOS_
 runtest "### Find       " unix SUCCESS "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
 runtest "### Stress Rp  " unix SUCCESS "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c"
 runtest "### Stress Rpp " unix SUCCESS "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c -p"
-runtest "### Cleanup    " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
+runtest "### Cleanup    " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
 runtest "### Ls         " unix SUCCESS "" eos ls "/eos/$EOS_TEST_INSTANCE/test | grep [a-z] | wc -l | grep -w 2"
 runtest "### Ls         " unix SUCCESS "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 2"
 runtest "### Ls         " unix SUCCESS "" eos ls -la "/eos/$EOS_TEST_INSTANCE/test | grep ^d| wc -l | grep -w 4"
@@ -1495,7 +1502,7 @@ fi
 categorie="policy"
 runtest "### Cd        " unix SUCCESS "" eos cd /eos/$EOS_TEST_INSTANCE/test
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir -p /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
-runtest "### Attr      " unix IGNORE "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
+runtest "### Attr      " unix IGNORE  "" eos attr rm sys.forced.layout /eos/$EOS_TEST_INSTANCE/test/instancetest/policies/
 runtest "### Chmod     " unix SUCCESS "" eos chmod "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies"
 runtest "### Upload    " unix SUCCESS "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p1" "-ODeos.space=default"
 runtest "### Grep      " unix SUCCESS "" eos file info "/eos/$EOS_TEST_INSTANCE/test/instancetest/policies/p1"
@@ -1703,7 +1710,7 @@ runtest   "### Chmod     " sss SUCCESS "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE
 
 #cleanup
 runtest "### Attr      " unix SUCCESS "" eos debug info '\*'
-runtest "### Rm        " unix IGNORE "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
+runtest "### Rm        " unix IGNORE  "" eos rm /eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k
 runtest "### Attr      " unix SUCCESS "" eos attr set user.acl=u:nobody:rwx /eos/$EOS_TEST_INSTANCE/test/instancetest
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file.1k" "-ODeos.ruid=${NOBODY_UID}\&eos.rgid=${NOBODY_GID}"
 runtest "### Attr      " unix SUCCESS "" eos attr rm user.acl /eos/$EOS_TEST_INSTANCE/test/instancetest/
@@ -2388,8 +2395,8 @@ runtest "### Attr Set  " unix SUCCESS "" eos attr set sys.acl="u:${NOBODY_UID}:r
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/file.dat"
 runtest "### Upload    " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos cp "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/file.dat"
 runtest "### Ls        " unix SUCCESS "EOSROLE='-r ${NOBODY_UID} ${NOBODY_GID}'" eos ls "/eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/.sys.v#.file.dat | wc -l | grep -w 1"
-runtest "### Cleanup"    unix IGNORE "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
-runtest "### Cleanup"    unix IGNORE "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
+runtest "### Cleanup"    unix IGNORE  "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning/acl_versions/"
+runtest "### Cleanup"    unix IGNORE  "" eos rm  "-r /eos/$EOS_TEST_INSTANCE/test/instancetest/versioning"
 
 ################################################################################
 # HTTP tests
@@ -2553,8 +2560,8 @@ runtest "### S3 List      " unix ERROR "" shell davix-ls  --s3accesskey s3user -
 # Clean up the files created in S3 tests
 #----------------------------------------------------------------------------
 runtest "### Cleanup   " unix SUCCESS "" shell userdel s3user
-runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
-runtest "### Cleanup   " unix IGNORE "" shell rm -f file.50m
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
+runtest "### Cleanup   " unix IGNORE  "" shell rm -f file.50m
 
 ################################################################################
 # Owncloud tests
@@ -2562,7 +2569,7 @@ runtest "### Cleanup   " unix IGNORE "" shell rm -f file.50m
 # ------------------------------------------------------------------------------
 categorie="owncloud"
 # ------------------------------------------------------------------------------
-runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 runtest "### Chmod     " unix SUCCESS "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 runtest "### Attr Set  " unix SUCCESS "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
@@ -2589,7 +2596,7 @@ runtest "### Find      " unix SUCCESS "" eos find "-f --count /eos/$EOS_TEST_INS
 #----------------------------------------------------------------------------
 # Clean up the files created in owncloud tests
 #----------------------------------------------------------------------------
-runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/oc"
 
 
 ################################################################################
@@ -2713,9 +2720,9 @@ if [ $NUM_FST -ge 6 ]; then
    runtest "### eoscp pio xs qrain    " unix SUCCESS "" shell eos-checksum crc32 "$EOS_TEST_RAIN_TMP/pio_qrain_check.dat" | grep $CKS_NONSTREAMING
 
    # Clean up the files used for the RAIN test
-   runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
-   runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
-   runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
+   runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp"
+   runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6"
+   runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain"
    rm -rf $EOS_TEST_RAIN_TMP
 else
   echo "Can not run RAIN test - not enough FSTs!"
@@ -2734,7 +2741,7 @@ runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.layout=plain "/
 runtest "### Upload    " unix SUCCESS "" upload "$EOS_TEST_RAIN_DIR/file3.rain" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
 runtest "### EoscpRaiddp " unix SUCCESS "" eoscp_rain "raiddp" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
 runtest "### EoscpRaid6  " unix SUCCESS "" eoscp_rain "reeds" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir/file.dat"
-runtest "### Cleanup     " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir"
+runtest "### Cleanup     " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/eoscp_rain_dir"
 
 ################################################################################
 # OTHER TESTS
@@ -2757,9 +2764,9 @@ runtest "### Health    " unix SUCCESS "" eos health "-m | grep \"default\.0\""
 # ------------------------------------------------------------------------------
 categorie="clean"
 # ------------------------------------------------------------------------------
-runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
-runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
-runtest "### Cleanup   " unix IGNORE "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rain"
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress"
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest"
+runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/rain"
 ################################################################################
 # show test summary
 testout
