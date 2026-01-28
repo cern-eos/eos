@@ -95,6 +95,12 @@ ubuntu-plucky:
   variables:
     BUILD_NAME: plucky
 
+ubuntu-questing:
+  extends: .build-ubuntu
+  image: registry.cern.ch/docker.io/ubuntu:questing
+  variables:
+    BUILD_NAME: questing
+
 
 #-------------------------------------------------------------------------------
 # Ubuntu artifacts publishing
@@ -117,6 +123,7 @@ publish_debian:
     - job: ubuntu-noble
     - job: ubuntu-noble-arm
     - job: ubuntu-plucky
+    - job: ubuntu-questing
   tags:
     - docker_node
     - publish
