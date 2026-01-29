@@ -357,6 +357,8 @@ int Scheduler::FileAccess(AccessArguments* args)
     eos_static_debug("msg=\"successfully accessed file via FlatScheduler\" index=%zu",
                      *args->fsindex);
     return 0;
+  } else {
+    eos_static_info("%s", "msg=\"Failed access via FlatScheduler, falling back to geotree\"");
   }
 
   eos_static_debug("requesting file access from geolocation %s",
