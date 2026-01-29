@@ -1055,9 +1055,9 @@ runtest "### Restore   " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle restore -f 
 # Directory recycle restor
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir"
 runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir/passwd.recycle"
-runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir"
+runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir/"
 runtest "### List      " unix 2       "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir"
-runtest "### Restore   " unix SUCCESS   "EOSROLE='-r 3 4'" eos recycle restore `command eos -b  root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir/ | awk '{print $10}' | tail -1`
+runtest "### Restore   " unix SUCCESS   "EOSROLE='-r 0 0'" eos recycle restore `command eos -b  root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir/ | awk '{print $10}' | tail -1`
 runtest "### List      " unix SUCCESS "" eos ls -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/recycle/dir"
 runtest "### Recycle   " unix SUCCESS "" eos recycle config --lifetime 2d
 runtest "### Recycle   " unix SUCCESS "" eos recycle -m | grep -q "lifetime=172800 "
