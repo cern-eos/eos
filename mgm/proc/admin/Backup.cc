@@ -305,7 +305,7 @@ ProcCommand::BackupCreate(const std::string& src_surl,
 
   // Create tmp file holding information about the dir entries
   std::string dirs_fn = backup_fn + "_dirs";
-  std::fstream dirs_ofs(dirs_fn.c_str() ,
+  std::fstream dirs_ofs(dirs_fn.c_str(),
                         std::fstream::out | std::fstream::trunc);
 
   if (!dirs_ofs.is_open()) {
@@ -411,8 +411,8 @@ ProcCommand::BackupCreate(const std::string& src_surl,
   url_dst.SetHostName(tmp_url.GetHostName());
   url_dst.SetPort(tmp_url.GetPort());
   url_dst.SetUserName("root");
-  url_dst.SetPath(dst_path);
   url_dst.SetParams("eos.ruid=0&eos.rgid=0");
+  url_dst.SetPath(dst_path);
   properties.Set("source", url_src);
   properties.Set("target", url_dst);
   XrdCl::CopyProcess copy_proc;
