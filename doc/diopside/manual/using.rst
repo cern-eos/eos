@@ -1594,7 +1594,7 @@ The following releases of Ubuntu are currently supported:
 
 * Ubuntu 22.04.5 LTS (Jammy Jellyfish)
 * Ubuntu 24.04.3 LTS (Noble Numbat)
-* Ubuntu 25.04 (Plucky Puffin)
+* Ubuntu 25.10 (Questing Quokka)
 
 
 Follow these steps to configure the necessary APT repositories and install
