@@ -486,7 +486,7 @@ public:
         return 0;
       }
       in += "&mgm.subcmd=rename";
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       set_path_or_id(p);
       in += "&mgm.file.source=";
       in += p;
@@ -499,7 +499,7 @@ public:
         return 0;
       }
       in += "&mgm.subcmd=rename_with_symlink";
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       set_path_or_id(p);
       in += "&mgm.file.source=";
       in += p;
@@ -512,19 +512,19 @@ public:
         return 0;
       }
       in += "&mgm.subcmd=symlink";
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       set_path_or_id(p);
       in += "&mgm.file.source=";
       in += p;
       in += "&mgm.file.target=";
-      in += abspath(rest[1].c_str());
+      in += rest[1].c_str();
     } else if (cmd == "drop") {
       if (rest.size() < 2) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=drop";
       set_path_or_id(p);
       in += "&mgm.file.fsid=";
@@ -548,7 +548,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[idx].c_str();
+      XrdOucString p = abspath(rest[idx].c_str());
       in += "&mgm.subcmd=touch";
       set_path_or_id(p);
       std::string fsid1 = (idx + 1 < rest.size()) ? rest[idx + 1] : "";
@@ -610,7 +610,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=move";
       set_path_or_id(p);
       in += "&mgm.file.sourcefsid=";
@@ -634,7 +634,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[idx].c_str();
+      XrdOucString p = abspath(rest[idx].c_str());
       XrdOucString dest = rest[idx + 1].c_str();
       in += "&mgm.subcmd=copy";
       set_path_or_id(p);
@@ -666,7 +666,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=replicate";
       set_path_or_id(p);
       in += "&mgm.file.sourcefsid=";
@@ -681,7 +681,7 @@ public:
       }
       in += "&mgm.subcmd=";
       in += cmd;
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       AppendEncodedPath(in, p, true);
       in += "&mgm.purge.version=";
       if (rest.size() > 1)
@@ -694,7 +694,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=versions";
       set_path_or_id(p);
       in += "&mgm.grab.version=";
@@ -705,7 +705,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=layout";
       set_path_or_id(p);
       if (rest[1] == "-stripes" && rest.size() > 2) {
@@ -728,7 +728,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=tag";
       set_path_or_id(p);
       in += "&mgm.file.tag.fsid=";
@@ -739,7 +739,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=convert";
       set_path_or_id(p);
       if (rest.size() > 1) {
@@ -777,7 +777,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=verify";
       AppendEncodedPath(in, p, true);
       for (size_t i = 1; i < rest.size(); ++i) {
@@ -812,7 +812,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=adjustreplica";
       set_path_or_id(p);
       std::vector<std::string> args(rest.begin() + 1, rest.end());
@@ -861,7 +861,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=share";
       AppendEncodedPath(in, p, true);
       unsigned long long expires = (28ull * 86400ull);
@@ -880,7 +880,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = rest[0].c_str();
+      XrdOucString p = abspath(rest[0].c_str());
       in += "&mgm.subcmd=workflow";
       AppendEncodedPath(in, p, true);
       in += "&mgm.workflow=";
@@ -949,7 +949,7 @@ public:
         "  replicate <path|fid> <fsid1> <fsid2>   : replicate replica between "
         "fsids\n"
         "  share <path> [lifetime]                : create share link\n"
-        "  symlink <name> <link-name>             : create symlink\n"
+        "  symlink <link-name> <target>           : create symlink\n"
         "  tag <path|fid> +|-|~<fsid>             : location tag ops\n"
         "  touch [-a] [-n] [-0] <path|fid|fxid> [linkpath|size [hexchecksum]]\n"
         "  touch -l <path|fid|fxid> [lifetime [audience=user|app]]\n"

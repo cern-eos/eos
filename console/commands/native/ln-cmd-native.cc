@@ -29,25 +29,39 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
+    }
+    std::string joined = oss.str();
+    IConsoleCommand* fileCmd = CommandRegistry::instance().find("file");
+    if (!fileCmd) {
+      fprintf(stderr, "error: 'file' command not available\n");
+      global_retc = EINVAL;
+      return 0;
+    }
     if (args.size() < 2) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-    XrdOucString in = "mgm.cmd=file&mgm.subcmd=symlink";
-    XrdOucString target = abspath(args[0].c_str());
-    XrdOucString link = abspath(args[1].c_str());
-    in += "&mgm.path=";
-    in += target;
-    in += "&mgm.file.target=";
-    in += link;
-    global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
-    return 0;
+    if (wants_help(joined.c_str())) {
+      fileCmd->printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+    std::vector<std::string> fargs;
+    fargs.reserve(args.size() + 1);
+    fargs.push_back("symlink");
+    fargs.insert(fargs.end(), args.begin(), args.end());
+    return fileCmd->run(fargs, ctx);
   }
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: ln <target> <link>\n");
+    fprintf(stderr, "Usage: ln <link> <target>\n");
   }
 };
 } // namespace

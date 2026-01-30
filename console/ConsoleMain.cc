@@ -165,6 +165,12 @@ abspath(const char* in)
   static XrdOucString inpath;
   inpath = in;
 
+  if (inpath.beginswith("fxid:") || inpath.beginswith("fid:") ||
+      inpath.beginswith("cxid:") || inpath.beginswith("cid:") ||
+      inpath.beginswith("pxid:") || inpath.beginswith("pid:")) {
+    return inpath.c_str();
+  }
+
   if (inpath.beginswith("/")) {
     return inpath.c_str();
   }
