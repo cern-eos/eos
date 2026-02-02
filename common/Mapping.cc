@@ -2214,7 +2214,14 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
         vid.allowed_gids.insert(vid.gid);
         vid.allowed_uids.insert(99);
         vid.allowed_gids.insert(99);
-        addSecondaryGroups(vid, name, idp->gid);
+
+        // If uid_string empty try best effort with the given "name"
+        if (vid.uid_string.empty()) {
+          addSecondaryGroups(vid, name, idp->gid);
+        } else {
+          addSecondaryGroups(vid, vid.uid_string, idp->gid);
+        }
+
         auto gs = std::make_unique<gid_set>(vid.allowed_gids);
         eos_static_debug("adding to cache uid=%u gid=%u", idp->uid, idp->gid);
         gShardedPhysicalUidCache.store(name, std::move(idp));
@@ -2263,7 +2270,12 @@ Mapping::getPhysicalIdShards(const std::string& name, VirtualIdentity& vid)
     return;
   }
 
-  addSecondaryGroups(vid, name, idp->gid);
+  // If uid_string empty try best effort with the given "name"
+  if (vid.uid_string.empty()) {
+    addSecondaryGroups(vid, name, idp->gid);
+  } else {
+    addSecondaryGroups(vid, vid.uid_string, idp->gid);
+  }
 
   // add to the cache
   if (!in_uid_cache) {
