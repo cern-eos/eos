@@ -23,12 +23,19 @@ public:
   bool
   requiresMgm(const std::string& args) const override
   {
-    return !wants_help(args.c_str());
+    return !wants_help(args.c_str(), true);
   }
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (args.empty() || wants_help(args[0].c_str())) {
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
+    }
+    std::string joined = oss.str();
+    if (args.empty() || wants_help(joined.c_str(), true)) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -82,7 +89,7 @@ public:
             "<path> is the file/directory to modify, <owner> has to be a user id or user name. <group> is optional and has to be a group id or group name.\n");
     fprintf(stderr, "To modify only the group use :<group> as identifier!\n");
     fprintf(stderr,
-            "Remark: if you use the -r -h option and path points to a link the owner of the link parent will also be updated!");
+            "Remark: if you use the -r -h option and path points to a link the owner of the link parent will also be updated!\n");
     fprintf(stderr, "Options:\n");
     fprintf(stderr, "                  -r : recursive\n");
   }
