@@ -84,7 +84,7 @@ const map<string, int> GeoTreeEngine::gNotifKey2EnumSched = {
   make_pair("stat.active", sfgActive),
   make_pair("configstatus", sfgConfigstatus),
   make_pair("local.drain", sfgDrain),
-  make_pair("stat.drainer", sfgDrainer),
+  make_pair("local.drainer", sfgDrainer),
   make_pair("stat.nominal.filled", sfgNomfilled),
   make_pair("stat.statfs.bavail", sfgBlkavailb),
   make_pair("stat.statfs.filled", sfgFsfilled),
