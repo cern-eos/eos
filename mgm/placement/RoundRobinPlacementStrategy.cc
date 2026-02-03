@@ -61,7 +61,7 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
         return result;
       }
 
-      if (!PlacementStrategy::validDiskPlct(item_id, cluster_data, args)) {
+      if (!PlacementStrategy::validDiskPlct(item_id, cluster_data, args.excludefs, args.status)) {
         continue;
       }
     }
