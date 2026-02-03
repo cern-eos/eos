@@ -29,8 +29,8 @@ EOSMGMNAMESPACE_BEGIN
 //--------------------------------------------
 /// Main constructor
 //--------------------------------------------
-IoShaping::IoShaping(size_t time) : _mReceiving(false),  _mPublishing(false),
-  _mShaping(false),_receivingTime(time){
+IoShaping::IoShaping(const size_t time) : _mReceiving(false),  _mPublishing(false),
+  _mShaping(false), _receivingTime(time){
 
   /// The windows send to the FST's by default
   _scaler.add_windows(10);
@@ -42,14 +42,17 @@ IoShaping::IoShaping(size_t time) : _mReceiving(false),  _mPublishing(false),
 /// Destructor
 //--------------------------------------------
 IoShaping::~IoShaping(){
-  if (_mShaping.load())
+  if (_mShaping.load()) {
     _mShaping.store(false);
+  }
 
-  if (_mPublishing.load())
+  if (_mPublishing.load()) {
     _mPublishing.store(false);
+  }
 
-  if (_mReceiving.load())
+  if (_mReceiving.load()) {
     _mReceiving.store(false);
+  }
 }
 
 //--------------------------------------------
@@ -195,16 +198,16 @@ IoBuffer::summarys IoShaping::aggregateSummarys(std::vector<IoBuffer::summarys> 
       }
     }
     final.mutable_aggregated()->insert({window.first, data});
-  }else{
+  } else{
       auto mutableGids = final.mutable_aggregated()->at(window.first).mutable_gids();
-      for (auto gidName : window.second){
-        auto sum = IoAggregate::summaryWeighted(gidName.second, window.first);
-      if (sum.has_value()){
-        IoBuffer::Summary buffer;
-        sum->Serialize(buffer);
-        mutableGids->insert({gidName.first, buffer});
+      for (const auto&[fst, snd] : window.second){
+        auto sum = IoAggregate::summaryWeighted(snd, window.first);
+        if (sum.has_value()){
+          IoBuffer::Summary buffer;
+          sum->Serialize(buffer);
+          mutableGids->insert({fst, buffer});
+        }
       }
-    }
   }
 }
 
@@ -225,17 +228,17 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
     break ;
   assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
 
-  std::lock_guard<std::mutex> lock(_mSyncThread);
+  std::lock_guard lock(_mSyncThread);
   eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
 
   std::vector<IoBuffer::summarys> sums;
   IoBuffer::summarys received;
 
-  for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++)
+  for(const auto &[fst, snd] : FsView::gFsView.mNodeView)
   {
-    if (it->second->GetStatus() == "online"){
-      std::string node(it->second->GetMember("cfg.stat.hostport"));
-      std::string protoMap(it->second->GetMember("cfg.stat.iomap"));
+    if (snd->GetStatus() == "online"){
+      std::string node(snd->GetMember("cfg.stat.hostport"));
+      std::string protoMap(snd->GetMember("cfg.stat.iomap"));
       if (protoMap != "0"){
         google::protobuf::util::JsonParseOptions options;
         auto it = google::protobuf::util::JsonStringToMessage(protoMap, &received, options);
@@ -253,8 +256,9 @@ void IoShaping::receive(ThreadAssistant &assistant) noexcept{
     std::string out;
     google::protobuf::util::JsonPrintOptions options;
     auto it = google::protobuf::util::MessageToJsonString(_shapings, &out, options);
-    if (!it.ok())
+    if (!it.ok()) {
       eos_static_err("msg=\"ProtoBuff _shaping failed\"");
+    }
   } else{
     if (_shapings.aggregated_size() > 0)
       _shapings.Clear();
@@ -276,7 +280,7 @@ void IoShaping::publishing(ThreadAssistant &assistant){
     if (!_mPublishing.load())
       break ;
     assistant.wait_for(std::chrono::seconds(2));
-    std::lock_guard<std::mutex> lock(_mSyncThread);
+    std::lock_guard lock(_mSyncThread);
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
     std::string publish;
     google::protobuf::util::JsonPrintOptions options;
@@ -287,9 +291,11 @@ void IoShaping::publishing(ThreadAssistant &assistant){
       continue;
     }
 
-    for(auto it = FsView::gFsView.mNodeView.cbegin(); it != FsView::gFsView.mNodeView.cend(); it++)
-      if (it->second->GetStatus() == "online")
-        it->second->SetConfigMember("stat.scaler.xyz", publish.c_str(), true);
+    for(const auto &[fst, snd] : FsView::gFsView.mNodeView) {
+      if (snd->GetStatus() == "online") {
+        snd->SetConfigMember("stat.scaler.xyz", publish, true);
+      }
+    }
   }
 
   eos_static_info("%s", "msg=\"stopping IoShaping publishing thread\"");
@@ -446,13 +452,11 @@ void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
 /// Start receiving thread
 //----------------------------------------------------------------------------
 bool IoShaping::startReceiving(){
-
   if (!_mReceiving.load()){
     _mReceiving.store(true);
     _mReceivingThread.reset(&IoShaping::receive, this);
     return true;
   }
-
   return false;
 }
 
@@ -460,7 +464,6 @@ bool IoShaping::startReceiving(){
 /// Stop receiving thread
 //----------------------------------------------------------------------------
 bool IoShaping::stopReceiving(){
-
   if (_mReceiving.load()){
     _mReceiving.store(false);
     return true;
@@ -472,7 +475,6 @@ bool IoShaping::stopReceiving(){
 /// Start publising thread
 //----------------------------------------------------------------------------
 bool IoShaping::startPublishing(){
-
   if (!_mPublishing.load()){
     _mPublishing.store(true);
     _mPublishingThread.reset(&IoShaping::publishing, this);
@@ -485,7 +487,6 @@ bool IoShaping::startPublishing(){
 /// Stop publising thread
 //----------------------------------------------------------------------------
 bool IoShaping::stopPublishing(){
-
   if (_mPublishing.load()){
     _mPublishing.store(false);
     return true;
@@ -497,7 +498,7 @@ bool IoShaping::stopPublishing(){
 /// Start shaping thread
 //----------------------------------------------------------------------------
 bool IoShaping::startShaping(){
-  std::lock_guard<std::mutex> lock(_mSyncThread);
+  std::lock_guard lock(_mSyncThread);
 
   if (!_mShaping.load()){
     _mShaping.store(true);
@@ -511,7 +512,6 @@ bool IoShaping::startShaping(){
 /// Stop shaping thread
 //----------------------------------------------------------------------------
 bool IoShaping::stopShaping(){
-
   if (_mShaping.load()){
     _mShaping.store(false);
     return true;
@@ -522,13 +522,13 @@ bool IoShaping::stopShaping(){
 //----------------------------------------------------------------------------
 /// Set new receiving time
 //----------------------------------------------------------------------------
-void IoShaping::setReceivingTime(size_t time){_receivingTime.store(time);}
+void IoShaping::setReceivingTime(const size_t time){_receivingTime.store(time);}
 
 //----------------------------------------------------------------------------
 /// Get _shaping variable
 //----------------------------------------------------------------------------
 IoBuffer::summarys IoShaping::getShaping() const{
-  std::lock_guard<std::mutex> lock(_mSyncThread);
+  std::lock_guard lock(_mSyncThread);
   return _shapings;
 }
 
@@ -536,7 +536,7 @@ IoBuffer::summarys IoShaping::getShaping() const{
 /// Get _scaler variable
 //----------------------------------------------------------------------------
 Shaping::Scaler IoShaping::getScaler() const{
-  std::lock_guard<std::mutex> lock(_mSyncThread);
+  std::lock_guard lock(_mSyncThread);
   return _scaler;
 }
 
@@ -544,20 +544,22 @@ Shaping::Scaler IoShaping::getScaler() const{
 /// Get _limiter variable
 //----------------------------------------------------------------------------
 Limiter IoShaping::getLimiter() const{
-  std::lock_guard<std::mutex> lock(_mSyncThread);
+  std::lock_guard lock(_mSyncThread);
   return _limiter;
 }
 
 //----------------------------------------------------------------------------
 /// Add a new window to the MGM ioMonitor configuration
 //----------------------------------------------------------------------------
-bool IoShaping::addWindow(size_t winTime){
-  std::lock_guard<std::mutex> lock(_mSyncThread);
-  if (winTime < 10)
+bool IoShaping::addWindow(const size_t winTime){
+  std::lock_guard lock(_mSyncThread);
+  if (winTime < 10) {
     return false;
+  }
 
-  if (std::find(_scaler.windows().begin(), _scaler.windows().end(), winTime) == _scaler.windows().end())
+  if (std::find(_scaler.windows().begin(), _scaler.windows().end(), winTime) == _scaler.windows().end()) {
     _scaler.add_windows(winTime);
+  }
   return true;
 }
 
@@ -565,9 +567,10 @@ bool IoShaping::addWindow(size_t winTime){
 /// Remove a new window from the MGM ioMonitor configuration
 //----------------------------------------------------------------------------
 bool IoShaping::rm(size_t winTime){
-  std::lock_guard<std::mutex> lock(_mSyncThread);
-  if (std::find(_scaler.windows().begin(), _scaler.windows().end(), winTime) == _scaler.windows().end())
+  std::lock_guard lock(_mSyncThread);
+  if (std::find(_scaler.windows().begin(), _scaler.windows().end(), winTime) == _scaler.windows().end()) {
     return false;
+  }
 
   _scaler.mutable_windows()->erase(std::find(_scaler.windows().begin(), _scaler.windows().end(), winTime));
   return true;
@@ -577,10 +580,11 @@ bool IoShaping::rm(size_t winTime){
 /// Remove all the apps limit from the MGM ioMonitor configuration
 //----------------------------------------------------------------------------
 bool IoShaping::rmAppsLimit(){
-  std::lock_guard<std::mutex> lock(_mSyncThread);
+  std::lock_guard lock(_mSyncThread);
 
-  if (_limiter.rApps.size() + _limiter.wApps.size() <= 0)
+  if (_limiter.rApps.size() + _limiter.wApps.size() <= 0) {
     return false;
+  }
 
   _limiter.rApps.clear();
   _limiter.wApps.clear();
@@ -591,10 +595,11 @@ bool IoShaping::rmAppsLimit(){
 /// Remove all the uids limit from the MGM ioMonitor configuration
 //----------------------------------------------------------------------------
 bool IoShaping::rmUidsLimit(){
-  std::lock_guard<std::mutex> lock(_mSyncThread);
+  std::lock_guard lock(_mSyncThread);
 
-  if (_limiter.rUids.size() + _limiter.wUids.size() <= 0)
+  if (_limiter.rUids.size() + _limiter.wUids.size() <= 0) {
     return false;
+  }
 
   _limiter.rUids.clear();
   _limiter.wUids.clear();
@@ -605,10 +610,11 @@ bool IoShaping::rmUidsLimit(){
 /// Remove all the gids limit from the MGM ioMonitor configuration
 //----------------------------------------------------------------------------
 bool IoShaping::rmGidsLimit(){
-  std::lock_guard<std::mutex> lock(_mSyncThread);
+  std::lock_guard lock(_mSyncThread);
 
-  if (_limiter.rGids.size() + _limiter.wGids.size() <= 0)
+  if (_limiter.rGids.size() + _limiter.wGids.size() <= 0) {
     return false;
+  }
 
   _limiter.rGids.clear();
   _limiter.wGids.clear();
