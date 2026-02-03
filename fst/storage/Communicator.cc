@@ -209,67 +209,53 @@ void
 Storage::ProcessFstConfigChange(const std::string& key,
                                 const std::string& value)
 {
-  static std::string last_refresh_ts = "";
+  static std::string last_refresh_ts;
   eos_static_info("msg=\"FST node configuration change\" key=\"%s\" "
                   "value=\"%s\"", key.c_str(), value.c_str());
 
-  // Refresh the list of FS'es registered from QDB shared hashes
+  // if key not in list, warning and return
+  if (sNodeUpdateKeys.find(key) == sNodeUpdateKeys.end()) {
+    eos_static_warning("msg=\"unhandled FST node configuration change due to invalid key\" "
+                       "key=\"%s\" value=\"%s\"", key.c_str(), value.c_str());
+    return;
+  }
+
+  // Refresh the list of filesystems registered from QDB shared hashes
   if (key == "stat.refresh_fs") {
     if (last_refresh_ts != value) {
       last_refresh_ts = value;
       SignalRegisterThread();
     }
-
-    return;
-  }
-
-  if (key == "manager") {
+  } else if (key == "manager") {
     XrdSysMutexHelper lock(gConfig.Mutex);
     gConfig.Manager = value.c_str();
-    return;
-  }
-
-  if (key == "symkey") {
+  } else if (key == "symkey") {
     eos::common::gSymKeyStore.SetKey64(value.c_str(), 0);
-    return;
-  }
-
-  if (key == "publish.interval") {
+  } else if (key == "publish.interval") {
     eos_static_info("publish.interval=%s", value.c_str());
     XrdSysMutexHelper lock(gConfig.Mutex);
     gConfig.PublishInterval = atoi(value.c_str());
-    return;
-  }
-
-  if (key == "debug.level") {
-    std::string debuglevel = value;
+  } else if (key == "debug.level") {
+    const std::string& debugLevel = value;
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-    int debugval = g_logging.GetPriorityByString(debuglevel.c_str());
-
-    if (debugval < 0) {
+    if (const int debugValue = g_logging.GetPriorityByString(debugLevel.c_str()); debugValue < 0) {
       eos_static_err("msg=\"unknown debug level\" level=\"%s\"",
-                     debuglevel.c_str());
+                     debugLevel.c_str());
     } else {
-      g_logging.SetLogPriority(debugval);
+      g_logging.SetLogPriority(debugValue);
     }
-
-    return;
-  }
-
-  if (key == "error.simulation") {
-    gOFS.SetSimulationError(value.c_str());
-    return;
-  }
-
-  if (key == "stripexs") {
+  } else if (key == "error.simulation") {
+    gOFS.SetSimulationError(value);
+  } else if (key == "stripexs") {
     // value can be "on" or "off"
     mComputeStripeChecksum = (value == "on");
-    return;
-  }
-
-  if (key == "stat.scaler.xyz"){
-	ScalerCmd(value);
-    return;
+  } else if (key == "stat.scaler.xyz"){
+	  ScalerCmd(value);
+  } else {
+    eos_static_warning("msg=\"unhandled FST node configuration change because "
+                       "of missing implementation\" key=\"%s\" value=\"%s\". "
+                       "This should never happen!",
+                       key.c_str(), value.c_str());
   }
 }
 
