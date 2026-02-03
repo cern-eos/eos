@@ -91,7 +91,7 @@ PlacementResult WeightedRandomPlacement::Impl::placeFiles(
         return result;
       }
 
-      if (!PlacementStrategy::validDiskPlct(item_id, data, args)) {
+      if (!PlacementStrategy::validDiskPlct(item_id, data, args.excludefs, args.status)) {
         continue;
       }
     }
@@ -133,17 +133,11 @@ int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments arg
   size_t best_index = std::numeric_limits<size_t>::max();
 
   for (const auto& fsid: args.selectedfs) {
-    if (args.unavailfs &&
-        std::find(args.unavailfs->begin(),
-                   args.unavailfs->end(),
-                   fsid) != args.unavailfs->end()) {
-      continue;
-    }
 
     const auto& disk = data.disks.at(fsid - 1);
 
-    if (disk.active_status.load(std::memory_order_acquire) !=
-        ActiveStatus::kOnline) {
+    if (!validDiskPlct(fsid, data, args.unavailfs ? *args.unavailfs : std::vector<uint32_t>{},
+                        eos::common::ConfigStatus::kRO)) {
       continue;
     }
 
