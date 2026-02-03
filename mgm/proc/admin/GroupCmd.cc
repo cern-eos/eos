@@ -210,40 +210,47 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
     return;
   }
 
-  std::string key = "status";
-
-  if (!set.group().length() || !set.group_state().length()) {
-    reply.set_std_err("error: illegal parameters 'group or group-state'");
+  if (set.group().empty() || set.group_state().empty()) {
+    reply.set_std_err("error: empty group name or group state");
     reply.set_retc(EINVAL);
     return;
   }
 
+  const std::string key = "status";
   eos::common::RWMutexWriteLock lock(FsView::gFsView.ViewMutex);
-  // FIXME unify the various methods doing group iteration below!
-  bool non_existant_group = FsView::gFsView.mGroupView.count(set.group()) == 0;
+  auto git = FsView::gFsView.mGroupView.find(set.group());
 
-  if (set.group_state() == "drain" && non_existant_group) {
-    reply.set_std_err("error: group does not exist!");
-    reply.set_retc(EINVAL);
-    return;
-  }
+  if (git == FsView::gFsView.mGroupView.end()) {
+    if (set.group_state() == "drain") {
+      reply.set_std_err("error: group does not exist!");
+      reply.set_retc(EINVAL);
+      return;
+    }
 
-  if (non_existant_group) {
     reply.set_std_out(("info: creating group '" + set.group() + "'").c_str());
 
     if (!FsView::gFsView.RegisterGroup(set.group().c_str())) {
-      std::string groupconfigname = common::SharedHashLocator::makeForGroup(
-                                      set.group()).getConfigQueue();
+      std::string groupconfigname =
+        common::SharedHashLocator::makeForGroup(set.group()).getConfigQueue();
       reply.set_std_err(("error: cannot register group <" +
                          set.group() + ">").c_str());
       reply.set_retc(EIO);
       return;
     }
+
+    git = FsView::gFsView.mGroupView.find(set.group());
+
+    if (git == FsView::gFsView.mGroupView.end()) {
+      reply.set_std_err("error: missing newly created group");
+      reply.set_retc(EINVAL);
+      return;
+    }
   }
 
+  eos::mgm::FsGroup* group = git->second;
+
   // Set the current group status
-  if (!FsView::gFsView.mGroupView[set.group()]->SetConfigMember
-      (key, set.group_state())) {
+  if (!group->SetConfigMember(key, set.group_state())) {
     reply.set_std_err("error: cannot set config status");
     reply.set_retc(EIO);
     return;
@@ -253,87 +260,88 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
     // Recompute the drain status in this group
     bool setactive = false;
 
-    if (FsView::gFsView.mGroupView.count(set.group())) {
-      for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
-           git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
-        auto fs = FsView::gFsView.mIdView.lookupByID(*git);
+    for (auto fs_it = group->cbegin(); fs_it != group->cend(); ++fs_it) {
+      auto fs = FsView::gFsView.mIdView.lookupByID(*fs_it);
 
-        if (fs) {
-          common::DrainStatus drainstatus =
-            (eos::common::FileSystem::GetDrainStatusFromString
-             (fs->GetString("local.drain").c_str()));
+      if (fs) {
+        common::DrainStatus drainstatus =
+          (eos::common::FileSystem::GetDrainStatusFromString
+           (fs->GetString("local.drain").c_str()));
 
-          if ((drainstatus == eos::common::DrainStatus::kDraining) ||
-              (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
-            // If any group filesystem is draining, all the others have
-            // to enable the pull for draining!
-            setactive = true;
+        if ((drainstatus == eos::common::DrainStatus::kDraining) ||
+            (drainstatus == eos::common::DrainStatus::kDrainStalling)) {
+          // If any group filesystem is draining, all the others have
+          // to enable the pull for draining!
+          setactive = true;
+        }
+      }
+    }
+
+    // Collect all geotags to be enabled for placement
+    XrdOucString output;
+    std::unordered_set<std::string> geotags;
+
+    for (auto fs_it = group->cbegin(); fs_it != group->cend(); ++fs_it) {
+      auto fs = FsView::gFsView.mIdView.lookupByID(*fs_it);
+
+      if (fs) {
+        geotags.emplace(fs->GetString(GEOTAG_KEY));
+
+        if (setactive) {
+          if (fs->GetString("local.drainer") != "on") {
+            fs->SetString("local.drainer", "on");
+          }
+        } else {
+          if (fs->GetString("local.drainer") != "off") {
+            fs->SetString("local.drainer", "off");
           }
         }
       }
+    }
 
-      for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
-           git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
-        auto fs = FsView::gFsView.mIdView.lookupByID(*git);
-
-        if (fs) {
-          if (setactive) {
-            if (fs->GetString("local.drainer") != "on") {
-              fs->SetString("local.drainer", "on");
-            }
-          } else {
-            if (fs->GetString("local.drainer") != "off") {
-              fs->SetString("local.drainer", "off");
-            }
-          }
-        }
-      }
+    for (const auto& geo_tag : geotags) {
+      (void) gOFS->mGeoTreeEngine->rmDisabledBranch(set.group().c_str(),
+          GEOTAG_PLCT_KEY,
+          geo_tag.c_str(),
+          &output, true);
     }
   }
 
   if (set.group_state() == "off") {
     // Disable all draining in this group
-    if (FsView::gFsView.mGroupView.count(set.group())) {
-      for (auto git = FsView::gFsView.mGroupView[set.group()]->begin();
-           git != FsView::gFsView.mGroupView[set.group()]->end(); ++git) {
-        auto fs = FsView::gFsView.mIdView.lookupByID(*git);
+    for (auto fs_it = group->cbegin(); fs_it != group->cend(); ++fs_it) {
+      auto fs = FsView::gFsView.mIdView.lookupByID(*fs_it);
 
-        if (fs) {
-          fs->SetString("local.drainer", "off");
-        }
+      if (fs) {
+        fs->SetString("local.drainer", "off");
       }
     }
   }
 
   if (set.group_state() == "drain") {
-    auto group = FsView::gFsView.mGroupView.find(set.group());
+    // Collect all geotags to be disabled for placement
+    std::unordered_set<std::string> geotags;
 
-    if (group != FsView::gFsView.mGroupView.end()) {
-      std::unordered_set<std::string> geotags;
+    for (auto fs_it = group->cbegin(); fs_it != group->cend(); ++fs_it) {
+      auto fs = FsView::gFsView.mIdView.lookupByID(*fs_it);
 
-      for (auto fs_it = group->second->cbegin();
-           fs_it != group->second->cend(); ++fs_it) {
-        auto fs = FsView::gFsView.mIdView.lookupByID(*fs_it);
-
-        if (fs) {
-          geotags.emplace(fs->GetString(GEOTAG_KEY));
-        }
+      if (fs) {
+        geotags.emplace(fs->GetString(GEOTAG_KEY));
       }
+    }
 
-      XrdOucString output;
+    XrdOucString output;
 
-      for (const auto& geotag : geotags) {
-        // TODO: review whether only plct needs to be disabled or every op!
-        bool status = gOFS->mGeoTreeEngine->addDisabledBranch(set.group().c_str(),
-                      GEOTAG_PLCT_KEY,
-                      geotag.c_str(),
-                      &output, true);
+    for (const auto& geo_tag : geotags) {
+      bool status = gOFS->mGeoTreeEngine->addDisabledBranch(set.group().c_str(),
+                    GEOTAG_PLCT_KEY,
+                    geo_tag.c_str(),
+                    &output, true);
 
-        if (!status) {
-          reply.set_retc(EIO);
-          reply.set_std_err(output.c_str());
-          return;
-        }
+      if (!status) {
+        reply.set_retc(EIO);
+        reply.set_std_err(output.c_str());
+        return;
       }
     }
   }
