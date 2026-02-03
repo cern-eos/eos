@@ -4480,17 +4480,17 @@ FsSpace::ResetDraining()
 
       if (fs) {
         if (setactive) {
-          if (fs->GetString("stat.drainer") != "on") {
-            fs->SetString("stat.drainer", "on");
+          if (fs->GetString("local.drainer") != "on") {
+            fs->SetString("local.drainer", "on");
           }
         } else {
-          if (fs->GetString("stat.drainer") != "off") {
-            fs->SetString("stat.drainer", "off");
+          if (fs->GetString("local.drainer") != "off") {
+            fs->SetString("local.drainer", "off");
           }
         }
 
         eos_static_info("fsid=%05d state=%s", fs->GetId(),
-                        fs->GetString("stat.drainer").c_str());
+                        fs->GetString("local.drainer").c_str());
       }
     }
   }
