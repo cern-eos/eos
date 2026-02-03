@@ -210,7 +210,7 @@ Storage::ProcessFstConfigChange(const std::string& key,
                                 const std::string& value)
 {
   static std::string last_refresh_ts;
-  eos_static_info("msg=\"FST node configuration change\" key=\"%s\" "
+  eos_static_debug("msg=\"FST node configuration change\" key=\"%s\" "
                   "value=\"%s\"", key.c_str(), value.c_str());
 
   // if key not in list, warning and return
@@ -220,19 +220,25 @@ Storage::ProcessFstConfigChange(const std::string& key,
     return;
   }
 
-  // Refresh the list of filesystems registered from QDB shared hashes
   if (key == "stat.refresh_fs") {
+    // Refresh the list of filesystems registered from QDB shared hashes
     if (last_refresh_ts != value) {
+      eos_static_info("msg=\"refreshing file system list\" "
+                      "last_refresh_ts=\"%s\" new_refresh_ts=\"%s\"",
+                      last_refresh_ts.c_str(), value.c_str());
       last_refresh_ts = value;
       SignalRegisterThread();
     }
   } else if (key == "manager") {
+    eos_static_info("msg=\"manager changed\" new_manager=\"%s\"",
+                    value.c_str());
     XrdSysMutexHelper lock(gConfig.Mutex);
     gConfig.Manager = value.c_str();
   } else if (key == "symkey") {
+    eos_static_info("msg=\"symkey changed\"");
     eos::common::gSymKeyStore.SetKey64(value.c_str(), 0);
   } else if (key == "publish.interval") {
-    eos_static_info("publish.interval=%s", value.c_str());
+    eos_static_info("msg=\"publish interval changed\" new_interval=\"%s\"", value.c_str());
     XrdSysMutexHelper lock(gConfig.Mutex);
     try {
       gConfig.PublishInterval = std::stoi(value);
@@ -242,6 +248,7 @@ Storage::ProcessFstConfigChange(const std::string& key,
     }
   } else if (key == "debug.level") {
     const std::string& debugLevel = value;
+    eos_static_info("msg=\"debug level changed\" new_level=\"%s\"", debugLevel.c_str());
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
     if (const int debugValue = g_logging.GetPriorityByString(debugLevel.c_str()); debugValue < 0) {
       eos_static_err("msg=\"unknown debug level\" level=\"%s\"",
@@ -250,17 +257,21 @@ Storage::ProcessFstConfigChange(const std::string& key,
       g_logging.SetLogPriority(debugValue);
     }
   } else if (key == "error.simulation") {
+    eos_static_info("msg=\"error simulation changed\" new_value=\"%s\"", value.c_str());
     gOFS.SetSimulationError(value);
   } else if (key == "stripexs") {
     // value can be "on" or "off"
     mComputeStripeChecksum = (value == "on");
+    eos_static_info("msg=\"stripe checksum calculation changed\" new_value=\"%s\" mComputeStripeChecksum=%s",
+                    value.c_str(), mComputeStripeChecksum ? "enabled" : "disabled");
   } else if (key == "stat.scaler.xyz"){
+    eos_static_debug("msg=\"stat.scaler.xyz changed\" new_value=\"%s\"", value.c_str());
 	  ScalerCmd(value);
   } else {
-    eos_static_warning("msg=\"unhandled FST node configuration change because "
-                       "of missing implementation\" key=\"%s\" value=\"%s\". "
-                       "This should never happen!",
-                       key.c_str(), value.c_str());
+    eos_static_err("msg=\"unhandled FST node configuration change because "
+                   "of missing implementation\" key=\"%s\" value=\"%s\". "
+                   "This should never happen!",
+                   key.c_str(), value.c_str());
   }
 }
 
