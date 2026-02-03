@@ -6,7 +6,7 @@
 Service control with systemd
 ============================
 
-Unlike in case of SysV scripts, the sysconfig file for EOS running with systemd is `/etc/syconfig/eos_env`.
+Unlike in case of SysV scripts, the sysconfig file for EOS running with systemd is `/etc/sysconfig/eos_env`.
 
 Control individual daemons
 --------------------------
