@@ -355,14 +355,16 @@ static std::string toMega(size_t byte,
       bool print = true, bool isTrivial = false){
   std::ostringstream os;
 
-  if (byte == 0)
+  if (byte == 0) {
     return "0 MB/s";
+  }
 
   float finalByte = (static_cast<float>(byte) / 1000000) * iops;
 
   os << std::fixed << std::setprecision(precision);
-  if (isTrivial)
+  if (isTrivial) {
     os << "*";
+  }
 
   if (print && finalByte >= 1000){
     finalByte /= 1000;
@@ -371,14 +373,15 @@ static std::string toMega(size_t byte,
       os << std::setprecision(2) << finalByte;
       os << " TB/s";
     } else {
-      os << std::setprecision(2) <<  finalByte;
+      os << std::setprecision(2) << finalByte;
       os << " GB/s";
     }
   } else if (print){
     os << finalByte;
     os << " MB/s";
-  } else
+  } else {
     os << finalByte;
+  }
 
   return os.str();
 }
@@ -388,10 +391,6 @@ static std::string toMega(size_t byte,
 //----------------------------------------------------------------------------
 void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
                      eos::console::ReplyProto& reply){
-  size_t W1 = 0;
-  const size_t W2 = 14;
-  const size_t W3 = 7;
-  const size_t W4 = 13;
   std::stringstream options(mn.options());
   std::string cmdOptions;
   std::stringstream std_out;
@@ -410,22 +409,28 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
 
   if (options.str() == "-w"){
     std_out << "[FST's Available windows] :=";
-    if (sums.aggregated().empty())
-      std_out <<" (empty)";
-    else
-      for (auto it : sums.aggregated())
-        std_out << " " + std::to_string(it.first);
+    if (sums.aggregated().empty()) {
+      std_out << " (empty)";
+    }
+    else {
+      for (const auto& [fst, snd] : sums.aggregated()) {
+        std_out << " " + std::to_string(fst);
+      }
+    }
 
     std_out << "\n[MGM set windows]         :=";
-    auto scaler(gOFS->mIoShaper.getScaler());
-    if (scaler.windows().empty())
+    const auto scaler(gOFS->mIoShaper.getScaler());
+    if (scaler.windows().empty()) {
       std_out << " (empty)\n";
-    else
-      for (auto it : scaler.windows())
+    }
+    else {
+      for (auto it : scaler.windows()) {
         std_out << " " + std::to_string(it);
+      }
+    }
 
     reply.set_std_out(std_out.str());
-    return ;
+    return;
   }
 
   if (!mn.options().empty()){
@@ -433,66 +438,76 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
       if (cmdOptions == "-a"){
         printUids = false;
         printGids = false;
-      }
-      else if (cmdOptions == "-u"){
+      } else if (cmdOptions == "-u"){
         printApps = false;
         printGids = false;
-      }
-      else if (cmdOptions == "-g"){
+      } else if (cmdOptions == "-g"){
         printApps = false;
         printUids = false;
-      }
-      else if (cmdOptions == "-j")
+      } else if (cmdOptions == "-j") {
         jsonOutput = true;
-      else if (cmdOptions == "-s")
+      } else if (cmdOptions == "-s") {
         printSize = true;
-      else if (cmdOptions == "-std")
+      } else if (cmdOptions == "-std") {
         printStd = true;
+      }
       else {
-        char *delemiter = NULL;
-        winTime = std::strtol(cmdOptions.c_str(), &delemiter, 10);
+        char *delimiter = nullptr;
+        winTime = std::strtol(cmdOptions.c_str(), &delimiter, 10);
 
-        if (*delemiter || !options.eof()){
+        if (*delimiter || !options.eof()){
           reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: ls: command not found");
-          return ;
+          return;
         }
       }
     }
   }
 
   /// Handle errors
-  if (sums.aggregated().empty())
+  if (sums.aggregated().empty()) {
+    if (jsonOutput == true){
+      return reply.set_std_out("{}");
+    }
     return reply.set_std_out("(empty)\n");
+  }
 
   if (sums.aggregated().find(winTime) == sums.aggregated().end()){
-    reply.set_std_err("no matching found for window " + std::to_string(winTime));
-    return ;
+    reply.set_std_err("no matching window found " + std::to_string(winTime));
+    return;
   }
 
   if (!printApps && !printUids && !printGids){
     reply.set_std_err("you cannot select multiple targets");
-    return ;
+    return;
   }
 
-  W1 = findSize(sums, winTime);
-  std_out << "Window := " << winTime << "\n\n";
+  const auto W1 = findSize(sums, winTime);
+  constexpr size_t W2 = 14;
+  constexpr size_t W3 = 7;
+  constexpr size_t W4 = 13;
+
   std_out << std::left << std::setw(W1) << "who"
       << std::right << std::setw(W2) << "read BW" << std::setw(W3) << "limit";
-  if (printStd)
+  if (printStd) {
     std_out << std::setw(W4) << "std";
-  if (printSize)
+  }
+  if (printSize) {
     std_out << std::setw(W3) << "size";
+  }
   std_out << std::setw(W2) << "write BW" << std::setw(W3) << "limit";
-  if (printStd)
+  if (printStd) {
     std_out << std::setw(W4) << "std";
-  if (printSize)
+  }
+  if (printSize) {
     std_out << std::setw(W3) << "size";
+  }
   std_out << std::setw(W2) << "read IOPS" << std::setw(W2) << "write IOPS";
   std_out << '\n';
 
   size_t size = ((W2 * 5) + W1) + (printSize ? W3 * 2 : 0) + (printStd ? W4 * 2 : 0);
-  while (size--)
+  while (size--) {
     std_out << "─";
+  }
   std_out << '\n' << std::setprecision(3) << std::fixed;
 
   IoBuffer::data data(sums.aggregated().at(winTime));
@@ -521,7 +536,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
     absl = google::protobuf::json::MessageToJsonString(data, &out, jsonOption);
     if (!absl.ok()){
       reply.set_std_err("failed to parse data protobuf object");
-      return ;
+      return;
     }
     std_out.str("");
     std_out << out;
@@ -637,7 +652,6 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn,
   }
 
   reply.set_std_out(std_out.str().c_str());
-  return ;
 }
 
 //----------------------------------------------------------------------------
@@ -683,7 +697,7 @@ void IoCmd::MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream &os)
         printUids = false;
       } else {
         reply.set_std_err("Monitor: set ls: option not found");
-        return ;
+        return;
       }
     } 
   }
@@ -691,15 +705,16 @@ void IoCmd::MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream &os)
   /// Handle errors
   if (!printApps && !printUids && !printGids){
     reply.set_std_err("you cannot select multiple targets");
-    return ;
+    return;
   }
 
   size_t fullSize = limit.rApps.size() + limit.wApps.size()
     + limit.rGids.size() + limit.wGids.size()
     + limit.rUids.size() + limit.wUids.size();
 
-  if (!fullSize)
+  if (!fullSize) {
     return reply.set_std_out("(empty)\n");
+  }
 
 
   /// Read apps
@@ -797,7 +812,6 @@ void IoCmd::MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream &os)
   }
 
   reply.set_std_out(std_out.str());
-  return ;
 }
 
 //----------------------------------------------------------------------------
@@ -813,7 +827,7 @@ void IoCmd::MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream &os)
 
   if (os.eof()){
     reply.set_std_out("Try eos io monitor --help\n");
-    return ;
+    return;
   }
 
   if (os.str().find(':') != std::string::npos && std::getline(os, input, ':')){
@@ -837,7 +851,7 @@ void IoCmd::MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream &os)
     }
     else{
       reply.set_std_err("Monitor: set rm: target can only be <app|uid|gid>:<id> || [-a] [-u] [-g] [--all]\n");
-      return ;
+      return;
     }
   } else if (os >> input){
     if (input == "-a"){
@@ -873,17 +887,17 @@ void IoCmd::MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream &os)
         std_out << "Removed all gids set failed\n";
     } else{
       reply.set_std_err("Monitor: set rm: option not found\n");
-      return ;
+      return;
     }
   } else{
     reply.set_std_err("Monitor: set rm: command not found");
-    return ;
+    return;
   }
 
 
   if (!os.eof()){
     reply.set_std_err("Monitor: set rm: bad number of information\n");
-    return ;
+    return;
   }
 
   reply.set_std_out(std_out.str());
@@ -913,12 +927,12 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
   if (cmdOption >> input){
     if (input == "ls"){
       MonitorSetLs(reply, cmdOption);
-      return ;
+      return;
     }
     else if (input == "rm"){
       cmdOption.get();
       MonitorSetRm(reply, cmdOption);
-      return ;
+      return;
     } else {
       std::stringstream target(input);
       if (input.find(':') != std::string::npos && std::getline(target, input, ':')){
@@ -930,11 +944,11 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
           isApp = true;
         else{
           reply.set_std_err("Monitor: target can only be <app|uid|gid>:<id>");
-          return ;
+          return;
         }
       } else {
         reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: set: command not found");
-        return ;
+        return;
       }
       if (cmdOption >> input){
         target.clear();
@@ -944,7 +958,7 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
             rw = input;
           else{
             reply.set_std_err("Monitor: only read|write accepted");
-            return ;
+            return;
           }
           if (target >> input){
             if (input == "on" || input == "off"){
@@ -957,7 +971,7 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
               char c = 0;
               if (!(cmdOption >> limits) || limits == 0){
                 reply.set_std_err("Monitor: bad limite input");
-                return ;
+                return;
               }
               if (!cmdOption.eof()){
                 cmdOption >> c;
@@ -965,26 +979,26 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
                   isTrivial = true;
                 else{
                   reply.set_std_err("Monitor: bad limite input");
-                  return ;
+                  return;
                 }
               }
             }
           } else{
             reply.set_std_err("Monitor: bad read or write target");
-            return ;
+            return;
           }
         } else {
           reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: second argument not found");
-          return ;
+          return;
         }
       } else {
           reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: not enought argument");
-          return ;
+          return;
       }
     }
   } else{
     reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: set: command not found");
-    return ;
+    return;
   }
 
 
@@ -995,7 +1009,7 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
     if (isStatus){
       if (!gOFS->mIoShaper.setStatus(app, rw, (status == "on" ? true : false))){
         reply.set_std_err("Set app limit status failed");
-        return ;
+        return;
       }
       if (status == "on")
         cmdOption << "Enable the " + rw + " limit for (app) " + app;
@@ -1007,7 +1021,7 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
       cmdOption <<  "Set limit for (app) " + app + " with limit of " + std::to_string(limits) + " MB/s";
       if (!gOFS->mIoShaper.setTrivial(app, rw, isTrivial)){
         reply.set_std_err("Set apps trivial option failed");
-        return ;
+        return;
       } else if (isTrivial)
         cmdOption << " (*)";
     }
@@ -1016,7 +1030,7 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
     if (isStatus){
       if (!gOFS->mIoShaper.setStatus(io::TYPE::UID, uid, rw, (status == "on" ? true : false))){
         reply.set_std_err("Set uid limit status failed");
-        return ;
+        return;
       }
       if (status == "on")
         cmdOption << "Enable the " + rw + " limit for (uid) " + std::to_string(uid);
@@ -1028,7 +1042,7 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
       cmdOption << "Set limit for (uid) " + std::to_string(uid) + " with limit of " + std::to_string(limits) + " MB/s";
       if (!gOFS->mIoShaper.setTrivial(io::TYPE::UID, uid, rw, isTrivial)){
         reply.set_std_err("Set uid trivial option failed");
-        return ;
+        return;
       }  else if (isTrivial)
         cmdOption << " (*)";
     }
@@ -1037,7 +1051,7 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
     if (isStatus){
       if (!gOFS->mIoShaper.setStatus(io::TYPE::GID, gid, rw, (status == "on" ? true : false))){
         reply.set_std_err("Set gid limit status failed");
-        return ;
+        return;
       }
       if (status == "on")
         cmdOption << "Enable the " + rw + " limit for (gid) " + std::to_string(gid);
@@ -1049,13 +1063,13 @@ void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn,
       cmdOption << "Set limit for (gid) " + std::to_string(gid) + " with limit of " + std::to_string(limits) + " MB/s";
       if (!gOFS->mIoShaper.setTrivial(io::TYPE::GID, gid, rw, isTrivial)){
         reply.set_std_err("Set gid trivial option failed");
-        return ;
+        return;
       } else if (isTrivial)
         cmdOption << " (*)";
     }
   }else{
     reply.set_std_err("???");
-    return ;
+    return;
   }
 
   reply.set_std_out(cmdOption.str());
@@ -1078,7 +1092,7 @@ void IoCmd::MonitorAdd(const eos::console::IoProto_MonitorProto& mn,
   }
   if (!options.eof()){
       reply.set_std_err("Monitor: bad add window input");
-    return ;
+    return;
   }
 
   reply.set_std_out(std_out.str());
@@ -1101,7 +1115,7 @@ void IoCmd::MonitorRm(const eos::console::IoProto_MonitorProto& mn,
   }
   if (!options.eof()){
       reply.set_std_err("Monitor: bad add window input");
-    return ;
+    return;
   }
 
   reply.set_std_out(std_out.str());
@@ -1115,7 +1129,7 @@ void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn,
 {
   eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
 
-  std::string cmd(mn.cmd());
+  const std::string& cmd(mn.cmd());
   std::stringstream options(mn.options());
 
   if (cmd == "ls")
