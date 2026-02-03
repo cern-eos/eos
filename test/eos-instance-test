@@ -2082,6 +2082,8 @@ runtest "### FUSE stat " unix SUCCESS "" shell stat "/eos/$EOS_TEST_INSTANCE/tes
 runtest "### FUSE stat " unix SUCCESS "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1/dir2"
 fi
 
+unset X509_USER_PROXY
+unset KRB5CCNAME
 ################################################################################
 # eos FUSE tests
 ################################################################################
@@ -2259,6 +2261,8 @@ test -d /test-fusex/ && rmdir /test-fusex/
 test -e /etc/eos/fuse.sss.keytab && unlink /etc/eos/fuse.sss.keytab
 fi
 
+unset X509_USER_PROXY
+unset KRB5CCNAME
 
 ################################################################################
 # eos rclone test
@@ -2324,6 +2328,9 @@ test -d /eos/ && umount -fl /eos/
 test -d /eos/ && rmdir /eos/
 
 test -e /etc/eos/fuse.sss.keytab.save && mv -f /etc/eos/fuse.sss.keytab.save /etc/eos/fuse.sss.keytab
+
+unset X509_USER_PROXY
+unset KRB5CCNAME
 
 ################################################################################
 # Third party copy tests
