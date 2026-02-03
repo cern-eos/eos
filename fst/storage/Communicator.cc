@@ -234,7 +234,12 @@ Storage::ProcessFstConfigChange(const std::string& key,
   } else if (key == "publish.interval") {
     eos_static_info("publish.interval=%s", value.c_str());
     XrdSysMutexHelper lock(gConfig.Mutex);
-    gConfig.PublishInterval = atoi(value.c_str());
+    try {
+      gConfig.PublishInterval = std::stoi(value);
+    } catch (const std::exception& e) {
+      eos_static_warning("msg=\"invalid PublishInterval value\" value=\"%s\" error=\"%s\"",
+                         value.c_str(), e.what());
+    }
   } else if (key == "debug.level") {
     const std::string& debugLevel = value;
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
