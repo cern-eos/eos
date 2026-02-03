@@ -118,7 +118,6 @@ add_library(
   proc/admin/ConvertCmd.cc proc/admin/ConvertCmd.hh
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
   proc/admin/DevicesCmd.cc proc/admin/DevicesCmd.hh
-  proc/admin/Group.cc # @todo (faluchet) drop when move to 5.0.0
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
   proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/FileRegisterCmd.cc proc/admin/FileRegisterCmd.hh

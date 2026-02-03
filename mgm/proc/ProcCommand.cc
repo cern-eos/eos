@@ -254,9 +254,6 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "access") { // @todo (faluchet) drop when move to 5.0.0
       Access();
       mDoSort = false;
-    } else if (mCmd == "group") { // @todo (faluchet) drop when move to 5.0.0
-      Group();
-      mDoSort = false;
     } else if (mCmd == "quota") { // @todo (faluchet) drop when move to 5.0.0
       AdminQuota();
       mDoSort = false;
