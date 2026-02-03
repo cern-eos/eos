@@ -47,7 +47,7 @@ The classical configuration includes the following configuration files:
    MGM            /etc/xrd.cf.mgm              XRootD
    FST            /etc/xrd.cf.fst              XRootD
    MQ             /etc/xrd.cf.mq               XRootD
-   QDB            /etxrootd/xrootd-quarkdb.cfg XRootD
+   QDB            /etc/xrootd/xrootd-quarkdb.cfg XRootD
    ALL            /etc/sysconfig/eos_env       Sysconfig
    ============== ============================ ==========================
 
