@@ -241,7 +241,7 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
     }
   }
 
-  // Set this new group to offline
+  // Set the current group status
   if (!FsView::gFsView.mGroupView[set.group()]->SetConfigMember
       (key, set.group_state())) {
     reply.set_std_err("error: cannot set config status");
