@@ -155,7 +155,7 @@ class IoShaping : public eos::common::LogId{
     //----------------------------------------------------------------------------
     /// Function that calculates the limits for each app/uid/gid
     //----------------------------------------------------------------------------
-    bool calculeScalerNodes();
+    bool calculateScalerNodes();
  
   public:
     //--------------------------------------------

@@ -298,19 +298,17 @@ void IoShaping::publishing(ThreadAssistant &assistant){
 //----------------------------------------------------------------------------
 /// Function that calculates the limits for each app/uid/gid
 //----------------------------------------------------------------------------
-bool IoShaping::calculeScalerNodes(){
+bool IoShaping::calculateScalerNodes(){
 
-  if (_shapings.aggregated_size() <= 0)
-    return false;
-
-
-  size_t winTime = !_shapings.aggregated().empty() ?
+  // Find the smallest window time
+  const size_t windowTimeSmallest = !_shapings.aggregated().empty() ?
     std::min_element(_shapings.aggregated().begin(), _shapings.aggregated().end(),
            [](auto &a, auto &b){return a.first < b.first;})->first : 0;
-  if (winTime == 0)
+  if (windowTimeSmallest == 0) {
     return false;
+  }
 
-  auto &it = _shapings.aggregated().at(winTime);
+  auto &it = _shapings.aggregated().at(windowTimeSmallest);
   Shaping::Traffic tmp;
 
   /// Apps
@@ -431,16 +429,14 @@ void IoShaping::shaping(ThreadAssistant &assistant) noexcept{
   eos_static_info("%s", "msg=\"starting IoShaping shaping thread\"");
   assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
   while (!assistant.terminationRequested()){
-    if (!_mPublishing.load())
+    if (!_mPublishing.load()) {
       break ;
+    }
     assistant.wait_for(std::chrono::seconds(_receivingTime.load()));
-    std::lock_guard<std::mutex> lock(_mSyncThread);
+    std::lock_guard lock(_mSyncThread);
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
 
-    if (!calculeScalerNodes()){
-      eos_static_err("msg=\"Calcule scaler failed\"");
-      continue;
-    }
+    calculateScalerNodes();
   }
 
   eos_static_info("%s", "msg=\"stopping IoShaping publishing thread\"");
