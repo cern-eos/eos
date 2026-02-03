@@ -278,12 +278,12 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
 
         if (fs) {
           if (setactive) {
-            if (fs->GetString("stat.drainer") != "on") {
-              fs->SetString("stat.drainer", "on");
+            if (fs->GetString("local.drainer") != "on") {
+              fs->SetString("local.drainer", "on");
             }
           } else {
-            if (fs->GetString("stat.drainer") != "off") {
-              fs->SetString("stat.drainer", "off");
+            if (fs->GetString("local.drainer") != "off") {
+              fs->SetString("local.drainer", "off");
             }
           }
         }
@@ -299,7 +299,7 @@ GroupCmd::SetSubcmd(const eos::console::GroupProto_SetProto& set,
         auto fs = FsView::gFsView.mIdView.lookupByID(*git);
 
         if (fs) {
-          fs->SetString("stat.drainer", "off");
+          fs->SetString("local.drainer", "off");
         }
       }
     }
