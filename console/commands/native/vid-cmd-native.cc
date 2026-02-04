@@ -371,14 +371,16 @@ public:
     }
 
     if (sub == "rm") {
-      XrdOucString key = tok.GetTokenUnquoted();
+      XrdOucString key = tok.GetToken();
+      key.replace("\\\"", "\"");
       if (!key.length()) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
       if (key == "membership") {
-        key = tok.GetTokenUnquoted();
+        key = tok.GetToken();
+        key.replace("\\\"", "\"");
         key.insert("vid:", 0);
         XrdOucString key1 = key;
         XrdOucString key2 = key;
