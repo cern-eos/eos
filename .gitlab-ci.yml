@@ -18,6 +18,7 @@
 
 stages:
   - build:manual
+  - pre-commit
   - prebuild
   - build:rpm
   - build:dockerimage
@@ -1226,3 +1227,17 @@ eos_docs:
   tags:
     - docker_node
   when: manual
+
+pre_commit:
+  stage: pre-commit
+  image: gitlab-registry.cern.ch/linuxsupport/alma10-base
+  needs: []
+  variables:
+    PIP_NO_CACHE_DIR: "1"
+  before_script:
+    - dnf install -y git python python-pip clang-tools-extra
+    - python -m pip install --upgrade pip
+    - pip install pre-commit
+  script:
+    - pre-commit run --all-files
+  allow_failure: true
