@@ -8,13 +8,13 @@ AlignConsecutiveDeclarations: false
 AlignOperands: true
 AlignTrailingComments: true
 AllowAllParametersOfDeclarationOnNextLine: true
-AllowShortBlocksOnASingleLine: Never
+AllowShortBlocksOnASingleLine: Always
 AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: All
-AllowShortIfStatementsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: Empty
+AllowShortIfStatementsOnASingleLine: AllIfsAndElse
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
-AlwaysBreakAfterReturnType: AllDefinitions
+AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true
@@ -23,7 +23,7 @@ BraceWrapping:
   AfterClass: false
   AfterControlStatement: false
   AfterEnum: false
-  AfterFunction: true
+  AfterFunction: false
   AfterNamespace: false
   AfterObjCDeclaration: false
   AfterStruct: false
@@ -34,12 +34,14 @@ BraceWrapping:
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Custom
 BreakBeforeTernaryOperators: true
-BreakConstructorInitializersBeforeComma: false
+BreakConstructorInitializers: BeforeComma
+AllowAllConstructorInitializersOnNextLine: false
 BreakAfterJavaFieldAnnotations: false
 BreakStringLiterals: true
-ColumnLimit: 80
+ColumnLimit: 120
 CommentPragmas: '^ IWYU pragma:'
-ConstructorInitializerAllOnOneLineOrOnePerLine: false
+PackConstructorInitializers: BinPack
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
@@ -58,7 +60,7 @@ IncludeIsMainRegex: '$'
 IndentCaseLabels: false
 IndentWidth: 2
 IndentWrappedFunctionNames: false
-KeepEmptyLinesAtTheStartOfBlocks: true
+KeepEmptyLinesAtTheStartOfBlocks: false
 MacroBlockBegin: ''
 MacroBlockEnd: ''
 MaxEmptyLinesToKeep: 1
@@ -74,7 +76,8 @@ PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 60
 PointerAlignment: Left
 ReflowComments: Always
-SortIncludes: true
+SortIncludes: CaseSensitive
+IncludeBlocks: Merge
 SpaceAfterCStyleCast: false
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeParens: ControlStatements
@@ -89,3 +92,8 @@ Standard: c++17
 TabWidth: 8
 UseTab: Never
 JavaScriptQuotes: Leave
+InsertBraces: true
+LineEnding: LF
+SortUsingDeclarations: Lexicographic
+FixNamespaceComments: true
+AllowShortEnumsOnASingleLine: true
