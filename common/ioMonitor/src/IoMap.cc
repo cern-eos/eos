@@ -30,29 +30,28 @@ std::mutex IoMap::_osMutex;
 //--------------------------------------------
 /// Main constructor
 //--------------------------------------------
-IoMap::IoMap() : _running(true){
+IoMap::IoMap() : _running(true) {
   _cleaner = std::thread(&IoMap::cleanerLoop, this);
 }
 
 //--------------------------------------------
 /// Constructor by copy constructor
 //--------------------------------------------
-IoMap::IoMap(const IoMap &other){
+IoMap::IoMap(const IoMap& other) {
   std::lock_guard<std::mutex> lock(other._mutex);
   _filesMap = other._filesMap;
   _apps = other._apps;
   _uids = other._uids;
   _gids = other._gids;
   _running = other._running.load();
-  if (_running.load())
-    _cleaner = std::thread(&IoMap::cleanerLoop, this);
+  if (_running.load()) { _cleaner = std::thread(&IoMap::cleanerLoop, this); }
 }
 
 //--------------------------------------------
 /// Overload the operator =
 //--------------------------------------------
-IoMap& IoMap::operator=(const IoMap &other){
-  if (this != &other){
+IoMap& IoMap::operator=(const IoMap& other) {
+  if (this != &other) {
     {
       std::scoped_lock lock(_mutex, other._mutex);
       _filesMap = other._filesMap;
@@ -62,13 +61,11 @@ IoMap& IoMap::operator=(const IoMap &other){
       _running.store(other._running.load());
     }
     {
-      if (!_running.load()){
+      if (!_running.load()) {
         std::unique_lock<std::mutex> lock(_mutex);
-        if (io::IoAggregateMapDebug)
-          assert(lock.owns_lock());
+        if (io::IoAggregateMapDebug) { assert(lock.owns_lock()); }
         _cv.notify_one();
-      if (_cleaner.joinable())
-        _cleaner.join();
+        if (_cleaner.joinable()) { _cleaner.join(); }
       }
     }
   }
@@ -82,26 +79,24 @@ IoMap& IoMap::operator=(const IoMap &other){
 IoMap::~IoMap() {
   {
     std::unique_lock<std::mutex> lock(_mutex);
-    if (io::IoMapDebug)
-      assert(lock.owns_lock());
+    if (io::IoMapDebug) { assert(lock.owns_lock()); }
     _running.store(false);
     _cv.notify_one();
   }
-  if (_cleaner.joinable())
-    _cleaner.join();
+  if (_cleaner.joinable()) { _cleaner.join(); }
 }
 
 //--------------------------------------------
 /// Constructor for disable mutlithreading
 //--------------------------------------------
-IoMap::IoMap(int) : _running(false){}
+IoMap::IoMap(int) : _running(false) {}
 
 //--------------------------------------------
 /// Display the string given as parameter in
 /// specific format with the current time
 //--------------------------------------------
-void  IoMap::printInfo(std::ostream &os, const char *msg) const{
-  const char *time = getCurrentTime();
+void IoMap::printInfo(std::ostream& os, const char* msg) const {
+  const char* time = getCurrentTime();
   os << IOMAP_NAME << " [" << time << "]: " << msg << std::endl;
 }
 
@@ -109,8 +104,8 @@ void  IoMap::printInfo(std::ostream &os, const char *msg) const{
 /// Display the string given as parameter in
 /// specific format with the current time
 //--------------------------------------------
-void  IoMap::printInfo(std::ostream &os, const std::string &msg) const{
-  const char *time = getCurrentTime();
+void IoMap::printInfo(std::ostream& os, const std::string& msg) const {
+  const char* time = getCurrentTime();
   os << IOMAP_NAME << " [" << time << "]: " << msg << std::endl;
 }
 
@@ -118,29 +113,28 @@ void  IoMap::printInfo(std::ostream &os, const std::string &msg) const{
 /// Multithreaded function to clean up
 /// inactive IoStats
 //--------------------------------------------
-void IoMap::cleanerLoop(){
-  while (_running.load()){
+void IoMap::cleanerLoop() {
+  while (_running.load()) {
     std::unique_lock<std::mutex> lock(_mutex);
 
-    _cv.wait_for(lock, std::chrono::seconds(TIME_TO_CLEAN), [this]{ return !_running;});
-    if (!_running.load())
-      break;
+    _cv.wait_for(lock, std::chrono::seconds(TIME_TO_CLEAN), [this] { return !_running; });
+    if (!_running.load()) { break; }
 
     // Clean inactive I/O
     size_t rsize = 0;
     size_t wsize = 0;
 
-    for(auto it = _filesMap.begin(); it != _filesMap.end();){
+    for (auto it = _filesMap.begin(); it != _filesMap.end();) {
       std::pair<double, double> read;
       std::pair<double, double> write;
       read = it->second->bandWidth(IoStat::Marks::READ, &rsize, TIME_TO_CLEAN);
       write = it->second->bandWidth(IoStat::Marks::WRITE, &wsize, TIME_TO_CLEAN);
-      if ((read.first == 0 && read.second == 0)
-        && (write.first == 0 && write.second == 0)
-        && (rsize == 0 && wsize == 0))
+      if ((read.first == 0 && read.second == 0) && (write.first == 0 && write.second == 0) &&
+          (rsize == 0 && wsize == 0)) {
         it = _filesMap.erase(it);
-      else
+      } else {
         it++;
+      }
       rsize = 0;
       wsize = 0;
     }
@@ -151,39 +145,36 @@ void IoMap::cleanerLoop(){
 /// Adds an IoStat object to the multimap with
 /// the corresponding elements
 //--------------------------------------------
-void IoMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t rbytes, double limit){
+void IoMap::addRead(uint64_t inode, const std::string& app, uid_t uid, gid_t gid, size_t rbytes, double limit) {
   std::lock_guard<std::mutex> lock(_mutex);
 
   auto it = _filesMap.equal_range(inode);
   // Create new IoStat or search for an existing matching one
-  if (_filesMap.find(inode) == _filesMap.end()){
-    if (io::IoMapDebug)
-      printInfo(std::cout, "add new");
+  if (_filesMap.find(inode) == _filesMap.end()) {
+    if (io::IoMapDebug) { printInfo(std::cout, "add new"); }
     auto newIo = _filesMap.insert({inode, std::make_shared<IoStat>(inode, app, uid, gid)});
     newIo->second->add(rbytes, IoStat::Marks::READ, limit);
     _apps.insert(app);
     _uids.insert(uid);
     _gids.insert(gid);
-    return ;
+    return;
   }
-  while (it.first != it.second){
-    auto &io = it.first->second;
-    if (io->getApp() == app && io->getGid() == gid && io->getUid() == uid){
+  while (it.first != it.second) {
+    auto& io = it.first->second;
+    if (io->getApp() == app && io->getGid() == gid && io->getUid() == uid) {
       io->add(rbytes, IoStat::Marks::READ, limit);
-      if (io::IoMapDebug)
-        printInfo(std::cout, "addRead");
-      break ;
+      if (io::IoMapDebug) { printInfo(std::cout, "addRead"); }
+      break;
     }
     it.first++;
-    if (it.first == it.second){
-      if (io::IoMapDebug)
-        printInfo(std::cout, "add new");
+    if (it.first == it.second) {
+      if (io::IoMapDebug) { printInfo(std::cout, "add new"); }
       auto newIo = _filesMap.insert({inode, std::make_shared<IoStat>(inode, app, uid, gid)});
       newIo->second->add(rbytes, IoStat::Marks::READ, limit);
       _apps.insert(app);
       _uids.insert(uid);
       _gids.insert(gid);
-      break ;
+      break;
     }
   }
 }
@@ -192,69 +183,65 @@ void IoMap::addRead(uint64_t inode, const std::string &app, uid_t uid, gid_t gid
 /// Adds an IoStat object to the multimap
 /// with the corresponding elements
 //--------------------------------------------
-void IoMap::addWrite(uint64_t inode, const std::string &app, uid_t uid, gid_t gid, size_t wbytes, double limit){
+void IoMap::addWrite(uint64_t inode, const std::string& app, uid_t uid, gid_t gid, size_t wbytes, double limit) {
   std::lock_guard<std::mutex> lock(_mutex);
 
   auto it = _filesMap.equal_range(inode);
   // Create new IoStat or search for an existing matching one
-  if (_filesMap.find(inode) == _filesMap.end()){
-    if (io::IoMapDebug)
-      printInfo(std::cout, "add new");
+  if (_filesMap.find(inode) == _filesMap.end()) {
+    if (io::IoMapDebug) { printInfo(std::cout, "add new"); }
     auto newIo = _filesMap.insert({inode, std::make_shared<IoStat>(inode, app, uid, gid)});
     newIo->second->add(wbytes, IoStat::Marks::WRITE, limit);
     _apps.insert(app);
     _uids.insert(uid);
     _gids.insert(gid);
-    return ;
+    return;
   }
-  while (it.first != it.second){
-    auto &io = it.first->second;
-    if (io->getApp() == app && io->getGid() == gid && io->getUid() == uid){
+  while (it.first != it.second) {
+    auto& io = it.first->second;
+    if (io->getApp() == app && io->getGid() == gid && io->getUid() == uid) {
       io->add(wbytes, IoStat::Marks::WRITE, limit);
-      if (io::IoMapDebug)
-        printInfo(std::cout, "addWrite");
-      break ;
+      if (io::IoMapDebug) { printInfo(std::cout, "addWrite"); }
+      break;
     }
     it.first++;
-    if (it.first == it.second){
-      if (io::IoMapDebug)
-        printInfo(std::cout, "add new");
+    if (it.first == it.second) {
+      if (io::IoMapDebug) { printInfo(std::cout, "add new"); }
       auto newIo = _filesMap.insert({inode, std::make_shared<IoStat>(inode, app, uid, gid)});
       newIo->second->add(wbytes, IoStat::Marks::WRITE, limit);
       _apps.insert(app);
       _uids.insert(uid);
       _gids.insert(gid);
-      break ;
+      break;
     }
   }
 }
 
-bool IoMap::rm(std::string &appName){
+bool IoMap::rm(std::string& appName) {
   std::lock_guard<std::mutex> lock(_mutex);
-  if (_apps.find(appName) == _apps.end())
-    return false;
+  if (_apps.find(appName) == _apps.end()) { return false; }
 
   _apps.erase(appName);
   return true;
 }
 
-bool IoMap::rm(io::TYPE type, size_t id){
+bool IoMap::rm(io::TYPE type, size_t id) {
   std::lock_guard<std::mutex> lock(_mutex);
-  if (type != io::TYPE::UID && type != io::TYPE::GID)
+  if (type != io::TYPE::UID && type != io::TYPE::GID) {
     return false;
-  else if (type == io::TYPE::UID ? _uids.find(id) == _uids.end() : _gids.find(id) == _gids.end())
+  } else if (type == io::TYPE::UID ? _uids.find(id) == _uids.end() : _gids.find(id) == _gids.end()) {
     return false;
+  }
 
   type == io::TYPE::UID ? _uids.erase(id) : _gids.erase(id);
 
   return true;
 }
 
-
 //--------------------------------------------
 /// Get all apps
 //--------------------------------------------
-std::vector<std::string> IoMap::getApps() const{
+std::vector<std::string> IoMap::getApps() const {
   std::lock_guard<std::mutex> lock(_mutex);
   std::vector<std::string> appsName(_apps.begin(), _apps.end());
   return (appsName);
@@ -263,7 +250,7 @@ std::vector<std::string> IoMap::getApps() const{
 //--------------------------------------------
 /// Get all uids
 //--------------------------------------------
-std::vector<uid_t> IoMap::getUids() const{
+std::vector<uid_t> IoMap::getUids() const {
   std::lock_guard<std::mutex> lock(_mutex);
   std::vector<uid_t> uids(_uids.begin(), _uids.end());
   return (uids);
@@ -272,7 +259,7 @@ std::vector<uid_t> IoMap::getUids() const{
 //--------------------------------------------
 /// Get all gids
 //--------------------------------------------
-std::vector<gid_t> IoMap::getGids() const{
+std::vector<gid_t> IoMap::getGids() const {
   std::lock_guard<std::mutex> lock(_mutex);
   std::vector<gid_t> gids(_gids.begin(), _gids.end());
   return (gids);
@@ -281,7 +268,7 @@ std::vector<gid_t> IoMap::getGids() const{
 //--------------------------------------------
 /// Get a copy of the multimap
 //--------------------------------------------
-std::unordered_multimap<uint64_t, std::shared_ptr<IoStat> > IoMap::GetAllStatsSnapshot() const{
+std::unordered_multimap<uint64_t, std::shared_ptr<IoStat>> IoMap::GetAllStatsSnapshot() const {
   std::lock_guard<std::mutex> lock(_mutex);
   return (_filesMap);
 }
@@ -290,15 +277,15 @@ std::unordered_multimap<uint64_t, std::shared_ptr<IoStat> > IoMap::GetAllStatsSn
 /// Overload operator << to print the entire
 /// multimap from a IoMap object
 //--------------------------------------------
-std::ostream& operator<<(std::ostream &os, const IoMap &other){
-  for (auto it : other._filesMap){
+std::ostream& operator<<(std::ostream& os, const IoMap& other) {
+  for (auto it : other._filesMap) {
     os << C_GREEN << "┌─[" << C_CYAN << "IoMap" << C_GREEN << "]" << C_RESET;
     os << C_GREEN << "[" << C_CYAN << "id:" << it.first << C_GREEN << "]" << C_RESET;
-    os << C_GREEN << "[" <<  C_CYAN << "app:"<< it.second->getApp() << C_GREEN << "]" << C_RESET;
+    os << C_GREEN << "[" << C_CYAN << "app:" << it.second->getApp() << C_GREEN << "]" << C_RESET;
     os << C_GREEN << "[" << C_CYAN << "uid:" << it.second->getUid() << C_GREEN << "]" << C_RESET;
     os << C_GREEN << "[" << C_CYAN << "gid:" << it.second->getGid() << C_GREEN << "]" << C_RESET;
     os << C_GREEN << "[" << C_CYAN << "sR:" << it.second->getSize(IoStat::Marks::READ)
-      << "/sW:"<< it.second->getSize(IoStat::Marks::WRITE) << C_GREEN << "]" << C_RESET;
+       << "/sW:" << it.second->getSize(IoStat::Marks::WRITE) << C_GREEN << "]" << C_RESET;
     os << std::endl << C_GREEN << "└─[" << C_CYAN << "IoStat" << C_GREEN << "]" << C_RESET;
     os << C_WHITE << *it.second.get() << C_RESET << std::endl;
   }
@@ -309,50 +296,52 @@ std::ostream& operator<<(std::ostream &os, const IoMap &other){
 /// Returns a iterator that points to the first
 /// element in the %unordered_multimap.
 //--------------------------------------------
-std::unordered_multimap<uint64_t, std::shared_ptr<IoStat> >::iterator IoMap::begin(){return _filesMap.begin();}
+std::unordered_multimap<uint64_t, std::shared_ptr<IoStat>>::iterator IoMap::begin() {
+  return _filesMap.begin();
+}
 
 //--------------------------------------------
 /// Returns a iterator that points to the last
 /// element in the %unordered_multimap.
 //--------------------------------------------
-std::unordered_multimap<uint64_t, std::shared_ptr<IoStat> >::iterator IoMap::end(){return _filesMap.end();}
-
+std::unordered_multimap<uint64_t, std::shared_ptr<IoStat>>::iterator IoMap::end() {
+  return _filesMap.end();
+}
 
 //--------------------------------------------
 /// Calculates the weighted average and
 /// standard deviation
 //--------------------------------------------
-std::pair<double, double> IoMap::calculeWeighted(std::map<std::pair<double, double>, size_t> &indexData, std::vector<double> &limit, double *finalLimit) const{
+std::pair<double, double> IoMap::calculeWeighted(std::map<std::pair<double, double>, size_t>& indexData,
+                                                 std::vector<double>& limit, double* finalLimit) const {
   size_t divisor = 0;
   std::pair<double, double> weighted = {0, 0};
 
   /// Calcule average
-  for (const auto &it : indexData){
+  for (const auto& it : indexData) {
     weighted.first += (it.first.first * it.second);
     divisor += it.second;
   }
-  if (divisor > 0)
-    weighted.first /= divisor;
+  if (divisor > 0) { weighted.first /= divisor; }
 
   /// Calcule limit
-  if (finalLimit && indexData.size() == limit.size()){
+  if (finalLimit && indexData.size() == limit.size()) {
     double tmpLimit = 0;
     auto itMap = indexData.begin();
     auto itLimit = limit.begin();
-    for (;(itMap != indexData.end()) && (itLimit != limit.end());itMap++, itLimit++){
+    for (; (itMap != indexData.end()) && (itLimit != limit.end()); itMap++, itLimit++) {
       tmpLimit += (*itLimit * (itMap->second == 0 ? 1 : itMap->second));
     }
-    if (divisor > 0)
-      tmpLimit /= divisor;
+    if (divisor > 0) { tmpLimit /= divisor; }
     *finalLimit = tmpLimit;
   }
 
   /// Calcule Standard deviation
-  for (const auto &it : indexData)
+  for (const auto& it : indexData) {
     weighted.second += it.second * (std::pow(it.first.second, 2) + std::pow(it.first.first - weighted.first, 2));
+  }
 
-  if (divisor > 0)
-    weighted.second = std::sqrt(weighted.second / divisor);
+  if (divisor > 0) { weighted.second = std::sqrt(weighted.second / divisor); }
 
   return weighted;
 }
