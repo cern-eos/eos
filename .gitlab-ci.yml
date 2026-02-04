@@ -1231,7 +1231,7 @@ eos_docs:
 pre_commit:
   stage: pre-commit
   image: gitlab-registry.cern.ch/linuxsupport/alma10-base
-  needs: []
+  needs: [ ]
   variables:
     PIP_NO_CACHE_DIR: "1"
   before_script:
@@ -1241,3 +1241,4 @@ pre_commit:
   script:
     - pre-commit run --all-files
   allow_failure: true
+  when: manual  # disabled for now because it takes too much time to run due to big changes
