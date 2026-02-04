@@ -29,6 +29,21 @@ k8s_system:
   allow_failure: true
 
 
+k8s_system_flatscheduler:
+  extends: .dock8s_system_test_template
+  variables:
+    EOS_SCHEDULER_TYPE: weightedrandom
+  image: alpine/k8s:1.18.2
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  retry: 1
+  tags:
+    - docker_node
+    - k8s
+  allow_failure: true
+
+
 k8s_conv_fsck_recycle:
   extends: .dock8s_convert_fsck_recycle_template
   image: alpine/k8s:1.18.2
