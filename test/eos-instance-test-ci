@@ -39,14 +39,18 @@ function run_test_script() {
 #-------------------------------------------------------------------------------
 # Execute specific EOS testing scripts
 #-------------------------------------------------------------------------------
+if [[ -n "${EOS_SCHEDULER_TYPE}" ]]; then
+    echo "Setting scheduler.type=${EOS_SCHEDULER_TYPE}"
+    eos space config default space.scheduler.type="${EOS_SCHEDULER_TYPE}"
+fi
+
+
 run_test_script "drain" eos-drain-test localhost
 run_test_script "balance" eos-balance-test localhost
 run_test_script "altxs" eos-altxs-test localhost
 
 echo "Running instance tests ..."
 eos space quota default on
-echo "Updating scheduler to be Weighted Round Robin"
-eos space config default space.scheduler.type=weightedrr
 eos-instance-test
 
 if [[ $? -ne 0 ]]; then
