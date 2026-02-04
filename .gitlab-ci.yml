@@ -1239,6 +1239,8 @@ pre_commit:
     - python -m pip install --upgrade pip
     - pip install pre-commit
   script:
-    - pre-commit run --all-files
+    # Run pre-commit against all files starting from a given commit to HEAD
+    # This is done to avoid issues with large diffs when running pre-commit on all files (blocks the CI for ~10 minutes)
+    # When (if) the whole is formatted, we can remove the `--from-ref` and `--to-ref` options to always check all files
+    - pre-commit run --from-ref 5d8b1ed62b56e4399e8bfd7c38cda23914ae930c --to-ref HEAD --all-files
   allow_failure: true
-  when: manual  # disabled for now because it takes too much time to run due to big changes
