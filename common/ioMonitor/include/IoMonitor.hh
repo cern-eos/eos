@@ -22,33 +22,33 @@
 
 #pragma once
 
+#include "../proto/IoBuffer.pb.h"
+#include "color.hh"
+#include <assert.h>
+#include <atomic>
 #include <chrono>
+#include <cmath>
+#include <condition_variable>
+#include <cstdint>
+#include <ctime>
 #include <deque>
+#include <iomanip>
+#include <iostream>
+#include <map>
+#include <memory>
+#include <mutex>
+#include <numeric>
+#include <optional>
+#include <set>
+#include <string.h>
+#include <string>
+#include <sys/types.h>
 #include <thread>
+#include <typeinfo>
+#include <unistd.h>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-#include <string>
-#include <mutex>
-#include <optional>
-#include <atomic>
-#include <condition_variable>
-#include <memory>
-#include <cstdint>
-#include <sys/types.h>
-#include <cmath>
-#include <iostream>
-#include <set>
-#include <ctime>
-#include <string.h>
-#include <map>
-#include <unistd.h>
-#include <iomanip>
-#include <numeric>
-#include <assert.h>
-#include <typeinfo>
-#include "color.hh"
-#include "../proto/IoBuffer.pb.h"
 
 //--------------------------------------------
 /// Main structure stored in IoStat
@@ -57,20 +57,20 @@
 struct IoMark {
   struct timespec io_time;
 
-	size_t bytes;
-	double limit;
+  size_t bytes;
+  double limit;
 
   //--------------------------------------------
   /// Main contructor
   //--------------------------------------------
-    IoMark(size_t bytesN, double limitN = 1.0) : bytes(bytesN), limit(limitN){
+  IoMark(size_t bytesN, double limitN = 1.0) : bytes(bytesN), limit(limitN) {
     clock_gettime(CLOCK_REALTIME, &io_time);
   }
 
   //--------------------------------------------
   /// Default contructor
   //--------------------------------------------
-    IoMark() : bytes(0), limit(1){
+  IoMark() : bytes(0), limit(1) {
     clock_gettime(CLOCK_REALTIME, &io_time);
   }
 };
@@ -80,7 +80,7 @@ struct IoMark {
 ///
 /// @return const char* the current time
 //--------------------------------------------
-const char*  getCurrentTime();
+const char* getCurrentTime();
 
 //--------------------------------------------
 /// Namespace
@@ -89,21 +89,18 @@ const char*  getCurrentTime();
 /// the corresponding class will be displayed
 //--------------------------------------------
 namespace io {
-  constexpr bool IoStatDebug = false;
-  constexpr bool IoMapDebug = false;
-  constexpr bool IoMarkDebug = false;
-  constexpr bool IoAggregateMapDebug = false;
-  constexpr bool IoAggregateDebug = false;
+constexpr bool IoStatDebug = false;
+constexpr bool IoMapDebug = false;
+constexpr bool IoMarkDebug = false;
+constexpr bool IoAggregateMapDebug = false;
+constexpr bool IoAggregateDebug = false;
 
-  //--------------------------------------------
-  /// Enumerator that allows to keep the context
-  /// of UID or GID type of a variable
-  //--------------------------------------------
-  enum class TYPE {
-    UID,
-    GID
-  };
-}
+//--------------------------------------------
+/// Enumerator that allows to keep the context
+/// of UID or GID type of a variable
+//--------------------------------------------
+enum class TYPE { UID, GID };
+} // namespace io
 
 //--------------------------------------------
 /// Summary of a IoStat bandwidth
@@ -112,8 +109,8 @@ struct IoStatSummary {
   //--------------------------------------------
   /// Read/Write bandwidth
   //--------------------------------------------
-  std::optional<std::pair<double, double> > readBandwidth;
-  std::optional<std::pair<double, double> > writeBandwidth;
+  std::optional<std::pair<double, double>> readBandwidth;
+  std::optional<std::pair<double, double>> writeBandwidth;
 
   //--------------------------------------------
   /// Size of the read and write bandwidth
@@ -146,29 +143,38 @@ struct IoStatSummary {
   //--------------------------------------------
   /// Default constructor to initialize the class
   //--------------------------------------------
-  IoStatSummary() :
-    readBandwidth(std::pair<double, double>(0,0)),
-    writeBandwidth(std::pair<double, double>(0, 0)),
-    rSize(0), wSize(0), rIops(0), wIops(0), winTime(0),
-    rLimit(1.0), wLimit(1.0){
-      clock_gettime(CLOCK_REALTIME, &io_time);
-    }
+  IoStatSummary()
+      : readBandwidth(std::pair<double, double>(0, 0))
+      , writeBandwidth(std::pair<double, double>(0, 0))
+      , rSize(0)
+      , wSize(0)
+      , rIops(0)
+      , wIops(0)
+      , winTime(0)
+      , rLimit(1.0)
+      , wLimit(1.0) {
+    clock_gettime(CLOCK_REALTIME, &io_time);
+  }
 
-  IoStatSummary(const IoBuffer::Summary &sum) :
-    readBandwidth({sum.ravrg(), sum.rstd()}),
-    writeBandwidth({sum.wavrg(), sum.wstd()}),
-    rSize(sum.rsize()), wSize(sum.wsize()), rIops(sum.riops()), wIops(sum.wiops()),
-    winTime(sum.wintime()),
-    rLimit(sum.rlimit()), wLimit(sum.wlimit()){
-      clock_gettime(CLOCK_REALTIME, &io_time);
-    }
+  IoStatSummary(const IoBuffer::Summary& sum)
+      : readBandwidth({sum.ravrg(), sum.rstd()})
+      , writeBandwidth({sum.wavrg(), sum.wstd()})
+      , rSize(sum.rsize())
+      , wSize(sum.wsize())
+      , rIops(sum.riops())
+      , wIops(sum.wiops())
+      , winTime(sum.wintime())
+      , rLimit(sum.rlimit())
+      , wLimit(sum.wlimit()) {
+    clock_gettime(CLOCK_REALTIME, &io_time);
+  }
 
-  IoBuffer::Summary& Serialize(IoBuffer::Summary &sum){
-    if (readBandwidth.has_value()){
+  IoBuffer::Summary& Serialize(IoBuffer::Summary& sum) {
+    if (readBandwidth.has_value()) {
       sum.set_ravrg(readBandwidth->first);
       sum.set_rstd(readBandwidth->second);
     }
-    if (writeBandwidth.has_value()){
+    if (writeBandwidth.has_value()) {
       sum.set_wavrg(writeBandwidth->first);
       sum.set_wstd(writeBandwidth->second);
     }
@@ -183,12 +189,12 @@ struct IoStatSummary {
     return sum;
   };
 
-  IoStatSummary* Deserialize(const IoBuffer::Summary &sum){
-    if (readBandwidth.has_value()){
+  IoStatSummary* Deserialize(const IoBuffer::Summary& sum) {
+    if (readBandwidth.has_value()) {
       readBandwidth->first = sum.ravrg();
       readBandwidth->second = sum.rstd();
     }
-    if (writeBandwidth.has_value()){
+    if (writeBandwidth.has_value()) {
       writeBandwidth->first = sum.wavrg();
       writeBandwidth->second = sum.wstd();
     }
