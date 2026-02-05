@@ -158,7 +158,7 @@ int IoAggregate::shiftWindow(const size_t index) {
 /// Condenses a vector of IoStatSummary
 /// into a single one
 //--------------------------------------------
-std::optional<IoStatSummary> IoAggregate::summaryWeighted(const std::vector<IoStatSummary>& summarys, size_t winTime) {
+std::optional<IoStatSummary> IoAggregate::summaryWeighted(const std::vector<IoStatSummary>& summaries, size_t winTime) {
   size_t rDivisor = 0;
   size_t wDivisor = 0;
   size_t rEmptyDivisor = 0;
@@ -168,7 +168,7 @@ std::optional<IoStatSummary> IoAggregate::summaryWeighted(const std::vector<IoSt
   if (io::IoAggregateDebug) { printInfo(std::cout, "summary weighted called"); }
 
   /// Calcule average, IOPS and limit
-  for (const auto& it : summarys) {
+  for (const auto& it : summaries) {
     if (it.readBandwidth.has_value()) {
       weighted.readBandwidth->first += (it.readBandwidth->first * it.rSize);
       weighted.rLimit += it.rSize == 0 ? 1 : it.rLimit * it.rSize;
@@ -186,16 +186,16 @@ std::optional<IoStatSummary> IoAggregate::summaryWeighted(const std::vector<IoSt
   if (rDivisor + rEmptyDivisor > 0) {
     weighted.readBandwidth->first /= rDivisor + rEmptyDivisor;
     weighted.rLimit /= rDivisor + rEmptyDivisor;
-    weighted.rIops /= summarys.size();
+    weighted.rIops /= summaries.size();
   }
   if (wDivisor + wEmptyDivisor > 0) {
     weighted.writeBandwidth->first /= (wDivisor + wEmptyDivisor);
     weighted.wLimit /= wDivisor + wEmptyDivisor;
-    weighted.wIops /= summarys.size();
+    weighted.wIops /= summaries.size();
   }
 
   /// Calcule standard deviation
-  for (const auto& it : summarys) {
+  for (const auto& it : summaries) {
     if (weighted.readBandwidth.has_value()) {
       weighted.readBandwidth->second +=
           (it.rSize * ((std::pow(it.readBandwidth->second, 2) +
