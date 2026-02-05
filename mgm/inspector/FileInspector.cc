@@ -34,6 +34,7 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "misc/Constants.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/inspector/FileScanner.hh"
 #include "namespace/ns_quarkdb/FileMD.hh"
@@ -295,12 +296,20 @@ void FileInspector::performCycleQDB(ThreadAssistant& assistant) noexcept
 void
 FileInspector::Process(std::shared_ptr<eos::IFileMD> fmd)
 {
+  std::lock_guard<std::mutex> lock(mutexScanStats);
+
   if (fmd->isLink()) {
+    mCurrentStats.SymlinkCount++;
+    return;
+  }
+
+  if (fmd->hasAttribute(SYS_HARD_LINK)) {
+    mCurrentStats.HardlinkCount++;
+    mCurrentStats.HardlinkVolume += fmd->getSize();
     return;
   }
 
   uint64_t lid = fmd->getLayoutId();
-  std::lock_guard<std::mutex> lock(mutexScanStats);
   // Totals
   mCurrentStats.TotalFileCount++;
   mCurrentStats.TotalLogicalBytes += fmd->getSize();
@@ -802,6 +811,16 @@ FileInspector::Dump(std::string& out, std::string_view options,
       out += "\n";
     }
 
+    out += "key=last tag=links::hardlink_count value=";
+    out += std::to_string(mLastStats.HardlinkCount);
+    out += "\n";
+    out += "key=last tag=links::hardlink_volume value=";
+    out += std::to_string(mLastStats.HardlinkVolume);
+    out += "\n";
+    out += "key=last tag=links::symlink_count value=";
+    out += std::to_string(mLastStats.SymlinkCount);
+    out += "\n";
+
     if (mLastStats.AccessTimeFiles.size()) {
       for (auto it = mLastStats.AccessTimeFiles.begin();
            it != mLastStats.AccessTimeFiles.end();
@@ -1229,6 +1248,22 @@ FileInspector::Dump(std::string& out, std::string_view options,
 
           out += "\n";
         }
+
+        if (mLastStats.HardlinkCount > 0 || mLastStats.SymlinkCount > 0) {
+          out += "======================================================================================\n";
+          out += " Links\n\n";
+          snprintf(line, sizeof(line), " %-32s : %lu\n", "hardlink count",
+                   mLastStats.HardlinkCount);
+          out += line;
+          snprintf(line, sizeof(line), " %-32s : %s\n", "hardlink volume (referenced)",
+                   eos::common::StringConversion::GetReadableSizeString(
+                     mLastStats.HardlinkVolume, "B").c_str());
+          out += line;
+          snprintf(line, sizeof(line), " %-32s : %lu\n", "symbolic count",
+                   mLastStats.SymlinkCount);
+          out += line;
+          out += "\n";
+        }
       }
 
       if (printaccesstime && mLastStats.AccessTimeFiles.size()) {
@@ -1632,7 +1667,10 @@ void FileInspector::QdbHelper::Store(const FileInspectorStats& stats)
     GROUP_BYTES_KEY, Marshal(stats.GroupBytes),
     TOTAL_BYTES_KEY, Marshal(stats.TotalBytes),
     NUM_FAULTY_FILES_KEY, Marshal(stats.NumFaultyFiles),
-    TIME_SCAN_KEY, Marshal(stats.TimeScan)
+    TIME_SCAN_KEY, Marshal(stats.TimeScan),
+    HARDLINK_COUNT_KEY, Marshal(stats.HardlinkCount),
+    HARDLINK_VOLUME_KEY, Marshal(stats.HardlinkVolume),
+    SYMLINK_COUNT_KEY, Marshal(stats.SymlinkCount)
   });
 }
 
@@ -1677,6 +1715,12 @@ void FileInspector::QdbHelper::Load(FileInspectorStats& stats)
         Unmarshal(value, stats.NumFaultyFiles);
       } else if (key == TIME_SCAN_KEY) {
         Unmarshal(value, stats.TimeScan);
+      } else if (key == HARDLINK_COUNT_KEY) {
+        Unmarshal(value, stats.HardlinkCount);
+      } else if (key == HARDLINK_VOLUME_KEY) {
+        Unmarshal(value, stats.HardlinkVolume);
+      } else if (key == SYMLINK_COUNT_KEY) {
+        Unmarshal(value, stats.SymlinkCount);
       }
     }
   } catch (...) {
