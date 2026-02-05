@@ -54,14 +54,6 @@ target_link_libraries(EosSciToken-Objects PUBLIC
   SCITOKENS::SCITOKENS)
 
 #-------------------------------------------------------------------------------
-# ioBuffer library
-#-------------------------------------------------------------------------------
-
-include_directories(ioMonitor/proto)
-set(PROTO_FILES ioMonitor/IoBuffer.proto ioMonitor/Shaping.proto)
-protobuf_generate_cpp(PROTO_IO_MONITORSRCS PROTO_IO_MONITOR_HDRS ${PROTO_FILES})
-
-#-------------------------------------------------------------------------------
 # EosBlake3-Objects library
 #-------------------------------------------------------------------------------
 set(BLAKE3_PORTABLE_SRCS
@@ -283,9 +275,8 @@ if (NOT CLIENT AND Linux)
 	ioMonitor/src/IoAggregateMap.cc
 	ioMonitor/src/IoMap.cc
 	ioMonitor/src/IoStat.cc
-	ioMonitor/proto/IoBuffer.pb.cc
-	ioMonitor/proto/Shaping.pb.cc
-	ioMonitor/src/IoAggregate.cc)
+	ioMonitor/src/IoAggregate.cc
+  )
 
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
