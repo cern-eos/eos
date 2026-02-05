@@ -68,7 +68,7 @@ Control file synchronization service between two MGM machines
 EOS FUSE service
 ----------------
 
-.. code-block:: bash 
+.. code-block:: bash
 
    systemctl start eosd     -   for starting
    systemctl stop eosd@*    -   for stopping

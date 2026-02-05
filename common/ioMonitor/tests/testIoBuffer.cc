@@ -22,8 +22,7 @@
 
 #include "tester.hh"
 
-
-int testIoBuffer(){
+int testIoBuffer() {
   IoAggregateMap map;
   IoBuffer::Data proto;
   std::vector<IoStatSummary> apps;
@@ -31,7 +30,7 @@ int testIoBuffer(){
   std::vector<IoStatSummary> gids;
   size_t idU = std::abs(rand() % 100);
   size_t idG = std::abs(rand() % 100);
- 
+
   // Add window
   map.addWindow(3600);
 
@@ -45,10 +44,10 @@ int testIoBuffer(){
   map.setTrack(3600, io::TYPE::UID, 12);
   map.setTrack(3600, io::TYPE::GID, 12);
 
-  for (size_t win = 0; win < 5; win++){
+  for (size_t win = 0; win < 5; win++) {
     std::cout << "Add summaries[" << (win + 1) << "/" << 5 << "]" << std::endl << std::endl;
-    for (size_t i = 0; i < 10; i++){
-      for (size_t j = (std::abs(rand()) % 100); j < 100; j++){
+    for (size_t i = 0; i < 10; i++) {
+      for (size_t j = (std::abs(rand()) % 100); j < 100; j++) {
         map.addRead(1, "eos", idU, idG, std::abs(rand()) % 10000);
         map.addRead(1, "mgm", 12, 13, std::abs(rand()) % 10000);
 
@@ -62,7 +61,7 @@ int testIoBuffer(){
     }
     {
       auto eos(map.getSummary(3600, "eos"));
-      if (!eos.has_value()){
+      if (!eos.has_value()) {
         std::cerr << "appName no value" << std::endl;
         return -1;
       }
@@ -70,7 +69,7 @@ int testIoBuffer(){
     }
     {
       auto uid(map.getSummary(3600, io::TYPE::UID, idU));
-      if (!uid.has_value()){
+      if (!uid.has_value()) {
         std::cerr << "uids no value" << std::endl;
         return -1;
       }
@@ -78,7 +77,7 @@ int testIoBuffer(){
     }
     {
       auto gid(map.getSummary(3600, io::TYPE::GID, idG));
-      if (!gid.has_value()){
+      if (!gid.has_value()) {
         std::cerr << "gids no value" << std::endl;
         return -1;
       }
@@ -98,7 +97,7 @@ int testIoBuffer(){
   gids.clear();
   {
     auto eos(map.getSummary(3600, "mgm"));
-    if (!eos.has_value()){
+    if (!eos.has_value()) {
       std::cerr << "appName no value" << std::endl;
       return -1;
     }
@@ -106,7 +105,7 @@ int testIoBuffer(){
   }
   {
     auto uid(map.getSummary(3600, io::TYPE::UID, 12));
-    if (!uid.has_value()){
+    if (!uid.has_value()) {
       std::cerr << "uids no value" << std::endl;
       return -1;
     }
@@ -114,7 +113,7 @@ int testIoBuffer(){
   }
   {
     auto gid(map.getSummary(3600, io::TYPE::GID, 12));
-    if (!gid.has_value()){
+    if (!gid.has_value()) {
       std::cerr << "gids no value" << std::endl;
       return -1;
     }
@@ -133,16 +132,14 @@ int testIoBuffer(){
     options.always_print_primitive_fields = true;
     options.preserve_proto_field_names = true;
     auto it = google::protobuf::util::MessageToJsonString(proto, &output, options);
-    if (!it.ok())
-      return -1;
+    if (!it.ok()) { return -1; }
     std::cout << "JSON:" << std::endl << output << std::endl;
   }
   {
     IoBuffer::Data back;
     google::protobuf::util::JsonParseOptions options;
     auto it = google::protobuf::util::JsonStringToMessage(output, &back, options);
-    if (!it.ok())
-      return -1;
+    if (!it.ok()) { return -1; }
     // std::cout << "JSON DEBUG:" << std::endl << back.DebugString() << std::endl;
   }
 

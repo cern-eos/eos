@@ -22,35 +22,32 @@
  ************************************************************************/
 
 #pragma once
-#include "fst/Namespace.hh"
-#include "fst/Load.hh"
-#include "fst/Health.hh"
-#include "common/Logging.hh"
-#include "common/FileSystem.hh"
-#include "common/RWMutex.hh"
 #include "common/AssistedThread.hh"
-#include "common/Fmd.hh"
 #include "common/ConcurrentQueue.hh"
-#include <google/protobuf/util/json_util.h>
+#include "common/FileSystem.hh"
+#include "common/Fmd.hh"
+#include "common/Logging.hh"
+#include "common/RWMutex.hh"
+#include "fst/Health.hh"
+#include "fst/Load.hh"
+#include "fst/Namespace.hh"
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "proto/Shaping.pb.h"
 #include <atomic>
-#include <vector>
+#include <google/protobuf/util/json_util.h>
 #include <list>
-#include <queue>
 #include <map>
+#include <queue>
+#include <vector>
 
-namespace eos
-{
-namespace common
-{
+namespace eos {
+namespace common {
 class ExecutorMgr;
 }
-}
+} // namespace eos
 
-namespace qclient
-{
+namespace qclient {
 struct SharedHashUpdate;
 }
 
@@ -63,10 +60,10 @@ class FileSystem;
 //------------------------------------------------------------------------------
 //! Class Storage
 //------------------------------------------------------------------------------
-class Storage: public eos::common::LogId
-{
+class Storage : public eos::common::LogId {
   friend class XrdFstOfsFile;
   friend class XrdFstOfs;
+
 public:
   //----------------------------------------------------------------------------
   //! Create Storage object
@@ -138,8 +135,7 @@ public:
   //!
   //! @return true if it exists, otherwise false
   //----------------------------------------------------------------------------
-  inline bool ExistsFs(eos::common::FileSystem::fsid_t fsid) const
-  {
+  inline bool ExistsFs(eos::common::FileSystem::fsid_t fsid) const {
     return (GetFileSystemById(fsid) != nullptr);
   }
 
@@ -150,8 +146,7 @@ public:
   //!
   //! @return true if booting, otherwise false
   //----------------------------------------------------------------------------
-  inline bool IsFsBooting(eos::common::FileSystem::fsid_t fsid) const
-  {
+  inline bool IsFsBooting(eos::common::FileSystem::fsid_t fsid) const {
     XrdSysMutexHelper lock(mBootingMutex);
     return (mBootingSet.find(fsid) != mBootingSet.end());
   }
@@ -182,8 +177,7 @@ public:
   //!
   //! @return associated configuration value or empty string if nothing found
   //----------------------------------------------------------------------------
-  std::string GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
-                                  const std::string& key) const;
+  std::string GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid, const std::string& key) const;
 
   //----------------------------------------------------------------------------
   //! Cleanup orphans
@@ -194,8 +188,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
-                      std::ostringstream& err_msg);
+  bool CleanupOrphans(eos::common::FileSystem::fsid_t fsid, std::ostringstream& err_msg);
 
   //----------------------------------------------------------------------------
   //! Cleanup orphans on disk
@@ -205,8 +198,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool CleanupOrphansDisk(const std::string& mount,
-                          std::set<uint64_t>& fids);
+  bool CleanupOrphansDisk(const std::string& mount, std::set<uint64_t>& fids);
 
   //----------------------------------------------------------------------------
   //! Cleanup orphans from QDB
@@ -216,8 +208,7 @@ public:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
-                         const std::set<uint64_t>& fids);
+  bool CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid, const std::set<uint64_t>& fids);
 
   //----------------------------------------------------------------------------
   //! Get Total FSes tracked in storage, ie. size of the FsMap
@@ -233,8 +224,7 @@ public:
   //! @param fsid file system identifier
   //! @param err_type fsck error type
   //----------------------------------------------------------------------------
-  void PublishFsckError(eos::common::FileId::fileid_t fid,
-                        eos::common::FileSystem::fsid_t fsid,
+  void PublishFsckError(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
                         eos::common::FsckErr err_type);
 
   //----------------------------------------------------------------------------
@@ -245,9 +235,7 @@ public:
   //!
   //! @return true if push was successful, othewise false
   //----------------------------------------------------------------------------
-  bool
-  PushToQdb(eos::common::FileSystem::fsid_t fsid,
-            const eos::common::FsckErrsPerFsMap& errs_map);
+  bool PushToQdb(eos::common::FileSystem::fsid_t fsid, const eos::common::FsckErrsPerFsMap& errs_map);
 
   //----------------------------------------------------------------------------
   //! Process file system configuration change
@@ -258,12 +246,11 @@ public:
   //!
   //! @note This requires the mFsMutex to be write locked
   //----------------------------------------------------------------------------
-  void ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key,
-                             const std::string& value);
+  void ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key, const std::string& value);
 
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
-  std::vector <fst::FileSystem*> mFsVect; ///< Vector of filesystems
+  std::vector<fst::FileSystem*> mFsVect; ///< Vector of filesystems
   //! Map of filesystem id to filesystem object
   std::map<eos::common::FileSystem::fsid_t, fst::FileSystem*> mFsMap;
 
@@ -273,19 +260,18 @@ private:
   //! Set of key updates to be tracked at the file system level
   static std::set<std::string> sFsUpdateKeys;
 
-  bool mZombie; ///< State of the node
-  XrdOucString mMetaDir; ///< Path to meta directory
-  std::atomic<bool>
-  mComputeStripeChecksum{false}; ///< If to compute stripe checksum synchronously when file is written
+  bool mZombie;                                    ///< State of the node
+  XrdOucString mMetaDir;                           ///< Path to meta directory
+  std::atomic<bool> mComputeStripeChecksum{false}; ///< If to compute stripe checksum synchronously when file is written
   unsigned long long* mScrubPattern[2];
   unsigned long long* mScrubPatternVerify;
   mutable XrdSysMutex mBootingMutex; // Mutex protecting the boot set
   //! Set containing the filesystems currently booting
   std::set<eos::common::FileSystem::fsid_t> mBootingSet;
   eos::fst::Verify* mRunningVerify; ///< Currently running verification job
-  XrdSysMutex mThreadsMutex; ///< Mutex protecting access to the set of threads
-  std::set<pthread_t> mThreadSet; ///< Set of running helper threads
-  XrdSysMutex mFsFullMapMutex; ///< Mutex protecting access to the fs full map
+  XrdSysMutex mThreadsMutex;        ///< Mutex protecting access to the set of threads
+  std::set<pthread_t> mThreadSet;   ///< Set of running helper threads
+  XrdSysMutex mFsFullMapMutex;      ///< Mutex protecting access to the fs full map
   //! Map indicating if a filesystem has less than  5 GB free
   std::map<eos::common::FileSystem::fsid_t, bool> mFsFullMap;
   //! Map indicating if a filesystem has less than (headroom) space free, which
@@ -293,23 +279,23 @@ private:
   std::map<eos::common::FileSystem::fsid_t, bool> mFsFullWarnMap;
   XrdSysMutex mVerifyMutex; ///< Mutex protecting access to the verifications
   //! Queue of verification jobs pending
-  std::queue <eos::fst::Verify*> mVerifications;
-  XrdSysMutex mDeletionsMutex; ///< Mutex protecting the list of deletions
-  std::list< std::unique_ptr<Deletion> > mListDeletions; ///< List of deletions
-  Load mFstLoad; ///< Net/IO load monitor
-  Health mFstHealth; ///< Local disk S.M.A.R.T monitor
+  std::queue<eos::fst::Verify*> mVerifications;
+  XrdSysMutex mDeletionsMutex;                         ///< Mutex protecting the list of deletions
+  std::list<std::unique_ptr<Deletion>> mListDeletions; ///< List of deletions
+  Load mFstLoad;                                       ///< Net/IO load monitor
+  Health mFstHealth;                                   ///< Local disk S.M.A.R.T monitor
   AssistedThread mQdbCommunicatorThread;
   std::set<std::string> mLastRoundFilesystems;
-  AssistedThread mPublisherThread; ///< Thread publishing FST/FS info
+  AssistedThread mPublisherThread;   ///< Thread publishing FST/FS info
   AssistedThread mErrorReportThread; ///< Thread sending error reports
-  AssistedThread mRegisterFsThread; ///< Thread updating list of FS registered
+  AssistedThread mRegisterFsThread;  ///< Thread updating list of FS registered
   //! CV and mutex used for notifying the register thread
   std::condition_variable mCvRegisterFs;
   std::mutex mMutexRegisterFs;
-  bool mTriggerRegisterFs {false};
+  bool mTriggerRegisterFs{false};
   AssistedThread mFsConfigThread; ///< Thread applying FS config updates
   //! Trigger automatic drain if S.M.A.R.T. errros detected
-  bool mDrainOnSmartErr {false};
+  bool mDrainOnSmartErr{false};
   Shaping::Scaler mScaler; ///< Scaler to limit the data flow
 
   //----------------------------------------------------------------------------
@@ -322,27 +308,21 @@ private:
     //----------------------------------------------------------------------------
     //! Default constructor
     //----------------------------------------------------------------------------
-    FsCfgUpdate():
-      fsid(0ul), key(""), value("")
-    {}
+    FsCfgUpdate() : fsid(0ul), key(""), value("") {}
 
     //----------------------------------------------------------------------------
     //! Constructor with parameters
     //----------------------------------------------------------------------------
-    FsCfgUpdate(eos::common::FileSystem::fsid_t id, const std::string& k,
-                const std::string& v):
-      fsid(id), key(k), value(v)
-    {}
+    FsCfgUpdate(eos::common::FileSystem::fsid_t id, const std::string& k, const std::string& v)
+        : fsid(id)
+        , key(k)
+        , value(v) {}
   };
 
   ///< Queue of file system config updates
   eos::common::ConcurrentQueue<FsCfgUpdate> mFsUpdQueue;
 
-  enum class FsRegisterStatus {
-    kNoAction,
-    kPartial,
-    kRegistered
-  };
+  enum class FsRegisterStatus { kNoAction, kPartial, kRegistered };
 
   //! Struct BootThreadInfo
   struct BootThreadInfo {
@@ -370,14 +350,12 @@ private:
   //!
   //! @return map of statistics to be published
   //----------------------------------------------------------------------------
-  std::map<std::string, std::string>
-  GetFsStatistics(fst::FileSystem* fs);
+  std::map<std::string, std::string> GetFsStatistics(fst::FileSystem* fs);
 
   //----------------------------------------------------------------------------
   //! Get statistics about this FST node used for publishing
   //----------------------------------------------------------------------------
-  std::map<std::string, std::string> GetFstStatistics(
-    const std::string& tmpfile, unsigned long long netspeed);
+  std::map<std::string, std::string> GetFstStatistics(const std::string& tmpfile, unsigned long long netspeed);
 
   //----------------------------------------------------------------------------
   //! Publish statistics about the given file system
@@ -474,20 +452,16 @@ private:
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
 
-
   //----------------------------------------------------------------------------
   //! Scrub filesystem
   //----------------------------------------------------------------------------
-  int ScrubFs(const char* path, unsigned long long free,
-              unsigned long long lbocks, unsigned long id, bool direct_io);
+  int ScrubFs(const char* path, unsigned long long free, unsigned long long lbocks, unsigned long id, bool direct_io);
 
   //----------------------------------------------------------------------------
   //! Check if node is in zombie state i.e. true if any of the helper threads
   //! was not properly started.
   //----------------------------------------------------------------------------
-  inline bool
-  IsZombie()
-  {
+  inline bool IsZombie() {
     return mZombie;
   }
 
@@ -511,8 +485,7 @@ private:
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  bool FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
-               std::string uuid);
+  bool FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid);
 
   //----------------------------------------------------------------------------
   //! Check that the label on the file system matches the one in the
@@ -526,8 +499,7 @@ private:
   //!
   //! @return true if labels match, otherwise false
   //----------------------------------------------------------------------------
-  bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
-                  std::string uuid, bool fail_noid = false,
+  bool CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool fail_noid = false,
                   bool fail_nouuid = false);
 
   //----------------------------------------------------------------------------
@@ -580,7 +552,7 @@ private:
   ///
   /// @param cmd The new scaler data
   //----------------------------------------------------------------------------
-  void ScalerCmd(const std::string &);
+  void ScalerCmd(const std::string&);
 };
 
 EOSFSTNAMESPACE_END
