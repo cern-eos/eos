@@ -24,12 +24,11 @@
 
 #include "common/AssistedThread.hh"
 #include "common/Logging.hh"
-#include "common/ioMonitor/proto/IoBuffer.pb.h"
-#include "common/ioMonitor/proto/Shaping.pb.h"
 #include "ioMonitor/include/IoMonitor.hh"
 #include "mgm/Namespace.hh"
+#include "proto/IoBuffer.pb.h"
+#include "proto/Shaping.pb.h"
 #include <google/protobuf/util/json_util.h>
-#include <unordered_map>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -101,7 +100,7 @@ private:
   //--------------------------------------------
   /// The aggregated data of the FSTs
   //--------------------------------------------
-  IoBuffer::summarys _shapings;
+  IoBuffer::Summaries _shapings;
 
   //--------------------------------------------
   /// The limits calculated by _mShapingThread
@@ -151,7 +150,7 @@ private:
   /// @param data reference to vector of IoBuffer
   /// @return The final aggregate variable
   //----------------------------------------------------------------------------
-  IoBuffer::summarys aggregateSummarys(std::vector<IoBuffer::summarys>& data);
+  IoBuffer::Summaries aggregateSummarys(std::vector<IoBuffer::Summaries>& data);
 
   //----------------------------------------------------------------------------
   /// Function that calculates the limits for each app/uid/gid
@@ -233,7 +232,7 @@ public:
   //----------------------------------------------------------------------------
   /// Get _shaping variable
   //----------------------------------------------------------------------------
-  IoBuffer::summarys getShaping() const;
+  IoBuffer::Summaries getShaping() const;
 
   //----------------------------------------------------------------------------
   /// Get _scaler variable
