@@ -150,7 +150,7 @@ private:
   /// @param data reference to vector of IoBuffer
   /// @return The final aggregate variable
   //----------------------------------------------------------------------------
-  IoBuffer::Summaries aggregateSummarys(std::vector<IoBuffer::Summaries>& data);
+  IoBuffer::Summaries aggregateSummaries(std::vector<IoBuffer::Summaries>& data);
 
   //----------------------------------------------------------------------------
   /// Function that calculates the limits for each app/uid/gid

@@ -93,7 +93,7 @@ IoShaping& IoShaping::operator=(const IoShaping& other) {
 //----------------------------------------------------------------------------
 /// Aggregates data from IoBuffer (aka the protobuf version of ioStatSummary)
 //----------------------------------------------------------------------------
-IoBuffer::Summaries IoShaping::aggregateSummarys(std::vector<IoBuffer::Summaries>& received) {
+IoBuffer::Summaries IoShaping::aggregateSummaries(std::vector<IoBuffer::Summaries>& received) {
   IoBuffer::Summaries final;
   std::map<uint64_t, std::map<std::string, std::vector<IoStatSummary>>> apps;
   std::map<uint64_t, std::map<gid_t, std::vector<IoStatSummary>>> uids;
@@ -234,7 +234,7 @@ void IoShaping::receive(ThreadAssistant& assistant) noexcept {
       }
     }
     if (!sums.empty()) {
-      _shapings = aggregateSummarys(sums);
+      _shapings = aggregateSummaries(sums);
       std::string out;
       google::protobuf::util::JsonPrintOptions options;
       auto it = google::protobuf::util::MessageToJsonString(_shapings, &out, options);

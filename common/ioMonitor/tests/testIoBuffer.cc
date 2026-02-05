@@ -46,7 +46,7 @@ int testIoBuffer(){
   map.setTrack(3600, io::TYPE::GID, 12);
 
   for (size_t win = 0; win < 5; win++){
-    std::cout << "Add summarys[" << (win + 1) << "/" << 5 << "]" << std::endl << std::endl;
+    std::cout << "Add summaries[" << (win + 1) << "/" << 5 << "]" << std::endl << std::endl;
     for (size_t i = 0; i < 10; i++){
       for (size_t j = (std::abs(rand()) % 100); j < 100; j++){
         map.addRead(1, "eos", idU, idG, std::abs(rand()) % 10000);
