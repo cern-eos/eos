@@ -68,6 +68,9 @@ FileInspectorStats& FileInspectorStats::operator=(const FileInspectorStats&
   TotalFileCount = other.TotalFileCount;
   TotalLogicalBytes = other.TotalLogicalBytes;
   TimeScan = other.TimeScan;
+  HardlinkCount = other.HardlinkCount;
+  HardlinkVolume = other.HardlinkVolume;
+  SymlinkCount = other.SymlinkCount;
   return *this;
 }
 
@@ -113,6 +116,9 @@ noexcept
   TotalFileCount = other.TotalFileCount;
   TotalLogicalBytes = other.TotalLogicalBytes;
   TimeScan = other.TimeScan;
+  HardlinkCount = other.HardlinkCount;
+  HardlinkVolume = other.HardlinkVolume;
+  SymlinkCount = other.SymlinkCount;
   return *this;
 }
 
