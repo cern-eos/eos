@@ -21,21 +21,21 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/Config.hh"
-#include "fst/storage/FileSystem.hh"
-#include "qclient/Formatting.hh"
-#include "common/Utils.hh"
+#include "common/IntervalStopwatch.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
-#include "common/Timing.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "common/IntervalStopwatch.hh"
-#include <google/protobuf/util/json_util.h>
 #include "common/SymKeys.hh"
+#include "common/Timing.hh"
+#include "common/Utils.hh"
+#include "fst/Config.hh"
+#include "fst/XrdFstOfs.hh"
+#include "fst/storage/FileSystem.hh"
+#include "fst/storage/Storage.hh"
+#include "qclient/Formatting.hh"
 #include <XrdVersion.hh>
+#include <google/protobuf/util/json_util.h>
 #include <optional>
 #include <sys/sysinfo.h>
 
@@ -55,12 +55,8 @@ EOSFSTNAMESPACE_BEGIN
 //
 // This is to keep the entry in the hash, even if no opened files exist.
 //------------------------------------------------------------------------------
-static std::string HotFilesToString(
-  const std::vector<eos::fst::OpenFileTracker::HotEntry>& entries)
-{
-  if (entries.size() == 0u) {
-    return " ";
-  }
+static std::string HotFilesToString(const std::vector<eos::fst::OpenFileTracker::HotEntry>& entries) {
+  if (entries.size() == 0u) { return " "; }
 
   std::ostringstream ss;
 
@@ -74,38 +70,30 @@ static std::string HotFilesToString(
   return ss.str();
 }
 
-
 //------------------------------------------------------------------------------
 // Get uptime information in a more pretty format
 //------------------------------------------------------------------------------
-static void
-GetUptime(std::map<std::string, std::string>& output)
-{
+static void GetUptime(std::map<std::string, std::string>& output) {
   static float f_load = 1.f / (1 << SI_LOAD_SHIFT);
-  static auto GetUptimePretty = [](const struct sysinfo & input) -> std::string {
+  static auto GetUptimePretty = [](const struct sysinfo& input) -> std::string {
     std::stringstream oss;
     std::time_t now_t = eos::common::Timing::GetNowInSec();
     struct tm now_tm_parts;
-    (void) localtime_r(&now_t, &now_tm_parts);
+    (void)localtime_r(&now_t, &now_tm_parts);
     char str[9];
 
-    if (strftime(str, 9, "%H:%M:%S", &now_tm_parts))
-    {
+    if (strftime(str, 9, "%H:%M:%S", &now_tm_parts)) {
       oss << str << " up ";
       int t_mins = (input.uptime % 3600) / 60;
       int t_hours = (input.uptime % 86400) / 3600;
       int t_days = input.uptime / 86400;
 
-      if (t_days) {
-        oss << t_days << " days, ";
-      }
+      if (t_days) { oss << t_days << " days, "; }
 
       oss << t_hours << ":" << t_mins << ", load average: ";
       oss.setf(std::ios::fixed);
       oss.precision(2);
-      oss << input.loads[0] * f_load << ", "
-          << input.loads[1] * f_load << ", "
-          << input.loads[2] * f_load;
+      oss << input.loads[0] * f_load << ", " << input.loads[1] * f_load << ", " << input.loads[2] * f_load;
       return oss.str();
     }
 
@@ -136,20 +124,15 @@ GetUptime(std::map<std::string, std::string>& output)
 //------------------------------------------------------------------------------
 // Retrieve xrootd version
 //------------------------------------------------------------------------------
-static std::string GetXrootdVersion()
-{
+static std::string GetXrootdVersion() {
   static std::string s_xrootd_version = "";
 
-  if (!s_xrootd_version.empty()) {
-    return s_xrootd_version;
-  }
+  if (!s_xrootd_version.empty()) { return s_xrootd_version; }
 
   XrdOucString v = XrdVERSIONINFOVAR(XrdgetProtocol).vStr;
   int pos = v.find(" ");
 
-  if (pos != STR_NPOS) {
-    v.erasefromstart(pos + 1);
-  }
+  if (pos != STR_NPOS) { v.erasefromstart(pos + 1); }
 
   s_xrootd_version = v.c_str();
   return s_xrootd_version;
@@ -158,8 +141,7 @@ static std::string GetXrootdVersion()
 //------------------------------------------------------------------------------
 // Retrieve eos version
 //------------------------------------------------------------------------------
-static std::string GetEosVersion()
-{
+static std::string GetEosVersion() {
   static std::string s_eos_version = SSTR(VERSION << "-" << RELEASE).c_str();
   return s_eos_version;
 }
@@ -167,78 +149,72 @@ static std::string GetEosVersion()
 //------------------------------------------------------------------------------
 /// get ioMap info
 //------------------------------------------------------------------------------
-static std::string getIoMap(){
+static std::string getIoMap() {
   IoBuffer::Summary protoBuff;
   IoBuffer::Summaries finalBuffer;
   std::string output = "0";
 
-  std::optional<std::vector<size_t> > win(gOFS.ioMap.getAvailableWindows());
-  if (!win.has_value())
-    return output;
+  std::optional<std::vector<size_t>> win(gOFS.ioMap.getAvailableWindows());
+  if (!win.has_value()) { return output; }
 
-  for (auto winTime = win.value().begin(); winTime != win->end(); winTime++){
+  for (auto winTime = win.value().begin(); winTime != win->end(); winTime++) {
     std::vector<gid_t> gids(gOFS.ioMap.getGids(*winTime));
     std::vector<uid_t> uids(gOFS.ioMap.getUids(*winTime));
-	std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
-	IoBuffer::Data winTimeSummaries;
+    std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
+    IoBuffer::Data winTimeSummaries;
 
-	if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0)
-	  continue;
+    if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0) { continue; }
 
-	for (auto it : apps){
-	  auto sum = gOFS.ioMap.getSummary(*winTime, it);
-	  if (sum.has_value()){
-	    sum->winTime = *winTime;
-	    winTimeSummaries.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
-	  }
-     protoBuff.Clear();
-    }
-    for (auto it : uids){
-	  auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::UID, it);
-	  if (sum.has_value()){
-	    sum->winTime =*winTime;
-		winTimeSummaries.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
-	  }
+    for (auto it : apps) {
+      auto sum = gOFS.ioMap.getSummary(*winTime, it);
+      if (sum.has_value()) {
+        sum->winTime = *winTime;
+        winTimeSummaries.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
+      }
       protoBuff.Clear();
     }
-	for (auto it : gids){
-	  auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::GID, it);
-	  if (sum.has_value()){
-	    sum->winTime =*winTime;
-		winTimeSummaries.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
-	  }
-	  protoBuff.Clear();
-	}
-	if (winTimeSummaries.apps_size() > 0 || winTimeSummaries.gids_size() > 0 || winTimeSummaries.uids_size() > 0)
-	  finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummaries);
+    for (auto it : uids) {
+      auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::UID, it);
+      if (sum.has_value()) {
+        sum->winTime = *winTime;
+        winTimeSummaries.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
+      }
+      protoBuff.Clear();
+    }
+    for (auto it : gids) {
+      auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::GID, it);
+      if (sum.has_value()) {
+        sum->winTime = *winTime;
+        winTimeSummaries.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
+      }
+      protoBuff.Clear();
+    }
+    if (winTimeSummaries.apps_size() > 0 || winTimeSummaries.gids_size() > 0 || winTimeSummaries.uids_size() > 0) {
+      finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummaries);
+    }
   }
 
-  if (finalBuffer.aggregated_size() > 0){
+  if (finalBuffer.aggregated_size() > 0) {
     std::string out;
-	google::protobuf::util::JsonPrintOptions options;
+    google::protobuf::util::JsonPrintOptions options;
 
-	// options.add_whitespace = true;
-	// options.always_print_primitive_fields = true;
-	// options.preserve_proto_field_names = true;
-	auto it = google::protobuf::util::MessageToJsonString(finalBuffer, &out, options);
-	if (it.ok())
-	  output = out;
-	}
+    // options.add_whitespace = true;
+    // options.always_print_primitive_fields = true;
+    // options.preserve_proto_field_names = true;
+    auto it = google::protobuf::util::MessageToJsonString(finalBuffer, &out, options);
+    if (it.ok()) { output = out; }
+  }
 
-	return output;
+  return output;
 }
-
 
 //------------------------------------------------------------------------------
 // Retrieve FST network interface
 //------------------------------------------------------------------------------
-static std::string GetNetworkInterface()
-{
+static std::string GetNetworkInterface() {
   static std::string s_net_interface = "";
 
-  if (!s_net_interface.empty()) {
-    return s_net_interface;
-  }
+  if (!s_net_interface.empty()) { return s_net_interface; }
 
   const char* ptr = getenv("EOS_FST_NETWORK_INTERFACE");
 
@@ -256,11 +232,8 @@ static std::string GetNetworkInterface()
 //------------------------------------------------------------------------------
 // Get network transfer RX/TX errors and dropped packet counters
 //------------------------------------------------------------------------------
-static void
-GetNetworkCounters(std::map<std::string, std::string>& output)
-{
-  static const std::set<std::string> set_keys {"rx_errors", "rx_dropped",
-      "tx_errors", "tx_dropped"};
+static void GetNetworkCounters(std::map<std::string, std::string>& output) {
+  static const std::set<std::string> set_keys{"rx_errors", "rx_dropped", "tx_errors", "tx_dropped"};
   static std::map<std::string, std::string> map_key_paths;
 
   // Build set of files to query for the above counters depending on the
@@ -269,8 +242,7 @@ GetNetworkCounters(std::map<std::string, std::string>& output)
     struct stat info;
 
     for (const auto& key : set_keys) {
-      std::string fn_path = SSTR("/sys/class/net/" << GetNetworkInterface()
-                                 << "/statistics/" << key);
+      std::string fn_path = SSTR("/sys/class/net/" << GetNetworkInterface() << "/statistics/" << key);
 
       if (::stat(fn_path.c_str(), &info)) {
         map_key_paths[key] = "";
@@ -297,7 +269,7 @@ GetNetworkCounters(std::map<std::string, std::string>& output)
         map_counters[pair.first] = data;
       }
 
-      (void) fclose(fnetcounters);
+      (void)fclose(fnetcounters);
     }
   }
 
@@ -310,13 +282,10 @@ GetNetworkCounters(std::map<std::string, std::string>& output)
 //------------------------------------------------------------------------------
 // Retrieve network interface speed as bytes/second
 //------------------------------------------------------------------------------
-static uint64_t GetNetSpeed()
-{
+static uint64_t GetNetSpeed() {
   static uint64_t s_net_speed = 0ull;
 
-  if (s_net_speed) {
-    return s_net_speed;
-  }
+  if (s_net_speed) { return s_net_speed; }
 
   const char* ptr = getenv("EOS_FST_NETWORK_SPEED");
 
@@ -326,12 +295,11 @@ static uint64_t GetNetSpeed()
     try {
       s_net_speed = std::stoull(sval);
 
-      if (s_net_speed) {
-        return s_net_speed;
-      }
+      if (s_net_speed) { return s_net_speed; }
     } catch (...) {
       eos_static_err("msg=\"EOS_FST_NETWORK_SPEED not a numeric value\" "
-                     "val=\"%s\"", sval.c_str());
+                     "val=\"%s\"",
+                     sval.c_str());
     }
   }
 
@@ -339,8 +307,7 @@ static uint64_t GetNetSpeed()
   s_net_speed = 1000000000;
   // Read network speed from the sys interface
   const std::string net_interface = GetNetworkInterface();
-  const std::string fn_path = SSTR("/sys/class/net/" << net_interface
-                                   << "/speed");
+  const std::string fn_path = SSTR("/sys/class/net/" << net_interface << "/speed");
   FILE* fnetspeed = fopen(fn_path.c_str(), "r");
 
   if (fnetspeed) {
@@ -356,32 +323,26 @@ static uint64_t GetNetSpeed()
         s_net_speed = std::stoull(sval);
         // We get Mb/s as number, convert to bytes/s
         s_net_speed *= 1000000;
-      } catch (...) {
-        eos_static_err("msg=\"network speed not a numeric value\" fn=\"%s\"",
-                       fn_path.c_str());
-      }
+      } catch (...) { eos_static_err("msg=\"network speed not a numeric value\" fn=\"%s\"", fn_path.c_str()); }
     }
 
-    (void) fclose(fnetspeed);
+    (void)fclose(fnetspeed);
   }
 
-  eos_static_info("msg=\"network speed\" interface=\"%s\" speed=%.02f GB/s",
-                  net_interface.c_str(), 1.0 * s_net_speed / 1000000000.0);
+  eos_static_info("msg=\"network speed\" interface=\"%s\" speed=%.02f GB/s", net_interface.c_str(),
+                  1.0 * s_net_speed / 1000000000.0);
   return s_net_speed;
 }
 
 //------------------------------------------------------------------------------
 // Retrieve number of TCP sockets in the system
 //------------------------------------------------------------------------------
-static std::string GetNumOfTcpSockets()
-{
-  static auto ReadTpcSocketsInUse =
-  [](const std::string & fn, const std::string & search_tag) -> uint64_t {
+static std::string GetNumOfTcpSockets() {
+  static auto ReadTpcSocketsInUse = [](const std::string& fn, const std::string& search_tag) -> uint64_t {
     uint64_t num_sockets = 0ull;
     std::ifstream file(fn.c_str());
 
-    if (file.is_open())
-    {
+    if (file.is_open()) {
       std::string line;
 
       while (std::getline(file, line)) {
@@ -413,23 +374,18 @@ static std::string GetNumOfTcpSockets()
 //------------------------------------------------------------------------------
 // Get size of subtree by using the system "du -sb" command
 //------------------------------------------------------------------------------
-static std::string GetSubtreeSize(const std::string& path)
-{
+static std::string GetSubtreeSize(const std::string& path) {
   std::string fn_pattern = "/tmp/fst.subtree.XXXXXX";
   const std::string tmp_name = eos::common::MakeTemporaryFile(fn_pattern);
-  const std::string command = SSTR("du -sb " << path << " | cut -f1 > "
-                                   << tmp_name);
+  const std::string command = SSTR("du -sb " << path << " | cut -f1 > " << tmp_name);
   eos::common::ShellCmd cmd(command.c_str());
   eos::common::cmd_status rc = cmd.wait(5);
 
-  if (rc.exit_code) {
-    eos_static_err("msg=\"failed to compute subtree size\" path=%s",
-                   path.c_str());
-  }
+  if (rc.exit_code) { eos_static_err("msg=\"failed to compute subtree size\" path=%s", path.c_str()); }
 
   std::string retval;
   eos::common::StringConversion::LoadFileIntoString(tmp_name.c_str(), retval);
-  (void) unlink(tmp_name.c_str());
+  (void)unlink(tmp_name.c_str());
   return retval;
 }
 
@@ -437,8 +393,7 @@ static std::string GetSubtreeSize(const std::string& path)
 // Get number of kworker processes on the machine - a high number might indicate
 // a problem with the machine and might require a reboot.
 //------------------------------------------------------------------------------
-static uint32_t GetNumOfKworkerProcs()
-{
+static uint32_t GetNumOfKworkerProcs() {
   uint32_t count = 0u;
 #ifdef PROCPS3
 
@@ -447,9 +402,7 @@ static uint32_t GetNumOfKworkerProcs()
       if (procs[i]->cmd) {
         eos_static_debug("msg=\"process cmd line\" cmd=\"%s\"", procs[i]->cmd);
 
-        if (strstr(procs[i]->cmd, "kworker") == procs[i]->cmd) {
-          ++count;
-        }
+        if (strstr(procs[i]->cmd, "kworker") == procs[i]->cmd) { ++count; }
       }
 
       freeproc(procs[i]);
@@ -460,16 +413,13 @@ static uint32_t GetNumOfKworkerProcs()
 
 #else
   struct pids_info* info = nullptr;
-  enum pids_item items[] = { PIDS_CMD };
+  enum pids_item items[] = {PIDS_CMD};
   procps_pids_new(&info, items, 1);
 
-  while (struct pids_stack* stack = procps_pids_get(info,
-                                    PIDS_FETCH_TASKS_ONLY)) {
+  while (struct pids_stack* stack = procps_pids_get(info, PIDS_FETCH_TASKS_ONLY)) {
     char* cmd = PIDS_VAL(0, str, stack, info);
 
-    if (strstr(cmd, "kworker") == cmd) {
-      ++count;
-    }
+    if (strstr(cmd, "kworker") == cmd) { ++count; }
   }
 
   procps_pids_unref(&info);
@@ -481,9 +431,7 @@ static uint32_t GetNumOfKworkerProcs()
 //------------------------------------------------------------------------------
 // Overwrite statfs statistics for testing environment
 //------------------------------------------------------------------------------
-static void OverwriteTestingStatfs(const std::string& path,
-                                   std::map<std::string, std::string>& output)
-{
+static void OverwriteTestingStatfs(const std::string& path, std::map<std::string, std::string>& output) {
   static std::optional<bool> do_overwrite;
 
   if (!do_overwrite.has_value()) {
@@ -496,9 +444,7 @@ static void OverwriteTestingStatfs(const std::string& path,
     }
   }
 
-  if (!do_overwrite.value()) {
-    return;
-  }
+  if (!do_overwrite.value()) { return; }
 
   eos_static_info("msg=\"overwrite statfs values\" path=%s", path.c_str());
   static uint64_t subtree_max_size = 0ull;
@@ -508,20 +454,18 @@ static void OverwriteTestingStatfs(const std::string& path,
     const char* ptr = getenv("EOS_FST_SUBTREE_MAX_SIZE");
 
     if (ptr) {
-      if (!eos::common::StringToNumeric(std::string(ptr), subtree_max_size,
-                                        subtree_max_size)) {
+      if (!eos::common::StringToNumeric(std::string(ptr), subtree_max_size, subtree_max_size)) {
         eos_static_err("msg=\"failed convertion\" data=\"%s\"", ptr);
       }
     }
   }
 
   uint64_t bsize = 4096;
-  (void) eos::common::StringToNumeric(output["stat.statfs.bsize"], bsize, bsize);
-  uint64_t used_bytes {0ull};
+  (void)eos::common::StringToNumeric(output["stat.statfs.bsize"], bsize, bsize);
+  uint64_t used_bytes{0ull};
   const std::string sused_bytes = GetSubtreeSize(path);
-  (void) eos::common::StringToNumeric(sused_bytes, used_bytes);
-  double filled = 100.0 - ((double) 100.0 * (subtree_max_size - used_bytes) /
-                           subtree_max_size);
+  (void)eos::common::StringToNumeric(sused_bytes, used_bytes);
+  double filled = 100.0 - ((double)100.0 * (subtree_max_size - used_bytes) / subtree_max_size);
   output["stat.statfs.filled"] = std::to_string(filled);
   output["stat.statfs.usedbytes"] = std::to_string(used_bytes);
   output["stat.statfs.freebytes"] = std::to_string(subtree_max_size - used_bytes);
@@ -531,15 +475,10 @@ static void OverwriteTestingStatfs(const std::string& path,
 //------------------------------------------------------------------------------
 // Get statistics about this FST, used for publishing
 //------------------------------------------------------------------------------
-std::map<std::string, std::string>
-Storage::GetFstStatistics(const std::string& tmpfile,
-                          unsigned long long netspeed)
-{
+std::map<std::string, std::string> Storage::GetFstStatistics(const std::string& tmpfile, unsigned long long netspeed) {
   eos::common::LinuxStat::linux_stat_t osstat;
 
-  if (!eos::common::LinuxStat::GetStat(osstat)) {
-    eos_crit("failed to get the memory usage information");
-  }
+  if (!eos::common::LinuxStat::GetStat(osstat)) { eos_crit("failed to get the memory usage information"); }
 
   std::map<std::string, std::string> output;
   // Kernel version
@@ -572,20 +511,14 @@ Storage::GetFstStatistics(const std::string& tmpfile,
   output["http.port"] = SSTR(gOFS.mHttpdPort);
   // debug level
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
-  output["debug.state"] = eos::common::StringConversion::ToLower
-                          (g_logging.GetPriorityString
-                           (g_logging.gPriorityLevel)).c_str();
+  output["debug.state"] =
+      eos::common::StringConversion::ToLower(g_logging.GetPriorityString(g_logging.gPriorityLevel)).c_str();
   // net info
   output["stat.net.ethratemib"] = SSTR(netspeed / (8 * 1024 * 1024));
-  output["stat.net.inratemib"] = SSTR(
-                                   mFstLoad.GetNetRate(GetNetworkInterface().c_str(),
-                                       "rxbytes") / 1024.0 / 1024.0);
-  output["stat.net.outratemib"] = SSTR(
-                                    mFstLoad.GetNetRate(GetNetworkInterface().c_str(),
-                                        "txbytes") / 1024.0 / 1024.0);
+  output["stat.net.inratemib"] = SSTR(mFstLoad.GetNetRate(GetNetworkInterface().c_str(), "rxbytes") / 1024.0 / 1024.0);
+  output["stat.net.outratemib"] = SSTR(mFstLoad.GetNetRate(GetNetworkInterface().c_str(), "txbytes") / 1024.0 / 1024.0);
   // publish timestamp
-  output["stat.publishtimestamp"] = SSTR(
-                                      eos::common::getEpochInMilliseconds().count());
+  output["stat.publishtimestamp"] = SSTR(eos::common::getEpochInMilliseconds().count());
   output["stat.iomap"] = getIoMap();
 
   return output;
@@ -594,9 +527,7 @@ Storage::GetFstStatistics(const std::string& tmpfile,
 //------------------------------------------------------------------------------
 // Insert statfs info into the map
 //------------------------------------------------------------------------------
-static void InsertStatfs(struct statfs* statfs,
-                         std::map<std::string, std::string>& output)
-{
+static void InsertStatfs(struct statfs* statfs, std::map<std::string, std::string>& output) {
   output["stat.statfs.type"] = std::to_string(statfs->f_type);
   output["stat.statfs.bsize"] = std::to_string(statfs->f_bsize);
   output["stat.statfs.blocks"] = std::to_string(statfs->f_blocks);
@@ -609,24 +540,18 @@ static void InsertStatfs(struct statfs* statfs,
 #else
   output["stat.statfs.namelen"] = std::to_string(statfs->f_namelen);
 #endif
-  output["stat.statfs.freebytes"] = std::to_string(statfs->f_bfree *
-                                    statfs->f_bsize);
-  output["stat.statfs.usedbytes"] = std::to_string((statfs->f_blocks -
-                                    statfs->f_bfree) * statfs->f_bsize);
-  output["stat.statfs.filled"] = std::to_string(
-                                   (double) 100.0 * ((double)(statfs->f_blocks - statfs->f_bfree) / (double)(
-                                         1 + statfs->f_blocks)));
-  output["stat.statfs.capacity"] = std::to_string(statfs->f_blocks *
-                                   statfs->f_bsize);
+  output["stat.statfs.freebytes"] = std::to_string(statfs->f_bfree * statfs->f_bsize);
+  output["stat.statfs.usedbytes"] = std::to_string((statfs->f_blocks - statfs->f_bfree) * statfs->f_bsize);
+  output["stat.statfs.filled"] =
+      std::to_string((double)100.0 * ((double)(statfs->f_blocks - statfs->f_bfree) / (double)(1 + statfs->f_blocks)));
+  output["stat.statfs.capacity"] = std::to_string(statfs->f_blocks * statfs->f_bsize);
   output["stat.statfs.fused"] = std::to_string(statfs->f_files - statfs->f_ffree);
 }
 
 //------------------------------------------------------------------------------
 // Get statistics about this FileSystem, used for publishing
 //------------------------------------------------------------------------------
-std::map<std::string, std::string>
-Storage::GetFsStatistics(FileSystem* fs)
-{
+std::map<std::string, std::string> Storage::GetFsStatistics(FileSystem* fs) {
   if (!fs) {
     eos_static_crit("asked to publish statistics for a null filesystem");
     return {};
@@ -660,12 +585,9 @@ Storage::GetFsStatistics(FileSystem* fs)
     writeratemb = strtod(iostats["write-mb-second"].c_str(), 0);
     diskload = strtod(iostats["load"].c_str(), 0);
   } else {
-    readratemb = mFstLoad.GetDiskRate(fs->GetPath().c_str(),
-                                      "readSectors") * 512.0 / 1000000.0;
-    writeratemb = mFstLoad.GetDiskRate(fs->GetPath().c_str(),
-                                       "writeSectors") * 512.0 / 1000000.0;
-    diskload = mFstLoad.GetDiskRate(fs->GetPath().c_str(),
-                                    "millisIO") / 1000.0;
+    readratemb = mFstLoad.GetDiskRate(fs->GetPath().c_str(), "readSectors") * 512.0 / 1000000.0;
+    writeratemb = mFstLoad.GetDiskRate(fs->GetPath().c_str(), "writeSectors") * 512.0 / 1000000.0;
+    diskload = mFstLoad.GetDiskRate(fs->GetPath().c_str(), "millisIO") / 1000.0;
   }
 
   output["stat.disk.readratemb"] = std::to_string(readratemb);
@@ -678,23 +600,17 @@ Storage::GetFsStatistics(FileSystem* fs)
     health = mFstHealth.getDiskHealth(fs->GetPath());
 
     // If SMART status is FAILING then mark the file system for auto drain
-    if (mDrainOnSmartErr && health.count("summary") &&
-        health["summary"] == "FAILING") {
+    if (mDrainOnSmartErr && health.count("summary") && health["summary"] == "FAILING") {
       fs->BroadcastError(EIO, "S.M.A.R.T. errors detected");
     }
   }
 
-  output["stat.health"] = (health.count("summary") ? health["summary"].c_str() :
-                           "N/A");
+  output["stat.health"] = (health.count("summary") ? health["summary"].c_str() : "N/A");
   // set some reasonable defaults if information is not available
-  output["stat.health.indicator"] = (health.count("indicator") ?
-                                     health["indicator"] : "N/A");
-  output["stat.health.drives_total"] = (health.count("drives_total") ?
-                                        health["drives_total"] : "1");
-  output["stat.health.drives_failed"] = (health.count("drives_failed") ?
-                                         health["drives_failed"] : "0");
-  output["stat.health.redundancy_factor"] = (health.count("redundancy_factor") ?
-      health["redundancy_factor"] : "1");
+  output["stat.health.indicator"] = (health.count("indicator") ? health["indicator"] : "N/A");
+  output["stat.health.drives_total"] = (health.count("drives_total") ? health["drives_total"] : "1");
+  output["stat.health.drives_failed"] = (health.count("drives_failed") ? health["drives_failed"] : "0");
+  output["stat.health.redundancy_factor"] = (health.count("redundancy_factor") ? health["redundancy_factor"] : "1");
   {
     // don't publish smart info too often, it is few kb per filesystem!
     time_t now = time(NULL);
@@ -704,8 +620,7 @@ Storage::GetFsStatistics(FileSystem* fs)
     {
       XrdSysMutexHelper scope_lock(smartPublishingMutex);
 
-      if (!smartPublishing[fs] ||
-          (smartPublishing[fs] < now)) {
+      if (!smartPublishing[fs] || (smartPublishing[fs] < now)) {
         smartPublishing[fs] = now + 3600;
         publish = true;
       }
@@ -713,18 +628,16 @@ Storage::GetFsStatistics(FileSystem* fs)
 
     if (publish) {
       // compress the json smart info
-      eos::common::SymKey::ZBase64(health["attributes"],
-                                   output["stat.health.z64smart"]);
+      eos::common::SymKey::ZBase64(health["attributes"], output["stat.health.z64smart"]);
     }
   }
   // Publish generic statistics, related to free space and current load
-  long long r_open = (long long) gOFS.openedForReading.getOpenOnFilesystem(fsid);
-  long long w_open = (long long) gOFS.openedForWriting.getOpenOnFilesystem(fsid);
+  long long r_open = (long long)gOFS.openedForReading.getOpenOnFilesystem(fsid);
+  long long w_open = (long long)gOFS.openedForWriting.getOpenOnFilesystem(fsid);
   output["stat.ropen"] = std::to_string(r_open);
   output["stat.wopen"] = std::to_string(w_open);
 
-  if (auto kv = output.find("stat.statfs.fused");
-      kv != output.end()) {
+  if (auto kv = output.find("stat.statfs.fused"); kv != output.end()) {
     // FIXME: Actually subtract the statfs of the .eosorphans, also count
     // checksums & scrub files!
     output["stat.usedfiles"] = kv->second;
@@ -732,42 +645,35 @@ Storage::GetFsStatistics(FileSystem* fs)
 
   output["stat.boot"] = fs->GetStatusAsString(fs->GetStatus());
   output["stat.geotag"] = gOFS.GetGeoTag();
-  output["stat.publishtimestamp"] = std::to_string(
-                                      eos::common::getEpochInMilliseconds().count());
+  output["stat.publishtimestamp"] = std::to_string(eos::common::getEpochInMilliseconds().count());
   output["stat.disk.iops"] = std::to_string(fs->getIOPS());
   output["stat.disk.bw"] = std::to_string(fs->getSeqBandwidth()); // in MB
   output["stat.http.port"] = std::to_string(gOFS.mHttpdPort);
 
   // FST alias
-  if (gConfig.HostAlias.length()) {
-    output["stat.alias.host"] = gConfig.HostAlias.c_str();
-  }
+  if (gConfig.HostAlias.length()) { output["stat.alias.host"] = gConfig.HostAlias.c_str(); }
 
   // FST port alias
-  if (gConfig.PortAlias.length()) {
-    output["stat.alias.port"] = gConfig.PortAlias.c_str();
-  }
+  if (gConfig.PortAlias.length()) { output["stat.alias.port"] = gConfig.PortAlias.c_str(); }
 
   // debug level
-  output["stat.ropen.hotfiles"] = HotFilesToString(
-                                    gOFS.openedForReading.getHotFiles(fsid, 10));
-  output["stat.wopen.hotfiles"] = HotFilesToString(
-                                    gOFS.openedForWriting.getHotFiles(fsid, 10));
+  output["stat.ropen.hotfiles"] = HotFilesToString(gOFS.openedForReading.getHotFiles(fsid, 10));
+  output["stat.wopen.hotfiles"] = HotFilesToString(gOFS.openedForWriting.getHotFiles(fsid, 10));
   return output;
 }
 
 //------------------------------------------------------------------------------
 // Publish statistics about the given filesystem
 //------------------------------------------------------------------------------
-bool Storage::PublishFsStatistics(eos::common::FileSystem::fsid_t fsid)
-{
+bool Storage::PublishFsStatistics(eos::common::FileSystem::fsid_t fsid) {
   CheckFilesystemFullness(fsid);
   eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
   auto it = mFsMap.find(fsid);
 
   if (it == mFsMap.end()) {
     eos_static_crit("msg=\"asked to publish statistics for unknwon fs\" "
-                    "fsid=%lu", fsid);
+                    "fsid=%lu",
+                    fsid);
     return false;
   }
 
@@ -785,24 +691,19 @@ bool Storage::PublishFsStatistics(eos::common::FileSystem::fsid_t fsid)
 //------------------------------------------------------------------------------
 // Publish
 //------------------------------------------------------------------------------
-void
-Storage::Publish(ThreadAssistant& assistant) noexcept
-{
+void Storage::Publish(ThreadAssistant& assistant) noexcept {
   eos_static_info("%s", "msg=\"start file system publishing thread\"");
   std::string fn_pattern = "/tmp/fst.publish.XXXXXX";
   const std::string tmp_name = eos::common::MakeTemporaryFile(fn_pattern);
 
-  if (tmp_name.empty()) {
-    return;
-  }
+  if (tmp_name.empty()) { return; }
 
   // The following line acts as a barrier that prevents progress
   // until the config queue becomes known
   gConfig.getFstNodeConfigQueue("Publish");
 
   while (!assistant.terminationRequested()) {
-    std::chrono::milliseconds randomizedReportInterval =
-      gConfig.getRandomizedPublishInterval();
+    std::chrono::milliseconds randomizedReportInterval = gConfig.getRandomizedPublishInterval();
     common::IntervalStopwatch stopwatch(randomizedReportInterval);
     std::set<eos::common::FileSystem::fsid_t> set_fsids;
     {
@@ -811,9 +712,7 @@ Storage::Publish(ThreadAssistant& assistant) noexcept
       eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
 
       for (const auto& elem : mFsMap) {
-        if (elem.first) {
-          set_fsids.insert(elem.first);
-        }
+        if (elem.first) { set_fsids.insert(elem.first); }
       }
     }
     std::map<eos::common::FileSystem::fsid_t, std::future<bool>> map_futures;
@@ -821,20 +720,16 @@ Storage::Publish(ThreadAssistant& assistant) noexcept
     // Copy out statfs info in parallel to speed-up things
     for (const auto& fsid : set_fsids) {
       try {
-        map_futures.emplace(fsid, std::async(std::launch::async,
-                                             &Storage::PublishFsStatistics,
-                                             this, fsid));
+        map_futures.emplace(fsid, std::async(std::launch::async, &Storage::PublishFsStatistics, this, fsid));
       } catch (const std::system_error& e) {
         eos_static_err("msg=\"exception while collecting fs statistics\" "
-                       "fsid=%lu msg=\"%s\"", fsid, e.what());
+                       "fsid=%lu msg=\"%s\"",
+                       fsid, e.what());
       }
     }
 
     for (auto& elem : map_futures) {
-      if (elem.second.get() == false) {
-        eos_static_err("msg=\"failed to publish fs stats\" fsid=%lu",
-                       elem.first);
-      }
+      if (elem.second.get() == false) { eos_static_err("msg=\"failed to publish fs stats\" fsid=%lu", elem.first); }
     }
 
     // Collect and publish node status info
@@ -856,14 +751,14 @@ Storage::Publish(ThreadAssistant& assistant) noexcept
 
     if (sleepTime == std::chrono::milliseconds(0)) {
       eos_static_warning("msg=\"publisher cycle exceeded %d millisec - took %d "
-                         "millisec", randomizedReportInterval.count(),
-                         stopwatch.timeIntoCycle());
+                         "millisec",
+                         randomizedReportInterval.count(), stopwatch.timeIntoCycle());
     } else {
       assistant.wait_for(sleepTime);
     }
   }
 
-  (void) unlink(tmp_name.c_str());
+  (void)unlink(tmp_name.c_str());
 }
 
 EOSFSTNAMESPACE_END

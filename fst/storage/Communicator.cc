@@ -21,37 +21,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/Config.hh"
-#include "fst/storage/FileSystem.hh"
-#include "common/SymKeys.hh"
 #include "common/Assert.hh"
 #include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
+#include "common/SymKeys.hh"
+#include "fst/Config.hh"
+#include "fst/XrdFstOfs.hh"
+#include "fst/storage/FileSystem.hh"
+#include "fst/storage/Storage.hh"
 #include "mq/SharedHashWrapper.hh"
-#include "qclient/structures/QScanner.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
+#include "qclient/structures/QScanner.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
 // Set of keys updates to be tracked at the node level
-std::set<std::string> Storage::sNodeUpdateKeys {
-  "stat.refresh_fs", "manager", "symkey", "publish.interval",
-  "debug.level", "error.simulation", "stripexs", "stat.scaler.xyz"};
+std::set<std::string> Storage::sNodeUpdateKeys{"stat.refresh_fs", "manager",          "symkey",   "publish.interval",
+                                               "debug.level",     "error.simulation", "stripexs", "stat.scaler.xyz"};
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
 //------------------------------------------------------------------------------
-bool
-Storage::GetFstConfigValue(const std::string& key, std::string& value) const
-{
-  common::SharedHashLocator locator =
-    gConfig.getNodeHashLocator("getConfigValue", false);
+bool Storage::GetFstConfigValue(const std::string& key, std::string& value) const {
+  common::SharedHashLocator locator = gConfig.getNodeHashLocator("getConfigValue", false);
 
-  if (locator.empty()) {
-    return false;
-  }
+  if (locator.empty()) { return false; }
 
   mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
   return hash.get(key, value);
@@ -60,15 +54,10 @@ Storage::GetFstConfigValue(const std::string& key, std::string& value) const
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
 //------------------------------------------------------------------------------
-bool
-Storage::GetFstConfigValue(const std::string& key,
-                           unsigned long long& value) const
-{
+bool Storage::GetFstConfigValue(const std::string& key, unsigned long long& value) const {
   std::string strVal;
 
-  if (!GetFstConfigValue(key, strVal)) {
-    return false;
-  }
+  if (!GetFstConfigValue(key, strVal)) { return false; }
 
   value = atoi(strVal.c_str());
   return true;
@@ -77,62 +66,49 @@ Storage::GetFstConfigValue(const std::string& key,
 //------------------------------------------------------------------------------
 // Unregister file system given a queue path
 //------------------------------------------------------------------------------
-void
-Storage::UnregisterFileSystem(const std::string& queuepath)
-{
+void Storage::UnregisterFileSystem(const std::string& queuepath) {
   while (mFsMutex.TryLockWrite() != 0) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
-  auto it = std::find_if(mFsVect.begin(), mFsVect.end(), [&](FileSystem * fs) {
-    return (fs->GetQueuePath() == queuepath);
-  });
+  auto it =
+      std::find_if(mFsVect.begin(), mFsVect.end(), [&](FileSystem* fs) { return (fs->GetQueuePath() == queuepath); });
 
   if (it == mFsVect.end()) {
-    eos_static_warning("msg=\"file system is already removed\" qpath=%s",
-                       queuepath.c_str());
+    eos_static_warning("msg=\"file system is already removed\" qpath=%s", queuepath.c_str());
     mFsMutex.UnLockWrite();
     return;
   }
 
   auto fs = *it;
   mFsVect.erase(it);
-  auto it_map = std::find_if(mFsMap.begin(),
-  mFsMap.end(), [&](const auto & pair) {
-    return (pair.second->GetQueuePath() == queuepath);
-  });
+  auto it_map = std::find_if(mFsMap.begin(), mFsMap.end(),
+                             [&](const auto& pair) { return (pair.second->GetQueuePath() == queuepath); });
 
   if (it_map == mFsMap.end()) {
-    eos_static_warning("msg=\"file system missing from map\" qpath=%s",
-                       queuepath.c_str());
+    eos_static_warning("msg=\"file system missing from map\" qpath=%s", queuepath.c_str());
   } else {
     mFsMap.erase(it_map);
   }
 
   mFsMutex.UnLockWrite();
-  eos_static_info("msg=\"deleting file system\" qpath=%s",
-                  fs->GetQueuePath().c_str());
+  eos_static_info("msg=\"deleting file system\" qpath=%s", fs->GetQueuePath().c_str());
   delete fs;
 }
 
 //------------------------------------------------------------------------------
 // Register file system
 //------------------------------------------------------------------------------
-Storage::FsRegisterStatus
-Storage::RegisterFileSystem(const std::string& queuepath)
-{
+Storage::FsRegisterStatus Storage::RegisterFileSystem(const std::string& queuepath) {
   while (mFsMutex.TryLockWrite() != 0) {
     std::this_thread::sleep_for(std::chrono::milliseconds(10));
   }
 
-  auto it = std::find_if(mFsVect.begin(), mFsVect.end(),
-  [&](FileSystem * fs) {
-    return (fs->GetQueuePath() == queuepath);
-  });
+  auto it =
+      std::find_if(mFsVect.begin(), mFsVect.end(), [&](FileSystem* fs) { return (fs->GetQueuePath() == queuepath); });
 
   if (it != mFsVect.end()) {
-    eos_static_warning("msg=\"file system is already registered\" qpath=%s",
-                       queuepath.c_str());
+    eos_static_warning("msg=\"file system is already registered\" qpath=%s", queuepath.c_str());
     mFsMutex.UnLockWrite();
     return FsRegisterStatus::kNoAction;
   }
@@ -140,8 +116,7 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   common::FileSystemLocator locator;
 
   if (!common::FileSystemLocator::fromQueuePath(queuepath, locator)) {
-    eos_static_crit("msg=\"failed to parse locator\" qpath=%s",
-                    queuepath.c_str());
+    eos_static_crit("msg=\"failed to parse locator\" qpath=%s", queuepath.c_str());
     mFsMutex.UnLockWrite();
     return FsRegisterStatus::kNoAction;
   }
@@ -151,29 +126,25 @@ Storage::RegisterFileSystem(const std::string& queuepath)
   fs->SetLocalUuid();
   mFsVect.push_back(fs);
   eos_static_info("msg=\"attempt file system registration\" qpath=\"%s\" "
-                  "fsid=%u uuid=\"%s\"", queuepath.c_str(),
-                  fs->GetLocalId(), fs->GetLocalUuid().c_str());
+                  "fsid=%u uuid=\"%s\"",
+                  queuepath.c_str(), fs->GetLocalId(), fs->GetLocalUuid().c_str());
 
   if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
-    eos_static_info("msg=\"partially register file system\" qpath=\"%s\"",
-                    queuepath.c_str());
+    eos_static_info("msg=\"partially register file system\" qpath=\"%s\"", queuepath.c_str());
     mFsMutex.UnLockWrite();
     return FsRegisterStatus::kPartial;
   }
 
   if (mFsMap.find(fs->GetLocalId()) != mFsMap.end()) {
     eos_static_crit("msg=\"trying to register an already existing file system\" "
-                    "fsid=%u uuid=\"%s\"", fs->GetLocalId(),
-                    fs->GetLocalUuid().c_str());
+                    "fsid=%u uuid=\"%s\"",
+                    fs->GetLocalId(), fs->GetLocalUuid().c_str());
     std::abort();
   }
 
   mFsMap[fs->GetLocalId()] = fs;
 
-  if (gConfig.autoBoot &&
-      (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) {
-    RunBootThread(fs, "");
-  }
+  if (gConfig.autoBoot && (fs->GetConfigStatus() > eos::common::ConfigStatus::kOff)) { RunBootThread(fs, ""); }
 
   mFsMutex.UnLockWrite();
   return FsRegisterStatus::kRegistered;
@@ -182,41 +153,42 @@ Storage::RegisterFileSystem(const std::string& queuepath)
 //------------------------------------------------------------------------------
 // Manage scaler for IoAggregateMap
 //------------------------------------------------------------------------------
-void Storage::ScalerCmd(const std::string &data){
-	google::protobuf::util::JsonParseOptions option;
-	Shaping::Scaler scaler;
+void Storage::ScalerCmd(const std::string& data) {
+  google::protobuf::util::JsonParseOptions option;
+  Shaping::Scaler scaler;
 
-	auto absel = google::protobuf::json::JsonStringToMessage(data, &scaler, option);
-	if (!absel.ok()){
-	  eos_static_err("msg=\"Failed to convert scaler value to variable\"");
-	} else{
-		for (auto it : mScaler.windows()){
-			if (std::find(scaler.windows().begin(), scaler.windows().end(), it) == scaler.windows().end())
-				gOFS.ioMap.rm(it);
-		}
-		for (auto it : scaler.windows()){
-			if (std::find(mScaler.windows().begin(), mScaler.windows().end(), it) == mScaler.windows().end())
-				gOFS.ioMap.addWindow(it);
-		}
-		mScaler = scaler;
-	}
+  auto absel = google::protobuf::json::JsonStringToMessage(data, &scaler, option);
+  if (!absel.ok()) {
+    eos_static_err("msg=\"Failed to convert scaler value to variable\"");
+  } else {
+    for (auto it : mScaler.windows()) {
+      if (std::find(scaler.windows().begin(), scaler.windows().end(), it) == scaler.windows().end()) {
+        gOFS.ioMap.rm(it);
+      }
+    }
+    for (auto it : scaler.windows()) {
+      if (std::find(mScaler.windows().begin(), mScaler.windows().end(), it) == mScaler.windows().end()) {
+        gOFS.ioMap.addWindow(it);
+      }
+    }
+    mScaler = scaler;
+  }
 }
 
 //------------------------------------------------------------------------------
 // Process incoming configuration change
 //------------------------------------------------------------------------------
-void
-Storage::ProcessFstConfigChange(const std::string& key,
-                                const std::string& value)
-{
+void Storage::ProcessFstConfigChange(const std::string& key, const std::string& value) {
   static std::string last_refresh_ts;
   eos_static_debug("msg=\"FST node configuration change\" key=\"%s\" "
-                  "value=\"%s\"", key.c_str(), value.c_str());
+                   "value=\"%s\"",
+                   key.c_str(), value.c_str());
 
   // if key not in list, warning and return
   if (sNodeUpdateKeys.find(key) == sNodeUpdateKeys.end()) {
     eos_static_warning("msg=\"unhandled FST node configuration change due to invalid key\" "
-                       "key=\"%s\" value=\"%s\"", key.c_str(), value.c_str());
+                       "key=\"%s\" value=\"%s\"",
+                       key.c_str(), value.c_str());
     return;
   }
 
@@ -230,8 +202,7 @@ Storage::ProcessFstConfigChange(const std::string& key,
       SignalRegisterThread();
     }
   } else if (key == "manager") {
-    eos_static_info("msg=\"manager changed\" new_manager=\"%s\"",
-                    value.c_str());
+    eos_static_info("msg=\"manager changed\" new_manager=\"%s\"", value.c_str());
     XrdSysMutexHelper lock(gConfig.Mutex);
     gConfig.Manager = value.c_str();
   } else if (key == "symkey") {
@@ -243,16 +214,14 @@ Storage::ProcessFstConfigChange(const std::string& key,
     try {
       gConfig.PublishInterval = std::stoi(value);
     } catch (const std::exception& e) {
-      eos_static_warning("msg=\"invalid PublishInterval value\" value=\"%s\" error=\"%s\"",
-                         value.c_str(), e.what());
+      eos_static_warning("msg=\"invalid PublishInterval value\" value=\"%s\" error=\"%s\"", value.c_str(), e.what());
     }
   } else if (key == "debug.level") {
     const std::string& debugLevel = value;
     eos_static_info("msg=\"debug level changed\" new_level=\"%s\"", debugLevel.c_str());
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
     if (const int debugValue = g_logging.GetPriorityByString(debugLevel.c_str()); debugValue < 0) {
-      eos_static_err("msg=\"unknown debug level\" level=\"%s\"",
-                     debugLevel.c_str());
+      eos_static_err("msg=\"unknown debug level\" level=\"%s\"", debugLevel.c_str());
     } else {
       g_logging.SetLogPriority(debugValue);
     }
@@ -264,9 +233,9 @@ Storage::ProcessFstConfigChange(const std::string& key,
     mComputeStripeChecksum = (value == "on");
     eos_static_info("msg=\"stripe checksum calculation changed\" new_value=\"%s\" mComputeStripeChecksum=%s",
                     value.c_str(), mComputeStripeChecksum ? "enabled" : "disabled");
-  } else if (key == "stat.scaler.xyz"){
+  } else if (key == "stat.scaler.xyz") {
     eos_static_debug("msg=\"stat.scaler.xyz changed\" new_value=\"%s\"", value.c_str());
-	  ScalerCmd(value);
+    ScalerCmd(value);
   } else {
     eos_static_err("msg=\"unhandled FST node configuration change because "
                    "of missing implementation\" key=\"%s\" value=\"%s\". "
@@ -278,10 +247,7 @@ Storage::ProcessFstConfigChange(const std::string& key,
 //------------------------------------------------------------------------------
 // Process incoming filesystem-level configuration change
 //------------------------------------------------------------------------------
-void
-Storage::ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key,
-                               const std::string& value)
-{
+void Storage::ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key, const std::string& value) {
   if ((key == "id") || (key == "uuid") || (key == "bootsenttime")) {
     RunBootThread(fs, key);
   } else {
@@ -292,14 +258,10 @@ Storage::ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key,
 //------------------------------------------------------------------------------
 // Process incoming filesystem-level configuration change
 //------------------------------------------------------------------------------
-void
-Storage::ProcessFsConfigChange(const std::string& queuepath,
-                               const std::string& key)
-{
+void Storage::ProcessFsConfigChange(const std::string& queuepath, const std::string& key) {
   eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
-  auto it = std::find_if(mFsMap.begin(), mFsMap.end(), [&](const auto & pair) {
-    return (pair.second->GetQueuePath() == queuepath);
-  });
+  auto it = std::find_if(mFsMap.begin(), mFsMap.end(),
+                         [&](const auto& pair) { return (pair.second->GetQueuePath() == queuepath); });
 
   if (it == mFsMap.end()) {
     // If file system does not exist in the map and this an "id" info then
@@ -314,14 +276,12 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       }
 
       auto itv = std::find_if(mFsVect.begin(), mFsVect.end(),
-      [&](fst::FileSystem * fs) {
-        return (fs->GetQueuePath() == queuepath);
-      });
+                              [&](fst::FileSystem* fs) { return (fs->GetQueuePath() == queuepath); });
 
       if (itv == mFsVect.end()) {
         eos_static_err("msg=\"no file system for id modification\" "
-                       "qpath=\"%s\" key=\"%s\"", queuepath.c_str(),
-                       key.c_str());
+                       "qpath=\"%s\" key=\"%s\"",
+                       queuepath.c_str(), key.c_str());
         mFsMutex.UnLockWrite();
         return;
       }
@@ -330,12 +290,11 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       fs->SetLocalId();
       fs->SetLocalUuid();
       eos_static_info("msg=\"attempt file system registration\" qpath=\"%s\" "
-                      "fsid=%u uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
-                      fs->GetLocalUuid().c_str());
+                      "fsid=%u uuid=\"%s\"",
+                      queuepath.c_str(), fs->GetLocalId(), fs->GetLocalUuid().c_str());
 
       if ((fs->GetLocalId() == 0ul) || fs->GetLocalUuid().empty()) {
-        eos_static_info("msg=\"defer file system registration\" qpath=\"%s\"",
-                        queuepath.c_str());
+        eos_static_info("msg=\"defer file system registration\" qpath=\"%s\"", queuepath.c_str());
         mFsMutex.UnLockWrite();
         return;
       }
@@ -343,28 +302,27 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
       eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
       it = mFsMap.emplace(fsid, fs).first;
       eos_static_info("msg=\"fully register file system\" qpath=%s fsid=%u "
-                      "uuid=\"%s\"", queuepath.c_str(), fs->GetLocalId(),
-                      fs->GetLocalUuid().c_str());
+                      "uuid=\"%s\"",
+                      queuepath.c_str(), fs->GetLocalId(), fs->GetLocalUuid().c_str());
       // Switch back to read lock and update the iterator
       mFsMutex.UnLockWrite();
       fs_rd_lock.Grab(mFsMutex);
       it = mFsMap.find(fsid);
     } else {
       eos_static_err("msg=\"no file system for modification\" qpath=\"%s\" "
-                     "key=\"%s\"", queuepath.c_str(), key.c_str());
+                     "key=\"%s\"",
+                     queuepath.c_str(), key.c_str());
       return;
     }
   }
 
-  eos_static_info("msg=\"process modification\" qpath=\"%s\" key=\"%s\"",
-                  queuepath.c_str(), key.c_str());
+  eos_static_info("msg=\"process modification\" qpath=\"%s\" key=\"%s\"", queuepath.c_str(), key.c_str());
   fst::FileSystem* fs = it->second;
   mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), fs->getHashLocator());
   std::string value;
 
   if (!hash.get(key, value)) {
-    eos_static_err("msg=\"no such key in hash\" qpath=\"%s\" key=\"%s\"",
-                   queuepath.c_str(), key.c_str());
+    eos_static_err("msg=\"no such key in hash\" qpath=\"%s\" key=\"%s\"", queuepath.c_str(), key.c_str());
     return;
   }
 
@@ -374,10 +332,8 @@ Storage::ProcessFsConfigChange(const std::string& queuepath,
 //------------------------------------------------------------------------------
 // Extract filesystem path from QDB hash key - helper function
 //------------------------------------------------------------------------------
-static std::string ExtractFsPath(const std::string& key)
-{
-  std::vector<std::string> parts =
-    common::StringTokenizer::split<std::vector<std::string>>(key, '|');
+static std::string ExtractFsPath(const std::string& key) {
+  std::vector<std::string> parts = common::StringTokenizer::split<std::vector<std::string>>(key, '|');
   return parts[parts.size() - 1];
 }
 
@@ -385,9 +341,7 @@ static std::string ExtractFsPath(const std::string& key)
 // Handle FS configuration updates in a separate thread to avoid deadlocks
 // in the QClient callback mechanism.
 //------------------------------------------------------------------------------
-void
-Storage::FsConfigUpdate(ThreadAssistant& assistant) noexcept
-{
+void Storage::FsConfigUpdate(ThreadAssistant& assistant) noexcept {
   eos_static_info("%s", "msg=\"starting fs config update thread\"");
   FsCfgUpdate upd;
 
@@ -395,22 +349,16 @@ Storage::FsConfigUpdate(ThreadAssistant& assistant) noexcept
     mFsUpdQueue.wait_pop(upd);
 
     // If sentinel object then exit
-    if ((upd.fsid == 0) &&
-        (upd.key == "ACTION") &&
-        (upd.value == "EXIT")) {
+    if ((upd.fsid == 0) && (upd.key == "ACTION") && (upd.value == "EXIT")) {
       eos_static_notice("%s", "msg=\"fs config update thread got a "
-                        "sentinel object exiting\"");
+                              "sentinel object exiting\"");
       break;
     }
 
-    if ((upd.key == eos::common::SCAN_IO_RATE_NAME) ||
-        (upd.key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
-        (upd.key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) ||
-        (upd.key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
-        (upd.key == eos::common::SCAN_NS_INTERVAL_NAME) ||
-        (upd.key == eos::common::SCAN_NS_RATE_NAME) ||
-        (upd.key == eos::common::SCAN_ALTXS_INTERVAL_NAME) ||
-        (upd.key == eos::common::ALTXS_SYNC) ||
+    if ((upd.key == eos::common::SCAN_IO_RATE_NAME) || (upd.key == eos::common::SCAN_ENTRY_INTERVAL_NAME) ||
+        (upd.key == eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME) || (upd.key == eos::common::SCAN_DISK_INTERVAL_NAME) ||
+        (upd.key == eos::common::SCAN_NS_INTERVAL_NAME) || (upd.key == eos::common::SCAN_NS_RATE_NAME) ||
+        (upd.key == eos::common::SCAN_ALTXS_INTERVAL_NAME) || (upd.key == eos::common::ALTXS_SYNC) ||
         (upd.key == eos::common::ALTXS_SYNC_INTERVAL)) {
       try {
         long long val = std::stoll(upd.value);
@@ -419,13 +367,10 @@ Storage::FsConfigUpdate(ThreadAssistant& assistant) noexcept
           eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
           auto it = mFsMap.find(upd.fsid);
 
-          if (it != mFsMap.end()) {
-            it->second->ConfigScanner(&mFstLoad, upd.key.c_str(), val);
-          }
+          if (it != mFsMap.end()) { it->second->ConfigScanner(&mFstLoad, upd.key.c_str(), val); }
         }
       } catch (...) {
-        eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"",
-                       upd.key.c_str(), upd.value.c_str());
+        eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"", upd.key.c_str(), upd.value.c_str());
       }
     }
   }
@@ -438,8 +383,7 @@ Storage::FsConfigUpdate(ThreadAssistant& assistant) noexcept
 // update is done in a separate thread handling the trigger event otherwise
 // we deadlock in the QClient code.
 //------------------------------------------------------------------------------
-void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
-{
+void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept {
   eos_static_info("%s", "msg=\"starting register file system thread\"");
 
   while (!assistant.terminationRequested()) {
@@ -448,7 +392,7 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
       // which is called from the QClient event loop with other QClient requests
       // like the QScanner listing below - this will lead to a deadlock!!!
       std::unique_lock lock(mMutexRegisterFs);
-      mCvRegisterFs.wait(lock, [&] {return mTriggerRegisterFs;});
+      mCvRegisterFs.wait(lock, [&] { return mTriggerRegisterFs; });
       eos_static_info("%s", "msg=\"update registered file systems\"");
       mTriggerRegisterFs = false;
     }
@@ -457,8 +401,7 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
     std::set<std::string> new_filesystems;
 
     for (; scanner.valid(); scanner.next()) {
-      std::string queuePath = SSTR("/eos/" << gConfig.FstHostPort <<
-                                   "/fst" <<  ExtractFsPath(scanner.getValue()));
+      std::string queuePath = SSTR("/eos/" << gConfig.FstHostPort << "/fst" << ExtractFsPath(scanner.getValue()));
       new_filesystems.insert(queuePath);
     }
 
@@ -467,18 +410,14 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
 
     for (auto it = new_filesystems.begin(); it != new_filesystems.end(); ++it) {
       if (mLastRoundFilesystems.find(*it) == mLastRoundFilesystems.end()) {
-        if (RegisterFileSystem(*it) == FsRegisterStatus::kPartial) {
-          partial_filesystems.insert(*it);
-        }
+        if (RegisterFileSystem(*it) == FsRegisterStatus::kPartial) { partial_filesystems.insert(*it); }
       }
     }
 
     // Filesystems removed?
-    for (auto it = mLastRoundFilesystems.begin();
-         it != mLastRoundFilesystems.end(); ++it) {
+    for (auto it = mLastRoundFilesystems.begin(); it != mLastRoundFilesystems.end(); ++it) {
       if (new_filesystems.find(*it) == new_filesystems.end()) {
-        eos_static_info("msg=\"unregister file system\" queuepath=\"%s\"",
-                        it->c_str());
+        eos_static_info("msg=\"unregister file system\" queuepath=\"%s\"", it->c_str());
         UnregisterFileSystem(*it);
       }
     }
@@ -493,12 +432,12 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
 
       for (const auto& elem : partial_filesystems) {
         UnregisterFileSystem(elem);
-        auto it_del  = new_filesystems.find(elem);
+        auto it_del = new_filesystems.find(elem);
         new_filesystems.erase(it_del);
       }
 
       eos_static_info("%s", "msg=\"re-trigger file system registration "
-                      "in 5 seconds\"");
+                            "in 5 seconds\"");
       assistant.wait_for(std::chrono::seconds(5));
     }
 
@@ -512,29 +451,21 @@ void Storage::UpdateRegisteredFs(ThreadAssistant& assistant) noexcept
 // FST node update callback - this is triggered whenever the underlying
 // qclient::SharedHash corresponding to the node is modified.
 //------------------------------------------------------------------------------
-void
-Storage::NodeUpdateCb(qclient::SharedHashUpdate&& upd)
-{
-  if (sNodeUpdateKeys.find(upd.key) != sNodeUpdateKeys.end()) {
-    ProcessFstConfigChange(upd.key, upd.value);
-  }
+void Storage::NodeUpdateCb(qclient::SharedHashUpdate&& upd) {
+  if (sNodeUpdateKeys.find(upd.key) != sNodeUpdateKeys.end()) { ProcessFstConfigChange(upd.key, upd.value); }
 }
 
 //------------------------------------------------------------------------------
 // QdbCommunicator
 //------------------------------------------------------------------------------
-void
-Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept
-{
+void Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept {
   using namespace std::placeholders;
   eos_static_info("%s", "msg=\"starting QDB communicator thread\"");
   // Process initial FST configuration ... discover instance name
   std::string instance_name;
 
   for (size_t i = 0; i < 10; i++) {
-    if (gOFS.mMessagingRealm->getInstanceName(instance_name)) {
-      break;
-    }
+    if (gOFS.mMessagingRealm->getInstanceName(instance_name)) { break; }
 
     std::this_thread::sleep_for(std::chrono::seconds(1));
   }
@@ -544,20 +475,15 @@ Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept
     exit(1);
   }
 
-  std::string cfg_queue = SSTR("/config/" << instance_name << "/node/" <<
-                               gConfig.FstHostPort);
+  std::string cfg_queue = SSTR("/config/" << instance_name << "/node/" << gConfig.FstHostPort);
   gConfig.setFstNodeConfigQueue(cfg_queue);
   // Discover node-specific configuration
-  mq::SharedHashWrapper node_hash(gOFS.mMessagingRealm.get(),
-                                  gConfig.getNodeHashLocator(),
-                                  false, false);
+  mq::SharedHashWrapper node_hash(gOFS.mMessagingRealm.get(), gConfig.getNodeHashLocator(), false, false);
   // Discover MGM name
   std::string mgm_host;
 
   for (size_t i = 0; i < 10; i++) {
-    if (node_hash.get("manager", mgm_host)) {
-      break;
-    }
+    if (node_hash.get("manager", mgm_host)) { break; }
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
   }
@@ -573,18 +499,14 @@ Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept
   for (const auto& node_key : sNodeUpdateKeys) {
     std::string value;
 
-    if (node_hash.get(node_key, value)) {
-      ProcessFstConfigChange(node_key, value);
-    }
+    if (node_hash.get(node_key, value)) { ProcessFstConfigChange(node_key, value); }
   }
 
   // One-off collect all configured file systems for this node
   SignalRegisterThread();
   // Attach callback for node configuration updates
-  std::unique_ptr<qclient::SharedHashSubscription>
-  node_subscription = node_hash.subscribe();
-  node_subscription->attachCallback(std::bind(&Storage::NodeUpdateCb,
-                                    this, _1));
+  std::unique_ptr<qclient::SharedHashSubscription> node_subscription = node_hash.subscribe();
+  node_subscription->attachCallback(std::bind(&Storage::NodeUpdateCb, this, _1));
 
   // Broadcast FST node hearbeat
   while (!assistant.terminationRequested()) {
@@ -594,17 +516,14 @@ Storage::QdbCommunicator(ThreadAssistant& assistant) noexcept
 
   node_subscription->detachCallback();
   node_subscription.reset(nullptr);
-  mq::SharedHashWrapper::deleteHash(gOFS.mMessagingRealm.get(),
-                                    gConfig.getNodeHashLocator(), false);
+  mq::SharedHashWrapper::deleteHash(gOFS.mMessagingRealm.get(), gConfig.getNodeHashLocator(), false);
   eos_static_info("%s", "msg=\"stopped QDB communicator thread\"");
 }
 
 //------------------------------------------------------------------------------
 // Signal the thread responsible with registered file systems
 //------------------------------------------------------------------------------
-void
-Storage::SignalRegisterThread()
-{
+void Storage::SignalRegisterThread() {
   {
     std::unique_lock lock(mMutexRegisterFs);
     mTriggerRegisterFs = true;

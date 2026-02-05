@@ -32,6 +32,7 @@
 #define __EOSCOMMON__LINUXSTAT__HH
 
 #include "common/Namespace.hh"
+#include <cstdio>
 #include <sys/param.h>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -42,8 +43,7 @@ EOSCOMMONNAMESPACE_BEGIN
 //! Example: linux_stat_t st; GetStat(st);
 //!
 /*----------------------------------------------------------------------------*/
-class LinuxStat
-{
+class LinuxStat {
 public:
   typedef struct {
     // TODO! in 2.6. kernels we see 3 more entries (unknown for the meanwhile)
@@ -95,20 +95,17 @@ public:
 
   } linux_stat_t;
 
-  static bool GetStat(linux_stat_t& result)
-  {
+  static bool GetStat(linux_stat_t& result) {
     const char* stat_path = "/proc/self/stat";
     result.tcomm[0] = 0;
     result.state = 0;
-    result.pid = result.ppid = result.pgid = result.sid = result.tty_nr =
-                                 result.tty_pgrp = result.flags = result.min_flt = result.cmin_flt =
-                                       result.maj_flt = result.cmaj_flt = result.utime = result.stime = result.cutime =
-                                           result.cstime = result.priority = result.nicev = result.threads =
-                                               result.it_real_value = result.start_time = result.vsize = result.rss =
-                                                   result.rsslim = result.start_code = result.end_code = result.start_stack =
-                                                       result.esp = result.eip = result.pending = result.blocked = result.sigign =
-                                                           result.sigcatch = result.wchan = result.zero1 = result.zero2 =
-                                                               result.exit_signal = result.cpu = result.rt_priority = result.policy = 0;
+    result.pid = result.ppid = result.pgid = result.sid = result.tty_nr = result.tty_pgrp = result.flags =
+        result.min_flt = result.cmin_flt = result.maj_flt = result.cmaj_flt = result.utime = result.stime =
+            result.cutime = result.cstime = result.priority = result.nicev = result.threads = result.it_real_value =
+                result.start_time = result.vsize = result.rss = result.rsslim = result.start_code = result.end_code =
+                    result.start_stack = result.esp = result.eip = result.pending = result.blocked = result.sigign =
+                        result.sigcatch = result.wchan = result.zero1 = result.zero2 = result.exit_signal = result.cpu =
+                            result.rt_priority = result.policy = 0;
     FILE* f = fopen(stat_path, "r");
 
     if (!f) {
@@ -116,19 +113,19 @@ public:
       return false;
     }
 
-    if (41 != fscanf(f, "%lld %s %c %lld %lld %lld %lld %lld %lld %lld %lld "
+    if (41 != fscanf(f,
+                     "%lld %s %c %lld %lld %lld %lld %lld %lld %lld %lld "
                      "%lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld "
                      "%lld %lld %lld %lld %lld %lld %lld %lld %lld %lld %lld "
                      "%lld %lld %lld %lld %lld %lld %lld %lld\n",
-                     &result.pid, result.tcomm, &result.state, &result.ppid, &result.pgid,
-                     &result.sid, &result.tty_nr, &result.tty_pgrp, &result.flags, &result.min_flt,
-                     &result.cmin_flt, &result.maj_flt, &result.cmaj_flt, &result.utime,
-                     &result.stime, &result.cutime, &result.cstime, &result.priority, &result.nicev,
-                     &result.threads, &result.it_real_value, &result.start_time, &result.vsize,
-                     &result.rss, &result.rsslim, &result.start_code, &result.end_code,
-                     &result.start_stack, &result.esp, &result.eip, &result.pending, &result.blocked,
-                     &result.sigign, &result.sigcatch, &result.wchan, &result.zero1, &result.zero2,
-                     &result.exit_signal, &result.cpu, &result.rt_priority, &result.policy)) {
+                     &result.pid, result.tcomm, &result.state, &result.ppid, &result.pgid, &result.sid, &result.tty_nr,
+                     &result.tty_pgrp, &result.flags, &result.min_flt, &result.cmin_flt, &result.maj_flt,
+                     &result.cmaj_flt, &result.utime, &result.stime, &result.cutime, &result.cstime, &result.priority,
+                     &result.nicev, &result.threads, &result.it_real_value, &result.start_time, &result.vsize,
+                     &result.rss, &result.rsslim, &result.start_code, &result.end_code, &result.start_stack,
+                     &result.esp, &result.eip, &result.pending, &result.blocked, &result.sigign, &result.sigcatch,
+                     &result.wchan, &result.zero1, &result.zero2, &result.exit_signal, &result.cpu, &result.rt_priority,
+                     &result.policy)) {
       perror(stat_path);
       fclose(f);
       return false;
