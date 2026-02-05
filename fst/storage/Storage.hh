@@ -34,7 +34,7 @@
 #include <google/protobuf/util/json_util.h>
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "common/ioMonitor/proto/Shaping.pb.h"
+#include "proto/Shaping.pb.h"
 #include <atomic>
 #include <vector>
 #include <list>

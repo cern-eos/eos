@@ -93,8 +93,8 @@ IoShaping& IoShaping::operator=(const IoShaping& other) {
 //----------------------------------------------------------------------------
 /// Aggregates data from IoBuffer (aka the protobuf version of ioStatSummary)
 //----------------------------------------------------------------------------
-IoBuffer::summarys IoShaping::aggregateSummarys(std::vector<IoBuffer::summarys>& received) {
-  IoBuffer::summarys final;
+IoBuffer::Summaries IoShaping::aggregateSummarys(std::vector<IoBuffer::Summaries>& received) {
+  IoBuffer::Summaries final;
   std::map<uint64_t, std::map<std::string, std::vector<IoStatSummary>>> apps;
   std::map<uint64_t, std::map<gid_t, std::vector<IoStatSummary>>> uids;
   std::map<uint64_t, std::map<uid_t, std::vector<IoStatSummary>>> gids;
@@ -120,7 +120,7 @@ IoBuffer::summarys IoShaping::aggregateSummarys(std::vector<IoBuffer::summarys>&
   }
 
   for (auto window : apps) {
-    IoBuffer::data data;
+    IoBuffer::Data data;
     if (!final.aggregated().contains(window.first)) {
       auto mutableApps = data.mutable_apps();
       for (auto appName : window.second) {
@@ -145,7 +145,7 @@ IoBuffer::summarys IoShaping::aggregateSummarys(std::vector<IoBuffer::summarys>&
     }
   }
   for (auto window : uids) {
-    IoBuffer::data data;
+    IoBuffer::Data data;
     if (!final.aggregated().contains(window.first)) {
       auto mutableUids = data.mutable_uids();
       for (auto uidName : window.second) {
@@ -170,7 +170,7 @@ IoBuffer::summarys IoShaping::aggregateSummarys(std::vector<IoBuffer::summarys>&
     }
   }
   for (auto window : gids) {
-    IoBuffer::data data;
+    IoBuffer::Data data;
     if (!final.aggregated().contains(window.first)) {
       auto mutableGids = data.mutable_gids();
       for (auto gidName : window.second) {
@@ -214,8 +214,8 @@ void IoShaping::receive(ThreadAssistant& assistant) noexcept {
     std::lock_guard lock(_mSyncThread);
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
 
-    std::vector<IoBuffer::summarys> sums;
-    IoBuffer::summarys received;
+    std::vector<IoBuffer::Summaries> sums;
+    IoBuffer::Summaries received;
 
     for (const auto& [fst, snd] : FsView::gFsView.mNodeView) {
       if (snd->GetStatus() == "online") {
@@ -501,7 +501,7 @@ void IoShaping::setReceivingTime(const size_t time) {
 //----------------------------------------------------------------------------
 /// Get _shaping variable
 //----------------------------------------------------------------------------
-IoBuffer::summarys IoShaping::getShaping() const {
+IoBuffer::Summaries IoShaping::getShaping() const {
   std::lock_guard lock(_mSyncThread);
   return _shapings;
 }

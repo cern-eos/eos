@@ -267,10 +267,10 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::Repl
 //----------------------------------------------------------------------------
 //! Find the number of the '-' char to display
 //----------------------------------------------------------------------------
-static size_t findSize(IoBuffer::summarys& sums, size_t winTime) {
+static size_t findSize(IoBuffer::Summaries& sums, size_t winTime) {
   size_t size = 0;
 
-  IoBuffer::data data(sums.aggregated().at(winTime));
+  IoBuffer::Data data(sums.aggregated().at(winTime));
   for (auto app : data.apps()) {
     if (app.first.length() > size) { size = app.first.length(); }
   }
@@ -361,7 +361,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn, eos::console
   bool printStd = false;
   bool printSize = false;
 
-  IoBuffer::summarys sums(gOFS->mIoShaper.getShaping());
+  IoBuffer::Summaries sums(gOFS->mIoShaper.getShaping());
   size_t winTime = !sums.aggregated().empty() ? std::min_element(sums.aggregated().begin(), sums.aggregated().end(),
                                                                  [](auto& a, auto& b) { return a.first < b.first; })
                                                     ->first
@@ -458,7 +458,7 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn, eos::console
   }
   std_out << '\n' << std::setprecision(3) << std::fixed;
 
-  IoBuffer::data data(sums.aggregated().at(winTime));
+  IoBuffer::Data data(sums.aggregated().at(winTime));
   Shaping::Scaler scaler(gOFS->mIoShaper.getScaler());
 
   if (jsonOutput) {
