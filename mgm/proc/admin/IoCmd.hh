@@ -23,17 +23,16 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "proto/Io.pb.h"
 #include "mgm/proc/ProcCommand.hh"
-#include "ioMonitor/proto/IoBuffer.pb.h"
+#include "proto/Io.pb.h"
+#include "proto/IoBuffer.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
 //! Class IoCmd - class handling io commands
 //------------------------------------------------------------------------------
-class IoCmd: public IProcCommand
-{
+class IoCmd : public IProcCommand {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
@@ -41,10 +40,8 @@ public:
   //! @param req client ProtocolBuffer request
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
-  explicit IoCmd(eos::console::RequestProto&& req,
-                 eos::common::VirtualIdentity& vid):
-    IProcCommand(std::move(req), vid, false)
-  {}
+  explicit IoCmd(eos::console::RequestProto&& req, eos::common::VirtualIdentity& vid)
+      : IProcCommand(std::move(req), vid, false) {}
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -64,8 +61,7 @@ private:
   //! @param stat stat subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void StatSubcmd(const eos::console::IoProto_StatProto& stat,
-                  eos::console::ReplyProto& reply);
+  void StatSubcmd(const eos::console::IoProto_StatProto& stat, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute enable subcommand
@@ -73,8 +69,7 @@ private:
   //! @param enable enable subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  static void EnableSubcmd(const eos::console::IoProto_EnableProto& enable,
-                    eos::console::ReplyProto& reply);
+  static void EnableSubcmd(const eos::console::IoProto_EnableProto& enable, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute report subcommand
@@ -82,8 +77,7 @@ private:
   //! @param report report subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void ReportSubcmd(const eos::console::IoProto_ReportProto& report,
-                    eos::console::ReplyProto& reply);
+  void ReportSubcmd(const eos::console::IoProto_ReportProto& report, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Execute ns subcommand
@@ -91,8 +85,7 @@ private:
   //! @param ns ns subcommand proto object
   //! @param reply reply proto object
   //----------------------------------------------------------------------------
-  void NsSubcmd(const eos::console::IoProto_NsProto& ns,
-                eos::console::ReplyProto& reply);
+  void NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Manage monitor subcommand to manage all the comands of io monitor
@@ -100,8 +93,7 @@ private:
   //! @param ms ms subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorSubcmd(const eos::console::IoProto_MonitorProto& ms,
-                eos::console::ReplyProto& reply);
+  void MonitorSubcmd(const eos::console::IoProto_MonitorProto& ms, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Monitor command to display the bandwidth
@@ -109,9 +101,7 @@ private:
   //! @param mn mn subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorLs(const eos::console::IoProto_MonitorProto& mn,
-                     eos::console::ReplyProto& reply);
-
+  void MonitorLs(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Monitor command to set the limits
@@ -119,8 +109,7 @@ private:
   //! @param mn mn subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorSet(const eos::console::IoProto_MonitorProto& mn,
-                     eos::console::ReplyProto& reply);
+  void MonitorSet(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Monitor command to display the limits
@@ -128,7 +117,7 @@ private:
   //! @param reply the reply of the mgm
   //! @param stringstream & the options of teh commands
   //----------------------------------------------------------------------------
-  void MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream &);
+  void MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream&);
 
   //----------------------------------------------------------------------------
   //! Monitor command to remove a limits
@@ -136,8 +125,7 @@ private:
   //! @param reply the reply of the mgm
   //! @param stringstream & the options of teh commands
   //----------------------------------------------------------------------------
-  void MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream &);
-
+  void MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream&);
 
   //----------------------------------------------------------------------------
   //! Monitor command to add a window
@@ -145,8 +133,7 @@ private:
   //! @param mn mn subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorAdd(const eos::console::IoProto_MonitorProto& mn,
-                     eos::console::ReplyProto& reply);
+  void MonitorAdd(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Monitor command to remove a window
@@ -154,8 +141,7 @@ private:
   //! @param mn mn subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorRm(const eos::console::IoProto_MonitorProto& mn,
-                     eos::console::ReplyProto& reply);
+  void MonitorRm(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END

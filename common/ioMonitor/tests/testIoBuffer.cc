@@ -25,7 +25,7 @@
 
 int testIoBuffer(){
   IoAggregateMap map;
-  IoBuffer::data proto;
+  IoBuffer::Data proto;
   std::vector<IoStatSummary> apps;
   std::vector<IoStatSummary> uids;
   std::vector<IoStatSummary> gids;
@@ -138,7 +138,7 @@ int testIoBuffer(){
     std::cout << "JSON:" << std::endl << output << std::endl;
   }
   {
-    IoBuffer::data back;
+    IoBuffer::Data back;
     google::protobuf::util::JsonParseOptions options;
     auto it = google::protobuf::util::JsonStringToMessage(output, &back, options);
     if (!it.ok())

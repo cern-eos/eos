@@ -169,7 +169,7 @@ static std::string GetEosVersion()
 //------------------------------------------------------------------------------
 static std::string getIoMap(){
   IoBuffer::Summary protoBuff;
-  IoBuffer::summarys finalBuffer;
+  IoBuffer::Summaries finalBuffer;
   std::string output = "0";
 
   std::optional<std::vector<size_t> > win(gOFS.ioMap.getAvailableWindows());
@@ -180,7 +180,7 @@ static std::string getIoMap(){
     std::vector<gid_t> gids(gOFS.ioMap.getGids(*winTime));
     std::vector<uid_t> uids(gOFS.ioMap.getUids(*winTime));
 	std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
-	IoBuffer::data winTimeSummarys;
+	IoBuffer::Data winTimeSummarys;
 
 	if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0)
 	  continue;
