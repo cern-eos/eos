@@ -24,8 +24,7 @@
 #include "ioMonitor/include/IoAggregateMap.hh"
 #include "mgm/fsview/FsView.hh"
 
-EOSMGMNAMESPACE_BEGIN
-
+namespace eos::mgm {
 //--------------------------------------------
 /// Main constructor
 //--------------------------------------------
@@ -34,10 +33,10 @@ IoShaping::IoShaping(const size_t time)
     , _mPublishing(false)
     , _mShaping(false)
     , _receivingTime(time) {
-  /// The windows send to the FST's by default
-  _scaler.add_windows(10);
-  _scaler.add_windows(60);
-  _scaler.add_windows(300);
+  // Add default time windows to the scaler (in seconds)
+  for (const auto window : {10, 60, 300, 1200}) {
+    _scaler.add_windows(window);
+  }
 }
 
 //--------------------------------------------
@@ -45,9 +44,7 @@ IoShaping::IoShaping(const size_t time)
 //--------------------------------------------
 IoShaping::~IoShaping() {
   if (_mShaping.load()) { _mShaping.store(false); }
-
   if (_mPublishing.load()) { _mPublishing.store(false); }
-
   if (_mReceiving.load()) { _mReceiving.store(false); }
 }
 
@@ -107,17 +104,17 @@ IoBuffer::summarys IoShaping::aggregateSummarys(std::vector<IoBuffer::summarys>&
     for (auto window = aggregate->begin(); window != aggregate->end(); window++) {
       auto mutableApps = window->second.mutable_apps();
       for (auto appMap = mutableApps->begin(); appMap != mutableApps->end(); appMap++) {
-        apps[window->first][appMap->first].push_back(IoStatSummary(appMap->second));
+        apps[window->first][appMap->first].emplace_back(appMap->second);
       }
 
       auto mutableUids = window->second.mutable_uids();
       for (auto uidMap = mutableUids->begin(); uidMap != mutableUids->end(); uidMap++) {
-        uids[window->first][uidMap->first].push_back(IoStatSummary(uidMap->second));
+        uids[window->first][uidMap->first].emplace_back(uidMap->second);
       }
 
       auto mutableGids = window->second.mutable_gids();
       for (auto gidMap = mutableGids->begin(); gidMap != mutableGids->end(); gidMap++) {
-        gids[window->first][gidMap->first].push_back(IoStatSummary(gidMap->second));
+        gids[window->first][gidMap->first].emplace_back(gidMap->second);
       }
     }
   }
@@ -589,5 +586,4 @@ bool IoShaping::rmGidsLimit() {
   _limiter.wGids.clear();
   return true;
 }
-
-EOSMGMNAMESPACE_END
+} // namespace eos::mgm
