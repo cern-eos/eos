@@ -19,13 +19,13 @@ EOS has two parts of configuration:
    **External** config file shared library location implementing a component and **static** configuration
                               - these files are typically once edited and during the lifetime of an instance very infrequently changed - a change of these files **always requires a service restart**!
 
-   **Internal**             configuration of filesystems, policies, mappings aso 
+   **Internal**             configuration of filesystems, policies, mappings aso
                               - these are stored using the EOS configuration engine inside EOS itself - any change is immediately active and **never requires a server restart**!
    ======================== ==================================================================================================
 
 There are two methods to store external configuration: the classical EOS4 and the newer EOS5 approach. The EOS5 configuration aims to make the configuration more transparent and simpler using variable substitution for hostnames aso.
 
-* EOS4/Classical configuration 
+* EOS4/Classical configuration
 * EOS5/New configuration
 
 **NOTE**
@@ -53,7 +53,7 @@ The classical configuration includes the following configuration files:
 
 
 You can find an example `sysconfig` file with explanation of configuration variables under `/etc/sysconfig/eos_env.example`
-The configuration files coming from an RPM installation have useful default settings. The main changes required in the static xrootd configuration files are concerning plug-ins (e.g. add HTTP(s) plug-ins) or authentication mechanisms and their logical ordering. Individual configuration settings are picked up in topical chapters. 
+The configuration files coming from an RPM installation have useful default settings. The main changes required in the static xrootd configuration files are concerning plug-ins (e.g. add HTTP(s) plug-ins) or authentication mechanisms and their logical ordering. Individual configuration settings are picked up in topical chapters.
 
 .. index::
    pair: Configuration; Systems - Classical
@@ -64,13 +64,13 @@ Classical `Systemd` Services
 The systemctl services for the four types of daemon are:
 
 .. code-block:: bash
-    
+
   systemctl start|stop|status xrootd@quarkdb
   systemctl start|stop|status eos@mq
   systemctl start|stop|status eos@mgm
   systemctl start|stop|status eos@fst
 
-The logical startup order justified by their dependencies should be: 
+The logical startup order justified by their dependencies should be:
 
 1. QDB
 2. MQ
@@ -85,7 +85,7 @@ Start `systemd` Services at Boot
 """""""""""""""""""""""""""""""""""
 To start EOS services when a machine boots one needs only to enable the corresponding `systemd` service:
 
-.. code-block:: bash 
+.. code-block:: bash
 
   systemctl enable xrootd@quarkdb
   systemctl enable eos@mq
@@ -101,16 +101,16 @@ Classical Service Logfiles
 .. epigraph::
 
    ========= ================================= ======
-   Service   Logfile Location                  Type 
+   Service   Logfile Location                  Type
    ========= ================================= ======
-   MGM       /var/log/eos/mgm                  EOS  
-   FST       /var/log/eos/fst                  EOS  
-   MQ        /var/log/eos/mq                   EOS  
-   QDB       /var/log/xrootd/quarkdb           QDB  
+   MGM       /var/log/eos/mgm                  EOS
+   FST       /var/log/eos/fst                  EOS
+   MQ        /var/log/eos/mq                   EOS
+   QDB       /var/log/xrootd/quarkdb           QDB
    ========= ================================= ======
 
 The EOS logfiles are usually called xrdlog.(service). In the MGM directory there are sublogfiles, which filter out log lines from the main logfile:
- 
+
  .. epigraph::
 
     ============================= ============================================================================
@@ -159,7 +159,7 @@ Configuration Files
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 The configuration files for the EOS5 service management are located under `/etc/eos/`
 
-.. code-block:: 
+.. code-block::
 
     [root@mgm root]# find /etc/eos/config/
     /etc/eos/config/
@@ -211,7 +211,7 @@ and daemon specific sections:
 
 
 .. code-block::
-    
+
     # ------------------------------------------------------------ #
     [fst:xrootd:fst]
     # ------------------------------------------------------------ #
@@ -313,7 +313,7 @@ The `sysconfig` section contains variable definitions e.g. `/etc/eos/config/gene
     SERVER_HOST=${EOSHOST}
     INSTANCE_NAME=eosdev
     GEO_TAG=local
-    
+
 
 The configuration file syntax allows, that they can work on several hosts without changing host names etc. In this example you see that when you want to reference the machine where you run this command, you just use the variable `${EOSHOST}`, so that you don't have to write myhost1.foo myhost2.foo depending on the machine name. This is also the place where you define the name of your instance.
 
@@ -322,7 +322,7 @@ Unshare Section
 The `unshare` section can be used to create a private mount namespace *inside* the environment of any XRootD process. This is useful if you want to mount a remote filesystem for FSTs, which are only visible to the FST process mount namespace, but to nobody else on the machine itself. A `df` as root will not show this external mount. You just write the needed `mount` command into the `init` section and it will be executed on daemon startup. It is possible also to encrypt commands in the `init` section, in case you have to use a mount key. To get an encrypted command for init sections you use:
 
 .. code-block:: bash
-        
+
     eos daemon seal "mount -t nfs ... /nfs/"
     enc:fmAWznYjTWqRGfeiDSpfQy3MzQpJOhVI
 
@@ -332,7 +332,7 @@ Service Management
 """""""""""""""""""""""""""""
 
 The `systemd` command set to start each single daemon manually on a node is:
-.. code-block:: 
+.. code-block::
 
     systemctl start eos5-qdb@qdb
     systemctl start eos5-mq@mq
@@ -359,12 +359,12 @@ EOS5 Service Logfiles
 .. epigraph::
 
    ========= ================================= ======
-   Service   Logfile Location                  Type 
+   Service   Logfile Location                  Type
    ========= ================================= ======
-   MGM       /var/log/eos/mgm                  EOS  
-   FST       /var/log/eos/fst                  EOS  
-   MQ        /var/log/eos/mq                   EOS  
-   QDB       /var/log/eos/qdb                  QDB  
+   MGM       /var/log/eos/mgm                  EOS
+   FST       /var/log/eos/fst                  EOS
+   MQ        /var/log/eos/mq                   EOS
+   QDB       /var/log/eos/qdb                  QDB
    ========= ================================= ======
 
 
@@ -402,14 +402,3 @@ The EOS logfiles are usually called xrdlog.(service). In the MGM directory there
     xrdlog.mgm                    : main log file with all log messages
     ZMQ.log                       : log information for the ZMQ server
     ============================= ============================================================================
-
-
-
-
-
-
-
-
-
- 
-
