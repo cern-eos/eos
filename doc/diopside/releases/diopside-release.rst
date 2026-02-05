@@ -16,6 +16,19 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.3.28 Diopside``
+====================
+
+2026-02-05
+
+Bug
+----
+
+* MGM: Fix handling of secondary groups that might be missing when an internal cache clean-up is done.
+* FUSE: Serialise fetching metadata of same inode. Fixes a race condition between listing/no-listing requests seen by JRC.
+
+
 ``v5.3.27 Diopside``
 ====================
 
