@@ -1242,5 +1242,5 @@ pre_commit:
     # Run pre-commit against all files starting from a given commit to HEAD
     # This is done to avoid issues with large diffs when running pre-commit on all files (blocks the CI for ~10 minutes)
     # When (if) the whole is formatted, we can remove the `--from-ref` and `--to-ref` options to always check all files
-    - pre-commit run --from-ref 5d8b1ed62b56e4399e8bfd7c38cda23914ae930c --to-ref HEAD --all-files
+    - pre-commit run --from-ref c45fecbb174ac70d1ec22753bd70323eea66ae1a --to-ref HEAD --all-files
   allow_failure: true
