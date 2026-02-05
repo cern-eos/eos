@@ -189,13 +189,13 @@ public:
   /// @brief Condenses a vector of IoStatSummary
   /// into a single one
   ///
-  /// @param summarys A vector of summary
+  /// @param summaries A vector of summary
   ///
   /// @return std::nullopt If an error is encountered
   /// or the summary is completely empty else
   /// a IoStatSummary
   //--------------------------------------------
-  static std::optional<IoStatSummary> summaryWeighted(const std::vector<IoStatSummary>& summarys, size_t winTime = 0);
+  static std::optional<IoStatSummary> summaryWeighted(const std::vector<IoStatSummary>& summaries, size_t winTime = 0);
 
   //--------------------------------------------
   /// Template
@@ -367,7 +367,7 @@ public:
   //--------------------------------------------
   template <typename T>
   std::optional<IoStatSummary> getSummary(const T index, size_t winTime) {
-    std::vector<IoStatSummary> summarys;
+    std::vector<IoStatSummary> summaries;
 
     if constexpr (io::IoAggregateDebug) { printInfo(std::cout, "get Summary for " + std::string(index)); }
 
@@ -378,12 +378,12 @@ public:
     /// Fill in the corresponding summary vector
     auto& it = _bins.at(_currentIndex);
     for (auto appsSumarrys : it.appStats) {
-      if (appsSumarrys.first == index) { summarys.emplace_back(appsSumarrys.second); }
+      if (appsSumarrys.first == index) { summaries.emplace_back(appsSumarrys.second); }
     }
 
     if constexpr (io::IoAggregateDebug) { printInfo(std::cout, "get Summary succeeded"); }
 
-    return summaryWeighted(summarys, winTime);
+    return summaryWeighted(summaries, winTime);
   }
 
   //--------------------------------------------
@@ -402,7 +402,7 @@ public:
   //--------------------------------------------
   template <typename T>
   std::optional<IoStatSummary> getSummary(io::TYPE type, const T index, size_t winTime) {
-    std::vector<IoStatSummary> summarys;
+    std::vector<IoStatSummary> summaries;
 
     if constexpr (io::IoAggregateDebug) { printInfo(std::cout, "get Summary for " + std::to_string(index)); }
 
@@ -417,16 +417,16 @@ public:
     auto& it = _bins.at(_currentIndex);
     if (type == io::TYPE::UID) {
       for (auto uidsSumarrys : it.uidStats) {
-        if (uidsSumarrys.first == static_cast<uid_t>(index)) { summarys.emplace_back(uidsSumarrys.second); }
+        if (uidsSumarrys.first == static_cast<uid_t>(index)) { summaries.emplace_back(uidsSumarrys.second); }
       }
     } else if (type == io::TYPE::GID) {
       for (auto gidsSumarrys : it.gidStats) {
-        if (gidsSumarrys.first == static_cast<gid_t>(index)) { summarys.emplace_back(gidsSumarrys.second); }
+        if (gidsSumarrys.first == static_cast<gid_t>(index)) { summaries.emplace_back(gidsSumarrys.second); }
       }
     }
 
     if constexpr (io::IoAggregateDebug) { printInfo(std::cout, "get Summary succeeded"); }
 
-    return summaryWeighted(summarys, winTime);
+    return summaryWeighted(summaries, winTime);
   }
 };

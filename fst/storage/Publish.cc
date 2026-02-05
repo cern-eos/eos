@@ -180,7 +180,7 @@ static std::string getIoMap(){
     std::vector<gid_t> gids(gOFS.ioMap.getGids(*winTime));
     std::vector<uid_t> uids(gOFS.ioMap.getUids(*winTime));
 	std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
-	IoBuffer::Data winTimeSummarys;
+	IoBuffer::Data winTimeSummaries;
 
 	if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0)
 	  continue;
@@ -189,7 +189,7 @@ static std::string getIoMap(){
 	  auto sum = gOFS.ioMap.getSummary(*winTime, it);
 	  if (sum.has_value()){
 	    sum->winTime = *winTime;
-	    winTimeSummarys.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
+	    winTimeSummaries.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
 	  }
      protoBuff.Clear();
     }
@@ -197,7 +197,7 @@ static std::string getIoMap(){
 	  auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::UID, it);
 	  if (sum.has_value()){
 	    sum->winTime =*winTime;
-		winTimeSummarys.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
+		winTimeSummaries.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
 	  }
       protoBuff.Clear();
     }
@@ -205,12 +205,12 @@ static std::string getIoMap(){
 	  auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::GID, it);
 	  if (sum.has_value()){
 	    sum->winTime =*winTime;
-		winTimeSummarys.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
+		winTimeSummaries.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
 	  }
 	  protoBuff.Clear();
 	}
-	if (winTimeSummarys.apps_size() > 0 || winTimeSummarys.gids_size() > 0 || winTimeSummarys.uids_size() > 0)
-	  finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummarys);
+	if (winTimeSummaries.apps_size() > 0 || winTimeSummaries.gids_size() > 0 || winTimeSummaries.uids_size() > 0)
+	  finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummaries);
   }
 
   if (finalBuffer.aggregated_size() > 0){
