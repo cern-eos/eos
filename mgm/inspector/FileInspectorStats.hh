@@ -54,6 +54,9 @@ EOSMGMNAMESPACE_BEGIN
 #define TOTAL_BYTES_KEY "total-bytes"
 #define NUM_FAULTY_FILES_KEY "num-faulty-files"
 #define TIME_SCAN_KEY "time-scan"
+#define HARDLINK_COUNT_KEY "hardlink-count"
+#define HARDLINK_VOLUME_KEY "hardlink-volume"
+#define SYMLINK_COUNT_KEY "symlink-count"
 
 //------------------------------------------------------------------------------
 //! Class holding the stats information
@@ -124,6 +127,11 @@ struct FileInspectorStats {
   //! Totals for convenience
   uint64_t TotalFileCount = 0;
   uint64_t TotalLogicalBytes = 0;
+
+  //! Link statistics
+  uint64_t HardlinkCount = 0;
+  uint64_t HardlinkVolume = 0;
+  uint64_t SymlinkCount = 0;
 
   time_t TimeScan;
 };
