@@ -733,7 +733,7 @@ runtest "### Rm        " unix SUCCESS "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/te
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Chmod     " unix SUCCESS "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Motd      " unix SUCCESS "" eos motd
-runtest "### Help      " unix SUCCESS "" eos "help | grep \"Display this text\""
+runtest "### Help      " unix SUCCESS "" eos "help 2>&1| grep \"Display this text\""
 # Define huge nominal space
 runtest "### NomianlSp " unix SUCCESS "" eos space config default space.nominalsize=100T
 ################################################################################
