@@ -262,7 +262,7 @@ struct PlacementArguments {
     {
     }
 
-    AccessArguments(size_t _selectedIndex, PlacementStrategyT _strategy, const std::vector<uint32_t>& _selectedfs) :
+    AccessArguments(size_t& _selectedIndex, PlacementStrategyT _strategy, const std::vector<uint32_t>& _selectedfs) :
       selectedIndex(_selectedIndex),
       strategy(_strategy),
       selectedfs(_selectedfs)
@@ -277,7 +277,7 @@ struct PlacementStrategy {
                                      Args args) = 0;
 
   virtual int access(const ClusterData& cluster_data,
-                     AccessArguments args) = 0;
+                     AccessArguments& args) = 0;
 
   bool validateArgs(const ClusterData& cluster_data, const Args& args,
                     PlacementResult& result) const
