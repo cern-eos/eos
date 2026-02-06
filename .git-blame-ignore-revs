@@ -1,1 +1,10 @@
-fb459a2eb6b48abfb31b88f0b7440818581a1080
+# This file contains a list of commits that should be ignored by some git commands including `git blame`.
+# You may need to enable this feature in your git configuration by running:
+# - git config blame.ignoreRevsFile .git-blame-ignore-revs
+# Web interfaces of git such as GitHub and GitLab also support this feature.
+# Commits that do not add or change any functionality but only reformat the code or fix typos should be added to this file. This way, when you run `git blame` on a file, you won't see these commits and can focus on the commits that actually changed the code.
+# The following command can be run to check if any of the commits in this file are missing from the history:
+# - for rev in $(grep -vE '^#|^$' .git-blame-ignore-revs); do git rev-parse -q --verify "${rev}^{commit}" >/dev/null || echo "Missing: $rev"; done
+
+fd828b6155b3caf28676b4568065c0911529618b
+f4b1931dd80ca8708b7802080eb468d5f7a19bda
