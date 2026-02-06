@@ -315,7 +315,6 @@ int Scheduler::FlatSchedulerFileAccess(AccessArguments *args) {
   }
 
   placement::AccessArguments access_args {
-    getRequiredReplicas(args->lid),
     *args->fsindex,
     args->inode,
     strategy,
