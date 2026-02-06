@@ -54,6 +54,7 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
   eos_info("%s", "msg=\"starting group drainer thread\"");
   eos::common::BackOffInvoker backoff_logger;
 
+  uint32_t prepare_transfers_counter = 0;
   while (!assistant.terminationRequested()) {
     if (!gOFS->mMaster->IsMaster()) {
       assistant.wait_for(std::chrono::seconds(60));
@@ -146,9 +147,18 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
 
     prepareTransfers();
 
+    prepare_transfers_counter++;
+    if (prepare_transfers_counter > 100) {
+      eos_err("msg=\"Too many calls to 'prepareTransfers' in the GroupDrainer thread, something is likely wrong!\"");
+      break;
+    }
+
     if (mPauseExecution) {
       eos_info("%s", "msg=\"Pausing Execution for 30s!\"");
       assistant.wait_for(std::chrono::seconds(30));
+    } else {
+      // prevent spam
+      assistant.wait_for(std::chrono::seconds(1));
     }
   }
 }
