@@ -133,8 +133,11 @@ int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments arg
   size_t best_index = std::numeric_limits<size_t>::max();
 
   for (const auto& fsid: args.selectedfs) {
-
-    const auto& disk = data.disks.at(fsid - 1);
+    if ((size_t)fsid > data.disks.size()) {
+      eos_static_info("msg=\"FlatScheduler Access - Skipping invalid fsid\" fsid=%u", fsid);
+      continue;
+    }
+    const auto& disk = data.disks[fsid - 1];
 
     if (!validDiskPlct(fsid, data, args.unavailfs ? *args.unavailfs : std::vector<uint32_t>{},
                         eos::common::ConfigStatus::kRO)) {
