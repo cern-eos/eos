@@ -46,8 +46,18 @@
 
 // grpc
 #ifdef EOS_GRPC
+
+// These pragmas are to suppress warnings from grpc headers coming from upstream code
+// These pragmas can be removed once the warning disappears
+// Please do not include any new `#include` in this block!
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wsign-compare"
+
 #include <grpc++/grpc++.h>
 #include "proto/Rpc.grpc.pb.h"
+
+#pragma GCC diagnostic pop
+
 using eos::rpc::Eos;
 using eos::rpc::NotificationRequest;
 using eos::rpc::NotificationResponse;
