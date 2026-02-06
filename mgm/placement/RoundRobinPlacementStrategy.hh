@@ -136,7 +136,7 @@ public:
                              Args args) override;
 
   int access(const ClusterData& cluster_data,
-                     AccessArguments args) override;
+             AccessArguments& args) override;
 
 private:
   std::unique_ptr<RRSeeder> mSeed;
