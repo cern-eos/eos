@@ -282,7 +282,7 @@ GroupDrainer::prepareTransfer(uint64_t index)
     }
   }
 
-  // Cross check that we do have a valid iterator anyway!
+  // Cross-check that we do have a valid iterator anyway!
   if (fids != mCacheFileList.end()) {
     if (fids->second.size() > 0) {
       scheduleTransfer(fids->second.back(), grp_drain_from, grp_drain_to, fsid);
@@ -342,8 +342,7 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
 {
   eos_debug("msg=\"populating FIDS from\" fsid=%d", fsid);
   //TODO: mark FSes in RO after threshold percent drain
-  auto total_files = gOFS->eosFsView->getNumFilesOnFs(fsid);
-
+  const auto total_files = gOFS->eosFsView->getNumFilesOnFs(fsid);
   if (total_files == 0) {
     fsutils::ApplyDrainedStatus(fsid);
     mCacheFileList.erase(fsid);
@@ -355,8 +354,7 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
   //Check if the FS is in the Retrytracker, skip these FSes,
   //TODO: We could skip getNumFilesOnFs altogether every loop if we have
   //RetryTracker entry and only check once every minute or so for the FSID
-  if (auto kv = mFsidRetryCtr.find(fsid);
-      kv != mFsidRetryCtr.end()) {
+  if (const auto kv = mFsidRetryCtr.find(fsid); kv != mFsidRetryCtr.end()) {
     if (!kv->second.need_update(mRetryInterval)) {
       eos_debug("msg=\"skipping retries as retry_interval hasn't passed\", "
                 " fsid=%d", fsid);
@@ -364,16 +362,36 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
     }
   }
 
-  std::vector<eos::common::FileId::fileid_t> local_fids;
-  std::vector<eos::common::FileId::fileid_t> failed_fids;
-  uint32_t ctr = 0;
+  std::vector<eos::common::FileId::fileid_t> local_fids, failed_fids, ghosts_to_delete;
   {
+    uint32_t ctr = 0;
     std::scoped_lock slock(mTransfersMtx, mFailedTransfersMtx);
 
-    for (auto it_fid = gOFS->eosFsView->getStreamingFileList(fsid);
+    for (const auto it_fid = gOFS->eosFsView->getStreamingFileList(fsid);
          it_fid && it_fid->valid() && ctr < FID_CACHE_LIST_SZ;
          it_fid->next()) {
-      auto fid = it_fid->getElement();
+      const auto fid = it_fid->getElement();
+      try {
+        auto fmd = gOFS->eosFileService->getFileMD(fid);
+      } catch (eos::MDException& e) {
+        if (e.getErrno() == ENOENT) {
+          eos_warning("msg=\"Found ghost file, marking for deletion from FS view\" "
+                      "fsid=%d fxid=%08llx",
+                      fsid,
+                      fid);
+          ghosts_to_delete.emplace_back(fid);
+        } else {
+          // This code should never be reached, may result in an infinite loop
+          eos_err("msg=\"Got an unexpected exception while populating FIDs\" "
+                  "fsid=%d fxid=%08llx errc=%d emsg=\"%s\"",
+                  fsid,
+                  fid,
+                  e.getErrno(),
+                  e.getMessage().str().c_str());
+        }
+        // cannot continue processing this fid since we don't have its metadata
+        continue;
+      }
 
       if (mFailedTransfers.count(fid)) {
         failed_fids.emplace_back(fid);
@@ -382,6 +400,11 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
         ++ctr;
       }
     }
+  }
+
+  for (const auto fid : ghosts_to_delete) {
+    eos_warning("msg=\"Deleting ghost file from FS view\" fsid=%d fxid=%08llx", fsid, fid);
+    gOFS->eosFsView->eraseEntry(fsid, fid);
   }
 
   if (local_fids.empty() && !failed_fids.empty()) {
