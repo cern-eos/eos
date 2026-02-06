@@ -93,7 +93,7 @@ enum class PlacementStrategyT : uint8_t {
   kFidRandom,
   kWeightedRandom,
   kWeightedRoundRobin,
-  kGeoScheduler,
+  kGeoScheduler, // Any flat scheduler strategies must be above this line!
   Count
 };
 
@@ -243,14 +243,31 @@ struct PlacementArguments {
 };
 
   struct AccessArguments {
-    size_t n_replicas;
     size_t& selectedIndex;
-    ino64_t inode;
-    PlacementStrategyT strategy;
+    ino64_t inode {0};
+    PlacementStrategyT strategy {PlacementStrategyT::Count};
 
     std::string_view geolocation;
-    std::vector<uint32_t>* unavailfs;
+    std::vector<uint32_t>* unavailfs {nullptr};
     const std::vector<uint32_t>& selectedfs;
+
+    AccessArguments(size_t& _selectedIndex, ino64_t _inode,
+                    PlacementStrategyT _strategy,
+                    std::string_view _geolocation,
+                    std::vector<uint32_t>* _unavailfs,
+                    const std::vector<uint32_t>& _selectedfs) :
+      selectedIndex(_selectedIndex), inode(_inode),
+      strategy(_strategy), geolocation(_geolocation),
+      unavailfs(_unavailfs), selectedfs(_selectedfs)
+    {
+    }
+
+    AccessArguments(size_t _selectedIndex, PlacementStrategyT _strategy, const std::vector<uint32_t>& _selectedfs) :
+      selectedIndex(_selectedIndex),
+      strategy(_strategy),
+      selectedfs(_selectedfs)
+    {
+    }
   };
 
 struct PlacementStrategy {
