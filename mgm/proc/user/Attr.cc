@@ -243,7 +243,6 @@ ProcCommand::Attr()
 
               // Check if the origin exists and is a directory
               if (key == "sys.attr.link") {
-                eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
 
                 try {
                   auto cmd = gOFS->eosView->getContainer(val.c_str());
