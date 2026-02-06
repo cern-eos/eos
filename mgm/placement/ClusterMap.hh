@@ -33,18 +33,19 @@ namespace eos::mgm::placement {
 
 
 class StorageHandler;
+// cluster_rcu_mutex_t is compatible with std::shared_mutex ap
+// and hence can be used with std::shared_lock and std::unique_lock
+// It is possible to just change cluster_rcu_mutex_t to anything
+// that conforms to std::shared_mutex api
+using RCUMutexT = eos::common::RCUMutexT<>;
 
 
 class ClusterMgr {
 public:
-  // cluster_rcu_mutex_t is compatible with std::shared_mutex api
-  // and hence can be used with std::shared_lock and std::unique_lock
-  // It is possible to just change cluster_rcu_mutex_t to anything
-  // that conforms to std::shared_mutex api
-  using cluster_rcu_mutex_t = eos::common::RCUMutexT<>;
+
   struct ClusterDataPtr {
     ClusterDataPtr(ClusterData* data_,
-                   cluster_rcu_mutex_t& rcu_domain_):
+                   RCUMutexT& rcu_domain_):
       data(data_), rlock(rcu_domain_)
     {}
 
@@ -64,7 +65,7 @@ public:
 
   private:
     ClusterData* data;
-    eos::common::RCUReadLock<cluster_rcu_mutex_t> rlock;
+    eos::common::RCUReadLock<RCUMutexT> rlock;
   };
 
   ClusterMgr() = default;
@@ -85,7 +86,7 @@ public:
 private:
   eos::common::atomic_unique_ptr<ClusterData> mClusterData;
   std::atomic<epoch_id_t> mCurrentEpoch {0};
-  cluster_rcu_mutex_t cluster_mgr_rcu;
+  RCUMutexT cluster_mgr_rcu;
 };
 
 class StorageHandler {
