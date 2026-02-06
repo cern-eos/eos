@@ -463,8 +463,8 @@ TEST(FlatScheduler, TLSingleSiteWeighted)
   using namespace eos::mgm::placement;
   ClusterMgr mgr;
   using eos::mgm::placement::PlacementStrategyT;
-
-  eos::mgm::placement::FlatScheduler flat_scheduler(PlacementStrategyT::kWeightedRandom,
+  PlacementStrategyT strategy = PlacementStrategyT::kWeightedRandom;
+  eos::mgm::placement::FlatScheduler flat_scheduler(strategy,
                                                     2048);
 
   {
@@ -494,6 +494,13 @@ TEST(FlatScheduler, TLSingleSiteWeighted)
   std::cout << result.err_msg.value_or("") << std::endl;
   ASSERT_TRUE(result);
   ASSERT_TRUE(result.is_valid_placement(2));
+  size_t index {std::numeric_limits<size_t>::max()};
+  std::vector<uint32_t> result_vector (result.ids.begin(), result.ids.end());
+  AccessArguments access_args {index, strategy, result_vector};
+  auto status = flat_scheduler.access(cluster_data_ptr(), access_args);
+  ASSERT_EQ(status, 0);
+  ASSERT_LE(index, result_vector.size());
+  
 }
 
 TEST(FlatScheduler, TLNoSite)
