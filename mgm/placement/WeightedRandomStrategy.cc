@@ -121,7 +121,7 @@ PlacementResult WeightedRandomPlacement::placeFiles(const ClusterData& data,
   return mImpl->placeFiles(data, std::move(args));
 }
 
-int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments args)
+int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments& args)
 {
 
   //TODO move all of the common validation to base class!

@@ -34,7 +34,7 @@ public:
   WeightedRandomPlacement(PlacementStrategyT strategy, size_t max_buckets);
   virtual PlacementResult placeFiles(const ClusterData& data,
                                      Args args) override;
-  virtual int access(const ClusterData& data, AccessArguments args) override;
+  virtual int access(const ClusterData& data, AccessArguments& args) override;
   ~WeightedRandomPlacement();
 private:
   struct Impl;

@@ -80,7 +80,7 @@ RoundRobinPlacement::placeFiles(const ClusterData& cluster_data, Args args)
 
 
 int
-RoundRobinPlacement::access(const ClusterData &cluster_data, AccessArguments args)
+RoundRobinPlacement::access(const ClusterData& cluster_data, AccessArguments& args)
 {
   args.selectedIndex = common::getRandom((size_t)0, args.selectedfs.size()-1);
   return 0;
