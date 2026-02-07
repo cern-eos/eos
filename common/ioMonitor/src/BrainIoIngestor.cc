@@ -17,8 +17,13 @@ void BrainIoIngestor::process_report(const eos::ioshapping::FstIoReport& report)
   NodeStateMap& node_map = mNodeStates[node_id];
   time_t now = time(nullptr);
 
+  eos_static_info("msg=\"Processing IoStats report\" node=%s entries=%lu", node_id.c_str(), report.entries().size());
   for (const auto& entry : report.entries()) {
     StreamKey key{entry.app_name(), entry.uid(), entry.gid()};
+
+    eos_static_info("msg=\"Processing stream entry\" node=%s app=%s uid=%u gid=%u read_bytes=%lu write_bytes=%lu generation_id=%lu",
+                     node_id.c_str(), key.app.c_str(), key.uid, key.gid, entry.total_bytes_read(),
+                     entry.total_bytes_written(), entry.generation_id());
 
     // 1. Fetch Previous State
     StreamState& state = node_map[key]; // Creates default 0 if new

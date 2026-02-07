@@ -107,7 +107,7 @@ void IoStatsPublisher::WorkerLoop() {
       // C. Send (Push)
       if (!stream->Write(report)) {
         eos_static_warning("msg=\"IoStats Stream Broken (Write failed), reconnecting...\"");
-        std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::seconds(5));
         break; // Break inner loop to recreate channel/stub
       }
 

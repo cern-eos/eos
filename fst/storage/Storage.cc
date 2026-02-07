@@ -363,7 +363,7 @@ Storage::Storage(const char* meta_dir) {
   // TODO: how to get node ID?
   eos_static_warning(
       "Starting IoStatsPublisher with hardcoded host and port - this should be refactored to use proper configuration");
-  mStatsPublisher.Start("localhost:50051", gConfig.FstHostPort.c_str());
+  mStatsPublisher.Start("0.0.0.0:50051", gConfig.FstHostPort.c_str());
 
   eos_info("starting mgm synchronization thread");
 

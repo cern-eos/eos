@@ -33,6 +33,9 @@
 #include "proto/Rpc.grpc.pb.h"
 #include <grpc++/security/credentials.h>
 
+#include "mgm/grpc/IoStatsService.hh"
+#include "common/ioMonitor/include/BrainIoIngestor.hh"
+
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
@@ -293,6 +296,10 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
 
   int selected_port = 0;
   RequestServiceImpl service;
+
+  auto brainIngestor = std::make_shared<eos::common::BrainIoIngestor>();
+  eos::mgm::IoStatsService ioStatsService(brainIngestor);
+
   std::string bind_address = "0.0.0.0:";
   bind_address += std::to_string(mPort);
   grpc::ServerBuilder builder;
@@ -312,13 +319,19 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
     grpc::SslServerCredentialsOptions sslOps(gsccrt);
     sslOps.pem_root_certs = mSSLCa;
     sslOps.pem_key_cert_pairs.push_back(keycert);
+    eos_static_info("msg=\"starting gRPC server for EOS with SSL at host port %s\"",
+                    bind_address.c_str());
     builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps),
                              &selected_port);
   } else {
+    eos_static_info("msg=\"starting gRPC server for EOS without SSL at host port %s\"",
+                    bind_address.c_str());
     builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   }
 
   builder.RegisterService(&service);
+  builder.RegisterService(&ioStatsService);
+
   mServer = builder.BuildAndStart();
 
   if (mSSL && (selected_port == 0)) {
