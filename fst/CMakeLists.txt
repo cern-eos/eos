@@ -322,6 +322,7 @@ target_compile_options(XrdEosFst-Objects PUBLIC -Wno-sign-compare)
 target_link_libraries(XrdEosFst-Objects PUBLIC
   EosFstProto-Objects
   EosCliProto-Objects
+  EosCliGrpc-Objects # Do we need to add this?
   EosNsQuarkdbProto-Objects
   XrdSsiPbEosCta-Objects
   EosConsoleHelpers-Objects
@@ -354,6 +355,7 @@ add_library(XrdEosFst-${XRDPLUGIN_SOVERSION} MODULE
 
 target_link_libraries(XrdEosFst-${XRDPLUGIN_SOVERSION} PRIVATE
   XrdEosFst-Objects
+  EosCliGrpc-Objects
   EosConsoleHelpers-Objects
   XROOTD::SSI)
 
@@ -367,6 +369,7 @@ target_compile_definitions(XrdEosFst-Static PUBLIC
 
 target_link_libraries(XrdEosFst-Static PUBLIC
   XrdEosFst-Objects
+  EosCliGrpc-Objects
   EosConsoleHelpers-Objects
   EosCommonServer
   EosFstIo
