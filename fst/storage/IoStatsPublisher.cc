@@ -31,9 +31,7 @@ void IoStatsPublisher::Start(const std::string& mgm_host_port, const std::string
 void IoStatsPublisher::Stop() {
   if (mRunning) {
     mRunning = false;
-    if (mThread.joinable()) {
-      mThread.join();
-    }
+    if (mThread.joinable()) { mThread.join(); }
   }
 }
 
@@ -71,8 +69,9 @@ void IoStatsPublisher::WorkerLoop() {
       report.set_node_id(mNodeId);
 
       // Use standard chrono for timestamp
-      const int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
-          std::chrono::system_clock::now().time_since_epoch()).count();
+      const int64_t now_ms =
+          std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+              .count();
       report.set_timestamp_ms(now_ms);
 
       // B. Collect Stats
@@ -92,10 +91,23 @@ void IoStatsPublisher::WorkerLoop() {
 
       // Optimization: Only send if we have entries?
       // For now, sending empty heartbeats is fine to keep stream alive.
-
+      // print the report
+      eos_static_warning("msg=\"Prepared IoStats Report\" node_id=%s timestamp_ms=%lld entry_count=%d", mNodeId.c_str(),
+                         report.timestamp_ms(), report.entries_size());
+      // serialize report and print it as json
+      std::string json_report;
+      google::protobuf::util::JsonPrintOptions options;
+      auto abslStatus = google::protobuf::util::MessageToJsonString(report, &json_report, options);
+      if (!abslStatus.ok()) {
+        eos_static_err("%s", "msg=\"Failed to convert FstIoReport object to JSON String\"");
+      } else {
+        eos_static_warning("msg=\"IoStats Report JSON\" node_id=%s json_report=%s", mNodeId.c_str(),
+                           json_report.c_str());
+      }
       // C. Send (Push)
       if (!stream->Write(report)) {
         eos_static_warning("msg=\"IoStats Stream Broken (Write failed), reconnecting...\"");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
         break; // Break inner loop to recreate channel/stub
       }
 

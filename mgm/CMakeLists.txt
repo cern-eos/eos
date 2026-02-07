@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/ ${CMAKE_SOURCE_DIR}/mgm ${CMAKE_SOURCE_DIR}/mgm/ofs/) 
+include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/ ${CMAKE_SOURCE_DIR}/mgm ${CMAKE_SOURCE_DIR}/mgm/ofs/)
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -245,6 +245,7 @@ add_library(
   grpc/GrpcWncInterface.cc      grpc/GrpcWncInterface.hh
   grpc/GrpcRestGwServer.cc grpc/GrpcRestGwServer.hh
   grpc/GrpcRestGwInterface.cc      grpc/GrpcRestGwInterface.hh
+  grpc/IoStatsService.cc     grpc/IoStatsService.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/s3/S3Handler.cc
