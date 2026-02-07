@@ -36,6 +36,7 @@
 #include <XrdOfs/XrdOfsTPCInfo.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <numeric>
+#include <common/ioMonitor/include/IoStatsCollector.hh>
 
 namespace eos
 {

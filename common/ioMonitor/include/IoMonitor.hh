@@ -50,6 +50,8 @@
 #include <unordered_set>
 #include <vector>
 
+#include "proto/IoBuffer.pb.h"
+
 //--------------------------------------------
 /// Main structure stored in IoStat
 /// Keep the time of class creation

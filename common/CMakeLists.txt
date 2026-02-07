@@ -276,6 +276,7 @@ if (NOT CLIENT AND Linux)
 	ioMonitor/src/IoMap.cc
 	ioMonitor/src/IoStat.cc
 	ioMonitor/src/IoAggregate.cc
+    ioMonitor/src/IoStatsCollector.cc
   )
 
   target_link_libraries(EosCommonServer-Objects PUBLIC

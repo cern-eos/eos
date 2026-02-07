@@ -40,6 +40,7 @@
 #include "fst/io/FileIoPluginCommon.hh"
 #include "namespace/utils/Etag.hh"
 #include <XrdOuc/XrdOucPgrwUtils.hh>
+#include "common/ioMonitor/include/IoStatsCollector.hh"
 
 // includes for gRPC
 #include <grpc++/grpc++.h>
@@ -946,10 +947,11 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  int rc = mLayout->Read(fileOffset, buffer, buffer_size);
-  if (rc > 0)
+  const uint64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
+  if (rc > 0) {
     gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rc);
-
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rc);
+  }
   eos_debug("layout read %d checkSum %d", rc,
             mChecksumGroup ? nullptr : mChecksumGroup->GetDefault());
 
@@ -1093,8 +1095,11 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
   }
 
   int64_t rv = mLayout->ReadV(chunkList, total_read);
-  if (rv > 0)
+  if (rv > 0) {
     gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rv);
+    // new implementation
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rv);
+  }
   totalBytes += rv;
 
   if (EOS_LOGS_DEBUG) {
@@ -1225,8 +1230,10 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long>(buffer_size));
-  if (rc > 0)
+  if (rc > 0) {
     gOFS.ioMap.addWrite(1, vid.app, vid.uid, vid.gid, rc);
+    gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, rc);
+  }
 
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
   // only for replica layouts and not for FuseX clients

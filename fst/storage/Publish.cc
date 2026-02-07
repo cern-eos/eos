@@ -38,6 +38,9 @@
 #include <google/protobuf/util/json_util.h>
 #include <optional>
 #include <sys/sysinfo.h>
+#include "common/ioMonitor/include/IoMonitor.hh"
+#include "proto/Shaping.pb.h"
+#include "proto/IoBuffer.pb.h"
 
 #ifdef PROCPS3
 #include <proc/readproc.h>

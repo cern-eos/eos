@@ -292,6 +292,7 @@ set(XRDEOSFST_SRCS
   storage/Report.cc              storage/Scrub.cc
   storage/Storage.cc             storage/Supervisor.cc
   storage/Verify.cc
+  storage/IoStatsPublisher.cc storage/IoStatsPublisher.hh
   # Utils
   utils/OpenFileTracker.cc
   # File metadata interface

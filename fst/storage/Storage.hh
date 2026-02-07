@@ -34,12 +34,15 @@
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 #include "proto/Shaping.pb.h"
+#include "proto/IoBuffer.pb.h"
+
 #include <atomic>
 #include <google/protobuf/util/json_util.h>
 #include <list>
 #include <map>
 #include <queue>
 #include <vector>
+#include "IoStatsPublisher.hh"
 
 namespace eos {
 namespace common {
@@ -289,6 +292,9 @@ private:
   AssistedThread mPublisherThread;   ///< Thread publishing FST/FS info
   AssistedThread mErrorReportThread; ///< Thread sending error reports
   AssistedThread mRegisterFsThread;  ///< Thread updating list of FS registered
+
+  IoStatsPublisher mStatsPublisher;
+
   //! CV and mutex used for notifying the register thread
   std::condition_variable mCvRegisterFs;
   std::mutex mMutexRegisterFs;
