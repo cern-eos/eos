@@ -23,46 +23,39 @@
 
 #include "GrpcServer.hh"
 #include "GrpcNsInterface.hh"
-#include <google/protobuf/util/json_util.h>
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/macros/Macros.hh"
 #include <XrdSec/XrdSecEntity.hh>
+#include <google/protobuf/util/json_util.h>
 
 #ifdef EOS_GRPC
+#include "common/ioMonitor/include/BrainIoIngestor.hh"
+#include "mgm/grpc/IoStatsService.hh"
 #include "proto/Rpc.grpc.pb.h"
 #include <grpc++/security/credentials.h>
 
-#include "mgm/grpc/IoStatsService.hh"
-#include "common/ioMonitor/include/BrainIoIngestor.hh"
-
+using eos::rpc::ContainerInsertRequest;
+using eos::rpc::Eos;
+using eos::rpc::FileInsertRequest;
+using eos::rpc::InsertReply;
+using eos::rpc::PingReply;
+using eos::rpc::PingRequest;
 using grpc::Server;
 using grpc::ServerBuilder;
 using grpc::ServerContext;
 using grpc::ServerWriter;
 using grpc::Status;
-using eos::rpc::Eos;
-using eos::rpc::PingRequest;
-using eos::rpc::PingReply;
-using eos::rpc::FileInsertRequest;
-using eos::rpc::ContainerInsertRequest;
-using eos::rpc::InsertReply;
 
 #endif
 
 EOSMGMNAMESPACE_BEGIN
-
 #ifdef EOS_GRPC
 
-class RequestServiceImpl final : public Eos::Service
-{
-
-  Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
-              eos::rpc::PingReply* reply) override
-  {
-    eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s token=%s len=%lu",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str(),
+class RequestServiceImpl final : public Eos::Service {
+  Status Ping(ServerContext* context, const eos::rpc::PingRequest* request, eos::rpc::PingReply* reply) override {
+    eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s token=%s len=%lu", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str(), request->authkey().c_str(),
                     request->message().length());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
@@ -70,26 +63,20 @@ class RequestServiceImpl final : public Eos::Service
     return Status::OK;
   }
 
-  Status FileInsert(ServerContext* context,
-                    const eos::rpc::FileInsertRequest* request,
-                    eos::rpc::InsertReply* reply) override
-  {
-    eos_static_info("grpc::fileinsert from client peer=%s ip=%s DN=%s token=%s",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+  Status FileInsert(ServerContext* context, const eos::rpc::FileInsertRequest* request,
+                    eos::rpc::InsertReply* reply) override {
+    eos_static_info("grpc::fileinsert from client peer=%s ip=%s DN=%s token=%s", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
     return GrpcNsInterface::FileInsert(vid, reply, request);
   }
 
-  Status ContainerInsert(ServerContext* context,
-                         const eos::rpc::ContainerInsertRequest* request,
-                         eos::rpc::InsertReply* reply) override
-  {
-    eos_static_info("grpc::containerinsert from client peer=%s ip=%s DN=%s token=%s",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+  Status ContainerInsert(ServerContext* context, const eos::rpc::ContainerInsertRequest* request,
+                         eos::rpc::InsertReply* reply) override {
+    eos_static_info("grpc::containerinsert from client peer=%s ip=%s DN=%s token=%s", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -97,11 +84,9 @@ class RequestServiceImpl final : public Eos::Service
   }
 
   Status MD(ServerContext* context, const eos::rpc::MDRequest* request,
-            ServerWriter<eos::rpc::MDResponse>* writer) override
-  {
-    eos_static_info("grpc::md from client peer=%s ip=%s DN=%s token=%s",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+            ServerWriter<eos::rpc::MDResponse>* writer) override {
+    eos_static_info("grpc::md from client peer=%s ip=%s DN=%s token=%s", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -117,46 +102,36 @@ class RequestServiceImpl final : public Eos::Service
       return GrpcNsInterface::StreamMD(vid, writer, request);
       break;
 
-    default:
-      ;
+    default:;
     }
 
     return Status(grpc::StatusCode::INVALID_ARGUMENT, "request is not supported");
   }
 
   Status Find(ServerContext* context, const eos::rpc::FindRequest* request,
-              ServerWriter<eos::rpc::MDResponse>* writer) override
-  {
-    eos_static_info("grpc::find from client peer=%s ip=%s DN=%s token=%s",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+              ServerWriter<eos::rpc::MDResponse>* writer) override {
+    eos_static_info("grpc::find from client peer=%s ip=%s DN=%s token=%s", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
     return GrpcNsInterface::Find(vid, writer, request);
   }
 
-  Status NsStat(ServerContext* context,
-                const eos::rpc::NsStatRequest* request,
-                eos::rpc::NsStatResponse* reply) override
-  {
-    eos_static_info("grpc::nsstat::request from client peer=%s ip=%s DN=%s token=%s",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+  Status NsStat(ServerContext* context, const eos::rpc::NsStatRequest* request,
+                eos::rpc::NsStatResponse* reply) override {
+    eos_static_info("grpc::nsstat::request from client peer=%s ip=%s DN=%s token=%s", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str(), request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
     return GrpcNsInterface::NsStat(vid, reply, request);
   }
 
-  Status Exec(ServerContext* context,
-              const eos::rpc::NSRequest* request,
-              eos::rpc::NSResponse* reply) override
-  {
+  Status Exec(ServerContext* context, const eos::rpc::NSRequest* request, eos::rpc::NSResponse* reply) override {
     eos_static_info("grpc::exec::request from client peer=%s ip=%s DN=%s "
-                    "token=%s req_type=%lu", context->peer().c_str(),
-                    GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(),
+                    "token=%s req_type=%lu",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str(),
                     request->authkey().c_str(), request->command_case());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
@@ -166,9 +141,7 @@ class RequestServiceImpl final : public Eos::Service
 };
 
 /* return client DN*/
-std::string
-GrpcServer::DN(grpc::ServerContext* context)
-{
+std::string GrpcServer::DN(grpc::ServerContext* context) {
   /*
     The methods GetPeerIdentityPropertyName() and GetPeerIdentity() from grpc::ServerContext.auth_context
     will prioritize SAN fields (x509_subject_alternative_name) in favor of x509_common_name
@@ -180,36 +153,25 @@ GrpcServer::DN(grpc::ServerContext* context)
     tag = "x509_subject_alternative_name";
     auto resp = context->auth_context()->FindPropertyValues(tag);
 
-    if (resp.empty()) {
-      return "";
-    }
+    if (resp.empty()) { return ""; }
   }
 
   return resp[0].data();
 }
 
-
-
 /* return client IP */
-std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
-                           std::string* port)
-{
+std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id, std::string* port) {
   // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
   // butq net and id are populated as well with the prefix and suffix, respectively
   // The context peer information is curl encoded
-  const std::string decoded_peer =
-    eos::common::StringConversion::curl_default_unescaped(context->peer().c_str());
+  const std::string decoded_peer = eos::common::StringConversion::curl_default_unescaped(context->peer().c_str());
   std::vector<std::string> tokens;
   eos::common::StringConversion::Tokenize(decoded_peer, tokens, "[]");
 
   if (tokens.size() == 3) {
-    if (id) {
-      *id = tokens[0].substr(0, tokens[0].size() - 1);
-    }
+    if (id) { *id = tokens[0].substr(0, tokens[0].size() - 1); }
 
-    if (port) {
-      *port = tokens[2].substr(1, tokens[2].size() - 1);
-    }
+    if (port) { *port = tokens[2].substr(1, tokens[2].size() - 1); }
 
     return "[" + tokens[1] + "]";
   } else {
@@ -217,13 +179,9 @@ std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
     eos::common::StringConversion::Tokenize(decoded_peer, tokens, ":");
 
     if (tokens.size() == 3) {
-      if (id) {
-        *id = tokens[0].substr(0, tokens[0].size());
-      }
+      if (id) { *id = tokens[0].substr(0, tokens[0].size()); }
 
-      if (port) {
-        *port = tokens[2].substr(0, tokens[2].size());
-      }
+      if (port) { *port = tokens[2].substr(0, tokens[2].size()); }
 
       return tokens[1];
     }
@@ -233,17 +191,12 @@ std::string GrpcServer::IP(grpc::ServerContext* context, std::string* id,
 }
 
 /* return VID for a given call */
-void
-GrpcServer::Vid(grpc::ServerContext* context,
-                eos::common::VirtualIdentity& vid,
-                const std::string& authkey)
-{
+void GrpcServer::Vid(grpc::ServerContext* context, eos::common::VirtualIdentity& vid, const std::string& authkey) {
   XrdSecEntity client("grpc");
   std::string dn = DN(context);
   client.name = const_cast<char*>(dn.c_str());
   bool isEosToken = (authkey.substr(0, 8) == "zteos64:");
-  std::string tident = dn.length() ? dn.c_str() : (isEosToken ? "eostoken" :
-                       authkey.c_str());
+  std::string tident = dn.length() ? dn.c_str() : (isEosToken ? "eostoken" : authkey.c_str());
   std::string id;
   std::string ip = GrpcServer::IP(context, &id).c_str();
   tident += ".1:";
@@ -252,43 +205,33 @@ GrpcServer::Vid(grpc::ServerContext* context,
   tident += ip;
   client.tident = tident.c_str();
 
-  if (authkey.length()) {
-    client.endorsements = const_cast<char*>(authkey.c_str());
-  }
+  if (authkey.length()) { client.endorsements = const_cast<char*>(authkey.c_str()); }
 
   eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);
 }
 
 #endif
 
-void
-GrpcServer::Run(ThreadAssistant& assistant) noexcept
-{
+void GrpcServer::Run(ThreadAssistant& assistant) noexcept {
 #ifdef EOS_GRPC
 
-  if (getenv("EOS_MGM_GRPC_SSL_CERT") &&
-      getenv("EOS_MGM_GRPC_SSL_KEY") &&
-      getenv("EOS_MGM_GRPC_SSL_CA")) {
+  if (getenv("EOS_MGM_GRPC_SSL_CERT") && getenv("EOS_MGM_GRPC_SSL_KEY") && getenv("EOS_MGM_GRPC_SSL_CA")) {
     mSSL = true;
     mSSLCertFile = getenv("EOS_MGM_GRPC_SSL_CERT");
     mSSLKeyFile = getenv("EOS_MGM_GRPC_SSL_KEY");
     mSSLCaFile = getenv("EOS_MGM_GRPC_SSL_CA");
 
-    if (eos::common::StringConversion::LoadFileIntoString(mSSLCertFile.c_str(),
-        mSSLCert) && !mSSLCert.length()) {
-      eos_static_crit("unable to load ssl certificate file '%s'",
-                      mSSLCertFile.c_str());
+    if (eos::common::StringConversion::LoadFileIntoString(mSSLCertFile.c_str(), mSSLCert) && !mSSLCert.length()) {
+      eos_static_crit("unable to load ssl certificate file '%s'", mSSLCertFile.c_str());
       mSSL = false;
     }
 
-    if (eos::common::StringConversion::LoadFileIntoString(mSSLKeyFile.c_str(),
-        mSSLKey) && !mSSLKey.length()) {
+    if (eos::common::StringConversion::LoadFileIntoString(mSSLKeyFile.c_str(), mSSLKey) && !mSSLKey.length()) {
       eos_static_crit("unable to load ssl key file '%s'", mSSLKeyFile.c_str());
       mSSL = false;
     }
 
-    if (eos::common::StringConversion::LoadFileIntoString(mSSLCaFile.c_str(),
-        mSSLCa) && !mSSLCa.length()) {
+    if (eos::common::StringConversion::LoadFileIntoString(mSSLCaFile.c_str(), mSSLCa) && !mSSLCa.length()) {
       eos_static_crit("unable to load ssl ca file '%s'", mSSLCaFile.c_str());
       mSSL = false;
     }
@@ -305,38 +248,35 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
   grpc::ServerBuilder builder;
 
   if (mSSL) {
-    grpc_ssl_client_certificate_request_type gsccrt =
-      GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY;
+    grpc_ssl_client_certificate_request_type gsccrt = GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY;
 
-    if (getenv("EOS_MGM_GRPC_DONT_REQUEST_CLIENT_CERTIFICATE")) {
-      gsccrt = GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE;
-    }
+    if (getenv("EOS_MGM_GRPC_DONT_REQUEST_CLIENT_CERTIFICATE")) { gsccrt = GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE; }
 
-    grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {
-      mSSLKey,
-      mSSLCert
-    };
+    grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {mSSLKey, mSSLCert};
     grpc::SslServerCredentialsOptions sslOps(gsccrt);
     sslOps.pem_root_certs = mSSLCa;
     sslOps.pem_key_cert_pairs.push_back(keycert);
-    eos_static_info("msg=\"starting gRPC server for EOS with SSL at host port %s\"",
-                    bind_address.c_str());
-    builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps),
-                             &selected_port);
+    eos_static_info("msg=\"starting gRPC server for EOS with SSL at host port %s\"", bind_address.c_str());
+    builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps), &selected_port);
   } else {
-    eos_static_info("msg=\"starting gRPC server for EOS without SSL at host port %s\"",
-                    bind_address.c_str());
+    eos_static_info("msg=\"starting gRPC server for EOS without SSL at host port %s\"", bind_address.c_str());
     builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   }
 
   builder.RegisterService(&service);
-  builder.RegisterService(&ioStatsService);
+  if (getenv("EOS_MGM_GRPC_IO_STATS")) {
+    eos_static_info("msg=\"gRPC server for EOS will provide IO stats service\"");
+    builder.RegisterService(&ioStatsService);
+  } else {
+    eos_static_info("msg=\"gRPC server for EOS will not provide IO stats service\"");
+  }
 
   mServer = builder.BuildAndStart();
 
   if (mSSL && (selected_port == 0)) {
     eos_static_err("msg=\"server failed to bind to port with SSL, "
-                   "port %i is taken or certs not valid\"", mPort);
+                   "port %i is taken or certs not valid\"",
+                   mPort);
     return;
   }
 
@@ -347,8 +287,8 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
 
 #else
   // Make the compiler happy
-  (void) mPort;
-  (void) mSSL;
+  (void)mPort;
+  (void)mSSL;
 #endif
 }
 

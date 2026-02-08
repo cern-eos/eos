@@ -21,29 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "fst/Config.hh"
 #include "fst/storage/Storage.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/Verify.hh"
-#include "fst/Deletion.hh"
-#include "fst/io/FileIoPluginCommon.hh"
-#include "fst/XrdFstOss.hh"
-#include "common/Fmd.hh"
+#include "MonitorVarPartition.hh"
+#include "common/Constants.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
-#include "common/Constants.hh"
-#include "common/Path.hh"
-#include "common/StringConversion.hh"
+#include "common/Fmd.hh"
 #include "common/LinuxStat.hh"
+#include "common/Path.hh"
 #include "common/ShellCmd.hh"
+#include "common/StringConversion.hh"
 #include "common/StringUtils.hh"
+#include "fst/Config.hh"
+#include "fst/Deletion.hh"
+#include "fst/Verify.hh"
+#include "fst/XrdFstOfs.hh"
+#include "fst/XrdFstOss.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "fst/utils/FTSWalkTree.hh"
-#include "MonitorVarPartition.hh"
 #include "qclient/structures/QSet.hh"
 #include <google/dense_hash_map>
 #include <math.h>
 // @note (esindril)use this when Clang (>= 6.0.0) supports it
-//#include <filesystem>
+// #include <filesystem>
 
 extern eos::fst::XrdFstOss* XrdOfsOss;
 
@@ -52,12 +52,10 @@ namespace {
 //! Get minimum free space threshold after which a file system is considered
 //! full
 //------------------------------------------------------------------------------
-static long long
-GetFullFsThresholdBytes() {
+static long long GetFullFsThresholdBytes() {
   static std::string s_full_env("EOS_FS_FULL_SIZE_IN_GB");
   static long long s_full_threshold =
-  (std::stoll(getenv(s_full_env.c_str()) ? getenv(s_full_env.c_str()) : "5")
-   * 1024ll * 1024ll * 1024ll);
+      (std::stoll(getenv(s_full_env.c_str()) ? getenv(s_full_env.c_str()) : "5") * 1024ll * 1024ll * 1024ll);
   return s_full_threshold;
 }
 
@@ -85,9 +83,7 @@ bool RandomCheckFsXattrConverted(const std::string& fs_path) {
   for (unsigned long long hash : dir_hash) {
     sprintf(full_path, "%s/%08llx/", fs_path.c_str(), hash);
 
-    if (stat(full_path, &info) == 0) {
-      existing_dirs.insert(full_path);
-    }
+    if (stat(full_path, &info) == 0) { existing_dirs.insert(full_path); }
   }
 
   int checked_files = 0;
@@ -119,15 +115,12 @@ bool RandomCheckFsXattrConverted(const std::string& fs_path) {
 
           if (file_index.find(count) != file_index.end()) {
             // Skip check for block checksum files
-            if (strstr(node->fts_path, eos::fst::XSMAP_SUFFIX.data()) != nullptr) {
-              continue;
-            }
+            if (strstr(node->fts_path, eos::fst::XSMAP_SUFFIX.data()) != nullptr) { continue; }
 
             ++checked_files;
 
             if (!check_fmd_xattr(node->fts_path)) {
-              eos_static_err("msg=\"no xattr for file\" path=\"%s\"",
-                             node->fts_path);
+              eos_static_err("msg=\"no xattr for file\" path=\"%s\"", node->fts_path);
               return false;
             } else {
               ++correct_files;
@@ -135,21 +128,15 @@ bool RandomCheckFsXattrConverted(const std::string& fs_path) {
           }
 
           // Don't list more then max index entries
-          if (count > max_index) {
-            break;
-          }
+          if (count > max_index) { break; }
         }
       }
     }
 
-    if (fts_close(tree)) {
-      eos_static_err("msg=\"fts_close failed\" path=\"%s\" errno=%d",
-                     dir.c_str(), errno);
-    }
+    if (fts_close(tree)) { eos_static_err("msg=\"fts_close failed\" path=\"%s\" errno=%d", dir.c_str(), errno); }
   }
 
-  eos_static_notice("msg=\"%i out of %i checked files with converted xattrs\"",
-                    correct_files, checked_files);
+  eos_static_notice("msg=\"%i out of %i checked files with converted xattrs\"", correct_files, checked_files);
   return true;
 }
 
@@ -161,12 +148,12 @@ bool RandomCheckFsXattrConverted(const std::string& fs_path) {
 //!
 //! @return true if conversion was done, otherwise false
 //------------------------------------------------------------------------------
-bool
-CheckFsXattrConverted(std::string fs_path) {
+bool CheckFsXattrConverted(std::string fs_path) {
   // Skip xattr conversion check for non-local filesystems (with protocol prefixes)
   if (fs_path.find("://") != std::string::npos || fs_path[0] != '/') {
     eos_static_info("msg=\"skipping xattr conversion check for non-local filesystem\" "
-                    "path=\"%s\"", fs_path.c_str());
+                    "path=\"%s\"",
+                    fs_path.c_str());
     return true;
   }
 
@@ -181,18 +168,16 @@ CheckFsXattrConverted(std::string fs_path) {
 
     if (dir == nullptr) {
       eos_static_err("msg=\"failed to open file system root directory\" "
-                     "path=\"%s\"", fs_path.c_str());
+                     "path=\"%s\"",
+                     fs_path.c_str());
       return false;
     }
 
-    struct dirent* dent{
-        nullptr
-    };
+    struct dirent* dent{nullptr};
 
     while ((dent = readdir(dir))) {
-      if ((dent->d_type == DT_DIR) &&
-          ((strncmp(dent->d_name, ".", strlen(dent->d_name)) != 0) &&
-           (strncmp(dent->d_name, "..", strlen(dent->d_name)) != 0))) {
+      if ((dent->d_type == DT_DIR) && ((strncmp(dent->d_name, ".", strlen(dent->d_name)) != 0) &&
+                                       (strncmp(dent->d_name, "..", strlen(dent->d_name)) != 0))) {
         // No xattr marker, check some random files for user.eos.fmd xattr
         if (!RandomCheckFsXattrConverted(fs_path)) {
           return false;
@@ -211,17 +196,14 @@ CheckFsXattrConverted(std::string fs_path) {
 
   return true;
 }
-}
+} // namespace
 
 EOSFSTNAMESPACE_BEGIN
 //-------------------------------------------------------------------------------
 // Determine if check for file system running on the root partition is disabled
 //------------------------------------------------------------------------------
-bool
-Storage::IsRootFsCheckDisabled() {
-  if (getenv("EOS_FST_DISABLE_ROOT_PARTITION_CHECK")) {
-    return true;
-  }
+bool Storage::IsRootFsCheckDisabled() {
+  if (getenv("EOS_FST_DISABLE_ROOT_PARTITION_CHECK")) { return true; }
 
   return false;
 }
@@ -229,8 +211,7 @@ Storage::IsRootFsCheckDisabled() {
 //------------------------------------------------------------------------------
 // Create new Storage object
 //------------------------------------------------------------------------------
-Storage*
-Storage::Create(const char* meta_dir) {
+Storage* Storage::Create(const char* meta_dir) {
   Storage* storage = new Storage(meta_dir);
 
   if (storage->IsZombie()) {
@@ -248,9 +229,7 @@ Storage::Storage(const char* meta_dir) {
   // Check if automatic drain on SMART errors is requested
   const char* ptr = getenv("EOS_FST_DRAIN_ON_SMART_ERROR");
 
-  if (ptr && strncmp(ptr, "1", 1) == 0) {
-    mDrainOnSmartErr = true;
-  }
+  if (ptr && strncmp(ptr, "1", 1) == 0) { mDrainOnSmartErr = true; }
 
   SetLogId("FstOfsStorage", "<service>");
   XrdOucString mkmetalogdir = "mkdir -p ";
@@ -258,18 +237,14 @@ Storage::Storage(const char* meta_dir) {
   mkmetalogdir += " >& /dev/null";
   int rc = system(mkmetalogdir.c_str());
 
-  if (rc) {
-    rc = 0;
-  }
+  if (rc) { rc = 0; }
 
   mkmetalogdir = "chown -R daemon.daemon ";
   mkmetalogdir += meta_dir;
   mkmetalogdir += " >& /dev/null";
   rc = system(mkmetalogdir.c_str());
 
-  if (rc) {
-    rc = 0;
-  }
+  if (rc) { rc = 0; }
 
   mMetaDir = meta_dir;
 
@@ -298,9 +273,7 @@ Storage::Storage(const char* meta_dir) {
 
   eos_info("starting scrubbing thread");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsScrub,
-                              static_cast<void*>(this),
-                              0, "Scrubber"))) {
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsScrub, static_cast<void*>(this), 0, "Scrubber"))) {
     eos_crit("cannot start scrubber thread");
     mZombie = true;
   }
@@ -315,9 +288,7 @@ Storage::Storage(const char* meta_dir) {
   mThreadSet.insert(tid);
   eos_info("starting deletion thread");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsRemover,
-                              static_cast<void*>(this),
-                              0, "Data Store Remover"))) {
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsRemover, static_cast<void*>(this), 0, "Data Store Remover"))) {
     eos_crit("cannot start deletion theread");
     mZombie = true;
   }
@@ -325,9 +296,7 @@ Storage::Storage(const char* meta_dir) {
   mThreadSet.insert(tid);
   eos_info("starting report thread");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsReport,
-                              static_cast<void*>(this),
-                              0, "Report Thread"))) {
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsReport, static_cast<void*>(this), 0, "Report Thread"))) {
     eos_crit("cannot start report thread");
     mZombie = true;
   }
@@ -335,9 +304,7 @@ Storage::Storage(const char* meta_dir) {
   mThreadSet.insert(tid);
   eos_info("starting verification thread");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsVerify,
-                              static_cast<void*>(this),
-                              0, "Verify Thread"))) {
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartFsVerify, static_cast<void*>(this), 0, "Verify Thread"))) {
     eos_crit("cannot start verify thread");
     mZombie = true;
   }
@@ -345,9 +312,8 @@ Storage::Storage(const char* meta_dir) {
   mThreadSet.insert(tid);
   eos_static_info("%s", "msg=\"starting daemon supervisor thread\"");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartDaemonSupervisor,
-                              static_cast<void*>(this),
-                              0, "Supervisor Thread"))) {
+  if ((rc =
+           XrdSysThread::Run(&tid, Storage::StartDaemonSupervisor, static_cast<void*>(this), 0, "Supervisor Thread"))) {
     eos_static_crit("%s", "msg=\"cannot start supervisor thread\"");
     mZombie = true;
   }
@@ -363,13 +329,13 @@ Storage::Storage(const char* meta_dir) {
   // TODO: how to get node ID?
   eos_static_warning(
       "Starting IoStatsPublisher with hardcoded host and port - this should be refactored to use proper configuration");
+  // how to get mgm grpc port? from EOS_ENV?
+
   mStatsPublisher.Start("0.0.0.0:50051", gConfig.FstHostPort.c_str());
 
   eos_info("starting mgm synchronization thread");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
-                              static_cast<void*>(this),
-                              0, "MgmSyncer Thread"))) {
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer, static_cast<void*>(this), 0, "MgmSyncer Thread"))) {
     eos_static_crit("%s", "msg=\"cannot start mgm syncer thread\"");
     mZombie = true;
   }
@@ -378,9 +344,8 @@ Storage::Storage(const char* meta_dir) {
   // Starting FstPartitionMonitor
   eos_info("%s", "msg=\"starting /var/ partition monitor thread ...\"");
 
-  if ((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor,
-                              static_cast<void*>(this),
-                              0, "Var Partition Monitor"))) {
+  if ((rc = XrdSysThread::Run(&tid, Storage::StartVarPartitionMonitor, static_cast<void*>(this), 0,
+                              "Var Partition Monitor"))) {
     eos_crit("%s", "msg=\"annot start /var partition monitor thread\"");
     mZombie = true;
   }
@@ -396,12 +361,12 @@ Storage::Storage(const char* meta_dir) {
 // General shutdown including stopping the helper threads and also
 // cleaning up the registered file systems
 //------------------------------------------------------------------------------
-void
-Storage::Shutdown() {
+void Storage::Shutdown() {
   ShutdownThreads();
   // Collect all the file systems to be deleted and then trigger the actual
   // deletion outside the mFsMutex to avoid any deadlocks
-  std::set<eos::fst::FileSystem*> set_fs; {
+  std::set<eos::fst::FileSystem*> set_fs;
+  {
     while (mFsMutex.TryLockWrite() != 0) {
       std::this_thread::sleep_for(std::chrono::milliseconds(10));
     }
@@ -420,8 +385,7 @@ Storage::Shutdown() {
   }
 
   for (auto& ptr_fs : set_fs) {
-    eos_static_warning("msg=\"deleting file system\" fsid=%lu",
-                       ptr_fs->GetLocalId());
+    eos_static_warning("msg=\"deleting file system\" fsid=%lu", ptr_fs->GetLocalId());
     delete ptr_fs;
   }
 }
@@ -429,8 +393,7 @@ Storage::Shutdown() {
 //------------------------------------------------------------------------------
 // Shutdown all helper threads
 //------------------------------------------------------------------------------
-void
-Storage::ShutdownThreads() {
+void Storage::ShutdownThreads() {
   mQdbCommunicatorThread.join();
   mPublisherThread.join();
   mErrorReportThread.join();
@@ -439,7 +402,7 @@ Storage::ShutdownThreads() {
   XrdSysMutexHelper scope_lock(mThreadsMutex);
 
   for (auto it = mThreadSet.begin(); it != mThreadSet.end(); it++) {
-    eos_warning("op=shutdown thread_id=%llx", (unsigned long long) *it);
+    eos_warning("op=shutdown thread_id=%llx", (unsigned long long)*it);
     XrdSysThread::Cancel(*it);
   }
 }
@@ -448,8 +411,7 @@ Storage::ShutdownThreads() {
 // Push new verification job to the queue if the maximum number of pending
 // verifications is not exceeded.
 //------------------------------------------------------------------------------
-void
-Storage::PushVerification(eos::fst::Verify* entry) {
+void Storage::PushVerification(eos::fst::Verify* entry) {
   XrdSysMutexHelper scope_lock(mVerifyMutex);
 
   if (mVerifications.size() < 1000000) {
@@ -457,23 +419,22 @@ Storage::PushVerification(eos::fst::Verify* entry) {
     entry->Show();
   } else {
     eos_err("%s", "msg=\"verify list has already 1 Mio. entries - discarding "
-            "verify message\"");
+                  "verify message\"");
   }
 }
 
 //------------------------------------------------------------------------------
 // Start boot thread
 //------------------------------------------------------------------------------
-void*
-Storage::StartBoot(void* pp) {
+void* Storage::StartBoot(void* pp) {
   if (pp) {
     BootThreadInfo* info = (BootThreadInfo*)pp;
 
     if (info->filesystem->ShouldBoot(info->mTriggerKey)) {
       info->storage->Boot(info->filesystem);
     } else {
-      eos_static_info("msg=\"skip booting\" fsid=%lu trigger=\"%s\"",
-                      info->filesystem->GetId(), info->mTriggerKey.c_str());
+      eos_static_info("msg=\"skip booting\" fsid=%lu trigger=\"%s\"", info->filesystem->GetId(),
+                      info->mTriggerKey.c_str());
     }
 
     // Remove from the set containing the ids of booting filesystems
@@ -490,8 +451,7 @@ Storage::StartBoot(void* pp) {
 //------------------------------------------------------------------------------
 // Boot file system
 //------------------------------------------------------------------------------
-void
-Storage::Boot(FileSystem* fs) {
+void Storage::Boot(FileSystem* fs) {
   static bool is_root_check_disabled = IsRootFsCheckDisabled();
 
   if (!fs) {
@@ -506,18 +466,16 @@ Storage::Boot(FileSystem* fs) {
   size_t cnt = 0;
 
   do {
-    cnt++; {
+    cnt++;
+    {
       XrdSysMutexHelper lock(gConfig.Mutex);
       manager = gConfig.Manager.c_str();
     }
 
-    if (manager != "") {
-      break;
-    }
+    if (manager != "") { break; }
 
     std::this_thread::sleep_for(std::chrono::seconds(5));
-    eos_static_info("msg=\"waiting to know manager\" fsid=%lu",
-                    fs->GetLocalId());
+    eos_static_info("msg=\"waiting to know manager\" fsid=%lu", fs->GetLocalId());
 
     if (cnt > 20) {
       eos_static_alert("%s", "msg=\"didn't receive manager name, aborting\"");
@@ -529,12 +487,10 @@ Storage::Boot(FileSystem* fs) {
   eos_static_info("msg=\"manager known\" manager=\"%s\"", manager.c_str());
   eos::common::FileSystem::fsid_t fsid = fs->GetLocalId();
   std::string uuid = fs->GetLocalUuid();
-  eos_static_info("msg=\"booting filesystem\" qpath=%s fsid=%lu uuid=%s",
-                  fs->GetQueuePath().c_str(), fsid, uuid.c_str());
+  eos_static_info("msg=\"booting filesystem\" qpath=%s fsid=%lu uuid=%s", fs->GetQueuePath().c_str(), fsid,
+                  uuid.c_str());
 
-  if (!fsid) {
-    return;
-  }
+  if (!fsid) { return; }
 
   // Try to statfs the filesystem
   std::unique_ptr<eos::common::Statfs> statfs = fs->GetStatfs();
@@ -552,18 +508,12 @@ Storage::Boot(FileSystem* fs) {
     const std::string path = fs->GetPath();
     int stat_rc = ::stat(path.c_str(), &buf);
 
-    if (stat_rc || (buf.st_uid != DAEMONUID) ||
-        ((buf.st_mode & S_IRWXU) != S_IRWXU)) {
-      eos_static_err("msg=\"potential failed stat\" errno=%d path=\"%s\"",
-                     errno, path.c_str());
+    if (stat_rc || (buf.st_uid != DAEMONUID) || ((buf.st_mode & S_IRWXU) != S_IRWXU)) {
+      eos_static_err("msg=\"potential failed stat\" errno=%d path=\"%s\"", errno, path.c_str());
 
-      if (buf.st_uid != DAEMONUID) {
-        errno = ENOTCONN;
-      }
+      if (buf.st_uid != DAEMONUID) { errno = ENOTCONN; }
 
-      if ((buf.st_mode & S_IRWXU) != S_IRWXU) {
-        errno = EPERM;
-      }
+      if ((buf.st_mode & S_IRWXU) != S_IRWXU) { errno = EPERM; }
 
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(errno ? errno : EIO, "cannot have <rw> access");
@@ -584,7 +534,7 @@ Storage::Boot(FileSystem* fs) {
       if (!CheckLabel(fs->GetPath(), fsid, uuid, false, true)) {
         fs->SetStatus(eos::common::BootStatus::kBootFailure);
         fs->SetError(EIO, "filesystem is on the root partition without or "
-                     "wrong <uuid> label file .eosfsuuid");
+                          "wrong <uuid> label file .eosfsuuid");
         return;
       }
     }
@@ -594,44 +544,44 @@ Storage::Boot(FileSystem* fs) {
   // shows the same fsid + uuid
   if (!CheckLabel(fs->GetPath(), fsid, uuid)) {
     fs->SetStatus(eos::common::BootStatus::kBootFailure);
-    fs->SetError(EFAULT, SSTR("filesystem has a different label (fsid="
-                     << fsid << ", uuid=" << uuid << ") than "
-                     << "the configuration").c_str());
+    fs->SetError(EFAULT, SSTR("filesystem has a different label (fsid=" << fsid << ", uuid=" << uuid << ") than "
+                                                                        << "the configuration")
+                             .c_str());
     return;
   }
 
   if (!FsLabel(fs->GetPath(), fsid, uuid)) {
     fs->SetStatus(eos::common::BootStatus::kBootFailure);
     fs->SetError(EFAULT, "cannot write the filesystem label (fsid+uuid) - "
-                 "please check filesystem state/permissions");
+                         "please check filesystem state/permissions");
     return;
   }
 
   // Make sure the Fmd info was moved to xattrs
   if (!CheckFsXattrConverted(fs->GetPath())) {
     eos_static_crit("msg=\"files don't have Fmd info in xattr\" "
-                    "fs_path=\"%s\"", fs->GetPath().c_str());
+                    "fs_path=\"%s\"",
+                    fs->GetPath().c_str());
     eos_static_crit("%s", "msg=\"process will abort now, please convert "
-                    "your file systems to drop LeveDB and use xattrs\"");
+                          "your file systems to drop LeveDB and use xattrs\"");
     std::abort();
   } else {
     eos_static_info("msg=\"check for Fmd xattr conversion successful\" "
-                    "fs_path=%s", fs->GetPath().c_str());
-  } {
+                    "fs_path=%s",
+                    fs->GetPath().c_str());
+  }
+  {
     XrdSysMutexHelper scope_lock(gOFS.OpenFidMutex);
     gOFS.WNoDeleteOnCloseFid[fsid].clear_deleted_key();
     gOFS.WNoDeleteOnCloseFid[fsid].set_deleted_key(0);
   }
 
-  bool resyncmgm = (fs->GetLongLong("bootcheck") ==
-                    eos::common::FileSystem::kBootMgm);
-  bool resyncdisk = (fs->GetLongLong("bootcheck") >=
-                     eos::common::FileSystem::kBootDisk);
+  bool resyncmgm = (fs->GetLongLong("bootcheck") == eos::common::FileSystem::kBootMgm);
+  bool resyncdisk = (fs->GetLongLong("bootcheck") >= eos::common::FileSystem::kBootDisk);
   // If we see the bootcheck kBootMgm for the filesystem, we resync with
   // the mgm. Remove the bootcheck flag.
   fs->SetLongLong("bootcheck", 0);
-  eos_info("msg=\"booting\" fsid=%u resync_mgm=%d resync_disk=%d", fsid,
-           resyncmgm, resyncdisk);
+  eos_info("msg=\"booting\" fsid=%u resync_mgm=%d resync_disk=%d", fsid, resyncmgm, resyncdisk);
 
   // Sync only local disks
   if (resyncdisk && (fs->GetPath()[0] == '/')) {
@@ -662,7 +612,8 @@ Storage::Boot(FileSystem* fs) {
       }
     } else {
       eos_info("msg=\"only mgm synchronization via QDB supported but missing "
-               "QDB connection details\" fsid=%u", fsid);
+               "QDB connection details\" fsid=%u",
+               fsid);
     }
 
     eos_info("msg=\"finished mgm synchronization\" fsid=%u", fsid);
@@ -695,12 +646,11 @@ Storage::Boot(FileSystem* fs) {
   const std::list<std::string> lst_dirs = {orphans_dir, deletions_dir};
 
   for (const auto& dir : lst_dirs) {
-    if (mkdir(dir.c_str(),
-              S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
+    if (mkdir(dir.c_str(), S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH)) {
       if (errno != EEXIST) {
         fs->SetStatus(eos::common::BootStatus::kBootFailure);
         fs->SetError(errno ? errno : EIO, "cannot create orphans/deletions "
-                     " directories");
+                                          " directories");
         return;
       }
     }
@@ -708,47 +658,44 @@ Storage::Boot(FileSystem* fs) {
     if (chown(dir.c_str(), 2, 2)) {
       fs->SetStatus(eos::common::BootStatus::kBootFailure);
       fs->SetError(errno ? errno : EIO, "cannot change ownership of "
-                   " orphans/deletions directories");
+                                        " orphans/deletions directories");
       return;
     }
   }
 
   // Apply scanner configuration after booting is done
-  const std::list<std::string> scan_keys{
-      eos::common::SCAN_IO_RATE_NAME, eos::common::SCAN_ENTRY_INTERVAL_NAME,
-      eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME, eos::common::SCAN_DISK_INTERVAL_NAME,
-      eos::common::SCAN_NS_INTERVAL_NAME, eos::common::SCAN_NS_RATE_NAME,
-      eos::common::SCAN_ALTXS_INTERVAL_NAME, eos::common::ALTXS_SYNC,
-      eos::common::ALTXS_SYNC_INTERVAL};
+  const std::list<std::string> scan_keys{eos::common::SCAN_IO_RATE_NAME,
+                                         eos::common::SCAN_ENTRY_INTERVAL_NAME,
+                                         eos::common::SCAN_RAIN_ENTRY_INTERVAL_NAME,
+                                         eos::common::SCAN_DISK_INTERVAL_NAME,
+                                         eos::common::SCAN_NS_INTERVAL_NAME,
+                                         eos::common::SCAN_NS_RATE_NAME,
+                                         eos::common::SCAN_ALTXS_INTERVAL_NAME,
+                                         eos::common::ALTXS_SYNC,
+                                         eos::common::ALTXS_SYNC_INTERVAL};
 
   for (const auto& key : scan_keys) {
     const std::string sval = fs->GetString(key.c_str());
 
-    if (sval.size() == 0) {
-      continue;
-    }
+    if (sval.size() == 0) { continue; }
 
     try {
       long long val = std::stoll(sval);
 
-      if (val >= 0) {
-        fs->ConfigScanner(&mFstLoad, key.c_str(), val);
-      }
+      if (val >= 0) { fs->ConfigScanner(&mFstLoad, key.c_str(), val); }
     } catch (...) {
-      eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"",
-                     key.c_str(), sval.c_str());
+      eos_static_err("msg=\"failed to convert value\" key=\"%s\" val=\"%s\"", key.c_str(), sval.c_str());
     }
   }
 
-  eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long) fsid);
+  eos_info("msg=\"finished boot procedure\" fsid=%lu", (unsigned long)fsid);
   return;
 }
 
 //------------------------------------------------------------------------------
 // Start scurbber thread
 //------------------------------------------------------------------------------
-void*
-Storage::StartFsScrub(void* pp) {
+void* Storage::StartFsScrub(void* pp) {
   Storage* storage = (Storage*)pp;
   storage->Scrub();
   return 0;
@@ -757,8 +704,7 @@ Storage::StartFsScrub(void* pp) {
 //------------------------------------------------------------------------------
 // Start remover thread
 //------------------------------------------------------------------------------
-void*
-Storage::StartFsRemover(void* pp) {
+void* Storage::StartFsRemover(void* pp) {
   Storage* storage = (Storage*)pp;
   storage->Remover();
   return 0;
@@ -767,8 +713,7 @@ Storage::StartFsRemover(void* pp) {
 //------------------------------------------------------------------------------
 // Start reporter thread
 //------------------------------------------------------------------------------
-void*
-Storage::StartFsReport(void* pp) {
+void* Storage::StartFsReport(void* pp) {
   Storage* storage = (Storage*)pp;
   storage->Report();
   return 0;
@@ -777,8 +722,7 @@ Storage::StartFsReport(void* pp) {
 //------------------------------------------------------------------------------
 // Start verification thread
 //------------------------------------------------------------------------------
-void*
-Storage::StartFsVerify(void* pp) {
+void* Storage::StartFsVerify(void* pp) {
   Storage* storage = (Storage*)pp;
   storage->Verify();
   return 0;
@@ -787,8 +731,7 @@ Storage::StartFsVerify(void* pp) {
 //------------------------------------------------------------------------------
 // Start supervisor thread doing automatic restart if needed
 //------------------------------------------------------------------------------
-void*
-Storage::StartDaemonSupervisor(void* pp) {
+void* Storage::StartDaemonSupervisor(void* pp) {
   Storage* storage = (Storage*)pp;
   storage->Supervisor();
   return 0;
@@ -797,8 +740,7 @@ Storage::StartDaemonSupervisor(void* pp) {
 //------------------------------------------------------------------------------
 // Start mgm syncer thread
 //------------------------------------------------------------------------------
-void*
-Storage::StartMgmSyncer(void* pp) {
+void* Storage::StartMgmSyncer(void* pp) {
   Storage* storage = (Storage*)pp;
   storage->MgmSyncer();
   return 0;
@@ -809,7 +751,7 @@ Storage::StartMgmSyncer(void* pp) {
 //------------------------------------------------------------------------------
 void* Storage::StartVarPartitionMonitor(void* pp) {
   Storage* storage = (Storage*)pp;
-  MonitorVarPartition<std::vector<FileSystem*> > mon(5., 30, "/var/");
+  MonitorVarPartition<std::vector<FileSystem*>> mon(5., 30, "/var/");
   mon.Monitor(storage->mFsVect, storage->mFsMutex);
   return 0;
 }
@@ -817,8 +759,7 @@ void* Storage::StartVarPartitionMonitor(void* pp) {
 //------------------------------------------------------------------------------
 // Run boot thread for specified filesystem
 //------------------------------------------------------------------------------
-bool
-Storage::RunBootThread(FileSystem* fs, const std::string& trigger_key) {
+bool Storage::RunBootThread(FileSystem* fs, const std::string& trigger_key) {
   bool retc = false;
 
   if (fs) {
@@ -832,7 +773,7 @@ Storage::RunBootThread(FileSystem* fs, const std::string& trigger_key) {
     // Check if this filesystem is currently already booting
     if (mBootingSet.count(fs->GetLocalId())) {
       eos_warning("msg=\"discard boot request: filesytem fsid=%lu is currently booting",
-                  (unsigned long) fs->GetLocalId());
+                  (unsigned long)fs->GetLocalId());
       return retc;
     } else {
       // Insert into the set of booting filesystems
@@ -845,8 +786,7 @@ Storage::RunBootThread(FileSystem* fs, const std::string& trigger_key) {
     info->mTriggerKey = trigger_key;
     pthread_t tid;
 
-    if ((XrdSysThread::Run(&tid, Storage::StartBoot, static_cast<void*>(info),
-                           0, "Booter"))) {
+    if ((XrdSysThread::Run(&tid, Storage::StartBoot, static_cast<void*>(info), 0, "Booter"))) {
       eos_crit("msg=\"failed to start boot thread\" fsid=%lu", fs->GetLocalId());
       mBootingSet.erase(fs->GetLocalId());
     } else {
@@ -863,8 +803,7 @@ Storage::RunBootThread(FileSystem* fs, const std::string& trigger_key) {
 //------------------------------------------------------------------------------
 // Add deletion to the list of pending ones
 //------------------------------------------------------------------------------
-void
-Storage::AddDeletion(std::unique_ptr<Deletion> del) {
+void Storage::AddDeletion(std::unique_ptr<Deletion> del) {
   XrdSysMutexHelper scope_lock(mDeletionsMutex);
   mListDeletions.push_front(std::move(del));
 }
@@ -873,20 +812,17 @@ Storage::AddDeletion(std::unique_ptr<Deletion> del) {
 // Delete file by moving it to a special directory on the file system root
 // mount location in the .eosdeletions directory
 //----------------------------------------------------------------------------
-void
-Storage::DeleteByMove(std::unique_ptr<Deletion> del) {
+void Storage::DeleteByMove(std::unique_ptr<Deletion> del) {
   using eos::common::FileId;
   static const std::string del_dir = ".eosdeletions";
   const std::string sfxid = FileId::Fid2Hex(del->mFidVect[0]);
   const std::string local_prefix = gOFS.Storage->GetStoragePath(del->mFsid);
-  const std::string fpath = FileId::FidPrefix2FullPath(sfxid.c_str(),
-                                                       local_prefix.c_str());
+  const std::string fpath = FileId::FidPrefix2FullPath(sfxid.c_str(), local_prefix.c_str());
   eos::common::Path cpath(fpath.c_str());
   size_t cpath_sz = cpath.GetSubPathSize();
 
   if (cpath_sz <= 2) {
-    eos_static_err("msg=\"failed to extract FST mount/fid hex\" path=%s",
-                   fpath.c_str());
+    eos_static_err("msg=\"failed to extract FST mount/fid hex\" path=%s", fpath.c_str());
     return;
   }
 
@@ -899,19 +835,16 @@ Storage::DeleteByMove(std::unique_ptr<Deletion> del) {
 
   // Move it into the deletions directory
   if (!rename(fpath.c_str(), fdeletion.c_str())) {
-    eos_static_warning("msg=\"deletion quarantined\" path=%s del-path=%s",
-                       fpath.c_str(), fdeletion.c_str());
+    eos_static_warning("msg=\"deletion quarantined\" path=%s del-path=%s", fpath.c_str(), fdeletion.c_str());
   } else {
-    eos_static_err("msg=\"failed to quarantine deletion\" path=%s del-path=%s",
-                   fpath.c_str(), fdeletion.c_str());
+    eos_static_err("msg=\"failed to quarantine deletion\" path=%s del-path=%s", fpath.c_str(), fdeletion.c_str());
   }
 }
 
 //------------------------------------------------------------------------------
 // Get deletion object removing it from the list
 //------------------------------------------------------------------------------
-std::unique_ptr<Deletion>
-Storage::GetDeletion() {
+std::unique_ptr<Deletion> Storage::GetDeletion() {
   std::unique_ptr<Deletion> del;
   XrdSysMutexHelper scope_lock(mDeletionsMutex);
 
@@ -926,8 +859,7 @@ Storage::GetDeletion() {
 //------------------------------------------------------------------------------
 // Get number of pending deletions
 //------------------------------------------------------------------------------
-size_t
-Storage::GetNumDeletions() {
+size_t Storage::GetNumDeletions() {
   size_t total = 0;
   XrdSysMutexHelper scope_lock(mDeletionsMutex);
 
@@ -941,13 +873,10 @@ Storage::GetNumDeletions() {
 //------------------------------------------------------------------------------
 // Get the filesystem associated with the given filesystem id
 //------------------------------------------------------------------------------
-FileSystem*
-Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid) const {
+FileSystem* Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid) const {
   auto it = mFsMap.find(fsid);
 
-  if (it != mFsMap.end()) {
-    return it->second;
-  }
+  if (it != mFsMap.end()) { return it->second; }
 
   return nullptr;
 }
@@ -955,16 +884,12 @@ Storage::GetFileSystemById(eos::common::FileSystem::fsid_t fsid) const {
 //------------------------------------------------------------------------------
 // Get configuration associated with the given file system id
 //------------------------------------------------------------------------------
-std::string
-Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
-                             const std::string& key) const {
+std::string Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid, const std::string& key) const {
   std::string value;
   eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
   FileSystem* fs = GetFileSystemById(fsid);
 
-  if (fs) {
-    value = fs->GetString(key.c_str());
-  }
+  if (fs) { value = fs->GetString(key.c_str()); }
 
   return value;
 }
@@ -972,18 +897,13 @@ Storage::GetFileSystemConfig(eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 // Check if file system is in operational state i.e. config status < kDrain
 //------------------------------------------------------------------------------
-bool
-Storage::IsFsOperational(eos::common::FileSystem::fsid_t fsid) const {
+bool Storage::IsFsOperational(eos::common::FileSystem::fsid_t fsid) const {
   eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
   FileSystem* fs = GetFileSystemById(fsid);
 
-  if (!fs) {
-    return false;
-  }
+  if (!fs) { return false; }
 
-  if (fs->GetConfigStatus() < eos::common::ConfigStatus::kDrain) {
-    return false;
-  }
+  if (fs->GetConfigStatus() < eos::common::ConfigStatus::kDrain) { return false; }
 
   return true;
 }
@@ -992,21 +912,16 @@ Storage::IsFsOperational(eos::common::FileSystem::fsid_t fsid) const {
 // Writes file system label files .eosfsid .eosuuid according to config (if
 // they didn't exist!)
 //------------------------------------------------------------------------------
-bool
-Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
-                 std::string uuid) {
+bool Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid) {
   // exclude remote disks
-  if (path[0] != '/') {
-    return true;
-  }
+  if (path[0] != '/') { return true; }
 
   XrdOucString fsidfile = path.c_str();
   fsidfile += "/.eosfsid";
   struct stat buf;
 
   if (stat(fsidfile.c_str(), &buf)) {
-    int fd = open(fsidfile.c_str(),
-                  O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    int fd = open(fsidfile.c_str(), O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
 
     if (fd < 0) {
       return false;
@@ -1027,14 +942,12 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
   uuidfile += "/.eosfsuuid";
 
   if (stat(uuidfile.c_str(), &buf)) {
-    int fd = open(uuidfile.c_str(),
-                  O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
+    int fd = open(uuidfile.c_str(), O_TRUNC | O_CREAT | O_RDWR, S_IRWXU | S_IRWXG | S_IRWXO);
 
     if (fd < 0) {
       return false;
     } else {
-      if ((write(fd, uuid.c_str(), strlen(uuid.c_str()) + 1))
-          != (int)(strlen(uuid.c_str()) + 1)) {
+      if ((write(fd, uuid.c_str(), strlen(uuid.c_str()) + 1)) != (int)(strlen(uuid.c_str()) + 1)) {
         close(fd);
         return false;
       }
@@ -1049,14 +962,10 @@ Storage::FsLabel(std::string path, eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 // Checks that the label on the filesystem matches the one in the config
 //------------------------------------------------------------------------------
-bool
-Storage::CheckLabel(std::string path,
-                    eos::common::FileSystem::fsid_t fsid,
-                    std::string uuid, bool fail_noid, bool fail_nouuid) {
+bool Storage::CheckLabel(std::string path, eos::common::FileSystem::fsid_t fsid, std::string uuid, bool fail_noid,
+                         bool fail_nouuid) {
   // exclude remote disks
-  if (path[0] != '/') {
-    return true;
-  }
+  if (path[0] != '/') { return true; }
 
   XrdOucString fsidfile = path.c_str();
   fsidfile += "/.eosfsid";
@@ -1083,16 +992,12 @@ Storage::CheckLabel(std::string path,
       close(fd);
       ssfid[std::min(nread, len - 1)] = '\0';
 
-      if (ssfid[strlen(ssfid) - 1] == '\n') {
-        ssfid[strlen(ssfid) - 1] = '\0';
-      }
+      if (ssfid[strlen(ssfid) - 1] == '\n') { ssfid[strlen(ssfid) - 1] = '\0'; }
 
       ckfsid = atoi(ssfid);
     }
   } else {
-    if (fail_noid) {
-      return false;
-    }
+    if (fail_noid) { return false; }
   }
 
   // read FS uuid file
@@ -1118,21 +1023,15 @@ Storage::CheckLabel(std::string path,
       close(fd);
       suuid[std::min(nread, sz - 1)] = '\0';
 
-      if (suuid[strlen(suuid) - 1] == '\n') {
-        suuid[strlen(suuid) - 1] = '\0';
-      }
+      if (suuid[strlen(suuid) - 1] == '\n') { suuid[strlen(suuid) - 1] = '\0'; }
 
       ckuuid = suuid;
     }
   } else {
-    if (fail_nouuid) {
-      return false;
-    }
+    if (fail_nouuid) { return false; }
   }
 
-  if ((fsid != ckfsid) || (ckuuid != uuid)) {
-    return false;
-  }
+  if ((fsid != ckfsid) || (ckuuid != uuid)) { return false; }
 
   return true;
 }
@@ -1140,17 +1039,15 @@ Storage::CheckLabel(std::string path,
 //----------------------------------------------------------------------------
 // Check if the selected FST needs to be registered as "full" or "warning"
 //----------------------------------------------------------------------------
-void
-Storage::CheckFilesystemFullness(eos::common::FileSystem::fsid_t fsid) {
+void Storage::CheckFilesystemFullness(eos::common::FileSystem::fsid_t fsid) {
   long long headroom = 0ll;
-  long long freebytes = 0ll; {
+  long long freebytes = 0ll;
+  {
     // Collect headroom and free bytes values for the given file system
     eos::common::RWMutexReadLock fs_rd_lock(mFsMutex);
     auto it = mFsMap.find(fsid);
 
-    if (it == mFsMap.end()) {
-      return;
-    }
+    if (it == mFsMap.end()) { return; }
 
     FileSystem* fs = it->second;
     headroom = fs->GetLongLong("headroom");
@@ -1160,7 +1057,8 @@ Storage::CheckFilesystemFullness(eos::common::FileSystem::fsid_t fsid) {
     if (freebytes == 0 && fs->GetString("stat.statfs.freebytes").length() == 0) {
       eos_static_info("msg=\"stat.statfs.freebytes has not yet been "
                       "defined, not setting file system fill status\" "
-                      "fsid=%lu", fsid);
+                      "fsid=%lu",
+                      fsid);
       return;
     }
   }
@@ -1182,15 +1080,12 @@ Storage::CheckFilesystemFullness(eos::common::FileSystem::fsid_t fsid) {
 //------------------------------------------------------------------------------
 // Get storage path for a particular file system id
 //------------------------------------------------------------------------------
-std::string
-Storage::GetStoragePath(eos::common::FileSystem::fsid_t fsid) const {
+std::string Storage::GetStoragePath(eos::common::FileSystem::fsid_t fsid) const {
   std::string path;
   eos::common::RWMutexReadLock rd_lock(mFsMutex);
   auto it = mFsMap.find(fsid);
 
-  if (it != mFsMap.end()) {
-    path = it->second->GetPath();
-  }
+  if (it != mFsMap.end()) { path = it->second->GetPath(); }
 
   return path;
 }
@@ -1198,18 +1093,18 @@ Storage::GetStoragePath(eos::common::FileSystem::fsid_t fsid) const {
 //------------------------------------------------------------------------------
 // Cleanup orphans
 //------------------------------------------------------------------------------
-bool
-Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
-                        std::ostringstream& err_msg) {
+bool Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid, std::ostringstream& err_msg) {
   bool success = true;
-  std::map<eos::common::FileSystem::fsid_t, std::string> map; {
+  std::map<eos::common::FileSystem::fsid_t, std::string> map;
+  {
     eos::common::RWMutexReadLock rd_lock(mFsMutex);
 
     for (const auto& elem : mFsMap) {
       if (fsid == 0ul) {
         if (elem.second->GetStatus() != eos::common::BootStatus::kBooted) {
           eos_static_warning("msg=\"skip orphans clean up for not-booted file "
-                             "system, best-effort\" fsid=%lu", elem.first);
+                             "system, best-effort\" fsid=%lu",
+                             elem.first);
           continue;
         }
 
@@ -1217,10 +1112,10 @@ Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
       } else {
         if (fsid == elem.first) {
           if (elem.second->GetStatus() != eos::common::BootStatus::kBooted) {
-            err_msg << "skip orphans clean up for not-booted file system fsid="
-                << elem.first << std::endl;
+            err_msg << "skip orphans clean up for not-booted file system fsid=" << elem.first << std::endl;
             eos_static_warning("msg=\"skip orphans clean up for not-booted file "
-                               "system\" fsid=%lu", elem.first);
+                               "system\" fsid=%lu",
+                               elem.first);
             success = false;
             break;
           }
@@ -1237,18 +1132,14 @@ Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
     std::set<uint64_t> fids;
 
     if (!CleanupOrphansDisk(elem.second, fids)) {
-      err_msg << "error: failed orphans cleanup on disk fsid="
-          << elem.first << std::endl;
-      eos_static_err("msg=\"failed orphans cleanup on disk\" fsid=%lu",
-                     elem.first);
+      err_msg << "error: failed orphans cleanup on disk fsid=" << elem.first << std::endl;
+      eos_static_err("msg=\"failed orphans cleanup on disk\" fsid=%lu", elem.first);
       success = false;
     }
 
     if (!CleanupOrphansQdb(elem.first, fids)) {
-      err_msg << "error: failed orphans cleanup in QDB fsid="
-          << elem.first << std::endl;
-      eos_static_err("msg=\"failed orphans cleanup in QDB\" fsid=%lu",
-                     elem.first);
+      err_msg << "error: failed orphans cleanup in QDB fsid=" << elem.first << std::endl;
+      eos_static_err("msg=\"failed orphans cleanup in QDB\" fsid=%lu", elem.first);
       success = false;
     }
   }
@@ -1259,22 +1150,16 @@ Storage::CleanupOrphans(eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 // Cleanup orphans on disk
 //------------------------------------------------------------------------------
-bool
-Storage::CleanupOrphansDisk(const std::string& mount,
-                            std::set<uint64_t>& fids) {
+bool Storage::CleanupOrphansDisk(const std::string& mount, std::set<uint64_t>& fids) {
   bool success = true;
-  eos_static_info("msg=\"doing orphans cleanup on disk\" path=\"%s\"",
-                  mount.c_str());
+  eos_static_info("msg=\"doing orphans cleanup on disk\" path=\"%s\"", mount.c_str());
   std::string path_orphans = mount + "/.eosorphans/";
   DIR* dir{nullptr};
-  struct dirent* entry{
-      nullptr
-  };
+  struct dirent* entry{nullptr};
   std::string fn_path;
 
   if (!(dir = opendir(path_orphans.c_str()))) {
-    eos_static_err("msg=\"failed to open dir\" errno=%d path=%s", errno,
-                   path_orphans.c_str());
+    eos_static_err("msg=\"failed to open dir\" errno=%d path=%s", errno, path_orphans.c_str());
     return success;
   }
 
@@ -1295,14 +1180,14 @@ Storage::CleanupOrphansDisk(const std::string& mount,
 
     if (entry && (entry->d_type == DT_REG)) {
       fn_path = path_orphans + entry->d_name;
-      eos_static_info("msg=\"delete orphan entry\" path=\"%s\"",
-                      fn_path.c_str());
+      eos_static_info("msg=\"delete orphan entry\" path=\"%s\"", fn_path.c_str());
 
       try {
         fids.insert(std::stoull(entry->d_name, nullptr, 16));
       } catch (...) {
         eos_static_info("msg=\"failed to convert orphan entry\" "
-                        "path=\"%s\"", fn_path.c_str());
+                        "path=\"%s\"",
+                        fn_path.c_str());
       }
 
       if (unlink(fn_path.c_str())) {
@@ -1333,19 +1218,14 @@ Storage::CleanupOrphansDisk(const std::string& mount,
 //------------------------------------------------------------------------------
 // Cleanup orphans from QDB
 //------------------------------------------------------------------------------
-bool
-Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
-                           const std::set<uint64_t>& fids) {
+bool Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid, const std::set<uint64_t>& fids) {
   static const uint32_t s_max_batch_size = 10000;
   eos_static_info("msg=\"doing orphans cleanup in QDB\" fsid=%lu", fsid);
 
-  if (fids.empty()) {
-    return true;
-  }
+  if (fids.empty()) { return true; }
 
   std::list<std::string> to_delete;
-  qclient::QSet qset(*gOFS.mQcl.get(),
-                     SSTR("fsck:" << eos::common::FSCK_ORPHANS_N));
+  qclient::QSet qset(*gOFS.mQcl.get(), SSTR("fsck:" << eos::common::FSCK_ORPHANS_N));
 
   for (const auto& fid : fids) {
     to_delete.push_back(SSTR(fid << ":" << fsid));
@@ -1354,8 +1234,7 @@ Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
       try {
         (void)qset.srem(to_delete);
       } catch (const std::runtime_error& e) {
-        eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"",
-                       e.what());
+        eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"", e.what());
         return false;
       }
 
@@ -1367,8 +1246,7 @@ Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
     try {
       (void)qset.srem(to_delete);
     } catch (const std::runtime_error& e) {
-      eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"",
-                     e.what());
+      eos_static_err("msg=\"failed clean orphans in QDB\" msg=\"%s\"", e.what());
       return false;
     }
   }
@@ -1379,8 +1257,7 @@ Storage::CleanupOrphansQdb(eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 // Get number of file systems
 //------------------------------------------------------------------------------
-size_t
-Storage::GetFSCount() const {
+size_t Storage::GetFSCount() const {
   eos::common::RWMutexReadLock rd_lock(mFsMutex);
   return mFsMap.size();
 }
@@ -1388,9 +1265,7 @@ Storage::GetFSCount() const {
 //------------------------------------------------------------------------------
 // Push collected errors to quarkdb
 //------------------------------------------------------------------------------
-bool
-Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
-                   const eos::common::FsckErrsPerFsMap& errs_map) {
+bool Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid, const eos::common::FsckErrsPerFsMap& errs_map) {
 #ifndef _NOOFS
   static const uint32_t s_max_batch_size = 10000;
 
@@ -1435,17 +1310,15 @@ Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
 //------------------------------------------------------------------------------
 // Publish a paricular fsck error to QDB
 //------------------------------------------------------------------------------
-void
-Storage::PublishFsckError(eos::common::FileId::fileid_t fid,
-                          eos::common::FileSystem::fsid_t fsid,
-                          eos::common::FsckErr err_type) {
+void Storage::PublishFsckError(eos::common::FileId::fileid_t fid, eos::common::FileSystem::fsid_t fsid,
+                               eos::common::FsckErr err_type) {
   eos::common::FsckErrsPerFsMap errs_map;
   errs_map[eos::common::FsckErrToString(err_type)][fsid].insert(fid);
 
   if (!PushToQdb(fsid, errs_map)) {
     eos_static_err("msg=\"failed to push fsck error to QDB\" fxid=%08llx "
-                   "fsid=%lu err=%s", fid, fsid,
-                   eos::common::FsckErrToString(err_type).c_str());
+                   "fsid=%lu err=%s",
+                   fid, fsid, eos::common::FsckErrToString(err_type).c_str());
   }
 }
 

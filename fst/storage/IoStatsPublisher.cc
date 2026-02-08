@@ -82,11 +82,13 @@ void IoStatsPublisher::WorkerLoop() {
             proto_entry->set_app_name(key.app);
             proto_entry->set_uid(key.uid);
             proto_entry->set_gid(key.gid);
+            proto_entry->set_generation_id(entry.generation_id);
 
             // Atomic Loads (Relaxed is sufficient for stats)
             proto_entry->set_total_bytes_read(entry.bytes_read.load(std::memory_order_relaxed));
             proto_entry->set_total_bytes_written(entry.bytes_written.load(std::memory_order_relaxed));
-            proto_entry->set_generation_id(entry.generation_id);
+            proto_entry->set_total_read_ops(entry.read_iops.load(std::memory_order_relaxed));
+            proto_entry->set_total_write_ops(entry.write_iops.load(std::memory_order_relaxed));
           });
 
       // Optimization: Only send if we have entries?

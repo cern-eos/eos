@@ -7,7 +7,7 @@ namespace eos::mgm {
 // Constructor
 // -----------------------------------------------------------------------------
 IoStatsService::IoStatsService(std::shared_ptr<eos::common::BrainIoIngestor> ingestor)
-  : mIngestor(std::move(ingestor)) {
+    : mIngestor(std::move(ingestor)) {
   if (!mIngestor) { eos_static_crit("msg=\"IoStatsService initialized with null BrainIoIngestor\""); }
 }
 
@@ -30,11 +30,6 @@ grpc::Status IoStatsService::StreamIoStats(
   // This blocks while waiting for the FST to push data.
   // It returns true when a message arrives, false when FST disconnects.
   while (stream->Read(&report)) {
-    // debug print message
-    eos_static_info("msg=\"IoStats stream still connected\" peer=%s", peer.c_str());
-    // print message
-    // decode and print
-
     // Capture node ID for logging
     if (first_msg) {
       node_id = report.node_id();
@@ -45,11 +40,10 @@ grpc::Status IoStatsService::StreamIoStats(
     // 1. Ingest Data
     // The ingestor handles the math (Deltas, Generations) and updates global state.
     if (mIngestor) {
-      eos_static_info("msg=\"Processing IoStats report\" node=%s peer=%s entries=%lu", node_id.c_str(), peer.c_str(),
-               report.entries().size());
       mIngestor->process_report(report);
-    }else {
-      eos_static_warning("msg=\"No BrainIoIngestor available, skipping report processing\" node=%s peer=%s", node_id.c_str(), peer.c_str());
+    } else {
+      eos_static_warning("msg=\"No BrainIoIngestor available, skipping report processing\" node=%s peer=%s",
+                         node_id.c_str(), peer.c_str());
     }
 
     // 2. (Optional) Send Feedback

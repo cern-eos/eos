@@ -328,6 +328,7 @@ add_library(
   placement/WeightedRandomStrategy.cc
   placement/ThreadLocalRRSeed.cc
   shaping/IoShaping.cc
+  shaping/IoStatsEngine.cc
   ${FUSEX_SRCS})
 
 target_compile_options(XrdEosMgm-Objects PRIVATE -Wno-sign-compare)
