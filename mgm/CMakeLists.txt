@@ -246,6 +246,7 @@ add_library(
   grpc/GrpcRestGwServer.cc grpc/GrpcRestGwServer.hh
   grpc/GrpcRestGwInterface.cc      grpc/GrpcRestGwInterface.hh
   grpc/IoStatsService.cc     grpc/IoStatsService.hh
+  grpc/IoMonitorService.cc   grpc/IoMonitorService.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/s3/S3Handler.cc

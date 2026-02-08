@@ -23,6 +23,7 @@
 
 #include "GrpcServer.hh"
 #include "GrpcNsInterface.hh"
+#include "IoMonitorService.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/macros/Macros.hh"
@@ -246,6 +247,7 @@ void GrpcServer::Run(ThreadAssistant& assistant) noexcept {
   // auto brainIngestor = std::make_shared<eos::common::BrainIoIngestor>();
   auto brainIngestor = gOFS->mIoStatsEngine.GetBrain();
   eos::mgm::IoStatsService ioStatsService(brainIngestor);
+  eos::mgm::IoMonitorService ioMonitorService(brainIngestor);
 
   std::string bind_address = "0.0.0.0:";
   bind_address += std::to_string(mPort);
@@ -271,6 +273,7 @@ void GrpcServer::Run(ThreadAssistant& assistant) noexcept {
   if (getenv("EOS_MGM_GRPC_IO_STATS")) {
     eos_static_info("msg=\"gRPC server for EOS will provide IO stats service\"");
     builder.RegisterService(&ioStatsService);
+    builder.RegisterService(&ioMonitorService);
   } else {
     eos_static_info("msg=\"gRPC server for EOS will not provide IO stats service\"");
   }
