@@ -240,7 +240,11 @@ void GrpcServer::Run(ThreadAssistant& assistant) noexcept {
   int selected_port = 0;
   RequestServiceImpl service;
 
-  auto brainIngestor = std::make_shared<eos::common::BrainIoIngestor>();
+  // We should not create this but use the one already created in mIoStatsEngine IoStatsEngine!
+  // gOFS->mIoStatsEngine
+
+  // auto brainIngestor = std::make_shared<eos::common::BrainIoIngestor>();
+  auto brainIngestor = gOFS->mIoStatsEngine.GetBrain();
   eos::mgm::IoStatsService ioStatsService(brainIngestor);
 
   std::string bind_address = "0.0.0.0:";

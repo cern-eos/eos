@@ -115,6 +115,9 @@ void BrainIoIngestor::process_report(const eos::ioshapping::FstIoReport& report)
         eos_static_debug("msg=\"Heavy IO detected\" node=%s app=%s read_delta=%lu", node_id.c_str(), key.app.c_str(),
                          delta_bytes_read);
       }
+
+      // print size of mGlobalStats
+      eos_static_info("msg=\"Current number of entries in global stats\" count=%zu", mGlobalStats.size());
     }
   }
 }
