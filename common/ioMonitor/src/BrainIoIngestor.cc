@@ -5,9 +5,9 @@ namespace eos::common {
 // -----------------------------------------------------------------------------
 // Constructor / Destructor
 // -----------------------------------------------------------------------------
-BrainIoIngestor::BrainIoIngestor() {}
+BrainIoIngestor::BrainIoIngestor() = default;
 
-BrainIoIngestor::~BrainIoIngestor() {}
+BrainIoIngestor::~BrainIoIngestor() = default;
 
 // -----------------------------------------------------------------------------
 // Helper: Exponential Moving Average Calculation
@@ -22,8 +22,8 @@ double BrainIoIngestor::CalculateEma(double current_val, double prev_ema, double
 // Fast Path: Process Report from FST
 // -----------------------------------------------------------------------------
 void BrainIoIngestor::process_report(const eos::ioshapping::FstIoReport& report) {
-  std::string node_id = report.node_id();
-  time_t now = time(nullptr);
+  const std::string& node_id = report.node_id();
+  const time_t now = time(nullptr);
 
   // Global Write Lock (Simpler for now, we will shard this later)
   // This protects both mNodeStates and mGlobalStats map insertions
@@ -125,27 +125,48 @@ void BrainIoIngestor::process_report(const eos::ioshapping::FstIoReport& report)
 // -----------------------------------------------------------------------------
 // Slow Path: Update Time Windows (Called every 1 second)
 // -----------------------------------------------------------------------------
-void BrainIoIngestor::UpdateTimeWindows() {
+void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
+  if (time_delta_seconds <= 0.000001) {
+    // time_delta_seconds should be around 1.0 second, if it's too small, we might have a problem with the ticker or
+    // system clock.
+    eos_static_err("msg=\"Invalid time_delta_seconds for UpdateTimeWindows\" time_delta_seconds=%f",
+                   time_delta_seconds);
+    return;
+  }
+
+  // raise warning if time_delta_seconds is significantly different from 1 second (e.g., >1.5s or <0.5s)
+  // The values computed by this algorithm do not make sense if the time_delta_seconds is too far from 1 second, so we
+  // want to be alerted if that happens. Given the recursive nature of the calculations, errors in the past will be
+  // eventually corrected over time.
+  constexpr double expected_time_delta_seconds = 1.0;
+  constexpr double tolerance = 0.10; // 10% tolerance
+  if (time_delta_seconds < expected_time_delta_seconds * (1.0 - tolerance) ||
+      time_delta_seconds > expected_time_delta_seconds * (1.0 + tolerance)) {
+    eos_static_warning("msg=\"Ticker time_delta_seconds out of expected range\" time_delta_seconds=%f",
+                       time_delta_seconds);
+  }
+
   // Write lock needed because we modify the rate values in the map
   std::unique_lock lock(mMutex);
 
   // --- Configuration: EMA Alphas ---
-  // Alpha = 2 / (N + 1)
-  constexpr double kAlpha5s = 0.3333; // ~5 seconds (Instant/Spiky)
-  constexpr double kAlpha1m = 0.0328; // ~1 minute (Stable)
-  constexpr double kAlpha5m = 0.0066; // ~5 minutes (Trend)
+  // These values are valid for time delta of around 1 second. They should be updated if the ticker interval changes.
+  // Alpha = 2 / (Seconds + 1)
+  constexpr double kAlpha5s = 0.33333333; // 5 seconds
+  constexpr double kAlpha1m = 0.03278688; // 60 seconds
+  constexpr double kAlpha5m = 0.00664452; // 300 seconds
 
   // print how many items in global stats
   eos_static_info("msg=\"Updating IoStats time windows\" mGlobalStats.size=%zu", mGlobalStats.size());
   for (auto& [key, stats] : mGlobalStats) {
     // 1. Snapshot and Reset Accumulators
     // exchange(0) atomically reads the value and sets it to 0 for the next cycle
-    uint64_t bytes_read_now = stats.bytes_read_accumulator.exchange(0);
-    uint64_t bytes_written_now = stats.bytes_written_accumulator.exchange(0);
+    const uint64_t bytes_read_now = stats.bytes_read_accumulator.exchange(0);
+    const uint64_t bytes_written_now = stats.bytes_written_accumulator.exchange(0);
 
     // 2. Calculate Instant Rate (Bytes/Sec for this last second)
-    double current_read_bps = (double)bytes_read_now;
-    double current_write_bps = (double)bytes_written_now;
+    const double current_read_bps = static_cast<double>(bytes_read_now) / time_delta_seconds;
+    const double current_write_bps = static_cast<double>(bytes_written_now) / time_delta_seconds;
 
     // 3. Update Moving Averages (EMA)
 

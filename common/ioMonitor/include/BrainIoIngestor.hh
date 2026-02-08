@@ -102,7 +102,7 @@ public:
   // 1. Reads Accumulators.
   // 2. Calculates EMAs (1s, 1m, 5m).
   // 3. Resets Accumulators.
-  void UpdateTimeWindows();
+  void UpdateTimeWindows(double time_delta_seconds);
 
   // --- Monitoring API ---
   // Returns a snapshot of the calculated rates for dashboards.
@@ -122,6 +122,6 @@ private:
   mutable std::shared_mutex mMutex;
 
   // Internal Helper
-  double CalculateEma(double current_val, double prev_ema, double alpha);
+  static double CalculateEma(double current_val, double prev_ema, double alpha);
 };
 } // namespace eos::common

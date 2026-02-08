@@ -68,8 +68,8 @@ void IoStatsEngine::TickerLoop() const {
   auto last_run = std::chrono::steady_clock::now();
 
   while (mRunning) {
-    eos_static_info("msg=\"IoStatsEngine ticker running\"");
     // 2. Advance target time by exactly 1 second
+    // TODO: use some static const defined in a common place to time the thread and UpdateTimeWindows
     next_tick += std::chrono::seconds(1);
 
     // 3. Sleep precisely until that moment (Handles drift)
@@ -85,14 +85,7 @@ void IoStatsEngine::TickerLoop() const {
     double dt = elapsed.count();
     last_run = now;
 
-    // 5. Run the Math
-    // Only run if dt is valid to avoid division by zero
-    if (dt > 0.001) {
-      // for now call it without delta
-      mBrain->UpdateTimeWindows();
-    } else {
-      eos_static_warning("msg=\"IoStatsEngine ticker skipping cycle due to negligible dt\" dt=%.6f", dt);
-    }
+    mBrain->UpdateTimeWindows(dt);
   }
 }
 } // namespace eos::mgm
