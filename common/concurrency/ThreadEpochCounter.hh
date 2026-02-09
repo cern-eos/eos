@@ -35,14 +35,23 @@ namespace eos::common {
 namespace detail {
 
 template <typename, typename = void>
-struct is_state_less : std::false_type {};
+struct is_stateful : std::false_type {};
 
 template <typename T>
-struct is_state_less<T,
-                     std::void_t<typename T::is_state_less>> : std::true_type {};
+struct is_stateful<T,
+                   std::void_t<typename T::is_stateful>> : std::true_type {};
 
 template <typename T>
-constexpr bool is_state_less_v = is_state_less<T>::value;
+constexpr bool is_stateful_v = is_stateful<T>::value;
+
+template <typename T, typename = void>
+struct stateful_trait_base {};
+
+template <typename T>
+struct stateful_trait_base <T, std::void_t<typename T::is_stateful>> {
+  using is_stateful = void;
+};
+
 } // detail
 
 namespace experimental {
@@ -52,6 +61,7 @@ namespace experimental {
   template <size_t kMaxEpochs=32768>
   class VersionEpochCounter {
   public:
+    using is_stateful = void;
     inline uint64_t getEpochIndex(uint64_t epoch) noexcept {
       if (epoch < kMaxEpochs)
         return epoch;
@@ -140,7 +150,7 @@ struct alignas(hardware_destructive_interference_size) ThreadEpoch {
 class ThreadEpochCounter {
 public:
 
-  using is_state_less = void;
+  //using is_state_less = void;
 
   size_t increment(uint64_t epoch, uint16_t count=1) noexcept {
     auto tid = tlocalID.get();
@@ -183,6 +193,8 @@ private:
   std::array<ThreadEpoch, EOS_MAX_THREADS> mCounter{0};
 };
 
-static_assert(detail::is_state_less_v<ThreadEpochCounter>);
+// Cross check our assumptions about statefulness are true
+static_assert(detail::is_stateful_v<experimental::VersionEpochCounter<>>);
+static_assert(!detail::is_stateful_v<ThreadEpochCounter>);
 
 } // eos::common
