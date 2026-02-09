@@ -63,6 +63,7 @@ struct RateSnapshot {
   uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
 };
+
 // -----------------------------------------------------------------------------
 // Keys & Hashes
 // -----------------------------------------------------------------------------
@@ -107,8 +108,16 @@ public:
   // --- Monitoring API ---
   // Returns a snapshot of the calculated rates for dashboards.
   std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> GetGlobalStats() const;
+
   // Cleanup old streams
-  void garbage_collect(int max_idle_seconds = 300);
+
+  struct GarbageCollectionStats {
+    size_t removed_nodes;
+    size_t removed_node_streams;
+    size_t removed_global_streams;
+  };
+
+  GarbageCollectionStats garbage_collect(int max_idle_seconds = 300);
 
 private:
   // A. The Per-Node Map (NodeID -> StreamKey -> RawCounters)

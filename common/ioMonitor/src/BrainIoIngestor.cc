@@ -157,7 +157,6 @@ void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
   constexpr double kAlpha5m = 0.00664452; // 300 seconds
 
   // print how many items in global stats
-  eos_static_info("msg=\"Updating IoStats time windows\" mGlobalStats.size=%zu", mGlobalStats.size());
   for (auto& [key, stats] : mGlobalStats) {
     // 1. Snapshot and Reset Accumulators
     // exchange(0) atomically reads the value and sets it to 0 for the next cycle
@@ -188,12 +187,14 @@ void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
     update_rate_set(current_write_bps, stats.write_rate_5s, stats.write_rate_1m, stats.write_rate_5m);
 
     // print info using eos_static_info
+    /*
     eos_static_info("msg=\"Updated IoStats rates\" app=%s uid=%u gid=%u read_bps=%.2f write_bps=%.2f "
                     "read_rate_5s=%.2f read_rate_1m=%.2f read_rate_5m=%.2f "
                     "write_rate_5s=%.2f write_rate_1m=%.2f write_rate_5m=%.2f",
                     key.app.c_str(), key.uid, key.gid, current_read_bps, current_write_bps, stats.read_rate_5s,
                     stats.read_rate_1m, stats.read_rate_5m, stats.write_rate_5s, stats.write_rate_1m,
                     stats.write_rate_5m);
+                    */
     // (Repeat for IOPS if you add accumulators for them)
   }
 }
@@ -234,47 +235,56 @@ std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> BrainIoIngestor::GetG
   return snapshot_map; // This is now copyable!
 }
 
-// -----------------------------------------------------------------------------
-// Garbage Collection
-// -----------------------------------------------------------------------------
-void BrainIoIngestor::garbage_collect(int max_idle_seconds) {
+BrainIoIngestor::GarbageCollectionStats BrainIoIngestor::garbage_collect(int max_idle_seconds) {
   std::unique_lock lock(mMutex);
   time_t now = time(nullptr);
-  size_t removed_nodes = 0;
-  size_t removed_globals = 0;
 
-  // 1. Clean Per-Node States
+  GarbageCollectionStats stats = {0, 0, 0};
+
+  // ---------------------------------------------------------------------------
+  // 1. Clean Per-Node States (mNodeStates)
+  // ---------------------------------------------------------------------------
+  // A "Node Stream" is: App 'python' running specifically on Node 'fst01'.
+  // If fst01 hasn't sent an update for 'python' in 60s, remove it.
   for (auto node_it = mNodeStates.begin(); node_it != mNodeStates.end();) {
     NodeStateMap& map = node_it->second;
+
+    // Iterate over streams (App/UID/GID) within this Node
     for (auto stream_it = map.begin(); stream_it != map.end();) {
       if (now - stream_it->second.last_update_time > max_idle_seconds) {
+        // Erasure returns iterator to the next element
         stream_it = map.erase(stream_it);
+        stats.removed_node_streams++;
       } else {
         ++stream_it;
       }
     }
+
+    // If the Node is now empty (no active streams left), remove the Node entry entirely
     if (map.empty()) {
       node_it = mNodeStates.erase(node_it);
-      removed_nodes++;
+      stats.removed_nodes++;
     } else {
       ++node_it;
     }
   }
 
-  // 2. Clean Global Stats
-  // We remove global entries if they haven't been active recently.
-  // Note: last_activity_time should be updated in process_report
+  // ---------------------------------------------------------------------------
+  // 2. Clean Global Stats (mGlobalStats)
+  // ---------------------------------------------------------------------------
+  // A "Global Stream" is: App 'python' aggregated across ALL nodes.
+  // If NO node has reported activity for 'python' in 60s, this entry is stale.
   for (auto it = mGlobalStats.begin(); it != mGlobalStats.end();) {
+    // Note: Ensure 'last_activity_time' is updated in process_report() whenever
+    // an update arrives for this key.
     if (now - it->second.last_activity_time > max_idle_seconds) {
       it = mGlobalStats.erase(it);
-      removed_globals++;
+      stats.removed_global_streams++;
     } else {
       ++it;
     }
   }
 
-  if (removed_nodes > 0 || removed_globals > 0) {
-    eos_static_info("msg=\"IoStats GC\" removed_nodes=%lu removed_global_streams=%lu", removed_nodes, removed_globals);
-  }
+  return stats;
 }
 } // namespace eos::common
