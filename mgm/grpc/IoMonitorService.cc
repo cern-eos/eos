@@ -139,128 +139,75 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 4. Sorting & Population Logic (Generic Lambda)
-  // ---------------------------------------------------------------------------
-  auto process_entities = [&](auto& source_map, auto add_proto_func) {
-    using PairType = typename std::remove_reference<decltype(source_map)>::type::value_type;
+  // Generic Lambda to process any map (UID, GID, or App)
+  auto process_stats = [&](const auto& source_map, auto add_entry_fn, auto set_id_fn) {
+    if (source_map.empty()) { return; }
 
-    // Convert map to vector for sorting
+    // A. Map -> Vector (for sorting)
+    using PairType = typename std::decay_t<decltype(source_map)>::value_type;
     std::vector<const PairType*> vec;
     vec.reserve(source_map.size());
-    for (const auto& kv : source_map) {
-      vec.push_back(&kv);
+    for (const auto& item : source_map) {
+      vec.push_back(&item);
     }
 
-    // Sorter: Sort by Total Throughput of the 'sort_window'
+    // B. Sorter: Sort by 'sort_window' throughput
     auto sorter = [&](const PairType* a, const PairType* b) {
       double val_a = 0, val_b = 0;
 
-      // Safely find the sort_window stats (might be missing if 0 throughput)
-      auto it_a = a->second.window_rates.find(sort_window);
-      if (it_a != a->second.window_rates.end()) { val_a = it_a->second.total_throughput(); }
-
-      auto it_b = b->second.window_rates.find(sort_window);
-      if (it_b != b->second.window_rates.end()) { val_b = it_b->second.total_throughput(); }
-
+      // Safe lookup (rate might not exist for this specific window)
+      if (auto it = a->second.window_rates.find(sort_window); it != a->second.window_rates.end()) {
+        val_a = it->second.total_throughput();
+      }
+      if (auto it = b->second.window_rates.find(sort_window); it != b->second.window_rates.end()) {
+        val_b = it->second.total_throughput();
+      }
       return val_a > val_b;
     };
 
-    // Determine Top N
+    // C. Top N Selection
     size_t n = vec.size();
     if (request->has_top_n() && request->top_n() > 0) {
-      n = std::min((size_t)request->top_n(), n);
-      // Partial Sort is faster than full sort for Top N
+      n = std::min(static_cast<size_t>(request->top_n()), n);
+      // Partial Sort is faster than full sort
       std::partial_sort(vec.begin(), vec.begin() + n, vec.end(), sorter);
     } else {
-      // Full sort if unlimited
       std::sort(vec.begin(), vec.end(), sorter);
     }
 
-    // Populate Proto
+    // D. Populate Protobuf
     for (size_t i = 0; i < n; ++i) {
-      auto* entry = add_proto_func(); // Creates UserRateEntry/AppRateEntry
+      auto* entry = add_entry_fn();    // e.g., report->add_uid_stats()
+      set_id_fn(entry, vec[i]->first); // e.g., entry->set_uid(1001)
 
-      // Set ID (Generic handling)
-      if constexpr (std::is_same_v<typename std::decay_t<decltype(vec[i]->first)>, uint32_t>) {
-        // For UID/GID
-        // Assuming proto has .set_uid() or .set_gid()
-        // We handle this in the caller's lambda.
+      // Add stats for ALL requested windows
+      for (const auto& [win, rates] : vec[i]->second.window_rates) {
+        auto* s = entry->add_stats();
+        s->set_window(win);
+        s->set_bytes_read_per_sec(rates.r_bps);
+        s->set_bytes_written_per_sec(rates.w_bps);
+        s->set_iops_read(rates.r_iops);  // Fixed: Now applied to all types
+        s->set_iops_write(rates.w_iops); // Fixed: Now applied to all types
       }
-
-      // Return pair to caller to set the specific ID field
-      auto populate_stats = [&](auto* proto_entry) {
-        const auto& agg = vec[i]->second;
-        // Loop through ALL calculated windows for this user and add them
-        for (const auto& [win, rates] : agg.window_rates) {
-          auto* stats = proto_entry->add_stats(); // Repeated field
-          stats->set_window(win);
-          stats->set_bytes_read_per_sec(rates.r_bps);
-          stats->set_bytes_written_per_sec(rates.w_bps);
-          stats->set_read_ops_per_sec(rates.r_iops);
-          stats->set_write_ops_per_sec(rates.w_iops);
-        }
-      };
-
-      // We return the entry and the populate function to the specific block below
-      // to keep type safety for the ID field.
-      return std::make_pair(vec[i]->first, populate_stats);
     }
-
-    // Dummy return to satisfy compiler type deduction in generic lambda
-    return std::make_pair(vec[0]->first, [&](auto*) {});
   };
 
-  // --- Process UIDs ---
-  if (do_uid && !uid_agg.empty()) {
-    // Manual unrolling of the generic logic above to handle specific Proto setters
-    std::vector<std::pair<uint32_t, AggregatedEntity>> vec(uid_agg.begin(), uid_agg.end());
+  // ---------------------------------------------------------------------------
+  // 5. Apply Logic to Each Entity Type
+  // ---------------------------------------------------------------------------
 
-    // Sorter
-    std::sort(vec.begin(), vec.end(), [&](auto& a, auto& b) {
-      return a.second.window_rates[sort_window].total_throughput() >
-             b.second.window_rates[sort_window].total_throughput();
-    });
-
-    size_t n =
-        (request->has_top_n() && request->top_n() > 0) ? std::min((size_t)request->top_n(), vec.size()) : vec.size();
-
-    for (size_t i = 0; i < n; ++i) {
-      auto* e = report->add_uid_stats();
-      e->set_uid(vec[i].first);
-
-      for (const auto& [win, rates] : vec[i].second.window_rates) {
-        auto* s = e->add_stats();
-        s->set_window(win);
-        s->set_bytes_read_per_sec(rates.r_bps);
-        s->set_bytes_written_per_sec(rates.w_bps);
-      }
-    }
+  if (do_uid) {
+    process_stats(uid_agg, [&]() { return report->add_uid_stats(); }, [](auto* e, uint32_t id) { e->set_uid(id); });
   }
 
-  // --- Process Apps (Identical logic, just different ID setter) ---
-  if (do_app && !app_agg.empty()) {
-    std::vector<std::pair<std::string, AggregatedEntity>> vec(app_agg.begin(), app_agg.end());
+  if (do_gid) {
+    process_stats(gid_agg, [&]() { return report->add_gid_stats(); }, [](auto* e, uint32_t id) { e->set_gid(id); });
+  }
 
-    std::sort(vec.begin(), vec.end(), [&](auto& a, auto& b) {
-      return a.second.window_rates[sort_window].total_throughput() >
-             b.second.window_rates[sort_window].total_throughput();
-    });
-
-    size_t n =
-        (request->has_top_n() && request->top_n() > 0) ? std::min((size_t)request->top_n(), vec.size()) : vec.size();
-
-    for (size_t i = 0; i < n; ++i) {
-      auto* e = report->add_app_stats();
-      e->set_app_name(vec[i].first);
-
-      for (const auto& [win, rates] : vec[i].second.window_rates) {
-        auto* s = e->add_stats();
-        s->set_window(win);
-        s->set_bytes_read_per_sec(rates.r_bps);
-        s->set_bytes_written_per_sec(rates.w_bps);
-      }
-    }
+  if (do_app) {
+    process_stats(
+        app_agg, [&]() { return report->add_app_stats(); },
+        [](auto* e, const std::string& id) { e->set_app_name(id); });
   }
 }
 
