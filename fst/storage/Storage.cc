@@ -325,13 +325,7 @@ Storage::Storage(const char* meta_dir) {
   mPublisherThread.setName("Publisher Thread");
 
   // TODO: refactor this using the `AssistedThread`
-  // TODO: find ports and host properly
-  // TODO: how to get node ID?
-  eos_static_warning(
-      "Starting IoStatsPublisher with hardcoded host and port - this should be refactored to use proper configuration");
-  // how to get mgm grpc port? from EOS_ENV?
-
-  mStatsPublisher.Start("0.0.0.0:50051", gConfig.FstHostPort.c_str());
+  mStatsPublisher.Start();
 
   eos_info("starting mgm synchronization thread");
 

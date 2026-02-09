@@ -1,12 +1,11 @@
 #pragma once
 
-#include <thread>
-#include <atomic>
-#include <string>
-#include <memory>
-#include <chrono>
-
 #include "proto/TrafficShaping.grpc.pb.h"
+#include <atomic>
+#include <chrono>
+#include <memory>
+#include <string>
+#include <thread>
 
 namespace eos::fst {
 // -----------------------------------------------------------------------------
@@ -23,12 +22,7 @@ public:
 
   IoStatsPublisher& operator=(const IoStatsPublisher&) = delete;
 
-  /**
-   * @brief Starts the background reporting thread.
-   * @param mgm_host_port The address of the MGM (e.g., "eos-mgm.cern.ch:50051")
-   * @param node_id       The unique ID of this FST (e.g., "fst-05.cern.ch")
-   */
-  void Start(const std::string& mgm_host_port, const std::string& node_id);
+  void Start();
 
   /**
    * @brief Signals the thread to stop and waits for it to join.
@@ -41,10 +35,14 @@ private:
    */
   void WorkerLoop();
 
+  void UpdateMgmGrpcHostPort();
+
   // --- Configuration ---
   std::string mMgmHostPort;
   std::string mNodeId;
   std::chrono::milliseconds mReportInterval{1000};
+  std::mutex mConfigMutex; // Protects mMgmHostPort
+  std::string mConnectedHostPort;
 
   // --- Threading ---
   std::thread mThread;
