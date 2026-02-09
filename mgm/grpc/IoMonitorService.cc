@@ -3,9 +3,13 @@
 #include <algorithm>
 #include <chrono>
 #include <map>
+#include <set>
 #include <thread>
+#include <vector>
 
 namespace eos::mgm {
+using namespace eos::ioshapping;
+
 // -----------------------------------------------------------------------------
 // Constructor
 // -----------------------------------------------------------------------------
@@ -13,14 +17,31 @@ IoMonitorService::IoMonitorService(std::shared_ptr<eos::common::BrainIoIngestor>
     : mIngestor(std::move(ingestor)) {}
 
 // -----------------------------------------------------------------------------
-// Helper: Extract Window
+// Helper: Extract specific window rates from a snapshot
 // -----------------------------------------------------------------------------
-IoMonitorService::ExtractedRates
-IoMonitorService::ExtractWindow(const eos::common::RateSnapshot& snap,
-                                const eos::ioshapping::RateRequest::TimeWindow window) {
-  using namespace eos::ioshapping;
+struct Rates {
+  double r_bps = 0;
+  double w_bps = 0;
+  double r_iops = 0;
+  double w_iops = 0;
+
+  // Helper for sorting/comparison
+  double total_throughput() const {
+    return r_bps + w_bps;
+  }
+
+  // Accumulate
+  void add(const Rates& other) {
+    r_bps += other.r_bps;
+    w_bps += other.w_bps;
+    r_iops += other.r_iops;
+    w_iops += other.w_iops;
+  }
+};
+
+Rates ExtractWindowRates(const eos::common::RateSnapshot& snap, RateRequest::TimeWindow window) {
   switch (window) {
-  case RateRequest::WINDOW_LIVE_1S:
+  case RateRequest::WINDOW_LIVE_5S:
     return {snap.read_rate_5s, snap.write_rate_5s};
   case RateRequest::WINDOW_AVG_5M:
     return {snap.read_rate_5m, snap.write_rate_5m};
@@ -31,169 +52,241 @@ IoMonitorService::ExtractWindow(const eos::common::RateSnapshot& snap,
 }
 
 // -----------------------------------------------------------------------------
-// Helper: Build Report (Aggregation & Sorting Logic)
+// Helper: Build Report
 // -----------------------------------------------------------------------------
-void IoMonitorService::BuildReport(const eos::ioshapping::RateRequest* request, eos::ioshapping::RateReport* report) {
-  // 1. Get Global Snapshot (Thread-Safe Copy)
+void IoMonitorService::BuildReport(const RateRequest* request, RateReport* report) {
+  // 1. Snapshot Global State
   auto global_stats = mIngestor->GetGlobalStats();
 
+  // Set Timestamp
   int64_t now_ms =
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count();
   report->set_timestamp_ms(now_ms);
 
-  // 2. Aggregation Structures
-  // We map ID -> RateStats to sum up duplicates
-  struct AggregatedStats {
-    double r_bps = 0;
-    double w_bps = 0;
-    double r_iops = 0;
-    double w_iops = 0;
-    uint32_t active_streams = 0;
-  };
+  // ---------------------------------------------------------------------------
+  // 2. Parse Request Filters (Dynamic Enums)
+  // ---------------------------------------------------------------------------
+  bool do_uid = false, do_gid = false, do_app = false;
 
-  std::map<uint32_t, AggregatedStats> uid_agg;
-  std::map<uint32_t, AggregatedStats> gid_agg;
-  std::map<std::string, AggregatedStats> app_agg;
-
-  // 3. Iterate & Aggregate
-  for (const auto& [key, snap] : global_stats) {
-    auto rates = ExtractWindow(snap, request->window());
-
-    // Skip idle users if you want
-    if (rates.r_bps == 0 && rates.w_bps == 0) { continue; }
-
-    if (request->include_uids()) {
-      auto& a = uid_agg[key.uid];
-      a.r_bps += rates.r_bps;
-      a.w_bps += rates.w_bps;
-      a.active_streams++;
-    }
-    if (request->include_gids()) {
-      auto& a = gid_agg[key.gid];
-      a.r_bps += rates.r_bps;
-      a.w_bps += rates.w_bps;
-      a.active_streams++;
-    }
-    if (request->include_apps()) {
-      auto& a = app_agg[key.app];
-      a.r_bps += rates.r_bps;
-      a.w_bps += rates.w_bps;
-      a.active_streams++;
+  if (request->include_types_size() == 0) {
+    // Default: Include All if unspecified
+    do_uid = do_gid = do_app = true;
+  } else {
+    for (auto type : request->include_types()) {
+      if (type == RateRequest::ENTITY_UID) { do_uid = true; }
+      if (type == RateRequest::ENTITY_GID) { do_gid = true; }
+      if (type == RateRequest::ENTITY_APP) { do_app = true; }
     }
   }
 
-  // 4. Sorting & Populating (Top N)
-  // Helper lambda to sort and fill
-  auto fill_top_n = [&](auto& source_map, auto add_func) {
-    // Convert map to vector for sorting
-    using PairType = typename std::remove_reference<decltype(source_map)>::type::value_type;
-    std::vector<const PairType*> sorted;
-    sorted.reserve(source_map.size());
-    for (const auto& kv : source_map) {
-      sorted.push_back(&kv);
+  // Determine Time Windows to Process
+  std::vector<RateRequest::TimeWindow> target_windows;
+  if (request->windows_size() == 0) {
+    target_windows.push_back(RateRequest::WINDOW_AVG_1M); // Default
+  } else {
+    for (auto w : request->windows()) {
+      if (w != RateRequest::WINDOW_UNSPECIFIED) { target_windows.push_back(static_cast<RateRequest::TimeWindow>(w)); }
     }
+  }
 
-    // Sort by Total Throughput (Read + Write)
-    auto sorter = [](const PairType* a, const PairType* b) {
-      double total_a = a->second.r_bps + a->second.w_bps;
-      double total_b = b->second.r_bps + b->second.w_bps;
-      return total_a > total_b;
-    };
+  // Determine Sorting Window
+  // If user asks for [1s, 5m] but wants to sort by 5m trend, they set sort_by_window=5m.
+  // Default to the first window in the list.
+  RateRequest::TimeWindow sort_window = target_windows[0];
+  if (request->has_sort_by_window() && request->sort_by_window() != RateRequest::WINDOW_UNSPECIFIED) {
+    sort_window = request->sort_by_window();
+  }
 
-    size_t n = request->top_n();
-    if (n == 0 || n > sorted.size()) { n = sorted.size(); }
-
-    // Partial Sort (Optimization: only sort the top N elements)
-    std::partial_sort(sorted.begin(), sorted.begin() + n, sorted.end(), sorter);
-
-    // Add to Proto
-    for (size_t i = 0; i < n; ++i) {
-      auto* entry = add_func(); // Call the report->add_xxx() function
-      const auto& data = sorted[i]->second;
-
-      // Set Key (needs casting/handling based on type)
-      // We handle this inside the specific caller below
-
-      // Set Stats
-      auto* stats = entry->mutable_stats();
-      stats->set_bytes_read_per_sec(data.r_bps);
-      stats->set_bytes_written_per_sec(data.w_bps);
-      stats->set_read_ops_per_sec(data.r_iops);
-      stats->set_write_ops_per_sec(data.w_iops);
-      // stats->set_active_streams(data.active_streams); // If proto has this
-
-      return sorted[i]->first; // Return key to caller to set it
-    }
+  // ---------------------------------------------------------------------------
+  // 3. Aggregation Logic
+  // ---------------------------------------------------------------------------
+  // We need to store rates for ALL requested windows for each entity.
+  struct AggregatedEntity {
+    uint32_t active_streams = 0;
+    std::map<RateRequest::TimeWindow, Rates> window_rates;
   };
 
-  // --- Fill UIDs ---
-  if (request->include_uids()) {
-    std::vector<std::pair<uint32_t, AggregatedStats>> vec(uid_agg.begin(), uid_agg.end());
-    // Simple sort for now (or implement the partial_sort generic above cleanly)
-    std::sort(vec.begin(), vec.end(),
-              [](auto& a, auto& b) { return (a.second.r_bps + a.second.w_bps) > (b.second.r_bps + b.second.w_bps); });
+  std::map<uint32_t, AggregatedEntity> uid_agg;
+  std::map<uint32_t, AggregatedEntity> gid_agg;
+  std::map<std::string, AggregatedEntity> app_agg;
 
-    size_t n = request->top_n() == 0 ? vec.size() : std::min((size_t)request->top_n(), vec.size());
+  for (const auto& [key, snap] : global_stats) {
+    // Optimization: Calculate rates only for requested windows
+    for (auto win : target_windows) {
+      Rates r = ExtractWindowRates(snap, win);
+
+      // Skip completely idle streams (micro-optimization)
+      if (r.total_throughput() == 0 && r.r_iops == 0 && r.w_iops == 0) { continue; }
+
+      if (do_uid) {
+        auto& agg = uid_agg[key.uid];
+        agg.window_rates[win].add(r);
+        if (win == target_windows[0]) {
+          agg.active_streams++; // Count once
+        }
+      }
+      if (do_gid) {
+        auto& agg = gid_agg[key.gid];
+        agg.window_rates[win].add(r);
+        if (win == target_windows[0]) { agg.active_streams++; }
+      }
+      if (do_app) {
+        auto& agg = app_agg[key.app];
+        agg.window_rates[win].add(r);
+        if (win == target_windows[0]) { agg.active_streams++; }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // 4. Sorting & Population Logic (Generic Lambda)
+  // ---------------------------------------------------------------------------
+  auto process_entities = [&](auto& source_map, auto add_proto_func) {
+    using PairType = typename std::remove_reference<decltype(source_map)>::type::value_type;
+
+    // Convert map to vector for sorting
+    std::vector<const PairType*> vec;
+    vec.reserve(source_map.size());
+    for (const auto& kv : source_map) {
+      vec.push_back(&kv);
+    }
+
+    // Sorter: Sort by Total Throughput of the 'sort_window'
+    auto sorter = [&](const PairType* a, const PairType* b) {
+      double val_a = 0, val_b = 0;
+
+      // Safely find the sort_window stats (might be missing if 0 throughput)
+      auto it_a = a->second.window_rates.find(sort_window);
+      if (it_a != a->second.window_rates.end()) { val_a = it_a->second.total_throughput(); }
+
+      auto it_b = b->second.window_rates.find(sort_window);
+      if (it_b != b->second.window_rates.end()) { val_b = it_b->second.total_throughput(); }
+
+      return val_a > val_b;
+    };
+
+    // Determine Top N
+    size_t n = vec.size();
+    if (request->has_top_n() && request->top_n() > 0) {
+      n = std::min((size_t)request->top_n(), n);
+      // Partial Sort is faster than full sort for Top N
+      std::partial_sort(vec.begin(), vec.begin() + n, vec.end(), sorter);
+    } else {
+      // Full sort if unlimited
+      std::sort(vec.begin(), vec.end(), sorter);
+    }
+
+    // Populate Proto
+    for (size_t i = 0; i < n; ++i) {
+      auto* entry = add_proto_func(); // Creates UserRateEntry/AppRateEntry
+
+      // Set ID (Generic handling)
+      if constexpr (std::is_same_v<typename std::decay_t<decltype(vec[i]->first)>, uint32_t>) {
+        // For UID/GID
+        // Assuming proto has .set_uid() or .set_gid()
+        // We handle this in the caller's lambda.
+      }
+
+      // Return pair to caller to set the specific ID field
+      auto populate_stats = [&](auto* proto_entry) {
+        const auto& agg = vec[i]->second;
+        // Loop through ALL calculated windows for this user and add them
+        for (const auto& [win, rates] : agg.window_rates) {
+          auto* stats = proto_entry->add_stats(); // Repeated field
+          stats->set_window(win);
+          stats->set_bytes_read_per_sec(rates.r_bps);
+          stats->set_bytes_written_per_sec(rates.w_bps);
+          stats->set_read_ops_per_sec(rates.r_iops);
+          stats->set_write_ops_per_sec(rates.w_iops);
+        }
+      };
+
+      // We return the entry and the populate function to the specific block below
+      // to keep type safety for the ID field.
+      return std::make_pair(vec[i]->first, populate_stats);
+    }
+
+    // Dummy return to satisfy compiler type deduction in generic lambda
+    return std::make_pair(vec[0]->first, [&](auto*) {});
+  };
+
+  // --- Process UIDs ---
+  if (do_uid && !uid_agg.empty()) {
+    // Manual unrolling of the generic logic above to handle specific Proto setters
+    std::vector<std::pair<uint32_t, AggregatedEntity>> vec(uid_agg.begin(), uid_agg.end());
+
+    // Sorter
+    std::sort(vec.begin(), vec.end(), [&](auto& a, auto& b) {
+      return a.second.window_rates[sort_window].total_throughput() >
+             b.second.window_rates[sort_window].total_throughput();
+    });
+
+    size_t n =
+        (request->has_top_n() && request->top_n() > 0) ? std::min((size_t)request->top_n(), vec.size()) : vec.size();
+
     for (size_t i = 0; i < n; ++i) {
       auto* e = report->add_uid_stats();
       e->set_uid(vec[i].first);
-      auto* s = e->mutable_stats();
-      s->set_bytes_read_per_sec(vec[i].second.r_bps);
-      s->set_bytes_written_per_sec(vec[i].second.w_bps);
+
+      for (const auto& [win, rates] : vec[i].second.window_rates) {
+        auto* s = e->add_stats();
+        s->set_window(win);
+        s->set_bytes_read_per_sec(rates.r_bps);
+        s->set_bytes_written_per_sec(rates.w_bps);
+      }
     }
   }
 
-  // --- Fill Apps (Similar logic) ---
-  if (request->include_apps()) {
-    std::vector<std::pair<std::string, AggregatedStats>> vec(app_agg.begin(), app_agg.end());
-    std::sort(vec.begin(), vec.end(),
-              [](auto& a, auto& b) { return (a.second.r_bps + a.second.w_bps) > (b.second.r_bps + b.second.w_bps); });
-    size_t n = request->top_n() == 0 ? vec.size() : std::min((size_t)request->top_n(), vec.size());
+  // --- Process Apps (Identical logic, just different ID setter) ---
+  if (do_app && !app_agg.empty()) {
+    std::vector<std::pair<std::string, AggregatedEntity>> vec(app_agg.begin(), app_agg.end());
+
+    std::sort(vec.begin(), vec.end(), [&](auto& a, auto& b) {
+      return a.second.window_rates[sort_window].total_throughput() >
+             b.second.window_rates[sort_window].total_throughput();
+    });
+
+    size_t n =
+        (request->has_top_n() && request->top_n() > 0) ? std::min((size_t)request->top_n(), vec.size()) : vec.size();
+
     for (size_t i = 0; i < n; ++i) {
       auto* e = report->add_app_stats();
       e->set_app_name(vec[i].first);
-      auto* s = e->mutable_stats();
-      s->set_bytes_read_per_sec(vec[i].second.r_bps);
-      s->set_bytes_written_per_sec(vec[i].second.w_bps);
+
+      for (const auto& [win, rates] : vec[i].second.window_rates) {
+        auto* s = e->add_stats();
+        s->set_window(win);
+        s->set_bytes_read_per_sec(rates.r_bps);
+        s->set_bytes_written_per_sec(rates.w_bps);
+      }
     }
   }
 }
 
 // -----------------------------------------------------------------------------
-// RPC: GetRates (Unary)
+// RPC Implementations (Boilerplate)
 // -----------------------------------------------------------------------------
-grpc::Status IoMonitorService::GetRates(grpc::ServerContext* context, const eos::ioshapping::RateRequest* request,
-                                        eos::ioshapping::RateReport* response) {
+grpc::Status IoMonitorService::GetRates(grpc::ServerContext* context, const RateRequest* request,
+                                        RateReport* response) {
   BuildReport(request, response);
   return grpc::Status::OK;
 }
 
-// -----------------------------------------------------------------------------
-// RPC: StreamRates (Server Streaming)
-// -----------------------------------------------------------------------------
-grpc::Status IoMonitorService::StreamRates(grpc::ServerContext* context, const eos::ioshapping::RateRequest* request,
-                                           grpc::ServerWriter<eos::ioshapping::RateReport>* writer) {
-  eos_static_info("msg=\"New Monitoring Client connected\" peer=%s", context->peer().c_str());
+grpc::Status IoMonitorService::StreamRates(grpc::ServerContext* context, const RateRequest* request,
+                                           grpc::ServerWriter<RateReport>* writer) {
+  eos_static_info("msg=\"Monitoring Stream Start\" peer=%s", context->peer().c_str());
 
   while (!context->IsCancelled()) {
     auto start = std::chrono::steady_clock::now();
 
-    // 1. Build
-    eos::ioshapping::RateReport report;
+    RateReport report;
     BuildReport(request, &report);
 
-    // 2. Send
-    if (!writer->Write(report)) {
-      // Client disconnected
-      break;
-    }
+    if (!writer->Write(report)) { break; }
 
-    // 3. Wait for remainder of 1 second
-    // We sync with the next second boundary to align with Brain updates
     std::this_thread::sleep_until(start + std::chrono::seconds(1));
   }
-
   return grpc::Status::OK;
 }
 } // namespace eos::mgm
