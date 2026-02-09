@@ -116,11 +116,11 @@ private:
 
  */
 
-template <typename ListT = ThreadEpochCounter>
-class RCUDomain
+template <typename CounterT = ThreadEpochCounter>
+class RCUDomain : public detail::stateful_trait_base<CounterT>
 {
 public:
-  using is_state_less = detail::is_state_less<ListT>;
+
   RCUDomain() = default;
 
   inline uint64_t get_current_epoch(std::memory_order order
@@ -148,15 +148,15 @@ public:
 
   // rcu_read_unlock for a stateless list, which doesn't depend on return from
   // the lock call
-  template <typename T = ListT>
   inline auto
   rcu_read_unlock() noexcept
-  -> std::enable_if_t<detail::is_state_less_v<T>, void>
   {
     mReadersCounter.decrement();
   }
 
-  inline void rcu_read_unlock(uint64_t tag) noexcept
+  template <typename T = CounterT>
+  inline auto rcu_read_unlock(uint64_t tag) noexcept
+  -> std::enable_if_t<detail::is_stateful_v<T>, void>
   {
     mReadersCounter.decrement(mEpoch.load(std::memory_order_acquire), tag);
   }
@@ -190,27 +190,9 @@ private:
     }
   }
 
-  ListT mReadersCounter;
+  CounterT mReadersCounter;
   alignas(hardware_destructive_interference_size) std::atomic<uint64_t> mEpoch{0};
   TicketLock mWriterLock;
-};
-
-template <typename RCUDomain>
-struct RCUReadLock {
-  RCUReadLock(RCUDomain& _rcu_domain) : rcu_domain(_rcu_domain)
-  {
-    epoch = rcu_domain.get_current_epoch();
-    tag = rcu_domain.rcu_read_lock(epoch);
-  }
-
-  ~RCUReadLock()
-  {
-    rcu_domain.rcu_read_unlock(epoch, tag);
-  }
-
-  uint64_t tag;
-  uint64_t epoch;
-  RCUDomain& rcu_domain;
 };
 
 template <typename RCUDomain>
@@ -228,34 +210,14 @@ struct RCUWriteLock {
   RCUDomain& rcu_domain;
 };
 
-template <typename RCUDomain, typename Ptr>
-struct ScopedRCUWrite {
-  ScopedRCUWrite(RCUDomain& _rcu_domain,
-                 Ptr& ptr,
-                 typename Ptr::pointer new_val) : rcu_domain(_rcu_domain)
-  {
-    rcu_domain.rcu_write_lock();
-    old_val = ptr.reset(new_val);
-  }
-
-  ~ScopedRCUWrite()
-  {
-    rcu_domain.rcu_write_unlock();
-    delete old_val;
-
-  }
-
-  RCUDomain& rcu_domain;
-  typename Ptr::pointer old_val;
-};
-
 using VersionedRCUDomain = RCUDomain<experimental::VersionEpochCounter<32>>;
 using EpochRCUDomain = RCUDomain<ThreadEpochCounter>;
-
+static_assert(!detail::is_stateful_v<EpochRCUDomain>);
+static_assert(detail::is_stateful_v<VersionedRCUDomain>);
 // An adapter to use RCUDomain as a std::shared_mutex like object
 template <typename RCUDomainT = EpochRCUDomain>
 class RCUMutexT {
-  static_assert(detail::is_state_less_v<RCUDomainT>,
+  static_assert(!detail::is_stateful_v<RCUDomainT>,
                 "RCUMutex needs to be stateless to confirm to std::shared_mutex api");
 public:
   // implement here the std::shared_lock and unique_lock api
@@ -280,10 +242,10 @@ private:
 
 // Specialization of ScopedRCUWrite for RCUMutexT which is
 // compatible with std::shared_mutex/unique/shared_lock apis
-template <typename Ptr>
-class ScopedRCUWrite<RCUMutexT<>, Ptr> {
+template <typename RCUMutexT, typename Ptr>
+class ScopedRCUWrite {
 public:
-    ScopedRCUWrite(RCUMutexT<>& _rcu_mutex,
+    ScopedRCUWrite(RCUMutexT& _rcu_mutex,
                    Ptr& ptr,
                    typename Ptr::pointer new_val) : rcu_mutex(_rcu_mutex)
     {
@@ -297,23 +259,73 @@ public:
       delete old_val;
     }
     private:
-    RCUMutexT<>& rcu_mutex;
+    RCUMutexT& rcu_mutex;
     typename Ptr::pointer old_val;
 };
 
-  // Specialization for RCUMutexT, in the future replace these calls with
-  // std::shared_lock where possible. This is just for backward compatibility
-template <>
-class RCUReadLock <RCUMutexT<>> {
+// Implementation for ReadLock that correctly handles both stateful and stateless counters
+// For stateless domains, we'd just have the single reference to the mutex stored (8 bytes)
+// Stateful domains need to store the epoch/tag and hence utilize the 24 byte
+namespace detail {
+
+struct StatefulStorage {
+  uint64_t epoch;
+  uint64_t tag;
+};
+
+// Stateless storage would be EBO'd by most compilers
+struct StatelessStorage {};
+
+template <typename T>
+using ReadLockStorage = std::conditional_t<detail::is_stateful_v<T>,
+  StatefulStorage,
+  StatelessStorage>;
+} // detail
+
+template <typename T>
+class RCUReadLock : private detail::ReadLockStorage<T> {
 public:
-  RCUReadLock(RCUMutexT<>& _rcu_mutex) : rcu_mutex(_rcu_mutex) {
-    rcu_mutex.lock_shared();
+  explicit RCUReadLock(T& lockable) : m_lockable(lockable) {
+    lock_impl();
   }
 
   ~RCUReadLock() {
-    rcu_mutex.unlock_shared();
+    unlock_impl();
   }
 private:
-  RCUMutexT<>& rcu_mutex;
+  template <typename U = T>
+  std::enable_if_t<detail::is_stateful_v<U>> lock_impl() {
+    this->epoch = m_lockable.get_current_epoch();
+    this->tag = m_lockable.rcu_read_lock(this->epoch);
+  }
+
+  template <typename U = T>
+  std::enable_if_t<!detail::is_stateful_v<U>> lock_impl() {
+    // Check if it is a raw domain being passed
+    if constexpr (std::is_same_v<U, EpochRCUDomain>) {
+      m_lockable.rcu_read_lock();
+    } else {
+      // Otherwise we assume it's a mutex wrapper
+      m_lockable.lock_shared();
+    }
+  }
+
+  template <typename U = T>
+  std::enable_if_t<detail::is_stateful_v<U>> unlock_impl() {
+    m_lockable.rcu_read_unlock(this->epoch, this->tag);
+  }
+
+  template <typename U = T>
+  std::enable_if_t <!detail::is_stateful_v<U>> unlock_impl() {
+    if constexpr (std::is_same_v<U, EpochRCUDomain>) {
+      m_lockable.rcu_read_unlock();
+    } else {
+      m_lockable.unlock_shared();
+    }
+  }
+
+  T& m_lockable;
 };
+
+static_assert(sizeof(RCUReadLock<RCUMutexT<>>) == 8);
 } // eos::common
