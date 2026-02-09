@@ -197,11 +197,11 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
   // ---------------------------------------------------------------------------
 
   if (do_uid) {
-    process_stats(uid_agg, [&]() { return report->add_uid_stats(); }, [](auto* e, uint32_t id) { e->set_uid(id); });
+    process_stats(uid_agg, [&]() { return report->add_user_stats(); }, [](auto* e, uint32_t id) { e->set_uid(id); });
   }
 
   if (do_gid) {
-    process_stats(gid_agg, [&]() { return report->add_gid_stats(); }, [](auto* e, uint32_t id) { e->set_gid(id); });
+    process_stats(gid_agg, [&]() { return report->add_group_stats(); }, [](auto* e, uint32_t id) { e->set_gid(id); });
   }
 
   if (do_app) {
