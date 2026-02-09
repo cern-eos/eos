@@ -33,8 +33,8 @@
 %bcond_with eos_grpc_gateway
 
 # Define required dependencies
-%define eos_xrootd_version_min 0:5.8.4
-%define xrootd_version_min 1:5.8.4
+%define eos_xrootd_version_min 0:5.9.1
+%define xrootd_version_min 1:5.9.1
 %define eos_grpc_version 1.56.1
 %define eos_rocksdb_version 8.8.1
 %define eos_grpc_gateway_version 0.2.0
