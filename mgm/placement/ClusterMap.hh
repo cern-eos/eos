@@ -25,6 +25,7 @@
 #pragma once
 #include <vector>
 #include <memory>
+#include <shared_mutex>
 #include "mgm/placement/ClusterDataTypes.hh"
 #include "common/concurrency/RCULite.hh"
 #include "common/concurrency/AtomicUniquePtr.h"
@@ -37,8 +38,8 @@ class StorageHandler;
 // and hence can be used with std::shared_lock and std::unique_lock
 // It is possible to just change cluster_rcu_mutex_t to anything
 // that conforms to std::shared_mutex api
-using RCUMutexT = eos::common::RCUMutexT<>;
-
+//using RCUMutexT = eos::common::RCUMutexT<>;
+using RCUMutexT = std::shared_mutex;
 
 class ClusterMgr {
 public:
