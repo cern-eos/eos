@@ -1242,5 +1242,16 @@ pre_commit:
     # Run pre-commit against all files starting from a given commit to HEAD
     # This is done to avoid issues with large diffs when running pre-commit on all files (blocks the CI for ~10 minutes)
     # When (if) the whole is formatted, we can remove the `--from-ref` and `--to-ref` options to always check all files
-    - pre-commit run --from-ref c45fecbb174ac70d1ec22753bd70323eea66ae1a --to-ref HEAD --all-files
-  allow_failure: true
+
+    # pre-commit is run but clang-format will not be applied to all files, just to changed lines.
+    # In this stage it will not run since there are no changes, so clang-format here will do nothing
+    - pre-commit run --from-ref $(git merge-base origin/master HEAD) --to-ref HEAD --all-files
+
+    # Now we compute the diff and run clang-format on the diff only, as if we had the hook installed during our commits.
+    # This will modify the files in place, so you can copy-paste this command to fix the formatting issues locally and then commit the changes but if you have the hook installed you should never need to!
+    - git diff -U0 $(git merge-base origin/master HEAD) HEAD | python3 utils/clang-format-diff.py -p1 -i
+
+    # check if the previous command made any changes, if so, fail the job to enforce formatting
+    - git diff --exit-code || (echo "Code is not properly formatted, please run the above command to fix the formatting issues and commit the changes." && exit 1)
+
+  allow_failure: true # we could enable this soon but let's keep it optional for now until people have had time to adapt to the new formatting rules
