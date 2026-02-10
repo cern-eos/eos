@@ -47,6 +47,6 @@ private:
   };
 
   static ExtractedRates ExtractWindow(const eos::common::RateSnapshot& snap,
-                                      eos::traffic_shaping::RateRequest::TimeWindow window);
+                                      eos::traffic_shaping::RateRequest::Estimators estimator);
 };
 } // namespace eos::mgm

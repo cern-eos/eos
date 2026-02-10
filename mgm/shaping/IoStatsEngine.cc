@@ -72,7 +72,7 @@ void IoStatsEngine::TickerLoop() const {
   // enough to prevent memory bloat but not so often that it impacts performance. Since GC runs in the same thread, it
   // will delay the next tick if it takes too long. We could also consider running GC in a separate thread if it becomes
   // a bottleneck, but for now we will keep it simple and run it in the ticker thread at a reasonable interval.
-  constexpr int gc_counter_limit = 20;
+  constexpr int gc_counter_limit = 10000;
 
   while (mRunning) {
     // 2. Advance target time by exactly 1 second
@@ -95,9 +95,10 @@ void IoStatsEngine::TickerLoop() const {
     mBrain->UpdateTimeWindows(time_delta_seconds);
 
     if (++gc_counter >= gc_counter_limit) {
+      eos_static_info("msg=\"IoStats GC triggered\" gc_counter=%d", gc_counter);
       gc_counter = 0;
       // Remove streams that haven't been active for a while
-      auto [removed_nodes, removed_node_streams, removed_global_streams] = mBrain->garbage_collect(900);
+      const auto [removed_nodes, removed_node_streams, removed_global_streams] = mBrain->garbage_collect(900);
       // 15 minutes or 3 times longer than the biggest EMA (5m)
 
       if (removed_node_streams > 0 || removed_global_streams > 0) {

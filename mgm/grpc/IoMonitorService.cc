@@ -39,19 +39,22 @@ struct Rates {
   }
 };
 
-Rates ExtractWindowRates(const eos::common::RateSnapshot& snap, RateRequest::TimeWindow window) {
-  switch (window) {
-  case RateRequest::WINDOW_SMA_5S:
+Rates
+ExtractWindowRates(const eos::common::RateSnapshot& snap, RateRequest::Estimators estimator)
+{
+  switch (estimator) {
+  case RateRequest::SMA_5_SECONDS:
     return {snap.read_rate_sma_5s, snap.write_rate_sma_5s, snap.read_iops_sma_5s, snap.write_iops_sma_5s};
-  case RateRequest::WINDOW_SMA_1M:
+  case RateRequest::SMA_1_MINUTES:
     return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m, snap.write_iops_sma_1m};
-  case RateRequest::WINDOW_SMA_5M:
+  case RateRequest::SMA_5_MINUTES:
     return {snap.read_rate_sma_5m, snap.write_rate_sma_5m, snap.read_iops_sma_5m, snap.write_iops_sma_5m};
-  case RateRequest::WINDOW_EMA_5S:
+  case RateRequest::EMA_5_SECONDS:
     return {snap.read_rate_ema_5s, snap.write_rate_ema_5s, snap.read_iops_ema_5s, snap.write_iops_ema_5s};
-  case RateRequest::WINDOW_EMA_5M:
-    return {snap.read_rate_sma_5m, snap.write_rate_sma_5m, snap.read_iops_sma_5m, snap.write_iops_sma_5m};
-  case RateRequest::WINDOW_EMA_1M:
+  case RateRequest::EMA_1_MINUTES:
+    return {snap.read_rate_ema_1m, snap.write_rate_ema_1m, snap.read_iops_ema_1m, snap.write_iops_sma_1m};
+  case RateRequest::EMA_5_MINUTES:
+    return {snap.read_rate_ema_5m, snap.write_rate_ema_5m, snap.read_iops_ema_5m, snap.write_iops_ema_5m};
   default:
     return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m, snap.write_iops_sma_1m};
   }
@@ -87,21 +90,23 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
   }
 
   // Determine Time Windows to Process
-  std::vector<RateRequest::TimeWindow> target_windows;
-  if (request->windows_size() == 0) {
-    target_windows.push_back(RateRequest::WINDOW_EMA_1M); // Default
+  std::vector<RateRequest::Estimators> estimators;
+  if (request->estimators_size() == 0) {
+    estimators.push_back(RateRequest::EMA_1_MINUTES); // Default
   } else {
-    for (auto w : request->windows()) {
-      if (w != RateRequest::WINDOW_UNSPECIFIED) { target_windows.push_back(static_cast<RateRequest::TimeWindow>(w)); }
+    for (auto w : request->estimators()) {
+      if (w != RateRequest::UNSPECIFIED) {
+        estimators.push_back(static_cast<RateRequest::Estimators>(w));
+      }
     }
   }
 
   // Determine Sorting Window
   // If user asks for [1s, 5m] but wants to sort by 5m trend, they set sort_by_window=5m.
   // Default to the first window in the list.
-  RateRequest::TimeWindow sort_window = target_windows[0];
-  if (request->has_sort_by_window() && request->sort_by_window() != RateRequest::WINDOW_UNSPECIFIED) {
-    sort_window = request->sort_by_window();
+  RateRequest::Estimators sort_window = estimators[0];
+  if (request->has_sort_by_estimator() && request->sort_by_estimator() != RateRequest::UNSPECIFIED) {
+    sort_window = request->sort_by_estimator();
   }
 
   // ---------------------------------------------------------------------------
@@ -110,7 +115,7 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
   // We need to store rates for ALL requested windows for each entity.
   struct AggregatedEntity {
     uint32_t active_streams = 0;
-    std::map<RateRequest::TimeWindow, Rates> window_rates{};
+    std::map<RateRequest::Estimators, Rates> window_rates{};
   };
 
   std::map<uint32_t, AggregatedEntity> uid_agg;
@@ -119,7 +124,7 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
 
   for (const auto& [key, snap] : global_stats) {
     // Optimization: Calculate rates only for requested windows
-    for (auto win : target_windows) {
+    for (auto win : estimators) {
       Rates r = ExtractWindowRates(snap, win);
 
       // Skip completely idle streams (micro-optimization)
@@ -128,19 +133,23 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
       if (do_uid) {
         auto& agg = uid_agg[key.uid];
         agg.window_rates[win].add(r);
-        if (win == target_windows[0]) {
+        if (win == estimators[0]) {
           agg.active_streams++; // Count once
         }
       }
       if (do_gid) {
         auto& agg = gid_agg[key.gid];
         agg.window_rates[win].add(r);
-        if (win == target_windows[0]) { agg.active_streams++; }
+        if (win == estimators[0]) {
+          agg.active_streams++;
+        }
       }
       if (do_app) {
         auto& agg = app_agg[key.app];
         agg.window_rates[win].add(r);
-        if (win == target_windows[0]) { agg.active_streams++; }
+        if (win == estimators[0]) {
+          agg.active_streams++;
+        }
       }
     }
   }
