@@ -1,29 +1,27 @@
----
 Language: Cpp
-# BasedOnStyle: LLVM
 AccessModifierOffset: -2
 AlignAfterOpenBracket: Align
 AlignConsecutiveAssignments: false
 AlignConsecutiveDeclarations: false
-AlignOperands: true
+AlignOperands: Align
 AlignTrailingComments: true
 AllowAllParametersOfDeclarationOnNextLine: true
-AllowShortBlocksOnASingleLine: Always
+AllowShortBlocksOnASingleLine: Never
 AllowShortCaseLabelsOnASingleLine: false
-AllowShortFunctionsOnASingleLine: Empty
-AllowShortIfStatementsOnASingleLine: AllIfsAndElse
+AllowShortFunctionsOnASingleLine: All
+AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
-AlwaysBreakAfterReturnType: None
+AlwaysBreakAfterReturnType: AllDefinitions
 AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
-BinPackArguments: true
-BinPackParameters: true
+BinPackArguments: false
+BinPackParameters: false
 BraceWrapping:
   AfterClass: false
   AfterControlStatement: false
   AfterEnum: false
-  AfterFunction: false
+  AfterFunction: true
   AfterNamespace: false
   AfterObjCDeclaration: false
   AfterStruct: false
@@ -34,14 +32,12 @@ BraceWrapping:
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Custom
 BreakBeforeTernaryOperators: true
-BreakConstructorInitializers: BeforeComma
-AllowAllConstructorInitializersOnNextLine: false
+BreakConstructorInitializersBeforeComma: true
 BreakAfterJavaFieldAnnotations: false
 BreakStringLiterals: true
 ColumnLimit: 120
 CommentPragmas: '^ IWYU pragma:'
-PackConstructorInitializers: BinPack
-ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ConstructorInitializerAllOnOneLineOrOnePerLine: false
 ConstructorInitializerIndentWidth: 4
 ContinuationIndentWidth: 4
 Cpp11BracedListStyle: true
@@ -60,7 +56,7 @@ IncludeIsMainRegex: '$'
 IndentCaseLabels: false
 IndentWidth: 2
 IndentWrappedFunctionNames: false
-KeepEmptyLinesAtTheStartOfBlocks: false
+KeepEmptyLinesAtTheStartOfBlocks: true
 MacroBlockBegin: ''
 MacroBlockEnd: ''
 MaxEmptyLinesToKeep: 1
@@ -76,8 +72,7 @@ PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 60
 PointerAlignment: Left
 ReflowComments: Always
-SortIncludes: CaseSensitive
-IncludeBlocks: Merge
+SortIncludes: true
 SpaceAfterCStyleCast: false
 SpaceBeforeAssignmentOperators: true
 SpaceBeforeParens: ControlStatements
@@ -92,8 +87,3 @@ Standard: c++17
 TabWidth: 8
 UseTab: Never
 JavaScriptQuotes: Leave
-InsertBraces: true
-LineEnding: LF
-SortUsingDeclarations: Lexicographic
-FixNamespaceComments: true
-AllowShortEnumsOnASingleLine: true
