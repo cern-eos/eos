@@ -233,7 +233,11 @@ struct Bucket {
 struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
-  std::unordered_map<fsid_t, std::string> disk_tags;
+  std::vector<std::vector<uint64_t>> disk_tags;
+
+  // Diagnostic data structures. Not used in hot path
+  std::unordered_map<fsid_t, std::string> disk_tag_map;
+  std::unordered_map<uint64_t, std::string> geo_hash_registry;
 
   bool setDiskStatus(fsid_t id, ConfigStatus status)
   {
@@ -275,6 +279,12 @@ struct ClusterData {
     for (const auto& d : disks) {
       result_str.append(d.to_string());
       result_str.append("\n");
+      if (auto kv= disk_tag_map.find(d.id); kv != disk_tag_map.end()) {
+        result_str.append("geotag: ");
+        result_str.append(kv->second);
+        result_str.append("\n");
+      }
+
     }
 
     return result_str;
@@ -296,10 +306,6 @@ struct ClusterData {
     return result_str;
   }
 
-  void setDiskTag(std::string_view tag, fsid_t id)
-  {
-    disk_tags.insert_or_assign(id, tag);
-  }
 };
 
 inline bool isValidBucketId(item_id_t id, const ClusterData& data)
