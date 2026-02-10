@@ -46,7 +46,8 @@ public:
   struct ClusterDataPtr {
     ClusterDataPtr(ClusterData* data_,
                    RCUMutexT& rcu_domain_):
-      data(data_), rlock(rcu_domain_)
+      rlock(rcu_domain_),
+      data(data_)
     {}
 
     ~ClusterDataPtr() = default;
@@ -64,8 +65,8 @@ public:
     }
 
   private:
-    ClusterData* data;
     eos::common::RCUReadLock<RCUMutexT> rlock;
+    ClusterData* data;
   };
 
   ClusterMgr() = default;
