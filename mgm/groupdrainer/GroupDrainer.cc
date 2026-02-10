@@ -99,13 +99,11 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
           switch (status) {
           case ConverterEngine::JobStatusT::DONE:
             this->dropTransferEntry(info->mFid);
-            eos_info("msg=\"Dropping completed entry\" fid=%lu tag=%s",
-                     info->mFid, tag.c_str());
+            eos_info("msg=\"Dropping completed entry\" fxid=%08llx tag=%s", info->mFid, tag.c_str());
             break;
 
           case ConverterEngine::JobStatusT::FAILED:
-            eos_info("msg=\"Tracking failed transfer\" fid=%lu tag=%s",
-                     info->mFid, tag.c_str());
+            eos_info("msg=\"Tracking failed transfer\" fxid=%08llx tag=%s", info->mFid, tag.c_str());
             this->addFailedTransferEntry(info->mFid, std::move(tag));
             break;
 
