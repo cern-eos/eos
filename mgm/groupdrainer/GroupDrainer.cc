@@ -147,6 +147,9 @@ GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
     if (mPauseExecution) {
       eos_info("%s", "msg=\"Pausing Execution for 30s!\"");
       assistant.wait_for(std::chrono::seconds(30));
+    } else {
+      // add some delay here before the next cycle
+      assistant.wait_for(std::chrono::seconds(1));
     }
   }
 }
