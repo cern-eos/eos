@@ -97,12 +97,25 @@ void IoStatsEngine::TickerLoop() const {
     if (++gc_counter >= gc_counter_limit) {
       gc_counter = 0;
       // Remove streams that haven't been active for a while
-      auto stats = mBrain->garbage_collect(900); // 15 minutes or 3 times longer than the biggest EMA (5m)
+      auto [removed_nodes, removed_node_streams, removed_global_streams] = mBrain->garbage_collect(900);
+      // 15 minutes or 3 times longer than the biggest EMA (5m)
 
-      if (stats.removed_node_streams > 0 || stats.removed_global_streams > 0) {
+      if (removed_node_streams > 0 || removed_global_streams > 0) {
         eos_static_info("msg=\"IoStats GC\" removed_nodes=%lu removed_node_streams=%lu removed_global_streams=%lu",
-                        stats.removed_nodes, stats.removed_node_streams, stats.removed_global_streams);
+                        removed_nodes, removed_node_streams, removed_global_streams);
       }
+    }
+
+    auto work_done = std::chrono::steady_clock::now();
+    std::chrono::duration<double> work_duration = work_done - now;
+    double work_ms = work_duration.count() * 1000.0;
+
+    eos_static_info("msg=\"IoStats Ticker tick\" duration_ms=%.3f", work_ms);
+
+    // TODO: expose this as a metric in prometheus
+    // Warn if we are using too much of our 1-second budget (e.g., > 200ms)
+    if (work_ms > 200.0) {
+      eos_static_warning("msg=\"IoStats Ticker is slow\" work_duration_ms=%.3f threshold=200.0", work_ms);
     }
   }
 }

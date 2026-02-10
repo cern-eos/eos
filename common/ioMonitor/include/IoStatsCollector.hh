@@ -1,13 +1,70 @@
 #pragma once
 
-#include <string>
 #include <atomic>
-#include <unordered_map>
-#include <shared_mutex>
 #include <memory>
-#include <chrono>
+#include <shared_mutex>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace eos::common {
+class SlidingWindowStats {
+public:
+  // 300 buckets = 5 minutes of history
+  static constexpr int kHistorySize = 300;
+
+  SlidingWindowStats() : mBuffer(kHistorySize, 0), mHead(0) {}
+
+  // 1. FAST PATH: Called heavily by ingestion threads
+  // No locking here (caller handles it), or use std::atomic if necessary
+  void Add(const uint64_t bytes) {
+    mBuffer[mHead] += bytes;
+  }
+
+  // 2. TICK: Called once per second by the TickerLoop
+  void Tick() {
+    // Move Head forward (Circular)
+    mHead = (mHead + 1) % kHistorySize;
+
+    // CRITICAL: Clear the new "current" bucket so it's ready for fresh data.
+    // This overwrites the value from exactly 5 minutes ago.
+    mBuffer[mHead] = 0;
+  }
+
+  // 3. READ: Compute SMA on demand
+  // Complexity: O(N) where N is window size (60 or 300).
+  // Since N is small, this is extremely fast (L1 cache friendly).
+  double GetRate(const int seconds) const {
+    if (seconds <= 0 || seconds > kHistorySize) { return 0.0; }
+
+    uint64_t sum = 0;
+    int idx = mHead; // Start at current (active) bucket
+
+    // Walk backwards through the ring
+    for (int i = 0; i < seconds; ++i) {
+      sum += mBuffer[idx];
+
+      // Wrap around logic
+      if (--idx < 0) { idx = kHistorySize - 1; }
+    }
+
+    // Average = Total Bytes / Seconds
+    return static_cast<double>(sum) / seconds;
+  }
+
+  // Optimization: Instant Rate (Last 1s)
+  // Just return the previous bucket (completed second)
+  double GetInstantRate() const {
+    int prev = mHead - 1;
+    if (prev < 0) { prev = kHistorySize - 1; }
+    return static_cast<double>(mBuffer[prev]);
+  }
+
+private:
+  std::vector<uint64_t> mBuffer;
+  int mHead; // Points to the "Current Second" being written to
+};
+
 // Uniquely identifies a traffic stream
 struct IoStatsKey {
   std::string app;
@@ -23,9 +80,7 @@ struct IoStatsKey {
 struct IoStatsKeyHash {
   std::size_t operator()(const IoStatsKey& k) const {
     // Combine hashes reasonably efficiently
-    return std::hash<std::string>{}(k.app) ^
-           (std::hash<uint32_t>{}(k.uid) << 1) ^
-           (std::hash<uint32_t>{}(k.gid) << 1);
+    return std::hash<std::string>{}(k.app) ^ (std::hash<uint32_t>{}(k.uid) << 1) ^ (std::hash<uint32_t>{}(k.gid) << 1);
   }
 };
 
@@ -68,7 +123,6 @@ public:
   }
 
 private:
-
   // Helper to get or create entry
   std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid, uint32_t gid);
 
@@ -78,4 +132,4 @@ private:
   mutable std::shared_mutex mutex_;
   std::unordered_map<IoStatsKey, std::shared_ptr<IoStatsEntry>, IoStatsKeyHash> stats_map_;
 };
-}
+} // namespace eos::common

@@ -92,7 +92,7 @@ void IoStatsPublisher::WorkerLoop() {
 
       // Create new Channel (Automatic DNS resolution happens here)
       auto channel = grpc::CreateChannel(target_host, grpc::InsecureChannelCredentials());
-      mStub = eos::ioshapping::TrafficShapingService::NewStub(channel);
+      mStub = eos::traffic_shaping::TrafficShapingService::NewStub(channel);
 
       // Update state
       mConnectedHostPort = target_host;
@@ -141,7 +141,7 @@ void IoStatsPublisher::WorkerLoop() {
         }
       }
 
-      eos::ioshapping::FstIoReport report;
+      eos::traffic_shaping::FstIoReport report;
       report.set_node_id(mNodeId);
 
       int64_t now_ms =

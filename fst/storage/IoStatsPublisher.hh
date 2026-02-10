@@ -4,6 +4,7 @@
 #include <atomic>
 #include <chrono>
 #include <memory>
+#include <mutex>
 #include <string>
 #include <thread>
 
@@ -50,6 +51,6 @@ private:
 
   // --- gRPC State ---
   // Using the correct namespace from your proto definition
-  std::unique_ptr<eos::ioshapping::TrafficShapingService::Stub> mStub;
+  std::unique_ptr<eos::traffic_shaping::TrafficShapingService::Stub> mStub;
 };
 } // namespace eos::fst

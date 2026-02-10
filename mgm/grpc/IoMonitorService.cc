@@ -8,7 +8,7 @@
 #include <vector>
 
 namespace eos::mgm {
-using namespace eos::ioshapping;
+using namespace eos::traffic_shaping;
 
 // -----------------------------------------------------------------------------
 // Constructor
@@ -41,13 +41,19 @@ struct Rates {
 
 Rates ExtractWindowRates(const eos::common::RateSnapshot& snap, RateRequest::TimeWindow window) {
   switch (window) {
-  case RateRequest::WINDOW_LIVE_5S:
-    return {snap.read_rate_5s, snap.write_rate_5s};
-  case RateRequest::WINDOW_AVG_5M:
-    return {snap.read_rate_5m, snap.write_rate_5m};
-  case RateRequest::WINDOW_AVG_1M:
+  case RateRequest::WINDOW_SMA_5S:
+    return {snap.read_rate_sma_5s, snap.write_rate_sma_5s, snap.read_iops_sma_5s, snap.write_iops_sma_5s};
+  case RateRequest::WINDOW_SMA_1M:
+    return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m, snap.write_iops_sma_1m};
+  case RateRequest::WINDOW_SMA_5M:
+    return {snap.read_rate_sma_5m, snap.write_rate_sma_5m, snap.read_iops_sma_5m, snap.write_iops_sma_5m};
+  case RateRequest::WINDOW_EMA_5S:
+    return {snap.read_rate_ema_5s, snap.write_rate_ema_5s, snap.read_iops_ema_5s, snap.write_iops_ema_5s};
+  case RateRequest::WINDOW_EMA_5M:
+    return {snap.read_rate_sma_5m, snap.write_rate_sma_5m, snap.read_iops_sma_5m, snap.write_iops_sma_5m};
+  case RateRequest::WINDOW_EMA_1M:
   default:
-    return {snap.read_rate_1m, snap.write_rate_1m};
+    return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m, snap.write_iops_sma_1m};
   }
 }
 
@@ -83,7 +89,7 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
   // Determine Time Windows to Process
   std::vector<RateRequest::TimeWindow> target_windows;
   if (request->windows_size() == 0) {
-    target_windows.push_back(RateRequest::WINDOW_AVG_1M); // Default
+    target_windows.push_back(RateRequest::WINDOW_EMA_1M); // Default
   } else {
     for (auto w : request->windows()) {
       if (w != RateRequest::WINDOW_UNSPECIFIED) { target_windows.push_back(static_cast<RateRequest::TimeWindow>(w)); }
@@ -104,7 +110,7 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
   // We need to store rates for ALL requested windows for each entity.
   struct AggregatedEntity {
     uint32_t active_streams = 0;
-    std::map<RateRequest::TimeWindow, Rates> window_rates;
+    std::map<RateRequest::TimeWindow, Rates> window_rates{};
   };
 
   std::map<uint32_t, AggregatedEntity> uid_agg;

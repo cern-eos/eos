@@ -16,9 +16,9 @@ IoStatsService::IoStatsService(std::shared_ptr<eos::common::BrainIoIngestor> ing
 // -----------------------------------------------------------------------------
 grpc::Status IoStatsService::StreamIoStats(
     grpc::ServerContext* context,
-    grpc::ServerReaderWriter<eos::ioshapping::MgmIoResponse, eos::ioshapping::FstIoReport>* stream) {
+    grpc::ServerReaderWriter<eos::traffic_shaping::MgmIoResponse, eos::traffic_shaping::FstIoReport>* stream) {
   // Local variables for this connection
-  eos::ioshapping::FstIoReport report;
+  eos::traffic_shaping::FstIoReport report;
   std::string peer = context->peer();
   std::string node_id = "Unknown";
   bool first_msg = true;
@@ -50,7 +50,7 @@ grpc::Status IoStatsService::StreamIoStats(
     // If you implement rate limiting later, you would calculate the limits
     // for this specific node and write them back here.
     /*
-    eos::ioshapping::MgmIoResponse response;
+    eos::traffic_shaping::MgmIoResponse response;
     response.set_ack(true);
     if (!stream->Write(response)) {
          eos_static_warn("msg=\"Failed to write IoStats response\" node=%s", node_id.c_str());

@@ -9,7 +9,7 @@
 #include "proto/TrafficShaping.grpc.pb.h"
 
 namespace eos::mgm {
-class IoMonitorService final : public eos::ioshapping::RateReportingService::Service {
+class IoMonitorService final : public eos::traffic_shaping::RateReportingService::Service {
 public:
   // Constructor: Injects the shared logic engine
   explicit IoMonitorService(std::shared_ptr<eos::common::BrainIoIngestor> ingestor);
@@ -21,12 +21,12 @@ public:
   // ---------------------------------------------------------------------------
 
   // Unary: Returns a single snapshot (for CLI)
-  grpc::Status GetRates(grpc::ServerContext* context, const eos::ioshapping::RateRequest* request,
-                        eos::ioshapping::RateReport* response) override;
+  grpc::Status GetRates(grpc::ServerContext* context, const eos::traffic_shaping::RateRequest* request,
+                        eos::traffic_shaping::RateReport* response) override;
 
   // Streaming: Pushes updates every second (for Dashboard)
-  grpc::Status StreamRates(grpc::ServerContext* context, const eos::ioshapping::RateRequest* request,
-                           grpc::ServerWriter<eos::ioshapping::RateReport>* writer) override;
+  grpc::Status StreamRates(grpc::ServerContext* context, const eos::traffic_shaping::RateRequest* request,
+                           grpc::ServerWriter<eos::traffic_shaping::RateReport>* writer) override;
 
 private:
   std::shared_ptr<eos::common::BrainIoIngestor> mIngestor;
@@ -36,7 +36,7 @@ private:
   // ---------------------------------------------------------------------------
 
   // Aggregates the raw stream data (App+UID+GID) into the requested view (UID only, App only, etc.)
-  void BuildReport(const eos::ioshapping::RateRequest* request, eos::ioshapping::RateReport* report);
+  void BuildReport(const eos::traffic_shaping::RateRequest* request, eos::traffic_shaping::RateReport* report);
 
   // Helper to extract the correct float value based on the requested TimeWindow
   struct ExtractedRates {
@@ -47,6 +47,6 @@ private:
   };
 
   static ExtractedRates ExtractWindow(const eos::common::RateSnapshot& snap,
-                                      eos::ioshapping::RateRequest::TimeWindow window);
+                                      eos::traffic_shaping::RateRequest::TimeWindow window);
 };
 } // namespace eos::mgm

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "IoStatsCollector.hh"
 #include "proto/TrafficShaping.pb.h"
 #include <atomic>
 #include <memory>
@@ -32,16 +33,49 @@ struct StreamState {
 struct MultiWindowRate {
   std::atomic<uint64_t> bytes_read_accumulator{0};
   std::atomic<uint64_t> bytes_written_accumulator{0};
+  std::atomic<uint64_t> read_iops_accumulator{0};  // Added
+  std::atomic<uint64_t> write_iops_accumulator{0}; // Added
 
-  double read_rate_5s = 0;
-  double read_rate_1m = 0;
-  double read_rate_5m = 0;
+  // --- EMA Storage ---
+  double read_rate_ema_5s = 0;
+  double read_iops_ema_5s = 0;
+  double write_rate_ema_5s = 0;
+  double write_iops_ema_5s = 0;
 
-  double write_rate_5s = 0;
-  double write_rate_1m = 0;
-  double write_rate_5m = 0;
+  double read_rate_ema_1m = 0;
+  double read_iops_ema_1m = 0;
+  double write_rate_ema_1m = 0;
+  double write_iops_ema_1m = 0;
 
-  // Metadata
+  double read_rate_ema_5m = 0;
+  double read_iops_ema_5m = 0;
+  double write_rate_ema_5m = 0;
+  double write_iops_ema_5m = 0;
+  // ... (1m and 5m fields) ...
+
+  // --- SMA Storage (The Circular Buffers) ---
+  // We need one buffer per metric type
+  SlidingWindowStats bytes_read_window;
+  SlidingWindowStats bytes_written_window;
+  SlidingWindowStats iops_read_window;
+  SlidingWindowStats iops_write_window;
+
+  // --- SMA Calculated Values (Cached for Snapshot) ---
+  double read_rate_sma_5s = 0;
+  double write_rate_sma_5s = 0;
+  double read_iops_sma_5s = 0;
+  double write_iops_sma_5s = 0;
+
+  double read_rate_sma_1m = 0;
+  double write_rate_sma_1m = 0;
+  double read_iops_sma_1m = 0;
+  double write_iops_sma_1m = 0;
+
+  double read_rate_sma_5m = 0;
+  double write_rate_sma_5m = 0;
+  double read_iops_sma_5m = 0;
+  double write_iops_sma_5m = 0;
+
   uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
 };
@@ -52,13 +86,35 @@ struct RateSnapshot {
   uint64_t bytes_read_accumulator = 0;
   uint64_t bytes_written_accumulator = 0;
 
-  double read_rate_5s = 0;
-  double read_rate_1m = 0;
-  double read_rate_5m = 0;
+  double read_rate_ema_5s = 0;
+  double read_iops_ema_5s = 0;
+  double write_rate_ema_5s = 0;
+  double write_iops_ema_5s = 0;
 
-  double write_rate_5s = 0;
-  double write_rate_1m = 0;
-  double write_rate_5m = 0;
+  double read_rate_ema_1m = 0;
+  double read_iops_ema_1m = 0;
+  double write_rate_ema_1m = 0;
+  double write_iops_ema_1m = 0;
+
+  double read_rate_ema_5m = 0;
+  double read_iops_ema_5m = 0;
+  double write_rate_ema_5m = 0;
+  double write_iops_ema_5m = 0;
+
+  double read_rate_sma_5s = 0;
+  double write_rate_sma_5s = 0;
+  double read_iops_sma_5s = 0;
+  double write_iops_sma_5s = 0;
+
+  double read_rate_sma_1m = 0;
+  double write_rate_sma_1m = 0;
+  double read_iops_sma_1m = 0;
+  double write_iops_sma_1m = 0;
+
+  double read_rate_sma_5m = 0;
+  double write_rate_sma_5m = 0;
+  double read_iops_sma_5m = 0;
+  double write_iops_sma_5m = 0;
 
   uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
@@ -96,7 +152,7 @@ public:
   // --- Fast Path (RPC Threads) ---
   // 1. Looks up NodeState to calculate Delta.
   // 2. Adds Delta to GlobalStats Accumulator.
-  void process_report(const eos::ioshapping::FstIoReport& report);
+  void process_report(const eos::traffic_shaping::FstIoReport& report);
 
   // --- Slow Path (Background Timer) ---
   // Called once per second.
