@@ -14,11 +14,25 @@ repos:
       - id: requirements-txt-fixer
       - id: trailing-whitespace
 
-  - repo: https://github.com/pocc/pre-commit-hooks
-    rev: v1.3.5
+  #  # Disable for now and use clang-format-diff.py instead to only format changed lines.
+  #  - repo: https://github.com/pocc/pre-commit-hooks
+  #    rev: v1.3.5
+  #    hooks:
+  #      - id: clang-format
+  #        name: clang-format
+  #        types_or: [ c, c++ ]
+  #        args:
+  #          - -i
+  #    stages: [ manual ]
+
+  - repo: local
     hooks:
-      - id: clang-format
-        name: clang-format
+      - id: clang-format-diff
+        name: clang-format-diff
+        # We pipe 'git diff' to the python script.
+        # -p1 strips the a/ b/ prefixes from the diff so the script finds the files.
+        # -i applies the edits in-place.
+        entry: bash -c 'git diff -U0 --no-color --cached | python3 utils/clang-format-diff.py -p1 -i'
+        language: system
         types_or: [ c, c++ ]
-        args:
-          - -i
+        pass_filenames: false
