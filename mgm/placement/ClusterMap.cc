@@ -24,6 +24,8 @@
 
 #include "mgm/placement/ClusterMap.hh"
 
+#include <xxhash.h>
+
 namespace eos::mgm::placement
 {
 
@@ -143,7 +145,7 @@ StorageHandler::addBucket(uint8_t bucket_type, item_id_t bucket_id,
 }
 
 bool
-StorageHandler::addDisk(Disk disk, item_id_t bucket_id)
+StorageHandler::addDisk(Disk disk, item_id_t bucket_id, std::string_view tag)
 {
   if (disk.id == mData.disks.size() + 1)  {
     return addDiskSequential(disk, bucket_id);
@@ -162,11 +164,12 @@ StorageHandler::addDisk(Disk disk, item_id_t bucket_id)
   mData.disks[insert_pos] = disk;
   mData.buckets[-bucket_id].items.push_back(disk.id);
   mData.buckets[-bucket_id].total_weight += disk.weight;
+  addGeoTag(disk.id, tag);
   return true;
 }
 
 bool
-StorageHandler::addDiskSequential(Disk disk, item_id_t bucket_id)
+StorageHandler::addDiskSequential(Disk disk, item_id_t bucket_id, std::string_view tag)
 {
   if (!isValidBucketID(bucket_id) || disk.id == 0) {
     return false;
@@ -175,8 +178,63 @@ StorageHandler::addDiskSequential(Disk disk, item_id_t bucket_id)
   mData.disks.push_back(disk);
   mData.buckets[-bucket_id].items.push_back(disk.id);
   mData.buckets[-bucket_id].total_weight += disk.weight;
+
+  addGeoTag(disk.id, tag);
   return true;
 }
 
+uint64_t
+StorageHandler::getUniqueHash(std::string_view tag) {
+  uint64_t h = XXH3_64bits(tag.data(), tag.size());
+  auto [it, inserted] = mData.geo_hash_registry.try_emplace(h, tag);
 
+  // check if we have inserted a new tag or re-inserted the same tag
+  if (inserted || it->second == tag) {
+    return h;
+  }
+
+  // hash collision detected, we need to resolve it
+  // eos_static_warn("msg=\"Hash collision detected for geotag\" tag=\"%s\" hash=%lu",
+  //                 tag.data(), h);
+  uint64_t nonce = 0;
+  std::string new_tag;
+
+  // This is very very very rare to enter,
+  // but in case for some reason 2 distinct strings hash onto the same value,
+  // add nonce to the tag and re-hash until we find a unique one
+  while (true) {
+    ++nonce;
+    new_tag = std::string(tag) + "[" + std::to_string(nonce) + "]";
+    h = XXH3_64bits(new_tag.data(), new_tag.size());
+    auto [_it, inserted] = mData.geo_hash_registry.try_emplace(h, new_tag);
+    if (inserted || _it->second == new_tag) {
+      return h;
+    }
+  }
+}
+
+
+void StorageHandler::addGeoTag(item_id_t item_id, std::string_view tag)
+{
+  // TODO future: implement geotags at bucket level making a natural hierarchy
+  if (tag.empty() || item_id <= 0) {
+    return;
+  }
+
+  if ((size_t)item_id > mData.disk_tags.size()) {
+    mData.disk_tags.resize(item_id);
+  }
+
+  std::vector<uint64_t> location_hash;
+  size_t start = 0;
+  size_t end = 0;
+  while ((end = tag.find("::", start)) != std::string_view::npos) {
+    std::string_view storage_element = tag.substr(start, end - start);
+    location_hash.push_back(getUniqueHash(storage_element));
+    start = end + 2;
+  }
+  mData.disk_tags[item_id - 1] = std::move(location_hash);
+  mData.disk_tag_map.insert_or_assign(item_id, tag);
+
+}
 } // namespace eos::mgm::placement
