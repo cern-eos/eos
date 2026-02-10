@@ -128,7 +128,7 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
       Rates r = ExtractWindowRates(snap, win);
 
       // Skip completely idle streams (micro-optimization)
-      if (r.total_throughput() == 0 && r.r_iops == 0 && r.w_iops == 0) { continue; }
+      // if (r.total_throughput() == 0 && r.r_iops == 0 && r.w_iops == 0) { continue; }
 
       if (do_uid) {
         auto& agg = uid_agg[key.uid];
@@ -195,14 +195,14 @@ void IoMonitorService::BuildReport(const RateRequest* request, RateReport* repor
       auto* entry = add_entry_fn();    // e.g., report->add_uid_stats()
       set_id_fn(entry, vec[i]->first); // e.g., entry->set_uid(1001)
 
-      // Add stats for ALL requested windows
-      for (const auto& [win, rates] : vec[i]->second.window_rates) {
+      // Add stats for ALL requested estimators
+      for (const auto& [estimator, rates] : vec[i]->second.window_rates) {
         auto* s = entry->add_stats();
-        s->set_window(win);
+        s->set_window(estimator);
         s->set_bytes_read_per_sec(rates.r_bps);
         s->set_bytes_written_per_sec(rates.w_bps);
-        s->set_iops_read(rates.r_iops);  // Fixed: Now applied to all types
-        s->set_iops_write(rates.w_iops); // Fixed: Now applied to all types
+        s->set_iops_read(rates.r_iops);
+        s->set_iops_write(rates.w_iops);
       }
     }
   };

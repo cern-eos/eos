@@ -6,7 +6,9 @@ namespace eos::mgm {
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
-IoStatsEngine::IoStatsEngine() : mRunning(false) {
+IoStatsEngine::IoStatsEngine()
+    : mRunning(false)
+{
   // Initialize the logic engine
   mBrain = std::make_shared<eos::common::BrainIoIngestor>();
 }
@@ -14,14 +16,14 @@ IoStatsEngine::IoStatsEngine() : mRunning(false) {
 //------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
-IoStatsEngine::~IoStatsEngine() {
-  Stop();
-}
+IoStatsEngine::~IoStatsEngine() { Stop(); }
 
 //------------------------------------------------------------------------------
 // Start
 //------------------------------------------------------------------------------
-void IoStatsEngine::Start() {
+void
+IoStatsEngine::Start()
+{
   if (mRunning) { return; }
 
   mRunning = true;
@@ -35,7 +37,9 @@ void IoStatsEngine::Start() {
 //------------------------------------------------------------------------------
 // Stop
 //------------------------------------------------------------------------------
-void IoStatsEngine::Stop() {
+void
+IoStatsEngine::Stop()
+{
   if (!mRunning) { return; }
 
   mRunning = false;
@@ -49,14 +53,18 @@ void IoStatsEngine::Stop() {
 //------------------------------------------------------------------------------
 // GetBrain
 //------------------------------------------------------------------------------
-std::shared_ptr<eos::common::BrainIoIngestor> IoStatsEngine::GetBrain() const {
+std::shared_ptr<eos::common::BrainIoIngestor>
+IoStatsEngine::GetBrain() const
+{
   return mBrain;
 }
 
 //------------------------------------------------------------------------------
 // TickerLoop (The Heartbeat)
 //------------------------------------------------------------------------------
-void IoStatsEngine::TickerLoop() const {
+void
+IoStatsEngine::TickerLoop() const
+{
   // If your EOS thread wrapper allows naming, do it here:
   // eos::common::Thread::SetCurrentThreadName("IoStatsTicker");
   eos_static_info("msg=\"IoStatsEngine ticker started\"");
@@ -72,7 +80,7 @@ void IoStatsEngine::TickerLoop() const {
   // enough to prevent memory bloat but not so often that it impacts performance. Since GC runs in the same thread, it
   // will delay the next tick if it takes too long. We could also consider running GC in a separate thread if it becomes
   // a bottleneck, but for now we will keep it simple and run it in the ticker thread at a reasonable interval.
-  constexpr int gc_counter_limit = 10000;
+  constexpr int gc_counter_limit = 20;
 
   while (mRunning) {
     // 2. Advance target time by exactly 1 second
@@ -103,7 +111,9 @@ void IoStatsEngine::TickerLoop() const {
 
       if (removed_node_streams > 0 || removed_global_streams > 0) {
         eos_static_info("msg=\"IoStats GC\" removed_nodes=%lu removed_node_streams=%lu removed_global_streams=%lu",
-                        removed_nodes, removed_node_streams, removed_global_streams);
+                        removed_nodes,
+                        removed_node_streams,
+                        removed_global_streams);
       }
     }
 
