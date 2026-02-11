@@ -23,6 +23,8 @@ void BrainIoIngestor::process_report(const eos::traffic_shaping::FstIoReport& re
   const std::string& node_id = report.node_id();
   const time_t now = time(nullptr);
 
+  eos_static_info("msg=\"processing I/O report\" node_id=\"%s\" entries=%zu", node_id.c_str(), report.entries_size());
+
   std::unique_lock lock(mMutex);
 
   // Get or create the state map for this node
@@ -79,11 +81,21 @@ void BrainIoIngestor::process_report(const eos::traffic_shaping::FstIoReport& re
       // Accumulate
       global.bytes_read_accumulator += delta_bytes_read;
       global.bytes_written_accumulator += delta_bytes_written;
-      global.read_iops_accumulator += delta_read_iops;   // ADDED
-      global.write_iops_accumulator += delta_write_iops; // ADDED
+      global.read_iops_accumulator += delta_read_iops;
+      global.write_iops_accumulator += delta_write_iops;
 
       // Update Activity Time (Critical for GC)
       global.last_activity_time = now;
+
+      eos_static_info("msg=\"updated global stats\" app=\"%s\" uid=%u gid=%u "
+                      "delta_bytes_read=%lu delta_bytes_written=%lu delta_read_iops=%lu delta_write_iops=%lu",
+                      key.app.c_str(),
+                      key.uid,
+                      key.gid,
+                      delta_bytes_read,
+                      delta_bytes_written,
+                      delta_read_iops,
+                      delta_write_iops);
     }
   }
 }
@@ -96,6 +108,8 @@ void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
 
   // Write lock needed
   std::unique_lock lock(mMutex);
+
+  eos_static_info("msg=\"updating time windows\" time_delta_seconds=%.2f", time_delta_seconds);
 
   // Constants for 1s ticker
   constexpr double kAlpha5s = 0.33333333; // ~5 seconds
@@ -119,6 +133,7 @@ void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
   };
 
   for (auto& [key, stats] : mGlobalStats) {
+    eos_static_info("msg=\"calculating rates for key\" app=\"%s\" uid=%u gid=%u\"", key.app.c_str(), key.uid, key.gid);
     // 1. Snapshot and Reset Accumulators
     const uint64_t bytes_read_now = stats.bytes_read_accumulator.exchange(0);
     const uint64_t bytes_written_now = stats.bytes_written_accumulator.exchange(0);
