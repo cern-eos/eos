@@ -21,30 +21,29 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/Logging.hh"
 #include "common/StringTokenizer.hh"
-#include "common/Path.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/ICmdHelper.hh"
-#include "common/Logging.hh"
 
 extern int com_io(char*);
 void com_io_help();
-static bool isCommand(const char *cmd);
+static bool isCommand(const char* cmd);
 
 //------------------------------------------------------------------------------
 //! Class IoHelper
 //------------------------------------------------------------------------------
-class IoHelper : public ICmdHelper
-{
+class IoHelper : public ICmdHelper {
 public:
   //----------------------------------------------------------------------------
   //! Constructor
   //!
   //! @param opts global options
   //----------------------------------------------------------------------------
-  IoHelper(const GlobalOptions& opts):
-    ICmdHelper(opts)
-  {}
+  IoHelper(const GlobalOptions& opts)
+      : ICmdHelper(opts)
+  {
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -64,7 +63,8 @@ public:
 //------------------------------------------------------------------------------
 // Parse command line input
 //------------------------------------------------------------------------------
-bool IoHelper::ParseCommand(const char* arg)
+bool
+IoHelper::ParseCommand(const char* arg)
 {
   eos::console::IoProto* io = mReq.mutable_io();
   eos::common::StringTokenizer tokenizer(arg);
@@ -99,8 +99,7 @@ bool IoHelper::ParseCommand(const char* arg)
           continue;
         } else {
           // Parse <time_ago>
-          bool not_numeric = (token.find_first_not_of("0123456789") !=
-                              std::string::npos);
+          bool not_numeric = (token.find_first_not_of("0123456789") != std::string::npos);
 
           if (not_numeric) {
             std::cerr << "error: --sa value needs to be numeric (seconds ago)" << std::endl;
@@ -120,20 +119,17 @@ bool IoHelper::ParseCommand(const char* arg)
           continue;
         } else {
           // Parse <time_interval>
-          bool not_numeric = (token.find_first_not_of("0123456789") !=
-                              std::string::npos);
+          bool not_numeric = (token.find_first_not_of("0123456789") != std::string::npos);
 
           if (not_numeric) {
-            std::cerr << "error: --si value needs to be numeric (interval in seconds)" <<
-                      std::endl;
+            std::cerr << "error: --si value needs to be numeric (interval in seconds)" << std::endl;
             return false;
           } else {
             try {
               uint64_t tint = std::stoull(token);
               stat->set_time_interval(tint);
             } catch (const std::exception& e) {
-              std::cerr << "error: --si value needs to be numeric (interval in seconds)" <<
-                        std::endl;
+              std::cerr << "error: --si value needs to be numeric (interval in seconds)" << std::endl;
               return false;
             }
           }
@@ -199,24 +195,28 @@ bool IoHelper::ParseCommand(const char* arg)
         return false;
       }
     }
-  } else if (token == "monitor"){
-		eos::console::IoProto_MonitorProto* monitor = io->mutable_monitor();
-		std::string options;
+  } else if (token == "monitor") {
+    eos::console::IoProto_MonitorProto* monitor = io->mutable_monitor();
+    std::string options;
 
-		if (!tokenizer.NextToken(token) || !isCommand(token.c_str()))
-			return false;
-		monitor->set_cmd(token);
+    if (!tokenizer.NextToken(token) || !isCommand(token.c_str())) {
+      return false;
+    }
+    monitor->set_cmd(token);
 
-		tokenizer.NextToken(options);
-		if (monitor->cmd() == "set" && options.empty())
-			return false;
-		while (tokenizer.NextToken(token))
-			options += " " + token;
+    tokenizer.NextToken(options);
+    if (monitor->cmd() == "set" && options.empty()) {
+      return false;
+    }
+    while (tokenizer.NextToken(token)) {
+      options += " " + token;
+    }
 
-		if (!options.empty())
-			monitor->set_options(options);
+    if (!options.empty()) {
+      monitor->set_options(options);
+    }
 
-		return true;
+    return true;
   } else { // no proper subcommand
     return false;
   }
@@ -224,11 +224,11 @@ bool IoHelper::ParseCommand(const char* arg)
   return true;
 }
 
-
 //------------------------------------------------------------------------------
 // io command entry point
 //------------------------------------------------------------------------------
-int com_protoio(char* arg)
+int
+com_protoio(char* arg)
 {
   if (wants_help(arg)) {
     com_io_help();
@@ -251,11 +251,11 @@ int com_protoio(char* arg)
 //------------------------------------------------------------------------------
 // Print help message
 //------------------------------------------------------------------------------
-void com_io_help()
+void
+com_io_help()
 {
   std::ostringstream oss;
-  oss
-      << " usage:\n"
+  oss << " usage:\n"
       << std::endl
       << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--ss] [--sa] [--si] : print io statistics\n"
       << "\t  -l : show summary information (this is the default if -a,-t,-d,-x is not selected)\n"
@@ -269,7 +269,8 @@ void com_io_help()
       << "\t  --sa : start collection of statistics given number of seconds ago\n"
       << "\t  --si : collect statistics over given interval of seconds\n"
       << "\t  Note: this tool shows data for finished transfers only (using storage node reports)\n"
-      << "\t  Example: asking for data of finished transfers which were transferred during interval [now - 180s, now - 120s]:\n"
+      << "\t  Example: asking for data of finished transfers which were transferred during interval [now - 180s, now - "
+         "120s]:\n"
       << "\t           eos io stat -x --sa 120 --si 60\n"
       << std::endl
       << "io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io statistics\n"
@@ -277,14 +278,16 @@ void com_io_help()
       << "\t              -r : enable collection of io reports\n"
       << "\t              -p : enable popularity accounting\n"
       << "\t              -n : enable report namespace\n"
-      << "\t --udp <address> : add a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)\n"
+      << "\t --udp <address> : add a UDP message target for io UDP packtes (the configured targets are shown by 'io "
+         "stat -l)\n"
       << std::endl
       << "io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io statistics\n"
       << "\t         no arg. : stop the collection thread\n"
       << "\t              -r : disable collection of io reports\n"
       << "\t              -p : disable popularity accounting\n"
       << "\t              -n : disable report namespace\n"
-      << "\t --udp <address> : remove a UDP message target for io UDP packtes (the configured targets are shown by 'io stat -l)\n"
+      << "\t --udp <address> : remove a UDP message target for io UDP packtes (the configured targets are shown by 'io "
+         "stat -l)\n"
       << std::endl
       << "io report <path> : show contents of report namespace for <path>\n"
       << std::endl
@@ -298,9 +301,9 @@ void com_io_help()
       << "\t      -w :  show history for the last 7 days\n"
       << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens\n"
       << std::endl
-	  << "io monitor [command] [options...] : interact with the Monitor and the IoAggregate map's\n"
+      << "io monitor [command] [options...] : interact with the Monitor and the IoAggregate map's\n"
       << std::endl
-	  << "   COMMANDS\n"
+      << "   COMMANDS\n"
       << "\tls [-w] [-a] [-u] [-g] [-s] [-std] [-j] [WINDOW]: print the IoAggregate map\n"
       << "\t     -w : print the available FST's windows and also the windows already set MGM side.\n"
       << "\t     -a : print only apps\n"
@@ -311,7 +314,7 @@ void com_io_help()
       << "\t     -j : change the output to JSON format\n"
       << "       [WINDOW] : Target a specific window\n\n"
 
-	  << "\tset [command] [options...] || app|uid|gid:<id> read|write:<limit>|on|off : set bandwidth limit\n"
+      << "\tset [command] [options...] || app|uid|gid:<id> read|write:<limit>|on|off : set bandwidth limit\n"
       << "\t     ls : print all limit set\n"
       << "\t        -a : print only apps\n"
       << "\t        -u : print only uids\n"
@@ -322,13 +325,13 @@ void com_io_help()
       << "\t        -g : remove all gids\n"
       << "\t     --all : remove all apps/uids/gids\n\n"
 
-	  << "\tadd [window][...] : add one or multiple window to the monitor \n\n"
+      << "\tadd [window][...] : add one or multiple window to the monitor \n\n"
 
-	  // << "\tshift [index] : shift the window to the next Bin, or to the index given as a parametre\n\n"
+      // << "\tshift [index] : shift the window to the next Bin, or to the index given as a parametre\n\n"
 
-	  << "\trm [window][...] : remove one or multiple window from the monitor \n\n"
+      << "\trm [window][...] : remove one or multiple window from the monitor \n\n"
 
-	  << "\t EXAMPLES\n"
+      << "\t EXAMPLES\n"
       << "\t  eos io monitor set app:eoscp read:10 (Set limit of 10 MB/s for eoscp)\n"
       << "\t  eos io monitor set app:eoscp read:on (don't forget to enable the read limit for eoscp!)\n\n"
 
@@ -348,18 +351,13 @@ void com_io_help()
   std::cerr << oss.str() << std::endl;
 }
 
-static bool isCommand(const char *cmd){
-  if (cmd &&
-    (!strcmp(cmd, "add")
-	|| !strcmp(cmd, "rm")
-	|| !strcmp(cmd, "set")
-	|| !strcmp(cmd, "proto")
-	|| !strcmp(cmd, "read")
-	|| !strcmp(cmd, "write")
-	|| !strcmp(cmd, "ls")
-	|| !strcmp(cmd, "sum")
-	|| !strcmp(cmd, "fill")
-	|| !strcmp(cmd, "shift")))
-	  return true;
+static bool
+isCommand(const char* cmd)
+{
+  if (cmd && (!strcmp(cmd, "add") || !strcmp(cmd, "rm") || !strcmp(cmd, "set") || !strcmp(cmd, "proto") ||
+              !strcmp(cmd, "read") || !strcmp(cmd, "write") || !strcmp(cmd, "ls") || !strcmp(cmd, "sum") ||
+              !strcmp(cmd, "fill") || !strcmp(cmd, "shift"))) {
+    return true;
+  }
   return false;
 }
