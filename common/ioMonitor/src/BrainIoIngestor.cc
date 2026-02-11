@@ -103,7 +103,9 @@ void BrainIoIngestor::process_report(const eos::traffic_shaping::FstIoReport& re
 // -----------------------------------------------------------------------------
 // Slow Path: Update Time Windows (Called every 1 second)
 // -----------------------------------------------------------------------------
-void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
+void
+BrainIoIngestor::UpdateTimeWindows(const double time_delta_seconds)
+{
   if (time_delta_seconds <= 0.000001) { return; }
 
   // Write lock needed
@@ -133,7 +135,6 @@ void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
   };
 
   for (auto& [key, stats] : mGlobalStats) {
-    eos_static_info("msg=\"calculating rates for key\" app=\"%s\" uid=%u gid=%u\"", key.app.c_str(), key.uid, key.gid);
     // 1. Snapshot and Reset Accumulators
     const uint64_t bytes_read_now = stats.bytes_read_accumulator.exchange(0);
     const uint64_t bytes_written_now = stats.bytes_written_accumulator.exchange(0);
@@ -145,19 +146,6 @@ void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
     const double current_write_bps = static_cast<double>(bytes_written_now) / time_delta_seconds;
     const double current_read_iops = static_cast<double>(read_iops_now) / time_delta_seconds;
     const double current_write_iops = static_cast<double>(write_iops_now) / time_delta_seconds;
-
-    // print rate
-    if (current_read_bps > 0 || current_write_bps > 0 || current_read_iops > 0 || current_write_iops > 0) {
-      eos_static_info("msg=\"Current rates for key\" app=\"%s\" uid=%u gid=%u "
-                      "current_read_bps=%.2f current_write_bps=%.2f current_read_iops=%.2f current_write_iops=%.2f",
-                      key.app.c_str(),
-                      key.uid,
-                      key.gid,
-                      current_read_bps,
-                      current_write_bps,
-                      current_read_iops,
-                      current_write_iops);
-    }
 
     update_rate_set(current_read_bps, stats.read_rate_ema_5s, stats.read_rate_ema_1m, stats.read_rate_ema_5m);
     update_rate_set(current_write_bps, stats.write_rate_ema_5s, stats.write_rate_ema_1m, stats.write_rate_ema_5m);
@@ -199,44 +187,6 @@ void BrainIoIngestor::UpdateTimeWindows(double time_delta_seconds) {
     stats.write_rate_sma_5m = stats.bytes_written_window.GetRate(300);
     stats.read_iops_sma_5m = stats.iops_read_window.GetRate(300);
     stats.write_iops_sma_5m = stats.iops_write_window.GetRate(300);
-
-    // print all SMA and EMA for debug
-    eos_static_info("msg=\"Updated rates for key\" app=\"%s\" uid=%u gid=%u "
-                    "read_rate_ema_5s=%.2f read_rate_ema_1m=%.2f read_rate_ema_5m=%.2f "
-                    "write_rate_ema_5s=%.2f write_rate_ema_1m=%.2f write_rate_ema_5m=%.2f "
-                    "read_iops_ema_5s=%.2f read_iops_ema_1m=%.2f read_iops_ema_5m=%.2f "
-                    "write_iops_ema_5s=%.2f write_iops_ema_1m=%.2f write_iops_ema_5m=%.2f "
-                    "read_rate_sma_5s=%.2f read_rate_sma_1m=%.2f read_rate_sma_5m=%.2f "
-                    "write_rate_sma_5s=%.2f write_rate_sma_1m=%.2f write_rate_sma_5m=%.2f "
-                    "read_iops_sma_5s=%.2f read_iops_sma_1m=%.2f read_iops_sma_5m=%.2f "
-                    "write_iops_sma_5s=%.2f write_iops_sma_1m=%.2f write_iops_sma_5m=%.2f",
-                    key.app.c_str(),
-                    key.uid,
-                    key.gid,
-                    stats.read_rate_ema_5s,
-                    stats.read_rate_ema_1m,
-                    stats.read_rate_ema_5m,
-                    stats.write_rate_ema_5s,
-                    stats.write_rate_ema_1m,
-                    stats.write_rate_ema_5m,
-                    stats.read_iops_ema_5s,
-                    stats.read_iops_ema_1m,
-                    stats.read_iops_ema_5m,
-                    stats.write_iops_ema_5s,
-                    stats.write_iops_ema_1m,
-                    stats.write_iops_ema_5m,
-                    stats.read_rate_sma_5s,
-                    stats.read_rate_sma_1m,
-                    stats.read_rate_sma_5m,
-                    stats.write_rate_sma_5s,
-                    stats.write_rate_sma_1m,
-                    stats.write_rate_sma_5m,
-                    stats.read_iops_sma_5s,
-                    stats.read_iops_sma_1m,
-                    stats.read_iops_sma_5m,
-                    stats.write_iops_sma_5s,
-                    stats.write_iops_sma_1m,
-                    stats.write_iops_sma_5m);
   }
 }
 
