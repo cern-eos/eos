@@ -85,8 +85,8 @@ NsHelper::ParseCommand(const char* arg)
 
         if (soption == "-a") {
           stat->set_groupids(true);
-	} else if (soption == "-x") {
-	  stat->set_apps(true);
+        } else if (soption == "-x") {
+          stat->set_apps(true);
         } else if (soption == "-m") {
           stat->set_monitor(true);
         } else if (soption == "-n") {
@@ -717,10 +717,11 @@ void com_ns_help()
       << "    recompute the specified quotanode"
       << std::endl
       << std::endl
-      << "  ns update_quotanode <path>|cid:<decimal_id>|cxid:<hex_id> uid:<uid>|gid:<gid> bytes:<bytes> physicalbytes:<bytes> inodes:<inodes>"
-      << std::endl
-      << "    update the specified quotanode, with the specified (and unchecked) values"
-      << std::endl
+      << "  ns update_quotanode <path>|cid:<decimal_id>|cxid:<hex_id> uid:<uid>|gid:<gid> bytes:<bytes> physicalbytes:<bytes> inodes:<inodes>\n"
+      << "    update quota node with the specified (and unchecked) values\n"
+      << "    Note: for project quotas the uid values needs to be specified\n"
+      << "    since the accounting is done by accumulating the individual\n"
+      << "    quotas of the users registered with the quota node.\n"
       << std::endl
       << "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]" << std::endl
       << "    set the max number of entries or the max size of the cache. Use the" <<
