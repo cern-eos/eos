@@ -30,6 +30,7 @@ variables:
   CODENAME: "diopside"
 
 default:
+  interruptible: true
   before_script:
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
@@ -43,6 +44,9 @@ include:
   - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
 
 workflow:
+  auto_cancel:
+    on_new_commit: interruptible
+
   rules:
     - if: $CI_COMMIT_BRANCH
       variables:
