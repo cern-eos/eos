@@ -883,21 +883,27 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
             NoGo = 1;
           } else {
             IoReportStorePath = val;
-            // just try to create it in advance
-            XrdOucString makeit = "mkdir -p ";
-            makeit += IoReportStorePath;
-            int src = system(makeit.c_str());
+            struct stat info;
 
-            if (src) {
-              eos_err("%s returned %d", makeit.c_str(), src);
+            if (::stat(IoReportStorePath.c_str(), &info) != 0) {
+              // Try to create it
+              XrdOucString makeit = "mkdir -p ";
+              makeit += IoReportStorePath;
+              int src = system(makeit.c_str());
+
+              if (src) {
+                eos_err("%s returned %d", makeit.c_str(), src);
+              }
             }
 
-            XrdOucString chownit = "chown -R daemon ";
-            chownit += IoReportStorePath;
-            src = system(chownit.c_str());
+            if (info.st_uid != DAEMONUID) {
+              XrdOucString chownit = "chown -R daemon ";
+              chownit += IoReportStorePath;
+              int src = system(chownit.c_str());
 
-            if (src) {
-              eos_err("%s returned %d", chownit.c_str(), src);
+              if (src) {
+                eos_err("%s returned %d", chownit.c_str(), src);
+              }
             }
 
             if (::access(IoReportStorePath.c_str(), W_OK | R_OK | X_OK)) {
@@ -1268,7 +1274,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     "Grpc", "Balancer", "Converter", "DrainJob", "ZMQ", "MetadataFlusher", "Http",
     "Master", "Recycle", "LRU", "WFE", "Wnc", "WFE::Job", "GroupBalancer", "GroupDrainer",
     "GeoBalancer", "GeoTreeEngine", "ReplicationTracker", "FileInspector", "Mounts",
-	"OAuth", "TokenCmd", "Shaping"};
+    "OAuth", "TokenCmd", "Shaping"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1314,7 +1320,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("ConversionInfo", "Converter");
     g_logging.AddFanOutAlias("ConversionJob", "Converter");
     g_logging.AddFanOutAlias("ConverterEngine", "Converter");
-	g_logging.AddFanOutAlias("IoShaping", "Shaping");
+    g_logging.AddFanOutAlias("IoShaping", "Shaping");
   }
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
