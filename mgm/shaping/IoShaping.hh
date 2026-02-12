@@ -37,7 +37,10 @@ EOSMGMNAMESPACE_BEGIN
 //----------------------------------------------------------------------------
 struct Limiter {
   struct limitsData {
-    limitsData() : limit(0), isEnable(false), isTrivial(false) {};
+    limitsData()
+        : limit(0)
+        , isEnable(false)
+        , isTrivial(false) {};
 
     limitsData(size_t limit, bool enable = false, bool trivial = false)
         : limit(limit)
@@ -289,7 +292,9 @@ public:
   /// @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool setStatus(T app, const std::string rw, bool status) noexcept {
+  bool
+  setStatus(T app, const std::string rw, bool status) noexcept
+  {
     std::lock_guard<std::mutex> lock(_mSyncThread);
 
     if (rw == "read" && _limiter.rApps.find(app) != _limiter.rApps.end()) {
@@ -313,7 +318,9 @@ public:
   /// @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool setStatus(const io::TYPE type, T id, const std::string rw, bool status) noexcept {
+  bool
+  setStatus(const io::TYPE type, T id, const std::string rw, bool status) noexcept
+  {
     std::lock_guard<std::mutex> lock(_mSyncThread);
 
     if (type == io::TYPE::UID) {
@@ -349,7 +356,9 @@ public:
   /// @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool setTrivial(const io::TYPE type, T id, const std::string rw, bool isTrivial) noexcept {
+  bool
+  setTrivial(const io::TYPE type, T id, const std::string rw, bool isTrivial) noexcept
+  {
     std::lock_guard<std::mutex> lock(_mSyncThread);
 
     if (type == io::TYPE::UID) {
@@ -384,7 +393,9 @@ public:
   /// @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool setTrivial(T id, const std::string rw, bool isTrivial) noexcept {
+  bool
+  setTrivial(T id, const std::string rw, bool isTrivial) noexcept
+  {
     std::lock_guard<std::mutex> lock(_mSyncThread);
 
     if (rw == "read" && _limiter.rApps.find(id) != _limiter.rApps.end()) {
@@ -408,7 +419,9 @@ public:
   /// @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool setLimiter(const io::TYPE type, T id, size_t limits, const std::string rw) noexcept {
+  bool
+  setLimiter(const io::TYPE type, T id, size_t limits, const std::string rw) noexcept
+  {
     std::lock_guard<std::mutex> lock(_mSyncThread);
 
     if (type == io::TYPE::UID) {
@@ -443,7 +456,9 @@ public:
   /// @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool setLimiter(T app, size_t limits, const std::string rw) noexcept {
+  bool
+  setLimiter(T app, size_t limits, const std::string rw) noexcept
+  {
     std::lock_guard<std::mutex> lock(_mSyncThread);
     if (rw == "read") {
       _limiter.rApps[app].limit = limits * 1000000;
@@ -464,21 +479,39 @@ public:
   /// @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool rmLimit(io::TYPE type, T id) {
+  bool
+  rmLimit(io::TYPE type, T id, const std::string rw = "")
+  {
     std::lock_guard<std::mutex> lock(_mSyncThread);
 
     if (type == io::TYPE::UID) {
       if (_limiter.rUids.find(id) == _limiter.rUids.end() && _limiter.wUids.find(id) == _limiter.wUids.end()) {
         return false;
       }
-      if (_limiter.rUids.find(id) != _limiter.rUids.end()) { _limiter.rUids.erase(_limiter.rUids.find(id)); }
-      if (_limiter.wUids.find(id) != _limiter.wUids.end()) { _limiter.wUids.erase(_limiter.wUids.find(id)); }
+      if (rw.empty() || rw == "read") {
+        if (_limiter.rUids.find(id) != _limiter.rUids.end()) {
+          _limiter.rUids.erase(_limiter.rUids.find(id));
+        }
+      }
+      if (rw.empty() || rw == "write") {
+        if (_limiter.wUids.find(id) != _limiter.wUids.end()) {
+          _limiter.wUids.erase(_limiter.wUids.find(id));
+        }
+      }
     } else if (type == io::TYPE::GID) {
       if (_limiter.rGids.find(id) == _limiter.rGids.end() && _limiter.wGids.find(id) == _limiter.wGids.end()) {
         return false;
       }
-      if (_limiter.rGids.find(id) != _limiter.rGids.end()) { _limiter.rGids.erase(_limiter.rGids.find(id)); }
-      if (_limiter.wGids.find(id) != _limiter.wGids.end()) { _limiter.wGids.erase(_limiter.wGids.find(id)); }
+      if (rw.empty() || rw == "read") {
+        if (_limiter.rGids.find(id) != _limiter.rGids.end()) {
+          _limiter.rGids.erase(_limiter.rGids.find(id));
+        }
+      }
+      if (rw.empty() || rw == "write") {
+        if (_limiter.wGids.find(id) != _limiter.wGids.end()) {
+          _limiter.wGids.erase(_limiter.wGids.find(id));
+        }
+      }
     } else {
       return false;
     }
@@ -493,15 +526,25 @@ public:
   /// @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   template <typename T>
-  bool rmLimit(T appName) {
+  bool
+  rmLimit(T appName, const std::string& rw = "")
+  {
     std::lock_guard<std::mutex> lock(_mSyncThread);
 
     if (_limiter.rApps.find(appName) == _limiter.rApps.end() && _limiter.wApps.find(appName) == _limiter.wApps.end()) {
       return false;
     }
 
-    if (_limiter.rApps.find(appName) != _limiter.rApps.end()) { _limiter.rApps.erase(_limiter.rApps.find(appName)); }
-    if (_limiter.wApps.find(appName) != _limiter.wApps.end()) { _limiter.wApps.erase(_limiter.wApps.find(appName)); }
+    if (rw.empty() || rw == "read") {
+      if (_limiter.rApps.find(appName) != _limiter.rApps.end()) {
+        _limiter.rApps.erase(_limiter.rApps.find(appName));
+      }
+    }
+    if (rw.empty() || rw == "write") {
+      if (_limiter.wApps.find(appName) != _limiter.wApps.end()) {
+        _limiter.wApps.erase(_limiter.wApps.find(appName));
+      }
+    }
     return true;
   }
 };
