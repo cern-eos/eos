@@ -35,7 +35,9 @@ EOSMGMNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed
 //------------------------------------------------------------------------------
-eos::console::ReplyProto IoCmd::ProcessRequest() noexcept {
+eos::console::ReplyProto
+IoCmd::ProcessRequest() noexcept
+{
   eos::console::ReplyProto reply;
   const eos::console::IoProto io = mReqProto.io();
 
@@ -57,7 +59,7 @@ eos::console::ReplyProto IoCmd::ProcessRequest() noexcept {
     break;
 
   case eos::console::IoProto::kMonitor:
-    MonitorSubcmd(io.monitor(), reply);
+    MonitorSubcommand(io.monitor(), reply);
     break;
 
   default:
@@ -71,17 +73,37 @@ eos::console::ReplyProto IoCmd::ProcessRequest() noexcept {
 //------------------------------------------------------------------------------
 // Execute stat subcommand
 //------------------------------------------------------------------------------
-void IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat, eos::console::ReplyProto& reply) {
+void
+IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat, eos::console::ReplyProto& reply)
+{
   XrdOucString out = "";
   bool monitoring = stat.monitoring() || WantsJsonOutput();
 
   // If nothing is selected, we show the summary information
   if (!(stat.apps() || stat.domain() || stat.top() || stat.details())) {
-    gOFS->mIoStats->PrintOut(out, true, stat.details(), monitoring, stat.numerical(), stat.top(), stat.domain(),
-                             stat.apps(), stat.sample_stat(), stat.time_ago(), stat.time_interval());
+    gOFS->mIoStats->PrintOut(out,
+                             true,
+                             stat.details(),
+                             monitoring,
+                             stat.numerical(),
+                             stat.top(),
+                             stat.domain(),
+                             stat.apps(),
+                             stat.sample_stat(),
+                             stat.time_ago(),
+                             stat.time_interval());
   } else {
-    gOFS->mIoStats->PrintOut(out, stat.summary(), stat.details(), monitoring, stat.numerical(), stat.top(),
-                             stat.domain(), stat.apps(), stat.sample_stat(), stat.time_ago(), stat.time_interval());
+    gOFS->mIoStats->PrintOut(out,
+                             stat.summary(),
+                             stat.details(),
+                             monitoring,
+                             stat.numerical(),
+                             stat.top(),
+                             stat.domain(),
+                             stat.apps(),
+                             stat.sample_stat(),
+                             stat.time_ago(),
+                             stat.time_interval());
   }
 
   if (WantsJsonOutput()) { out = ResponseToJsonString(out.c_str()).c_str(); }
@@ -93,11 +115,14 @@ void IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat, eos::console
 //------------------------------------------------------------------------------
 // Execute enable subcommand
 //------------------------------------------------------------------------------
-void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable, eos::console::ReplyProto& reply) {
+void
+IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable, eos::console::ReplyProto& reply)
+{
   std::ostringstream out, err;
   int ret_c = 0;
 
-  if (enable.switchx()) { // enable
+  if (enable.switchx()) {
+    // enable
     if ((!enable.reports()) && (!enable.namespacex())) {
       if (enable.upd_address().length()) {
         if (gOFS->mIoStats->AddUdpTarget(enable.upd_address().c_str())) {
@@ -127,7 +152,8 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable, eos::c
           }
         }
       }
-    } else { // disable
+    } else {
+      // disable
       if (enable.reports()) {
         if (gOFS->mIoStats->StartReport()) {
           out << "success: enabled IO report store";
@@ -201,7 +227,9 @@ void IoCmd::EnableSubcmd(const eos::console::IoProto_EnableProto& enable, eos::c
 //------------------------------------------------------------------------------
 // Execute report subcommand
 //------------------------------------------------------------------------------
-void IoCmd::ReportSubcmd(const eos::console::IoProto_ReportProto& report, eos::console::ReplyProto& reply) {
+void
+IoCmd::ReportSubcmd(const eos::console::IoProto_ReportProto& report, eos::console::ReplyProto& reply)
+{
   XrdOucString out{""};
   XrdOucString err{""};
 
@@ -221,7 +249,9 @@ void IoCmd::ReportSubcmd(const eos::console::IoProto_ReportProto& report, eos::c
 //------------------------------------------------------------------------------
 // Execute ns subcommand
 //------------------------------------------------------------------------------
-void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::ReplyProto& reply) {
+void
+IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::ReplyProto& reply)
+{
   std::string option;
 
   if (ns.monitoring() || WantsJsonOutput()) { option += "-m"; }
@@ -267,7 +297,9 @@ void IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::Repl
 //----------------------------------------------------------------------------
 //! Find the number of the '-' char to display
 //----------------------------------------------------------------------------
-static size_t findSize(IoBuffer::Summaries& sums, size_t winTime) {
+static size_t
+findSize(IoBuffer::Summaries& sums, size_t winTime)
+{
   size_t size = 0;
 
   IoBuffer::Data data(sums.aggregated().at(winTime));
@@ -287,7 +319,9 @@ static size_t findSize(IoBuffer::Summaries& sums, size_t winTime) {
 //----------------------------------------------------------------------------
 //! Find the number of the '-' char to display
 //----------------------------------------------------------------------------
-static size_t findSize(Limiter& limit) {
+static size_t
+findSize(Limiter& limit)
+{
   size_t size = 0;
 
   for (auto app : limit.rApps) {
@@ -315,8 +349,9 @@ static size_t findSize(Limiter& limit) {
 //----------------------------------------------------------------------------
 //! change the number of byte to MB/s (also GB/s|TB/s) string
 //----------------------------------------------------------------------------
-static std::string toMega(size_t byte, float iops = 1, size_t precision = 3, bool print = true,
-                          bool isTrivial = false) {
+static std::string
+toMega(size_t byte, float iops = 1, size_t precision = 3, bool print = true, bool isTrivial = false)
+{
   std::ostringstream os;
 
   if (byte == 0) { return "0 MB/s"; }
@@ -349,76 +384,30 @@ static std::string toMega(size_t byte, float iops = 1, size_t precision = 3, boo
 //----------------------------------------------------------------------------
 //! Monitor command to display the bandwidth
 //----------------------------------------------------------------------------
-void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply) {
-  std::stringstream options(mn.options());
-  std::string cmdOptions;
-  std::stringstream std_out;
+void
+MonitorRatesShow(const eos::console::IoProto_MonitorProto::QueryRates& monitor_show, eos::console::ReplyProto& reply)
+{
+  std::stringstream ss;
 
-  bool printApps = true;
-  bool printUids = true;
-  bool printGids = true;
-  bool jsonOutput = false;
+  bool printApps = monitor_show.apps_only();
+  bool printUids = monitor_show.users_only();
+  bool printGids = monitor_show.groups_only();
+  if (!printApps && !printUids && !printGids) {
+    printApps = printUids = printGids = true;
+  }
+
+  bool jsonOutput = monitor_show.json();
   bool printStd = false;
   bool printSize = false;
 
+  // TODO: get limits or reservations
+
   IoBuffer::Summaries sums(gOFS->mIoShaper.getShaping());
-  size_t winTime = !sums.aggregated().empty() ? std::min_element(sums.aggregated().begin(), sums.aggregated().end(),
+  size_t winTime = !sums.aggregated().empty() ? std::min_element(sums.aggregated().begin(),
+                                                                 sums.aggregated().end(),
                                                                  [](auto& a, auto& b) { return a.first < b.first; })
                                                     ->first
                                               : 0;
-
-  if (options.str() == "-w") {
-    std_out << "[FST's Available windows] :=";
-    if (sums.aggregated().empty()) {
-      std_out << " (empty)";
-    } else {
-      for (const auto& [fst, snd] : sums.aggregated()) {
-        std_out << " " + std::to_string(fst);
-      }
-    }
-
-    std_out << "\n[MGM set windows]         :=";
-    const auto scaler(gOFS->mIoShaper.getScaler());
-    if (scaler.windows().empty()) {
-      std_out << " (empty)\n";
-    } else {
-      for (auto it : scaler.windows()) {
-        std_out << " " + std::to_string(it);
-      }
-    }
-
-    reply.set_std_out(std_out.str());
-    return;
-  }
-
-  if (!mn.options().empty()) {
-    while (options >> cmdOptions) {
-      if (cmdOptions == "-a") {
-        printUids = false;
-        printGids = false;
-      } else if (cmdOptions == "-u") {
-        printApps = false;
-        printGids = false;
-      } else if (cmdOptions == "-g") {
-        printApps = false;
-        printUids = false;
-      } else if (cmdOptions == "-j") {
-        jsonOutput = true;
-      } else if (cmdOptions == "-s") {
-        printSize = true;
-      } else if (cmdOptions == "-std") {
-        printStd = true;
-      } else {
-        char* delimiter = nullptr;
-        winTime = std::strtol(cmdOptions.c_str(), &delimiter, 10);
-
-        if (*delimiter || !options.eof()) {
-          reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: ls: command not found");
-          return;
-        }
-      }
-    }
-  }
 
   /// Handle errors
   if (sums.aggregated().empty()) {
@@ -441,22 +430,29 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn, eos::console
   constexpr size_t W3 = 7;
   constexpr size_t W4 = 13;
 
-  std_out << "Window := " << winTime << " s" << "\n\n";
-  std_out << std::left << std::setw(W1) << "who" << std::right << std::setw(W2) << "read BW" << std::setw(W3)
-          << "limit";
-  if (printStd) { std_out << std::setw(W4) << "std"; }
-  if (printSize) { std_out << std::setw(W3) << "size"; }
-  std_out << std::setw(W2) << "write BW" << std::setw(W3) << "limit";
-  if (printStd) { std_out << std::setw(W4) << "std"; }
-  if (printSize) { std_out << std::setw(W3) << "size"; }
-  std_out << std::setw(W2) << "read IOPS" << std::setw(W2) << "write IOPS";
-  std_out << '\n';
+  ss << "Window := " << winTime << " s" << "\n\n";
+  ss << std::left << std::setw(W1) << "who" << std::right << std::setw(W2) << "read BW" << std::setw(W3) << "limit";
+  if (printStd) {
+    ss << std::setw(W4) << "std";
+  }
+  if (printSize) {
+    ss << std::setw(W3) << "size";
+  }
+  ss << std::setw(W2) << "write BW" << std::setw(W3) << "limit";
+  if (printStd) {
+    ss << std::setw(W4) << "std";
+  }
+  if (printSize) {
+    ss << std::setw(W3) << "size";
+  }
+  ss << std::setw(W2) << "read IOPS" << std::setw(W2) << "write IOPS";
+  ss << '\n';
 
   size_t size = ((W2 * 5) + W1) + (printSize ? W3 * 2 : 0) + (printStd ? W4 * 2 : 0);
   while (size--) {
-    std_out << "─";
+    ss << "─";
   }
-  std_out << '\n' << std::setprecision(3) << std::fixed;
+  ss << '\n' << std::setprecision(3) << std::fixed;
 
   IoBuffer::Data data(sums.aggregated().at(winTime));
   Shaping::Scaler scaler(gOFS->mIoShaper.getScaler());
@@ -484,127 +480,157 @@ void IoCmd::MonitorLs(const eos::console::IoProto_MonitorProto& mn, eos::console
       reply.set_std_err("failed to parse data protobuf object");
       return;
     }
-    std_out.str("");
-    std_out << out;
+    ss.str("");
+    ss << out;
   } else {
     if (printApps) {
       for (auto app : data.apps()) {
         auto& appScaler = scaler.apps();
-        std_out << std::left << std::setw(W1) << "app (" + app.first + ")" << std::right << std::setw(W2)
-                << toMega(app.second.ravrg(), app.second.riops());
+        ss << std::left << std::setw(W1) << "app (" + app.first + ")" << std::right << std::setw(W2)
+           << toMega(app.second.ravrg(), app.second.riops());
         /// Read apps
         if (appScaler.read().find(app.first) != appScaler.read().end()) {
-          std_out << std::setprecision(3) << std::setw(2) << (appScaler.read().at(app.first).istrivial() ? " *" : "  ")
-                  << std::setw(5) << appScaler.read().at(app.first).limit();
+          ss << std::setprecision(3) << std::setw(2) << (appScaler.read().at(app.first).istrivial() ? " *" : "  ")
+             << std::setw(5) << appScaler.read().at(app.first).limit();
         } else {
-          std_out << std::setw(8) << 1.00;
+          ss << std::setw(8) << 1.00;
         }
 
-        if (printStd) { std_out << std::setw(W4) << toMega(app.second.rstd(), app.second.riops()); }
-        if (printSize) { std_out << std::setw(W3) << app.second.rsize(); }
+        if (printStd) {
+          ss << std::setw(W4) << toMega(app.second.rstd(), app.second.riops());
+        }
+        if (printSize) {
+          ss << std::setw(W3) << app.second.rsize();
+        }
 
-        std_out << std::setw(W2) << toMega(app.second.wavrg(), app.second.wiops()) << std::setw(W3);
+        ss << std::setw(W2) << toMega(app.second.wavrg(), app.second.wiops()) << std::setw(W3);
 
         /// Write apps
         if (appScaler.write().find(app.first) != appScaler.write().end()) {
-          std_out << std::setprecision(3) << std::setw(2) << (appScaler.write().at(app.first).istrivial() ? " *" : "  ")
-                  << std::setw(5) << appScaler.write().at(app.first).limit();
+          ss << std::setprecision(3) << std::setw(2) << (appScaler.write().at(app.first).istrivial() ? " *" : "  ")
+             << std::setw(5) << appScaler.write().at(app.first).limit();
         } else {
-          std_out << std::setw(8) << 1.00;
+          ss << std::setw(8) << 1.00;
         }
 
-        if (printStd) { std_out << std::setw(W4) << toMega(app.second.wstd(), app.second.wiops()); }
-        if (printSize) { std_out << std::setw(W3) << app.second.wsize(); }
+        if (printStd) {
+          ss << std::setw(W4) << toMega(app.second.wstd(), app.second.wiops());
+        }
+        if (printSize) {
+          ss << std::setw(W3) << app.second.wsize();
+        }
 
-        std_out << std::setw(W2) << app.second.riops() << std::setw(W2) << app.second.wiops() << "\n";
+        ss << std::setw(W2) << app.second.riops() << std::setw(W2) << app.second.wiops() << "\n";
       }
     }
 
     if (printUids) {
       for (const auto& uid : data.uids()) {
         auto& uidScaler = scaler.uids();
-        std_out << std::left << std::setw(W1) << "uid (" + std::to_string(uid.first) + ")" << std::right
-                << std::setw(W2) << toMega(uid.second.ravrg(), uid.second.riops());
+        ss << std::left << std::setw(W1) << "uid (" + std::to_string(uid.first) + ")" << std::right << std::setw(W2)
+           << toMega(uid.second.ravrg(), uid.second.riops());
         /// Read uid
         if (uidScaler.read().find(uid.first) != uidScaler.read().end()) {
-          std_out << std::setprecision(3) << std::setw(2) << (uidScaler.read().at(uid.first).istrivial() ? " *" : "  ")
-                  << std::setw(5) << uidScaler.read().at(uid.first).limit();
+          ss << std::setprecision(3) << std::setw(2) << (uidScaler.read().at(uid.first).istrivial() ? " *" : "  ")
+             << std::setw(5) << uidScaler.read().at(uid.first).limit();
         } else {
-          std_out << std::setw(8) << 1.00;
+          ss << std::setw(8) << 1.00;
         }
 
-        if (printStd) { std_out << std::setw(W4) << toMega(uid.second.rstd(), uid.second.riops()); }
-        if (printSize) { std_out << std::setw(W3) << uid.second.rsize(); }
+        if (printStd) {
+          ss << std::setw(W4) << toMega(uid.second.rstd(), uid.second.riops());
+        }
+        if (printSize) {
+          ss << std::setw(W3) << uid.second.rsize();
+        }
 
-        std_out << std::setw(W2) << toMega(uid.second.wavrg(), uid.second.wiops());
+        ss << std::setw(W2) << toMega(uid.second.wavrg(), uid.second.wiops());
 
         /// Write uid
         if (uidScaler.write().find(uid.first) != uidScaler.write().end()) {
-          std_out << std::setprecision(3) << std::setw(2) << (uidScaler.write().at(uid.first).istrivial() ? " *" : "  ")
-                  << std::setw(5) << uidScaler.write().at(uid.first).limit();
+          ss << std::setprecision(3) << std::setw(2) << (uidScaler.write().at(uid.first).istrivial() ? " *" : "  ")
+             << std::setw(5) << uidScaler.write().at(uid.first).limit();
         } else {
-          std_out << std::setw(8) << 1.00;
+          ss << std::setw(8) << 1.00;
         }
 
-        if (printStd) { std_out << std::setw(W4) << toMega(uid.second.wstd(), uid.second.wiops()); }
-        if (printSize) { std_out << std::setw(W3) << uid.second.wsize(); }
+        if (printStd) {
+          ss << std::setw(W4) << toMega(uid.second.wstd(), uid.second.wiops());
+        }
+        if (printSize) {
+          ss << std::setw(W3) << uid.second.wsize();
+        }
 
-        std_out << std::setw(W2) << uid.second.riops() << std::setw(W2) << uid.second.wiops() << "\n";
+        ss << std::setw(W2) << uid.second.riops() << std::setw(W2) << uid.second.wiops() << "\n";
       }
     }
 
     if (printGids) {
       for (auto gid : data.gids()) {
         auto& gidScaler = scaler.gids();
-        std_out << std::left << std::setw(W1) << "gid (" + std::to_string(gid.first) + ")" << std::right
-                << std::setw(W2) << toMega(gid.second.ravrg(), gid.second.riops());
+        ss << std::left << std::setw(W1) << "gid (" + std::to_string(gid.first) + ")" << std::right << std::setw(W2)
+           << toMega(gid.second.ravrg(), gid.second.riops());
 
         /// Read gid
         if (gidScaler.read().find(gid.first) != gidScaler.read().end()) {
-          std_out << std::setprecision(3) << std::setw(2) << (gidScaler.read().at(gid.first).istrivial() ? " *" : "  ")
-                  << std::setw(5) << std::right << gidScaler.read().at(gid.first).limit();
+          ss << std::setprecision(3) << std::setw(2) << (gidScaler.read().at(gid.first).istrivial() ? " *" : "  ")
+             << std::setw(5) << std::right << gidScaler.read().at(gid.first).limit();
         } else {
-          std_out << std::setw(8) << 1.00;
+          ss << std::setw(8) << 1.00;
         }
 
-        if (printStd) { std_out << std::setw(W4) << toMega(gid.second.rstd(), gid.second.riops()); }
-        if (printSize) { std_out << std::setw(W3) << gid.second.rsize(); }
+        if (printStd) {
+          ss << std::setw(W4) << toMega(gid.second.rstd(), gid.second.riops());
+        }
+        if (printSize) {
+          ss << std::setw(W3) << gid.second.rsize();
+        }
 
-        std_out << std::setw(W2) << toMega(gid.second.wavrg(), gid.second.wiops());
+        ss << std::setw(W2) << toMega(gid.second.wavrg(), gid.second.wiops());
 
         /// Write gid
         if (gidScaler.write().find(gid.first) != gidScaler.write().end()) {
-          std_out << std::setprecision(3) << std::setw(2) << (gidScaler.write().at(gid.first).istrivial() ? " *" : "  ")
-                  << std::setw(5) << gidScaler.write().at(gid.first).limit();
+          ss << std::setprecision(3) << std::setw(2) << (gidScaler.write().at(gid.first).istrivial() ? " *" : "  ")
+             << std::setw(5) << gidScaler.write().at(gid.first).limit();
         } else {
-          std_out << std::setw(8) << 1.00;
+          ss << std::setw(8) << 1.00;
         }
 
-        if (printStd) { std_out << std::setw(W4) << toMega(gid.second.wstd(), gid.second.wiops()); }
-        if (printSize) { std_out << std::setw(W3) << gid.second.wsize(); }
+        if (printStd) {
+          ss << std::setw(W4) << toMega(gid.second.wstd(), gid.second.wiops());
+        }
+        if (printSize) {
+          ss << std::setw(W3) << gid.second.wsize();
+        }
 
-        std_out << std::setw(W2) << gid.second.riops() << std::setw(W2) << gid.second.wiops() << "\n";
+        ss << std::setw(W2) << gid.second.riops() << std::setw(W2) << gid.second.wiops() << "\n";
       }
     }
   }
 
-  reply.set_std_out(std_out.str().c_str());
+  reply.set_std_out(ss.str().c_str());
 }
 
-//----------------------------------------------------------------------------
-//! Monitor command to display the limits
-//----------------------------------------------------------------------------
-void IoCmd::MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream& os) {
+void
+MonitorThrottleShow(const eos::console::IoProto_MonitorProto::ThrottleProto::ListAction& monitor_throttle,
+                    eos::console::ReplyProto& reply)
+{
   Limiter limit(gOFS->mIoShaper.getLimiter());
   std::stringstream std_out;
-  std::string options;
 
   size_t W1 = findSize(limit);
   const size_t W2 = 16;
   const size_t W3 = 8;
-  bool printApps = true;
-  bool printUids = true;
-  bool printGids = true;
+
+  bool printApps = monitor_throttle.apps_only();
+  bool printUids = monitor_throttle.users_only();
+  bool printGids = monitor_throttle.groups_only();
+  if (!printApps && !printUids && !printGids) {
+    printApps = printUids = printGids = true;
+  }
+
+  // TODO: jsonOutput is unused for now
+  const bool jsonOutput = monitor_throttle.json();
 
   /// Display layout
   std_out << std::left << std::setw(W1) << "who" << std::right << std::setw(W2) << "read limit" << std::right
@@ -617,25 +643,6 @@ void IoCmd::MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream& os)
     std_out << "─";
   }
   std_out << '\n' << std::setprecision(3);
-
-  if (!os.eof()) {
-    while (os >> options) {
-      if (options == "-a") {
-        printUids = false;
-        printGids = false;
-      } else if (options == "-u") {
-        printApps = false;
-        printGids = false;
-      } else if (options == "-g") {
-        printApps = false;
-        printUids = false;
-      } else {
-        reply.set_std_err("Monitor: set ls: option not found");
-        return;
-      }
-    }
-  }
-
   /// Handle errors
   if (!printApps && !printUids && !printGids) {
     reply.set_std_err("you cannot select multiple targets");
@@ -739,332 +746,299 @@ void IoCmd::MonitorSetLs(eos::console::ReplyProto& reply, std::stringstream& os)
   reply.set_std_out(std_out.str());
 }
 
-//----------------------------------------------------------------------------
-//! Monitor command to remove a limits
-//----------------------------------------------------------------------------
-void IoCmd::MonitorSetRm(eos::console::ReplyProto& reply, std::stringstream& os) {
+void
+MonitorThrottleRemove(const eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction& monitor_throttle,
+                      eos::console::ReplyProto& reply)
+{
+  Limiter limit(gOFS->mIoShaper.getLimiter());
   std::stringstream std_out;
-  std::string input;
 
-  std::string app;
-  gid_t gid = 0;
-  uid_t uid = 0;
+  // TODO: this should differently for limits / reservations
+  const bool is_read = monitor_throttle.is_read();
+  const std::string read_or_write = is_read ? "read" : "write";
 
-  if (os.eof()) {
-    reply.set_std_out("Try eos io monitor --help\n");
+  switch (monitor_throttle.target_case()) {
+  case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kApp: {
+    const auto& app = monitor_throttle.app();
+    if (gOFS->mIoShaper.rmLimit(app, read_or_write)) {
+      std_out << "App " << app << " set successfully removed\n";
+    } else {
+      std_out << "Remove app " << app << " failed\n";
+    }
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kUser: {
+    const uid_t user = monitor_throttle.user();
+    if (gOFS->mIoShaper.rmLimit(io::TYPE::UID, user, read_or_write)) {
+      std_out << "User " << user << " set successfully removed\n";
+    } else {
+      std_out << "Remove user " << user << " failed\n";
+    }
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kGroup: {
+    const gid_t group = monitor_throttle.group();
+    if (gOFS->mIoShaper.rmLimit(io::TYPE::GID, group, read_or_write)) {
+      std_out << "Group " << group << " set successfully removed\n";
+    } else {
+      std_out << "Remove group " << group << " failed\n";
+    }
+    break;
+  }
+
+  default:
+    // It is good practice to handle the 'TARGET_NOT_SET' or unknown cases
+    std_out << "Error: Target not set or unknown remove action.\n";
+    break;
+  }
+
+  reply.set_std_out(std_out.str());
+}
+
+void
+MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetAction& monitor_throttle,
+                   eos::console::ReplyProto& reply)
+{
+  Limiter limit(gOFS->mIoShaper.getLimiter());
+
+  std::stringstream std_out;
+
+  const bool is_read = monitor_throttle.is_read();
+  const auto rate = monitor_throttle.rate_megabytes_per_sec();
+
+  bool is_enable_or_disable = false;
+  bool is_enable = monitor_throttle.enable(); // false if disabled
+
+  switch (monitor_throttle.update_case()) {
+  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kRateMegabytesPerSec: {
+    if (rate == 0) {
+      std_out << "Invalid rate specified. Rate must be greater than 0.\n";
+      reply.set_std_err(std_out.str());
+      return;
+    }
+    is_enable_or_disable = false;
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kEnable: {
+    is_enable_or_disable = true;
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::UPDATE_NOT_SET:
+  default:
+    std_out << "Invalid update field specified. You must specify a rate using '--rate' or enable toggle via '--enable' "
+               "or '-disable'.\n";
+    reply.set_std_err(std_out.str());
     return;
   }
 
-  if (os.str().find(':') != std::string::npos && std::getline(os, input, ':')) {
-    if (input == "uid" && os >> uid && os.eof()) {
-      if (gOFS->mIoShaper.rmLimit(io::TYPE::UID, uid)) {
-        std_out << "Uid " << uid << " set successfully removed\n";
-      } else {
-        std_out << "Remove uid " << uid << " failed\n";
-      }
-    } else if (input == "gid" && os >> gid && os.eof()) {
-      if (gOFS->mIoShaper.rmLimit(io::TYPE::GID, gid)) {
-        std_out << "Gid " << gid << " set successfully removed\n";
-      } else {
-        std_out << "Remove gid " << gid << " failed\n";
-      }
-    } else if (input == "app" && os >> app && os.eof()) {
-      if (gOFS->mIoShaper.rmLimit(app)) {
-        std_out << "App " << app << " set successfully removed\n";
-      } else {
-        std_out << "Remove app " << app << " failed\n";
-      }
-    } else {
-      reply.set_std_err("Monitor: set rm: target can only be <app|uid|gid>:<id> || [-a] [-u] [-g] [--all]\n");
-      return;
-    }
-  } else if (os >> input) {
-    if (input == "-a") {
-      if (gOFS->mIoShaper.rmAppsLimit()) {
-        std_out << "All apps set successfuly removed\n";
-      } else {
-        std_out << "Removed all apps set failed\n";
-      }
-    } else if (input == "-u") {
-      if (gOFS->mIoShaper.rmUidsLimit()) {
-        std_out << "All uids set successfuly removed\n";
-      } else {
-        std_out << "Removed all uids set failed\n";
-      }
-    } else if (input == "-g") {
-      if (gOFS->mIoShaper.rmGidsLimit()) {
-        std_out << "All gids set successfuly removed\n";
-      } else {
-        std_out << "Removed all gids set failed\n";
-      }
-    } else if (input == "--all") {
-      if (gOFS->mIoShaper.rmAppsLimit()) {
-        std_out << "All apps set successfuly removed\n";
-      } else {
-        std_out << "Removed all apps set failed\n";
-      }
-      if (gOFS->mIoShaper.rmUidsLimit()) {
-        std_out << "All uids set successfuly removed\n";
-      } else {
-        std_out << "Removed all uids set failed\n";
-      }
-      if (gOFS->mIoShaper.rmGidsLimit()) {
-        std_out << "All gids set successfuly removed\n";
-      } else {
-        std_out << "Removed all gids set failed\n";
-      }
-    } else {
-      reply.set_std_err("Monitor: set rm: option not found\n");
-      return;
-    }
-  } else {
-    reply.set_std_err("Monitor: set rm: command not found");
+  const auto type = monitor_throttle.type();
+
+  const bool is_limit = type == eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_LIMIT;
+
+  if (const bool is_reservation =
+          type == eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_RESERVATION;
+      !is_limit && !is_reservation) {
+    std_out << "Invalid type specified. Valid types are '--limit' and '--reservation'.\n";
+    reply.set_std_err(std_out.str());
     return;
   }
 
-  if (!os.eof()) {
-    reply.set_std_err("Monitor: set rm: bad number of information\n");
+  if (!is_limit) {
+    std_out << "Reservations are not supported yet.\n";
+    reply.set_std_err(std_out.str());
     return;
+  }
+  // TODO: this should differently for limits / reservations
+
+  const std::string read_or_write = is_read ? "read" : "write";
+  bool status = false;
+  switch (monitor_throttle.target_case()) {
+  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kApp: {
+    const auto& app = monitor_throttle.app();
+    if (is_enable_or_disable) {
+      status = gOFS->mIoShaper.setStatus(app, read_or_write, is_enable);
+      if (status) {
+        std_out << "App " << app << " " << read_or_write << " limit successfully "
+                << (is_enable ? "enabled" : "disabled") << "\n";
+      } else {
+        std_out << (is_enable ? "Enable" : "Disable") << " app " << app << " " << read_or_write << " limit failed\n";
+      }
+    } else {
+      status = gOFS->mIoShaper.setLimiter(app, rate, read_or_write);
+      if (status) {
+        std_out << "App " << app << " " << read_or_write << " limit successfully set to " << rate << " MB/s\n";
+      } else {
+        std_out << "Set app " << app << " " << read_or_write << " limit failed\n";
+      }
+    }
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kUser: {
+    const uid_t user = monitor_throttle.user();
+    if (is_enable_or_disable) {
+      status = gOFS->mIoShaper.setStatus(io::TYPE::UID, user, read_or_write, is_enable);
+      if (status) {
+        std_out << "User " << user << " " << read_or_write << " limit successfully "
+                << (is_enable ? "enabled" : "disabled") << "\n";
+      } else {
+        std_out << (is_enable ? "Enable" : "Disable") << " user " << user << " " << read_or_write << " limit failed\n";
+      }
+    } else {
+      status = gOFS->mIoShaper.setLimiter(io::TYPE::UID, user, rate, read_or_write);
+      if (status) {
+        std_out << "User " << user << " " << read_or_write << " limit successfully set to " << rate << " MB/s\n";
+      } else {
+        std_out << "Set user " << user << " " << read_or_write << " limit failed\n";
+      }
+    }
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kGroup: {
+    const gid_t group = monitor_throttle.group();
+    if (is_enable_or_disable) {
+      status = gOFS->mIoShaper.setStatus(io::TYPE::UID, group, read_or_write, is_enable);
+      if (status) {
+        std_out << "Group " << group << " " << read_or_write << " limit successfully "
+                << (is_enable ? "enabled" : "disabled") << "\n";
+      } else {
+        std_out << (is_enable ? "Enable" : "Disable") << " group " << group << " " << read_or_write
+                << " limit failed\n";
+      }
+    } else {
+      status = gOFS->mIoShaper.setLimiter(io::TYPE::GID, group, rate, read_or_write);
+      if (status) {
+        std_out << "Group " << group << " " << read_or_write << " limit successfully set to " << rate << " MB/s\n";
+      } else {
+        std_out << "Set group " << group << " " << read_or_write << " limit failed\n";
+      }
+    }
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::TARGET_NOT_SET:
+  default:
+    reply.set_std_err(std_out.str());
+    return;
+    break;
+  }
+
+  reply.set_std_out(std_out.str());
+}
+
+void
+MonitorWindow(const eos::console::IoProto::MonitorProto::WindowProto& win, eos::console::ReplyProto& reply)
+{
+  std::stringstream std_out;
+  bool actions_taken = false;
+
+  for (const auto& w : win.rm()) {
+    actions_taken = true;
+    if (gOFS->mIoShaper.rm(w)) {
+      std_out << "Window " << w << " successfully removed" << std::endl;
+    } else {
+      std_out << "Remove window " << w << " failed" << std::endl;
+    }
+  }
+
+  for (const auto& w : win.add()) {
+    actions_taken = true;
+    if (gOFS->mIoShaper.addWindow(w)) {
+      std_out << "Window " << w << " successfully added" << std::endl;
+    } else {
+      std_out << "Add window " << w << " failed" << std::endl;
+    }
+  }
+
+  if (win.ls()) {
+    actions_taken = true;
+
+    // Retrieve summaries for FST windows
+    IoBuffer::Summaries sums(gOFS->mIoShaper.getShaping());
+
+    std_out << "[FST's Available windows] :=";
+    if (sums.aggregated().empty()) {
+      std_out << " (empty)";
+    } else {
+      // Iterate over the map (key is the window time)
+      for (const auto& [time, data] : sums.aggregated()) {
+        std_out << " " << time;
+      }
+    }
+
+    std_out << "\n[MGM set windows]         :=";
+
+    // Retrieve scaler for MGM windows
+    const auto scaler(gOFS->mIoShaper.getScaler());
+
+    if (scaler.windows().empty()) {
+      std_out << " (empty)\n";
+    } else {
+      for (const auto& window : scaler.windows()) {
+        std_out << " " << window;
+      }
+      std_out << "\n";
+    }
+  }
+
+  // If no specific window action was requested (shouldn't happen if client is correct)
+  if (!actions_taken) {
+    // Optional: handle empty request or default to ls
   }
 
   reply.set_std_out(std_out.str());
 }
 
 //----------------------------------------------------------------------------
-//! Monitor command to set the limits
+//! Manage monitor subcommand to manage all the commands of io monitor
 //----------------------------------------------------------------------------
-void IoCmd::MonitorSet(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply) {
-  std::stringstream cmdOption(mn.options());
-  std::string input;
-  size_t limits = 0;
-
-  std::string app;
-  std::string status;
-  gid_t gid = 0;
-  uid_t uid = 0;
-
-  bool isGid = false;
-  bool isUid = false;
-  bool isApp = false;
-  bool isStatus = false;
-  bool isTrivial = false;
-  std::string rw;
-
-  if (cmdOption >> input) {
-    if (input == "ls") {
-      MonitorSetLs(reply, cmdOption);
-      return;
-    } else if (input == "rm") {
-      cmdOption.get();
-      MonitorSetRm(reply, cmdOption);
-      return;
-    } else {
-      std::stringstream target(input);
-      if (input.find(':') != std::string::npos && std::getline(target, input, ':')) {
-        if (input == "uid" && target >> uid && target.eof()) {
-          isUid = true;
-        } else if (input == "gid" && target >> gid && target.eof()) {
-          isGid = true;
-        } else if (input == "app" && target >> app && target.eof()) {
-          isApp = true;
-        } else {
-          reply.set_std_err("Monitor: target can only be <app|uid|gid>:<id>");
-          return;
-        }
-      } else {
-        reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: set: command not found");
-        return;
-      }
-      if (cmdOption >> input) {
-        target.clear();
-        target.str(input);
-        if (std::getline(target, input, ':')) {
-          if (input == "read" || input == "write") {
-            rw = input;
-          } else {
-            reply.set_std_err("Monitor: only read|write accepted");
-            return;
-          }
-          if (target >> input) {
-            if (input == "on" || input == "off") {
-              isStatus = true;
-              status = input;
-            } else {
-              cmdOption.clear();
-              cmdOption.str(input);
-
-              char c = 0;
-              if (!(cmdOption >> limits) || limits == 0) {
-                reply.set_std_err("Monitor: bad limite input");
-                return;
-              }
-              if (!cmdOption.eof()) {
-                cmdOption >> c;
-                if (c == '*') {
-                  isTrivial = true;
-                } else {
-                  reply.set_std_err("Monitor: bad limite input");
-                  return;
-                }
-              }
-            }
-          } else {
-            reply.set_std_err("Monitor: bad read or write target");
-            return;
-          }
-        } else {
-          reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: second argument not found");
-          return;
-        }
-      } else {
-        reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: not enought argument");
-        return;
-      }
-    }
-  } else {
-    reply.set_std_err(mn.cmd() + " " + mn.options() + ": Monitor: set: command not found");
-    return;
-  }
-
-  cmdOption.str("");
-  cmdOption.clear();
-
-  if (isApp) {
-    if (isStatus) {
-      if (!gOFS->mIoShaper.setStatus(app, rw, (status == "on" ? true : false))) {
-        reply.set_std_err("Set app limit status failed");
-        return;
-      }
-      if (status == "on") {
-        cmdOption << "Enable the " + rw + " limit for (app) " + app;
-      } else {
-        cmdOption << "Disable the " + rw + " limit for (app) " + app;
-      }
-    } else {
-      gOFS->mIoShaper.setLimiter(app, limits, rw);
-      cmdOption << "Set limit for (app) " + app + " with limit of " + std::to_string(limits) + " MB/s";
-      if (!gOFS->mIoShaper.setTrivial(app, rw, isTrivial)) {
-        reply.set_std_err("Set apps trivial option failed");
-        return;
-      } else if (isTrivial) {
-        cmdOption << " (*)";
-      }
-    }
-  } else if (isUid) {
-    if (isStatus) {
-      if (!gOFS->mIoShaper.setStatus(io::TYPE::UID, uid, rw, (status == "on" ? true : false))) {
-        reply.set_std_err("Set uid limit status failed");
-        return;
-      }
-      if (status == "on") {
-        cmdOption << "Enable the " + rw + " limit for (uid) " + std::to_string(uid);
-      } else {
-        cmdOption << "Disable the " + rw + " limit for (uid) " + std::to_string(uid);
-      }
-    } else {
-      gOFS->mIoShaper.setLimiter(io::TYPE::UID, uid, limits, rw);
-      cmdOption << "Set limit for (uid) " + std::to_string(uid) + " with limit of " + std::to_string(limits) + " MB/s";
-      if (!gOFS->mIoShaper.setTrivial(io::TYPE::UID, uid, rw, isTrivial)) {
-        reply.set_std_err("Set uid trivial option failed");
-        return;
-      } else if (isTrivial) {
-        cmdOption << " (*)";
-      }
-    }
-  } else if (isGid) {
-    if (isStatus) {
-      if (!gOFS->mIoShaper.setStatus(io::TYPE::GID, gid, rw, (status == "on" ? true : false))) {
-        reply.set_std_err("Set gid limit status failed");
-        return;
-      }
-      if (status == "on") {
-        cmdOption << "Enable the " + rw + " limit for (gid) " + std::to_string(gid);
-      } else {
-        cmdOption << "Disable the " + rw + " limit for (gid) " + std::to_string(gid);
-      }
-    } else {
-      gOFS->mIoShaper.setLimiter(io::TYPE::GID, gid, limits, rw);
-      cmdOption << "Set limit for (gid) " + std::to_string(gid) + " with limit of " + std::to_string(limits) + " MB/s";
-      if (!gOFS->mIoShaper.setTrivial(io::TYPE::GID, gid, rw, isTrivial)) {
-        reply.set_std_err("Set gid trivial option failed");
-        return;
-      } else if (isTrivial) {
-        cmdOption << " (*)";
-      }
-    }
-  } else {
-    reply.set_std_err("???");
-    return;
-  }
-
-  reply.set_std_out(cmdOption.str());
-}
-
-//----------------------------------------------------------------------------
-//! Monitor command to add a window
-//----------------------------------------------------------------------------
-void IoCmd::MonitorAdd(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply) {
-  size_t window = 0;
-  std::stringstream options(mn.options());
-  std::stringstream std_out;
-
-  while (options >> window) {
-    if (gOFS->mIoShaper.addWindow(window)) {
-      std_out << "Window " << window << " successfully added\n";
-    } else {
-      std_out << "Add window " << window << " failed\n";
-    }
-  }
-  if (!options.eof()) {
-    reply.set_std_err("Monitor: bad add window input");
-    return;
-  }
-
-  reply.set_std_out(std_out.str());
-}
-
-//----------------------------------------------------------------------------
-//! Monitor command to remove a window
-//----------------------------------------------------------------------------
-void IoCmd::MonitorRm(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply) {
-  size_t window = 0;
-  std::stringstream options(mn.options());
-  std::stringstream std_out;
-
-  while (options >> window) {
-    if (gOFS->mIoShaper.rm(window)) {
-      std_out << "Window " << window << " successfully removed\n";
-    } else {
-      std_out << "Remove window " << window << " failed\n";
-    }
-  }
-  if (!options.eof()) {
-    reply.set_std_err("Monitor: bad add window input");
-    return;
-  }
-
-  reply.set_std_out(std_out.str());
-}
-
-//----------------------------------------------------------------------------
-//! Manage monitor subcommand to manage all the comands of io monitor
-//----------------------------------------------------------------------------
-void IoCmd::MonitorSubcmd(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply) {
+void
+IoCmd::MonitorSubcommand(const eos::console::IoProto_MonitorProto& monitor, eos::console::ReplyProto& reply)
+{
   eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
 
-  const std::string& cmd(mn.cmd());
-  std::stringstream options(mn.options());
+  switch (monitor.subcmd_case()) {
 
-  if (cmd == "ls") {
-    MonitorLs(mn, reply);
-  } else if (cmd == "set") {
-    MonitorSet(mn, reply);
-  } else if (cmd == "add") {
-    MonitorAdd(mn, reply);
-  } else if (cmd == "rm") {
-    MonitorRm(mn, reply);
-  } else {
-    reply.set_std_err(cmd + " " + mn.options() + " :Monitor: command not found");
+  case eos::console::IoProto_MonitorProto::kShow: {
+    MonitorRatesShow(monitor.show(), reply); // Implement this new method
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::kThrottle: {
+    switch (monitor.throttle().action_case()) {
+    case eos::console::IoProto_MonitorProto_ThrottleProto::kShow:
+      MonitorThrottleShow(monitor.throttle().show(), reply);
+      break;
+
+    case eos::console::IoProto_MonitorProto_ThrottleProto::kSet:
+      MonitorThrottleSet(monitor.throttle().set(), reply);
+      break;
+
+    case eos::console::IoProto_MonitorProto_ThrottleProto::kRemove:
+      MonitorThrottleRemove(monitor.throttle().remove(), reply);
+      break;
+
+    default:
+      reply.set_std_err("Monitor throttle: invalid subcommand");
+      break;
+    }
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::kWindow: {
+    MonitorWindow(monitor.window(), reply); // Implement this new method
+    break;
+  }
+
+  case eos::console::IoProto_MonitorProto::SUBCMD_NOT_SET:
+  default:
+    reply.set_std_err("Monitor command: sub-command (show/throttle/window) not specified");
+    break;
   }
 }
 

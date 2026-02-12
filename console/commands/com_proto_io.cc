@@ -27,7 +27,9 @@
 #include "console/commands/ICmdHelper.hh"
 
 extern int com_io(char*);
+
 void com_io_help();
+
 static bool isCommand(const char* cmd);
 
 //------------------------------------------------------------------------------
@@ -188,40 +190,216 @@ IoHelper::ParseCommand(const char* arg)
       } else if (token == "--udp") {
         if (!(tokenizer.NextToken(token)) || (token.find('-') == 0)) {
           return false;
-        } else {
-          enable->set_upd_address(token);
         }
+        enable->set_upd_address(token);
+
       } else {
         return false;
       }
     }
   } else if (token == "monitor") {
     eos::console::IoProto_MonitorProto* monitor = io->mutable_monitor();
-    std::string options;
+    std::string subcmd;
 
-    if (!tokenizer.NextToken(token) || !isCommand(token.c_str())) {
+    if (!tokenizer.NextToken(subcmd)) {
+      return false; // missing subcommand
+    }
+
+    // eos io monitor show
+    if (subcmd == "show") {
+      auto* rate = monitor->mutable_show();
+      std::string arg;
+      while (tokenizer.NextToken(arg)) {
+        if (arg == "--apps") {
+          rate->set_apps_only(true);
+        } else if (arg == "--users") {
+          rate->set_users_only(true);
+        } else if (arg == "--groups") {
+          rate->set_groups_only(true);
+        } else if (arg == "--json") {
+          rate->set_json(true);
+        } else {
+          return false; // Unknown argument for rate subcommand
+        }
+      }
+      return true;
+    }
+    // ---------------------------------------------------------------------------
+    // Subcommand: LIMIT (The complex one)
+    // ---------------------------------------------------------------------------
+    if (subcmd == "throttle") {
+      auto* throttle = monitor->mutable_throttle();
+      std::string action;
+      if (!tokenizer.NextToken(action)) {
+        return false;
+      }
+
+      if (action == "show") {
+        // get limits
+        auto* show = throttle->mutable_show();
+        std::string arg;
+        while (tokenizer.NextToken(arg)) {
+          if (arg == "--apps") {
+            show->set_apps_only(true);
+          } else if (arg == "--users") {
+            show->set_users_only(true);
+          } else if (arg == "--groups") {
+            show->set_groups_only(true);
+          } else if (arg == "--json") {
+            show->set_json(true);
+          } else if (arg == "--limit") {
+            show->set_filter_by(eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_LIMIT);
+          } else if (arg == "--reservation") {
+            show->set_filter_by(eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_RESERVATION);
+          } else {
+            return false; // Unknown argument for show action
+          }
+        }
+
+        // exit if more than one of only_apps, only_uids, only_gids is set
+        {
+          int count = 0;
+          if (show->apps_only()) {
+            count++;
+          }
+          if (show->users_only()) {
+            count++;
+          }
+          if (show->groups_only()) {
+            count++;
+          }
+          if (count > 1) {
+            return false; // Only one of --app, --user, --group can be set
+          }
+        }
+
+        return true;
+      }
+
+      if (action == "set") {
+        auto* set = throttle->mutable_set();
+        std::string key, val;
+        uint read_write_count = 0;
+        while (tokenizer.NextToken(key)) {
+          if (key == "--app") {
+            tokenizer.NextToken(val);
+            set->set_app(val);
+          } else if (key == "--user") {
+            tokenizer.NextToken(val);
+            set->set_user(std::stoi(val));
+          } else if (key == "--group") {
+            tokenizer.NextToken(val);
+            set->set_group(std::stoi(val));
+          } else if (key == "--limit") {
+            set->set_type(eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_LIMIT);
+          } else if (key == "--reservation") {
+            set->set_type(eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_RESERVATION);
+          } else if (key == "--read") {
+            read_write_count++;
+            set->set_is_read(true);
+          } else if (key == "--write") {
+            read_write_count++;
+            set->set_is_read(false);
+          } else if (key == "--rate") {
+            tokenizer.NextToken(val);
+            set->set_rate_megabytes_per_sec(std::stoull(val));
+          } else if (key == "--enable") {
+            set->set_enable(true);
+          } else if (key == "--disable") {
+            set->set_enable(false);
+          }
+        }
+
+        // only exactly one of read / write must be set
+        if (read_write_count != 1) {
+          return false;
+        }
+
+        // only exactly one of app / user / group must be defined
+        if ((set->app().empty() && set->user() == 0 && set->group() == 0) ||
+            (!set->app().empty() && (!set->user() == 0 || !set->group() == 0)) ||
+            (!set->user() == 0 && !set->group() == 0)) {
+          return false;
+        }
+
+        return true;
+      }
+
+      if (action == "remove") {
+        auto* remove = throttle->mutable_remove();
+        uint read_write_count = 0;
+        std::string key, val;
+        while (tokenizer.NextToken(key)) {
+          if (key == "--app") {
+            tokenizer.NextToken(val);
+            remove->set_app(val);
+          } else if (key == "--user") {
+            tokenizer.NextToken(val);
+            remove->set_user(std::stoi(val));
+          } else if (key == "--group") {
+            tokenizer.NextToken(val);
+            remove->set_group(std::stoi(val));
+          } else if (key == "--limit") {
+            remove->set_type(eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_LIMIT);
+          } else if (key == "--reservation") {
+            remove->set_type(eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_RESERVATION);
+          } else if (key == "--read") {
+            remove->set_is_read(true);
+            read_write_count++;
+          } else if (key == "--write") {
+            remove->set_is_read(false);
+            read_write_count++;
+          }
+        }
+
+        // only exactly one of read / write must be set
+        if (read_write_count != 1) {
+          return false;
+        }
+
+        // only exactly one of app / user / group must be defined
+        if ((remove->app().empty() && remove->user() == 0 && remove->group() == 0) ||
+            (!remove->app().empty() && (!remove->user() == 0 || !remove->group() == 0)) ||
+            (!remove->user() == 0 && !remove->group() == 0)) {
+          return false;
+        }
+        return true;
+      }
       return false;
     }
-    monitor->set_cmd(token);
 
-    tokenizer.NextToken(options);
-    if (monitor->cmd() == "set" && options.empty()) {
-      return false;
-    }
-    while (tokenizer.NextToken(token)) {
-      options += " " + token;
+    if (subcmd == "window") {
+      std::cout << "Parsing window subcommand" << std::endl;
+      auto* win = monitor->mutable_window();
+      std::string action;
+      if (!tokenizer.NextToken(action)) {
+        return false;
+      }
+
+      if (action == "show") {
+        win->set_ls(true);
+      } else if (action == "add" || action == "rm") {
+        std::string id;
+        while (tokenizer.NextToken(id)) {
+          // next token must be the window size (number)
+          uint64_t val = std::stoull(id);
+          if (action == "add") {
+            win->add_add(val);
+          } else if (action == "rm") {
+            win->add_rm(val);
+          }
+        }
+      } else {
+        return false;
+      }
+
+      return true;
     }
 
-    if (!options.empty()) {
-      monitor->set_options(options);
-    }
-
-    return true;
-  } else { // no proper subcommand
-    return false;
+    return false; // Unknown monitor subcommand
   }
 
-  return true;
+  return false; // Unknown command
 }
 
 //------------------------------------------------------------------------------
@@ -301,53 +479,52 @@ com_io_help()
       << "\t      -w :  show history for the last 7 days\n"
       << "\t      -f :  show the 'hotfiles' which are the files with highest number of present file opens\n"
       << std::endl
-      << "io monitor [command] [options...] : interact with the Monitor and the IoAggregate map's\n"
+      << "io monitor [subcommand] [options...] : interact with the IO Monitor\n"
       << std::endl
-      << "   COMMANDS\n"
-      << "\tls [-w] [-a] [-u] [-g] [-s] [-std] [-j] [WINDOW]: print the IoAggregate map\n"
-      << "\t     -w : print the available FST's windows and also the windows already set MGM side.\n"
-      << "\t     -a : print only apps\n"
-      << "\t     -u : print only uids\n"
-      << "\t     -g : print only gids\n"
-      << "\t     -s : print the size\n"
-      << "\t   -std : print the standard deviation\n"
-      << "\t     -j : change the output to JSON format\n"
-      << "       [WINDOW] : Target a specific window\n\n"
-
-      << "\tset [command] [options...] || app|uid|gid:<id> read|write:<limit>|on|off : set bandwidth limit\n"
-      << "\t     ls : print all limit set\n"
-      << "\t        -a : print only apps\n"
-      << "\t        -u : print only uids\n"
-      << "\t        -g : print only gids\n"
-      << "\t     rm [-a] [-u] [-g] [--all] || app|uid|gid:<id> : remove one or multiple set\n"
-      << "\t        -a : remove all apps\n"
-      << "\t        -u : remove all uids\n"
-      << "\t        -g : remove all gids\n"
-      << "\t     --all : remove all apps/uids/gids\n\n"
-
-      << "\tadd [window][...] : add one or multiple window to the monitor \n\n"
-
-      // << "\tshift [index] : shift the window to the next Bin, or to the index given as a parametre\n\n"
-
-      << "\trm [window][...] : remove one or multiple window from the monitor \n\n"
-
-      << "\t EXAMPLES\n"
-      << "\t  eos io monitor set app:eoscp read:10 (Set limit of 10 MB/s for eoscp)\n"
-      << "\t  eos io monitor set app:eoscp read:on (don't forget to enable the read limit for eoscp!)\n\n"
-
-      << "\t  eos io monitor set ls (Display all the limits)\n"
-      << "\t  eos io monitor set ls -a (Display apps limits)\n\n"
-
-      << "\t  eos io monitor set rm app:eoscp (remove a limits)\n"
-      << "\t  eos io monitor set rm -a (remove all set apps)\n\n"
-
-      << "\t  eos io monitor add 86400\n"
-      << "\t  eos io monitor add 86400 600 200\n\n"
-
-      << "\t  eos io monitor rm 86400\n"
-      << "\t  eos io monitor rm 86400 600 200\n\n"
-
+      << "   SUBCOMMANDS\n"
+      << "     show [--apps|--users|--groups] [--limit|--reservation] [--json]: show current IO rates\n"
+      << "\t   --apps   : show rates by application\n"
+      << "\t   --users  : show rates by user (uid)\n"
+      << "\t   --groups : show rates by group (gid)\n"
+      << "\t   --limit  : restrict output to configured limits\n"
+      << "\t   --reservation : restrict output to configured reservations\n"
+      << "\t   --json   : output in JSON format\n"
+      << std::endl
+      << "     throttle [action] [options...] : manage IO limits and reservations\n"
+      << "\t   action 'show' : list configured throttles\n"
+      << "\t     usage: throttle show [--apps|--users|--groups] [--limit|--reservation] [--json]\n"
+      << "\t   action 'set' : configure a new throttle or modify an existing one\n"
+      << "\t     usage: throttle set <identity> <direction> --rate <MB/s> [--limit|--reservation] "
+         "[--enable|--disable]\n"
+      << "\t       <identity>  : --app <name> | --user <uid> | --group <gid>\n"
+      << "\t       <direction> : --read | --write\n"
+      << "\t   action 'remove' : delete a configured throttle\n"
+      << "\t     usage: throttle remove <identity> <direction> [--limit|--reservation]\n"
+      << std::endl
+      << "     window [action] [options...] : manage time windows for monitoring\n"
+      << "\t   action 'show' : list available windows\n"
+      << "\t   action 'add' <seconds> [<seconds>...] : add monitoring window(s)\n"
+      << "\t   action 'remove'  <seconds> [<seconds>...] : remove monitoring window(s)\n"
+      << std::endl
+      << "   EXAMPLES\n"
+      << "\t   # Show current application rates in JSON\n"
+      << "\t   eos io monitor show --apps --json\n"
+      << std::endl
+      << "\t   # Limit 'eoscp' read rate to 10 MB/s\n"
+      << "\t   eos io monitor throttle set --app eoscp --read --rate 10 --limit\n"
+      << "\t   # Enable the read limit for 'eoscp'\n"
+      << "\t   eos io monitor throttle set --app eoscp --read --enable\n"
+      << std::endl
+      << "\t   # Remove a write limit for user 1001\n"
+      << "\t   eos io monitor throttle remove --user 1001 --write --limit\n"
+      << std::endl
+      << "\t   # List all configured application limits\n"
+      << "\t   eos io monitor throttle show --apps --limit\n"
+      << std::endl
+      << "\t   # Add a 1-hour (3600s) monitoring window\n"
+      << "\t   eos io monitor window add 3600\n"
       << std::endl;
+
   std::cerr << oss.str() << std::endl;
 }
 
