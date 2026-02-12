@@ -106,7 +106,9 @@ IoCmd::StatSubcmd(const eos::console::IoProto_StatProto& stat, eos::console::Rep
                              stat.time_interval());
   }
 
-  if (WantsJsonOutput()) { out = ResponseToJsonString(out.c_str()).c_str(); }
+  if (WantsJsonOutput()) {
+    out = ResponseToJsonString(out.c_str()).c_str();
+  }
 
   reply.set_std_out(out.c_str());
   reply.set_retc(0);
@@ -239,7 +241,9 @@ IoCmd::ReportSubcmd(const eos::console::IoProto_ReportProto& report, eos::consol
     return;
   }
 
-  if (gOFS->mIoStats) { gOFS->mIoStats->PrintNsReport(report.path().c_str(), out); }
+  if (gOFS->mIoStats) {
+    gOFS->mIoStats->PrintNsReport(report.path().c_str(), out);
+  }
 
   reply.set_std_out(out.c_str());
   reply.set_std_err(err.c_str());
@@ -254,15 +258,25 @@ IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::ReplyProt
 {
   std::string option;
 
-  if (ns.monitoring() || WantsJsonOutput()) { option += "-m"; }
+  if (ns.monitoring() || WantsJsonOutput()) {
+    option += "-m";
+  }
 
-  if (ns.rank_by_byte()) { option += "-b"; }
+  if (ns.rank_by_byte()) {
+    option += "-b";
+  }
 
-  if (ns.rank_by_access()) { option += "-n"; }
+  if (ns.rank_by_access()) {
+    option += "-n";
+  }
 
-  if (ns.last_week()) { option += "-w"; }
+  if (ns.last_week()) {
+    option += "-w";
+  }
 
-  if (ns.hotfiles()) { option += "-f"; }
+  if (ns.hotfiles()) {
+    option += "-f";
+  }
 
   switch (ns.count()) {
   case eos::console::IoProto_NsProto::ONEHUNDRED:
@@ -288,7 +302,9 @@ IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::ReplyProt
   XrdOucString out = "";
   gOFS->mIoStats->PrintNsPopularity(out, option.c_str());
 
-  if (WantsJsonOutput()) { out = ResponseToJsonString(out.c_str()).c_str(); }
+  if (WantsJsonOutput()) {
+    out = ResponseToJsonString(out.c_str()).c_str();
+  }
 
   reply.set_std_out(out.c_str());
   reply.set_retc(0);
@@ -304,13 +320,19 @@ findSize(IoBuffer::Summaries& sums, size_t winTime)
 
   IoBuffer::Data data(sums.aggregated().at(winTime));
   for (auto app : data.apps()) {
-    if (app.first.length() > size) { size = app.first.length(); }
+    if (app.first.length() > size) {
+      size = app.first.length();
+    }
   }
   for (auto uid : data.uids()) {
-    if (std::to_string(uid.first).length() > size) { size = std::to_string(uid.first).length(); }
+    if (std::to_string(uid.first).length() > size) {
+      size = std::to_string(uid.first).length();
+    }
   }
   for (auto gid : data.gids()) {
-    if (std::to_string(gid.first).length() > size) { size = std::to_string(gid.first).length(); }
+    if (std::to_string(gid.first).length() > size) {
+      size = std::to_string(gid.first).length();
+    }
   }
 
   return size + 8;
@@ -325,22 +347,34 @@ findSize(Limiter& limit)
   size_t size = 0;
 
   for (auto app : limit.rApps) {
-    if (app.first.length() > size) { size = app.first.length(); }
+    if (app.first.length() > size) {
+      size = app.first.length();
+    }
   }
   for (auto app : limit.wApps) {
-    if (app.first.length() > size) { size = app.first.length(); }
+    if (app.first.length() > size) {
+      size = app.first.length();
+    }
   }
   for (auto uid : limit.rUids) {
-    if (std::to_string(uid.first).length() > size) { size = std::to_string(uid.first).length(); }
+    if (std::to_string(uid.first).length() > size) {
+      size = std::to_string(uid.first).length();
+    }
   }
   for (auto uid : limit.wUids) {
-    if (std::to_string(uid.first).length() > size) { size = std::to_string(uid.first).length(); }
+    if (std::to_string(uid.first).length() > size) {
+      size = std::to_string(uid.first).length();
+    }
   }
   for (auto gid : limit.rGids) {
-    if (std::to_string(gid.first).length() > size) { size = std::to_string(gid.first).length(); }
+    if (std::to_string(gid.first).length() > size) {
+      size = std::to_string(gid.first).length();
+    }
   }
   for (auto gid : limit.wGids) {
-    if (std::to_string(gid.first).length() > size) { size = std::to_string(gid.first).length(); }
+    if (std::to_string(gid.first).length() > size) {
+      size = std::to_string(gid.first).length();
+    }
   }
 
   return size + 7;
@@ -354,12 +388,16 @@ toMega(size_t byte, float iops = 1, size_t precision = 3, bool print = true, boo
 {
   std::ostringstream os;
 
-  if (byte == 0) { return "0 MB/s"; }
+  if (byte == 0) {
+    return "0 MB/s";
+  }
 
   float finalByte = (static_cast<float>(byte) / 1000000) * iops;
 
   os << std::fixed << std::setprecision(precision);
-  if (isTrivial) { os << "*"; }
+  if (isTrivial) {
+    os << "*";
+  }
 
   if (print && finalByte >= 1000) {
     finalByte /= 1000;
@@ -411,7 +449,9 @@ MonitorRatesShow(const eos::console::IoProto_MonitorProto::QueryRates& monitor_s
 
   /// Handle errors
   if (sums.aggregated().empty()) {
-    if (jsonOutput == true) { return reply.set_std_out("{}"); }
+    if (jsonOutput == true) {
+      return reply.set_std_out("{}");
+    }
     return reply.set_std_out("(empty)\n");
   }
 
@@ -652,7 +692,9 @@ MonitorThrottleShow(const eos::console::IoProto_MonitorProto::ThrottleProto::Lis
   size_t fullSize = limit.rApps.size() + limit.wApps.size() + limit.rGids.size() + limit.wGids.size() +
                     limit.rUids.size() + limit.wUids.size();
 
-  if (!fullSize) { return reply.set_std_out("(empty)\n"); }
+  if (!fullSize) {
+    return reply.set_std_out("(empty)\n");
+  }
 
   /// Read apps
   if (printApps) {
