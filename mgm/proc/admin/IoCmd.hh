@@ -41,7 +41,9 @@ public:
   //! @param vid client virtual identity
   //----------------------------------------------------------------------------
   explicit IoCmd(eos::console::RequestProto&& req, eos::common::VirtualIdentity& vid)
-      : IProcCommand(std::move(req), vid, false) {}
+      : IProcCommand(std::move(req), vid, false)
+  {
+  }
 
   //----------------------------------------------------------------------------
   //! Destructor
