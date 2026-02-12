@@ -93,15 +93,7 @@ private:
   //! @param ms ms subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorSubcmd(const eos::console::IoProto_MonitorProto& ms, eos::console::ReplyProto& reply);
-
-  //----------------------------------------------------------------------------
-  //! Monitor command to display the bandwidth
-  //!
-  //! @param mn mn subcommand proto object
-  //! @param reply the reply of the mgm
-  //----------------------------------------------------------------------------
-  void MonitorLs(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply);
+  void MonitorSubcommand(const eos::console::IoProto_MonitorProto& ms, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Monitor command to set the limits
