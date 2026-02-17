@@ -17,6 +17,17 @@ Introduction
 This release is based on XRootD V5.
 
 
+``v5.3.30 Diopside``
+====================
+
+2026-02-17
+
+Bug
+---
+
+* [EOS-6566] MGM: Avoid dropping replicas sitting on unmounted/unavailable disk during fsck repair procedure.
+
+
 ``v5.3.29 Diopside``
 ====================
 
