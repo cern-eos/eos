@@ -350,12 +350,11 @@ build_fedora_rawhide:
         ${PKG_MGR} install -y dnf-plugins-core
         ${PKG_MGR} builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
       fi
+    - mkdir -p ${BUILD_NAME}_artifacts
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
-    - gpg --batch --import $STCI_REPO_KEY; printf "" |
-      setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm
-    - mkdir ${BUILD_NAME}_artifacts
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - cp -R build/SRPMS/ build/RPMS/ ${BUILD_NAME}_artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
