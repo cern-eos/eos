@@ -90,6 +90,7 @@ static constexpr auto EOS_VTRACE_ATTR = "sys.vtrace";
 static constexpr auto EOS_UTRACE_ATTR = "sys.utrace";
 //! FST heartbeat key marker, the "stat." prefix makes it transient
 static constexpr auto FST_HEARTBEAT_KEY = "stat.heartbeat";
+static constexpr auto FST_TRAFFIC_SHAPING_IO_REPORT = "stat.traffic_shaping.fst_io_report";
 //! ADM uid and gid
 static constexpr uid_t ADM_UID = 3;
 static constexpr gid_t ADM_GID = 4;

@@ -289,6 +289,7 @@ private:
   AssistedThread mPublisherThread;   ///< Thread publishing FST/FS info
   AssistedThread mErrorReportThread; ///< Thread sending error reports
   AssistedThread mRegisterFsThread;  ///< Thread updating list of FS registered
+  AssistedThread mTrafficShapingThread; ///< Thread sending traffic shaping stats
   //! CV and mutex used for notifying the register thread
   std::condition_variable mCvRegisterFs;
   std::mutex mMutexRegisterFs;
@@ -449,6 +450,7 @@ private:
   void Report();
   void Verify();
   void Publish(ThreadAssistant& assistant) noexcept;
+  void SendTrafficShapingStats(ThreadAssistant& assistant) noexcept;
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
 

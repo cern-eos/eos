@@ -22,9 +22,10 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include "common/Mapping.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/shaping/TrafficShapingManager.hh"
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
 #endif
@@ -53,6 +54,9 @@ private:
   std::unique_ptr<grpc::Server> mServer;
 #endif
   AssistedThread mThread; ///< Thread running GRPC service
+
+  //
+  std::shared_ptr<eos::mgm::TrafficShapingManager> mTrafficShapingManager;
 
 public:
 

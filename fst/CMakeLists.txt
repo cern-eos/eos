@@ -306,7 +306,9 @@ set(XRDEOSFST_SRCS
   # EosFstIo interface
   io/local/LocalIo.cc  io/local/LocalIo.hh
   utils/XrdOfsPathHandler.cc
-  utils/DiskMeasurements.cc)
+  utils/DiskMeasurements.cc
+  storage/TrafficShapingStats.hh storage/TrafficShapingStats.cc
+)
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})
 

@@ -20,25 +20,26 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/Config.hh"
-#include "fst/utils/IoPriority.hh"
 #include "common/Constants.hh"
+#include "common/CtaCommon.hh"
 #include "common/Path.hh"
-#include "common/http/OwnCloud.hh"
+#include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "common/SecEntity.hh"
-#include "common/CtaCommon.hh"
 #include "common/Timing.hh"
+#include "common/http/OwnCloud.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "fst/Config.hh"
+#include "fst/XrdFstOfs.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "fst/layout/Layout.hh"
 #include "fst/layout/LayoutPlugin.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/storage/FileSystem.hh"
-#include <XrdOss/XrdOssApi.hh>
-#include "fst/io/FileIoPluginCommon.hh"
+#include "fst/storage/TrafficShapingStats.hh"
+#include "fst/utils/IoPriority.hh"
 #include "namespace/utils/Etag.hh"
+#include <XrdOss/XrdOssApi.hh>
 #include <XrdOuc/XrdOucPgrwUtils.hh>
 
 // includes for gRPC
@@ -946,10 +947,11 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  int rc = mLayout->Read(fileOffset, buffer, buffer_size);
-  if (rc > 0)
+  const uint64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
+  if (rc > 0) {
     gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rc);
-
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rc);
+  }
   eos_debug("layout read %d checkSum %d", rc,
             mChecksumGroup ? nullptr : mChecksumGroup->GetDefault());
 
@@ -1092,10 +1094,13 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
                                          (void*)readV[i].data));
   }
 
-  int64_t rv = mLayout->ReadV(chunkList, total_read);
-  if (rv > 0)
-    gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rv);
+  const int64_t rv = mLayout->ReadV(chunkList, total_read);
   totalBytes += rv;
+  if (rv > 0) {
+    gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rv);
+    // new implementation
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rv);
+  }
 
   if (EOS_LOGS_DEBUG) {
     output_final = print_readv_request(readV, readCount);
@@ -1169,7 +1174,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   // use RR scheduling if there is a round-robin app name per filesystem
-  std::mutex* mutex = 0;
+  std::mutex* mutex = nullptr;
 
   if (!mAppRR.empty()) {
     if (mIsRW) {
@@ -1225,9 +1230,10 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long>(buffer_size));
-  if (rc > 0)
+  if (rc > 0) {
     gOFS.ioMap.addWrite(1, vid.app, vid.uid, vid.gid, rc);
-
+    gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, rc);
+  }
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
   // only for replica layouts and not for FuseX clients
   if ((rc < 0) && mIsCreation && !mFusex &&

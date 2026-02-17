@@ -2780,6 +2780,8 @@ FsNode::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
       eos_static_err("msg=\"skip heartbeat update due to conversion failure\" "
                      "value=\"%s\"", upd.value.c_str());
     }
+  } else if (eos::common::FST_TRAFFIC_SHAPING_IO_REPORT == upd.key) {
+    gOFS->mTrafficShapingEngine.ProcessSerializedFstIoReportNonBlocking(upd.value);
   } else {
     eos_static_debug("msg=\"ignore node shared hash update\" key=\"%s\" "
                      "value=\"%s\"", upd.key.c_str(), upd.value.c_str());

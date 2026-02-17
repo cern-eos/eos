@@ -98,32 +98,34 @@
 #define __EOSMGM_MGMOFS__HH__
 
 #include "auth_plugin/Request.pb.h"
-#include "common/Mapping.hh"
-#include "common/Logging.hh"
-#include "common/LinuxStat.hh"
+#include "common/AssistedThread.hh"
+#include "common/Audit.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
-#include "common/AssistedThread.hh"
-#include "common/XrdConnPool.hh"
+#include "common/LinuxStat.hh"
+#include "common/Logging.hh"
+#include "common/Mapping.hh"
 #include "common/MutexLatencyWatcher.hh"
-#include "common/Audit.hh"
-#include "mgm/proc/ProcCommand.hh"
-#include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/NsCmd.hh"
-#include "mgm/drain/Drainer.hh"
-#include "mgm/misc/IdTrackerWithValidity.hh"
-#include "mgm/imaster/IMaster.hh"
+#include "common/XrdConnPool.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
+#include "mgm/drain/Drainer.hh"
+#include "mgm/imaster/IMaster.hh"
+#include "mgm/inflighttracker/InFlightTracker.hh"
+#include "mgm/misc/IdTrackerWithValidity.hh"
+#include "mgm/namespacestats/NamespaceStats.hh"
+#include "mgm/proc/ProcCommand.hh"
+#include "mgm/proc/admin/NsCmd.hh"
+#include "mgm/proc/admin/SpaceCmd.hh"
+#include "mgm/shaping/IoShaping.hh"
+#include "mgm/shaping/TrafficShapingManager.hh"
+#include "namespace/MDLocking.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "namespace/MDLocking.hh"
-#include "namespace/locking/NSObjectLocker.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
-#include "mgm/inflighttracker/InFlightTracker.hh"
-#include "mgm/namespacestats/NamespaceStats.hh"
-#include "mgm/shaping/IoShaping.hh"
+#include "namespace/locking/NSObjectLocker.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
+
 #include <XrdAcc/XrdAccPrivs.hh>
 #include <google/sparse_hash_map>
 #include <chrono>
@@ -1852,7 +1854,8 @@ public:
 
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
-  IoShaping		 mIoShaper; // ioShaper thread to manager ioAggregates object
+  IoShaping mIoShaper; // ioShaper thread to manager ioAggregates object
+  TrafficShapingEngine mTrafficShapingEngine;
 
   //----------------------------------------------------------------------------
   // Authentication plugin variables like the ZMQ front end port number and the

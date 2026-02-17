@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "Constants.hh"
 #include "common/IntervalStopwatch.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
@@ -33,10 +34,13 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
+#include "fst/storage/TrafficShapingStats.hh"
+#include "mgm/shaping/IoShaping.hh"
 #include "qclient/Formatting.hh"
 #include <XrdVersion.hh>
 #include <google/protobuf/util/json_util.h>
 #include <optional>
+#include <proto/Shaping.pb.h>
 #include <sys/sysinfo.h>
 
 #ifdef PROCPS3
@@ -671,7 +675,7 @@ bool Storage::PublishFsStatistics(eos::common::FileSystem::fsid_t fsid) {
   auto it = mFsMap.find(fsid);
 
   if (it == mFsMap.end()) {
-    eos_static_crit("msg=\"asked to publish statistics for unknwon fs\" "
+    eos_static_crit("msg=\"asked to publish statistics for unknown fs\" "
                     "fsid=%lu",
                     fsid);
     return false;
@@ -759,6 +763,135 @@ void Storage::Publish(ThreadAssistant& assistant) noexcept {
   }
 
   (void)unlink(tmp_name.c_str());
+}
+
+void
+Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
+{
+  eos_static_info("%s", "msg=\"start traffic shaping stats publishing thread\"");
+
+  // What does this do exactly?
+  gConfig.getFstNodeConfigQueue("Publish");
+
+  std::unordered_map<eos::fst::IoStatsKey, std::pair<uint64_t, uint64_t>, eos::fst::IoStatsKeyHash> last_sent_cache;
+
+  while (!assistant.terminationRequested()) {
+    std::chrono::milliseconds reportInterval = std::chrono::milliseconds(1000); // TODO: make this configurable
+    common::IntervalStopwatch stopwatch(reportInterval);
+
+    // Here we send the stats
+
+    Shaping::FstIoReport report;
+    // Is this the best FST identifier?
+    const auto mNodeId = gConfig.FstHostPort.c_str();
+    report.set_node_id(mNodeId);
+
+    const int64_t now_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
+            .count();
+    report.set_timestamp_ms(now_ms);
+
+    // --- Temporary Cache for Transactional Update ---
+    struct PendingUpdate {
+      eos::fst::IoStatsKey key;
+      uint64_t new_iops;
+      uint64_t new_generation;
+    };
+    std::vector<PendingUpdate> pending_updates;
+
+    gOFS.mIoStatsCollector.VisitEntries([&](const eos::fst::IoStatsKey& key, const eos::fst::IoStatsEntry& entry) {
+      uint64_t cur_r_ops = entry.read_iops.load(std::memory_order_relaxed);
+      uint64_t cur_w_ops = entry.write_iops.load(std::memory_order_relaxed);
+      uint64_t cur_total_iops = cur_r_ops + cur_w_ops;
+      uint64_t cur_gen = entry.generation_id;
+
+      // Check against persistent cache
+      auto& last_state = last_sent_cache[key];
+
+      // If IOPS changed OR Generation changed (Restart)
+      if (cur_total_iops != last_state.first || cur_gen != last_state.second) {
+        auto* proto = report.add_entries();
+        proto->set_app_name(key.app);
+        proto->set_uid(key.uid);
+        proto->set_gid(key.gid);
+        proto->set_generation_id(cur_gen);
+
+        proto->set_total_read_ops(cur_r_ops);
+        proto->set_total_write_ops(cur_w_ops);
+        proto->set_total_bytes_read(entry.bytes_read.load(std::memory_order_relaxed));
+        proto->set_total_bytes_written(entry.bytes_written.load(std::memory_order_relaxed));
+
+        // Queue update (don't commit yet)
+        pending_updates.push_back({key, cur_total_iops, cur_gen});
+      }
+    });
+
+    // proto is built
+    // serialize to one string and print for now
+    if (report.entries_size() > 0) {
+      eos_static_info("msg=\"traffic shaping stats collected\" entries=%d pending_updates=%d",
+                      report.entries_size(),
+                      pending_updates.size());
+      std::string readable_report = report.ShortDebugString();
+      eos_static_info("msg=\"traffic shaping report\" data=\"%s\"", readable_report.c_str());
+    }
+    // use report.SerializeToString to send compact string for better performance
+
+    // send them via qdb message and update cache
+    if (report.entries_size() > 0) {
+      bool success = true; // TODO: send and check for success
+      if (success) {
+        // SUCCESS: Commit updates to cache
+        for (const auto& update : pending_updates) {
+          auto& [iops, generation] = last_sent_cache[update.key];
+          iops = update.new_iops;
+          generation = update.new_generation;
+        }
+      } else {
+        eos_static_warning("msg=\"IoStats Stream Write Failed, reconnecting...\"");
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        break; // Break to Outer Loop (reconnects)
+      }
+    }
+
+    if (common::SharedHashLocator locator = gConfig.getNodeHashLocator("TrafficShapingStats"); !locator.empty()) {
+      mq::SharedHashWrapper::Batch batch;
+
+      batch.SetTransient(eos::common::FST_TRAFFIC_SHAPING_IO_REPORT, report.SerializeAsString());
+
+      mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
+      hash.set(batch);
+    }
+    // const auto traffic_shaping_stats = GetTrafficShapingStats();
+    /*
+    common::SharedHashLocator locator = gConfig.getNodeHashLocator("Publish");
+
+    if (!locator.empty()) {
+      mq::SharedHashWrapper::Batch batch;
+
+      for (auto it = traffic_shaping_stats.begin(); it != traffic_shaping_stats.end(); ++it) {
+        batch.SetTransient(it->first, it->second);
+      }
+
+      mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
+      hash.set(batch);
+    }
+    */
+    // Sleep logic
+    if (const auto elapsed_ms = stopwatch.timeIntoCycle().count(); elapsed_ms > 0) {
+      eos_static_info("msg=\"traffic shaping stats collection cycle completed\" elapsed_ms=%d", elapsed_ms);
+    }
+
+    if (std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
+        sleepTime == std::chrono::milliseconds(0)) {
+      eos_static_warning("msg=\"send traffic shaping stats cycle exceeded %d ms - took %d "
+                         "ms",
+                         reportInterval.count(),
+                         stopwatch.timeIntoCycle());
+    } else {
+      assistant.wait_for(sleepTime);
+    }
+  }
 }
 
 EOSFSTNAMESPACE_END

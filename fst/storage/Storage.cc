@@ -362,10 +362,16 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
+
   mErrorReportThread.reset(&Storage::ErrorReport, this);
   mErrorReportThread.setName("Error Report Thread");
+
   mPublisherThread.reset(&Storage::Publish, this);
   mPublisherThread.setName("Publisher Thread");
+
+  mTrafficShapingThread.reset(&Storage::SendTrafficShapingStats, this);
+  mTrafficShapingThread.setName("Traffic Shaping Thread");
+
   eos_info("starting mgm synchronization thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
@@ -438,6 +444,7 @@ Storage::ShutdownThreads()
   mQdbCommunicatorThread.join();
   mPublisherThread.join();
   mErrorReportThread.join();
+  mTrafficShapingThread.join();
   mFsUpdQueue.emplace(0, "ACTION", "EXIT");
   mFsConfigThread.join();
   XrdSysMutexHelper scope_lock(mThreadsMutex);
