@@ -92,6 +92,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     $<$<COMPILE_LANGUAGE:CXX>:-Wno-inconsistent-missing-override>
     $<$<COMPILE_LANGUAGE:CXX>:-Wno-unqualified-std-cast-call>
     -Werror=return-type
+    -fclang-abi-compat=17
   )
 endif()
 
