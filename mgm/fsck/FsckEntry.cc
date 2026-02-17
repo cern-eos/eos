@@ -191,8 +191,7 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
       mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
                            FstErr::NoContact));
     } else {
-      if ((XProtocol::toErrno(status.errNo) == ENOENT) ||
-          (XProtocol::toErrno(status.errNo) == EIO)) {
+      if (XProtocol::toErrno(status.errNo) == ENOENT) {
         mFstFileInfo.emplace(fsid, std::make_unique<FstFileInfoT>("",
                              FstErr::NotOnDisk));
       } else {
