@@ -201,13 +201,9 @@ Requires: scitokens-cpp
 
 # ISA-L[_crypto], XXHash dependencies for CC7 and CS8/9
 %if %{with server}
-%if 0%{?rhel} >= 7 && 0%{?rhel} <= 9
-BuildRequires: xxhash-devel
-Requires: xxhash-libs
 %if 0%{?rhel} == 7
 BuildRequires: libisa-l-devel, libisa-l_crypto-devel
 Requires: libisa-l, libisa-l_crypto
-%endif
 %endif
 %endif
 
@@ -321,6 +317,8 @@ Requires: zeromq
 BuildRequires: eos-folly = 2019.11.11.00
 Requires: eos-folly = 2019.11.11.00
 BuildRequires: perl-generators
+BuildRequires: xxhash-devel
+Requires: xxhash-libs
 
 %description -n eos-server
 The EOS server installation
