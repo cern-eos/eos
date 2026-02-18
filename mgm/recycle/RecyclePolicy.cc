@@ -72,12 +72,12 @@ void RecyclePolicy::ApplyConfig(eos::mgm::FsView* fsview)
 bool RecyclePolicy::StoreConfig()
 {
   std::ostringstream oss;
-  oss << sEnforceKey << "=" << (mEnforced.load() ? "on" : "off")
-      << sEnforceKey << "=" << (mEnforced.load() ? "on" : "off")
-      << sKeepTimeKey << "=" << mKeepTimeSec.load() << " "
-      << sRatioKey << "=" << mSpaceKeepRatio.load() << " "
-      << sCollectKey << "=" << mCollectInterval.load().count() << " "
-      << sRemoveKey << "=" << mRemoveInterval.load().count() << " "
+  oss << sEnforceKey << "=" << (mEnforced.load() ? "on" : "off") << " " //
+      << sEnableKey << "=" << (mEnabled.load() ? "on" : "off") << " "   //
+      << sKeepTimeKey << "=" << mKeepTimeSec.load() << " "              //
+      << sRatioKey << "=" << mSpaceKeepRatio.load() << " "              //
+      << sCollectKey << "=" << mCollectInterval.load().count() << " "   //
+      << sRemoveKey << "=" << mRemoveInterval.load().count() << " "     //
       << sDryRunKey << "=" << (mDryRun.load() ? "yes" : "no");
   return FsView::gFsView.SetGlobalConfig("recycle", oss.str());
 }
@@ -157,6 +157,7 @@ RecyclePolicy::Dump(const std::string& delim) const
 {
   std::ostringstream oss;
   oss << "enforced=" << (mEnforced.load() ? "on" : "off") << delim
+      << "enabled=" << (mEnabled.load() ? "on" : "off") << delim
       << "dry_run=" << (mDryRun.load() ? "yes" : "no") << delim
       << "keep_time_sec=" << mKeepTimeSec.load() << delim
       << "space_keep_ratio=" << mSpaceKeepRatio.load() << delim

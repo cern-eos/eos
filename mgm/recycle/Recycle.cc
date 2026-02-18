@@ -1313,6 +1313,21 @@ Recycle::Config(std::string& std_out, std::string& std_err,
       return EINVAL;
     } else {
       if (value == "on") {
+        std_out += "success: recycle bin enforced";
+      } else {
+        std_out += "success: recycle bin not enforced";
+      }
+    }
+  } else if (op == eos::console::RecycleProto_ConfigProto::ENABLE) {
+    if (value.empty() || ((value != "on") && (value != "off"))) {
+      std_err = "error: missing/wrong ennable value\n";
+      return EINVAL;
+    }
+
+    if (!gOFS->mRecycler->mPolicy.Config(RecyclePolicy::sEnableKey, value, std_err)) {
+      return EINVAL;
+    } else {
+      if (value == "on") {
         std_out += "success: recycle bin enabled";
       } else {
         std_out += "success: recycle bin disabled";
