@@ -218,8 +218,9 @@ public:
     std::string sub;
     ConfigureAttrApp(app, opt_r, opt_V, sub);
 
+    std::vector<std::string> cli_args = args;
     try {
-      app.parse(args);
+      app.parse(cli_args);
     } catch (const CLI::ParseError&) {
       printHelp();
       global_retc = EINVAL;
