@@ -151,6 +151,8 @@ RecycleCmd::ProcessRequest() noexcept
       retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.value());
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::ENFORCE) {
       retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.value());
+    } else if (config.op() == eos::console::RecycleProto_ConfigProto::ENABLE) {
+      retc = Recycle::Config(std_out, std_err, mVid, config.op(), config.value());
     } else if (config.op() == eos::console::RecycleProto_ConfigProto::DUMP) {
       retc = 0;
       std_out = gOFS->mRecycler->Dump();
