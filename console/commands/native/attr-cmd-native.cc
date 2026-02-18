@@ -218,10 +218,8 @@ public:
     std::string sub;
     ConfigureAttrApp(app, opt_r, opt_V, sub);
 
-    std::vector<std::string> cli_args = args;
-    std::reverse(cli_args.begin(), cli_args.end());
     try {
-      app.parse(cli_args);
+      app.parse(args);
     } catch (const CLI::ParseError&) {
       printHelp();
       global_retc = EINVAL;
@@ -235,7 +233,6 @@ public:
       optionStr += 'V';
 
     std::vector<std::string> remaining = app.remaining();
-    std::reverse(remaining.begin(), remaining.end());
 
     size_t idx = 0;
     std::string arg;
