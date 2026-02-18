@@ -502,4 +502,212 @@ TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
   }
 }
 
+// policies for traffic shaping manager
+// -----------------------------------------------------------------------------
+// Shaping Policy API (Configuration)
+// -----------------------------------------------------------------------------
+
+void
+TrafficShapingManager::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy)
+{
+  // Use unique_lock for writing
+  std::unique_lock lock(mMutex);
+  mUidPolicies[uid] = policy;
+}
+
+void
+TrafficShapingManager::SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy)
+{
+  std::unique_lock lock(mMutex);
+  mGidPolicies[gid] = policy;
+}
+
+void
+TrafficShapingManager::SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy)
+{
+  std::unique_lock lock(mMutex);
+  mAppPolicies[app] = policy;
+
+  eos_static_info("msg=\"Set App Traffic Shaping policy\" app=%s is_enabled=%d limit_read_bps=%lu limit_write_bps=%lu "
+                  "reservation_read_bps=%lu reservation_write_bps=%lu",
+                  app.c_str(),
+                  policy.is_enabled,
+                  policy.limit_read_bytes_per_sec,
+                  policy.limit_write_bytes_per_sec,
+                  policy.reservation_read_bytes_per_sec,
+                  policy.reservation_write_bytes_per_sec);
+}
+
+void
+TrafficShapingManager::RemoveUidPolicy(uint32_t uid)
+{
+  std::unique_lock lock(mMutex);
+  if (mUidPolicies.erase(uid)) {
+    eos_static_info("msg=\"Removed UID shaping policy\" uid=%u", uid);
+  }
+}
+
+void
+TrafficShapingManager::RemoveGidPolicy(uint32_t gid)
+{
+  std::unique_lock lock(mMutex);
+  if (mGidPolicies.erase(gid)) {
+    eos_static_info("msg=\"Removed GID shaping policy\" gid=%u", gid);
+  }
+}
+
+void
+TrafficShapingManager::RemoveAppPolicy(const std::string& app)
+{
+  std::unique_lock lock(mMutex);
+  if (mAppPolicies.erase(app)) {
+    eos_static_info("msg=\"Removed App shaping policy\" app=%s", app.c_str());
+  }
+}
+
+// -----------------------------------------------------------------------------
+// Getters (Return copies for thread safety)
+// -----------------------------------------------------------------------------
+
+std::unordered_map<uint32_t, TrafficShapingPolicy>
+TrafficShapingManager::GetUidPolicies() const
+{
+  // Use shared_lock for reading
+  std::shared_lock lock(mMutex);
+  return mUidPolicies;
+}
+
+std::unordered_map<uint32_t, TrafficShapingPolicy>
+TrafficShapingManager::GetGidPolicies() const
+{
+  std::shared_lock lock(mMutex);
+  return mGidPolicies;
+}
+
+std::unordered_map<std::string, TrafficShapingPolicy>
+TrafficShapingManager::GetAppPolicies() const
+{
+  std::shared_lock lock(mMutex);
+  return mAppPolicies;
+}
+
+std::optional<TrafficShapingPolicy>
+TrafficShapingManager::GetUidPolicy(uint32_t uid) const
+{
+  std::shared_lock lock(mMutex);
+  auto it = mUidPolicies.find(uid);
+  if (it != mUidPolicies.end()) {
+    return it->second; // Returns a copy of the single struct
+  }
+  return std::nullopt; // Doesn't exist yet
+}
+
+std::optional<TrafficShapingPolicy>
+TrafficShapingManager::GetGidPolicy(uint32_t gid) const
+{
+  std::shared_lock lock(mMutex);
+  auto it = mGidPolicies.find(gid);
+  if (it != mGidPolicies.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
+std::optional<TrafficShapingPolicy>
+TrafficShapingManager::GetAppPolicy(const std::string& app) const
+{
+  std::shared_lock lock(mMutex);
+  auto it = mAppPolicies.find(app);
+  if (it != mAppPolicies.end()) {
+    return it->second;
+  }
+  return std::nullopt;
+}
+
+// policies for traffic shaping engine
+
+void
+TrafficShapingEngine::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy)
+{
+  if (mBrain) {
+    mBrain->SetUidPolicy(uid, policy);
+  }
+}
+
+void
+TrafficShapingEngine::SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy)
+{
+  if (mBrain) {
+    mBrain->SetGidPolicy(gid, policy);
+  }
+}
+
+void
+TrafficShapingEngine::SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy)
+{
+  if (mBrain) {
+    mBrain->SetAppPolicy(app, policy);
+  }
+}
+
+void
+TrafficShapingEngine::RemoveUidPolicy(uint32_t uid)
+{
+  if (mBrain) {
+    mBrain->RemoveUidPolicy(uid);
+  }
+}
+
+void
+TrafficShapingEngine::RemoveGidPolicy(uint32_t gid)
+{
+  if (mBrain) {
+    mBrain->RemoveGidPolicy(gid);
+  }
+}
+
+void
+TrafficShapingEngine::RemoveAppPolicy(const std::string& app)
+{
+  if (mBrain) {
+    mBrain->RemoveAppPolicy(app);
+  }
+}
+
+std::unordered_map<uint32_t, TrafficShapingPolicy>
+TrafficShapingEngine::GetUidPolicies() const
+{
+  return mBrain ? mBrain->GetUidPolicies() : std::unordered_map<uint32_t, TrafficShapingPolicy>{};
+}
+
+std::unordered_map<uint32_t, TrafficShapingPolicy>
+TrafficShapingEngine::GetGidPolicies() const
+{
+  return mBrain ? mBrain->GetGidPolicies() : std::unordered_map<uint32_t, TrafficShapingPolicy>{};
+}
+
+std::unordered_map<std::string, TrafficShapingPolicy>
+TrafficShapingEngine::GetAppPolicies() const
+{
+  return mBrain ? mBrain->GetAppPolicies() : std::unordered_map<std::string, TrafficShapingPolicy>{};
+}
+
+std::optional<TrafficShapingPolicy>
+TrafficShapingEngine::GetUidPolicy(uint32_t uid) const
+{
+  return mBrain ? mBrain->GetUidPolicy(uid) : std::nullopt;
+}
+
+std::optional<TrafficShapingPolicy>
+TrafficShapingEngine::GetGidPolicy(uint32_t gid) const
+{
+  return mBrain ? mBrain->GetGidPolicy(gid) : std::nullopt;
+}
+
+std::optional<TrafficShapingPolicy>
+TrafficShapingEngine::GetAppPolicy(const std::string& app) const
+{
+  return mBrain ? mBrain->GetAppPolicy(app) : std::nullopt;
+}
+
 } // namespace eos::mgm

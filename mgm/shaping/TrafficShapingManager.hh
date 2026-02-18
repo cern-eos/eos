@@ -5,7 +5,6 @@
 #include "proto/Shaping.pb.h"
 #include <atomic>
 #include <memory>
-#include <queue>
 #include <shared_mutex>
 #include <string>
 #include <thread>
@@ -147,6 +146,37 @@ struct StreamKeyHash {
   }
 };
 
+struct TrafficShapingPolicy {
+  uint64_t limit_write_bytes_per_sec = 0;
+  uint64_t limit_read_bytes_per_sec = 0;
+  uint64_t reservation_write_bytes_per_sec = 0;
+  uint64_t reservation_read_bytes_per_sec = 0;
+
+  bool is_enabled = true;
+
+  bool
+  IsEmpty() const
+  {
+    return limit_write_bytes_per_sec == 0 && limit_read_bytes_per_sec == 0 && reservation_write_bytes_per_sec == 0 &&
+           reservation_read_bytes_per_sec == 0;
+  }
+
+  bool
+  IsActive() const
+  {
+    return is_enabled && !IsEmpty();
+  }
+
+  bool
+  operator!=(const TrafficShapingPolicy& policy) const
+  {
+    return limit_write_bytes_per_sec != policy.limit_write_bytes_per_sec ||
+           limit_read_bytes_per_sec != policy.limit_read_bytes_per_sec ||
+           reservation_write_bytes_per_sec != policy.reservation_write_bytes_per_sec ||
+           reservation_read_bytes_per_sec != policy.reservation_read_bytes_per_sec || is_enabled != policy.is_enabled;
+  }
+};
+
 // -----------------------------------------------------------------------------
 // Class: TrafficShapingManager
 // -----------------------------------------------------------------------------
@@ -182,6 +212,30 @@ public:
 
   GarbageCollectionStats garbage_collect(int max_idle_seconds = 300);
 
+  void SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy);
+
+  void SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy);
+
+  void SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy);
+
+  void RemoveUidPolicy(uint32_t uid);
+
+  void RemoveGidPolicy(uint32_t gid);
+
+  void RemoveAppPolicy(const std::string& app);
+
+  std::unordered_map<uint32_t, TrafficShapingPolicy> GetUidPolicies() const;
+
+  std::unordered_map<uint32_t, TrafficShapingPolicy> GetGidPolicies() const;
+
+  std::unordered_map<std::string, TrafficShapingPolicy> GetAppPolicies() const;
+
+  std::optional<TrafficShapingPolicy> GetUidPolicy(uint32_t uid) const;
+
+  std::optional<TrafficShapingPolicy> GetGidPolicy(uint32_t gid) const;
+
+  std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
+
 private:
   // A. The Per-Node Map (NodeID -> StreamKey -> RawCounters)
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
@@ -189,6 +243,11 @@ private:
 
   // B. The Global Map (StreamKey -> EMAs)
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
+
+  // Policy map (limits / reservations)
+  std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
+  std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
+  std::unordered_map<std::string, TrafficShapingPolicy> mAppPolicies;
 
   // Synchronization
   mutable std::shared_mutex mMutex;
@@ -229,13 +288,39 @@ public:
 
   void ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report);
 
+  void SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy);
+
+  void SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy);
+
+  void SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy);
+
+  void RemoveUidPolicy(uint32_t uid);
+
+  void RemoveGidPolicy(uint32_t gid);
+
+  void RemoveAppPolicy(const std::string& app);
+
+  std::unordered_map<uint32_t, TrafficShapingPolicy> GetUidPolicies() const;
+
+  std::unordered_map<uint32_t, TrafficShapingPolicy> GetGidPolicies() const;
+
+  std::unordered_map<std::string, TrafficShapingPolicy> GetAppPolicies() const;
+
+  std::optional<TrafficShapingPolicy> GetUidPolicy(uint32_t uid) const;
+
+  std::optional<TrafficShapingPolicy> GetGidPolicy(uint32_t gid) const;
+
+  std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
+
 private:
   //----------------------------------------------------------------------------
   //! The main loop running at 1Hz
   //! Uses sleep_until to ensure drift-free timing.
   //----------------------------------------------------------------------------
   void TickerLoop(ThreadAssistant&);
+
   void AddReportToQueue(const Shaping::FstIoReport& report);
+
   void ProcessAllQueuedReports();
 
   // --- Members ---

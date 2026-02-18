@@ -25,6 +25,7 @@
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/ProcInterface.hh"
+#include "mgm/shaping/TrafficShapingManager.hh"
 #include "zmq.hpp"
 #include <algorithm>
 #include <iomanip>
@@ -898,11 +899,21 @@ MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetA
 
   const std::string read_or_write = is_read ? "read" : "write";
   bool status = false;
+  auto& engine = gOFS->mTrafficShapingEngine;
   switch (monitor_throttle.target_case()) {
   case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kApp: {
     const auto& app = monitor_throttle.app();
+    auto policy = TrafficShapingPolicy();
+    if (const auto existing_policy = engine.GetAppPolicy(app); existing_policy.has_value()) {
+      policy = existing_policy.value();
+    }
+    auto policy_before = policy;
+
     if (is_enable_or_disable) {
       status = gOFS->mIoShaper.setStatus(app, read_or_write, is_enable);
+
+      policy.is_enabled = is_enable;
+
       if (status) {
         std_out << "App " << app << " " << read_or_write << " limit successfully "
                 << (is_enable ? "enabled" : "disabled") << "\n";
@@ -911,11 +922,19 @@ MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetA
       }
     } else {
       status = gOFS->mIoShaper.setLimiter(app, rate, read_or_write);
+      if (read_or_write == "read") {
+        policy.limit_read_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
+      } else {
+        policy.limit_write_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
+      }
       if (status) {
         std_out << "App " << app << " " << read_or_write << " limit successfully set to " << rate << " MB/s\n";
       } else {
         std_out << "Set app " << app << " " << read_or_write << " limit failed\n";
       }
+    }
+    if (policy_before != policy) {
+      engine.SetAppPolicy(app, policy);
     }
     break;
   }
