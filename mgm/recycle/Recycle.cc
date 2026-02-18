@@ -1414,9 +1414,11 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
       if (gOFS->_attr_set(find_it->first.c_str(), lerror, mRootVid,
                           (const char*) 0, Recycle::gRecycleIdXattrKey.c_str(),
                           recycle_id_val.c_str(), exclusive)) {
-        std_err = "error: failed to set xattr on path ";
-        std_err += find_it->first;
-        return errno;
+        if (lerror.getErrInfo() != ENOENT) {
+          std_err = "error: failed to set xattr on path ";
+          std_err += find_it->first;
+          return errno;
+        }
       }
     }
   } while ((--attempts > 0) &&
