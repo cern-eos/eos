@@ -88,10 +88,11 @@ std::unique_ptr<IoAggregate>& IoAggregateMap::operator[](size_t winTime){
 IoAggregateMap::~IoAggregateMap(){
   if (_running.load()){
     std::unique_lock<std::mutex> lock(_mutex);
-    if (io::IoAggregateMapDebug)
+    if (io::IoAggregateMapDebug) {
       assert(lock.owns_lock());
-      _running.store(false);
-      _cv.notify_one();
+    }
+    _running.store(false);
+    _cv.notify_one();
   }
   if (_thread.joinable())
     _thread.join();
