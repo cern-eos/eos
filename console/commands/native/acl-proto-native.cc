@@ -4,10 +4,44 @@
 
 #include "console/CommandFramework.hh"
 #include "console/commands/helpers/AclHelper.hh"
+#include <CLI/CLI.hpp>
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeAclHelp()
+{
+  return "Usage: acl [-l|--list] [-R|--recursive] [-p|--position <pos>] "
+         "[-f|--front] [--sys|--user] [<rule>] <identifier>\n\n"
+         "Atomically set and modify ACLs for the given directory path/sub-tree.\n\n"
+         "Options:\n"
+         "  -l, --list       list ACL rules\n"
+         "  -R, --recursive  apply to directories recursively\n"
+         "  -p, --position   add the acl rule at specified position\n"
+         "  -f, --front      add the acl rule at the front position\n"
+         "  --user           handle user.acl rules on directory\n"
+         "  --sys            handle sys.acl rules on directory (admin only)\n\n"
+         "<identifier> can be <path>|cid:<cid-dec>|cxid:<cid-hex>\n\n"
+         "<rule> format: [u|g|egroup]:<id> or [u|g|egroup]=<id> with permissions.\n"
+         "  \":\" modifies, \"=\" sets. Use + and - to add/remove flags.\n\n"
+         "Examples:\n"
+         "  acl --user u:1001=rwx /eos/dev/\n"
+         "  acl --user u:1001:-w /eos/dev\n"
+         "  acl --front --user u:1001=rwx /eos/dev\n";
+}
+
+void ConfigureAclApp(CLI::App& app)
+{
+  app.name("acl");
+  app.description("Acl Interface");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeAclHelp();
+      }));
+}
+
 class AclProtoCommand : public IConsoleCommand {
 public:
   const char*
@@ -53,41 +87,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stderr,
-        "Usage: eos acl [-l|--list] [-R|--recursive] [-p|--position <pos>] "
-        "[-f|--front] [--sys|--user] [<rule>] <identifier>\n"
-        "  atomically set and modify ACLs for the given directory "
-        "path/sub-tree\n\n"
-        "  -h, --help      : print help message\n"
-        "  -R, --recursive : apply to directories recursively\n"
-        "  -l, --list      : list ACL rules\n"
-        "  -p, --position  : add the acl rule at specified position\n"
-        "  -f, --front     : add the acl rule at the front position\n"
-        "      --user      : handle user.acl rules on directory\n"
-        "      --sys       : handle sys.acl rules on directory - admin only\n\n"
-        "  <identifier> can be one of <path>|cid:<cid-dec>|cxid:<cid-hex>\n\n"
-        "  <rule> is created similarly to chmod rules. Every rule begins with\n"
-        "    [u|g|egroup] followed by \":\" or \"=\" and an identifier.\n"
-        "    \":\" is used to for modifying permissions while\n"
-        "    \"=\" is used for setting/overwriting permissions.\n"
-        "    When modifying permissions every ACL flag can be added with\n"
-        "    \"+\" or removed with \"-\".\n"
-        "    By default rules are appended at the end of acls\n"
-        "    This ordering can be changed via --position flag\n"
-        "    which will add the new rule at a given position starting at 1 or\n"
-        "    the --front flag which adds the rule at the front instead\n\n"
-        "Examples:\n"
-        "  acl --user u:1001=rwx /eos/dev/\n"
-        "    Set ACLs for user id 1001 to rwx\n"
-        "  acl --user u:1001:-w /eos/dev\n"
-        "    Remove 'w' flag for user id 1001\n"
-        "  acl --user u:1001:+m /eos/dev\n"
-        "    Add change mode permission flag for user id 1001\n"
-        "  acl --user u:1010= /eos/dev\n"
-        "    Remove all ACls for user id 1001\n"
-        "  acl --front --user u:1001=rwx /eos/dev\n"
-        "     Add the user id 1001 rule to the front of ACL rules\n");
+    CLI::App app;
+    ConfigureAclApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

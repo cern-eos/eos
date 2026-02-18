@@ -2,14 +2,17 @@
 // File: motd-native.cc
 // ----------------------------------------------------------------------
 
-#include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
-#include <fcntl.h>
-#include <memory>
+#include <XrdOuc/XrdOucString.hh>
 #include <sstream>
-#include <unistd.h>
 
 namespace {
+std::string MakeMotdHelp()
+{
+  return "Usage: motd\n\n"
+         "Display the message of the day.\n";
+}
+
 class MotdCommand : public IConsoleCommand {
 public:
   const char*
@@ -31,10 +34,21 @@ public:
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
     if (!args.empty()) {
+      std::ostringstream oss;
+      for (size_t i = 0; i < args.size(); ++i) {
+        if (i)
+          oss << ' ';
+        oss << args[i];
+      }
+      if (wants_help(oss.str().c_str())) {
+        printHelp();
+        return 0;
+      }
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
+
     XrdOucString in = "mgm.cmd=motd";
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
@@ -42,7 +56,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: motd\n");
+    fprintf(stderr, "%s", MakeMotdHelp().c_str());
   }
 };
 } // namespace

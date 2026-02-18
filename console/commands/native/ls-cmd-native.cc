@@ -4,16 +4,99 @@
 
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
+#include <CLI/CLI.hpp>
 #include "namespace/utils/Mode.hh"
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdPosix/XrdPosixXrootd.hh>
+#include <algorithm>
 #include <dirent.h>
 #include <memory>
 #include <sstream>
 #include <sys/stat.h>
+#include <vector>
 
 namespace {
+std::string MakeLsHelp(const CLI::App* app)
+{
+  std::ostringstream oss;
+  const std::string& name = app->get_name();
+  oss << "Usage: " << (name.empty() ? "ls" : name)
+      << " [OPTION]... [--no-globbing] [PATH]...\n";
+  const std::string desc = app->get_description();
+  if (!desc.empty()) {
+    oss << desc << "\n";
+  }
+  oss << "\nOptions:\n";
+
+  std::vector<std::pair<std::string, std::string>> lines;
+  size_t max_name = 0;
+  for (const auto* opt : app->get_options()) {
+    if (!opt || !opt->nonpositional()) {
+      continue;
+    }
+    std::string opt_name = opt->get_name(false, true);
+    if (opt_name.empty()) {
+      continue;
+    }
+    for (size_t i = 0; i + 1 < opt_name.size(); ++i) {
+      if (opt_name[i] == ',' && opt_name[i + 1] != ' ') {
+        opt_name.insert(i + 1, " ");
+        ++i;
+      }
+    }
+    std::string opt_desc = opt->get_description();
+    max_name = std::max(max_name, opt_name.size());
+    lines.emplace_back(std::move(opt_name), std::move(opt_desc));
+  }
+
+  for (const auto& line : lines) {
+    oss << "  " << line.first;
+    if (!line.second.empty()) {
+      size_t pad = (max_name > line.first.size()) ? (max_name - line.first.size()) : 0;
+      oss << std::string(pad + 2, ' ') << line.second;
+    }
+    oss << "\n";
+  }
+
+  oss << "\nNotes:\n"
+      << "  -lh: show long listing with readable sizes\n"
+      << "  path=file:... : list on a local file system\n"
+      << "  path=root:... : list on a plain XRootD server (does not work on native XRootD clusters)\n"
+      << "  path=...      : all other paths are considered to be EOS paths!\n";
+  return oss.str();
+}
+
+void ConfigureLsApp(CLI::App& app,
+                    bool& opt_l,
+                    bool& opt_y,
+                    bool& opt_a,
+                    bool& opt_i,
+                    bool& opt_c,
+                    bool& opt_n,
+                    bool& opt_F,
+                    bool& opt_s,
+                    bool& opt_no_globbing)
+{
+  app.name("ls");
+  app.description("list directory <path>");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App* app, std::string, CLI::AppFormatMode) {
+        return MakeLsHelp(app);
+      }));
+
+  app.add_flag("-l", opt_l, "show long listing");
+  app.add_flag("-y", opt_y, "show long listing with backend(tape) status");
+  // Note: '-lh' was accepted historically; '-h' alone shows help in legacy
+  app.add_flag("-a", opt_a, "show hidden files");
+  app.add_flag("-i", opt_i, "add inode information");
+  app.add_flag("-c", opt_c, "add checksum value (implies -l)");
+  app.add_flag("-n", opt_n, "show numerical user/group ids");
+  app.add_flag("-F", opt_F, "append indicator '/' to directories");
+  app.add_flag("-s", opt_s, "checks only if the directory exists without listing");
+  app.add_flag("-N,--no-globbing", opt_no_globbing, "disables globbing");
+}
+
 class LsCommand : public IConsoleCommand {
 public:
   const char*
@@ -35,34 +118,35 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    // Setup parser
-    ConsoleArgParser p;
-    p.setProgramName("ls")
-        .setDescription("list directory <path>")
-        .allowCombinedShortOptions(true)
-        .allowAttachedValue(true)
-        .collectUnknownTokens(true);
+    // Setup CLI11 parser (ignore unknown options)
+    CLI::App app;
+    app.allow_extras();
 
-    // Flags (no values)
-    p.addOption({"", 'l', false, false, "", "show long listing", ""});
-    p.addOption({"", 'y', false, false, "",
-                 "show long listing with backend(tape) status", ""});
-    // Note: '-lh' was accepted historically; '-h' alone shows help in legacy
-    p.addOption({"", 'a', false, false, "", "show hidden files", ""});
-    p.addOption({"", 'i', false, false, "", "add inode information", ""});
-    p.addOption(
-        {"", 'c', false, false, "", "add checksum value (implies -l)", ""});
-    p.addOption(
-        {"", 'n', false, false, "", "show numerical user/group ids", ""});
-    p.addOption(
-        {"", 'F', false, false, "", "append indicator '/' to directories", ""});
-    p.addOption({"", 's', false, false, "",
-                 "checks only if the directory exists without listing", ""});
-    p.addOption(
-        {"no-globbing", 'N', false, false, "", "disables globbing", ""});
+    bool opt_l = false;
+    bool opt_y = false;
+    bool opt_a = false;
+    bool opt_i = false;
+    bool opt_c = false;
+    bool opt_n = false;
+    bool opt_F = false;
+    bool opt_s = false;
+    bool opt_no_globbing = false;
 
-    // Parse
-    auto r = p.parse(args);
+    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_n, opt_F, opt_s,
+                   opt_no_globbing);
+
+    std::vector<std::string> positionals;
+    app.add_option("path", positionals);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
 
     // Help handling consistent with legacy (-h or --help)
     if (!args.empty() && (args[0] == "-h" || args[0] == "--help")) {
@@ -77,35 +161,35 @@ public:
       option += '-';
       option.push_back(c);
     };
-    if (r.has("l"))
+    if (opt_l)
       add_flag('l');
-    if (r.has("y"))
+    if (opt_y)
       add_flag('y');
-    if (r.has("a"))
+    if (opt_a)
       add_flag('a');
-    if (r.has("i"))
+    if (opt_i)
       add_flag('i');
-    if (r.has("c")) {
+    if (opt_c) {
       add_flag('c');
-      if (!r.has("l"))
+      if (!opt_l)
         add_flag('l');
     }
-    if (r.has("n"))
+    if (opt_n)
       add_flag('n');
-    if (r.has("F"))
+    if (opt_F)
       add_flag('F');
-    if (r.has("s"))
+    if (opt_s)
       add_flag('s');
-    if (r.has("no-globbing") || r.has("N")) {
+    if (opt_no_globbing) {
       option += "-N";
     }
 
     // Determine path from positionals (join to allow spaces)
     std::ostringstream pathoss;
-    for (size_t i = 0; i < r.positionals.size(); ++i) {
+    for (size_t i = 0; i < positionals.size(); ++i) {
       if (i)
         pathoss << ' ';
-      pathoss << r.positionals[i];
+      pathoss << positionals[i];
     }
     std::string path = pathoss.str();
     if (path.empty())
@@ -285,26 +369,20 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: ls [-laniyFN] [--no-globbing] <path>\n");
-    fprintf(stderr, "list directory <path>\n\n");
-    fprintf(stderr, "  -l : show long listing\n");
-    fprintf(stderr, "  -y : show long listing with backend(tape) status\n");
-    fprintf(stderr, "  -lh: show long listing with readable sizes\n");
-    fprintf(stderr, "  -a : show hidden files\n");
-    fprintf(stderr, "  -i : add inode information\n");
-    fprintf(stderr, "  -c : add checksum value\n");
-    fprintf(stderr, "  -n : show numerical user/group ids\n");
-    fprintf(stderr, "  -F : append indicator '/' to directories \n");
-    fprintf(stderr,
-            "  -s : checks only if the directory exists without listing\n");
-    fprintf(stderr, "  --no-globbing|-N : disables path globbing feature (e.g: "
-                    "list a file containing '[]' characters)\n");
-    fprintf(stderr, "         path=file:... : list on a local file system\n\n");
-    fprintf(stderr, "path=root:... : list on a plain XRootD server (does not "
-                    "work on native XRootD clusters\n");
-    fprintf(
-        stderr,
-        "path=...      : all other paths are considered to be EOS paths!\n");
+    CLI::App app;
+    bool opt_l = false;
+    bool opt_y = false;
+    bool opt_a = false;
+    bool opt_i = false;
+    bool opt_c = false;
+    bool opt_n = false;
+    bool opt_F = false;
+    bool opt_s = false;
+    bool opt_no_globbing = false;
+    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_n, opt_F, opt_s,
+                   opt_no_globbing);
+    const std::string help = app.help();
+    fprintf(stderr, "%s", help.c_str());
   }
 };
 } // namespace

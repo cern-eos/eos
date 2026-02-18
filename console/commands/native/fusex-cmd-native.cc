@@ -5,12 +5,48 @@
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <XrdOuc/XrdOucString.hh>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeFusexHelp()
+{
+  return "Usage: fusex <subcmd> [args...]\n\n"
+         "Subcommands:\n"
+         "  ls                                    list active FUSEX clients\n"
+         "  evict <uuid> [reason]                  evict a client by UUID "
+         "(reason base64-encoded)\n"
+         "  caps [all|token|lock] [filter]         show capabilities, optional "
+         "filter string\n"
+         "  dropcaps <uuid>                        drop capabilities for client "
+         "UUID\n"
+         "  droplocks <inode> <pid>                drop locks for inode and "
+         "process\n"
+         "  conf [hb] [qc] [bc.max] [bc.match]     configure heartbeat (hb), "
+         "queue cap (qc),\n"
+         "                                         block cache max and match\n";
+}
+
+void ConfigureFusexApp(CLI::App& app, std::string& subcmd)
+{
+  app.name("fusex");
+  app.description("Fuse(x) Administration");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeFusexHelp();
+      }));
+  app.add_option("subcmd", subcmd,
+                 "ls|evict|caps|dropcaps|droplocks|conf")
+      ->required();
+}
+
 class FusexCommand : public IConsoleCommand {
 public:
   const char*
@@ -31,99 +67,109 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (!args.empty()) {
-      std::ostringstream oss;
-      for (size_t i = 0; i < args.size(); ++i) {
-        if (i)
-          oss << ' ';
-        oss << args[i];
-      }
-      if (wants_help(oss.str().c_str())) {
-        printHelp();
-        global_retc = EINVAL;
-        return 0;
-      }
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
     }
-    if (args.empty()) {
+    std::string joined = oss.str();
+    if (args.empty() || wants_help(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-    XrdOucString sub = args[0].c_str();
+
+    CLI::App app;
+    std::string subcmd;
+    ConfigureFusexApp(app, subcmd);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
+    std::vector<std::string> remaining = app.remaining();
+    std::reverse(remaining.begin(), remaining.end());
+
     XrdOucString in = "mgm.cmd=fusex";
-    if (sub == "ls") {
+    if (subcmd == "ls") {
       in += "&mgm.subcmd=ls";
-    } else if (sub == "evict") {
-      if (args.size() < 2) {
+    } else if (subcmd == "evict") {
+      if (remaining.size() < 1) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString uuid = args[1].c_str();
+      XrdOucString uuid = remaining[0].c_str();
       in += "&mgm.subcmd=evict&mgm.fusex.uuid=";
       in += uuid;
-      if (args.size() > 2) {
-        XrdOucString reason = args[2].c_str();
+      if (remaining.size() > 1) {
+        XrdOucString reason = remaining[1].c_str();
         XrdOucString b64;
         eos::common::SymKey::Base64(reason, b64);
         in += "&mgm.fusex.reason=";
         in += b64;
       }
-    } else if (sub == "caps") {
-      XrdOucString option = (args.size() > 1 ? args[1].c_str() : "");
-      XrdOucString filter;
+    } else if (subcmd == "caps") {
+      XrdOucString option = (remaining.size() > 0 ? remaining[0].c_str() : "");
       option.replace("-", "");
       in += "&mgm.subcmd=caps&mgm.option=";
       in += option;
-      if (args.size() > 2) {
+      if (remaining.size() > 1) {
         std::ostringstream f;
-        for (size_t i = 2; i < args.size(); ++i) {
-          if (i > 2)
+        for (size_t i = 1; i < remaining.size(); ++i) {
+          if (i > 1)
             f << ' ';
-          f << args[i];
+          f << remaining[i];
         }
-        filter = f.str().c_str();
+        XrdOucString filter = f.str().c_str();
         if (filter.length()) {
           in += "&mgm.filter=";
           in += eos::common::StringConversion::curl_escaped(filter.c_str())
                     .c_str();
         }
       }
-    } else if (sub == "dropcaps") {
-      if (args.size() < 2) {
+    } else if (subcmd == "dropcaps") {
+      if (remaining.size() < 1) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
       in += "&mgm.subcmd=dropcaps&mgm.fusex.uuid=";
-      in += args[1].c_str();
-    } else if (sub == "droplocks") {
-      if (args.size() < 3) {
+      in += remaining[0].c_str();
+    } else if (subcmd == "droplocks") {
+      if (remaining.size() < 2) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
       in += "&mgm.subcmd=droplocks&mgm.inode=";
-      in += args[1].c_str();
+      in += remaining[0].c_str();
       in += "&mgm.fusex.pid=";
-      in += args[2].c_str();
-    } else if (sub == "conf") {
+      in += remaining[1].c_str();
+    } else if (subcmd == "conf") {
       in += "&mgm.subcmd=conf";
-      if (args.size() > 1) {
+      if (remaining.size() > 0) {
         in += "&mgm.fusex.hb=";
-        in += args[1].c_str();
+        in += remaining[0].c_str();
       }
-      if (args.size() > 2) {
+      if (remaining.size() > 1) {
         in += "&mgm.fusex.qc=";
-        in += args[2].c_str();
+        in += remaining[1].c_str();
       }
-      if (args.size() > 3) {
+      if (remaining.size() > 2) {
         in += "&mgm.fusex.bc.max=";
-        in += args[3].c_str();
+        in += remaining[2].c_str();
       }
-      if (args.size() > 4) {
+      if (remaining.size() > 3) {
         in += "&mgm.fusex.bc.match=";
-        in += args[4].c_str();
+        in += remaining[3].c_str();
       }
     } else {
       printHelp();
@@ -136,23 +182,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stdout,
-        "Usage: fusex <subcmd> [args...]\n"
-        "subcommands:\n"
-        "  ls                                    List active FUSEX clients\n"
-        "  evict <uuid> [reason]                 Evict a client by UUID "
-        "(reason base64-encoded)\n"
-        "  caps [all|token|lock] [filter]        Show capabilities, optional "
-        "filter string\n"
-        "  dropcaps <uuid>                        Drop capabilities for client "
-        "UUID\n"
-        "  droplocks <inode> <pid>                Drop locks for inode and "
-        "process\n"
-        "  conf [hb] [qc] [bc.max] [bc.match]     Configure heartbeat (hb), "
-        "queue cap (qc),\n"
-        "                                           block cache max and "
-        "match\n");
+    fprintf(stderr, "%s", MakeFusexHelp().c_str());
   }
 };
 } // namespace

@@ -80,6 +80,14 @@ RunRegisteredCommand(const std::string& cmdName,
   return icmd->run(argsVec, ctx);
 }
 
+static std::string MakeOldfindHelp()
+{
+  return "Usage: find [-name <pattern>] [--xurl] [--childcount] [--purge <n>] "
+         "[--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] "
+         "[-x <key>=<val>] [-p <key>] [-b] [-c %tags] [-layoutstripes <n>] <path>\n\n"
+         "Find files/directories (old implementation).\n";
+}
+
 static int
 native_com_old_find(char* arg1)
 {
@@ -630,11 +638,7 @@ native_com_old_find(char* arg1)
   }
   return 0;
 com_find_usage:
-  fprintf(
-      stdout,
-      "Usage: find [-name <pattern>] [--xurl] [--childcount] [--purge <n> ] "
-      "[--count] [-s] [-d] [-f] [-0] [-1] [-ctime +<n>|-<n>] [-m] [-x "
-      "<key>=<val>] [-p <key>] [-b] [-c %%tags] [-layoutstripes <n>] <path>\n");
+  fprintf(stdout, "%s", MakeOldfindHelp().c_str());
   global_retc = EINVAL;
   return 0;
 }
@@ -672,10 +676,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: find [-name <pattern>] [--xurl] [--childcount] "
-                    "[--purge <n> ] [--count] [-s] [-d] [-f] [-0] [-1] [-ctime "
-                    "+<n>|-<n>] [-m] [-x <key>=<val>] [-p <key>] [-b] [-c "
-                    "%%tags] [-layoutstripes <n>] <path>\n");
+    fprintf(stderr, "%s", MakeOldfindHelp().c_str());
   }
 };
 } // namespace

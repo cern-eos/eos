@@ -6,10 +6,42 @@
 #include "common/Utils.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeVidHelp()
+{
+  return "Usage: vid ls [-u] [-g] [-s] [-U] [-G] [-a] [-l] [-n]\n"
+         "       vid set membership <uid> -uids|-gids [<list>]\n"
+         "       vid set membership <uid> [+|-]sudo\n"
+         "       vid set map -krb5|-gsi|-https|-sss|-unix|-voms|-grpc|-oauth2 <pattern> [vuid:<uid>] [vgid:<gid>]\n"
+         "       vid set geotag <IP-prefix> <geotag>\n"
+         "       vid rm <key> | vid rm membership <uid>\n"
+         "       vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2|ztn\n"
+         "       vid add|remove gateway <hostname> [prot]\n"
+         "       vid publicaccesslevel <level>\n"
+         "       vid tokensudo 0|1|2|3\n\n"
+         "VID tools for user/group mapping and authentication.\n";
+}
+
+void ConfigureVidApp(CLI::App& app, std::string& subcmd)
+{
+  app.name("vid");
+  app.description("VID tools");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeVidHelp();
+      }));
+  app.add_option("subcmd", subcmd, "ls|set|rm|enable|disable|add|remove|publicaccesslevel|tokensudo")
+      ->required();
+}
+
 class VidCommand : public IConsoleCommand {
 public:
   const char*
@@ -37,10 +69,30 @@ public:
       oss << args[i];
     }
     std::string joined = oss.str();
+    if (args.empty() || wants_help(joined.c_str())) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
+    CLI::App app;
+    std::string subcmd;
+    ConfigureVidApp(app, subcmd);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
     eos::common::StringTokenizer tok(joined.c_str());
     tok.GetLine();
     XrdOucString sub = tok.GetTokenUnquoted();
-    if (!sub.length() || wants_help(joined.c_str())) {
+    if (!sub.length()) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -410,81 +462,17 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stdout,
-        "Usage: vid ls [-u] [-g] [-s] [-U] [-G] [-g] [-a] [-l] [-n] : list "
-        "configured policies\n"
-        "                                        -u : show only user role "
-        "mappings\n"
-        "                                        -g : show only group role "
-        "mappings\n"
-        "                                        -s : show list of sudoers\n"
-        "                                        -U : show user alias mapping\n"
-        "                                        -G : show group alias "
-        "mapping\n"
-        "                                        -y : show configured "
-        "gateways\n"
-        "                                        -a : show authentication\n"
-        "                                        -N : show maximum anonymous "
-        "(nobody) access level deepness - the tree deepness where "
-        "unauthenticated access is possible (default is 1024)\n"
-        "                                        -l : show geo location "
-        "mapping\n"
-        "                                        -n : show numerical ids "
-        "instead of user/group names\n"
-        "\n"
-        "       vid set membership <uid> -uids [<uid1>,<uid2>,...]\n"
-        "       vid set membership <uid> -gids [<gid1>,<gid2>,...]\n"
-        "       vid rm membership <uid>             : delete the membership "
-        "entries for <uid>.\n"
-        "       vid set membership <uid> [+|-]sudo \n"
-        "       vid set map "
-        "-krb5|-gsi|-https|-sss|-unix|-tident|-voms|-grpc|-oauth2 <pattern> "
-        "[vuid:<uid>] [vgid:<gid>] \n"
-        "           -voms <pattern>  : <pattern> is <group>:<role> e.g. to map "
-        "VOMS attribute /dteam/cern/Role=NULL/Capability=NULL one should "
-        "define <pattern>=/dteam/cern: \n"
-        "           -sss key:<key>   : <key> has to be defined on client side "
-        "via 'export XrdSecsssENDORSEMENT=<key>'\n"
-        "           -grpc key:<key>  : <key> has to be added to the relevant "
-        "GRPC request in the field 'authkey'\n"
-        "           -https key:<key> : <key> has to be added to the relevant "
-        "HTTP(S) request as a header 'x-gateway-authorization'\n"
-        "           -oauth2 key:<oauth-resource> : <oauth-resource> describes "
-        "the OAUTH resource endpoint to translate OAUTH tokens to user "
-        "identities\n\n"
-        "       vid set geotag <IP-prefix> <geotag>  : add to all IP's "
-        "matching the prefix <prefix> the geo location tag <geotag>\n"
-        "                                              N.B. specify the "
-        "default assumption via 'vid set geotag default <default-tag>'\n"
-        "       vid rm <key>                         : remove configured vid "
-        "with name key - hint: use config dump to see the key names of vid "
-        "rules\n"
-        "\n"
-        "       vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2|ztn\n"
-        "                                            : enable/disables the "
-        "default mapping via password or external database\n"
-        "\n"
-        "       vid add|remove gateway <hostname> "
-        "[krb5|gsi|sss|unix|https|grpc]\n"
-        "                                            : adds/removes a host as "
-        "a (fuse) gateway with 'su' priviledges\n"
-        "                                              [<prot>] restricts the "
-        "gateway role change to the specified authentication method\n"
-        "       vid publicaccesslevel <level>\n"
-        "                                           : sets the deepest "
-        "directory level where anonymous access (nobody) is possible\n"
-        "       vid tokensudo 0|1|2|3\n"
-        "                                           : configure sudo policy "
-        "when tokens are used\n"
-        "                                             0 : always allow token "
-        "sudo (setting uid/gid from token) [default if not set]\n"
-        "                                             1 : allow token sudo if "
-        "transport is encrypted\n"
-        "                                             2 : allow token sudo for "
-        "strong authentication (not unix!)\n"
-        "                                             3 : never allow token "
-        "sudo\n");
+    fprintf(stdout, "%s", MakeVidHelp().c_str());
+    fprintf(stdout,
+        "Options for vid ls:\n"
+        "  -u  show only user role mappings\n"
+        "  -g  show only group role mappings\n"
+        "  -s  show list of sudoers\n"
+        "  -U  show user alias mapping\n"
+        "  -G  show group alias mapping\n"
+        "  -a  show authentication\n"
+        "  -l  show geo location mapping\n"
+        "  -n  show numerical ids instead of names\n");
   }
 };
 } // namespace

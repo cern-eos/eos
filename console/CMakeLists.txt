@@ -24,6 +24,17 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/commands/helpers/)
 
 #-------------------------------------------------------------------------------
+# CLI11 parser submodule (console/parser)
+#-------------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/parser/CMakeLists.txt")
+  set(CLI11_BUILD_TESTS OFF CACHE BOOL "Disable CLI11 tests" FORCE)
+  set(CLI11_BUILD_EXAMPLES OFF CACHE BOOL "Disable CLI11 examples" FORCE)
+  set(CLI11_BUILD_DOCS OFF CACHE BOOL "Disable CLI11 docs" FORCE)
+  set(CLI11_INSTALL ON CACHE BOOL "Install CLI11 headers" FORCE)
+  add_subdirectory(parser)
+endif()
+
+#-------------------------------------------------------------------------------
 # eos executable
 #-------------------------------------------------------------------------------
 add_library(EosConsoleHelpers-Objects OBJECT
@@ -55,7 +66,6 @@ add_library(EosConsoleCommands-Objects OBJECT
   ConsoleMain.cc  ConsoleMain.hh
   CommandFramework.cc CommandFramework.hh
   ConsoleCompletion.cc ConsoleCompletion.hh
-  ConsoleArgParser.cc ConsoleArgParser.hh
   RegexUtil.cc RegexUtil.hh
 
   # Core/native base
@@ -156,7 +166,11 @@ target_link_libraries(EosConsoleCommands-Objects PUBLIC
   READLINE::READLINE
   JSONCPP::JSONCPP
   SCITOKENS::SCITOKENS
-  XROOTD::UTILS)
+  XROOTD::UTILS
+  CLI11::CLI11)
+
+target_include_directories(EosConsoleCommands-Objects PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/parser/include)
 
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)

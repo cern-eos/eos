@@ -4,12 +4,36 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeDevicesHelp()
+{
+  return "Usage: devices ls [-l] [-m] [--refresh]\n\n"
+         "Print statistics per space of all storage devices based on S.M.A.R.T.\n\n"
+         "Options:\n"
+         "  -l         print S.M.A.R.T information for each configured filesystem\n"
+         "  -m         print monitoring output format (key=val)\n"
+         "  --refresh  force reparse of current S.M.A.R.T information\n\n"
+         "Use 'eos --json devices ls' for JSON output.\n";
+}
+
+void ConfigureDevicesApp(CLI::App& app)
+{
+  app.name("devices");
+  app.description("Get Device Information");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeDevicesHelp();
+      }));
+}
+
 // Ported DevicesHelper from com_proto_devices.cc
 class DevicesHelper : public ICmdHelper {
 public:
@@ -101,20 +125,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage: devices ls [-l] [-m] [--refresh]\n"
-            "                                       : without option prints "
-            "statistics per space of all storage devices used based on "
-            "S.M.A.R.T information\n"
-            "                                    -l : prints S.M.A.R.T "
-            "information for each configured filesystem\n"
-            "                                    -m : print monitoring output "
-            "format (key=val)\n"
-            "                             --refresh : forces to reparse the "
-            "current available S.M.A.R.T information and output this\n"
-            "\n"
-            "                                  JSON : to retrieve JSON output, "
-            "use 'eos --json devices ls' !\n");
+    CLI::App app;
+    ConfigureDevicesApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

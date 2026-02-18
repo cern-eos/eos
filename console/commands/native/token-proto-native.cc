@@ -4,10 +4,37 @@
 
 #include "console/CommandFramework.hh"
 #include "console/commands/helpers/TokenHelper.hh"
+#include <CLI/CLI.hpp>
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeTokenHelp()
+{
+  return "Usage: token --token <token> | --path <path> --expires <expires> "
+         "[--permission <perm>] [--owner <owner>] [--group <group>] [--tree] "
+         "[--origin <origin> ...]\n\n"
+         "  --token <token>   dump token JSON (independent of validity)\n"
+         "  --path <path>     namespace restriction (directory or file)\n"
+         "  --permission <perm>  e.g. 'rx' 'rwx' 'rwx!d' 'rwxq'\n"
+         "  --owner <owner>   identify bearer as user\n"
+         "  --group <group>   identify bearer with group\n"
+         "  --tree            subtree token for whole tree under path\n"
+         "  --origin <origin> restrict usage (regexp:hostname:username:protocol)\n";
+}
+
+void ConfigureTokenApp(CLI::App& app)
+{
+  app.name("token");
+  app.description("Token interface");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeTokenHelp();
+      }));
+}
+
 class TokenProtoCommand : public IConsoleCommand {
 public:
   const char*
@@ -53,33 +80,9 @@ public:
   void
   printHelp() const override
   {
-    std::ostringstream oss;
-    oss << "Usage: token --token  <token> | --path <path> --expires <expires> [--permission <perm>] [--owner <owner>] [--group <group>] [--tree] [--origin <origin1> [--origin <origin2>] ...]] \n"
-        << "    get or show a token\n\n"
-        << "       token --token <token> \n"
-        << "                                           : provide a JSON dump of a token - independent of validity\n"
-        << "             --path <path>                 : define the namespace restriction - if ending with '/' this is a directory or tree, otherwise it references a file\n"
-        << "             --path <path1>://:<path2>://: ..."
-        << "                                           : define multi-path token which share ACLs for all of them\n"
-        << "             --permission <perm>           : define the token bearer permissions e.g 'rx' 'rwx' 'rwx!d' 'rwxq' - see acl command for permissions\n"
-        << "             --owner <owner>               : identify the bearer with as user <owner> \n"
-        << "             --group <group>               : identify the beaere with a group <group> \n"
-        << "             --tree                        : request a subtree token granting permissions for the whole tree under <path>\n"
-        << "              --origin <origin>            : restrict token usage to <origin> - multiple origin parameters can be provided\n"
-        << "                                             <origin> := <regexp:hostname>:<regex:username>:<regex:protocol>\n"
-        << "                                             - described by three regular extended expressions matching the \n"
-        << "                                               bearers hostname, possible authenticated name and protocol\n"
-        << "                                             - default is .*:.*:.* (be careful with proper shell escaping)"
-        << "\n"
-        << "Examples:\n"
-        << "          eos token --path /eos/ --permission rx --tree\n"
-        << "                                           : token with browse permission for the whole /eos/ tree\n"
-        << "          eos token --path /eos/file --permission rwx --owner foo --group bar\n"
-        << "                                           : token granting write permission for /eos/file as user foo:bar\n"
-        << "          eos token --token zteos64:...\n"
-        << "                                           : dump the given token\n"
-        << std::endl;
-    std::cerr << oss.str();
+    CLI::App app;
+    ConfigureTokenApp(app);
+    std::cerr << app.help();
   }
 };
 } // namespace

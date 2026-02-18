@@ -4,12 +4,40 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeQuotaHelp()
+{
+  return "Usage: quota [<path>] | ls|set|rm|rmnode [OPTIONS]\n\n"
+         "  [<path>]           show personal quota for path\n"
+         "  ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p|-x|-q] <path>]\n"
+         "    list configured quota and quota node(s)\n"
+         "  set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [[-p] <path>]\n"
+         "    set volume and/or inode quota\n"
+         "  rm -u <uid>|-g <gid> [-v] [-i] [[-p] <path>]\n"
+         "    remove configured quota type(s)\n"
+         "  rmnode [-p] <path> [--really-want]\n"
+         "    remove quota node and every defined quota on that node\n\n"
+         "Options: -m (monitoring), -n (numeric ids), -u/--uid, -g/--gid,\n"
+         "  -p/--path, -v/--volume, -i/--inodes\n";
+}
+
+void ConfigureQuotaApp(CLI::App& app)
+{
+  app.name("quota");
+  app.description("Quota System configuration");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeQuotaHelp();
+      }));
+}
 
 class QuotaHelper : public ICmdHelper {
 public:
@@ -252,46 +280,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stderr,
-        "Usage: quota [<path>]\n"
-        ": show personal quota for all or only the quota node responsible for "
-        "<path>\n"
-        "quota ls [-n] [-m] [-u <uid>] [-g <gid>] [[-p|x|q] <path>]\n"
-        ": list configured quota and quota node(s)\n"
-        "                                                                      "
-        " -p : find closest matching quotanode\n"
-        "                                                                      "
-        " -x : as -p but <path> has to exist\n"
-        "                                                                      "
-        " -q : as -p but <path> has to be a quotanode\n"
-        "quota set -u <uid>|-g <gid> [-v <bytes>] [-i <inodes>] [[-p] <path>]\n"
-        ": set volume and/or inode quota by uid or gid\n"
-        "quota rm -u <uid>|-g <gid> [-v] [-i] [[-p] <path>]\n"
-        ": remove configured quota type(s) for uid/gid in path\n"
-        "quota rmnode [-p] <path>\n"
-        ": remove quota node and every defined quota on that node\n"
-        "\n"
-        "General options:\n"
-        "  -m : print information in monitoring <key>=<value> format\n"
-        "  -n : don't translate ids, print uid and gid number\n"
-        "  -u/--uid <uid> : print information only for uid <uid>\n"
-        "  -g/--gid <gid> : print information only for gid <gid>\n"
-        "  -p/--path <path> : print information only for path <path> - this "
-        "can also be given without -p or --path\n"
-        "  -v/--volume <bytes> : refer to volume limit in <bytes>\n"
-        "  -i/--inodes <inodes> : refer to inode limit in number of <inodes>\n"
-        "\n"
-        "Notes:\n"
-        "  => you have to specify either the user or the group identified by "
-        "the unix id or the user/group name\n"
-        "  => the space argument is by default assumed as 'default'\n"
-        "  => you have to specify at least a volume or an inode limit to set "
-        "quota\n"
-        "  => for convenience all commands can just use <path> as last "
-        "argument omitting the -p|--path e.g. quota ls /eos/ ...\n"
-        "  => if <path> is not terminated with a '/' it is assumed to be a "
-        "file so it won't match the quota node with <path>!/\n");
+    CLI::App app;
+    ConfigureQuotaApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

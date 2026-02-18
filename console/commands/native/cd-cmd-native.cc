@@ -4,10 +4,31 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeCdHelp()
+{
+  return "Usage: cd <path> | cd - | cd ~\n";
+}
+
+void ConfigureCdApp(CLI::App& app, std::string& path)
+{
+  app.name("cd");
+  app.description("Change directory");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeCdHelp();
+      }));
+  app.add_option("path", path, "path (- for previous, ~ for home)")
+      ->default_val("");
+}
+
 class CdCommand : public IConsoleCommand {
 public:
   const char*
@@ -28,10 +49,32 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (!args.empty() && wants_help(args[0].c_str())) {
-      fprintf(stderr, "Usage: cd <path> | cd - | cd ~\n");
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
+    }
+    std::string joined = oss.str();
+    if (wants_help(joined.c_str())) {
+      fprintf(stderr, "%s", MakeCdHelp().c_str());
       global_retc = EINVAL;
       return 0;
+    }
+
+    std::string path;
+    if (!args.empty()) {
+      CLI::App app;
+      ConfigureCdApp(app, path);
+      std::vector<std::string> cli_args = args;
+      std::reverse(cli_args.begin(), cli_args.end());
+      try {
+        app.parse(cli_args);
+      } catch (const CLI::ParseError&) {
+        fprintf(stderr, "%s", MakeCdHelp().c_str());
+        global_retc = EINVAL;
+        return 0;
+      }
     }
 
     static XrdOucString opwd = "/";
@@ -41,8 +84,7 @@ public:
     XrdOucString newpath;
     XrdOucString oldpwd;
 
-    XrdOucString arg =
-        args.empty() ? XrdOucString("") : XrdOucString(args[0].c_str());
+    XrdOucString arg = path.c_str();
 
     if (arg == "-") {
       oopwd = opwd;
@@ -103,6 +145,7 @@ public:
   void
   printHelp() const override
   {
+    fprintf(stderr, "%s", MakeCdHelp().c_str());
   }
 };
 } // namespace

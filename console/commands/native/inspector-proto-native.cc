@@ -4,12 +4,33 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeInspectorHelp()
+{
+  return "Usage: inspector [-s|--space <space>] [OPTIONS]\n\n"
+         "Forward arguments to the inspector space subsystem.\n"
+         "Options: -c|--current, -l|--last, -m, -p, -e, -C|--cost, -U|--usage,\n"
+         "  -L|--layouts, -B|--birth, -A|--access, -a|--all, -V|--vs, -M|--money\n";
+}
+
+void ConfigureInspectorApp(CLI::App& app)
+{
+  app.name("inspector");
+  app.description("Run inspector tools");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeInspectorHelp();
+      }));
+}
+
 class InspectorHelper : public ICmdHelper {
 public:
   explicit InspectorHelper(const GlobalOptions& opts) : ICmdHelper(opts)
@@ -115,8 +136,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: inspector [args...]\n"
-                    "forwards arguments to the inspector space subsystem\n");
+    CLI::App app;
+    ConfigureInspectorApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

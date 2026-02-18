@@ -3,11 +3,36 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeAccountingHelp()
+{
+  std::ostringstream oss;
+  oss << "Usage: accounting report [-f]\n"
+      << "       accounting config -e [<expired>] -i [<invalid>]\n\n"
+      << "  report  prints accounting report in JSON, data is served from "
+         "cache if possible\n"
+      << "          -f  force synchronous report instead of using cache\n\n"
+      << "  config  configure caching behaviour\n"
+      << "          -e  expiry time in minutes (default 10)\n"
+      << "          -i  invalidity time in minutes, must be > expiry\n";
+  return oss.str();
+}
+
+void ConfigureAccountingApp(CLI::App& app)
+{
+  app.name("accounting");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeAccountingHelp();
+      }));
+}
+
 class AccountingCommand : public IConsoleCommand {
 public:
   const char*
@@ -37,11 +62,22 @@ public:
     XrdOucString in = "mgm.cmd=accounting";
     if (sub == "report") {
       in += "&mgm.subcmd=report";
-      ConsoleArgParser p;
-      p.addOption({"", 'f', false, false, "", "force synchronous report", ""});
+      CLI::App app;
+      app.set_help_flag("");
+      app.allow_extras();
+      bool opt_f = false;
+      app.add_flag("-f", opt_f, "force synchronous report");
       std::vector<std::string> rest(args.begin() + 1, args.end());
-      auto r = p.parse(rest);
-      if (r.has("f")) {
+      std::vector<std::string> cli_args = rest;
+      std::reverse(cli_args.begin(), cli_args.end());
+      try {
+        app.parse(cli_args);
+      } catch (const CLI::ParseError&) {
+        printHelp();
+        global_retc = EINVAL;
+        return 0;
+      }
+      if (opt_f) {
         in += "&mgm.option=f";
       }
     } else if (sub == "config") {
@@ -81,21 +117,10 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stdout,
-        "Usage: accounting report [-f]                          : prints "
-        "accounting report in JSON, data is served from cache if possible\n"
-        "                                                    -f : forces a "
-        "synchronous report instead of using the cache (only use this if the "
-        "cached data is too old)\n"
-        "       accounting config -e [<expired>] -i [<invalid>] : configure "
-        "caching behaviour\n"
-        "                                                    -e : expiry time "
-        "in minutes, after this time frame asynchronous update happens, "
-        "default is 10 minutes\n"
-        "                                                    -i : invalidity "
-        "time in minutes, after this time frame synchronous update happens, "
-        "must be greater than expiry time, default is never\n");
+    CLI::App app;
+    ConfigureAccountingApp(app);
+    const std::string help = app.help();
+    fprintf(stdout, "%s", help.c_str());
   }
 };
 } // namespace

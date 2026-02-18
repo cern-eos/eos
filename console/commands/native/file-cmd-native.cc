@@ -6,13 +6,13 @@
 #include <inttypes.h>
 
 #include "common/FileId.hh"
+#include <CLI/CLI.hpp>
 #include "common/Fmd.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
 #include "console/ConsoleMain.hh"
 #include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClURL.hh>
@@ -20,6 +20,7 @@
 #include <XrdOuc/XrdOucString.hh>
 #include <algorithm>
 #include <cstdlib>
+#include <vector>
 #include <cstring>
 #include <errno.h>
 #include <limits>
@@ -34,6 +35,51 @@
 #endif
 
 namespace {
+std::string MakeFileHelp()
+{
+  return "Usage: file <subcmd> [args...]\n\n"
+         "Subcommands:\n"
+         "  adjustreplica <path|fid|fxid> [space [subgroup]] [--exclude-fs <fsid>]  adjust replica placement\n"
+         "  check <path|fid|fxid> [%size%checksum%nrep%diskchecksum%force%output%silent]  verify replicas\n"
+         "  convert <path|fid> [layout] [space] [policy] [checksum] [--rewrite]\n"
+         "  copy [-f] [-s] [-c] <src> <dst>     synchronous third party copy\n"
+         "  drop <path|fid> <fsid> [-f]          drop replica\n"
+         "  info <identifier> [options]          show file info (path|fid:|fxid:|pid:|pxid:|inode:)\n"
+         "  layout <path|fid> -stripes|-checksum|-type <val>  change layout\n"
+         "  move <path|fid> <fsid1> <fsid2>      move replica between fsids\n"
+         "  purge <path> [version]               purge versions\n"
+         "  rename <src> <dst>                   rename path\n"
+         "  rename_with_symlink <src> <dst-dir>  rename and create symlink\n"
+         "  replicate <path|fid> <fsid1> <fsid2> replicate replica between fsids\n"
+         "  share <path> [lifetime]              create share link\n"
+         "  symlink <link-name> <target>         create symlink\n"
+         "  tag <path|fid> +|-|~<fsid>           location tag ops\n"
+         "  touch [-a] [-n] [-0] <path|fid|fxid> [linkpath|size [hexchecksum]]\n"
+         "  touch -l <path|fid|fxid> [lifetime [audience=user|app]]\n"
+         "  touch -u <path|fid|fxid>             remove lock\n"
+         "  verify <path|fid> [opts]             verify file checks\n"
+         "  version <path> [version]             create version\n"
+         "  versions <path|fid> [grab-version]   list/grab versions\n"
+         "  workflow <path> <workflow> <event>   trigger workflow\n";
+}
+
+void ConfigureFileApp(CLI::App& app, std::string& subcmd)
+{
+  app.name("file");
+  app.description("File Handling");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeFileHelp();
+      }));
+  app.add_option("subcmd", subcmd,
+                 "rename|rename_with_symlink|symlink|drop|touch|move|copy|"
+                 "replicate|purge|version|versions|layout|tag|convert|verify|"
+                 "adjustreplica|check|share|workflow|info")
+      ->required();
+}
+
 void
 AppendEncodedPath(XrdOucString& in, const XrdOucString& raw, bool absolutize)
 {
@@ -461,13 +507,38 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (args.empty() || args[0] == "--help" || args[0] == "-h") {
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
+    }
+    std::string joined = oss.str();
+    if (args.empty() || wants_help(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-    XrdOucString cmd = args[0].c_str();
-    std::vector<std::string> rest(args.begin() + 1, args.end());
+
+    CLI::App app;
+    std::string subcmd;
+    ConfigureFileApp(app, subcmd);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
+    std::vector<std::string> remaining = app.remaining();
+    std::reverse(remaining.begin(), remaining.end());
+
+    XrdOucString cmd = subcmd.c_str();
+    std::vector<std::string> rest = remaining;
     XrdOucString in = "mgm.cmd=file";
 
     auto set_path_or_id = [&](XrdOucString path) {
@@ -929,35 +1000,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stderr,
-        "usage: file <subcmd> ...\n"
-        "  adjustreplica <path|fid|fxid> [space [subgroup]] [--exclude-fs <fsid>]\n"
-        "                                        : adjust replica placement\n"
-        "  check <path|fid|fxid> [%%size%%checksum%%nrep%%diskchecksum%%force%%output%%silent]\n"
-        "                                        : verify replicas by querying FSTs\n"
-        "  convert <path|fid> [layout] [space] [policy] [checksum] [--rewrite]\n"
-        "  copy [-f] [-s] [-c] <src> <dst>        : synchronous third party copy\n"
-        "  drop <path|fid> <fsid> [-f]            : drop replica\n"
-        "  info <identifier> [options]            : show file info "
-        "(path|fid:|fxid:|pid:|pxid:|inode:)\n"
-        "  layout <path|fid> -stripes| -checksum| -type <val> : change layout\n"
-        "  move <path|fid> <fsid1> <fsid2>        : move replica between fsids\n"
-        "  purge <path> [version]                 : purge versions\n"
-        "  rename <src> <dst>                     : rename path\n"
-        "  rename_with_symlink <src> <dst-dir>    : rename and create symlink\n"
-        "  replicate <path|fid> <fsid1> <fsid2>   : replicate replica between "
-        "fsids\n"
-        "  share <path> [lifetime]                : create share link\n"
-        "  symlink <link-name> <target>           : create symlink\n"
-        "  tag <path|fid> +|-|~<fsid>             : location tag ops\n"
-        "  touch [-a] [-n] [-0] <path|fid|fxid> [linkpath|size [hexchecksum]]\n"
-        "  touch -l <path|fid|fxid> [lifetime [audience=user|app]]\n"
-        "  touch -u <path|fid|fxid>               : remove lock\n"
-        "  verify <path|fid> [opts]               : verify file checks\n"
-        "  version <path> [version]               : create version\n"
-        "  versions <path|fid> [grab-version]     : list/grab versions\n"
-        "  workflow <path> <workflow> <event>     : trigger workflow\n");
+    fprintf(stderr, "%s", MakeFileHelp().c_str());
   }
 };
 } // namespace

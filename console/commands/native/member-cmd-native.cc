@@ -2,13 +2,40 @@
 // File: member-native.cc
 // ----------------------------------------------------------------------
 
-#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <XrdOuc/XrdOucString.hh>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeMemberHelp()
+{
+  return "Usage: member [--update] <egroup>\n\n"
+         "Show the (cached) information about egroup membership for the "
+         "current user.\n"
+         "If the check is required for a different user then use "
+         "\"eos -r <uid> <gid>\" to switch to a different role.\n\n"
+         "Options:\n"
+         "  --update  refresh cached egroup information\n";
+}
+
+void ConfigureMemberApp(CLI::App& app, bool& opt_update, std::string& egroup)
+{
+  app.name("member");
+  app.description("Member management");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeMemberHelp();
+      }));
+  app.add_flag("--update", opt_update, "refresh cached egroup information");
+  app.add_option("egroup", egroup, "egroup name")->required();
+}
+
 class MemberCommand : public IConsoleCommand {
 public:
   const char*
@@ -36,42 +63,23 @@ public:
       oss << args[i];
     }
     std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
+    if (args.empty() || wants_help(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
 
-    bool update = false;
+    CLI::App app;
+    bool opt_update = false;
     std::string egroup;
-    eos::common::StringTokenizer tok(joined.c_str());
-    tok.GetLine();
-    const char* option = nullptr;
-    do {
-      option = tok.GetToken();
-      if (!option || !strlen(option))
-        break;
-      std::string soption = option;
-      if (soption == "--help" || soption == "-h") {
-        printHelp();
-        global_retc = 0;
-        return 0;
-      }
-      if (soption == "--update") {
-        update = true;
-        continue;
-      }
-      if (egroup.empty()) {
-        egroup = soption;
-      } else {
-        fprintf(stderr, "error: command accepts only one egroup argument\n");
-        global_retc = EINVAL;
-        return 0;
-      }
-    } while (option && strlen(option));
+    ConfigureMemberApp(app, opt_update, egroup);
 
-    if (egroup.empty()) {
-      fprintf(stderr, "error: no egroup argument given\n");
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
       global_retc = EINVAL;
       return 0;
     }
@@ -79,7 +87,7 @@ public:
     XrdOucString in = "mgm.cmd=member";
     in += "&mgm.egroup=";
     in += egroup.c_str();
-    if (update) {
+    if (opt_update) {
       in += "&mgm.egroupupdate=true";
     }
     global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true);
@@ -88,15 +96,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stderr,
-        "Usage: member [--update] <egroup>\n"
-        "   show the (cached) information about egroup membership for the\n"
-        "   current user running the command. If the check is required for\n"
-        "   a different user then please use the \"eos -r <uid> <gid>\"\n"
-        "   command to switch to a different role.\n"
-        " Options:\n"
-        "    --update : Refresh cached egroup information\n");
+    fprintf(stderr, "%s", MakeMemberHelp().c_str());
   }
 };
 } // namespace

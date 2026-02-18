@@ -6,10 +6,52 @@
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeDebugHelp()
+{
+  std::ostringstream oss;
+  oss << "Usage: debug get|this|<level> [node-queue] [--filter <unitlist>]\n"
+      << "'[eos] debug ...' allows to get or set the verbosity of the EOS "
+         "log files in MGM and FST services.\n\n"
+      << "debug get : retrieve the current log level for the mgm and fsts "
+         "node-queue\n\n"
+      << "debug this : toggle EOS shell debug mode\n\n"
+      << "debug  <level> [--filter <unitlist>] : set the MGM where the "
+         "console is connected to into debug level <level>\n\n"
+      << "debug  <level> <node-queue> [--filter <unitlist>] : set the "
+         "<node-queue> into debug level <level>.\n"
+      << "  - <node-queue> are internal EOS names e.g. "
+         "'/eos/<hostname>:<port>/fst'\n"
+      << "  - <unitlist> is a comma separated list of strings of software "
+         "units which should be filtered out in the message log!\n\n"
+      << "The allowed debug levels are: "
+         "debug,info,warning,notice,err,crit,alert,emerg\n";
+  return oss.str();
+}
+
+void ConfigureDebugApp(CLI::App& app,
+                      std::string& mode,
+                      std::string& node,
+                      std::string& filter)
+{
+  app.name("debug");
+  app.description("Set debug level");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeDebugHelp();
+      }));
+  app.add_option("mode", mode, "get|this|<level>")->required();
+  app.add_option("node", node, "node-queue (e.g. /eos/host:port/fst)");
+  app.add_option("--filter", filter, "comma-separated unit list to filter");
+}
+
 class DebugCommand : public IConsoleCommand {
 public:
   const char*
@@ -37,6 +79,39 @@ public:
       oss << args[i];
     }
     std::string joined = oss.str();
+    if (args.empty() || wants_help(joined.c_str())) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
+    CLI::App app;
+    std::string mode;
+    std::string node;
+    std::string filter;
+    ConfigureDebugApp(app, mode, node, filter);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
+    std::string cmd;
+    if (mode == "get" || mode == "this") {
+      cmd = mode;
+    } else {
+      cmd = mode;
+      if (!node.empty())
+        cmd += " " + node;
+      if (!filter.empty())
+        cmd += " --filter " + filter;
+    }
+
     class LocalHelper : public ICmdHelper {
     public:
       using ICmdHelper::ICmdHelper;
@@ -84,13 +159,9 @@ public:
         return true;
       }
     };
-    if (wants_help(joined.c_str())) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
+
     LocalHelper helper(gGlobalOpts);
-    if (!helper.ParseCommand(joined.c_str())) {
+    if (!helper.ParseCommand(cmd.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
@@ -101,24 +172,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage:\n"
-            "debug get|this|<level> [node-queue] [--filter <unitlist>]\n"
-            "'[eos] debug ...' allows to get or set the verbosity of the EOS "
-            "log files in MGM and FST services.\n\n"
-            "debug get : retrieve the current log level for the mgm and fsts "
-            "node-queue\n\n"
-            "debug this : toggle EOS shell debug mode\n\n"
-            "debug  <level> [--filter <unitlist>] : set the MGM where the "
-            "console is connected to into debug level <level>\n\n"
-            "debug  <level> <node-queue> [--filter <unitlist>] : set the "
-            "<node-queue> into debug level <level>.\n"
-            "  - <node-queue> are internal EOS names e.g. "
-            "'/eos/<hostname>:<port>/fst'\n"
-            "  - <unitlist> is a comma separated list of strings of software "
-            "units which should be filtered out in the message log!\n\n"
-            "The allowed debug levels are: "
-            "debug,info,warning,notice,err,crit,alert,emerg\n");
+    fprintf(stderr, "%s", MakeDebugHelp().c_str());
   }
 };
 } // namespace

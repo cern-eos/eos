@@ -4,12 +4,31 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeTrackerHelp()
+{
+  return "Usage: tracker\n\n"
+         "Print all file replication tracking entries.\n";
+}
+
+void ConfigureTrackerApp(CLI::App& app)
+{
+  app.name("tracker");
+  app.description("Print file replication tracking entries");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeTrackerHelp();
+      }));
+}
+
 // Minimal helper mirroring the legacy "space tracker" handling
 class TrackerHelper : public ICmdHelper {
 public:
@@ -69,9 +88,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage: space tracker\n"
-            "       print all file replication tracking entries\n");
+    CLI::App app;
+    ConfigureTrackerApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

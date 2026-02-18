@@ -4,6 +4,7 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
@@ -12,6 +13,32 @@
 extern void com_config_help();
 
 namespace {
+std::string MakeConfigHelp()
+{
+  return "Usage: config changelog|dump|export|load|ls|reset|save [OPTIONS]\n\n"
+         "'[eos] config' provides the configuration interface to EOS.\n\n"
+         "Subcommands:\n"
+         "  changelog [#lines]     show last #lines from changelog (default 10)\n"
+         "  dump [<name>]          dump configuration\n"
+         "  export <name> [-f]     export config file to QuarkDB\n"
+         "  load <name>            load config\n"
+         "  ls [-b|--backup]       list configurations\n"
+         "  reset                  reset all configuration\n"
+         "  save <name> [-f] [-c|--comment \"<comment>\"]  save config\n";
+}
+
+void ConfigureConfigApp(CLI::App& app)
+{
+  app.name("config");
+  app.description("Configuration System");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeConfigHelp();
+      }));
+}
+
 // Ported from legacy com_proto_config.cc
 class ConfigHelper : public ICmdHelper {
 public:
@@ -164,28 +191,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage:\n"
-            "config changelog|dump|export|load|ls|reset|save [OPTIONS]\n"
-            "'[eos] config' provides the configuration interface to EOS.\n\n"
-            "Subcommands:\n"
-            "config changelog [#lines] : show the last #lines from the "
-            "changelog - default is 10\n\n"
-            "config dump [<name>] : dump configuration with name <name> or "
-            "current one by default\n\n"
-            "config export <name> [-f] : export a configuration stored on file "
-            "to QuarkDB (you need to specify the full path!)\n"
-            "\t -f : overwrite existing config name and create a timestamped "
-            "backup\n\n"
-            "config load <name> : load <name> config\n\n"
-            "config ls [-b|--backup] : list existing configurations\n"
-            "\t -b : show also backup & autosave files\n\n"
-            "config reset : reset all configuration to empty state\n\n"
-            "config save <name> [-f] [-c|--comment \"<comment>\"] : save "
-            "config under <name>\n"
-            "\t -f : overwrite existing config name and create a timestamped "
-            "backup\n"
-            "\t -c : add a comment entry to the config\n");
+    CLI::App app;
+    ConfigureConfigApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

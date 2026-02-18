@@ -3,11 +3,51 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
+#include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeChownHelp()
+{
+  std::ostringstream oss;
+  oss << "Usage: chown [-r] [-h|--nodereference] <owner>[:<group>] <path>\n";
+  oss << "       chown [-r] :<group> <path>\n";
+  oss << "'[eos] chown ..' provides the change owner interface of EOS.\n";
+  oss << "<path> is the file/directory to modify, <owner> has to be a user id "
+         "or user name. <group> is optional and has to be a group id or group "
+         "name.\n";
+  oss << "To modify only the group use :<group> as identifier!\n";
+  oss << "Remark: if you use the -r -h option and path points to a link the "
+         "owner of the link parent will also be updated!\n";
+  oss << "Options:\n";
+  oss << "  -r                    recursive\n";
+  oss << "  -h, --nodereference   don't follow symlinks\n";
+  return oss.str();
+}
+
+void ConfigureChownApp(CLI::App& app,
+                      bool& opt_r,
+                      bool& opt_h,
+                      std::string& owner,
+                      std::string& path)
+{
+  app.name("chown");
+  app.description("change owner interface of EOS");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeChownHelp();
+      }));
+  app.add_flag("-r", opt_r, "recursive");
+  app.add_flag("-h,--nodereference", opt_h, "don't follow symlinks");
+  app.add_option("owner", owner, "owner[:group] or :group")->required();
+  app.add_option("path", path, "path")->required();
+}
+
 class ChownCommand : public IConsoleCommand {
 public:
   const char*
@@ -41,28 +81,28 @@ public:
       return 0;
     }
 
-    size_t idx = 0;
-    std::string opt;
-    while (idx < args.size() && args[idx].rfind("-", 0) == 0) {
-      const std::string& o = args[idx];
-      if (o == "-r") {
-        if (opt.find('r') == std::string::npos) opt.push_back('r');
-      } else if (o == "-h" || o == "--nodereference") {
-        if (opt.find('h') == std::string::npos) opt.push_back('h');
-      } else {
-        printHelp(); global_retc = EINVAL; return 0;
-      }
-      ++idx;
-    }
+    CLI::App app;
+    bool opt_r = false;
+    bool opt_h = false;
+    std::string owner;
+    std::string path;
+    ConfigureChownApp(app, opt_r, opt_h, owner, path);
 
-    if (idx + 1 >= args.size()) {
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
 
-    const std::string& owner = args[idx];
-    const std::string& path = args[idx + 1];
+    std::string opt;
+    if (opt_r)
+      opt += 'r';
+    if (opt_h)
+      opt += 'h';
 
     XrdOucString in = "mgm.cmd=chown";
     if (!opt.empty()) {
@@ -80,18 +120,14 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage: chown [-r] [-h --nodereference] <owner>[:<group>] <path>\n");
-    fprintf(stderr, "       chown [-r] :<group> <path>\n");
-    fprintf(stderr,
-            "'[eos] chown ..' provides the change owner interface of EOS.\n");
-    fprintf(stderr,
-            "<path> is the file/directory to modify, <owner> has to be a user id or user name. <group> is optional and has to be a group id or group name.\n");
-    fprintf(stderr, "To modify only the group use :<group> as identifier!\n");
-    fprintf(stderr,
-            "Remark: if you use the -r -h option and path points to a link the owner of the link parent will also be updated!\n");
-    fprintf(stderr, "Options:\n");
-    fprintf(stderr, "                  -r : recursive\n");
+    CLI::App app;
+    bool opt_r = false;
+    bool opt_h = false;
+    std::string owner;
+    std::string path;
+    ConfigureChownApp(app, opt_r, opt_h, owner, path);
+    const std::string help = app.help();
+    fprintf(stderr, "%s", help.c_str());
   }
 };
 } // namespace

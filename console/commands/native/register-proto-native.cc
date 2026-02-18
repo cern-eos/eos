@@ -3,10 +3,33 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeRegisterHelp()
+{
+  return "Usage: register [-u] <path> [tag1=val1 tag2=val2 ...]\n\n"
+         "  -u  update existing file metadata (if file exists)\n\n"
+         "Tags: size=100, uid=101|username=foo, gid=102|groupname=bar,\n"
+         "  checksum=..., layoutid=..., location=1,2,..., mode=777,\n"
+         "  btime=..., atime=..., ctime=..., mtime=..., path=...,\n"
+         "  xattr=..., attr=\"sys.acl=u:100:rwx\", atimeifnewer=...\n";
+}
+
+void ConfigureRegisterApp(CLI::App& app)
+{
+  app.name("register");
+  app.description("Register a file");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeRegisterHelp();
+      }));
+}
+
 class RegisterProtoCommand : public IConsoleCommand {
 public:
   const char*
@@ -104,29 +127,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: register [-u] <path> {tag1,tag2,tag3...}\n"
-                    "          :  when called without the -u flag the parent "
-                    "has to exist while the basename should not exist\n"
-                    "       -u :  if the file exists this will update all the "
-                    "provided meta-data of a file\n\n"
-                    "       tagN is optional, but can be one or many of: \n"
-                    "             size=100\n"
-                    "             uid=101 | username=foo\n"
-                    "             gid=102 | username=bar\n"
-                    "             checksum=abcdabcd\n"
-                    "             layoutid=00100112\n"
-                    "             location=1 location=2 ...\n"
-                    "             mode=777\n"
-                    "             btime=1670334863.101232\n"
-                    "             atime=1670334863.101232\n"
-                    "             ctime=1670334863.110123\n"
-                    "             mtime=1670334863.11234d\n"
-                    "             attr=\"sys.acl=u:100:rwx\"\n"
-                    "             attr=\"user.md=private\"\n"
-                    "             path=\"/eos/newfile\"   # can be used "
-                    "instead of the regular path argument of the path\n"
-                    "             atimeifnewer=1670334863.101233  # only "
-                    "update if this atime is newer than the existing one!\n");
+    CLI::App app;
+    ConfigureRegisterApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

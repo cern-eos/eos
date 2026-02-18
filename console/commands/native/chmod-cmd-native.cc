@@ -3,11 +3,40 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
+#include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeChmodHelp()
+{
+  std::ostringstream oss;
+  oss << "Usage: chmod [-r] <mode> <path>                             : set "
+         "mode for <path> (-r recursive)\n";
+  oss << "                 <mode> can be only numerical like 755, 644, 700\n";
+  return oss.str();
+}
+
+void ConfigureChmodApp(CLI::App& app,
+                      bool& opt_r,
+                      std::string& mode,
+                      std::string& path)
+{
+  app.name("chmod");
+  app.description("Mode Interface");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeChmodHelp();
+      }));
+  app.add_flag("-r", opt_r, "recursive");
+  app.add_option("mode", mode, "mode (e.g. 755, 644, 700)")->required();
+  app.add_option("path", path, "path")->required();
+}
+
 class ChmodCommand : public IConsoleCommand {
 public:
   const char*
@@ -28,35 +57,37 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (args.empty() || wants_help(args[0].c_str())) {
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
+    }
+    std::string joined = oss.str();
+    if (args.empty() || wants_help(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
 
-    // parse optional -r
-    size_t idx = 0;
-    bool recursive = false;
-    if (idx < args.size() && args[idx].rfind("-", 0) == 0) {
-      if (args[idx] == "-r") {
-        recursive = true;
-        ++idx;
-      } else {
-        printHelp(); global_retc = EINVAL; return 0;
-      }
-    }
+    CLI::App app;
+    bool opt_r = false;
+    std::string mode;
+    std::string path;
+    ConfigureChmodApp(app, opt_r, mode, path);
 
-    if (idx + 1 >= args.size()) {
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-
-    const std::string& mode = args[idx];
-    const std::string& path = args[idx + 1];
 
     XrdOucString in = "mgm.cmd=chmod";
-    if (recursive)
+    if (opt_r)
       in += "&mgm.option=r";
     XrdOucString ap = abspath(path.c_str());
     in += "&mgm.path=";
@@ -69,10 +100,13 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage: chmod [-r] <mode> <path>                             : set mode for <path> (-r recursive)\n");
-    fprintf(stderr,
-            "                 <mode> can be only numerical like 755, 644, 700\n");
+    CLI::App app;
+    bool opt_r = false;
+    std::string mode;
+    std::string path;
+    ConfigureChmodApp(app, opt_r, mode, path);
+    const std::string help = app.help();
+    fprintf(stderr, "%s", help.c_str());
   }
 };
 } // namespace

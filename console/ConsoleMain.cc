@@ -720,8 +720,8 @@ Run(int argc, char* argv[])
     }
 
     if ((in1 == "--version") || (in1 == "-v")) {
-      fprintf(stderr, "EOS %s (2020)\n\n", VERSION);
-      fprintf(stderr, "Developed by the CERN IT storage group\n");
+      fprintf(stderr, "EOS %s (2026)\n\n", VERSION);
+      fprintf(stderr, "Developed by the CERN IT Storage Group\n");
       exit(0);
     }
 

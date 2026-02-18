@@ -2,13 +2,49 @@
 // File: map-native.cc
 // ----------------------------------------------------------------------
 
-#include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <XrdOuc/XrdOucString.hh>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeMapHelp()
+{
+  return "Usage: map [OPTIONS] ls|link|unlink ...\n\n"
+         "'[eos] map ..' provides a namespace mapping interface for "
+         "directories in EOS.\n\n"
+         "Subcommands:\n"
+         "  ls                                    list all defined mappings\n"
+         "  link <source-path> <destination-path> create a symbolic link from "
+         "source to destination\n"
+         "  unlink <source-path>                   remove symbolic link from "
+         "source\n\n"
+         "Options:\n"
+         "  -<option>  optional leading option passed to mgm.option\n";
+}
+
+void ConfigureMapApp(CLI::App& app,
+                     std::string& subcmd,
+                     std::string& arg1,
+                     std::string& arg2)
+{
+  app.name("map");
+  app.description("Mapping utilities");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeMapHelp();
+      }));
+  app.add_option("subcmd", subcmd, "ls|link|unlink")->required();
+  app.add_option("arg1", arg1, "source path or first arg");
+  app.add_option("arg2", arg2, "destination path (for link)");
+}
+
 class MapCommand : public IConsoleCommand {
 public:
   const char*
@@ -36,68 +72,73 @@ public:
       oss << args[i];
     }
     std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
+    if (args.empty() || wants_help(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
 
-    eos::common::StringTokenizer tok(joined.c_str());
-    tok.GetLine();
-    const char* t = tok.GetToken();
-    if (!t) {
+    std::vector<std::string> parse_args = args;
+    std::string leading_opt;
+    if (!parse_args.empty() && parse_args[0].size() > 1 &&
+        parse_args[0][0] == '-') {
+      leading_opt = parse_args[0].substr(1);
+      parse_args.erase(parse_args.begin());
+    }
+
+    if (parse_args.empty()) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
 
-    XrdOucString subcommand = t;
+    CLI::App app;
+    std::string subcmd;
+    std::string arg1;
+    std::string arg2;
+    ConfigureMapApp(app, subcmd, arg1, arg2);
+
+    std::vector<std::string> cli_args = parse_args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
     XrdOucString in = "mgm.cmd=map";
 
-    // Optional leading option (e.g. -something)
-    XrdOucString arg = "";
-    if (subcommand.beginswith("-")) {
-      XrdOucString option = subcommand;
-      option.erase(0, 1);
+    if (!leading_opt.empty()) {
       in += "&mgm.option=";
-      in += option;
-      subcommand = tok.GetToken();
-      arg = tok.GetToken();
-    } else {
-      arg = tok.GetToken();
+      in += leading_opt.c_str();
     }
 
-    if (!subcommand.length() ||
-        ((subcommand != "ls") && (subcommand != "link") &&
-         (subcommand != "unlink"))) {
-      printHelp();
-      global_retc = EINVAL;
-      return 0;
-    }
-
-    if (subcommand == "ls") {
+    if (subcmd == "ls") {
       in += "&mgm.subcmd=ls";
-    } else if (subcommand == "link") {
-      XrdOucString key = arg;
-      XrdOucString value = tok.GetToken();
-      if (!key.length() || !value.length()) {
+    } else if (subcmd == "link") {
+      if (arg1.empty() || arg2.empty()) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
       in += "&mgm.subcmd=link&mgm.map.src=";
-      in += key;
+      in += arg1.c_str();
       in += "&mgm.map.dest=";
-      in += value;
-    } else if (subcommand == "unlink") {
-      XrdOucString key = arg;
-      if (!key.length()) {
+      in += arg2.c_str();
+    } else if (subcmd == "unlink") {
+      if (arg1.empty()) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
       in += "&mgm.subcmd=unlink&mgm.map.src=";
-      in += key;
+      in += arg1.c_str();
+    } else {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
     }
 
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
@@ -106,19 +147,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: map [OPTIONS] ls|link|unlink ...\n"
-                    "'[eos] map ..' provides a namespace mapping interface for "
-                    "directories in EOS.\n"
-                    "Options:\n"
-                    "map ls :\n"
-                    "                                                : list "
-                    "all defined mappings\n"
-                    "map link <source-path> <destination-path> :\n"
-                    "                                                : create "
-                    "a symbolic link from source-path to destination-path\n"
-                    "map unlink <source-path> :\n"
-                    "                                                : remove "
-                    "symbolic link from source-path\n");
+    fprintf(stderr, "%s", MakeMapHelp().c_str());
   }
 };
 } // namespace

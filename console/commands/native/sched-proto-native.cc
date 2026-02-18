@@ -5,12 +5,38 @@
 #include "common/ParseUtils.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeSchedHelp()
+{
+  return "Usage: sched configure|ls [OPTIONS]\n\n"
+         "  configure type <schedtype>\n"
+         "    <schedtype>: roundrobin, weightedrr, tlrr, random, weightedrandom, geo\n"
+         "  configure weight <space> <fsid> <weight>\n"
+         "    configure weight for fsid in space\n"
+         "  configure show type [spacename]\n"
+         "    show configured scheduler\n"
+         "  configure forcerefresh\n"
+         "    force refresh scheduler internal state\n"
+         "  ls <spacename> <bucket|disk|all>\n";
+}
+
+void ConfigureSchedApp(CLI::App& app)
+{
+  app.name("sched");
+  app.description("Configure scheduler options");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeSchedHelp();
+      }));
+}
 
 struct SchedHelper : public ICmdHelper {
   SchedHelper(const GlobalOptions& opts) : ICmdHelper(opts) { mIsAdmin = true; }
@@ -131,19 +157,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage:\n"
-            " sched configure type <schedtype>\n"
-            "\t <schedtype> is one of "
-            "roundrobin,weightedrr,tlrr,random,weightedrandom,geo\n"
-            "\t if configured via space; space takes precedence\n"
-            " sched configure weight <space> <fsid> <weight>\n"
-            "\t configure weight for a given fsid in the given space\n"
-            " sched configure show type [spacename]\n"
-            "\t show existing configured scheduler; optionally for space\n"
-            " sched configure forcerefresh [spacename]\n"
-            "\t Force refresh scheduler internal state\n"
-            " ls <spacename> <bucket|disk|all>\n");
+    CLI::App app;
+    ConfigureSchedApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

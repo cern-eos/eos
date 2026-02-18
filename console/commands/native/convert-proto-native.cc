@@ -5,12 +5,44 @@
 #include "common/LayoutId.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeConvertHelp()
+{
+  return "Usage: convert config|file|list|rule|clear [OPTIONS]\n\n"
+         "  config list|set [<key>=<value>]\n"
+         "    list: list converter configuration parameters and status\n"
+         "    set : set converter configuration parameters\n\n"
+         "  list\n"
+         "    list conversion jobs\n\n"
+         "  clear\n"
+         "    clear list of jobs stored in the backend\n\n"
+         "  file <identifier> <conversion>\n"
+         "    schedule a file conversion\n"
+         "    <identifier> = fid|fxid|path\n"
+         "    <conversion> = <layout:replica> [space] [placement] [checksum]\n\n"
+         "  rule <identifier> <conversion>\n"
+         "    apply a conversion rule on the given directory\n"
+         "    <identifier> = cid|cxid|path\n"
+         "    <conversion> = <layout:replica> [space] [placement] [checksum]\n";
+}
+
+void ConfigureConvertApp(CLI::App& app)
+{
+  app.name("convert");
+  app.description("Convert Interface");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeConvertHelp();
+      }));
+}
 
 class ConvertHelper : public ICmdHelper {
 public:
@@ -187,33 +219,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stderr,
-        "Usage: convert <subcomand>                         \n"
-        "  convert config list|set [<key>=<value>]          \n"
-        "    list: list converter configuration parameters and status\n"
-        "    set : set converter configuration parameters. Options:\n"
-        "      status               : \"on\" or \"off\"     \n"
-        "      max-thread-pool-size : max number of threads in converter pool "
-        "[default 100]\n"
-        "      max-queue-size       : max number of queued conversion jobs "
-        "[default 1000]\n"
-        "\n"
-        "  convert list                                     \n"
-        "    list conversion jobs                           \n"
-        "\n"
-        "  convert clear                                    \n"
-        "    clear list of jobs stored in the backend       \n"
-        "\n"
-        "  convert file <identifier> <conversion>           \n"
-        "    schedule a file conversion                     \n"
-        "    <identifier> = fid|fxid|path                   \n"
-        "    <conversion> = <layout:replica> [space] [placement] [checksum]\n"
-        "\n"
-        "  convert rule <identifier> <conversion>           \n"
-        "    apply a conversion rule on the given directory \n"
-        "    <identifier> = cid|cxid|path                   \n"
-        "    <conversion> = <layout:replica> [space] [placement] [checksum]\n");
+    CLI::App app;
+    ConfigureConvertApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

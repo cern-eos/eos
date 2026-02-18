@@ -5,9 +5,33 @@
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
 #include <memory>
 #include <sstream>
 namespace {
+std::string MakeDuHelp()
+{
+  return "Usage: du [-a] [-h] [-s] [--si] path\n\n"
+         "Print unix-like 'du' information showing subtree size for directories.\n\n"
+         "Options:\n"
+         "  -a     print also for files\n"
+         "  -h     print human readable in units of 1000\n"
+         "  -s     print only the summary\n"
+         "  --si   print in SI units\n";
+}
+
+void ConfigureDuApp(CLI::App& app)
+{
+  app.name("du");
+  app.description("Get du output");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeDuHelp();
+      }));
+}
+
 class DuCommand : public IConsoleCommand {
 public:
   const char*
@@ -106,17 +130,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "usage:\n"
-                    "du [-a][-h][-s][--si] path\n"
-                    "'[eos] du ...' print unix like 'du' information showing "
-                    "subtreesize for directories\n"
-                    "\n"
-                    "Options:\n"
-                    "\n"
-                    "-a   : print also for files\n"
-                    "-h   : print human readable in units of 1000\n"
-                    "-s   : print only the summary\n"
-                    "--si : print in si units\n");
+    CLI::App app;
+    ConfigureDuApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

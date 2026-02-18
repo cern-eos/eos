@@ -3,10 +3,33 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeFsckHelp()
+{
+  return "Usage: fsck stat|config|report|repair|clean_orphans [OPTIONS]\n\n"
+         "  stat [-m]           print consistency check summary\n"
+         "  config <key> <val>  configure fsck options\n"
+         "  report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag>...]\n"
+         "  repair --fxid <val> [--fsid <val>] [--error <err>] [--async]\n"
+         "  clean_orphans [--fsid <val>] [--force-qdb-cleanup]\n";
+}
+
+void ConfigureFsckApp(CLI::App& app)
+{
+  app.name("fsck");
+  app.description("File System Consistency Checking");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeFsckHelp();
+      }));
+}
+
 class FsckProtoCommand : public IConsoleCommand {
 public:
   const char*
@@ -119,58 +142,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stderr,
-        "Usage: fsck [stat|config|report|repair]\n"
-        "    control and display file system check information\n\n"
-        "  fsck stat [-m]\n"
-        "    print summary of consistency checks\n"
-        "    -m         : print in monitoring format\n\n"
-        "  fsck config <key> <value>\n"
-        "    configure the fsck with the following possible options:\n"
-        "    collect-interval-min : collection interval in minutes [default "
-        "30]\n"
-        "    collect              : control error collection thread - on/off\n"
-        "    repair               : control error repair thread - on/off\n"
-        "    best-effort          : control best-effort repair mode - on/off\n"
-        "    repair-category      : specify error types that the repair thread "
-        "will handle\n"
-        "                           e.g all, m_cx_diff, m_mem_sz_diff, "
-        "d_cx_diff, d_mem_sz_diff,\n"
-        "                           unreg_n, rep_diff_n, rep_missing_n, "
-        "blockxs_err\n"
-        "    max-queued-jobs      : maximum number of queued jobs\n"
-        "    max-thread-pool-size : maximum number of threads in the fsck "
-        "pool\n"
-        "    show-dark-files      : on/off [default off] - might affect "
-        "instance performance\n"
-        "    show-offline         : on/off [default off] - might affect "
-        "instance performance\n"
-        "    show-no-replica      : on/off [default off] - might affect "
-        "instance performance\n\n"
-        "  fsck report [-a] [-h] [-i] [-l] [-j|--json] [--error <tag1> <tag2> "
-        "...]\n"
-        "    report consistency check results, with the following options\n"
-        "    -a         : break down statistics per file system\n"
-        "    -i         : display file identifiers\n"
-        "    -l         : display logical file name\n"
-        "    -j|--json  : display in JSON output format\n"
-        "    --error    : display information about the following error "
-        "tags\n\n"
-        "  fsck repair --fxid <val> [--fsid <val>] [--error <err_type>] "
-        "[--async]\n"
-        "    repair the given file if there are any errors\n"
-        "    --fxid  : hexadecimal file identifier\n"
-        "    --fsid  : file system id used for collecting info\n"
-        "    --error : error type for given file system id e.g. m_cx_diff "
-        "unreg_n etc\n"
-        "    --async : job queued and ran by the repair thread if enabled\n\n"
-        "  fsck clean_orphans [--fsid <val>] [--force-qdb-cleanup]\n"
-        "     clean orphans by removing the entries from disk and local\n "
-        "     database for all file systems or only for the given fsid.\n"
-        "     This operation is synchronous but the fsck output will be\n"
-        "     updated once the inconsistencies are refreshed.\n"
-        "     --force-qdb-cleanup : force remove orphan entries from qdb\n");
+    CLI::App app;
+    ConfigureFsckApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

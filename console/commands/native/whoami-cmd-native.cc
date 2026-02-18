@@ -3,11 +3,16 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
-#include <memory>
+#include <XrdOuc/XrdOucString.hh>
 #include <sstream>
 
 namespace {
+std::string MakeWhoamiHelp()
+{
+  return "Usage: whoami\n\n"
+         "Determine how the current user is mapped on the server side.\n";
+}
+
 class WhoamiCommand : public IConsoleCommand {
 public:
   const char*
@@ -29,10 +34,22 @@ public:
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
     if (!args.empty()) {
+      std::ostringstream oss;
+      for (size_t i = 0; i < args.size(); ++i) {
+        if (i)
+          oss << ' ';
+        oss << args[i];
+      }
+      if (wants_help(oss.str().c_str())) {
+        printHelp();
+        global_retc = EINVAL;
+        return 0;
+      }
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
+
     XrdOucString in = "mgm.cmd=whoami";
     global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
@@ -40,7 +57,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "Usage: whoami\n");
+    fprintf(stderr, "%s", MakeWhoamiHelp().c_str());
   }
 };
 } // namespace

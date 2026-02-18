@@ -4,11 +4,35 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
-#include "console/ConsoleArgParser.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeVersionHelp()
+{
+  return "Usage: version [-f] [-m]\n\n"
+         "Print EOS version number.\n\n"
+         "Options:\n"
+         "  -f, --features   print the list of supported features\n"
+         "  -m, --monitoring print in monitoring format\n";
+}
+
+void ConfigureVersionApp(CLI::App& app, bool& opt_f, bool& opt_m)
+{
+  app.name("version");
+  app.description("Verbose client/server version");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeVersionHelp();
+      }));
+  app.add_flag("-f,--features", opt_f, "print supported features");
+  app.add_flag("-m,--monitoring", opt_m, "print in monitoring format");
+}
+
 class VersionCommand : public IConsoleCommand {
 public:
   const char*
@@ -29,30 +53,39 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    // Manual option parsing to reject unknown flags and honor -h/--help
-    bool want_features = false;
-    bool want_monitoring = false;
-    for (const auto& a : args) {
-      if (a == "-f" || a == "--features") {
-        want_features = true;
-      } else if (a == "-m" || a == "--monitoring") {
-        want_monitoring = true;
-      } else if (a == "-h" || a == "--help") {
-        printHelp();
-        global_retc = EINVAL;
-        return 0;
-      } else {
-        // Unknown argument
-        printHelp();
-        global_retc = EINVAL;
-        return 0;
-      }
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
     }
+    std::string joined = oss.str();
+    if (wants_help(joined.c_str())) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
+    CLI::App app;
+    bool opt_f = false;
+    bool opt_m = false;
+    ConfigureVersionApp(app, opt_f, opt_m);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
     XrdOucString in = "mgm.cmd=version";
     std::string opts;
-    if (want_features)
+    if (opt_f)
       opts += "f";
-    if (want_monitoring)
+    if (opt_m)
       opts += "m";
     if (!opts.empty()) {
       in += "&mgm.option=";
@@ -68,10 +101,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage: version [-f] [-m]                                :  print EOS version number\n"
-            "        -f                                              :  print the list of supported features\n"
-            "        -m                                              :  print in monitoring format\n");
+    fprintf(stderr, "%s", MakeVersionHelp().c_str());
   }
 };
 } // namespace

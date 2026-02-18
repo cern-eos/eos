@@ -4,12 +4,37 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeGroupHelp()
+{
+  return "Usage: group ls|rm|set [OPTIONS]\n\n"
+         "  ls [-s] [-g <depth>] [-b|--brief] [-m|-l|--io|--IO] [<groups>]\n"
+         "    list groups (optional substring match)\n"
+         "    -s : silent, -g : geo depth, -b : brief, -m : monitoring, -l : long\n"
+         "    --io : IO stats per group, --IO : IO stats per filesystem\n\n"
+         "  rm <group-name>\n"
+         "    remove group\n\n"
+         "  set <group-name> on|drain|off\n"
+         "    activate/drain/deactivate group\n";
+}
+
+void ConfigureGroupApp(CLI::App& app)
+{
+  app.name("group");
+  app.description("Group configuration");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeGroupHelp();
+      }));
+}
 
 class GroupHelper : public ICmdHelper {
 public:
@@ -129,30 +154,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stdout,
-        " Usage:\n\n"
-        "group ls [-s] [-g <depth>] [-b|--brief] [-m|-l|--io] [<groups>] : "
-        "list groups\n"
-        "\t <groups> : list <groups> only, where <groups> is a substring match "
-        "and can be a comma seperated list\n"
-        "\t       -s : silent mode\n"
-        "\t       -g : geo output - aggregate group information along the "
-        "instance geotree down to <depth>\n"
-        "\t       -b : brief output\n"
-        "\t       -m : monitoring key=value output format\n"
-        "\t       -l : long output - list also file systems after each group\n"
-        "\t     --io : print IO statistics for the group\n"
-        "\t     --IO : print IO statistics for each filesystem\n\n"
-        "group rm <group-name> : remove group\n\n"
-        "group set <group-name> on|drain|off : activate/drain/deactivate "
-        "group\n"
-        "\t  => when a group is (re-)enabled, the drain pull flag is "
-        "recomputed for all filesystems within a group\n"
-        "\t  => when a group is (re-)disabled, the drain pull flag is removed "
-        "from all members in the group\n"
-        "\t  => when a group is in drain, all the filesystems in the group "
-        "will be drained to other groups\n");
+    CLI::App app;
+    ConfigureGroupApp(app);
+    fprintf(stdout, "%s", app.help().c_str());
   }
 };
 } // namespace

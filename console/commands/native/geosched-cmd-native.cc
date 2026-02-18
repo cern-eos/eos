@@ -6,10 +6,51 @@
 #include "common/Utils.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <XrdOuc/XrdOucString.hh>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeGeoschedHelp()
+{
+  return "Usage: geosched show|set|updater|forcerefresh|disabled|access ...\n\n"
+         "'[eos] geosched ..' Interact with the file geoscheduling engine in "
+         "EOS.\n\n"
+         "Subcommands:\n"
+         "  show [-c|-m] tree [<scheduling group>]     show scheduling trees\n"
+         "  show [-c|-m] snapshot [<group>] [<optype>] show snapshots\n"
+         "  show param                                show internal parameters\n"
+         "  show state [-m]                           show internal state\n"
+         "  set <param> [index] <value>                set parameter value\n"
+         "  updater pause|resume                       pause/resume tree updater\n"
+         "  forcerefresh                               force refresh\n"
+         "  disabled add|rm|show <geotag> <optype> <group>\n"
+         "  access setdirect|showdirect|cleardirect|setproxygroup|showproxygroup|clearproxygroup ...\n\n"
+         "Options:\n"
+         "  -c  enable color display\n"
+         "  -m  list in monitoring format\n\n"
+         "Note: Geotags must be alphanumeric segments, max 8 chars, format "
+         "<tag1>::<tag2>::...::<tagN>\n";
+}
+
+void ConfigureGeoschedApp(CLI::App& app, std::string& subcmd)
+{
+  app.name("geosched");
+  app.description("Geographical scheduler control");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeGeoschedHelp();
+      }));
+  app.add_option("subcmd", subcmd,
+                 "show|set|updater|forcerefresh|disabled|access")
+      ->required();
+}
+
 class GeoschedCommand : public IConsoleCommand {
 public:
   const char*
@@ -37,11 +78,26 @@ public:
       oss << args[i];
     }
     std::string joined = oss.str();
-    if (wants_help(joined.c_str())) {
+    if (args.empty() || wants_help(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
+
+    CLI::App app;
+    std::string subcmd;
+    ConfigureGeoschedApp(app, subcmd);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+
     eos::common::StringTokenizer subtokenizer(joined.c_str());
     subtokenizer.GetLine();
     XrdOucString cmd = subtokenizer.GetToken();
@@ -289,101 +345,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stderr,
-        "Usage: geosched show|set|updater|forcerefresh|disabled|access ...\n"
-        "'[eos] geosched ..' Interact with the file geoscheduling engine in "
-        "EOS.\n"
-        "Options:\n"
-        "       geosched show [-c|-m] tree [<scheduling group>]                "
-        "    :  show scheduling trees\n"
-        "                                                                      "
-        "    :  if <scheduling group> is specified only the tree for this "
-        "group is shown. If it's not all, the trees are shown.\n"
-        "                                                                      "
-        "    :  '-c' enables color display\n"
-        "                                                                      "
-        "    :  '-m' list in monitoring format\n"
-        "       geosched show [-c|-m] snapshot [{<scheduling group>,*} "
-        "[<optype>]] :  show snapshots of scheduling trees\n"
-        "                                                                      "
-        "    :  if <scheduling group> is specified only the snapshot(s) for "
-        "this group is/are shown. If it's not all, the snapshots for all the "
-        "groups are shown.\n"
-        "                                                                      "
-        "    :  if <optype> is specified only the snapshot for this operation "
-        "is shown. If it's not, the snapshots for all the optypes are shown.\n"
-        "                                                                      "
-        "    :  <optype> can be one of the folowing "
-        "plct,accsro,accsrw,accsdrain,plctdrain\n"
-        "                                                                      "
-        "    :  '-c' enables color display\n"
-        "                                                                      "
-        "    :  '-m' list in monitoring format\n"
-        "       geosched show param                                            "
-        "    :  show internal parameters\n"
-        "       geosched show state [-m]                                       "
-        "    :  show internal state\n"
-        "                                                                      "
-        "    :  '-m' list in monitoring format\n"
-        "       geosched set <param name> [param index] <param value>          "
-        "    :  set the value of an internal state parameter (all names can be "
-        "listed with geosched show param)\n"
-        "       geosched updater {pause|resume}                                "
-        "    :  pause / resume the tree updater\n"
-        "       geosched forcerefresh                                          "
-        "    :  force a refresh of the trees/snapshots\n"
-        "       geosched disabled add <geotag> {<optype>,*} {<scheduling "
-        "subgroup>,*}      :  disable a branch of a subtree for the specified "
-        "group and operation\n"
-        "                                                                      "
-        "            :  multiple branches can be disabled (by successive "
-        "calls) as long as they have no intersection\n"
-        "       geosched disabled rm {<geotag>,*} {<optype>,*} {<scheduling "
-        "subgroup>,*}   :  re-enable a disabled branch for the specified group "
-        "and operation\n"
-        "                                                                      "
-        "            :  when called with <geotag> *, the whole tree(s) are "
-        "re-enabled, canceling all previous disabling\n"
-        "       geosched disabled show {<geotag>,*} {<optype>,*} {<scheduling "
-        "subgroup>,*} :  show list of disabled branches for the specified "
-        "groups and operation\n"
-        "       geosched access setdirect <geotag> <geotag_list>               "
-        "    :  set a mapping between an accesser geotag and a set of target "
-        "geotags\n"
-        "                                                                      "
-        "    :  these mappings specify which geotag can be accessed from which "
-        "geotag without going through a firewall entrypoint\n"
-        "                                                                      "
-        "    :  geotag_list is of the form "
-        "token1::token2,token3::token4::token5,...\n"
-        "       geosched access showdirect [-m]                                "
-        "    :  show mappings between accesser geotags and target geotags\n"
-        "                                                                      "
-        "    :  '-m' list in monitoring format\n"
-        "       geosched access cleardirect {<geotag>|all}                     "
-        "    :  clear a mapping between an accesser geotag and a set of target "
-        "geotags\n"
-        "       geosched access setproxygroup <geotag> <proxygroup>            "
-        "    :  set the proxygroup acting as a firewall entrypoint for the "
-        "given subtree\n"
-        "                                                                      "
-        "    :  if a client accesses a file from a geotag which does not have "
-        "direct access to the subtree the replica is,\n"
-        "                                                                      "
-        "    :  it will be scheduled to access through a node from the given "
-        "proxygroup\n"
-        "       geosched access showproxygroup [-m]                            "
-        "    :  show mappings between accesser geotags and target geotags\n"
-        "                                                                      "
-        "    :  '-m' list in monitoring format\n"
-        "       geosched access clearproxygroup {<geotag>|all}                 "
-        "    :  clear a mapping between an accesser geotag and a set of target "
-        "geotags\n"
-        "\nNote:\n"
-        "       Make sure that geotags contain only alphanumeric segments "
-        "which are no longer than 8 characters, in <tag1>::<tag2>::...::<tagN> "
-        "format.\n");
+    fprintf(stderr, "%s", MakeGeoschedHelp().c_str());
   }
 };
 } // namespace

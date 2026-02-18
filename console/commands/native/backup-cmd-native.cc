@@ -3,13 +3,42 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>
 #include <sys/time.h>
 
 namespace {
+std::string MakeBackupHelp()
+{
+  std::ostringstream oss;
+  oss << "Usage: backup <src_url> <dst_url> [options]\n\n"
+      << "Options:\n"
+      << "  --ctime, --mtime <val>s|m|h|d  use the specified timewindow to "
+         "select entries for backup\n"
+      << "  --excl_xattr val_1[,val_2]...   extended attributes which are not "
+         "enforced and not checked during verification\n";
+  return oss.str();
+}
+
+void ConfigureBackupApp(CLI::App& app,
+                        std::string& ctime,
+                        std::string& mtime,
+                        std::string& excl_xattr)
+{
+  app.name("backup");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeBackupHelp();
+      }));
+  app.add_option("--ctime", ctime, "ctime window");
+  app.add_option("--mtime", mtime, "mtime window");
+  app.add_option("--excl_xattr", excl_xattr, "exclude xattrs");
+}
+
 class BackupCommand : public IConsoleCommand {
 public:
   const char*
@@ -41,17 +70,25 @@ public:
     in_cmd << "mgm.cmd=backup&mgm.backup.src=" << src
            << "&mgm.backup.dst=" << dst;
     // parse optional flags
-    ConsoleArgParser p;
-    p.addOption({"ctime", '\0', true, false, "<val>", "ctime window", ""});
-    p.addOption({"mtime", '\0', true, false, "<val>", "mtime window", ""});
-    p.addOption(
-        {"excl_xattr", '\0', true, false, "<list>", "exclude xattrs", ""});
+    CLI::App app;
+    app.allow_extras();
+    std::string ctime;
+    std::string mtime;
+    std::string excl_xattr;
+    ConfigureBackupApp(app, ctime, mtime, excl_xattr);
     std::vector<std::string> rest;
     if (args.size() > 2)
       rest.assign(args.begin() + 2, args.end());
-    auto r = p.parse(rest);
-    auto append_window = [&](const char* key) {
-      std::string val = r.value(key, "");
+    std::vector<std::string> cli_args = rest;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+    auto append_window = [&](const char* key, const std::string& val) {
       if (val.empty())
         return;
       char last = val.back();
@@ -84,12 +121,12 @@ public:
       in_cmd << "&mgm.backup.ttime=" << key
              << "&mgm.backup.vtime=" << (tv.tv_sec - v * seconds);
     };
-    if (r.has("ctime"))
-      append_window("ctime");
-    if (r.has("mtime"))
-      append_window("mtime");
-    if (r.has("excl_xattr")) {
-      in_cmd << "&mgm.backup.excl_xattr=" << r.value("excl_xattr");
+    if (!ctime.empty())
+      append_window("ctime", ctime);
+    if (!mtime.empty())
+      append_window("mtime", mtime);
+    if (!excl_xattr.empty()) {
+      in_cmd << "&mgm.backup.excl_xattr=" << excl_xattr;
     }
     XrdOucString in = in_cmd.str().c_str();
     global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true);
@@ -98,19 +135,13 @@ public:
   void
   printHelp() const override
   {
-    std::ostringstream oss;
-    oss << "Usage: backup <src_url> <dst_url> [options] " << std::endl
-        << " " << std::endl
-        << " optional arguments: " << std::endl
-        << " --ctime|mtime <val>s|m|h|d use the specified timewindow to select "
-           "entries for backup"
-        << std::endl
-        << " --excl_xattr val_1[,val_2]...[,val_n] extended attributes which "
-           "are not enforced and"
-        << std::endl
-        << "              also not checked during the verification step"
-        << std::endl;
-    fprintf(stderr, "%s", oss.str().c_str());
+    CLI::App app;
+    std::string ctime;
+    std::string mtime;
+    std::string excl_xattr;
+    ConfigureBackupApp(app, ctime, mtime, excl_xattr);
+    const std::string help = app.help();
+    fprintf(stderr, "%s", help.c_str());
   }
 };
 } // namespace

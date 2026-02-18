@@ -4,12 +4,35 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeDfHelp()
+{
+  return "Usage: df [-m|-H|-b] [path]\n\n"
+         "Print unix-like 'df' information (1024 base).\n\n"
+         "Options:\n"
+         "  -m  print in monitoring format\n"
+         "  -H  print human readable in units of 1000\n"
+         "  -b  print raw bytes/number values\n";
+}
+
+void ConfigureDfApp(CLI::App& app)
+{
+  app.name("df");
+  app.description("Get df output");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeDfHelp();
+      }));
+}
+
 // Ported DfHelper from com_proto_df.cc
 class DfHelper : public ICmdHelper {
 public:
@@ -108,16 +131,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage:\n"
-            "df [-m|-H|-b] [path]\n"
-            "'[eos] df ...' print unix like 'df' information (1024 base)\n"
-            "\n"
-            "Options:\n"
-            "\n"
-            "-m : print in monitoring format\n"
-            "-H : print human readable in units of 1000\n"
-            "-b : print raw bytes/number values\n");
+    CLI::App app;
+    ConfigureDfApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

@@ -6,10 +6,34 @@
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <algorithm>
 #include <memory>
 #include <sstream>
+#include <vector>
 
 namespace {
+std::string MakeMkdirHelp()
+{
+  return "Usage: mkdir [-p] <path>\n\n"
+         "Create directory <path>. With -p, create parent directories as needed.\n\n"
+         "Options:\n"
+         "  -p  create parent directories as needed\n";
+}
+
+void ConfigureMkdirApp(CLI::App& app, bool& opt_p, std::string& path)
+{
+  app.name("mkdir");
+  app.description("Create a directory");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeMkdirHelp();
+      }));
+  app.add_flag("-p", opt_p, "create parent directories as needed");
+  app.add_option("path", path, "directory path")->required();
+}
+
 class MkdirCommand : public IConsoleCommand {
 public:
   const char*
@@ -30,33 +54,38 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (args.empty() || args[0] == "--help" || args[0] == "-h") {
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
+    }
+    std::string joined = oss.str();
+    if (args.empty() || wants_help(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-    bool parents = false;
-    size_t idx = 0;
-    if (args[0] == "-p") {
-      parents = true;
-      idx = 1;
-    }
-    std::ostringstream path;
-    for (size_t i = idx; i < args.size(); ++i) {
-      if (i > idx)
-        path << ' ';
-      path << args[i];
-    }
-    std::string p = path.str();
-    if (p.empty()) {
+
+    CLI::App app;
+    bool opt_p = false;
+    std::string path;
+    ConfigureMkdirApp(app, opt_p, path);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
+
     XrdOucString in = "mgm.cmd=mkdir";
-    if (parents)
+    if (opt_p)
       in += "&mgm.option=p";
-    XrdOucString ap = abspath(p.c_str());
+    XrdOucString ap = abspath(path.c_str());
     XrdOucString esc =
         eos::common::StringConversion::curl_escaped(ap.c_str()).c_str();
     in += "&mgm.path=";
@@ -68,8 +97,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage: mkdir -p <path>                                                :  create directory <path>\n");
+    fprintf(stderr, "%s", MakeMkdirHelp().c_str());
   }
 };
 } // namespace

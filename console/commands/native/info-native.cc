@@ -4,7 +4,6 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include "console/ConsoleArgParser.hh"
 #include "console/ConsoleMain.hh"
 #include <memory>
 #include <sstream>

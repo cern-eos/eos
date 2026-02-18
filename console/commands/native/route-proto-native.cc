@@ -6,11 +6,37 @@
 #include "common/StringConversion.hh"
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
+#include <CLI/CLI.hpp>
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <memory>
 #include <sstream>
 
 namespace {
+std::string MakeRouteHelp()
+{
+  return "Usage: route ls|link|unlink [OPTIONS]\n\n"
+         "Namespace routing to redirect clients to external instances.\n\n"
+         "  ls [<path>]\n"
+         "    list all routes or the one matching for the given path\n\n"
+         "  link <path> <dst_host>[:<xrd_port>[:<http_port>]],...\n"
+         "    create routing from path to destination host(s)\n"
+         "    Default ports: xrd 1094, http 8000\n\n"
+         "  unlink <path>\n"
+         "    remove routing matching path\n";
+}
+
+void ConfigureRouteApp(CLI::App& app)
+{
+  app.name("route");
+  app.description("Routing interface");
+  app.set_help_flag("");
+  app.allow_extras();
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeRouteHelp();
+      }));
+}
+
 // Ported from legacy com_proto_route.cc
 class RouteHelper : public ICmdHelper {
 public:
@@ -169,26 +195,9 @@ public:
   void
   printHelp() const override
   {
-    fprintf(
-        stderr,
-        "Usage: route [ls|link|unlink]\n"
-        "    namespace routing to redirect clients to external instances\n"
-        "\n"
-        "  route ls [<path>]\n"
-        "    list all routes or the one matching for the given path\n"
-        "      * as the first character means the node is a master\n"
-        "      _ as the first character means the node is offline\n"
-        "\n"
-        "  route link <path> <dst_host>[:<xrd_port>[:<http_port>]],...\n"
-        "    create routing from <path> to destination host. If the xrd_port\n"
-        "    is omitted the default 1094 is used, if the http_port is omitted\n"
-        "    the default 8000 is used. Several dst_hosts can be specified by\n"
-        "    separating them with \",\". The redirection will go to the MGM\n"
-        "    from the specified list\n"
-        "    e.g route /eos/dummy/ foo.bar:1094:8000\n"
-        "\n"
-        "  route unlink <path>\n"
-        "    remove routing matching path\n");
+    CLI::App app;
+    ConfigureRouteApp(app);
+    fprintf(stderr, "%s", app.help().c_str());
   }
 };
 } // namespace

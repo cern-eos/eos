@@ -4,11 +4,43 @@
 
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
+#include <XrdOuc/XrdOucString.hh>
+#include <algorithm>
 #include <memory>
 #include <sstream>
-#include <string.h>
+#include <vector>
 
 namespace {
+std::string MakeRtlogHelp()
+{
+  return "Usage: rtlog [<queue>|*|.] [<sec>] [<debug>] [filter-word]\n\n"
+         "Real-time logging. Query queue for log lines.\n\n"
+         "  *  query all nodes\n"
+         "  .  query only the connected MGM (default if omitted)\n"
+         "  <sec>  seconds in the past (default 3600)\n"
+         "  <debug>  debug level (default err)\n";
+}
+
+void ConfigureRtlogApp(CLI::App& app,
+                       std::string& queue,
+                       std::string& lines,
+                       std::string& tag,
+                       std::string& filter)
+{
+  app.name("rtlog");
+  app.description("Real-time logging");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeRtlogHelp();
+      }));
+  app.add_option("queue", queue, "queue (*|.|path)")->default_val(".");
+  app.add_option("lines", lines, "seconds in past")->default_val("10");
+  app.add_option("tag", tag, "debug level")->default_val("err");
+  app.add_option("filter", filter, "filter word");
+}
+
 class RtlogCommand : public IConsoleCommand {
 public:
   const char*
@@ -29,35 +61,57 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    if (args.empty() || wants_help(args[0].c_str())) {
+    std::ostringstream oss;
+    for (size_t i = 0; i < args.size(); ++i) {
+      if (i)
+        oss << ' ';
+      oss << args[i];
+    }
+    std::string joined = oss.str();
+    if (args.empty() || wants_help(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-    XrdOucString queue = args.size() > 0 ? args[0].c_str() : "";
-    XrdOucString lines = args.size() > 1 ? args[1].c_str() : "";
-    XrdOucString tag = args.size() > 2 ? args[2].c_str() : "";
-    XrdOucString filter = args.size() > 3 ? args[3].c_str() : "";
-    if (!queue.length()) {
+
+    CLI::App app;
+    std::string queue;
+    std::string lines;
+    std::string tag;
+    std::string filter;
+    ConfigureRtlogApp(app, queue, lines, tag, filter);
+
+    std::vector<std::string> cli_args = args;
+    std::reverse(cli_args.begin(), cli_args.end());
+    try {
+      app.parse(cli_args);
+    } catch (const CLI::ParseError&) {
       printHelp();
       global_retc = EINVAL;
       return 0;
     }
-    if ((queue != ".") && (queue != "*") && (!queue.beginswith("/eos/"))) {
-      filter = tag;
-      tag = lines;
-      lines = queue;
-      queue = ".";
+
+    XrdOucString q = queue.c_str();
+    XrdOucString l = lines.c_str();
+    XrdOucString t = tag.c_str();
+    XrdOucString f = filter.c_str();
+
+    if (!q.length() || (q != "." && q != "*" && !q.beginswith("/eos/"))) {
+      f = t;
+      t = l;
+      l = q;
+      q = ".";
     }
+
     XrdOucString in = "mgm.cmd=rtlog&mgm.rtlog.queue=";
-    in += queue;
+    in += q;
     in += "&mgm.rtlog.lines=";
-    in += (lines.length() ? lines.c_str() : "10");
+    in += (l.length() ? l.c_str() : "10");
     in += "&mgm.rtlog.tag=";
-    in += (tag.length() ? tag.c_str() : "err");
-    if (filter.length()) {
+    in += (t.length() ? t.c_str() : "err");
+    if (f.length()) {
       in += "&mgm.rtlog.filter=";
-      in += filter;
+      in += f;
     }
     global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true);
     return 0;
@@ -65,12 +119,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr,
-            "Usage: rtlog [<queue>|*|.] [<sec in the past>=3600] [<debug>=err] "
-            "[filter-word]\n"
-            "                     - '*' means to query all nodes\n"
-            "                     - '.' means to query only the connected mgm\n"
-            "                     - if the first argument is ommitted '.' is assumed\n");
+    fprintf(stderr, "%s", MakeRtlogHelp().c_str());
   }
 };
 } // namespace
