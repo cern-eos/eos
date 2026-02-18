@@ -730,8 +730,8 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
     }
 
     // We feed the layout size, not the physical on disk!
-    eos_info("msg=\"layout size\" fxid=%08llx disk_size=%zu db_size= %llu",
-             mFileId, statinfo.st_size, mFmd->mProtoFmd.size());
+    eos_info("msg=\"layout size\" fxid=%08llx disk_size=%zu db_size=%llu", mFileId,
+             statinfo.st_size, mFmd->mProtoFmd.size());
     mOpenSize = mFmd->mProtoFmd.size();
     mWritePosition = mOpenSize;
 
@@ -847,7 +847,7 @@ std::uint64_t XrdFstOfsFile::reguleBandwidth(const std::string rw) const{
   auto &app = it.apps();
   auto &uid = it.uids();
   auto &gid = it.gids();
- 
+
   if (rw == "read"){
     if (app.read().contains(vid.app))
       if (app.read().at(vid.app).limit() < scaler)

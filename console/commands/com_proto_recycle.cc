@@ -64,7 +64,7 @@ void com_recycle_help()
       << std::endl
       << "  recycle ls [<date> [<limit>]] [-m] [-n] [--all] [--uid] [--rid <val>] \n"
       << "    list files in the recycle bin\n"
-      << "    <date>      : can be <year>, <year>/<month> or <year>/<month>/<day> or"
+      << "    <date>      : can be <year>, <year>/<month> or <year>/<month>/<day> or\n"
       << "                   <year>/<month>/<day>/<index>\n"
       << "    <limit>     : maximum number of entries to return when listing\n"
       << "                  e.g.: recycle ls 2018/08/12 1000\n"
@@ -85,7 +85,8 @@ void com_recycle_help()
       << "                  and can't be used together with a recycle key\n"
       << "    -k <key>    : purge only the given key\n"
       << std::endl
-      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] <key>\n"
+      << "  recycle restore [-p] [-f|--force-original-name] [-r|--restore-versions] "
+         "<key>\n"
       << "    undo the deletion identified by the recycle <key>\n"
       << "    -p          : create all missing parent directories\n"
       << "    -f          : move deleted files/dirs back to their original location\n"
@@ -99,7 +100,7 @@ void com_recycle_help()
       << "    access to the recycled entries. The recycle id is represented by the\n"
       << "    container id of <path> and is used to construct the recycle path:\n"
       << "    /eos/<instance>/proc/recycle/rid:<cid_value>/2025...\n"
-      << "    ACL val is the usual string representation of ACLs e.g u:1234:rx\n"
+      << "    ACL val is the usual string representation of ACLs e.g u:1234=rx\n"
       << std::endl
       << "  recycle config <key> <value>\n"
       << "    where <key> and <value> need to be one of the following:\n"
