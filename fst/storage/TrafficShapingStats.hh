@@ -19,7 +19,6 @@ public:
   // e.g., SlidingWindowStats(300.0, 0.1) for 5 minutes of history at 100ms ticks
   SlidingWindowStats(double max_history_seconds, double tick_interval_seconds)
       : mTickIntervalSec(tick_interval_seconds)
-      // Calculate required buckets: e.g., 300s / 0.1s = 3000 buckets
       , mHistorySize(std::max(1, static_cast<int>(max_history_seconds / tick_interval_seconds)))
       , mBuffer(mHistorySize, 0)
       , mHead(0)
@@ -46,10 +45,7 @@ public:
       return 0.0;
     }
 
-    // How many buckets make up the requested time window?
     int num_buckets = static_cast<int>(std::round(seconds / mTickIntervalSec));
-
-    // Clamp to valid ranges
     if (num_buckets <= 0) {
       num_buckets = 1;
     }
@@ -59,34 +55,77 @@ public:
 
     uint64_t sum = 0;
     int idx = mHead;
+    int valid_buckets = 0; // Track buckets actually used
 
-    // Walk backwards through the ring
     for (int i = 0; i < num_buckets; ++i) {
-      sum += mBuffer[idx];
+      if (idx == mHead && mBuffer[idx] == 0) {
+        // Skip the current incomplete/empty bucket
+      } else {
+        sum += mBuffer[idx];
+        valid_buckets++;
+      }
 
       if (--idx < 0) {
         idx = mHistorySize - 1;
       }
     }
 
-    // Rate = Total Bytes / Actual Time Window
-    // We use (num_buckets * mTickIntervalSec) instead of 'seconds' to account
-    // for rounding if the requested seconds isn't a perfect multiple of the tick.
-    double actual_window_sec = num_buckets * mTickIntervalSec;
+    if (valid_buckets == 0) {
+      return 0.0;
+    }
+
+    double actual_window_sec = valid_buckets * mTickIntervalSec;
     return static_cast<double>(sum) / actual_window_sec;
   }
 
-  // Optimization: Instant Rate (Last completed tick)
-  double
-  GetInstantRate() const
+  uint64_t
+  GetMax() const
   {
-    int prev = mHead - 1;
-    if (prev < 0) {
-      prev = mHistorySize - 1;
+    uint64_t max_val = 0;
+    for (int i = 0; i < mHistorySize; ++i) {
+      if (i == mHead && mBuffer[i] == 0) {
+        continue;
+      }
+
+      if (mBuffer[i] > max_val) {
+        max_val = mBuffer[i];
+      }
+    }
+    return max_val;
+  }
+
+  uint64_t
+  GetMin() const
+  {
+    uint64_t min_val = UINT64_MAX;
+    for (int i = 0; i < mHistorySize; ++i) {
+      if (i == mHead && mBuffer[i] == 0) {
+        continue;
+      }
+
+      if (mBuffer[i] < min_val) {
+        min_val = mBuffer[i];
+      }
+    }
+    return min_val == UINT64_MAX ? 0 : min_val;
+  }
+
+  double
+  GetMean() const
+  {
+    uint64_t sum = 0;
+    int count = 0;
+
+    for (int i = 0; i < mHistorySize; ++i) {
+      if (i == mHead && mBuffer[i] == 0) {
+        continue;
+      }
+
+      sum += mBuffer[i];
+      count++;
     }
 
-    // Scale the raw bytes in the last fraction-of-a-second bucket up to a full 1s rate
-    return static_cast<double>(mBuffer[prev]) / mTickIntervalSec;
+    return count == 0 ? 0.0 : static_cast<double>(sum) / count;
   }
 
 private:

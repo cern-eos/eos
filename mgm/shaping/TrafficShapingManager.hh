@@ -242,6 +242,52 @@ public:
 
   std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
 
+  // used to store the max loop time in the past 5 seconds for both loops, to help with tuning the tick interval and
+  // ensuring we don't have bottlenecks in the processing loop these sliding windows will be refreshed whenever the
+  // respective loop updates its tick time
+  eos::fst::SlidingWindowStats estimators_update_loop_micro_sec{5.0, 100.0};
+  eos::fst::SlidingWindowStats fst_limits_update_loop_micro_sec{5.0, 100.0};
+
+  void
+  update_fst_limits_update_loop_micro_sec(const uint64_t time_microseconds)
+  {
+    std::unique_lock lock(mMutex);
+    fst_limits_update_loop_micro_sec.Add(time_microseconds);
+    fst_limits_update_loop_micro_sec.Tick();
+  }
+
+  void
+  update_estimators_update_loop_micro_sec(const uint64_t time_microseconds)
+  {
+    std::unique_lock lock(mMutex);
+    estimators_update_loop_micro_sec.Add(time_microseconds);
+    estimators_update_loop_micro_sec.Tick();
+  }
+
+  std::tuple<double, uint64_t, uint64_t>
+  GetEstimatorsUpdateLoopMicroSecStats() const
+  {
+    std::shared_lock lock(mMutex);
+    // mean min max
+    return {
+        estimators_update_loop_micro_sec.GetMean(),
+        estimators_update_loop_micro_sec.GetMin(),
+        estimators_update_loop_micro_sec.GetMax(),
+    };
+  }
+
+  std::tuple<double, uint64_t, uint64_t>
+  GetFstLimitsUpdateLoopMicroSecStats() const
+  {
+    std::shared_lock lock(mMutex);
+    // mean min max
+    return {
+        fst_limits_update_loop_micro_sec.GetMean(),
+        fst_limits_update_loop_micro_sec.GetMin(),
+        fst_limits_update_loop_micro_sec.GetMax(),
+    };
+  }
+
 private:
   // A. The Per-Node Map (NodeID -> StreamKey -> RawCounters)
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
@@ -323,12 +369,44 @@ public:
 
   std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
 
+  uint32_t
+  GetEstimatorsUpdateThreadPeriodMilliseconds() const
+  {
+    return mEstimatorsUpdateThreadPeriodMilliseconds;
+  }
+
+  uint32_t
+  GetFstIoPolicyUpdateThreadPeriodMilliseconds() const
+  {
+    return mFstIoPolicyUpdateThreadPeriodMilliseconds;
+  }
+
+  void
+  SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+  {
+    // Updating the period has significant consequences in the estimators, this is not trivial, we need to completly
+    // reset the stats
+    mEstimatorsUpdateThreadPeriodMilliseconds = period_ms;
+    mBrain->estimators_update_loop_micro_sec =
+        eos::fst::SlidingWindowStats(5.0, mEstimatorsUpdateThreadPeriodMilliseconds);
+  }
+
+  void
+  SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+  {
+    // Updating the period has significant consequences in the estimators, this is not trivial, we need to completly
+    // reset the stats
+    mFstIoPolicyUpdateThreadPeriodMilliseconds = period_ms;
+    mBrain->fst_limits_update_loop_micro_sec =
+        eos::fst::SlidingWindowStats(5.0, mFstIoPolicyUpdateThreadPeriodMilliseconds);
+  }
+
 private:
   //----------------------------------------------------------------------------
   //! The main loop running at 1Hz
   //! Uses sleep_until to ensure drift-free timing.
   //----------------------------------------------------------------------------
-  void TickerLoop(ThreadAssistant&);
+  void EstimatorsUpdate(ThreadAssistant&);
 
   void FstIoPolicyUpdate(ThreadAssistant&);
 
@@ -338,12 +416,14 @@ private:
 
   // --- Members ---
   std::shared_ptr<eos::mgm::TrafficShapingManager> mBrain;
-  AssistedThread mTickerThread;
+
+  AssistedThread mEstimatorsUpdateThread;
   AssistedThread mFstIoPolicyUpdateThread;
 
   std::atomic<bool> mRunning;
 
-  // fifo queue for pair of (id, Shaping::FstIoReport)
+  std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds = 250;
+  std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds = 1000;
 
   // queue for incoming io reports from FST. We don't process these in the message handler to avoid blocking
   // This is used as a double buffering queue for minimum blocking since the lock takes place in the message handler

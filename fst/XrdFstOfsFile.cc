@@ -1089,6 +1089,18 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
               readV, output_init.c_str());
   }
 
+  // TODO use
+  /*
+  float iot = (float)(((closeTime.tv_sec - openTime.tv_sec) * 1000.0) + ((
+                      closeTime.tv_usec - openTime.tv_usec) / 1000.0));
+  float rt = ((rTime.tv_sec * 1000.0) + (rTime.tv_usec / 1000.0));
+  float rvt = ((rvTime.tv_sec * 1000.0) + (rvTime.tv_usec / 1000.0));
+  float wt = ((wTime.tv_sec * 1000.0) + (wTime.tv_usec / 1000.0));
+  float idt = iot - timeToOpen - timeToClose - timeToRead - timeToReadV -
+              timeToWrite;
+  float usage = 100.0 - (100.0 * idt / iot);
+  */
+
   // Copy the XrdOucIOVec structure to XrdCl::ChunkList
   uint32_t total_read = 0;
   XrdCl::ChunkList chunkList;

@@ -105,19 +105,8 @@ TrafficShapingManager::process_report(const Shaping::FstIoReport& report)
       global.bytes_written_accumulator += delta_bytes_written;
       global.read_iops_accumulator += delta_read_iops;
       global.write_iops_accumulator += delta_write_iops;
-
-      // Update Activity Time (Critical for GC)
+      // Used by Garbage Collector
       global.last_activity_time = now;
-
-      eos_static_info("msg=\"updated global stats\" app=\"%s\" uid=%u gid=%u "
-                      "delta_bytes_read=%lu delta_bytes_written=%lu delta_read_iops=%lu delta_write_iops=%lu",
-                      key.app.c_str(),
-                      key.uid,
-                      key.gid,
-                      delta_bytes_read,
-                      delta_bytes_written,
-                      delta_read_iops,
-                      delta_write_iops);
     }
   }
 }
@@ -220,7 +209,10 @@ TrafficShapingManager::ComputeLimitsAndReservations()
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
   auto* app_write_map = fst_io_delay_config.mutable_app_write_delay();
   auto* app_read_map = fst_io_delay_config.mutable_app_read_delay();
-  //
+
+  constexpr uint64_t kMaxDelayUs = 1000000;
+  constexpr int64_t MAX_STEP_US = kMaxDelayUs / 20; // This is sensitive to the thread period, we should recompute.
+
   {
     std::shared_lock lock(mMutex);
     const auto [app_read_rates, app_write_rates] = GetCurrentReadAndWriteRateForApps();
@@ -256,7 +248,6 @@ TrafficShapingManager::ComputeLimitsAndReservations()
           int64_t target_delay = static_cast<int64_t>(static_cast<double>(current_delay) * damped_ratio);
           int64_t delta_us = target_delay - current_delay;
 
-          constexpr int64_t MAX_STEP_US = 5000;
           if (delta_us > MAX_STEP_US) {
             delta_us = MAX_STEP_US;
           } else if (delta_us < -MAX_STEP_US) {
@@ -266,7 +257,6 @@ TrafficShapingManager::ComputeLimitsAndReservations()
           delay_us = static_cast<uint64_t>(current_delay + delta_us);
         }
 
-        constexpr uint64_t kMaxDelayUs = 1000000;
         delay_us = std::min<uint64_t>(kMaxDelayUs, delay_us);
         if (delay_us < 10 && ratio < 1.0) {
           delay_us = 0;
@@ -381,6 +371,11 @@ TrafficShapingEngine::TrafficShapingEngine()
 {
   // Initialize the logic engine
   mBrain = std::make_shared<eos::mgm::TrafficShapingManager>();
+
+  mBrain->estimators_update_loop_micro_sec =
+      eos::fst::SlidingWindowStats(5.0, mEstimatorsUpdateThreadPeriodMilliseconds * 0.001);
+  mBrain->fst_limits_update_loop_micro_sec =
+      eos::fst::SlidingWindowStats(5.0, mFstIoPolicyUpdateThreadPeriodMilliseconds * 0.001);
 }
 
 //------------------------------------------------------------------------------
@@ -400,9 +395,7 @@ TrafficShapingEngine::Start()
 
   mRunning = true;
 
-  // Launch the thread
-  // mTickerThread = std::thread(&TrafficShapingEngine::TickerLoop, this);
-  mTickerThread.reset(&TrafficShapingEngine::TickerLoop, this);
+  mEstimatorsUpdateThread.reset(&TrafficShapingEngine::EstimatorsUpdate, this);
   mFstIoPolicyUpdateThread.reset(&TrafficShapingEngine::FstIoPolicyUpdate, this);
 
   eos_static_info("msg=\"IoStatsEngine started\"");
@@ -419,7 +412,7 @@ TrafficShapingEngine::Stop()
   }
   mRunning = false;
 
-  mTickerThread.join();
+  mEstimatorsUpdateThread.join();
   mFstIoPolicyUpdateThread.join();
 
   eos_static_info("msg=\"IoStatsEngine stopped\"");
@@ -482,7 +475,7 @@ TrafficShapingEngine::ProcessAllQueuedReports()
 // TickerLoop (The Heartbeat)
 //------------------------------------------------------------------------------
 void
-TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
+TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 {
   ThreadAssistant::setSelfThreadName("TrafficShaping TickerLoop");
   eos_static_info("%s", "msg=\"starting IoStatsEngine ticker thread\"");
@@ -498,14 +491,10 @@ TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
   // enough to prevent memory bloat but not so often that it impacts performance. Since GC runs in the same thread, it
   // will delay the next tick if it takes too long. We could also consider running GC in a separate thread if it becomes
   // a bottleneck, but for now we will keep it simple and run it in the ticker thread at a reasonable interval.
-  constexpr int gc_counter_limit = 1000;
+  constexpr int gc_counter_limit = 50;
 
-  const auto tick_interval_milliseconds =
-      std::chrono::milliseconds(static_cast<uint64_t>(MultiWindowRate::tick_interval_seconds * 1000));
   while (!assistant.terminationRequested()) {
-    next_tick += tick_interval_milliseconds;
-
-    // 3. Sleep precisely until that moment (Handles drift)
+    next_tick += std::chrono::milliseconds(mEstimatorsUpdateThreadPeriodMilliseconds);
     std::this_thread::sleep_until(next_tick);
 
     ProcessAllQueuedReports();
@@ -523,7 +512,6 @@ TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
     // print total bytes stats and rates for debugging in info level
 
     if (++gc_counter >= gc_counter_limit) {
-      eos_static_info("msg=\"IoStats GC triggered\" gc_counter=%d", gc_counter);
       gc_counter = 0;
       // Remove streams that haven't been active for a while
       const auto [removed_nodes, removed_node_streams, removed_global_streams] = mBrain->garbage_collect(900);
@@ -538,16 +526,15 @@ TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
     }
 
     auto work_done = std::chrono::steady_clock::now();
-    std::chrono::duration<double> work_duration = work_done - now;
-    double work_ms = work_duration.count() * 1000.0;
+    const auto work_duration_micro_sec = std::chrono::duration_cast<std::chrono::microseconds>(work_done - now).count();
 
-    // eos_static_info("msg=\"IoStats Ticker tick\" duration_ms=%.3f", work_ms);
-
-    // TODO: expose this as a metric in prometheus
-    // Warn if we are using too much of our time budget
-    if (work_ms > static_cast<double>(tick_interval_milliseconds.count()) * 0.1) {
-      eos_static_warning("msg=\"IoStats Ticker is slow\" work_duration_ms=%.3f threshold=200.0", work_ms);
+    if (static_cast<double>(work_duration_micro_sec) >
+        static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.1 * 1000.0) {
+      eos_static_warning("msg=\"IoStats Ticker is slow\" work_duration_ms=%.2f",
+                         static_cast<double>(work_duration_micro_sec) / 1000.0);
     }
+
+    mBrain->update_estimators_update_loop_micro_sec(work_duration_micro_sec);
   }
 }
 
@@ -562,12 +549,30 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant)
   ThreadAssistant::setSelfThreadName("TrafficShaping FstIoPolicyUpdate");
   eos_static_info("%s", "msg=\"starting FstIoPolicyUpdate thread\"");
 
+  auto next_wakeup_time = std::chrono::steady_clock::now();
+
   while (!assistant.terminationRequested()) {
-    // For simplicity, we will just sleep and then call ComputeLimitsAndReservations.
-    // In a real implementation, you might want to use condition variables or other mechanisms to trigger updates
-    // immediately when policies change.
-    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    const auto current_period = std::chrono::milliseconds(mFstIoPolicyUpdateThreadPeriodMilliseconds);
+
+    next_wakeup_time += current_period;
+
+    if (auto now = std::chrono::steady_clock::now(); next_wakeup_time < now) {
+      next_wakeup_time = now;
+    }
+
+    std::this_thread::sleep_until(next_wakeup_time);
+
+    auto work_start_time = std::chrono::steady_clock::now();
+
     mBrain->ComputeLimitsAndReservations();
+
+    auto work_end_time = std::chrono::steady_clock::now();
+    const auto compute_duration_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(work_end_time - work_start_time).count();
+
+    mBrain->update_fst_limits_update_loop_micro_sec(compute_duration_us);
+    eos_static_info("msg=\"FstIoPolicyUpdate loop iteration completed\" duration_ms=%.2f",
+                    static_cast<double>(compute_duration_us) / 1000.0);
   }
 
   eos_static_info("%s", "msg=\"stopping FstIoPolicyUpdate thread\"");

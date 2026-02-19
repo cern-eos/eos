@@ -76,20 +76,21 @@ struct Rates {
 };
 
 Rates
-ExtractWindowRates(const eos::mgm::RateSnapshot& snap, eos::rpc::TrafficShapingRateRequest::Estimators estimator)
+ExtractWindowRates(const eos::mgm::RateSnapshot& snap,
+                   eos::traffic_shaping::TrafficShapingRateRequest::Estimators estimator)
 {
   switch (estimator) {
-  case eos::rpc::TrafficShapingRateRequest::SMA_5_SECONDS:
+  case eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_SECONDS:
     return {snap.read_rate_sma_5s, snap.write_rate_sma_5s, snap.read_iops_sma_5s, snap.write_iops_sma_5s};
-  case eos::rpc::TrafficShapingRateRequest::SMA_1_MINUTES:
+  case eos::traffic_shaping::TrafficShapingRateRequest::SMA_1_MINUTES:
     return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m, snap.write_iops_sma_1m};
-  case eos::rpc::TrafficShapingRateRequest::SMA_5_MINUTES:
+  case eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_MINUTES:
     return {snap.read_rate_sma_5m, snap.write_rate_sma_5m, snap.read_iops_sma_5m, snap.write_iops_sma_5m};
-  case eos::rpc::TrafficShapingRateRequest::EMA_5_SECONDS:
+  case eos::traffic_shaping::TrafficShapingRateRequest::EMA_5_SECONDS:
     return {snap.read_rate_ema_5s, snap.write_rate_ema_5s, snap.read_iops_ema_5s, snap.write_iops_ema_5s};
-  case eos::rpc::TrafficShapingRateRequest::EMA_1_MINUTES:
+  case eos::traffic_shaping::TrafficShapingRateRequest::EMA_1_MINUTES:
     return {snap.read_rate_ema_1m, snap.write_rate_ema_1m, snap.read_iops_ema_1m, snap.write_iops_sma_1m};
-  case eos::rpc::TrafficShapingRateRequest::EMA_5_MINUTES:
+  case eos::traffic_shaping::TrafficShapingRateRequest::EMA_5_MINUTES:
     return {snap.read_rate_ema_5m, snap.write_rate_ema_5m, snap.read_iops_ema_5m, snap.write_iops_ema_5m};
   default:
     return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m, snap.write_iops_sma_1m};
@@ -98,48 +99,56 @@ ExtractWindowRates(const eos::mgm::RateSnapshot& snap, eos::rpc::TrafficShapingR
 
 void
 BuildReport(const std::shared_ptr<TrafficShapingManager>& brain,
-            const eos::rpc::TrafficShapingRateRequest* request,
-            eos::rpc::TrafficShapingRateResponse* report)
+            const eos::traffic_shaping::TrafficShapingRateRequest* request,
+            eos::traffic_shaping::TrafficShapingRateResponse* report)
 {
-  // 1. Snapshot Global State
+  // Snapshot Global State so we don't have to hold locks while processing/sorting
   auto global_stats = brain->GetGlobalStats();
 
-  // Set Timestamp
+  const auto [estimator_mean, estimator_min, estimator_max] = brain->GetEstimatorsUpdateLoopMicroSecStats();
+  const auto [fst_limits_mean, fst_limits_min, fst_limits_max] = brain->GetFstLimitsUpdateLoopMicroSecStats();
+
+  auto* est_stats = report->mutable_estimators_update_thread_loop_stats();
+  est_stats->set_mean_elapsed_time_micro_sec(estimator_mean);
+  est_stats->set_min_elapsed_time_micro_sec(estimator_min);
+  est_stats->set_max_elapsed_time_micro_sec(estimator_max);
+
+  auto* fst_stats = report->mutable_fst_limits_update_thread_loop_stats();
+  fst_stats->set_mean_elapsed_time_micro_sec(fst_limits_mean);
+  fst_stats->set_min_elapsed_time_micro_sec(fst_limits_min);
+  fst_stats->set_max_elapsed_time_micro_sec(fst_limits_max);
+
   int64_t now_ms =
       std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
           .count();
-  // report->set_timestamp_ms(now_ms);
+  report->set_timestamp_ms(now_ms);
 
-  // ---------------------------------------------------------------------------
-  // 2. Parse Request Filters (Dynamic Enums)
-  // ---------------------------------------------------------------------------
   bool do_uid = false, do_gid = false, do_app = false;
-
   if (request->include_types_size() == 0) {
     // Default: Include All if unspecified
     do_uid = do_gid = do_app = true;
   } else {
     for (auto type : request->include_types()) {
-      if (type == eos::rpc::TrafficShapingRateRequest::ENTITY_UID) {
+      if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_UID) {
         do_uid = true;
       }
-      if (type == eos::rpc::TrafficShapingRateRequest::ENTITY_GID) {
+      if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_GID) {
         do_gid = true;
       }
-      if (type == eos::rpc::TrafficShapingRateRequest::ENTITY_APP) {
+      if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_APP) {
         do_app = true;
       }
     }
   }
 
-  // Determine Time Windows to Process
-  std::vector<eos::rpc::TrafficShapingRateRequest::Estimators> estimators;
+  // Determine which estimators to calculate (e.g., 5s SMA, 1m EMA, etc.)
+  std::vector<eos::traffic_shaping::TrafficShapingRateRequest::Estimators> estimators;
   if (request->estimators_size() == 0) {
-    estimators.push_back(eos::rpc::TrafficShapingRateRequest::EMA_1_MINUTES); // Default
+    estimators.push_back(eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_SECONDS);
   } else {
     for (auto w : request->estimators()) {
-      if (w != eos::rpc::TrafficShapingRateRequest::UNSPECIFIED) {
-        estimators.push_back(static_cast<eos::rpc::TrafficShapingRateRequest::Estimators>(w));
+      if (w != eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED) {
+        estimators.push_back(static_cast<eos::traffic_shaping::TrafficShapingRateRequest::Estimators>(w));
       }
     }
   }
@@ -147,9 +156,9 @@ BuildReport(const std::shared_ptr<TrafficShapingManager>& brain,
   // Determine Sorting Window
   // If user asks for [1s, 5m] but wants to sort by 5m trend, they set sort_by_window=5m.
   // Default to the first window in the list.
-  eos::rpc::TrafficShapingRateRequest::Estimators sort_window = estimators[0];
+  eos::traffic_shaping::TrafficShapingRateRequest::Estimators sort_window = estimators[0];
   if (request->has_sort_by_estimator() &&
-      request->sort_by_estimator() != eos::rpc::TrafficShapingRateRequest::UNSPECIFIED) {
+      request->sort_by_estimator() != eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED) {
     sort_window = request->sort_by_estimator();
   }
 
@@ -159,7 +168,7 @@ BuildReport(const std::shared_ptr<TrafficShapingManager>& brain,
   // We need to store rates for ALL requested windows for each entity.
   struct AggregatedEntity {
     uint32_t active_streams = 0;
-    std::map<eos::rpc::TrafficShapingRateRequest::Estimators, Rates> window_rates{};
+    std::map<eos::traffic_shaping::TrafficShapingRateRequest::Estimators, Rates> window_rates{};
   };
 
   std::map<uint32_t, AggregatedEntity> uid_agg;
@@ -383,8 +392,8 @@ class RequestServiceImpl final : public Eos::Service {
 
   Status
   TrafficShapingRate(ServerContext* context,
-                     const eos::rpc::TrafficShapingRateRequest* request,
-                     ServerWriter<eos::rpc::TrafficShapingRateResponse>* writer) override
+                     const eos::traffic_shaping::TrafficShapingRateRequest* request,
+                     ServerWriter<eos::traffic_shaping::TrafficShapingRateResponse>* writer) override
   {
     eos_static_info("msg=\"Monitoring Stream Start\" peer=%s", context->peer().c_str());
 
@@ -393,7 +402,7 @@ class RequestServiceImpl final : public Eos::Service {
     while (!context->IsCancelled()) {
       auto start = std::chrono::steady_clock::now();
 
-      eos::rpc::TrafficShapingRateResponse report;
+      eos::traffic_shaping::TrafficShapingRateResponse report;
       BuildReport(brain, request, &report);
 
       if (!writer->Write(report)) {
