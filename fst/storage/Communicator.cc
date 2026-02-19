@@ -30,14 +30,24 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
 #include "mq/SharedHashWrapper.hh"
+#include "proto/TrafficShaping.pb.h"
 #include "qclient/shared/SharedHashSubscription.hh"
 #include "qclient/structures/QScanner.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
 // Set of keys updates to be tracked at the node level
-std::set<std::string> Storage::sNodeUpdateKeys{"stat.refresh_fs", "manager",          "symkey",   "publish.interval",
-                                               "debug.level",     "error.simulation", "stripexs", "stat.scaler.xyz"};
+std::set<std::string> Storage::sNodeUpdateKeys{
+    "stat.refresh_fs",
+    "manager",
+    "symkey",
+    "publish.interval",
+    "debug.level",
+    "error.simulation",
+    "stripexs",
+    "stat.scaler.xyz",
+    common::FST_TRAFFIC_SHAPING_IO_LIMITS,
+};
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
@@ -175,6 +185,20 @@ void Storage::ScalerCmd(const std::string& data) {
   }
 }
 
+void
+ProcessFstIoLimitsCommand(const std::string& data)
+{
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
+
+  eos_static_info("msg=\"Received new FST IO limits config\" data=\"%s\"", data.c_str());
+  if (!fst_io_delay_config.ParseFromString(data)) {
+    eos_static_err("msg=\"Failed to parse FST IO limits config\"");
+    return;
+  }
+
+  gOFS.mIoDelayConfig.UpdateConfig(std::move(fst_io_delay_config));
+}
+
 //------------------------------------------------------------------------------
 // Process incoming configuration change
 //------------------------------------------------------------------------------
@@ -216,6 +240,8 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
     } catch (const std::exception& e) {
       eos_static_warning("msg=\"invalid PublishInterval value\" value=\"%s\" error=\"%s\"", value.c_str(), e.what());
     }
+  } else if (key == eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS) {
+    ProcessFstIoLimitsCommand(value);
   } else if (key == "debug.level") {
     const std::string& debugLevel = value;
     eos_static_info("msg=\"debug level changed\" new_level=\"%s\"", debugLevel.c_str());

@@ -1,12 +1,14 @@
 #include "mgm/shaping/TrafficShapingManager.hh"
 
+#include "Constants.hh"
 #include "common/Logging.hh"
+#include "fsview/FsView.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
 #include "proto/Shaping.pb.h"
+#include "proto/TrafficShaping.pb.h"
 
 namespace eos::mgm {
-// -----------------------------------------------------------------------------
-// Constructor / Destructor
-// -----------------------------------------------------------------------------
+
 TrafficShapingManager::TrafficShapingManager() = default;
 
 TrafficShapingManager::~TrafficShapingManager() = default;
@@ -18,6 +20,22 @@ double
 TrafficShapingManager::CalculateEma(double current_val, double prev_ema, double alpha)
 {
   return (alpha * current_val) + ((1.0 - alpha) * prev_ema);
+}
+
+std::pair<std::unordered_map<std::string, double>, std::unordered_map<std::string, double>>
+TrafficShapingManager::GetCurrentReadAndWriteRateForApps() const
+{
+  std::shared_lock lock(mMutex);
+
+  std::unordered_map<std::string, double> app_read_rates;
+  std::unordered_map<std::string, double> app_write_rates;
+
+  for (const auto& [key, stats] : mGlobalStats) {
+    app_read_rates[key.app] += stats.read_rate_ema_5s;
+    app_write_rates[key.app] += stats.write_rate_ema_5s;
+  }
+
+  return {app_read_rates, app_write_rates};
 }
 
 // -----------------------------------------------------------------------------
@@ -104,6 +122,15 @@ TrafficShapingManager::process_report(const Shaping::FstIoReport& report)
   }
 }
 
+double
+ComputeEmaAlpha(double window_seconds, double time_delta_seconds)
+{
+  if (time_delta_seconds <= 0.0 || window_seconds <= 0.0) {
+    return 1.0; // Instantly apply new values if time is zero or negative
+  }
+  return (2.0 * time_delta_seconds) / (window_seconds + time_delta_seconds);
+}
+
 // -----------------------------------------------------------------------------
 // Slow Path: Update Time Windows (Called every 1 second)
 // -----------------------------------------------------------------------------
@@ -118,21 +145,14 @@ TrafficShapingManager::UpdateTimeWindows(const double time_delta_seconds)
   std::unique_lock lock(mMutex);
 
   // Constants for 1s ticker
-  constexpr double kAlpha5s = 0.33333333; // ~5 seconds
-  constexpr double kAlpha1m = 0.03278688; // ~60 seconds
-  constexpr double kAlpha5m = 0.00664452; // ~300 seconds
+  double kAlpha5s = ComputeEmaAlpha(5.0, time_delta_seconds);   // ~5 seconds
+  double kAlpha1m = ComputeEmaAlpha(60.0, time_delta_seconds);  // ~60 seconds
+  double kAlpha5m = ComputeEmaAlpha(300.0, time_delta_seconds); // ~300 seconds
 
   // --- Helper Lambda for Zero-Snapping ---
   // If current_rate is 0, we snap the 5s window to 0 to avoid "ghosting".
   // The 1m and 5m windows decay naturally.
   auto update_rate_set = [&](double current_rate, double& r5s, double& r1m, double& r5m) {
-    /*
-    if (current_rate == 0.0) {
-      r5s = 0.0; // Hard Snap
-    } else {
-      r5s = CalculateEma(current_rate, r5s, kAlpha5s);
-    }
-    */
     r5s = CalculateEma(current_rate, r5s, kAlpha5s);
     r1m = CalculateEma(current_rate, r1m, kAlpha1m);
     r5m = CalculateEma(current_rate, r5m, kAlpha5m);
@@ -194,9 +214,78 @@ TrafficShapingManager::UpdateTimeWindows(const double time_delta_seconds)
   }
 }
 
-// -----------------------------------------------------------------------------
-// Monitoring API
-// -----------------------------------------------------------------------------
+void
+TrafficShapingManager::ComputeLimitsAndReservations()
+{
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
+  auto* app_write_map = fst_io_delay_config.mutable_app_write_delay();
+  auto* app_read_map = fst_io_delay_config.mutable_app_read_delay();
+  //
+  {
+    std::shared_lock lock(mMutex);
+    const auto [app_read_rates, app_write_rates] = GetCurrentReadAndWriteRateForApps();
+    // iterate over all apps limits
+    for (const auto& [app, policy] : mAppPolicies) {
+      if (!policy.IsActive()) {
+        continue;
+      }
+
+      if (policy.limit_write_bytes_per_sec > 0) {
+        const double current_rate = app_write_rates.count(app) > 0 ? app_write_rates.at(app) : 0.0;
+        const auto limit = static_cast<double>(policy.limit_write_bytes_per_sec);
+        const double ratio = current_rate / limit;
+
+        uint64_t& delay_us = (*mFstIoDelayConfig.mutable_app_write_delay())[app];
+        eos_static_info("msg=\"evaluating write delay for app\" app=\"%s\" current_rate=%.2f limit=%.2f ratio=%.2f "
+                        "current_delay_us=%lu",
+                        app.c_str(),
+                        current_rate,
+                        limit,
+                        ratio,
+                        delay_us);
+
+        if (delay_us == 0 && ratio > 1.0) {
+          delay_us = 100;
+        } else {
+
+          double kp = (ratio > 1.0) ? 0.15 : 0.05;
+
+          double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
+
+          int64_t current_delay = static_cast<int64_t>(delay_us);
+          int64_t target_delay = static_cast<int64_t>(static_cast<double>(current_delay) * damped_ratio);
+          int64_t delta_us = target_delay - current_delay;
+
+          constexpr int64_t MAX_STEP_US = 5000;
+          if (delta_us > MAX_STEP_US) {
+            delta_us = MAX_STEP_US;
+          } else if (delta_us < -MAX_STEP_US) {
+            delta_us = -MAX_STEP_US;
+          }
+
+          delay_us = static_cast<uint64_t>(current_delay + delta_us);
+        }
+
+        constexpr uint64_t kMaxDelayUs = 1000000;
+        delay_us = std::min<uint64_t>(kMaxDelayUs, delay_us);
+        if (delay_us < 10 && ratio < 1.0) {
+          delay_us = 0;
+        }
+        if (delay_us > 0) {
+          (*app_write_map)[app] = delay_us;
+        }
+      }
+    }
+  }
+
+  for (const auto& [node_name, node_view] : FsView::gFsView.mNodeView) {
+    if (node_view->GetStatus() == "online") {
+      node_view->SetConfigMember(
+          eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS, fst_io_delay_config.SerializeAsString(), true);
+    }
+  }
+}
+
 std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash>
 TrafficShapingManager::GetGlobalStats() const
 {
@@ -314,6 +403,7 @@ TrafficShapingEngine::Start()
   // Launch the thread
   // mTickerThread = std::thread(&TrafficShapingEngine::TickerLoop, this);
   mTickerThread.reset(&TrafficShapingEngine::TickerLoop, this);
+  mFstIoPolicyUpdateThread.reset(&TrafficShapingEngine::FstIoPolicyUpdate, this);
 
   eos_static_info("msg=\"IoStatsEngine started\"");
 }
@@ -327,11 +417,10 @@ TrafficShapingEngine::Stop()
   if (!mRunning) {
     return;
   }
-
   mRunning = false;
 
-  // Wait for thread to finish
   mTickerThread.join();
+  mFstIoPolicyUpdateThread.join();
 
   eos_static_info("msg=\"IoStatsEngine stopped\"");
 }
@@ -411,10 +500,10 @@ TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
   // a bottleneck, but for now we will keep it simple and run it in the ticker thread at a reasonable interval.
   constexpr int gc_counter_limit = 1000;
 
-  // TODO: process incoming messages, otherwise nothing will show up here!
+  const auto tick_interval_milliseconds =
+      std::chrono::milliseconds(static_cast<uint64_t>(MultiWindowRate::tick_interval_seconds * 1000));
   while (!assistant.terminationRequested()) {
-    constexpr auto tick_interval_millis = std::chrono::milliseconds(100);
-    next_tick += tick_interval_millis;
+    next_tick += tick_interval_milliseconds;
 
     // 3. Sleep precisely until that moment (Handles drift)
     std::this_thread::sleep_until(next_tick);
@@ -432,46 +521,6 @@ TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
     mBrain->UpdateTimeWindows(time_delta_seconds);
 
     // print total bytes stats and rates for debugging in info level
-
-    const auto global_stats = mBrain->GetGlobalStats();
-    for (const auto& [key, snap] : global_stats) {
-      eos_static_info("msg=\"global stat entry\" app=\"%s\" uid=%u gid=%u "
-                      "read_rate_ema_5s=%.2f read_rate_ema_1m=%.2f read_rate_ema_5m=%.2f "
-                      "write_rate_ema_5s=%.2f write_rate_ema_1m=%.2f write_rate_ema_5m=%.2f "
-                      "read_iops_ema_5s=%.2f read_iops_ema_1m=%.2f read_iops_ema_5m=%.2f "
-                      "write_iops_ema_5s=%.2f write_iops_ema_1m=%.2f write_iops_ema_5m=%.2f "
-                      "read_rate_sma_5s=%.2f read_rate_sma_1m=%.2f read_rate_sma_5m=%.2f "
-                      "write_rate_sma_5s=%.2f write_rate_sma_1m=%.2f write_rate_sma_5m=%.2f "
-                      "read_iops_sma_5s=%.2f read_iops_sma_1m=%.2f read_iops_sma_5m=%.2f "
-                      "write_iops_sma_5s=%.2f write_iops_sma_1m=%.2f write_iops_sma_5m=%.2f",
-                      key.app.c_str(),
-                      key.uid,
-                      key.gid,
-                      snap.read_rate_ema_5s,
-                      snap.read_rate_ema_1m,
-                      snap.read_rate_ema_5m,
-                      snap.write_rate_ema_5s,
-                      snap.write_rate_ema_1m,
-                      snap.write_rate_ema_5m,
-                      snap.read_iops_ema_5s,
-                      snap.read_iops_ema_1m,
-                      snap.read_iops_ema_5m,
-                      snap.write_iops_ema_5s,
-                      snap.write_iops_ema_1m,
-                      snap.write_iops_ema_5m,
-                      snap.read_rate_sma_5s,
-                      snap.read_rate_sma_1m,
-                      snap.read_rate_sma_5m,
-                      snap.write_rate_sma_5s,
-                      snap.write_rate_sma_1m,
-                      snap.write_rate_sma_5m,
-                      snap.read_iops_sma_5s,
-                      snap.read_iops_sma_1m,
-                      snap.read_iops_sma_5m,
-                      snap.write_iops_sma_5s,
-                      snap.write_iops_sma_1m,
-                      snap.write_iops_sma_5m);
-    }
 
     if (++gc_counter >= gc_counter_limit) {
       eos_static_info("msg=\"IoStats GC triggered\" gc_counter=%d", gc_counter);
@@ -492,11 +541,11 @@ TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
     std::chrono::duration<double> work_duration = work_done - now;
     double work_ms = work_duration.count() * 1000.0;
 
-    eos_static_info("msg=\"IoStats Ticker tick\" duration_ms=%.3f", work_ms);
+    // eos_static_info("msg=\"IoStats Ticker tick\" duration_ms=%.3f", work_ms);
 
     // TODO: expose this as a metric in prometheus
     // Warn if we are using too much of our time budget
-    if (work_ms > tick_interval_millis.count() * 0.1) {
+    if (work_ms > static_cast<double>(tick_interval_milliseconds.count()) * 0.1) {
       eos_static_warning("msg=\"IoStats Ticker is slow\" work_duration_ms=%.3f threshold=200.0", work_ms);
     }
   }
@@ -506,6 +555,23 @@ TrafficShapingEngine::TickerLoop(ThreadAssistant& assistant)
 // -----------------------------------------------------------------------------
 // Shaping Policy API (Configuration)
 // -----------------------------------------------------------------------------
+
+void
+TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant)
+{
+  ThreadAssistant::setSelfThreadName("TrafficShaping FstIoPolicyUpdate");
+  eos_static_info("%s", "msg=\"starting FstIoPolicyUpdate thread\"");
+
+  while (!assistant.terminationRequested()) {
+    // For simplicity, we will just sleep and then call ComputeLimitsAndReservations.
+    // In a real implementation, you might want to use condition variables or other mechanisms to trigger updates
+    // immediately when policies change.
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
+    mBrain->ComputeLimitsAndReservations();
+  }
+
+  eos_static_info("%s", "msg=\"stopping FstIoPolicyUpdate thread\"");
+}
 
 void
 TrafficShapingManager::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy)

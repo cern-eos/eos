@@ -926,9 +926,16 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
 
   //------------------------------------------------------------------------------
   /// This is still in the testing phase and deserves improvement.
+  /*
   std::int64_t sleep_time = reguleBandwidth("read");
   if (sleep_time) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
+  }
+  */
+
+  if (const int64_t sleep_time_micro_sec = gOFS.mIoDelayConfig.GetReadDelayForAppGidUid(vid.app, vid.gid, vid.uid);
+      sleep_time_micro_sec > 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
   //------------------------------------------------------------------------------
 
@@ -1190,9 +1197,18 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   //------------------------------------------------------------------------------
   /// This is still in the testing phase and deserves improvement.
+  /*
   std::int64_t sleep_time = reguleBandwidth("write");
   if (sleep_time) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
+  }
+  */
+
+  eos_static_info("msg=\"write request\" offset=%llu length=%li", fileOffset, buffer_size);
+  if (const int64_t sleep_time_micro_sec = gOFS.mIoDelayConfig.GetWriteDelayForAppGidUid(vid.app, vid.gid, vid.uid);
+      sleep_time_micro_sec > 0) {
+    eos_static_info("msg=\"apply write delay\" delay=%iµs fxid=%08llx", sleep_time_micro_sec, mFileId);
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
   //------------------------------------------------------------------------------
 

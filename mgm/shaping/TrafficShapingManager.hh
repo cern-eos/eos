@@ -5,6 +5,7 @@
 #include "proto/Shaping.pb.h"
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <shared_mutex>
 #include <string>
 #include <thread>
@@ -33,6 +34,9 @@ struct StreamState {
 // Tracks the aggregated speed of a User/App across the entire cluster.
 // 1. Internal State (Keep as is)
 struct MultiWindowRate {
+  inline static double tick_interval_seconds = 0.1;
+  inline static double sma_max_history_seconds = 300.0;
+
   std::atomic<uint64_t> bytes_read_accumulator{0};
   std::atomic<uint64_t> bytes_written_accumulator{0};
   std::atomic<uint64_t> read_iops_accumulator{0};  // Added
@@ -57,10 +61,10 @@ struct MultiWindowRate {
 
   // --- SMA Storage (The Circular Buffers) ---
   // We need one buffer per metric type
-  eos::fst::SlidingWindowStats bytes_read_window;
-  eos::fst::SlidingWindowStats bytes_written_window;
-  eos::fst::SlidingWindowStats iops_read_window;
-  eos::fst::SlidingWindowStats iops_write_window;
+  eos::fst::SlidingWindowStats bytes_read_window{sma_max_history_seconds, tick_interval_seconds};
+  eos::fst::SlidingWindowStats bytes_written_window{sma_max_history_seconds, tick_interval_seconds};
+  eos::fst::SlidingWindowStats iops_read_window{sma_max_history_seconds, tick_interval_seconds};
+  eos::fst::SlidingWindowStats iops_write_window{sma_max_history_seconds, tick_interval_seconds};
 
   // --- SMA Calculated Values (Cached for Snapshot) ---
   double read_rate_sma_5s = 0;
@@ -198,6 +202,8 @@ public:
   // 3. Resets Accumulators.
   void UpdateTimeWindows(double time_delta_seconds);
 
+  void ComputeLimitsAndReservations();
+
   // --- Monitoring API ---
   // Returns a snapshot of the calculated rates for dashboards.
   std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> GetGlobalStats() const;
@@ -249,11 +255,16 @@ private:
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
   std::unordered_map<std::string, TrafficShapingPolicy> mAppPolicies;
 
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig mFstIoDelayConfig;
+
   // Synchronization
   mutable std::shared_mutex mMutex;
 
   // Internal Helper
   static double CalculateEma(double current_val, double prev_ema, double alpha);
+
+  std::pair<std::unordered_map<std::string, double>, std::unordered_map<std::string, double>>
+  GetCurrentReadAndWriteRateForApps() const;
 };
 
 class TrafficShapingEngine {
@@ -319,6 +330,8 @@ private:
   //----------------------------------------------------------------------------
   void TickerLoop(ThreadAssistant&);
 
+  void FstIoPolicyUpdate(ThreadAssistant&);
+
   void AddReportToQueue(const Shaping::FstIoReport& report);
 
   void ProcessAllQueuedReports();
@@ -326,6 +339,8 @@ private:
   // --- Members ---
   std::shared_ptr<eos::mgm::TrafficShapingManager> mBrain;
   AssistedThread mTickerThread;
+  AssistedThread mFstIoPolicyUpdateThread;
+
   std::atomic<bool> mRunning;
 
   // fifo queue for pair of (id, Shaping::FstIoReport)

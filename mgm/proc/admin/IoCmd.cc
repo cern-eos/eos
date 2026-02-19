@@ -671,7 +671,7 @@ MonitorThrottleShow(const eos::console::IoProto_MonitorProto::ThrottleProto::Lis
   }
 
   // TODO: jsonOutput is unused for now
-  const bool jsonOutput = monitor_throttle.json();
+  // const bool jsonOutput = monitor_throttle.json();
 
   /// Display layout
   std_out << std::left << std::setw(W1) << "who" << std::right << std::setw(W2) << "read limit" << std::right
@@ -933,6 +933,15 @@ MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetA
         std_out << "Set app " << app << " " << read_or_write << " limit failed\n";
       }
     }
+    // print policy before and after
+    eos_static_info("Traffic Shaping Policy before: enable %s, read limit %zu bytes/s, write limit %zu bytes/s",
+                    policy_before.is_enabled ? "true" : "false",
+                    policy_before.limit_read_bytes_per_sec,
+                    policy_before.limit_write_bytes_per_sec);
+    eos_static_info("Traffic Shaping Policy after: enable %s, read limit %zu bytes/s, write limit %zu bytes/s",
+                    policy.is_enabled ? "true" : "false",
+                    policy.limit_read_bytes_per_sec,
+                    policy.limit_write_bytes_per_sec);
     if (policy_before != policy) {
       engine.SetAppPolicy(app, policy);
     }

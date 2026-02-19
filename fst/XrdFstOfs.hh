@@ -445,6 +445,7 @@ public:
   std::optional<std::string> ConcatenatedServerRootCA;
   IoAggregateMap ioMap; /// Map for tracking I/O
   fst::IoStatsCollector mIoStatsCollector;
+  fst::IoDelayConfig mIoDelayConfig;
 
 private:
 #ifdef IN_TEST_HARNESS
