@@ -278,12 +278,7 @@ if (NOT CLIENT AND Linux)
 	ioMonitor/src/IoAggregate.cc
   )
 
-  # This is a bit of a hack to allow compilation of the `eos` target without having to build the `EosCliGrpc-Objects` target beforehand.
-  # We should address this better by improving the CMake dependencies so this is not needed.
-  # Related PR: https://gitlab.cern.ch/dss/eos/-/merge_requests/351
-  if(TARGET eos)
-    add_dependencies(EosCommonServer-Objects EosCliGrpc-Objects)
-  endif ()
+  add_dependencies(EosCommonServer-Objects EosGrpcProto-Objects)
 
   target_link_libraries(EosCommonServer-Objects PUBLIC
     qclient
