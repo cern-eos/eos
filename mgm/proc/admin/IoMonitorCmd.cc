@@ -37,7 +37,7 @@ MonitorPolicySet(const eos::console::IoProto_MonitorProto_PolicyAction_SetAction
   }
 
   traffic_shaping::TrafficShapingPolicy policy; // Starts completely empty
-  std::string target_desc;               // For nice output logging
+  std::string target_desc;                      // For nice output logging
 
   // 1. READ (Fetch existing policy if it exists)
   if (set_req.has_app()) {
