@@ -491,7 +491,8 @@ MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetA
   case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kApp: {
     const auto& app = monitor_throttle.app();
     auto policy = TrafficShapingPolicy();
-    if (const auto existing_policy = engine.GetAppPolicy(app); existing_policy.has_value()) {
+    if (const auto existing_policy = engine.GetAppPolicy(app);
+        existing_policy.has_value()) {
       policy = existing_policy.value();
     }
     const auto policy_before = policy;

@@ -81,19 +81,26 @@ ExtractWindowRates(const eos::mgm::RateSnapshot& snap,
 {
   switch (estimator) {
   case eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_SECONDS:
-    return {snap.read_rate_sma_5s, snap.write_rate_sma_5s, snap.read_iops_sma_5s, snap.write_iops_sma_5s};
+    return {snap.read_rate_sma_5s, snap.write_rate_sma_5s, snap.read_iops_sma_5s,
+            snap.write_iops_sma_5s};
   case eos::traffic_shaping::TrafficShapingRateRequest::SMA_1_MINUTES:
-    return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m, snap.write_iops_sma_1m};
+    return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m,
+            snap.write_iops_sma_1m};
   case eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_MINUTES:
-    return {snap.read_rate_sma_5m, snap.write_rate_sma_5m, snap.read_iops_sma_5m, snap.write_iops_sma_5m};
+    return {snap.read_rate_sma_5m, snap.write_rate_sma_5m, snap.read_iops_sma_5m,
+            snap.write_iops_sma_5m};
   case eos::traffic_shaping::TrafficShapingRateRequest::EMA_5_SECONDS:
-    return {snap.read_rate_ema_5s, snap.write_rate_ema_5s, snap.read_iops_ema_5s, snap.write_iops_ema_5s};
+    return {snap.read_rate_ema_5s, snap.write_rate_ema_5s, snap.read_iops_ema_5s,
+            snap.write_iops_ema_5s};
   case eos::traffic_shaping::TrafficShapingRateRequest::EMA_1_MINUTES:
-    return {snap.read_rate_ema_1m, snap.write_rate_ema_1m, snap.read_iops_ema_1m, snap.write_iops_sma_1m};
+    return {snap.read_rate_ema_1m, snap.write_rate_ema_1m, snap.read_iops_ema_1m,
+            snap.write_iops_sma_1m};
   case eos::traffic_shaping::TrafficShapingRateRequest::EMA_5_MINUTES:
-    return {snap.read_rate_ema_5m, snap.write_rate_ema_5m, snap.read_iops_ema_5m, snap.write_iops_ema_5m};
+    return {snap.read_rate_ema_5m, snap.write_rate_ema_5m, snap.read_iops_ema_5m,
+            snap.write_iops_ema_5m};
   default:
-    return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m, snap.write_iops_sma_1m};
+    return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m,
+            snap.write_iops_sma_1m};
   }
 }
 
@@ -105,8 +112,10 @@ BuildReport(const std::shared_ptr<TrafficShaping>& brain,
   // Snapshot Global State so we don't have to hold locks while processing/sorting
   auto global_stats = brain->GetGlobalStats();
 
-  const auto [estimator_mean, estimator_min, estimator_max] = brain->GetEstimatorsUpdateLoopMicroSecStats();
-  const auto [fst_limits_mean, fst_limits_min, fst_limits_max] = brain->GetFstLimitsUpdateLoopMicroSecStats();
+  const auto [estimator_mean, estimator_min, estimator_max] =
+      brain->GetEstimatorsUpdateLoopMicroSecStats();
+  const auto [fst_limits_mean, fst_limits_min, fst_limits_max] =
+      brain->GetFstLimitsUpdateLoopMicroSecStats();
 
   auto* est_stats = report->mutable_estimators_update_thread_loop_stats();
   est_stats->set_mean_elapsed_time_micro_sec(estimator_mean);
@@ -118,9 +127,9 @@ BuildReport(const std::shared_ptr<TrafficShaping>& brain,
   fst_stats->set_min_elapsed_time_micro_sec(fst_limits_min);
   fst_stats->set_max_elapsed_time_micro_sec(fst_limits_max);
 
-  int64_t now_ms =
-      std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch())
-          .count();
+  int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::system_clock::now().time_since_epoch())
+                       .count();
   report->set_timestamp_ms(now_ms);
 
   bool do_uid = false, do_gid = false, do_app = false;
@@ -148,7 +157,8 @@ BuildReport(const std::shared_ptr<TrafficShaping>& brain,
   } else {
     for (auto w : request->estimators()) {
       if (w != eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED) {
-        estimators.push_back(static_cast<eos::traffic_shaping::TrafficShapingRateRequest::Estimators>(w));
+        estimators.push_back(
+            static_cast<eos::traffic_shaping::TrafficShapingRateRequest::Estimators>(w));
       }
     }
   }
@@ -158,7 +168,8 @@ BuildReport(const std::shared_ptr<TrafficShaping>& brain,
   // Default to the first window in the list.
   eos::traffic_shaping::TrafficShapingRateRequest::Estimators sort_window = estimators[0];
   if (request->has_sort_by_estimator() &&
-      request->sort_by_estimator() != eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED) {
+      request->sort_by_estimator() !=
+          eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED) {
     sort_window = request->sort_by_estimator();
   }
 
@@ -168,7 +179,8 @@ BuildReport(const std::shared_ptr<TrafficShaping>& brain,
   // We need to store rates for ALL requested windows for each entity.
   struct AggregatedEntity {
     uint32_t active_streams = 0;
-    std::map<eos::traffic_shaping::TrafficShapingRateRequest::Estimators, Rates> window_rates{};
+    std::map<eos::traffic_shaping::TrafficShapingRateRequest::Estimators, Rates>
+        window_rates{};
   };
 
   std::map<uint32_t, AggregatedEntity> uid_agg;
@@ -226,10 +238,12 @@ BuildReport(const std::shared_ptr<TrafficShaping>& brain,
       double val_a = 0, val_b = 0;
 
       // Safe lookup (rate might not exist for this specific window)
-      if (auto it = a->second.window_rates.find(sort_window); it != a->second.window_rates.end()) {
+      if (auto it = a->second.window_rates.find(sort_window);
+          it != a->second.window_rates.end()) {
         val_a = it->second.total_throughput();
       }
-      if (auto it = b->second.window_rates.find(sort_window); it != b->second.window_rates.end()) {
+      if (auto it = b->second.window_rates.find(sort_window);
+          it != b->second.window_rates.end()) {
         val_b = it->second.total_throughput();
       }
       return val_a > val_b;
@@ -267,17 +281,20 @@ BuildReport(const std::shared_ptr<TrafficShaping>& brain,
   // ---------------------------------------------------------------------------
 
   if (do_uid) {
-    process_stats(uid_agg, [&]() { return report->add_user_stats(); }, [](auto* e, uint32_t id) { e->set_uid(id); });
+    process_stats(
+        uid_agg, [&]() { return report->add_user_stats(); },
+        [](auto* e, uint32_t id) { e->set_uid(id); });
   }
 
   if (do_gid) {
-    process_stats(gid_agg, [&]() { return report->add_group_stats(); }, [](auto* e, uint32_t id) { e->set_gid(id); });
+    process_stats(
+        gid_agg, [&]() { return report->add_group_stats(); },
+        [](auto* e, uint32_t id) { e->set_gid(id); });
   }
 
   if (do_app) {
     process_stats(
-        app_agg,
-        [&]() { return report->add_app_stats(); },
+        app_agg, [&]() { return report->add_app_stats(); },
         [](auto* e, const std::string& id) { e->set_app_name(id); });
   }
 }
@@ -391,9 +408,10 @@ class RequestServiceImpl final : public Eos::Service {
   }
 
   Status
-  TrafficShapingRate(ServerContext* context,
-                     const eos::traffic_shaping::TrafficShapingRateRequest* request,
-                     ServerWriter<eos::traffic_shaping::TrafficShapingRateResponse>* writer) override
+  TrafficShapingRate(
+      ServerContext* context,
+      const eos::traffic_shaping::TrafficShapingRateRequest* request,
+      ServerWriter<eos::traffic_shaping::TrafficShapingRateResponse>* writer) override
   {
     eos_static_info("msg=\"Monitoring Stream Start\" peer=%s", context->peer().c_str());
 

@@ -499,9 +499,10 @@ TrafficShapingEngine::AddReportToQueue(const eos::traffic_shaping::FstIoReport& 
 void
 TrafficShapingEngine::ProcessAllQueuedReports()
 {
-  // We copy the queue to a local variable and clear the main queue under lock, then process the local copy without
-  // holding the lock. This minimizes the time we hold the lock and allows incoming reports to be added to the main
-  // queue while we are processing.
+  // We copy the queue to a local variable and clear the main queue under lock, then
+  // process the local copy without holding the lock. This minimizes the time we hold the
+  // lock and allows incoming reports to be added to the main queue while we are
+  // processing.
   std::vector<eos::traffic_shaping::FstIoReport> local_queue; //
   {
     std::lock_guard lock(mReportQueueMutex);
@@ -528,10 +529,12 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
   auto last_run = std::chrono::steady_clock::now();
 
   int gc_counter = 0;
-  // TODO: measure how expensive garbage collection is and tune this parameter accordingly. We want to run GC often
-  // enough to prevent memory bloat but not so often that it impacts performance. Since GC runs in the same thread, it
-  // will delay the next tick if it takes too long. We could also consider running GC in a separate thread if it becomes
-  // a bottleneck, but for now we will keep it simple and run it in the ticker thread at a reasonable interval.
+  // TODO: measure how expensive garbage collection is and tune this parameter
+  // accordingly. We want to run GC often enough to prevent memory bloat but not so often
+  // that it impacts performance. Since GC runs in the same thread, it will delay the next
+  // tick if it takes too long. We could also consider running GC in a separate thread if
+  // it becomes a bottleneck, but for now we will keep it simple and run it in the ticker
+  // thread at a reasonable interval.
   constexpr int gc_counter_limit = 50;
 
   while (!assistant.terminationRequested()) {

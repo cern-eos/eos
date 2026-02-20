@@ -61,10 +61,14 @@ struct MultiWindowRate {
 
   // --- SMA Storage (The Circular Buffers) ---
   // We need one buffer per metric type
-  eos::fst::SlidingWindowStats bytes_read_window{sma_max_history_seconds, tick_interval_seconds};
-  eos::fst::SlidingWindowStats bytes_written_window{sma_max_history_seconds, tick_interval_seconds};
-  eos::fst::SlidingWindowStats iops_read_window{sma_max_history_seconds, tick_interval_seconds};
-  eos::fst::SlidingWindowStats iops_write_window{sma_max_history_seconds, tick_interval_seconds};
+  eos::fst::SlidingWindowStats bytes_read_window{sma_max_history_seconds,
+                                                 tick_interval_seconds};
+  eos::fst::SlidingWindowStats bytes_written_window{sma_max_history_seconds,
+                                                    tick_interval_seconds};
+  eos::fst::SlidingWindowStats iops_read_window{sma_max_history_seconds,
+                                                tick_interval_seconds};
+  eos::fst::SlidingWindowStats iops_write_window{sma_max_history_seconds,
+                                                 tick_interval_seconds};
 
   // --- SMA Calculated Values (Cached for Snapshot) ---
   double read_rate_sma_5s = 0;
@@ -146,7 +150,8 @@ struct StreamKeyHash {
   operator()(const StreamKey& k) const
   {
     // Combine hashes efficiently
-    return std::hash<std::string>{}(k.app) ^ (std::hash<uint32_t>{}(k.uid) << 1) ^ (std::hash<uint32_t>{}(k.gid) << 2);
+    return std::hash<std::string>{}(k.app) ^ (std::hash<uint32_t>{}(k.uid) << 1) ^
+           (std::hash<uint32_t>{}(k.gid) << 2);
   }
 };
 
@@ -161,8 +166,8 @@ struct TrafficShapingPolicy {
   bool
   IsEmpty() const
   {
-    return limit_write_bytes_per_sec == 0 && limit_read_bytes_per_sec == 0 && reservation_write_bytes_per_sec == 0 &&
-           reservation_read_bytes_per_sec == 0;
+    return limit_write_bytes_per_sec == 0 && limit_read_bytes_per_sec == 0 &&
+           reservation_write_bytes_per_sec == 0 && reservation_read_bytes_per_sec == 0;
   }
 
   bool
@@ -177,7 +182,8 @@ struct TrafficShapingPolicy {
     return limit_write_bytes_per_sec != policy.limit_write_bytes_per_sec ||
            limit_read_bytes_per_sec != policy.limit_read_bytes_per_sec ||
            reservation_write_bytes_per_sec != policy.reservation_write_bytes_per_sec ||
-           reservation_read_bytes_per_sec != policy.reservation_read_bytes_per_sec || is_enabled != policy.is_enabled;
+           reservation_read_bytes_per_sec != policy.reservation_read_bytes_per_sec ||
+           is_enabled != policy.is_enabled;
   }
 };
 
@@ -242,9 +248,10 @@ public:
 
   std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
 
-  // used to store the max loop time in the past 5 seconds for both loops, to help with tuning the tick interval and
-  // ensuring we don't have bottlenecks in the processing loop these sliding windows will be refreshed whenever the
-  // respective loop updates its tick time
+  // used to store the max loop time in the past 5 seconds for both loops, to help with
+  // tuning the tick interval and ensuring we don't have bottlenecks in the processing
+  // loop these sliding windows will be refreshed whenever the respective loop updates its
+  // tick time
   eos::fst::SlidingWindowStats estimators_update_loop_micro_sec{5.0, 100.0};
   eos::fst::SlidingWindowStats fst_limits_update_loop_micro_sec{5.0, 100.0};
 
@@ -309,7 +316,8 @@ private:
   // Internal Helper
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
-  std::pair<std::unordered_map<std::string, double>, std::unordered_map<std::string, double>>
+  std::pair<std::unordered_map<std::string, double>,
+            std::unordered_map<std::string, double>>
   GetCurrentReadAndWriteRateForApps() const;
 };
 
@@ -384,8 +392,8 @@ public:
   void
   SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms)
   {
-    // Updating the period has significant consequences in the estimators, this is not trivial, we need to completly
-    // reset the stats
+    // Updating the period has significant consequences in the estimators, this is not
+    // trivial, we need to completly reset the stats
     mEstimatorsUpdateThreadPeriodMilliseconds = period_ms;
     mBrain->estimators_update_loop_micro_sec =
         eos::fst::SlidingWindowStats(5.0, mEstimatorsUpdateThreadPeriodMilliseconds);
@@ -394,8 +402,8 @@ public:
   void
   SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms)
   {
-    // Updating the period has significant consequences in the estimators, this is not trivial, we need to completly
-    // reset the stats
+    // Updating the period has significant consequences in the estimators, this is not
+    // trivial, we need to completly reset the stats
     mFstIoPolicyUpdateThreadPeriodMilliseconds = period_ms;
     mBrain->fst_limits_update_loop_micro_sec =
         eos::fst::SlidingWindowStats(5.0, mFstIoPolicyUpdateThreadPeriodMilliseconds);
@@ -425,8 +433,9 @@ private:
   std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds = 250;
   std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds = 1000;
 
-  // queue for incoming io reports from FST. We don't process these in the message handler to avoid blocking
-  // This is used as a double buffering queue for minimum blocking since the lock takes place in the message handler
+  // queue for incoming io reports from FST. We don't process these in the message handler
+  // to avoid blocking This is used as a double buffering queue for minimum blocking since
+  // the lock takes place in the message handler
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue;
   std::mutex mReportQueueMutex;
 };

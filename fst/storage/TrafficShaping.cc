@@ -44,7 +44,8 @@ IoStatsCollector::GetEntry(const std::string& app, uint32_t uid, uint32_t gid)
 }
 
 void
-IoStatsCollector::RecordRead(const std::string& app, const uint32_t uid, const uint32_t gid, const size_t bytes)
+IoStatsCollector::RecordRead(const std::string& app, const uint32_t uid,
+                             const uint32_t gid, const size_t bytes)
 {
   const auto entry = GetEntry(app, uid, gid);
 
@@ -54,12 +55,14 @@ IoStatsCollector::RecordRead(const std::string& app, const uint32_t uid, const u
 
   // Update timestamp for cleanup
   const auto now = std::chrono::steady_clock::now().time_since_epoch();
-  entry->last_activity_s.store(std::chrono::duration_cast<std::chrono::seconds>(now).count(),
-                               std::memory_order_relaxed);
+  entry->last_activity_s.store(
+      std::chrono::duration_cast<std::chrono::seconds>(now).count(),
+      std::memory_order_relaxed);
 }
 
 void
-IoStatsCollector::RecordWrite(const std::string& app, const uint32_t uid, const uint32_t gid, const size_t bytes)
+IoStatsCollector::RecordWrite(const std::string& app, const uint32_t uid,
+                              const uint32_t gid, const size_t bytes)
 {
   const auto entry = GetEntry(app, uid, gid);
 
@@ -67,8 +70,9 @@ IoStatsCollector::RecordWrite(const std::string& app, const uint32_t uid, const 
   entry->write_iops.fetch_add(1, std::memory_order_relaxed);
 
   const auto now = std::chrono::steady_clock::now().time_since_epoch();
-  entry->last_activity_s.store(std::chrono::duration_cast<std::chrono::seconds>(now).count(),
-                               std::memory_order_relaxed);
+  entry->last_activity_s.store(
+      std::chrono::duration_cast<std::chrono::seconds>(now).count(),
+      std::memory_order_relaxed);
 }
 
 size_t
@@ -81,7 +85,8 @@ IoStatsCollector::PruneStaleEntries(const int64_t max_idle_seconds)
 
   size_t removed = 0;
   for (auto it = stats_map_.begin(); it != stats_map_.end();) {
-    if (const int64_t idle_time = now_s - it->second->last_activity_s.load(); idle_time > max_idle_seconds) {
+    if (const int64_t idle_time = now_s - it->second->last_activity_s.load();
+        idle_time > max_idle_seconds) {
       // Delete entry. The shared_ptr ensures that if a thread
       // is currently holding this entry in Record(), it won't crash.
       it = stats_map_.erase(it);

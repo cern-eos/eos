@@ -36,14 +36,10 @@ EOSFSTNAMESPACE_BEGIN
 
 // Set of keys updates to be tracked at the node level
 std::set<std::string> Storage::sNodeUpdateKeys{
-    "stat.refresh_fs",
-    "manager",
-    "symkey",
-    "publish.interval",
-    "debug.level",
-    "error.simulation",
-    "stripexs",
-    common::FST_TRAFFIC_SHAPING_IO_LIMITS,
+    "stat.refresh_fs", "manager",
+    "symkey",          "publish.interval",
+    "debug.level",     "error.simulation",
+    "stripexs",        common::FST_TRAFFIC_SHAPING_IO_LIMITS,
 };
 
 //------------------------------------------------------------------------------
