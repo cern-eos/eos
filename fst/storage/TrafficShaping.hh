@@ -229,14 +229,6 @@ public:
         std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>(
             std::move(new_config));
     std::atomic_store_explicit(&mFstIoDelayConfigPtr, new_ptr, std::memory_order_release);
-    // print the new config
-    eos_static_info("msg=\"Updated IoDelayConfig\" app_read_delay_count=%lu "
-                    "app_write_delay_count=%lu "
-                    "gid_read_delay_count=%lu gid_write_delay_count=%lu "
-                    "uid_read_delay_count=%lu uid_write_delay_count=%lu",
-                    new_ptr->app_read_delay().size(), new_ptr->app_write_delay().size(),
-                    new_ptr->gid_read_delay().size(), new_ptr->gid_write_delay().size(),
-                    new_ptr->uid_read_delay().size(), new_ptr->uid_write_delay().size());
   }
 
   uint64_t
