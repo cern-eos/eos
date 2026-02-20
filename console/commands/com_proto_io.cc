@@ -63,8 +63,8 @@ public:
   bool ParseCommand(const char* arg) override;
 
 private:
-  bool ParseMonitorCommand(eos::common::StringTokenizer& tokenizer,
-                           eos::console::IoProto* io);
+  static bool ParseMonitorCommand(eos::common::StringTokenizer& tokenizer,
+                                  eos::console::IoProto* io);
 };
 
 //------------------------------------------------------------------------------

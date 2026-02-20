@@ -12,9 +12,6 @@ TrafficShapingManager::TrafficShapingManager() = default;
 
 TrafficShapingManager::~TrafficShapingManager() = default;
 
-// -----------------------------------------------------------------------------
-// Helper: Exponential Moving Average Calculation
-// -----------------------------------------------------------------------------
 double
 TrafficShapingManager::CalculateEma(double current_val, double prev_ema, double alpha)
 {
@@ -38,11 +35,8 @@ TrafficShapingManager::GetCurrentReadAndWriteRateForApps() const
   return {app_read_rates, app_write_rates};
 }
 
-// -----------------------------------------------------------------------------
-// Fast Path: Process Report from FST
-// -----------------------------------------------------------------------------
 void
-TrafficShapingManager::process_report(const eos::traffic_shaping::FstIoReport& report)
+TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& report)
 {
   const std::string& node_id = report.node_id();
   const time_t now = time(nullptr);
@@ -113,7 +107,7 @@ TrafficShapingManager::process_report(const eos::traffic_shaping::FstIoReport& r
 }
 
 double
-ComputeEmaAlpha(double window_seconds, double time_delta_seconds)
+ComputeEmaAlpha(const double window_seconds, const double time_delta_seconds)
 {
   if (time_delta_seconds <= 0.0 || window_seconds <= 0.0) {
     return 1.0; // Instantly apply new values if time is zero or negative
@@ -126,7 +120,7 @@ ComputeEmaAlpha(double window_seconds, double time_delta_seconds)
 // -----------------------------------------------------------------------------
 
 void
-TrafficShapingManager::UpdateTimeWindows(const double time_delta_seconds)
+TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
 {
   if (time_delta_seconds <= 0.000001) {
     return;
@@ -322,7 +316,7 @@ TrafficShapingManager::GetGlobalStats() const
 }
 
 TrafficShapingManager::GarbageCollectionStats
-TrafficShapingManager::garbage_collect(int max_idle_seconds)
+TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
 {
   std::unique_lock lock(mMutex);
   const time_t now = time(nullptr);
@@ -470,7 +464,7 @@ TrafficShapingEngine::ProcessAllQueuedReports()
     std::swap(mReportQueue, local_queue);
   }
   for (const auto& report : local_queue) {
-    mBrain->process_report(report);
+    mBrain->ProcessReport(report);
   }
 }
 
@@ -512,7 +506,7 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
     const double time_delta_seconds = elapsed.count();
     last_run = now;
 
-    mBrain->UpdateTimeWindows(time_delta_seconds);
+    mBrain->UpdateEstimators(time_delta_seconds);
 
     // print total bytes stats and rates for debugging in info level
 
@@ -520,7 +514,7 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
       gc_counter = 0;
       // Remove streams that haven't been active for a while
       const auto [removed_nodes, removed_node_streams, removed_global_streams] =
-          mBrain->garbage_collect(900);
+          mBrain->GarbageCollect(900);
       // 15 minutes or 3 times longer than the biggest EMA (5m)
 
       if (removed_node_streams > 0 || removed_global_streams > 0) {
@@ -540,7 +534,7 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
                          static_cast<double>(work_duration_micro_sec) / 1000.0);
     }
 
-    mBrain->update_estimators_update_loop_micro_sec(work_duration_micro_sec);
+    mBrain->UpdateEstimatorsLoopMicroSec(work_duration_micro_sec);
   }
 }
 
@@ -574,14 +568,15 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant)
                                                               work_start_time)
             .count();
 
-    mBrain->update_fst_limits_update_loop_micro_sec(compute_duration_us);
+    mBrain->UpdateFstLimitsLoopMicroSec(compute_duration_us);
   }
 
   eos_static_info("%s", "msg=\"stopping FstIoPolicyUpdate thread\"");
 }
 
 void
-TrafficShapingManager::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy)
+TrafficShapingManager::SetUidPolicy(const uint32_t uid,
+                                    const TrafficShapingPolicy& policy)
 {
   // Use unique_lock for writing
   std::unique_lock lock(mMutex);
@@ -589,7 +584,8 @@ TrafficShapingManager::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& po
 }
 
 void
-TrafficShapingManager::SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy)
+TrafficShapingManager::SetGidPolicy(const uint32_t gid,
+                                    const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
   mGidPolicies[gid] = policy;
@@ -611,7 +607,7 @@ TrafficShapingManager::SetAppPolicy(const std::string& app,
 }
 
 void
-TrafficShapingManager::RemoveUidPolicy(uint32_t uid)
+TrafficShapingManager::RemoveUidPolicy(const uint32_t uid)
 {
   std::unique_lock lock(mMutex);
   if (mUidPolicies.erase(uid)) {
@@ -620,7 +616,7 @@ TrafficShapingManager::RemoveUidPolicy(uint32_t uid)
 }
 
 void
-TrafficShapingManager::RemoveGidPolicy(uint32_t gid)
+TrafficShapingManager::RemoveGidPolicy(const uint32_t gid)
 {
   std::unique_lock lock(mMutex);
   if (mGidPolicies.erase(gid)) {
@@ -637,14 +633,9 @@ TrafficShapingManager::RemoveAppPolicy(const std::string& app)
   }
 }
 
-// -----------------------------------------------------------------------------
-// Getters (Return copies for thread safety)
-// -----------------------------------------------------------------------------
-
 std::unordered_map<uint32_t, TrafficShapingPolicy>
 TrafficShapingManager::GetUidPolicies() const
 {
-  // Use shared_lock for reading
   std::shared_lock lock(mMutex);
   return mUidPolicies;
 }
@@ -664,22 +655,20 @@ TrafficShapingManager::GetAppPolicies() const
 }
 
 std::optional<TrafficShapingPolicy>
-TrafficShapingManager::GetUidPolicy(uint32_t uid) const
+TrafficShapingManager::GetUidPolicy(const uint32_t uid) const
 {
   std::shared_lock lock(mMutex);
-  auto it = mUidPolicies.find(uid);
-  if (it != mUidPolicies.end()) {
-    return it->second; // Returns a copy of the single struct
+  if (const auto it = mUidPolicies.find(uid); it != mUidPolicies.end()) {
+    return it->second;
   }
-  return std::nullopt; // Doesn't exist yet
+  return std::nullopt;
 }
 
 std::optional<TrafficShapingPolicy>
-TrafficShapingManager::GetGidPolicy(uint32_t gid) const
+TrafficShapingManager::GetGidPolicy(const uint32_t gid) const
 {
   std::shared_lock lock(mMutex);
-  auto it = mGidPolicies.find(gid);
-  if (it != mGidPolicies.end()) {
+  if (const auto it = mGidPolicies.find(gid); it != mGidPolicies.end()) {
     return it->second;
   }
   return std::nullopt;
@@ -689,101 +678,10 @@ std::optional<TrafficShapingPolicy>
 TrafficShapingManager::GetAppPolicy(const std::string& app) const
 {
   std::shared_lock lock(mMutex);
-  auto it = mAppPolicies.find(app);
-  if (it != mAppPolicies.end()) {
+  if (const auto it = mAppPolicies.find(app); it != mAppPolicies.end()) {
     return it->second;
   }
   return std::nullopt;
 }
 
-// policies for traffic shaping engine
-
-void
-TrafficShapingEngine::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy)
-{
-  if (mBrain) {
-    mBrain->SetUidPolicy(uid, policy);
-  }
 }
-
-void
-TrafficShapingEngine::SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy)
-{
-  if (mBrain) {
-    mBrain->SetGidPolicy(gid, policy);
-  }
-}
-
-void
-TrafficShapingEngine::SetAppPolicy(const std::string& app,
-                                   const TrafficShapingPolicy& policy)
-{
-  if (mBrain) {
-    mBrain->SetAppPolicy(app, policy);
-  }
-}
-
-void
-TrafficShapingEngine::RemoveUidPolicy(uint32_t uid)
-{
-  if (mBrain) {
-    mBrain->RemoveUidPolicy(uid);
-  }
-}
-
-void
-TrafficShapingEngine::RemoveGidPolicy(uint32_t gid)
-{
-  if (mBrain) {
-    mBrain->RemoveGidPolicy(gid);
-  }
-}
-
-void
-TrafficShapingEngine::RemoveAppPolicy(const std::string& app)
-{
-  if (mBrain) {
-    mBrain->RemoveAppPolicy(app);
-  }
-}
-
-std::unordered_map<uint32_t, TrafficShapingPolicy>
-TrafficShapingEngine::GetUidPolicies() const
-{
-  return mBrain ? mBrain->GetUidPolicies()
-                : std::unordered_map<uint32_t, TrafficShapingPolicy>{};
-}
-
-std::unordered_map<uint32_t, TrafficShapingPolicy>
-TrafficShapingEngine::GetGidPolicies() const
-{
-  return mBrain ? mBrain->GetGidPolicies()
-                : std::unordered_map<uint32_t, TrafficShapingPolicy>{};
-}
-
-std::unordered_map<std::string, TrafficShapingPolicy>
-TrafficShapingEngine::GetAppPolicies() const
-{
-  return mBrain ? mBrain->GetAppPolicies()
-                : std::unordered_map<std::string, TrafficShapingPolicy>{};
-}
-
-std::optional<TrafficShapingPolicy>
-TrafficShapingEngine::GetUidPolicy(uint32_t uid) const
-{
-  return mBrain ? mBrain->GetUidPolicy(uid) : std::nullopt;
-}
-
-std::optional<TrafficShapingPolicy>
-TrafficShapingEngine::GetGidPolicy(uint32_t gid) const
-{
-  return mBrain ? mBrain->GetGidPolicy(gid) : std::nullopt;
-}
-
-std::optional<TrafficShapingPolicy>
-TrafficShapingEngine::GetAppPolicy(const std::string& app) const
-{
-  return mBrain ? mBrain->GetAppPolicy(app) : std::nullopt;
-}
-
-} // namespace eos::mgm::traffic_shaping

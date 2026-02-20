@@ -3,6 +3,7 @@
 #include "common/AssistedThread.hh"
 #include "fst/storage/TrafficShaping.hh"
 #include "proto/TrafficShaping.pb.h"
+
 #include <atomic>
 #include <memory>
 #include <optional>
@@ -13,11 +14,7 @@
 #include <vector>
 
 namespace eos::mgm::traffic_shaping {
-// -----------------------------------------------------------------------------
-// 1. Per-Node State (For Delta Calculation)
-// -----------------------------------------------------------------------------
-// Tracks the last raw counter received from a specific FST.
-// Used solely to calculate: Delta = Current_Counter - Last_Counter
+
 struct StreamState {
   uint64_t last_bytes_read = 0;
   uint64_t last_bytes_written = 0;
@@ -28,7 +25,6 @@ struct StreamState {
   time_t last_update_time = 0;
 };
 
-// Group the metrics so we don't repeat them 6 times
 struct RateMetrics {
   double read_rate_bps = 0.0;
   double write_rate_bps = 0.0;
@@ -36,11 +32,9 @@ struct RateMetrics {
   double write_iops = 0.0;
 };
 
-// The actual durations in seconds (used in UpdateTimeWindows math)
 constexpr std::array<int, 2> EmaWindowSec = {1, 5};
 constexpr std::array<int, 4> SmaWindowSec = {1, 5, 60, 300};
 
-// Enums for clean, O(1) array access throughout the codebase
 enum EmaIdx : size_t { Ema1s = 0, Ema5s = 1 };
 enum SmaIdx : size_t { Sma1s = 0, Sma5s = 1, Sma1m = 2, Sma5m = 3 };
 
@@ -84,9 +78,6 @@ struct RateSnapshot {
   time_t last_activity_time = 0;
 };
 
-// -----------------------------------------------------------------------------
-// Keys & Hashes
-// -----------------------------------------------------------------------------
 struct StreamKey {
   std::string app;
   uint32_t uid;
@@ -103,7 +94,6 @@ struct StreamKeyHash {
   std::size_t
   operator()(const StreamKey& k) const
   {
-    // Combine hashes efficiently
     return std::hash<std::string>{}(k.app) ^ (std::hash<uint32_t>{}(k.uid) << 1) ^
            (std::hash<uint32_t>{}(k.gid) << 2);
   }
@@ -141,34 +131,20 @@ struct TrafficShapingPolicy {
   }
 };
 
-// -----------------------------------------------------------------------------
-// Class: TrafficShapingManager
-// -----------------------------------------------------------------------------
 class TrafficShapingManager {
 public:
   TrafficShapingManager();
 
   ~TrafficShapingManager();
 
-  // --- Fast Path (RPC Threads) ---
-  // 1. Looks up NodeState to calculate Delta.
-  // 2. Adds Delta to GlobalStats Accumulator.
-  void process_report(const eos::traffic_shaping::FstIoReport& report);
+  void ProcessReport(const eos::traffic_shaping::FstIoReport& report);
 
-  // --- Slow Path (Background Timer) ---
-  // Called once per second.
-  // 1. Reads Accumulators.
-  // 2. Calculates EMAs (1s, 1m, 5m).
-  // 3. Resets Accumulators.
-  void UpdateTimeWindows(double time_delta_seconds);
+  void UpdateEstimators(double time_delta_seconds);
 
   void ComputeLimitsAndReservations();
 
-  // --- Monitoring API ---
   // Returns a snapshot of the calculated rates for dashboards.
   std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> GetGlobalStats() const;
-
-  // Cleanup old streams
 
   struct GarbageCollectionStats {
     size_t removed_nodes;
@@ -176,7 +152,7 @@ public:
     size_t removed_global_streams;
   };
 
-  GarbageCollectionStats garbage_collect(int max_idle_seconds = 300);
+  GarbageCollectionStats GarbageCollect(int max_idle_seconds = 300);
 
   void SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy);
 
@@ -210,7 +186,7 @@ public:
   eos::fst::SlidingWindowStats fst_limits_update_loop_micro_sec{5.0, 1.0};
 
   void
-  update_fst_limits_update_loop_micro_sec(const uint64_t time_microseconds)
+  UpdateFstLimitsLoopMicroSec(const uint64_t time_microseconds)
   {
     std::unique_lock lock(mMutex);
     fst_limits_update_loop_micro_sec.Add(time_microseconds);
@@ -218,7 +194,7 @@ public:
   }
 
   void
-  update_estimators_update_loop_micro_sec(const uint64_t time_microseconds)
+  UpdateEstimatorsLoopMicroSec(const uint64_t time_microseconds)
   {
     std::unique_lock lock(mMutex);
     estimators_update_loop_micro_sec.Add(time_microseconds);
@@ -229,7 +205,6 @@ public:
   GetEstimatorsUpdateLoopMicroSecStats() const
   {
     std::shared_lock lock(mMutex);
-    // mean min max
     return {
         estimators_update_loop_micro_sec.GetMean(),
         estimators_update_loop_micro_sec.GetMin(),
@@ -241,7 +216,6 @@ public:
   GetFstLimitsUpdateLoopMicroSecStats() const
   {
     std::shared_lock lock(mMutex);
-    // mean min max
     return {
         fst_limits_update_loop_micro_sec.GetMean(),
         fst_limits_update_loop_micro_sec.GetMin(),
@@ -250,24 +224,19 @@ public:
   }
 
 private:
-  // A. The Per-Node Map (NodeID -> StreamKey -> RawCounters)
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
   std::unordered_map<std::string, NodeStateMap> mNodeStates;
 
-  // B. The Global Map (StreamKey -> EMAs)
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
 
-  // Policy map (limits / reservations)
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
   std::unordered_map<std::string, TrafficShapingPolicy> mAppPolicies;
 
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig mFstIoDelayConfig;
 
-  // Synchronization
   mutable std::shared_mutex mMutex;
 
-  // Internal Helper
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
   std::pair<std::unordered_map<std::string, double>,
@@ -277,59 +246,17 @@ private:
 
 class TrafficShapingEngine {
 public:
-  //----------------------------------------------------------------------------
-  //! Constructor
-  //----------------------------------------------------------------------------
   TrafficShapingEngine();
 
-  //----------------------------------------------------------------------------
-  //! Destructor
-  //----------------------------------------------------------------------------
   ~TrafficShapingEngine();
 
-  //----------------------------------------------------------------------------
-  //! Start the background ticker thread
-  //----------------------------------------------------------------------------
   void Start();
 
-  //----------------------------------------------------------------------------
-  //! Stop the background ticker thread
-  //----------------------------------------------------------------------------
   void Stop();
 
-  //----------------------------------------------------------------------------
-  //! Get the Logic Engine (Brain)
-  //!
-  //! This shared pointer should be passed to the gRPC Service so it can
-  //! ingest reports into the same memory this engine is updating.
-  //----------------------------------------------------------------------------
   std::shared_ptr<TrafficShapingManager> GetBrain() const;
 
   void ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report);
-
-  void SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy);
-
-  void SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy);
-
-  void SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy);
-
-  void RemoveUidPolicy(uint32_t uid);
-
-  void RemoveGidPolicy(uint32_t gid);
-
-  void RemoveAppPolicy(const std::string& app);
-
-  std::unordered_map<uint32_t, TrafficShapingPolicy> GetUidPolicies() const;
-
-  std::unordered_map<uint32_t, TrafficShapingPolicy> GetGidPolicies() const;
-
-  std::unordered_map<std::string, TrafficShapingPolicy> GetAppPolicies() const;
-
-  std::optional<TrafficShapingPolicy> GetUidPolicy(uint32_t uid) const;
-
-  std::optional<TrafficShapingPolicy> GetGidPolicy(uint32_t gid) const;
-
-  std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
 
   uint32_t
   GetEstimatorsUpdateThreadPeriodMilliseconds() const
@@ -344,7 +271,7 @@ public:
   }
 
   void
-  SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+  SetEstimatorsUpdateThreadPeriodMilliseconds(const uint32_t period_ms)
   {
     // Updating the period has significant consequences in the estimators, this is not
     // trivial, we need to completely reset the stats
@@ -354,7 +281,7 @@ public:
   }
 
   void
-  SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+  SetFstIoPolicyUpdateThreadPeriodMilliseconds(const uint32_t period_ms)
   {
     // Updating the period has significant consequences in the estimators, this is not
     // trivial, we need to completely reset the stats
@@ -364,10 +291,6 @@ public:
   }
 
 private:
-  //----------------------------------------------------------------------------
-  //! The main loop running at 1Hz
-  //! Uses sleep_until to ensure drift-free timing.
-  //----------------------------------------------------------------------------
   void EstimatorsUpdate(ThreadAssistant&);
 
   void FstIoPolicyUpdate(ThreadAssistant&);
@@ -376,7 +299,6 @@ private:
 
   void ProcessAllQueuedReports();
 
-  // --- Members ---
   std::shared_ptr<TrafficShapingManager> mBrain;
 
   AssistedThread mEstimatorsUpdateThread;
