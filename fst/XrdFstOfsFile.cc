@@ -27,8 +27,11 @@
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
 #include "common/Timing.hh"
+#include "common/WFEClient.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "cta_frontend.grpc.pb.h"
+#include "cta_frontend.pb.h"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
@@ -36,17 +39,12 @@
 #include "fst/layout/Layout.hh"
 #include "fst/layout/LayoutPlugin.hh"
 #include "fst/storage/FileSystem.hh"
-#include "fst/storage/TrafficShapingStats.hh"
+#include "fst/storage/TrafficShaping.hh"
 #include "fst/utils/IoPriority.hh"
 #include "namespace/utils/Etag.hh"
 #include <XrdOss/XrdOssApi.hh>
 #include <XrdOuc/XrdOucPgrwUtils.hh>
-
-// includes for gRPC
 #include <grpc++/grpc++.h>
-#include "cta_frontend.pb.h"
-#include "cta_frontend.grpc.pb.h"
-#include "common/WFEClient.hh"
 
 extern XrdOss* XrdOfsOss;
 
