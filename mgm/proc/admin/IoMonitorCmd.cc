@@ -1,353 +1,317 @@
-//------------------------------------------------------------------------------
-// @file: IoMonitorCmd.cc
-// @author: Luis Antonio Obis Aparicio - CERN
-//------------------------------------------------------------------------------
-
-/************************************************************************
- * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2018 CERN/Switzerland                                  *
- *                                                                      *
- * This program is free software: you can redistribute it and/or modify *
- * it under the terms of the GNU General Public License as published by *
- * the Free Software Foundation, either version 3 of the License, or    *
- * (at your option) any later version.                                  *
- *                                                                      *
- * This program is distributed in the hope that it will be useful,      *
- * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
- * GNU General Public License for more details.                         *
- *                                                                      *
- * You should have received a copy of the GNU General Public License    *
- * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
- ************************************************************************/
-
 #include "IoCmd.hh"
-#include "mgm/iostat/Iostat.hh"
+#include "fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/shaping/TrafficShaping.hh"
-#include "zmq.hpp"
-#include <algorithm>
-#include <iomanip>
-#include <string>
 
-EOSMGMNAMESPACE_BEGIN
+#include <common/CLI11.hpp>
 
-//----------------------------------------------------------------------------
-//! change the number of byte to MB/s (also GB/s|TB/s) string
-//----------------------------------------------------------------------------
-static std::string
-toMega(size_t byte, float iops = 1, size_t precision = 3, bool print = true,
-       bool isTrivial = false)
+#include "proto/ConsoleReply.pb.h"
+#include "proto/Io.pb.h"
+
+std::string
+format_rate(double bytes_per_sec)
 {
-  std::ostringstream os;
-
-  if (byte == 0) {
-    return "0 MB/s";
+  const char* units[] = {"B/s", "kB/s", "MB/s", "GB/s", "TB/s", "PB/s"};
+  int unit_idx = 0;
+  double val = bytes_per_sec;
+  while (val >= 1000.0 && unit_idx < 5) {
+    val /= 1000.0;
+    unit_idx++;
   }
+  std::ostringstream ss;
+  ss << std::fixed << std::setprecision(2) << val << " " << units[unit_idx];
+  return ss.str();
+};
 
-  float finalByte = (static_cast<float>(byte) / 1000000) * iops;
+namespace eos::mgm {
 
-  os << std::fixed << std::setprecision(precision);
-  if (isTrivial) {
-    os << "*";
-  }
-
-  if (print && finalByte >= 1000) {
-    finalByte /= 1000;
-    if (finalByte >= 1000) {
-      finalByte /= 1000;
-      os << std::setprecision(2) << finalByte;
-      os << " TB/s";
-    } else {
-      os << std::setprecision(2) << finalByte;
-      os << " GB/s";
-    }
-  } else if (print) {
-    os << finalByte;
-    os << " MB/s";
-  } else {
-    os << finalByte;
-  }
-
-  return os.str();
-}
-
-//----------------------------------------------------------------------------
-//! Monitor command to display the bandwidth
-//----------------------------------------------------------------------------
 void
-MonitorRatesShow(const eos::console::IoProto_MonitorProto::QueryRates& monitor_show,
+MonitorPolicySet(const eos::console::IoProto_MonitorProto_PolicyAction_SetAction& set_req,
                  eos::console::ReplyProto& reply)
 {
-  std::stringstream std_out;
-
-  bool printApps = monitor_show.apps_only();
-  bool printUids = monitor_show.users_only();
-  bool printGids = monitor_show.groups_only();
-  if (!printApps && !printUids && !printGids) {
-    printApps = printUids = printGids = true;
-  }
-
-  bool jsonOutput = monitor_show.json();
-  bool printStd = false;
-  bool printSize = false;
-
-  // TODO: redo the printing, include json
-}
-
-void
-MonitorThrottleShow(
-    const eos::console::IoProto_MonitorProto::ThrottleProto::ListAction& monitor_throttle,
-    eos::console::ReplyProto& reply)
-{
-  std::stringstream std_out;
-
-  bool printApps = monitor_throttle.apps_only();
-  bool printUids = monitor_throttle.users_only();
-  bool printGids = monitor_throttle.groups_only();
-  if (!printApps && !printUids && !printGids) {
-    printApps = printUids = printGids = true;
-  }
-
-  // TODO: jsonOutput is unused for now
-  const bool jsonOutput = monitor_throttle.json();
-
-  reply.set_std_out(std_out.str());
-}
-
-void
-MonitorThrottleRemove(
-    const eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction&
-        monitor_throttle,
-    eos::console::ReplyProto& reply)
-{
-  std::stringstream std_out;
-
-  // TODO: this should differently for limits / reservations
-  const bool is_read = monitor_throttle.is_read();
-  const std::string read_or_write = is_read ? "read" : "write";
-
-  switch (monitor_throttle.target_case()) {
-  case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kApp: {
-    const auto& app = monitor_throttle.app();
-    // remove
-    break;
-  }
-
-  case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kUser: {
-    const uid_t user = monitor_throttle.user();
-    // remove
-    break;
-  }
-
-  case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kGroup: {
-    const gid_t group = monitor_throttle.group();
-    // remove
-    break;
-  }
-
-  default:
-    // It is good practice to handle the 'TARGET_NOT_SET' or unknown cases
-    std_out << "Error: Target not set or unknown remove action.\n";
-    break;
-  }
-
-  reply.set_std_out(std_out.str());
-}
-
-void
-MonitorThrottleSet(
-    const eos::console::IoProto_MonitorProto::ThrottleProto::SetAction& monitor_throttle,
-    eos::console::ReplyProto& reply)
-{
-  std::stringstream std_out;
-
-  const bool is_read = monitor_throttle.is_read();
-  const auto rate = monitor_throttle.rate_megabytes_per_sec();
-
-  bool is_enable_or_disable = false;
-  bool is_enable = monitor_throttle.enable(); // false if disabled
-
-  switch (monitor_throttle.update_case()) {
-  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::
-      kRateMegabytesPerSec: {
-    if (rate == 0) {
-      std_out << "Invalid rate specified. Rate must be greater than 0.\n";
-      reply.set_std_err(std_out.str());
-      return;
-    }
-    is_enable_or_disable = false;
-    break;
-  }
-
-  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kEnable: {
-    is_enable_or_disable = true;
-    break;
-  }
-
-  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::UPDATE_NOT_SET:
-  default:
-    std_out << "Invalid update field specified. You must specify a rate using '--rate' "
-               "or enable toggle via '--enable' "
-               "or '-disable'.\n";
-    reply.set_std_err(std_out.str());
-    return;
-  }
-
-  const auto type = monitor_throttle.type();
-
-  const bool is_limit =
-      type == eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_LIMIT;
-
-  if (const bool is_reservation =
-          type ==
-          eos::console::IoProto_MonitorProto_ThrottleProto_LimitOrReservation_RESERVATION;
-      !is_limit && !is_reservation) {
-    std_out << "Invalid type specified. Valid types are '--limit' and '--reservation'.\n";
-    reply.set_std_err(std_out.str());
-    return;
-  }
-
-  if (!is_limit) {
-    std_out << "Reservations are not supported yet.\n";
-    reply.set_std_err(std_out.str());
-    return;
-  }
-  // TODO: this should differently for limits / reservations
-
-  const std::string read_or_write = is_read ? "read" : "write";
   auto& engine = gOFS->mTrafficShapingEngine;
-  switch (monitor_throttle.target_case()) {
-  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kApp: {
-    const auto& app = monitor_throttle.app();
-    auto policy = TrafficShapingPolicy();
-    if (const auto existing_policy = engine.GetAppPolicy(app);
-        existing_policy.has_value()) {
-      policy = existing_policy.value();
-    }
-    const auto policy_before = policy;
-
-    if (is_enable_or_disable) {
-      policy.is_enabled = is_enable;
-      std_out << (is_enable ? "Enabling" : "Disabling") << " app " << app << " "
-              << read_or_write << " limit\n";
-    } else {
-      if (read_or_write == "read") {
-        policy.limit_read_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
-      } else {
-        policy.limit_write_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
-      }
-      std_out << "Setting app " << app << " " << read_or_write << " limit to " << rate
-              << " MB/s\n";
-    }
-
-    if (policy_before != policy) {
-      engine.SetAppPolicy(app, policy);
-    }
-    break;
-  }
-
-  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kUser: {
-    const auto& user = monitor_throttle.user();
-    auto policy = TrafficShapingPolicy();
-    if (const auto existing_policy = engine.GetUidPolicy(user);
-        existing_policy.has_value()) {
-      policy = existing_policy.value();
-    }
-    const auto policy_before = policy;
-
-    if (is_enable_or_disable) {
-      policy.is_enabled = is_enable;
-      std_out << (is_enable ? "Enabling" : "Disabling") << " user " << user << " "
-              << read_or_write << " limit\n";
-    } else {
-      if (read_or_write == "read") {
-        policy.limit_read_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
-      } else {
-        policy.limit_write_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
-      }
-      std_out << "Setting user " << user << " " << read_or_write << " limit to " << rate
-              << " MB/s\n";
-    }
-
-    if (policy_before != policy) {
-      engine.SetUidPolicy(user, policy);
-    }
-    break;
-  }
-
-  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kGroup: {
-    const auto& group = monitor_throttle.group();
-    auto policy = TrafficShapingPolicy();
-    if (const auto existing_policy = engine.GetGidPolicy(group);
-        existing_policy.has_value()) {
-      policy = existing_policy.value();
-    }
-    const auto policy_before = policy;
-
-    if (is_enable_or_disable) {
-      policy.is_enabled = is_enable;
-      std_out << (is_enable ? "Enabling" : "Disabling") << " group " << group << " "
-              << read_or_write << " limit\n";
-    } else {
-      if (read_or_write == "read") {
-        policy.limit_read_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
-      } else {
-        policy.limit_write_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
-      }
-      std_out << "Setting group " << group << " " << read_or_write << " limit to " << rate
-              << " MB/s\n";
-    }
-
-    if (policy_before != policy) {
-      engine.SetGidPolicy(group, policy);
-    }
-    break;
-  }
-
-  case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::TARGET_NOT_SET:
-  default:
-    reply.set_std_err(std_out.str());
+  const std::shared_ptr<eos::mgm::TrafficShaping> brain = engine.GetBrain();
+  if (!brain) {
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
     return;
-    break;
   }
 
-  reply.set_std_out(std_out.str());
+  eos::mgm::TrafficShapingPolicy policy; // Starts completely empty
+  std::string target_desc;               // For nice output logging
+
+  // 1. READ (Fetch existing policy if it exists)
+  if (set_req.has_app()) {
+    target_desc = "App '" + set_req.app() + "'";
+    policy =
+        brain->GetAppPolicy(set_req.app()).value_or(eos::mgm::TrafficShapingPolicy{});
+  } else if (set_req.has_uid()) {
+    target_desc = "UID " + std::to_string(set_req.uid());
+    policy =
+        brain->GetUidPolicy(set_req.uid()).value_or(eos::mgm::TrafficShapingPolicy{});
+  } else if (set_req.has_gid()) {
+    target_desc = "GID " + std::to_string(set_req.gid());
+    policy =
+        brain->GetGidPolicy(set_req.gid()).value_or(eos::mgm::TrafficShapingPolicy{});
+  } else {
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: You must specify a target (--app, --uid, or --gid).\n");
+    return;
+  }
+
+  // 2. MODIFY (Apply only the fields the user explicitly provided)
+  if (set_req.has_limit_read_bytes_per_sec()) {
+    policy.limit_read_bytes_per_sec = set_req.limit_read_bytes_per_sec();
+  }
+
+  if (set_req.has_limit_write_bytes_per_sec()) {
+    policy.limit_write_bytes_per_sec = set_req.limit_write_bytes_per_sec();
+  }
+
+  if (set_req.has_reservation_read_bytes_per_sec()) {
+    policy.reservation_read_bytes_per_sec = set_req.reservation_read_bytes_per_sec();
+  }
+
+  if (set_req.has_reservation_write_bytes_per_sec()) {
+    policy.reservation_write_bytes_per_sec = set_req.reservation_write_bytes_per_sec();
+  }
+
+  if (set_req.has_is_enabled()) {
+    policy.is_enabled = set_req.is_enabled();
+  }
+
+  if (set_req.has_app()) {
+    brain->SetAppPolicy(set_req.app(), policy);
+  } else if (set_req.has_uid()) {
+    brain->SetUidPolicy(set_req.uid(), policy);
+  } else if (set_req.has_gid()) {
+    brain->SetGidPolicy(set_req.gid(), policy);
+  }
+
+  reply.set_retc(0);
+  reply.set_std_out("success: Updated shaping policy for " + target_desc + "\n");
 }
 
-//----------------------------------------------------------------------------
-//! Manage monitor subcommand to manage all the commands of io monitor
-//----------------------------------------------------------------------------
+void
+MonitorPolicyDelete(
+    const eos::console::IoProto_MonitorProto_PolicyAction_DeleteAction& del_req,
+    eos::console::ReplyProto& reply)
+{
+  auto& engine = gOFS->mTrafficShapingEngine;
+  const std::shared_ptr<eos::mgm::TrafficShaping> brain = engine.GetBrain();
+  if (!brain) {
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
+    return;
+  }
+
+  std::string target_desc;
+
+  if (del_req.has_app()) {
+    brain->RemoveAppPolicy(del_req.app());
+    target_desc = "App '" + del_req.app() + "'";
+  } else if (del_req.has_uid()) {
+    brain->RemoveUidPolicy(del_req.uid());
+    target_desc = "UID " + std::to_string(del_req.uid());
+  } else if (del_req.has_gid()) {
+    brain->RemoveGidPolicy(del_req.gid());
+    target_desc = "GID " + std::to_string(del_req.gid());
+  } else {
+    reply.set_retc(EINVAL);
+    reply.set_std_err(
+        "error: You must specify a target to delete (--app, --uid, or --gid).\n");
+    return;
+  }
+
+  reply.set_retc(0);
+  reply.set_std_out("success: Deleted shaping policy for " + target_desc + "\n");
+}
+
+void
+MonitorTraffic(const eos::console::IoProto_MonitorProto_TrafficAction& traffic_req,
+               eos::console::ReplyProto& reply)
+{
+  auto& engine = gOFS->mTrafficShapingEngine;
+  const std::shared_ptr<eos::mgm::TrafficShaping> brain = engine.GetBrain();
+  if (!brain) {
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
+    return;
+  }
+
+  auto global_stats = brain->GetGlobalStats();
+
+  // 1. Aggregate the stats based on the requested grouping
+  struct AggregatedStats {
+    double read_rate = 0.0;
+    double write_rate = 0.0;
+    double read_iops = 0.0;
+    double write_iops = 0.0;
+  };
+
+  // Use std::map to automatically sort the output by the grouping key
+  std::map<std::string, AggregatedStats> agg_stats;
+
+  for (const auto& [key, snapshot] : global_stats) {
+    std::string group_key;
+
+    if (traffic_req.show_apps()) {
+      group_key = key.app.empty() ? "<unknown>" : key.app;
+    } else if (traffic_req.show_users()) {
+      group_key = std::to_string(key.uid);
+    } else if (traffic_req.show_groups()) {
+      group_key = std::to_string(key.gid);
+    } else {
+      // Fallback (though CLI11 ensures one is picked)
+      group_key = "app:" + key.app;
+    }
+
+    auto& entry = agg_stats[group_key];
+    entry.read_rate += snapshot.read_rate_sma_5s;
+    entry.write_rate += snapshot.write_rate_sma_5s;
+    entry.read_iops += snapshot.read_iops_sma_5s;
+    entry.write_iops += snapshot.write_iops_sma_5s;
+  }
+
+  std::ostringstream oss;
+
+  std::string header_name = "ID";
+  if (traffic_req.show_apps()) {
+    header_name = "Application";
+  } else if (traffic_req.show_users()) {
+    header_name = "UID";
+  } else if (traffic_req.show_groups()) {
+    header_name = "GID";
+  }
+
+  // Table Header
+  oss << std::left << std::setw(20) << header_name << std::right << std::setw(15)
+      << "Read Rate" << std::setw(15) << "Write Rate" << std::setw(12) << "Read IOPS"
+      << std::setw(12) << "Write IOPS" << "\n";
+
+  oss << std::string(74, '-') << "\n";
+
+  // Table Body
+  for (const auto& [name, stat] : agg_stats) {
+    oss << std::left << std::setw(20) << name << std::right << std::setw(15)
+        << format_rate(stat.read_rate) << std::setw(15) << format_rate(stat.write_rate)
+        << std::fixed << std::setprecision(2) << std::setw(12) << stat.read_iops
+        << std::setw(12) << stat.write_iops << "\n";
+  }
+
+  reply.set_retc(0);
+  reply.set_std_out(oss.str());
+}
+
+void
+MonitorPolicyList(
+    const eos::console::IoProto_MonitorProto_PolicyAction_ListAction& list_req,
+    eos::console::ReplyProto& reply)
+{
+  auto& engine = gOFS->mTrafficShapingEngine;
+  // Note: Match the exact type returned by GetBrain() in your environment
+  const std::shared_ptr<eos::mgm::TrafficShaping> brain = engine.GetBrain();
+  if (!brain) {
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
+    return;
+  }
+
+  bool show_all =
+      !list_req.filter_apps() && !list_req.filter_users() && !list_req.filter_groups();
+  std::ostringstream oss;
+
+  // Reusable table header formatter
+  auto print_header = [&oss](const std::string& title, const std::string& id_col) {
+    oss << "--- " << title << " ---\n";
+    oss << std::left << std::setw(20) << id_col << std::setw(10) << "Status" << std::right
+        << std::setw(15) << "Read Limit" << std::setw(15) << "Write Limit"
+        << std::setw(15) << "Read Rsv." << std::setw(15) << "Write Rsv." << "\n";
+    oss << std::string(90, '-') << "\n";
+  };
+
+  // Reusable table row formatter
+  auto print_row = [&oss](const std::string& id,
+                          const eos::mgm::TrafficShapingPolicy& policy) {
+    oss << std::left << std::setw(20) << id << std::setw(10)
+        << (policy.is_enabled ? "Enabled" : "Disabled") << std::right << std::setw(15)
+        << format_rate(policy.limit_read_bytes_per_sec) << std::setw(15)
+        << format_rate(policy.limit_write_bytes_per_sec) << std::setw(15)
+        << format_rate(policy.reservation_read_bytes_per_sec) << std::setw(15)
+        << format_rate(policy.reservation_write_bytes_per_sec) << "\n";
+  };
+
+  if (show_all || list_req.filter_apps()) {
+    if (auto policies = brain->GetAppPolicies(); !policies.empty()) {
+      print_header("Application Policies", "Application");
+      for (const auto& [app, policy] : policies) {
+        print_row(app, policy);
+      }
+      oss << "\n";
+    }
+  }
+
+  // 2. Users (UID)
+  if (show_all || list_req.filter_users()) {
+    if (auto policies = brain->GetUidPolicies(); !policies.empty()) {
+      print_header("User (UID) Policies", "UID");
+      for (const auto& [uid, policy] : policies) {
+        print_row(std::to_string(uid), policy);
+      }
+      oss << "\n";
+    }
+  }
+
+  // 3. Groups (GID)
+  if (show_all || list_req.filter_groups()) {
+    if (auto policies = brain->GetGidPolicies(); !policies.empty()) {
+      print_header("Group (GID) Policies", "GID");
+      for (const auto& [gid, policy] : policies) {
+        print_row(std::to_string(gid), policy);
+      }
+      oss << "\n";
+    }
+  }
+
+  if (oss.str().empty()) {
+    oss << "No traffic shaping policies configured.\n";
+  }
+
+  reply.set_retc(0);
+  reply.set_std_out(oss.str());
+}
+
 void
 IoCmd::MonitorSubcommand(const eos::console::IoProto_MonitorProto& monitor,
                          eos::console::ReplyProto& reply)
 {
-  eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
+  eos::common::RWMutexWriteLock wr_lock(eos::mgm::FsView::gFsView.ViewMutex);
 
   switch (monitor.subcmd_case()) {
 
-  case eos::console::IoProto_MonitorProto::kShow: {
-    MonitorRatesShow(monitor.show(), reply); // Implement this new method
+  case eos::console::IoProto_MonitorProto::kTraffic: {
+    MonitorTraffic(monitor.traffic(), reply);
     break;
   }
 
-  case eos::console::IoProto_MonitorProto::kThrottle: {
-    switch (monitor.throttle().action_case()) {
-    case eos::console::IoProto_MonitorProto_ThrottleProto::kShow:
-      MonitorThrottleShow(monitor.throttle().show(), reply);
+  case eos::console::IoProto_MonitorProto::kPolicy: {
+
+    switch (const auto& policy = monitor.policy(); policy.subcmd_case()) {
+    case eos::console::IoProto_MonitorProto_PolicyAction::kList:
+      MonitorPolicyList(policy.list(), reply);
       break;
 
-    case eos::console::IoProto_MonitorProto_ThrottleProto::kSet:
-      MonitorThrottleSet(monitor.throttle().set(), reply);
+    case eos::console::IoProto_MonitorProto_PolicyAction::kSet:
+      MonitorPolicySet(policy.set(), reply);
       break;
 
-    case eos::console::IoProto_MonitorProto_ThrottleProto::kRemove:
-      MonitorThrottleRemove(monitor.throttle().remove(), reply);
+    case eos::console::IoProto_MonitorProto_PolicyAction::kDelete:
+      MonitorPolicyDelete(policy.delete_(), reply); // Note the trailing underscore!
       break;
 
     default:
-      reply.set_std_err("Monitor throttle: invalid subcommand");
+      reply.set_retc(EINVAL);
+      reply.set_std_err(
+          "error: Monitor policy: invalid or missing subcommand (list/set/delete).\n");
       break;
     }
     break;
@@ -355,10 +319,11 @@ IoCmd::MonitorSubcommand(const eos::console::IoProto_MonitorProto& monitor,
 
   case eos::console::IoProto_MonitorProto::SUBCMD_NOT_SET:
   default:
+    reply.set_retc(EINVAL);
     reply.set_std_err(
-        "Monitor command: sub-command (show/throttle/window) not specified");
+        "error: Monitor command: sub-command (traffic/policy) not specified.\n");
     break;
   }
 }
 
-EOSMGMNAMESPACE_END
+} // namespace eos::mgm

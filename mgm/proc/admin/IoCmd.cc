@@ -25,9 +25,9 @@
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/shaping/TrafficShaping.hh"
+#include "proto/Io.pb.h"
 #include "zmq.hpp"
-#include <algorithm>
+
 #include <iomanip>
 #include <string>
 

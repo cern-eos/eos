@@ -158,7 +158,6 @@ ProcessFstIoLimitsCommand(const std::string& data)
 {
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
 
-  eos_static_info("msg=\"Received new FST IO limits config\" data=\"%s\"", data.c_str());
   if (!fst_io_delay_config.ParseFromString(data)) {
     eos_static_err("msg=\"Failed to parse FST IO limits config\"");
     return;

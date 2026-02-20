@@ -619,8 +619,6 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant)
             .count();
 
     mBrain->update_fst_limits_update_loop_micro_sec(compute_duration_us);
-    eos_static_info("msg=\"FstIoPolicyUpdate loop iteration completed\" duration_ms=%.2f",
-                    static_cast<double>(compute_duration_us) / 1000.0);
   }
 
   eos_static_info("%s", "msg=\"stopping FstIoPolicyUpdate thread\"");
