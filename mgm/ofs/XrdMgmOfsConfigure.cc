@@ -2292,9 +2292,7 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
                                          space.second->GetConfigMember("scheduler.type"));
     }
   }
-  mIoShaper.startReceiving();
-  mIoShaper.startPublishing();
-  mIoShaper.startShaping();
+
   return NoGo;
 }
 /*----------------------------------------------------------------------------*/

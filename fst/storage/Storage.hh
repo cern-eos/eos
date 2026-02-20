@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #pragma once
+
 #include "common/AssistedThread.hh"
 #include "common/ConcurrentQueue.hh"
 #include "common/FileSystem.hh"
@@ -33,9 +34,8 @@
 #include "fst/Namespace.hh"
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "proto/Shaping.pb.h"
+
 #include <atomic>
-#include <google/protobuf/util/json_util.h>
 #include <list>
 #include <map>
 #include <queue>
@@ -295,9 +295,8 @@ private:
   std::mutex mMutexRegisterFs;
   bool mTriggerRegisterFs{false};
   AssistedThread mFsConfigThread; ///< Thread applying FS config updates
-  //! Trigger automatic drain if S.M.A.R.T. errros detected
+  //! Trigger automatic drain if S.M.A.R.T. errors detected
   bool mDrainOnSmartErr{false};
-  Shaping::Scaler mScaler; ///< Scaler to limit the data flow
 
   //----------------------------------------------------------------------------
   //! Struct modelling a file system configuration update

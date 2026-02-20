@@ -25,7 +25,7 @@
 #include "common/AssistedThread.hh"
 #include "common/Mapping.hh"
 #include "mgm/Namespace.hh"
-#include "mgm/shaping/TrafficShapingManager.hh"
+#include "mgm/shaping/TrafficShaping.hh"
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
 #endif
@@ -56,7 +56,7 @@ private:
   AssistedThread mThread; ///< Thread running GRPC service
 
   //
-  std::shared_ptr<eos::mgm::TrafficShapingManager> mTrafficShapingManager;
+  std::shared_ptr<eos::mgm::TrafficShaping> mTrafficShapingManager;
 
 public:
 

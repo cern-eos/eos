@@ -1,8 +1,8 @@
 #pragma once
 
 #include "common/AssistedThread.hh"
-#include "fst/storage/TrafficShapingStats.hh"
-#include "proto/Shaping.pb.h"
+#include "fst/storage/TrafficShaping.hh"
+#include "proto/TrafficShaping.pb.h"
 #include <atomic>
 #include <memory>
 #include <optional>
@@ -184,16 +184,16 @@ struct TrafficShapingPolicy {
 // -----------------------------------------------------------------------------
 // Class: TrafficShapingManager
 // -----------------------------------------------------------------------------
-class TrafficShapingManager {
+class TrafficShaping {
 public:
-  TrafficShapingManager();
+  TrafficShaping();
 
-  ~TrafficShapingManager();
+  ~TrafficShaping();
 
   // --- Fast Path (RPC Threads) ---
   // 1. Looks up NodeState to calculate Delta.
   // 2. Adds Delta to GlobalStats Accumulator.
-  void process_report(const Shaping::FstIoReport& report);
+  void process_report(const eos::traffic_shaping::FstIoReport& report);
 
   // --- Slow Path (Background Timer) ---
   // Called once per second.
@@ -341,7 +341,7 @@ public:
   //! This shared pointer should be passed to the gRPC Service so it can
   //! ingest reports into the same memory this engine is updating.
   //----------------------------------------------------------------------------
-  std::shared_ptr<eos::mgm::TrafficShapingManager> GetBrain() const;
+  std::shared_ptr<eos::mgm::TrafficShaping> GetBrain() const;
 
   void ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report);
 
@@ -410,12 +410,12 @@ private:
 
   void FstIoPolicyUpdate(ThreadAssistant&);
 
-  void AddReportToQueue(const Shaping::FstIoReport& report);
+  void AddReportToQueue(const eos::traffic_shaping::FstIoReport& report);
 
   void ProcessAllQueuedReports();
 
   // --- Members ---
-  std::shared_ptr<eos::mgm::TrafficShapingManager> mBrain;
+  std::shared_ptr<eos::mgm::TrafficShaping> mBrain;
 
   AssistedThread mEstimatorsUpdateThread;
   AssistedThread mFstIoPolicyUpdateThread;
@@ -427,7 +427,7 @@ private:
 
   // queue for incoming io reports from FST. We don't process these in the message handler to avoid blocking
   // This is used as a double buffering queue for minimum blocking since the lock takes place in the message handler
-  std::vector<Shaping::FstIoReport> mReportQueue;
+  std::vector<eos::traffic_shaping::FstIoReport> mReportQueue;
   std::mutex mReportQueueMutex;
 };
 } // namespace eos::mgm

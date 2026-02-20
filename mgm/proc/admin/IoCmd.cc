@@ -25,7 +25,7 @@
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/proc/ProcInterface.hh"
-#include "mgm/shaping/TrafficShapingManager.hh"
+#include "mgm/shaping/TrafficShaping.hh"
 #include "zmq.hpp"
 #include <algorithm>
 #include <iomanip>
@@ -312,76 +312,6 @@ IoCmd::NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::ReplyProt
 }
 
 //----------------------------------------------------------------------------
-//! Find the number of the '-' char to display
-//----------------------------------------------------------------------------
-static size_t
-findSize(IoBuffer::Summaries& sums, size_t winTime)
-{
-  size_t size = 0;
-
-  IoBuffer::Data data(sums.aggregated().at(winTime));
-  for (auto app : data.apps()) {
-    if (app.first.length() > size) {
-      size = app.first.length();
-    }
-  }
-  for (auto uid : data.uids()) {
-    if (std::to_string(uid.first).length() > size) {
-      size = std::to_string(uid.first).length();
-    }
-  }
-  for (auto gid : data.gids()) {
-    if (std::to_string(gid.first).length() > size) {
-      size = std::to_string(gid.first).length();
-    }
-  }
-
-  return size + 8;
-}
-
-//----------------------------------------------------------------------------
-//! Find the number of the '-' char to display
-//----------------------------------------------------------------------------
-static size_t
-findSize(Limiter& limit)
-{
-  size_t size = 0;
-
-  for (auto app : limit.rApps) {
-    if (app.first.length() > size) {
-      size = app.first.length();
-    }
-  }
-  for (auto app : limit.wApps) {
-    if (app.first.length() > size) {
-      size = app.first.length();
-    }
-  }
-  for (auto uid : limit.rUids) {
-    if (std::to_string(uid.first).length() > size) {
-      size = std::to_string(uid.first).length();
-    }
-  }
-  for (auto uid : limit.wUids) {
-    if (std::to_string(uid.first).length() > size) {
-      size = std::to_string(uid.first).length();
-    }
-  }
-  for (auto gid : limit.rGids) {
-    if (std::to_string(gid.first).length() > size) {
-      size = std::to_string(gid.first).length();
-    }
-  }
-  for (auto gid : limit.wGids) {
-    if (std::to_string(gid.first).length() > size) {
-      size = std::to_string(gid.first).length();
-    }
-  }
-
-  return size + 7;
-}
-
-//----------------------------------------------------------------------------
 //! change the number of byte to MB/s (also GB/s|TB/s) string
 //----------------------------------------------------------------------------
 static std::string
@@ -426,7 +356,7 @@ toMega(size_t byte, float iops = 1, size_t precision = 3, bool print = true, boo
 void
 MonitorRatesShow(const eos::console::IoProto_MonitorProto::QueryRates& monitor_show, eos::console::ReplyProto& reply)
 {
-  std::stringstream ss;
+  std::stringstream std_out;
 
   bool printApps = monitor_show.apps_only();
   bool printUids = monitor_show.users_only();
@@ -439,229 +369,14 @@ MonitorRatesShow(const eos::console::IoProto_MonitorProto::QueryRates& monitor_s
   bool printStd = false;
   bool printSize = false;
 
-  // TODO: get limits or reservations
-
-  IoBuffer::Summaries sums(gOFS->mIoShaper.getShaping());
-  size_t winTime = !sums.aggregated().empty() ? std::min_element(sums.aggregated().begin(),
-                                                                 sums.aggregated().end(),
-                                                                 [](auto& a, auto& b) { return a.first < b.first; })
-                                                    ->first
-                                              : 0;
-
-  /// Handle errors
-  if (sums.aggregated().empty()) {
-    if (jsonOutput == true) {
-      return reply.set_std_out("{}");
-    }
-    return reply.set_std_out("(empty)\n");
-  }
-
-  if (sums.aggregated().find(winTime) == sums.aggregated().end()) {
-    reply.set_std_err("no matching window found " + std::to_string(winTime));
-    return;
-  }
-
-  if (!printApps && !printUids && !printGids) {
-    reply.set_std_err("you cannot select multiple targets");
-    return;
-  }
-
-  const size_t W1 = findSize(sums, winTime);
-  constexpr size_t W2 = 14;
-  constexpr size_t W3 = 7;
-  constexpr size_t W4 = 13;
-
-  ss << "Window := " << winTime << " s" << "\n\n";
-  ss << std::left << std::setw(W1) << "who" << std::right << std::setw(W2) << "read BW" << std::setw(W3) << "limit";
-  if (printStd) {
-    ss << std::setw(W4) << "std";
-  }
-  if (printSize) {
-    ss << std::setw(W3) << "size";
-  }
-  ss << std::setw(W2) << "write BW" << std::setw(W3) << "limit";
-  if (printStd) {
-    ss << std::setw(W4) << "std";
-  }
-  if (printSize) {
-    ss << std::setw(W3) << "size";
-  }
-  ss << std::setw(W2) << "read IOPS" << std::setw(W2) << "write IOPS";
-  ss << '\n';
-
-  size_t size = ((W2 * 5) + W1) + (printSize ? W3 * 2 : 0) + (printStd ? W4 * 2 : 0);
-  while (size--) {
-    ss << "─";
-  }
-  ss << '\n' << std::setprecision(3) << std::fixed;
-
-  IoBuffer::Data data(sums.aggregated().at(winTime));
-  Shaping::Scaler scaler(gOFS->mIoShaper.getScaler());
-
-  if (jsonOutput) {
-    google::protobuf::util::JsonPrintOptions jsonOption;
-    std::string out;
-
-    jsonOption.add_whitespace = true;
-    absl::Status absl;
-    if (!(printApps && printUids && printGids)) {
-      if (printApps) {
-        data.clear_uids();
-        data.clear_gids();
-      } else if (printUids) {
-        data.clear_apps();
-        data.clear_gids();
-      } else if (printGids) {
-        data.clear_apps();
-        data.clear_uids();
-      }
-    }
-    absl = google::protobuf::json::MessageToJsonString(data, &out, jsonOption);
-    if (!absl.ok()) {
-      reply.set_std_err("failed to parse data protobuf object");
-      return;
-    }
-    ss.str("");
-    ss << out;
-  } else {
-    if (printApps) {
-      for (auto app : data.apps()) {
-        auto& appScaler = scaler.apps();
-        ss << std::left << std::setw(W1) << "app (" + app.first + ")" << std::right << std::setw(W2)
-           << toMega(app.second.ravrg(), app.second.riops());
-        /// Read apps
-        if (appScaler.read().find(app.first) != appScaler.read().end()) {
-          ss << std::setprecision(3) << std::setw(2) << (appScaler.read().at(app.first).istrivial() ? " *" : "  ")
-             << std::setw(5) << appScaler.read().at(app.first).limit();
-        } else {
-          ss << std::setw(8) << 1.00;
-        }
-
-        if (printStd) {
-          ss << std::setw(W4) << toMega(app.second.rstd(), app.second.riops());
-        }
-        if (printSize) {
-          ss << std::setw(W3) << app.second.rsize();
-        }
-
-        ss << std::setw(W2) << toMega(app.second.wavrg(), app.second.wiops()) << std::setw(W3);
-
-        /// Write apps
-        if (appScaler.write().find(app.first) != appScaler.write().end()) {
-          ss << std::setprecision(3) << std::setw(2) << (appScaler.write().at(app.first).istrivial() ? " *" : "  ")
-             << std::setw(5) << appScaler.write().at(app.first).limit();
-        } else {
-          ss << std::setw(8) << 1.00;
-        }
-
-        if (printStd) {
-          ss << std::setw(W4) << toMega(app.second.wstd(), app.second.wiops());
-        }
-        if (printSize) {
-          ss << std::setw(W3) << app.second.wsize();
-        }
-
-        ss << std::setw(W2) << app.second.riops() << std::setw(W2) << app.second.wiops() << "\n";
-      }
-    }
-
-    if (printUids) {
-      for (const auto& uid : data.uids()) {
-        auto& uidScaler = scaler.uids();
-        ss << std::left << std::setw(W1) << "uid (" + std::to_string(uid.first) + ")" << std::right << std::setw(W2)
-           << toMega(uid.second.ravrg(), uid.second.riops());
-        /// Read uid
-        if (uidScaler.read().find(uid.first) != uidScaler.read().end()) {
-          ss << std::setprecision(3) << std::setw(2) << (uidScaler.read().at(uid.first).istrivial() ? " *" : "  ")
-             << std::setw(5) << uidScaler.read().at(uid.first).limit();
-        } else {
-          ss << std::setw(8) << 1.00;
-        }
-
-        if (printStd) {
-          ss << std::setw(W4) << toMega(uid.second.rstd(), uid.second.riops());
-        }
-        if (printSize) {
-          ss << std::setw(W3) << uid.second.rsize();
-        }
-
-        ss << std::setw(W2) << toMega(uid.second.wavrg(), uid.second.wiops());
-
-        /// Write uid
-        if (uidScaler.write().find(uid.first) != uidScaler.write().end()) {
-          ss << std::setprecision(3) << std::setw(2) << (uidScaler.write().at(uid.first).istrivial() ? " *" : "  ")
-             << std::setw(5) << uidScaler.write().at(uid.first).limit();
-        } else {
-          ss << std::setw(8) << 1.00;
-        }
-
-        if (printStd) {
-          ss << std::setw(W4) << toMega(uid.second.wstd(), uid.second.wiops());
-        }
-        if (printSize) {
-          ss << std::setw(W3) << uid.second.wsize();
-        }
-
-        ss << std::setw(W2) << uid.second.riops() << std::setw(W2) << uid.second.wiops() << "\n";
-      }
-    }
-
-    if (printGids) {
-      for (auto gid : data.gids()) {
-        auto& gidScaler = scaler.gids();
-        ss << std::left << std::setw(W1) << "gid (" + std::to_string(gid.first) + ")" << std::right << std::setw(W2)
-           << toMega(gid.second.ravrg(), gid.second.riops());
-
-        /// Read gid
-        if (gidScaler.read().find(gid.first) != gidScaler.read().end()) {
-          ss << std::setprecision(3) << std::setw(2) << (gidScaler.read().at(gid.first).istrivial() ? " *" : "  ")
-             << std::setw(5) << std::right << gidScaler.read().at(gid.first).limit();
-        } else {
-          ss << std::setw(8) << 1.00;
-        }
-
-        if (printStd) {
-          ss << std::setw(W4) << toMega(gid.second.rstd(), gid.second.riops());
-        }
-        if (printSize) {
-          ss << std::setw(W3) << gid.second.rsize();
-        }
-
-        ss << std::setw(W2) << toMega(gid.second.wavrg(), gid.second.wiops());
-
-        /// Write gid
-        if (gidScaler.write().find(gid.first) != gidScaler.write().end()) {
-          ss << std::setprecision(3) << std::setw(2) << (gidScaler.write().at(gid.first).istrivial() ? " *" : "  ")
-             << std::setw(5) << gidScaler.write().at(gid.first).limit();
-        } else {
-          ss << std::setw(8) << 1.00;
-        }
-
-        if (printStd) {
-          ss << std::setw(W4) << toMega(gid.second.wstd(), gid.second.wiops());
-        }
-        if (printSize) {
-          ss << std::setw(W3) << gid.second.wsize();
-        }
-
-        ss << std::setw(W2) << gid.second.riops() << std::setw(W2) << gid.second.wiops() << "\n";
-      }
-    }
-  }
-
-  reply.set_std_out(ss.str().c_str());
+  // TODO: redo the printing, include json
 }
 
 void
 MonitorThrottleShow(const eos::console::IoProto_MonitorProto::ThrottleProto::ListAction& monitor_throttle,
                     eos::console::ReplyProto& reply)
 {
-  Limiter limit(gOFS->mIoShaper.getLimiter());
   std::stringstream std_out;
-
-  size_t W1 = findSize(limit);
-  const size_t W2 = 16;
-  const size_t W3 = 8;
 
   bool printApps = monitor_throttle.apps_only();
   bool printUids = monitor_throttle.users_only();
@@ -671,120 +386,7 @@ MonitorThrottleShow(const eos::console::IoProto_MonitorProto::ThrottleProto::Lis
   }
 
   // TODO: jsonOutput is unused for now
-  // const bool jsonOutput = monitor_throttle.json();
-
-  /// Display layout
-  std_out << std::left << std::setw(W1) << "who" << std::right << std::setw(W2) << "read limit" << std::right
-          << std::setw(W3) << "status" << std::right << std::setw(W2) << "write limit" << std::right << std::setw(W3)
-          << "status";
-  std_out << '\n';
-
-  size_t size = W1 + (W2 * 2) + (W3 * 2);
-  while (size--) {
-    std_out << "─";
-  }
-  std_out << '\n' << std::setprecision(3);
-  /// Handle errors
-  if (!printApps && !printUids && !printGids) {
-    reply.set_std_err("you cannot select multiple targets");
-    return;
-  }
-
-  size_t fullSize = limit.rApps.size() + limit.wApps.size() + limit.rGids.size() + limit.wGids.size() +
-                    limit.rUids.size() + limit.wUids.size();
-
-  if (!fullSize) {
-    return reply.set_std_out("(empty)\n");
-  }
-
-  /// Read apps
-  if (printApps) {
-    for (auto app : limit.rApps) {
-      std_out << std::left << std::setw(W1) << ("app (" + app.first + ")") << std::right << std::setw(W2)
-              << (app.second.limit == 0 ? "N/A" : toMega(app.second.limit, 1, 0, true, app.second.isTrivial))
-              << std::right << std::setw(W3) << (app.second.isEnable == 0 ? "off" : "on");
-      if (limit.wApps.find(app.first) != limit.wApps.end()) {
-        auto write = limit.wApps.find(app.first);
-        std_out << std::right << std::setw(W2)
-                << (write->second.limit == 0 ? "N/A" : toMega(write->second.limit, 1, 0, true, app.second.isTrivial))
-                << std::setw(W3) << (write->second.isEnable == 0 ? "off" : "on");
-      } else {
-        std_out << std::right << std::setw(W2) << "N/A" << std::setw(W3) << "off";
-      }
-      std_out << '\n';
-    }
-    /// Write apps
-    for (auto app : limit.wApps) {
-      if (limit.rApps.find(app.first) == limit.rApps.end()) {
-        std_out << std::left << std::setw(W1) << ("app (" + app.first + ")") << std::right << std::setw(W2)
-                << "N/A MB/s" << std::setw(W3) << "off";
-        std_out << std::right << std::setw(W2)
-                << (app.second.limit == 0 ? "N/A" : toMega(app.second.limit, 1, 0, true, app.second.isTrivial))
-                << std::setw(W3) << (app.second.isEnable == 0 ? "off" : "on");
-        std_out << '\n';
-      }
-    }
-  }
-
-  if (printUids) {
-    /// Read uids
-    for (auto uid : limit.rUids) {
-      std_out << std::left << std::setw(W1) << ("uid (" + std::to_string(uid.first) + ")") << std::right
-              << std::setw(W2)
-              << (uid.second.limit == 0 ? "N/A" : toMega(uid.second.limit, 1, 0, true, uid.second.isTrivial))
-              << std::right << std::setw(W3) << (uid.second.isEnable == 0 ? "off" : "on");
-      if (limit.wUids.find(uid.first) != limit.wUids.end()) {
-        auto write = limit.wUids.find(uid.first);
-        std_out << std::right << std::setw(W2)
-                << (write->second.limit == 0 ? "N/A" : toMega(write->second.limit, 1, 0, true, uid.second.isTrivial))
-                << std::setw(W3) << (write->second.isEnable == 0 ? "off" : "on");
-      } else {
-        std_out << std::right << std::setw(W2) << "N/A" << std::setw(W3) << "off";
-      }
-      std_out << '\n';
-    }
-    /// Write uids
-    for (auto uid : limit.wUids) {
-      if (limit.rUids.find(uid.first) == limit.rUids.end()) {
-        std_out << std::left << std::setw(W1) << ("uid (" + std::to_string(uid.first) + ")") << std::right
-                << std::setw(W2) << "N/A" << std::setw(W3) << "off";
-        std_out << std::right << std::setw(W2)
-                << (uid.second.limit == 0 ? "N/A" : toMega(uid.second.limit, 1, 0, true, uid.second.isTrivial))
-                << std::setw(W3) << (uid.second.isEnable == 0 ? "off" : "on");
-        std_out << '\n';
-      }
-    }
-  }
-
-  if (printGids) {
-    /// Read gids
-    for (auto gid : limit.rGids) {
-      std_out << std::left << std::setw(W1) << ("gid (" + std::to_string(gid.first) + ")") << std::right
-              << std::setw(W2)
-              << (gid.second.limit == 0 ? "N/A" : toMega(gid.second.limit, 1, 0, true, gid.second.isTrivial))
-              << std::right << std::setw(W3) << (gid.second.isEnable == 0 ? "off" : "on");
-      if (limit.wGids.find(gid.first) != limit.wGids.end()) {
-        auto write = limit.wGids.find(gid.first);
-        std_out << std::right << std::setw(W2)
-                << (write->second.limit == 0 ? "N/A" : toMega(write->second.limit, 1, 0, true, gid.second.isTrivial))
-                << std::setw(W3) << (write->second.isEnable == 0 ? "off" : "on");
-      } else {
-        std_out << std::right << std::setw(W2) << "N/A" << std::setw(W3) << "off";
-      }
-      std_out << '\n';
-    }
-    /// Write gids
-    for (auto gid : limit.wGids) {
-      if (limit.rGids.find(gid.first) == limit.rGids.end()) {
-        std_out << std::left << std::setw(W1) << ("gid (" + std::to_string(gid.first) + ")") << std::right
-                << std::setw(W2) << "N/A" << std::setw(W3) << (gid.second.isEnable == 0 ? "off" : "on");
-        std_out << std::right << std::setw(W2)
-                << (gid.second.limit == 0 ? "N/A" : toMega(gid.second.limit, 1, 0, true, gid.second.isTrivial))
-                << std::setw(W3) << (gid.second.isEnable == 0 ? "off" : "on");
-        std_out << '\n';
-      }
-    }
-  }
+  const bool jsonOutput = monitor_throttle.json();
 
   reply.set_std_out(std_out.str());
 }
@@ -793,7 +395,6 @@ void
 MonitorThrottleRemove(const eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction& monitor_throttle,
                       eos::console::ReplyProto& reply)
 {
-  Limiter limit(gOFS->mIoShaper.getLimiter());
   std::stringstream std_out;
 
   // TODO: this should differently for limits / reservations
@@ -803,31 +404,19 @@ MonitorThrottleRemove(const eos::console::IoProto_MonitorProto::ThrottleProto::R
   switch (monitor_throttle.target_case()) {
   case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kApp: {
     const auto& app = monitor_throttle.app();
-    if (gOFS->mIoShaper.rmLimit(app, read_or_write)) {
-      std_out << "App " << app << " set successfully removed\n";
-    } else {
-      std_out << "Remove app " << app << " failed\n";
-    }
+    // remove
     break;
   }
 
   case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kUser: {
     const uid_t user = monitor_throttle.user();
-    if (gOFS->mIoShaper.rmLimit(io::TYPE::UID, user, read_or_write)) {
-      std_out << "User " << user << " set successfully removed\n";
-    } else {
-      std_out << "Remove user " << user << " failed\n";
-    }
+    // remove
     break;
   }
 
   case eos::console::IoProto_MonitorProto::ThrottleProto::RemoveAction::kGroup: {
     const gid_t group = monitor_throttle.group();
-    if (gOFS->mIoShaper.rmLimit(io::TYPE::GID, group, read_or_write)) {
-      std_out << "Group " << group << " set successfully removed\n";
-    } else {
-      std_out << "Remove group " << group << " failed\n";
-    }
+    // remove
     break;
   }
 
@@ -844,8 +433,6 @@ void
 MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetAction& monitor_throttle,
                    eos::console::ReplyProto& reply)
 {
-  Limiter limit(gOFS->mIoShaper.getLimiter());
-
   std::stringstream std_out;
 
   const bool is_read = monitor_throttle.is_read();
@@ -907,41 +494,22 @@ MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetA
     if (const auto existing_policy = engine.GetAppPolicy(app); existing_policy.has_value()) {
       policy = existing_policy.value();
     }
-    auto policy_before = policy;
+    const auto policy_before = policy;
 
     if (is_enable_or_disable) {
-      status = gOFS->mIoShaper.setStatus(app, read_or_write, is_enable);
-
       policy.is_enabled = is_enable;
-
-      if (status) {
-        std_out << "App " << app << " " << read_or_write << " limit successfully "
-                << (is_enable ? "enabled" : "disabled") << "\n";
-      } else {
-        std_out << (is_enable ? "Enable" : "Disable") << " app " << app << " " << read_or_write << " limit failed\n";
-      }
+      std_out << (is_enable ? "Enabling" : "Disabling") << " app " << app << " "
+              << read_or_write << " limit\n";
     } else {
-      status = gOFS->mIoShaper.setLimiter(app, rate, read_or_write);
       if (read_or_write == "read") {
         policy.limit_read_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
       } else {
         policy.limit_write_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
       }
-      if (status) {
-        std_out << "App " << app << " " << read_or_write << " limit successfully set to " << rate << " MB/s\n";
-      } else {
-        std_out << "Set app " << app << " " << read_or_write << " limit failed\n";
-      }
+      std_out << "Setting app " << app << " " << read_or_write << " limit to " << rate
+              << " MB/s\n";
     }
-    // print policy before and after
-    eos_static_info("Traffic Shaping Policy before: enable %s, read limit %zu bytes/s, write limit %zu bytes/s",
-                    policy_before.is_enabled ? "true" : "false",
-                    policy_before.limit_read_bytes_per_sec,
-                    policy_before.limit_write_bytes_per_sec);
-    eos_static_info("Traffic Shaping Policy after: enable %s, read limit %zu bytes/s, write limit %zu bytes/s",
-                    policy.is_enabled ? "true" : "false",
-                    policy.limit_read_bytes_per_sec,
-                    policy.limit_write_bytes_per_sec);
+
     if (policy_before != policy) {
       engine.SetAppPolicy(app, policy);
     }
@@ -949,44 +517,59 @@ MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetA
   }
 
   case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kUser: {
-    const uid_t user = monitor_throttle.user();
+    const auto& user = monitor_throttle.user();
+    auto policy = TrafficShapingPolicy();
+    if (const auto existing_policy = engine.GetUidPolicy(user);
+        existing_policy.has_value()) {
+      policy = existing_policy.value();
+    }
+    const auto policy_before = policy;
+
     if (is_enable_or_disable) {
-      status = gOFS->mIoShaper.setStatus(io::TYPE::UID, user, read_or_write, is_enable);
-      if (status) {
-        std_out << "User " << user << " " << read_or_write << " limit successfully "
-                << (is_enable ? "enabled" : "disabled") << "\n";
-      } else {
-        std_out << (is_enable ? "Enable" : "Disable") << " user " << user << " " << read_or_write << " limit failed\n";
-      }
+      policy.is_enabled = is_enable;
+      std_out << (is_enable ? "Enabling" : "Disabling") << " user " << user << " "
+              << read_or_write << " limit\n";
     } else {
-      status = gOFS->mIoShaper.setLimiter(io::TYPE::UID, user, rate, read_or_write);
-      if (status) {
-        std_out << "User " << user << " " << read_or_write << " limit successfully set to " << rate << " MB/s\n";
+      if (read_or_write == "read") {
+        policy.limit_read_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
       } else {
-        std_out << "Set user " << user << " " << read_or_write << " limit failed\n";
+        policy.limit_write_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
       }
+      std_out << "Setting user " << user << " " << read_or_write << " limit to " << rate
+              << " MB/s\n";
+    }
+
+    if (policy_before != policy) {
+      engine.SetUidPolicy(user, policy);
     }
     break;
   }
 
   case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kGroup: {
-    const gid_t group = monitor_throttle.group();
+    const auto& group = monitor_throttle.group();
+    auto policy = TrafficShapingPolicy();
+    if (const auto existing_policy = engine.GetGidPolicy(group);
+        existing_policy.has_value()) {
+      policy = existing_policy.value();
+    }
+    const auto policy_before = policy;
+
     if (is_enable_or_disable) {
-      status = gOFS->mIoShaper.setStatus(io::TYPE::UID, group, read_or_write, is_enable);
-      if (status) {
-        std_out << "Group " << group << " " << read_or_write << " limit successfully "
-                << (is_enable ? "enabled" : "disabled") << "\n";
-      } else {
-        std_out << (is_enable ? "Enable" : "Disable") << " group " << group << " " << read_or_write
-                << " limit failed\n";
-      }
+      policy.is_enabled = is_enable;
+      std_out << (is_enable ? "Enabling" : "Disabling") << " group " << group << " "
+              << read_or_write << " limit\n";
     } else {
-      status = gOFS->mIoShaper.setLimiter(io::TYPE::GID, group, rate, read_or_write);
-      if (status) {
-        std_out << "Group " << group << " " << read_or_write << " limit successfully set to " << rate << " MB/s\n";
+      if (read_or_write == "read") {
+        policy.limit_read_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
       } else {
-        std_out << "Set group " << group << " " << read_or_write << " limit failed\n";
+        policy.limit_write_bytes_per_sec = rate * 1000000; // Convert MB/s to bytes/s
       }
+      std_out << "Setting group " << group << " " << read_or_write << " limit to " << rate
+              << " MB/s\n";
+    }
+
+    if (policy_before != policy) {
+      engine.SetGidPolicy(group, policy);
     }
     break;
   }
@@ -996,69 +579,6 @@ MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetA
     reply.set_std_err(std_out.str());
     return;
     break;
-  }
-
-  reply.set_std_out(std_out.str());
-}
-
-void
-MonitorWindow(const eos::console::IoProto::MonitorProto::WindowProto& win, eos::console::ReplyProto& reply)
-{
-  std::stringstream std_out;
-  bool actions_taken = false;
-
-  for (const auto& w : win.rm()) {
-    actions_taken = true;
-    if (gOFS->mIoShaper.rm(w)) {
-      std_out << "Window " << w << " successfully removed" << std::endl;
-    } else {
-      std_out << "Remove window " << w << " failed" << std::endl;
-    }
-  }
-
-  for (const auto& w : win.add()) {
-    actions_taken = true;
-    if (gOFS->mIoShaper.addWindow(w)) {
-      std_out << "Window " << w << " successfully added" << std::endl;
-    } else {
-      std_out << "Add window " << w << " failed" << std::endl;
-    }
-  }
-
-  if (win.ls()) {
-    actions_taken = true;
-
-    // Retrieve summaries for FST windows
-    IoBuffer::Summaries sums(gOFS->mIoShaper.getShaping());
-
-    std_out << "[FST's Available windows] :=";
-    if (sums.aggregated().empty()) {
-      std_out << " (empty)";
-    } else {
-      // Iterate over the map (key is the window time)
-      for (const auto& [time, data] : sums.aggregated()) {
-        std_out << " " << time;
-      }
-    }
-
-    std_out << "\n[MGM set windows]         :=";
-
-    // Retrieve scaler for MGM windows
-    const auto scaler(gOFS->mIoShaper.getScaler());
-
-    if (scaler.windows().empty()) {
-      std_out << " (empty)\n";
-    } else {
-      for (const auto& window : scaler.windows()) {
-        std_out << " " << window;
-      }
-      std_out << "\n";
-    }
-  }
-
-  // If no specific window action was requested (shouldn't happen if client is correct)
-  if (!actions_taken) {
-    // Optional: handle empty request or default to ls
   }
 
   reply.set_std_out(std_out.str());
@@ -1097,11 +617,6 @@ IoCmd::MonitorSubcommand(const eos::console::IoProto_MonitorProto& monitor, eos:
       reply.set_std_err("Monitor throttle: invalid subcommand");
       break;
     }
-    break;
-  }
-
-  case eos::console::IoProto_MonitorProto::kWindow: {
-    MonitorWindow(monitor.window(), reply); // Implement this new method
     break;
   }
 

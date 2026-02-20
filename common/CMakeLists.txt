@@ -272,10 +272,6 @@ if (NOT CLIENT AND Linux)
     mq/SharedHashProvider.cc          mq/SharedHashProvider.hh
     mq/SharedHashWrapper.cc           mq/SharedHashWrapper.hh
     mq/LocalHash.cc                   mq/LocalHash.hh
-	ioMonitor/src/IoAggregateMap.cc
-	ioMonitor/src/IoMap.cc
-	ioMonitor/src/IoStat.cc
-	ioMonitor/src/IoAggregate.cc
   )
 
   add_dependencies(EosCommonServer-Objects EosGrpcProto-Objects)

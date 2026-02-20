@@ -19,7 +19,8 @@ public:
   // e.g., SlidingWindowStats(300.0, 0.1) for 5 minutes of history at 100ms ticks
   SlidingWindowStats(double max_history_seconds, double tick_interval_seconds)
       : mTickIntervalSec(tick_interval_seconds)
-      , mHistorySize(std::max(1, static_cast<int>(max_history_seconds / tick_interval_seconds)))
+      , mHistorySize(
+            std::max(1, static_cast<int>(max_history_seconds / tick_interval_seconds)))
       , mBuffer(mHistorySize, 0)
       , mHead(0)
   {
@@ -154,7 +155,8 @@ struct IoStatsKeyHash {
   operator()(const IoStatsKey& k) const
   {
     // Combine hashes reasonably efficiently
-    return std::hash<std::string>{}(k.app) ^ (std::hash<uint32_t>{}(k.uid) << 1) ^ (std::hash<uint32_t>{}(k.gid) << 1);
+    return std::hash<std::string>{}(k.app) ^ (std::hash<uint32_t>{}(k.uid) << 1) ^
+           (std::hash<uint32_t>{}(k.gid) << 1);
   }
 };
 
@@ -200,45 +202,53 @@ public:
 
 private:
   // Helper to get or create entry
-  std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid, uint32_t gid);
+  std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid,
+                                         uint32_t gid);
 
   // We use a shared_mutex:
   // - Multiple threads can Record (Read Lock) simultaneously.
   // - Only one thread can Create New Entry / Prune (Write Lock).
   mutable std::shared_mutex mutex_;
-  std::unordered_map<IoStatsKey, std::shared_ptr<IoStatsEntry>, IoStatsKeyHash> stats_map_;
+  std::unordered_map<IoStatsKey, std::shared_ptr<IoStatsEntry>, IoStatsKeyHash>
+      stats_map_;
 };
 
 class IoDelayConfig {
 public:
   IoDelayConfig()
   {
-    auto initial_config = std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>();
+    auto initial_config =
+        std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>();
     std::atomic_store(&mFstIoDelayConfigPtr, initial_config);
   }
 
   void
   UpdateConfig(eos::traffic_shaping::TrafficShapingFstIoDelayConfig new_config)
   {
-    auto new_ptr = std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>(std::move(new_config));
+    auto new_ptr =
+        std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>(
+            std::move(new_config));
     std::atomic_store_explicit(&mFstIoDelayConfigPtr, new_ptr, std::memory_order_release);
     // print the new config
-    eos_static_info("msg=\"Updated IoDelayConfig\" app_read_delay_count=%lu app_write_delay_count=%lu "
+    eos_static_info("msg=\"Updated IoDelayConfig\" app_read_delay_count=%lu "
+                    "app_write_delay_count=%lu "
                     "gid_read_delay_count=%lu gid_write_delay_count=%lu "
                     "uid_read_delay_count=%lu uid_write_delay_count=%lu",
-                    new_ptr->app_read_delay().size(),
-                    new_ptr->app_write_delay().size(),
-                    new_ptr->gid_read_delay().size(),
-                    new_ptr->gid_write_delay().size(),
-                    new_ptr->uid_read_delay().size(),
-                    new_ptr->uid_write_delay().size());
+                    new_ptr->app_read_delay().size(), new_ptr->app_write_delay().size(),
+                    new_ptr->gid_read_delay().size(), new_ptr->gid_write_delay().size(),
+                    new_ptr->uid_read_delay().size(), new_ptr->uid_write_delay().size());
   }
 
   uint64_t
-  GetReadDelayForAppGidUid(const std::string& app, uint32_t gid, uint32_t uid) const
+  GetReadDelayForAppUidGid(const eos::common::VirtualIdentity& vid) const
   {
-    std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig> current_config =
-        std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
+    const auto& app = vid.app;
+    const auto& uid = vid.uid;
+    const auto& gid = vid.gid;
+
+    const std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
+        current_config =
+            std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
 
     uint64_t max_delay = 0;
 
@@ -264,10 +274,15 @@ public:
   }
 
   uint64_t
-  GetWriteDelayForAppGidUid(const std::string& app, uint32_t gid, uint32_t uid) const
+  GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid) const
   {
-    std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig> current_config =
-        std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
+    const auto& app = vid.app;
+    const auto& uid = vid.uid;
+    const auto& gid = vid.gid;
+
+    const std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
+        current_config =
+            std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
 
     uint64_t max_delay = 0;
 
@@ -293,6 +308,7 @@ public:
   }
 
 private:
-  std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig> mFstIoDelayConfigPtr;
+  std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
+      mFstIoDelayConfigPtr;
 };
 } // namespace eos::fst

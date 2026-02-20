@@ -527,14 +527,3 @@ com_io_help()
 
   std::cerr << oss.str() << std::endl;
 }
-
-static bool
-isCommand(const char* cmd)
-{
-  if (cmd && (!strcmp(cmd, "add") || !strcmp(cmd, "rm") || !strcmp(cmd, "set") || !strcmp(cmd, "proto") ||
-              !strcmp(cmd, "read") || !strcmp(cmd, "write") || !strcmp(cmd, "ls") || !strcmp(cmd, "sum") ||
-              !strcmp(cmd, "fill") || !strcmp(cmd, "shift"))) {
-    return true;
-  }
-  return false;
-}

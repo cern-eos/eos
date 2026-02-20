@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Assert.hh"
 #include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
@@ -30,7 +29,6 @@
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
 #include "mq/SharedHashWrapper.hh"
-#include "proto/TrafficShaping.pb.h"
 #include "qclient/shared/SharedHashSubscription.hh"
 #include "qclient/structures/QScanner.hh"
 
@@ -45,7 +43,6 @@ std::set<std::string> Storage::sNodeUpdateKeys{
     "debug.level",
     "error.simulation",
     "stripexs",
-    "stat.scaler.xyz",
     common::FST_TRAFFIC_SHAPING_IO_LIMITS,
 };
 
@@ -160,31 +157,6 @@ Storage::FsRegisterStatus Storage::RegisterFileSystem(const std::string& queuepa
   return FsRegisterStatus::kRegistered;
 }
 
-//------------------------------------------------------------------------------
-// Manage scaler for IoAggregateMap
-//------------------------------------------------------------------------------
-void Storage::ScalerCmd(const std::string& data) {
-  google::protobuf::util::JsonParseOptions option;
-  Shaping::Scaler scaler;
-
-  auto absel = google::protobuf::json::JsonStringToMessage(data, &scaler, option);
-  if (!absel.ok()) {
-    eos_static_err("msg=\"Failed to convert scaler value to variable\"");
-  } else {
-    for (auto it : mScaler.windows()) {
-      if (std::find(scaler.windows().begin(), scaler.windows().end(), it) == scaler.windows().end()) {
-        gOFS.ioMap.rm(it);
-      }
-    }
-    for (auto it : scaler.windows()) {
-      if (std::find(mScaler.windows().begin(), mScaler.windows().end(), it) == mScaler.windows().end()) {
-        gOFS.ioMap.addWindow(it);
-      }
-    }
-    mScaler = scaler;
-  }
-}
-
 void
 ProcessFstIoLimitsCommand(const std::string& data)
 {
@@ -259,9 +231,6 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
     mComputeStripeChecksum = (value == "on");
     eos_static_info("msg=\"stripe checksum calculation changed\" new_value=\"%s\" mComputeStripeChecksum=%s",
                     value.c_str(), mComputeStripeChecksum ? "enabled" : "disabled");
-  } else if (key == "stat.scaler.xyz") {
-    eos_static_debug("msg=\"stat.scaler.xyz changed\" new_value=\"%s\"", value.c_str());
-    ScalerCmd(value);
   } else {
     eos_static_err("msg=\"unhandled FST node configuration change because "
                    "of missing implementation\" key=\"%s\" value=\"%s\". "

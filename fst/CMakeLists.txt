@@ -307,7 +307,7 @@ set(XRDEOSFST_SRCS
   io/local/LocalIo.cc  io/local/LocalIo.hh
   utils/XrdOfsPathHandler.cc
   utils/DiskMeasurements.cc
-  storage/TrafficShapingStats.hh storage/TrafficShapingStats.cc
+  storage/TrafficShaping.hh storage/TrafficShaping.cc
 )
 
 add_library(XrdEosFst-Objects OBJECT ${XRDEOSFST_SRCS})

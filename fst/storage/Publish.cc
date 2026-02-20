@@ -34,13 +34,13 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
-#include "fst/storage/TrafficShapingStats.hh"
-#include "mgm/shaping/IoShaping.hh"
+#include "fst/storage/TrafficShaping.hh"
+#include "mgm/shaping/TrafficShaping.hh"
 #include "qclient/Formatting.hh"
+
 #include <XrdVersion.hh>
 #include <google/protobuf/util/json_util.h>
 #include <optional>
-#include <proto/Shaping.pb.h>
 #include <sys/sysinfo.h>
 
 #ifdef PROCPS3
@@ -148,68 +148,6 @@ static std::string GetXrootdVersion() {
 static std::string GetEosVersion() {
   static std::string s_eos_version = SSTR(VERSION << "-" << RELEASE).c_str();
   return s_eos_version;
-}
-
-//------------------------------------------------------------------------------
-/// get ioMap info
-//------------------------------------------------------------------------------
-static std::string getIoMap() {
-  IoBuffer::Summary protoBuff;
-  IoBuffer::Summaries finalBuffer;
-  std::string output = "0";
-
-  std::optional<std::vector<size_t>> win(gOFS.ioMap.getAvailableWindows());
-  if (!win.has_value()) { return output; }
-
-  for (auto winTime = win.value().begin(); winTime != win->end(); winTime++) {
-    std::vector<gid_t> gids(gOFS.ioMap.getGids(*winTime));
-    std::vector<uid_t> uids(gOFS.ioMap.getUids(*winTime));
-    std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
-    IoBuffer::Data winTimeSummaries;
-
-    if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0) { continue; }
-
-    for (auto it : apps) {
-      auto sum = gOFS.ioMap.getSummary(*winTime, it);
-      if (sum.has_value()) {
-        sum->winTime = *winTime;
-        winTimeSummaries.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
-      }
-      protoBuff.Clear();
-    }
-    for (auto it : uids) {
-      auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::UID, it);
-      if (sum.has_value()) {
-        sum->winTime = *winTime;
-        winTimeSummaries.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
-      }
-      protoBuff.Clear();
-    }
-    for (auto it : gids) {
-      auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::GID, it);
-      if (sum.has_value()) {
-        sum->winTime = *winTime;
-        winTimeSummaries.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
-      }
-      protoBuff.Clear();
-    }
-    if (winTimeSummaries.apps_size() > 0 || winTimeSummaries.gids_size() > 0 || winTimeSummaries.uids_size() > 0) {
-      finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummaries);
-    }
-  }
-
-  if (finalBuffer.aggregated_size() > 0) {
-    std::string out;
-    google::protobuf::util::JsonPrintOptions options;
-
-    // options.add_whitespace = true;
-    // options.always_print_primitive_fields = true;
-    // options.preserve_proto_field_names = true;
-    auto it = google::protobuf::util::MessageToJsonString(finalBuffer, &out, options);
-    if (it.ok()) { output = out; }
-  }
-
-  return output;
 }
 
 //------------------------------------------------------------------------------
@@ -523,7 +461,6 @@ std::map<std::string, std::string> Storage::GetFstStatistics(const std::string& 
   output["stat.net.outratemib"] = SSTR(mFstLoad.GetNetRate(GetNetworkInterface().c_str(), "txbytes") / 1024.0 / 1024.0);
   // publish timestamp
   output["stat.publishtimestamp"] = SSTR(eos::common::getEpochInMilliseconds().count());
-  output["stat.iomap"] = getIoMap();
 
   return output;
 }
@@ -781,7 +718,7 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
 
     // Here we send the stats
 
-    Shaping::FstIoReport report;
+    eos::traffic_shaping::FstIoReport report;
     // Is this the best FST identifier?
     const auto mNodeId = gConfig.FstHostPort.c_str();
     report.set_node_id(mNodeId);

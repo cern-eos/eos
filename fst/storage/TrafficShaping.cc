@@ -1,4 +1,4 @@
-#include "fst/storage/TrafficShapingStats.hh"
+#include "fst/storage/TrafficShaping.hh"
 #include <mutex>
 #include <random>
 

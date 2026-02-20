@@ -24,8 +24,6 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "mgm/proc/ProcCommand.hh"
-#include "proto/Io.pb.h"
-#include "proto/IoBuffer.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 

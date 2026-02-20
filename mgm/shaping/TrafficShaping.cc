@@ -1,29 +1,29 @@
-#include "mgm/shaping/TrafficShapingManager.hh"
+#include "mgm/shaping/TrafficShaping.hh"
 
 #include "Constants.hh"
 #include "common/Logging.hh"
 #include "fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include "proto/Shaping.pb.h"
 #include "proto/TrafficShaping.pb.h"
 
 namespace eos::mgm {
 
-TrafficShapingManager::TrafficShapingManager() = default;
+TrafficShaping::TrafficShaping() = default;
 
-TrafficShapingManager::~TrafficShapingManager() = default;
+TrafficShaping::~TrafficShaping() = default;
 
 // -----------------------------------------------------------------------------
 // Helper: Exponential Moving Average Calculation
 // -----------------------------------------------------------------------------
 double
-TrafficShapingManager::CalculateEma(double current_val, double prev_ema, double alpha)
+TrafficShaping::CalculateEma(double current_val, double prev_ema, double alpha)
 {
   return (alpha * current_val) + ((1.0 - alpha) * prev_ema);
 }
 
-std::pair<std::unordered_map<std::string, double>, std::unordered_map<std::string, double>>
-TrafficShapingManager::GetCurrentReadAndWriteRateForApps() const
+std::pair<std::unordered_map<std::string, double>,
+          std::unordered_map<std::string, double>>
+TrafficShaping::GetCurrentReadAndWriteRateForApps() const
 {
   std::shared_lock lock(mMutex);
 
@@ -42,7 +42,7 @@ TrafficShapingManager::GetCurrentReadAndWriteRateForApps() const
 // Fast Path: Process Report from FST
 // -----------------------------------------------------------------------------
 void
-TrafficShapingManager::process_report(const Shaping::FstIoReport& report)
+TrafficShaping::process_report(const eos::traffic_shaping::FstIoReport& report)
 {
   const std::string& node_id = report.node_id();
   const time_t now = time(nullptr);
@@ -96,7 +96,8 @@ TrafficShapingManager::process_report(const Shaping::FstIoReport& report)
     state.last_update_time = now;
 
     // --- 4. Update Global Aggregates ---
-    if (delta_bytes_read > 0 || delta_bytes_written > 0 || delta_read_iops > 0 || delta_write_iops > 0) {
+    if (delta_bytes_read > 0 || delta_bytes_written > 0 || delta_read_iops > 0 ||
+        delta_write_iops > 0) {
       // Get global entry
       MultiWindowRate& global = mGlobalStats[key];
 
@@ -124,7 +125,7 @@ ComputeEmaAlpha(double window_seconds, double time_delta_seconds)
 // Slow Path: Update Time Windows (Called every 1 second)
 // -----------------------------------------------------------------------------
 void
-TrafficShapingManager::UpdateTimeWindows(const double time_delta_seconds)
+TrafficShaping::UpdateTimeWindows(const double time_delta_seconds)
 {
   if (time_delta_seconds <= 0.000001) {
     return;
@@ -134,9 +135,9 @@ TrafficShapingManager::UpdateTimeWindows(const double time_delta_seconds)
   std::unique_lock lock(mMutex);
 
   // Constants for 1s ticker
-  double kAlpha5s = ComputeEmaAlpha(5.0, time_delta_seconds);   // ~5 seconds
-  double kAlpha1m = ComputeEmaAlpha(60.0, time_delta_seconds);  // ~60 seconds
-  double kAlpha5m = ComputeEmaAlpha(300.0, time_delta_seconds); // ~300 seconds
+  double kAlpha5s = ComputeEmaAlpha(5.0, time_delta_seconds);
+  double kAlpha1m = ComputeEmaAlpha(60.0, time_delta_seconds);
+  double kAlpha5m = ComputeEmaAlpha(300.0, time_delta_seconds);
 
   // --- Helper Lambda for Zero-Snapping ---
   // If current_rate is 0, we snap the 5s window to 0 to avoid "ghosting".
@@ -155,15 +156,23 @@ TrafficShapingManager::UpdateTimeWindows(const double time_delta_seconds)
     const uint64_t write_iops_now = stats.write_iops_accumulator.exchange(0);
 
     // 2. Calculate Instant Rate (Units/Sec)
-    const double current_read_bps = static_cast<double>(bytes_read_now) / time_delta_seconds;
-    const double current_write_bps = static_cast<double>(bytes_written_now) / time_delta_seconds;
-    const double current_read_iops = static_cast<double>(read_iops_now) / time_delta_seconds;
-    const double current_write_iops = static_cast<double>(write_iops_now) / time_delta_seconds;
+    const double current_read_bps =
+        static_cast<double>(bytes_read_now) / time_delta_seconds;
+    const double current_write_bps =
+        static_cast<double>(bytes_written_now) / time_delta_seconds;
+    const double current_read_iops =
+        static_cast<double>(read_iops_now) / time_delta_seconds;
+    const double current_write_iops =
+        static_cast<double>(write_iops_now) / time_delta_seconds;
 
-    update_rate_set(current_read_bps, stats.read_rate_ema_5s, stats.read_rate_ema_1m, stats.read_rate_ema_5m);
-    update_rate_set(current_write_bps, stats.write_rate_ema_5s, stats.write_rate_ema_1m, stats.write_rate_ema_5m);
-    update_rate_set(current_read_iops, stats.read_iops_ema_5s, stats.read_iops_ema_1m, stats.read_iops_ema_5m);
-    update_rate_set(current_write_iops, stats.write_iops_ema_5s, stats.write_iops_ema_1m, stats.write_iops_ema_5m);
+    update_rate_set(current_read_bps, stats.read_rate_ema_5s, stats.read_rate_ema_1m,
+                    stats.read_rate_ema_5m);
+    update_rate_set(current_write_bps, stats.write_rate_ema_5s, stats.write_rate_ema_1m,
+                    stats.write_rate_ema_5m);
+    update_rate_set(current_read_iops, stats.read_iops_ema_5s, stats.read_iops_ema_1m,
+                    stats.read_iops_ema_5m);
+    update_rate_set(current_write_iops, stats.write_iops_ema_5s, stats.write_iops_ema_1m,
+                    stats.write_iops_ema_5m);
 
     // -------------------------------------------------------------------------
     // SMA Calculation (Uses Raw Counts + Sliding Window)
@@ -204,14 +213,15 @@ TrafficShapingManager::UpdateTimeWindows(const double time_delta_seconds)
 }
 
 void
-TrafficShapingManager::ComputeLimitsAndReservations()
+TrafficShaping::ComputeLimitsAndReservations()
 {
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
   auto* app_write_map = fst_io_delay_config.mutable_app_write_delay();
   auto* app_read_map = fst_io_delay_config.mutable_app_read_delay();
 
   constexpr uint64_t kMaxDelayUs = 1000000;
-  constexpr int64_t MAX_STEP_US = kMaxDelayUs / 20; // This is sensitive to the thread period, we should recompute.
+  constexpr int64_t MAX_STEP_US = kMaxDelayUs / 20;
+  // This is sensitive to the thread period, we should recompute.
 
   {
     std::shared_lock lock(mMutex);
@@ -223,29 +233,21 @@ TrafficShapingManager::ComputeLimitsAndReservations()
       }
 
       if (policy.limit_write_bytes_per_sec > 0) {
-        const double current_rate = app_write_rates.count(app) > 0 ? app_write_rates.at(app) : 0.0;
+        const double current_rate =
+            app_write_rates.count(app) > 0 ? app_write_rates.at(app) : 0.0;
         const auto limit = static_cast<double>(policy.limit_write_bytes_per_sec);
         const double ratio = current_rate / limit;
 
         uint64_t& delay_us = (*mFstIoDelayConfig.mutable_app_write_delay())[app];
-        eos_static_info("msg=\"evaluating write delay for app\" app=\"%s\" current_rate=%.2f limit=%.2f ratio=%.2f "
-                        "current_delay_us=%lu",
-                        app.c_str(),
-                        current_rate,
-                        limit,
-                        ratio,
-                        delay_us);
-
         if (delay_us == 0 && ratio > 1.0) {
           delay_us = 100;
         } else {
-
           double kp = (ratio > 1.0) ? 0.15 : 0.05;
-
           double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
 
-          int64_t current_delay = static_cast<int64_t>(delay_us);
-          int64_t target_delay = static_cast<int64_t>(static_cast<double>(current_delay) * damped_ratio);
+          auto current_delay = static_cast<int64_t>(delay_us);
+          auto target_delay =
+              static_cast<int64_t>(static_cast<double>(current_delay) * damped_ratio);
           int64_t delta_us = target_delay - current_delay;
 
           if (delta_us > MAX_STEP_US) {
@@ -265,19 +267,55 @@ TrafficShapingManager::ComputeLimitsAndReservations()
           (*app_write_map)[app] = delay_us;
         }
       }
+
+      if (policy.limit_read_bytes_per_sec > 0) {
+        const double current_rate =
+            app_read_rates.count(app) > 0 ? app_read_rates.at(app) : 0.0;
+        const auto limit = static_cast<double>(policy.limit_read_bytes_per_sec);
+        const double ratio = current_rate / limit;
+
+        uint64_t& delay_us = (*mFstIoDelayConfig.mutable_app_read_delay())[app];
+        if (delay_us == 0 && ratio > 1.0) {
+          delay_us = 100;
+        } else {
+          double kp = (ratio > 1.0) ? 0.15 : 0.05;
+          double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
+
+          auto current_delay = static_cast<int64_t>(delay_us);
+          auto target_delay =
+              static_cast<int64_t>(static_cast<double>(current_delay) * damped_ratio);
+          int64_t delta_us = target_delay - current_delay;
+
+          if (delta_us > MAX_STEP_US) {
+            delta_us = MAX_STEP_US;
+          } else if (delta_us < -MAX_STEP_US) {
+            delta_us = -MAX_STEP_US;
+          }
+
+          delay_us = static_cast<uint64_t>(current_delay + delta_us);
+        }
+
+        delay_us = std::min<uint64_t>(kMaxDelayUs, delay_us);
+        if (delay_us < 10 && ratio < 1.0) {
+          delay_us = 0;
+        }
+        if (delay_us > 0) {
+          (*app_read_map)[app] = delay_us;
+        }
+      }
     }
   }
 
   for (const auto& [node_name, node_view] : FsView::gFsView.mNodeView) {
     if (node_view->GetStatus() == "online") {
-      node_view->SetConfigMember(
-          eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS, fst_io_delay_config.SerializeAsString(), true);
+      node_view->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS,
+                                 fst_io_delay_config.SerializeAsString(), true);
     }
   }
 }
 
 std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash>
-TrafficShapingManager::GetGlobalStats() const
+TrafficShaping::GetGlobalStats() const
 {
   std::shared_lock lock(mMutex);
 
@@ -322,8 +360,8 @@ TrafficShapingManager::GetGlobalStats() const
   return snapshot_map;
 }
 
-TrafficShapingManager::GarbageCollectionStats
-TrafficShapingManager::garbage_collect(int max_idle_seconds)
+TrafficShaping::GarbageCollectionStats
+TrafficShaping::garbage_collect(int max_idle_seconds)
 {
   std::unique_lock lock(mMutex);
   const time_t now = time(nullptr);
@@ -370,12 +408,12 @@ TrafficShapingEngine::TrafficShapingEngine()
     : mRunning(false)
 {
   // Initialize the logic engine
-  mBrain = std::make_shared<eos::mgm::TrafficShapingManager>();
+  mBrain = std::make_shared<eos::mgm::TrafficShaping>();
 
-  mBrain->estimators_update_loop_micro_sec =
-      eos::fst::SlidingWindowStats(5.0, mEstimatorsUpdateThreadPeriodMilliseconds * 0.001);
-  mBrain->fst_limits_update_loop_micro_sec =
-      eos::fst::SlidingWindowStats(5.0, mFstIoPolicyUpdateThreadPeriodMilliseconds * 0.001);
+  mBrain->estimators_update_loop_micro_sec = eos::fst::SlidingWindowStats(
+      5.0, mEstimatorsUpdateThreadPeriodMilliseconds * 0.001);
+  mBrain->fst_limits_update_loop_micro_sec = eos::fst::SlidingWindowStats(
+      5.0, mFstIoPolicyUpdateThreadPeriodMilliseconds * 0.001);
 }
 
 //------------------------------------------------------------------------------
@@ -421,16 +459,17 @@ TrafficShapingEngine::Stop()
 //------------------------------------------------------------------------------
 // GetBrain
 //------------------------------------------------------------------------------
-std::shared_ptr<eos::mgm::TrafficShapingManager>
+std::shared_ptr<eos::mgm::TrafficShaping>
 TrafficShapingEngine::GetBrain() const
 {
   return mBrain;
 }
 
 void
-TrafficShapingEngine::ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report)
+TrafficShapingEngine::ProcessSerializedFstIoReportNonBlocking(
+    const std::string& serialized_report)
 {
-  Shaping::FstIoReport report;
+  eos::traffic_shaping::FstIoReport report;
   if (!report.ParseFromString(serialized_report)) {
     eos_static_warning("%s", "msg=\"failed to parse FstIoReport from string\"");
     return;
@@ -439,18 +478,20 @@ TrafficShapingEngine::ProcessSerializedFstIoReportNonBlocking(const std::string&
 }
 
 void
-TrafficShapingEngine::AddReportToQueue(const Shaping::FstIoReport& report)
+TrafficShapingEngine::AddReportToQueue(const eos::traffic_shaping::FstIoReport& report)
 {
   std::lock_guard lock(mReportQueueMutex);
   mReportQueue.emplace_back(report);
   // if over 100 reports, warning
   if (mReportQueue.size() > 100) {
-    eos_static_warning("msg=\"IoStatsEngine report queue size is large\" size=%zu", mReportQueue.size());
+    eos_static_warning("msg=\"IoStatsEngine report queue size is large\" size=%zu",
+                       mReportQueue.size());
   }
   // if over 1000, delete the oldest report until 1000 remain
   while (mReportQueue.size() > 1000) {
     mReportQueue.emplace_back();
-    eos_static_warning("msg=\"IoStatsEngine report queue size exceeded limit, dropping oldest report\" size=%zu",
+    eos_static_warning("msg=\"IoStatsEngine report queue size exceeded limit, dropping "
+                       "oldest report\" size=%zu",
                        mReportQueue.size());
   }
 }
@@ -461,7 +502,7 @@ TrafficShapingEngine::ProcessAllQueuedReports()
   // We copy the queue to a local variable and clear the main queue under lock, then process the local copy without
   // holding the lock. This minimizes the time we hold the lock and allows incoming reports to be added to the main
   // queue while we are processing.
-  std::vector<Shaping::FstIoReport> local_queue;
+  std::vector<eos::traffic_shaping::FstIoReport> local_queue; //
   {
     std::lock_guard lock(mReportQueueMutex);
     std::swap(mReportQueue, local_queue);
@@ -514,19 +555,20 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
     if (++gc_counter >= gc_counter_limit) {
       gc_counter = 0;
       // Remove streams that haven't been active for a while
-      const auto [removed_nodes, removed_node_streams, removed_global_streams] = mBrain->garbage_collect(900);
+      const auto [removed_nodes, removed_node_streams, removed_global_streams] =
+          mBrain->garbage_collect(900);
       // 15 minutes or 3 times longer than the biggest EMA (5m)
 
       if (removed_node_streams > 0 || removed_global_streams > 0) {
-        eos_static_info("msg=\"IoStats GC\" removed_nodes=%lu removed_node_streams=%lu removed_global_streams=%lu",
-                        removed_nodes,
-                        removed_node_streams,
-                        removed_global_streams);
+        eos_static_info("msg=\"IoStats GC\" removed_nodes=%lu removed_node_streams=%lu "
+                        "removed_global_streams=%lu",
+                        removed_nodes, removed_node_streams, removed_global_streams);
       }
     }
 
     auto work_done = std::chrono::steady_clock::now();
-    const auto work_duration_micro_sec = std::chrono::duration_cast<std::chrono::microseconds>(work_done - now).count();
+    const auto work_duration_micro_sec =
+        std::chrono::duration_cast<std::chrono::microseconds>(work_done - now).count();
 
     if (static_cast<double>(work_duration_micro_sec) >
         static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.1 * 1000.0) {
@@ -552,7 +594,8 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant)
   auto next_wakeup_time = std::chrono::steady_clock::now();
 
   while (!assistant.terminationRequested()) {
-    const auto current_period = std::chrono::milliseconds(mFstIoPolicyUpdateThreadPeriodMilliseconds);
+    const auto current_period =
+        std::chrono::milliseconds(mFstIoPolicyUpdateThreadPeriodMilliseconds);
 
     next_wakeup_time += current_period;
 
@@ -568,7 +611,9 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant)
 
     auto work_end_time = std::chrono::steady_clock::now();
     const auto compute_duration_us =
-        std::chrono::duration_cast<std::chrono::microseconds>(work_end_time - work_start_time).count();
+        std::chrono::duration_cast<std::chrono::microseconds>(work_end_time -
+                                                              work_start_time)
+            .count();
 
     mBrain->update_fst_limits_update_loop_micro_sec(compute_duration_us);
     eos_static_info("msg=\"FstIoPolicyUpdate loop iteration completed\" duration_ms=%.2f",
@@ -579,7 +624,7 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant)
 }
 
 void
-TrafficShapingManager::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy)
+TrafficShaping::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy)
 {
   // Use unique_lock for writing
   std::unique_lock lock(mMutex);
@@ -587,30 +632,28 @@ TrafficShapingManager::SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& po
 }
 
 void
-TrafficShapingManager::SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy)
+TrafficShaping::SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
   mGidPolicies[gid] = policy;
 }
 
 void
-TrafficShapingManager::SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy)
+TrafficShaping::SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
   mAppPolicies[app] = policy;
 
-  eos_static_info("msg=\"Set App Traffic Shaping policy\" app=%s is_enabled=%d limit_read_bps=%lu limit_write_bps=%lu "
+  eos_static_info("msg=\"Set App Traffic Shaping policy\" app=%s is_enabled=%d "
+                  "limit_read_bps=%lu limit_write_bps=%lu "
                   "reservation_read_bps=%lu reservation_write_bps=%lu",
-                  app.c_str(),
-                  policy.is_enabled,
-                  policy.limit_read_bytes_per_sec,
-                  policy.limit_write_bytes_per_sec,
-                  policy.reservation_read_bytes_per_sec,
+                  app.c_str(), policy.is_enabled, policy.limit_read_bytes_per_sec,
+                  policy.limit_write_bytes_per_sec, policy.reservation_read_bytes_per_sec,
                   policy.reservation_write_bytes_per_sec);
 }
 
 void
-TrafficShapingManager::RemoveUidPolicy(uint32_t uid)
+TrafficShaping::RemoveUidPolicy(uint32_t uid)
 {
   std::unique_lock lock(mMutex);
   if (mUidPolicies.erase(uid)) {
@@ -619,7 +662,7 @@ TrafficShapingManager::RemoveUidPolicy(uint32_t uid)
 }
 
 void
-TrafficShapingManager::RemoveGidPolicy(uint32_t gid)
+TrafficShaping::RemoveGidPolicy(uint32_t gid)
 {
   std::unique_lock lock(mMutex);
   if (mGidPolicies.erase(gid)) {
@@ -628,7 +671,7 @@ TrafficShapingManager::RemoveGidPolicy(uint32_t gid)
 }
 
 void
-TrafficShapingManager::RemoveAppPolicy(const std::string& app)
+TrafficShaping::RemoveAppPolicy(const std::string& app)
 {
   std::unique_lock lock(mMutex);
   if (mAppPolicies.erase(app)) {
@@ -641,7 +684,7 @@ TrafficShapingManager::RemoveAppPolicy(const std::string& app)
 // -----------------------------------------------------------------------------
 
 std::unordered_map<uint32_t, TrafficShapingPolicy>
-TrafficShapingManager::GetUidPolicies() const
+TrafficShaping::GetUidPolicies() const
 {
   // Use shared_lock for reading
   std::shared_lock lock(mMutex);
@@ -649,21 +692,21 @@ TrafficShapingManager::GetUidPolicies() const
 }
 
 std::unordered_map<uint32_t, TrafficShapingPolicy>
-TrafficShapingManager::GetGidPolicies() const
+TrafficShaping::GetGidPolicies() const
 {
   std::shared_lock lock(mMutex);
   return mGidPolicies;
 }
 
 std::unordered_map<std::string, TrafficShapingPolicy>
-TrafficShapingManager::GetAppPolicies() const
+TrafficShaping::GetAppPolicies() const
 {
   std::shared_lock lock(mMutex);
   return mAppPolicies;
 }
 
 std::optional<TrafficShapingPolicy>
-TrafficShapingManager::GetUidPolicy(uint32_t uid) const
+TrafficShaping::GetUidPolicy(uint32_t uid) const
 {
   std::shared_lock lock(mMutex);
   auto it = mUidPolicies.find(uid);
@@ -674,7 +717,7 @@ TrafficShapingManager::GetUidPolicy(uint32_t uid) const
 }
 
 std::optional<TrafficShapingPolicy>
-TrafficShapingManager::GetGidPolicy(uint32_t gid) const
+TrafficShaping::GetGidPolicy(uint32_t gid) const
 {
   std::shared_lock lock(mMutex);
   auto it = mGidPolicies.find(gid);
@@ -685,7 +728,7 @@ TrafficShapingManager::GetGidPolicy(uint32_t gid) const
 }
 
 std::optional<TrafficShapingPolicy>
-TrafficShapingManager::GetAppPolicy(const std::string& app) const
+TrafficShaping::GetAppPolicy(const std::string& app) const
 {
   std::shared_lock lock(mMutex);
   auto it = mAppPolicies.find(app);
@@ -714,7 +757,8 @@ TrafficShapingEngine::SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& pol
 }
 
 void
-TrafficShapingEngine::SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy)
+TrafficShapingEngine::SetAppPolicy(const std::string& app,
+                                   const TrafficShapingPolicy& policy)
 {
   if (mBrain) {
     mBrain->SetAppPolicy(app, policy);
@@ -748,19 +792,22 @@ TrafficShapingEngine::RemoveAppPolicy(const std::string& app)
 std::unordered_map<uint32_t, TrafficShapingPolicy>
 TrafficShapingEngine::GetUidPolicies() const
 {
-  return mBrain ? mBrain->GetUidPolicies() : std::unordered_map<uint32_t, TrafficShapingPolicy>{};
+  return mBrain ? mBrain->GetUidPolicies()
+                : std::unordered_map<uint32_t, TrafficShapingPolicy>{};
 }
 
 std::unordered_map<uint32_t, TrafficShapingPolicy>
 TrafficShapingEngine::GetGidPolicies() const
 {
-  return mBrain ? mBrain->GetGidPolicies() : std::unordered_map<uint32_t, TrafficShapingPolicy>{};
+  return mBrain ? mBrain->GetGidPolicies()
+                : std::unordered_map<uint32_t, TrafficShapingPolicy>{};
 }
 
 std::unordered_map<std::string, TrafficShapingPolicy>
 TrafficShapingEngine::GetAppPolicies() const
 {
-  return mBrain ? mBrain->GetAppPolicies() : std::unordered_map<std::string, TrafficShapingPolicy>{};
+  return mBrain ? mBrain->GetAppPolicies()
+                : std::unordered_map<std::string, TrafficShapingPolicy>{};
 }
 
 std::optional<TrafficShapingPolicy>

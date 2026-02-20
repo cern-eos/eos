@@ -98,7 +98,7 @@ ExtractWindowRates(const eos::mgm::RateSnapshot& snap,
 }
 
 void
-BuildReport(const std::shared_ptr<TrafficShapingManager>& brain,
+BuildReport(const std::shared_ptr<TrafficShaping>& brain,
             const eos::traffic_shaping::TrafficShapingRateRequest* request,
             eos::traffic_shaping::TrafficShapingRateResponse* report)
 {

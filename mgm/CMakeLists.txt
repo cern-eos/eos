@@ -326,7 +326,7 @@ add_library(
   placement/WeightedRoundRobinStrategy.cc
   placement/WeightedRandomStrategy.cc
   placement/ThreadLocalRRSeed.cc
-  shaping/IoShaping.cc shaping/TrafficShapingManager.cc
+  shaping/TrafficShaping.cc
   ${FUSEX_SRCS})
 
 target_compile_options(XrdEosMgm-Objects PRIVATE -Wno-sign-compare)

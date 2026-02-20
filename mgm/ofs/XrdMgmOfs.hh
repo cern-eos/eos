@@ -116,18 +116,15 @@
 #include "mgm/proc/ProcCommand.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/shaping/IoShaping.hh"
-#include "mgm/shaping/TrafficShapingManager.hh"
+#include "mgm/shaping/TrafficShaping.hh"
 #include "namespace/MDLocking.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
-#include "namespace/locking/NSObjectLocker.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
 
 #include <XrdAcc/XrdAccPrivs.hh>
-#include <google/sparse_hash_map>
 #include <chrono>
 #include <mutex>
 
@@ -1854,7 +1851,6 @@ public:
 
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
-  IoShaping mIoShaper; // ioShaper thread to manager ioAggregates object
   TrafficShapingEngine mTrafficShapingEngine;
 
   //----------------------------------------------------------------------------
