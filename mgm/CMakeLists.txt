@@ -119,7 +119,7 @@ add_library(
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
   proc/admin/DevicesCmd.cc proc/admin/DevicesCmd.hh
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
-  proc/admin/IoCmd.cc proc/admin/IoCmd.hh
+  proc/admin/IoMonitorCmd.cc proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/FileRegisterCmd.cc proc/admin/FileRegisterCmd.hh
   proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
   proc/admin/SchedCmd.cc
