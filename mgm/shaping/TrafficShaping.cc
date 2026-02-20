@@ -544,11 +544,6 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
   }
 }
 
-// policies for traffic shaping manager
-// -----------------------------------------------------------------------------
-// Shaping Policy API (Configuration)
-// -----------------------------------------------------------------------------
-
 void
 TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant)
 {

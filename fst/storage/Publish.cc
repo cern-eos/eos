@@ -53,6 +53,9 @@ XrdVERSIONINFOREF(XrdgetProtocol);
 
 EOSFSTNAMESPACE_BEGIN
 
+// TODO: Make this configurable via persistent variable
+inline uint64_t SendTrafficShapingStatsLoopTimerMillis = 100;
+
 //------------------------------------------------------------------------------
 // Serialize hot files vector into std::string
 // Return " " if given an empty vector, instead of "".
@@ -716,7 +719,7 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
 
   while (!assistant.terminationRequested()) {
     std::chrono::milliseconds reportInterval =
-        std::chrono::milliseconds(1000); // TODO: make this configurable
+        std::chrono::milliseconds(SendTrafficShapingStatsLoopTimerMillis);
     common::IntervalStopwatch stopwatch(reportInterval);
 
     // Here we send the stats

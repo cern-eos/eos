@@ -206,8 +206,8 @@ public:
   // tuning the tick interval and ensuring we don't have bottlenecks in the processing
   // loop these sliding windows will be refreshed whenever the respective loop updates its
   // tick time
-  eos::fst::SlidingWindowStats estimators_update_loop_micro_sec{5.0, 100.0};
-  eos::fst::SlidingWindowStats fst_limits_update_loop_micro_sec{5.0, 100.0};
+  eos::fst::SlidingWindowStats estimators_update_loop_micro_sec{5.0, 1.0};
+  eos::fst::SlidingWindowStats fst_limits_update_loop_micro_sec{5.0, 1.0};
 
   void
   update_fst_limits_update_loop_micro_sec(const uint64_t time_microseconds)
@@ -347,7 +347,7 @@ public:
   SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms)
   {
     // Updating the period has significant consequences in the estimators, this is not
-    // trivial, we need to completly reset the stats
+    // trivial, we need to completely reset the stats
     mEstimatorsUpdateThreadPeriodMilliseconds = period_ms;
     mBrain->estimators_update_loop_micro_sec =
         eos::fst::SlidingWindowStats(5.0, mEstimatorsUpdateThreadPeriodMilliseconds);
@@ -357,7 +357,7 @@ public:
   SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms)
   {
     // Updating the period has significant consequences in the estimators, this is not
-    // trivial, we need to completly reset the stats
+    // trivial, we need to completely reset the stats
     mFstIoPolicyUpdateThreadPeriodMilliseconds = period_ms;
     mBrain->fst_limits_update_loop_micro_sec =
         eos::fst::SlidingWindowStats(5.0, mFstIoPolicyUpdateThreadPeriodMilliseconds);
@@ -386,7 +386,7 @@ private:
 
   std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds =
       estimatorsUpdateThreadPeriodMilliseconds;
-  std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds = 1000;
+  std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds = 500;
 
   // queue for incoming io reports from FST. We don't process these in the message handler
   // to avoid blocking This is used as a double buffering queue for minimum blocking since
