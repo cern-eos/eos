@@ -55,8 +55,8 @@ private:
 #endif
   AssistedThread mThread; ///< Thread running GRPC service
 
-  //
-  std::shared_ptr<eos::mgm::TrafficShaping> mTrafficShapingManager;
+  std::shared_ptr<eos::mgm::traffic_shaping::TrafficShapingManager>
+      mTrafficShapingManager;
 
 public:
 

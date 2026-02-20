@@ -1851,7 +1851,7 @@ public:
 
   std::vector<pthread_t> mVectTid; ///< vector of auth worker threads ids
 
-  TrafficShapingEngine mTrafficShapingEngine;
+  eos::mgm::traffic_shaping::TrafficShapingEngine mTrafficShapingEngine;
 
   //----------------------------------------------------------------------------
   // Authentication plugin variables like the ZMQ front end port number and the

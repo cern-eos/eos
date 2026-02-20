@@ -29,29 +29,29 @@ MonitorPolicySet(const eos::console::IoProto_MonitorProto_PolicyAction_SetAction
                  eos::console::ReplyProto& reply)
 {
   auto& engine = gOFS->mTrafficShapingEngine;
-  const std::shared_ptr<eos::mgm::TrafficShaping> brain = engine.GetBrain();
+  const std::shared_ptr<traffic_shaping::TrafficShapingManager> brain = engine.GetBrain();
   if (!brain) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
     return;
   }
 
-  eos::mgm::TrafficShapingPolicy policy; // Starts completely empty
+  traffic_shaping::TrafficShapingPolicy policy; // Starts completely empty
   std::string target_desc;               // For nice output logging
 
   // 1. READ (Fetch existing policy if it exists)
   if (set_req.has_app()) {
     target_desc = "App '" + set_req.app() + "'";
-    policy =
-        brain->GetAppPolicy(set_req.app()).value_or(eos::mgm::TrafficShapingPolicy{});
+    policy = brain->GetAppPolicy(set_req.app())
+                 .value_or(traffic_shaping::TrafficShapingPolicy{});
   } else if (set_req.has_uid()) {
     target_desc = "UID " + std::to_string(set_req.uid());
-    policy =
-        brain->GetUidPolicy(set_req.uid()).value_or(eos::mgm::TrafficShapingPolicy{});
+    policy = brain->GetUidPolicy(set_req.uid())
+                 .value_or(traffic_shaping::TrafficShapingPolicy{});
   } else if (set_req.has_gid()) {
     target_desc = "GID " + std::to_string(set_req.gid());
-    policy =
-        brain->GetGidPolicy(set_req.gid()).value_or(eos::mgm::TrafficShapingPolicy{});
+    policy = brain->GetGidPolicy(set_req.gid())
+                 .value_or(traffic_shaping::TrafficShapingPolicy{});
   } else {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: You must specify a target (--app, --uid, or --gid).\n");
@@ -97,7 +97,7 @@ MonitorPolicyDelete(
     eos::console::ReplyProto& reply)
 {
   auto& engine = gOFS->mTrafficShapingEngine;
-  const std::shared_ptr<eos::mgm::TrafficShaping> brain = engine.GetBrain();
+  const std::shared_ptr<traffic_shaping::TrafficShapingManager> brain = engine.GetBrain();
   if (!brain) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
@@ -131,7 +131,7 @@ MonitorTraffic(const eos::console::IoProto_MonitorProto_TrafficAction& traffic_r
                eos::console::ReplyProto& reply)
 {
   auto& engine = gOFS->mTrafficShapingEngine;
-  const std::shared_ptr<eos::mgm::TrafficShaping> brain = engine.GetBrain();
+  const std::shared_ptr<traffic_shaping::TrafficShapingManager> brain = engine.GetBrain();
   if (!brain) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
@@ -166,7 +166,7 @@ MonitorTraffic(const eos::console::IoProto_MonitorProto_TrafficAction& traffic_r
     }
 
     auto& entry = agg_stats[group_key];
-    const auto& sma5s = snapshot.sma[eos::mgm::Sma5s];
+    const auto& sma5s = snapshot.sma[traffic_shaping::Sma5s];
     entry.read_rate += sma5s.read_rate_bps;
     entry.write_rate += sma5s.write_rate_bps;
     entry.read_iops += sma5s.read_iops;
@@ -210,7 +210,7 @@ MonitorPolicyList(
 {
   auto& engine = gOFS->mTrafficShapingEngine;
   // Note: Match the exact type returned by GetBrain() in your environment
-  const std::shared_ptr<eos::mgm::TrafficShaping> brain = engine.GetBrain();
+  const std::shared_ptr<traffic_shaping::TrafficShapingManager> brain = engine.GetBrain();
   if (!brain) {
     reply.set_retc(EINVAL);
     reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
@@ -232,7 +232,7 @@ MonitorPolicyList(
 
   // Reusable table row formatter
   auto print_row = [&oss](const std::string& id,
-                          const eos::mgm::TrafficShapingPolicy& policy) {
+                          const traffic_shaping::TrafficShapingPolicy& policy) {
     oss << std::left << std::setw(20) << id << std::setw(10)
         << (policy.is_enabled ? "Enabled" : "Disabled") << std::right << std::setw(15)
         << format_rate(policy.limit_read_bytes_per_sec) << std::setw(15)
@@ -285,7 +285,7 @@ void
 IoCmd::MonitorSubcommand(const eos::console::IoProto_MonitorProto& monitor,
                          eos::console::ReplyProto& reply)
 {
-  eos::common::RWMutexWriteLock wr_lock(eos::mgm::FsView::gFsView.ViewMutex);
+  eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
 
   switch (monitor.subcmd_case()) {
 

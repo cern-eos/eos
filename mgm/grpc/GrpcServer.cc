@@ -74,40 +74,41 @@ struct Rates {
 };
 
 Rates
-ExtractWindowRates(const eos::mgm::RateSnapshot& snap,
+ExtractWindowRates(const eos::mgm::traffic_shaping::RateSnapshot& snap,
                    eos::traffic_shaping::TrafficShapingRateRequest::Estimators estimator)
 {
   // Helper to cleanly map our internal RateMetrics into the expected return struct
-  auto unpack = [](const eos::mgm::RateMetrics& m) -> Rates {
+  auto unpack = [](const eos::mgm::traffic_shaping::RateMetrics& m) -> Rates {
     return {m.read_rate_bps, m.write_rate_bps, m.read_iops, m.write_iops};
   };
 
+  using Request = eos::traffic_shaping::TrafficShapingRateRequest;
   switch (estimator) {
     // SMA
-  case eos::traffic_shaping::TrafficShapingRateRequest::SMA_1_SECONDS:
-    return unpack(snap.sma[eos::mgm::Sma1s]);
-  case eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_SECONDS:
-    return unpack(snap.sma[eos::mgm::Sma5s]);
-  case eos::traffic_shaping::TrafficShapingRateRequest::SMA_1_MINUTES:
-    return unpack(snap.sma[eos::mgm::Sma1m]);
-  case eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_MINUTES:
-    return unpack(snap.sma[eos::mgm::Sma5m]);
+  case Request::SMA_1_SECONDS:
+    return unpack(snap.sma[eos::mgm::traffic_shaping::Sma1s]);
+  case Request::SMA_5_SECONDS:
+    return unpack(snap.sma[eos::mgm::traffic_shaping::Sma5s]);
+  case Request::SMA_1_MINUTES:
+    return unpack(snap.sma[eos::mgm::traffic_shaping::Sma1m]);
+  case Request::SMA_5_MINUTES:
+    return unpack(snap.sma[eos::mgm::traffic_shaping::Sma5m]);
 
     // EMA
-  case eos::traffic_shaping::TrafficShapingRateRequest::EMA_1_SECONDS:
-    return unpack(snap.ema[eos::mgm::Ema1s]);
-  case eos::traffic_shaping::TrafficShapingRateRequest::EMA_5_SECONDS:
-    return unpack(snap.ema[eos::mgm::Ema5s]);
+  case Request::EMA_1_SECONDS:
+    return unpack(snap.ema[eos::mgm::traffic_shaping::Ema1s]);
+  case Request::EMA_5_SECONDS:
+    return unpack(snap.ema[eos::mgm::traffic_shaping::Ema5s]);
 
-  case eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED:
+  case Request::UNSPECIFIED:
   default:
     // Default fallback (1-minute SMA)
-    return unpack(snap.sma[eos::mgm::Sma1m]);
+    return unpack(snap.sma[eos::mgm::traffic_shaping::Sma1m]);
   }
 }
 
 void
-BuildReport(const std::shared_ptr<TrafficShaping>& brain,
+BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& brain,
             const eos::traffic_shaping::TrafficShapingRateRequest* request,
             eos::traffic_shaping::TrafficShapingRateResponse* report)
 {

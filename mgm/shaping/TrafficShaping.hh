@@ -12,7 +12,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace eos::mgm {
+namespace eos::mgm::traffic_shaping {
 // -----------------------------------------------------------------------------
 // 1. Per-Node State (For Delta Calculation)
 // -----------------------------------------------------------------------------
@@ -44,8 +44,11 @@ constexpr std::array<int, 4> SmaWindowSec = {1, 5, 60, 300};
 enum EmaIdx : size_t { Ema1s = 0, Ema5s = 1 };
 enum SmaIdx : size_t { Sma1s = 0, Sma5s = 1, Sma1m = 2, Sma5m = 3 };
 
+inline uint32_t estimatorsUpdateThreadPeriodMilliseconds = 200;
+
 struct MultiWindowRate {
-  inline static double tick_interval_seconds = 0.1;
+  inline static double tick_interval_seconds =
+      estimatorsUpdateThreadPeriodMilliseconds * 0.001;
   inline static double sma_max_history_seconds =
       *std::max_element(SmaWindowSec.begin(), SmaWindowSec.end());
 
@@ -141,11 +144,11 @@ struct TrafficShapingPolicy {
 // -----------------------------------------------------------------------------
 // Class: TrafficShapingManager
 // -----------------------------------------------------------------------------
-class TrafficShaping {
+class TrafficShapingManager {
 public:
-  TrafficShaping();
+  TrafficShapingManager();
 
-  ~TrafficShaping();
+  ~TrafficShapingManager();
 
   // --- Fast Path (RPC Threads) ---
   // 1. Looks up NodeState to calculate Delta.
@@ -300,7 +303,7 @@ public:
   //! This shared pointer should be passed to the gRPC Service so it can
   //! ingest reports into the same memory this engine is updating.
   //----------------------------------------------------------------------------
-  std::shared_ptr<eos::mgm::TrafficShaping> GetBrain() const;
+  std::shared_ptr<TrafficShapingManager> GetBrain() const;
 
   void ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report);
 
@@ -374,14 +377,15 @@ private:
   void ProcessAllQueuedReports();
 
   // --- Members ---
-  std::shared_ptr<eos::mgm::TrafficShaping> mBrain;
+  std::shared_ptr<TrafficShapingManager> mBrain;
 
   AssistedThread mEstimatorsUpdateThread;
   AssistedThread mFstIoPolicyUpdateThread;
 
   std::atomic<bool> mRunning;
 
-  std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds = 250;
+  std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds =
+      estimatorsUpdateThreadPeriodMilliseconds;
   std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds = 1000;
 
   // queue for incoming io reports from FST. We don't process these in the message handler
@@ -390,4 +394,5 @@ private:
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue;
   std::mutex mReportQueueMutex;
 };
-} // namespace eos::mgm
+
+} // namespace eos::mgm::traffic_shaping
