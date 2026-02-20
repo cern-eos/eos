@@ -21,16 +21,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <grpc++/grpc++.h>
-#include "cta_frontend.pb.h"
-#include "cta_frontend.grpc.pb.h"
+#include "XrdSsiPbConfig.hpp"
 #include "common/Logging.hh"
+#include "cta_frontend.grpc.pb.h"
+#include "cta_frontend.pb.h"
+#include "xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
 
+#include <XrdSsiPbIStreamBuffer.hpp>
+#include <grpc++/grpc++.h>
 #include <grpcpp/security/credentials.h>
-
-#include <fstream>
-#include <iostream>
-#include <sstream>
 
 class WFEClient {
 public:

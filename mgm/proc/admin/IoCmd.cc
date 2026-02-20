@@ -485,7 +485,6 @@ MonitorThrottleSet(const eos::console::IoProto_MonitorProto::ThrottleProto::SetA
   // TODO: this should differently for limits / reservations
 
   const std::string read_or_write = is_read ? "read" : "write";
-  bool status = false;
   auto& engine = gOFS->mTrafficShapingEngine;
   switch (monitor_throttle.target_case()) {
   case eos::console::IoProto_MonitorProto::ThrottleProto::SetAction::kApp: {
