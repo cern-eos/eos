@@ -218,7 +218,21 @@ public:
     std::string sub;
     ConfigureAttrApp(app, opt_r, opt_V, sub);
 
-    std::vector<std::string> cli_args = args;
+    // Insert "--" before first non-flag so CLI11 treats key=value (e.g. default=replica)
+    // as positional, not as --default=replica option
+    std::vector<std::string> cli_args;
+    cli_args.reserve(args.size() + 1);
+    size_t i = 0;
+    while (i < args.size() && (args[i] == "-r" || args[i] == "-V")) {
+      cli_args.push_back(args[i]);
+      ++i;
+    }
+    cli_args.push_back("--");
+    for (; i < args.size(); ++i) {
+      cli_args.push_back(args[i]);
+    }
+    // CLI11 parses from the back; reverse so "--" is seen first, then set, default=replica, path
+    std::reverse(cli_args.begin(), cli_args.end());
     try {
       app.parse(cli_args);
     } catch (const CLI::ParseError&) {
@@ -272,6 +286,10 @@ public:
       return ctx.outputResult(ctx.clientCommand(cmd, false, nullptr), true);
     };
 
+    // Skip "--" which CLI11 adds to remaining when used as positional separator
+    while (idx < remaining.size() && remaining[idx] == "--") {
+      ++idx;
+    }
     if (idx >= remaining.size()) {
       printHelp();
       global_retc = EINVAL;
