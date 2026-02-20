@@ -2631,6 +2631,16 @@ categorie="token"
 # ------------------------------------------------------------------------------
 runtest "### eos-token  " unix SUCCESS "" eos_token "/eos/$EOS_TEST_INSTANCE/test/instancetest/token.dir/"
 
+categorie="traffic_shaping"
+runtest "### Traffic Shaping " unix SUCCESS "" eos io monitor traffic
+runtest "### Traffic Shaping " unix SUCCESS "" eos io monitor policy set --app test --limit-write 5M
+runtest "### Traffic Shaping " unix SUCCESS "" eos io monitor policy set --app test --limit-write 10M --disable
+runtest "### Traffic Shaping " unix SUCCESS "" eos io monitor policy set --app test --enable
+runtest "### Traffic Shaping " unix SUCCESS "" eos io monitor policy set --app test --limit-write 10M --limit-read 5M
+runtest "### Traffic Shaping " unix SUCCESS "" eos io monitor policy set --app test --disable
+runtest "### Traffic Shaping " unix SUCCESS "" eos io monitor policy list
+runtest "### Traffic Shaping " unix SUCCESS "" eos io monitor policy remove --app test
+
 ################################################################################
 # RAIN-LIKE LAYOUT TESTS FOR WR/RD AND RECOVERY
 # !!!RUN ONLY IF AT LEAST 6 FSTs PRESENT!!!
