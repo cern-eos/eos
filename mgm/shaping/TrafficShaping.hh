@@ -28,39 +28,35 @@ struct StreamState {
   time_t last_update_time = 0;
 };
 
-// -----------------------------------------------------------------------------
-// 2. Global Aggregated State (For Rate Calculation)
-// -----------------------------------------------------------------------------
-// Tracks the aggregated speed of a User/App across the entire cluster.
-// 1. Internal State (Keep as is)
+// Group the metrics so we don't repeat them 6 times
+struct RateMetrics {
+  double read_rate_bps = 0.0;
+  double write_rate_bps = 0.0;
+  double read_iops = 0.0;
+  double write_iops = 0.0;
+};
+
+// The actual durations in seconds (used in UpdateTimeWindows math)
+constexpr std::array<int, 2> EmaWindowSec = {1, 5};
+constexpr std::array<int, 4> SmaWindowSec = {1, 5, 60, 300};
+
+// Enums for clean, O(1) array access throughout the codebase
+enum EmaIdx : size_t { Ema1s = 0, Ema5s = 1 };
+enum SmaIdx : size_t { Sma1s = 0, Sma5s = 1, Sma1m = 2, Sma5m = 3 };
+
 struct MultiWindowRate {
   inline static double tick_interval_seconds = 0.1;
-  inline static double sma_max_history_seconds = 300.0;
+  inline static double sma_max_history_seconds =
+      *std::max_element(SmaWindowSec.begin(), SmaWindowSec.end());
 
   std::atomic<uint64_t> bytes_read_accumulator{0};
   std::atomic<uint64_t> bytes_written_accumulator{0};
-  std::atomic<uint64_t> read_iops_accumulator{0};  // Added
-  std::atomic<uint64_t> write_iops_accumulator{0}; // Added
+  std::atomic<uint64_t> read_iops_accumulator{0};
+  std::atomic<uint64_t> write_iops_accumulator{0};
 
-  // --- EMA Storage ---
-  double read_rate_ema_5s = 0;
-  double read_iops_ema_5s = 0;
-  double write_rate_ema_5s = 0;
-  double write_iops_ema_5s = 0;
+  std::array<RateMetrics, EmaWindowSec.size()> ema{};
+  std::array<RateMetrics, SmaWindowSec.size()> sma{};
 
-  double read_rate_ema_1m = 0;
-  double read_iops_ema_1m = 0;
-  double write_rate_ema_1m = 0;
-  double write_iops_ema_1m = 0;
-
-  double read_rate_ema_5m = 0;
-  double read_iops_ema_5m = 0;
-  double write_rate_ema_5m = 0;
-  double write_iops_ema_5m = 0;
-  // ... (1m and 5m fields) ...
-
-  // --- SMA Storage (The Circular Buffers) ---
-  // We need one buffer per metric type
   eos::fst::SlidingWindowStats bytes_read_window{sma_max_history_seconds,
                                                  tick_interval_seconds};
   eos::fst::SlidingWindowStats bytes_written_window{sma_max_history_seconds,
@@ -70,61 +66,16 @@ struct MultiWindowRate {
   eos::fst::SlidingWindowStats iops_write_window{sma_max_history_seconds,
                                                  tick_interval_seconds};
 
-  // --- SMA Calculated Values (Cached for Snapshot) ---
-  double read_rate_sma_5s = 0;
-  double write_rate_sma_5s = 0;
-  double read_iops_sma_5s = 0;
-  double write_iops_sma_5s = 0;
-
-  double read_rate_sma_1m = 0;
-  double write_rate_sma_1m = 0;
-  double read_iops_sma_1m = 0;
-  double write_iops_sma_1m = 0;
-
-  double read_rate_sma_5m = 0;
-  double write_rate_sma_5m = 0;
-  double read_iops_sma_5m = 0;
-  double write_iops_sma_5m = 0;
-
   uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
 };
 
-// 2. NEW: Snapshot State (For Return/Copying)
-// This is exactly the same as above but WITHOUT std::atomic
 struct RateSnapshot {
   uint64_t bytes_read_accumulator = 0;
   uint64_t bytes_written_accumulator = 0;
 
-  double read_rate_ema_5s = 0;
-  double read_iops_ema_5s = 0;
-  double write_rate_ema_5s = 0;
-  double write_iops_ema_5s = 0;
-
-  double read_rate_ema_1m = 0;
-  double read_iops_ema_1m = 0;
-  double write_rate_ema_1m = 0;
-  double write_iops_ema_1m = 0;
-
-  double read_rate_ema_5m = 0;
-  double read_iops_ema_5m = 0;
-  double write_rate_ema_5m = 0;
-  double write_iops_ema_5m = 0;
-
-  double read_rate_sma_5s = 0;
-  double write_rate_sma_5s = 0;
-  double read_iops_sma_5s = 0;
-  double write_iops_sma_5s = 0;
-
-  double read_rate_sma_1m = 0;
-  double write_rate_sma_1m = 0;
-  double read_iops_sma_1m = 0;
-  double write_iops_sma_1m = 0;
-
-  double read_rate_sma_5m = 0;
-  double write_rate_sma_5m = 0;
-  double read_iops_sma_5m = 0;
-  double write_iops_sma_5m = 0;
+  std::array<RateMetrics, EmaWindowSec.size()> ema{};
+  std::array<RateMetrics, SmaWindowSec.size()> sma{};
 
   uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;

@@ -23,7 +23,6 @@
 
 #include "GrpcServer.hh"
 #include "GrpcNsInterface.hh"
-#include <google/protobuf/util/json_util.h>
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/macros/Macros.hh"
@@ -31,7 +30,6 @@
 
 #ifdef EOS_GRPC
 #include "proto/Rpc.grpc.pb.h"
-#include <grpc++/security/credentials.h>
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -79,28 +77,32 @@ Rates
 ExtractWindowRates(const eos::mgm::RateSnapshot& snap,
                    eos::traffic_shaping::TrafficShapingRateRequest::Estimators estimator)
 {
+  // Helper to cleanly map our internal RateMetrics into the expected return struct
+  auto unpack = [](const eos::mgm::RateMetrics& m) -> Rates {
+    return {m.read_rate_bps, m.write_rate_bps, m.read_iops, m.write_iops};
+  };
+
   switch (estimator) {
+    // SMA
+  case eos::traffic_shaping::TrafficShapingRateRequest::SMA_1_SECONDS:
+    return unpack(snap.sma[eos::mgm::Sma1s]);
   case eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_SECONDS:
-    return {snap.read_rate_sma_5s, snap.write_rate_sma_5s, snap.read_iops_sma_5s,
-            snap.write_iops_sma_5s};
+    return unpack(snap.sma[eos::mgm::Sma5s]);
   case eos::traffic_shaping::TrafficShapingRateRequest::SMA_1_MINUTES:
-    return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m,
-            snap.write_iops_sma_1m};
+    return unpack(snap.sma[eos::mgm::Sma1m]);
   case eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_MINUTES:
-    return {snap.read_rate_sma_5m, snap.write_rate_sma_5m, snap.read_iops_sma_5m,
-            snap.write_iops_sma_5m};
+    return unpack(snap.sma[eos::mgm::Sma5m]);
+
+    // EMA
+  case eos::traffic_shaping::TrafficShapingRateRequest::EMA_1_SECONDS:
+    return unpack(snap.ema[eos::mgm::Ema1s]);
   case eos::traffic_shaping::TrafficShapingRateRequest::EMA_5_SECONDS:
-    return {snap.read_rate_ema_5s, snap.write_rate_ema_5s, snap.read_iops_ema_5s,
-            snap.write_iops_ema_5s};
-  case eos::traffic_shaping::TrafficShapingRateRequest::EMA_1_MINUTES:
-    return {snap.read_rate_ema_1m, snap.write_rate_ema_1m, snap.read_iops_ema_1m,
-            snap.write_iops_sma_1m};
-  case eos::traffic_shaping::TrafficShapingRateRequest::EMA_5_MINUTES:
-    return {snap.read_rate_ema_5m, snap.write_rate_ema_5m, snap.read_iops_ema_5m,
-            snap.write_iops_ema_5m};
+    return unpack(snap.ema[eos::mgm::Ema5s]);
+
+  case eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED:
   default:
-    return {snap.read_rate_sma_1m, snap.write_rate_sma_1m, snap.read_iops_sma_1m,
-            snap.write_iops_sma_1m};
+    // Default fallback (1-minute SMA)
+    return unpack(snap.sma[eos::mgm::Sma1m]);
   }
 }
 

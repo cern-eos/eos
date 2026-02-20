@@ -31,8 +31,8 @@ TrafficShaping::GetCurrentReadAndWriteRateForApps() const
   std::unordered_map<std::string, double> app_write_rates;
 
   for (const auto& [key, stats] : mGlobalStats) {
-    app_read_rates[key.app] += stats.read_rate_ema_5s;
-    app_write_rates[key.app] += stats.write_rate_ema_5s;
+    app_read_rates[key.app] += stats.ema[eos::mgm::Ema5s].read_rate_bps;
+    app_write_rates[key.app] += stats.ema[eos::mgm::Ema5s].write_rate_bps;
   }
 
   return {app_read_rates, app_write_rates};
@@ -124,6 +124,7 @@ ComputeEmaAlpha(double window_seconds, double time_delta_seconds)
 // -----------------------------------------------------------------------------
 // Slow Path: Update Time Windows (Called every 1 second)
 // -----------------------------------------------------------------------------
+
 void
 TrafficShaping::UpdateTimeWindows(const double time_delta_seconds)
 {
@@ -134,19 +135,13 @@ TrafficShaping::UpdateTimeWindows(const double time_delta_seconds)
   // Write lock needed
   std::unique_lock lock(mMutex);
 
-  // Constants for 1s ticker
-  double kAlpha5s = ComputeEmaAlpha(5.0, time_delta_seconds);
-  double kAlpha1m = ComputeEmaAlpha(60.0, time_delta_seconds);
-  double kAlpha5m = ComputeEmaAlpha(300.0, time_delta_seconds);
-
-  // --- Helper Lambda for Zero-Snapping ---
-  // If current_rate is 0, we snap the 5s window to 0 to avoid "ghosting".
-  // The 1m and 5m windows decay naturally.
-  auto update_rate_set = [&](double current_rate, double& r5s, double& r1m, double& r5m) {
-    r5s = CalculateEma(current_rate, r5s, kAlpha5s);
-    r1m = CalculateEma(current_rate, r1m, kAlpha1m);
-    r5m = CalculateEma(current_rate, r5m, kAlpha5m);
-  };
+  // Pre-compute alphas for all configured EMA windows to save CPU cycles
+  // instead of recalculating them for every single stream.
+  std::array<double, EmaWindowSec.size()> ema_alphas;
+  for (size_t i = 0; i < EmaWindowSec.size(); ++i) {
+    ema_alphas[i] =
+        ComputeEmaAlpha(static_cast<double>(EmaWindowSec[i]), time_delta_seconds);
+  }
 
   for (auto& [key, stats] : mGlobalStats) {
     // 1. Snapshot and Reset Accumulators
@@ -165,21 +160,23 @@ TrafficShaping::UpdateTimeWindows(const double time_delta_seconds)
     const double current_write_iops =
         static_cast<double>(write_iops_now) / time_delta_seconds;
 
-    update_rate_set(current_read_bps, stats.read_rate_ema_5s, stats.read_rate_ema_1m,
-                    stats.read_rate_ema_5m);
-    update_rate_set(current_write_bps, stats.write_rate_ema_5s, stats.write_rate_ema_1m,
-                    stats.write_rate_ema_5m);
-    update_rate_set(current_read_iops, stats.read_iops_ema_5s, stats.read_iops_ema_1m,
-                    stats.read_iops_ema_5m);
-    update_rate_set(current_write_iops, stats.write_iops_ema_5s, stats.write_iops_ema_1m,
-                    stats.write_iops_ema_5m);
+    // 3. Update EMAs
+    for (size_t i = 0; i < EmaWindowSec.size(); ++i) {
+      stats.ema[i].read_rate_bps =
+          CalculateEma(current_read_bps, stats.ema[i].read_rate_bps, ema_alphas[i]);
+      stats.ema[i].write_rate_bps =
+          CalculateEma(current_write_bps, stats.ema[i].write_rate_bps, ema_alphas[i]);
+      stats.ema[i].read_iops =
+          CalculateEma(current_read_iops, stats.ema[i].read_iops, ema_alphas[i]);
+      stats.ema[i].write_iops =
+          CalculateEma(current_write_iops, stats.ema[i].write_iops, ema_alphas[i]);
+    }
 
     // -------------------------------------------------------------------------
-    // SMA Calculation (Uses Raw Counts + Sliding Window)
+    // 4. SMA Calculation (Uses Raw Counts + Sliding Window)
     // -------------------------------------------------------------------------
 
     // A. Add current second's raw data to the current bucket
-    // Note: We add the raw count, not the rate.
     stats.bytes_read_window.Add(bytes_read_now);
     stats.bytes_written_window.Add(bytes_written_now);
     stats.iops_read_window.Add(read_iops_now);
@@ -192,23 +189,13 @@ TrafficShaping::UpdateTimeWindows(const double time_delta_seconds)
     stats.iops_write_window.Tick();
 
     // C. Compute and Cache SMA Rates
-    // 5s Window
-    stats.read_rate_sma_5s = stats.bytes_read_window.GetRate(5);
-    stats.write_rate_sma_5s = stats.bytes_written_window.GetRate(5);
-    stats.read_iops_sma_5s = stats.iops_read_window.GetRate(5);
-    stats.write_iops_sma_5s = stats.iops_write_window.GetRate(5);
-
-    // 1m Window (60s)
-    stats.read_rate_sma_1m = stats.bytes_read_window.GetRate(60);
-    stats.write_rate_sma_1m = stats.bytes_written_window.GetRate(60);
-    stats.read_iops_sma_1m = stats.iops_read_window.GetRate(60);
-    stats.write_iops_sma_1m = stats.iops_write_window.GetRate(60);
-
-    // 5m Window (300s)
-    stats.read_rate_sma_5m = stats.bytes_read_window.GetRate(300);
-    stats.write_rate_sma_5m = stats.bytes_written_window.GetRate(300);
-    stats.read_iops_sma_5m = stats.iops_read_window.GetRate(300);
-    stats.write_iops_sma_5m = stats.iops_write_window.GetRate(300);
+    for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
+      const int window_sec = SmaWindowSec[i];
+      stats.sma[i].read_rate_bps = stats.bytes_read_window.GetRate(window_sec);
+      stats.sma[i].write_rate_bps = stats.bytes_written_window.GetRate(window_sec);
+      stats.sma[i].read_iops = stats.iops_read_window.GetRate(window_sec);
+      stats.sma[i].write_iops = stats.iops_write_window.GetRate(window_sec);
+    }
   }
 }
 
@@ -320,41 +307,15 @@ TrafficShaping::GetGlobalStats() const
   std::shared_lock lock(mMutex);
 
   std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> snapshot_map;
+  snapshot_map.reserve(mGlobalStats.size());
 
   for (const auto& [key, internal_stat] : mGlobalStats) {
     RateSnapshot& snap = snapshot_map[key];
 
     snap.last_activity_time = internal_stat.last_activity_time;
-
-    // EMA
-    snap.read_rate_ema_5s = internal_stat.read_rate_ema_5s;
-    snap.read_rate_ema_1m = internal_stat.read_rate_ema_1m;
-    snap.read_rate_ema_5m = internal_stat.read_rate_ema_5m;
-
-    snap.write_rate_ema_5s = internal_stat.write_rate_ema_5s;
-    snap.write_rate_ema_1m = internal_stat.write_rate_ema_1m;
-    snap.write_rate_ema_5m = internal_stat.write_rate_ema_5m;
-
-    snap.read_iops_ema_5s = internal_stat.read_iops_ema_5s;
-    snap.read_iops_ema_1m = internal_stat.read_iops_ema_1m;
-    snap.read_iops_ema_5m = internal_stat.read_iops_ema_5m;
-
-    // SMA
-    snap.read_rate_sma_5s = internal_stat.read_rate_sma_5s;
-    snap.read_rate_sma_1m = internal_stat.read_rate_sma_1m;
-    snap.read_rate_sma_5m = internal_stat.read_rate_sma_5m;
-
-    snap.write_rate_sma_5s = internal_stat.write_rate_sma_5s;
-    snap.write_rate_sma_1m = internal_stat.write_rate_sma_1m;
-    snap.write_rate_sma_5m = internal_stat.write_rate_sma_5m;
-
-    snap.read_iops_sma_5s = internal_stat.read_iops_sma_5s;
-    snap.read_iops_sma_1m = internal_stat.read_iops_sma_1m;
-    snap.read_iops_sma_5m = internal_stat.read_iops_sma_5m;
-
-    snap.write_iops_sma_5s = internal_stat.write_iops_sma_5s;
-    snap.write_iops_sma_1m = internal_stat.write_iops_sma_1m;
-    snap.write_iops_sma_5m = internal_stat.write_iops_sma_5m;
+    snap.active_stream_count = internal_stat.active_stream_count;
+    snap.ema = internal_stat.ema;
+    snap.sma = internal_stat.sma;
   }
 
   return snapshot_map;

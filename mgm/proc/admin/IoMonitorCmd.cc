@@ -166,10 +166,11 @@ MonitorTraffic(const eos::console::IoProto_MonitorProto_TrafficAction& traffic_r
     }
 
     auto& entry = agg_stats[group_key];
-    entry.read_rate += snapshot.read_rate_sma_5s;
-    entry.write_rate += snapshot.write_rate_sma_5s;
-    entry.read_iops += snapshot.read_iops_sma_5s;
-    entry.write_iops += snapshot.write_iops_sma_5s;
+    const auto& sma5s = snapshot.sma[eos::mgm::Sma5s];
+    entry.read_rate += sma5s.read_rate_bps;
+    entry.write_rate += sma5s.write_rate_bps;
+    entry.read_iops += sma5s.read_iops;
+    entry.write_iops += sma5s.write_iops;
   }
 
   std::ostringstream oss;
