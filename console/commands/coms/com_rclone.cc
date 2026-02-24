@@ -415,68 +415,68 @@ int createLink(const std::string& i, eos::common::Path& prefix,
 
     return rc;
   } else {
-    XrdCl::URL url(serveruri.c_str());
-    url.SetPath(std::string(prefix.GetFullPath().c_str()) + std::string("/") + i);
+    // Use file symlink (mgm.cmd=file) like ln-cmd-native / file symlink instead of deprecated pcmd
+    std::string linkpath =
+        std::string(prefix.GetFullPath().c_str()) + std::string("/") + i;
+    XrdOucString in = "mgm.cmd=file&mgm.subcmd=symlink";
+    in += "&mgm.path=";
+    in += eos::common::StringConversion::curl_escaped(linkpath).c_str();
+    in += "&eos.encodepath=1";
+    in += "&mgm.file.source=";
+    in += linkpath.c_str();
+    in += "&mgm.file.target=";
+    in += targetpath.c_str();
 
-    if (!url.IsValid()) {
-      std::cerr << "error: invalid url " << i.c_str() << std::endl;
-      return 0;
-    }
-
+    XrdOucEnv* result = client_command(in, false, nullptr);
     int retc = 0;
-    std::string request;
-    {
-      // create link
-      XrdCl::Buffer arg;
-      XrdCl::Buffer* response = nullptr;
-      request = eos::common::StringConversion::curl_escaped(std::string(
-                  prefix.GetFullPath().c_str()) + std::string("/") + i);
-      request += "?";
-      request += "mgm.pcmd=symlink&target=";
-      request += eos::common::StringConversion::curl_escaped(targetpath);
-      request += "&eos.encodepath=1";
-      arg.FromString(request);
-      XrdCl::FileSystem fs(url);
-      XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                            response);
-
-      if (response) {
-        delete response;
+    if (result) {
+      int envlen = 0;
+      const char* envstr = result->Env(envlen);
+      if (envlen) {
+        XrdOucEnv env(envstr);
+        const char* ptr = env.Get("mgm.proc.retc");
+        if (ptr) {
+          retc = std::stoi(ptr);
+        }
       }
-
-      retc = !status.IsOK();
+      delete result;
+    } else {
+      retc = EINVAL;
     }
     {
-      // fix mtime
-      XrdCl::Buffer arg;
-      XrdCl::Buffer* response = nullptr;
-      request = eos::common::StringConversion::curl_escaped(std::string(
-                  prefix.GetFullPath().c_str()) + std::string("/") + i);
-      request += "?";
-      request += "mgm.pcmd=utimes";
-      request += "&tv1_sec=0";  //ignored
-      request += "&tv1_nsec=0"; // ignored
-      request += "&tv2_sec=";
-      request += std::to_string(mtime.tv_sec);
-      request += "&tv2_nsec=";
-      std::stringstream oss;
-      oss << std::setfill('0') << std::setw(9) << mtime.tv_nsec;
-      request += oss.str();
-      request += "&eos.encodepath=1";
-      arg.FromString(request);
-      XrdCl::FileSystem fs(url);
-      XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                            response);
-
-      if (response) {
-        delete response;
+      // fix mtime (still uses pcmd utimes - no mgm.cmd equivalent for symlink mtime)
+      XrdCl::URL url(serveruri.c_str());
+      url.SetPath(std::string(prefix.GetFullPath().c_str()) + std::string("/") + i);
+      if (url.IsValid()) {
+        std::string request =
+            eos::common::StringConversion::curl_escaped(std::string(
+                prefix.GetFullPath().c_str()) + std::string("/") + i);
+        request += "?";
+        request += "mgm.pcmd=utimes";
+        request += "&tv1_sec=0";
+        request += "&tv1_nsec=0";
+        request += "&tv2_sec=";
+        request += std::to_string(mtime.tv_sec);
+        request += "&tv2_nsec=";
+        std::stringstream oss;
+        oss << std::setfill('0') << std::setw(9) << mtime.tv_nsec;
+        request += oss.str();
+        request += "&eos.encodepath=1";
+        XrdCl::Buffer arg;
+        XrdCl::Buffer* response = nullptr;
+        arg.FromString(request);
+        XrdCl::FileSystem fs(url);
+        XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
+                                              response);
+        if (response) {
+          delete response;
+        }
+        retc |= !status.IsOK();
       }
-
-      retc |= !status.IsOK();
     }
 
     if (!is_silent && verbose) {
-      std::cout << "[ symlink               ] : url:" << url.GetURL() << " : " << retc
+      std::cout << "[ symlink               ] : path:" << linkpath << " retc: " << retc
                 << std::endl;
     }
 
