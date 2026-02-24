@@ -535,7 +535,10 @@ public:
     }
 
     std::vector<std::string> remaining = app.remaining();
-    std::reverse(remaining.begin(), remaining.end());
+    // copy and touch expect flags-first (e.g. copy -f /src /dst); others expect path-first
+    if (subcmd == "copy" || subcmd == "touch") {
+      std::reverse(remaining.begin(), remaining.end());
+    }
 
     XrdOucString cmd = subcmd.c_str();
     std::vector<std::string> rest = remaining;
