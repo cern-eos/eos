@@ -37,30 +37,101 @@
 namespace {
 std::string MakeFileHelp()
 {
-  return "Usage: file <subcmd> [args...]\n\n"
-         "Subcommands:\n"
-         "  adjustreplica <path|fid|fxid> [space [subgroup]] [--exclude-fs <fsid>]  adjust replica placement\n"
-         "  check <path|fid|fxid> [%size%checksum%nrep%diskchecksum%force%output%silent]  verify replicas\n"
-         "  convert <path|fid> [layout] [space] [policy] [checksum] [--rewrite]\n"
-         "  copy [-f] [-s] [-c] <src> <dst>     synchronous third party copy\n"
-         "  drop <path|fid> <fsid> [-f]          drop replica\n"
-         "  info <identifier> [options]          show file info (path|fid:|fxid:|pid:|pxid:|inode:)\n"
-         "  layout <path|fid> -stripes|-checksum|-type <val>  change layout\n"
-         "  move <path|fid> <fsid1> <fsid2>      move replica between fsids\n"
-         "  purge <path> [version]               purge versions\n"
-         "  rename <src> <dst>                   rename path\n"
-         "  rename_with_symlink <src> <dst-dir>  rename and create symlink\n"
-         "  replicate <path|fid> <fsid1> <fsid2> replicate replica between fsids\n"
-         "  share <path> [lifetime]              create share link\n"
-         "  symlink <link-name> <target>         create symlink\n"
-         "  tag <path|fid> +|-|~<fsid>           location tag ops\n"
-         "  touch [-a] [-n] [-0] <path|fid|fxid> [linkpath|size [hexchecksum]]\n"
-         "  touch -l <path|fid|fxid> [lifetime [audience=user|app]]\n"
-         "  touch -u <path|fid|fxid>             remove lock\n"
-         "  verify <path|fid> [opts]             verify file checks\n"
-         "  version <path> [version]             create version\n"
-         "  versions <path|fid> [grab-version]   list/grab versions\n"
-         "  workflow <path> <workflow> <event>   trigger workflow\n";
+  std::ostringstream oss;
+  oss << "Usage: file <subcmd> [args...]\n\n"
+      << "'[eos] file ..' provides the file management interface of EOS.\n\n";
+  oss << "adjustreplica [--nodrop] [<path>|fid:<fid-dec>|fxid:<fid-hex>] [space [subgroup]] [--exclude-fs <fsid>]\n"
+      << "  Tries to bring files with replica layouts to the nominal replica level [need root].\n"
+      << "  --exclude-fs <fsid>  exclude the given filesystem from being used for the replica adjustment\n\n";
+  oss << "check [<path>|fid:<fid-dec>|fxid:<fid-hex>] [%size%checksum%nrep%diskchecksum%force%output%silent]\n"
+      << "  Retrieves stat information from the physical replicas and verifies correctness.\n"
+      << "  %size        return EFAULT if mismatch between the size meta data information\n"
+      << "  %checksum    return EFAULT if mismatch between the checksum meta data information\n"
+      << "  %nrep        return EFAULT if mismatch between layout number of replicas and existing replicas\n"
+      << "  %diskchecksum  return EFAULT if mismatch between disk checksum on FST and reference checksum\n"
+      << "  %silent      suppress all information for each replica to be printed\n"
+      << "  %force       force to get the MD even if the node is down\n"
+      << "  %output      print lines with inconsistency information\n\n";
+  oss << "convert [<path>|fid:<fid-dec>|fxid:<fid-hex>] [<layout>:<stripes>|<layout-id>|<sys.attribute.name>] "
+      << "[target-space] [placement-policy] [checksum] [--rewrite]\n"
+      << "  Convert the layout of a file.\n"
+      << "  <layout>:<stripes>   target layout and number of stripes\n"
+      << "  <layout-id>          hexadecimal layout id\n"
+      << "  <conversion-name>    name of sys.conversion.<name> in parent directory defining target layout\n"
+      << "  <target-space>       optional name of target space or group e.g. default or default.3\n"
+      << "  <placement-policy>   scattered, hybrid:<geotag>, gathered:<geotag>\n"
+      << "  <checksum>           optional target checksum name (md5, adler, etc.)\n"
+      << "  --rewrite            run conversion rewriting the file, creating new copies and dropping old\n\n";
+  oss << "copy [-f] [-s] [-c] <src> <dst>\n"
+      << "  Synchronous third party copy from <src> to <dst>.\n"
+      << "  <src>  source file or directory (<path>|fid:<fid-dec>|fxid:<fid-hex>)\n"
+      << "  <dst>  destination file (if source is file) or directory\n"
+      << "  -f     force overwrite\n"
+      << "  -s     don't print output\n"
+      << "  -c     clone the file (keep ctime, mtime)\n\n";
+  oss << "drop [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid> [-f]\n"
+      << "  Drop the file from <fsid>. -f force removes replica without trigger/wait for deletion "
+      << "(used to retire a filesystem).\n\n";
+  oss << "info [<path>|fid:<fid-dec>|fxid:<fid-hex>|pid:<cid-dec>|pxid:<cid-hex>|inode:<inode-dec>] [options]\n"
+      << "  Show file info. Options: --path, --fid, --fxid, --size, --checksum, --fullpath, "
+      << "--proxy, -m, -s|--silent.\n\n";
+  oss << "layout <path>|fid:<fid-dec>|fxid:<fid-hex> -stripes <n>\n"
+      << "  Change the number of stripes of a file with replica layout to <n>.\n"
+      << "layout <path>|fid:<fid-dec>|fxid:<fid-hex> -checksum <checksum-type>\n"
+      << "  Change the checksum-type of a file to <checksum-type>.\n"
+      << "layout <path>|fid:<fid-dec>|fxid:<fid-hex> -type <hex-layout-type>\n"
+      << "  Change the layout-type of a file to <hex-layout-type> (as shown by file info).\n\n";
+  oss << "move [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2>\n"
+      << "  Move the file from <fsid1> to <fsid2>.\n\n";
+  oss << "purge <path> [purge-version]\n"
+      << "  Keep maximum <purge-version> versions of a file. If not specified apply sys.versioning attribute.\n\n";
+  oss << "rename [<path>|fid:<fid-dec>|fxid:<fid-hex>] <new>\n"
+      << "  Rename from <old> to <new> name (works for files and directories).\n\n";
+  oss << "rename_with_symlink <source_file> <destination_dir>\n"
+      << "  Rename/move source file to destination directory atomically:\n"
+      << "  - move file to destination directory\n"
+      << "  - create symlink in the source directory to the new location\n\n";
+  oss << "replicate [<path>|fid:<fid-dec>|fxid:<fid-hex>] <fsid1> <fsid2>\n"
+      << "  Replicate file part on <fsid1> to <fsid2>.\n\n";
+  oss << "share <path> [lifetime]\n"
+      << "  Create a share link. <lifetime> defaults to 28d (1, 1s, 1d, 1w, 1mo, 1y, ...).\n\n";
+  oss << "symlink [-f] <name> <target>\n"
+      << "  Create a symlink with <name> pointing to <target>. -f force overwrite.\n\n";
+  oss << "tag <path>|fid:<fid-dec>|fxid:<fid-hex> +|-|~<fsid>\n"
+      << "  Add/remove/unlink a filesystem location to/from a file in the location index "
+      << "(does not move any data).\n"
+      << "  Unlink keeps the location in the list of deleted files (gets a deletion request).\n\n";
+  oss << "touch [-a] [-n] [-0] <path>|fid:<fid-dec>|fxid:<fid-hex> [linkpath|size [hexchecksum]]\n"
+      << "  Create/touch a 0-size/0-replica file if <path> does not exist or update mtime of existing file.\n"
+      << "  -n        disable placement logic (default uses placement)\n"
+      << "  -0        truncate a file\n"
+      << "  -a        absorb (adopt) a file from hardlink path - file disappears from given path and is taken under EOS FST control\n"
+      << "  linkpath  hard- or softlink the touched file to a shared filesystem\n"
+      << "  size      preset the size for a new touched file\n"
+      << "  hexchecksum  checksum information for a new touched file\n"
+      << "touch -l <path>|fid:<fid-dec>|fxid:<fid-hex> [<lifetime> [<audience>=user|app]]\n"
+      << "  Touch and create an extended attribute lock with <lifetime> (default 24h).\n"
+      << "  <audience> relaxes lock owner: same user or same app (default: both must match).\n"
+      << "  EBUSY if lock held by another; second call by same caller extends lifetime.\n"
+      << "  Use with 'eos -a application' to tag a client with an application for the lock.\n"
+      << "touch -u <path>|fid:<fid-dec>|fxid:<fid-hex>\n"
+      << "  Remove an extended attribute lock. No error if no lock; EBUSY if held by someone else.\n\n";
+  oss << "verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-commitfmd] [-rate <rate>] [-resync]\n"
+      << "  Verify a file against the disk images.\n"
+      << "  <fsid>        verify only the replica on <fsid>\n"
+      << "  -checksum     trigger checksum calculation during verification\n"
+      << "  -commitchecksum  commit the computed checksum to the MGM\n"
+      << "  -commitsize   commit the file size to the MGM\n"
+      << "  -commitfmd    commit the FMD to the MGM\n"
+      << "  -rate <rate>  restrict verification speed to <rate> per node\n"
+      << "  -resync       ask all locations to resync their file md records\n\n";
+  oss << "version <path> [purge-version]\n"
+      << "  Create a new version of a file by cloning. <purge-version> defines max versions to keep.\n\n";
+  oss << "versions <path>|fid:<fid-dec>|fxid:<fid-hex> [grab-version]\n"
+      << "  List versions of a file, or grab a version [grab-version].\n\n";
+  oss << "workflow <path>|fid:<fid-dec>|fxid:<fid-hex> <workflow> <event>\n"
+      << "  Trigger workflow <workflow> with event <event> on <path>.\n";
+  return oss.str();
 }
 
 void ConfigureFileApp(CLI::App& app, std::string& subcmd)
@@ -535,10 +606,6 @@ public:
     }
 
     std::vector<std::string> remaining = app.remaining();
-    // copy and touch expect flags-first (e.g. copy -f /src /dst); others expect path-first
-    if (subcmd == "copy" || subcmd == "touch") {
-      std::reverse(remaining.begin(), remaining.end());
-    }
 
     XrdOucString cmd = subcmd.c_str();
     std::vector<std::string> rest = remaining;
