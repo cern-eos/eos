@@ -878,7 +878,6 @@ TrafficShapingManager::SerializePoliciesUnlocked() const
   std::string json_data;
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = false;
-  options.always_print_primitive_fields = true;
 
   if (auto status =
           google::protobuf::util::MessageToJsonString(proto_config, &json_data, options);

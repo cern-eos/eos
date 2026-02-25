@@ -170,7 +170,6 @@ Audit::audit(const eos::audit::AuditRecord& record)
   std::string json;
   google::protobuf::util::JsonPrintOptions opts;
   opts.add_whitespace = false;
-  opts.always_print_primitive_fields = false;
   opts.preserve_proto_field_names = true;
 
   auto status = google::protobuf::util::MessageToJsonString(record, &json, opts);
