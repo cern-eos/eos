@@ -22,13 +22,14 @@
  ************************************************************************/
 
 #pragma once
-#include "mgm/Namespace.hh"
-#include "common/Mapping.hh"
 #include "common/AssistedThread.hh"
+#include "common/Mapping.hh"
+#include "common/RegexWrapper.hh"
+#include "mgm/Namespace.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include <XrdOuc/XrdOucErrInfo.hh>
-#include <sys/types.h>
 #include <memory>
+#include <sys/types.h>
 
 namespace qclient
 {
@@ -53,6 +54,97 @@ public:
     std::chrono::seconds interval; //< Run LRU every this many seconds.
   };
 
+  struct PolicyRule {
+    std::string m_regMatch;
+    time_t m_age;
+    /**
+     * <0 means file should be less than m_size, >0 means file should be equal
+     * or more than m_size. Should not be equal to 0
+     */
+    std::optional<ssize_t> m_size;
+    time_t m_now;
+
+    PolicyRule(const std::string& regMatch, time_t age, ssize_t size, time_t now)
+        : m_regMatch(regMatch)
+        , m_age(age)
+        , m_size(size != 0 ? std::optional<ssize_t>(size) : std::nullopt)
+        , m_now(now)
+    {
+    }
+
+    bool
+    operator==(const PolicyRule& other) const
+    {
+      return m_regMatch == other.m_regMatch && m_age == other.m_age &&
+             m_size == other.m_size;
+    }
+
+    bool
+    nameMatches(const std::string& fileName) const
+    {
+      return common::eos_regex_match(fileName, m_regMatch);
+    }
+
+    bool
+    ageMatches(time_t fileCreationTime) const
+    {
+      return (fileCreationTime + m_age < m_now);
+    }
+
+    bool
+    sizeMatches(const size_t& fileSize) const
+    {
+      if (m_size) {
+        return (*m_size > 0 ? fileSize > static_cast<size_t>(*m_size)
+                            : fileSize < static_cast<size_t>(-*m_size));
+      }
+      // if no size, then return true as we should not consider size to be part of the
+      // matching process
+      return true;
+    }
+
+    std::string
+    getSizeCriteria() const
+    {
+      if (!m_size) {
+        return "none";
+      }
+
+      if (*m_size > 0) {
+        return std::to_string(*m_size);
+      }
+
+      return std::string("-") + std::to_string(static_cast<size_t>(-*m_size));
+    }
+
+    bool
+    matches(const std::string& name, const time_t fileCreationTime,
+            const size_t size) const
+    {
+      return nameMatches(name) && ageMatches(fileCreationTime) && sizeMatches(size);
+    }
+  };
+
+  friend std::ostream&
+  operator<<(std::ostream& os, const PolicyRule& rule)
+  {
+    return os << "PolicyRule{m_regMatch=" << rule.m_regMatch << ", m_age=" << rule.m_age
+              << ", m_size="
+              << (rule.m_size ? std::to_string(*rule.m_size) : std::string("N/A"))
+              << " }";
+  }
+
+  typedef std::vector<PolicyRule> PolicyRules;
+
+  //----------------------------------------------------------------------------
+  //! Extracts the age and the time criteria from a string containing time:size
+  //! E.g: 1mo:>1G
+  //!
+  //! @return true if parsing succeeded, false otherwise
+  //----------------------------------------------------------------------------
+  static bool extractTimeSizeCriterias(const std::string& input, time_t& age,
+                                       ssize_t& size, std::ostringstream& errMsg);
+
   //----------------------------------------------------------------------------
   //! Parse an "sys.lru.expire.match" policy
   //!
@@ -60,6 +152,10 @@ public:
   //----------------------------------------------------------------------------
   static bool parseExpireMatchPolicy(const std::string& policy,
                                      std::map<std::string, time_t>& matchAgeMap);
+
+  static bool parseExpireSizeMatchPolicy(const std::string& policy,
+                                         PolicyRules& matchAgeSizeMap,
+                                         std::ostringstream& errMsg);
 
   //----------------------------------------------------------------------------
   //! Retrieve current LRU configuration options
@@ -105,7 +201,7 @@ public:
   //! @param dir directory to process
   //! @param policy minimum age to expire
   //----------------------------------------------------------------------------
-  void AgeExpire(const char* dir, const std::string& policy);
+  void SizeAgeExpire(const char* dir, const std::string& policy);
 
   //----------------------------------------------------------------------------
   //! Expire the oldest files to go under the low watermark

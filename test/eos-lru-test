@@ -49,6 +49,20 @@ sleep 10
 # Only one file should remain: the `should_not_be_deleted` one
 assert_eq 1 "$(eos ls "$accessTimeLruDir" | grep -c 'should_not_be_deleted')" "access time LRU test: $accessTimeLruDir should only contain the should_not_be_deleted file"
 
+# Test the deletion of files not accessed since some time
+accessTimeLruDir="$EOS_LRU_DIR/accessTimeLruDir"
+eos mkdir -p "$accessTimeLruDir"
+eos attr set 'sys.lru.expire.match=touched*:5s>1M' "$accessTimeLruDir"
+seq 1 100 | xargs -P 30 -I{} eos touch "$accessTimeLruDir/touched{}"
+assert_eq 101 "$(eos ls "$accessTimeLruDir" | wc -l)" "access time LRU test: $accessTimeLruDir does not have the correct amount of files"
+sleep 10
+# All files should remain as they should be less than 1M size
+assert_eq 101 "$(eos ls "$accessTimeLruDir" | wc -l)" "access time LRU test: $accessTimeLruDir should have all initial files as their size is less than 1M"
+eos attr set 'sys.lru.expire.match=touched*:5s<1M' "$accessTimeLruDir"
+sleep 10
+# Only one file should remain: the `should_not_be_deleted` one
+assert_eq 1 "$(eos ls "$accessTimeLruDir" | grep -c 'should_not_be_deleted')" "access time LRU test: $accessTimeLruDir should only contain the should_not_be_deleted file"
+
 # Test the conversion LRU
 convertLruDir="$EOS_LRU_DIR/convertLruDir"
 eos mkdir -p "$convertLruDir"
