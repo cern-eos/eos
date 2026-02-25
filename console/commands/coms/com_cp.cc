@@ -23,6 +23,7 @@
 
 /*----------------------------------------------------------------------------*/
 #include <iomanip>
+#include <iostream>
 #include "common/StringTokenizer.hh"
 #include "console/ConsoleMain.hh"
 #include "common/Path.hh"
@@ -36,72 +37,72 @@
 int
 com_cp_usage()
 {
-  fprintf(stdout,
-          "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] [--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] [--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] [-d[=][<lvl>] <src> <dst>\n");
-  fprintf(stdout, "'[eos] cp ..' provides copy functionality to EOS.\n");
-  fprintf(stdout,
-          "          <src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path /eos/ in the connected instance\n");
-  fprintf(stdout, "Options:\n");
-  fprintf(stdout,
-          "       --atomic        : run an atomic upload where files are only visible with the target name when their are completely uploaded [ adds ?eos.atomic=1 to the target URL ]\n");
-  fprintf(stdout, "       --rate          : limit the cp rate to <rate>\n");
-  fprintf(stdout, "       --streams       : use <#> parallel streams\n");
-  fprintf(stdout, "       --depth         : depth for recursive copy\n");
-  fprintf(stdout, "       --checksum      : output the checksums\n");
-  fprintf(stdout,
-          "       -a              : append to the target, don't truncate\n");
-  fprintf(stdout, "       -p              : create destination directory\n");
-  fprintf(stdout, "       -n              : hide progress bar\n");
-  fprintf(stdout, "       -S              : print summary\n");
-  fprintf(stdout,
-          "   -d | --debug          : enable debug information (optional <lvl>=1|2|3)\n");
-  fprintf(stdout,
-          "   -s | --silent         : no output outside error messages\n");
-  fprintf(stdout,
-          "   -k | --no-overwrite   : disable overwriting of files\n");
-  fprintf(stdout,
-          "   -P | --preserve       : preserves file creation and modification time from the source\n");
-  fprintf(stdout,
-          "   -r | -R | --recursive : copy source location recursively\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "Remark: \n");
-  fprintf(stdout,
-          "       If you deal with directories always add a '/' in the end of source or target paths e.g. if the target should be a directory and not a file put a '/' in the end. To copy a directory hierarchy use '-r' and source and target directories terminated with '/' !\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "Examples: \n");
-  fprintf(stdout,
-          "       eos cp /var/data/myfile /eos/foo/user/data/                   : copy 'myfile' to /eos/foo/user/data/myfile\n");
-  fprintf(stdout,
-          "       eos cp /var/data/ /eos/foo/user/data/                         : copy all plain files in /var/data to /eos/foo/user/data/\n");
-  fprintf(stdout,
-          "       eos cp -r /var/data/ /eos/foo/user/data/                      : copy the full hierarchy from /var/data/ to /eos/foo/user/data/ => empty directories won't show up on the target!\n");
-  fprintf(stdout,
-          "       eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/  : copy the full hierarchy and just printout the checksum information for each file copied!\n");
-  fprintf(stdout, "\nS3:\n");
-  fprintf(stdout, "      URLs have to be written as:\n");
-  fprintf(stdout,
-          "         as3://<hostname>/<bucketname>/<filename> as implemented in ROOT\n");
-  fprintf(stdout,
-          "      or as3:<bucketname>/<filename> with environment variable S3_HOSTNAME set\n");
-  fprintf(stdout, "     and as3:....?s3.id=<id>&s3.key=<key>\n\n");
-  fprintf(stdout, "      The access id can be defined in 3 ways:\n");
-  fprintf(stdout,
-          "      env S3_ACCESS_ID=<access-id>          [as used in ROOT  ]\n");
-  fprintf(stdout,
-          "      env S3_ACCESS_KEY_ID=<access-id>      [as used in libs3 ]\n");
-  fprintf(stdout,
-          "      <as3-url>?s3.id=<access-id>           [as used in EOS transfers ]\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout, "      The access key can be defined in 3 ways:\n");
-  fprintf(stdout,
-          "      env S3_ACCESS_KEY=<access-key>        [as used in ROOT ]\n");
-  fprintf(stdout,
-          "      env S3_SECRET_ACCESS_KEY=<access-key> [as used in libs3 ]\n");
-  fprintf(stdout,
-          "      <as3-url>?s3.key=<access-key>         [as used in EOS transfers ]\n");
-  fprintf(stdout, "\n");
-  fprintf(stdout,
-          "      If <src> and <dst> are using S3, we are using the same credentials on both ends and the target credentials will overwrite source credentials!\n");
+  std::cerr << "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] "
+            "[--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] "
+            "[--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] "
+            "[-d[=][<lvl>] <src> <dst>\n"
+            "'[eos] cp ..' provides copy functionality to EOS.\n"
+            "          <src>|<dst> can be root://<host>/<path>, a local path "
+            "/tmp/../ or an eos path /eos/ in the connected instance\n"
+            "Options:\n"
+            "       --atomic        : run an atomic upload where files are only "
+            "visible with the target name when their are completely uploaded "
+            "[ adds ?eos.atomic=1 to the target URL ]\n"
+            "       --rate          : limit the cp rate to <rate>\n"
+            "       --streams       : use <#> parallel streams\n"
+            "       --depth         : depth for recursive copy\n"
+            "       --checksum      : output the checksums\n"
+            "       -a              : append to the target, don't truncate\n"
+            "       -p              : create destination directory\n"
+            "       -n              : hide progress bar\n"
+            "       -S              : print summary\n"
+            "   -d | --debug          : enable debug information "
+            "(optional <lvl>=1|2|3)\n"
+            "   -s | --silent         : no output outside error messages\n"
+            "   -k | --no-overwrite   : disable overwriting of files\n"
+            "   -P | --preserve       : preserves file creation and "
+            "modification time from the source\n"
+            "   -r | -R | --recursive : copy source location recursively\n"
+            "\n"
+            "Remark: \n"
+            "       If you deal with directories always add a '/' in the end of "
+            "source or target paths e.g. if the target should be a directory and "
+            "not a file put a '/' in the end. To copy a directory hierarchy use "
+            "'-r' and source and target directories terminated with '/' !\n"
+            "\n"
+            "Examples: \n"
+            "       eos cp /var/data/myfile /eos/foo/user/data/                   "
+            ": copy 'myfile' to /eos/foo/user/data/myfile\n"
+            "       eos cp /var/data/ /eos/foo/user/data/                         "
+            ": copy all plain files in /var/data to /eos/foo/user/data/\n"
+            "       eos cp -r /var/data/ /eos/foo/user/data/                      "
+            ": copy the full hierarchy from /var/data/ to /eos/foo/user/data/ => "
+            "empty directories won't show up on the target!\n"
+            "       eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/  "
+            ": copy the full hierarchy and just printout the checksum "
+            "information for each file copied!\n"
+            "\nS3:\n"
+            "      URLs have to be written as:\n"
+            "         as3://<hostname>/<bucketname>/<filename> as implemented "
+            "in ROOT\n"
+            "      or as3:<bucketname>/<filename> with environment variable "
+            "S3_HOSTNAME set\n"
+            "     and as3:....?s3.id=<id>&s3.key=<key>\n\n"
+            "      The access id can be defined in 3 ways:\n"
+            "      env S3_ACCESS_ID=<access-id>          [as used in ROOT  ]\n"
+            "      env S3_ACCESS_KEY_ID=<access-id>      [as used in libs3 ]\n"
+            "      <as3-url>?s3.id=<access-id>           [as used in EOS "
+            "transfers ]\n"
+            "\n"
+            "      The access key can be defined in 3 ways:\n"
+            "      env S3_ACCESS_KEY=<access-key>        [as used in ROOT ]\n"
+            "      env S3_SECRET_ACCESS_KEY=<access-key> [as used in libs3 ]\n"
+            "      <as3-url>?s3.key=<access-key>         [as used in EOS "
+            "transfers ]\n"
+            "\n"
+            "      If <src> and <dst> are using S3, we are using the same "
+            "credentials on both ends and the target credentials will overwrite "
+            "source credentials!\n";
   return (EINVAL);
 }
 
@@ -222,7 +223,8 @@ com_cp(char* argin)
       try {
         depth = std::stoul(option.c_str());
       } catch (...) {
-        fprintf(stderr, "error: invalid value for <depth>=%s", option.c_str());
+        std::cerr << "error: invalid value for <depth>=" << option.c_str()
+                  << std::endl;
         return com_cp_usage();
       }
     } else if (option.beginswith("-")) {
@@ -259,7 +261,8 @@ com_cp(char* argin)
   target.name = nextarg;
 
   if (!target.name.length()) {
-    fprintf(stderr, "warning: no target specified. Please view 'eos cp --help'.\n");
+    std::cerr << "warning: no target specified. Please view 'eos cp --help'."
+              << std::endl;
     global_retc = 0;
     return 0;
   }
@@ -294,8 +297,8 @@ com_cp(char* argin)
     protocol = get_protocol(source.c_str());
 
     if (protocol == Protocol::UNKNOWN) {
-      fprintf(stderr, "warning: %s -- protocol not recognized. Skipping path..",
-              source.c_str());
+      std::cerr << "warning: " << source.c_str()
+                << " -- protocol not recognized. Skipping path.." << std::endl;
       continue;
     }
 
@@ -319,8 +322,9 @@ com_cp(char* argin)
                  sprot, hostport);
 
       if (!filepath) {
-        fprintf(stderr, "error: cannot process file=%s [protocol=%s]\n",
-                source.c_str(), protocol_to_string(protocol));
+        std::cerr << "error: cannot process file=" << source.c_str()
+                  << " [protocol=" << protocol_to_string(protocol) << "]"
+                  << std::endl;
         continue;
       }
     }
@@ -332,8 +336,10 @@ com_cp(char* argin)
       std::string cmdtext;
 
       if ((protocol != Protocol::EOS) && (protocol != Protocol::LOCAL)) {
-        fprintf(stderr, "error: %s -- path expansion not implemented for %s protocol."
-                " Skipping path..\n", source.c_str(), protocol_to_string(protocol));
+        std::cerr << "error: " << source.c_str()
+                  << " -- path expansion not implemented for "
+                  << protocol_to_string(protocol) << " protocol. Skipping path.."
+                  << std::endl;
         continue;
       }
 
@@ -350,8 +356,9 @@ com_cp(char* argin)
 
         // Wildcards are supported only in the basename
         if (basename.find("*") == STR_NPOS) {
-          fprintf(stderr, "warning: %s -- wildcards not supported outside basename."
-                  " Skipping path..\n", source.c_str());
+          std::cerr << "warning: " << source.c_str()
+                    << " -- wildcards not supported outside basename. "
+                    "Skipping path.." << std::endl;
           continue;
         }
 
@@ -382,7 +389,8 @@ com_cp(char* argin)
         // local file: find <path> [-maxdepth <depth>] -follow -type f
         // eos file:   find -f [--maxdepth <depth>] <path>
         if (!recursive) {
-          fprintf(stderr, "warning: omitting directory %s\n", source.c_str());
+          std::cerr << "warning: omitting directory " << source.c_str()
+                    << std::endl;
           continue;
         }
 
@@ -421,7 +429,7 @@ com_cp(char* argin)
       cmdtext += " 2> /dev/null";
 
       if (debug) {
-        fprintf(stderr, "[eos-cp] running: %s\n", cmdtext.c_str());
+        std::cerr << "[eos-cp] running: " << cmdtext.c_str() << std::endl;
       }
 
       int rc = (protocol == Protocol::EOS)  ?
@@ -429,7 +437,8 @@ com_cp(char* argin)
                run_command(cmdtext.c_str(), files);
 
       if (rc && !files.size()) {
-        fprintf(stderr, "warning: could not expand source: %s\n", source.c_str());
+        std::cerr << "warning: could not expand source: " << source.c_str()
+                  << std::endl;
         global_retc = rc;
         return -1;
       }
@@ -450,7 +459,7 @@ com_cp(char* argin)
       }
 
       if (debug) {
-        fprintf(stderr, "[eos-cp] Copy list: %s\n", file.c_str());
+        std::cerr << "[eos-cp] Copy list: " << file.c_str() << std::endl;
       }
 
       File_t source_file;
@@ -468,7 +477,7 @@ com_cp(char* argin)
 
   // Check if there is any file in the list
   if (source_list.empty()) {
-    fprintf(stderr, "warning: found zero files to copy!\n");
+    std::cerr << "warning: found zero files to copy!" << std::endl;
     global_retc = 0;
     return 0;
   }
@@ -525,7 +534,7 @@ com_cp(char* argin)
 
       // Target is not a directory
       if (!target_is_dir) {
-        fprintf(stderr, "error: target must be a directory\n");
+        std::cerr << "error: target must be a directory" << std::endl;
         global_retc = EINVAL;
         return -1;
       }
@@ -544,8 +553,9 @@ com_cp(char* argin)
     // Check rights to create target directory
     if (target_is_dir && !target_exists) {
       if (!makeparent) {
-        fprintf(stderr, "error: target must be created. Please try with "
-                "create flag '-p' or see 'eos cp --help' for more info.\n");
+        std::cerr << "error: target must be created. Please try with "
+                     "create flag '-p' or see 'eos cp --help' for more info."
+                  << std::endl;
         global_retc = EINVAL;
         return -1;
       }
@@ -577,8 +587,8 @@ com_cp(char* argin)
                  run_command(cmdtext.c_str(), tmp);
 
         if (rc) {
-          fprintf(stderr, "error: failed to create target directory : %s\n",
-                  mktarget.c_str());
+          std::cerr << "error: failed to create target directory : "
+                    << mktarget.c_str() << std::endl;
           global_retc = rc;
           return -1;
         }
@@ -617,9 +627,11 @@ com_cp(char* argin)
   }
 
   if (debug) {
-    fprintf(stderr, "[eos-cp] # of source files: %lu\n", source_list.size());
-    fprintf(stderr, "[eos-cp] Setting target %s [protocol=%s]\n",
-            target.name.c_str(), protocol_to_string(target.protocol));
+    std::cerr << "[eos-cp] # of source files: " << source_list.size()
+              << std::endl;
+    std::cerr << "[eos-cp] Setting target " << target.name.c_str()
+              << " [protocol=" << protocol_to_string(target.protocol) << "]"
+              << std::endl;
   }
 
   // --------------------------------------------------------------------------
@@ -649,9 +661,9 @@ com_cp(char* argin)
           source.size = 0;
 
           if (debug || !silent) {
-            fprintf(stderr,
-                    "warning: disable size check for path=%s [EOS symbolic link]\n",
-                    source.name.c_str());
+            std::cerr << "warning: disable size check for path="
+                      << source.name.c_str() << " [EOS symbolic link]"
+                      << std::endl;
           }
         } else {
           copysize += buf.st_size;
@@ -699,15 +711,16 @@ com_cp(char* argin)
       cmdtext += " | grep Content-Length | awk '{print \\$2}' 2> /dev/null\"";
 
       if (debug) {
-        fprintf(stderr, "[eos-cp] running %s\n", cmdtext.c_str());
+        std::cerr << "[eos-cp] running " << cmdtext.c_str() << std::endl;
       }
 
       long long size = eos::common::StringConversion::LongLongFromShellCmd(
                          cmdtext.c_str());
 
       if ((!size) || (size == LLONG_MAX)) {
-        fprintf(stderr, "error: path=%s cannot obtain size of S3 source file "
-                "or file size is 0!\n", source.name.c_str());
+        std::cerr << "error: path=" << source.name.c_str()
+                  << " cannot obtain size of S3 source file or file size is 0!"
+                  << std::endl;
         global_retc = EIO;
         return -1;
       }
@@ -744,9 +757,9 @@ com_cp(char* argin)
       source.atime.tv_sec = source.mtime.tv_sec = 0;
 
       if (debug || !silent) {
-        fprintf(stderr,
-                "warning: disabling size check for path=%s [protocol=%s]\n",
-                source.name.c_str(), protocol_to_string(source.protocol));
+        std::cerr << "warning: disabling size check for path="
+                  << source.name.c_str() << " [protocol="
+                  << protocol_to_string(source.protocol) << "]" << std::endl;
       }
 
       statok = true;
@@ -757,23 +770,25 @@ com_cp(char* argin)
     }
 
     if (!statok) {
-      fprintf(stderr, "error: cannot get file size of path=%s [protocol=%s]\n",
-              source.name.c_str(), protocol_to_string(source.protocol));
+      std::cerr << "error: cannot get file size of path=" << source.name.c_str()
+                << " [protocol=" << protocol_to_string(source.protocol) << "]"
+                << std::endl;
       global_retc = EINVAL;
       return -1;
     }
 
     if (debug) {
-      fprintf(stderr, "[eos-cp] path=%s size=%llu [protocol=%s]\n",
-              source.name.c_str(), source.size,
-              protocol_to_string(source.protocol));
+      std::cerr << "[eos-cp] path=" << source.name.c_str() << " size="
+                << source.size << " [protocol="
+                << protocol_to_string(source.protocol) << "]" << std::endl;
     }
   }
 
   if (debug || (!silent && source_list.size() > 1)) {
     XrdOucString ssize;
-    fprintf(stderr, "[eos-cp] going to copy %lu files and %s\n", source_list.size(),
-            eos::common::StringConversion::GetReadableSizeString(ssize, copysize, "B"));
+    std::cerr << "[eos-cp] going to copy " << source_list.size() << " files and "
+              << eos::common::StringConversion::GetReadableSizeString(ssize,
+                  copysize, "B") << std::endl;
   }
 
   // Mark start timestamp
@@ -804,8 +819,8 @@ com_cp(char* argin)
       int pos = source_suffix.find(source_basepath_list[file_idx].c_str());
 
       if (pos == STR_NPOS) {
-        fprintf(stderr, "error: could not identify source suffix for path=%s\n",
-                source.name.c_str());
+        std::cerr << "error: could not identify source suffix for path="
+                  << source.name.c_str() << std::endl;
         global_retc = EINVAL;
         return -1;
       }
@@ -817,9 +832,8 @@ com_cp(char* argin)
 
     // Check that source and destination are different
     if (!strcmp(source.name.c_str(), dest.c_str())) {
-      fprintf(stderr,
-              "warning: source and target are the same path=%s. Skipping path..\n",
-              source.name.c_str());
+      std::cerr << "warning: source and target are the same path="
+                << source.name.c_str() << ". Skipping path.." << std::endl;
       continue;
     }
 
@@ -840,8 +854,9 @@ com_cp(char* argin)
           struct stat tmp;
 
           if (!do_stat(dest.c_str(), target.protocol, tmp)) {
-            fprintf(stderr, "warning: target=%s exists, but --no-overwrite "
-                    "flag specified\n", dest.c_str());
+            std::cerr << "warning: target=" << dest.c_str()
+                      << " exists, but --no-overwrite flag specified"
+                      << std::endl;
             retc |= EEXIST;
             continue;
           }
@@ -873,9 +888,9 @@ com_cp(char* argin)
         int tmp_fd = mkstemp(tmp_name);
 
         if (tmp_fd == -1) {
-          fprintf(stderr, "error: failed to create temporary file "
-                  "while preparing copy for path=%s [protocol=%s]\n",
-                  dest.c_str(), protocol_to_string(target.protocol));
+          std::cerr << "error: failed to create temporary file while preparing "
+                    << "copy for path=" << dest.c_str() << " [protocol="
+                    << protocol_to_string(target.protocol) << "]" << std::endl;
           global_retc = errno;
           return -1;
         }
@@ -907,8 +922,8 @@ com_cp(char* argin)
     }
 
     if (debug) {
-      fprintf(stderr, "\n[eos-cp] copying %s to %s\n",
-              source.name.c_str(), target_path.c_str());
+      std::cerr << "\n[eos-cp] copying " << source.name.c_str() << " to "
+                << target_path.c_str() << std::endl;
     }
 
     //------------------------------------
@@ -1086,19 +1101,20 @@ com_cp(char* argin)
     }
 
     if (debug) {
-      fprintf(stderr, "[eos-cp] running: %s\n", cmdtext.c_str());
+      std::cerr << "[eos-cp] running: " << cmdtext.c_str() << std::endl;
     }
 
     int lrc = system(cmdtext.c_str());
 
     // Check if we got a CONTROL-C
     if (lrc == EINTR) {
-      fprintf(stderr, "<Control-C>\n");
+      std::cerr << "<Control-C>" << std::endl;
       break;
     }
 
     if (WEXITSTATUS(lrc)) {
-      fprintf(stderr, "error: failed copying path=%s\n", target_path.c_str());
+      std::cerr << "error: failed copying path=" << target_path.c_str()
+                << std::endl;
       retc |= lrc;
       continue;
     }
@@ -1161,9 +1177,9 @@ com_cp(char* argin)
             }
 
             if (!updateok) {
-              fprintf(stderr, "warning: creation/modification time "
-                      "could not be preserved for path=%s\n",
-                      target_path.c_str());
+              std::cerr << "warning: creation/modification time could not be "
+                        << "preserved for path=" << target_path.c_str()
+                        << std::endl;
             }
           }
 
@@ -1174,9 +1190,8 @@ com_cp(char* argin)
             XrdCl::URL url(address.c_str());
 
             if (!url.IsValid()) {
-              fprintf(stderr, "error: invalid file system URL=%s "
-                      "[attempting checksum]\n",
-                      url.GetURL().c_str());
+              std::cerr << "error: invalid file system URL=" << url.GetURL()
+                        << " [attempting checksum]" << std::endl;
               global_retc = EINVAL;
               return -1;
             }
@@ -1184,8 +1199,8 @@ com_cp(char* argin)
             auto* fs = new XrdCl::FileSystem(url);
 
             if (!fs) {
-              fprintf(stderr, "error: failed to get new FS object "
-                      "[attempting checksum]\n");
+              std::cerr << "error: failed to get new FS object "
+                        << "[attempting checksum]" << std::endl;
               global_retc = EINVAL;
               return -1;
             }
@@ -1206,11 +1221,13 @@ com_cp(char* argin)
             if (status.IsOK()) {
               XrdOucString xsum = response->GetBuffer();
               xsum.replace("eos ", "");
-              fprintf(stdout, "path=%s size=%llu checksum=%s\n",
-                      source.name.c_str(), source.size, xsum.c_str());
+              std::cout << "path=" << source.name.c_str() << " size="
+                        << source.size << " checksum=" << xsum.c_str()
+                        << std::endl;
             } else {
-              fprintf(stdout, "warning: failed getting checksum for path=%s size=%llu\n",
-                      source.name.c_str(), source.size);
+              std::cout << "warning: failed getting checksum for path="
+                        << source.name.c_str() << " size=" << source.size
+                        << std::endl;
             }
 
             delete response;
@@ -1218,19 +1235,20 @@ com_cp(char* argin)
           }
         } else {
           XrdOucString ssize1, ssize2;
-          fprintf(stderr, "error: file size difference between source and target file "
-                  "source=%s [%s] target=%s [%s]\n",
-                  source.name.c_str(),
-                  eos::common::StringConversion::GetReadableSizeString(ssize1,
-                      source.size, "B"),
-                  target_path.c_str(),
-                  eos::common::StringConversion::GetReadableSizeString(ssize2,
-                      (unsigned long long) buf.st_size, "B"));
+          std::cerr << "error: file size difference between source and target "
+                    << "file source=" << source.name.c_str() << " ["
+                    << eos::common::StringConversion::GetReadableSizeString(
+                        ssize1, source.size, "B")
+                    << "] target=" << target_path.c_str() << " ["
+                    << eos::common::StringConversion::GetReadableSizeString(
+                        ssize2, (unsigned long long) buf.st_size, "B")
+                    << "]" << std::endl;
           lrc |= 0xffff00;
         }
       } else {
-        fprintf(stderr, "error: target file not created source=%s target=%s\n",
-                source.name.c_str(), target_path.c_str());
+        std::cerr << "error: target file not created source="
+                  << source.name.c_str() << " target=" << target_path.c_str()
+                  << std::endl;
         lrc |= 0xffff00;
       }
     }
@@ -1248,22 +1266,23 @@ com_cp(char* argin)
         }
 
         if (debug) {
-          fprintf(stderr, "[eos-cp] running: %s\n", cmdtext.c_str());
+          std::cerr << "[eos-cp] running: " << cmdtext.c_str() << std::endl;
         }
 
         int rc = system(cmdtext.c_str());
 
         if (WEXITSTATUS(rc)) {
-          fprintf(stderr, "error: failed to upload %s [protocol=gsiftp]\n",
-                  target_path.c_str());
+          std::cerr << "error: failed to upload " << target_path.c_str()
+                    << " [protocol=gsiftp]" << std::endl;
           lrc |= 0xffff00;
         }
       }
 
       if ((target.protocol == Protocol::HTTP) ||
           (target.protocol == Protocol::HTTPS)) {
-        fprintf(stderr, "error: file uploads not supported for %s protocol [path=%s]\n",
-                protocol_to_string(target.protocol), target_path.c_str());
+        std::cerr << "error: file uploads not supported for "
+                  << protocol_to_string(target.protocol) << " protocol [path="
+                  << target_path.c_str() << "]" << std::endl;
         lrc |= 0xffff00;
       }
 
@@ -1287,14 +1306,16 @@ com_cp(char* argin)
                                   (end_time.tv_usec - start_time.tv_usec)) / 1000000.0);
     unsigned long long copyrate = (copiedsize / time_elapsed);
     XrdOucString ssize1, ssize2;
-    fprintf(stderr,
-            "%s[eos-cp] copied %d/%d files and %s in %.02f seconds with %s\n",
-            (retc) ? "#WARNING " : "",
-            files_copied,
-            (int) source_list.size(),
-            eos::common::StringConversion::GetReadableSizeString(ssize1, copiedsize, "B"),
-            time_elapsed,
-            eos::common::StringConversion::GetReadableSizeString(ssize2, copyrate, "B/s"));
+    std::cerr << ((retc) ? "#WARNING " : "")
+              << "[eos-cp] copied " << files_copied << "/"
+              << (int) source_list.size() << " files and "
+              << eos::common::StringConversion::GetReadableSizeString(ssize1,
+                  copiedsize, "B")
+              << " in " << std::fixed << std::setprecision(2) << time_elapsed
+              << " seconds with "
+              << eos::common::StringConversion::GetReadableSizeString(ssize2,
+                  copyrate, "B/s")
+              << std::endl;
   }
 
   global_retc = WEXITSTATUS(retc);
@@ -1343,7 +1364,7 @@ int run_command(const char* cmdline, std::vector<XrdOucString>& result)
   int rc;
 
   if (!fp) {
-    fprintf(stderr, "error: failed executing command %s\n", cmdline);
+    std::cerr << "error: failed executing command " << cmdline << std::endl;
     return errno;
   }
 
@@ -1542,7 +1563,8 @@ const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
                      sprot, hostport);
 
   if (!url.length()) {
-    fprintf(stderr, "error: could not parse S3 url=%s", path.c_str());
+    std::cerr << "error: could not parse S3 url=" << path.c_str()
+              << std::endl;
     global_retc = EINVAL;
     return 0;
   }
@@ -1576,11 +1598,12 @@ const char* setup_s3_environment(XrdOucString path, XrdOucString opaque)
   // Check S3 environment
   if ((!getenv("S3_HOSTNAME")) || (!getenv("S3_ACCESS_KEY_ID")) ||
       (!getenv("S3_SECRET_ACCESS_KEY"))) {
-    fprintf(stderr, "error: S3 environment not set up for %s\n", path.c_str());
-    fprintf(stderr, "You have to set the following environment variables: "
-            "S3_ACCESS_KEY_ID or S3_ACCESS_ID\n"
-            "S3_SECRET_ACCESS_KEY or S3_ACCESS_KEY\n"
-            "S3_HOSTNAME (or use path with URI)");
+    std::cerr << "error: S3 environment not set up for " << path.c_str()
+              << std::endl;
+    std::cerr << "You have to set the following environment variables: "
+              << "S3_ACCESS_KEY_ID or S3_ACCESS_ID\n"
+              << "S3_SECRET_ACCESS_KEY or S3_ACCESS_KEY\n"
+              << "S3_HOSTNAME (or use path with URI)" << std::endl;
     global_retc = EINVAL;
     return 0;
   }
@@ -1612,10 +1635,12 @@ int check_protocol_tool(const char* path)
   int rc = system(cmd);
 
   if (WEXITSTATUS(rc)) {
-    fprintf(stderr, "error: %s executable not found in PATH\n", tool.c_str());
+    std::cerr << "error: " << tool << " executable not found in PATH"
+              << std::endl;
 
     if (tool == "s3") {
-      fprintf(stderr, " error: please install S3 executable from libs3\n");
+      std::cerr << " error: please install S3 executable from libs3"
+                << std::endl;
     }
 
     global_retc = WEXITSTATUS(rc);
@@ -1706,7 +1731,8 @@ int parse_debug_level(XrdOucString option)
   } catch (...) { }
 
   if (level < 1 || level > 3) {
-    fprintf(stderr, "error: invalid value for <debug level>=%s\n", option.c_str());
+    std::cerr << "error: invalid value for <debug level>=" << option.c_str()
+              << std::endl;
     return -1;
   }
 
