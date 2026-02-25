@@ -272,6 +272,7 @@ IConfigEngine::ApplyConfig(XrdOucString& err, bool apply_stall_redirect)
   gOFS->mFsckEngine->ApplyConfig(&FsView::gFsView);
   gOFS->mIoStats->ApplyConfig(&FsView::gFsView);
   gOFS->mDrainEngine.ApplyConfig();
+  gOFS->mTrafficShapingEngine.ApplyConfig();
 
   if (gOFS->mConverterEngine) {
     gOFS->mConverterEngine->ApplyConfig();

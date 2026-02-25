@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "Constants.hh"
 #include "common/IntervalStopwatch.hh"
 #include "common/LinuxStat.hh"
 #include "common/ShellCmd.hh"
@@ -33,7 +34,10 @@
 #include "fst/XrdFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
+#include "fst/storage/TrafficShaping.hh"
+#include "mgm/shaping/TrafficShaping.hh"
 #include "qclient/Formatting.hh"
+
 #include <XrdVersion.hh>
 #include <google/protobuf/util/json_util.h>
 #include <optional>
@@ -144,68 +148,6 @@ static std::string GetXrootdVersion() {
 static std::string GetEosVersion() {
   static std::string s_eos_version = SSTR(VERSION << "-" << RELEASE).c_str();
   return s_eos_version;
-}
-
-//------------------------------------------------------------------------------
-/// get ioMap info
-//------------------------------------------------------------------------------
-static std::string getIoMap() {
-  IoBuffer::Summary protoBuff;
-  IoBuffer::Summaries finalBuffer;
-  std::string output = "0";
-
-  std::optional<std::vector<size_t>> win(gOFS.ioMap.getAvailableWindows());
-  if (!win.has_value()) { return output; }
-
-  for (auto winTime = win.value().begin(); winTime != win->end(); winTime++) {
-    std::vector<gid_t> gids(gOFS.ioMap.getGids(*winTime));
-    std::vector<uid_t> uids(gOFS.ioMap.getUids(*winTime));
-    std::vector<std::string> apps(gOFS.ioMap.getApps(*winTime));
-    IoBuffer::Data winTimeSummaries;
-
-    if (gids.size() == 0 && uids.size() == 0 && apps.size() == 0) { continue; }
-
-    for (auto it : apps) {
-      auto sum = gOFS.ioMap.getSummary(*winTime, it);
-      if (sum.has_value()) {
-        sum->winTime = *winTime;
-        winTimeSummaries.mutable_apps()->emplace(it, sum->Serialize(protoBuff));
-      }
-      protoBuff.Clear();
-    }
-    for (auto it : uids) {
-      auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::UID, it);
-      if (sum.has_value()) {
-        sum->winTime = *winTime;
-        winTimeSummaries.mutable_uids()->emplace(it, sum->Serialize(protoBuff));
-      }
-      protoBuff.Clear();
-    }
-    for (auto it : gids) {
-      auto sum = gOFS.ioMap.getSummary(*winTime, io::TYPE::GID, it);
-      if (sum.has_value()) {
-        sum->winTime = *winTime;
-        winTimeSummaries.mutable_gids()->emplace(it, sum->Serialize(protoBuff));
-      }
-      protoBuff.Clear();
-    }
-    if (winTimeSummaries.apps_size() > 0 || winTimeSummaries.gids_size() > 0 || winTimeSummaries.uids_size() > 0) {
-      finalBuffer.mutable_aggregated()->emplace(*winTime, winTimeSummaries);
-    }
-  }
-
-  if (finalBuffer.aggregated_size() > 0) {
-    std::string out;
-    google::protobuf::util::JsonPrintOptions options;
-
-    // options.add_whitespace = true;
-    // options.always_print_primitive_fields = true;
-    // options.preserve_proto_field_names = true;
-    auto it = google::protobuf::util::MessageToJsonString(finalBuffer, &out, options);
-    if (it.ok()) { output = out; }
-  }
-
-  return output;
 }
 
 //------------------------------------------------------------------------------
@@ -519,7 +461,6 @@ std::map<std::string, std::string> Storage::GetFstStatistics(const std::string& 
   output["stat.net.outratemib"] = SSTR(mFstLoad.GetNetRate(GetNetworkInterface().c_str(), "txbytes") / 1024.0 / 1024.0);
   // publish timestamp
   output["stat.publishtimestamp"] = SSTR(eos::common::getEpochInMilliseconds().count());
-  output["stat.iomap"] = getIoMap();
 
   return output;
 }
@@ -671,7 +612,7 @@ bool Storage::PublishFsStatistics(eos::common::FileSystem::fsid_t fsid) {
   auto it = mFsMap.find(fsid);
 
   if (it == mFsMap.end()) {
-    eos_static_crit("msg=\"asked to publish statistics for unknwon fs\" "
+    eos_static_crit("msg=\"asked to publish statistics for unknown fs\" "
                     "fsid=%lu",
                     fsid);
     return false;
@@ -747,9 +688,8 @@ void Storage::Publish(ThreadAssistant& assistant) noexcept {
       hash.set(batch);
     }
 
-    std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
-
-    if (sleepTime == std::chrono::milliseconds(0)) {
+    if (std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
+        sleepTime == std::chrono::milliseconds(0)) {
       eos_static_warning("msg=\"publisher cycle exceeded %d millisec - took %d "
                          "millisec",
                          randomizedReportInterval.count(), stopwatch.timeIntoCycle());
@@ -759,6 +699,113 @@ void Storage::Publish(ThreadAssistant& assistant) noexcept {
   }
 
   (void)unlink(tmp_name.c_str());
+}
+
+void
+Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
+{
+  eos_static_info("%s", "msg=\"Starting traffic shaping stats publishing thread\"");
+
+  const std::string configQueue = "TrafficShapingStats";
+  gConfig.getFstNodeConfigQueue(configQueue);
+
+  std::unordered_map<eos::fst::traffic_shaping::IoStatsKey, std::pair<uint64_t, uint64_t>,
+                     eos::fst::traffic_shaping::IoStatsKeyHash>
+      last_sent_cache;
+
+  while (!assistant.terminationRequested()) {
+    std::chrono::milliseconds reportInterval =
+        std::chrono::milliseconds(traffic_shaping::IoStatsCollector::
+                                      fst_io_stats_reporting_thread_period_milliseconds);
+    common::IntervalStopwatch stopwatch(reportInterval);
+
+    eos::traffic_shaping::FstIoReport report;
+
+    const auto mNodeId = gConfig.FstHostPort.c_str();
+    report.set_node_id(mNodeId);
+
+    const int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                               std::chrono::system_clock::now().time_since_epoch())
+                               .count();
+    report.set_timestamp_ms(now_ms);
+
+    struct PendingUpdate {
+      eos::fst::traffic_shaping::IoStatsKey key;
+      uint64_t new_iops;
+      uint64_t new_generation;
+    };
+    std::vector<PendingUpdate> pending_updates;
+
+    gOFS.mIoStatsCollector.VisitEntries(
+        [&](const eos::fst::traffic_shaping::IoStatsKey& key,
+            const eos::fst::traffic_shaping::IoStatsEntry& entry) {
+          uint64_t cur_r_ops = entry.read_iops.load(std::memory_order_relaxed);
+          uint64_t cur_w_ops = entry.write_iops.load(std::memory_order_relaxed);
+          uint64_t cur_total_iops = cur_r_ops + cur_w_ops;
+          uint64_t cur_gen = entry.generation_id;
+
+          // Check against persistent cache
+          auto& last_state = last_sent_cache[key];
+
+          // If IOPS changed OR Generation changed (Restart)
+          if (cur_total_iops != last_state.first || cur_gen != last_state.second) {
+            auto* proto = report.add_entries();
+            proto->set_app_name(key.app);
+            proto->set_uid(key.uid);
+            proto->set_gid(key.gid);
+            proto->set_generation_id(cur_gen);
+
+            proto->set_total_read_ops(cur_r_ops);
+            proto->set_total_write_ops(cur_w_ops);
+            proto->set_total_bytes_read(entry.bytes_read.load(std::memory_order_relaxed));
+            proto->set_total_bytes_written(
+                entry.bytes_written.load(std::memory_order_relaxed));
+
+            // Queue update (don't commit yet)
+            pending_updates.push_back({key, cur_total_iops, cur_gen});
+          }
+        });
+
+    if (report.entries_size() > 0) {
+      for (const auto& update : pending_updates) {
+        auto& [iops, generation] = last_sent_cache[update.key];
+        iops = update.new_iops;
+        generation = update.new_generation;
+      }
+    }
+
+    if (common::SharedHashLocator locator = gConfig.getNodeHashLocator(configQueue);
+        !locator.empty()) {
+      mq::SharedHashWrapper::Batch batch;
+
+      batch.SetTransient(eos::common::FST_TRAFFIC_SHAPING_IO_REPORT,
+                         report.SerializeAsString());
+
+      mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
+      hash.set(batch);
+    } else {
+      eos_static_warning(
+          "msg=\"no locator for traffic shaping stats publishing - skipping\" "
+          "config_queue=\"%s\"",
+          configQueue.c_str());
+    }
+
+    if (const auto elapsed_ms = stopwatch.timeIntoCycle().count(); elapsed_ms > 0) {
+      eos_static_info(
+          "msg=\"traffic shaping stats collection cycle completed\" elapsed_ms=%d",
+          elapsed_ms);
+    }
+
+    if (std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
+        sleepTime == std::chrono::milliseconds(0)) {
+      eos_static_warning(
+          "msg=\"send traffic shaping stats cycle exceeded %d ms - took %d "
+          "ms",
+          reportInterval.count(), stopwatch.timeIntoCycle());
+    } else {
+      assistant.wait_for(sleepTime);
+    }
+  }
 }
 
 EOSFSTNAMESPACE_END

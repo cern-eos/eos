@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #pragma once
+
 #include "common/AssistedThread.hh"
 #include "common/ConcurrentQueue.hh"
 #include "common/FileSystem.hh"
@@ -33,9 +34,8 @@
 #include "fst/Namespace.hh"
 #include "fst/filemd/FmdHandler.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "proto/Shaping.pb.h"
+
 #include <atomic>
-#include <google/protobuf/util/json_util.h>
 #include <list>
 #include <map>
 #include <queue>
@@ -248,6 +248,10 @@ public:
   //----------------------------------------------------------------------------
   void ProcessFsConfigChange(fst::FileSystem* fs, const std::string& key, const std::string& value);
 
+  void StartTrafficShapingThread();
+
+  void StopTrafficShapingThread();
+
 protected:
   mutable eos::common::RWMutex mFsMutex; ///< Mutex protecting the fs map
   std::vector<fst::FileSystem*> mFsVect; ///< Vector of filesystems
@@ -289,14 +293,15 @@ private:
   AssistedThread mPublisherThread;   ///< Thread publishing FST/FS info
   AssistedThread mErrorReportThread; ///< Thread sending error reports
   AssistedThread mRegisterFsThread;  ///< Thread updating list of FS registered
+  AssistedThread mTrafficShapingThread; ///< Thread sending traffic shaping stats
+  std::atomic<bool> mTrafficShapingThreadRunning{false};
   //! CV and mutex used for notifying the register thread
   std::condition_variable mCvRegisterFs;
   std::mutex mMutexRegisterFs;
   bool mTriggerRegisterFs{false};
   AssistedThread mFsConfigThread; ///< Thread applying FS config updates
-  //! Trigger automatic drain if S.M.A.R.T. errros detected
+  //! Trigger automatic drain if S.M.A.R.T. errors detected
   bool mDrainOnSmartErr{false};
-  Shaping::Scaler mScaler; ///< Scaler to limit the data flow
 
   //----------------------------------------------------------------------------
   //! Struct modelling a file system configuration update
@@ -449,6 +454,7 @@ private:
   void Report();
   void Verify();
   void Publish(ThreadAssistant& assistant) noexcept;
+  void SendTrafficShapingStats(ThreadAssistant& assistant) noexcept;
   void MgmSyncer();
   void Boot(fst::FileSystem* fs);
 
