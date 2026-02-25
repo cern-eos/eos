@@ -511,7 +511,10 @@ com_cp(char* argin)
     // Detect whether target is a directory
     int stat_rc = do_stat(target.name.c_str(), target.protocol, target_stat);
     target_exists = (stat_rc == 0);
-    target_is_dir = is_dir(target.name.c_str(), target.protocol, &target_stat);
+    // Only pass stat buffer when stat succeeded - otherwise is_dir would use
+    // undefined buffer content and could spuriously return true
+    target_is_dir = is_dir(target.name.c_str(), target.protocol,
+                          target_exists ? &target_stat : nullptr);
 
     // If multiple source files target must be a directory
     if (source_list.size() > 1) {
