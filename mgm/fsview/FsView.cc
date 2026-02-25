@@ -2780,6 +2780,8 @@ FsNode::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
       eos_static_err("msg=\"skip heartbeat update due to conversion failure\" "
                      "value=\"%s\"", upd.value.c_str());
     }
+  } else if (eos::common::FST_TRAFFIC_SHAPING_IO_REPORT == upd.key) {
+    gOFS->mTrafficShapingEngine.ProcessSerializedFstIoReportNonBlocking(upd.value);
   } else {
     eos_static_debug("msg=\"ignore node shared hash update\" key=\"%s\" "
                      "value=\"%s\"", upd.key.c_str(), upd.value.c_str());
@@ -3271,6 +3273,14 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     // this is a space attribute
     std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
     gOFS->mSpaceAttributes[space][key] = val;
+  } else if (tokens[1] == eos::common::TRAFFIC_SHAPING_POLICIES_CONFIG) {
+    // set the map
+  } else if (tokens[1] == eos::common::TRAFFIC_SHAPING_ENABLE_CONFIG) {
+    if (val == "true" || val == "1") {
+      gOFS->mTrafficShapingEngine.Enable();
+    } else {
+      gOFS->mTrafficShapingEngine.Disable();
+    }
   }
 
   common::SharedHashLocator locator;

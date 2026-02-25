@@ -362,10 +362,13 @@ Storage::Storage(const char* meta_dir)
   }
 
   mThreadSet.insert(tid);
+
   mErrorReportThread.reset(&Storage::ErrorReport, this);
   mErrorReportThread.setName("Error Report Thread");
+
   mPublisherThread.reset(&Storage::Publish, this);
   mPublisherThread.setName("Publisher Thread");
+
   eos_info("starting mgm synchronization thread");
 
   if ((rc = XrdSysThread::Run(&tid, Storage::StartMgmSyncer,
@@ -438,6 +441,7 @@ Storage::ShutdownThreads()
   mQdbCommunicatorThread.join();
   mPublisherThread.join();
   mErrorReportThread.join();
+  mTrafficShapingThread.join();
   mFsUpdQueue.emplace(0, "ACTION", "EXIT");
   mFsConfigThread.join();
   XrdSysMutexHelper scope_lock(mThreadsMutex);
@@ -446,6 +450,32 @@ Storage::ShutdownThreads()
     eos_warning("op=shutdown thread_id=%llx", (unsigned long long) *it);
     XrdSysThread::Cancel(*it);
   }
+}
+
+void
+Storage::StartTrafficShapingThread()
+{
+  if (mTrafficShapingThreadRunning) {
+    return;
+  }
+
+  eos_static_info("Starting traffic shaping thread");
+  mTrafficShapingThread.reset(&Storage::SendTrafficShapingStats, this);
+  mTrafficShapingThread.setName("Traffic Shaping Thread");
+}
+
+void
+Storage::StopTrafficShapingThread()
+{
+  if (!mTrafficShapingThreadRunning) {
+    // clear the data structures since we don't use them
+    gOFS.mIoStatsCollector.Clear();
+    return;
+  }
+
+  eos_static_info("Stopping traffic shaping thread");
+  mTrafficShapingThread.join();
+  mTrafficShapingThreadRunning = false;
 }
 
 //------------------------------------------------------------------------------

@@ -24,8 +24,6 @@
 #pragma once
 #include "mgm/Namespace.hh"
 #include "mgm/proc/ProcCommand.hh"
-#include "proto/Io.pb.h"
-#include "proto/IoBuffer.pb.h"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -90,12 +88,13 @@ private:
   void NsSubcmd(const eos::console::IoProto_NsProto& ns, eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
-  //! Manage monitor subcommand to manage all the comands of io monitor
+  //! Manage shaping subcommand to manage all the commands of io shaping
   //!
   //! @param ms ms subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorSubcommand(const eos::console::IoProto_MonitorProto& ms, eos::console::ReplyProto& reply);
+  void ShapingSubcommand(const eos::console::IoProto_ShapingProto& ms,
+                         eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Monitor command to set the limits
@@ -103,7 +102,8 @@ private:
   //! @param mn mn subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorSet(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply);
+  void MonitorSet(const eos::console::IoProto_ShapingProto& mn,
+                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Monitor command to display the limits
@@ -127,7 +127,8 @@ private:
   //! @param mn mn subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorAdd(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply);
+  void MonitorAdd(const eos::console::IoProto_ShapingProto& mn,
+                  eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
   //! Monitor command to remove a window
@@ -135,7 +136,8 @@ private:
   //! @param mn mn subcommand proto object
   //! @param reply the reply of the mgm
   //----------------------------------------------------------------------------
-  void MonitorRm(const eos::console::IoProto_MonitorProto& mn, eos::console::ReplyProto& reply);
+  void MonitorRm(const eos::console::IoProto_ShapingProto& mn,
+                 eos::console::ReplyProto& reply);
 };
 
 EOSMGMNAMESPACE_END
