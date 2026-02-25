@@ -84,7 +84,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/native/cp-cmd-native.cc
   commands/native/oldfind-cmd-native.cc
   commands/native/rclone-cmd-native.cc
-  commands/native/squash-com-native.cc
+  commands/native/squash-cmd-native.cc
 
   # Native cmd implementations (mgm.cmd=...)
   commands/native/accounting-cmd-native.cc

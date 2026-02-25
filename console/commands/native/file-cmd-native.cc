@@ -19,6 +19,7 @@
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdOuc/XrdOucString.hh>
 #include <algorithm>
+#include <cctype>
 #include <cstdlib>
 #include <vector>
 #include <cstring>
@@ -620,6 +621,14 @@ public:
       }
     };
 
+    auto is_path_or_id = [](const std::string& s) -> bool {
+      return !s.empty() && (s[0] == '/' || s.find("fid:") == 0 ||
+                            s.find("fxid:") == 0 || s.find("pid:") == 0 ||
+                            s.find("pxid:") == 0 || s.find("inode:") == 0 ||
+                            s.find("cid:") == 0 || s.find("cxid:") == 0 ||
+                            s[0] != '-');
+    };
+
     if (cmd == "rename") {
       if (rest.size() < 2) {
         printHelp();
@@ -652,13 +661,16 @@ public:
         global_retc = EINVAL;
         return 0;
       }
+      size_t idx = (rest[0] == "-f" && rest.size() > 2) ? 1 : 0;
       in += "&mgm.subcmd=symlink";
-      XrdOucString p = abspath(rest[0].c_str());
+      XrdOucString p = abspath(rest[idx].c_str());
       set_path_or_id(p);
       in += "&mgm.file.source=";
       in += p;
       in += "&mgm.file.target=";
-      in += rest[1].c_str();
+      in += rest[idx + 1].c_str();
+      if (idx == 1)
+        in += "&mgm.file.option=f";
     } else if (cmd == "drop") {
       if (rest.size() < 2) {
         printHelp();
@@ -875,53 +887,52 @@ public:
       in += "&mgm.file.tag.fsid=";
       in += rest[1].c_str();
     } else if (cmd == "convert") {
-      if (rest.empty()) {
+      bool rewrite = false;
+      std::vector<std::string> positionals;
+
+      for (const auto& arg : rest) {
+        if (arg == "--rewrite")
+          rewrite = true;
+        else if (arg == "--sync") {
+          fprintf(stderr, "error: --sync is currently not supported\n");
+          printHelp();
+          global_retc = EINVAL;
+          return 0;
+        } else
+          positionals.push_back(arg);
+      }
+      if (positionals.empty()) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString p = abspath(rest[0].c_str());
+      XrdOucString p = abspath(positionals[0].c_str());
       in += "&mgm.subcmd=convert";
       set_path_or_id(p);
-      if (rest.size() > 1) {
+      if (positionals.size() > 1) {
         in += "&mgm.convert.layout=";
-        in += rest[1].c_str();
+        in += positionals[1].c_str();
       }
-      if (rest.size() > 2) {
+      if (positionals.size() > 2) {
         in += "&mgm.convert.space=";
-        in += rest[2].c_str();
+        in += positionals[2].c_str();
       }
-      if (rest.size() > 3) {
+      if (positionals.size() > 3) {
         in += "&mgm.convert.placementpolicy=";
-        in += rest[3].c_str();
+        in += positionals[3].c_str();
       }
-      if (rest.size() > 4) {
+      if (positionals.size() > 4) {
         in += "&mgm.convert.checksum=";
-        in += rest[4].c_str();
+        in += positionals[4].c_str();
       }
-      // Option handling (legacy supported --rewrite; --sync not supported)
-      if (rest.size() > 5) {
-        for (size_t i = 5; i < rest.size(); ++i) {
-          if (rest[i] == "--rewrite") {
-            in += "&mgm.option=rewrite";
-          } else if (rest[i] == "--sync") {
-            fprintf(stderr, "error: --sync is currently not supported\n");
-            printHelp();
-            global_retc = EINVAL;
-            return 0;
-          }
-        }
-      }
+      if (rewrite)
+        in += "&mgm.option=rewrite";
     } else if (cmd == "verify") {
-      if (rest.empty()) {
-        printHelp();
-        global_retc = EINVAL;
-        return 0;
-      }
-      XrdOucString p = abspath(rest[0].c_str());
-      in += "&mgm.subcmd=verify";
-      AppendEncodedPath(in, p, true);
-      for (size_t i = 1; i < rest.size(); ++i) {
+      std::string path;
+      std::string filter_fsid;
+      std::string rate_val;
+
+      for (size_t i = 0; i < rest.size(); ++i) {
         const std::string& opt = rest[i];
         if (opt == "-checksum")
           in += "&mgm.file.compute.checksum=1";
@@ -933,8 +944,9 @@ public:
           in += "&mgm.file.commit.fmd=1";
         else if (opt == "-rate") {
           if (i + 1 < rest.size()) {
+            rate_val = rest[++i];
             in += "&mgm.file.verify.rate=";
-            in += rest[++i].c_str();
+            in += rate_val.c_str();
           } else {
             printHelp();
             global_retc = EINVAL;
@@ -942,11 +954,33 @@ public:
           }
         } else if (opt == "-resync")
           in += "&mgm.file.resync=1";
-        else { // treat as filter fsid if numeric
+        else if (!path.empty() && !opt.empty() &&
+                   std::isdigit(static_cast<unsigned char>(opt[0]))) {
+          filter_fsid = opt;
           in += "&mgm.file.verify.filterid=";
-          in += opt.c_str();
+          in += filter_fsid.c_str();
+        } else if (is_path_or_id(opt)) {
+          if (path.empty())
+            path = opt;
+          else {
+            printHelp();
+            global_retc = EINVAL;
+            return 0;
+          }
+        } else {
+          printHelp();
+          global_retc = EINVAL;
+          return 0;
         }
       }
+      if (path.empty()) {
+        printHelp();
+        global_retc = EINVAL;
+        return 0;
+      }
+      XrdOucString p = abspath(path.c_str());
+      in += "&mgm.subcmd=verify";
+      AppendEncodedPath(in, p, true);
     } else if (cmd == "adjustreplica") {
       if (rest.empty()) {
         printHelp();
@@ -969,6 +1003,8 @@ public:
             global_retc = EINVAL;
             return 0;
           }
+        } else if (args[i] == "--nodrop") {
+          in += "&mgm.file.nodrop=1";
         } else {
           if (positional_index == 0) {
             in += "&mgm.file.desiredspace=";
@@ -991,10 +1027,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      std::string option;
-      if (rest.size() > 1) {
-        option = rest[1];
-      }
+      std::string option = (rest.size() > 1) ? rest[1] : "";
       return RunFileCheck(rest[0].c_str(), option, ctx);
     } else if (cmd == "share") {
       if (rest.empty()) {
@@ -1029,30 +1062,41 @@ public:
       in += "&mgm.event=";
       in += rest[2].c_str();
     } else if (cmd == "info") {
-      if (rest.empty()) {
+      std::string path;
+      XrdOucString option = "";
+
+      for (const auto& arg : rest) {
+        if (is_path_or_id(arg)) {
+          if (path.empty())
+            path = arg;
+          else {
+            printHelp();
+            global_retc = EINVAL;
+            return 0;
+          }
+        } else {
+          XrdOucString tok = arg.c_str();
+          if (tok == "s" || tok == "-s" || tok == "--silent")
+            option += "silent";
+          else
+            option += tok;
+        }
+      }
+      if (path.empty()) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
-      XrdOucString path = rest[0].c_str();
-      bool absolutize = (!path.beginswith("fid:")) && (!path.beginswith("fxid:")) &&
-                        (!path.beginswith("pid:")) && (!path.beginswith("pxid:")) &&
-                        (!path.beginswith("inode:"));
+      XrdOucString path_str = path.c_str();
+      bool absolutize = (!path_str.beginswith("fid:")) && (!path_str.beginswith("fxid:")) &&
+                        (!path_str.beginswith("pid:")) && (!path_str.beginswith("pxid:")) &&
+                        (!path_str.beginswith("inode:"));
       XrdOucString fin = "mgm.cmd=fileinfo";
-      AppendEncodedPath(fin, path, absolutize);
-      XrdOucString option = "";
-      for (size_t i = 1; i < rest.size(); ++i) {
-        XrdOucString tok = rest[i].c_str();
-        if (tok == "s")
-          option += "silent";
-        else
-          option += tok;
-      }
+      AppendEncodedPath(fin, path_str, absolutize);
       if (option.length()) {
         fin += "&mgm.file.info.option=";
         fin += option;
       }
-      // Print output unless silent
       if (option.find("silent") == STR_NPOS) {
         global_retc =
             ctx.outputResult(ctx.clientCommand(fin, false, nullptr), true);
