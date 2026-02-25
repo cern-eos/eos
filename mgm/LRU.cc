@@ -134,6 +134,61 @@ LRU::~LRU()
   Stop();
 }
 
+bool
+LRU::extractTimeSizeCriterias(const std::string& input, time_t& age, ssize_t& size,
+                              std::ostringstream& errMsg)
+{
+  age = 0;
+  size = 0;
+
+  std::string time_tag;
+  std::string size_tag;
+  eos::common::StringConversion::SplitKeyValue(input, time_tag, size_tag);
+
+  if (time_tag.empty()) {
+    time_tag = input;
+  }
+
+  // Parse optional size constraint (e.g. ">1K" or "<1K")
+  if (!size_tag.empty()) {
+    char prefix = size_tag.front();
+
+    if (prefix != '<' && prefix != '>') {
+      errMsg << "msg=\"LRU match attribute has illegal size\" match=\"" << input
+             << "\", size=\"" << size_tag << "\"";
+      return false;
+    }
+
+    size_tag.erase(0, 1);
+    auto size_limit = eos::common::StringConversion::GetSizeFromString(size_tag.c_str());
+
+    if (errno) {
+      errMsg << "msg=\"LRU match attribute has illegal size (NaN)\" "
+                "match=\""
+             << input << "\", size=\"" << size_tag << "\"";
+      return false;
+    }
+
+    size = (prefix == '<') ? -static_cast<ssize_t>(size_limit)
+                           : static_cast<ssize_t>(size_limit);
+  }
+
+  eos_static_info("time-tag=%s size-tag=%s <%d >%d limit=%lu", time_tag.c_str(),
+                  (size_tag.empty() ? "none" : size_tag.c_str()), size < 0, size > 0,
+                  static_cast<unsigned long>(std::abs(size)));
+
+  // Parse age
+  age = eos::common::StringConversion::GetSizeFromString(time_tag.c_str());
+
+  if (errno || !age) {
+    errMsg << "msg=\"LRU match attribute has illegal age\" input= \"" << input
+           << "\", age=\"" << age << "\"";
+    return false;
+  }
+
+  return true;
+}
+
 //------------------------------------------------------------------------------
 // Parse an "sys.lru.expire.match" policy
 //------------------------------------------------------------------------------
@@ -161,6 +216,50 @@ bool LRU::parseExpireMatchPolicy(const std::string& policy,
       eos_static_info("msg=\"add expire policy\" rule=\"%s %llu\"",
                       it->first.c_str(), out);
     }
+  }
+
+  return true;
+}
+
+bool
+LRU::parseExpireSizeMatchPolicy(const std::string& policy, PolicyRules& policies,
+                                std::ostringstream& errMsg)
+{
+  policies.clear();
+
+  if (policy.empty()) {
+    errMsg << "msg=\"Empty policy. policy format in sys.expire.match should be "
+              "namePattern:age or namePattern:age:size\"";
+    return false;
+  }
+  const time_t now = time(nullptr);
+
+  std::vector<std::string> extractedPolicies;
+  StringConversion::Tokenize(policy, extractedPolicies, ",");
+
+  for (const auto& policyEntry : extractedPolicies) {
+    std::map<std::string, std::string> keyValueMap;
+
+    if (!StringConversion::GetKeyValueMap(policyEntry.c_str(), keyValueMap, ":")) {
+      errMsg << "msg=\"wrong policy format in sys.expire.match, should be "
+                "namePattern:age or namePattern:age:size\" policy=\""
+             << policyEntry.c_str() << "\"";
+      return false;
+    }
+
+    const auto& [namePattern, criteria] = *keyValueMap.begin();
+
+    time_t age = 0;
+    ssize_t size = 0;
+    if (!LRU::extractTimeSizeCriterias(criteria, age, size, errMsg)) {
+      return false;
+    }
+
+    policies.emplace_back(namePattern, age, size, now);
+    const auto& policy = policies.back();
+    eos_static_info("msg=\"add size and age expire policy\" rule=\"%s %llu %s\"",
+                    policy.m_regMatch.c_str(), policy.m_age,
+                    policy.getSizeCriteria().c_str());
   }
 
   return true;
@@ -281,7 +380,8 @@ void LRU::processDirectory(const std::string& dir,
 
   if (map.count("sys.lru.expire.match")) {
     // Files with a given match will be removed after expiration time
-    AgeExpire(dir.c_str(), map["sys.lru.expire.match"]);
+    // a size policy can also be added
+    SizeAgeExpire(dir.c_str(), map["sys.lru.expire.match"]);
   }
 
   if (map.count("sys.lru.lowwatermark") && map.count("sys.lru.highwatermark")) {
@@ -331,18 +431,20 @@ LRU::AgeExpireEmpty(const char* dir, const std::string& policy)
 }
 
 //------------------------------------------------------------------------------
-// Remove all files in the directory older than the policy defines
+// Remove all files in the directory older than the policy defines (size can be added)
 //------------------------------------------------------------------------------
 void
-LRU::AgeExpire(const char* dir, const std::string& policy)
+LRU::SizeAgeExpire(const char* dir, const std::string& policy)
 {
-  eos_static_info("msg=\"applying age deletion policy\" dir=\"%s\" age=\"%s\"",
-                  dir, policy.c_str());
-  std::map<std::string, time_t> lMatchAgeMap;
+  eos_static_info(
+      "msg=\"applying age and size deletion policy\" dir=\"%s\" policy=\"%s\"", dir,
+      policy.c_str());
+  LRU::PolicyRules deletionPolicies;
 
-  if (!parseExpireMatchPolicy(policy, lMatchAgeMap)) {
-    eos_static_err("msg=\"LRU match attribute is illegal\" val=\"%s\"",
-                   policy.c_str());
+  std::ostringstream errMsg;
+  if (!parseExpireSizeMatchPolicy(policy, deletionPolicies, errMsg)) {
+    eos_static_err("LRU match attribute is illegal val=\"%s\" %s", policy.c_str(),
+                   errMsg.str().c_str());
     return;
   }
 
@@ -359,6 +461,7 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
       std::shared_ptr<eos::IFileMD> fmd;
       XrdOucString fname;
       eos::IFileMD::ctime_t fctime;
+      size_t fileSize = 0;
 
       // Loop through all file names
       for (auto it = eos::FileMapIterator(cmd); it.valid(); it.next()) {
@@ -374,6 +477,7 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
           eos::MDLocking::FileReadLock fmdLock(fmd.get());
           fname = fmd->getName().c_str();
           fmd->getCTime(fctime);
+          fileSize = fmd->getSize();
         }
 
         fullpath = dir;
@@ -381,23 +485,18 @@ LRU::AgeExpire(const char* dir, const std::string& policy)
         eos_static_debug("check_file=\"%s\"", fullpath.c_str());
 
         // Loop over the match map
-        for (auto mit = lMatchAgeMap.begin(); mit != lMatchAgeMap.end(); mit++) {
-          eos_static_debug("check_rule=\"%s\" maches=%d", mit->first.c_str(),
-                           fname.matches(mit->first.c_str()));
-
-          if (fname.matches(mit->first.c_str())) {
-            // Full match check the age policy
-            time_t age = mit->second;
-
-            if ((fctime.tv_sec + age) < now) {
-              // This entry can be deleted
-              eos_static_notice("msg=\"delete expired file\" path=\"%s\" "
-                                "ctime=%u policy-age=%u age=%u",
-                                fullpath.c_str(), fctime.tv_sec, age,
-                                now - fctime.tv_sec);
-              lDeleteList.push_back(fullpath);
-              break;
-            }
+        for (const LRU::PolicyRule& policy : deletionPolicies) {
+          eos_static_debug("check_rule=\"%s\" matches=%d", policy.m_regMatch.c_str(),
+                           fname.matches(policy.m_regMatch.c_str()));
+          if (policy.matches(fname.c_str(), fctime.tv_sec, fileSize)) {
+            // This entry can be deleted
+            eos_static_notice("msg=\"delete expired file\" path=\"%s\" "
+                              "ctime=%u policy-age=%u age=%u policy-size=%s size=%u",
+                              fullpath.c_str(), fctime.tv_sec, policy.m_age,
+                              now - fctime.tv_sec, policy.getSizeCriteria().c_str(),
+                              fileSize);
+            lDeleteList.push_back(fullpath);
+            break;
           }
         }
       }
@@ -582,62 +681,21 @@ LRU::ConvertMatch(const char* dir,
   }
 
   for (auto it = lMatchMap.begin(); it != lMatchMap.end(); it++) {
-    std::string time_tag;
-    std::string size_tag;
-    eos::common::StringConversion::SplitKeyValue(it->second, time_tag, size_tag);
+    time_t t;
+    ssize_t size;
 
-    if (time_tag.empty()) {
-      time_tag = it->second;
-    }
-
-    bool size_smaller = false;
-    bool size_larger  = false;
-    size_t size_limit = 0;
-
-    if (size_tag.length()) {
-      if (size_tag.substr(0, 1) == "<") {
-        size_smaller = true;
-      }
-
-      if (size_tag.substr(0, 1) == ">") {
-        size_larger = true;
-      }
-
-      size_tag.erase(0, 1);
-
-      if (!size_smaller && !size_larger) {
-        eos_static_err("msg=\"LRU match attribute has illegal size\" "
-                       " match=\"%s\", size=\"%s\"",
-                       it->first.c_str(),
-                       size_tag.c_str());
-      } else {
-        size_limit = eos::common::StringConversion::GetSizeFromString(size_tag.c_str());
-      }
-    }
-
-    eos_static_info("time-tag=%s size-tag=%s <%d >%d limit=%lu", time_tag.c_str(),
-                    size_tag.c_str(), size_smaller, size_larger, size_limit);
-    time_t t = eos::common::StringConversion::GetSizeFromString(time_tag.c_str());
-
-    if (errno) {
-      eos_static_err("msg=\"LRU match attribute has illegal age\" "
-                     "match=\"%s\", age=\"%s\"", it->first.c_str(),
-                     time_tag.c_str());
+    std::ostringstream errMsg;
+    if (!extractTimeSizeCriterias(it->second, t, size, errMsg)) {
+      eos_static_err("LRU failed to extract time and size - attribute is illegal "
+                     "val=\"%s\", msg=\"%s\"",
+                     it->first.c_str(), errMsg.str().c_str());
     } else {
       std::string conv_attr = "sys.conversion.";
       conv_attr += it->first;
 
       if (map.count(conv_attr)) {
         lMatchAgeMap[it->first] = t;
-
-        if (size_smaller) {
-          lMatchSizeMap[it->first] = -size_limit;
-        }
-
-        if (size_larger) {
-          lMatchSizeMap[it->first] = +size_limit;
-        }
-
+        lMatchSizeMap[it->first] = size;
         eos_static_info("rule=\"%s %u\"", it->first.c_str(), t);
       } else {
         eos_static_err("msg=\"LRU match attribute has no conversion "

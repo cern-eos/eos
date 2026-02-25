@@ -54,3 +54,67 @@ TEST(LRUTests, ExpireMatchParsingMultiple) {
   ASSERT_EQ(results, expected);
 }
 
+//------------------------------------------------------------------------------
+// Test age and size policy parsing
+//------------------------------------------------------------------------------
+TEST(LRUTests, ExtractTimeSizeCriterias)
+{
+  std::ostringstream errMsg;
+  ssize_t size;
+  time_t age;
+  ASSERT_FALSE(eos::mgm::LRU::extractTimeSizeCriterias("", age, size, errMsg));
+  ASSERT_TRUE(eos::mgm::LRU::extractTimeSizeCriterias("1", age, size, errMsg));
+  ASSERT_EQ(0, size);
+  ASSERT_EQ(1, age);
+  ASSERT_TRUE(eos::mgm::LRU::extractTimeSizeCriterias("1mo:", age, size, errMsg));
+  ASSERT_EQ(0, size);
+  ASSERT_EQ(31 * 86400, age);
+  ASSERT_FALSE(eos::mgm::LRU::extractTimeSizeCriterias("1w:1G", age, size, errMsg));
+  ASSERT_TRUE(eos::mgm::LRU::extractTimeSizeCriterias("1mo:>1K", age, size, errMsg));
+  ASSERT_EQ(1000, size);
+  ASSERT_EQ(31 * 86400, age);
+  ASSERT_TRUE(eos::mgm::LRU::extractTimeSizeCriterias("1mo:<1K", age, size, errMsg));
+  ASSERT_EQ(-1000, size);
+  ASSERT_EQ(31 * 86400, age);
+}
+
+static inline const std::pair<std::string, eos::mgm::LRU::PolicyRules>
+    expectedPolicies[] = {
+        {"*:1mo:>4M", {eos::mgm::LRU::PolicyRule("*", 86400 * 31, 4000000, 0)}},
+        {"*:1d:<1G", {eos::mgm::LRU::PolicyRule("*", 86400, -1000000000, 0)}},
+        {"*:1d:<1M,*.root:1d",
+         {eos::mgm::LRU::PolicyRule("*", 86400, -1000000, 0),
+          eos::mgm::LRU::PolicyRule("*.root", 86400, 0, 0)}},
+        {"*:1d:<1M,*.root:1d,",
+         {eos::mgm::LRU::PolicyRule("*", 86400, -1000000, 0),
+          eos::mgm::LRU::PolicyRule("*.root", 86400, 0, 0)}},
+        {"*:1d:<1M,,*.root:1d,",
+         {eos::mgm::LRU::PolicyRule("*", 86400, -1000000, 0),
+          eos::mgm::LRU::PolicyRule("*.root", 86400, 0, 0)}},
+        {"*:1d", {eos::mgm::LRU::PolicyRule("*", 86400, 0, 0)}},
+
+};
+
+static inline const std::string wrongPolicies[] = {"*", "*:<1d", "azewrty", ""};
+
+//------------------------------------------------------------------------------
+// Test "sys.lru.expire.match" policy parsing, multiple entries
+//------------------------------------------------------------------------------
+TEST(LRUTests, ParseExpireSizeMatchPolicy)
+{
+  eos::mgm::LRU::PolicyRules results;
+  std::ostringstream errMsg;
+  for (const auto& validationItem : expectedPolicies) {
+    ASSERT_TRUE(
+        eos::mgm::LRU::parseExpireSizeMatchPolicy(validationItem.first, results, errMsg));
+    size_t i = 0;
+    for (const auto& policyRule : validationItem.second) {
+      ASSERT_EQ(policyRule, results[i]);
+      i++;
+    }
+  }
+
+  for (const auto& wrongPolicy : wrongPolicies) {
+    ASSERT_FALSE(eos::mgm::LRU::parseExpireSizeMatchPolicy(wrongPolicy, results, errMsg));
+  }
+}
