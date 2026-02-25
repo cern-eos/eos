@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: com_cp.cc
+// File: cp-cmd-native.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -24,86 +24,178 @@
 /*----------------------------------------------------------------------------*/
 #include <iomanip>
 #include <iostream>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <vector>
 #include "common/StringTokenizer.hh"
+#include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
 #include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include <XrdPosix/XrdPosixXrootd.hh>
 #include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucString.hh>
 #include <XrdCl/XrdClURL.hh>
 #include <XrdCl/XrdClFileSystem.hh>
 /*----------------------------------------------------------------------------*/
 
-int
-com_cp_usage()
+/** Parsed options for cp command */
+struct CpOptions {
+  std::string rate;
+  std::string streams = "0";
+  std::string atomic;
+  std::vector<std::string> sources;
+  std::string target;
+  bool recursive = false;
+  bool summary = false;
+  bool noprogress = false;
+  bool append = false;
+  bool makeparent = false;
+  bool debug = false;
+  int debug_level = 0;
+  bool checksums = false;
+  bool silent = false;
+  bool nooverwrite = false;
+  bool preserve = false;
+  unsigned long depth = 0;
+};
+
+namespace {
+std::string MakeCpHelp()
 {
-  std::cerr << "Usage: cp [--async] [--atomic] [--rate=<rate>] [--streams=<n>] "
-            "[--depth=<d>] [--checksum] [--no-overwrite|-k] [--preserve|-p] "
-            "[--recursive|-r|-R] [-s|--silent] [-a] [-n] [-S] "
-            "[-d[=][<lvl>] <src> <dst>\n"
-            "'[eos] cp ..' provides copy functionality to EOS.\n"
-            "          <src>|<dst> can be root://<host>/<path>, a local path "
-            "/tmp/../ or an eos path /eos/ in the connected instance\n"
-            "Options:\n"
-            "       --atomic        : run an atomic upload where files are only "
-            "visible with the target name when their are completely uploaded "
-            "[ adds ?eos.atomic=1 to the target URL ]\n"
-            "       --rate          : limit the cp rate to <rate>\n"
-            "       --streams       : use <#> parallel streams\n"
-            "       --depth         : depth for recursive copy\n"
-            "       --checksum      : output the checksums\n"
-            "       -a              : append to the target, don't truncate\n"
-            "       -p              : create destination directory\n"
-            "       -n              : hide progress bar\n"
-            "       -S              : print summary\n"
-            "   -d | --debug          : enable debug information "
-            "(optional <lvl>=1|2|3)\n"
-            "   -s | --silent         : no output outside error messages\n"
-            "   -k | --no-overwrite   : disable overwriting of files\n"
-            "   -P | --preserve       : preserves file creation and "
-            "modification time from the source\n"
-            "   -r | -R | --recursive : copy source location recursively\n"
-            "\n"
-            "Remark: \n"
-            "       If you deal with directories always add a '/' in the end of "
-            "source or target paths e.g. if the target should be a directory and "
-            "not a file put a '/' in the end. To copy a directory hierarchy use "
-            "'-r' and source and target directories terminated with '/' !\n"
-            "\n"
-            "Examples: \n"
-            "       eos cp /var/data/myfile /eos/foo/user/data/                   "
-            ": copy 'myfile' to /eos/foo/user/data/myfile\n"
-            "       eos cp /var/data/ /eos/foo/user/data/                         "
-            ": copy all plain files in /var/data to /eos/foo/user/data/\n"
-            "       eos cp -r /var/data/ /eos/foo/user/data/                      "
-            ": copy the full hierarchy from /var/data/ to /eos/foo/user/data/ => "
-            "empty directories won't show up on the target!\n"
-            "       eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/  "
-            ": copy the full hierarchy and just printout the checksum "
-            "information for each file copied!\n"
-            "\nS3:\n"
-            "      URLs have to be written as:\n"
-            "         as3://<hostname>/<bucketname>/<filename> as implemented "
-            "in ROOT\n"
-            "      or as3:<bucketname>/<filename> with environment variable "
-            "S3_HOSTNAME set\n"
-            "     and as3:....?s3.id=<id>&s3.key=<key>\n\n"
-            "      The access id can be defined in 3 ways:\n"
-            "      env S3_ACCESS_ID=<access-id>          [as used in ROOT  ]\n"
-            "      env S3_ACCESS_KEY_ID=<access-id>      [as used in libs3 ]\n"
-            "      <as3-url>?s3.id=<access-id>           [as used in EOS "
-            "transfers ]\n"
-            "\n"
-            "      The access key can be defined in 3 ways:\n"
-            "      env S3_ACCESS_KEY=<access-key>        [as used in ROOT ]\n"
-            "      env S3_SECRET_ACCESS_KEY=<access-key> [as used in libs3 ]\n"
-            "      <as3-url>?s3.key=<access-key>         [as used in EOS "
-            "transfers ]\n"
-            "\n"
-            "      If <src> and <dst> are using S3, we are using the same "
-            "credentials on both ends and the target credentials will overwrite "
-            "source credentials!\n";
-  return (EINVAL);
+  return R"(Usage: cp [OPTIONS] <src>... <dst>
+
+'[eos] cp ..' provides copy functionality to EOS.
+<src>|<dst> can be root://<host>/<path>, a local path /tmp/../ or an eos path
+/eos/ in the connected instance.
+
+Options:
+  --atomic          run an atomic upload (files visible only when complete)
+  --rate=<rate>     limit the cp rate
+  --streams=<n>     use <#> parallel streams
+  --depth=<d>       depth for recursive copy
+  --checksum        output the checksums
+  -a                append to the target, don't truncate
+  -p                create destination directory
+  -n                hide progress bar
+  -S                print summary
+  -d, --debug[=1|2|3]  enable debug information
+  -s, --silent      no output outside error messages
+  -k, --no-overwrite  disable overwriting of files
+  -P, --preserve    preserve file creation and modification time
+  -r, -R, --recursive  copy source location recursively
+
+Remark:
+  Add '/' at the end of source or target paths for directories. Use '-r' with
+  source and target directories terminated with '/' for hierarchy copy.
+
+Examples:
+  eos cp /var/data/myfile /eos/foo/user/data/
+  eos cp /var/data/ /eos/foo/user/data/
+  eos cp -r /var/data/ /eos/foo/user/data/
+  eos cp -r --checksum --silent /var/data/ /eos/foo/user/data/
+
+S3:
+  URLs: as3://<host>/<bucket>/<file> or as3:<bucket>/<file> with S3_HOSTNAME set.
+  Credentials: S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, S3_HOSTNAME
+  or s3.id=, s3.key= in URL.
+)";
+}
+
+void ConfigureCpApp(CLI::App& app, CpOptions& opts)
+{
+  app.name("cp");
+  app.description("Copy files to/from EOS");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeCpHelp();
+      }));
+  app.add_option("--rate", opts.rate, "limit cp rate");
+  app.add_option("--streams", opts.streams, "parallel streams")->default_val("0");
+  app.add_flag("--atomic", [&](size_t) { opts.atomic = "&eos.atomic=1"; },
+               "atomic upload");
+  app.add_option("--depth", opts.depth, "recursive copy depth");
+  app.add_flag("--checksum", opts.checksums, "output checksums");
+  app.add_flag("-a,--append", opts.append, "append, don't truncate");
+  app.add_flag("-p", opts.makeparent, "create destination directory");
+  app.add_flag("-n", opts.noprogress, "hide progress bar");
+  app.add_flag("-S", opts.summary, "print summary");
+  app.add_flag("-d,--debug", [&](size_t c) {
+    if (c)
+      opts.debug_level = 1;
+  }, "enable debug");
+  app.add_flag("-s,--silent", opts.silent, "silent mode");
+  app.add_flag("-k,--no-overwrite", opts.nooverwrite, "no overwrite");
+  app.add_flag("-P,--preserve", opts.preserve, "preserve mtime");
+  app.add_flag("-r,-R,--recursive", opts.recursive, "recursive copy");
+  app.add_option("path", opts.sources, "source paths and destination")
+      ->required()
+      ->expected(2, -1);
+}
+
+/** Parse cp args with CLI11. Returns true on success, false on help/error. */
+bool ParseCpArgs(const std::vector<std::string>& args, CpOptions& opts)
+{
+  if (args.empty())
+    return false;
+
+  for (const auto& a : args) {
+    if (a == "--help" || a == "-h") {
+      std::cerr << MakeCpHelp();
+      return false;
+    }
+  }
+
+  CLI::App app;
+  ConfigureCpApp(app, opts);
+
+  std::vector<std::string> cli_args = args;
+  try {
+    app.parse(cli_args);
+  } catch (const CLI::ParseError& e) {
+    std::cerr << MakeCpHelp();
+    return false;
+  }
+
+  if (opts.sources.size() < 2) {
+    std::cerr << "error: at least one source and one destination required\n";
+    return false;
+  }
+
+  opts.target = opts.sources.back();
+  opts.sources.pop_back();
+  opts.debug = (opts.debug_level > 0);
+  if (opts.recursive)
+    opts.makeparent = true;
+  if (opts.silent || !hasterminal)
+    opts.noprogress = true;
+
+  return true;
+}
+
+/** Tokenize char* into vector of strings for CLI11 parsing */
+std::vector<std::string> TokenizeCpArgs(const char* argin)
+{
+  std::vector<std::string> args;
+  eos::common::StringTokenizer tokenizer(argin);
+  tokenizer.GetLine();
+  XrdOucString tok;
+  while ((tok = tokenizer.GetToken()).length()) {
+    if ((!tok.beginswith("/eos/")) && (!tok.beginswith("root:/")))
+      eos::common::StringConversion::UnsealXrdPath(tok);
+    args.push_back(tok.c_str());
+  }
+  return args;
+}
+} // namespace
+
+static int com_cp_usage()
+{
+  std::cerr << MakeCpHelp();
+  return EINVAL;
 }
 
 /* Helper types */
@@ -136,129 +228,40 @@ int do_stat(const char* path, Protocol protocol, struct stat& buf);
 int check_protocol_tool(const char* path);
 Protocol get_protocol(XrdOucString path);
 const char* protocol_to_string(Protocol protocol);
-int parse_debug_level(XrdOucString option);
 
-/* eos cp command */
-int
-com_cp(char* argin)
+/** Core copy implementation */
+static int cp_impl(const CpOptions& opts)
 {
-  XrdOucString rate = "";
-  XrdOucString streams = "0";
-  XrdOucString atomic = "";
+  XrdOucString rate = opts.rate.c_str();
+  XrdOucString streams = opts.streams.c_str();
+  XrdOucString atomic = opts.atomic.c_str();
   std::vector<XrdOucString> source_find_list;
+  for (const auto& s : opts.sources)
+    source_find_list.emplace_back(s.c_str());
   std::vector<XrdOucString> source_basepath_list;
   std::vector<File_t> source_list;
   File_t target;
+  target.name = opts.target.c_str();
   bool target_is_stdout;
   bool target_is_dir = false;
-  bool recursive = false;
-  bool summary = false;
-  bool noprogress = false;
-  bool append = false;
-  bool makeparent = false;
-  bool debug = false;
-  int debug_level = 0;
-  bool checksums = false;
-  bool silent = false;
-  bool nooverwrite = false;
-  bool preserve = false;
+  bool recursive = opts.recursive;
+  bool summary = opts.summary;
+  bool noprogress = opts.noprogress;
+  bool append = opts.append;
+  bool makeparent = opts.makeparent;
+  bool debug = opts.debug;
+  int debug_level = opts.debug_level;
+  bool checksums = opts.checksums;
+  bool silent = opts.silent;
+  bool nooverwrite = opts.nooverwrite;
+  bool preserve = opts.preserve;
   unsigned long long copysize = 0;
   unsigned long long copiedsize = 0;
-  unsigned long depth = 0;
+  unsigned long depth = opts.depth;
   struct timeval start_time, end_time;
   struct timezone tz;
   int files_copied = 0;
   int retc = 0;
-  // Check if this is an 'async' command
-  XrdOucString sarg = argin;
-  // ----------------------------------------------------------------------------
-  // Parse arguments
-  // ----------------------------------------------------------------------------
-  eos::common::StringTokenizer subtokenizer(argin);
-  subtokenizer.GetLine();
-
-  do {
-    XrdOucString option = subtokenizer.GetToken();
-
-    if (!option.length()) {
-      break;
-    }
-
-    if (option.beginswith("--rate=")) {
-      rate = option;
-      rate.replace("--rate=", "");
-    } else if (option.beginswith("--streams=")) {
-      streams = option;
-      streams.replace("--streams=", "");
-    } else if ((option == "--recursive") ||
-               (option == "-R") || (option == "-r")) {
-      recursive = true;
-    } else if (option == "-n") {
-      noprogress = true;
-    } else if (option == "-a") {
-      append = true;
-    } else if (option == "-p") {
-      makeparent = true;
-    } else if (option == "-S") {
-      summary = true;
-    } else if ((option == "-s") || (option == "--silent")) {
-      silent = true;
-    } else if ((option == "-k") || (option == "--no-overwrite")) {
-      nooverwrite = true;
-    } else if (option == "--checksum") {
-      checksums = true;
-    } else if ((option.beginswith("-d")) || (option.beginswith("--debug"))) {
-      if ((debug_level = parse_debug_level(option)) < 0) {
-        return com_cp_usage();
-      }
-
-      debug = true;
-    } else if ((option == "--preserve") || (option == "-P")) {
-      preserve = true;
-    } else if (option == "--atomic") {
-      atomic = "&eos.atomic=1";
-    } else if (option.beginswith("--depth=")) {
-      option.replace("--depth=", "");
-
-      try {
-        depth = std::stoul(option.c_str());
-      } catch (...) {
-        std::cerr << "error: invalid value for <depth>=" << option.c_str()
-                  << std::endl;
-        return com_cp_usage();
-      }
-    } else if (option.beginswith("-")) {
-      return com_cp_usage();
-    } else {
-      if ((!option.beginswith("/eos/")) || (!option.beginswith("root:/"))) {
-        // Do this since tokenizer sealed the path when extracting the token!
-        eos::common::StringConversion::UnsealXrdPath(option);
-      }
-
-      source_find_list.emplace_back(option.c_str());
-      break;
-    }
-  } while (true);
-
-  if (silent || !hasterminal) {
-    noprogress = true;
-  }
-
-  if (recursive) {
-    makeparent = true;
-  }
-
-  // Store list of source locations + target destination
-  XrdOucString nextarg = subtokenizer.GetToken();
-  XrdOucString lastarg = subtokenizer.GetToken();
-
-  while (lastarg.length()) {
-    source_find_list.emplace_back(nextarg.c_str());
-    nextarg = lastarg;
-    lastarg = subtokenizer.GetToken();
-  }
-
-  target.name = nextarg;
 
   if (!target.name.length()) {
     std::cerr << "warning: no target specified. Please view 'eos cp --help'."
@@ -1322,6 +1325,15 @@ com_cp(char* argin)
   return global_retc;
 }
 
+/* eos cp command - entry point for com_cat and legacy callers */
+int com_cp(char* argin)
+{
+  std::vector<std::string> args = TokenizeCpArgs(argin);
+  CpOptions opts;
+  if (!ParseCpArgs(args, opts))
+    return com_cp_usage();
+  return cp_impl(opts);
+}
 
 // ----------------------------------------------------------------------------
 // Helper functions implementation
@@ -1704,42 +1716,58 @@ const char* protocol_to_string(Protocol protocol)
   return "unknown";
 }
 
-/**
- * Parse and returns debug level from option string or -1 if invalid.
- * Option format: -d[=][1|2|3]
- */
-int parse_debug_level(XrdOucString option)
+// ----------------------------------------------------------------------------
+// Native command registration (keeps com_cp interface for cat and other callers)
+// ----------------------------------------------------------------------------
+namespace {
+class CpCommand : public IConsoleCommand {
+public:
+  const char*
+  name() const override
+  {
+    return "cp";
+  }
+  const char*
+  description() const override
+  {
+    return "Copy files";
+  }
+  bool
+  requiresMgm(const std::string& args) const override
+  {
+    return !wants_help(args.c_str());
+  }
+  int
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
+  {
+    (void)ctx;
+    if (args.empty() || wants_help(args[0].c_str())) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+    CpOptions opts;
+    if (!ParseCpArgs(args, opts)) {
+      global_retc = EINVAL;
+      return 0;
+    }
+    return cp_impl(opts);
+  }
+  void
+  printHelp() const override
+  {
+    std::cerr << MakeCpHelp();
+  }
+};
+} // namespace
+
+void
+RegisterCpNativeCommand()
 {
-  if (option.beginswith("-d")) {
-    option.erase(0, 2);
-  } else if (option.beginswith("--debug")) {
-    option.erase(0, 7);
-  }
-
-  if (option.length() && ((option[0] == ' ') || (option[0] == '='))) {
-    option.erase(0, 1);
-  }
-
-  if (!option.length()) {
-    return 0;
-  }
-
-  int level = 0;
-
-  try {
-    level = std::stoul(option.c_str());
-  } catch (...) { }
-
-  if (level < 1 || level > 3) {
-    std::cerr << "error: invalid value for <debug level>=" << option.c_str()
-              << std::endl;
-    return -1;
-  }
-
-  return level - 1;
+  CommandRegistry::instance().reg(std::make_unique<CpCommand>());
 }
 
-/* eos cat command - just eos cp with '-' destination*/
+/* eos cat command - just eos cp with '-' destination */
 int com_cat(char* argin)
 {
   std::string catarg=(const char*)argin;
