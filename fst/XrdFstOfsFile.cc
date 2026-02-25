@@ -20,32 +20,31 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 #include "fst/XrdFstOfsFile.hh"
-#include "fst/XrdFstOfs.hh"
-#include "fst/Config.hh"
-#include "fst/utils/IoPriority.hh"
 #include "common/Constants.hh"
+#include "common/CtaCommon.hh"
 #include "common/Path.hh"
-#include "common/http/OwnCloud.hh"
+#include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "common/SecEntity.hh"
-#include "common/CtaCommon.hh"
 #include "common/Timing.hh"
+#include "common/WFEClient.hh"
+#include "common/http/OwnCloud.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "cta_frontend.grpc.pb.h"
+#include "cta_frontend.pb.h"
+#include "fst/Config.hh"
+#include "fst/XrdFstOfs.hh"
+#include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/io/FileIoPluginCommon.hh"
 #include "fst/layout/Layout.hh"
 #include "fst/layout/LayoutPlugin.hh"
-#include "fst/checksum/ChecksumPlugins.hh"
 #include "fst/storage/FileSystem.hh"
-#include <XrdOss/XrdOssApi.hh>
-#include "fst/io/FileIoPluginCommon.hh"
+#include "fst/storage/TrafficShaping.hh"
+#include "fst/utils/IoPriority.hh"
 #include "namespace/utils/Etag.hh"
+#include <XrdOss/XrdOssApi.hh>
 #include <XrdOuc/XrdOucPgrwUtils.hh>
-
-// includes for gRPC
 #include <grpc++/grpc++.h>
-#include "cta_frontend.pb.h"
-#include "cta_frontend.grpc.pb.h"
-#include "common/WFEClient.hh"
 
 extern XrdOss* XrdOfsOss;
 
@@ -838,66 +837,15 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, XrdSfsXferSize amount)
 }
 
 //------------------------------------------------------------------------------
-//! Return the corresponding scaler value
-//------------------------------------------------------------------------------
-std::uint64_t XrdFstOfsFile::reguleBandwidth(const std::string rw) const{
-  double  scaler = 1.0;
-
-  auto &it = gOFS.Storage->mScaler;
-  auto &app = it.apps();
-  auto &uid = it.uids();
-  auto &gid = it.gids();
-
-  if (rw == "read"){
-    if (app.read().contains(vid.app))
-      if (app.read().at(vid.app).limit() < scaler)
-        scaler = app.read().at(vid.app).limit();
-    if (uid.read().contains(vid.uid))
-      if (uid.read().at(vid.uid).limit() < scaler)
-        scaler = uid.read().at(vid.uid).limit();
-    if (gid.read().contains(vid.gid))
-      if (gid.read().at(vid.gid).limit() < scaler)
-        scaler = gid.read().at(vid.gid).limit();
-  }else if (rw == "write"){
-    if (app.write().contains(vid.app))
-      if (app.write().at(vid.app).limit() < scaler)
-        scaler = app.write().at(vid.app).limit();
-    if (uid.write().contains(vid.uid))
-      if (uid.write().at(vid.uid).limit() < scaler)
-        scaler = uid.write().at(vid.uid).limit();
-    if (gid.write().contains(vid.gid))
-      if (gid.write().at(vid.gid).limit() < scaler)
-        scaler = gid.write().at(vid.gid).limit();
-  }
-
-  /// This is still in the testing phase and deserves improvement.
-  if (scaler == 1)
-    return 0;
-  return (10000 / scaler);
-}
-
-//------------------------------------------------------------------------------
 // Read from file
 //------------------------------------------------------------------------------
 XrdSfsXferSize
 XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
                     XrdSfsXferSize buffer_size)
 {
-  auto win = gOFS.ioMap.getAvailableWindows();
-  if (win.has_value()){
-    for (auto it : win.value()){
-      if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
-        gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
-      if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
-        gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
-      if (!gOFS.ioMap.containe(it, vid.app))
-        gOFS.ioMap.setTrack(it, vid.app);
-    }
-  }
-
   gettimeofday(&rStart, &tz);
   // use RR scheduling if there is a round-robin app name
-  std::mutex* mutex = 0;
+  std::mutex* mutex = nullptr;
 
   if (!mAppRR.empty()) {
     if (mIsRW) {
@@ -923,13 +871,11 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  //------------------------------------------------------------------------------
-  /// This is still in the testing phase and deserves improvement.
-  std::int64_t sleep_time = reguleBandwidth("read");
-  if (sleep_time) {
-    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
+  if (const uint64_t sleep_time_micro_sec =
+          gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid);
+      sleep_time_micro_sec > 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
-  //------------------------------------------------------------------------------
 
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);
@@ -946,10 +892,16 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  int rc = mLayout->Read(fileOffset, buffer, buffer_size);
-  if (rc > 0)
-    gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rc);
+  if (const uint64_t sleep_time_micro_sec =
+          gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(vid);
+      sleep_time_micro_sec > 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
+  }
 
+  const uint64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
+  if (rc > 0) {
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rc);
+  }
   eos_debug("layout read %d checkSum %d", rc,
             mChecksumGroup ? nullptr : mChecksumGroup->GetDefault());
 
@@ -1047,18 +999,6 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 {
   eos_debug("msg=\"readv request\" count=%i", readCount);
 
-  auto win = gOFS.ioMap.getAvailableWindows();
-  if (win.has_value()){
-    for (auto it : win.value()){
-      if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
-        gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
-      if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
-        gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
-      if (!gOFS.ioMap.containe(it, vid.app))
-        gOFS.ioMap.setTrack(it, vid.app);
-    }
-  }
-
   gettimeofday(&rvStart, &tz);
   std::string output_init, output_final;
   auto print_readv_request = [](XrdOucIOVec * readv, int num_chunks) {
@@ -1092,10 +1032,17 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
                                          (void*)readV[i].data));
   }
 
-  int64_t rv = mLayout->ReadV(chunkList, total_read);
-  if (rv > 0)
-    gOFS.ioMap.addRead(1, vid.app, vid.uid, vid.gid, rv);
+  if (const uint64_t sleep_time_micro_sec =
+          gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid);
+      sleep_time_micro_sec > 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
+  }
+
+  const int64_t rv = mLayout->ReadV(chunkList, total_read);
   totalBytes += rv;
+  if (rv > 0) {
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rv);
+  }
 
   if (EOS_LOGS_DEBUG) {
     output_final = print_readv_request(readV, readCount);
@@ -1123,18 +1070,6 @@ XrdSfsXferSize
 XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                      XrdSfsXferSize buffer_size)
 {
-  auto win = gOFS.ioMap.getAvailableWindows();
-  if (win.has_value()){
-    for (auto it : win.value()){
-      if (!gOFS.ioMap.containe(it, io::TYPE::UID, vid.uid))
-        gOFS.ioMap.setTrack(it, io::TYPE::UID, vid.uid);
-      if (!gOFS.ioMap.containe(it, io::TYPE::GID, vid.gid))
-        gOFS.ioMap.setTrack(it, io::TYPE::GID, vid.gid);
-      if (!gOFS.ioMap.containe(it, vid.app))
-        gOFS.ioMap.setTrack(it, vid.app);
-    }
-  }
-
   gettimeofday(&wStart, &tz);
 
   if (gOFS.mSimUnresponsive) {
@@ -1153,7 +1088,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
 
   {
     // use global RR serialization (we just use fsid 0 for that)
-    std::mutex* mutex = 0;
+    std::mutex* mutex = nullptr;
 
     if (!mAppRR.empty()) {
       if (mIsRW) {
@@ -1169,7 +1104,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   // use RR scheduling if there is a round-robin app name per filesystem
-  std::mutex* mutex = 0;
+  std::mutex* mutex = nullptr;
 
   if (!mAppRR.empty()) {
     if (mIsRW) {
@@ -1183,13 +1118,11 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
 
-  //------------------------------------------------------------------------------
-  /// This is still in the testing phase and deserves improvement.
-  std::int64_t sleep_time = reguleBandwidth("write");
-  if (sleep_time) {
-    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time));
+  if (const uint64_t sleep_time_micro_sec =
+          gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(vid);
+      sleep_time_micro_sec > 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
-  //------------------------------------------------------------------------------
 
   if (mBandwidth) {
     gettimeofday(&currentTime, &tz);
@@ -1225,9 +1158,9 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   int rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long>(buffer_size));
-  if (rc > 0)
-    gOFS.ioMap.addWrite(1, vid.app, vid.uid, vid.gid, rc);
-
+  if (rc > 0) {
+    gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, rc);
+  }
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
   // only for replica layouts and not for FuseX clients
   if ((rc < 0) && mIsCreation && !mFusex &&

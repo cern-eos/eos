@@ -629,9 +629,7 @@ XrdMgmOfs::OrderlyShutdown()
               std::chrono::duration_cast<std::chrono::seconds>
               (end_ts - start_ts).count());
 
-  mIoShaper.stopShaping();
-  mIoShaper.stopPublishing();
-  mIoShaper.stopReceiving();
+  mTrafficShapingEngine.Stop();
 }
 
 //------------------------------------------------------------------------------

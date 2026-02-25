@@ -21,7 +21,7 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/ ${CMAKE_SOURCE_DIR}/mgm ${CMAKE_SOURCE_DIR}/mgm/ofs/) 
+include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/ ${CMAKE_SOURCE_DIR}/mgm ${CMAKE_SOURCE_DIR}/mgm/ofs/)
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -119,7 +119,7 @@ add_library(
   proc/admin/DebugCmd.cc proc/admin/DebugCmd.hh
   proc/admin/DevicesCmd.cc proc/admin/DevicesCmd.hh
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
-  proc/admin/IoCmd.cc proc/admin/IoCmd.hh
+  proc/admin/IoShapingCmd.cc proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/FileRegisterCmd.cc proc/admin/FileRegisterCmd.hh
   proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
   proc/admin/SchedCmd.cc
@@ -326,7 +326,7 @@ add_library(
   placement/WeightedRoundRobinStrategy.cc
   placement/WeightedRandomStrategy.cc
   placement/ThreadLocalRRSeed.cc
-  shaping/IoShaping.cc
+  shaping/TrafficShaping.cc
   ${FUSEX_SRCS})
 
 target_compile_options(XrdEosMgm-Objects PRIVATE -Wno-sign-compare)

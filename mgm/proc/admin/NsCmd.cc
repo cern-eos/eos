@@ -517,15 +517,13 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     oss << line << std::endl
         << "# Namespace Statistics" << std::endl
         << line << std::endl
-        << "ALL      Files                            "
-        << f << " [" << bootstring << "] (" << fboot_time << "s)" << std::endl
-        << "ALL      Directories                      "
-        << d <<  std::endl
-        << "ALL      Total boot time                  "
-        << boot_time << " s" << std::endl
-        << "ALL      Contention                       write: "
-        << std::fixed << std::setprecision(2) << writecontention << " % read:" <<
-        std::fixed << std::setprecision(2) << readcontention << " %" << std::endl
+        << "ALL      Files                            " << f << " [" << bootstring
+        << "] (" << fboot_time << "s)" << std::endl
+        << "ALL      Directories                      " << d << std::endl
+        << "ALL      Total boot time                  " << boot_time << " s" << std::endl
+        << "ALL      Contention                       write: " << std::fixed
+        << std::setprecision(2) << writecontention << " % read:" << std::fixed
+        << std::setprecision(2) << readcontention << " %" << std::endl
         << line << std::endl;
 
     if (compact_status.length()) {
@@ -664,6 +662,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << std::endl;
     std::string_view prefix {"ALL      balancer info                    "};
     FsView::gFsView.DumpBalancerPoolInfo(oss, prefix);
+    oss << "ALL      traffic shaping info             "
+        << "is_enabled=" << (gOFS->mTrafficShapingEngine.IsEnabled() ? "true" : "false")
+        << std::endl;
     oss << line << std::endl
         << gOFS->mFidTracker.PrintStats() << std::endl
         << line << std::endl;

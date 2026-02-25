@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Assert.hh"
 #include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
@@ -36,8 +35,18 @@
 EOSFSTNAMESPACE_BEGIN
 
 // Set of keys updates to be tracked at the node level
-std::set<std::string> Storage::sNodeUpdateKeys{"stat.refresh_fs", "manager",          "symkey",   "publish.interval",
-                                               "debug.level",     "error.simulation", "stripexs", "stat.scaler.xyz"};
+std::set<std::string> Storage::sNodeUpdateKeys{
+    "stat.refresh_fs",
+    "manager",
+    "symkey",
+    "publish.interval",
+    "debug.level",
+    "error.simulation",
+    "stripexs",
+    common::FST_TRAFFIC_SHAPING_IO_LIMITS,
+    common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE,
+    common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
+};
 
 //------------------------------------------------------------------------------
 // Get configuration value from global FST config
@@ -150,28 +159,46 @@ Storage::FsRegisterStatus Storage::RegisterFileSystem(const std::string& queuepa
   return FsRegisterStatus::kRegistered;
 }
 
-//------------------------------------------------------------------------------
-// Manage scaler for IoAggregateMap
-//------------------------------------------------------------------------------
-void Storage::ScalerCmd(const std::string& data) {
-  google::protobuf::util::JsonParseOptions option;
-  Shaping::Scaler scaler;
+void
+ProcessFstIoLimitsCommand(const std::string& data)
+{
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
 
-  auto absel = google::protobuf::json::JsonStringToMessage(data, &scaler, option);
-  if (!absel.ok()) {
-    eos_static_err("msg=\"Failed to convert scaler value to variable\"");
+  if (!fst_io_delay_config.ParseFromString(data)) {
+    eos_static_err("msg=\"Failed to parse FST IO limits config\"");
+    return;
+  }
+
+  gOFS.mIoDelayConfig.UpdateConfig(std::move(fst_io_delay_config));
+}
+
+void
+ProcessTrafficShapingToggle(bool enable)
+{
+  Storage* storage = gOFS.Storage;
+  if (!storage) {
+    eos_static_err("msg=\"Storage instance not available\"");
+    return;
+  }
+
+  if (enable) {
+    storage->StartTrafficShapingThread();
   } else {
-    for (auto it : mScaler.windows()) {
-      if (std::find(scaler.windows().begin(), scaler.windows().end(), it) == scaler.windows().end()) {
-        gOFS.ioMap.rm(it);
-      }
-    }
-    for (auto it : scaler.windows()) {
-      if (std::find(mScaler.windows().begin(), mScaler.windows().end(), it) == mScaler.windows().end()) {
-        gOFS.ioMap.addWindow(it);
-      }
-    }
-    mScaler = scaler;
+    storage->StopTrafficShapingThread();
+  }
+}
+
+void
+ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
+{
+  try {
+    unsigned long long period_millis = std::stoull(period_millis_as_str);
+    traffic_shaping::IoStatsCollector::fst_io_stats_reporting_thread_period_milliseconds =
+        period_millis;
+  } catch (const std::exception& e) {
+    eos_static_err("msg=\"invalid FST IO stats reporting thread period value\" "
+                   "value=\"%s\" error=\"%s\"",
+                   period_millis_as_str.c_str(), e.what());
   }
 }
 
@@ -216,6 +243,12 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
     } catch (const std::exception& e) {
       eos_static_warning("msg=\"invalid PublishInterval value\" value=\"%s\" error=\"%s\"", value.c_str(), e.what());
     }
+  } else if (key == eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS) {
+    ProcessFstIoLimitsCommand(value);
+  } else if (key == eos::common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE) {
+    ProcessTrafficShapingToggle(value == "on" || value == "true" || value == "1");
+  } else if (key == eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD) {
+    ProcessFstIoStatsReportingThreadPeriod(value);
   } else if (key == "debug.level") {
     const std::string& debugLevel = value;
     eos_static_info("msg=\"debug level changed\" new_level=\"%s\"", debugLevel.c_str());
@@ -233,9 +266,6 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
     mComputeStripeChecksum = (value == "on");
     eos_static_info("msg=\"stripe checksum calculation changed\" new_value=\"%s\" mComputeStripeChecksum=%s",
                     value.c_str(), mComputeStripeChecksum ? "enabled" : "disabled");
-  } else if (key == "stat.scaler.xyz") {
-    eos_static_debug("msg=\"stat.scaler.xyz changed\" new_value=\"%s\"", value.c_str());
-    ScalerCmd(value);
   } else {
     eos_static_err("msg=\"unhandled FST node configuration change because "
                    "of missing implementation\" key=\"%s\" value=\"%s\". "
