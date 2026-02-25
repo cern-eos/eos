@@ -6,6 +6,6 @@
 // Include only legacy implementations still referenced by native wrappers
 // Direct com_* dependencies from native commands
 // com_cp/com_cat: provided by cp-cmd-native.cc
+// com_rclone: provided by rclone-cmd-native.cc
 #include "console/commands/coms/com_squash.cc"
-#include "console/commands/coms/com_rclone.cc"
 

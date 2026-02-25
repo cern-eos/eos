@@ -786,7 +786,7 @@ Run(int argc, char* argv[])
       in1 = argv[argindex];
     }
 
-    if ((in1 == "cp")) {
+    if ((in1 == "cp") || (in1 == "rclone")) {
       interactive = false;
       global_highlighting = false;
     }

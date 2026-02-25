@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: com_rclone.cc
+// File: rclone-cmd-native.cc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -22,12 +22,15 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
 #include "common/StringTokenizer.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
 #include "common/LayoutId.hh"
+#include <CLI/CLI.hpp>
+#include <XrdOuc/XrdOucString.hh>
 /*----------------------------------------------------------------------------*/
 
 #include <XrdCl/XrdClFileSystem.hh>
@@ -38,9 +41,13 @@
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
+#include <memory>
 #include <filesystem>
+#include <algorithm>
 #include <chrono>
 #include <optional>
+#include <string>
+#include <vector>
 
 extern XrdOucString serveruri;
 
@@ -78,6 +85,122 @@ bool is_silent = false;
 bool filter_versions = true;
 bool filter_atomic = true;
 bool filter_hidden = true;
+
+/** Parsed options for rclone command */
+struct RcloneOptions {
+  std::string subcommand;  // "copy" or "sync"
+  std::string src;
+  std::string dst;
+  bool delete_opt = false;
+  bool noreplace = false;
+  bool dryrun = false;
+  bool atomic = false;
+  bool versions = false;
+  bool hidden = false;
+  bool verbose = false;
+  bool silent = false;
+};
+
+namespace {
+std::string MakeRcloneHelp()
+{
+  return R"(Usage: rclone copy <src-dir> <dst-dir> [OPTIONS]
+       rclone sync <dir1> <dir2> [OPTIONS]
+
+  copy : one-way sync from source to destination
+  sync : bi-directional sync based on modification times
+
+Options:
+  --delete    delete based on mtimes (currently unsupported)
+  --noreplace never update files, only create new ones
+  --dryrun    simulate and show actions, don't execute
+  --atomic    copy/sync also EOS atomic files
+  --versions  copy/sync also EOS version files
+  --hidden    copy/sync also hidden files/directories
+  -v,--verbose  display all actions, not only summary
+  -s,--silent   only show errors
+
+Run with: eos rclone copy|sync <src> <dst> [OPTIONS]
+)";
+}
+
+void ConfigureRcloneApp(CLI::App& app, RcloneOptions& opts)
+{
+  app.name("rclone");
+  app.description("RClone-like copy/sync for EOS");
+  app.set_help_flag("");
+  app.formatter(std::make_shared<CLI::FormatterLambda>(
+      [](const CLI::App*, std::string, CLI::AppFormatMode) {
+        return MakeRcloneHelp();
+      }));
+  app.require_subcommand(1, 1);
+  auto* copy_cmd = app.add_subcommand("copy", "one-way copy src to dst");
+  auto* sync_cmd = app.add_subcommand("sync", "bi-directional sync");
+  for (auto* cmd : {copy_cmd, sync_cmd}) {
+    cmd->add_option("src", opts.src, "source directory")->required();
+    cmd->add_option("dst", opts.dst, "destination directory")->required();
+    cmd->add_flag("--delete", opts.delete_opt, "delete based on mtimes");
+    cmd->add_flag("--noreplace", opts.noreplace, "never update, only create");
+    cmd->add_flag("--dryrun", opts.dryrun, "simulate only");
+    cmd->add_flag("--atomic", opts.atomic, "include atomic files");
+    cmd->add_flag("--versions", opts.versions, "include version files");
+    cmd->add_flag("--hidden", opts.hidden, "include hidden files");
+    cmd->add_flag("-v,--verbose", opts.verbose, "verbose output");
+    cmd->add_flag("-s,--silent", opts.silent, "silent mode");
+  }
+}
+
+bool ParseRcloneArgs(const std::vector<std::string>& args, RcloneOptions& opts)
+{
+  if (args.empty())
+    return false;
+
+  for (const auto& a : args) {
+    if (a == "--help" || a == "-h") {
+      std::cerr << MakeRcloneHelp();
+      return false;
+    }
+  }
+
+  CLI::App app;
+  ConfigureRcloneApp(app, opts);
+
+  std::vector<std::string> cli_args = args;
+  std::reverse(cli_args.begin(), cli_args.end());
+  try {
+    app.parse(cli_args);
+  } catch (const CLI::ParseError&) {
+    std::cerr << MakeRcloneHelp();
+    return false;
+  }
+
+  if (app.got_subcommand("copy"))
+    opts.subcommand = "copy";
+  else if (app.got_subcommand("sync"))
+    opts.subcommand = "sync";
+  else
+    return false;
+
+  return true;
+}
+
+std::vector<std::string> TokenizeRcloneArgs(const char* argin)
+{
+  std::vector<std::string> result;
+  eos::common::StringTokenizer tokenizer(argin);
+  tokenizer.GetLine();
+  XrdOucString tok;
+  while ((tok = tokenizer.GetToken()).length())
+    result.push_back(tok.c_str());
+  return result;
+}
+} // namespace
+
+static void rclone_usage()
+{
+  std::cerr << MakeRcloneHelp();
+  exit(-1);
+}
 
 fs_result fs_find(const char* path)
 {
@@ -602,36 +725,6 @@ XrdCl::PropertyList* copyFile(const std::string& i, eos::common::Path& src,
   return result;
 }
 
-void rclone_usage()
-{
-  fprintf(stderr,
-          "usage: rclone copy src-dir dst-dir [--delete] [--noupdate] [--dryrun] [--atomic] [--versions] [--hidden] [-v|--verbose] [-s|--silent]\n");
-  fprintf(stderr,
-          "                                       : copy from source to destination [one-way sync]\n");
-  fprintf(stderr,
-          "       rclone sync dir1 dir2 [--delete] [--noupdate] [--dryrun] [--atomic] [--versions] [--hidden] [-v|--verbose] [-s|--silent]\n");
-  fprintf(stderr,
-          "                                       : bi-directional sync based on modification times\n");
-  fprintf(stderr,
-          "                              --delete : delete based on mtimes (currently unsupported)!\n");
-  fprintf(stderr,
-          "                            --noupdate : never update files, only create new ones!\n");
-  fprintf(stderr,
-          "                            --dryrun   : simulate the command and show all actions, but don't do it!\n");
-  fprintf(stderr,
-          "                            --atomic   : copy/sync also EOS atomic files\n");
-  fprintf(stderr,
-          "                            --versions : copy/sync also EOS atomic files\n");
-  fprintf(stderr,
-          "                            --hidden   : copy/sync also hidden files/directories\n");
-  fprintf(stderr,
-          "                         -v --verbose  : display all actions, not only a summary\n");
-  fprintf(stderr,
-          "                         -s --silent   : only show errors\n");
-  exit(-1);
-}
-
-
 std::string parent(const std::string& path)
 {
   std::filesystem::path p(path);
@@ -663,21 +756,25 @@ std::optional<bool> parent_newer(std::map<std::string, fs_entry>& a,
 }
 
 
-int
-com_rclone(char* arg1)
+/** Core rclone implementation */
+static int rclone_impl(const RcloneOptions& opts)
 {
-  if (interactive) {
-    fprintf(stderr,
-            "error: don't call <rclone> from an interactive shell - run 'eos -b rclone ...'!\n");
-    global_retc = -1;
-    return 0;
-  }
+  const std::string& cmd = opts.subcommand;
+  eos::common::Path srcPath(opts.src.c_str());
+  eos::common::Path dstPath(opts.dst.c_str());
+  XrdOucString src = srcPath.GetFullPath();
+  XrdOucString dst = dstPath.GetFullPath();
 
-// split subcommands
-  XrdOucString mountpoint = "";
-  eos::common::StringTokenizer subtokenizer(arg1);
-  subtokenizer.GetLine();
-  XrdOucString cmd = subtokenizer.GetToken();
+  // Set globals from opts
+  dryrun = opts.dryrun;
+  noreplace = opts.noreplace;
+  nodelete = !opts.delete_opt;
+  verbose = opts.verbose;
+  is_silent = opts.silent;
+  filter_atomic = !opts.atomic;
+  filter_versions = !opts.versions;
+  filter_hidden = !opts.hidden;
+
   std::set<std::string> target_create_dirs;
   std::set<std::string> target_delete_dirs;
   std::set<std::string> target_mtime_dirs;
@@ -788,49 +885,9 @@ com_rclone(char* arg1)
     rclone_usage();
   }
 
-  XrdOucString src = subtokenizer.GetToken();
-  XrdOucString dst = subtokenizer.GetToken();
-  eos::common::Path srcPath(src.c_str());
-  eos::common::Path dstPath(dst.c_str());
-  src = srcPath.GetFullPath();
-  dst = dstPath.GetFullPath();
-
   if (!src.length() || !dst.length()) {
     rclone_usage();
   }
-
-  nodelete = true;
-  noreplace = false;
-  dryrun = false;
-  XrdOucString option;
-
-  do {
-    option = subtokenizer.GetToken();
-
-    if (!option.length()) {
-      break;
-    }
-
-    if (option == "--delete") {
-      nodelete = false;
-    } else if (option == "--noreplace") {
-      noreplace = true;
-    } else if (option == "--dryrun") {
-      dryrun = true;
-    } else if (option == "--atomic") {
-      filter_atomic = false;
-    } else if (option == "--versions") {
-      filter_versions = false;
-    } else if (option == "--hidden") {
-      filter_hidden = false;
-    } else if (option == "-v" || option == "--verbose") {
-      verbose = true;
-    } else if (option == "-s" || option == "--silent") {
-      is_silent = true;
-    } else {
-      rclone_usage();
-    }
-  } while (1);
 
   fs_result srcmap;
   fs_result dstmap;
@@ -1522,5 +1579,65 @@ com_rclone(char* arg1)
     std::cout << "[ --------------------------- ]" << std::endl;
   }
 
-  exit(0);
+  return 0;
+}
+
+/* Entry point for legacy callers */
+int com_rclone(char* arg1)
+{
+  std::vector<std::string> args = TokenizeRcloneArgs(arg1);
+  RcloneOptions opts;
+  if (!ParseRcloneArgs(args, opts))
+    return -1;
+  return rclone_impl(opts);
+}
+
+// ----------------------------------------------------------------------------
+// Native command registration
+// ----------------------------------------------------------------------------
+namespace {
+class RcloneCommand : public IConsoleCommand {
+public:
+  const char*
+  name() const override
+  {
+    return "rclone";
+  }
+  const char*
+  description() const override
+  {
+    return "RClone-like copy/sync for EOS";
+  }
+  bool
+  requiresMgm(const std::string& args) const override
+  {
+    return !wants_help(args.c_str());
+  }
+  int
+  run(const std::vector<std::string>& args, CommandContext&) override
+  {
+    if (args.empty() || wants_help(args[0].c_str())) {
+      printHelp();
+      global_retc = EINVAL;
+      return 0;
+    }
+    RcloneOptions opts;
+    if (!ParseRcloneArgs(args, opts)) {
+      global_retc = EINVAL;
+      return 0;
+    }
+    return rclone_impl(opts);
+  }
+  void
+  printHelp() const override
+  {
+    std::cerr << MakeRcloneHelp();
+  }
+};
+} // namespace
+
+void
+RegisterRcloneNativeCommand()
+{
+  CommandRegistry::instance().reg(std::make_unique<RcloneCommand>());
 }

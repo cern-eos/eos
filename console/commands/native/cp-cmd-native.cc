@@ -22,6 +22,7 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
+#include <algorithm>
 #include <iomanip>
 #include <iostream>
 #include <memory>
@@ -153,6 +154,7 @@ bool ParseCpArgs(const std::vector<std::string>& args, CpOptions& opts)
   ConfigureCpApp(app, opts);
 
   std::vector<std::string> cli_args = args;
+  std::reverse(cli_args.begin(), cli_args.end());
   try {
     app.parse(cli_args);
   } catch (const CLI::ParseError& e) {
