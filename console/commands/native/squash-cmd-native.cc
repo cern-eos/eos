@@ -83,9 +83,19 @@ static void squash_usage()
   global_retc = EINVAL;
 }
 
+/** Safely convert XrdOucString to std::string (c_str() may return nullptr). */
+static std::string to_std_string(const XrdOucString& s)
+{
+  const char* p = s.c_str();
+  return p ? p : "";
+}
+
 /** Parse arg string into SquashParsed. Returns true on success. */
 bool ParseSquashArgString(const char* arg1, SquashParsed& out)
 {
+  if (!arg1)
+    return false;
+
   eos::common::StringTokenizer subtokenizer(arg1);
   subtokenizer.GetLine();
   XrdOucString cmd = subtokenizer.GetToken();
@@ -114,23 +124,23 @@ bool ParseSquashArgString(const char* arg1, SquashParsed& out)
       return false;
   }
 
-  out.cmd = cmd.c_str();
-  out.path = path.c_str();
+  out.cmd = to_std_string(cmd);
+  out.path = to_std_string(path);
   if (fulloption.beginswith("--"))
-    out.option = fulloption.c_str();
+    out.option = to_std_string(fulloption);
   else if (option.length())
     out.option = std::string(1, option[0]);
 
   if (out.cmd == "new-release") {
     XrdOucString version = subtokenizer.GetToken();
-    out.version = version.c_str();
+    out.version = to_std_string(version);
   }
 
   if (out.cmd == "trim-release") {
     XrdOucString keepdays = subtokenizer.GetToken();
     XrdOucString keepversions = subtokenizer.GetToken();
-    out.keepdays = keepdays.c_str();
-    out.keepversions = keepversions.c_str();
+    out.keepdays = to_std_string(keepdays);
+    out.keepversions = to_std_string(keepversions);
   }
 
   return true;
@@ -142,6 +152,10 @@ static int squash_impl(const SquashParsed& p);
 /** Entry point for recursive/legacy callers - parses string and calls squash_impl */
 int com_squash(char* arg1)
 {
+  if (!arg1) {
+    squash_usage();
+    return 0;
+  }
   SquashParsed p;
   if (!ParseSquashArgString(arg1, p)) {
     squash_usage();
