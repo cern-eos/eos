@@ -656,20 +656,28 @@ public:
       in += "&mgm.file.target=";
       in += abspath(rest[1].c_str());
     } else if (cmd == "symlink") {
-      if (rest.size() < 2) {
+      std::vector<std::string> positionals;
+      bool force = false;
+
+      for (const auto& arg : rest) {
+        if (arg == "-f")
+          force = true;
+        else
+          positionals.push_back(arg);
+      }
+      if (positionals.size() < 2) {
         printHelp();
         global_retc = EINVAL;
         return 0;
       }
-      size_t idx = (rest[0] == "-f" && rest.size() > 2) ? 1 : 0;
       in += "&mgm.subcmd=symlink";
-      XrdOucString p = abspath(rest[idx].c_str());
+      XrdOucString p = abspath(positionals[0].c_str());
       set_path_or_id(p);
       in += "&mgm.file.source=";
       in += p;
       in += "&mgm.file.target=";
-      in += rest[idx + 1].c_str();
-      if (idx == 1)
+      in += positionals[1].c_str();
+      if (force)
         in += "&mgm.file.option=f";
     } else if (cmd == "drop") {
       if (rest.size() < 2) {
