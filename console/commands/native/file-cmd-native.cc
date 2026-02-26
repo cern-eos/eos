@@ -670,6 +670,7 @@ public:
         global_retc = EINVAL;
         return 0;
       }
+      std::reverse(positionals.begin(), positionals.end());
       in += "&mgm.subcmd=symlink";
       XrdOucString p = abspath(positionals[0].c_str());
       set_path_or_id(p);
@@ -678,7 +679,7 @@ public:
       in += "&mgm.file.target=";
       in += positionals[1].c_str();
       if (force)
-        in += "&mgm.file.option=f";
+        in += "&mgm.file.force=1";
     } else if (cmd == "drop") {
       if (rest.size() < 2) {
         printHelp();
