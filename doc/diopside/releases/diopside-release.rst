@@ -16,6 +16,16 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.31 Diopside``
+====================
+
+2026-02-27
+
+Feature
+---
+
+* [EOS-6563] MGM: LRU - Add LRU option to clean files based on their size and age
+
 
 ``v5.3.30 Diopside``
 ====================
