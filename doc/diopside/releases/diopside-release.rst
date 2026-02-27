@@ -19,13 +19,72 @@ This release is based on XRootD V5.
 ``v5.4.0 Diopside``
 ===================
 
-2025-12-08
+* **WARNING : Instructions to upgrade from 5.3.X to 5.4.X will be provided soon. We discourage upgrading to that EOS version before then.**
+
+2026-02-27
 
 Major Change
 ------------
 
 * **Recycle Bin Configuration Update**: The recycle bin configuration has been refactored.
   Please see :doc:`5.4.0/recycle_bin_config` for important migration instructions regarding new configuration commands and cleanup of legacy attributes.
+* **MQ removal**: The MQ support has been dropped.
+  Upgrading from an EOS version with MQ support to EOS 5.4.0 will be disruptive! Follow the instructions (not provided yet).
+
+Bug
+---
+* [EOS-5973] - old(+broken) recycle bin file is not being automatically purged
+* [EOS-6203] - MGM: Touch - return "Is a directory" instead of "file exists"
+* [EOS-6476] - MGM deadlocked due to slow FST config propagation
+* [EOS-6484] - eos and eoscp command line tools do not support roots:// protocol
+* [EOS-6505] - Investigate orphans in EOSATLAS
+* [EOS-6519] - MGM "Stall" messages tend to break log format
+* [EOS-6530] - EOS fails to detect broken disk with failed S.M.A.R.T. test
+* [EOS-6535] - directory listing cache unsafe in Multi threaded scenarios
+* [EOS-6537] - Cannot boot EOS filesystem with "eos fs boot"
+* [EOS-6541] - Steady increase in orphan files in EOS CMS after upgrade to EOS 5.3.25
+* [EOS-6543] - FUSE booking size requires n times more space than it should
+* [EOS-6552] - Invalid URI encoding in Location header violates RFC 3986 and RFC 9110
+* [EOS-6553] - Group drainer looping when file systems hold ghost entries
+* [EOS-6554] - LRU scan sometimes being spammed
+* [EOS-6555] - filesystem reboot is required when enabling scheduling group
+
+New Feature
+-----------
+
+* [EOS-6384] - MGM: Redirect clients upon Macaroons request if MGM is a redirector
+* [EOS-6516] - RFE: shared recycle bin
+
+Task
+----
+
+* [EOS-6491] - MGM: error: unable to push conversion job to QuarkDB (errc=0) (Success)
+* [EOS-6507] - FST: HTTPHandler's use of XrdSecEntity fields
+* [EOS-6526] - [MGM] FlatScheduler does not take quota into account
+* [EOS-6547] - Allow Remote-User header to contain uid
+
+Improvement
+-----------
+
+* [EOS-5430] - Improve printed information for hard-links
+* [EOS-5672] - Hardlinks have a inconsistent number of stripes!
+* [EOS-5939] - IOBW & IOPING
+* [EOS-6275] - RFE: replace "eos fsck config toggle-repair" with explicit "on" and "off"
+* [EOS-6299] - Add support for multiple checksums
+* [EOS-6367] - Improve Recycler to avoid doing a full find
+* [EOS-6442] - RFE: better support for symlinks in "eos fileinfo": do not follow, print type.
+* [EOS-6509] - Add in the EOS Archive docs which fails are not entitled for archiving
+* [EOS-6510] - RFE: hard/soft links to not be reported as "plain" layout in "space inspector"
+* [EOS-6517] - RFE: GRPC to use common logging format (or log less)
+* [EOS-6545] - fs add with -r option
+* [EOS-6546] - Remove MQ
+* [EOS-6548] - Disallow modifying the obfuscate and encrypted xattrs from fusex
+* [EOS-6551] - Dump average/threshhold stats used by groupdrainer
+
+User Documentation
+------------------
+
+* [EOS-6345] - Add section about XRootD pmark configuration
 
 
 ``v5.3.31 Diopside``
