@@ -670,8 +670,8 @@ public:
         global_retc = EINVAL;
         return 0;
       }
-      std::reverse(positionals.begin(), positionals.end());
       in += "&mgm.subcmd=symlink";
+      // positionals[0]=link (symlink name), positionals[1]=target (after CLI11 reverse)
       XrdOucString p = abspath(positionals[0].c_str());
       set_path_or_id(p);
       in += "&mgm.file.source=";

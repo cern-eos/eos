@@ -13,11 +13,13 @@
 namespace {
 std::string MakeLnHelp()
 {
-  return "Usage: ln <link> <target>\n"
-         "Create a symbolic link from <link> to <target>.\n";
+  return "Usage: ln [-f] <link> <target>\n"
+         "Create a symbolic link from <link> to <target>.\n"
+         "  -f    force overwrite if <link> already exists\n";
 }
 
-void ConfigureLnApp(CLI::App& app, std::string& link, std::string& target)
+void ConfigureLnApp(CLI::App& app, std::string& link, std::string& target,
+                    bool& force)
 {
   app.name("ln");
   app.description("Create a symbolic link");
@@ -26,6 +28,7 @@ void ConfigureLnApp(CLI::App& app, std::string& link, std::string& target)
       [](const CLI::App*, std::string, CLI::AppFormatMode) {
         return MakeLnHelp();
       }));
+  app.add_flag("-f,--force", force, "force overwrite if link already exists");
   app.add_option("link", link, "link path")->required();
   app.add_option("target", target, "target path")->required();
 }
@@ -73,7 +76,8 @@ public:
     CLI::App app;
     std::string link;
     std::string target;
-    ConfigureLnApp(app, link, target);
+    bool force = false;
+    ConfigureLnApp(app, link, target, force);
 
     std::vector<std::string> cli_args = args;
     std::reverse(cli_args.begin(), cli_args.end());
@@ -86,6 +90,8 @@ public:
     }
 
     std::vector<std::string> fargs = {"symlink", link, target};
+    if (force)
+      fargs.insert(fargs.begin() + 1, "-f");
     return fileCmd->run(fargs, ctx);
   }
   void
