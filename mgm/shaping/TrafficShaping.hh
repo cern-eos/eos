@@ -36,7 +36,6 @@ constexpr std::array<int, 2> EmaWindowSec = {1, 5};
 constexpr std::array<int, 5> SmaWindowSec = {1, 5, 15, 60, 300};
 
 enum EmaIdx : size_t { Ema1s = 0, Ema5s = 1 };
-
 enum SmaIdx : size_t { Sma1s = 0, Sma5s = 1, Sma15s = 2, Sma1m = 3, Sma5m = 4 };
 
 struct MultiWindowRate {
@@ -69,13 +68,10 @@ struct MultiWindowRate {
   {
   }
 
-  // Helper to safely reset SMA history without losing EMA/Accumulators
   void
   ResetWindows(double new_tick_interval)
   {
     tick_interval_seconds = new_tick_interval;
-
-    // Re-instantiate the sliding windows with the new interval
     bytes_read_window = eos::fst::traffic_shaping::SlidingWindowStats(
         sma_max_history_seconds, tick_interval_seconds);
     bytes_written_window = eos::fst::traffic_shaping::SlidingWindowStats(
@@ -85,7 +81,6 @@ struct MultiWindowRate {
     iops_write_window = eos::fst::traffic_shaping::SlidingWindowStats(
         sma_max_history_seconds, tick_interval_seconds);
 
-    // Reset the cached SMA rates to 0
     for (auto& s : sma) {
       s = RateMetrics{};
     }
@@ -159,18 +154,15 @@ struct TrafficShapingPolicy {
 class TrafficShapingManager {
 public:
   TrafficShapingManager();
-
   ~TrafficShapingManager();
 
   void ProcessReport(const eos::traffic_shaping::FstIoReport& report);
-
   void UpdateEstimators(double time_delta_seconds);
-
-  void UpdateEstimatorsTickInterval(uint32_t new_interval_seconds);
-
   void ComputeLimitsAndReservations();
 
-  // Returns a snapshot of the calculated rates for dashboards.
+  void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
+                         uint32_t window_seconds);
+
   std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> GetGlobalStats() const;
 
   struct GarbageCollectionStats {
@@ -178,139 +170,43 @@ public:
     size_t removed_node_streams;
     size_t removed_global_streams;
   };
-
   GarbageCollectionStats GarbageCollect(int max_idle_seconds);
 
   void SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy);
-
   void SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy);
-
   void SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy);
 
   void RemoveUidPolicy(uint32_t uid);
-
   void RemoveGidPolicy(uint32_t gid);
-
   void RemoveAppPolicy(const std::string& app);
 
   std::string SerializePoliciesUnlocked() const;
-
   bool LoadPoliciesFromString(const std::string& serialized_policies);
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> GetUidPolicies() const;
-
   std::unordered_map<uint32_t, TrafficShapingPolicy> GetGidPolicies() const;
-
   std::unordered_map<std::string, TrafficShapingPolicy> GetAppPolicies() const;
 
   std::optional<TrafficShapingPolicy> GetUidPolicy(uint32_t uid) const;
-
   std::optional<TrafficShapingPolicy> GetGidPolicy(uint32_t gid) const;
-
   std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
 
-  // used to store the max loop time in the past 5 seconds for both loops, to help with
-  // tuning the tick interval and ensuring we don't have bottlenecks in the processing
-  // loop these sliding windows will be refreshed whenever the respective loop updates its
-  // tick time
-  std::optional<eos::fst::traffic_shaping::SlidingWindowStats>
-      estimators_update_loop_micro_sec;
-  std::optional<eos::fst::traffic_shaping::SlidingWindowStats>
-      fst_limits_update_loop_micro_sec;
+  void UpdateFstLimitsLoopMicroSec(const uint64_t time_microseconds);
+  void UpdateEstimatorsLoopMicroSec(const uint64_t time_microseconds);
 
-  void
-  SetFstLimitsSystemStatsWindow(const double tick_interval_millis)
-  {
-    std::unique_lock lock(mMutex);
-    fst_limits_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
-                                             tick_interval_millis * 0.001);
-  }
-
-  void
-  UpdateFstLimitsLoopMicroSec(const uint64_t time_microseconds)
-  {
-    std::unique_lock lock(mMutex);
-    if (fst_limits_update_loop_micro_sec) {
-      fst_limits_update_loop_micro_sec->Add(time_microseconds);
-      fst_limits_update_loop_micro_sec->Tick();
-    }
-  }
-
-  void
-  SetEstimatorsSystemStatsWindow(const double tick_interval_millis)
-  {
-    std::unique_lock lock(mMutex);
-    estimators_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
-                                             tick_interval_millis * 0.001);
-  }
-
-  void
-  UpdateEstimatorsLoopMicroSec(const uint64_t time_microseconds)
-  {
-    std::unique_lock lock(mMutex);
-    if (estimators_update_loop_micro_sec) {
-      estimators_update_loop_micro_sec->Add(time_microseconds);
-      estimators_update_loop_micro_sec->Tick();
-    }
-  }
-
-  std::tuple<double, uint64_t, uint64_t>
-  GetEstimatorsUpdateLoopMicroSecStats() const
-  {
-    std::shared_lock lock(mMutex);
-
-    if (estimators_update_loop_micro_sec) {
-      return {
-          // Time will never be zero, it means the window has not been filled yet
-          estimators_update_loop_micro_sec->GetMean(true),
-          estimators_update_loop_micro_sec->GetMin(true),
-          estimators_update_loop_micro_sec->GetMax(true),
-      };
-    }
-
-    return {0.0, 0, 0};
-  }
-
-  std::tuple<double, uint64_t, uint64_t>
-  GetFstLimitsUpdateLoopMicroSecStats() const
-  {
-    std::shared_lock lock(mMutex);
-
-    if (fst_limits_update_loop_micro_sec) {
-      return {
-          // Time will never be zero, it means the window has not been filled yet
-          fst_limits_update_loop_micro_sec->GetMean(true),
-          fst_limits_update_loop_micro_sec->GetMin(true),
-          fst_limits_update_loop_micro_sec->GetMax(true),
-      };
-    }
-
-    return {0.0, 0, 0};
-  }
-
-  void
-  SetSystemStatsWindowSeconds(const uint32_t window_seconds)
-  {
-    auto new_window_seconds = window_seconds;
-    if (window_seconds < 5) {
-      new_window_seconds = 5;
-    } else if (window_seconds > 300) {
-      new_window_seconds = 300;
-    }
-
-    mSystemStatsWindowSeconds = new_window_seconds;
-  }
+  std::tuple<double, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
+  std::tuple<double, uint64_t, uint64_t> GetFstLimitsUpdateLoopMicroSecStats() const;
 
   uint32_t
   GetSystemStatsWindowSeconds() const
   {
-    return mSystemStatsWindowSeconds.load();
+    std::shared_lock lock(mMutex);
+    return mSystemStatsWindowSeconds;
   }
 
 private:
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
   std::unordered_map<std::string, NodeStateMap> mNodeStates;
-
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
@@ -319,14 +215,17 @@ private:
 
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig mFstIoDelayConfig;
 
-  // We also need this here but its value is the one from the engine
-  std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds;
-  std::atomic<uint32_t> mSystemStatsWindowSeconds = 60;
+  std::optional<eos::fst::traffic_shaping::SlidingWindowStats>
+      estimators_update_loop_micro_sec;
+  std::optional<eos::fst::traffic_shaping::SlidingWindowStats>
+      fst_limits_update_loop_micro_sec;
+
+  double mEstimatorsTickIntervalSec{0.5};
+  uint32_t mSystemStatsWindowSeconds{15};
 
   mutable std::shared_mutex mMutex;
 
   static double CalculateEma(double current_val, double prev_ema, double alpha);
-
   std::pair<std::unordered_map<std::string, double>,
             std::unordered_map<std::string, double>>
   GetCurrentReadAndWriteRateForApps() const;
@@ -335,84 +234,60 @@ private:
 class TrafficShapingEngine {
 public:
   TrafficShapingEngine();
-
   ~TrafficShapingEngine();
 
   void ApplyConfig();
-
   void Start();
-
   void Stop();
-
   void Enable();
-
   void Disable();
-
   bool
   IsEnabled() const
   {
     return mRunning;
   }
-
   void SyncTrafficShapingEnabledWithFst();
 
   std::shared_ptr<TrafficShapingManager> GetManager() const;
-
   void ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report);
+
+  void ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
+                         uint32_t win_s, bool save_to_config_engine = true);
 
   uint32_t
   GetEstimatorsUpdateThreadPeriodMilliseconds() const
   {
     return mEstimatorsUpdateThreadPeriodMilliseconds.load();
   }
-
   uint32_t
   GetFstIoPolicyUpdateThreadPeriodMilliseconds() const
   {
     return mFstIoPolicyUpdateThreadPeriodMilliseconds.load();
   }
-
   uint32_t
   GetFstIoStatsReportThreadPeriodMilliseconds() const
   {
     return mFstIoStatsReportThreadPeriodMilliseconds.load();
   }
-
-  void SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms);
-
-  void SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms);
-
-  void SetFstIoStatsReportThreadPeriodMilliseconds(uint32_t period_ms);
-
-  void
-  SetSystemStatsWindowSeconds(const uint32_t window_seconds) const
-  {
-    if (mManager) {
-      mManager->SetSystemStatsWindowSeconds(window_seconds);
-    }
-  }
-
   uint32_t
   GetSystemStatsWindowSeconds() const
   {
-    if (mManager) {
-      return mManager->GetSystemStatsWindowSeconds();
-    }
-    return 0;
+    return mSystemStatsWindowSeconds.load();
   }
+
+  void SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms);
+  void SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms);
+  void SetFstIoStatsReportThreadPeriodMilliseconds(uint32_t period_ms);
+  void SetSystemStatsWindowSeconds(uint32_t window_seconds);
 
 private:
   void EstimatorsUpdate(ThreadAssistant&);
-
   void FstIoPolicyUpdate(ThreadAssistant&) const;
-
-  // We don't really need this thread, we should poll via FST from time to time for
-  // updates instead?
   void FstTrafficShapingConfigUpdate(ThreadAssistant&);
 
   void AddReportToQueue(const eos::traffic_shaping::FstIoReport& report);
-
   void ProcessAllQueuedReports();
+  void UpdateThreadConfigs();
 
   std::shared_ptr<TrafficShapingManager> mManager;
 
@@ -420,19 +295,13 @@ private:
   AssistedThread mFstIoPolicyUpdateThread;
   AssistedThread mFstTrafficShapingConfigUpdateThread;
 
-  void UpdateThreadConfigs();
-
   std::atomic<bool> mRunning;
 
   std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds;
   std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds;
-  // This will be fetched from config and propagated, this is just the default value
   std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds;
   std::atomic<uint32_t> mSystemStatsWindowSeconds;
 
-  // queue for incoming io reports from FST. We don't process these in the message handler
-  // to avoid blocking This is used as a double buffering queue for minimum blocking since
-  // the lock takes place in the message handler
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue;
   std::mutex mReportQueueMutex;
 };

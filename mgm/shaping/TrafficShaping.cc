@@ -17,14 +17,23 @@ TrafficShapingManager::TrafficShapingManager() = default;
 TrafficShapingManager::~TrafficShapingManager() = default;
 
 void
-TrafficShapingManager::UpdateEstimatorsTickInterval(
-    const uint32_t new_interval_seconds_millis)
+TrafficShapingManager::ApplyThreadConfig(uint32_t estimators_period_ms,
+                                         uint32_t fst_policy_period_ms,
+                                         uint32_t window_seconds)
 {
   std::unique_lock lock(mMutex);
+
+  mSystemStatsWindowSeconds = window_seconds;
+  mEstimatorsTickIntervalSec = estimators_period_ms * 0.001;
+
   for (auto& [key, stats] : mGlobalStats) {
-    stats.ResetWindows(new_interval_seconds_millis * 0.001);
+    stats.ResetWindows(mEstimatorsTickIntervalSec);
   }
-  mEstimatorsUpdateThreadPeriodMilliseconds = new_interval_seconds_millis;
+
+  estimators_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
+                                           mEstimatorsTickIntervalSec);
+  fst_limits_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
+                                           fst_policy_period_ms * 0.001);
 }
 
 double
@@ -107,12 +116,7 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
     if (delta_bytes_read > 0 || delta_bytes_written > 0 || delta_read_iops > 0 ||
         delta_write_iops > 0) {
 
-      auto it = mGlobalStats.find(key);
-      if (it == mGlobalStats.end()) {
-        it = mGlobalStats.emplace(key, mEstimatorsUpdateThreadPeriodMilliseconds * 0.001)
-                 .first;
-      }
-
+      auto [it, inserted] = mGlobalStats.try_emplace(key, mEstimatorsTickIntervalSec);
       MultiWindowRate& global = it->second;
 
       global.bytes_read_accumulator += delta_bytes_read;
@@ -128,7 +132,7 @@ double
 ComputeEmaAlpha(const double window_seconds, const double time_delta_seconds)
 {
   if (time_delta_seconds <= 0.0 || window_seconds <= 0.0) {
-    return 1.0; // Instantly apply new values if time is zero or negative
+    return 1.0;
   }
   return (2.0 * time_delta_seconds) / (window_seconds + time_delta_seconds);
 }
@@ -136,6 +140,13 @@ ComputeEmaAlpha(const double window_seconds, const double time_delta_seconds)
 void
 TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
 {
+  if (time_delta_seconds <= 0.001 /* 1 ms */) {
+    eos_static_err(
+        "msg=\"Skipping estimator update due to problem time delta seconds: %f\"",
+        time_delta_seconds);
+    return;
+  }
+
   std::unique_lock lock(mMutex);
 
   std::array<double, EmaWindowSec.size()> ema_alphas{};
@@ -208,10 +219,8 @@ TrafficShapingManager::ComputeLimitsAndReservations()
     const double ratio = current_rate / limit_bps;
 
     if (delay_us == 0 && ratio > 1.0) {
-      // Kickstart the delay if we just exceeded the limit
       delay_us = 100;
     } else {
-      // Proportional adjustment (ramp up faster than we ramp down)
       const double kp = (ratio > 1.0) ? 0.15 : 0.05;
       const double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
 
@@ -219,7 +228,6 @@ TrafficShapingManager::ComputeLimitsAndReservations()
       const auto target_delay =
           static_cast<int64_t>(static_cast<double>(current_delay) * damped_ratio);
 
-      // Clamp the max step size per loop
       int64_t delta_us = target_delay - current_delay;
       if (delta_us > kMaxStepUs) {
         delta_us = kMaxStepUs;
@@ -230,19 +238,17 @@ TrafficShapingManager::ComputeLimitsAndReservations()
       delay_us = static_cast<uint64_t>(current_delay + delta_us);
     }
 
-    // Clamp absolute bounds
     delay_us = std::min<uint64_t>(kMaxDelayUs, delay_us);
 
-    // Shut off delay entirely if we are safely under the limit and delay is trivial
     if (delay_us < 10 && ratio < 1.0) {
       delay_us = 0;
     }
 
-    // Only dispatch to FSTs if there is an active delay
     if (delay_us > 0) {
       (*output_map)[app] = delay_us;
     }
   };
+
   {
     std::shared_lock lock(mMutex);
     const auto [app_read_rates, app_write_rates] = GetCurrentReadAndWriteRateForApps();
@@ -331,21 +337,56 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
 }
 
 void
-TrafficShapingEngine::UpdateThreadConfigs()
+TrafficShapingManager::UpdateFstLimitsLoopMicroSec(const uint64_t time_microseconds)
 {
-  eos::traffic_shaping::ThreadConfig thread_loop_stats;
-
-  thread_loop_stats.set_update_estimators_period_millis(
-      mEstimatorsUpdateThreadPeriodMilliseconds);
-  thread_loop_stats.set_fst_policy_update_period_millis(
-      mFstIoPolicyUpdateThreadPeriodMilliseconds);
-  thread_loop_stats.set_fst_io_stats_report_period_millis(
-      mFstIoStatsReportThreadPeriodMilliseconds);
-
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS,
-                                  thread_loop_stats.SerializeAsString());
-  gOFS->mConfigEngine->AutoSave();
+  std::unique_lock lock(mMutex);
+  if (fst_limits_update_loop_micro_sec) {
+    fst_limits_update_loop_micro_sec->Add(time_microseconds);
+    fst_limits_update_loop_micro_sec->Tick();
+  }
 }
+
+void
+TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microseconds)
+{
+  std::unique_lock lock(mMutex);
+  if (estimators_update_loop_micro_sec) {
+    estimators_update_loop_micro_sec->Add(time_microseconds);
+    estimators_update_loop_micro_sec->Tick();
+  }
+}
+
+std::tuple<double, uint64_t, uint64_t>
+TrafficShapingManager::GetEstimatorsUpdateLoopMicroSecStats() const
+{
+  std::shared_lock lock(mMutex);
+  if (estimators_update_loop_micro_sec) {
+    return {
+        estimators_update_loop_micro_sec->GetMean(true),
+        estimators_update_loop_micro_sec->GetMin(true),
+        estimators_update_loop_micro_sec->GetMax(true),
+    };
+  }
+  return {0.0, 0, 0};
+}
+
+std::tuple<double, uint64_t, uint64_t>
+TrafficShapingManager::GetFstLimitsUpdateLoopMicroSecStats() const
+{
+  std::shared_lock lock(mMutex);
+  if (fst_limits_update_loop_micro_sec) {
+    return {
+        fst_limits_update_loop_micro_sec->GetMean(true),
+        fst_limits_update_loop_micro_sec->GetMin(true),
+        fst_limits_update_loop_micro_sec->GetMax(true),
+    };
+  }
+  return {0.0, 0, 0};
+}
+
+// --------------------------------------------------------------------------------------
+// ENGINE IMPLEMENTATION
+// --------------------------------------------------------------------------------------
 
 TrafficShapingEngine::TrafficShapingEngine()
     : mRunning(false)
@@ -360,10 +401,109 @@ TrafficShapingEngine::TrafficShapingEngine()
 TrafficShapingEngine::~TrafficShapingEngine() { Stop(); }
 
 void
+TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
+                                        uint32_t win_s, bool save_to_config_engine)
+{
+  if (est_ms <= 50) {
+    est_ms = 50;
+  } else if (est_ms > 5000) {
+    est_ms = 5000;
+  }
+  if (pol_ms <= 50) {
+    pol_ms = 50;
+  } else if (pol_ms > 5000) {
+    pol_ms = 5000;
+  }
+  if (rep_ms <= 50) {
+    rep_ms = 50;
+  } else if (rep_ms > 5000) {
+    rep_ms = 5000;
+  }
+  if (win_s < 5) {
+    win_s = 5;
+  } else if (win_s > 300) {
+    win_s = 300;
+  }
+
+  bool changed = false;
+  if (mEstimatorsUpdateThreadPeriodMilliseconds.load() != est_ms) {
+    changed = true;
+  }
+  if (mFstIoPolicyUpdateThreadPeriodMilliseconds.load() != pol_ms) {
+    changed = true;
+  }
+  if (mFstIoStatsReportThreadPeriodMilliseconds.load() != rep_ms) {
+    changed = true;
+  }
+  if (mSystemStatsWindowSeconds.load() != win_s) {
+    changed = true;
+  }
+
+  mEstimatorsUpdateThreadPeriodMilliseconds = est_ms;
+  mFstIoPolicyUpdateThreadPeriodMilliseconds = pol_ms;
+  mFstIoStatsReportThreadPeriodMilliseconds = rep_ms;
+  mSystemStatsWindowSeconds = win_s;
+
+  if (mManager) {
+    mManager->ApplyThreadConfig(est_ms, pol_ms, win_s);
+  }
+
+  if (save_to_config_engine && changed) {
+    UpdateThreadConfigs();
+    SyncTrafficShapingEnabledWithFst();
+  }
+}
+
+void
+TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+{
+  ApplyThreadConfig(period_ms, mFstIoPolicyUpdateThreadPeriodMilliseconds,
+                    mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
+                    true);
+}
+void
+TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+{
+  ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds, period_ms,
+                    mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
+                    true);
+}
+void
+TrafficShapingEngine::SetFstIoStatsReportThreadPeriodMilliseconds(uint32_t period_ms)
+{
+  ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
+                    mFstIoPolicyUpdateThreadPeriodMilliseconds, period_ms,
+                    mSystemStatsWindowSeconds, true);
+}
+void
+TrafficShapingEngine::SetSystemStatsWindowSeconds(uint32_t window_seconds)
+{
+  ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
+                    mFstIoPolicyUpdateThreadPeriodMilliseconds,
+                    mFstIoStatsReportThreadPeriodMilliseconds, window_seconds, true);
+}
+
+void
+TrafficShapingEngine::UpdateThreadConfigs()
+{
+  eos::traffic_shaping::ThreadConfig thread_loop_stats;
+
+  thread_loop_stats.set_update_estimators_period_millis(
+      mEstimatorsUpdateThreadPeriodMilliseconds);
+  thread_loop_stats.set_fst_policy_update_period_millis(
+      mFstIoPolicyUpdateThreadPeriodMilliseconds);
+  thread_loop_stats.set_fst_io_stats_report_period_millis(
+      mFstIoStatsReportThreadPeriodMilliseconds);
+  thread_loop_stats.set_system_stats_time_window_seconds(mSystemStatsWindowSeconds);
+
+  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS,
+                                  thread_loop_stats.SerializeAsString());
+  gOFS->mConfigEngine->AutoSave();
+}
+
+void
 TrafficShapingEngine::ApplyConfig()
 {
-  // If the traffic shaping was never initialized in the first place, this will also
-  // return false
   const bool is_enabled =
       FsView::gFsView.GetBoolGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG);
   eos_static_info("msg=\"Applying Traffic Shaping Config\" enabled=%s",
@@ -384,13 +524,10 @@ TrafficShapingEngine::ApplyConfig()
     }
   }
 
-  uint32_t estimatorsUpdateThreadPeriodMilliseconds =
-      mEstimatorsUpdateThreadPeriodMilliseconds;
-  uint32_t fstIoPolicyUpdateThreadPeriodMilliseconds =
-      mFstIoPolicyUpdateThreadPeriodMilliseconds;
-  uint32_t fstIoStatsReportThreadPeriodMilliseconds =
-      mFstIoStatsReportThreadPeriodMilliseconds;
-  uint32_t systemStatsWindowSeconds = mSystemStatsWindowSeconds;
+  uint32_t est_ms = mEstimatorsUpdateThreadPeriodMilliseconds;
+  uint32_t pol_ms = mFstIoPolicyUpdateThreadPeriodMilliseconds;
+  uint32_t rep_ms = mFstIoStatsReportThreadPeriodMilliseconds;
+  uint32_t win_s = mSystemStatsWindowSeconds;
 
   const std::string thread_periods =
       FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS);
@@ -398,23 +535,16 @@ TrafficShapingEngine::ApplyConfig()
     eos::traffic_shaping::ThreadConfig thread_config;
     try {
       thread_config.ParseFromString(thread_periods);
-
-      estimatorsUpdateThreadPeriodMilliseconds =
-          thread_config.update_estimators_period_millis();
-      fstIoPolicyUpdateThreadPeriodMilliseconds =
-          thread_config.fst_policy_update_period_millis();
-      fstIoStatsReportThreadPeriodMilliseconds =
-          thread_config.fst_io_stats_report_period_millis();
-      systemStatsWindowSeconds = thread_config.system_stats_time_window_seconds();
+      est_ms = thread_config.update_estimators_period_millis();
+      pol_ms = thread_config.fst_policy_update_period_millis();
+      rep_ms = thread_config.fst_io_stats_report_period_millis();
+      win_s = thread_config.system_stats_time_window_seconds();
     } catch (const std::exception& e) {
       eos_static_err("msg=\"failed to parse thread periods config\" error=%s", e.what());
     }
   }
 
-  SetSystemStatsWindowSeconds(systemStatsWindowSeconds);
-  SetEstimatorsUpdateThreadPeriodMilliseconds(estimatorsUpdateThreadPeriodMilliseconds);
-  SetFstIoPolicyUpdateThreadPeriodMilliseconds(fstIoPolicyUpdateThreadPeriodMilliseconds);
-  SetFstIoStatsReportThreadPeriodMilliseconds(fstIoStatsReportThreadPeriodMilliseconds);
+  ApplyThreadConfig(est_ms, pol_ms, rep_ms, win_s, false);
 
   SyncTrafficShapingEnabledWithFst();
 }
@@ -425,7 +555,6 @@ TrafficShapingEngine::Start()
   if (mRunning) {
     return;
   }
-
   mRunning = true;
 
   mEstimatorsUpdateThread.reset(&TrafficShapingEngine::EstimatorsUpdate, this);
@@ -451,9 +580,7 @@ TrafficShapingEngine::Stop()
 
   mEstimatorsUpdateThread.join();
   mFstIoPolicyUpdateThread.join();
-  // We don't stop the mFstTrafficShapingEnableUpdateThread since this syncs with FST
 
-  // Clear any remaining reports in the queue
   {
     std::lock_guard lock(mReportQueueMutex);
     mReportQueue.clear();
@@ -485,80 +612,12 @@ TrafficShapingEngine::ProcessSerializedFstIoReportNonBlocking(
 }
 
 void
-TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(
-    const uint32_t period_ms)
-{
-  // Updating the period has significant consequences in the estimators, this is not
-  // trivial, we need to completely reset the stats
-  uint32_t new_value = period_ms;
-  if (period_ms <= 50) {
-    new_value = 50;
-  } else if (period_ms > 5000) {
-    new_value = 5000;
-  }
-
-  if (new_value == mEstimatorsUpdateThreadPeriodMilliseconds.load()) {
-    return;
-  }
-
-  mEstimatorsUpdateThreadPeriodMilliseconds = new_value;
-  mManager->SetEstimatorsSystemStatsWindow(mEstimatorsUpdateThreadPeriodMilliseconds);
-  mManager->UpdateEstimatorsTickInterval(mEstimatorsUpdateThreadPeriodMilliseconds);
-
-  UpdateThreadConfigs();
-}
-
-void
-TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(
-    const uint32_t period_ms)
-{
-  uint32_t new_value = period_ms;
-  if (period_ms <= 50) {
-    new_value = 50;
-  } else if (period_ms > 5000) {
-    new_value = 5000;
-  }
-
-  if (new_value == mFstIoPolicyUpdateThreadPeriodMilliseconds.load()) {
-    return;
-  }
-
-  mFstIoPolicyUpdateThreadPeriodMilliseconds = new_value;
-
-  UpdateThreadConfigs();
-}
-
-void
-TrafficShapingEngine::SetFstIoStatsReportThreadPeriodMilliseconds(
-    const uint32_t period_ms)
-{
-  uint32_t new_value = period_ms;
-  if (period_ms <= 50) {
-    new_value = 50;
-  } else if (period_ms > 5000) {
-    new_value = 5000;
-  }
-
-  if (new_value == mFstIoStatsReportThreadPeriodMilliseconds.load()) {
-    return;
-  }
-
-  mFstIoStatsReportThreadPeriodMilliseconds = new_value;
-  mManager->SetFstLimitsSystemStatsWindow(mFstIoPolicyUpdateThreadPeriodMilliseconds);
-
-  UpdateThreadConfigs();
-  SyncTrafficShapingEnabledWithFst();
-}
-
-void
 TrafficShapingEngine::AddReportToQueue(const eos::traffic_shaping::FstIoReport& report)
 {
   std::lock_guard lock(mReportQueueMutex);
   if (mReportQueue.size() > 500) {
     eos_static_warning("msg=\"Traffic Shaping report queue size is too large\" size=%zu",
                        mReportQueue.size());
-    // We drop the queue as only the most recent messages are relevant.
-    // We should never reach this!
     mReportQueue.clear();
   } else {
     mReportQueue.emplace_back(report);
@@ -569,10 +628,6 @@ void
 TrafficShapingEngine::ProcessAllQueuedReports()
 {
   std::vector<eos::traffic_shaping::FstIoReport> local_queue;
-  // We copy the queue to a local variable and clear the main queue under lock, then
-  // process the local copy without holding the lock. This minimizes the time we hold the
-  // lock and allows incoming reports to be added to the main queue while we are
-  // processing.
   {
     std::lock_guard lock(mReportQueueMutex);
     std::swap(mReportQueue, local_queue);
@@ -592,12 +647,6 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
   auto last_run = std::chrono::steady_clock::now();
 
   int infrequent_action_counter = 0;
-  // TODO: measure how expensive garbage collection is and tune this parameter
-  // accordingly. We want to run GC often enough to prevent memory bloat but not so often
-  // that it impacts performance. Since GC runs in the same thread, it will delay the next
-  // tick if it takes too long. We could also consider running GC in a separate thread if
-  // it becomes a bottleneck, but for now we will keep it simple and run it in the ticker
-  // thread at a reasonable interval.
   constexpr int infrequent_action_threshold = 100;
 
   while (!assistant.terminationRequested()) {
@@ -615,10 +664,8 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 
     if (++infrequent_action_counter >= infrequent_action_threshold) {
       infrequent_action_counter = 0;
-      // Remove streams that haven't been active for a while
       const auto [removed_nodes, removed_node_streams, removed_global_streams] =
           mManager->GarbageCollect(900);
-      // 15 minutes or 3 times longer than the biggest EMA (5m)
 
       if (removed_node_streams > 0 || removed_global_streams > 0) {
         eos_static_info("msg=\"IoStats GC\" removed_nodes=%lu removed_node_streams=%lu "
@@ -678,10 +725,7 @@ void
 TrafficShapingEngine::FstTrafficShapingConfigUpdate(ThreadAssistant& assistant)
 {
   auto next_wakeup_time = std::chrono::steady_clock::now();
-  const auto period = std::chrono::seconds(
-      60); // This is not super critical to be exact since this is just a sync, we just
-  // want to make sure it runs periodically in case of desyncs or new nodes
-  // coming online
+  const auto period = std::chrono::seconds(5);
 
   while (!assistant.terminationRequested()) {
     next_wakeup_time += period;
@@ -701,7 +745,6 @@ TrafficShapingEngine::Enable()
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG, true);
   gOFS->mConfigEngine->AutoSave();
-
   Start();
 }
 
@@ -710,7 +753,6 @@ TrafficShapingEngine::Disable()
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG, false);
   gOFS->mConfigEngine->AutoSave();
-
   Stop();
 }
 
