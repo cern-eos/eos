@@ -362,6 +362,27 @@ helm_groupdrainer:
     - job: el9_docker_image
       artifacts: false
 
+helm_traffic_shaping:
+  stage: test
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.22.0
+  variables:
+    OS_TAG: ".el9"
+    FF_SCRIPT_SECTIONS: "true"
+  <<: *helm_groups_before_script_template
+  script:
+    - TEST_URL=$(kubectl exec eos-mgm-0 -- hostname -f)
+    - kubectl exec eos-mgm-0 -- eos chmod 2777 /eos/dockertest
+    - kubectl exec eos-mgm-0 -- eos-traffic-shaping-test ${TEST_URL} dockertest
+  <<: *helm_after_script_template
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+
 
 # @todo Re-enable xrd_testing jobs once project ugprades to XRootD 5
 # xt stands for xrd_testing. Must shorten to not hit HOST_NAME_MAX

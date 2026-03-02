@@ -1,0 +1,87 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# File: eos-traffic-shaping-test
+# Author: Luis Antonio Obis Aparicio - CERN
+# ----------------------------------------------------------------------
+
+if [[ $# -ne 2 ]]; then
+  echo "Error: Missing arguments."
+  echo "Usage:    $0 <eos_mgm_hostname> <eos_instance_name>"
+  echo "Examples:"
+  echo "  $0 example.cern.ch example"
+  echo "  $0 localhost dev"
+  exit 1
+fi
+
+# Assigning variables for clarity
+EOS_MGM_HOSTNAME=$1
+EOS_INSTANCE_NAME=$2
+
+echo "Configuring MGM Host: $EOS_MGM_HOSTNAME"
+echo "Instance Name: $EOS_INSTANCE_NAME"
+
+# make sure jq is enabled, otherwise error
+if ! command -v jq &> /dev/null; then
+  echo "Error: 'jq' is required but not installed. Please install 'jq' to run this script."
+  exit 1
+fi
+
+# Enable traffic shaping
+eos io shaping enable
+# Make sure all settings are propagated to FSTs
+sleep 10
+
+# Create a dummy 10MiB file
+TEST_FILE_10MB=/tmp/10mb.dat
+dd if=/dev/urandom of=${TEST_FILE_10MB} bs=1M count=10 iflag=fullblock &> /dev/null
+head -c 10485760 /dev/urandom > ${TEST_FILE_10MB}
+# make sure the file has exactly 10MiB
+if [[ $(stat -c%s "${TEST_FILE_10MB}") -ne 10485760 ]]; then
+  echo "Error: Failed to create a 10MiB file at ${TEST_FILE_10MB}."
+  exit 1
+fi
+
+eos mkdir -p /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
+eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/
+eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
+
+xrdcp ${TEST_FILE_10MB} root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/traffic_shaping/10mb.dat?eos.app=traffic-shaping-test-app -f
+
+sleep 3
+
+JSON_RESULT=$(eos io shaping ls --window 15 --sys --json)
+echo "Traffic shaping status (last 15 seconds):" $JSON_RESULT
+
+CHECK_APP=$(echo "$JSON_RESULT" | jq -e '.[] | select(.id == "traffic-shaping-test-app") | (.write_rate_bps > 0) and (.window_sec == 15)')
+
+if [[ $? -eq 0 ]]; then
+  echo "✅ Success: 'traffic-shaping-test-app' traffic detected at 15s window."
+else
+  echo "❌ Error: 'traffic-shaping-test-app' missing entry or window size mismatch."
+  exit 1
+fi
+
+
+CHECK_SYS=$(echo "$JSON_RESULT" | jq -e '.[] | select(.id == "engine_meta") |
+  (.system_stats_window_seconds == 15) and
+  (.estimators_loop_max_us > 0) and
+  (.fst_limits_loop_max_us > 0)')
+
+if [[ $? -eq 0 ]]; then
+  echo "✅ Success: System engine metrics are valid (Window: 15s, Max Loops > 0)."
+else
+  echo "❌ Error: engine_meta validation failed."
+  exit 1
+fi
+
+# The average write rate over the window will match the expected value exactly ( 10485760 / 15.0 = 699050.67)
+CHECK_APP=$(echo "$JSON_RESULT" | jq -e '.[] | select(.id == "traffic-shaping-test-app") | (.write_rate_bps == 699050.67)')
+
+if [[ $? -eq 0 ]]; then
+  echo "✅ Success: 'traffic-shaping-test-app' write rate is as expected."
+else
+  echo "❌ Error: 'traffic-shaping-test-app' write rate mismatch."
+  exit 1
+fi
+
+echo "All traffic shaping validations passed!"
