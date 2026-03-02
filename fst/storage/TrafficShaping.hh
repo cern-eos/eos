@@ -3,6 +3,7 @@
 #include "Logging.hh"
 
 #include "proto/TrafficShaping.pb.h"
+
 #include <algorithm>
 #include <atomic>
 #include <memory>
@@ -15,8 +16,6 @@
 namespace eos::fst::traffic_shaping {
 class SlidingWindowStats {
 public:
-  // Initialize with the desired total history and the tick interval
-  // e.g., SlidingWindowStats(300.0, 0.1) for 5 minutes of history at 100ms ticks
   SlidingWindowStats(double max_history_seconds, double tick_interval_seconds)
       : mTickIntervalSec(tick_interval_seconds)
       , mHistorySize(
@@ -56,36 +55,30 @@ public:
 
     uint64_t sum = 0;
     int idx = mHead;
-    int valid_buckets = 0; // Track buckets actually used
 
     for (int i = 0; i < num_buckets; ++i) {
-      if (idx == mHead && mBuffer[idx] == 0) {
-        // Skip the current incomplete/empty bucket
-      } else {
-        sum += mBuffer[idx];
-        valid_buckets++;
-      }
+      sum += mBuffer[idx];
 
       if (--idx < 0) {
         idx = mHistorySize - 1;
       }
     }
 
-    if (valid_buckets == 0) {
-      return 0.0;
-    }
+    double actual_window_sec = static_cast<double>(num_buckets) * mTickIntervalSec;
 
-    double actual_window_sec = valid_buckets * mTickIntervalSec;
     return static_cast<double>(sum) / actual_window_sec;
   }
+
   uint64_t
   GetMax(const bool ignore_zeroes = false) const
   {
     uint64_t max_val = 0;
     for (int i = 0; i < mHistorySize; ++i) {
-      // Skip if the value is 0 AND we are either explicitly ignoring zeroes
-      // or this is the current head
-      if (mBuffer[i] == 0 && (ignore_zeroes || i == mHead)) {
+      if (i == mHead) {
+        continue;
+      }
+
+      if (mBuffer[i] == 0 && ignore_zeroes) {
         continue;
       }
 
@@ -101,7 +94,11 @@ public:
   {
     uint64_t min_val = UINT64_MAX;
     for (int i = 0; i < mHistorySize; ++i) {
-      if (mBuffer[i] == 0 && (ignore_zeroes || i == mHead)) {
+      if (i == mHead) {
+        continue;
+      }
+
+      if (mBuffer[i] == 0 && ignore_zeroes) {
         continue;
       }
 
@@ -119,7 +116,11 @@ public:
     int count = 0;
 
     for (int i = 0; i < mHistorySize; ++i) {
-      if (mBuffer[i] == 0 && (ignore_zeroes || i == mHead)) {
+      if (i == mHead) {
+        continue;
+      }
+
+      if (mBuffer[i] == 0 && ignore_zeroes) {
         continue;
       }
 
