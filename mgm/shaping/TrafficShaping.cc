@@ -63,15 +63,46 @@ void
 TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& report)
 {
   const std::string& node_id = report.node_id();
-  const time_t now = time(nullptr);
+
+  const auto now_steady = std::chrono::steady_clock::now();
+  const time_t now_unix = time(nullptr);
 
   std::unique_lock lock(mMutex);
 
-  NodeStateMap& node_map = mNodeStates[node_id];
+  NodeData& node_data = mNodeStates[node_id];
+  NodeStateMap& node_map = node_data.streams;
+
+  bool is_first_node_contact =
+      (node_data.last_report_time == std::chrono::steady_clock::time_point{});
+
+  double node_elapsed_sec = 0.0;
+  if (!is_first_node_contact) {
+    node_elapsed_sec =
+        std::chrono::duration<double>(now_steady - node_data.last_report_time).count();
+  }
+  node_data.last_report_time = now_steady;
+
+  bool is_node_delayed =
+      (!is_first_node_contact && node_elapsed_sec > kMaxThreadPeriodMs * 0.001);
+
+  if (is_first_node_contact && !report.entries().empty()) {
+    eos_static_info(
+        "Received first FST report from node '%s'. We will treat this as a baseline and "
+        "not calculate deltas to prevent spikes. node_elapsed_sec=%.3f",
+        node_id.c_str(), node_elapsed_sec);
+  }
+
+  if (is_node_delayed && !report.entries().empty()) {
+    eos_static_warning(
+        "msg=\"Huge delay in FST report, dropping deltas to prevent rate spike\" "
+        "node=%s node_elapsed_sec=%.3f",
+        node_id.c_str(), node_elapsed_sec);
+  }
 
   if (!report.entries().empty()) {
-    eos_static_debug("Received FST IO Report from node '%s': %s", node_id.c_str(),
-                     report.DebugString().c_str());
+    eos_static_debug("Received FST IO Report from node '%s'. Report: "
+                     "%s",
+                     node_id.c_str(), report.DebugString().c_str());
   }
 
   for (const auto& entry : report.entries()) {
@@ -84,15 +115,30 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
     uint64_t delta_read_iops = 0;
     uint64_t delta_write_iops = 0;
 
-    // Check Generation ID (Detect Restarts)
-    if (state.generation_id != entry.generation_id()) {
-      state.generation_id = entry.generation_id();
-      delta_bytes_read = entry.total_bytes_read();
-      delta_bytes_written = entry.total_bytes_written();
-      delta_read_iops = entry.total_read_ops();
-      delta_write_iops = entry.total_write_ops();
-    } else {
+    bool is_first_stream_contact =
+        (state.last_update_time == std::chrono::steady_clock::time_point{});
 
+    if (is_first_stream_contact || state.generation_id != entry.generation_id()) {
+      state.generation_id = entry.generation_id();
+
+      if (is_first_node_contact) {
+        // We just connected to this node. We CANNOT trust the FST's
+        // absolute bytes because this stream might have been running for weeks.
+        // Drop the delta to calibrate safely.
+        delta_bytes_read = 0;
+        delta_bytes_written = 0;
+        delta_read_iops = 0;
+        delta_write_iops = 0;
+      } else {
+        // Healthy cluster: This is a genuine new stream (or an FST rebooted).
+        // Because the node is known and on time, these bytes MUST have been generated
+        // entirely since the last tick.
+        delta_bytes_read = entry.total_bytes_read();
+        delta_bytes_written = entry.total_bytes_written();
+        delta_read_iops = entry.total_read_ops();
+        delta_write_iops = entry.total_write_ops();
+      }
+    } else {
       if (entry.total_bytes_read() >= state.last_bytes_read) {
         delta_bytes_read = entry.total_bytes_read() - state.last_bytes_read;
       }
@@ -107,11 +153,20 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
       }
     }
 
+    // Prevent huge spikes due to delayed reports or restarts by zeroing out deltas if we
+    // detect a delay
+    if (is_node_delayed) {
+      delta_bytes_read = 0;
+      delta_bytes_written = 0;
+      delta_read_iops = 0;
+      delta_write_iops = 0;
+    }
+
     state.last_bytes_read = entry.total_bytes_read();
     state.last_bytes_written = entry.total_bytes_written();
     state.last_iops_read = entry.total_read_ops();
     state.last_iops_write = entry.total_write_ops();
-    state.last_update_time = now;
+    state.last_update_time = now_steady;
 
     if (delta_bytes_read > 0 || delta_bytes_written > 0 || delta_read_iops > 0 ||
         delta_write_iops > 0) {
@@ -123,7 +178,7 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
       global.bytes_written_accumulator += delta_bytes_written;
       global.read_iops_accumulator += delta_read_iops;
       global.write_iops_accumulator += delta_write_iops;
-      global.last_activity_time = now;
+      global.last_activity_time = now_unix;
     }
   }
 }
@@ -248,7 +303,6 @@ TrafficShapingManager::ComputeLimitsAndReservations()
       (*output_map)[app] = delay_us;
     }
   };
-
   {
     std::shared_lock lock(mMutex);
     const auto [app_read_rates, app_write_rates] = GetCurrentReadAndWriteRateForApps();
@@ -301,14 +355,22 @@ TrafficShapingManager::GarbageCollectionStats
 TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
 {
   std::unique_lock lock(mMutex);
-  const time_t now = time(nullptr);
+
+  const auto now_steady = std::chrono::steady_clock::now();
+  const time_t now_unix = time(nullptr);
 
   GarbageCollectionStats stats = {0, 0, 0};
 
   for (auto node_it = mNodeStates.begin(); node_it != mNodeStates.end();) {
-    NodeStateMap& map = node_it->second;
+    NodeStateMap& map = node_it->second.streams;
+
     for (auto stream_it = map.begin(); stream_it != map.end();) {
-      if (now - stream_it->second.last_update_time > max_idle_seconds) {
+
+      auto elapsed_sec = std::chrono::duration_cast<std::chrono::seconds>(
+                             now_steady - stream_it->second.last_update_time)
+                             .count();
+
+      if (elapsed_sec > max_idle_seconds) {
         stream_it = map.erase(stream_it);
         stats.removed_node_streams++;
       } else {
@@ -316,7 +378,13 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
       }
     }
 
-    if (map.empty()) {
+    // Calculate how long it has been since the Node itself sent a heartbeat
+    auto node_idle_sec = std::chrono::duration_cast<std::chrono::seconds>(
+                             now_steady - node_it->second.last_report_time)
+                             .count();
+
+    // Only erase the node if it has no streams AND the node is actually offline/silent
+    if (map.empty() && node_idle_sec > max_idle_seconds) {
       node_it = mNodeStates.erase(node_it);
       stats.removed_nodes++;
     } else {
@@ -325,7 +393,7 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
   }
 
   for (auto it = mGlobalStats.begin(); it != mGlobalStats.end();) {
-    if (now - it->second.last_activity_time > max_idle_seconds) {
+    if (now_unix - it->second.last_activity_time > max_idle_seconds) {
       it = mGlobalStats.erase(it);
       stats.removed_global_streams++;
     } else {
@@ -404,25 +472,28 @@ void
 TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
                                         uint32_t win_s, bool save_to_config_engine)
 {
-  if (est_ms <= 50) {
-    est_ms = 50;
-  } else if (est_ms > 5000) {
-    est_ms = 5000;
+  if (est_ms < kMinThreadPeriodMs) {
+    est_ms = kMinThreadPeriodMs;
+  } else if (est_ms > kMaxThreadPeriodMs) {
+    est_ms = kMaxThreadPeriodMs;
   }
-  if (pol_ms <= 50) {
-    pol_ms = 50;
-  } else if (pol_ms > 5000) {
-    pol_ms = 5000;
+
+  if (pol_ms < kMinThreadPeriodMs) {
+    pol_ms = kMinThreadPeriodMs;
+  } else if (pol_ms > kMaxThreadPeriodMs) {
+    pol_ms = kMaxThreadPeriodMs;
   }
-  if (rep_ms <= 50) {
-    rep_ms = 50;
-  } else if (rep_ms > 5000) {
-    rep_ms = 5000;
+
+  if (rep_ms < kMinThreadPeriodMs) {
+    rep_ms = kMinThreadPeriodMs;
+  } else if (rep_ms > kMaxThreadPeriodMs) {
+    rep_ms = kMaxThreadPeriodMs;
   }
-  if (win_s < 5) {
-    win_s = 5;
-  } else if (win_s > 300) {
-    win_s = 300;
+
+  if (win_s < kMinSystemStatsWindowSec) {
+    win_s = kMinSystemStatsWindowSec;
+  } else if (win_s > kMaxSystemStatsWindowSec) {
+    win_s = kMaxSystemStatsWindowSec;
   }
 
   bool changed = false;
@@ -461,6 +532,7 @@ TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t perio
                     mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
                     true);
 }
+
 void
 TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms)
 {
@@ -468,6 +540,7 @@ TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t peri
                     mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
                     true);
 }
+
 void
 TrafficShapingEngine::SetFstIoStatsReportThreadPeriodMilliseconds(uint32_t period_ms)
 {
@@ -475,6 +548,7 @@ TrafficShapingEngine::SetFstIoStatsReportThreadPeriodMilliseconds(uint32_t perio
                     mFstIoPolicyUpdateThreadPeriodMilliseconds, period_ms,
                     mSystemStatsWindowSeconds, true);
 }
+
 void
 TrafficShapingEngine::SetSystemStatsWindowSeconds(uint32_t window_seconds)
 {
@@ -580,7 +654,6 @@ TrafficShapingEngine::Stop()
 
   mEstimatorsUpdateThread.join();
   mFstIoPolicyUpdateThread.join();
-
   {
     std::lock_guard lock(mReportQueueMutex);
     mReportQueue.clear();

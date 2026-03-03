@@ -22,7 +22,8 @@ struct StreamState {
   uint64_t last_iops_write = 0;
 
   uint64_t generation_id = 0;
-  time_t last_update_time = 0;
+
+  std::chrono::steady_clock::time_point last_update_time{};
 };
 
 struct RateMetrics {
@@ -37,6 +38,11 @@ constexpr std::array<int, 5> SmaWindowSec = {1, 5, 15, 60, 300};
 
 enum EmaIdx : size_t { Ema1s = 0, Ema5s = 1 };
 enum SmaIdx : size_t { Sma1s = 0, Sma5s = 1, Sma15s = 2, Sma1m = 3, Sma5m = 4 };
+
+constexpr uint32_t kMinThreadPeriodMs = 50;
+constexpr uint32_t kMaxThreadPeriodMs = 3000;
+constexpr uint32_t kMinSystemStatsWindowSec = 5;
+constexpr uint32_t kMaxSystemStatsWindowSec = 300;
 
 struct MultiWindowRate {
   double tick_interval_seconds;
@@ -206,7 +212,13 @@ public:
 
 private:
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
-  std::unordered_map<std::string, NodeStateMap> mNodeStates;
+
+  struct NodeData {
+    std::chrono::steady_clock::time_point last_report_time{};
+    NodeStateMap streams;
+  };
+
+  std::unordered_map<std::string, NodeData> mNodeStates;
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
