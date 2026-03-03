@@ -133,8 +133,8 @@ public:
 
 private:
   double mTickIntervalSec;
-  int mHistorySize;
-  std::vector<uint64_t> mBuffer;
+  int mHistorySize{};
+  std::vector<uint64_t> mBuffer{};
   int mHead;
 };
 

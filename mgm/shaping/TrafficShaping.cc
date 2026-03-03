@@ -520,7 +520,7 @@ TrafficShapingEngine::ApplyConfig()
   if (const auto manager = GetManager(); manager != nullptr) {
     const bool result = manager->LoadPoliciesFromString(config);
     if (!result) {
-      eos_static_err("%s", "msg=\"Failed to load traffic shaping policies from config\"");
+      eos_static_err("%s", "msg=\"Failed to load Traffic Shaping policies from config\"");
     }
   }
 
@@ -668,7 +668,8 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
           mManager->GarbageCollect(900);
 
       if (removed_node_streams > 0 || removed_global_streams > 0) {
-        eos_static_info("msg=\"IoStats GC\" removed_nodes=%lu removed_node_streams=%lu "
+        eos_static_info("msg=\"Traffic Shaping Garbage Collection\" removed_nodes=%lu "
+                        "removed_node_streams=%lu "
                         "removed_global_streams=%lu",
                         removed_nodes, removed_node_streams, removed_global_streams);
       }
@@ -680,8 +681,9 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 
     if (static_cast<double>(work_duration_micro_sec) >
         static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.1 * 1000.0) {
-      eos_static_warning("msg=\"IoStats Ticker is slow\" work_duration_ms=%.2f",
-                         static_cast<double>(work_duration_micro_sec) / 1000.0);
+      eos_static_warning(
+          "msg=\"Traffic Shaping Estimators Update loop is slow\" work_duration_ms=%.2f",
+          static_cast<double>(work_duration_micro_sec) / 1000.0);
     }
 
     mManager->UpdateEstimatorsLoopMicroSec(work_duration_micro_sec);
