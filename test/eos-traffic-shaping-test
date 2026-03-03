@@ -13,7 +13,6 @@ if [[ $# -ne 2 ]]; then
   exit 1
 fi
 
-# Assigning variables for clarity
 EOS_MGM_HOSTNAME=$1
 EOS_INSTANCE_NAME=$2
 
@@ -28,7 +27,11 @@ fi
 
 # Enable traffic shaping
 eos io shaping enable
+
+eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15
+
 # Make sure all settings are propagated to FSTs
+
 sleep 10
 
 # Create a dummy 10MiB file
@@ -50,7 +53,6 @@ xrdcp ${TEST_FILE_10MB} root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/tra
 sleep 3
 
 JSON_RESULT=$(eos io shaping ls --window 15 --sys --json)
-echo "Traffic shaping status (last 15 seconds):" $JSON_RESULT
 
 CHECK_APP=$(echo "$JSON_RESULT" | jq -e '.[] | select(.id == "traffic-shaping-test-app") | (.write_rate_bps > 0) and (.window_sec == 15)')
 
@@ -58,19 +60,25 @@ if [[ $? -eq 0 ]]; then
   echo "✅ Success: 'traffic-shaping-test-app' traffic detected at 15s window."
 else
   echo "❌ Error: 'traffic-shaping-test-app' missing entry or window size mismatch."
+  echo "Raw JSON Output: $JSON_RESULT"
   exit 1
 fi
 
-
 CHECK_SYS=$(echo "$JSON_RESULT" | jq -e '.[] | select(.id == "engine_meta") |
+  (.type == "system") and
   (.system_stats_window_seconds == 15) and
   (.estimators_loop_max_us > 0) and
-  (.fst_limits_loop_max_us > 0)')
+  (.estimators_loop_mean_us > 0) and
+  (.estimators_loop_min_us > 0) and
+  (.fst_limits_loop_max_us > 0) and
+  (.fst_limits_loop_mean_us > 0) and
+  (.fst_limits_loop_min_us > 0)')
 
 if [[ $? -eq 0 ]]; then
   echo "✅ Success: System engine metrics are valid (Window: 15s, Max Loops > 0)."
 else
   echo "❌ Error: engine_meta validation failed."
+  echo "Raw JSON Output: $JSON_RESULT"
   exit 1
 fi
 
@@ -80,8 +88,124 @@ CHECK_APP=$(echo "$JSON_RESULT" | jq -e '.[] | select(.id == "traffic-shaping-te
 if [[ $? -eq 0 ]]; then
   echo "✅ Success: 'traffic-shaping-test-app' write rate is as expected."
 else
-  echo "❌ Error: 'traffic-shaping-test-app' write rate mismatch."
+  echo "❌ Error: 'traffic-shaping-test-app' write rate mismatch. Expected 699050.67 bps. got $(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "traffic-shaping-test-app") | .write_rate_bps') bps."
+  echo "Raw JSON Output: $JSON_RESULT"
   exit 1
 fi
+
+echo ""
+echo "--- Testing Limits API Configuration ---"
+
+eos io shaping policy set --app test-api-app --limit-write 1048576 --reservation-read 512000
+eos io shaping policy set --uid 9999 --limit-read 2097152
+eos io shaping policy set --gid 8888 --limit-write 4194304
+
+POLICY_JSON=$(eos io shaping policy ls --json)
+
+CHECK_POLICY_APP=$(echo "$POLICY_JSON" | jq -e 'any(.[]; .id == "test-api-app" and .type == "app" and .limit_write_bytes_per_sec == 1048576 and .reservation_read_bytes_per_sec == 512000)')
+if [[ $? -eq 0 ]]; then
+  echo "✅ Success: App policy successfully set and verified."
+else
+  echo "❌ Error: App policy creation failed or mismatched."
+  echo "Raw JSON Output: $POLICY_JSON"
+  exit 1
+fi
+
+CHECK_POLICY_UID=$(echo "$POLICY_JSON" | jq -e 'any(.[]; .id == "9999" and .type == "uid" and .limit_read_bytes_per_sec == 2097152)')
+if [[ $? -eq 0 ]]; then
+  echo "✅ Success: UID policy successfully set and verified."
+else
+  echo "❌ Error: UID policy creation failed or mismatched."
+  echo "Raw JSON Output: $POLICY_JSON"
+  exit 1
+fi
+
+CHECK_POLICY_GID=$(echo "$POLICY_JSON" | jq -e 'any(.[]; .id == "8888" and .type == "gid" and .limit_write_bytes_per_sec == 4194304)')
+if [[ $? -eq 0 ]]; then
+  echo "✅ Success: GID policy successfully set and verified."
+else
+  echo "❌ Error: GID policy creation failed or mismatched."
+  echo "Raw JSON Output: $POLICY_JSON"
+  exit 1
+fi
+
+eos io shaping policy rm --app test-api-app
+eos io shaping policy rm --uid 9999
+eos io shaping policy rm --gid 8888
+
+POLICY_JSON_AFTER=$(eos io shaping policy ls --json)
+
+CHECK_RM=$(echo "$POLICY_JSON_AFTER" | jq -e 'any(.[]; (.id == "test-api-app" and .type == "app") or (.id == "9999" and .type == "uid") or (.id == "8888" and .type == "gid")) | not')
+if [[ $? -eq 0 ]]; then
+  echo "✅ Success: Policies successfully removed."
+else
+  echo "❌ Error: Policy removal failed. Entries still exist."
+  echo "Raw JSON Output: $POLICY_JSON_AFTER"
+  exit 1
+fi
+
+echo ""
+echo "--- Testing Traffic Shaping Enforcement (Throttling) ---"
+
+THROTTLE_APP_NAME="throttle-test-app"
+TEST_FILE_10MB_THROTTLE=/tmp/10mb_throttle.dat
+head -c 10485760 /dev/urandom > ${TEST_FILE_10MB_THROTTLE}
+
+DEST_URL="root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/traffic_shaping"
+
+THROTTLE_APP_NAME="throttle-test-app"
+
+TEST_FILE_50MB_THROTTLE=/tmp/50mb_throttle.dat
+dd if=/dev/urandom of=${TEST_FILE_50MB_THROTTLE} bs=1M count=50 iflag=fullblock &> /dev/null
+head -c 52428800 /dev/urandom > ${TEST_FILE_50MB_THROTTLE}
+
+DEST_URL="root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/traffic_shaping"
+
+echo "Starting baseline transfer (No limits)..."
+START_TIME_MS=$(date +%s%3N)
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} ${DEST_URL}/baseline.dat?eos.app=${THROTTLE_APP_NAME} > /dev/null 2>&1
+END_TIME_MS=$(date +%s%3N)
+BASELINE_DURATION_MS=$((END_TIME_MS - START_TIME_MS))
+echo "Baseline transfer took $BASELINE_DURATION_MS ms."
+
+echo "Applying 1 MB/s write limit to app '${THROTTLE_APP_NAME}'..."
+eos io shaping policy set --app ${THROTTLE_APP_NAME} --limit-write 1M
+
+sleep 10
+
+echo "Starting throttled transfer..."
+START_TIME_MS=$(date +%s%3N)
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} ${DEST_URL}/throttled.dat?eos.app=${THROTTLE_APP_NAME} > /dev/null 2>&1
+END_TIME_MS=$(date +%s%3N)
+THROTTLED_DURATION_MS=$((END_TIME_MS - START_TIME_MS))
+echo "Throttled transfer took $THROTTLED_DURATION_MS ms."
+
+# sleep for 150ms
+sleep 0.15
+
+JSON_RESULT=$(eos io shaping ls --window 5 --json)
+
+LOWER_BOUND=900000
+UPPER_BOUND=1100000
+
+CHECK_APP=$(echo "$JSON_RESULT" | jq -e --argjson lower "$LOWER_BOUND" --argjson upper "$UPPER_BOUND" '
+  .[] | select(.id == "throttle-test-app") |
+  (.write_rate_bps > $lower) and (.write_rate_bps < $upper) and (.window_sec == 5)
+')
+
+if [[ $? -eq 0 ]]; then
+  ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "throttle-test-app") | .write_rate_bps')
+  echo "✅ Success: '${THROTTLE_APP_NAME}' write rate is properly throttled (Measured: $ACTUAL_RATE bps)."
+else
+  ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "throttle-test-app") | .write_rate_bps // "NOT_FOUND"')
+  echo "❌ Error: '${THROTTLE_APP_NAME}' write rate mismatch. Expected between $LOWER_BOUND and $UPPER_BOUND, got: $ACTUAL_RATE bps."
+
+  echo "Raw JSON Output: $JSON_RESULT"
+  # Cleanup before exit
+  eos io shaping policy rm --app ${THROTTLE_APP_NAME}
+  exit 1
+fi
+
+eos io shaping policy rm --app ${THROTTLE_APP_NAME}
 
 echo "All traffic shaping validations passed!"
