@@ -6,6 +6,7 @@
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include "console/commands/helpers/FsHelper.hh"
+#include <iomanip>
 #include <memory>
 #include <sstream>
 
@@ -67,7 +68,11 @@ public:
     for (size_t i = 0; i < args.size(); ++i) {
       if (i)
         oss << ' ';
-      oss << args[i];
+      // Quote args with spaces so FsHelper's tokenizer preserves them
+      if (args[i].find(' ') != std::string::npos)
+        oss << std::quoted(args[i]);
+      else
+        oss << args[i];
     }
     std::string joined = oss.str();
     if (wants_help(joined.c_str())) {
