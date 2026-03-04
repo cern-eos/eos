@@ -94,7 +94,7 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
 
   if (is_node_delayed && !report.entries().empty()) {
     eos_static_warning(
-        "msg=\"Huge delay in FST report, dropping deltas to prevent rate spike\" "
+        "msg=\"Large delay in FST report, dropping deltas to prevent rate spike\" "
         "node=%s node_elapsed_sec=%.3f",
         node_id.c_str(), node_elapsed_sec);
   }
@@ -114,25 +114,39 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
     uint64_t delta_bytes_written = 0;
     uint64_t delta_read_iops = 0;
     uint64_t delta_write_iops = 0;
-
     bool is_first_stream_contact =
         (state.last_update_time == std::chrono::steady_clock::time_point{});
 
+    // Handle New Streams, MGM Restarts, and FST Restarts
     if (is_first_stream_contact || state.generation_id != entry.generation_id()) {
       state.generation_id = entry.generation_id();
 
-      if (is_first_node_contact) {
-        // We just connected to this node. We CANNOT trust the FST's
-        // absolute bytes because this stream might have been running for weeks.
-        // Drop the delta to calibrate safely.
+      const uint64_t now_sys_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                                      std::chrono::system_clock::now().time_since_epoch())
+                                      .count();
+
+      // If the stream was created more than 3 seconds ago, it is a ghost from the past
+      bool is_old_stream = false;
+      if (now_sys_ms > entry.generation_id() &&
+          (now_sys_ms - entry.generation_id() > 3000)) {
+        is_old_stream = true;
+      }
+
+      if (is_first_node_contact || (is_first_stream_contact && is_old_stream)) {
         delta_bytes_read = 0;
         delta_bytes_written = 0;
         delta_read_iops = 0;
         delta_write_iops = 0;
+
+        eos_static_info("msg=\"Issue detected with IO Stats report, we will not "
+                        "calculate deltas for this report.\" "
+                        "node=%s app=%s uid=%u gid=%u is_old_stream=%d "
+                        "is_first_stream_contact=%d is_first_node_contact=%d",
+                        node_id.c_str(), entry.app_name().c_str(), entry.uid(),
+                        entry.gid(), is_old_stream, is_first_stream_contact,
+                        is_first_node_contact);
+
       } else {
-        // Healthy cluster: This is a genuine new stream (or an FST rebooted).
-        // Because the node is known and on time, these bytes MUST have been generated
-        // entirely since the last tick.
         delta_bytes_read = entry.total_bytes_read();
         delta_bytes_written = entry.total_bytes_written();
         delta_read_iops = entry.total_read_ops();
@@ -303,6 +317,7 @@ TrafficShapingManager::ComputeLimitsAndReservations()
       (*output_map)[app] = delay_us;
     }
   };
+  //
   {
     std::shared_lock lock(mMutex);
     const auto [app_read_rates, app_write_rates] = GetCurrentReadAndWriteRateForApps();
