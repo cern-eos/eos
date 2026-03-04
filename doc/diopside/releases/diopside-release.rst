@@ -16,6 +16,19 @@ Introduction
 
 This release is based on XRootD V5.
 
+
+``v5.3.32 Diopside``
+====================
+
+2026-02-27
+
+Bug
+---
+
+* MGM: Add missing commit for the proper functionality of the secondary groups
+  which otherwise affects the normal role substitution.
+
+
 ``v5.3.31 Diopside``
 ====================
 
@@ -27,6 +40,7 @@ Feature
 * [EOS-6563] MGM: LRU - Add LRU option to clean files based on their size and age
 * MGM: Quota: Do not multiply bookingsize by number of filesystems
 
+  
 ``v5.3.30 Diopside``
 ====================
 
