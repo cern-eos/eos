@@ -2027,10 +2027,11 @@ Server::OpSetFile(const std::string& id,
           }
 
           // add file to new directory
+          eos::IContainerMD::id_t old_cid = fmd->getContainerId();
           pcmd->addFile(fmd.get());
           // remove file from previous directory
           cpcmd->removeFile(removed_name);
-          cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+          cpcmd = gOFS->eosDirectoryService->getContainerMD(old_cid);
           // persist updates
           gOFS->eosView->updateContainerStore(cpcmd.get());
           gOFS->eosView->updateFileStore(fmd.get());
@@ -2560,7 +2561,7 @@ Server::OpSetFile(const std::string& id,
       if (op == UPDATE) {
         if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::UPDATE, filePath, vid, std::string(logId), std::string(cident), "mgm",
                              std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
- 
+
         // Emit CHMOD/CHOWN if mode/owner changed
         uint32_t newMode = (fmd->getFlags() & 07777);
         if (newMode != oldMode) {
@@ -2571,7 +2572,7 @@ Server::OpSetFile(const std::string& id,
           if (gOFS->mAudit && allowAuditMod) gOFS->mAudit->audit(eos::audit::CHOWN, filePath, vid, std::string(logId), std::string(cident), "mgm",
                                std::string(), &beforeStat, &afterStat, std::string(), std::string(), std::string(), __FILE__, __LINE__, VERSION);
         }
- 
+
         // Emit SET_XATTR / RM_XATTR for file xattr changes
         for (const auto& kv : md.attr()) {
           const std::string& an = kv.first;
