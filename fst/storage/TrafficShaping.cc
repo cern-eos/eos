@@ -42,6 +42,10 @@ void
 IoStatsCollector::RecordRead(const std::string& app, const uint32_t uid,
                              const uint32_t gid, const size_t bytes)
 {
+  if (!mIsEnabled.load(std::memory_order_relaxed)) {
+    return;
+  }
+
   const auto entry = GetEntry(app, uid, gid);
 
   // Atomic updates - thread safe and fast
@@ -59,6 +63,10 @@ void
 IoStatsCollector::RecordWrite(const std::string& app, const uint32_t uid,
                               const uint32_t gid, const size_t bytes)
 {
+  if (!mIsEnabled.load(std::memory_order_relaxed)) {
+    return;
+  }
+
   const auto entry = GetEntry(app, uid, gid);
 
   entry->bytes_written.fetch_add(bytes, std::memory_order_relaxed);

@@ -210,6 +210,21 @@ public:
     stats_map_.clear();
   }
 
+  void
+  SetEnabled(bool enabled)
+  {
+    mIsEnabled.store(enabled, std::memory_order_relaxed);
+    if (!enabled) {
+      Clear();
+    }
+  }
+
+  bool
+  IsEnabled() const
+  {
+    return mIsEnabled.load(std::memory_order_relaxed);
+  }
+
 private:
   std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid,
                                          uint32_t gid);
@@ -217,6 +232,8 @@ private:
   mutable std::shared_mutex mutex_;
   std::unordered_map<IoStatsKey, std::shared_ptr<IoStatsEntry>, IoStatsKeyHash>
       stats_map_;
+
+  std::atomic<bool> mIsEnabled{false};
 };
 
 class IoDelayConfig {
@@ -240,6 +257,10 @@ public:
   uint64_t
   GetReadDelayForAppUidGid(const eos::common::VirtualIdentity& vid) const
   {
+    if (!IsEnabled()) {
+      return 0;
+    }
+
     const auto& app = vid.app;
     const auto& uid = vid.uid;
     const auto& gid = vid.gid;
@@ -274,6 +295,10 @@ public:
   uint64_t
   GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid) const
   {
+    if (!IsEnabled()) {
+      return 0;
+    }
+
     const auto& app = vid.app;
     const auto& uid = vid.uid;
     const auto& gid = vid.gid;
@@ -305,8 +330,31 @@ public:
     return max_delay;
   }
 
+  void
+  Clear()
+  {
+    UpdateConfig({});
+  }
+
+  void
+  SetEnabled(bool enabled)
+  {
+    mIsEnabled.store(enabled, std::memory_order_relaxed);
+    if (!enabled) {
+      Clear();
+    }
+  }
+
+  bool
+  IsEnabled() const
+  {
+    return mIsEnabled.load(std::memory_order_relaxed);
+  }
+
 private:
   std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
       mFstIoDelayConfigPtr;
+
+  std::atomic<bool> mIsEnabled{false};
 };
 } // namespace eos::fst::traffic_shaping

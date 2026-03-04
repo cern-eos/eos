@@ -459,24 +459,26 @@ Storage::StartTrafficShapingThread()
     return;
   }
 
-  eos_static_info("Starting traffic shaping thread");
+  mTrafficShapingThreadRunning = true;
+  gOFS.mIoStatsCollector.SetEnabled(true);
+  gOFS.mIoDelayConfig.SetEnabled(true);
+
   mTrafficShapingThread.reset(&Storage::SendTrafficShapingStats, this);
   mTrafficShapingThread.setName("Traffic Shaping Thread");
-  mTrafficShapingThreadRunning = true;
 }
 
 void
 Storage::StopTrafficShapingThread()
 {
   if (!mTrafficShapingThreadRunning) {
-    // Clear the data structures since we don't use them
-    gOFS.mIoStatsCollector.Clear();
     return;
   }
 
-  eos_static_info("Stopping traffic shaping thread");
   mTrafficShapingThread.join();
+
   mTrafficShapingThreadRunning = false;
+  gOFS.mIoStatsCollector.SetEnabled(false);
+  gOFS.mIoDelayConfig.SetEnabled(false);
 }
 
 //------------------------------------------------------------------------------

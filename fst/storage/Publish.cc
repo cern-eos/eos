@@ -706,8 +706,6 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
 {
   eos_static_info("%s", "msg=\"Starting Traffic Shaping stats publishing thread\"");
 
-  mTrafficShapingThreadRunning = true;
-
   const std::string configQueue = "TrafficShapingStats";
   gConfig.getFstNodeConfigQueue(configQueue);
 
@@ -840,7 +838,7 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
     }
   }
 
-  mTrafficShapingThreadRunning = false;
+  eos_static_info("%s", "msg=\"Traffic Shaping stats publishing thread terminated\"");
 }
 
 EOSFSTNAMESPACE_END
