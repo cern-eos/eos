@@ -640,63 +640,63 @@ Server::FillContainerCAP(uint64_t id,
   } else {
     if (!vid.token) {
       if (vid.sudoer) {
-	mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
-	  ; // chown + chmod permission + all the rest
+        mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
+                ; // chown + chmod permission + all the rest
       }
 
       if (vid.uid == (uid_t) dir.uid()) {
-	// we don't apply a mask if we are the owner
-	if (dir.mode() & S_IRUSR) {
-	  mode |= R_OK | M_OK | SU_OK;
-	}
+        // we don't apply a mask if we are the owner
+        if (dir.mode() & S_IRUSR) {
+          mode |= R_OK | M_OK | SU_OK;
+        }
 
-	if (dir.mode() & S_IWUSR) {
-	  mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
-	}
+        if (dir.mode() & S_IWUSR) {
+          mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+        }
 
-	if (dir.mode() & mask & S_IXUSR) {
-	  mode |= X_OK;
-	}
+        if (dir.mode() & mask & S_IXUSR) {
+          mode |= X_OK;
+        }
       }
 
       bool same_group = false;
 
       if (vid.gid == (gid_t) dir.gid()) {
-	same_group = true;
+        same_group = true;
       } else {
-	if (eos::common::Mapping::gSecondaryGroups) {
-	  if (vid.allowed_gids.count(dir.gid())) {
-	    same_group = true;
-	  }
-	}
+        if (eos::common::Mapping::gSecondaryGroups) {
+          if (vid.allowed_gids.count(dir.gid())) {
+            same_group = true;
+          }
+        }
       }
 
       if (same_group) {
-	// we apply a mask if we are in the same group
-	if (dir.mode() & mask & S_IRGRP) {
-        mode |= R_OK;
-	}
+        // we apply a mask if we are in the same group
+        if (dir.mode() & mask & S_IRGRP) {
+          mode |= R_OK;
+        }
 
-	if (dir.mode() & mask & S_IWGRP) {
-	  mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
-	}
+        if (dir.mode() & mask & S_IWGRP) {
+          mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+        }
 
-	if (dir.mode() & mask & S_IXGRP) {
-	  mode |= X_OK;
-	}
+        if (dir.mode() & mask & S_IXGRP) {
+          mode |= X_OK;
+        }
       }
 
       // we apply a mask if we are matching other permissions
       if (dir.mode() & mask & S_IROTH) {
-	mode |= R_OK;
+        mode |= R_OK;
       }
 
       if (dir.mode() & mask & S_IWOTH) {
-	mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
+        mode |= U_OK | W_OK | D_OK | SA_OK | M_OK | SU_OK;
       }
 
       if (dir.mode() & mask & S_IXOTH) {
-	mode |= X_OK;
+        mode |= X_OK;
       }
     }
 
@@ -1035,18 +1035,18 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
 
     if (!vid.token) {
       for (auto g : gids) {
-	if (cmd->access(vid.uid, g, R_OK)) {
-	  r_ok = true;
-	}
+        if (cmd->access(vid.uid, g, R_OK)) {
+          r_ok = true;
+        }
 
-	if (cmd->access(vid.uid, g, W_OK)) {
-	  w_ok = true;
-	  d_ok = true;
-	}
+        if (cmd->access(vid.uid, g, W_OK)) {
+          w_ok = true;
+          d_ok = true;
+        }
 
-	if (cmd->access(vid.uid, g, X_OK)) {
-	  x_ok = true;
-	}
+        if (cmd->access(vid.uid, g, X_OK)) {
+          x_ok = true;
+        }
       }
     }
 
@@ -1248,7 +1248,8 @@ Server::OpGetLs(const std::string& id,
         auto map = (*parent)[md.md_ino()].children();
         auto it = map.begin();
         size_t n_caps = 0;
-        gOFS->MgmStats.Add("Eosxd::ext::LS-Entry", vid.uid, vid.gid, map.size(), vid.app);
+        gOFS->MgmStats.Add("Eosxd::ext::LS-Entry", vid.uid, vid.gid, map.size(),
+                           vid.app);
 
         for (; it != map.end(); ++it) {
           // this is a map by inode
@@ -1581,7 +1582,7 @@ Server::OpSetDirectory(const std::string& id,
         vid.scope = gOFS->eosView->getUri(cmd.get());
         /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
         Acl acl;
-	gOFS->listAttributes(gOFS->eosView, &(*cmd), attrmap, false);
+        gOFS->listAttributes(gOFS->eosView, &(*cmd), attrmap, false);
 
         if (EOS_LOGS_DEBUG) {
           eos_debug("sysacl '%s' useracl '%s' evaluseracl %d (ignored)",
@@ -1975,10 +1976,11 @@ Server::OpSetFile(const std::string& id,
           }
 
           // add file to new directory
+          eos::IContainerMD::id_t old_cid = fmd->getContainerId();
           pcmd->addFile(fmd.get());
           // remove file from previous directory
           cpcmd->removeFile(removed_name);
-          cpcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+          cpcmd = gOFS->eosDirectoryService->getContainerMD(old_cid);
           // persist updates
           gOFS->eosView->updateContainerStore(cpcmd.get());
           gOFS->eosView->updateFileStore(fmd.get());
@@ -2506,7 +2508,7 @@ Server::OpSetFile(const std::string& id,
       break;
 
     case CREATE:
-      gOFS->MgmStats.Add("Eosxd::ext::CREATE", vid.uid, vid.gid, 1 , vid.app);
+      gOFS->MgmStats.Add("Eosxd::ext::CREATE", vid.uid, vid.gid, 1, vid.app);
       break;
 
     case RENAME:
@@ -3550,12 +3552,12 @@ Server::HandleMD(const std::string& id,
   }
 
   eos_debug("ino=%016lx operation=%s type=%s name=%s pino=%016lx cid=%s cuuid=%s",
-           (long) md.md_ino(),
-           ops.c_str(),
-           op_class.c_str(),
-           md.name().c_str(),
-           md.md_pino(),
-           md.clientid().c_str(), md.clientuuid().c_str());
+            (long) md.md_ino(),
+            ops.c_str(),
+            op_class.c_str(),
+            md.name().c_str(),
+            md.md_pino(),
+            md.clientid().c_str(), md.clientuuid().c_str());
 
   if (EOS_LOGS_DEBUG) {
     std::string mdout = dump_message(md);

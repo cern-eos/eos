@@ -374,10 +374,8 @@ QuarkContainerMD::addFile(IFileMD* file)
     (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
     pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
   });
-  // NOTE: This is an ugly hack. The file object has no reference to the
-  // container id, therefore we hijack the "location" member of the Event
-  // class to pass in the container id.
-  IFileMDChangeListener::Event e(file, IFileMDChangeListener::SizeChange,
+  // NOTE: We hijack the "location" member of the Event to pass in the container id.
+  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
                                  mCont.id(),
                                  // add the file size and do +1 in the tree files counter
   {static_cast<int64_t>(file->getSize()), 1, 0});
@@ -407,11 +405,9 @@ QuarkContainerMD::removeFile(const std::string& name)
   if (found) {
     try {
       std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
-      // NOTE: This is an ugly hack. The file object has no reference to the
-      // container id, therefore we hijack the "location" member of the Event
-      // class to pass in the container id.
-      IFileMDChangeListener::Event
-      e(file.get(), IFileMDChangeListener::SizeChange, mCont.id(),
+      // NOTE: We hijack the "location" member of the Event to pass in the cid
+      IFileMDChangeListener::Event e(
+        nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
         // remove the file size and do -1 in the tree files counter
       {-static_cast<int64_t>(file->getSize()), -1, 0});
       pFileSvc->notifyListeners(&e);
