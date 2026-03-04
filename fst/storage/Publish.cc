@@ -704,7 +704,9 @@ void Storage::Publish(ThreadAssistant& assistant) noexcept {
 void
 Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
 {
-  eos_static_info("%s", "msg=\"Starting traffic shaping stats publishing thread\"");
+  eos_static_info("%s", "msg=\"Starting Traffic Shaping stats publishing thread\"");
+
+  mTrafficShapingThreadRunning = true;
 
   const std::string configQueue = "TrafficShapingStats";
   gConfig.getFstNodeConfigQueue(configQueue);
@@ -712,6 +714,8 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
   std::unordered_map<eos::fst::traffic_shaping::IoStatsKey, std::pair<uint64_t, uint64_t>,
                      eos::fst::traffic_shaping::IoStatsKeyHash>
       last_sent_cache;
+
+  int loop_counter = 0;
 
   while (!assistant.terminationRequested()) {
     std::chrono::milliseconds reportInterval =
@@ -735,10 +739,13 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
       uint64_t new_generation;
     };
     std::vector<PendingUpdate> pending_updates;
+    std::vector<eos::fst::traffic_shaping::IoStatsKey> active_keys;
 
     gOFS.mIoStatsCollector.VisitEntries(
         [&](const eos::fst::traffic_shaping::IoStatsKey& key,
             const eos::fst::traffic_shaping::IoStatsEntry& entry) {
+          active_keys.push_back(key);
+
           uint64_t cur_r_ops = entry.read_iops.load(std::memory_order_relaxed);
           uint64_t cur_w_ops = entry.write_iops.load(std::memory_order_relaxed);
           uint64_t cur_total_iops = cur_r_ops + cur_w_ops;
@@ -774,6 +781,38 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
       }
     }
 
+    // Run roughly every 60 seconds
+    loop_counter++;
+    if (loop_counter >= (60000 / reportInterval.count())) {
+      eos_static_info("msg=\"FST Traffic Shaping Stats - Garbage Collection loop "
+                      "checkpoint\" active_streams=%zu",
+                      active_keys.size());
+      loop_counter = 0;
+
+      // Remove idle streams
+      size_t pruned_count = gOFS.mIoStatsCollector.PruneStaleEntries(90);
+
+      // Cleanup our local cache to prevent unbounded growth
+      if (last_sent_cache.size() > active_keys.size()) {
+        std::unordered_set<eos::fst::traffic_shaping::IoStatsKey,
+                           eos::fst::traffic_shaping::IoStatsKeyHash>
+            active_set(active_keys.begin(), active_keys.end());
+        for (auto it = last_sent_cache.begin(); it != last_sent_cache.end();) {
+          if (active_set.find(it->first) == active_set.end()) {
+            it = last_sent_cache.erase(it);
+          } else {
+            ++it;
+          }
+        }
+      }
+
+      if (pruned_count > 0) {
+        eos_static_info(
+            "msg=\"FST Traffic Shaping Garbage Collection completed\" pruned_streams=%zu",
+            pruned_count);
+      }
+    }
+
     if (common::SharedHashLocator locator = gConfig.getNodeHashLocator(configQueue);
         !locator.empty()) {
       mq::SharedHashWrapper::Batch batch;
@@ -785,27 +824,23 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
       hash.set(batch);
     } else {
       eos_static_warning(
-          "msg=\"no locator for traffic shaping stats publishing - skipping\" "
+          "msg=\"no locator for Traffic Shaping stats publishing - skipping\" "
           "config_queue=\"%s\"",
           configQueue.c_str());
-    }
-
-    if (const auto elapsed_ms = stopwatch.timeIntoCycle().count(); elapsed_ms > 0) {
-      eos_static_info(
-          "msg=\"traffic shaping stats collection cycle completed\" elapsed_ms=%d",
-          elapsed_ms);
     }
 
     if (std::chrono::milliseconds sleepTime = stopwatch.timeRemainingInCycle();
         sleepTime == std::chrono::milliseconds(0)) {
       eos_static_warning(
-          "msg=\"send traffic shaping stats cycle exceeded %d ms - took %d "
+          "msg=\"send Traffic Shaping stats cycle exceeded %d ms - took %d "
           "ms",
           reportInterval.count(), stopwatch.timeIntoCycle());
     } else {
       assistant.wait_for(sleepTime);
     }
   }
+
+  mTrafficShapingThreadRunning = false;
 }
 
 EOSFSTNAMESPACE_END

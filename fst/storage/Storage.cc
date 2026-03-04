@@ -462,13 +462,14 @@ Storage::StartTrafficShapingThread()
   eos_static_info("Starting traffic shaping thread");
   mTrafficShapingThread.reset(&Storage::SendTrafficShapingStats, this);
   mTrafficShapingThread.setName("Traffic Shaping Thread");
+  mTrafficShapingThreadRunning = true;
 }
 
 void
 Storage::StopTrafficShapingThread()
 {
   if (!mTrafficShapingThreadRunning) {
-    // clear the data structures since we don't use them
+    // Clear the data structures since we don't use them
     gOFS.mIoStatsCollector.Clear();
     return;
   }
