@@ -530,7 +530,7 @@ TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32
   mFstIoStatsReportThreadPeriodMilliseconds = rep_ms;
   mSystemStatsWindowSeconds = win_s;
 
-  if (mManager) {
+  if (mManager != nullptr) {
     mManager->ApplyThreadConfig(est_ms, pol_ms, win_s);
   }
 
@@ -656,6 +656,11 @@ TrafficShapingEngine::Start()
       &TrafficShapingEngine::FstTrafficShapingConfigUpdate, this);
   mFstTrafficShapingConfigUpdateThread.setName("Traffic Shaping FST Config Update");
 
+  ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
+                    mFstIoPolicyUpdateThreadPeriodMilliseconds,
+                    mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
+                    false);
+
   eos_static_info("msg=\"Traffic Shaping Engine Started\"");
 }
 
@@ -672,6 +677,10 @@ TrafficShapingEngine::Stop()
   {
     std::lock_guard lock(mReportQueueMutex);
     mReportQueue.clear();
+  }
+
+  if (mManager != nullptr) {
+    mManager->Clear();
   }
 
   eos_static_info("msg=\"Traffic Shaping Engine Stopped\"");

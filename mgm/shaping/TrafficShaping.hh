@@ -37,6 +37,7 @@ constexpr std::array<int, 2> EmaWindowSec = {1, 5};
 constexpr std::array<int, 5> SmaWindowSec = {1, 5, 15, 60, 300};
 
 enum EmaIdx : size_t { Ema1s = 0, Ema5s = 1 };
+
 enum SmaIdx : size_t { Sma1s = 0, Sma5s = 1, Sma15s = 2, Sma1m = 3, Sma5m = 4 };
 
 constexpr uint32_t kMinThreadPeriodMs = 50;
@@ -160,10 +161,13 @@ struct TrafficShapingPolicy {
 class TrafficShapingManager {
 public:
   TrafficShapingManager();
+
   ~TrafficShapingManager();
 
   void ProcessReport(const eos::traffic_shaping::FstIoReport& report);
+
   void UpdateEstimators(double time_delta_seconds);
+
   void ComputeLimitsAndReservations();
 
   void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
@@ -176,31 +180,43 @@ public:
     size_t removed_node_streams;
     size_t removed_global_streams;
   };
+
   GarbageCollectionStats GarbageCollect(int max_idle_seconds);
 
   void SetUidPolicy(uint32_t uid, const TrafficShapingPolicy& policy);
+
   void SetGidPolicy(uint32_t gid, const TrafficShapingPolicy& policy);
+
   void SetAppPolicy(const std::string& app, const TrafficShapingPolicy& policy);
 
   void RemoveUidPolicy(uint32_t uid);
+
   void RemoveGidPolicy(uint32_t gid);
+
   void RemoveAppPolicy(const std::string& app);
 
   std::string SerializePoliciesUnlocked() const;
+
   bool LoadPoliciesFromString(const std::string& serialized_policies);
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> GetUidPolicies() const;
+
   std::unordered_map<uint32_t, TrafficShapingPolicy> GetGidPolicies() const;
+
   std::unordered_map<std::string, TrafficShapingPolicy> GetAppPolicies() const;
 
   std::optional<TrafficShapingPolicy> GetUidPolicy(uint32_t uid) const;
+
   std::optional<TrafficShapingPolicy> GetGidPolicy(uint32_t gid) const;
+
   std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
 
   void UpdateFstLimitsLoopMicroSec(const uint64_t time_microseconds);
+
   void UpdateEstimatorsLoopMicroSec(const uint64_t time_microseconds);
 
   std::tuple<double, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
+
   std::tuple<double, uint64_t, uint64_t> GetFstLimitsUpdateLoopMicroSecStats() const;
 
   uint32_t
@@ -208,6 +224,17 @@ public:
   {
     std::shared_lock lock(mMutex);
     return mSystemStatsWindowSeconds;
+  }
+
+  void
+  Clear()
+  {
+    std::unique_lock lock(mMutex);
+    mNodeStates.clear();
+    mGlobalStats.clear();
+
+    estimators_update_loop_micro_sec.reset();
+    fst_limits_update_loop_micro_sec.reset();
   }
 
 private:
@@ -238,6 +265,7 @@ private:
   mutable std::shared_mutex mMutex;
 
   static double CalculateEma(double current_val, double prev_ema, double alpha);
+
   std::pair<std::unordered_map<std::string, double>,
             std::unordered_map<std::string, double>>
   GetCurrentReadAndWriteRateForApps() const;
@@ -246,21 +274,29 @@ private:
 class TrafficShapingEngine {
 public:
   TrafficShapingEngine();
+
   ~TrafficShapingEngine();
 
   void ApplyConfig();
+
   void Start();
+
   void Stop();
+
   void Enable();
+
   void Disable();
+
   bool
   IsEnabled() const
   {
     return mRunning;
   }
+
   void SyncTrafficShapingEnabledWithFst();
 
   std::shared_ptr<TrafficShapingManager> GetManager() const;
+
   void ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report);
 
   void ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
@@ -271,16 +307,19 @@ public:
   {
     return mEstimatorsUpdateThreadPeriodMilliseconds.load();
   }
+
   uint32_t
   GetFstIoPolicyUpdateThreadPeriodMilliseconds() const
   {
     return mFstIoPolicyUpdateThreadPeriodMilliseconds.load();
   }
+
   uint32_t
   GetFstIoStatsReportThreadPeriodMilliseconds() const
   {
     return mFstIoStatsReportThreadPeriodMilliseconds.load();
   }
+
   uint32_t
   GetSystemStatsWindowSeconds() const
   {
@@ -288,17 +327,24 @@ public:
   }
 
   void SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms);
+
   void SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms);
+
   void SetFstIoStatsReportThreadPeriodMilliseconds(uint32_t period_ms);
+
   void SetSystemStatsWindowSeconds(uint32_t window_seconds);
 
 private:
   void EstimatorsUpdate(ThreadAssistant&);
+
   void FstIoPolicyUpdate(ThreadAssistant&) const;
+
   void FstTrafficShapingConfigUpdate(ThreadAssistant&);
 
   void AddReportToQueue(const eos::traffic_shaping::FstIoReport& report);
+
   void ProcessAllQueuedReports();
+
   void UpdateThreadConfigs();
 
   std::shared_ptr<TrafficShapingManager> mManager;
