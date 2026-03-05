@@ -18,7 +18,7 @@ the so called LRU policies.
    Automatic time based cleanup of empty directories                                     ctime
    Time based LRU cache with expiration time settings                                    ctime
    Automatic time based layout conversion if a file reaches a defined age                ctime
-   Automatic size based layout conversion if a file fullfills a given size rule          size
+   Automatic size based layout conversion if a file fulfills a given size rule           size
    Automatic time based layout conversion if a file has not been used for specified time mtime
    ===================================================================================== =====================
 
@@ -118,7 +118,7 @@ use the following convention when specifying the age interval for the various
  |**y/Y**        | years         |
  +---------------+---------------+
 
-All the size related symbols refer to the International System of Units, therfore
+All the size related symbols refer to the International System of Units, therefore
 1K is 1000 bytes.
 
 .. code-block:: bash
@@ -127,7 +127,7 @@ All the size related symbols refer to the International System of Units, therfor
    eos attr set sys.lru.expire.match="*.root:1mo,*.tgz:1w"  /eos/dev/instance/scratch/
 
    # all files older than a day are automatically removed
-   eos attr set sys.lru.expire.match="*:1d" /eos/dev/instance/scratch/
+   eos attr set sys.lru.expire.match=".*:1d" /eos/dev/instance/scratch/
 
 Automatic time based layout conversion if a file reaches a defined age
 ``````````````````````````````````````````````````````````````````````
@@ -137,7 +137,7 @@ A *placement policy* (cf. :doc:`geoscheduling`) can also be specified.
 .. code-block:: bash
 
    # convert all files older than a month to the layout defined next
-   eos attr set sys.lru.convert.match="*:1mo" /eos/dev/instance/convert/
+   eos attr set sys.lru.convert.match=".*:1mo" /eos/dev/instance/convert/
 
    # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2
    eos attr set sys.conversion.*=20640542 /eos/dev/instance/convert/
@@ -157,10 +157,10 @@ file sizes.
 .. code-block:: bash
 
    # convert all files smaller than 128m in size [ with units E/e,P/p,T/t,G/g,M/m,K/k ]
-   eos attr set sys.lru.convert.match="*:1w:<1M"
+   eos attr set sys.lru.convert.match=".*:1w:<1M"
 
    # convert all files bigger than 1G in size
-   eos attr set sys.lru.convert.match="*:1w:>1G"
+   eos attr set sys.lru.convert.match=".*:1w:>1G"
 
 
 Automatic time based layout conversion if a file has not been used for specified time
@@ -176,7 +176,7 @@ file creation time. A *placement policy* (cf. :doc:`geoscheduling`) can also be 
      eos attr set sys.force.atime=1w /eos/dev/instance/convert/
 
      # convert all files older than a month to the layout defined next
-     eos attr set sys.lru.convert.match="*:6mo" /eos/dev/instance/convert/
+     eos attr set sys.lru.convert.match=".*:6mo" /eos/dev/instance/convert/
 
      # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2
      eos attr set sys.conversion.*=20640542 /eos/dev/instance/convert/

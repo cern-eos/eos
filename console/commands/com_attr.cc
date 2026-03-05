@@ -546,7 +546,11 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.lru.convert.match=[match1:<age1>,match2:<age2>,match3:<age3>:<<size3>,match4:<age4>:><size4>...]\n");
   fprintf(stdout,
-          "                                                 defines the rule that files with a given match will be converted to the layouts defined by sys.conversion.<match> when their access time reaches <age>. Optionally a size limitation can be given e.g. '*:1w:>1G' as 1 week old and larger than 1G or '*:1d:<1k' as one day old and smaller than 1k \n");
+          "                                                 defines the rule that files "
+          "with a given match will be converted to the layouts defined by "
+          "sys.conversion.<match> when their access time reaches <age>. Optionally a "
+          "size limitation can be given e.g. '.*:1w:>1G' as 1 week old and larger than "
+          "1G or '.*:1d:<1k' as one day old and smaller than 1k \n");
   fprintf(stdout, "\n");
   // ---------------------------------------------------------------------------
   fprintf(stdout,
@@ -720,15 +724,19 @@ com_attr_usage:
   fprintf(stdout,
           "                                                                                # files with suffix *.root get removed after a month, files with *.tgz after one week\n");
   fprintf(stdout,
-          "     |eos> attr set sys.lru.expire.match=\"*:1d\" /eos/dev/instance/scratch/      # all files older than a day are automatically removed\n");
+          "     |eos> attr set sys.lru.expire.match=\".*:1d\" /eos/dev/instance/scratch/ "
+          "     # all files older than a day are automatically removed\n");
   fprintf(stdout,
           "--------------------------------------------------------------------------------\n");
   fprintf(stdout,
           "- configure automatic layout conversion if a file has reached a defined age ...\n");
-  fprintf(stdout,
-          "     |eos> attr set sys.lru.convert.match=\"*:1mo\" /eos/dev/instance/convert/    # convert all files older than a month to the layout defined next\n");
-  fprintf(stdout,
-          "     |eos> attr set sys.lru.convert.match=\"*:1mo:>2G\" /eos/dev/instance/convert/# convert all files older than a month and larger than 2Gb to the layout defined next\n");
+  fprintf(
+      stdout,
+      "     |eos> attr set sys.lru.convert.match=\".*:1mo\" /eos/dev/instance/convert/   "
+      " # convert all files older than a month to the layout defined next\n");
+  fprintf(stdout, "     |eos> attr set sys.lru.convert.match=\".*:1mo:>2G\" "
+                  "/eos/dev/instance/convert/# convert all files older than a month and "
+                  "larger than 2Gb to the layout defined next\n");
   fprintf(stdout,
           "     |eos> attr set sys.conversion.*=20640542 /eos/dev/instance/convert/          # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
   fprintf(stdout,
@@ -737,8 +745,10 @@ com_attr_usage:
           "--------------------------------------------------------------------------------\n");
   fprintf(stdout,
           "- configure automatic layout conversion if a file has not been used during the last 6 month ...\n");
-  fprintf(stdout,
-          "     |eos> attr set sys.lru.convert.match=\"*:6mo\" /eos/dev/instance/convert/    # convert all files older than a month to the layout defined next\n");
+  fprintf(
+      stdout,
+      "     |eos> attr set sys.lru.convert.match=\".*:6mo\" /eos/dev/instance/convert/   "
+      " # convert all files older than a month to the layout defined next\n");
   fprintf(stdout,
           "     |eos> attr set sys.conversion.*=20640542  /eos/dev/instance/convert/         # define the conversion layout (hex) for the match rule '*' - this is RAID6 4+2 \n");
   fprintf(stdout,
