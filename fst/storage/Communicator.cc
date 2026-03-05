@@ -168,6 +168,9 @@ ProcessFstIoLimitsCommand(const std::string& data)
     eos_static_err("msg=\"Failed to parse FST IO limits config\"");
     return;
   }
+  eos_static_debug(
+      "msg=\"Traffic Shaping FST IO limits config change received\" new_config=\"%s\"",
+      fst_io_delay_config.DebugString().c_str());
 
   gOFS.mIoDelayConfig.UpdateConfig(std::move(fst_io_delay_config));
 }
@@ -180,6 +183,8 @@ ProcessTrafficShapingToggle(bool enable)
     eos_static_err("msg=\"Storage instance not available\"");
     return;
   }
+  eos_static_debug("msg=\"Traffic Shaping enable toggle\" new_value=%s",
+                   enable ? "enabled" : "disabled");
 
   if (enable) {
     storage->StartTrafficShapingThread();
@@ -195,6 +200,9 @@ ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
     unsigned long long period_millis = std::stoull(period_millis_as_str);
     traffic_shaping::IoStatsCollector::fst_io_stats_reporting_thread_period_milliseconds =
         period_millis;
+    eos_static_debug("msg=\"Traffic Shaping FST IO stats reporting thread period "
+                     "changed\" new_period_ms=%llu",
+                     period_millis);
   } catch (const std::exception& e) {
     eos_static_err("msg=\"invalid FST IO stats reporting thread period value\" "
                    "value=\"%s\" error=\"%s\"",

@@ -90,12 +90,15 @@ static constexpr auto EOS_VTRACE_ATTR = "sys.vtrace";
 static constexpr auto EOS_UTRACE_ATTR = "sys.utrace";
 //! FST heartbeat key marker, the "stat." prefix makes it transient
 static constexpr auto FST_HEARTBEAT_KEY = "stat.heartbeat";
-static constexpr auto FST_TRAFFIC_SHAPING_IO_REPORT = "traffic_shaping.fst_io_report";
-static constexpr auto FST_TRAFFIC_SHAPING_IO_LIMITS = "traffic_shaping.fst_io_limits";
+static constexpr auto FST_TRAFFIC_SHAPING_IO_REPORT =
+    "stat.traffic_shaping.fst_io_report";
+static constexpr auto FST_TRAFFIC_SHAPING_IO_LIMITS =
+    "stat.traffic_shaping.fst_io_limits";
 static constexpr auto FST_TRAFFIC_SHAPING_ENABLE_TOGGLE =
-    "traffic_shaping.fst_is_enabled";
+    "stat.traffic_shaping.fst_is_enabled";
 static constexpr auto FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD =
-    "traffic_shaping.fst_stats_thread_period";
+    "stat.traffic_shaping.fst_stats_thread_period";
+
 static constexpr auto TRAFFIC_SHAPING_POLICIES_CONFIG = "traffic_shaping::policies";
 static constexpr auto TRAFFIC_SHAPING_ENABLE_CONFIG = "traffic_shaping::is_enabled";
 static constexpr auto TRAFFIC_SHAPING_THREAD_PERIODS = "traffic_shaping::thread_periods";
