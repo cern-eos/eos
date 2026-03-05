@@ -82,6 +82,12 @@ public:
     bool
     nameMatches(const std::string& fileName) const
     {
+      // The current regex matching will not work with just `*` but requires `.*` instead.
+      // We continue supporting `*` in LRU via this hack
+      if (m_regMatch == "*") {
+        return true;
+      }
+
       return common::eos_regex_match(fileName, m_regMatch);
     }
 
