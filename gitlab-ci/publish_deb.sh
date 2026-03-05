@@ -43,6 +43,8 @@ for RELEASE in "jammy" "noble" "noble-arm" "plucky" "questing"; do
                      'Package (=='${PKG_NAME}'), $Version (=='${PKG_VERSION}'), $Architecture (=='${PKG_ARCH}')'
         done
         # Retry
+        mkdir ${EXPORT_REPO}/pool/${RELEASE_LTS} || true
+        mkdir ${EXPORT_REPO}/pool/${RELEASE_LTS}/${BUILD_TYPE} || true
         mkdir -p ${EXPORT_REPO}/pool/${RELEASE_LTS}/${BUILD_TYPE}/e/eos/ || true
         reprepro -C ${RELEASE_LTS}/${BUILD_TYPE} -Vb ${EXPORT_REPO} includedeb ${RELEASE_LTS} ./ubuntu-${RELEASE}/*.deb
     fi
