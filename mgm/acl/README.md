@@ -104,6 +104,51 @@ These permissions are only valid in `sys.acl` (not in `user.acl`):
 
 7. **Quota:** The `q` permission is only honored when specified in `sys.acl`; it is ignored in `user.acl`.
 
+## Space ACLs
+
+Space-level ACLs apply to all directories that reference a space via `sys.forced.space`. If a directory does not reference a space, ACLs from the default space are used. Space ACLs are configured via `eos space config`:
+
+```bash
+eos space config <space-name> space.attr.sys.acl=<value>
+```
+
+### Add-on modes
+
+A prefix before the ACL value controls how it is merged with directory ACLs:
+
+| Prefix | Mode | Effect |
+|--------|------|--------|
+| `=<` | Left | Insert space ACL first (evaluated before directory ACL) |
+| `=>` | Right | Append space ACL last (evaluated after directory ACL) |
+| `=\|` | Conditional | Use space ACL only if the directory has no `sys.acl` |
+| `=` | Overwrite | Replace directory `sys.acl` with space ACL |
+
+### Examples
+
+```bash
+# Prepend space ACL (first evaluated; < may need quoting in shell)
+eos space config default "space.attr.sys.acl=<u:poweruser:rwxqmcXA"
+
+# Append space ACL (last evaluated; > may need quoting in shell)
+eos space config default "space.attr.sys.acl=>u:poweruser:rwxqmcXA"
+
+# Use space ACL only when directory has no sys.acl (| must be escaped in shell)
+eos space config default "space.attr.sys.acl=\|u:poweruser:rwxqmcXA"
+
+# Overwrite all directory ACLs with the space ACL
+eos space config default space.attr.sys.acl=u:poweruser:rwxqmxcXA
+```
+
+### Remove and inspect
+
+```bash
+# Remove space ACL
+eos space config rm default space.attr.sys.acl
+
+# Show space configuration (including ACLs)
+eos space status default
+```
+
 ## Validation
 
 ACL syntax is validated via regex. Two modes exist:
