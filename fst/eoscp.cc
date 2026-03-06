@@ -2005,12 +2005,21 @@ main(int argc, char* argv[])
           redundancyObj = new eos::fst::RaidDpLayout(NULL, layout_src, NULL,
               NULL, location.c_str(), 0, doStoreRecovery);
         } else if (replicationType == "reeds") {
-          redundancyObj = new eos::fst::ReedSLayout(NULL, layout_src, NULL,
-              NULL, location.c_str(), 0, doStoreRecovery);
+          try {
+            redundancyObj = new eos::fst::ReedSLayout(
+                NULL, layout_src, NULL, NULL, location.c_str(), 0, doStoreRecovery);
+          } catch (const std::runtime_error& e) {
+            redundancyObj = nullptr;
+          }
         }
 
         if (debug) {
           fprintf(stdout, "[eoscp]: doing XROOT(RAID-PIO) open with flags: %x\n", flags);
+        }
+
+        if (!redundancyObj) {
+          fprintf(stderr, "error: failed to create RAID object for read/write\n");
+          exit(-EINVAL);
         }
 
         if (redundancyObj->OpenPio(vectUrl, flags, mode_sfs, opaqueInfo.c_str())) {
@@ -2232,8 +2241,13 @@ main(int argc, char* argv[])
                                        LayoutId::BlockSizeEnum(stripeWidth),
                                        LayoutId::OssXsBlockSize,
                                        0, nparitystripes);
-          redundancyObj = new eos::fst::ReedSLayout(NULL, layout_dst, NULL, NULL,
-              location.c_str(), NULL, 0, doStoreRecovery, isStreamFile);
+          try {
+            redundancyObj =
+                new eos::fst::ReedSLayout(NULL, layout_dst, NULL, NULL, location.c_str(),
+                                          NULL, 0, doStoreRecovery, isStreamFile);
+          } catch (const std::runtime_error& e) {
+            redundancyObj = nullptr;
+          }
         }
 
         if (debug) {
@@ -2241,7 +2255,12 @@ main(int argc, char* argv[])
                   flags);
         }
 
-        if (redundancyObj && redundancyObj->OpenPio(vectUrl, flags)) {
+        if (!redundancyObj) {
+          fprintf(stderr, "error: failed to create RAID object for read/write\n");
+          exit(-EINVAL);
+        }
+
+        if (redundancyObj->OpenPio(vectUrl, flags)) {
           fprintf(stderr, "error: can not open RAID object for write\n");
           exit(-EIO);
         }

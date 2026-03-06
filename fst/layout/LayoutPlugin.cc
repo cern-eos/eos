@@ -60,15 +60,21 @@ LayoutPlugin::GetLayoutObject(XrdFstOfsFile* file,
                                 computeStripeChecksum));
   }
 
-  if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid5) ||
-      (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
-      (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) ||
-      (LayoutId::GetLayoutType(layoutId) == LayoutId::kQrain)) {
-    return static_cast<Layout*>(new ReedSLayout(file, layoutId, client, error, path,
-                                fmdHandler, timeout, storeRecovery, 0, "oss.size", computeStripeChecksum));
+  try {
+    if ((LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid5) ||
+        (LayoutId::GetLayoutType(layoutId) == LayoutId::kRaid6) ||
+        (LayoutId::GetLayoutType(layoutId) == LayoutId::kArchive) ||
+        (LayoutId::GetLayoutType(layoutId) == LayoutId::kQrain)) {
+      return static_cast<Layout*>(new ReedSLayout(file, layoutId, client, error, path,
+                                                  fmdHandler, timeout, storeRecovery, 0,
+                                                  "oss.size", computeStripeChecksum));
+    }
+  } catch (const std::runtime_error& e) {
+    eos_static_err("msg=\"%s\"", e.what());
+    return nullptr;
   }
 
-  return 0;
+  return nullptr;
 }
 
 EOSFSTNAMESPACE_END

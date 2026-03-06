@@ -58,6 +58,21 @@ ReedSLayout::ReedSLayout(XrdFstOfsFile* file,
   mNbTotalBlocks = mNbDataFiles + mNbParityFiles;
   mSizeGroup = mNbDataFiles * mStripeWidth;
   mSizeLine = mSizeGroup;
+  // Basic checks to make sure Jerasure can be properly initialized
+  if (mNbTotalFiles < 5) {
+    eos_err("msg=\"ReedSLayout stripe number must be at least 5\" "
+            "stripe_size=%u",
+            mNbTotalFiles);
+    throw std::runtime_error("Jerasure stripe number too low");
+  }
+
+  if (mStripeWidth < 64) {
+    eos_err("msg=\"ReedSLayout stripe width must be at least 64\" "
+            "stripe_width=%llu",
+            mStripeWidth);
+    throw std::runtime_error("Jerasure stripe size too low");
+  }
+
   // Set the parameters for the Jerasure codes
   w = 8;      // "word size" this can be adjusted between 4..32
   InitialiseJerasure();

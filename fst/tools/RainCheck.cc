@@ -114,8 +114,17 @@ isValidStripeCombination(const std::vector<std::string>& stripes,
     redundancyObj = new eos::fst::RaidDpLayout(
       nullptr, layout, nullptr, nullptr, stripes.front().c_str(), 0, false);
   } else {
-    redundancyObj = new eos::fst::ReedSLayout(
-      nullptr, layout, nullptr, nullptr, stripes.front().c_str(), 0, false);
+    try {
+      redundancyObj = new eos::fst::ReedSLayout(nullptr, layout, nullptr, nullptr,
+                                                stripes.front().c_str(), 0, false);
+    } catch (const std::runtime_error& e) {
+      redundancyObj = nullptr;
+    }
+  }
+
+  if (!redundancyObj) {
+    fprintf(stderr, "error: failed to create RAID object\n");
+    return false;
   }
 
   if (redundancyObj->OpenPio(stripes, 0, 0, opaqueInfo.c_str())) {
@@ -236,8 +245,19 @@ main(int argc, char* argv[])
 
   delete opaqueEnv;
   std::string XS = getCheckSum(url, filePath);
-  eos::fst::RainMetaLayout* redundancyObj = new eos::fst::ReedSLayout(
-    nullptr, layout, nullptr, nullptr, stripeUrls.front().c_str(), 0, false);
+  eos::fst::RainMetaLayout* redundancyObj{nullptr};
+
+  try {
+    redundancyObj = new eos::fst::ReedSLayout(nullptr, layout, nullptr, nullptr,
+                                              stripeUrls.front().c_str(), 0, false);
+  } catch (const std::runtime_error& e) {
+    redundancyObj = nullptr;
+  }
+
+  if (!redundancyObj) {
+    fprintf(stderr, "error: failed to create RAID object for read/write\n");
+    exit(-EINVAL);
+  }
 
   if (redundancyObj->OpenPio(stripeUrls, 0, 0, opaqueInfo.c_str())) {
     fprintf(stderr, "error: can not open RAID object for read/write\n");

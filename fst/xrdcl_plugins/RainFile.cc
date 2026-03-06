@@ -135,7 +135,11 @@ RainFile::Open(const std::string& url,
         if (LayoutId::GetLayoutType(layout) == LayoutId::kRaidDP) {
           pRainFile = new RaidDpLayout(NULL, layout, NULL, NULL, "", NULL);
         } else if ((LayoutId::IsRain(layout))) {
-          pRainFile = new ReedSLayout(NULL, layout, NULL, NULL, "", NULL);
+          try {
+            pRainFile = new ReedSLayout(NULL, layout, NULL, NULL, "", NULL);
+          } catch (const std::runtime_error& e) {
+            pRainFile = nullptr;
+          }
         } else {
           eos_warning("unsupported PIO layout");
           return XRootDStatus(stError, errNotSupported, 0, "unsupported PIO layout");
@@ -148,7 +152,7 @@ RainFile::Open(const std::string& url,
             st = XRootDStatus(stError, errInvalidOp, 0, "failed PIO open");
           }
         } else {
-          eos_err("no RAIN file allocated");
+          eos_err("%s", "msg=\"failed to create RAIN file object\")");
           st = XRootDStatus(stError, errInternal, 0, "no RAIN file allocated");
         }
       } else {
