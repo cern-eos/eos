@@ -23,6 +23,23 @@ must be enabled on the MGM:
    EOS Console [root://localhost] |/eos/ctaatlaspps/archivetest/> io enable -r
    success: enabled IO report store
 
+Compressed report log files
+--------------------------
+
+ZSTD-compressed report logs can be enabled via environment variables in
+[xrd.cf.mgm]{.title-ref}. When enabled, reports are written as compressed,
+time-rotated segments instead of plain ``.eosreport`` files. Disabled by default.
+
+.. code-block:: bash
+
+   # Enable ZSTD-compressed iostat reports. Disabled by default.
+   # When enabled, reports are written as compressed, time-rotated segments instead of plain .eosreport files.
+   #EOS_ZSTD_REPORTS=0
+   # Rotation interval for compressed reports in seconds (default 86400 = 1 day)
+   #EOS_ZSTD_REPORTS_ROTATION=86400
+   # ZSTD compression level for reports (1..19), default 1
+   # Note: variable name is EOS_ZSTD_REPORTS_LEVE as requested
+   #EOS_ZSTD_REPORTS_LEVE=1
 
 File creation/update records
 -----------------------------
