@@ -2346,9 +2346,61 @@ Audit Logging
 Overview
 ^^^^^^^^
 
-EOS implements structured audit logging for successful operations that modify the namespace or file metadata. Audit entries are encoded as JSON (one record per line), written directly into ZSTD-compressed log segments, and rotated every 5 minutes. A symlink ``audit.zstd`` always points to the current active segment.
+EOS implements structured audit logging for successful operations that modify the namespace or file metadata. Audit entries are encoded as JSON (one record per line), written directly into ZSTD-compressed log segments, and rotated every 1 hour by default. A symlink ``audit.zstd`` always points to the current active segment.
 
 This audit logging provides comprehensive tracking of all namespace-affecting operations performed by identified users, enabling security monitoring, compliance reporting, and operational analysis.
+
+For full documentation, see ``AUDIT.md`` in the EOS source tree.
+
+.. index::
+   pair: Audit Logging; Configuration
+
+Configuration and Enabling
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Audit logging is controlled by environment variables read by the MGM at startup. The main variable is ``EOS_MGM_AUDIT``:
+
+**``EOS_MGM_AUDIT``** — overall audit level:
+
+- ``off``, ``none``, ``false``, ``no``, or empty: disable all auditing (audit logger not created)
+- ``default``: audit modifications (CREATE, DELETE, RENAME, etc.) and READ for document-style files (txt, pdf, doc, etc.); LIST off
+- ``modifications``: audit only modifications; no READ, no LIST
+- ``detail``: audit modifications and READ for all files; LIST off
+- ``all``: audit everything including LIST and READ for all files
+- ``attribute``: create the audit logger but disable global auditing; enable per directory via ``sys.audit`` extended attribute
+
+**``EOS_MGM_AUDIT_READ_SUFFIX``** — override the READ suffix filter (comma-separated, case-insensitive):
+
+- Example: ``pdf,docx,json``
+- Use ``*`` to audit READ for all files
+- If unset, the built-in document-style list is used
+
+**``EOS_AUDIT_ROTATION``** — segment rotation interval in seconds (default: 3600):
+
+- Example: ``EOS_AUDIT_ROTATION=300`` for 5-minute rotation
+
+**Example: enable audit with default settings**
+
+.. code-block:: bash
+
+   export EOS_MGM_AUDIT=default
+   # MGM will audit modifications and READ for document files
+
+**Example: disable audit**
+
+.. code-block:: bash
+
+   export EOS_MGM_AUDIT=off
+
+**Per-directory auditing (``sys.audit``)**
+
+When ``EOS_MGM_AUDIT=attribute``, global auditing is disabled and auditing is enabled per directory via the extended attribute ``sys.audit`` on the parent directory (for files) or the directory itself (for LIST). Valid values (case-insensitive):
+
+- ``none``, ``no``, ``false``, ``off``: disable auditing for that directory
+- ``modifications``: modifications only
+- ``default``: modifications and READ (default document suffixes)
+- ``detail``: modifications and READ for all files
+- ``all``: everything including LIST and READ for all files
 
 .. index::
    pair: Audit Logging; Scope
