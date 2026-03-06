@@ -85,8 +85,11 @@ ShapingPolicySet(const eos::console::IoProto_ShapingProto_PolicyAction_SetAction
     manager->SetGidPolicy(set_req.gid(), policy);
   }
 
+  std::string status_str = policy.is_enabled ? "Enabled" : "Disabled";
+
   reply.set_retc(0);
-  reply.set_std_out("success: Updated shaping policy for " + target_desc + "\n");
+  reply.set_std_out("success: Updated shaping policy for " + target_desc +
+                    " (Status: " + status_str + ")\n");
 }
 
 void
@@ -157,6 +160,8 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
   }
 
   auto global_stats = manager->GetGlobalStats();
+  auto node_stats = manager->GetNodeStats();
+  auto total_stats = manager->GetTotalStats();
 
   struct AggregatedStats {
     double read_rate = 0.0;
@@ -190,27 +195,42 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     break;
   }
 
-  for (const auto& [key, snapshot] : global_stats) {
-    std::string group_key;
+  if (list_req.show_nodes()) {
+    for (const auto& [node_id, snapshot] : node_stats) {
+      std::string group_key = node_id.empty() ? "<unknown>" : node_id;
+      auto& entry = agg_stats[group_key];
 
-    if (list_req.show_apps()) {
-      group_key = key.app.empty() ? "<unknown>" : key.app;
-    } else if (list_req.show_users()) {
-      group_key = std::to_string(key.uid);
-    } else if (list_req.show_groups()) {
-      group_key = std::to_string(key.gid);
-    } else {
-      group_key = "app:" + key.app;
+      const auto& sma_metrics = snapshot.sma[sma_idx];
+      entry.read_rate += sma_metrics.read_rate_bps;
+      entry.write_rate += sma_metrics.write_rate_bps;
+      entry.read_iops += sma_metrics.read_iops;
+      entry.write_iops += sma_metrics.write_iops;
     }
+  } else {
+    for (const auto& [key, snapshot] : global_stats) {
+      std::string group_key;
 
-    auto& entry = agg_stats[group_key];
+      if (list_req.show_apps()) {
+        group_key = key.app.empty() ? "<unknown>" : key.app;
+      } else if (list_req.show_users()) {
+        group_key = std::to_string(key.uid);
+      } else if (list_req.show_groups()) {
+        group_key = std::to_string(key.gid);
+      } else {
+        group_key = "app:" + key.app; // Default fallback
+      }
 
-    const auto& sma_metrics = snapshot.sma[sma_idx];
-    entry.read_rate += sma_metrics.read_rate_bps;
-    entry.write_rate += sma_metrics.write_rate_bps;
-    entry.read_iops += sma_metrics.read_iops;
-    entry.write_iops += sma_metrics.write_iops;
+      auto& entry = agg_stats[group_key];
+
+      const auto& sma_metrics = snapshot.sma[sma_idx];
+      entry.read_rate += sma_metrics.read_rate_bps;
+      entry.write_rate += sma_metrics.write_rate_bps;
+      entry.read_iops += sma_metrics.read_iops;
+      entry.write_iops += sma_metrics.write_iops;
+    }
   }
+
+  const auto& total_sma_metrics = total_stats.sma[sma_idx];
 
   std::ostringstream oss;
 
@@ -222,6 +242,8 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       type_str = "uid";
     } else if (list_req.show_groups()) {
       type_str = "gid";
+    } else if (list_req.show_nodes()) {
+      type_str = "node";
     }
 
     oss << "[\n";
@@ -278,22 +300,31 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       header_name = "UID";
     } else if (list_req.show_groups()) {
       header_name = "GID";
+    } else if (list_req.show_nodes()) {
+      header_name = "Storage Node";
     }
 
     oss << "--- IO Rates (" << window_sec << "s simple moving average) ---\n";
 
-    oss << std::left << std::setw(20) << header_name << std::right << std::setw(15)
+    oss << std::left << std::setw(40) << header_name << std::right << std::setw(15)
         << "Read Rate" << std::setw(15) << "Write Rate" << std::setw(12) << "Read IOPS"
         << std::setw(12) << "Write IOPS" << "\n";
 
-    oss << std::string(74, '-') << "\n";
+    oss << std::string(94, '-') << "\n";
 
     for (const auto& [name, stat] : agg_stats) {
-      oss << std::left << std::setw(20) << name << std::right << std::setw(15)
+      oss << std::left << std::setw(40) << name << std::right << std::setw(15)
           << format_rate(stat.read_rate) << std::setw(15) << format_rate(stat.write_rate)
           << std::fixed << std::setprecision(2) << std::setw(12) << stat.read_iops
           << std::setw(12) << stat.write_iops << "\n";
     }
+
+    oss << std::string(94, '-') << "\n";
+    oss << std::left << std::setw(40) << "Total" << std::right << std::setw(15)
+        << format_rate(total_sma_metrics.read_rate_bps) << std::setw(15)
+        << format_rate(total_sma_metrics.write_rate_bps) << std::fixed
+        << std::setprecision(2) << std::setw(12) << total_sma_metrics.read_iops
+        << std::setw(12) << total_sma_metrics.write_iops << "\n";
 
     if (list_req.system_stats()) {
       const auto [estimator_mean, estimator_min, estimator_max] =
@@ -390,15 +421,15 @@ ShapingPolicyList(
   } else {
     auto print_header = [&oss](const std::string& title, const std::string& id_col) {
       oss << "--- " << title << " ---\n";
-      oss << std::left << std::setw(20) << id_col << std::setw(10) << "Status"
+      oss << std::left << std::setw(40) << id_col << std::setw(10) << "Status"
           << std::right << std::setw(15) << "Read Limit" << std::setw(15) << "Write Limit"
           << std::setw(15) << "Read Rsv." << std::setw(15) << "Write Rsv." << "\n";
-      oss << std::string(90, '-') << "\n";
+      oss << std::string(110, '-') << "\n";
     };
 
     auto print_row = [&oss](const std::string& id,
                             const traffic_shaping::TrafficShapingPolicy& policy) {
-      oss << std::left << std::setw(20) << id << std::setw(10)
+      oss << std::left << std::setw(40) << id << std::setw(10)
           << (policy.is_enabled ? "Enabled" : "Disabled") << std::right << std::setw(15)
           << format_rate(policy.limit_read_bytes_per_sec) << std::setw(15)
           << format_rate(policy.limit_write_bytes_per_sec) << std::setw(15)

@@ -29,6 +29,10 @@ TrafficShapingManager::ApplyThreadConfig(uint32_t estimators_period_ms,
   for (auto& [key, stats] : mGlobalStats) {
     stats.ResetWindows(mEstimatorsTickIntervalSec);
   }
+  for (auto& [node, stats] : mNodeStats) {
+    stats.ResetWindows(mEstimatorsTickIntervalSec);
+  }
+  mTotalStats.ResetWindows(mEstimatorsTickIntervalSec);
 
   estimators_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
                                            mEstimatorsTickIntervalSec);
@@ -105,6 +109,11 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
                      node_id.c_str(), report.DebugString().c_str());
   }
 
+  uint64_t total_node_delta_bytes_read = 0;
+  uint64_t total_node_delta_bytes_written = 0;
+  uint64_t total_node_delta_read_iops = 0;
+  uint64_t total_node_delta_write_iops = 0;
+
   for (const auto& entry : report.entries()) {
     StreamKey key{entry.app_name(), entry.uid(), entry.gid()};
 
@@ -176,6 +185,11 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
       delta_write_iops = 0;
     }
 
+    total_node_delta_bytes_read += delta_bytes_read;
+    total_node_delta_bytes_written += delta_bytes_written;
+    total_node_delta_read_iops += delta_read_iops;
+    total_node_delta_write_iops += delta_write_iops;
+
     state.last_bytes_read = entry.total_bytes_read();
     state.last_bytes_written = entry.total_bytes_written();
     state.last_iops_read = entry.total_read_ops();
@@ -194,6 +208,25 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
       global.write_iops_accumulator += delta_write_iops;
       global.last_activity_time = now_unix;
     }
+  }
+
+  if (total_node_delta_bytes_read > 0 || total_node_delta_bytes_written > 0 ||
+      total_node_delta_read_iops > 0 || total_node_delta_write_iops > 0) {
+
+    auto [it, inserted] = mNodeStats.try_emplace(node_id, mEstimatorsTickIntervalSec);
+    MultiWindowRate& node_stat = it->second;
+
+    node_stat.bytes_read_accumulator += total_node_delta_bytes_read;
+    node_stat.bytes_written_accumulator += total_node_delta_bytes_written;
+    node_stat.read_iops_accumulator += total_node_delta_read_iops;
+    node_stat.write_iops_accumulator += total_node_delta_write_iops;
+    node_stat.last_activity_time = now_unix;
+
+    mTotalStats.bytes_read_accumulator += total_node_delta_bytes_read;
+    mTotalStats.bytes_written_accumulator += total_node_delta_bytes_written;
+    mTotalStats.read_iops_accumulator += total_node_delta_read_iops;
+    mTotalStats.write_iops_accumulator += total_node_delta_write_iops;
+    mTotalStats.last_activity_time = now_unix;
   }
 }
 
@@ -223,7 +256,7 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
     ema_alphas[i] = ComputeEmaAlpha(EmaWindowSec[i], time_delta_seconds);
   }
 
-  for (auto& [key, stats] : mGlobalStats) {
+  auto process_rate = [&](MultiWindowRate& stats) {
     const uint64_t bytes_read_now = stats.bytes_read_accumulator.exchange(0);
     const uint64_t bytes_written_now = stats.bytes_written_accumulator.exchange(0);
     const uint64_t read_iops_now = stats.read_iops_accumulator.exchange(0);
@@ -266,7 +299,15 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
       stats.sma[i].read_iops = stats.iops_read_window.GetRate(window_sec);
       stats.sma[i].write_iops = stats.iops_write_window.GetRate(window_sec);
     }
+  };
+
+  for (auto& [key, stats] : mGlobalStats) {
+    process_rate(stats);
   }
+  for (auto& [node_id, stats] : mNodeStats) {
+    process_rate(stats);
+  }
+  process_rate(mTotalStats);
 }
 
 void
@@ -366,6 +407,24 @@ TrafficShapingManager::GetGlobalStats() const
   return snapshot_map;
 }
 
+std::unordered_map<std::string, RateSnapshot>
+TrafficShapingManager::GetNodeStats() const
+{
+  std::shared_lock lock(mMutex);
+  std::unordered_map<std::string, RateSnapshot> snapshot_map;
+  snapshot_map.reserve(mNodeStats.size());
+
+  for (const auto& [node_id, internal_stat] : mNodeStats) {
+    RateSnapshot& snap = snapshot_map[node_id];
+    snap.last_activity_time = internal_stat.last_activity_time;
+    snap.active_stream_count = internal_stat.active_stream_count;
+    snap.ema = internal_stat.ema;
+    snap.sma = internal_stat.sma;
+  }
+
+  return snapshot_map;
+}
+
 TrafficShapingManager::GarbageCollectionStats
 TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
 {
@@ -400,6 +459,7 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
 
     // Only erase the node if it has no streams AND the node is actually offline/silent
     if (map.empty() && node_idle_sec > max_idle_seconds) {
+      mNodeStats.erase(node_it->first);
       node_it = mNodeStates.erase(node_it);
       stats.removed_nodes++;
     } else {
@@ -467,15 +527,40 @@ TrafficShapingManager::GetFstLimitsUpdateLoopMicroSecStats() const
   return {0.0, 0, 0};
 }
 
+void
+TrafficShapingManager::Clear()
+{
+  std::unique_lock lock(mMutex);
+  mNodeStates.clear();
+  mGlobalStats.clear();
+  mNodeStats.clear();
+  mTotalStats.clear();
+
+  estimators_update_loop_micro_sec.reset();
+  fst_limits_update_loop_micro_sec.reset();
+}
+
+RateSnapshot
+TrafficShapingManager::GetTotalStats() const
+{
+  std::shared_lock lock(mMutex);
+  RateSnapshot snap;
+  snap.last_activity_time = mTotalStats.last_activity_time;
+  snap.active_stream_count = mTotalStats.active_stream_count;
+  snap.ema = mTotalStats.ema;
+  snap.sma = mTotalStats.sma;
+  return snap;
+}
+
 // --------------------------------------------------------------------------------------
 // ENGINE IMPLEMENTATION
 // --------------------------------------------------------------------------------------
 
 TrafficShapingEngine::TrafficShapingEngine()
     : mRunning(false)
-    , mEstimatorsUpdateThreadPeriodMilliseconds(500)
-    , mFstIoPolicyUpdateThreadPeriodMilliseconds(500)
-    , mFstIoStatsReportThreadPeriodMilliseconds(500)
+    , mEstimatorsUpdateThreadPeriodMilliseconds(200)
+    , mFstIoPolicyUpdateThreadPeriodMilliseconds(200)
+    , mFstIoStatsReportThreadPeriodMilliseconds(200)
     , mSystemStatsWindowSeconds(15)
 {
   mManager = std::make_shared<TrafficShapingManager>();
