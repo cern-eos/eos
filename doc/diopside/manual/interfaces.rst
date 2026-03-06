@@ -1929,16 +1929,23 @@ ACLs are defined on the directory or file level via the extended attributes.
 
    sys.acl=<acllist>
    user.acl=<acllist>
+   sys.eval.useracl=1    # when set, user.acl is evaluated
 
 .. note::
 
    For efficiency, file-level ACLs should only be used sparingly, in favour of directory-level ACLs.
 
 The sys.acl attribute can only be defined by SUDO members or by users which have an 'A' grant in the existing ACL of the same directory/file.
-The user.acl attribute can be defined by the **owner** or SUDO members. It is only evaluated if the sys.eval.useracl attribute is set.
+The user.acl attribute can be defined by the **owner** or SUDO members. It is only evaluated if the sys.eval.useracl attribute is set on the
+directory or file. When a file has its own user.acl and sys.eval.useracl, the file-level user.acl overrides the directory's user.acl for that file.
 
 The sys.acl/user.acl attributes are inherited from the parent at the time a directory is created. Subsequent changes to a directory's ACL
 do not automatically apply to child directories.
+
+**Rule evaluation:** Rules are processed in order: sys.acl first, then user.acl (if sys.eval.useracl is set). If the client presents a valid
+token, the token's ACL replaces both sys.acl and user.acl for that request. A rule matches when the subject matches the client's uid, any of
+their gids, e-group membership, or z (everyone). The k: subject matches the client's authentication key. Permissions are accumulated; denials
+and reallows (+d, +u) are applied in a final pass, with reallows overriding earlier denials. The +d and +u modifiers are only effective in sys.acl.
 
 <acllist> is defined as a comma separated list of rules:
 
@@ -1950,12 +1957,12 @@ A rule is defined in the following way:
 
 .. code-block:: bash
 
-   <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z::{rwxXomqciaA(!d)(+d)(!u)(+u)}
+   <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|k:<key>|z:<permissions>
 
 A rule has three colon-separated fields. It starts with the type of rule:
-User (u), Group (g), eGroup (egroup) or all (z). The second field specifies the name or
-the unix ID of user/group rules and the eGroup name for eGroups
-The last field contains the rule definition.
+User (u), Group (g), eGroup (egroup), Key (k) or all (z). The second field specifies the name or
+the unix ID of user/group rules, the eGroup name for eGroups, or the authentication key for k.
+The last field contains the permission flags.
 
 
 .. index::
@@ -1970,31 +1977,38 @@ The following tags compose a rule:
    tag definition
    === =========================================================================
    r   grant read permission
-   w   grant write permission
+   w   grant write permission (implies update)
+   wo  grant write-once permission (create files, no delete)
    x   grant browsing permission
+   d   delete permission (implicit when not denied)
+   u   grant update permission (modify existing files)
    m   grant change mode permission
    !m  forbid change mode operation
    !d  forbid deletion of files and directories
-   +d  overwrite a '!d' rule and allow deletion of files and directories
+   +d  overwrite a '!d' rule and allow deletion (sys.acl only)
    !u  forbid update of files
-   +u  overwrite a '!u' rule and allow updates for files
-   q   grant 'set quota' permissions on a quota node
+   +u  overwrite a '!u' rule and allow updates (sys.acl only)
+   q   grant 'set quota' permissions on a quota node (sys.acl only)
    c   grant 'change owner' permission on directory children
    i   set the immutable flag
-   a   grant archiving permission
-   A   grant sys.acl modification permissions
-   X   grant sys.* modification permissions (does not include sys.acl!)
+   a   grant archiving permission (sys.acl only)
+   A   grant sys.acl modification permissions (sys.acl only)
+   X   grant sys.* modification permissions (sys.acl only, does not include sys.acl)
+   p   grant prepare/workflow permission (sys.acl only)
+   t   grant token issuing permission; allows the referenced user/group/egroup to
+       issue tokens on that path (sys.acl only)
    === =========================================================================
 
 
 
 
 Actually, every single-letter permission with the exception of change owner (c) can
-be explicitely denied ('!'), e.g. '!w!r, re-granted ('+'). Change owner
+be explicitly denied ('!'), e.g. '!w!r, re-granted ('+'). Change owner
 permission is only explicitly enabled on grant, so it is denied by default.
+The permissions a, A, X, p, t and q are only valid in sys.acl; they are ignored when specified in user.acl.
 Denials persist after all other rules have been evaluated, i.e. in 'u:fred:!w!r,g:fredsgroup:wrx' the user "fred"
 is denied reading and writing although the group he is in has read+write access.
-Rights can be re-granted (in sys.acl only) even when denied by specyfing e.g. '+d'. Hence,
+Rights can be re-granted (in sys.acl only) even when denied by specifying e.g. '+d'. Hence,
 when sys.acl='g:admins:+d' and then user.acl='z:!d' are evaluated,
 the group "admins" is granted the 'd' right although it is denied to everybody else.
 
@@ -2063,7 +2077,7 @@ The ACLs can be listed by either of these commands as well:
 
 
 If the operator uses the `eos acl --sys <rule> /eos/mypath` command, the `<rule>` is composed as follows:
-`\[u|g|egroup\]:<identifier>\[:|=\]<permission>` . The second delimiter `[:|=]` can be a `:` for modifying permissions
+`\[u|g|egroup|k\]:<identifier>\[:|=\]<permission>` . The second delimiter `[:|=]` can be a `:` for modifying permissions
 or "=" for setting/overwriting permission. Finally a <permission> itself can be added using the "+" or removed using the "-" operators.
 
 For example:
