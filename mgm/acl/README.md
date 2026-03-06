@@ -126,17 +126,17 @@ A prefix before the ACL value controls how it is merged with directory ACLs:
 ### Examples
 
 ```bash
-# Prepend space ACL (first evaluated; < may need quoting in shell)
+# Prepend space ACL (first evaluated)
 eos space config default "space.attr.sys.acl=<u:poweruser:rwxqmcXA"
 
-# Append space ACL (last evaluated; > may need quoting in shell)
+# Append space ACL (last evaluated)
 eos space config default "space.attr.sys.acl=>u:poweruser:rwxqmcXA"
 
-# Use space ACL only when directory has no sys.acl (| must be escaped in shell)
-eos space config default "space.attr.sys.acl=\|u:poweruser:rwxqmcXA"
+# Use space ACL only when directory has no sys.acl
+eos space config default "space.attr.sys.acl=|u:poweruser:rwxqmcXA"
 
 # Overwrite all directory ACLs with the space ACL
-eos space config default space.attr.sys.acl=u:poweruser:rwxqmxcXA
+eos space config default "space.attr.sys.acl=u:poweruser:rwxqmxcXA"
 ```
 
 ### Remove and inspect
