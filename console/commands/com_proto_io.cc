@@ -322,7 +322,7 @@ com_io_help()
       << std::endl
       << "     policy [action] [options...] : manage shaping limits and reservations\n"
       << "\t   action 'ls' : list configured policies\n"
-      << "\t     usage: policy ls [--apps|--users|--groups]\n"
+      << "\t     usage: policy ls [--apps|--users|--groups|--nodes]\n"
       << "\t   action 'set' : configure a new policy or modify an existing one\n"
       << "\t     usage: policy set <identity> [parameters...] [--enable|--disable]\n"
       << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
@@ -403,6 +403,7 @@ SetupTrafficListCommand(CLI::App& app, eos::console::IoProto_ShapingProto* proto
   grp->add_flag("--apps", "Show rates by application");
   grp->add_flag("--users", "Show rates by user (uid)");
   grp->add_flag("--groups", "Show rates by group (gid)");
+  grp->add_flag("--nodes", "Show rates by storage node");
   cmd->add_flag("--json", "Output in JSON format");
   cmd->add_flag("--sys", "Include meta statistics about Traffic Shaping system");
   cmd->add_option("--window",
@@ -418,13 +419,16 @@ SetupTrafficListCommand(CLI::App& app, eos::console::IoProto_ShapingProto* proto
 
     const bool show_users = cmd->count("--users") > 0;
     const bool show_groups = cmd->count("--groups") > 0;
+    const bool show_nodes = cmd->count("--nodes") > 0;
 
-    // If neither users nor groups were specified, default to apps.
-    const bool show_apps = (cmd->count("--apps") > 0) || (!show_users && !show_groups);
+    // If neither is specified, show apps
+    const bool show_apps =
+        (cmd->count("--apps") > 0) || (!show_users && !show_groups && !show_nodes);
 
     action->set_show_apps(show_apps);
     action->set_show_users(show_users);
     action->set_show_groups(show_groups);
+    action->set_show_nodes(show_nodes);
     action->set_json_output(json_output);
     action->set_system_stats(include_sys);
 

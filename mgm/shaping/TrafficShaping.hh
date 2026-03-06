@@ -66,13 +66,35 @@ struct MultiWindowRate {
   uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
 
-  explicit MultiWindowRate(double initial_tick_interval)
+  explicit MultiWindowRate(const double initial_tick_interval)
       : tick_interval_seconds(initial_tick_interval)
       , bytes_read_window(sma_max_history_seconds, initial_tick_interval)
       , bytes_written_window(sma_max_history_seconds, initial_tick_interval)
       , iops_read_window(sma_max_history_seconds, initial_tick_interval)
       , iops_write_window(sma_max_history_seconds, initial_tick_interval)
   {
+  }
+
+  void
+  clear()
+  {
+    bytes_read_accumulator.store(0, std::memory_order_relaxed);
+    bytes_written_accumulator.store(0, std::memory_order_relaxed);
+    read_iops_accumulator.store(0, std::memory_order_relaxed);
+    write_iops_accumulator.store(0, std::memory_order_relaxed);
+
+    for (auto& m : ema) {
+      m = RateMetrics{};
+    }
+
+    for (auto& m : sma) {
+      m = RateMetrics{};
+    }
+
+    ResetWindows(tick_interval_seconds);
+
+    active_stream_count = 0;
+    last_activity_time = 0;
   }
 
   void
@@ -175,6 +197,10 @@ public:
 
   std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> GetGlobalStats() const;
 
+  std::unordered_map<std::string, RateSnapshot> GetNodeStats() const;
+
+  RateSnapshot GetTotalStats() const;
+
   struct GarbageCollectionStats {
     size_t removed_nodes;
     size_t removed_node_streams;
@@ -211,9 +237,9 @@ public:
 
   std::optional<TrafficShapingPolicy> GetAppPolicy(const std::string& app) const;
 
-  void UpdateFstLimitsLoopMicroSec(const uint64_t time_microseconds);
+  void UpdateFstLimitsLoopMicroSec(uint64_t time_microseconds);
 
-  void UpdateEstimatorsLoopMicroSec(const uint64_t time_microseconds);
+  void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
 
   std::tuple<double, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
 
@@ -226,16 +252,7 @@ public:
     return mSystemStatsWindowSeconds;
   }
 
-  void
-  Clear()
-  {
-    std::unique_lock lock(mMutex);
-    mNodeStates.clear();
-    mGlobalStats.clear();
-
-    estimators_update_loop_micro_sec.reset();
-    fst_limits_update_loop_micro_sec.reset();
-  }
+  void Clear();
 
 private:
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
@@ -247,6 +264,9 @@ private:
 
   std::unordered_map<std::string, NodeData> mNodeStates;
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
+  std::unordered_map<std::string, MultiWindowRate> mNodeStats;
+  // We provide an initial tick interval but this will be refreshed on initialization
+  MultiWindowRate mTotalStats{0.5};
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
