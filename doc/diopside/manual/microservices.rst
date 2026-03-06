@@ -1706,8 +1706,8 @@ All the size related symbols refer to the International System of Units, therfor
 
 .. code-block:: bash
 
-   # files with suffix *.root get removed after a month, files with *.tgz after one week
-   eos attr set sys.lru.expire.match="*.root:1mo,*.tgz:1w"  /eos/dev/instance/scratch/
+   # files with suffix *.root get removed after a month or after 6 days if their size is bigger than 1GB, files with *.tgz after one week
+   eos attr set sys.lru.expire.match="*.root:1mo,*.tgz:1w,*.root:6d:>1G"  /eos/dev/instance/scratch/
 
    # all files older than a day are automatically removed
    eos attr set sys.lru.expire.match="*:1d" /eos/dev/instance/scratch/
