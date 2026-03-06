@@ -533,11 +533,13 @@ com_attr_usage:
   fprintf(stdout,
           "         sys.lru.expire.empty=<age>            : delete empty directories older than <age>\n");
   fprintf(stdout,
-          "         sys.lru.expire.match=[match1:<age1>,match2:<age2>..]\n");
+          "         sys.lru.expire.match=[match1:<age1>,match2:<age2>:<<size2>,match3:<age3>:><size3>..]\n");
   fprintf(stdout,
           "                                               : defines the rule that files with a given match will be removed if \n");
   fprintf(stdout,
-          "                                                 they haven't been accessed longer than <age> ago. <age> is defined like 3600,3600s,60min,1h,1mo,1y...\n");
+          "                                                 they haven't been accessed longer than <age> ago and they match the optional <size> criteria.\n");
+  fprintf(stdout,
+          "                                                 <age> is defined like 3600,3600s,60min,1h,1mo,1y... <size> is defined like 1G, 100M...\n");
   fprintf(stdout,
           "         sys.lru.lowwatermark=<low>\n");
   fprintf(stdout,
@@ -716,9 +718,9 @@ com_attr_usage:
   fprintf(stdout,
           "- configure a time based LRU cache with an expiration time ...\n");
   fprintf(stdout,
-          "     |eos> attr set sys.lru.expire.match=\"*.root:1mo,*.tgz:1w\"  /eos/dev/instance/scratch/\n");
+          "     |eos> attr set sys.lru.expire.match=\"*.root:1mo,*.tgz:1w,*.root:6d:>1G\"  /eos/dev/instance/scratch/\n");
   fprintf(stdout,
-          "                                                                                # files with suffix *.root get removed after a month, files with *.tgz after one week\n");
+          "                                                                                # files with suffix *.root get removed after a month or after 6 days if they are bigger than 1GB, files with *.tgz after one week\n");
   fprintf(stdout,
           "     |eos> attr set sys.lru.expire.match=\"*:1d\" /eos/dev/instance/scratch/      # all files older than a day are automatically removed\n");
   fprintf(stdout,
