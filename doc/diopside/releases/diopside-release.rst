@@ -16,6 +16,22 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.33 Diopside``
+====================
+
+2026-08-03
+
+Bug
+---
+
+* [EOS-6570] FUSE/NS: Fix broken accounting of file no. and tree-sizes when doing file move operations via FUSE
+* MGM: LRU - Recover support for '*' regex in LRU match expression
+
+Improvement
+-----------
+
+* CONSOLE: update 'rclone' command to handle as many files as needed
+
 
 ``v5.3.32 Diopside``
 ====================
