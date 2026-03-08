@@ -1440,7 +1440,12 @@ com_rclone(char* arg1)
   if (!is_silent && verbose) {
     std::cerr << "# preparing" << std::endl;
   }
-
+  
+  PropertyList processConfig;
+  processConfig.Set( "jobType", "configuration" );
+  processConfig.Set( "parallel", 64 );
+  copyProcess.AddJob( processConfig, 0 );
+  
   copyProcess.Prepare();
 
   if (!is_silent && verbose) {
