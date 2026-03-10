@@ -2547,3 +2547,122 @@ Notes and Caveats
 - Audit writer flushes after each record for operational visibility
 - READ/LIST intentionally omitted by default due to volume
 - All timestamps use server time (seconds since epoch)
+
+.. index::
+   pair: Traffic Shaping; Shaping
+
+Traffic Shaping
+---------------
+
+.. index::
+   pair: Traffic Shaping; Overview
+
+Overview
+^^^^^^^^
+
+The EOS Traffic Shaping feature provides real-time I/O monitoring and control at the cluster level. It allows administrators to observe I/O throughput grouped by application, user, group, or storage node. Furthermore, it provides a mechanism to dynamically limit I/O for specific entities to prioritize critical traffic.
+
+For a detailed presentation on the motivation, architecture, and design of this feature, see the 2026 EOS Workshop contribution: https://indico.cern.ch/event/1622471/contributions/6947157/
+
+.. index::
+   pair: Traffic Shaping; Architecture
+
+Architecture
+^^^^^^^^^^^^
+
+The Traffic Shaping implementation relies on a fast, low-overhead loop between the storage nodes (FSTs) and the management node (MGM):
+
+* **FST (Storage Node):** The storage nodes record I/O bytes read and written per app, user, and group. They send lightweight protobuf reports (containing only updates) to the MGM. FSTs are also responsible for applying limits by temporarily blocking I/O threads based on delays calculated by the MGM.
+* **MGM (Management Node):** A dedicated ``TrafficShapingEngine`` processes the incoming FST reports using atomic accumulators. Background threads periodically calculate moving averages (such as a 1s EMA or 60s SMA) and compare the real-time throughput against configured limits. If throughput exceeds a limit, the MGM computes a dampening delay (in microseconds) and broadcasts it to the FSTs.
+
+.. index::
+   pair: Traffic Shaping; Configuration
+
+Configuration and Enabling
+^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Traffic Shaping can be enabled or disabled globally from the console:
+
+.. code-block:: bash
+
+   # Enable traffic shaping
+   eos io shaping enable
+
+   # Disable traffic shaping
+   eos io shaping disable
+
+You can view and modify the internal thread loop periods and time windows used by the shaping engine:
+
+.. code-block:: bash
+
+   # View current configuration
+   eos io shaping config ls
+
+   # Modify the system window and thread periods (in milliseconds/seconds)
+   eos io shaping config set --system-window 15 --estimators-period 100 --policy-period 100 --report-period 100
+
+.. index::
+   pair: Traffic Shaping; Policies
+
+Setting I/O Limits (Policies)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+I/O limits can be applied to applications, users (UID), or groups (GID).
+
+To list currently configured policies:
+
+.. code-block:: bash
+
+   eos io shaping policy ls
+
+To set or update a policy:
+
+.. code-block:: bash
+
+   # Set a 10 MB/s read limit for a specific UID
+   eos io shaping policy set --uid 133153 --limit-read 10M
+
+   # Set a 16 MB/s write limit for a specific application
+   eos io shaping policy set --app eoscp --limit-write 16M
+
+   # Enable a previously disabled policy
+   eos io shaping policy set --uid 133153 --enable
+
+To remove a policy:
+
+.. code-block:: bash
+
+   eos io shaping policy rm --uid 133153
+
+.. index::
+   pair: Traffic Shaping; Monitoring
+
+Monitoring Throughput
+^^^^^^^^^^^^^^^^^^^^^
+
+You can retrieve real-time I/O rates directly from the console. The output is smoothed over a moving average window (default 60s, but 1s, 5s, 15s, and 300s are available).
+
+.. code-block:: bash
+
+   # Show throughput grouped by application (default)
+   eos io shaping ls
+
+   # Show throughput grouped by users (UID)
+   eos io shaping ls --users
+
+   # Show throughput grouped by groups (GID)
+   eos io shaping ls --groups
+
+   # Show throughput grouped by FST nodes
+   eos io shaping ls --nodes
+
+   # Specify a different moving average window (e.g., 5 seconds)
+   eos io shaping ls --window 5
+
+.. index::
+   pair: Traffic Shaping; Observability
+
+Observability and Exporters
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Traffic Shaping metrics are natively exposed via JSON (using the ``--json`` flag). These metrics are fully integrated into the Prometheus ``eos_exporter``, allowing seamless aggregation of application, user, group, and cluster-total throughput in monitoring dashboards like Grafana.
