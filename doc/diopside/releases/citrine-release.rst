@@ -696,7 +696,7 @@ Improvement
 
 * [EOS-4945] - Use timestamp for saving the stack trace
 * [EOS-4995] - Add flag to 'ls' to add checksum printout in long listing
-* [EOS-5002] - Add a '-c' option to set an extended attribute only if it does not exist altready
+* [EOS-5002] - Add a '-c' option to set an extended attribute only if it does not exist already
 
 
 ``v4.8.66 Citrine``
@@ -837,7 +837,7 @@ Improvement
 * [EOS-4586] - RFE" remove "pre-configuring default route" warning for fully-qualified instance+path
 * [EOS-4749] - Remove the extra-output display in eos rm command
 * [EOS-4783] - Size differs only in MGM [WIP in fsck dev]
-* [EOS-4784] - [rep_diff_n] and [rep_missing_n]; Overreplicated file, faulty replica was commited to MGM
+* [EOS-4784] - [rep_diff_n] and [rep_missing_n]; Overreplicated file, faulty replica was committed to MGM
 * [EOS-4838] - Check health status refinement
 * [EOS-4839] - Improve balancer shutdown to clean what it was balancing from the tracker queue
 * [EOS-4682] - MGM crash in LRU.hh:252 eos::MetadataProviderShard::retrieveFileMD
@@ -859,7 +859,7 @@ Improvements
 ------------
 
 * [EOS-4823] MGM: eosxd creations support now linked attributes describing file layouts etc.
-* [EOS-4825] COMMON: allow static mappping to local accounts from 'sub' using 'vid set map -oauth2 sub:xyz vuid:localuid'
+* [EOS-4825] COMMON: allow static mapping to local accounts from 'sub' using 'vid set map -oauth2 sub:xyz vuid:localuid'
 
 
 ``v4.8.58 Citrine``
@@ -873,7 +873,7 @@ Bug
 * [EOS-4775] NS: fixing SearchNode expansion decision taking mechanism
 * [EOS-4779] FST: fix dead lock in parity computation for RAIN
 * [EOS-4806] MGM: protect newfind command against crashes on malformed/buggy input for regex match --name filters
-* MGM: directory listing (XrdMgmOfsDirectory) always checks now ACLs for denials e.g. an ACL denial can superseed a POSIX allow
+* MGM: directory listing (XrdMgmOfsDirectory) always checks now ACLs for denials e.g. an ACL denial can supersede a POSIX allow
 
 Improvements
 ------------
@@ -928,7 +928,7 @@ BUG
 ----
 
 * MGM: silence fprintf statements in InFlightTracker
-* [EOS-4756] MGM: keep recusrive deletions exactly as configured by the recycle bin time policy
+* [EOS-4756] MGM: keep recursive deletions exactly as configured by the recycle bin time policy
 
 New Feature
 ------------
@@ -1006,7 +1006,7 @@ Improvement
 Bug
 ----
 
-* FUSEX: properly support also KERYRING:persisten:%{UID} as default krb5 CCCAHCE
+* FUSEX: properly support also KERYRING:persistent:%{UID} as default krb5 CCCAHCE
 
 
 Improvement
@@ -1028,7 +1028,7 @@ Bug
 ----
 
 * [EOS-4715] - Segv in jemalloc during PathRouting
-* MGM: add by-pass for squashfs sss 'eosnobody' file access without ACL entries
+* MGM: add bypass for squashfs sss 'eosnobody' file access without ACL entries
 * FUSEX: allow to open a squashfs image file client side even if we don't have R mode on the parent directory
 
 
@@ -1133,7 +1133,7 @@ Improvements
 Bug
 ----
 
-* [EOS-4545] Option for eosxd mounts to block symlinks walking up the hierarchie
+* [EOS-4545] Option for eosxd mounts to block symlinks walking up the hierarchy
 
 Improvements
 ------------
@@ -1151,7 +1151,7 @@ Improvements
 Bug
 ----
 
-* [EOS-4607] - The commad eos node config does not accept 'off' when using configstatus
+* [EOS-4607] - The command eos node config does not accept 'off' when using configstatus
 * [EOS-4627] - FSCK collected time changed after restart
 * [EOS-4629] - Checksum not recomputed after certain truncation operations
 * [EOS-4657] - File in draining with both FST checksums to 0x00
@@ -1175,7 +1175,7 @@ Improvements
 * [EOS-4575] - Error on eos find command when tmp file cannot be created
 * [EOS-4617] - Quota option to provide only the quota of the specified quota node
 * [EOS-4658] - EOS workflow engine should not insist on the W_OK mode bit
-* Fsck improvements when dealing with detached files in general and also hadling
+* Fsck improvements when dealing with detached files in general and also handling
   wired cases where a file is detached but its parent id is not properly marked as 0
 
 
@@ -1291,7 +1291,7 @@ Bug
 New Feature
 ------------
 
-* [EOS-4545] - Option for eosxd mounts to block symlinks walking up the hierarchie
+* [EOS-4545] - Option for eosxd mounts to block symlinks walking up the hierarchy
 
 
 ``v4.8.34 Citrine``
@@ -1313,7 +1313,7 @@ Note
 Note
 ----
 
-* This version is built aginst XRootD-4.12.6 which contains some important fixes for
+* This version is built against XRootD-4.12.6 which contains some important fixes for
   HTTP TPC transfers.
 
 
@@ -1516,7 +1516,7 @@ Bug
 
 * SPEC: adding missing mount helper scripts (packaging issue)
 * SPEC: Avoid richacl for CentOS 8 until RPMs are provided"
-* MGM/FST: Stop the libmicrohttp daemon in the destuctor of the MGM/FST HttpServer
+* MGM/FST: Stop the libmicrohttp daemon in the destructor of the MGM/FST HttpServer
   derived classes otherwise the Handler method might still be called after the
   derived classes are destructed (but before MHD_stop_daemon is called in the
   common HttpServer) causing a SEGV due to "pure virtual method called" EOS-4438
@@ -1593,7 +1593,7 @@ Bug
 Improvement
 -----------
 
-* MGM: improve mutex contention in Access commmands (particular in combination with QDB Config)
+* MGM: improve mutex contention in Access commands (particular in combination with QDB Config)
 * MGM: adding Prefetcher in various places
 
 ``v4.8.17 Citrine``
@@ -1656,7 +1656,7 @@ Bug
 ----
 
 * [EOS-4412] - reduce latency due to scheduling deletions (long lasting view read locking)
-* [EOS-4407] - block volume EDQUOT client-side with the first occurence of EDQUOT on a directory
+* [EOS-4407] - block volume EDQUOT client-side with the first occurrence of EDQUOT on a directory
 * [EOS-4364] - prefer EEXIST over EACCESS in eosxd mkdir
 * NS: fix command executed by drop-empty-cid
 
@@ -1808,7 +1808,7 @@ Improvement
 ------------
 
 * [EOS-4311] - filesystem move is slow with in-QDB config and the lock taken triggers high node heartbeats
-* [EOS-4312] - Allow to move a filesystem to a diffrent node via a command
+* [EOS-4312] - Allow to move a filesystem to a different node via a command
 * [EOS-4313] - _find should only prefetch container metadata if no_files is set
 
 
@@ -1826,7 +1826,7 @@ Improvement
 ------------
 
 * [EOS-3851] - do not `drainwait` group balancing on terminate drain statuses
-* [EOS-4306] - Add namespace mutex acqusition latency stats to "eos ns"
+* [EOS-4306] - Add namespace mutex acquisition latency stats to "eos ns"
 * Add option to store the LevelDB on the data disk rather than root partition
 
 
@@ -1840,7 +1840,7 @@ Bug
 
 * [EOS-4295] - Folder remove fails while deleting child version files (with Operation not permitted)
 * MGM: remove timeordered caps entries if there insertion time has passed, don't rely on the cap
-  validity beause it can be updated in the meanwhile
+  validity because it can be updated in the meanwhile
 * MGM: default max children for eosxd listing to 128k not 128M
 
 New feature
@@ -1940,7 +1940,7 @@ Bug
 
 * [EOS-4299] Fix stat counters update frequency
 * MGM: Add missing lock to MgmStats in the stall functionality
-* MGM: stat.st_nlink is an UNSIGNED integer.  Replaced dangerous -1 logic with safe usigned logic
+* MGM: stat.st_nlink is an UNSIGNED integer.  Replaced dangerous -1 logic with safe unsigned logic
 
 
 ``v4.7.14 Citrine``
@@ -1962,7 +1962,7 @@ Improvement
 ------------
 
 * [EOS-4197] - Show available redundancy in 'ls -y '
-* [EOS-4207] - Add Quota (ls) comand to GRPC interface
+* [EOS-4207] - Add Quota (ls) command to GRPC interface
 * [EOS-4212] - Review POSIX permission behaviour in eosxd & enable overlay behaviour
 
 
@@ -2380,7 +2380,7 @@ Bug
 * [EOS-3839] avoid deadlock in lock order violation
 * [EOS-3845] create barrier in FST creation to avoid race condition under file creation from two clients
 * [EOS-3848] store exception in future
-* [EOS-3850] avoid SEGV in FUSEx deletion of non-existant objects
+* [EOS-3850] avoid SEGV in FUSEx deletion of non-existent objects
 
 New Feature
 -----------
@@ -2554,7 +2554,7 @@ Improvement
 
 * [EOS-2725] - Missing usage example for some space parameters
 * [EOS-3694] - Add eos-fusex-tests to the pipeline
-* [EOS-3706] - Add 1m,1w,daily timebins to versioning similiar to DFS
+* [EOS-3706] - Add 1m,1w,daily timebins to versioning similar to DFS
 * GRPC: Add version command implementation and other ns related operations
 
 
@@ -2609,7 +2609,7 @@ Improvements
 * speed-up shutdown for drain jobs
 * implement ns-reserve-id command
 * don't print byte-range locks per client ( get it with '-k' option )
-* filesytem class refactoring
+* filesystem class refactoring
 * clean-up empty eosxd cache directories
 * support proc results larger than 2G
 * timeout eosxd connections after 24h
@@ -2706,7 +2706,7 @@ Bug
 * [EOS-3499] - eos-ns-inspect: Include again the libprotobuf dependency
 * [EOS-3522] - 'eos config dump --vid' prints dummy "mgm.vid.key=<key>", cannot  "eos vid rm'
 * [EOS-3526] - eosxd crash in EosFuse::readlink(), NULL 'md' pointer
-* [EOS-3533] - eos find doesnt work with --fid and -0
+* [EOS-3533] - eos find does not work with --fid and -0
 
 New Feature
 -----------
@@ -2729,7 +2729,7 @@ Improvement
 * [EOS-3520] - add pid to the json output of file info
 * [EOS-2020] - Use Table Formatter for geosched show tree and snapshot commands output
 * [EOS-3513] - Provide an exception when eos dumpmd <fsid> --path is not really empty
-* [EOS-3527] - FSCK dection tool: Classify size errors for not orphan files
+* [EOS-3527] - FSCK detection tool: Classify size errors for not orphan files
 * [EOS-3531] - FSCK detection: Ignore size 0 files in the namespace in replica error detection
 * Move the "group" command to the Protobuf implementation
 * Move the "io" command to the Protobuf implementation
@@ -2812,7 +2812,7 @@ Bug
 
 Improvements
 ------------
-* FUSEX: add compatiblity mode for older server which cannot return getChecksum by file-id
+* FUSEX: add compatibility mode for older server which cannot return getChecksum by file-id
 * CI: build with ubuntu bionic
 * NS: Add mtime, ctime, unlinked locations, and link name to eos-ns-inspect printing
 * CTA: configuration parameters for tapeaware garbage collector
@@ -2955,7 +2955,7 @@ Improvement
 * [EOS-3389] - review "error: no drain started for the given fs": do not trigger this or do not log
 * [EOS-3402] - "eos node ls": double 'status' column, white-on-white text
 * [EOS-3412] - silence "failed to stat recycle path" error on rename+remove?
-* [EOS-3421] - Flood of "SOM Listener new notification" messages in the log since 77cfb51213
+* [EOS-3421] - Flood of "SOME Listener new notification" messages in the log since 77cfb51213
 
 
 ``v4.4.35 Citrine``
@@ -2981,7 +2981,7 @@ Improvement
 * [EOS-3391] - make geotag propagation less verbose
 * [EOS-3406] - move some log messages from error to debug
 * [EOS-3390] - suppress UDP target missing message
-* [EOS-3401] - if scanner is diabled don't even scan files a first time
+* [EOS-3401] - if scanner is disabled don't even scan files a first time
 * avoid FuseXCasts when _rem is called in FuseServer with recycle bin enabled
 
 Refactoring
@@ -3023,7 +3023,7 @@ Bug
 Improvement
 ------------
 
-* [EOS-3359] - Graceful cancelation of drain jobs
+* [EOS-3359] - Graceful cancellation of drain jobs
 * [EOS-3375] - Use eos/conversion as io stat tag
 
 Refactoring
@@ -3203,7 +3203,7 @@ Note
 Starting with this version one can control the xrootd pool of physical connections
 by using the following two env variables:
 EOS_XRD_USE_CONNECTION_POOL - enable the xrootd connection pool
-EOS_XRD_CONNECTION_POOL_SIZE - max number of unique phisical connection
+EOS_XRD_CONNECTION_POOL_SIZE - max number of unique physical connection
 towards a particular host.
 This can be use in the MGM daemon to control connection pool for TPC transfers
 used in the Converter and the Central Draining, but also on the FST side for
@@ -3269,7 +3269,7 @@ Bug
 ----
 
 * [EOS-3231] - Update is not anymore implicit in ACL:w permissions
-* [EOS-3215] - drainstatus not reseted when disk put back to rw
+* [EOS-3215] - drainstatus not reset when disk put back to rw
 * [EOS-3227] - Missing eosarch python module
 * [EOS-3230] - CmdHelper does not always print error stream as provided by the MGM
 
@@ -3307,7 +3307,7 @@ Bug
   file systems rather than the one currently being drained.
 * [EOS-3198] - Json output from the httpd interface escapes redundant double
   quotes on values of attr queries
-* [EOS-1733] - eosd segfault in unlink around "fileystem::is_toplevel()"
+* [EOS-1733] - eosd segfault in unlink around "filesystem::is_toplevel()"
 
 Improvement
 ------------
@@ -3523,7 +3523,7 @@ Bug
 * [EOS-3025] fix checksum array reset in Commit operation
 * [EOS-2989] take fsck enable intereval into account
 * [EOS-2872] modify mtime modification in write/truncate/flush to preserve the order of operations in EOSXD
-* [EOS-2599] fix ACLs by key and fully supported trusted and signle ID shared sss mounts supporting endorsement keys
+* [EOS-2599] fix ACLs by key and fully supported trusted and single ID shared sss mounts supporting endorsement keys
 * [CTA-312]  propagate protobuf call related errors messages through back to clients
 * Don't call 'system' implying fork in FST code
 * Fix Fmd object constructor to use 64-bit file ids
@@ -3805,7 +3805,7 @@ Bug
 * [EOS-2850] - avoid directory move into itself when going via symlinks
 * [EOS-2870] - faulty scheduling on offline machine (regression)
 * [EOS-2873] - fix chmod/chown behaviour on executing EOSXD client
-* [EOS-2874] - fix 'adjustreplica' for files continaing an '&' sign
+* [EOS-2874] - fix 'adjustreplica' for files containing an '&' sign
 * Thread sanitizer fixes in EOSXD
 * Fix snooze time in WFE
 
@@ -3855,7 +3855,7 @@ Bug
 * [EOS-2839] - Central draining is active on slave MGM
 * [EOS-2843] - FUSEX crash in metad::get(), pmd=NULL.
 * [EOS-2847] - FUSEX: Race between XrdCl::Proxy destructor and OpenAsyncHandler::HandleResponseWithHosts
-* [EOS-2849] - Memeory Leaks in FST code
+* [EOS-2849] - Memory Leaks in FST code
 
 Task
 ----
@@ -4050,7 +4050,7 @@ Bug
 * [EOS-2624] - Crash when removing invalid quota node
 * [EOS-2654] - Unable to start slave with invalid quota node
 * [EOS-2655] - 'eos find' returns different output for dirs and files
-* [EOS-2656] - Quota rmnode should check if there is quota node before deleting and not afater
+* [EOS-2656] - Quota rmnode should check if there is quota node before deleting and not after
 * [EOS-2659] - IO report enabled via xrd.cf but not collecting until enabled on the shell
 * [EOS-2661] - space config allows fs.configstatus despite error message
 
@@ -4128,7 +4128,7 @@ Bug
 * [EOS-2314] - Central draining traffic is not tagged properly
 * [EOS-2318] - Slave namespace failed to boot (received signal 11)
 * [EOS-2465] - adding quota node on the master kills the slave (which then bootloops trying to apply the same quota)
-* [EOS-2537] - Balancer sheduler broken
+* [EOS-2537] - Balancer scheduler broken
 * [EOS-2544] - Setting recycle bin size changes inode quota to default.
 * [EOS-2564] - CITRINE MGM does not retrieve anymore error messages from FSTs in error.log
 * [EOS-2574] - enabling accounting on the slave results in segfault shortly after NS booted
@@ -4228,7 +4228,7 @@ Improvements
 FST: make the connection pool configurable by defining EOS_FST_XRDIO_USE_CONNECTION_POOL
 FUSE: avoid that FUSE calls open in a loop for every write in the outgoing write-back cache if the file open failed
 FUSE: remove 'dangerous' recovery functionality which is unnecessary with xrootd 4
-FUSE: Try to re-use connections towards the MGM when using the same credential file
+FUSE: Try to reuse connections towards the MGM when using the same credential file
 
 
 ``v4.2.19 Citrine``
@@ -4305,7 +4305,7 @@ Improvement
 -----------
 
 * [EOS-2389] - Classify checksum errors during scan
-* [EOS-2398] - Apply quota settings relativly quick in time on the FUSEX clients
+* [EOS-2398] - Apply quota settings relatively quick in time on the FUSEX clients
 * [EOS-2408] - Proper error messages for user in case of synchronous workflow failure
 
 
@@ -4413,7 +4413,7 @@ Bug
 
 * Fix deadlock observerd in EOSATLAS between gFsView.ViewMutex and pAddRmFsMutex from the
   scheduling part.
-* Fix bug on the FST realted to the file id value going beyond 2^32-1
+* Fix bug on the FST related to the file id value going beyond 2^32-1
 * [EOS-2275] - Possible data race in ThreadPool
 * [EOS-2290] - increase shutdown timeout for the FSTs
 
@@ -4437,7 +4437,7 @@ Bug
 * [EOS-2270] - FSCK crashed booting namespace
 * [EOS-2271] - EOSPUBLIC deadlocked
 * [EOS-2261] - "eos node ls <node>" with the monitoring flag does not apply the node filter
-* [EOS-2267] - EOSPublic has crashed while recusively setting ACLs
+* [EOS-2267] - EOSPublic has crashed while recursively setting ACLs
 * [EOS-2268] - Third party copying (on the same instance) fails with big files
 
 Improvement
@@ -4510,7 +4510,7 @@ Bug
 * [EOS-2224] - selinux denials with eosfuse bind.
 * [EOS-2229] - files downloaded with scp show 0 byte contents
 * [EOS-2230] - read-ahead inefficiency
-* [EOS-2231] - ioflush thread serializes file closeing and leads to memory aggregation
+* [EOS-2231] - ioflush thread serializes file closing and leads to memory aggregation
 * [EOS-2241] - Directory TREE mv does not invalidate source caches
 
 New Feature
@@ -4731,7 +4731,7 @@ Bug
 ----
 * Mask the block checksum for draining and balancing when there is layout
   requesting blockchecksum for replica files.
-* Add protection in case the proxys or the firewalleps vectors are not
+* Add protection in case the proxies or the firewalleps vectors are not
   properly populated and we try to access a location beyond the size of the
   vector which leads to undefined behaviour.
 * Multiple fixes to the Schedule2Drain code
@@ -4809,9 +4809,9 @@ Bugfix
 * [EOS-1259] - MGM eos node ls display
 * [EOS-1292] - "eos" hangs for 5min without EOS_MGM_URL - give verbose error message instead
 * [EOS-1317] - command to drop/refresh UID / GID cache is not documented?
-* [EOS-1762] - "eos attr link origin target" with a non-existent origin prevents listing of target's atrributes
+* [EOS-1762] - "eos attr link origin target" with a non-existent origin prevents listing of target's attributes
 * [EOS-1887] - Link back with the dynamic version of protobuf3
-* [EOS-1889] - file verify command fails when specifyng fsid on a one-replica file
+* [EOS-1889] - file verify command fails when specifying fsid on a one-replica file
 * [EOS-1893] - EOS configuration can end up empty or truncated
 * [EOS-1888] - FSs wrongly reported as Unavailable by the GeoTreeEngine
 * [EOS-1892] - File copy is scheduled on a full FS
@@ -4953,7 +4953,7 @@ Bugfix
 -------
 
 - MGM: add monitoring switch to space,group status function
-- MGM: draing mutex fix and fix double unlock when restarting a drain job
+- MGM: draining mutex fix and fix double unlock when restarting a drain job
 - MGM: fixes in JSON formatting, reencoding of non-http friendly tags/letters like <>?@
 - FST: wait for pending async requests in the close method
 - SPEC: remove directory creation scripting from spec files

@@ -5,7 +5,7 @@ group
 
    usage:
   group ls [-s] [-g <depth>] [-b|--brief] [-m|-l|--io] [<groups>] : list groups
-  	 <groups> : list <groups> only, where <groups> is a substring match and can be a comma seperated list
+  	 <groups> : list <groups> only, where <groups> is a substring match and can be a comma separated list
   	       -s : silent mode
   	       -g : geo output - aggregate group information along the instance geotree down to <depth>
   	       -b : brief output
@@ -17,4 +17,3 @@ group
   group set <group-name> on|off : activate/deactivate group
   	  => when a group is (re-)enabled, the drain pull flag is recomputed for all filesystems within a group
   	  => when a group is (re-)disabled, the drain pull flag is removed from all members in the group
-  

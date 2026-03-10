@@ -15,12 +15,12 @@ Storage Node Tagging
 --------------------
 
 .. code-block:: bash
-   
-   # The EOS host geo location tag used to sort hosts into geographical (rack) locations 
+
+   # The EOS host geo location tag used to sort hosts into geographical (rack) locations
    export EOS_GEOTAG="CERN::513::1"
 
 .. warning::
-   Each portion of the GeoTag string must be delimited by "::" and have a maximun length of 8 characters
+   Each portion of the GeoTag string must be delimited by "::" and have a maximum length of 8 characters
 
 Client Tagging
 --------------
@@ -31,7 +31,7 @@ to a certain location. This is done via the **vid** command:
 .. code-block:: console
 
    eos vid -h
-   ... 
+   ...
    vid set geotag <IP-prefix> <geotag>  : add to all IP's matching the prefix <prefix> the geo location tag <geotag>
                                           N.B. specify the default assumption via 'vid set geotag default <default-tag>'
 
@@ -46,6 +46,5 @@ As an example we could define the default location to be CERN:
 While we want to assign all clients with 111.222.x.x. to CANADA:
 
 .. code-block:: bash
-   
-   eos vid set 111.122. CANADA
 
+   eos vid set 111.122. CANADA

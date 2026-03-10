@@ -18,7 +18,7 @@ the so called LRU policies.
    Automatic time based cleanup of empty directories                                     ctime
    Time based LRU cache with expiration time settings                                    ctime
    Automatic time based layout conversion if a file reaches a defined age                ctime
-   Automatic size based layout conversion if a file fullfills a given size rule          size
+   Automatic size based layout conversion if a file fulfills a given size rule          size
    Automatic time based layout conversion if a file has not been used for specified time mtime
    ===================================================================================== =====================
 
@@ -118,7 +118,7 @@ use the following convention when specifying the age interval for the various
  |**y/Y**        | years         |
  +---------------+---------------+
 
-All the size related symbols refer to the International System of Units, therfore
+All the size related symbols refer to the International System of Units, therefore
 1K is 1000 bytes.
 
 .. code-block:: bash

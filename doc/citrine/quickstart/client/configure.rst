@@ -29,7 +29,7 @@ and now we can invoce the CLI
    # ---------------------------------------------------------------------------
    # EOS  Copyright (C) 2018 CERN/Switzerland
    # This program comes with ABSOLUTELY NO WARRANTY; for details type `license'.
-   # This is free software, and you are welcome to redistribute it 
+   # This is free software, and you are welcome to redistribute it
    # under certain conditions; type `license' for details.
    # ---------------------------------------------------------------------------
    EOS_INSTANCE=eosfoo.ch
@@ -52,16 +52,16 @@ You can also mount EOS using FUSE mount from eosfoo.ch. First you need to instal
    To install eos-fuse follow instruction at :ref:`eos_base_install`
 
 .. code-block:: text
-   
+
    root@lx001.saske.sk ~ $ cat /etc/sysconfig/eos
    # ------------------------------------------------------------------
    # FUSE Configuration
    # ------------------------------------------------------------------
    # The mount directory for 'eosd'
    export EOS_FUSE_MOUNTDIR=/eos/
-   # The MGM host from where to do the inital mount
+   # The MGM host from where to do the initial mount
    export EOS_FUSE_MGM_ALIAS=eosfoo.ch
-   
+
 
 You can start the mount as the **eosd** service
 
@@ -71,5 +71,3 @@ You can start the mount as the **eosd** service
    service eosd start
    # in CentOS 7 or in fedora 18 and above
    systemclt start eosd
-
-

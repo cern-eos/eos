@@ -19,13 +19,13 @@ There are two major differences to traditional storage systems:
 
 UNIX Permissions
 
-EOS allows to set user, group and other permissions for read write and browsing defined 
+EOS allows to set user, group and other permissions for read write and browsing defined
 by ``'r'(4), 'w'(2), 'x'(1)``, e.g. ``777 ='rwx'``.
 
-Unlike in POSIX the S_ISGID (2---) indicates that any new directory created should automatically inherit all the 
+Unlike in POSIX the S_ISGID (2---) indicates that any new directory created should automatically inherit all the
 extended attributes defined at creation time from the parent directory.
 
-If the parent attributes are changed after creation, they are not automatically 
+If the parent attributes are changed after creation, they are not automatically
 applied to its children. The inheritance bit is always added to any *chmod* automatically. >
 
 All modes for *chmod* have to be given in octal format. For details see **eos chmod --help**.
@@ -34,7 +34,7 @@ The S_ISVTX bit (1---) is displayed whenever a directory has any extended attrib
 
 ACLs
 ----
-ACLs are defined on the directory or file level via the extended attributes. 
+ACLs are defined on the directory or file level via the extended attributes.
 
 .. code-block:: bash
 
@@ -45,16 +45,16 @@ ACLs are defined on the directory or file level via the extended attributes.
 
    For efficiency, file-level ACLs should only be used sparingly, in favour of directory-level ACLs.
 
-The sys.acl attribute can only be defined by SUDO members. 
+The sys.acl attribute can only be defined by SUDO members.
 The user.acl attribute can be defined by the **owner** or SUDO members. It is only evaluated if the sys.eval.useracl attribute is set.
 
 The sys.acl/user.acl attributes are inherited from the parent at the time a directory is created. Subsequent changes to a directory's ACL
-do not automatically apply to child directories. 
+do not automatically apply to child directories.
 
 <acllist> is defined as a comma separated list of rules:
 
 .. code-block:: bash
-   
+
    <acllist> = <rule1>,<rule2>...<ruleN>
 
 A rule is defined in the following way:
@@ -63,10 +63,10 @@ A rule is defined in the following way:
 
    <rule> = u:<uid|username>|g:<gid|groupname>|egroup:<name>|z::{rwxomqcia(!d)(+d)(!u)(+u)}
 
-A rule has three colon-separated fields. It starts with the type of rule: 
-User (u), Group (g), eGroup (egroup) or all (z). The second field specifies the name or 
-the unix ID of user/group rules and the eGroup name for eGroups  
-The last field contains the rule definition. 
+A rule has three colon-separated fields. It starts with the type of rule:
+User (u), Group (g), eGroup (egroup) or all (z). The second field specifies the name or
+the unix ID of user/group rules and the eGroup name for eGroups
+The last field contains the rule definition.
 
 The following tags compose a rule:
 
@@ -83,10 +83,10 @@ The following tags compose a rule:
    !d  forbid deletion of files and directories
    +d  overwrite a '!d' rule and allow deletion of files and directories
    !u  forbid update of files
-   +u  overwrite a '!u' rule and allow updates for files 
+   +u  overwrite a '!u' rule and allow updates for files
    q   grant 'set quota' permissions on a quota node
    c   grant 'change owner' permission on directory children
-   i   set the immutable flag    
+   i   set the immutable flag
    a   grant archiving permission
    === =========================================================================
 
@@ -94,11 +94,11 @@ The following tags compose a rule:
 
 
 Actually, every single-letter permission with the exception of change owner (c) can
-be explicitely denied ('!'), e.g. '!w!r, re-granted ('+'). Change owner
+be explicitly denied ('!'), e.g. '!w!r, re-granted ('+'). Change owner
 permission is only explicitly enabled on grant, so it is denied by default.
 Denials persist after all other rules have been evaluated, i.e. in 'u:fred:!w!r,g:fredsgroup:wrx' the user "fred"
 is denied reading and writing although the group he is in has read+write access.
-Rights can be re-granted (in sys.acl only) even when denied by specyfing e.g. '+d'. Hence,
+Rights can be re-granted (in sys.acl only) even when denied by specifying e.g. '+d'. Hence,
 when sys.acl='g:admins:+d' and then user.acl='z:!d' are evaluated,
 the group "admins" is granted the 'd' right although it is denied to everybody else.
 
@@ -114,16 +114,16 @@ A complex example is shown here:
    #
    # members of egroup 'eos-dev' can read & write & browse
    #
-   # user name dummy can read + write into directory and modify the permissions 
+   # user name dummy can read + write into directory and modify the permissions
    # (chmod), but cannot delete directories inside which are not owned by him.
    #
-   # user name adm can read,write,browse, change-mod, set quota on that 
+   # user name adm can read,write,browse, change-mod, set quota on that
    # directory and change the ownership of directory children
 
 .. note::
 
-   Write-once and '!d' or '!u' rules remove permissions which can only be regained 
-   by a second rule adding the '+u' or '+d' flag e.g. if the matching user ACL 
+   Write-once and '!d' or '!u' rules remove permissions which can only be regained
+   by a second rule adding the '+u' or '+d' flag e.g. if the matching user ACL
    forbids deletion it is not granted if a group rule does not forbid deletion!
 
 
@@ -132,16 +132,16 @@ It is possible to write rules, which apply to everyone:
 .. code-block:: bash
 
    sys.acl="z:i"
- 
+
    # this directory is immutable for everybody
 
 
 The user.acl (if defined) is evaluated after the sys.acl, e.g. If we have:
 
 .. code-block:: bash
-   
+
     sys.acl=’g:admins:+d’ and user.acl=’z:!d’
-    
+
 i.e., the group “admins” is granted the 'd' right although it is denied to everybody else in the user.acl.
 
 
@@ -152,7 +152,7 @@ Finally the ACL can be set via either of the following 2 commands, see `eos acl 
 From EOS version 5.1.14 and later the behavior of recursive ACL set has changed, keeping in view of very large directory trees. Previously any recursive ACL set command ensures that no directory creation happens during the ACL set, while this is synchronous for very large trees with millions of directories, one can end up blocking everything else. This is moved to fine-grained locks, with the downside that a directory created during the time ACLs are applied may not see the ACLs being applied, in case their parent hasn't inherited yet. The old synchronous behavior can be restored with a `--with-synchronous-write-lock` flag, though it is really not recommended for very large tree hierarchies.
 
 .. code-block:: bash
-   
+
    eos attr set sys.acl=<rule_a>,<rule_b>.. /eos/mypath
    eos acl --sys <rule_c> /eos/mypath
    eos acl --front <rule_d> /eos/mypath
@@ -161,16 +161,16 @@ From EOS version 5.1.14 and later the behavior of recursive ACL set has changed,
 The ACLs can be listed by either of these commands as well:
 
 .. code-block:: bash
-    
+
    eos attr ls /eos/mypath
    eos acl -l /eos/mypath
-   
 
-If the operator uses the `eos acl --sys <rule> /eos/mypath` command, the <rule> is composed as follows: 
-`[u|g|egroup]:<identifier>[:|=]<permission>`. The second delimiter [:|=] can be a ":" for modifying permissions 
-or "=" for setting/overwriting permission. Finally a <permission> itself can be added using the "+" or removed using the "-" operators. 
 
-For example:  
+If the operator uses the `eos acl --sys <rule> /eos/mypath` command, the <rule> is composed as follows:
+`[u|g|egroup]:<identifier>[:|=]<permission>`. The second delimiter [:|=] can be a ":" for modifying permissions
+or "=" for setting/overwriting permission. Finally a <permission> itself can be added using the "+" or removed using the "-" operators.
+
+For example:
 
 .. code-block:: bash
 
@@ -180,7 +180,7 @@ For example:
    # if you try to set the deletion permission using ':' modification sign:
    $ eos acl --sys 'egroup:mygroup:!d' /eos/mypath
    #
-   # you will get an error since there is no deletion permission defined yet in the original ACL (i.e. nothing to be modified), but 
+   # you will get an error since there is no deletion permission defined yet in the original ACL (i.e. nothing to be modified), but
    # one can add this new !d permission to the existing ACLs by the '+' operator:
    $ eos acl --sys 'egroup:mygroup:+!d' /eos/mypath
    #
@@ -220,8 +220,8 @@ For example:
 
 .. note::
 
-   * The "-r 0 0" can be used to map your account with the sudoers role. This has to be assigned to your account on the EOS instance by the service manager, see `eos vid ls`), e.g. `eos -r 0 0 acl --sys 'egroup:mygroup:!d' /eos/mypath`. 
-   * If no '--sys' or '--user' is specified, by default the `eos acl` sets '--sys' permissions. 
+   * The "-r 0 0" can be used to map your account with the sudoers role. This has to be assigned to your account on the EOS instance by the service manager, see `eos vid ls`), e.g. `eos -r 0 0 acl --sys 'egroup:mygroup:!d' /eos/mypath`.
+   * If no '--sys' or '--user' is specified, by default the `eos acl` sets '--sys' permissions.
 
 
 Validity of Permissions
@@ -233,30 +233,30 @@ A file ACL (if it exists), or the directory's ACL is evaluated
 for access rights.
 
 A user can read a file if the ACL grants 'r' access
-to the user's uid/gid pair. If no ACL grants the access, 
+to the user's uid/gid pair. If no ACL grants the access,
 [the directory's] UNIX permissions are evaluated for a matching 'r' permission bit.
 
-A user can create a file if the parent directory grants 'w' access via the ACL 
-rules to the user's uid/gid pair. A user cannot overwrite a file if the ACL 
-grants 'wo' permission. If the ACL does not grant the access, UNIX permissions 
+A user can create a file if the parent directory grants 'w' access via the ACL
+rules to the user's uid/gid pair. A user cannot overwrite a file if the ACL
+grants 'wo' permission. If the ACL does not grant the access, UNIX permissions
 are evaluated for a matching 'w' permission bit.
 
 .. note::
 
-   The root role (uid=0 gid=0) can always read and write any file. 
+   The root role (uid=0 gid=0) can always read and write any file.
    The daemon role (uid=2) can always read any file.
 
 File Deletion
 +++++++++++++
 
-A file can be deleted if the parent directory grants 'w' access via the ACL 
-rules to the user's uid/gid pair. A user cannot delete a file, 
-if the ACL grants 'wo' or '!d' permission. 
+A file can be deleted if the parent directory grants 'w' access via the ACL
+rules to the user's uid/gid pair. A user cannot delete a file,
+if the ACL grants 'wo' or '!d' permission.
 
-.. note:: 
+.. note::
 
-   The root role (uid=0 gid=0) can 
-   always delete any file. 
+   The root role (uid=0 gid=0) can
+   always delete any file.
 
 File Permission Modification
 ++++++++++++++++++++++++++++
@@ -267,31 +267,31 @@ parent directory.
 File Ownership
 ++++++++++++++
 
-A user can change the ownership of a file if he/she is member of the SUDO group. 
-The root, admin user and admin group role can always change the ownership of a 
+A user can change the ownership of a file if he/she is member of the SUDO group.
+The root, admin user and admin group role can always change the ownership of a
 file. See **eos chown --help**  for details.
 
 Directory Access
 ++++++++++++++++
 
-A user can create a directory if they have the UNIX 'wx' permission, or the ACL 
+A user can create a directory if they have the UNIX 'wx' permission, or the ACL
 rules grant the 'w' or 'wo' permission. The root role can always create any directory.
 
-A user can list a directory if the UNIX permissions grant 'rx' or the ACL 
-grants 'x' rights. 
+A user can list a directory if the UNIX permissions grant 'rx' or the ACL
+grants 'x' rights.
 
 .. note::
-   
-   The root, admin user and admin group role can always 
+
+   The root, admin user and admin group role can always
    browse directories.
 
 Directory Deletion
 ++++++++++++++++++
 
-A user can delete a directory if he/she is the owner of the directory. 
-A user can delete a directory if he/she is not the owner of that directory 
-in case 'UNIX 'w'permission are granted and '!d' is not defined by a matching 
-ACL rule. 
+A user can delete a directory if he/she is the owner of the directory.
+A user can delete a directory if he/she is not the owner of that directory
+in case 'UNIX 'w'permission are granted and '!d' is not defined by a matching
+ACL rule.
 
 .. note::
 
@@ -304,36 +304,36 @@ ACL rule.
 Directory Permission Modification
 +++++++++++++++++++++++++++++++++
 
-A user can modify the UNIX permissions if they are the owner of the file 
-and/or the parent directory ACL rules grant the 'm' right. 
+A user can modify the UNIX permissions if they are the owner of the file
+and/or the parent directory ACL rules grant the 'm' right.
 
 .. note::
 
-   The root, admin 
+   The root, admin
    user and admin group role can always modify the UNIX permissions.
 
 Directory ACL Modification
 ++++++++++++++++++++++++++
 
-A user can modify a directory's system ACL, if they are a member of the SUDO group. 
-A user can modify a directory's user ACL, if they are the owner of the directory or 
+A user can modify a directory's system ACL, if they are a member of the SUDO group.
+A user can modify a directory's user ACL, if they are the owner of the directory or
 a member of the SUDO group.
 
 Directory Ownership
 +++++++++++++++++++
 
-The root, admin user and admin group role can always change the directory 
-owner and group. 
+The root, admin user and admin group role can always change the directory
+owner and group.
 A normal user can change the directory owner if the system ACL allows this, or if the user ACL allows it *and* they change the owner to themselves.
 
-.. warning:: 
+.. warning::
 
-   Otherwise, only priviledged users can alter the ownership.
+   Otherwise, only privileged users can alter the ownership.
 
 Quota Permission
 ++++++++++++++++
 
-A user can do 'quota set' if he is a sudoer, has the 'q' ACL permission set on 
+A user can do 'quota set' if he is a sudoer, has the 'q' ACL permission set on
 the quota node or on the proc directory ``/eos/<instance>/proc``.
 
 Richacl Support
@@ -426,13 +426,13 @@ To provide atomic add,remove and replacement of permissions one can take advanta
    -l, --lists          List ACL rules
        --user           Set user.acl rules on directory
        --sys            Set sys.acl rules on directory
-   <rule> is created based on chmod rules. 
+   <rule> is created based on chmod rules.
    Every rule begins with [u|g|egroup] followed with : and identifier.
 
    Afterwards can be:
    = for setting new permission .
    : for modification of existing permission.
-  
+
    This is followed by the rule definition.
    Every ACL flag can be added with + or removed with -, or in case
    of setting new ACL permission just enter the ACL flag.
@@ -455,4 +455,3 @@ As an additional measure you can limit the deepness of the directory tree where 
 
 
 The default value for the publicaccesslevel is 1024.
-

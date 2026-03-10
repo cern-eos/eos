@@ -138,7 +138,7 @@ We can now start the **three QuarkDB** instances and they should soon reach a st
      systemctl status xrootd@quarkdb${i}
    done
 
-At this point the **QuarkDB** cluster should be up and running. The logs from the individual instances can be found in ``/var/log/quarkdb/quarkdb[1-3]/xrootd.log``. Using the redis comand line interface, we can inspect the status of our cluster.
+At this point the **QuarkDB** cluster should be up and running. The logs from the individual instances can be found in ``/var/log/quarkdb/quarkdb[1-3]/xrootd.log``. Using the redis command line interface, we can inspect the status of our cluster.
 
 .. code-block:: bash
 

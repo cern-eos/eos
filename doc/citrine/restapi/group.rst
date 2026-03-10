@@ -33,7 +33,7 @@ CLI syntax
 
 .. code-block:: text
 
-   group ls [-s] [-b|--brief] [-m|-l|--io|--IO] [<group>]           : list groups or only <group>. <group> is a substring match and can be a comma seperated list
+   group ls [-s] [-b|--brief] [-m|-l|--io|--IO] [<group>]           : list groups or only <group>. <group> is a substring match and can be a comma separated list
     -s : silent mode
     -b,--brief : display host names without domain names
     -m : monitoring key=value output format

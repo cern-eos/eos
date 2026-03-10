@@ -52,12 +52,12 @@ mv
     create a symlink with <name> pointing to <link-name>
   file tag <name> +|-|~<fsid> :
     add/remove/unlink a filesystem location to/from a file in the location index - attention this does not move any data!
-    unlink keeps the location in the list of deleted files e.g. the location get's a deletion request
+    unlink keeps the location in the list of deleted files e.g. the location gets a deletion request
   file touch [<path>|fid:<fid-dec>|fxid:<fid-hex>] :
     create a 0-size/0-replica file if <path> does not exist or update modification time of an existing file to the present time
-  file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] : 
+  file verify <path>|fid:<fid-dec>|fxid:<fid-hex> [<fsid>] [-checksum] [-commitchecksum] [-commitsize] [-rate <rate>] :
     verify a file against the disk images
-  file verify <path|fid:<fid-dec>|fxid:<fid-hex> -resync : 
+  file verify <path|fid:<fid-dec>|fxid:<fid-hex> -resync :
     ask all locations to resync their file md records
     <fsid>          : verifies only the replica on <fsid>
     -checksum       : trigger the checksum calculation during the verification process

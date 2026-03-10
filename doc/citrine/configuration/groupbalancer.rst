@@ -46,7 +46,7 @@ std. engine no averages are computed, this engine takes static min & max
 threshold values which are absolute `%` of groups fill ratio. Groups with usage
 above the `max_threshold` (for eg 90%) will be chosen for filling to groups with
 usage below `min_threshold`. While for almost all common use cases std. engine
-should fit the bill, when needing to do targetted balancing only on certain
+should fit the bill, when needing to do targeted balancing only on certain
 outliers this engine can be used as a temporary measure. This engine is only
 recommended as a quick fix to balance outliers and then it is recommended to run
 the std. engine to balance for longer periods of time.
@@ -59,7 +59,7 @@ Groupbalancing is enabled/disabled by space:
 .. code-block:: bash
 
    # enable
-   eos space config default space.groupbalancer=on  
+   eos space config default space.groupbalancer=on
    # disable
    eos space config default space.groupbalancer=off
 
@@ -129,7 +129,7 @@ Make sure that you have enabled the converter and the **converter.ntx** space
 variable is bigger than **groupbalancer.ntx** :
 
 .. code-block:: bash
-  
+
    # enable the converter
    eos space config default space.converter=on
    # run 20 conversion transfers in parallel
@@ -139,8 +139,8 @@ One can see the same settings and the number of active conversion transfers
 (scroll to the right):
 
 .. code-block:: bash
-   
-   eos space ls 
+
+   eos space ls
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
    #     type #           name #  groupsize #   groupmod #N(fs) #N(fs-rw) #sum(usedbytes) #sum(capacity) #capacity(rw) #nom.capacity #quota #balancing # threshold # converter #  ntx # active #intergroup
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

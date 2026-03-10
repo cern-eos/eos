@@ -4,7 +4,7 @@ node
 .. code-block:: text
 
    usage:
-  node ls [-s] [-b|--brief] [-m|-l|--sys|--io|--fsck] [<node>] : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list
+  node ls [-s] [-b|--brief] [-m|-l|--sys|--io|--fsck] [<node>] : list all nodes or only <node>. <node> is a substring match and can be a comma separated list
   	      -s : silent mode
   	      -b : display host names without domain names
   	      -m : monitoring key=value output format
@@ -39,4 +39,3 @@ node
   node proxygrouprm <group-name> <queue-name>|<host:port> : rm a node from a proxy group
   node proxygroupclear <queue-name>|<host:port> : clear the list of groups a node belongs to
   node status <queue-name>|<host:port> : print's all defined variables for a node
-  

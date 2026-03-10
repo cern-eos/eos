@@ -33,7 +33,7 @@ CLI syntax
 
 .. code-block:: text
 
-   node ls [-s] [-b|--brief] [-m|-l|--sys|--io|--fsck] [<node>]  : list all nodes or only <node>. <node> is a substring match and can be a comma seperated list
+   node ls [-s] [-b|--brief] [-m|-l|--sys|--io|--fsck] [<node>]  : list all nodes or only <node>. <node> is a substring match and can be a comma separated list
       -s : silent mode
       -b,--brief : display host names without domain names
       -m : monitoring key=value output format
@@ -84,7 +84,7 @@ CLI syntax
 node set
 --------
 
-Activate/Deactive/Define a node.
+Activate/Deactivate/Define a node.
 
 REST syntax
 +++++++++++

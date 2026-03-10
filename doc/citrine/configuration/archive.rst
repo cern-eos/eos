@@ -31,7 +31,7 @@ follows:
   export LOG_DIR=/var/log/eos/archive/
 
 The variables set in ``/etc/sysconfig/eosarchived`` are general ones that apply
-to both the daemon process and the individual tranfer proceses spawned later on.
+to both the daemon process and the individual transfer processes spawned later on.
 
 Another file which holds further configurable values is
 ``/etc/eosarchived.conf``. The advantage of this file is that it can be modified

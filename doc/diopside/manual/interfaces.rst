@@ -140,7 +140,7 @@ This fields describe if this MGM is currently the master `is_master=true` and ou
     ALL      current container id             322347
     # ------------------------------------------------------------------------------------
 
-These fields are self-explaining: number of files and container (directories) created since the MGM started up. The current IDs are the internal IDs for the next created file/directory. With every creation these number is incremented. IDs are never re-used!
+These fields are self-explaining: number of files and container (directories) created since the MGM started up. The current IDs are the internal IDs for the next created file/directory. With every creation these number is incremented. IDs are never reused!
 
 .. index::
    pair: Namespace; FUSE Statistics
@@ -326,7 +326,7 @@ Here is an example output of `eos ns stat`, the header columns are explained her
 
 .. code-block:: bash
 
-   * who                  : all => aggreation over all users
+   * who                  : all => aggregation over all users
    * sum                  : number of times this command has been called since instance startup
    * 5s                   : average rate in Hz during the last 5s
    * 1min                 : average rate in Hz during the last minutes
@@ -575,7 +575,7 @@ It is recommend in case of many users to use the `eos ns stat -a -n` switch to a
 .. epigraph::
 
     ===========================================  ======================================================================================
-    Counter                                      Desription
+    Counter                                      Description
     ===========================================  ======================================================================================
     Access                                       internal access function checking permissions
     AccessControl                                usage of 'eos access' commands
@@ -593,7 +593,7 @@ It is recommend in case of many users to use the `eos ns stat -a -n` switch to a
     Chown                                        chown calls
     Commit                                       commit calls (triggered by each replica closed on an FST)
     CommitFailedFid                              internal meta-data mismatch during commit concerning file id
-    CommitFailedNamespace                        internal failure when commiting an update to the namespace
+    CommitFailedNamespace                        internal failure when committing an update to the namespace
     CommitFailedParameters                       commit call misses parameters
     CommitFailedUnlinked                         commit on a file which had already been deleted
     ConversionDone                               successful conversions
@@ -640,7 +640,7 @@ It is recommend in case of many users to use the `eos ns stat -a -n` switch to a
     Eosxd::int::BcMDSup                          broadcast calls suppressed by suppression rules 'eos fusex conf'
     Eosxd::int::BcRefresh                        broadcast calls to tell a FUSE client to refresh meta-data
     Eosxd::int::BcRefreshExt                     broadcast calls to tell a FUSE client to refresh meta-data triggered by non-FUSE clients
-    Eosxd::int::BcRefreshExtSup                  broadcast calls to tell a FUSE client to refresh meta-data triggered by non-FUSE clients suppressed by suppresion rules 'eos fusex conf'
+    Eosxd::int::BcRefreshExtSup                  broadcast calls to tell a FUSE client to refresh meta-data triggered by non-FUSE clients suppressed by suppression rules 'eos fusex conf'
     Eosxd::int::BcRefreshSup                     broadcast calls to tell a FUSE client to refresh meta-data suppressed by suppression rules 'eos fusex conf'
     Eosxd::int::BcRelease                        calls to release a capability to a FUSE client
     Eosxd::int::BcReleaseExt                     calls to release a capability to a FUSE client triggered by non-FUSE clients
@@ -898,7 +898,7 @@ Remove entry after `allow`:
 .. code-block:: bash
 
   eos access unallow user foo
-  eos accces unallow group bar
+  eos access unallow group bar
   eos access unallow host myhost.my.domain
   eos access unallow domain my.domain
 
@@ -926,7 +926,7 @@ Clients matching any of these rules will be stalled 5 minutes (receive a *WAIT* 
 
 .. note::
 
-  If you need to ban a token, the token voucher ID which you specifiy to block it, is shown as logid in the MGM logfile when the _IdMap_ function has been called. If you have the token available you can see the voucher ID by running
+  If you need to ban a token, the token voucher ID which you specify to block it, is shown as logid in the MGM logfile when the _IdMap_ function has been called. If you have the token available you can see the voucher ID by running
 
   `eos token --token zteos64:...`.
 
@@ -1108,7 +1108,7 @@ Examples to define these are shown here:
  Space Attributes
 -----------------
 
-Space attributes allow to define a set of exteneded attributes which appear in attribute listing of any directory linked to a given space. A directory reference space attributes by *sys.forced.space* or if not defined it will reference attributes in the *default* space. Space attributes allow to reduce the directory-meta data size because attributes have not to be stored with each directory individually. A specialized space attribute is *sys.acl*, which is explained in detail in the permission (ACL) system section. *sys.acl* attributes are syntax checked and provide left- and right-positioned ACL extensions. All other space attributes can either overwrite/define attributes appearing in each space referencing directory or they can be defined as optional default attribute, which is used only if a directory does not define the attribute.
+Space attributes allow to define a set of extended attributes which appear in attribute listing of any directory linked to a given space. A directory reference space attributes by *sys.forced.space* or if not defined it will reference attributes in the *default* space. Space attributes allow to reduce the directory-meta data size because attributes have not to be stored with each directory individually. A specialized space attribute is *sys.acl*, which is explained in detail in the permission (ACL) system section. *sys.acl* attributes are syntax checked and provide left- and right-positioned ACL extensions. All other space attributes can either overwrite/define attributes appearing in each space referencing directory or they can be defined as optional default attribute, which is used only if a directory does not define the attribute.
 
 Space attributes are defined like:
 
@@ -1135,7 +1135,7 @@ Space attributes are listed in the usual manner:
 
 .. index::
    pair: Interfaces; Space policies
-   pair: Interfaces; Appication policies
+   pair: Interfaces; Application policies
 
 Space and Application Policies
 ----------------------------------
@@ -1339,7 +1339,7 @@ an erasure coded **disk** space.
 Local Overwrites
 ^^^^^^^^^^^^^^^^
 
-The space polcies are overwritten by the local extended attribute
+The space policies are overwritten by the local extended attribute
 settings of the parent directory
 
 
@@ -1378,7 +1378,7 @@ Policies are deleted by setting a space policy with
 Displaying space policies
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Policies are displayd using the `space status` command:
+Policies are displayed using the `space status` command:
 
 .. code-block:: bash
 
@@ -1420,7 +1420,7 @@ under two conditions:
 *   an existing file is accessed  (use case TIERING)
 
 Automatic conversion policy hooks are triggered by the
-ReplicationTracker. You find conversions triggerd in the
+ReplicationTracker. You find conversions triggered in the
 **ReplicationTracker.log** logfile.
 
 To use automatic conversion hooks one has to enable policy conversion in
@@ -1673,7 +1673,7 @@ refer to Space Policies.
 Quota
 -----
 
-The EOS quota system provides user, group and project quota similiar to
+The EOS quota system provides user, group and project quota similar to
 filesystems like EXT4, XFS ... e.g. quota is expressed as max. number of
 inodes(=files) and maximum volume. The implementation of EOS quota uses the
 given inode limit as hard quota, while volume is applied as soft quota e.g.
@@ -1719,7 +1719,7 @@ The above configuration defines user quota for user ``adm`` with 1 TB of volume
 quota and 1 Mio inodes under the directory subtree ``/eos/dev/plain``.
 As you may notice EOS distinguishes between logical bytes and (physical) bytes.
 Imagine a quota node subtree is configured to store 2 replica for each file,
-then a 1 TB quota allows you effectivly to store 2 TB of raw data.
+then a 1 TB quota allows you effectively to store 2 TB of raw data.
 
 .. important::
    All quotas set via the 'quota set' command define volume in raw bytes
@@ -2241,7 +2241,7 @@ A normal user can change the directory owner if the system ACL allows this, or i
 
 .. warning::
 
-   Otherwise, only priviledged users can alter the ownership.
+   Otherwise, only privileged users can alter the ownership.
 
 Quota Permission
 """"""""""""""""
@@ -2355,7 +2355,7 @@ For example ACLs are configured in a space like:
 
                 # insert space ACL on the left position (first evaluated)
                 space config default space.attr.sys.acl=<u:poweruser:rwxqmcXA
-                # insert space ACL on the right position (last evalutated)
+                # insert space ACL on the right position (last evaluated)
                 space config default space.attr.sys.acl=>u:poweruser:rwxqmcXA
                 # user space ACL if there is no sys.acl on the referenced directory
                 space config default space.attr.sys.acl=|u:poweruser:rwxqmcXA
@@ -2505,7 +2505,7 @@ Displaying current links
 ^^^^^^^^^^^^^^^^^^^^^^^^
 
 The `route ls` command shows current active links. An asterix is displayed in
-front of the MGM node which acts as a master for that paricular mapping.
+front of the MGM node which acts as a master for that particular mapping.
 
 .. code-block:: bash
 
@@ -2570,7 +2570,7 @@ follows:
   export LOG_DIR=/var/log/eos/archive/
 
 The variables set in ``/etc/sysconfig/eosarchived`` are general ones that apply
-to both the daemon process and the individual tranfer proceses spawned later on.
+to both the daemon process and the individual transfer processes spawned later on.
 
 Another file which holds further configurable values is
 ``/etc/eosarchived.conf``. The advantage of this file is that it can be modified
@@ -2598,7 +2598,7 @@ ZMQ files are stored.
 Another variable that needs to be set for the **MGM** node is the location where
 all the archived directories are saved. Care should be taken so that the user
 name under which the **eosarchived** daemon runs, has the proper rights to read
-and write files to this remote location. This envrionment variables can be set in
+and write files to this remote location. This environment variables can be set in
 the ``/etc/sysconfig/eos`` file as follows:
 
 .. code-block:: bash
@@ -2644,8 +2644,8 @@ Some important notes about the **eos-archive.keytab** file:
 - the permissions on this keytab file must match the identity under which the
   eoarchived daemon is running
 
-Futhermore, the **eosarchi** user needs to be added to the **sudoers** list in
-EOS so that it can perform any type of operation while creating or transfering
+Furthermore, the **eosarchi** user needs to be added to the **sudoers** list in
+EOS so that it can perform any type of operation while creating or transferring
 archives.
 
 .. code-block:: console
@@ -2833,7 +2833,7 @@ that contains the recycle project identifier. Example:
    EOS Console [root://localhost] |/eos> recycle project --path /eos/dev/plain --acl u:1234:rx
 
 Listing the extended attributes of the given path will display a new pair
-called **sys.forced.recycleid** that coresponds to the container identifier
+called **sys.forced.recycleid** that corresponds to the container identifier
 of the path.
 
 .. code-block:: bash
@@ -3172,7 +3172,7 @@ The supported notification protocols are:
 - activeMQ (Message)
 - redis (PUBLISH)
 
-The message which is sent upstream contains a JSON document derived from the protobuf defintion of eos::rpc::MDNotification e.g.
+The message which is sent upstream contains a JSON document derived from the protobuf definition of eos::rpc::MDNotification e.g.
 
 .. code-block:: bash
 
@@ -3390,7 +3390,7 @@ Here is an  example for a dynamic attribute:
 Configuring retry policies for  **bash:shell** workflows
 ````````````````````````````````````````````````````````
 
-If a **bash:shell** workflow failes e.g. the command returns rc!=0 and no retry policy is defined, the workflow job ends up in the **failed** queue. For each
+If a **bash:shell** workflow fails e.g. the command returns rc!=0 and no retry policy is defined, the workflow job ends up in the **failed** queue. For each
 workflow the number of retries and the delay for retry can be defined via extended attributes. To reschedule a workflow after a failure the shell command has to return **EAGAIN** e.g. ``exit(11)``.
 The number of retries for a failing workflow can be defined as:
 
@@ -3495,7 +3495,7 @@ The devices interface `eos devices` has the main purpose to track storage device
    pair: Devices; Storage Devices
 
 
-The MGM extraction interval used by the async. thread can only be modified in the sysconfig file by definining `EOS_MGM_DEVICES_PUBLISHING_INTERVAL` in seconds.
+The MGM extraction interval used by the async. thread can only be modified in the sysconfig file by defining `EOS_MGM_DEVICES_PUBLISHING_INTERVAL` in seconds.
 
 The CLI interface by default creates overview statistic about all storage devices configured in the instance:
 

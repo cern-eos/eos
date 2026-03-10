@@ -32,11 +32,11 @@ CLI syntax
 
 .. code-block:: text
 
-   space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>. <space> is a substring match and can be a comma seperated list
+   space ls [-s] [-m|-l|--io|--fsck] [<space>]                   : list in all spaces or select only <space>. <space> is a substring match and can be a comma separated list
       -s : silent mode
       -m : monitoring key=value output format
       -l : long output - list also file systems after each space
-      --io : print IO satistics
+      --io : print IO statistics
       --fsck : print filesystem check statistics
 
 
@@ -66,11 +66,11 @@ CLI syntax
       space config <space-name> space.nominalsize=<value>           : configure the nominal size for this space
       space config <space-name> space.balancer=on|off               : enable/disable the space balancer [default=off]
       space config <space-name> space.balancer.threshold=<percent>  : configure the used bytes deviation which triggers balancing            [ default=20 (%)     ]
-      space config <space-name> space.balancer.node.rate=<MB/s>     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]
+      space config <space-name> space.balancer.node.rate=<MB/s>     : configure the nominal transfer bandwidth per running transfer on a node [ default=25 (MB/s)   ]
       space config <space-name> space.balancer.node.ntx=<#>         : configure the number of parallel balancing transfers per node          [ default=2 (streams) ]
       space config <space-name> space.converter=on|off              : enable/disable the space converter [default=off]
       space config <space-name> space.converter.ntx=<#>             : configure the number of parallel conversions per space                 [ default=2 (streams) ]
-      space config <space-name> space.drainer.node.rate=<MB/s >     : configure the nominal transfer bandwith per running transfer on a node [ default=25 (MB/s)   ]
+      space config <space-name> space.drainer.node.rate=<MB/s >     : configure the nominal transfer bandwidth per running transfer on a node [ default=25 (MB/s)   ]
       space config <space-name> space.drainer.node.ntx=<#>          : configure the number of parallel draining transfers per node           [ default=2 (streams) ]
       space config <space-name> space.lru=on|off                    : enable/disable the LRU policy engine [default=off]
       space config <space-name> space.lru.interval=<sec>            : configure the default lru scan interval
@@ -108,7 +108,7 @@ CLI syntax
 
       space define <space-name> [<groupsize> [<groupmod>]]          : define how many filesystems can end up in one scheduling group <groupsize> [default=0]
       => <groupsize>=0 means, that no groups are built within a space, otherwise it should be the maximum number of nodes in a scheduling group
-      => <groupmod> defines the maximun number of filesystems per node
+      => <groupmod> defines the maximum number of filesystems per node
 
 
 
@@ -182,7 +182,7 @@ CLI syntax
 
 .. code-block:: text
 
-      space set <space-name> on|off                                 : enables/disabels all groups under that space ( not the nodes !)
+      space set <space-name> on|off                                 : enables/disables all groups under that space ( not the nodes !)
 
 space rm
 --------
@@ -231,5 +231,3 @@ CLI syntax
 .. code-block:: text
 
       space quota <space-name> on|off                               : enable/disable quota
-
-

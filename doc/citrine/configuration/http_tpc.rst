@@ -8,11 +8,11 @@
 HTTP(XrdHttp) and XRootD TPC with delegated credentials
 ########################################################
 
-There are several ways in which a third-party transfer can be triggerred in an
+There are several ways in which a third-party transfer can be triggered in an
 XRootD based system like EOS. Currently EOS supports third-party-copy transfers
 for both the XRootD and HTTP protocol.
 
-Depending on the authetication/authorization model there are several ways in which
+Depending on the authentication/authorization model there are several ways in which
 a third-party-copy transfer can proceed but they fall in the following broad
 categories:
 
@@ -194,7 +194,7 @@ enable this feature:
     package as EOS can use the default library provided by the XRootD framework,
     namely *libXrdAccSciTokens.so* coming from the *xrootd-server* package.
 
-The following packages are not mandatory but they provide conveninent tools
+The following packages are not mandatory but they provide convenient tools
 for testing the token support against the EOS instance:
 
   - **x509-scitokens-issuer** and **x509-scitokens-issuer-client** that provide

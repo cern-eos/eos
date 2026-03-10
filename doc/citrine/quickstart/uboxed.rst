@@ -26,7 +26,7 @@ We have bundled a demonstration setup of four CERN developed cloud and analysis 
 Preparation
 -----------
 
-The setup scripts will install all required packages. 
+The setup scripts will install all required packages.
 
 .. note::
    Make sure you have no other web server listening on the standard ports. Make sure you have at least 30GB of free space under ``/var/lib/docker/``.
@@ -34,9 +34,9 @@ The setup scripts will install all required packages.
 .. note::
    The installation requires at least docker version 17.03 - if you have an older one we recommend to uninstall it let
    the setup script take care of pulling a newer version.
-   
+
 .. note::
-   In certain environments docker container cannot resolve external domain addresses because nameserver accesss to the default nameserver 8.8.8.8 is blocked. To fix this create a daemon configuration file ``etc/docker/daemon.json`` and restart the docker daemon
+   In certain environments docker container cannot resolve external domain addresses because nameserver access to the default nameserver 8.8.8.8 is blocked. To fix this create a daemon configuration file ``etc/docker/daemon.json`` and restart the docker daemon
    For the CERN DNS server that would be e.g.
 
 .. code-block:: bash

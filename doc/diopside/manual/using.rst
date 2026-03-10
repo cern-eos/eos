@@ -258,7 +258,7 @@ To issue a multipath token you concatenate your paths using '://:' as a delimite
 Token Mapping
 ^^^^^^^^^^^^^
 
-The `tokensudo` functionality can be configured on space level. The purpose is to define, which connections are allowed to use tokens and apply the owner/group information (if embebbed in the token). The default is `always`.
+The `tokensudo` functionality can be configured on space level. The purpose is to define, which connections are allowed to use tokens and apply the owner/group information (if embedded in the token). The default is `always`.
 
 .. code-block:: bash
 
@@ -1261,7 +1261,7 @@ inline.
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
     |    ALL   | visze                 | 517.10 Mb        | virtual memory used by the running daemon                                  |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
-    |    ALL   | rss                   | 35.13 Mb         | resident memory used by the runnig daemon                                  |
+    |    ALL   | rss                   | 35.13 Mb         | resident memory used by the running daemon                                  |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
     |    ALL   | pid                   | 1689             | process id of the running daemon                                           |
     +----------+-----------------------+------------------+----------------------------------------------------------------------------+
@@ -1437,7 +1437,7 @@ single directory the message rate is 100kHz for file-size updates while
 the clients are writing. In the example above if a message hits more
 than 256 listeners and the client names start with b6 or b7 messages
 will be suppressed. Messages emitted when files are created or
-commmitted are not suppressed!
+committed are not suppressed!
 
 Limiting Server Side FUSEx access
 """"""""""""""""""""""""""""""""""
@@ -1605,7 +1605,7 @@ the EOS client and FUSE packages:
    # make sure we have a few utilities
    sudo apt update
    sudo apt install -y curl gpg lsb-release
-   # Setup the APT repositories holding the EOS packaage:
+   # Setup the APT repositories holding the EOS package:
    # Import the EOS GPG key of the repository
    curl -sL http://storage-ci.web.cern.ch/storage-ci/storageci.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/storage-ci.gpg
    # Create the APT repository configuration
@@ -1789,7 +1789,7 @@ Pack a new package
 
 If you try to use or access a package on a different client machine before you call **eos squash pack** you will get errors on clients, because the symbolic link points to a non-existing local directory as long as a package is not closed.
 
-In general you have to treat SquashFS packages as write-once archives. There is the possiblity to unpack a packed archive, modify and re-pack, however this is problematic if a package is already accessed on other clients using the automount mechanism. They won't remount an updated package automatically unless the mount is removed by idle timeouts and re-mounted later.
+In general you have to treat SquashFS packages as write-once archives. There is the possibility to unpack a packed archive, modify and re-pack, however this is problematic if a package is already accessed on other clients using the automount mechanism. They won't remount an updated package automatically unless the mount is removed by idle timeouts and re-mounted later.
 
 
 Package information
@@ -1945,7 +1945,7 @@ You can trim your software releases using:
 
    [root@dev ]# eos squash trim-release /eos/dev/release/mypackage 100
 
-This commmand will keep only versions not older than 100 days.
+This command will keep only versions not older than 100 days.
 
 Additionally you can specify the maximum number of versions to keep:
 
@@ -1958,7 +1958,7 @@ In this case we don't want to keep more than the 10 most recent versions, not ol
 Deleting Release Packages
 """""""""""""""""""""""""
 
-For completeness, there is a command to cleanup a release packge. Be aware that this will delete all your release versions!
+For completeness, there is a command to cleanup a release package. Be aware that this will delete all your release versions!
 
 .. code-block:: bash
 
@@ -2023,7 +2023,7 @@ To create an exclusive extended attribute lock:
    eos -r 101 101 -a myapp cp /eos/dev/lockedfile      - # will fail
    eos -r 100 100 -a anotherapp cp /eos/dev/lockedfile - # will fail
 
-   # create a lock with a given liftime e.g. 1000s
+   # create a lock with a given lifetime e.g. 1000s
    eos -r 100 100 -a myapp file touch -l /eos/dev/lockedfile 1000
 
    # create a lock which only requires the same user to be used
@@ -2242,14 +2242,14 @@ The syntax in the FUSE configuration file is as shown:
                 cat /etc/eos/fuse.my.conf
                 {"encryptionkey":"655361ab-5af9-4697-8a32-8069ade18a27"}
 
-.. NOTE:: To create an unencrypted and encrypted area using single FUSE mounts, it is sufficient to define an encryption key in the FUSE configuration file, have a storage area where the `sys.eos.obfuscate` exteneded attribute is not defined (unencrypted) and one where the `sys.eos.obfuscate` attribute is defined (encrypted).
+.. NOTE:: To create an unencrypted and encrypted area using single FUSE mounts, it is sufficient to define an encryption key in the FUSE configuration file, have a storage area where the `sys.eos.obfuscate` extended attribute is not defined (unencrypted) and one where the `sys.eos.obfuscate` attribute is defined (encrypted).
 
 
 Running Authentication Front-ends
 ---------------------------------
 
 The MGM supports servicing requests from a front-end XRootD authentication server. An authentication front-end server is an XRootD server running the EosAuthOfs plug-in. Using this plug-in the front-end server connects to a standard MGM service (back-end) over ZMQ protocol.
-An authentication front-end allows one to configure a subset of authentication methods and to partition connections of certain use cases to this daemon, shielding the standard MGM service from direct conections.
+An authentication front-end allows one to configure a subset of authentication methods and to partition connections of certain use cases to this daemon, shielding the standard MGM service from direct connections.
 
 To enable a standard MGM to allow connections from an authentication front-end use the following MGM configuration variables:
 
@@ -2353,8 +2353,8 @@ FlatScheduler configuration
 
 EOS v5.2.0 release introduces a new scheduler where scheduling strategies can be
 configured at runtime. These can be enabled on a per space level. The scheduler
-is also weights aware, where a disk is alloted different weights according to
-its capacity, so for groups with heterogenous disks one has a better filling of
+is also weights aware, where a disk is allotted different weights according to
+its capacity, so for groups with heterogeneous disks one has a better filling of
 disk capacities. Currently we fallback to the classical geoscheduler in case
 valid placements using any of the scheduling strategies isn't found.
 

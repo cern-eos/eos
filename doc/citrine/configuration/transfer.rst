@@ -11,14 +11,14 @@ Overview
 
 EOS has three major interfaces to do file transfers.
 
-**eos cp** is an EOS shell command which allows to im- and export files from/to 
-EOS using XRootD, http, gsiftp and s3 protocol. 
-By default all traffic flows via the client issuing the command. 
+**eos cp** is an EOS shell command which allows to im- and export files from/to
+EOS using XRootD, http, gsiftp and s3 protocol.
+By default all traffic flows via the client issuing the command.
 It is possible to use it in 'async' mode where IO is flowing through a third-party host.
 
 **eos file copy** is a third party transfer interface supporting TPC transfers inside the EOS instance.
 
-**eos transfer** allows to run scheduled transfers. 
+**eos transfer** allows to run scheduled transfers.
 IO is bridged via dedicated transfer gateways as explained in the following.
 
 .. ::note
@@ -29,8 +29,8 @@ IO is bridged via dedicated transfer gateways as explained in the following.
 eos cp
 ------
 
-As a first overview we refer to the usage information of the EOS cp command. 
-Currently the support of copy full directory trees is only supported for EOS 
+As a first overview we refer to the usage information of the EOS cp command.
+Currently the support of copy full directory trees is only supported for EOS
 type storage systems.
 
 .. code-block:: console
@@ -53,7 +53,7 @@ type storage systems.
 
 .. note::
 
-   If you deal with directories always add a '/' in the end of source or target 
+   If you deal with directories always add a '/' in the end of source or target
    paths e.g. if the target should be a directory and not a file put a '/' in the end.
    To copy a directory hierarchy use '-r' and source and target directories terminated with '/' !
 
@@ -96,10 +96,10 @@ The access key can be defined in 3 ways:
    env S3_SECRET_ACCESS_KEY=<access-key> [as used in libs3 ]
    <as3-url>?s3.key=<access-key>         [as used in EOS transfers ]
 
-If <src> and <dst> are using S3, we are using the same credentials on both ends 
+If <src> and <dst> are using S3, we are using the same credentials on both ends
 and the target credentials will overwrite source credentials!
 
- 
+
 
 Further Examples
 ++++++++++++++++
@@ -123,7 +123,7 @@ Run the same import via a transfer gateway:
    success: submitted transfer id=128095
    [eoscp TX] [ done       ]    |====================|  100.0% : 9s
    [eoscp] #################################################################
-   [eoscp] # Date                     : ( 1343733064 ) Tue Jul 31 13:11:04 2012 
+   [eoscp] # Date                     : ( 1343733064 ) Tue Jul 31 13:11:04 2012
 
    ...
 
@@ -138,8 +138,8 @@ You can also easily import web files (no upload):
 Transfer Gateways
 -----------------
 
-Every FST node in EOS can act as gateway. 
-In fact it is possible to deploys FSTs only as gateways without any storage 
+Every FST node in EOS can act as gateway.
+In fact it is possible to deploys FSTs only as gateways without any storage
 attached.
 
 A gateway is enabled via the command:
@@ -170,20 +170,20 @@ You see in the output of node ls that each node has two parameters for gateways:
 .. epigraph::
 
    ======== ==================================================================================
-   variable defition
+   variable definition
    ======== ==================================================================================
    gw-ntx   number of parallel transfers on this node
-   gw-rate  bandwith limitation used per transfer (if not specified differently by a transfer)
+   gw-rate  bandwidth limitation used per transfer (if not specified differently by a transfer)
    ======== ==================================================================================
 
-These paremeters are defined via:
+These parameters are defined via:
 
 .. code-block:: bash
 
    EOS Console [root://localhost] |/> node config gateway1.cern.ch gw.rate=100
    EOS Console [root://localhost] |/> node config gateway1.cern.ch gw.ntx=10
 
-You can get a comprehansive summary of the configuration per node using the 
+You can get a comprehansive summary of the configuration per node using the
 **eos node status** command:
 
 .. code-block:: bash
@@ -202,14 +202,14 @@ You can get a comprehansive summary of the configuration per node using the
    symkey                           := G41RrP1y/SLHsf9AhneqbxXaOSU=
    txgw                             := on
 
- 
+
 Transfer Queue and CLI
 ----------------------
 
 The transfer state machine is as follows:
 
 .. epigraph::
-    
+
    ============================== =
    state
    ============================== =
@@ -248,14 +248,14 @@ Interaction with the transfer queue is done via the **eos transfer** CLI.
 
    transfer enable         : start the transfer engine (you have to be root to do that)
    transfer disable        : stop the transfer engine (you have to be root to do that)
-   transfer reset [<id>|--group=<groupname>] 
+   transfer reset [<id>|--group=<groupname>]
 
                            : reset all transfers to 'inserted' state (you have to be root to do that)
    transfer clear          : clear's the transfer database (you have to be root to do that)
-   transfer resubmit <id> [--group=<groupname>] 
+   transfer resubmit <id> [--group=<groupname>]
 
                            : resubmit's a transfer
-   transfer kill <id>|--group=<groupname> 
+   transfer kill <id>|--group=<groupname>
 
    transfer log <id>       : show the log of transfer <id>
 

@@ -42,7 +42,7 @@ Bug Fixes
 - AUTH: Set the ZMQ_LINGER option on the socket so that messages are not retransmitted
 - NS: add missing initialization of pData leading to random compaction crashes/failures
 - MGM: fix race in mkdir which could return EEXIST
-- MGM: fix race in rm 
+- MGM: fix race in rm
 - FUSE: fix memory-leak when read-ahead gets disabled during an open/read/close sequence
 
 Improvement
@@ -134,7 +134,7 @@ Bug Fixes
 Bug Fixes
 +++++++++
 
-- MGM: call 'unlinkAllLocations' instead of 'clearLocations' when trying to re-place an empty already placed file, which didn't reomve entries from the filesystem view leaving files forever undrainable
+- MGM: call 'unlinkAllLocations' instead of 'clearLocations' when trying to re-place an empty already placed file, which didn't remove entries from the filesystem view leaving files forever undrainable
 
 ``V0.3.259 Aquamarine``
 =======================
@@ -207,7 +207,7 @@ Bug Fixes
 Bug Fixes
 +++++++++
 
-- FST: don't block Fmd access for an unitialized filecxerror value (after Resync was called and filecxerror=-1)
+- FST: don't block Fmd access for an uninitialized filecxerror value (after Resync was called and filecxerror=-1)
 
 
 ``V0.3.243 Aquamarine``
@@ -371,7 +371,7 @@ Bug Fix
 - FUSE: fix bug in AuthId manager doing a double lock when session id != process id
 - FUSE: set the link count for files/links to 1 to make applications like gzip work
 - MGM: fix subtree accounting in the slave follower
-- FST: add an .eosorphans directory to each FST mount point and allow to isolate orphans into this directory by creating a tag file  <mnt>/.eosscan. The .eosscan file removes any smearing and sleep time between scans. The original location is tagged as an exteneded attribute after during the move
+- FST: add an .eosorphans directory to each FST mount point and allow to isolate orphans into this directory by creating a tag file  <mnt>/.eosscan. The .eosscan file removes any smearing and sleep time between scans. The original location is tagged as an extended attribute after during the move
 
 ``V0.3.228 Aquamarine``
 =======================
@@ -593,7 +593,7 @@ Bug Fix
 Bug Fix
 +++++++
 
-- FST: fix 'ScanDir' funcionality to deal properly with files which get opened during a scan for update and don't flag them as checksum error files
+- FST: fix 'ScanDir' functionality to deal properly with files which get opened during a scan for update and don't flag them as checksum error files
 - FST: ignore flagged checksum errors when updating a file
 
 ``V0.3.209 Aquamarine``
@@ -648,7 +648,7 @@ Bug Fix
 +++++++
 
 - FUSE: protect accessing a 0 pointer in opendir
-- FUSE: store all invisble items in the FUSE stat cache although they are not visible in the listing
+- FUSE: store all invisible items in the FUSE stat cache although they are not visible in the listing
 
 ``V0.3.203 Aquamarine``
 =======================
@@ -692,7 +692,7 @@ Bug Fix
 - FUSE: fix out of lock scope iterator used in error message
 - FUSE: give no validity to attributes coming as fuse-replies to a create call (since uid/gid can be different on MGM side from uid/gid of the caller)
 - FST: prevent deleteOnClose when clients retried an open e.g. open | open | write| close (the XRootD client might replay an open with a new connection and this can lead to file loss)
-- FST: switch filesystems to RO when /var parition is 90% full
+- FST: switch filesystems to RO when /var partition is 90% full
 - FST: make deleteOnClose a warning on client disconnect
 
 ``V0.3.199 Aquamarine``
@@ -709,7 +709,7 @@ Bug Fix
 Bug Fix
 +++++++
 
-- HTTP: drop FileClose handler to avoid SEGVs due to inteference between FileClose and Complete handler
+- HTTP: drop FileClose handler to avoid SEGVs due to interference between FileClose and Complete handler
 - NS: avoid failing compaction when a slave was promoted to be master due to virtual root entry with 0 offset in changelog file
 - ARCHIVE: use MGM alias to reference instances in archives
 - FST: protect against 0-size buffer response bug in XRootD 3.3.6
@@ -727,7 +727,7 @@ New Feature
 Bug Fix
 +++++++
 
-- FUSE: return correct (also overlayed) mode bits after file creation
+- FUSE: return correct (also overlaid) mode bits after file creation
 
 ``V0.3.196 Aquamarine``
 =======================
@@ -779,9 +779,9 @@ Bug Fix
 - MGM: add monitoring switch to space,group status function
 - MGM: draing mutex fix and fix double unlock when restarting a drain job
 - MGM: fixes in JSON formatting, reencoding of non-http friendly tags/letters like <>?@
-- MGM: fix possible lock problem in 'eos find' mgm iplementation
+- MGM: fix possible lock problem in 'eos find' mgm implementation
 - MGM: fix memory leak in fs.Ping (xrootd3 mem leak)
-- MGM: fix bug when revoking sudo priviledges
+- MGM: fix bug when revoking sudo privileges
 - MGM: decode all base64 prefixed attr values before storing in attr_set
 - MGM: return base64 encoded attributes in attr_get when called via FUSE
 - NS:  handled uncatched exception in the slave follower when looking for a quota node
@@ -1032,7 +1032,7 @@ New Feature
 
 - FUSE: deal properly with security/system.posix_acl attributes in (cp -a errors)
 - FUSE: reduce significantly memory footprint for tight file creation loops - default in-memory cache reduced from 1M to 4k
-- FUSE: cleanup in-memory caches of deleted files immediatly
+- FUSE: cleanup in-memory caches of deleted files immediately
 - FUSE: use asynchronous writes in release call and gain 25% performance
 - FUSE: prefer readlocks when submitting a piece to the wb-cache and refresh iterator if mutex upgrade from r->w is needed
 - WebDAV: return logical bytes as quota
@@ -1066,7 +1066,7 @@ Bug Fixes
 New Feature
 +++++++++++
 
-- remove 'chown -R' on FST paritions which was used to compensate a bug visible in 0.3.137 since it might introduce large unnecessary boot times when updating from versions < 0.3.137
+- remove 'chown -R' on FST partitions which was used to compensate a bug visible in 0.3.137 since it might introduce large unnecessary boot times when updating from versions < 0.3.137
 
 ``V0.3.169 Aquamarine``
 =======================
@@ -1171,7 +1171,7 @@ Bug Fixes
 
 - mask all special mode bits in FUSE (was breaking writes via CIFS server if no group-w bit set)
 - fix missing lock in TPC handling function in storage nodes
-- apply removed sudoer priviledged in running instance
+- apply removed sudoer privileged in running instance
 
 New Features
 ++++++++++++
@@ -1202,7 +1202,7 @@ Bug Fixes
 New Features
 ++++++++++++
 
-- add new encoding feature allowing full supoort of all characters via FUSE
+- add new encoding feature allowing full support of all characters via FUSE
 - remove global locks around XrdCl calls in FUSE for better parallelism and less lock contention
 - add version/fsctl call to discover available (FUSE) features of an MGM service
 - add convenience RPMs to configure EOS repositories for YUM installation
@@ -1286,10 +1286,10 @@ New Features
 ++++++++++++
 
 - disintiguish OC propfind and 'normal' propfind requests to report sync time or modification time of a directory
-- fix 409 ERROR for HTTP PUT on non-existant path
+- fix 409 ERROR for HTTP PUT on non-existent path
 - don't commit anymore mtime from FSTs for FUSE clients - let the FUSE client execute utime during close
 - encode mtime.tv_nsec in the XRootD stat responses (inside device id) to track mtime with ns precision on open files
-- protect plain-layout read-ahead mechamism with respect to size changing files
+- protect plain-layout read-ahead mechanism with respect to size changing files
 - FUSE: implementation refactoring (will break mtime consistency when used against old instances)
 - => use negative stat cache of the kernel
 - => add temporary and size limited in-memory rw cache per file to avoid waiting for flush of not written out pieces
@@ -1316,7 +1316,7 @@ New Features
 Bug Fixes
 +++++++++
 
-- reenable FUSE concurrent opens and close
+- re-enable FUSE concurrent opens and close
 - fix FUSE lazy open and negative stat cache broken in the previous release
 - fix wrong timestamping of symlinks
 
@@ -1352,7 +1352,7 @@ New Features
 ++++++++++++
 
 - add progress report on TTY console for all boot steps and estimate of boot time
-- automatically store version in the recyle bin and allow to recall using 'recycle restore -r <key>'
+- automatically store version in the recycle bin and allow to recall using 'recycle restore -r <key>'
 
 Bug Fixes
 +++++++++
@@ -1613,7 +1613,7 @@ Bug Fixes
 - use correct lock type (write) for merge,attr:set calls
 - resolve locking issue when new SpaceQuota objects have to be created
 - implement a fast and successful shutdown procedure for the MGM
-- implement saveguard for the manager name configuration in FSTs
+- implement safeguard for the manager name configuration in FSTs
 
 ``V0.3.117 Aquamarine``
 =======================
@@ -1727,7 +1727,7 @@ Bug Fixes
 Bug Fixes
 +++++++++
 - fix 'attr' get' function if no attribute links are used
-- use '_attr_ls' consistently instead of directy namespace map (to enable links everywhere)
+- use '_attr_ls' consistently instead of directly namespace map (to enable links everywhere)
 - fix PROPPATCH response to be 'multi-status' 207
 
 ``V0.3.101 Aquamarine``
@@ -1789,7 +1789,7 @@ Bug Fixes
 New Features
 ++++++++++++
 - add dummy responses for LOCK,UNLOCK,PROPPATCH enabling OSX & Windows WebDAV clients
-- allow to modifiy only group ownership in chown
+- allow to modify only group ownership in chown
 
 ``V0.3.95 Aquamarine``
 ======================
@@ -1861,7 +1861,7 @@ Bug Fixes
 New Features
 ++++++++++++
 - [webdav] add possibility to exclude directory syncs via 'sys.allow.oc.sync'
-- [webdav] add support to do path replacments provdided by two special header flosg CBOX_CLIENT_MAPPING & CBOX_SERVER_MAPPING
+- [webdav] add support to do path replacements provided by two special header flosg CBOX_CLIENT_MAPPING & CBOX_SERVER_MAPPING
 
 ``V0.3.51 Beryl``
 =================
@@ -1949,7 +1949,7 @@ Bug Fixes
 New Features
 ++++++++++++
 - add global VST monitoring support - by default all running EOS instances are visible with some basic parameters using the 'vst' command
-- add support to feed VST informatino using UDP into InfluxDB for vizualisation with Grafana
+- add support to feed VST informatino using UDP into InfluxDB for visualisation with Grafana
 - add global-mq config file to run a global VST broker
 - support 'mtime' propagation as needed by OwnCloud sync client to optimize the sync process
 - better support OwnCloud sync clients
@@ -1957,7 +1957,7 @@ New Features
 - add support for atomic file uploads - files are visible with the target name when they are complete - disabled for FUSE
 - support LDAP authentication (basic HTTP authentication) in NGINX proxy on port 4443 (by default)
 - add 'file info' command for directories
-- implement 'fsck repair --adjust-replica-nodrop' for safe repair (nothing get's removed - only added)
+- implement 'fsck repair --adjust-replica-nodrop' for safe repair (nothing gets removed - only added)
 - allow 'grep'-like functionality in 'fs ls' commands
 - support encoding models like UTF-8 (set export EOS_UTF8=1 in /etc/sysconfig/eos)
 - accept any checksum configuration in 'xrootd.chksum' config file

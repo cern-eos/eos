@@ -8,25 +8,25 @@ The EOS backup system backs up EOS data from short-lived, copy-on-write backup c
 into "blobs" onto a local file system or another EOS instance such as CTA.
 
 A backup clone is created at the very beginning of the process, typically within only seconds. From there
-copy-on-write techniques ensure that data remain unchanged as of the clone creation time while they are 
+copy-on-write techniques ensure that data remain unchanged as of the clone creation time while they are
 copied to backup media, typically much slower. The system operates on
-a directory hierarchy and supports full and differential/incremental backups. Backups can be nested, i.e a higher level
+a directory hierarchy and supports full and differential/incremental backups. Backups can be nested, i.e. a higher level
 backup will skip directories handled by lower-level backups.
 
 A file is included in an incremental backup based on
 file modification time tracked independently of mtime: the set of files
-modified after a certain timestamp are identified in a json-formatted backup catalogue and marked for copy-on-write 
+modified after a certain timestamp are identified in a JSON-formatted backup catalogue and marked for copy-on-write
 in case of modifications. At the end of the backup, the backup clone is automatically deleted.
 
-Two python
-programs, eos-backup and eos-backup-browser, are the high level entry into the system. 
+Two Python
+programs, eos-backup and eos-backup-browser, are the high-level entry into the system.
 
-- eos-backup scans the catalogue and stores data in blobs. It also performs the inverse operation, reconstructing files from data in backup blobs into an EOS hierachy, based on a series of full/incremental backup catalogues.
+- eos-backup scans the catalogue and stores data in blobs. It also performs the inverse operation, reconstructing files from data in backup blobs into an EOS hierarchy, based on a series of full/incremental backup catalogues.
 
-- eos-backup-browser "mounts" a volatile file system constructed from a sequence of fulle/incremental backup catalogues, which can then be used to quickly view a file (reconstruct it from backup blobs). This can be useful e.g. when searching for clues as to from when a directory should be restored. It is also used to determine which blob files should be present (e.g. recalled from tape) in order to restore a particular sub-hierarchy.
+- eos-backup-browser "mounts" a volatile file system constructed from a sequence of full/incremental backup catalogues, which can then be used to quickly view a file (reconstruct it from backup blobs). This can be useful e.g. when searching for clues as to from when a directory should be restored. It is also used to determine which blob files should be present (e.g. recalled from tape) in order to restore a particular sub-hierarchy.
 
-Each backup results in a backup catalogue to be created describing the directoriey hierarchy. This catalogue is vital as the backup blobs are useless without it, it shouled be stored alongside on backup media alongside the blobs. In addition, a consistent history of at least one full and related incremental backups should be kept: in order to reconstruct a directory hierarchy in a consistent manner, potentially all of them are needed upom restore.
-  
+Each backup results in a backup catalogue to be created describing the directory hierarchy. This catalogue is vital as the backup blobs are useless without it, it should be stored on backup media alongside the blobs. In addition, a consistent history of at least one full and related incremental backups should be kept: in order to reconstruct a directory hierarchy in a consistent manner, potentially all of them are needed upon restore.
+
 Clone internal logic
 --------------------
 
@@ -49,7 +49,7 @@ contents are "reflinked" on the FSTs (see "cp --reflink", which implements a
 copy-on-write on the original FST) into a new file, which is placed in a
 container modelled after their parent containers under
 /eos/<instance>/proc/clone/cloneId. For each file the clone process returns the
-foreseen clone path, for use in backup scripts. 
+foreseen clone path, for use in backup scripts.
 
 3. cloning in hierarchies
 
@@ -57,9 +57,9 @@ Cloning starts at directory level. All files at directory level are tagged with
 the cloneId. The cloning process then recursively descends into subdirectories.
 To prevent this, a directory can be flagged with a different cloneId (i.e. cloning
 a parent directory will not re-clone a child directory previously cloned), or a
-special "dummy" cloneId used as a marker on a directory preventing descent.  
+special "dummy" cloneId used as a marker on a directory preventing descent.
 
-4. clone process details 
+4. clone process details
 
 A cloneId is a [unique] second-resolution timestamp generated automatically at
 the beginning of the cloning process. The clone process is triggered by a "find"
@@ -87,15 +87,15 @@ data are first transferred (using a low-cost "rename") to a clone file under a
 predefined name in the clone hierarchy.
 When a file is
 updated (modified) without OTRUNCATE, a copy-on-write clone is created (using
-reflink, which is low-cost in recent file systems). 
+reflink, which is low-cost in recent file systems).
 
 6. the backup process
 
 "find -j -x sys.clone=+nnnnnnnn /path" clones a directory tree and creates a
-json output for reference, which must be kept safe indicating which files should
+JSON output for reference, which must be kept safe indicating which files should
 be backed up and where their copy-on-write clones. As soon as the clone has been
-created, write operations to files may result in copy-on-write clones be created,
-hence during back-up a decision has to be made whether to back up a possible clone
+created, write operations to files may result in copy-on-write clones being created,
+hence during backup a decision has to be made whether to back up a possible clone
 file or, for a full backup, the live file. For a live file, the decision may even
 have to be revised after the copy if a copy-on-write clone has been created meanwhile.
 
@@ -103,8 +103,8 @@ have to be revised after the copy if a copy-on-write clone has been created mean
 
 After data have been backed up, 'find -x sys.clone=-nnnnnnnn' deletes all the cloneId and
 clone-tag attributes and cleans the clone directory under /proc/clone/cloneId.
-The temporary clones disappear from the FSTs by-and-by. The back-up now 
-resides on backup media only. 
+The temporary clones disappear from the FSTs by-and-by. The backup now
+resides on backup media only.
 
 A typical backup-restore cycle
 ------------------------------
@@ -113,14 +113,14 @@ Here's a complete backup and restore recipe, including incremental (as
 implemented by test/eos-backup-test):
 
 a. backup triggers a full backup issuing 'find -j -x sys.clone=+10 <path>' and
-stores the returned json output for reference in a safe place. For each output line, 
-the json dictionary's key 'n' contains the original path name, 't' the server-store-time,
+stores the returned JSON output for reference in a safe place. For each output line,
+the JSON dictionary's key 'n' contains the original path name, 't' the server-store-time,
 'c' the cloneId (if this is different from the backup's cloneId the file belongs to another
 backup!), 'p' the clonePath suffix. The eos-backup-test program illustrates how
 those can be used for managing backups and restores.
 The backupId is the cloneId returned for the top-level
 directory (the first line). For each file, backup copies the version under the
-clone path to backup media if it exist, or the live file otherwise. If the live
+clone path to backup media if it exists, or the live file otherwise. If the live
 file has been copied, a check is performed again after the copy to assess no
 clone file has been created meanwhile, or the clone file replaces the live file
 on backup media. <path> is backed up recursively, descent into
@@ -142,7 +142,7 @@ can be distinguished in the output by a backupId (often '0') that differs from
 the top-level directory - no need to back them up again;
 
 d. restore collects all stored backup reports (full, incremental 1,
-incremental2, ... up-to-desired-restore date) for <path> into one list sorted by
+incremental2, ... up-to-desired restore date) for <path> into one list sorted by
 filename and backupId. The last (!) incremental report contains the *final* list
 of files to be restored.  For every file in the sorted list, only the most
 recent (highest backupId) is restored from backup media (and only if it appears
@@ -174,7 +174,7 @@ append `date`:      443
 
 append `date`:      147
 
-"wc -c" on clones:  45          /eos/dockertest/proc/clone/1558357820/Dxxx/Fxxx         
+"wc -c" on clones:  45          /eos/dockertest/proc/clone/1558357820/Dxxx/Fxxx
 
 "wc -c" on live files:  49
 
@@ -216,7 +216,7 @@ eos-backup
 
 /eos pathnames are as seen by the MGM, not fuse-mounted in the local file system!
 
- environment (can also be specified through -U root://eos-instance): 
+ environment (can also be specified through -U root://eos-instance):
    EOS_MGM_URL=root://eos-instance *must* point to the MGM serving /eos/pathName
 
 *Example*: a simple full_backup/make_changes/incremental_backup/restore example in bash::
@@ -243,18 +243,17 @@ eos-backup
  # restore the lot
  eos-backup restore -F $media1/catalog,$media2/catalog,$media3/catalog -B /tmp/Backup /tmp/Restore
 
-   
-eos-backup-browser
+
+eos-browser
 ------------------
 
  eos-backup-browser -F $media1/catalog[,$media2/catalog[,...]] [-L regexp1[,regexp2[,...]] /mountPoint
 
-   mounts the eos-backup tree designated by the catalog Files under /mountPoint, read-only. Files can
-   be copied somewhere else from there, provided the backup media-files are accessible. Can be used to easily recover
+   mounts the eos-backup tree designated by the catalog files under /mountPoint, read-only. Files can
+   be copied somewhere else from there, provided the backup media files are accessible. Can be used to easily recover
    a small set of files, without the need to restore a whole tree!
 
-   if '-L' is specified, it designates a list of regular expressions. All media-files containing data
+   if '-L' is specified, it designates a list of regular expressions. All media files containing data
    for files matching any of the regular expressions are listed. This can be used to establish which files
    would have to be restored from e.g. tape.
-   files can be copied 
-
+   files can be copied

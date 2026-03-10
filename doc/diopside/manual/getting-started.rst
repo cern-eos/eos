@@ -74,7 +74,7 @@ Installation
 ------------
 
 .. code-block:: bash
-  
+
   dnf config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9/x86_64/"
   dnf config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9/x86_64/"
   dnf install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
@@ -103,13 +103,13 @@ To shorten the setup we disable the firewall for the moment. The ports to open i
   systemctl stop firewalld
 
 
-.. note:: 
+.. note::
 
-  After each `daemon run` the shell should hang with the daemon in foreground. If the startup fails, the process will exit. If the startup is successfull use `Control-Z `and type `bg` to put the process in the background and continue with the next service until all four have been started.
- 
+  After each `daemon run` the shell should hang with the daemon in foreground. If the startup fails, the process will exit. If the startup is successful use `Control-Z `and type `bg` to put the process in the background and continue with the next service until all four have been started.
+
 .. code-block:: bash
 
-  # start QuarkDB on this host		  
+  # start QuarkDB on this host
   eos daemon run qdb
   # start MGM on this host
   eos daemon run mgm
@@ -118,8 +118,8 @@ To shorten the setup we disable the firewall for the moment. The ports to open i
   # start FST on this host
   eos daemon run fst
 
-  
-.. note:: 
+
+.. note::
 
   Each command prints commands executed during the daemon initialization phase and the XRootD configuration file used. In reality each EOS service is an XRootD server process with dedicated plug-in and configuration. The init phases have been designed to be able to startup a service without doing ANY customized configuration bringing good defaults.
 
@@ -145,7 +145,7 @@ and to enable the services in the boot procedure
   systemctl enable eos5-qdb@qdb
   systemctl enable eos5-mgm@mgm
   systemctl enable eos5-fst@fst
-  
+
 .. code-block:: bash
 
   ps aux | grep eos
@@ -180,7 +180,7 @@ The default EOS instance name is *eosdev* and in every EOS instance you will the
 
 .. code-block:: bash
 
-  [root@vm root]# eos find -d /eos/ 
+  [root@vm root]# eos find -d /eos/
   path=/eos/
   path=/eos/dev/
   path=/eos/dev/proc/
@@ -215,13 +215,13 @@ The first thing we do is to create the `default` space, which will host all our 
   eos space define default
 
 
-Now we want to attach local disk space to our EOS instance into the `default` space . In this example we will register six filesystems to our instance. The filesystems can be on a single or individual partitions. 
+Now we want to attach local disk space to our EOS instance into the `default` space . In this example we will register six filesystems to our instance. The filesystems can be on a single or individual partitions.
 
 .. code-block:: bash
 
   # create four directories to be used as separate EOS filesystems and own them with the `daemon` account
   for name in 01 02 03 04 05 06; do
-      mkdir -p /data/fst/$name; 
+      mkdir -p /data/fst/$name;
   chown daemon:daemon /data/fst/$name
   done
 
@@ -232,7 +232,7 @@ Now we want to attach local disk space to our EOS instance into the `default` sp
   eosfstregister -r localhost /data/fst/ default:6
 
 
-The `eosfstregister` command lists all directories under `/data/fst/` and assumes that is has to register 6 filesystem to the *default* space indicated by the parameter `default:6` (See `eosfstregister -h` for the command syntax) to the MGM running on `localhost`. Before filesystems are usable, they have to be owned by the `daemon` account. 
+The `eosfstregister` command lists all directories under `/data/fst/` and assumes that is has to register 6 filesystem to the *default* space indicated by the parameter `default:6` (See `eosfstregister -h` for the command syntax) to the MGM running on `localhost`. Before filesystems are usable, they have to be owned by the `daemon` account.
 
 We do now one additional step. By default EOS will place each filesystem from the same node to a separate placement group, so it will create 6 scheduling groups `default.0`, `default.1` ... `default.6` and place filesystem 1 in `default.0`, 2 into `default.1` aso ...
 To write a file EOS selects a group and tries place the file into a single group. If you want now to write files with two replicas you have to have at least 2 filesystems per group, if you want to use erasure coding e.g. RAID6, you would need to have 6 filesystems per group. Therefore we now move all disks into the `default.0` group (disk 1 is already in group `default.0`):
@@ -248,12 +248,12 @@ Exploring EOS Views
 Now you are ready to check-out the four views EOS provides:
 
 .. code-block:: bash
-  
+
   eos space ls
 
 .. code-block:: bash
 
-  eos node ls 
+  eos node ls
 
 
 .. code-block:: bash
@@ -263,7 +263,7 @@ Now you are ready to check-out the four views EOS provides:
 
 .. code-block:: bash
 
-  eos fs ls 
+  eos fs ls
 
 
 All this commands take several additional output options to provide more information e.g. `eos space ls -l` or `eos space ls --io` ...
@@ -301,7 +301,7 @@ We can now upload and download our first file to our storage system. We will cre
 You can list the directory where the file was stored:
 
 .. code-block:: bash
-  
+
    eos ls -l /eos/dev/test/
 
 
@@ -334,16 +334,16 @@ An alternative to running the *eosxd* executable is to use the FUSE mount type:
 In either way, you should be able to see the mount and the configured space using `df`:
 
 .. code-block:: bash
-  
+
   df /eos/
 
 All the usual shell commands will now also work on the FUSE mount.
 
-.. note:: 
-  
-  Be aware that the default FUSE mount does not map the current uid/gid to the same uid/gid inside EOS. Moreover *root* access is always squashed to uid,gid=99 (nobody). 
+.. note::
 
-In summary on this FUSE mount with default configuration on localhost you will be mapped to user *nobody* inside EOS. If you copy a file on this FUSE mount to `/eos/dev/test/` the file will be owned by `99/99`. 
+  Be aware that the default FUSE mount does not map the current uid/gid to the same uid/gid inside EOS. Moreover *root* access is always squashed to uid,gid=99 (nobody).
+
+In summary on this FUSE mount with default configuration on localhost you will be mapped to user *nobody* inside EOS. If you copy a file on this FUSE mount to `/eos/dev/test/` the file will be owned by `99/99`.
 
 Firewall Configuration for external Access
 ------------------------------------------
@@ -369,7 +369,7 @@ If port 1100 is not open, FUSE access still works, but FUSE clients are not disp
 .. code-block:: bash
 
   systemctl start firewalld
-  for port in 1094 1095 1097 1100 7777; do 
+  for port in 1094 1095 1097 1100 7777; do
    firewall-cmd --zone=public --permanent --add-port=$port/tcp
   done
 
@@ -378,13 +378,13 @@ Single Node Quick Setup Code Snippet
 ------------------------------------
 
 .. code-block:: bash
-  
+
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
   yum install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
 
   systemctl start firewalld
-  for port in 1094 1095 1100 7777; do 
+  for port in 1094 1095 1100 7777; do
     firewall-cmd --zone=public --permanent --add-port=$port/tcp
   done
 
@@ -392,13 +392,13 @@ Single Node Quick Setup Code Snippet
 
   systemctl start eos5-qdb@qdb
   systemctl start eos5-mgm@mgm
-  eos node set `hostname -f`:1095 on 
+  eos node set `hostname -f`:1095 on
   systemctl start eos5-fst@fst
-  
+
   sleep 30
 
   for name in 01 02 03 04 05 06; do
-    mkdir -p /data/fst/$name; 
+    mkdir -p /data/fst/$name;
     chown daemon:daemon /data/fst/$name
   done
 
@@ -408,13 +408,13 @@ Single Node Quick Setup Code Snippet
 
   for name in 2 3 4 5 6; do eos fs mv --force $name default.0; done
 
-  eos space set default on 
+  eos space set default on
 
-  eos mkdir /eos/dev/rep-2/                         
+  eos mkdir /eos/dev/rep-2/
   eos mkdir /eos/dev/ec-42/
   eos attr set default=replica /eos/dev/rep-2 /
   eos attr set default=raid6 /eos/dev/ec-42/
-  eos chmod 777 /eos/dev/rep-2/             
+  eos chmod 777 /eos/dev/rep-2/
   eos chmod 777 /eos/dev/ec-42/
 
   mkdir -p /eos/
@@ -425,13 +425,13 @@ Adding FSTs to a single node setup
 ----------------------------------
 
 .. code-block:: bash
-  
+
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
   yum install -y eos-server --nogpgcheck
 
   systemctl start firewalld
-  for port in 1095; do 
+  for port in 1095; do
     firewall-cmd --zone=public --permanent --add-port=$port/tcp
   done
 
@@ -451,19 +451,19 @@ Adding FSTs to a single node setup
   # Verify Node online
   @mgm: eos node ls
 
-  
+
 Expanding single node MGM/QDB setup to HA cluster
 -------------------------------------------------
 In a production environment we need to have QDB and MGM service high-available. We will show here, how to configure three co-located QDB+MGM nodes.The three nodes are called in the example `node1.domain` `node2.domain` `node3.domain`. We assume you running mgm is node1 and new nodes are node2 and node3.
 
 .. code-block:: bash
-  
+
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside/tag/testing/el-9s/x86_64/"
   yum-config-manager --add-repo "https://storage-ci.web.cern.ch/storage-ci/eos/diopside-depend/el-9s/x86_64/"
   yum install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
 
   systemctl start firewalld
-  for port in 1094 1100 7777; do 
+  for port in 1094 1100 7777; do
    firewall-cmd --zone=public --permanent --add-port=$port/tcp
   done
 
@@ -492,13 +492,13 @@ In a production environment we need to have QDB and MGM service high-available. 
   @node1: 127.0.0.1:7777> raft-promote-observer node3.domain:7777
 
   # ( this is equivalent to 'eos daemon config qdb qdb promote node2.domain:7777 )
-  
+
   # Verify RAFT status on any QDB node
   redis-cli -p 777
   127.0.0.1:7777> raft-info
-  
+
   # ( this is equivalent to 'eos daemon config qdb qdb info' )
-  
+
   # Startup MGM services
   @node2: systemctl start eos5-mgm@mgm
   @node3: systemctl start eos5-mgm@mgm
@@ -517,7 +517,7 @@ In a production environment we need to have QDB and MGM service high-available. 
   # you can force the active MGM to run on a given node by running on the current active MGM:
   @node1: eos ns master node2.domain:1094
   success: current master will step down
-  
+
 Three Node Quick Setup Code Snippet
 -----------------------------------
 
@@ -525,7 +525,7 @@ You can also setup a three node cluster from scratch right from the beginning, w
 
 .. code-block:: bash
 
-  # on all three nodes do 
+  # on all three nodes do
   killall -9 xrootd     # make sure no daemons are running
   rm -rf /var/lib/qdb/  # wipe previous QDB database
 
@@ -534,7 +534,7 @@ You can also setup a three node cluster from scratch right from the beginning, w
   yum install -y eos-server eos-quarkdb eos-fusex --nogpgcheck
 
   systemctl start firewalld
-  for port in 1094 1095 1097 1100 7777; do 
+  for port in 1094 1095 1097 1100 7777; do
    firewall-cmd --zone=public --permanent --add-port=$port/tcp
   done
 
@@ -563,7 +563,7 @@ Create new instance sss keys on one node and copy them to the other two nodes:
   scp /eos/eos/fuse.sss.keytab root@node2:/etc/eos.keytab
   scp /etc/eos.keytab root@node3:/etc/eos.keytab
   scp /eos/eos/fuse.sss.keytab root@node3:/etc/eos.keytab
-  
+
 
 Now start QDB on all three nodes:
 
@@ -596,7 +596,7 @@ Now you can inspect the RAFT state on all QDBs:
   16) ----------
   17) MEMBERSHIP-EPOCH 0
   18) NODES node1.domain:7777,node2.domaina:7777,node3.domain:7777
-  19) OBSERVERS 
+  19) OBSERVERS
   20) QUORUM-SIZE 2
 
 
@@ -607,7 +607,7 @@ Here you see that the current LEADER is node2.domain.  If you want to force that
 
   [root@node1 ] eos daemon config qdb qdb coup
 
-and verify using 
+and verify using
 
 .. code-block:: bash
 
@@ -623,7 +623,7 @@ Now we start `mgm` on all three nodes:
   [root@node2] systemctl start eos5-mgm@mgm
   [root@node3] systemctl start eos5-mgm@mgm
 
-You can connect to the MGM on each node. 
+You can connect to the MGM on each node.
 
 .. code-block:: bash
 
@@ -658,7 +658,7 @@ When the default lease time expired, the master should change:
   Sometimes you might observe changes of the master under heavy load. If this happens too frequently you can increase the lease time modifying the `sysconfig` variable of the mgm daemon e.g. to set other 120s lease time (instead of default 60s) you define:
 
   .. code-block:: bash
-    
+
     EOS_QDB_MASTER_LEASE_MS="120000"
 
 
@@ -702,7 +702,7 @@ To replace or remove node foo.bar:7777 one needs only two to three steps:
 Shutdown *QDB* on that node:
 
 .. code-block:: bash
- 
+
   1 [ @drainnode ] : systemctl stop eos5-qdb@qdb
 
 Remove that node on the leader from the membership:
@@ -737,7 +737,7 @@ Backup your QDB database
 .. This will configure your instance to provide http(s) access.
 
 .. .. code-block:: bash
-  
+
 ..   echo "http" >> /etc/eos/config/mgm/mgm.modules
 ..   eos daemon module-init mgm
 ..   systemctl restart eos5-mgm@mgm
@@ -762,7 +762,7 @@ Backup your QDB database
 ..   eos daemon module-init mgm
 ..   systemctl restart eos5-mgm@mgm
 
- 
+
 .. ### Add GSI proxy authentication to your instance with a configuration module
 .. This will enable GSI authentication with certificates and proxies on your instance.
 
@@ -771,5 +771,3 @@ Backup your QDB database
 ..   echo "gsi" >> /etc/eos/config/mgm/mgm.modules
 ..   eos daemon module-init mgm
 ..   systemctl restart eos5-mgm@mgm
-
-

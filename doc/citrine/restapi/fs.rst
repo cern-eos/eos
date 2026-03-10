@@ -40,7 +40,7 @@ CLI syntax
       --io                                : display all filesystems in IO output format
       --fsck                              : display filesystem check statistics
       -d,--drain                          : display all filesystems in drain or draindead status with drain progress and statistics
-      [matchlist]  : [matchlist] can be just the name of the space to display or a comma seperated list of spaces e.g 'default,space'
+      [matchlist]  : [matchlist] can be just the name of the space to display or a comma separated list of spaces e.g 'default,space'
       [matchlist]  : [matchlist] can be a grep style list to filter certain filesystems e.g. 'fs ls -d drain,bootfailure'
       [matchlist]  : [matchlist] can be a combination of space filter and grep e.g. 'fs ls -l space:default,drain,bootfailure'
 
@@ -153,11 +153,11 @@ CLI syntax
       off         : filesystem set disabled
       empty       : filesystem is set to empty - possible only if there are no files stored anymorefs config <fsid> headroom=<size>
       <size> can be (>0)[BMGT]    : the headroom to keep per filesystem (e.g. you can write '1G' for 1 GB)
-   fs config <fsid> scaninterval=<seconds>: 
+   fs config <fsid> scaninterval=<seconds>:
       configures a scanner thread on each FST to recheck the file & block checksums of all stored files every <seconds> seconds. 0 disables the scanning.
    fs config <fsid> graceperiod=<seconds> :
-      grace period before a filesystem with an operation error get's automatically drained
-   fs config <fsid> drainperiod=<seconds> : 
+      grace period before a filesystem with an operation error gets automatically drained
+   fs config <fsid> drainperiod=<seconds> :
       drain period a drain job is waiting to finish the drain procedure
 
 fs rm
@@ -270,7 +270,7 @@ CLI syntax
       -fid  : dump only a list of file id's stored on this filesystem
       -path : dump only a list of file names stored on this filesystem
 
-fs satus
+fs status
 --------
 
 Show status of a filesystem.
@@ -293,7 +293,7 @@ CLI syntax
 .. code-block:: text
 
    fs status [-l] <fs-id> :
-      returns all status variables of a filesystem and calculates the risk of data loss if this filesystem get's removed
+      returns all status variables of a filesystem and calculates the risk of data loss if this filesystem gets removed
    fs status [-l] mount-point> :
       as before but accepts the mount point as input parameters and set's host=<this host>
    fs status [-l] <host> <mount-point> :

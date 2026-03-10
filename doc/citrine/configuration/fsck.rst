@@ -247,13 +247,13 @@ by the mgm (compare the eos fs status <fsid> output).
    Num. entries in DB[mem_n]:                     148152
    Num. files synced from disk[d_sync_n]:         148150
    Num, files synced from MGM[m_sync_n]:          147723
-   Disk/referece size missmatch[d_mem_sz_diff]:   0
-   MGM/reference size missmatch[m_mem_sz_diff]:   140065
-   Disk/reference checksum missmatch[d_cx_diff]:  0
-   MGM/reference checksum missmatch[m_cx_diff]:   0
+   Disk/reference size mismatch[d_mem_sz_diff]:   0
+   MGM/reference size mismatch[m_mem_sz_diff]:   140065
+   Disk/reference checksum mismatch[d_cx_diff]:  0
+   MGM/reference checksum mismatch[m_cx_diff]:   0
    Num. of orphans[orphans_n]:                    427
    Num. of unregistered replicas[unreg_n]:        5078
-   Files with num. replica missmatch[rep_diff_n]: 5081
+   Files with num. replica mismatch[rep_diff_n]: 5081
    Files missing on disk[rep_missing_n]:          0
 
 Check fsck repair activity

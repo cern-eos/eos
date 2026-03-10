@@ -29,8 +29,8 @@ The server is configured via `/etc/sysconfig/eos_env` and the following variable
    EOS_MGM_GRPC_SSL_KEY=/etc/grid-security/daemon/privkey.pem
    EOS_MGM_GRPC_SSL_CA=/etc/grid-security/daemon/ca.cert
 
-It is not recommended to run the GRPC server without TLS support unless you use 
-other measures to restrict access. The server certificate has to match the IPV4 and 
+It is not recommended to run the GRPC server without TLS support unless you use
+other measures to restrict access. The server certificate has to match the IPV4 and
 IPV6 host name if applicable.
 
 
@@ -40,7 +40,7 @@ Identity Handling
 The client mapping is configured using the EOS CLI and the vid interface.
 
 The vid interface allows to map requests to EOS virtual identities. If a GRPC client host
-is not explicitely declared as a GRPC gateway, all requests run as user ``nobody``.
+is not explicitly declared as a GRPC gateway, all requests run as user ``nobody``.
 
 To allow a GRPC client to map to any other user than ``nobody`` add the IP as a gateway:
 
@@ -76,9 +76,9 @@ The syntax of the command options is shown here :
    usage: eos-grpc-ping [--key <ssl-key-file> --cert <ssl-cert-file> --ca <ca-cert-file>] [--endpoint <host:port>] [--token <auth-token>]
 
    e.g. eos-grpc-ping --key /etc/grid-security/daemon/privkey.pem --cert /etc/grid-security/daemon/host.cert --ca /etc/grid-security/daemon/ca.cert --endpoint foo.bar:50051 --token see_my_token
-         
 
-The xecutable ``eos-grpc-md`` is available to get individual meta data in a JSON dump for a file or container or to get a listing of a JSON dump of the parent and all children. 
+
+The xecutable ``eos-grpc-md`` is available to get individual meta data in a JSON dump for a file or container or to get a listing of a JSON dump of the parent and all children.
 
 .. code-block:: text
 

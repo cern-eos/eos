@@ -7,7 +7,7 @@ cd
   cd <dir>|-|..|~
   Options:
   cd <dir> :
-    change into direcotry <dir>. If it does not exist, the current directory will stay as before!
+    change into directory <dir>. If it does not exist, the current directory will stay as before!
   cd - :
     change into the previous directory
   cd .. :

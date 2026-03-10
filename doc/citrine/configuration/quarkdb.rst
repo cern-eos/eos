@@ -10,13 +10,13 @@
 QuarkDB
 =======
 
-`QuarkDB <https://quarkdb.web.cern.ch/docs/master>`_ is a highly available datastore that implements a small subset of the redis command set. It is built on top of rocksdb, an embeddable, transactional key-value store. High availability is achieved through multiple replicated nodes and the raft distributed consensus algorithm. 
+`QuarkDB <https://quarkdb.web.cern.ch/docs/master>`_ is a highly available datastore that implements a small subset of the redis command set. It is built on top of rocksdb, an embeddable, transactional key-value store. High availability is achieved through multiple replicated nodes and the raft distributed consensus algorithm.
 
 .. image:: raft.jpg
    :scale: 100%
    :align: center
 
-The EOS CITRINE version allows to persist the namespace in QuarkDB avoiding the high memory footprint of the in-memory namespace. QuarkDB is considered like a database as an external component which you need to install, configure and manage separatly.
+The EOS CITRINE version allows to persist the namespace in QuarkDB avoiding the high memory footprint of the in-memory namespace. QuarkDB is considered like a database as an external component which you need to install, configure and manage separately.
 
 Preparation
 -----------
@@ -26,7 +26,7 @@ QuarkDB has the best performance when storing KV data on an SSD. To guarantee hi
 Installation
 ------------
 
-We currently provide RPMs for QuarkDB on CentOS 7. 
+We currently provide RPMs for QuarkDB on CentOS 7.
 
 You need to configure first a YUM repository file `/etc/yum.repos.d/quarkdb.repo`:
 
@@ -59,7 +59,7 @@ Each node in the cluster has to use an agreed `cluster-id` to allow to peer betw
 
 .. code-block:: bash
 
-   // node 1 
+   // node 1
    quarkdb-create --path /var/lib/quarkdb/node-1 --clusterID eosfoo.bar --nodes node1foo.bar:7777,node2foo.bar:7777,node3foo.bar:7777
    chown -R daemon:daemon /var/lib/quarkdb/node-3
 
@@ -71,7 +71,7 @@ Each node in the cluster has to use an agreed `cluster-id` to allow to peer betw
    quarkdb-create --path /var/lib/quarkdb/node-3 --clusterID eosfoo.bar --nodes node1foo.bar:7777,node2foo.bar:7777,node3foo.bar:7777
    chown -R daemon:daemon /var/lib/quarkdb/node-3
 
-QuarkDB runs as a protocol plugin inside `XRootD <http://xrootd.org>`_. 
+QuarkDB runs as a protocol plugin inside `XRootD <http://xrootd.org>`_.
 
 To start QuarkDB as an XRootD service you have first to create one configuration file `/etc/xrootd/xrootd-quarkdb.cf` per node referencing the node with `redis.myself`:
 
@@ -112,7 +112,7 @@ The QuarkDB service is managed via **systemd** on CentOS 7:
    # start
    systemctl start xrootd@quarkdb
 
-   # stop 
+   # stop
    systemctl stop  xrootd@quarkdb
 
    # status
@@ -124,14 +124,14 @@ The QuarkDB service is managed via **systemd** on CentOS 7:
 Checking your cluster
 -----------------------
 
-Using the raft algorith the available nodes elect a leader when at least two out of three nodes are available. 
+Using the raft algorithm the available nodes elect a leader when at least two out of three nodes are available.
 
 You can verify the state of each QuarkDB node using the redis-cli:
 
-.. code-block:: bash 
+.. code-block:: bash
 
    redis-cli -p 7777
-  
+
    127.0.0.1:7777> raft-info
     1) TERM 6
     2) LOG-START 0
@@ -160,7 +160,7 @@ You can verify that your cluster is operational setting and getting a key on the
 .. code-block:: bash
 
    // on the leader
-   redis-cli -p 7777 
+   redis-cli -p 7777
    node1.foo.bar:7777> set testkey hello
    OK
    node1.foo.bar:7777> get testkey
@@ -169,7 +169,7 @@ You can verify that your cluster is operational setting and getting a key on the
 Running a single node cluster
 -----------------------------
 
-If you want to test a simplified setup, you can do the pervious steps on a single node and start the cluster with configuration file referencing `redis.mode standalone`:
+If you want to test a simplified setup, you can do the previous steps on a single node and start the cluster with configuration file referencing `redis.mode standalone`:
 
 .. code-block:: bash
 
@@ -203,7 +203,7 @@ QuarkDB is OpenSource and available on `GitHUB <https://gitlab.cern.ch/eos/quark
 To build QuarkDB manually do
 
 .. code-block:: bash
-    
+
    git clone https://gitlab.cern.ch/eos/quarkdb && cd quarkdb
    git submodule update --recursive --init
 

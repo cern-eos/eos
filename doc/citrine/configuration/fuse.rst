@@ -16,7 +16,7 @@ There a two FUSE client modes available:
    ========= ===== ===================================================================
    daemon    user  description
    ========= ===== ===================================================================
-   eosd      !root An end-user private mount which is not shared between users 
+   eosd      !root An end-user private mount which is not shared between users
    eosd      root  A system-wide mount shared between users
    ========= ===== ===================================================================
 
@@ -47,13 +47,13 @@ Un-Mounting
 You can unmount an EOS instance using:
 
 .. code-block:: bash
-  
+
    # unmount my EOS instance from /home/user/eos
-    
+
    eos fuse umount /home/user/eos
 
 .. note::
-   
+
    The mount point can be given as an relative or absolute path!
 
 .. warning::
@@ -64,7 +64,7 @@ Authentication
 ++++++++++++++
 
 The authentication method is proposed by the EOS server and the client evaluates
-the server list until it finds a matching one. You can test the used authentication 
+the server list until it finds a matching one. You can test the used authentication
 method using (see the **authz:** field):
 
 .. code-block:: bash
@@ -86,7 +86,7 @@ mount as root, you find the log file in ``/var/log/eos/fuse/fuse.log``
 
 **eosd** Shared mount
 ---------------------
-If you have machines shared by many users like batch nodes it makes sense to use 
+If you have machines shared by many users like batch nodes it makes sense to use
 the shared FUSE mount. The shared FUSE mount includes several high-performance add-ons.
 
 Configuration
@@ -114,7 +114,7 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
 
    # Disable multithreading in FUSE (default on)
    # export EOS_FUSE_NO_MT=1
- 
+
    # Disable using access for access permission check (default on)
    # export EOS_FUSE_NOACCESS=0
 
@@ -127,49 +127,49 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
 
    # Disable the write-back cache (default on)
    # export EOS_FUSE_CACHE=0
-  
-   # Set the write-back cache size (default 300M) 
+
+   # Set the write-back cache size (default 300M)
    # export EOS_FUSE_CACHE_SIZE=0
 
-   # Set the write-back cache pagesize (default 256k) 
+   # Set the write-back cache pagesize (default 256k)
    # export EOS_FUSE_CACHE_SIZE=262144
 
    # Use the FUSE big write feature ( FUSE >=2.8 ) (default on)
    # export EOS_FUSE_BIGWRITES=1
 
-   # Mount all files with 'x' bit to be able to run as an executable (default off)  
+   # Mount all files with 'x' bit to be able to run as an executable (default off)
    # export EOS_FUSE_EXEC=1
-    
-   # Enable protection against recursive deletion (rm -r command) 
+
+   # Enable protection against recursive deletion (rm -r command)
    #    starting from the root of the mount (if 1)
    #    or from any of its sub directories at a maximum depth (if >1) (default 1)
    # EOS_FUSE_RMLVL_PROTECT=1
-   
-   # Enable Kerberos authentication. This avoid need to set gateways on the mgm. 
+
+   # Enable Kerberos authentication. This avoid need to set gateways on the mgm.
    #    file cache credential should be used. (default 0)
    # EOS_FUSE_USER_KRB5CC=0
 
-   # Enable X509 GSI authentication. This avoid need to set gateways on the mgm. 
+   # Enable X509 GSI authentication. This avoid need to set gateways on the mgm.
    #    file user proxy should be used. (default 0)
    # EOS_FUSE_USER_GSIPROXY=0
 
    # When strong authentication is used (EOS_FUSE_USER_KRB5CC=1 or/and EOS_FUSE_USER_GSIPROXY=1),
    #    if no strong credentials is found, try to access using unix authentication as nobody
-   #    note: this does not require to configure the box as a gateway on the mgm but it requires that "nobody" is allowed there 
+   #    note: this does not require to configure the box as a gateway on the mgm but it requires that "nobody" is allowed there
    # EOS_FUSE_FALLBACKTONOBODY=0
 
-   # If a connection fails using strong authentication, this is the timeout before actully retrying
+   # If a connection fails using strong authentication, this is the timeout before actually retrying
    #    in the meantime, all access by the concerned user will be rejected (indicating authentication failure)
    #    !! WARNING: If a low value is used on a batch machine, it could have an impact on the authentication burden on the server side
-   #    On interactive servers, it will be the longest time taken between refreshing the credentials and this taking effect on the fuse mount 
+   #    On interactive servers, it will be the longest time taken between refreshing the credentials and this taking effect on the fuse mount
    #    (default is XRD_STREAMERRORWINDOW default value)
    # EOS_FUSE_STREAMERRORWINDOW=1
-   
-   # If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication 
-   #    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX 
+
+   # If KRB5 or X509 are enabled, specify the mapping from pid to strong authentication
+   #    should be kept as symlinks under /var/run/eosd/credentials/pidXXXX
    #    (default 0)
    # EOS_FUSE_PIDMAP=0
-   
+
    # Enable FUSE read-ahead (default off)
    # export EOS_FUSE_RDAHEAD=0
 
@@ -192,8 +192,8 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    #    this option hides a lot of latency and is recommend to be used
    #    it requires how-ever that it is supported by EOS MGM version
    # export EOS_FUSE_LAZYOPENRW=1
-   
-   # Enable asynchronous open of files 
+
+   # Enable asynchronous open of files
    #    it is an optimization over the lazy_open hiding even more latency
    #    it is used only if lazy-open is activated
    # export EOS_FUSE_ASYNC_OPEN=1
@@ -204,16 +204,16 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
    # Set the kernel entry timeout - this is the time a directory listing is cached
    # export EOS_FUSE_ENTRY_CACHE_TIME=10
 
-   # Set the timeout for the kernel negative stat cache 
+   # Set the timeout for the kernel negative stat cache
    # export EOS_FUSE_NEG_ENTRY_CACHE_TIME=30
 
-   # Set the liftime for a file creation ownership - withint this time each file re-open for update will be considered as cached locally and will not see remote changes
+   # Set the lifetime for a file creation ownership - withint this time each file re-open for update will be considered as cached locally and will not see remote changes
    # export EOS_FUSE_CREATOR_CAP_LIFETIME=30
-   
+
    # Set the individual max. cache size per write-opened file where we have a creator capability
    # export EOS_FUSE_FILE_WB_CACHE_SIZE=67108864
 
-   # Set the globa maximum in-memory size for writeback files
+   # Set the global maximum in-memory size for writeback files
    # export EOS_FUSE_MAX_WB_INMEMORY_SIZE=536870912
 
    # Configure a log-file prefix - useful for several FUSE instances
@@ -225,7 +225,7 @@ You configure the FUSE mount via ``/etc/syconfig/eos`` (the first two variables 
 
 
 In most cases one should enable the read-ahead feature with a read-ahead window of 1M on LAN and larger for WAN RTTs and if available use the big writes feature!
-If you want to mount several EOS instances, you can specify a list of mounts using **EOS_FUSE_MOUNTS** and then configure these mounts in individual sysconfig files 
+If you want to mount several EOS instances, you can specify a list of mounts using **EOS_FUSE_MOUNTS** and then configure these mounts in individual sysconfig files
 with their name as suffix e.g. mount **dev** will be defined in ``/etc/sysconfig/eos.dev``. In case of a list of mounts the log file names have the name automatically inserted like ``fuse.dev.log``.
 
 Starting the Service
@@ -237,24 +237,24 @@ Once you configured the FUSE mountpoint(s) you can use standard service mechanis
    # start all eosd instances
    service eosd start
 
-   # start a particular eosd instance 
+   # start a particular eosd instance
    service eosd start myinstance
 
    # stop all eosd instances
-   service eosd stop 
+   service eosd stop
 
    # stop a particular eosd instance
    service eosd stop myinstance
 
    # check the status of all instances
    service eosd status
-   
+
    # check the status of a particular instance
    service eosd status myinstance
 
    # if instances are up restart them conditional
    service eosd condrestart [myinstance]
-   
+
    # shutdown/cleanup all eosd instances running as root
    service eosd killall
 
@@ -273,13 +273,13 @@ Define two FUSE mounts in /etc/sysconfig/eos
    # #################################################################
    # shared EOS FUSE options
    # #################################################################
-   # in-memory write-back shared cache 
+   # in-memory write-back shared cache
    export EOS_FUSE_CACHE_SIZE=268435456
    # just normal logging
    export EOS_FUSE_DEBUG=0
    # not to verbose - just prints timing and errors
    export EOS_FUSE_LOGLEVEL=5
-   # don't wast time to do parallel IO - only useful for RAIN layouts
+   # don't waste time to do parallel IO - only useful for RAIN layouts
    export EOS_FUSE_NOPIO=1
    # configure 256k readahead (additional to 128k kernel readahead)
    export EOS_FUSE_RDAHEAD=1
@@ -310,7 +310,7 @@ Define two FUSE mounts in /etc/sysconfig/eos
    export XRD_STREAMTIMEOUT=15
    # interval how often timeouts are checked .. to get ~60s we have to set it to a second
    export XRD_TIMEOUTRESOLUTION=1
-   # client worker thread pool 
+   # client worker thread pool
    export XRD_WORKERTHREADS=16
 
 
@@ -339,12 +339,12 @@ Authentication
 The shared FUSE mount currently support two authentication modes
 
 - gateway mode authentication
-- strong authentication mode featuring both **KRB5** and **X509**  
+- strong authentication mode featuring both **KRB5** and **X509**
 
-Only one authentication mechanism can be used with a single shared mount 
+Only one authentication mechanism can be used with a single shared mount
 and it is specified using the configuration entry EOS_FUSE_USER_KRB5CC mentioned above.
- 
- 
+
+
 Authentication in gateway mode
 ++++++++++++++++++++++++++++++
 Each machine running a shared FUSE mount has to be
@@ -370,42 +370,42 @@ Remove a FUSE host
 
    vid remove gateway fusehost.foo.bar unix
 
-To improve security you can require **sss** (shared secret authentication) instead 
-of **unix** (authentication) in the above commands 
+To improve security you can require **sss** (shared secret authentication) instead
+of **unix** (authentication) in the above commands
 and distribute the **sss** keytab file to all FUSE hosts ``/etc/eos.keytab``.
 
 Strong authentication mode
 ++++++++++++++++++++++++++
-Enabling and configuring strong authentication is done using config keys 
+Enabling and configuring strong authentication is done using config keys
 EOS_FUSE_USER_KRB5CC, EOS_FUSE_USER_USERPROXY and EOS_FUSE_USER_KRB5FIRST (see above).
 
 Each linux session can be bound to one credential file.
 A same user can access the fuse mount using multiple identities using multiple instance.
 To bind the current linux session to a credential file, the user has to use the script **eosfusebind**
 
-The following command line 
+The following command line
 
 .. code-block:: bash
 
    eosfusebind krb5 [credfile]
 
 tries to find a krb5 credential cache file in the following order, stopping at the first match
-- optional credfile argument if specified  
+- optional credfile argument if specified
 - environment variable KRB5CCNAME
 - default location /tmp/krb5cc_<uid>
- 
-The following command line 
+
+The following command line
 
 .. code-block:: bash
 
    eosfusebind x509 [credfile]
 
 tries to find a x509 user proxy file in the following order, stopping at the first match
-- optional credfile argument if specified  
+- optional credfile argument if specified
 - environment variable X509_USER_PROXY
 - default location /tmp/x509up_u<uid>
- 
-Warning, **eosfusebind** does not check that the credential file is valid. 
+
+Warning, **eosfusebind** does not check that the credential file is valid.
 It only checks it exists and has 600 permissions.
 The actual authentication is carried out by the fuse mount.
 Every time a new binding is made, all bindings from any terminated sessions (for the current user) are cleaned-up.
@@ -443,12 +443,12 @@ For instance, if eos is mounted in ``/eos`` and if ``EOS_FUSE_RMLVL_PROTECT=3``,
 
 The rule currently implemented is the following one:
 
-The fuse mount will deny any removal coming from a command named ``rm`` with one of the short option(s) being ``r`` or one of the long option(s) being ``recursive`` 
-if one of the non optional arguments is a path located under the mountpoint at a depth lower than the value specifed by ``EOS_FUSE_RMLVL_PROTECT``.
+The fuse mount will deny any removal coming from a command named ``rm`` with one of the short option(s) being ``r`` or one of the long option(s) being ``recursive``
+if one of the non optional arguments is a path located under the mountpoint at a depth lower than the value specified by ``EOS_FUSE_RMLVL_PROTECT``.
 
 **mount** and autofs support
 ++++++++++++++++++++++++++++
-If you have a defined FUSE instances and can manage them with the eosd service scripts, you use a mount wrapper to define mounts in /etc/fstab or mount manually. 
+If you have a defined FUSE instances and can manage them with the eosd service scripts, you use a mount wrapper to define mounts in /etc/fstab or mount manually.
 
 .. note::
 
@@ -469,7 +469,7 @@ To define a FUSE mount in ``/etc/fstab`` you add for example:
 
 .. code-block:: bash
 
-   myinstance  /eos/myinstance defaults 0 0 
+   myinstance  /eos/myinstance defaults 0 0
 
 If you want to use **autofs**, you have to create a file ``/etc/auto.eos`` :
 
@@ -485,13 +485,13 @@ Add to the file ``/etc/auto.master`` at the bottom:
 
 For convenience make sure that you enable browsing in ``/etc/autofst.conf``:
 
-   browse_mode = yes  # this lets you see the mountdir myinstance in ``/eos/`` as ``/eos/myinstance/``. Once you acces this directory it will be automatically mounted.
+   browse_mode = yes  # this lets you see the mountdir myinstance in ``/eos/`` as ``/eos/myinstance/``. Once you access this directory it will be automatically mounted.
 
 
 
 .. note::
 
-   Enable **autofs** with ``service autofs start``   
+   Enable **autofs** with ``service autofs start``
 
 Exporting FUSE filesystems
 --------------------------
@@ -503,7 +503,7 @@ FUSE export with NFS4
 To export FUSE via NFS4 you have to disable(shorten) the attribute caching in the FUSE configuration file:
 
 .. code-block:: bash
-  
+
    export EOS_FUSE_ATTR_CACHE_TIME=0.0000000000000001
 
 If you mount an instance as /eos you have to configure an NFS export like this in /etc/exports:
@@ -522,13 +522,8 @@ FUSE export with CIFS/Samba
 To export FUSE via Samba you have only to enable a mode overlay to avoid messages about permission problems during browsing in the FUSE configuration file:
 
 .. code-block:: bash
- 
+
    export EOS_FUSE_MODE_OVERLAY=077
 
 
 The rest of the CIFS server configuration is identical to a local filesystem Samba export.
-
-
-
-
-

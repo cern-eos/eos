@@ -6,8 +6,8 @@
 GEO Balancer
 ==============================
 
-The geo balancer uses the :doc:`converter` mechanism to redistribute files according 
-to their geographical location. Currently it is only moving files with replica 
+The geo balancer uses the :doc:`converter` mechanism to redistribute files according
+to their geographical location. Currently it is only moving files with replica
 layouts. To avoid oscillations a threshold parameter defines when geo balancing stops e.g.
 the deviation from the average in a group is less then the threshold parameter.
 
@@ -21,11 +21,11 @@ GEO balancing is enabled/disabled by space:
 .. code-block:: bash
 
    # enable
-   eos space config default space.geobalancer=on  
+   eos space config default space.geobalancer=on
    # disable
    eos space config default space.geobalancer=off
 
-The curent status of GEO Balancing can be seen via
+The current status of GEO Balancing can be seen via
 
 .. code-block:: bash
 
@@ -58,7 +58,7 @@ Make sure that you have enabled the converter and the **converter.ntx** space
 variable is bigger than **geobalancer.ntx** :
 
 .. code-block:: bash
-  
+
    # enable the converter
    eos space config default space.converter=on
    # run 20 conversion transfers in parallel
@@ -68,8 +68,8 @@ One can see the same settings and the number of active conversion transfers
 (scroll to the right):
 
 .. code-block:: bash
-   
-   eos space ls 
+
+   eos space ls
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
    #     type #           name #  groupsize #   groupmod #N(fs) #N(fs-rw) #sum(usedbytes) #sum(capacity) #capacity(rw) #nom.capacity #quota #balancing # threshold # converter #  ntx # active #intergroup
    #------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -81,7 +81,7 @@ One can see the same settings and the number of active conversion transfers
    Balancing does not give the expected results!
 
 
-Log Files 
+Log Files
 ---------
 The GEO Balancer has a dedicated log file under ``/var/log/eos/mgm/GeoBalancer.log``
 which shows basic variables used for balancing decisions and scheduled transfers. To get more

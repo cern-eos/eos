@@ -59,7 +59,7 @@ Location of host key and host certificate:
    export EOS_NGINX_SSL_CERTIFICATE=/etc/grid-security/hostcert.pem
    export EOS_NGINX_SSL_KEY=/etc/grid-security/hostkey.pem
 
-Port of the HTTPS server with X509 certifcate authentication:
+Port of the HTTPS server with X509 certificate authentication:
 
 .. code-block:: bash
 
@@ -142,7 +142,7 @@ their authentication token enable HTTPS mapping in the virtual identity interfac
 
 Log Files
 """""""""
-If you didn't modifiy the NGINX configuration file, NGINX will produce two log information
+If you didn't modify the NGINX configuration file, NGINX will produce two log information
 files with the access and error log ``/var/log/nginx/access.log`` and ``/var/log/nginx/error.log``.
 
 The **MGM** writes a HTTP related log file under ``/var/log/eos/mgm/Http.log``.
@@ -209,11 +209,11 @@ Third Party Copy TPC
 HTTP and XRootD TPC with delegated credentials
 """""""""""""""""""""""""""""""""""""""""""""""
 
-There are several ways in which a third-party transfer can be triggerred in an
+There are several ways in which a third-party transfer can be triggered in an
 XRootD based system like EOS. Currently EOS supports third-party-copy transfers
 for both the XRootD and HTTP protocol.
 
-Depending on the authetication/authorization model there are several ways in which
+Depending on the authentication/authorization model there are several ways in which
 a third-party-copy transfer can proceed but they fall in the following broad
 categories:
 
@@ -242,7 +242,7 @@ By default, all outbound connections from the FST daemon to any other endpoint
 have the **SSS** authentication mechanism enforced. Due to this, a TPC transfer
 between EOS instances that don't share the same SSS key is impossible. On the
 other hand, TPC transfers within the same instance will always work and this
-functionality is heavily used internaly for draining, balancing and other
+functionality is heavily used internally for draining, balancing and other
 maintenance operations. To relax this constraint and allow non-secure connection
 from the FSTs nodes to other endpoints, the service manager can set the following
 environment variable to disable **SSS** enforcement.
@@ -280,11 +280,11 @@ EOS instances work out of the box without any configuration changes.
 
 On the other hand, for TPC transfers with delegated credentials to be supported
 by an EOS instance there are several modifications needed. All these changes are
-need to accomodate the fact that there is no actual authentication of the client
+need to accommodate the fact that there is no actual authentication of the client
 on the FST side, therefore there is no credential information to be delegated.
 
 First of all, the EOS service manager will need to deploy a new XRootD Proxy
-service that will act as a gatway for incoming TPC traffic. As mentioned in the
+service that will act as a gateway for incoming TPC traffic. As mentioned in the
 previous section, TPC transfers where EOS is the source work perfectly fine
 without any configuration changes. The gateway is a vanilla **XRootD PSS**
 service with the following reference configuration:
@@ -312,7 +312,7 @@ in the example above. Support for delegated credentials also requires subtile
 changes to the **sec.protocol** directive that are clearly explained in the
 XRootD documentation and already present in the provided example.
 
-.. The :ref:`helper script <xrootd-third-party-copy>` refereced in the configuration
+.. The :ref:`helper script <xrootd-third-party-copy>` referenced in the configuration
 
 The `xrootd-third-party-copy.sh` referenced in the configuration makes use of specific environment variables exported by the XRootD PSS service
 in the context of the TPC process doing the transfer.
@@ -425,7 +425,7 @@ enable this feature:
 .. index::
    pair: HTTP; Sci Tokens
 
-The following packages are not mandatory but they provide conveninent tools
+The following packages are not mandatory but they provide convenient tools
 for testing the token support against the EOS instance:
 
   - **x509-scitokens-issuer** and **x509-scitokens-issuer-client** that provide

@@ -113,6 +113,6 @@ Force master-slave transition
 In order to force a master-slave transition it is sufficient to issue the following
 command on the MGM master node: ``eos ns master other``. The "other" argument can
 be replaced by anything else except the current master id. This will cause the current
-MGM node not to update its lease therefore loosing its master status. The other
+MGM node not to update its lease therefore losing its master status. The other
 (slave) MGMs will now compete for the lease and only one of them will become the
 new master.

@@ -29,7 +29,7 @@ vid
     vid enable|disable krb5|gsi|sss|unix|https|grpc|oauth2
     : enable/disables the default mapping via password or external database
     vid add|remove gateway <hostname> [krb5|gsi|sss|unix|https|grpc]
-    : adds/removes a host as a (fuse) gateway with 'su' priviledges
+    : adds/removes a host as a (fuse) gateway with 'su' privileges
     [<prot>] restricts the gateway role change to the specified authentication method
     vid publicaccesslevel <level>
     : sets the deepest directory level where anonymous access (nobody) is possible

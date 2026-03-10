@@ -15,13 +15,13 @@ The following policies can be configured
    key            values
    ============== ==============================================
    space          default,...
-   layout         plain,replica,raid5,raid6,raiddp,archive,qrain           
-   nstripes       1..255           
-   checksum       adler,md5,sha1,crc32,crc32c        
-   blockchecksum  adler,md5,sha1,crc32,crc32c           
-   blocksize      4k,64k,128k,512k,1M,4M,16M,64M           
+   layout         plain,replica,raid5,raid6,raiddp,archive,qrain
+   nstripes       1..255
+   checksum       adler,md5,sha1,crc32,crc32c
+   blockchecksum  adler,md5,sha1,crc32,crc32c
+   blocksize      4k,64k,128k,512k,1M,4M,16M,64M
    bandwidth:r|w  IO limit in MB/s for reader/writer
-   iotype:r|w     io flavour [ direct, sync, csync, dsync ] 
+   iotype:r|w     io flavour [ direct, sync, csync, dsync ]
    iopriority:r|w io priority [ rt:0...rt:7,be:0,be:7,idle ]
    schedule:r|w   fair FST scheduling [1 or 0]
    ============== ==============================================
@@ -33,7 +33,7 @@ Setting space policies
 
 .. code-block:: bash
 
-   # configure raid6 layout   
+   # configure raid6 layout
    eos space config default space.policy.layout=raid6
 
    # configure 10 stripes
@@ -110,7 +110,7 @@ Examples:
 Local Overwrites
 ----------------
 
-The space polcies are overwritten by the local extended attribute settings of the parent directory
+The space policies are overwritten by the local extended attribute settings of the parent directory
 
 .. epigraph::
 
@@ -120,7 +120,7 @@ The space polcies are overwritten by the local extended attribute settings of th
    layout        sys.forced.layout, user.forced.layout
    nstripes      sys.forced.nstripes, user.forced.nstripes
    checksum      sys.forced.checksum, user.forced.checksum
-   blockchecksum sys.forced.blockchecksum, user.forced.blockchecksum   
+   blockchecksum sys.forced.blockchecksum, user.forced.blockchecksum
    blocksize     sys.forced.blocksize, user.forced.blocksize
    iopriority    sys.forced.iopriority:r|w
    iotype        sys.forced.iotype:r|w
@@ -146,7 +146,7 @@ Policies are deleted by setting a space policy with `value=remove` e.g.
 Displaying space policies
 -------------------------
 
-Policies are displayd using the ``space status`` command:
+Policies are displayed using the ``space status`` command:
 
 .. code-block:: bash
 
@@ -179,7 +179,7 @@ Automatic policy conversion policies allow to trigger a conversion job under two
 * a new file is created with a complete layout (all required replicas/stripes are created)        (use case IO optimization)
 * an existing file is injected with a complete layout (all required replicas/stripes are created) (use case TAPE recall)
 
-Automatic conversion policy hooks are triggered by the ReplicationTracker. You find conversions triggerd in the **ReplicationTracker.log** logfile.
+Automatic conversion policy hooks are triggered by the ReplicationTracker. You find conversions triggered in the **ReplicationTracker.log** logfile.
 
 To use automatic conversion hooks one has to enable policy conversion in the **default** space:
 
@@ -257,12 +257,12 @@ When all FSTs in a space store data into a shared filesystem and clients might h
    # define local redirection on a per directory basis
    eos attr set sys.forced.localredirect.nfs=1
 
-Please note: a space defined policy overwrites any directory policy. 
+Please note: a space defined policy overwrites any directory policy.
 
 Local redirection is currently supported for single replica files. It is disabled for PIO access with *eoscp* (default)), but works with *xrdcp* and *eoscp -0*.
-If the client does not see the shared filesystem, the client will fall back to the MGM and read with the FST. If the client sees the shared filesystem but cannot read it, the client will fail. 
+If the client does not see the shared filesystem, the client will fall back to the MGM and read with the FST. If the client sees the shared filesystem but cannot read it, the client will fail.
 
-One can manually select/disable local redirection using a CGI tag: 
+One can manually select/disable local redirection using a CGI tag:
 
 .. code-block:: bash
 
@@ -277,5 +277,5 @@ Redirections are accounted in the *eos ns stat* accounting as failed and success
 .. code-block:: bash
 
    eos ns stat | grep RedirectLocal
-   all OpenFailedRedirectLocal             0     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA- 
-   all OpenRedirectLocal                  14     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-  
+   all OpenFailedRedirectLocal             0     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-
+   all OpenRedirectLocal                  14     0.00     0.00     0.00     0.00     -NA-      -NA-     -NA-     -NA-

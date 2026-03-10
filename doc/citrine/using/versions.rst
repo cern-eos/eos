@@ -5,9 +5,9 @@
 File Versioning
 ===============
 
-File versioning can be triggerd as a per directory policy using the extended attribute ``sys.versioning=<n>`` or via the ``eos file version`` command.
+File versioning can be triggered as a per directory policy using the extended attribute ``sys.versioning=<n>`` or via the ``eos file version`` command.
 
-The paramter ``<n>`` in the extended attribute describes the maximum number of versions which should be kept according to a FIFO policy.
+The parameter ``<n>`` in the extended attribute describes the maximum number of versions which should be kept according to a FIFO policy.
 
 Additionally to the simple FIFO policy where the oldest versions are deleted once ``<n>`` versions are reached there are 11 predefined timebins, for which additional versions exceeding the versioning parameter ``<n>`` are kept.
 
@@ -15,7 +15,7 @@ Versions are kept in a hidden directory (visible with ``ls -la``) which is compo
 
 .. code-block:: bash
 
-   eos ls -la 
+   eos ls -la
    drwxrwxrwx   1 root     root                0 Aug 29 15:33 .sys.v#.myfile
    -rw-r-----   1 root     root             1824 Aug 29 15:33 myfile
 
@@ -49,7 +49,7 @@ Configure each directory which should apply versioning using the extended attrib
 
    # force 10 versions (FIFO)
    eos attr set sys.versioning=10 version-dir
-  
+
    # upload initial file
    eos cp /tmp/file /eos/version-dir/file
 
@@ -68,9 +68,9 @@ Creating new versions
 
 .. code-block:: bash
 
-   # force a new version 
+   # force a new version
    eos file version myfile
- 
+
    # force a new version with max 5 versions
    eos file version myfile 5
 

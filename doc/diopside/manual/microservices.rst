@@ -54,7 +54,7 @@ that serves the entire EOS cluster. Periodically, it checks the list of
 pending conversion jobs and the retrieved jobs are scheduled, one per
 thread, up to a configurable limit. After each scheduling, a check is
 performed to identify completed or failed jobs. Each conversion job is
-tracked internally and the list of files being tracked by the convertor
+tracked internally and the list of files being tracked by the converter
 can be displayed using the following command:
 
 .. code-block:: bash
@@ -211,7 +211,7 @@ The rebalacing system is made out of three services:
 .. epigraph::
 
    ========================= ======================================================================
-   Name                      Responsability
+   Name                      Responsibility
    ========================= ======================================================================
    Filesystem Balancer       Balance relative usage between all filesystem within a group
    Group Balancer            Balance relative usage between groups
@@ -239,7 +239,7 @@ The balancing system is made up by the cooperation of several components:
 
 .. ::note
 
-   Balancing is en-/disabled in each space seperatly!
+   Balancing is en-/disabled in each space separately!
 
 .. index::
    pair: Balancer; Info
@@ -312,7 +312,7 @@ The configuration variables are:
    balancer                  can be off or on to disable or enable the balancing
    balancer.node.ntx         number of parallel balancer transfers running on each FST
    balancer.node.rate        rate limitation for each running balancer transfer in MB/s
-   balancer.threshold        percentage at which balancing get's enabled within a scheduling group
+   balancer.threshold        percentage at which balancing gets enabled within a scheduling group
    ========================= ======================================================================
 
 If balancing is enabled ....
@@ -491,7 +491,7 @@ std. engine no averages are computed, this engine takes static min & max
 threshold values which are absolute `%` of groups fill ratio. Groups with usage
 above the `max_threshold` (for eg 90%) will be chosen for filling to groups with
 usage below `min_threshold`. While for almost all common use cases std. engine
-should fit the bill, when needing to do targetted balancing only on certain
+should fit the bill, when needing to do targeted balancing only on certain
 outliers this engine can be used as a temporary measure. This engine is only
 recommended as a quick fix to balance outliers and then it is recommended to run
 the std. engine to balance for longer periods of time.
@@ -744,7 +744,7 @@ GEO balancing is enabled/disabled by space:
    # disable
    eos space config default space.geobalancer=off
 
-The curent status of GEO Balancing can be seen via
+The current status of GEO Balancing can be seen via
 
 .. code-block:: bash
 
@@ -842,7 +842,7 @@ by an IO error on a file system or manually by an operator setting a
 filesystem in drain mode.
 
 The drain engine makes use of the GeoTreeEngine component to decide where
-to move the drained replicas. The drain proccesses are spawned on the MGM and
+to move the drained replicas. The drain processes are spawned on the MGM and
 represent simple XRootD third-party-copy transfers.
 
 .. index::
@@ -1187,7 +1187,7 @@ You can now investigate the origin by doing:
 
 Here all remaining files are inaccessible because all replicas are down.
 
-In case files are claimed to be accessible you have to look directoy at the remaining files:
+In case files are claimed to be accessible you have to look directory at the remaining files:
 
 .. code-block:: bash
 
@@ -1591,7 +1591,7 @@ the following LRU policies:
    Automatic time based cleanup of empty directories                                     ctime
    Time based LRU cache with expiration time settings                                    ctime
    Automatic time based layout conversion if a file reaches a defined age                ctime
-   Automatic size based layout conversion if a file fullfills a given size rule          size
+   Automatic size based layout conversion if a file fulfills a given size rule          size
    Automatic time based layout conversion if a file has not been used for specified time mtime
    ===================================================================================== =====================
 
@@ -1701,7 +1701,7 @@ use the following convention when specifying the age interval for the various
  | **y/Y**       | years         |
  +---------------+---------------+
 
-All the size related symbols refer to the International System of Units, therfore
+All the size related symbols refer to the International System of Units, therefore
 1K is 1000 bytes.
 
 .. code-block:: bash
@@ -2097,13 +2097,13 @@ by the mgm (compare the eos fs status <fsid> output).
    Num. entries in DB[mem_n]:                     148152
    Num. files synced from disk[d_sync_n]:         148150
    Num, files synced from MGM[m_sync_n]:          147723
-   Disk/referece size missmatch[d_mem_sz_diff]:   0
-   MGM/reference size missmatch[m_mem_sz_diff]:   140065
-   Disk/reference checksum missmatch[d_cx_diff]:  0
-   MGM/reference checksum missmatch[m_cx_diff]:   0
+   Disk/reference size mismatch[d_mem_sz_diff]:   0
+   MGM/reference size mismatch[m_mem_sz_diff]:   140065
+   Disk/reference checksum mismatch[d_cx_diff]:  0
+   MGM/reference checksum mismatch[m_cx_diff]:   0
    Num. of orphans[orphans_n]:                    427
    Num. of unregistered replicas[unreg_n]:        5078
-   Files with num. replica missmatch[rep_diff_n]: 5081
+   Files with num. replica mismatch[rep_diff_n]: 5081
    Files missing on disk[rep_missing_n]:          0
 
 Check fsck repair activity
@@ -2242,7 +2242,7 @@ not counting per each replica of a file.
 Replication Tracker
 -------------------
 
-The Replication Tracker follows the workflow of file creations. For each created file a virtual entry is created in the ``proc/tracker`` directory. Entries are removed once a layout is completely commited. The purpose of this tracker is to find inconsistent files after creation and to remove atomic upload relicts automatically after two days.
+The Replication Tracker follows the workflow of file creations. For each created file a virtual entry is created in the ``proc/tracker`` directory. Entries are removed once a layout is completely committed. The purpose of this tracker is to find inconsistent files after creation and to remove atomic upload relicts automatically after two days.
 
 
 .. warning:: Please note that using the tracker will increase the meta-data operation load on the MGM!
@@ -2323,7 +2323,7 @@ There is convenience command defined in the console:
 Log Files
 ^^^^^^^^^
 The Replication Tracker has a dedicated log file under ``/var/log/eos/mgm/ReplicationTracker.log``
-which shows the tracking entires and related cleanup activities. To get more
+which shows the tracking entries and related cleanup activities. To get more
 verbose information you can change the log level:
 
 .. code-block:: bash

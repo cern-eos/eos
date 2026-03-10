@@ -79,7 +79,7 @@ Improvement
 * [EOS-6545] - fs add with -r option
 * [EOS-6546] - Remove MQ
 * [EOS-6548] - Disallow modifying the obfuscate and encrypted xattrs from fusex
-* [EOS-6551] - Dump average/threshhold stats used by groupdrainer
+* [EOS-6551] - Dump average/threshold stats used by groupdrainer
 
 User Documentation
 ------------------
@@ -139,7 +139,7 @@ Bug
 
 MGM: Delete the configuration engine object during the MGM shutdown
 to avoid any possibility that this is reused during the destruction
-of the FsView that migth in turn lead to deletion of file systems
+of the FsView that might in turn lead to deletion of file systems
 from the configuration.
 
 
@@ -382,7 +382,7 @@ Bug
 Bug
 ----
 
-* FST: Fix undefinied behaviour due to order of evaluation of the method
+* FST: Fix undefined behaviour due to order of evaluation of the method
 parameters which was leading to files not having the checksum value set.
 
 
@@ -581,7 +581,7 @@ Bug
 
 * [EOS-6243] - MGM stuck on EOSHOME-I04 (no reply to "ns stat")
 * [EOS-6247] - non-removable "eos access" rule
-* [EOS-6277] - FS error status not reset at sucessful boot
+* [EOS-6277] - FS error status not reset at successful boot
 * [EOS-6317] - Starting conditional EOS services: Too few arguments.
 * [EOS-6318] - _access lines >52% of xrdlog.mgm
 * [EOS-6322] - Regression in CTA archiving
@@ -663,7 +663,7 @@ Bug
 * [EOS-6042] - QDB stuck in publishing
 * [EOS-6118] - "eos fs mv" between FSTs should keep existing "group"
 * [EOS-6126] - Recovery OpenAsync cannot open file anymore in eosxd
-* [EOS-6128] - Files written with UTF8 characteres when not allowed
+* [EOS-6128] - Files written with UTF8 characters when not allowed
 * [EOS-6144] - Filenames with a special word break the EOS CLI
 * [EOS-6146] - undrainable ".sys.a" files (wrong checksum), possibly after "atomic" upload from CERNBox
 * [EOS-6152] - Find for path that contains symlink fails
@@ -1041,7 +1041,7 @@ New Feature
 * [EOS-5879] - [eoscp] Add the possibility to see the version of the command
 * [EOS-5956] - Implement default XRootD Attribute functions for xrootd prefixes
 * [EOS-6040] - GRPC: implement reycle bin listing with date/index filter
-* FUSEX: code refactoring allowing to re-use functionality of eosxd authentication in eoscfsd
+* FUSEX: code refactoring allowing to reuse functionality of eosxd authentication in eoscfsd
 * CFSD: adding POSIX passthrough filesystem implementation packaged in new RPM eos-cfsd
 
 Improvement
@@ -1117,7 +1117,7 @@ Bug
 Bug
 ----
 
-* MGM: Add legacy find command implementaiton for old clients.
+* MGM: Add legacy find command implementation for old clients.
 
 
 ``v5.2.7 Diopside``
@@ -1272,7 +1272,7 @@ Improvement
 ------------
 
 * [EOS-5792] - Document the possibility of moving fs between nodes in the help and the eos official documentation
-* [EOS-5894] - MGM memory increase with agressive parameters for balancing
+* [EOS-5894] - MGM memory increase with aggressive parameters for balancing
 
 
 ``v5.2.0 Diopside``
@@ -1292,7 +1292,7 @@ Bug
 
 * [EOS-5429] - [TAPE REST API] Modify STAGE polling (GET) logic to take into account files not queued on CTA
 * [EOS-5680] - MQ overloaded when deleting a large number of EC files
-* [EOS-5687] - CtaUtils: GCC12 FTBS
+* [EOS-5687] - CtaUtils: GCC12 FTBFS
 * [EOS-5694] - chunked upload fails on EOS5 + XrdHTTP
 * [EOS-5699] - request retries discarded on RAIN layout
 * [EOS-5700] - readv errors ReedSLayout claims corrupted but file is ok
@@ -1739,7 +1739,7 @@ Note
 Bug
 ----
 
-* [EOS-5467] - Inspector aggregates results instead of reseting the current scan
+* [EOS-5467] - Inspector aggregates results instead of resetting the current scan
 * MGM: Add regfree in FuseServer regex usage to avoid memory leak
 * MGM: Unlock the Access mutex when delaying a client to not get problems to get a write lock
 
@@ -1776,7 +1776,7 @@ Improvement
 Bug
 ----
 
-* [EOS-5467] - Inspector aggregates results instead of reseting the current scan
+* [EOS-5467] - Inspector aggregates results instead of resetting the current scan
 
 Improvement
 ------------
@@ -1914,7 +1914,7 @@ Bug
 ----
 
 * [EOS-5377] - Unhandled exception in the GeoBalancer code
-* [EOS-5367] - Fix IoStat intialization when there is no prior data in QuarkDB
+* [EOS-5367] - Fix IoStat initialization when there is no prior data in QuarkDB
 * MGM: Fsck: correct the calculation of expected number of stripes in RepairFstXsSzDiff
 
 
@@ -2171,7 +2171,7 @@ Bug
 * MGM: Fix wrong computation of number of stripes for RAIN layout
 * [EOS-5199] - Metadata (xattrs) is lost when creating new versions
 * [EOS-5219] - eos fsck report json output does not reflect command line options -l and -i
-* [EOS-5224] - No update is perfomed when adding a new member to an e-group in EOSATLAS
+* [EOS-5224] - No update is performed when adding a new member to an e-group in EOSATLAS
 
 
 New Feature
@@ -2266,7 +2266,7 @@ Note
 Bug
 ----
 
-* FUSEX: never keep the deletion mutex when distroying an upload proxy because
+* FUSEX: never keep the deletion mutex when destroying an upload proxy because
   the destructor still needs a free call back thread to use HandleResponse
 * [EOS-5153] - EC file written via FUSEx - mismatching checksum
 * [EOS-5167] - MGM segv in a non-tape enabled instance
@@ -2289,7 +2289,7 @@ Improvement
 ------------
 
 * [EOS-5108] - workaround: drop forced automount expiry on FUSEX updates
-* [EOS-5126] - [eos-ns-inspect] Complement `stripediff` ouput
+* [EOS-5126] - [eos-ns-inspect] Complement `stripediff` output
 
 
 ``v5.0.13 Diopside``
@@ -2420,7 +2420,7 @@ Note
 New features
 ------------
 
-* WNC: Implemeneted support for EOS-wnc member, backup, map and archive command
+* WNC: Implemented support for EOS-wnc member, backup, map and archive command
 
 
 

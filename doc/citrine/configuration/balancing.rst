@@ -9,8 +9,8 @@ Balancing System
 Overview
 --------
 
-The EOS balancing system provides a fully automated mechanism to balance the 
-volume usage across a scheduling group. Hence currently the balancing system 
+The EOS balancing system provides a fully automated mechanism to balance the
+volume usage across a scheduling group. Hence currently the balancing system
 does not balance between scheduling groups! See :doc:`groupbalancer`!
 
 The balancing system is made up by the cooperation of several components:
@@ -21,12 +21,12 @@ The balancing system is made up by the cooperation of several components:
 
 .. ::note
 
-   Balancing is en-/disabled in each space seperatly!
+   Balancing is en-/disabled in each space separately!
 
 Balancing View and Configuration
 --------------------------------
 
-Each filesystem advertises the used volume and the central view allows to see 
+Each filesystem advertises the used volume and the central view allows to see
 the deviation from the average filesystem usage in each group.
 
 .. code-block:: bash
@@ -59,11 +59,11 @@ the deviation from the average filesystem usage in each group.
    groupview  default.9                  on     8         0.30         0.11         0.14 idle                0          0
 
 
-The decision parameters to enable balancing in a group is the maximum deviation 
-of the filling state (given in %). 
+The decision parameters to enable balancing in a group is the maximum deviation
+of the filling state (given in %).
 In this example two groups are unbalanced (12 + 14 %).
 
-The balancing is configured on the space level and the current configuration 
+The balancing is configured on the space level and the current configuration
 is displayed using the 'space status' command:
 
 .. code-block:: bash
@@ -81,16 +81,16 @@ is displayed using the 'space status' command:
 The configuration variables are:
 
 .. epigraph::
-  
+
    ========================= ======================================================================
    variable                  definition
    ========================= ======================================================================
    balancer                  can be off or on to disable or enable the balancing
    balancer.node.ntx         number of parallel balancer transfers running on each FST
    balancer.node.rate        rate limitation for each running balancer transfer in MB/s
-   balancer.threshold        percentage at which balancing get's enabled within a scheduling group
+   balancer.threshold        percentage at which balancing gets enabled within a scheduling group
    ========================= ======================================================================
- 
+
 If balancing is enabled ....
 
 .. code-block:: bash
@@ -173,7 +173,7 @@ To see the usage difference within the group, one can inspect all the group file
    lxfsra02a07.cern.ch:1095   143       default.20       0.10         0.00         7.00        119          9          0      0      2     28.57 GB      2.00 TB       7.46 k     97.52 M          7          0
    lxfsra04a03.cern.ch:1095   165       default.20       0.12         0.00         6.00        119         10          0      0      5      7.56 GB      2.00 TB       2.96 k     97.52 M          5          0
 
- 
+
 The scheduling activity for balancing can be monitored with the **eos ns ls** command:
 
 .. code-block:: bash
@@ -195,18 +195,18 @@ The scheduling activity for balancing can be monitored with the **eos ns ls** co
    # -----------------------------------------------------------------------------------------------------------
    who      command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)
    # -----------------------------------------------------------------------------------------------------------
-   ALL        Access                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-     
+   ALL        Access                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-
     ....
-   ALL        Schedule2Balance                         6423    11.75    10.81    10.71     1.78     -NA- +- -NA-     
-   ALL        Schedule2Drain                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-     
-   ALL        Scheduled2Balance                        6423    11.75    10.81    10.71     1.78     4.20 +- 0.57 
+   ALL        Schedule2Balance                         6423    11.75    10.81    10.71     1.78     -NA- +- -NA-
+   ALL        Schedule2Drain                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-
+   ALL        Scheduled2Balance                        6423    11.75    10.81    10.71     1.78     4.20 +- 0.57
    ALL        SchedulingFailedBalance                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-
 
-   
+
 The relevant counters are:
 
 .. epigraph::
-   
+
    ============================== =====================================================================
    state                          definition
    ============================== =====================================================================

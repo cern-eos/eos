@@ -31,7 +31,7 @@ Disable CRC32 Checksumming
 If you use a filesystem which has internal checksumming there is no need to let the MGM do record checksumming during a boot.
 Be careful with this option since it removes another consistency check.
 
-Disable mmaped changelog files
+Disable mapped changelog files
 ------------------------------
 
 .. code-block:: bash

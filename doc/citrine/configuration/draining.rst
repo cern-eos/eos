@@ -353,7 +353,7 @@ You can now investigate the origin by doing:
 
 Here all remaining files are inaccessible because all replicas are down.
 
-In case files are claimed to be accessible you have to look directoy at the remaining files:
+In case files are claimed to be accessible you have to look directory at the remaining files:
 
 .. code-block:: bash
 

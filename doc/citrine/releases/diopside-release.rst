@@ -208,7 +208,7 @@ Note
 Bug
 ----
 
-* [EOS-5467] - Inspector aggregates results instead of reseting the current scan
+* [EOS-5467] - Inspector aggregates results instead of resetting the current scan
 * MGM: Add regfree in FuseServer regex usage to avoid memory leak
 * MGM: Unlock the Access mutex when delaying a client to not get problems to get a write lock
 
@@ -383,7 +383,7 @@ Bug
 ----
 
 * [EOS-5377] - Unhandled exception in the GeoBalancer code
-* [EOS-5367] - Fix IoStat intialization when there is no prior data in QuarkDB
+* [EOS-5367] - Fix IoStat initialization when there is no prior data in QuarkDB
 * MGM: Fsck: correct the calculation of expected number of stripes in RepairFstXsSzDiff
 
 
@@ -640,7 +640,7 @@ Bug
 * MGM: Fix wrong computation of number of stripes for RAIN layout
 * [EOS-5199] - Metadata (xattrs) is lost when creating new versions
 * [EOS-5219] - eos fsck report json output does not reflect command line options -l and -i
-* [EOS-5224] - No update is perfomed when adding a new member to an e-group in EOSATLAS
+* [EOS-5224] - No update is performed when adding a new member to an e-group in EOSATLAS
 
 
 New Feature
@@ -758,7 +758,7 @@ Improvement
 ------------
 
 * [EOS-5108] - workaround: drop forced automount expiry on FUSEX updates
-* [EOS-5126] - [eos-ns-inspect] Complement `stripediff` ouput
+* [EOS-5126] - [eos-ns-inspect] Complement `stripediff` output
 
 
 ``v5.0.13 Diopside``
@@ -889,7 +889,7 @@ Note
 New features
 ------------
 
-* WNC: Implemeneted support for EOS-wnc member, backup, map and archive command
+* WNC: Implemented support for EOS-wnc member, backup, map and archive command
 
 
 

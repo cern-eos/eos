@@ -18,7 +18,7 @@ The File Inspector has to be enabled/disabled in the default space only:
 .. code-block:: bash
 
    # enable
-   eos space config default space.inspector=on  
+   eos space config default space.inspector=on
    # disable
    eos space config default space.inspector=off
 
@@ -57,7 +57,7 @@ You can get the inspector status and an estimate for the run time using
 
    eos space inspector
 
-   # or 
+   # or
 
    eos inspector
 
@@ -73,7 +73,7 @@ You can see the current statistics of the inspector run using
 
 .. code-block:: bash
 
-   eos inspector -c 
+   eos inspector -c
    eos inspector --current
 
    # ------------------------------------------------------------------------------------
@@ -82,30 +82,30 @@ You can see the current statistics of the inspector run using
    # current scan: 2019-07-12T08:25:42Z
     not-found-during-scan            : 0
    ======================================================================================
-   layout=00000000 type=plain         checksum=none     blockchecksum=none     blocksize=4k  
+   layout=00000000 type=plain         checksum=none     blockchecksum=none     blocksize=4k
 
    locations                        : 0
    nolocation                       : 223004
    repdelta:-1                      : 223004
    unlinkedlocations                : 0
    zerosize                         : 223004
-   
+
    ======================================================================================
-   layout=00100001 type=plain         checksum=none     blockchecksum=none     blocksize=4k  
+   layout=00100001 type=plain         checksum=none     blockchecksum=none     blocksize=4k
 
    locations                        : 2
    repdelta:0                       : 2
    unlinkedlocations                : 0
    volume                           : 3484
-  
+
    ...
 
 
 The reports tags are:
 
-.. code-block:: bash 
+.. code-block:: bash
 
-   locations         : number of replicas (or stripes) in this layout categorie
+   locations         : number of replicas (or stripes) in this layout category
    nolocation        : number of files without any location attached
    repdelta:-N       : number of files with -N replicas missing
    repdelta:0        : number of files with correct replicat count
@@ -128,10 +128,10 @@ You can print the current and last run statistics in monitoring format:
 
 .. code-block:: bash
 
-   eos inspector -c -m 
+   eos inspector -c -m
    ...
 
-   eos inspector -l -m 
+   eos inspector -l -m
 
    key=last layout=00100002 type=plain checksum=adler32 blockchecksum=none blocksize=4k locations=638871 repdelta:+1=1 repdelta:0=638869 unlinkedlocations=0 volume=10802198338 zerosize=550002
    key=last layout=00100012 type=replica checksum=adler32 blockchecksum=none blocksize=4k locations=42 repdelta:0=42 unlinkedlocations=0 volume=21008942
@@ -177,7 +177,7 @@ The list of file ids with an inconsistency can be extracted using:
    # 2019-07-12T08:53:33Z
    # 100 % done - estimate to finish: 0 seconds
    # file list exported on MGM to '/var/log/eos/mgm/FileInspector.1562921613.list'
-   # -----------------------------------------------------------------------   
+   # -----------------------------------------------------------------------
 
 
 Log Files
@@ -193,5 +193,3 @@ verbose information you can change the log level:
 
    # switch back to info log level on the MGM
    eos debug info
-
-

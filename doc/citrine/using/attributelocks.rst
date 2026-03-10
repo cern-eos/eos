@@ -5,8 +5,8 @@
 Using extended attribute locks
 ========================================
 
-An extended attribute lock is a simple mechanism to block file opens on locked files to foreigners. Foreigners are not owners. The owner is defined by the username and the application name. 
-So if any of these differs a client is considered a foreigner. 
+An extended attribute lock is a simple mechanism to block file opens on locked files to foreigners. Foreigners are not owners. The owner is defined by the username and the application name.
+So if any of these differs a client is considered a foreigner.
 
 We define two types of locks:
 - exclusive : no foreigner can open a file with an exclusive lock for reading or writing
@@ -23,12 +23,12 @@ To create an exclusive extended attribute lock you do:
 
    # the owner can read
    eos -r 100 100 -a myapp cp /eos/dev/lockedfile      - # will succeed
-  
+
    # a foreigner can not read
    eos -r 101 101 -a myapp cp /eos/dev/lockedfile      - # will fail
-   eos -r 100 100 -a anotherapp cp /eos/dev/lockedfile - # will fail 
+   eos -r 100 100 -a anotherapp cp /eos/dev/lockedfile - # will fail
 
-   # create a lock with a given liftime e.g. 1000s 
+   # create a lock with a given lifetime e.g. 1000s
    eos -r 100 100 -a myapp file touch -l /eos/dev/lockedfile 1000
 
    # create a lock which only requires the same user to be used

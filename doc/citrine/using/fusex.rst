@@ -14,49 +14,49 @@ eosxd statistics file
 eosxd writes out a statistics file with an update rate of 1Hz into the fusex log directory ```/var/log/eos/fusex/fuse.<instancename>-<mountdir>.stats```.
 
 
-Here is an example: 
+Here is an example:
 
 .. code-block:: bash
 
 
    ALL     Execution Time                   5.06 +- 16.69 = 5.01s (1270 ops)
    # -----------------------------------------------------------------------------------------------------------------------
-   who     command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)  = cumul(s)  
+   who     command                          sum             5s     1min     5min       1h exec(ms) +- sigma(ms)  = cumul(s)
    # -----------------------------------------------------------------------------------------------------------------------
-   ALL     :sum                                     1271     0.00     0.05     0.01     0.00     -NA- +- -NA-       = 0.00      
-   ALL     access                                      4     0.00     0.00     0.00     0.00  1.82825 +- 1.64279    = 0.01      
-   ALL     create                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     flush                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     forget                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     fsync                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     getattr                                    17     0.00     0.02     0.00     0.00  1.91859 +- 6.93590    = 0.03      
-   ALL     getxattr                                   58     0.00     0.03     0.01     0.00  2.42547 +- 18.15372   = 0.14      
-   ALL     link                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     listxattr                                   0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     lookup                                    342     0.00     0.00     0.00     0.00  0.78381 +- 3.70048    = 0.27      
-   ALL     mkdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     mknod                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     open                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     opendir                                   215     0.00     0.00     0.00     0.00 20.56853 +- 26.64452   = 4.42      
-   ALL     read                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     readdir                                   416     0.00     0.00     0.00     0.00  0.05781 +- 0.07550    = 0.02      
-   ALL     readlink                                    1     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     release                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     releasedir                                215     0.00     0.00     0.00     0.00  0.00896 +- 0.00425    = 0.00      
-   ALL     removexattr                                 0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     rename                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     rm                                          0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     rmdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr:chmod                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr:chown                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr:truncate                            0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setattr:utimes                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     setxattr                                    1     0.00     0.00     0.00     0.00  0.08500 +- -NA-       = 0.00      
-   ALL     statfs                                      2     0.00     0.00     0.00     0.00 57.74450 +- 48.80550   = 0.12      
-   ALL     symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
-   ALL     write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00      
+   ALL     :sum                                     1271     0.00     0.05     0.01     0.00     -NA- +- -NA-       = 0.00
+   ALL     access                                      4     0.00     0.00     0.00     0.00  1.82825 +- 1.64279    = 0.01
+   ALL     create                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     flush                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     forget                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     fsync                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     getattr                                    17     0.00     0.02     0.00     0.00  1.91859 +- 6.93590    = 0.03
+   ALL     getxattr                                   58     0.00     0.03     0.01     0.00  2.42547 +- 18.15372   = 0.14
+   ALL     link                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     listxattr                                   0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     lookup                                    342     0.00     0.00     0.00     0.00  0.78381 +- 3.70048    = 0.27
+   ALL     mkdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     mknod                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     open                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     opendir                                   215     0.00     0.00     0.00     0.00 20.56853 +- 26.64452   = 4.42
+   ALL     read                                        0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     readdir                                   416     0.00     0.00     0.00     0.00  0.05781 +- 0.07550    = 0.02
+   ALL     readlink                                    1     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     release                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     releasedir                                215     0.00     0.00     0.00     0.00  0.00896 +- 0.00425    = 0.00
+   ALL     removexattr                                 0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     rename                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     rm                                          0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     rmdir                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     setattr                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     setattr:chmod                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     setattr:chown                               0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     setattr:truncate                            0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     setattr:utimes                              0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     setxattr                                    1     0.00     0.00     0.00     0.00  0.08500 +- -NA-       = 0.00
+   ALL     statfs                                      2     0.00     0.00     0.00     0.00 57.74450 +- 48.80550   = 0.12
+   ALL     symlink                                     0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     unlink                                      0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
+   ALL     write                                       0     0.00     0.00     0.00     0.00     -NA- +- -NA-       = 0.00
    # -----------------------------------------------------------------------------------------------------------
    ALL        inodes              := 375
    ALL        inodes stack        := 0
@@ -122,40 +122,40 @@ The second block contains counts for each filesystem operation the average rates
    ======= ================================ =============== ====== ======= =========== ====== ======= ============ =============
    who     filesystem counter name          sum of ops      5s avg 1m avg   5m avg     1h avg avg(ms) siggma(ms)   cumulative(s)
    ======= ================================ =============== ====== ======= =========== ====== ======= ============ =============
-   ALL     :sum                             1268            0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     access                           4               0.00   0.00    0.00        0.00   1.82825 +- 1.64279   0.01      
-   ALL     create                           0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     flush                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     forget                           0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     fsync                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     getattr                          16              0.00   0.00    0.00        0.00   2.01987 +- 7.13716   0.03      
-   ALL     getxattr                         56              0.00   0.00    0.00        0.00   0.02023 +- 0.00463   0.00      
-   ALL     link                             0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     listxattr                        0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     lookup                           342             0.00   0.00    0.00        0.00   0.78381 +- 3.70048   0.27      
-   ALL     mkdir                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     mknod                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     open                             0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     opendir                          215             0.00   0.00    0.00        0.00   20.5685 +- 26.64452  4.42      
-   ALL     read                             0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     readdir                          416             0.00   0.00    0.00        0.00   0.05781 +- 0.07550   0.02      
-   ALL     readlink                         1               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     release                          0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     releasedir                       215             0.00   0.00    0.00        0.00   0.00896 +- 0.00425   0.00      
-   ALL     removexattr                      0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     rename                           0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     rm                               0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     rmdir                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     setattr                          0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     setattr:chmod                    0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     setattr:chown                    0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     setattr:truncate                 0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     setattr:utimes                   0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     setxattr                         1               0.00   0.00    0.00        0.00   0.08500 +- -NA-      0.00      
-   ALL     statfs                           2               0.00   0.00    0.00        0.00   57.7450 +- 48.80550  0.12      
-   ALL     symlink                          0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     unlink                           0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
-   ALL     write                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00      
+   ALL     :sum                             1268            0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     access                           4               0.00   0.00    0.00        0.00   1.82825 +- 1.64279   0.01
+   ALL     create                           0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     flush                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     forget                           0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     fsync                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     getattr                          16              0.00   0.00    0.00        0.00   2.01987 +- 7.13716   0.03
+   ALL     getxattr                         56              0.00   0.00    0.00        0.00   0.02023 +- 0.00463   0.00
+   ALL     link                             0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     listxattr                        0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     lookup                           342             0.00   0.00    0.00        0.00   0.78381 +- 3.70048   0.27
+   ALL     mkdir                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     mknod                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     open                             0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     opendir                          215             0.00   0.00    0.00        0.00   20.5685 +- 26.64452  4.42
+   ALL     read                             0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     readdir                          416             0.00   0.00    0.00        0.00   0.05781 +- 0.07550   0.02
+   ALL     readlink                         1               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     release                          0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     releasedir                       215             0.00   0.00    0.00        0.00   0.00896 +- 0.00425   0.00
+   ALL     removexattr                      0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     rename                           0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     rm                               0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     rmdir                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     setattr                          0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     setattr:chmod                    0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     setattr:chown                    0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     setattr:truncate                 0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     setattr:utimes                   0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     setxattr                         1               0.00   0.00    0.00        0.00   0.08500 +- -NA-      0.00
+   ALL     statfs                           2               0.00   0.00    0.00        0.00   57.7450 +- 48.80550  0.12
+   ALL     symlink                          0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     unlink                           0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
+   ALL     write                            0               0.00   0.00    0.00        0.00   -NA-    +- -NA-      0.00
    ======= ================================ =============== ====== ======= =========== ====== ======= ============ =============
 
 The third block displays inode related counts, which are explained inline.
@@ -175,9 +175,9 @@ The third block displays inode related counts, which are explained inline.
    ALL        inodes-open            0               inodes associated with an open file descriptor
    ALL        inodes-vmap            3051            size of logical inode translation map
    ALL        inodes-caps            0               inodes with a cache-callback subscription
-   ALL        threads                32              currently running threads 
+   ALL        threads                32              currently running threads
    ALL        visze                  517.10 Mb       virtual memory used by the running daemon
-   ALL        rss                    35.13 Mb        resident memory used by the runnig daemon
+   ALL        rss                    35.13 Mb        resident memory used by the running daemon
    ALL        pid                    1689            process id of the running daemon
    ALL        log-size               367632          size of the logfile of the running daemon
    ALL        wr-buf-inflight        0 b             write buffer allocated with data in-flight in writing
@@ -215,7 +215,7 @@ The statistics file can be printed by any user on request by running:
 .. code-block:: bash
 
    eosxd get eos.stats <mount-point>
-  
+
 The statistics file counter can be reset by running as root:
 
 .. code-block:: bash
@@ -235,9 +235,9 @@ The **eosxd** network provides four configuration parameters, which can be shown
    info: configured FUSEX heartbeat interval is 10 seconds
    info: configured FUSEX quota check interval is 10 seconds
 
-The default heartbeat interval is 10 seconds. It is the interval each **eosxd** process sends a heartbeat message to the MGM server. The quota check interval is the interval after which the MGM FuseServer checks again if a **eosxd** client went out of quota or back to quota. The default is also 10 seconds. 
+The default heartbeat interval is 10 seconds. It is the interval each **eosxd** process sends a heartbeat message to the MGM server. The quota check interval is the interval after which the MGM FuseServer checks again if a **eosxd** client went out of quota or back to quota. The default is also 10 seconds.
 
-When working with thousands of clients within a single directory the amount of messages in the FuseServer broadcast network can overwhelm the MGM messaging capacity. To reduce the amount of messages sent around while files are open and written, a threshold can be defined after which a certain audience of clients will not receive anymore meta-data update or forced refresh messages. If 1000 clients write 1000 files within a single directory the message rate is 100kHz for file-size updates while the clients are writing. In the example above if a message hits more than 256 listeners and the client names start with b6 or b6 messages will be suppressed. Messages emitted when files are created or commmitted are not suppressed!
+When working with thousands of clients within a single directory the amount of messages in the FuseServer broadcast network can overwhelm the MGM messaging capacity. To reduce the amount of messages sent around while files are open and written, a threshold can be defined after which a certain audience of clients will not receive anymore meta-data update or forced refresh messages. If 1000 clients write 1000 files within a single directory the message rate is 100kHz for file-size updates while the clients are writing. In the example above if a message hits more than 256 listeners and the client names start with b6 or b6 messages will be suppressed. Messages emitted when files are created or committed are not suppressed!
 
 
 Namespace Configuration
@@ -250,7 +250,7 @@ By default each client sends his desired leastime for directory subscriptions (3
    [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/
    [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/user/
    [root@eos ]# eos attr set sys.forced.leasetime=86400 /eos/user/f
-   
+
 
 File State Tracking for eosxd
 -----------------------------
@@ -291,7 +291,7 @@ Example:
 This examples show the creation "C", the file size update "U±", a commit from filesystem 2 with checksum and size "+2sc", a commit from filesystem 1 with checksum verification "+1v", then subsequent two update sequences to the file resulting in filesize change.
 
 
-Replica/Chunk Tracking 
+Replica/Chunk Tracking
 ----------------------
 
 The namespace registers all replica/stripe create,unlink and delete operation inside the extended attribute *sys.fs.tracking*.
@@ -307,14 +307,10 @@ Possible indicators are:
 Example:
 
 .. code-block:: bash
-  
+
    [root@eos  ]# eos attr ls /eos/file
                  ...
                  sys.fs.tracking="+1+2+3+4-1-2/1/2"
                  ...
 
-This examples shows the how replicas are attached on filesystems 1,2,3,4, then unlinked on 1,2 and finally deleted on 1,2. 
-
-
-
-  
+This examples shows the how replicas are attached on filesystems 1,2,3,4, then unlinked on 1,2 and finally deleted on 1,2.

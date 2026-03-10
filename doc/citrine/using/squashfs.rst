@@ -82,9 +82,9 @@ Pack a new package
    lrwxrwxrwx   1 nobody   nobody             65 May 27 13:38 mypackage -> /eos/squashfs/ajp.cern.ch@---eos---ajp---squash---.mypackage.sqsh
 
 
-If you try to use or access a package on a diffrent client machine before you call **eos squash pack** you will get errors on clients, because the symbolic link points to a non-existing local directory as long as a package is not closed.
+If you try to use or access a package on a different client machine before you call **eos squash pack** you will get errors on clients, because the symbolic link points to a non-existing local directory as long as a package is not closed.
 
-In general you have to treat SquashFS packages as write-once archives. There is the possiblity to unpack a packed archive, modify and re-pack, however this is problematic if a package is already accessed on other clients using the automount mechanism. They won't remount an updated package automatically unless the mount is removed by idle timeouts and re-mounted later.
+In general you have to treat SquashFS packages as write-once archives. There is the possibility to unpack a packed archive, modify and re-pack, however this is problematic if a package is already accessed on other clients using the automount mechanism. They won't remount an updated package automatically unless the mount is removed by idle timeouts and re-mounted later.
 
 
 Package information
@@ -238,9 +238,9 @@ You can trim your softare releases using:
 
    [root@dev ]# eos squash trim-release /eos/dev/release/mypackage 100
 
-This commmand will keep only versions not older than 100 days.
+This command will keep only versions not older than 100 days.
 
-Additionally you can specifiy the maximum number of versions to keep:
+Additionally you can specify the maximum number of versions to keep:
 
 .. code-block:: bash
 
@@ -251,7 +251,7 @@ In this case we don't want to keep more than the 10 most recents versions, not o
 Deleting Release Packages
 +++++++++++++++++++++++++
 
-For completeness, there is a command to cleanup a release packge. Be aware, that this will deleted all your release versions!
+For completeness, there is a command to cleanup a release package. Be aware, that this will deleted all your release versions!
 
 .. code-block:: bash
 

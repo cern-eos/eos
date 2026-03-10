@@ -6,7 +6,7 @@
 Replication Tracker
 ===================
 
-The Replication Tracker follows the workflow of file creations. For each created file a virtual entry is created in the ``proc/tracker`` directory. Entries are removed once a layout is completely commited. The purpose of this tracker is to find inconsistent files after creation and to remove atomic upload relicts automatically after two days.
+The Replication Tracker follows the workflow of file creations. For each created file a virtual entry is created in the ``proc/tracker`` directory. Entries are removed once a layout is completely committed. The purpose of this tracker is to find inconsistent files after creation and to remove atomic upload relicts automatically after two days.
 
 Configuration
 -------------
@@ -18,7 +18,7 @@ The Replication Tracker has to be enabled/disabled in the default space only:
 .. code-block:: bash
 
    # enable
-   eos space config default space.tracker=on  
+   eos space config default space.tracker=on
    # disable
    eos space config default space.tracker=off
 
@@ -50,13 +50,13 @@ You can get the current listing of tracked files using:
 
 .. code-block:: bash
 
-   eos space tracker 
+   eos space tracker
 
    # ------------------------------------------------------------------------------------
    key=00142888 age=4 (s) delete=0 rep=0/1 atomic=1 reason=REPLOW uri='/eos/test/creations/.sys.a#.f.1.802e6b70-973e-11e9-a687-fa163eb6b6cf'
    # ------------------------------------------------------------------------------------
 
-   
+
 
 The displayed reasons are:
 
@@ -87,5 +87,3 @@ To get more verbose information you can change the log level:
 
    # switch back to info log level on the MGM
    eos debug info
-
-

@@ -285,7 +285,7 @@ AUTH - configuration
 - **eosauth.numsockets** - once a clients wants to send a request the thread
     allocated to him in XRootD will require a socket to send the request
     to the MGM node. Therefore, we set up a pool of sockets from the
-    begining which can be used to send/receiver requests/responses.
+    beginning which can be used to send/receiver requests/responses.
     The default size is 10 sockets.
 
 MGM - configuration

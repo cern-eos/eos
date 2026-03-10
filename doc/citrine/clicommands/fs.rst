@@ -29,12 +29,12 @@ fs
     replicate files from the source to the target filesystem
     <sourceid>   : id of the source filesystem
     <targetid>   : id of the target filesystem
-  
+
     fs compare <sourceid> <targetid>
     compares and reports which files are present on one filesystem and not on the other
     <sourceid>   : id of the source filesystem
     <targetid>   : id of the target filesystem
-  
+
     fs config <fsid> <key>=<value>
     configure the filesystem parameter, where <key> and <value> can be:
     configstatus=rw|wo|ro|drain|draindead|off|empty [--comment "<comment>"]
@@ -59,7 +59,7 @@ fs
     namespace consistency thread scan interval (default 3 days)
     scan_ns_rate=<entries/s>
     maximum scan rate of ns entries for the NS consistency. This
-    is bound by the maxium number of IOPS per disk.
+    is bound by the maximum number of IOPS per disk.
     graceperiod=<seconds>
     grace period before a filesystem with an operation error gets
     automatically drained
