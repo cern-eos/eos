@@ -1706,6 +1706,73 @@ when it comes to handling EOS FUSE mountpoints please consult the following docu
 https://gitlab.cern.ch/dss/eos/-/blob/master/fusex/README.md
 
 
+Recovering from a stuck EOS FUSE mount
+--------------------------------------
+
+The intent is that EOS FUSE mounts be robust and stable. However it is
+possible that the user space component, eosxd, could run into problems and crash or
+perhaps hang. In that case the filesystem will respond with an error or stop
+responding, with the problem not resolving by itself. The whole machine on which it
+was mounted could be impacted, as even operations that don't directly use the mounted
+filesystem may indirectly wait for something that does. Sometimes several
+steps are needed to clear away a stuck mount and unblock waiting processes.
+Subsequently it should be possible to restart the EOS mount.
+
+Here are steps which have been found to usually unblock and remove a FUSE mount:
+
+Identify the problematic EOS mount: Hopefully it will be clear which mount is stuck,
+usually operations on a given mount point will hang or return an error. Processes hanging
+may appear in "D" (uninterruptible) state when listing them with "ps". Another symptom
+may be that listing free space for all mounted filesystems, e.g. "df -h" will block at a
+certain point when listing, just before the problem filesystem.
+
+Identify the minor device number of the mount: For example for a problematic mount
+at /eos/home-a
+
+.. code-block:: bash
+
+   cat /proc/self/mountinfo | grep /eos/home-a
+   # output like
+   # 1924 1389 0:76 / /eos/home-a rw,nosuid,nodev,relatime shared:826 - fuse home-a rw,user_id=0,group_id=0,allow_other
+
+In the above the minor device number is 76, visible in the third column.
+
+Ensure the fuse control filesystem is available. Often this will already be mounted. On AlmaLinux
+it can be usually be found at /sys/fs/fuse/connections. If not, for example if the connections
+directory is not visible, it can be mounted with:
+
+.. code-block:: bash
+
+   mount -t fusectl none /sys/fs/fuse/connections
+
+Ensure the eosxd processes for the mount are no longer running or are exiting. There are usually two
+processes associated to a mount.
+
+.. code-block:: bash
+
+   ps auxgww | grep eosxd | grep home-a
+   # may give output like
+   # root     3804740  0.6  0.0 772588 68116 ?        S<sl 15:29   0:08 /usr/bin/eosxd /eos/home-a -o rw,fsname=home-a -oautofs
+   # root     3804742  0.0  0.0  87152 20936 ?        S    15:29   0:00 /usr/bin/eosxd /eos/home-a -o rw,fsname=home-a -oautofs
+   kill -9 3804740 3804742
+
+Now request FUSE to abort any remaining operations by using the control filesystem:
+
+.. code-block:: bash
+
+   # where the '76' below is the device number found above
+   echo 1 > /sys/fs/fuse/connections/76/abort
+
+Finally attempt a 'lazy' unmount of the filesystem:
+
+.. code-block:: bash
+
+   umount -l /eos/home-a
+
+This should clear both the mount and any blocked processed that were waiting,
+directly or indirectly on the previously hung mount. Assuming all is clear the mount can be
+restarted, or if using the automounter attempt to access the mount point to restart it.
+
 SquashFS images for software distribution
 -----------------------------------------
 
