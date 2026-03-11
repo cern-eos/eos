@@ -2360,7 +2360,7 @@ valid placements using any of the scheduling strategies isn't found.
 
 
 Scheduling Strategies
-"""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^
 
 The following strategies are currently offered:
 
@@ -2391,7 +2391,7 @@ The following strategies are currently offered:
 
 
 Disk Weight configuration
-"""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^
 For weighted scheduling, by default disks are weighted as a short unsigned integer, where the number is equivalent to
 the disk capacity in TB, ie. a disk with 4 TB capacity is allotted a weight of 4 and so forth. This can be
 changed at runtime to for eg. do certain draining/maintenance operations where the weight can be lowered
@@ -2415,7 +2415,7 @@ The desired checksums are configured on a **per-directory basis** using an exten
 
 
 Enabling Alternative Checksums on a Directory
-"""""""""""""""""""""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To specify which alternative checksums should be computed for files within a directory, set the `sys.altxs`` extended attribute. The value should be a comma-separated list of the desired checksum algorithms.
 
@@ -2427,7 +2427,7 @@ For example, to compute MD5, SHA-1, and SHA-256 checksums for all new files in t
 
 
 Administrator Configuration
-"""""""""""""""""""""""""""
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The following parameters control the behavior of the alternative checksums feature from the administrator's side.
 
