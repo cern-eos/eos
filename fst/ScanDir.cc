@@ -480,32 +480,41 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     mNumScannedFiles =  mTotalScanSize =  mNumCorruptedFiles = 0;
     mNumHWCorruptedFiles =  mNumTotalFiles = mNumSkippedFiles = 0;
-    auto start_ts = std::chrono::system_clock::now();
-    // Do the heavy work
-    ScanSubtree(assistant);
-    auto finish_ts = std::chrono::system_clock::now();
-    seconds duration = duration_cast<seconds>(finish_ts - start_ts);
-    // Check if there was a config update before we sleep
-    disk_interval_sec = mDiskIntervalSec.load(std::memory_order_acquire);
-    std::string log_msg =
-      SSTR("[ScanDir] Directory: " << mDirPath << " files=" << mNumTotalFiles
-           << " scanduration=" << duration.count() << " [s] scansize="
-           << mTotalScanSize << " [Bytes] [ " << (mTotalScanSize / 1e6)
-           << " MB ] scannedfiles=" << mNumScannedFiles << " corruptedfiles="
-           << mNumCorruptedFiles << " hwcorrupted=" << mNumHWCorruptedFiles
-           << " skippedfiles=" << mNumSkippedFiles
-           << " disk_scan_interval_sec=" << disk_interval_sec);
 
-    if (mBgThread) {
-      syslog(LOG_ERR, "%s\n", log_msg.c_str());
-      eos_notice("%s", log_msg.c_str());
-    } else {
-      fprintf(stderr, "%s\n", log_msg.c_str());
+    if (disk_interval_sec) {
+      auto start_ts = std::chrono::system_clock::now();
+      // Do the heavy work
+      ScanSubtree(assistant);
+      auto finish_ts = std::chrono::system_clock::now();
+      seconds duration = duration_cast<seconds>(finish_ts - start_ts);
+      // Check if there was a config update before we sleep
+      disk_interval_sec = mDiskIntervalSec.load(std::memory_order_acquire);
+      std::string log_msg =
+        SSTR("[ScanDir] Directory: " << mDirPath << " files=" << mNumTotalFiles
+             << " scanduration=" << duration.count() << " [s] scansize="
+             << mTotalScanSize << " [Bytes] [ " << (mTotalScanSize / 1e6)
+             << " MB ] scannedfiles=" << mNumScannedFiles << " corruptedfiles="
+             << mNumCorruptedFiles << " hwcorrupted=" << mNumHWCorruptedFiles
+             << " skippedfiles=" << mNumSkippedFiles
+             << " disk_scan_interval_sec=" << disk_interval_sec);
+
+      if (mBgThread) {
+        syslog(LOG_ERR, "%s\n", log_msg.c_str());
+        eos_notice("%s", log_msg.c_str());
+      } else {
+        fprintf(stderr, "%s\n", log_msg.c_str());
+      }
     }
 
     if (mBgThread) {
       // Run again after (default) 4 hours
-      assistant.wait_for(std::chrono::seconds(disk_interval_sec));
+      if (disk_interval_sec) {
+        assistant.wait_for(std::chrono::seconds(disk_interval_sec));
+      } else {
+        // If disk interval is 0 it means scanning is disabled, just wait
+        // for 1h, the thread will be joined if disk interval is updated
+        assistant.wait_for(std::chrono::seconds(std::chrono::hours(1)));
+      }
     } else {
       break;
     }
