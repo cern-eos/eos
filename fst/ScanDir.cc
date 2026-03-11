@@ -1128,12 +1128,14 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
 #endif
   }
 
-  if (invalid_fsid.empty()) {
-    return true;
-  }
-
   if (ShouldSkipAfterCheck(io, fid, info_before)) {
     return false;
+  }
+
+  // Update last RAIN scan timestamp on the file
+  if (io->attrSet("user.eos.rain_timestamp", GetTimestampSmearedSec(true))) {
+    eos_static_err("msg=\"failed to set xattr rain_timestamp\" path=\"%s\"",
+                   io->GetPath().c_str());
   }
 
   ReportInvalidFsid(io, fid, invalid_fsid);
@@ -1176,12 +1178,7 @@ ScanDir::ReportInvalidFsid(eos::fst::FileIo* io,
                            eos::common::FileId::fileid_t fid,
                            const std::set<eos::common::FileSystem::fsid_t>& invalid_fsid)
 {
-  if (io->attrSet("user.eos.rain_timestamp", GetTimestampSmearedSec(true))) {
-    eos_static_err("msg=\"failed to set xattr rain_timestamp\" path=\"%s\"",
-                   io->GetPath().c_str());
-  }
-
-  if (mBgThread) {
+  if (!invalid_fsid.empty() && mBgThread) {
     gOFS.mFmdHandler->UpdateWithStripeCheckInfo(fid, mFsId, invalid_fsid);
   }
 }
