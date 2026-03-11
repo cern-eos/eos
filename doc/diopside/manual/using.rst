@@ -1587,8 +1587,8 @@ This examples shows the how replicas are attached on filesystems
    pair: Using; EOS FUSE Ubuntu
 
 
-EOS FUSE mount on Ubuntu/Debian
---------------------------------
+EOS FUSE mount on Ubuntu
+------------------------
 
 The following releases of Ubuntu are currently supported:
 
