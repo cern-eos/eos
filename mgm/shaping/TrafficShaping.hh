@@ -178,6 +178,18 @@ struct TrafficShapingPolicy {
            reservation_read_bytes_per_sec != policy.reservation_read_bytes_per_sec ||
            is_enabled != policy.is_enabled;
   }
+
+  std::string
+  ToString() const
+  {
+    std::ostringstream oss;
+    oss << (is_enabled ? "Enabled" : "Disabled") << " | "
+        << "Read Limit: " << limit_read_bytes_per_sec << " Bps, "
+        << "Write Limit: " << limit_write_bytes_per_sec << " Bps, "
+        << "Read Reservation: " << reservation_read_bytes_per_sec << " Bps, "
+        << "Write Reservation: " << reservation_write_bytes_per_sec << " Bps";
+    return oss.str();
+  }
 };
 
 class TrafficShapingManager {
@@ -190,7 +202,7 @@ public:
 
   void UpdateEstimators(double time_delta_seconds);
 
-  void ComputeLimitsAndReservations();
+  void UpdateLimits();
 
   void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
                          uint32_t window_seconds);

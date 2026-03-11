@@ -311,7 +311,7 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
 }
 
 void
-TrafficShapingManager::ComputeLimitsAndReservations()
+TrafficShapingManager::UpdateLimits()
 {
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
   auto* app_write_map = fst_io_delay_config.mutable_app_write_delay();
@@ -838,7 +838,7 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
     ProcessAllQueuedReports();
 
     auto now = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed = now - last_run;
+    const std::chrono::duration<double> elapsed = now - last_run;
     const double time_delta_seconds = elapsed.count();
     last_run = now;
 
@@ -893,7 +893,7 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
 
     auto work_start_time = std::chrono::steady_clock::now();
 
-    mManager->ComputeLimitsAndReservations();
+    mManager->UpdateLimits();
 
     auto work_end_time = std::chrono::steady_clock::now();
     const auto compute_duration_us =
@@ -962,6 +962,9 @@ TrafficShapingManager::SetUidPolicy(const uint32_t uid,
   std::unique_lock lock(mMutex);
   mUidPolicies[uid] = policy;
 
+  eos_static_info("msg=\"Set UID Traffic Shaping Policy\" uid=%u policy=%s", uid,
+                  policy.ToString().c_str());
+
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
                                   SerializePoliciesUnlocked());
   gOFS->mConfigEngine->AutoSave();
@@ -973,6 +976,9 @@ TrafficShapingManager::SetGidPolicy(const uint32_t gid,
 {
   std::unique_lock lock(mMutex);
   mGidPolicies[gid] = policy;
+
+  eos_static_info("msg=\"Set GID Traffic Shaping Policy\" gid=%u policy=%s", gid,
+                  policy.ToString().c_str());
 
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
                                   SerializePoliciesUnlocked());
@@ -986,6 +992,9 @@ TrafficShapingManager::SetAppPolicy(const std::string& app,
   std::unique_lock lock(mMutex);
   mAppPolicies[app] = policy;
 
+  eos_static_info("msg=\"Set App Traffic Shaping Policy\" app=%s policy=%s", app.c_str(),
+                  policy.ToString().c_str());
+
   const std::string serialized = SerializePoliciesUnlocked();
 
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
@@ -997,6 +1006,7 @@ TrafficShapingManager::RemoveUidPolicy(const uint32_t uid)
 {
   std::unique_lock lock(mMutex);
   if (mUidPolicies.erase(uid)) {
+    eos_static_info("msg=\"Removed UID Traffic Shaping Policy\" uid=%u", uid);
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
                                     SerializePoliciesUnlocked());
     gOFS->mConfigEngine->AutoSave();
@@ -1008,6 +1018,7 @@ TrafficShapingManager::RemoveGidPolicy(const uint32_t gid)
 {
   std::unique_lock lock(mMutex);
   if (mGidPolicies.erase(gid)) {
+    eos_static_info("msg=\"Removed GID Traffic Shaping Policy\" gid=%u", gid);
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
                                     SerializePoliciesUnlocked());
     gOFS->mConfigEngine->AutoSave();
@@ -1019,6 +1030,7 @@ TrafficShapingManager::RemoveAppPolicy(const std::string& app)
 {
   std::unique_lock lock(mMutex);
   if (mAppPolicies.erase(app)) {
+    eos_static_info("msg=\"Removed App Traffic Shaping Policy\" app=%s", app.c_str());
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
                                     SerializePoliciesUnlocked());
     gOFS->mConfigEngine->AutoSave();
