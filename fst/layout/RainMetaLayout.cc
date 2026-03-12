@@ -610,7 +610,8 @@ RainMetaLayout::ValidateHeader()
       unsigned int sid = mHdrInfo[i]->GetIdStripe();
 
       if (used_stripes.count(sid)) {
-        eos_err("%s", "msg=\"two physical files with the same stripe id\"");
+        eos_err("msg=\"two physical files with the same stripe id\" "
+                "local_path=\"%s\"", mLocalPath.c_str());
         return false;
       }
 
@@ -626,7 +627,8 @@ RainMetaLayout::ValidateHeader()
   }
 
   if (new_file || all_hd_valid) {
-    eos_debug("%s", "msg=\"file is either new or there are no corruptions\"");
+    eos_debug("msg=\"file is either new or there are no corruptions\" "
+              "local_path=\"%s\"", mLocalPath.c_str());
 
     if (new_file) {
       for (unsigned int i = 0; i < mHdrInfo.size(); i++) {
@@ -643,8 +645,9 @@ RainMetaLayout::ValidateHeader()
 
   // Can not recover from more than mNbParityFiles corruptions
   if (physical_ids_invalid.size() > mNbParityFiles) {
-    eos_err("msg=\"can not recover more than %u corruptions\" num_corrupt=%i",
-            mNbParityFiles, physical_ids_invalid.size());
+    eos_err("msg=\"can not recover more than %u corruptions\" num_corrupt=%i "
+            "local_path=\"%s\"", mNbParityFiles, physical_ids_invalid.size(),
+            mLocalPath.c_str());
     return false;
   }
 
@@ -665,7 +668,8 @@ RainMetaLayout::ValidateHeader()
 
         // If file successfully opened, we need to store the info
         if ((mForceRecovery || mStoreRecoveryRW) && mStripe[physical_id]) {
-          eos_info("msg=\"recovered header for stripe %i\"", mapPL[physical_id]);
+          eos_info("msg=\"recovered header for stripe %i\" local_path=\"%s\"",
+                   mapPL[physical_id], mLocalPath.c_str());
           mHdrInfo[physical_id]->WriteToFile(mStripe[physical_id].get(), mTimeout);
         }
 
@@ -679,7 +683,8 @@ RainMetaLayout::ValidateHeader()
   // Populate the stripe url map
   for (unsigned int i = 0; i < mNbTotalFiles; i++) {
     mapLP[mapPL[i]] = i;
-    eos_debug("msg=\"stripe physical=%i mapped to logical=%i\"", i, mapPL[i]);
+    eos_debug("msg=\"stripe physical=%i mapped to logical=%i\" "
+              "local_path=\"%s\"", i, mapPL[i], mLocalPath.c_str());
   }
 
   mDoneRecovery = true;
