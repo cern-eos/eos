@@ -16,10 +16,23 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.34 Diopside``
+====================
+
+2026-08-12
+
+Bug
+----
+
+* [EOS-6576] - FST individual stripe checksum not properly bandwidth limited
+* FST: Properly mark scanned RAIN files with the "user.eos.rain_timestamp" xattr
+  to avoid repetitive scanning of the same files.
+
+
 ``v5.3.33 Diopside``
 ====================
 
-2026-08-03
+2026-03-08
 
 Bug
 ---
