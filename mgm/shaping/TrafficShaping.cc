@@ -36,6 +36,8 @@ TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
 
   estimators_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
                                            mEstimatorsTickIntervalSec);
+  fst_reports_processed_per_second.emplace(mSystemStatsWindowSeconds,
+                                           mEstimatorsTickIntervalSec);
   fst_limits_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
                                            fst_policy_period_ms * 0.001);
 }
@@ -499,34 +501,62 @@ TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microsec
     estimators_update_loop_micro_sec->Add(time_microseconds);
     estimators_update_loop_micro_sec->Tick();
   }
+  if (fst_reports_processed_per_second) {
+    fst_reports_processed_per_second->Tick();
+  }
 }
 
-std::tuple<double, uint64_t, uint64_t>
+std::tuple<uint64_t, uint64_t, uint64_t>
 TrafficShapingManager::GetEstimatorsUpdateLoopMicroSecStats() const
 {
   std::shared_lock lock(mMutex);
   if (estimators_update_loop_micro_sec) {
     return {
-        estimators_update_loop_micro_sec->GetMean(true),
+        estimators_update_loop_micro_sec->GetMedian(true), // Ignore zeroes correctly
         estimators_update_loop_micro_sec->GetMin(true),
         estimators_update_loop_micro_sec->GetMax(true),
     };
   }
-  return {0.0, 0, 0};
+  return {0, 0, 0};
 }
 
-std::tuple<double, uint64_t, uint64_t>
+std::tuple<uint64_t, uint64_t, uint64_t>
 TrafficShapingManager::GetFstLimitsUpdateLoopMicroSecStats() const
 {
   std::shared_lock lock(mMutex);
   if (fst_limits_update_loop_micro_sec) {
     return {
-        fst_limits_update_loop_micro_sec->GetMean(true),
+        fst_limits_update_loop_micro_sec->GetMedian(true),
         fst_limits_update_loop_micro_sec->GetMin(true),
         fst_limits_update_loop_micro_sec->GetMax(true),
     };
   }
-  return {0.0, 0, 0};
+  return {0, 0, 0};
+}
+
+void
+TrafficShapingManager::UpdateFstReportsProcessed(const uint64_t count)
+{
+  std::unique_lock lock(mMutex);
+  if (fst_reports_processed_per_second) {
+    fst_reports_processed_per_second->Add(count);
+  }
+}
+
+double
+TrafficShapingManager::GetFstReportsProcessedPerSecondMean() const
+{
+  std::shared_lock lock(mMutex);
+  if (fst_reports_processed_per_second) {
+    double multiplier = 1.0;
+    if (mEstimatorsTickIntervalSec > 0.0) {
+      multiplier = 1.0 / mEstimatorsTickIntervalSec;
+    }
+
+    // 0 counts in a tick are valid measurements for processing speed.
+    return fst_reports_processed_per_second->GetMean(false) * multiplier;
+  }
+  return 0.0;
 }
 
 void
@@ -540,6 +570,7 @@ TrafficShapingManager::Clear()
 
   estimators_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
+  fst_reports_processed_per_second.reset();
 }
 
 RateSnapshot
@@ -563,8 +594,7 @@ TrafficShapingEngine::TrafficShapingEngine()
     , mEstimatorsUpdateThreadPeriodMilliseconds(200)
     , mFstIoPolicyUpdateThreadPeriodMilliseconds(200)
     , mFstIoStatsReportThreadPeriodMilliseconds(200)
-    , mSystemStatsWindowSeconds(
-          15) // TODO: store the number of processed reports as a system sliding window
+    , mSystemStatsWindowSeconds(15)
 {
   mManager = std::make_shared<TrafficShapingManager>();
 }
@@ -711,8 +741,8 @@ TrafficShapingEngine::ApplyConfig()
   const std::string thread_periods =
       FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS);
   if (!thread_periods.empty()) {
-    eos::traffic_shaping::ThreadConfig thread_config;
     try {
+      eos::traffic_shaping::ThreadConfig thread_config;
       thread_config.ParseFromString(thread_periods);
       est_ms = thread_config.update_estimators_period_millis();
       pol_ms = thread_config.fst_policy_update_period_millis();
@@ -820,9 +850,15 @@ TrafficShapingEngine::ProcessAllQueuedReports()
     std::swap(mReportQueue, local_queue);
   }
 
+  if (mManager == nullptr) {
+    return;
+  }
+
   for (const auto& report : local_queue) {
     mManager->ProcessReport(report);
   }
+
+  mManager->UpdateFstReportsProcessed(local_queue.size());
 }
 
 void
@@ -855,10 +891,10 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
           mManager->GarbageCollect(900);
 
       if (removed_node_streams > 0 || removed_global_streams > 0) {
-        eos_static_info("msg=\"Traffic Shaping Garbage Collection\" removed_nodes=%lu "
-                        "removed_node_streams=%lu "
-                        "removed_global_streams=%lu",
-                        removed_nodes, removed_node_streams, removed_global_streams);
+        eos_static_debug("msg=\"Traffic Shaping Garbage Collection\" removed_nodes=%lu "
+                         "removed_node_streams=%lu "
+                         "removed_global_streams=%lu",
+                         removed_nodes, removed_node_streams, removed_global_streams);
       }
     }
 
@@ -1194,7 +1230,7 @@ TrafficShapingManager::SerializePoliciesUnlocked() const
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = false;
 
-  if (auto status =
+  if (const auto status =
           google::protobuf::util::MessageToJsonString(proto_config, &json_data, options);
       !status.ok()) {
     eos_static_err("msg=\"Failed to serialize policies to JSON\"");
@@ -1215,8 +1251,8 @@ TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_poli
   google::protobuf::util::JsonParseOptions options;
   options.ignore_unknown_fields = true;
 
-  auto status = google::protobuf::util::JsonStringToMessage(serialized_policies,
-                                                            &proto_config, options);
+  const auto status = google::protobuf::util::JsonStringToMessage(serialized_policies,
+                                                                  &proto_config, options);
   if (!status.ok()) {
     eos_static_err("msg=\"Failed to parse policies from JSON string\"");
     return false;

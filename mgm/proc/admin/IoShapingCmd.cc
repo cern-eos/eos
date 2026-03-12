@@ -165,7 +165,7 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       engine.GetManager();
   if (!manager) {
     reply.set_retc(EINVAL);
-    reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
+    reply.set_std_err("error: Traffic Shaping Engine is not initialized.\n");
     return;
   }
 
@@ -276,10 +276,11 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     }
 
     if (list_req.system_stats()) {
-      const auto [estimator_mean, estimator_min, estimator_max] =
+      const auto [estimator_median, estimator_min, estimator_max] =
           manager->GetEstimatorsUpdateLoopMicroSecStats();
-      const auto [fst_limits_mean, fst_limits_min, fst_limits_max] =
+      const auto [fst_limits_median, fst_limits_min, fst_limits_max] =
           manager->GetFstLimitsUpdateLoopMicroSecStats();
+      const auto reports_processed_mean = manager->GetFstReportsProcessedPerSecondMean();
       const auto system_stats_window_seconds = manager->GetSystemStatsWindowSeconds();
 
       if (!first) {
@@ -288,14 +289,16 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       oss << "  {\n"
           << "    \"id\": \"engine_meta\",\n"
           << "    \"type\": \"system\",\n"
-          << "    \"estimators_loop_mean_us\": " << std::fixed << std::setprecision(2)
-          << estimator_mean << ",\n"
+          << "    \"estimators_loop_median_us\": " << std::fixed << std::setprecision(2)
+          << estimator_median << ",\n"
           << "    \"estimators_loop_min_us\": " << estimator_min << ",\n"
           << "    \"estimators_loop_max_us\": " << estimator_max << ",\n"
-          << "    \"fst_limits_loop_mean_us\": " << std::fixed << std::setprecision(2)
-          << fst_limits_mean << ",\n"
+          << "    \"fst_limits_loop_median_us\": " << std::fixed << std::setprecision(2)
+          << fst_limits_median << ",\n"
           << "    \"fst_limits_loop_min_us\": " << fst_limits_min << ",\n"
           << "    \"fst_limits_loop_max_us\": " << fst_limits_max << ",\n"
+          << "    \"reports_processed_per_sec_mean\": " << std::fixed
+          << std::setprecision(2) << reports_processed_mean << ",\n"
           << "    \"system_stats_window_seconds\": " << system_stats_window_seconds
           << "\n"
           << "  }";
@@ -337,24 +340,30 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
         << std::setw(12) << total_sma_metrics.write_iops << "\n";
 
     if (list_req.system_stats()) {
-      const auto [estimator_mean, estimator_min, estimator_max] =
+      const auto [estimator_median, estimator_min, estimator_max] =
           manager->GetEstimatorsUpdateLoopMicroSecStats();
-      const auto [fst_limits_mean, fst_limits_min, fst_limits_max] =
+      const auto [fst_limits_median, fst_limits_min, fst_limits_max] =
           manager->GetFstLimitsUpdateLoopMicroSecStats();
+      const auto reports_processed_mean = manager->GetFstReportsProcessedPerSecondMean();
       const auto system_stats_window_seconds = manager->GetSystemStatsWindowSeconds();
 
       oss << "\n--- System Statistics (averaged over last " << system_stats_window_seconds
           << " seconds) ---\n";
-      oss << std::left << std::setw(25) << "Estimators Update:"
-          << "Mean = " << std::fixed << std::setprecision(2) << estimator_mean << " us | "
+      oss << std::left << std::setw(30) << "Estimators Update:"
+          << "Median = " << std::fixed << std::setprecision(2) << estimator_median
+          << " us | "
           << "Min = " << estimator_min << " us | "
           << "Max = " << estimator_max << " us\n";
 
-      oss << std::left << std::setw(25) << "FST Policy Update:"
-          << "Mean = " << std::fixed << std::setprecision(2) << fst_limits_mean
+      oss << std::left << std::setw(30) << "FST Policy Update:"
+          << "Median = " << std::fixed << std::setprecision(2) << fst_limits_median
           << " us | "
           << "Min = " << fst_limits_min << " us | "
           << "Max = " << fst_limits_max << " us\n";
+
+      oss << std::left << std::setw(30) << "FST Reports Per Second:"
+          << "Mean = " << std::fixed << std::setprecision(2) << reports_processed_mean
+          << "\n";
     }
   }
 

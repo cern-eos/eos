@@ -297,9 +297,13 @@ public:
 
   void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
 
-  std::tuple<double, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
+  void UpdateFstReportsProcessed(uint64_t count);
 
-  std::tuple<double, uint64_t, uint64_t> GetFstLimitsUpdateLoopMicroSecStats() const;
+  double GetFstReportsProcessedPerSecondMean() const;
+
+  std::tuple<uint64_t, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
+
+  std::tuple<uint64_t, uint64_t, uint64_t> GetFstLimitsUpdateLoopMicroSecStats() const;
 
   uint32_t
   GetSystemStatsWindowSeconds() const
@@ -334,6 +338,8 @@ private:
       estimators_update_loop_micro_sec;
   std::optional<eos::fst::traffic_shaping::SlidingWindowStats>
       fst_limits_update_loop_micro_sec;
+  std::optional<eos::fst::traffic_shaping::SlidingWindowStats>
+      fst_reports_processed_per_second;
 
   double mEstimatorsTickIntervalSec{0.5};
   uint32_t mSystemStatsWindowSeconds{15};
@@ -423,21 +429,21 @@ private:
 
   void UpdateThreadConfigs();
 
-  std::shared_ptr<TrafficShapingManager> mManager;
+  std::shared_ptr<TrafficShapingManager> mManager{};
 
   AssistedThread mEstimatorsUpdateThread;
   AssistedThread mFstIoPolicyUpdateThread;
   AssistedThread mFstTrafficShapingConfigUpdateThread;
 
-  std::atomic<bool> mRunning;
+  std::atomic<bool> mRunning{};
 
-  std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds;
-  std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds;
-  std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds;
-  std::atomic<uint32_t> mSystemStatsWindowSeconds;
+  std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds{};
+  std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds{};
+  std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds{};
+  std::atomic<uint32_t> mSystemStatsWindowSeconds{};
 
-  std::vector<eos::traffic_shaping::FstIoReport> mReportQueue;
-  std::mutex mReportQueueMutex;
+  std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
+  std::mutex mReportQueueMutex{};
 };
 
 } // namespace eos::mgm::traffic_shaping
