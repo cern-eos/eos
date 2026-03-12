@@ -383,7 +383,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Query MGM for the list of deletions
+  //! Query QDB for the list of deletions
   //!
   //! @param return SFS_ERROR if failed, otherwise SFS_OK
   //----------------------------------------------------------------------------
@@ -612,6 +612,19 @@ public:
   //! @return kernel release info or empty if failed
   //----------------------------------------------------------------------------
   static std::string GetKernelRelease();
+
+  //----------------------------------------------------------------------------
+  //! Query QDB directly for unlinked files on a given filesystem
+  //!
+  //! @param fsid file system id
+  //! @param fids vector to populate with unlinked file ids
+  //! @param max_batch maximum number of fids to retrieve (default 1024)
+  //!
+  //! @return true if successful, false otherwise
+  //----------------------------------------------------------------------------
+  bool GetUnlinkedFilesFromQDB(eos::common::FileSystem::fsid_t fsid,
+                               std::vector<unsigned long long>& fids,
+                               size_t max_batch = 1024);
 };
 
 //------------------------------------------------------------------------------

@@ -32,6 +32,7 @@
 #include "fst/Deletion.hh"
 #include "fst/Verify.hh"
 #include "fst/utils/XrdOfsPathHandler.hh"
+#include "qclient/structures/QSet.hh"
 #ifdef HAVE_NFS
 #include "fst/io/nfs/NfsIo.hh"
 #endif
@@ -450,6 +451,7 @@ XrdFstOfs::~XrdFstOfs()
   if (mHostName) {
     free(const_cast<char*>(mHostName));
   }
+
   // Free configuration file name allocated via strdup during initialization
   if (ConfigFN) {
     free(ConfigFN);
@@ -2281,85 +2283,112 @@ XrdFstOfs::QueueForMgmSync(eos::common::FmdHelper& fmd)
 }
 
 //------------------------------------------------------------------------------
-// Query MGM for the deletion list
+// Query QDB for deletion list
 //------------------------------------------------------------------------------
 int
 XrdFstOfs::Query2Delete()
 {
-  const std::string mgm_endpoint = gConfig.GetManager();
+  eos_static_debug("%s", "msg=\"querying QDB for deletions\"");
 
-  if (mgm_endpoint.empty()) {
-    eos_static_err("%s", "msg=\"no MGM endpoint available\"");
+  if (!mQcl) {
+    eos_static_err("%s", "msg=\"QDB client not available\"");
     return SFS_ERROR;
   }
 
-  std::ostringstream oss;
-  oss << "root://" << mgm_endpoint << "//dummy?xrd.wantprot=sss";
-  XrdCl::URL url(oss.str());
-
-  if (!url.IsValid()) {
-    eos_static_err("msg=\"invalid url\" url=\"%s\"", oss.str().c_str());
+  if (!Storage) {
+    eos_static_err("%s", "msg=\"Storage object not available\"");
     return SFS_ERROR;
   }
 
-  std::string request = "/?mgm.pcmd=query2delete&mgm.target.nodename=";
-  request += gConfig.FstQueue.c_str();
-  XrdCl::Buffer arg;
-  XrdCl::Buffer* raw_resp {nullptr};
-  std::unique_ptr<XrdCl::Buffer> resp;
-  uint16_t timeout = 45;
-  int attempts = 5;
+  // Iterate through all local file systems
+  eos::common::RWMutexReadLock rd_lock(Storage->mFsMutex);
 
-  do {
-    XrdCl::FileSystem fs {url};
-    arg.FromString(request);
-    XrdCl::XRootDStatus status = fs.Query(XrdCl::QueryCode::OpaqueFile, arg,
-                                          raw_resp, timeout);
-    resp.reset(raw_resp);
-    raw_resp = nullptr;
+  for (const auto& elem : Storage->mFsMap) {
+    eos::common::FileSystem::fsid_t fsid = elem.first;
+    // Get unlinked files for this filesystem from QDB
+    std::vector<unsigned long long> unlinked_fids;
 
-    if (!status.IsOK()) {
-      if (status.code == XrdCl::errSocketTimeout) {
-        eos_static_info("%s", "msg=\"retry query2delete in 2 seconds, "
-                        "MGM not ready\"");
-        std::this_thread::sleep_for(std::chrono::seconds(2));
-        --attempts;
-      } else {
-        eos_static_err("msg=\"failed query request\" request=\"%s\" "
-                       "status=\"%s\" errno=%u",
-                       request.c_str(), status.ToStr().c_str(), status.errNo);
-        return SFS_ERROR;
-      }
-    } else {
-      break;
-    }
-  } while (attempts);
-
-  if (resp && resp->GetBuffer()) {
-    eos::fst::DeletionsProto del_fst;
-
-    if (!del_fst.ParseFromArray(resp->GetBuffer(), resp->GetSize())) {
-      eos_static_err("%s", "msg=\"query2delete failed to parse protobuf\"");
-      return SFS_ERROR;
+    if (!GetUnlinkedFilesFromQDB(fsid, unlinked_fids)) {
+      eos_static_warning("msg=\"failed to get unlinked files\" fsid=%lu", fsid);
+      continue;
     }
 
-    // Submit deletions
-    for (const auto& del : del_fst.fs()) {
-      std::vector<unsigned long long> fids;
-      fids.reserve(del.fids().size());
-      fids.insert(fids.cend(), del.fids().cbegin(), del.fids().cend());
+    if (unlinked_fids.empty()) {
+      continue;
+    }
 
-      try {
-        gOFS.Storage->AddDeletion(std::make_unique<Deletion>
-                                  (std::move(fids), del.fsid()));
-      } catch (const std::bad_alloc& e) {
-        eos_static_err("%s", "msg=\"failed to alloc deletion object\"");
-        continue;
-      }
+    eos_static_info("msg=\"scheduling deletions\" fsid=%lu count=%zu", fsid,
+                    unlinked_fids.size());
+
+    try {
+      Storage->AddDeletion(std::make_unique<Deletion>(std::move(unlinked_fids),
+                           fsid));
+    } catch (const std::exception& ex) {
+      eos_static_err("msg=\"failed to schedule deletion\" fsid=%lu error=\"%s\"",
+                     fsid,
+                     ex.what());
     }
   }
 
   return SFS_OK;
+}
+
+//------------------------------------------------------------------------------
+// Get unlinked files from QDB
+//------------------------------------------------------------------------------
+bool
+XrdFstOfs::GetUnlinkedFilesFromQDB(eos::common::FileSystem::fsid_t fsid,
+                                   std::vector<unsigned long long>& fids,
+                                   size_t max_batch)
+{
+  if (!mQcl) {
+    eos_static_err("msg=\"QDB client not available\"");
+    return false;
+  }
+
+  std::string key = SSTR("fsview:" << fsid << ":unlinked");
+
+  try {
+    // Check if there are any pending deletions
+    auto card_reply = mQcl->exec("SCARD", key).get();
+
+    if (!card_reply || card_reply->type != REDIS_REPLY_INTEGER ||
+        card_reply->integer == 0) {
+      eos_static_debug("msg=\"no unlinked files\" fsid=%lu", fsid);
+      return true;
+    }
+
+    eos_static_debug("msg=\"unlinked files exist\" fsid=%lu count=%lld", fsid,
+                     card_reply->integer);
+    // Iterate through the set
+    qclient::QSet unlinked_set(*mQcl, key);
+    auto cursor = unlinked_set.getIterator();
+    size_t count = 0;
+
+    while (cursor.valid() && count < max_batch) {
+      try {
+        unsigned long long fid = std::stoull(cursor.getElement());
+        fids.push_back(fid);
+        count++;
+      } catch (const std::exception& ex) {
+        eos_static_warning("msg=\"invalid fid in unlinked list\" fsid=%lu "
+                           "value=\"%s\" error=\"%s\"",
+                           fsid, cursor.getElement().c_str(), ex.what());
+      }
+
+      cursor.next();
+    }
+
+    eos_static_debug("msg=\"retrieved unlinked files from QDB\" fsid=%lu "
+                     "count=%zu",
+                     fsid, fids.size());
+    return true;
+  } catch (const std::exception& ex) {
+    eos_static_err("msg=\"failed to query QDB for unlinked files\" fsid=%lu "
+                   "error=\"%s\"",
+                   fsid, ex.what());
+    return false;
+  }
 }
 
 //------------------------------------------------------------------------------

@@ -48,7 +48,7 @@ enum class FsctlCommand {
   readlink,
   redirect,
   schedule2balance, // not used anymore
-  schedule2delete,
+  schedule2delete,  // not used anymore
   stat,
   statvfs,
   symlink,

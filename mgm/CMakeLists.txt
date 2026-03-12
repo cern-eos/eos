@@ -180,7 +180,6 @@ add_library(
   ofs/fsctl/Open.cc
   ofs/fsctl/Readlink.cc
   ofs/fsctl/Redirect.cc
-  ofs/fsctl/Schedule2Delete.cc
   ofs/fsctl/Stat.cc
   ofs/fsctl/Statvfs.cc
   ofs/fsctl/Symlink.cc

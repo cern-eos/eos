@@ -1497,9 +1497,9 @@ public:
   //! @return true if client should get a redirected otherwise false
   //----------------------------------------------------------------------------
   virtual bool ShouldRoute(const char* function, int accessmode,
-                   eos::common::VirtualIdentity& vid,
-                   const char* path, const char* info,
-                   std::string& host, int& port, int& stall_timeout);
+                           eos::common::VirtualIdentity& vid, const char* path,
+                           const char* info, std::string& host, int& port,
+                           int& stall_timeout);
 
   //----------------------------------------------------------------------------
   //! Test if there is stall configured for the given rule
@@ -2440,16 +2440,6 @@ private:
               XrdOucErrInfo& error,
               eos::common::VirtualIdentity& vid,
               const XrdSecEntity* client);
-
-  //----------------------------------------------------------------------------
-  //! Schedule deletion for FSTs
-  //----------------------------------------------------------------------------
-  int Schedule2Delete(const char* path,
-                      const char* ininfo,
-                      XrdOucEnv& env,
-                      XrdOucErrInfo& error,
-                      eos::common::VirtualIdentity& vid,
-                      const XrdSecEntity* client);
 
   //----------------------------------------------------------------------------
   //! Virtual filesystem stat
