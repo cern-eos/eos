@@ -348,9 +348,17 @@ private:
 
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
-  std::pair<std::unordered_map<std::string, double>,
-            std::unordered_map<std::string, double>>
-  GetCurrentReadAndWriteRateForApps() const;
+  // Calculates the new FST delay microsecond value given the current rate and limit
+  static uint64_t CalculateDelayUs(double limit_bps, double current_rate_bps,
+                                   uint64_t current_delay_us);
+
+  std::tuple<std::unordered_map<std::string, double>, // app read
+             std::unordered_map<std::string, double>, // app write
+             std::unordered_map<uint32_t, double>,    // uid read
+             std::unordered_map<uint32_t, double>,    // uid write
+             std::unordered_map<uint32_t, double>,    // gid read
+             std::unordered_map<uint32_t, double>>    // gid write
+  GetCurrentReadAndWriteRates() const;
 };
 
 class TrafficShapingEngine {

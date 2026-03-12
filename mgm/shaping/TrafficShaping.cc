@@ -49,21 +49,34 @@ TrafficShapingManager::CalculateEma(const double current_val, const double prev_
   return (alpha * current_val) + ((1.0 - alpha) * prev_ema);
 }
 
-std::pair<std::unordered_map<std::string, double>,
-          std::unordered_map<std::string, double>>
-TrafficShapingManager::GetCurrentReadAndWriteRateForApps() const
+std::tuple<std::unordered_map<std::string, double>,
+           std::unordered_map<std::string, double>, std::unordered_map<uint32_t, double>,
+           std::unordered_map<uint32_t, double>, std::unordered_map<uint32_t, double>,
+           std::unordered_map<uint32_t, double>>
+TrafficShapingManager::GetCurrentReadAndWriteRates() const
 {
   std::shared_lock lock(mMutex);
 
-  std::unordered_map<std::string, double> app_read_rates;
-  std::unordered_map<std::string, double> app_write_rates;
+  std::unordered_map<std::string, double> app_read_rates, app_write_rates;
+  std::unordered_map<uint32_t, double> uid_read_rates, uid_write_rates;
+  std::unordered_map<uint32_t, double> gid_read_rates, gid_write_rates;
 
   for (const auto& [key, stats] : mGlobalStats) {
-    app_read_rates[key.app] += stats.ema[Ema5s].read_rate_bps;
-    app_write_rates[key.app] += stats.ema[Ema5s].write_rate_bps;
+    double read_bps = stats.ema[Ema5s].read_rate_bps;
+    double write_bps = stats.ema[Ema5s].write_rate_bps;
+
+    app_read_rates[key.app] += read_bps;
+    app_write_rates[key.app] += write_bps;
+
+    uid_read_rates[key.uid] += read_bps;
+    uid_write_rates[key.uid] += write_bps;
+
+    gid_read_rates[key.gid] += read_bps;
+    gid_write_rates[key.gid] += write_bps;
   }
 
-  return {app_read_rates, app_write_rates};
+  return {app_read_rates,  app_write_rates, uid_read_rates,
+          uid_write_rates, gid_read_rates,  gid_write_rates};
 }
 
 void
@@ -313,73 +326,159 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
   process_rate(mTotalStats);
 }
 
+uint64_t
+TrafficShapingManager::CalculateDelayUs(const double limit_bps,
+                                        const double current_rate_bps,
+                                        const uint64_t current_delay_us)
+{
+  if (limit_bps <= 0.0) {
+    return 0;
+  }
+
+  // --- Tuning Constants ---
+  constexpr uint64_t kMaxDelayUs = 2000000;        // 2 seconds max artificial delay
+  constexpr int64_t kMaxStepUs = kMaxDelayUs / 25; // Max delta per tick
+  // ------------------------
+
+  const double ratio = current_rate_bps / limit_bps;
+  uint64_t delay_us = current_delay_us;
+
+  // 1. Kickstart the delay if we breach the limit for the first time
+  if (delay_us == 0 && ratio > 1.0) {
+    delay_us = 100;
+  }
+  // 2. Adjust the delay using a proportional feedback loop
+  else if (delay_us > 0) {
+    // Asymmetric Proportional Gain (kp): react faster to spikes, recover slower when safe
+    const double kp = (ratio > 1.0) ? 0.15 : 0.05;
+    const double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
+
+    const auto current_delay_signed = static_cast<int64_t>(delay_us);
+    const auto target_delay =
+        static_cast<int64_t>(static_cast<double>(current_delay_signed) * damped_ratio);
+
+    // Apply the step limits to prevent massive overcorrections
+    int64_t delta_us = target_delay - current_delay_signed;
+    if (delta_us > kMaxStepUs) {
+      delta_us = kMaxStepUs;
+    } else if (delta_us < -kMaxStepUs) {
+      delta_us = -kMaxStepUs;
+    }
+
+    delay_us = static_cast<uint64_t>(current_delay_signed + delta_us);
+  }
+
+  // 3. Clamp to absolute maximum
+  delay_us = std::min<uint64_t>(kMaxDelayUs, delay_us);
+
+  // 4. Snap to 0 if the delay drops too low, and we are under the limit
+  if (delay_us < 10 && ratio < 1.0) {
+    delay_us = 0;
+  }
+
+  return delay_us;
+}
+
 void
 TrafficShapingManager::UpdateLimits()
 {
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
+
   auto* app_write_map = fst_io_delay_config.mutable_app_write_delay();
   auto* app_read_map = fst_io_delay_config.mutable_app_read_delay();
-
-  constexpr uint64_t kMaxDelayUs = 1000000;
-  constexpr int64_t kMaxStepUs = kMaxDelayUs / 20;
+  auto* uid_write_map = fst_io_delay_config.mutable_uid_write_delay();
+  auto* uid_read_map = fst_io_delay_config.mutable_uid_read_delay();
+  auto* gid_write_map = fst_io_delay_config.mutable_gid_write_delay();
+  auto* gid_read_map = fst_io_delay_config.mutable_gid_read_delay();
 
   auto adjust_delay = [&](const double limit_bps, const double current_rate,
-                          uint64_t& delay_us, auto* output_map, const std::string& app) {
+                          uint64_t& delay_us, auto* output_map, const auto& entity_key,
+                          const char* entity_type, const std::string& entity_id,
+                          const char* op_type) {
     if (limit_bps <= 0) {
       return;
     }
 
+    const uint64_t old_delay = delay_us;
     const double ratio = current_rate / limit_bps;
 
-    if (delay_us == 0 && ratio > 1.0) {
-      delay_us = 100;
-    } else {
-      const double kp = (ratio > 1.0) ? 0.15 : 0.05;
-      const double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
-
-      const auto current_delay = static_cast<int64_t>(delay_us);
-      const auto target_delay =
-          static_cast<int64_t>(static_cast<double>(current_delay) * damped_ratio);
-
-      int64_t delta_us = target_delay - current_delay;
-      if (delta_us > kMaxStepUs) {
-        delta_us = kMaxStepUs;
-      } else if (delta_us < -kMaxStepUs) {
-        delta_us = -kMaxStepUs;
-      }
-
-      delay_us = static_cast<uint64_t>(current_delay + delta_us);
-    }
-
-    delay_us = std::min<uint64_t>(kMaxDelayUs, delay_us);
-
-    if (delay_us < 10 && ratio < 1.0) {
-      delay_us = 0;
-    }
+    delay_us = CalculateDelayUs(limit_bps, current_rate, old_delay);
 
     if (delay_us > 0) {
-      (*output_map)[app] = delay_us;
+      (*output_map)[entity_key] = delay_us;
     }
-  };
-  //
-  {
-    const auto [app_read_rates, app_write_rates] = GetCurrentReadAndWriteRateForApps();
 
+    eos_static_debug("msg=\"throttle evaluation\" type=\"%s\" id=\"%s\" op=\"%s\" "
+                     "limit_bps=%.0f current_rate_bps=%.0f ratio=%.3f "
+                     "old_delay_us=%lu new_delay_us=%lu",
+                     entity_type, entity_id.c_str(), op_type, limit_bps, current_rate,
+                     ratio, old_delay, delay_us);
+  };
+
+  const auto [app_read_rates, app_write_rates, uid_read_rates, uid_write_rates,
+              gid_read_rates, gid_write_rates] = GetCurrentReadAndWriteRates();
+
+  // Helper lambda to do a single-pass map lookup
+  auto get_rate = [](const auto& map, const auto& key) {
+    if (auto it = map.find(key); it != map.end()) {
+      return it->second;
+    }
+    return 0.0;
+  };
+
+  {
     std::shared_lock lock(mMutex);
 
     for (const auto& [app, policy] : mAppPolicies) {
       if (!policy.IsActive()) {
+        eos_static_debug("msg=\"skipping inactive policy\" type=\"app\" id=\"%s\"",
+                         app.c_str());
         continue;
       }
 
       adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
-                   app_write_rates.count(app) ? app_write_rates.at(app) : 0.0,
+                   get_rate(app_write_rates, app),
                    (*mFstIoDelayConfig.mutable_app_write_delay())[app], app_write_map,
-                   app);
+                   app, "app", app, "write");
 
       adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
-                   app_read_rates.count(app) ? app_read_rates.at(app) : 0.0,
-                   (*mFstIoDelayConfig.mutable_app_read_delay())[app], app_read_map, app);
+                   get_rate(app_read_rates, app),
+                   (*mFstIoDelayConfig.mutable_app_read_delay())[app], app_read_map, app,
+                   "app", app, "read");
+    }
+
+    for (const auto& [uid, policy] : mUidPolicies) {
+      if (!policy.IsActive()) {
+        eos_static_debug("msg=\"skipping inactive policy\" type=\"uid\" id=\"%u\"", uid);
+        continue;
+      }
+
+      adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
+                   get_rate(uid_write_rates, uid),
+                   (*mFstIoDelayConfig.mutable_uid_write_delay())[uid], uid_write_map,
+                   uid, "uid", std::to_string(uid), "write");
+
+      adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
+                   get_rate(uid_read_rates, uid),
+                   (*mFstIoDelayConfig.mutable_uid_read_delay())[uid], uid_read_map, uid,
+                   "uid", std::to_string(uid), "read");
+    }
+
+    for (const auto& [gid, policy] : mGidPolicies) {
+      if (!policy.IsActive()) {
+        eos_static_debug("msg=\"skipping inactive policy\" type=\"gid\" id=\"%u\"", gid);
+        continue;
+      }
+
+      adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
+                   get_rate(gid_write_rates, gid),
+                   (*mFstIoDelayConfig.mutable_gid_write_delay())[gid], gid_write_map,
+                   gid, "gid", std::to_string(gid), "write");
+
+      adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
+                   get_rate(gid_read_rates, gid),
+                   (*mFstIoDelayConfig.mutable_gid_read_delay())[gid], gid_read_map, gid,
+                   "gid", std::to_string(gid), "read");
     }
   }
 
@@ -860,7 +959,6 @@ TrafficShapingEngine::ProcessAllQueuedReports()
 
   mManager->UpdateFstReportsProcessed(local_queue.size());
 }
-
 void
 TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 {
@@ -873,6 +971,10 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
   constexpr int infrequent_action_threshold = 100;
 
   while (!assistant.terminationRequested()) {
+    if (auto right_now = std::chrono::steady_clock::now(); next_tick < right_now) {
+      next_tick = right_now;
+    }
+
     next_tick += std::chrono::milliseconds(mEstimatorsUpdateThreadPeriodMilliseconds);
     std::this_thread::sleep_until(next_tick);
 
@@ -918,19 +1020,15 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
 {
   eos_static_info("%s", "msg=\"Starting FstIoPolicyUpdate thread\"");
 
-  auto next_wakeup_time = std::chrono::steady_clock::now();
+  auto next_tick = std::chrono::steady_clock::now();
 
   while (!assistant.terminationRequested()) {
-    const auto current_period =
-        std::chrono::milliseconds(mFstIoPolicyUpdateThreadPeriodMilliseconds);
-
-    next_wakeup_time += current_period;
-
-    if (auto now = std::chrono::steady_clock::now(); next_wakeup_time < now) {
-      next_wakeup_time = now;
+    if (auto right_now = std::chrono::steady_clock::now(); next_tick < right_now) {
+      next_tick = right_now;
     }
 
-    std::this_thread::sleep_until(next_wakeup_time);
+    next_tick += std::chrono::milliseconds(mFstIoPolicyUpdateThreadPeriodMilliseconds);
+    std::this_thread::sleep_until(next_tick);
 
     auto work_start_time = std::chrono::steady_clock::now();
 
@@ -949,17 +1047,16 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
 void
 TrafficShapingEngine::FstTrafficShapingConfigUpdate(ThreadAssistant& assistant)
 {
-  auto next_wakeup_time = std::chrono::steady_clock::now();
+  auto next_tick = std::chrono::steady_clock::now();
   const auto period = std::chrono::seconds(5);
 
   while (!assistant.terminationRequested()) {
-    next_wakeup_time += period;
-
-    if (auto now = std::chrono::steady_clock::now(); next_wakeup_time < now) {
-      next_wakeup_time = now;
+    if (auto right_now = std::chrono::steady_clock::now(); next_tick < right_now) {
+      next_tick = right_now;
     }
 
-    std::this_thread::sleep_until(next_wakeup_time);
+    next_tick += period;
+    std::this_thread::sleep_until(next_tick);
 
     SyncTrafficShapingEnabledWithFst();
   }
