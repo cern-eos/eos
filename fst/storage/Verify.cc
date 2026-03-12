@@ -171,7 +171,7 @@ Storage::Verify()
       std::unique_ptr<CheckSum> checksummer =
         ChecksumPlugins::GetChecksumObject(fMd->mProtoFmd.lid());
       unsigned long long scansize = 0;
-      float scantime = 0; // is ms
+      std::chrono::milliseconds scantime {0};
       eos::fst::CheckSum::ReadCallBack::callback_data_t cbd;
       cbd.caller = (void*) io;
       eos::fst::CheckSum::ReadCallBack cb(eos::fst::XrdFstOfsFile::FileIoReadCB, cbd);
@@ -187,7 +187,8 @@ Storage::Verify()
           eos_static_info("rescanned checksum - size=%s time=%.02fms rate=%.02f "
                           "MB/s limit=%d MB/s", eos::common::StringConversion::GetReadableSizeString(
                             sizestring, scansize, "B"),
-                          scantime, 1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
+                          scantime.count(), 1.0 * scansize / 1000 /
+                          (scantime.count() ? scantime.count() : 99999999999999LL),
                           verifyfile->verifyRate);
         }
 

@@ -57,15 +57,15 @@ main(int argc, char* argv[])
   if (normalXS) {
     XrdOucString path = (argv[2]) ? argv[2] : "";
     unsigned long long scansize;
-    float scantime;
+    std::chrono::milliseconds scantime;
 
     if (!normalXS->ScanFile(path.c_str(), scansize, scantime)) {
       fprintf(stderr, "error: unable to scan file path=%s errno=%d\n", argv[2],
               errno);
       exit(-1);
     } else {
-      fprintf(stdout, "path=%s size=%llu time=%.02f %s=%s\n", argv[2], scansize,
-              scantime, argv[1], normalXS->GetHexChecksum());
+      fprintf(stdout, "path=%s size=%llu time=%lims %s=%s\n", argv[2], scansize,
+              scantime.count(), argv[1], normalXS->GetHexChecksum());
       exit(0);
     }
   }

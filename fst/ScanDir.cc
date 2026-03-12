@@ -38,11 +38,12 @@
 #include "fst/layout/HeaderCRC.hh"
 #include "fst/layout/ReedSLayout.hh"
 #include "fst/layout/RaidDpLayout.hh"
+#include "fst/utils/ScanRate.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QSet.hh"
+#include <fts.h>
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <fts.h>
 #include <sys/time.h>
 #include <syslog.h>
 #include <unistd.h>
@@ -959,7 +960,9 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io,
       }
 
       offset += nread;
-      EnforceAndAdjustScanRate(offset, open_ts, scan_rate);
+      eos::fst::utils::EnforceAndAdjustScanRate(offset, open_ts, scan_rate,
+          mFstLoad, mDirPath.c_str(),
+          mRateBandwidth.load());
     }
   } while (nread == mBufferSize);
 
@@ -967,7 +970,7 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io,
   const auto close_ts = std::chrono::system_clock().now();
   auto tx_duration_ms = std::chrono::duration_cast<std::chrono::milliseconds>
                         (close_ts - open_ts).count();
-  eos_static_debug("path=%s size(bytes)=%llu scan_duration_ms=%llu rate(MB/s)=%.02f",
+  eos_static_debug("path=%s size_bytes=%llu duration_ms=%llu rate_MB/s=%.02f",
                    file_path.c_str(), scan_size, tx_duration_ms,
                    (((1.0 * offset) / (1024 * 1024)) * 1000) / tx_duration_ms)
 
@@ -1085,25 +1088,24 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
   // the stripe that is storing.
   // The old method will only be run by the replica 0 file, and the unitcheckusm
   // computation will be triggered.
-  // Compute the checksum of the stripe
+  std::chrono::milliseconds scantime {0};
+  unsigned long long scansize {0ull};
   std::unique_ptr<eos::fst::CheckSum>
   xs {ChecksumPlugins::GetXsObj(eos::common::LayoutId::eChecksum::kAdler)};
-  unsigned long long scansize = 0;
-  float scantime = 0; // is ms
 
   if (!xs->ScanFile(path.c_str(), scansize, scantime, mRateBandwidth.load(),
-                    hd->GetSize())) {
+                    hd->GetSize(), mFstLoad, mDirPath, mRateBandwidth.load())) {
     eos_err("msg=\"checksum scanning failed\" path=%s", path.c_str());
     return false;
   }
 
   XrdOucString sizestring;
-  eos_debug("info=\"scanned stripe checksum\" path=%s size=%s time=%.02fms "
-            "rate=%.02fMB/s comp_xs=%s", path.c_str(),
+  eos_debug("info=\"scanned stripe checksum\" path=%s size_bytes=%s "
+            "duration_ms=%llu rate_MB/s=%.02f comp_xs=\"%s\"", path.c_str(),
             eos::common::StringConversion::GetReadableSizeString(sizestring,
                 scansize, "B"),
-            scantime,
-            1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
+            scantime.count(), (((1.0 * scansize) / (1024 * 1024)) * 1000) /
+            (scantime.count() ? scantime.count() : 99999999999999LL),
             xs->GetHexChecksum());
 
   if (fmd->mProtoFmd.has_stripechecksum()) {
@@ -1238,7 +1240,9 @@ ScanDir::IsValidStripeCombination(
 
     xs_obj->Add(mBuffer, nread, offsetXrd);
     offsetXrd += nread;
-    EnforceAndAdjustScanRate(offsetXrd, open_ts, scan_rate);
+    eos::fst::utils::EnforceAndAdjustScanRate(offsetXrd, open_ts, scan_rate,
+        mFstLoad, mDirPath.c_str(),
+        mRateBandwidth.load());
   }
 
   redundancyObj->Close();
@@ -1347,6 +1351,7 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
                                invalid_fsid)
 {
   eos_static_debug("msg=\"scan rain file load aware\" fxid=%08llx", fid);
+  const auto start_ts = std::chrono::steady_clock::now();
   std::string xs_mgm;
   uint32_t num_locations;
   LayoutId::layoutid_t layout;
@@ -1558,46 +1563,15 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
     }
   }
 
+  const auto end_ts = std::chrono::steady_clock::now();
+  const auto duration_sec = std::chrono::duration_cast<std::chrono::seconds>
+                            (end_ts - start_ts);
+  eos_static_info("msg=\"full scan rain file done\" fxid=%08llx duration=%llus",
+                  fid, duration_sec.count());
   return true;
 }
 #endif
-//------------------------------------------------------------------------------
-// Enforce the scan rate by throttling the current thread and also adjust it
-// depending on the IO load on the mountpoint
-//------------------------------------------------------------------------------
-void
-ScanDir::EnforceAndAdjustScanRate(const off_t offset,
-                                  const std::chrono::time_point
-                                  <std::chrono::system_clock> open_ts,
-                                  int& scan_rate)
-{
-  using namespace std::chrono;
 
-  if (scan_rate && mFstLoad) {
-    const auto now_ts = std::chrono::system_clock::now();
-    uint64_t scan_duration_msec =
-      duration_cast<milliseconds>(now_ts - open_ts).count();
-    uint64_t expect_duration_msec =
-      (uint64_t)((1.0 * offset) / (scan_rate * 1024 * 1024)) * 1000;
-
-    if (expect_duration_msec > scan_duration_msec) {
-      std::this_thread::sleep_for(milliseconds(expect_duration_msec -
-                                  scan_duration_msec));
-    }
-
-    // Adjust the rate according to the load information
-    double load = mFstLoad->GetDiskRate(mDirPath.c_str(), "millisIO") / 1000.0;
-
-    if (load > 0.7) {
-      // Adjust the scan_rate which is in MB/s but no lower then 5 MB/s
-      if (scan_rate > 5) {
-        scan_rate = 0.9 * scan_rate;
-      }
-    } else {
-      scan_rate = mRateBandwidth.load(std::memory_order_relaxed);
-    }
-  }
-}
 //------------------------------------------------------------------------------
 // Get timestamp smeared +/-20% of mEntryIntervalSec around the current
 // timestamp value

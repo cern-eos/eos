@@ -2672,7 +2672,6 @@ XrdFstOfsFile::ProcessCapOpaque(bool& is_repair_read,
   }
   // Handle virtual identity
   vid = eos::common::VirtualIdentity::Nobody();
-
   vid.app = mSecMap["app"];
 
   if ((val = mCapOpaque->Get("mgm.ruid"))) {
@@ -3406,7 +3405,7 @@ XrdFstOfsFile::VerifyChecksum()
     // If checksum is not completely computed
     if (mCheckSum->NeedsRecalculation()) {
       unsigned long long scansize = 0;
-      float scantime = 0; // is ms
+      std::chrono::milliseconds scantime {0};
 
       if (!XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error)) {
         // Rescan the file
@@ -3419,8 +3418,8 @@ XrdFstOfsFile::VerifyChecksum()
           eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %s",
                    eos::common::StringConversion::GetReadableSizeString(sizestring,
                        scansize, "B"),
-                   scantime,
-                   1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
+                   scantime.count(), 1.0 * scansize / 1000 /
+                   (scantime.count() ? scantime.count() : 99999999999999LL),
                    mCheckSum->GetHexChecksum());
         } else {
           eos_err("msg=\"checksum rescanning failed\" fxid=%08llx", mFileId);
