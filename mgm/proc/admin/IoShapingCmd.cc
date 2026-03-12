@@ -57,20 +57,30 @@ ShapingPolicySet(const eos::console::IoProto_ShapingProto_PolicyAction_SetAction
     return;
   }
 
+  // --- Parse User Limits ---
   if (set_req.has_limit_read_bytes_per_sec()) {
     policy.limit_read_bytes_per_sec = set_req.limit_read_bytes_per_sec();
   }
-
   if (set_req.has_limit_write_bytes_per_sec()) {
     policy.limit_write_bytes_per_sec = set_req.limit_write_bytes_per_sec();
   }
 
+  // --- Parse Reservations ---
   if (set_req.has_reservation_read_bytes_per_sec()) {
     policy.reservation_read_bytes_per_sec = set_req.reservation_read_bytes_per_sec();
   }
-
   if (set_req.has_reservation_write_bytes_per_sec()) {
     policy.reservation_write_bytes_per_sec = set_req.reservation_write_bytes_per_sec();
+  }
+
+  // --- Parse Ephemeral Controller Limits ---
+  if (set_req.has_controller_limit_read_bytes_per_sec()) {
+    policy.controller_limit_read_bytes_per_sec =
+        set_req.controller_limit_read_bytes_per_sec();
+  }
+  if (set_req.has_controller_limit_write_bytes_per_sec()) {
+    policy.controller_limit_write_bytes_per_sec =
+        set_req.controller_limit_write_bytes_per_sec();
   }
 
   if (set_req.has_is_enabled()) {
@@ -357,7 +367,7 @@ ShapingPolicyList(
     const eos::console::IoProto_ShapingProto_PolicyAction_ListAction& list_req,
     eos::console::ReplyProto& reply)
 {
-  auto& engine = gOFS->mTrafficShapingEngine;
+  const auto& engine = gOFS->mTrafficShapingEngine;
   const std::shared_ptr<traffic_shaping::TrafficShapingManager> manager =
       engine.GetManager();
   if (!manager) {
@@ -366,7 +376,7 @@ ShapingPolicyList(
     return;
   }
 
-  bool show_all =
+  const bool show_all =
       !list_req.filter_apps() && !list_req.filter_users() && !list_req.filter_groups();
   std::ostringstream oss;
 
@@ -391,7 +401,11 @@ ShapingPolicyList(
           << "    \"reservation_read_bytes_per_sec\": "
           << policy.reservation_read_bytes_per_sec << ",\n"
           << "    \"reservation_write_bytes_per_sec\": "
-          << policy.reservation_write_bytes_per_sec << "\n"
+          << policy.reservation_write_bytes_per_sec << ",\n"
+          << "    \"controller_limit_read_bytes_per_sec\": "
+          << policy.controller_limit_read_bytes_per_sec << ",\n"
+          << "    \"controller_limit_write_bytes_per_sec\": "
+          << policy.controller_limit_write_bytes_per_sec << "\n"
           << "  }";
     };
 
@@ -419,22 +433,38 @@ ShapingPolicyList(
     oss << "]\n";
 
   } else {
-    auto print_header = [&oss](const std::string& title, const std::string& id_col) {
+    const bool show_ctrl = list_req.show_controller_limits();
+
+    auto print_header = [&oss, show_ctrl](const std::string& title,
+                                          const std::string& id_col) {
       oss << "--- " << title << " ---\n";
       oss << std::left << std::setw(40) << id_col << std::setw(10) << "Status"
-          << std::right << std::setw(15) << "Read Limit" << std::setw(15) << "Write Limit"
-          << std::setw(15) << "Read Rsv." << std::setw(15) << "Write Rsv." << "\n";
-      oss << std::string(110, '-') << "\n";
+          << std::right << std::setw(15) << "Read Limit" << std::setw(15)
+          << "Write Limit";
+
+      if (show_ctrl) {
+        oss << std::setw(15) << "Ctrl Rd Lim" << std::setw(15) << "Ctrl Wr Lim";
+      }
+
+      oss << std::setw(15) << "Read Rsv." << std::setw(15) << "Write Rsv." << "\n";
+      oss << std::string(show_ctrl ? 140 : 110, '-') << "\n";
     };
 
-    auto print_row = [&oss](const std::string& id,
-                            const traffic_shaping::TrafficShapingPolicy& policy) {
+    auto print_row = [&oss,
+                      show_ctrl](const std::string& id,
+                                 const traffic_shaping::TrafficShapingPolicy& policy) {
       oss << std::left << std::setw(40) << id << std::setw(10)
           << (policy.is_enabled ? "Enabled" : "Disabled") << std::right << std::setw(15)
           << format_rate(policy.limit_read_bytes_per_sec) << std::setw(15)
-          << format_rate(policy.limit_write_bytes_per_sec) << std::setw(15)
-          << format_rate(policy.reservation_read_bytes_per_sec) << std::setw(15)
-          << format_rate(policy.reservation_write_bytes_per_sec) << "\n";
+          << format_rate(policy.limit_write_bytes_per_sec);
+
+      if (show_ctrl) {
+        oss << std::setw(15) << format_rate(policy.controller_limit_read_bytes_per_sec)
+            << std::setw(15) << format_rate(policy.controller_limit_write_bytes_per_sec);
+      }
+
+      oss << std::setw(15) << format_rate(policy.reservation_read_bytes_per_sec)
+          << std::setw(15) << format_rate(policy.reservation_write_bytes_per_sec) << "\n";
     };
 
     bool has_output = false;

@@ -17,9 +17,9 @@ TrafficShapingManager::TrafficShapingManager() = default;
 TrafficShapingManager::~TrafficShapingManager() = default;
 
 void
-TrafficShapingManager::ApplyThreadConfig(uint32_t estimators_period_ms,
-                                         uint32_t fst_policy_period_ms,
-                                         uint32_t window_seconds)
+TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
+                                         const uint32_t fst_policy_period_ms,
+                                         const uint32_t window_seconds)
 {
   std::unique_lock lock(mMutex);
 
@@ -41,7 +41,8 @@ TrafficShapingManager::ApplyThreadConfig(uint32_t estimators_period_ms,
 }
 
 double
-TrafficShapingManager::CalculateEma(double current_val, double prev_ema, double alpha)
+TrafficShapingManager::CalculateEma(const double current_val, const double prev_ema,
+                                    const double alpha)
 {
   return (alpha * current_val) + ((1.0 - alpha) * prev_ema);
 }
@@ -360,20 +361,21 @@ TrafficShapingManager::UpdateLimits()
   };
   //
   {
-    std::shared_lock lock(mMutex);
     const auto [app_read_rates, app_write_rates] = GetCurrentReadAndWriteRateForApps();
+
+    std::shared_lock lock(mMutex);
 
     for (const auto& [app, policy] : mAppPolicies) {
       if (!policy.IsActive()) {
         continue;
       }
 
-      adjust_delay(static_cast<double>(policy.limit_write_bytes_per_sec),
+      adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
                    app_write_rates.count(app) ? app_write_rates.at(app) : 0.0,
                    (*mFstIoDelayConfig.mutable_app_write_delay())[app], app_write_map,
                    app);
 
-      adjust_delay(static_cast<double>(policy.limit_read_bytes_per_sec),
+      adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
                    app_read_rates.count(app) ? app_read_rates.at(app) : 0.0,
                    (*mFstIoDelayConfig.mutable_app_read_delay())[app], app_read_map, app);
     }
@@ -561,7 +563,8 @@ TrafficShapingEngine::TrafficShapingEngine()
     , mEstimatorsUpdateThreadPeriodMilliseconds(200)
     , mFstIoPolicyUpdateThreadPeriodMilliseconds(200)
     , mFstIoStatsReportThreadPeriodMilliseconds(200)
-    , mSystemStatsWindowSeconds(15)
+    , mSystemStatsWindowSeconds(
+          15) // TODO: store the number of processed reports as a system sliding window
 {
   mManager = std::make_shared<TrafficShapingManager>();
 }
@@ -570,7 +573,7 @@ TrafficShapingEngine::~TrafficShapingEngine() { Stop(); }
 
 void
 TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
-                                        uint32_t win_s, bool save_to_config_engine)
+                                        uint32_t win_s, const bool save_to_config_engine)
 {
   if (est_ms < kMinThreadPeriodMs) {
     est_ms = kMinThreadPeriodMs;
@@ -626,7 +629,8 @@ TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32
 }
 
 void
-TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(
+    const uint32_t period_ms)
 {
   ApplyThreadConfig(period_ms, mFstIoPolicyUpdateThreadPeriodMilliseconds,
                     mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
@@ -634,7 +638,8 @@ TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t perio
 }
 
 void
-TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(
+    const uint32_t period_ms)
 {
   ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds, period_ms,
                     mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
@@ -960,14 +965,40 @@ TrafficShapingManager::SetUidPolicy(const uint32_t uid,
                                     const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
-  mUidPolicies[uid] = policy;
+  bool config_changed = false;
+  auto it = mUidPolicies.find(uid);
 
-  eos_static_info("msg=\"Set UID Traffic Shaping Policy\" uid=%u policy=%s", uid,
-                  policy.ToString().c_str());
+  if (policy.IsEmpty()) {
+    if (it != mUidPolicies.end()) {
+      mUidPolicies.erase(it);
+      config_changed = true;
+      eos_static_info("msg=\"Removed empty UID Traffic Shaping Policy\" uid=%u", uid);
+    }
+  } else {
+    if (it == mUidPolicies.end()) {
+      mUidPolicies[uid] = policy;
+      config_changed = true;
+      eos_static_info("msg=\"Set UID Traffic Shaping Policy\" uid=%u policy=%s", uid,
+                      policy.ToString().c_str());
+    } else {
+      // operator!= ignores controller limits, so it only flags true user config changes
+      if (it->second != policy) {
+        config_changed = true;
+      }
+      // Always update in-memory to reflect any potential ephemeral controller limit
+      // changes
+      it->second = policy;
+      eos_static_info("msg=\"Updated UID Traffic Shaping Policy\" uid=%u policy=%s "
+                      "persistent_changed=%d",
+                      uid, policy.ToString().c_str(), config_changed);
+    }
+  }
 
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
-                                  SerializePoliciesUnlocked());
-  gOFS->mConfigEngine->AutoSave();
+  if (config_changed) {
+    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
+                                    SerializePoliciesUnlocked());
+    gOFS->mConfigEngine->AutoSave();
+  }
 }
 
 void
@@ -975,14 +1006,37 @@ TrafficShapingManager::SetGidPolicy(const uint32_t gid,
                                     const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
-  mGidPolicies[gid] = policy;
+  bool config_changed = false;
+  auto it = mGidPolicies.find(gid);
 
-  eos_static_info("msg=\"Set GID Traffic Shaping Policy\" gid=%u policy=%s", gid,
-                  policy.ToString().c_str());
+  if (policy.IsEmpty()) {
+    if (it != mGidPolicies.end()) {
+      mGidPolicies.erase(it);
+      config_changed = true;
+      eos_static_info("msg=\"Removed empty GID Traffic Shaping Policy\" gid=%u", gid);
+    }
+  } else {
+    if (it == mGidPolicies.end()) {
+      mGidPolicies[gid] = policy;
+      config_changed = true;
+      eos_static_info("msg=\"Set GID Traffic Shaping Policy\" gid=%u policy=%s", gid,
+                      policy.ToString().c_str());
+    } else {
+      if (it->second != policy) {
+        config_changed = true;
+      }
+      it->second = policy;
+      eos_static_info("msg=\"Updated GID Traffic Shaping Policy\" gid=%u policy=%s "
+                      "persistent_changed=%d",
+                      gid, policy.ToString().c_str(), config_changed);
+    }
+  }
 
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
-                                  SerializePoliciesUnlocked());
-  gOFS->mConfigEngine->AutoSave();
+  if (config_changed) {
+    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
+                                    SerializePoliciesUnlocked());
+    gOFS->mConfigEngine->AutoSave();
+  }
 }
 
 void
@@ -990,15 +1044,38 @@ TrafficShapingManager::SetAppPolicy(const std::string& app,
                                     const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
-  mAppPolicies[app] = policy;
+  bool config_changed = false;
+  auto it = mAppPolicies.find(app);
 
-  eos_static_info("msg=\"Set App Traffic Shaping Policy\" app=%s policy=%s", app.c_str(),
-                  policy.ToString().c_str());
+  if (policy.IsEmpty()) {
+    if (it != mAppPolicies.end()) {
+      mAppPolicies.erase(it);
+      config_changed = true;
+      eos_static_info("msg=\"Removed empty App Traffic Shaping Policy\" app=%s",
+                      app.c_str());
+    }
+  } else {
+    if (it == mAppPolicies.end()) {
+      mAppPolicies[app] = policy;
+      config_changed = true;
+      eos_static_info("msg=\"Set App Traffic Shaping Policy\" app=%s policy=%s",
+                      app.c_str(), policy.ToString().c_str());
+    } else {
+      if (it->second != policy) {
+        config_changed = true;
+      }
+      it->second = policy;
+      eos_static_info("msg=\"Updated App Traffic Shaping Policy\" app=%s policy=%s "
+                      "persistent_changed=%d",
+                      app.c_str(), policy.ToString().c_str(), config_changed);
+    }
+  }
 
-  const std::string serialized = SerializePoliciesUnlocked();
-
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
-  gOFS->mConfigEngine->AutoSave();
+  if (config_changed) {
+    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
+                                    SerializePoliciesUnlocked());
+    gOFS->mConfigEngine->AutoSave();
+  }
 }
 
 void
@@ -1127,9 +1204,9 @@ TrafficShapingManager::SerializePoliciesUnlocked() const
 }
 
 bool
-TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_data)
+TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_policies)
 {
-  if (serialized_data.empty()) {
+  if (serialized_policies.empty()) {
     return true;
   }
 
@@ -1138,7 +1215,7 @@ TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_data
   google::protobuf::util::JsonParseOptions options;
   options.ignore_unknown_fields = true;
 
-  auto status = google::protobuf::util::JsonStringToMessage(serialized_data,
+  auto status = google::protobuf::util::JsonStringToMessage(serialized_policies,
                                                             &proto_config, options);
   if (!status.ok()) {
     eos_static_err("msg=\"Failed to parse policies from JSON string\"");

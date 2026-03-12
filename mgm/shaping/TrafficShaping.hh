@@ -149,6 +149,7 @@ struct StreamKeyHash {
 };
 
 struct TrafficShapingPolicy {
+  // --- Persistent User Configuration ---
   uint64_t limit_write_bytes_per_sec = 0;
   uint64_t limit_read_bytes_per_sec = 0;
   uint64_t reservation_write_bytes_per_sec = 0;
@@ -156,17 +157,58 @@ struct TrafficShapingPolicy {
 
   bool is_enabled = true;
 
+  // --- Ephemeral Controller Configuration ---
+  uint64_t controller_limit_write_bytes_per_sec = 0;
+  uint64_t controller_limit_read_bytes_per_sec = 0;
+
+  uint64_t
+  GetEffectiveWriteLimit() const
+  {
+    // If the policy is disabled, the user limit drops to 0.
+    uint64_t active_user_limit = is_enabled ? limit_write_bytes_per_sec : 0;
+
+    if (active_user_limit > 0 && controller_limit_write_bytes_per_sec > 0) {
+      return std::min(active_user_limit, controller_limit_write_bytes_per_sec);
+    }
+    return active_user_limit > 0 ? active_user_limit
+                                 : controller_limit_write_bytes_per_sec;
+  }
+
+  uint64_t
+  GetEffectiveReadLimit() const
+  {
+    // If the policy is disabled, the user limit drops to 0.
+    uint64_t active_user_limit = is_enabled ? limit_read_bytes_per_sec : 0;
+
+    if (active_user_limit > 0 && controller_limit_read_bytes_per_sec > 0) {
+      return std::min(active_user_limit, controller_limit_read_bytes_per_sec);
+    }
+    return active_user_limit > 0 ? active_user_limit
+                                 : controller_limit_read_bytes_per_sec;
+  }
+
   bool
   IsEmpty() const
   {
     return limit_write_bytes_per_sec == 0 && limit_read_bytes_per_sec == 0 &&
-           reservation_write_bytes_per_sec == 0 && reservation_read_bytes_per_sec == 0;
+           reservation_write_bytes_per_sec == 0 && reservation_read_bytes_per_sec == 0 &&
+           controller_limit_write_bytes_per_sec == 0 &&
+           controller_limit_read_bytes_per_sec == 0;
   }
 
   bool
   IsActive() const
   {
-    return is_enabled && !IsEmpty();
+    const bool has_user_rules =
+        limit_write_bytes_per_sec > 0 || limit_read_bytes_per_sec > 0 ||
+        reservation_write_bytes_per_sec > 0 || reservation_read_bytes_per_sec > 0;
+
+    const bool has_controller_rules = controller_limit_write_bytes_per_sec > 0 ||
+                                      controller_limit_read_bytes_per_sec > 0;
+
+    // The policy is active if the controller has set a limit,
+    // OR if the user has rules configured AND the policy is enabled.
+    return has_controller_rules || (is_enabled && has_user_rules);
   }
 
   bool
@@ -183,11 +225,13 @@ struct TrafficShapingPolicy {
   ToString() const
   {
     std::ostringstream oss;
-    oss << (is_enabled ? "Enabled" : "Disabled") << " | "
+    oss << (is_enabled ? "Enabled" : "Disabled") << ", "
         << "Read Limit: " << limit_read_bytes_per_sec << " Bps, "
         << "Write Limit: " << limit_write_bytes_per_sec << " Bps, "
         << "Read Reservation: " << reservation_read_bytes_per_sec << " Bps, "
-        << "Write Reservation: " << reservation_write_bytes_per_sec << " Bps";
+        << "Write Reservation: " << reservation_write_bytes_per_sec << " Bps, "
+        << "Controller Read Limit: " << controller_limit_read_bytes_per_sec << " Bps, "
+        << "Controller Write Limit: " << controller_limit_write_bytes_per_sec << " Bps";
     return oss.str();
   }
 };
