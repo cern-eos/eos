@@ -314,20 +314,6 @@ private:
 public:
 #endif
 
-  //----------------------------------------------------------------------------
-  //! Enforce the scan rate by throttling the current thread and also adjust it
-  //! depending on the IO load on the mountpoint
-  //!
-  //! @param offset current offset in file
-  //! @param open_ts time point when file was opened
-  //! @param scan_rate current scan rate, if 0 then then rate limiting is
-  //!        disabled
-  //----------------------------------------------------------------------------
-  void EnforceAndAdjustScanRate(const off_t offset,
-                                std::chrono::time_point
-                                <std::chrono::system_clock> open_ts,
-                                int& scan_rate);
-
 #ifndef _NOOFS
   //----------------------------------------------------------------------------
   //! Collect all file ids present on the current file system from the NS view

@@ -46,14 +46,14 @@ main(int argc, char* argv[])
 
   if (normalXS) {
     unsigned long long scansize;
-    float scantime;
+    std::chrono::milliseconds scantime;
 
     if (!normalXS->ScanFile(path.c_str(), scansize, scantime, 0, offset)) {
       fprintf(stderr, "error: unable to scan file path=%s\n", path.c_str());
       exit(-1);
     } else {
-      fprintf(stdout, "path=%s size=%llu time=%.02f adler32=%s\n", path.c_str(),
-              scansize, scantime, normalXS->GetHexChecksum());
+      fprintf(stdout, "path=%s size=%llu time=%li adler32=%s\n", path.c_str(),
+              scansize, scantime.count(), normalXS->GetHexChecksum());
       exit(0);
     }
   }

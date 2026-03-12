@@ -24,18 +24,15 @@
 #ifndef __EOSFST_CHECKSUM_HH__
 #define __EOSFST_CHECKSUM_HH__
 
-/*----------------------------------------------------------------------------*/
 #include "fst/Namespace.hh"
 #include "fst/Load.hh"
 #include "common/LayoutId.hh"
-/*----------------------------------------------------------------------------*/
 #include <XrdOuc/XrdOucString.hh>
-/*----------------------------------------------------------------------------*/
 #include <google/sparse_hash_map>
 #include <setjmp.h>
 #include <signal.h>
 #include <mutex>
-/*----------------------------------------------------------------------------*/
+#include <chrono>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -200,14 +197,24 @@ public:
   };
 
   virtual bool ScanFile(const char* path, unsigned long long& scansize,
-                        float& scantime, int rate = 0, off_t offset = 0);
+                        std::chrono::milliseconds& scantime, int rate = 0,
+                        off_t offset = 0, Load* fstload = nullptr,
+                        const std::string& dirpath = "", int max_rate = 0);
   virtual bool ScanFile(ReadCallBack rcb, unsigned long long& scansize,
-                        float& scantime, int rate = 0);
-  virtual bool ScanFile(int fd, unsigned long long& scansize, float& scantime,
-                        int rate = 0, bool is_stdin = false, off_t offset = 0);
+                        std::chrono::milliseconds& scantime, int rate = 0,
+                        Load* fstload = nullptr,
+                        const std::string& dirpath = "", int max_rate = 0);
+  virtual bool ScanFile(int fd, unsigned long long& scansize,
+                        std::chrono::milliseconds& scantime,
+                        int rate = 0, bool is_stdin = false, off_t offset = 0,
+                        Load* fstload = nullptr,
+                        const std::string& dirpath = "", int max_rate = 0);
   virtual bool ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
                         const char* partialChecksum,
-                        unsigned long long& scansize, float& scantime, int rate = 0);
+                        unsigned long long& scansize,
+                        std::chrono::milliseconds& scantime,
+                        int rate = 0, Load* fstload = nullptr,
+                        const std::string& dirpath = "", int max_rate = 0);
   virtual bool VerifyXSMap(off_t offset);
 
   virtual bool OpenMap(const char* mapfilepath, size_t maxfilesize,

@@ -27,6 +27,7 @@
 #include "fst/ScanDir.hh"
 #undef IN_TEST_HARNESS
 #include "fst/Load.hh"
+#include "fst/utils/ScanRate.hh"
 #include "common/Constants.hh"
 #include "unit_tests/fst/TmpDirTree.hh"
 //------------------------------------------------------------------------------
@@ -106,19 +107,21 @@ TEST(ScanDir, AdjustScanRate)
   MockLoad load;
   EXPECT_CALL(load, GetDiskRate(_, _)
              ).WillOnce(Return(500.0)).WillRepeatedly(Return(800.0));
-  std::string path {"/"};
+  std::string path {"/var/"};
   eos::common::FileSystem::fsid_t fsid = 1;
   off_t offset = 0;
   int rate = 75;  // MB/s
   eos::fst::ScanDir sd(path.c_str(), fsid, &load, false, 0, rate, true);
   const auto open_ts = std::chrono::system_clock::now();
   int old_rate = rate;
-  sd.EnforceAndAdjustScanRate(offset, open_ts, rate);
+  eos::fst::utils::EnforceAndAdjustScanRate(offset, open_ts, rate, &load,
+      path.c_str());
   ASSERT_EQ(rate, old_rate);
 
   while (rate > 5) {
     old_rate = rate;
-    sd.EnforceAndAdjustScanRate(offset, open_ts, rate);
+    eos::fst::utils::EnforceAndAdjustScanRate(offset, open_ts, rate,
+        &load, path.c_str());
     ASSERT_EQ(rate, (int)(old_rate * 0.9));
   }
 

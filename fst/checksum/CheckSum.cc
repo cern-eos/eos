@@ -29,6 +29,8 @@
 #include "fst/checksum/CheckSum.hh"
 #include "fst/checksum/MD5.hh"
 #include "fst/checksum/SHA1.hh"
+#include "fst/utils/ScanRate.hh"
+#include "common/XattrCompat.hh"
 #include "common/Path.hh"
 #include "common/Logging.hh"
 #include "common/CloExec.hh"
@@ -38,8 +40,6 @@
 #include <sys/mman.h>
 #include <fcntl.h>
 #include <thread>
-#include "common/XattrCompat.hh"
-
 
 #ifdef __APPLE__
 #define SYSGETTID (std::hash<std::thread::id>()(std::this_thread::get_id()))
@@ -106,7 +106,8 @@ CheckSum::Compare(const CheckSum* other) const
 /* scan of a complete file */
 bool
 CheckSum::ScanFile(const char* path, unsigned long long& scansize,
-                   float& scantime, int rate, off_t offset)
+                   std::chrono::milliseconds& scantime, int rate, off_t offset,
+                   Load* fstload, const std::string& dirpath, int max_rate)
 {
   int fd = open(path, O_RDONLY);
 
@@ -116,7 +117,8 @@ CheckSum::ScanFile(const char* path, unsigned long long& scansize,
 
   (void) eos::common::CloExec::Set(fd);
   bool scan = ScanFile(fd, scansize, scantime, rate,
-                       (std::string(path) == "/dev/stdin") ? true : false, offset);
+                       (std::string(path) == "/dev/stdin") ? true : false, offset,
+                       fstload, dirpath, max_rate);
   (void) close(fd);
   return scan;
 }
@@ -125,16 +127,16 @@ CheckSum::ScanFile(const char* path, unsigned long long& scansize,
 
 /* scan of a complete file */
 bool
-CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
-                   int rate, bool is_stdin, off_t offset)
+CheckSum::ScanFile(int fd, unsigned long long& scansize,
+                   std::chrono::milliseconds& scantime,
+                   int rate, bool is_stdin, off_t offset,
+                   Load* fstload, const std::string& dirpath,
+                   int max_rate)
 {
   static int buffersize = 1024 * 1024;
-  struct timezone tz;
-  struct timeval opentime;
-  struct timeval currenttime;
   scansize = 0;
-  scantime = 0;
-  gettimeofday(&opentime, &tz);
+  scantime = std::chrono::milliseconds::zero();
+  auto opentime = std::chrono::system_clock::now();
   Reset();
   int nread = 0;
   char* buffer = 0;
@@ -171,21 +173,14 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
 
     if (rate) {
       // regulate the verification rate
-      gettimeofday(&currenttime, &tz);
-      scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                    currenttime.tv_usec - opentime.tv_usec) / 1000.0));
-      float expecttime = (1.0 * offset / rate) / 1000.0;
-
-      if (expecttime > scantime) {
-        std::this_thread::sleep_for
-        (std::chrono::milliseconds((int)(expecttime - scantime)));
-      }
+      eos::fst::utils::EnforceAndAdjustScanRate(scansize, opentime, rate,
+          fstload, dirpath.c_str(), max_rate);
     }
   } while (nread != 0);
 
-  gettimeofday(&currenttime, &tz);
-  scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+  auto currenttime = std::chrono::system_clock::now();
+  scantime = std::chrono::duration_cast<std::chrono::milliseconds>
+             (currenttime - opentime);
   Finalize();
   free(buffer);
   return true;
@@ -198,15 +193,14 @@ CheckSum::ScanFile(int fd, unsigned long long& scansize, float& scantime,
 
 bool
 CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
-                   float& scantime, int rate)
+                   std::chrono::milliseconds& scantime, int rate,
+                   Load* fstload, const std::string& dirpath,
+                   int max_rate)
 {
   static int buffersize = 1024 * 1024;
-  struct timezone tz;
-  struct timeval opentime;
-  struct timeval currenttime;
   scansize = 0;
-  scantime = 0;
-  gettimeofday(&opentime, &tz);
+  scantime = std::chrono::milliseconds::zero();
+  auto opentime = std::chrono::system_clock::now();
   Reset();
   //move at the right location in the  file
   int nread = 0;
@@ -236,20 +230,14 @@ CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
 
     if (rate) {
       // regulate the verification rate
-      gettimeofday(&currenttime, &tz);
-      scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                    currenttime.tv_usec - opentime.tv_usec) / 1000.0));
-      float expecttime = (1.0 * offset / rate) / 1000.0;
-
-      if (expecttime > scantime) {
-        usleep(1000.0 * (expecttime - scantime));
-      }
+      eos::fst::utils::EnforceAndAdjustScanRate(offset, opentime, rate,
+          fstload, dirpath.c_str(), max_rate);
     }
   } while (nread == buffersize);
 
-  gettimeofday(&currenttime, &tz);
-  scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+  auto currenttime = std::chrono::system_clock::now();
+  scantime = std::chrono::duration_cast<std::chrono::milliseconds>
+             (currenttime - opentime);
   scansize = (unsigned long long) offset;
   Finalize();
   free(buffer);
@@ -262,15 +250,14 @@ CheckSum::ScanFile(ReadCallBack rcb, unsigned long long& scansize,
 bool
 CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
                    const char* checksumInit,
-                   unsigned long long& scansize, float& scantime, int rate)
+                   unsigned long long& scansize, std::chrono::milliseconds& scantime, int rate,
+                   Load* fstload, const std::string& dirpath,
+                   int max_rate)
 {
   static int buffersize = 1024 * 1024;
-  struct timezone tz;
-  struct timeval opentime;
-  struct timeval currenttime;
   scansize = 0;
-  scantime = 0;
-  gettimeofday(&opentime, &tz);
+  scantime = std::chrono::milliseconds::zero();
+  auto opentime = std::chrono::system_clock::now();
   int fd = open(path, O_RDONLY);
 
   if (fd < 0) {
@@ -307,23 +294,15 @@ CheckSum::ScanFile(const char* path, off_t offsetInit, size_t lengthInit,
 
     Add(buffer, nread, offset);
     offset += nread;
-
-    if (rate) {
-      // regulate the verification rate
-      gettimeofday(&currenttime, &tz);
-      scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                    currenttime.tv_usec - opentime.tv_usec) / 1000.0));
-      float expecttime = (1.0 * offset / rate) / 1000.0;
-
-      if (expecttime > scantime) {
-        usleep(1000.0 * (expecttime - scantime));
-      }
-    }
+    // Regulate the verification rate
+    eos::fst::utils::EnforceAndAdjustScanRate(offset, opentime, rate,
+        fstload, dirpath.c_str(),
+        max_rate);
   } while (nread == buffersize);
 
-  gettimeofday(&currenttime, &tz);
-  scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+  auto currenttime = std::chrono::system_clock::now();
+  scantime = std::chrono::duration_cast<std::chrono::milliseconds>
+             (currenttime - opentime);
   scansize = (unsigned long long) offset;
   Finalize();
   close(fd);

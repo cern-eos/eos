@@ -1754,7 +1754,7 @@ bool RainMetaLayout::PrepareStripeChecksum()
     eos_debug("msg=\"unit checksum needs recalculation\" fxid=%08llx",
               mOfsFile->GetFileId());
     unsigned long long scansize = 0;
-    float scantime = 0;
+    std::chrono::milliseconds scantime {0};
 
     if (mStripeChecksum->ScanFile(mOfsFile->GetFstPath().c_str(), scansize,
                                   scantime, 0, mSizeHeader)) {
@@ -1765,7 +1765,8 @@ bool RainMetaLayout::PrepareStripeChecksum()
                  sizestring,
                  scansize, "B"),
                scantime,
-               1.0 * scansize / 1000 / (scantime ? scantime : 99999999999999LL),
+               1.0 * scansize / 1000 / (scantime.count() ?
+                                        (scantime.count() / 1000) : 99999999999999LL),
                mStripeChecksum->GetHexChecksum());
     } else {
       eos_err("msg=\"unit checksum rescanning failed\" fxid=%08llx",

@@ -154,7 +154,8 @@ add_library(EosFstIo-Objects OBJECT
   layout/RaidDpLayout.cc         layout/RaidDpLayout.hh
   layout/ReedSLayout.cc          layout/ReedSLayout.hh
   utils/FSPathHandler.cc
-  utils/IoPriority.cc)
+  utils/IoPriority.cc
+  utils/ScanRate.cc)
 
 target_link_libraries(EosFstIo-Objects PUBLIC
   Jerasure-Objects
@@ -249,6 +250,7 @@ add_library(EosFstOss MODULE
   XrdFstOssFile.cc XrdFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
+  utils/ScanRate.cc utils/ScanRate.hh
   $<TARGET_OBJECTS:EosCrc32c-Objects>
   $<TARGET_OBJECTS:EosBlake3-Objects>)
 
@@ -263,6 +265,7 @@ add_library(EosFstOss-Static STATIC
   XrdFstOssFile.cc XrdFstOssFile.hh
   checksum/CheckSum.cc checksum/CheckSum.hh
   checksum/Adler.cc checksum/Adler.hh
+  utils/ScanRate.cc utils/ScanRate.hh
   $<TARGET_OBJECTS:EosCrc32c-Objects>
   $<TARGET_OBJECTS:EosBlake3-Objects>)
 
