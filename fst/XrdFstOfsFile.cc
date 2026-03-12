@@ -3405,7 +3405,7 @@ XrdFstOfsFile::VerifyChecksum()
     // If checksum is not completely computed
     if (mCheckSum->NeedsRecalculation()) {
       unsigned long long scansize = 0;
-      std::chrono::milliseconds scantime {0};
+      std::chrono::milliseconds scantime {9999999999999999};
 
       if (!XrdOfsFile::fctl(SFS_FCTL_GETFD, 0, error)) {
         // Rescan the file
@@ -3414,13 +3414,13 @@ XrdFstOfsFile::VerifyChecksum()
         eos::fst::CheckSum::ReadCallBack cb(LayoutReadCB, cbd);
 
         if (mCheckSum->ScanFile(cb, scansize, scantime)) {
-          XrdOucString sizestring;
-          eos_info("info=\"rescanned checksum\" size=%s time=%.02f ms rate=%.02f MB/s %s",
-                   eos::common::StringConversion::GetReadableSizeString(sizestring,
-                       scansize, "B"),
-                   scantime.count(), 1.0 * scansize / 1000 /
-                   (scantime.count() ? scantime.count() : 99999999999999LL),
-                   mCheckSum->GetHexChecksum());
+          XrdOucString size_str;
+          (void) eos::common::StringConversion::GetReadableSizeString(size_str,
+              scansize, "B");
+          float rate = ((1.0 * scansize) / (1024 * 1024) * 1000) / scantime.count();
+          eos_info("info=\"rescanned checksum\" size=%s duration_ms=%llu "
+                   "rate_MB/s=%.02f %s", size_str.c_str(), scantime.count(),
+                   rate, mCheckSum->GetHexChecksum());
         } else {
           eos_err("msg=\"checksum rescanning failed\" fxid=%08llx", mFileId);
           mCheckSum.reset(nullptr);
