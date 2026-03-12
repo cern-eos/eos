@@ -3497,14 +3497,15 @@ XrdFstOfsFile::VerifyChecksum()
         cbd.caller = (void*) mLayout.get();
         eos::fst::CheckSum::ReadCallBack cb(LayoutReadCB, cbd);
 
-        if (mCheckSum->ScanFile(cb, scansize, scantime)) {
+        if (mChecksumGroup->ScanFile(cb, scansize, scantime)) {
           XrdOucString size_str;
           (void) eos::common::StringConversion::GetReadableSizeString(size_str,
               scansize, "B");
           float rate = ((1.0 * scansize) / (1024 * 1024) * 1000) / scantime.count();
           eos_info("info=\"rescanned checksum\" size=%s duration_ms=%llu "
-                   "rate_MB/s=%.02f %s", size_str.c_str(), scantime.count(),
-                   rate, mCheckSumGroup->GetDefault()->GetHexChecksum());
+                   "rate_MB/s=%.02f %s",
+                   size_str.c_str(), scantime.count(), rate,
+                   mChecksumGroup->GetDefault()->GetHexChecksum());
         } else {
           eos_err("msg=\"checksum rescanning failed\" fxid=%08llx", mFileId);
           mChecksumGroup->Clear();

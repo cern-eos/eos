@@ -21,11 +21,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef __EOSFST_CHECKSUM_GROUP_HH__
-#define __EOSFST_CHECKSUM_GROUP_HH__
-
+#pragma once
+#include "fst/Load.hh"
 #include "fst/checksum/CheckSum.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/utils/ScanRate.hh"
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -278,26 +278,33 @@ public:
   //----------------------------------------------------------------------------
   //! Scan of a complete file using an opened layout
   //----------------------------------------------------------------------------
-  bool ScanFile(CheckSum::ReadCallBack rcb, unsigned long long& scansize,
-                float& scantime, int rate = 0)
+  bool
+  ScanFile(CheckSum::ReadCallBack rcb, unsigned long long& scansize,
+           std::chrono::milliseconds& scantime, int rate = 0, Load* fstload = nullptr,
+           const std::string& dirpath = "")
   {
     // @note: not nice, since this is a copy of the CheckSum implementation
     static int buffersize = 1024 * 1024;
-    struct timezone tz;
-    struct timeval opentime;
-    struct timeval currenttime;
-    scansize = 0;
-    scantime = 0;
-    gettimeofday(&opentime, &tz);
+    scansize = 0ull;
+    scantime = std::chrono::milliseconds::zero();
+    auto open_ts = std::chrono::system_clock::now();
     Reset();
-    //move at the right location in the  file
-    int nread = 0;
-    off_t offset = 0;
-    char* buffer = (char*) malloc(buffersize);
+    //@todo(esindril) this should use the internal BufferPool to avoid
+    // fragmentation of the memory
+    char* buffer;
+
+    // Make sure the buffer is properly aligned to work also for direct IO
+    if (posix_memalign((void**)&buffer, 256 * 1024, buffersize)) {
+      fprintf(stderr, "warning: failed to use posix_memaling \n");
+      buffer = (char*)malloc(buffersize);
+    }
 
     if (!buffer) {
       return false;
     }
+
+    int nread = 0;
+    off_t offset = 0;
 
     do {
       errno = 0;
@@ -318,20 +325,14 @@ public:
 
       if (rate) {
         // regulate the verification rate
-        gettimeofday(&currenttime, &tz);
-        scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                      currenttime.tv_usec - opentime.tv_usec) / 1000.0));
-        float expecttime = (1.0 * offset / rate) / 1000.0;
-
-        if (expecttime > scantime) {
-          usleep(1000.0 * (expecttime - scantime));
-        }
+        eos::fst::utils::EnforceAndAdjustScanRate(scansize, open_ts, rate, fstload,
+                                                  dirpath.c_str());
       }
     } while (nread == buffersize);
 
-    gettimeofday(&currenttime, &tz);
-    scantime = (((currenttime.tv_sec - opentime.tv_sec) * 1000.0) + ((
-                  currenttime.tv_usec - opentime.tv_usec) / 1000.0));
+    auto current_ts = std::chrono::system_clock::now();
+    scantime =
+        std::chrono::duration_cast<std::chrono::milliseconds>(current_ts - open_ts);
     scansize = (unsigned long long) offset;
     Finalize();
     free(buffer);
@@ -345,5 +346,3 @@ private:
 };
 
 EOSFSTNAMESPACE_END
-
-#endif
