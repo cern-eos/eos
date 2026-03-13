@@ -97,10 +97,20 @@ QuarkFileSystemView::CleanCacheJob(ThreadAssistant& assistant) noexcept
       for (const auto& elem : mFiles) {
         fsids.insert(elem.first);
       }
+
+      for (const auto& elem : mUnlinkedFiles) {
+        fsids.insert(elem.first);
+      }
     }
 
     for (const auto& fsid : fsids) {
       auto* handle = fetchRegularFilelistIfExists(fsid);
+
+      if (handle) {
+        handle->clearCache();
+      }
+
+      handle = fetchUnlinkedFilelistIfExists(fsid);
 
       if (handle) {
         handle->clearCache();
@@ -162,10 +172,12 @@ QuarkFileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
       mNoReplicas->insert(file->getIdentifier());
     }
 
-    pFlusher->srem(
-      eos::RequestBuilder::keyFilesystemUnlinked(e->location),
-      std::to_string(file->getIdentifier().getUnderlyingUInt64())
-    );
+    FileSystemHandler* handlerUnlinked = fetchUnlinkedFilelistIfExists(e->location);
+
+    if (handlerUnlinked) {
+      handlerUnlinked->erase(file->getIdentifier());
+    }
+
     break;
   }
 
@@ -177,10 +189,8 @@ QuarkFileSystemView::fileMDChanged(IFileMDChangeListener::Event* e)
   // become inconsistent.
   //----------------------------------------------------------------------------
   case IFileMDChangeListener::LocationUnlinked: {
-    pFlusher->sadd(
-      eos::RequestBuilder::keyFilesystemUnlinked(e->location),
-      std::to_string(file->getIdentifier().getUnderlyingUInt64())
-    );
+    FileSystemHandler* handlerUnlinked = initializeUnlinkedFilelist(e->location);
+    handlerUnlinked->insert(file->getIdentifier());
     FileSystemHandler* handlerRegular = fetchRegularFilelistIfExists(e->location);
 
     if (handlerRegular) {
@@ -310,10 +320,11 @@ QuarkFileSystemView::eraseEntry(IFileMD::location_t location, IFileMD::id_t fid)
     }
   }
   {
-    pFlusher->srem(
-      eos::RequestBuilder::keyFilesystemUnlinked(location),
-      std::to_string(fid)
-    );
+    FileSystemHandler* handler = fetchUnlinkedFilelistIfExists(location);
+
+    if (handler) {
+      handler->erase(FileIdentifier(fid));
+    }
   }
   mNoReplicas->erase(FileIdentifier(fid));
   return ;
@@ -342,9 +353,13 @@ bool QuarkFileSystemView::getApproximatelyRandomFileInFs(IFileMD::location_t
 std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
     QuarkFileSystemView::getUnlinkedFileList(IFileMD::location_t location)
 {
-  return std::shared_ptr<ICollectionIterator<IFileMD::id_t>>
-         (new StreamingFileListIterator(*pQcl,
-                                        eos::RequestBuilder::keyFilesystemUnlinked(location)));
+  FileSystemHandler* handlerUnlinked = fetchUnlinkedFilelistIfExists(location);
+
+  if (handlerUnlinked) {
+    return handlerUnlinked->getFileList();
+  }
+
+  return nullptr;
 }
 
 //------------------------------------------------------------------------------
@@ -386,14 +401,13 @@ QuarkFileSystemView::getNumFilesOnFs(IFileMD::location_t fs_id)
 uint64_t
 QuarkFileSystemView::getNumUnlinkedFilesOnFs(IFileMD::location_t fs_id)
 {
-  qclient::redisReplyPtr reply = pQcl->exec("SCARD",
-                                 eos::RequestBuilder::keyFilesystemUnlinked(fs_id)).get();
+  FileSystemHandler* handlerUnlinked = fetchUnlinkedFilelistIfExists(fs_id);
 
-  if ((reply == nullptr) || (reply->type != REDIS_REPLY_INTEGER)) {
-    return 0ull;
+  if (handlerUnlinked) {
+    return handlerUnlinked->size();
   }
 
-  return reply->integer;
+  return 0ull;
 }
 
 //------------------------------------------------------------------------------
@@ -417,7 +431,13 @@ QuarkFileSystemView::hasFileId(IFileMD::id_t fid, IFileMD::location_t fs_id)
 bool
 QuarkFileSystemView::clearUnlinkedFileList(IFileMD::location_t location)
 {
-  pFlusher->del(eos::RequestBuilder::keyFilesystemUnlinked(location));
+  FileSystemHandler* handlerUnlinked = fetchUnlinkedFilelistIfExists(location);
+
+  if (!handlerUnlinked) {
+    return false;
+  }
+
+  handlerUnlinked->nuke();
   return true;
 }
 
@@ -494,14 +514,19 @@ void
 QuarkFileSystemView::loadFromBackend()
 {
   std::vector<std::string> patterns {
-    fsview::sPrefix + "*:files"
-  };
+    fsview::sPrefix + "*:files",
+    fsview::sPrefix + "*:unlinked" };
 
   for (const auto& pattern : patterns) {
     for (auto it = getQdbFileSystemIterator(pattern);
          (it && it->valid()); it->next()) {
       IFileMD::location_t fsid = it->getElement();
-      initializeRegularFilelist(fsid);
+
+      if (pattern.find("unlinked") != std::string::npos) {
+        initializeUnlinkedFilelist(fsid);
+      } else {
+        initializeRegularFilelist(fsid);
+      }
     }
   }
 }
@@ -543,6 +568,49 @@ FileSystemHandler* QuarkFileSystemView::fetchRegularFilelistIfExists(
   auto iter = mFiles.find(fsid);
 
   if (iter == mFiles.end()) {
+    return nullptr;
+  }
+
+  return iter->second.get();
+}
+
+//------------------------------------------------------------------------------
+//! Initialize unlinked FileSystemHandler for given filesystem ID,
+//! if not already initialized. Otherwise, do nothing.
+//!
+//! In any case, return pointer to the corresponding FileSystemHandler.
+//!
+//! @param fsid file system id
+//------------------------------------------------------------------------------
+FileSystemHandler* QuarkFileSystemView::initializeUnlinkedFilelist(
+  IFileMD::location_t fsid)
+{
+  std::unique_lock<std::mutex> lock(mMutex);
+  auto iter = mUnlinkedFiles.find(fsid);
+
+  if (iter != mUnlinkedFiles.end()) {
+    // Found
+    return iter->second.get();
+  }
+
+  mUnlinkedFiles[fsid].reset(new FileSystemHandler(fsid, mExecutor.get(), pQcl,
+                             pFlusher, true));
+  return mUnlinkedFiles[fsid].get();
+}
+
+//------------------------------------------------------------------------------
+//! Fetch unlinked FileSystemHandler for a given filesystem ID, but do not
+//! initialize if it doesn't exist, give back nullptr.
+//!
+//! @param fsid file system id
+//------------------------------------------------------------------------------
+FileSystemHandler* QuarkFileSystemView::fetchUnlinkedFilelistIfExists(
+  IFileMD::location_t fsid)
+{
+  std::unique_lock<std::mutex> lock(mMutex);
+  auto iter = mUnlinkedFiles.find(fsid);
+
+  if (iter == mUnlinkedFiles.end()) {
     return nullptr;
   }
 

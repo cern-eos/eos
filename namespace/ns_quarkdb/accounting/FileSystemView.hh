@@ -376,6 +376,24 @@ private:
   FileSystemHandler* fetchRegularFilelistIfExists(IFileMD::location_t fsid);
 
   //----------------------------------------------------------------------------
+  //! Initialize unlinked FileSystemHandler for given filesystem ID,
+  //! if not already initialized. Otherwise, do nothing.
+  //!
+  //! In any case, return pointer to the corresponding FileSystemHandler.
+  //!
+  //! @param fsid file system id
+  //----------------------------------------------------------------------------
+  FileSystemHandler* initializeUnlinkedFilelist(IFileMD::location_t fsid);
+
+  //----------------------------------------------------------------------------
+  //! Fetch unlinked FileSystemHandler for a given filesystem ID, but do not
+  //! initialize if it doesn't exist, give back nullptr.
+  //!
+  //! @param fsid file system id
+  //----------------------------------------------------------------------------
+  FileSystemHandler* fetchUnlinkedFilelistIfExists(IFileMD::location_t fsid);
+
+  //----------------------------------------------------------------------------
   //! Run cache cleanup of the different FileSystemHandle objects tracked by
   //! the FileSystemView in order to keep the memory overhead under control
   //!
@@ -395,6 +413,9 @@ private:
   std::unique_ptr<FileSystemHandler> mNoReplicas;
   ///! Regular filelists
   std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>> mFiles;
+  ///! Unlinked filelists
+  std::map<IFileMD::location_t, std::unique_ptr<FileSystemHandler>>
+      mUnlinkedFiles;
   ///! Mutex protecting access to the maps. Not the contents of the maps,
   ///! though.
   std::mutex mMutex;
