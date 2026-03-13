@@ -26,7 +26,6 @@
 #include "common/StringConversion.hh"
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <unistd.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -51,7 +50,7 @@ Config::Load(const char* service, const char* name, bool reset)
   path += name;
 
   eos_static_info("loading configuration from '%s'...", path.c_str());
-  struct stat buf;
+  struct stat buf{};
 
   if (stat(path.c_str(), &buf)) {
     errcode = errno;
@@ -71,18 +70,18 @@ Config::Load(const char* service, const char* name, bool reset)
     if (p.empty()) {
       p = ParseSection(line);
       if (!p.empty()) {
-	if (!chapter.empty()) {
-	  // store in chapter
-	  conf[chapter].push_back(p);
-	} else {
-	  errcode = EINVAL;
-	  errorMessage = "error: no chapter header in config file";
-	  return false;
-	}
+        if (!chapter.empty()) {
+          // store in chapter
+          conf[chapter].push_back(p);
+        } else {
+          errcode = EINVAL;
+          errorMessage = "error: no chapter header in config file";
+          return false;
+        }
       }
     } else {
       chapter = p;
-      conf[chapter].size();
+      (void)conf[chapter];
     }
   }
 
@@ -174,10 +173,9 @@ Config::AsMap(const char* chapter)
 {
   std::map<std::string, std::string> map;
   if (chapter && conf.count(chapter)) {
-    for ( auto it : conf[chapter] ) {
-      if ( eos::common::StringConversion::GetKeyValueMap( it.c_str(),
-							  map,
-							  "="," " ) ) {
+    for (const auto& it : conf[chapter]) {
+      if (eos::common::StringConversion::GetKeyValueMap(it.c_str(), map, "=", " ")) {
+        //
       }
     }
   }
@@ -192,7 +190,7 @@ Config::Env(const char* chapter)
   size_t cnt=0;
 
   // do variable substitution
-  for (auto it : map) {
+  for (const auto& it : map) {
     std::string s = it.second;
     ReplaceFromChapter(s,chapter);
     map[it.first]=s;
@@ -203,7 +201,7 @@ Config::Env(const char* chapter)
     kv = it.first + "=" + it.second;
     envv[cnt++] = strdup( kv.c_str() ) ;
   }
-  envv[cnt] = NULL;
+  envv[cnt] = nullptr;
   return envv;
 }
 
@@ -214,9 +212,9 @@ std::string
 Config::GetValueByKey(const char* chapter, const char* key)
 {
   if (Has(chapter)) {
-    for (auto it : conf[chapter]) {
+    for (const auto& it : conf[chapter]) {
       if ( it.substr(0, std::string(key).length()) == key ) {
-	return it.substr(std::string(key).length()+1);
+        return it.substr(std::string(key).length() + 1);
       }
     }
   }
