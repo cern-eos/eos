@@ -15,6 +15,34 @@
 
 namespace eos::mgm::traffic_shaping {
 
+extern "C" {
+// Function signatures for the hot-reloaded plugin
+typedef uint64_t (*DelayAlgoFunc)(double limit_bps, double current_rate_bps,
+                                  uint64_t current_delay_us);
+
+// A flat, simple struct containing all inputs and outputs for ONE app
+struct AppState {
+  char app_name[128]; // Fixed size so we don't mess with pointers
+
+  // Inputs from MGM -> Plugin
+  double current_read_bps;
+  double current_write_bps;
+  uint64_t reservation_write_bps;
+  uint64_t reservation_read_bps;
+  uint64_t controller_limit_write_bps;
+  uint64_t controller_limit_read_bps;
+
+  // Outputs from Plugin -> MGM
+  uint64_t new_controller_limit_write_bps;
+  uint64_t new_controller_limit_read_bps;
+  bool update_write; // Set to true if the plugin wants to apply the new write limit
+  bool update_read;  // Set to true if the plugin wants to apply the new read limit
+};
+
+// Pass the pure data array to avoid C++ ABI name mangling and linking issues
+typedef void (*ControllerAlgoFunc)(AppState* apps, size_t num_apps);
+}
+
 struct StreamState {
   uint64_t last_bytes_read = 0;
   uint64_t last_bytes_written = 0;
@@ -212,13 +240,19 @@ struct TrafficShapingPolicy {
   }
 
   bool
+  operator==(const TrafficShapingPolicy& policy) const
+  {
+    return limit_write_bytes_per_sec == policy.limit_write_bytes_per_sec &&
+           limit_read_bytes_per_sec == policy.limit_read_bytes_per_sec &&
+           reservation_write_bytes_per_sec == policy.reservation_write_bytes_per_sec &&
+           reservation_read_bytes_per_sec == policy.reservation_read_bytes_per_sec &&
+           is_enabled == policy.is_enabled;
+  }
+
+  bool
   operator!=(const TrafficShapingPolicy& policy) const
   {
-    return limit_write_bytes_per_sec != policy.limit_write_bytes_per_sec ||
-           limit_read_bytes_per_sec != policy.limit_read_bytes_per_sec ||
-           reservation_write_bytes_per_sec != policy.reservation_write_bytes_per_sec ||
-           reservation_read_bytes_per_sec != policy.reservation_read_bytes_per_sec ||
-           is_enabled != policy.is_enabled;
+    return !(*this == policy);
   }
 
   std::string
@@ -247,6 +281,8 @@ public:
   void UpdateEstimators(double time_delta_seconds);
 
   void UpdateLimits();
+
+  void UpdateTrafficShapingController();
 
   void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
                          uint32_t window_seconds);
@@ -312,6 +348,14 @@ public:
     return mSystemStatsWindowSeconds;
   }
 
+  std::tuple<std::unordered_map<std::string, double>, // app read
+             std::unordered_map<std::string, double>, // app write
+             std::unordered_map<uint32_t, double>,    // uid read
+             std::unordered_map<uint32_t, double>,    // uid write
+             std::unordered_map<uint32_t, double>,    // gid read
+             std::unordered_map<uint32_t, double>>    // gid write
+  GetCurrentReadAndWriteRates() const;
+
   void Clear();
 
 private:
@@ -352,13 +396,14 @@ private:
   static uint64_t CalculateDelayUs(double limit_bps, double current_rate_bps,
                                    uint64_t current_delay_us);
 
-  std::tuple<std::unordered_map<std::string, double>, // app read
-             std::unordered_map<std::string, double>, // app write
-             std::unordered_map<uint32_t, double>,    // uid read
-             std::unordered_map<uint32_t, double>,    // uid write
-             std::unordered_map<uint32_t, double>,    // gid read
-             std::unordered_map<uint32_t, double>>    // gid write
-  GetCurrentReadAndWriteRates() const;
+  // --- Plugin Hot-Reload State ---
+  void* mPluginHandle = nullptr;
+  DelayAlgoFunc mCustomAlgo = nullptr;
+  ControllerAlgoFunc mCustomControllerAlgo = nullptr;
+  time_t mPluginLastModified = 0;
+  std::shared_mutex mPluginMutex;
+
+  void LoadPluginIfModified();
 };
 
 class TrafficShapingEngine {

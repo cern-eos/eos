@@ -8,7 +8,10 @@
 
 #include "proto/TrafficShaping.pb.h"
 
+#include <dlfcn.h>
 #include <google/protobuf/util/json_util.h>
+#include <set>
+#include <sys/stat.h>
 
 namespace eos::mgm::traffic_shaping {
 
@@ -62,8 +65,8 @@ TrafficShapingManager::GetCurrentReadAndWriteRates() const
   std::unordered_map<uint32_t, double> gid_read_rates, gid_write_rates;
 
   for (const auto& [key, stats] : mGlobalStats) {
-    double read_bps = stats.ema[Ema5s].read_rate_bps;
-    double write_bps = stats.ema[Ema5s].write_rate_bps;
+    const double read_bps = stats.ema[Ema5s].read_rate_bps;
+    const double write_bps = stats.ema[Ema5s].write_rate_bps;
 
     app_read_rates[key.app] += read_bps;
     app_write_rates[key.app] += write_bps;
@@ -380,8 +383,98 @@ TrafficShapingManager::CalculateDelayUs(const double limit_bps,
 }
 
 void
+TrafficShapingManager::UpdateTrafficShapingController()
+{
+  std::shared_lock read_lock(mPluginMutex);
+
+  if (!mCustomControllerAlgo) {
+    return;
+  }
+
+  // 1. Gather all unique active apps and defined policies
+  std::set<std::string> unique_apps;
+  auto rates = GetCurrentReadAndWriteRates();
+  auto& app_read_map = std::get<0>(rates);
+  auto& app_write_map = std::get<1>(rates);
+
+  for (const auto& [app, _] : app_read_map) {
+    unique_apps.insert(app);
+  }
+  for (const auto& [app, _] : app_write_map) {
+    unique_apps.insert(app);
+  }
+  for (const auto& [app, _] : mAppPolicies) {
+    unique_apps.insert(app);
+  }
+
+  if (unique_apps.empty()) {
+    return;
+  }
+
+  // 2. Prepare the flat array for the plugin
+  std::vector<AppState> app_array;
+  app_array.reserve(unique_apps.size());
+
+  for (const auto& app : unique_apps) {
+    AppState st{}; // Zero-initialize
+    strncpy(st.app_name, app.c_str(), sizeof(st.app_name) - 1);
+
+    // Telemetry
+    if (auto it = app_read_map.find(app); it != app_read_map.end()) {
+      st.current_read_bps = it->second;
+    }
+    if (auto it = app_write_map.find(app); it != app_write_map.end()) {
+      st.current_write_bps = it->second;
+    }
+
+    // Policy
+    if (auto pol_it = mAppPolicies.find(app); pol_it != mAppPolicies.end()) {
+      st.reservation_write_bps = pol_it->second.reservation_write_bytes_per_sec;
+      st.reservation_read_bps = pol_it->second.reservation_read_bytes_per_sec;
+      st.controller_limit_write_bps = pol_it->second.controller_limit_write_bytes_per_sec;
+      st.controller_limit_read_bps = pol_it->second.controller_limit_read_bytes_per_sec;
+    }
+
+    app_array.push_back(st);
+  }
+
+  // 3. INJECT THE DATA INTO THE PLUGIN
+  mCustomControllerAlgo(app_array.data(), app_array.size());
+
+  // 4. Read the results back and apply them
+  for (const auto& st : app_array) {
+    if (st.update_write || st.update_read) {
+      TrafficShapingPolicy policy;
+
+      // Ensure we preserve existing user configuration
+      if (auto pol_it = mAppPolicies.find(st.app_name); pol_it != mAppPolicies.end()) {
+        policy = pol_it->second;
+      }
+
+      if (st.update_write) {
+        policy.controller_limit_write_bytes_per_sec = st.new_controller_limit_write_bps;
+      }
+      if (st.update_read) {
+        policy.controller_limit_read_bytes_per_sec = st.new_controller_limit_read_bps;
+      }
+
+      // Automatically syncs to FSTs because SetAppPolicy bumps the config version
+      SetAppPolicy(st.app_name, policy);
+
+      eos_static_info("msg=\"Plugin applied dynamic controller limits\" app=\"%s\" "
+                      "controller_limit_write_bps=%lu controller_limit_read_bps=%lu",
+                      st.app_name, policy.controller_limit_write_bytes_per_sec,
+                      policy.controller_limit_read_bytes_per_sec);
+    }
+  }
+}
+
+void
 TrafficShapingManager::UpdateLimits()
 {
+  // 1. Evaluate hot-reload status at the start of every tick
+  LoadPluginIfModified();
+
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
 
   auto* app_write_map = fst_io_delay_config.mutable_app_write_delay();
@@ -402,7 +495,14 @@ TrafficShapingManager::UpdateLimits()
     const uint64_t old_delay = delay_us;
     const double ratio = current_rate / limit_bps;
 
-    delay_us = CalculateDelayUs(limit_bps, current_rate, old_delay);
+    {
+      std::shared_lock read_lock(mPluginMutex);
+      if (mCustomAlgo) {
+        delay_us = mCustomAlgo(limit_bps, current_rate, old_delay);
+      } else {
+        delay_us = CalculateDelayUs(limit_bps, current_rate, old_delay);
+      }
+    }
 
     if (delay_us > 0) {
       (*output_map)[entity_key] = delay_us;
@@ -670,6 +770,14 @@ TrafficShapingManager::Clear()
   estimators_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
   fst_reports_processed_per_second.reset();
+
+  if (mPluginHandle) {
+    dlclose(mPluginHandle);
+    mPluginHandle = nullptr;
+    mCustomAlgo = nullptr;
+    mCustomControllerAlgo = nullptr;
+    mPluginLastModified = 0;
+  }
 }
 
 RateSnapshot
@@ -959,6 +1067,7 @@ TrafficShapingEngine::ProcessAllQueuedReports()
 
   mManager->UpdateFstReportsProcessed(local_queue.size());
 }
+
 void
 TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 {
@@ -1031,6 +1140,8 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
     std::this_thread::sleep_until(next_tick);
 
     auto work_start_time = std::chrono::steady_clock::now();
+
+    mManager->UpdateTrafficShapingController();
 
     mManager->UpdateLimits();
 
@@ -1355,32 +1466,135 @@ TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_poli
     return false;
   }
 
-  mUidPolicies.clear();
-  mGidPolicies.clear();
-  mAppPolicies.clear();
+  std::unordered_map<uint32_t, TrafficShapingPolicy> new_uid_policies;
+  std::unordered_map<uint32_t, TrafficShapingPolicy> new_gid_policies;
+  std::unordered_map<std::string, TrafficShapingPolicy> new_app_policies;
 
-  auto copy_to_cpp = [](const eos::traffic_shaping::TrafficShapingPolicy& proto_pol)
-      -> TrafficShapingPolicy {
-    TrafficShapingPolicy cpp_pol;
-    cpp_pol.limit_write_bytes_per_sec = proto_pol.limit_write_bytes_per_sec();
-    cpp_pol.limit_read_bytes_per_sec = proto_pol.limit_read_bytes_per_sec();
-    cpp_pol.reservation_write_bytes_per_sec = proto_pol.reservation_write_bytes_per_sec();
-    cpp_pol.reservation_read_bytes_per_sec = proto_pol.reservation_read_bytes_per_sec();
-    cpp_pol.is_enabled = proto_pol.is_enabled();
-    return cpp_pol;
+  std::unique_lock lock(mMutex);
+
+  auto merge_policies = [](auto& current_map, const auto& proto_map, auto& new_map) {
+    auto copy_to_cpp = [](const auto& proto_pol) -> TrafficShapingPolicy {
+      TrafficShapingPolicy cpp_pol;
+      cpp_pol.limit_write_bytes_per_sec = proto_pol.limit_write_bytes_per_sec();
+      cpp_pol.limit_read_bytes_per_sec = proto_pol.limit_read_bytes_per_sec();
+      cpp_pol.reservation_write_bytes_per_sec =
+          proto_pol.reservation_write_bytes_per_sec();
+      cpp_pol.reservation_read_bytes_per_sec = proto_pol.reservation_read_bytes_per_sec();
+      cpp_pol.is_enabled = proto_pol.is_enabled();
+      return cpp_pol;
+    };
+
+    for (const auto& [id, pol] : proto_map) {
+      auto cpp_pol = copy_to_cpp(pol);
+      if (auto it = current_map.find(id); it != current_map.end()) {
+        cpp_pol.controller_limit_read_bytes_per_sec =
+            it->second.controller_limit_read_bytes_per_sec;
+        cpp_pol.controller_limit_write_bytes_per_sec =
+            it->second.controller_limit_write_bytes_per_sec;
+      }
+      new_map[id] = cpp_pol;
+    }
+
+    // 2. Retain Python-generated ephemeral policies (policies with ONLY controller
+    // limits) that might have been skipped by the DB serialization
+    TrafficShapingPolicy empty_user_pol; // All user fields are 0/disabled
+    for (const auto& [id, pol] : current_map) {
+      if (new_map.find(id) == new_map.end()) {
+        // We use operator== because it deliberately ignores controller fields.
+        // If this evaluates to true, it means NO user settings exist for this policy.
+        if (pol == empty_user_pol && (pol.controller_limit_read_bytes_per_sec > 0 ||
+                                      pol.controller_limit_write_bytes_per_sec > 0)) {
+          new_map[id] = pol;
+        }
+      }
+    }
   };
 
-  for (const auto& [uid, pol] : proto_config.uid_policies()) {
-    mUidPolicies[uid] = copy_to_cpp(pol);
-  }
-  for (const auto& [gid, pol] : proto_config.gid_policies()) {
-    mGidPolicies[gid] = copy_to_cpp(pol);
-  }
-  for (const auto& [app, pol] : proto_config.app_policies()) {
-    mAppPolicies[app] = copy_to_cpp(pol);
-  }
+  merge_policies(mUidPolicies, proto_config.uid_policies(), new_uid_policies);
+  merge_policies(mGidPolicies, proto_config.gid_policies(), new_gid_policies);
+  merge_policies(mAppPolicies, proto_config.app_policies(), new_app_policies);
+
+  mUidPolicies = std::move(new_uid_policies);
+  mGidPolicies = std::move(new_gid_policies);
+  mAppPolicies = std::move(new_app_policies);
 
   return true;
+}
+
+void
+TrafficShapingManager::LoadPluginIfModified()
+{
+  const char* plugin_path = "/etc/eos/traffic_shaping_plugin.so";
+  struct stat file_stat;
+
+  // 1. Check if the hot-reload file exists on disk
+  if (stat(plugin_path, &file_stat) == 0) {
+    // 2. Check if the file has been updated since our last load
+    if (file_stat.st_mtime > mPluginLastModified) {
+      eos_static_info("msg=\"Detected new or modified traffic shaping plugin. "
+                      "Loading...\" path=\"%s\"",
+                      plugin_path);
+
+      // ACQUIRE EXCLUSIVE WRITE LOCK: Wait for any active evaluation threads to finish
+      std::unique_lock write_lock(mPluginMutex);
+
+      // Close the old plugin if it exists
+      if (mPluginHandle) {
+        dlclose(mPluginHandle);
+        mPluginHandle = nullptr;
+        mCustomAlgo = nullptr;
+        mCustomControllerAlgo = nullptr;
+      }
+
+      // Open the new plugin
+      mPluginHandle = dlopen(plugin_path, RTLD_NOW | RTLD_LOCAL);
+      if (mPluginHandle) {
+        dlerror(); // Clear any existing errors
+
+        // Find our specific C functions
+        mCustomAlgo = (DelayAlgoFunc)dlsym(mPluginHandle, "calculate_delay");
+        mCustomControllerAlgo =
+            (ControllerAlgoFunc)dlsym(mPluginHandle, "update_controller");
+
+        // We require at least one symbol to be present to consider the load a success
+        if (!mCustomAlgo && !mCustomControllerAlgo) {
+          eos_static_err("msg=\"Failed to find any matching symbols ('calculate_delay' "
+                         "or 'update_controller') in plugin! "
+                         "Falling back to built-in.\" error=\"%s\"",
+                         dlerror());
+          dlclose(mPluginHandle);
+          mPluginHandle = nullptr;
+          mCustomAlgo = nullptr;
+          mCustomControllerAlgo = nullptr;
+        } else {
+          eos_static_info("msg=\"Successfully loaded and activated custom traffic "
+                          "shaping plugin\"");
+        }
+      } else {
+        eos_static_err("msg=\"Failed to load traffic shaping plugin. Falling back to "
+                       "built-in.\" error=\"%s\"",
+                       dlerror());
+      }
+
+      // Update our timestamp so we don't reload it again until it changes
+      mPluginLastModified = file_stat.st_mtime;
+    }
+  } else {
+    // 3. File doesn't exist. If we have one loaded, the user deleted it. Revert to
+    // built-in.
+    if (mPluginHandle) {
+      eos_static_info("msg=\"Traffic shaping plugin file removed. Reverting to "
+                      "built-in algorithm.\"");
+
+      std::unique_lock write_lock(mPluginMutex);
+
+      dlclose(mPluginHandle);
+      mPluginHandle = nullptr;
+      mCustomAlgo = nullptr;
+      mCustomControllerAlgo = nullptr;
+      mPluginLastModified = 0;
+    }
+  }
 }
 
 } // namespace eos::mgm::traffic_shaping
