@@ -102,7 +102,6 @@ XrdMgmOfs::_touch(const char* path,
     gOFS->eosView->getContainer(path);
     errno = EISDIR;
     return SFS_ERROR;
-
   } catch (eos::MDException& e) {
     errno = e.getErrno();
     eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
@@ -466,7 +465,8 @@ XrdMgmOfs::_touch(const char* path,
     cmd->notifyMTimeChange(gOFS->eosDirectoryService);
 
     // Check if there is any quota node to be updated
-    if (!existedAlready) {
+    // Procedure already done if useLayout=true
+    if (!existedAlready && !useLayout) {
       try {
         eos::IQuotaNode* ns_quota = gOFS->eosView->getQuotaNode(cmd.get());
 
