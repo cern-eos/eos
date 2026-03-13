@@ -56,6 +56,7 @@
 #include "common/BufferManager.hh"
 #include "common/async/ExecutorMgr.hh"
 #include "namespace/interface/IFileMD.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "private/XrdSfs/XrdSfsFAttr.hh"
 #include <XrdNet/XrdNetOpts.hh>
 #include <XrdNet/XrdNetUtils.hh>
@@ -2346,7 +2347,7 @@ XrdFstOfs::GetUnlinkedFilesFromQDB(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-  std::string key = SSTR("fsview:" << fsid << ":unlinked");
+  std::string key = eos::RequestBuilder::keyFilesystemUnlinked(fsid);
 
   try {
     // Check if there are any pending deletions
