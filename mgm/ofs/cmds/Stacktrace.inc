@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: Coverage.cc
-// Author: Mihai Patrascoiu - CERN
+// File: Stacktrace.inc
+// Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2019 CERN/Switzerland                                  *
+ * Copyright (C) 2011 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -28,42 +28,51 @@
 // -----------------------------------------------------------------------
 
 /*----------------------------------------------------------------------------*/
-/* @brief profiling function flushing coverage data
+void
+xrdmgmofs_stacktrace (int sig)
+/*----------------------------------------------------------------------------*/
+/* @brief static function to print a stack-trace on STDERR
  *
- * @param sig signal caught
+ * @param sig signal catched
  *
- * Prints the collected gcov data upon receiving the signal.
- * The data should be collected via a tool capable of processing gcov output.
+ * After catching 'sig' and producing a stack trace the signal handler is put
+ * back to the default and the signal is send again ... this is mainly used
+ * to create a stack trace and a core dump after a SEGV signal.
+ *
  */
 /*----------------------------------------------------------------------------*/
-void
-xrdmgmofs_coverage(int sig)
 {
-#ifdef COVERAGE_BUILD
-  eos_static_notice("msg=\"printing coverage data\"");
-  __gcov_dump();
+  (void) signal(SIGINT, SIG_IGN);
+  (void) signal(SIGTERM, SIG_IGN);
+  (void) signal(SIGQUIT, SIG_IGN);
+  void *array[10];
+  size_t size;
 
-  // Get a map of all the loaded dynamic libraries
-  using eos::common::PluginManager;
-  PluginManager& pm = PluginManager::GetInstance();
-  PluginManager::DynamicLibMap dynamicLibMap = pm.GetDynamicLibMap();
+  // get void*'s for all entries on the stack
+  size = backtrace(array, 10);
 
-  typedef void (*CoverageFunc)();
+  // print out all the frames to stderr
+  fprintf(stderr, "error: received signal %d:\n", sig);
 
-  // Call the exported coverage function on each dynamic library
-  for (auto& dLib: dynamicLibMap) {
-    CoverageFunc coverageFunc =
-        (CoverageFunc) dLib.second->GetSymbol("plugin_coverage");
+  backtrace_symbols_fd(array, size, 2);
 
-    if (coverageFunc != NULL) {
-      eos_static_notice("msg=\"calling exported coverage function for: %s\"",
-                        dLib.first.c_str());
-      coverageFunc();
-    }
+  eos::common::StackTrace::GdbTrace(0, getpid(), "thread apply all bt");
+
+  if (getenv("EOS_CORE_DUMP"))
+  {
+    eos::common::StackTrace::GdbTrace(0, getpid(), "generate-core-file");
   }
 
-  return;
-#endif
+  if (getenv("EOS_RAISE_SIGNAL_AFTER_SIGV")) {
+    // now we put back the initial handler ...
+    signal(sig, SIG_DFL);
 
-  eos_static_notice("msg=\"compiled without coverage support\"");
+    // ... and send the signal again
+    kill(getpid(), sig);
+  }
+  else {
+    // No std::abort to prevent abortd from generating a multi-GB corefile
+    std::quick_exit(128 + sig);
+  }
+
 }

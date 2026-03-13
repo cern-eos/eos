@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: Stacktrace.cc
+// File: Shutdown.inc
 // Author: Andreas-Joachim Peters - CERN
 // ----------------------------------------------------------------------
 
@@ -27,52 +27,35 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-/*----------------------------------------------------------------------------*/
-void
-xrdmgmofs_stacktrace (int sig)
-/*----------------------------------------------------------------------------*/
-/* @brief static function to print a stack-trace on STDERR
+//------------------------------------------------------------------------------
+/*
+ * @brief shutdown function cleaning up running threads/objects for a clean exit
  *
  * @param sig signal catched
  *
- * After catching 'sig' and producing a stack trace the signal handler is put
- * back to the default and the signal is send again ... this is mainly used
- * to create a stack trace and a core dump after a SEGV signal.
- *
+ * This shutdown function tries to get a write lock before doing the namespace
+ * shutdown. Since it is not guaranteed that one can always get a write lock
+ * there is a timeout in requiring the write lock and then the shutdown is forced.
+ * Depending on the role of the MGM it stop's the running namespace follower
+ * and in all cases running sub-services of the MGM.
  */
-/*----------------------------------------------------------------------------*/
+//------------------------------------------------------------------------------
+void
+xrdmgmofs_shutdown(int sig)
+
 {
   (void) signal(SIGINT, SIG_IGN);
   (void) signal(SIGTERM, SIG_IGN);
   (void) signal(SIGQUIT, SIG_IGN);
-  void *array[10];
-  size_t size;
+  eos_static_alert("msg=\"shutdown sequence started\'");
 
-  // get void*'s for all entries on the stack
-  size = backtrace(array, 10);
-
-  // print out all the frames to stderr
-  fprintf(stderr, "error: received signal %d:\n", sig);
-
-  backtrace_symbols_fd(array, size, 2);
-
-  eos::common::StackTrace::GdbTrace(0, getpid(), "thread apply all bt");
-
-  if (getenv("EOS_CORE_DUMP"))
-  {
-    eos::common::StackTrace::GdbTrace(0, getpid(), "generate-core-file");
+  // Avoid shutdown recursions
+  if (gOFS->Shutdown) {
+    return;
   }
 
-  if (getenv("EOS_RAISE_SIGNAL_AFTER_SIGV")) {
-    // now we put back the initial handler ...
-    signal(sig, SIG_DFL);
-
-    // ... and send the signal again
-    kill(getpid(), sig);
-  }
-  else {
-    // No std::abort to prevent abortd from generating a multi-GB corefile
-    std::quick_exit(128 + sig);
-  }
-
+  gOFS->Shutdown = true;
+  gOFS->OrderlyShutdown();
+  eos_static_alert("%s", "msg=\"shutdown complete\"");
+  std::quick_exit(0);
 }

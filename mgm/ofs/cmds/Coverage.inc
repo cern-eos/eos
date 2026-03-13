@@ -1,11 +1,11 @@
 // ----------------------------------------------------------------------
-// File: Shutdown.cc
-// Author: Andreas-Joachim Peters - CERN
+// File: Coverage.inc
+// Author: Mihai Patrascoiu - CERN
 // ----------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2011 CERN/Switzerland                                  *
+ * Copyright (C) 2019 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -27,35 +27,43 @@
 // transparent without slowing down the compilation time.
 // -----------------------------------------------------------------------
 
-//------------------------------------------------------------------------------
-/*
- * @brief shutdown function cleaning up running threads/objects for a clean exit
+/*----------------------------------------------------------------------------*/
+/* @brief profiling function flushing coverage data
  *
- * @param sig signal catched
+ * @param sig signal caught
  *
- * This shutdown function tries to get a write lock before doing the namespace
- * shutdown. Since it is not guaranteed that one can always get a write lock
- * there is a timeout in requiring the write lock and then the shutdown is forced.
- * Depending on the role of the MGM it stop's the running namespace follower
- * and in all cases running sub-services of the MGM.
+ * Prints the collected gcov data upon receiving the signal.
+ * The data should be collected via a tool capable of processing gcov output.
  */
-//------------------------------------------------------------------------------
+/*----------------------------------------------------------------------------*/
 void
-xrdmgmofs_shutdown(int sig)
-
+xrdmgmofs_coverage(int sig)
 {
-  (void) signal(SIGINT, SIG_IGN);
-  (void) signal(SIGTERM, SIG_IGN);
-  (void) signal(SIGQUIT, SIG_IGN);
-  eos_static_alert("msg=\"shutdown sequence started\'");
+#ifdef COVERAGE_BUILD
+  eos_static_notice("msg=\"printing coverage data\"");
+  __gcov_dump();
 
-  // Avoid shutdown recursions
-  if (gOFS->Shutdown) {
-    return;
+  // Get a map of all the loaded dynamic libraries
+  using eos::common::PluginManager;
+  PluginManager& pm = PluginManager::GetInstance();
+  PluginManager::DynamicLibMap dynamicLibMap = pm.GetDynamicLibMap();
+
+  typedef void (*CoverageFunc)();
+
+  // Call the exported coverage function on each dynamic library
+  for (auto& dLib: dynamicLibMap) {
+    CoverageFunc coverageFunc =
+        (CoverageFunc) dLib.second->GetSymbol("plugin_coverage");
+
+    if (coverageFunc != NULL) {
+      eos_static_notice("msg=\"calling exported coverage function for: %s\"",
+                        dLib.first.c_str());
+      coverageFunc();
+    }
   }
 
-  gOFS->Shutdown = true;
-  gOFS->OrderlyShutdown();
-  eos_static_alert("%s", "msg=\"shutdown complete\"");
-  std::quick_exit(0);
+  return;
+#endif
+
+  eos_static_notice("msg=\"compiled without coverage support\"");
 }

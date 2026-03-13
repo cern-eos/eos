@@ -1,11 +1,11 @@
 //------------------------------------------------------------------------------
-// File: DropReplica.cc
-// Author: Elvin Sindrilaru - CERN
+// File: ShouldRoute.inc
+// Author: Andreas-Joachim Peters - CERN
 //------------------------------------------------------------------------------
 
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
- * Copyright (C) 2024 CERN/Switzerland                                  *
+ * Copyright (C) 2018 CERN/Switzerland                                  *
  *                                                                      *
  * This program is free software: you can redistribute it and/or modify *
  * it under the terms of the GNU General Public License as published by *
@@ -27,37 +27,37 @@
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Drop replica form FST and also update the namespace view for the given
-// file system id
+// Test if a client based on the called function and his identity
+// should be re-routed
 //------------------------------------------------------------------------------
 bool
-XrdMgmOfs::DropReplica(eos::IFileMD::id_t fid,
-                       eos::common::FileSystem::fsid_t fsid) const
+XrdMgmOfs::ShouldRoute(const char* function, int accessmode,
+                       eos::common::VirtualIdentity& vid,
+                       const char* path, const char* info,
+                       std::string& host, int& port, int& stall_timeout)
 {
-  bool retc = true;
-
-  if (fsid == 0ull) {
-    return retc;
+  if ((vid.uid == 0) ||
+      (vid.host == "localhost") ||
+      (vid.host == "localhost.localdomain")) {
+    return false;
   }
 
-  eos_info("msg=\"drop replica/stripe\" fxid=%08llx fsid=%lu",
-           fid, fsid);
-
-  // Send external deletion to the FST
-  if (gOFS && !gOFS->DeleteExternal(fsid, fid, true)) {
-    eos_err("msg=\"failed to send unlink to FST\" fxid=%08llx fsid=%lu",
-            fid, fsid);
-    retc = false;
+  // Might happen during shutdown
+  if (mRouting == nullptr) {
+    return false;
   }
 
-  // Drop from the namespace, we don't need the path as root can drop by fid
-  XrdOucErrInfo err;
-  eos::common::VirtualIdentity vid = eos::common::VirtualIdentity::Root();
+  std::string stat_info;
+  eos::mgm::PathRouting::Status st =
+    mRouting->Reroute(path, info, vid, host, port, stat_info);
 
-  if (gOFS && gOFS->_dropstripe("", fid, err, vid, fsid, true)) {
-    eos_err("msg=\"failed to drop replicas from ns\" fxid=%08llx fsid=%lu",
-            fid, fsid);
+  if (st == PathRouting::Status::REROUTE) {
+    gOFS->MgmStats.Add(stat_info.c_str(), vid.uid, vid.gid, 1);
+    return true;
+  } else if (st == PathRouting::Status::STALL) {
+    stall_timeout = 5; // seconds
+    return true;
+  } else {
+    return false;
   }
-
-  return retc;
 }

@@ -84,6 +84,26 @@ set (MGM_TGC_SRC_FILES
   tgc/TapeGc.cc
   CtaUtils.cc)
 
+set_source_files_properties(
+  ofs/cmds/Rename.inc ofs/cmds/Access.inc
+  ofs/cmds/Attr.inc ofs/cmds/FAttr.inc
+  ofs/cmds/Auth.inc ofs/cmds/Chksum.inc
+  ofs/cmds/Chmod.inc ofs/cmds/Chown.inc
+  ofs/cmds/Coverage.inc ofs/cmds/DeleteExternal.inc
+  ofs/cmds/DropReplica.inc ofs/cmds/Exists.inc
+  ofs/cmds/Find.inc ofs/cmds/FsConfigListener.inc
+  ofs/cmds/ErrorLogListener.inc ofs/cmds/Fsctl.inc
+  ofs/cmds/Link.inc ofs/cmds/Mkdir.inc
+  ofs/cmds/PathMap.inc ofs/cmds/Remdir.inc
+  ofs/cmds/Rm.inc
+  ofs/cmds/SharedPath.inc ofs/cmds/ShouldRedirect.inc
+  ofs/cmds/ShouldRoute.inc ofs/cmds/ShouldStall.inc
+  ofs/cmds/Shutdown.inc ofs/cmds/Stacktrace.inc
+  ofs/cmds/Stat.inc ofs/cmds/Stripes.inc
+  ofs/cmds/Touch.inc ofs/cmds/Utimes.inc
+  ofs/cmds/Version.inc
+  PROPERTIES HEADER_FILE_ONLY TRUE
+)
 #-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
 #-------------------------------------------------------------------------------
