@@ -150,12 +150,6 @@ public:
       IFileMD::location_t location);
 
   //----------------------------------------------------------------------------
-  //! Prefetch unlinked FileList for the given filesystem ID
-  //----------------------------------------------------------------------------
-  static void prefetchFilesystemUnlinkedFileListAndWait(IView* view,
-      IFsView* fsview, IFileMD::location_t location);
-
-  //----------------------------------------------------------------------------
   //! Prefetch unlinked FileList for the given filesystem ID, along with all
   //! contained FileMDs.
   //----------------------------------------------------------------------------

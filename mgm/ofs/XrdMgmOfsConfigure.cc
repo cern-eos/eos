@@ -2469,8 +2469,6 @@ XrdMgmOfs::InitStats()
   MgmStats.Add("DrainCentralStarted", 0, 0, 0);
   MgmStats.Add("DrainCentralSuccessful", 0, 0, 0);
   MgmStats.Add("DrainCentralFailed", 0, 0, 0);
-  MgmStats.Add("Schedule2Delete", 0, 0, 0);
-  MgmStats.Add("Scheduled2Delete", 0, 0, 0);
   MgmStats.Add("QueryResync", 0, 0, 0);
   MgmStats.Add("Stall", 0, 0, 0);
   MgmStats.Add("Stat", 0, 0, 0);

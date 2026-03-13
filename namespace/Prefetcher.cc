@@ -440,19 +440,6 @@ void Prefetcher::prefetchFilesystemFileListAndWait(IView* view, IFsView* fsview,
 }
 
 //----------------------------------------------------------------------------
-// Prefetch unlinked FileList for the given filesystem ID
-//----------------------------------------------------------------------------
-void Prefetcher::prefetchFilesystemUnlinkedFileListAndWait(IView* view,
-    IFsView* fsview, IFileMD::location_t location)
-{
-  if (view->inMemory()) {
-    return;
-  }
-
-  auto it = fsview->getUnlinkedFileList(location);
-}
-
-//----------------------------------------------------------------------------
 // Prefetch unlinked FileList for the given filesystem ID, along with all
 // contained FileMDs.
 //----------------------------------------------------------------------------
