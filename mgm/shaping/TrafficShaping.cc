@@ -339,8 +339,12 @@ TrafficShapingManager::CalculateDelayUs(const double limit_bps,
   }
 
   // --- Tuning Constants ---
-  constexpr uint64_t kMaxDelayUs = 2000000;        // 2 seconds max artificial delay
-  constexpr int64_t kMaxStepUs = kMaxDelayUs / 25; // Max delta per tick
+  constexpr uint64_t kMaxDelayUs = 2000000;          // 2 seconds max artificial delay
+  constexpr int64_t kMaxStepUpUs = kMaxDelayUs / 25; // Max delta to ADD per tick (80ms)
+
+  // ALLOW FASTER RECOVERY: Let the controller shed delay 2.5x faster than it adds it.
+  constexpr int64_t kMaxStepDownUs =
+      kMaxDelayUs / 10; // Max delta to REMOVE per tick (200ms)
   // ------------------------
 
   const double ratio = current_rate_bps / limit_bps;
@@ -352,20 +356,22 @@ TrafficShapingManager::CalculateDelayUs(const double limit_bps,
   }
   // 2. Adjust the delay using a proportional feedback loop
   else if (delay_us > 0) {
-    // Asymmetric Proportional Gain (kp): react faster to spikes, recover slower when safe
-    const double kp = (ratio > 1.0) ? 0.15 : 0.05;
+    // Asymmetric Proportional Gain (kp):
+    // Bumped the recovery gain from 0.05 to 0.10 so it bounces back from undershoots
+    // faster.
+    const double kp = (ratio > 1.0) ? 0.15 : 0.10;
     const double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
 
     const auto current_delay_signed = static_cast<int64_t>(delay_us);
     const auto target_delay =
         static_cast<int64_t>(static_cast<double>(current_delay_signed) * damped_ratio);
 
-    // Apply the step limits to prevent massive overcorrections
+    // Apply the asymmetric step limits
     int64_t delta_us = target_delay - current_delay_signed;
-    if (delta_us > kMaxStepUs) {
-      delta_us = kMaxStepUs;
-    } else if (delta_us < -kMaxStepUs) {
-      delta_us = -kMaxStepUs;
+    if (delta_us > kMaxStepUpUs) {
+      delta_us = kMaxStepUpUs;
+    } else if (delta_us < -kMaxStepDownUs) {
+      delta_us = -kMaxStepDownUs;
     }
 
     delay_us = static_cast<uint64_t>(current_delay_signed + delta_us);
