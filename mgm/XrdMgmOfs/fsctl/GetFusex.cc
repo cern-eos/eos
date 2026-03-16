@@ -42,6 +42,7 @@ XrdMgmOfs::GetFusex(const char* path,
   static const char* epname = "GetFusex";
   ACCESSMODE_R;
   FUNCTIONMAYSTALL("Eosxd::prot::STAT", vid, error);
+  const char* inpath = path;
   MAYREDIRECT;
   EXEC_TIMING_BEGIN("Eosxd::prot::STAT");
   gOFS->MgmStats.Add("Eosxd::prot::STAT", vid.uid, vid.gid, 1, vid.app);

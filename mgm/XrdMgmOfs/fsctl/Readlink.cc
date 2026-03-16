@@ -41,6 +41,7 @@ XrdMgmOfs::Readlink(const char* path,
 {
   ACCESSMODE_R;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Readlink", vid.uid, vid.gid, 1);
   XrdOucString link = "";

@@ -41,6 +41,7 @@ XrdMgmOfs::Version(const char* path,
 {
   ACCESSMODE_R;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Version", 0, 0, 1);
   bool features = env.Get("mgm.version.features");

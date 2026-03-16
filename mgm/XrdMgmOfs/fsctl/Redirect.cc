@@ -75,10 +75,12 @@ XrdMgmOfs::Redirect(const char* path,
         (oflags & SFS_O_TRUNC)) {
       ACCESSMODE_W;
       MAYSTALL;
+      const char* inpath = path;
       MAYREDIRECT;
     } else {
       ACCESSMODE_R;
       MAYSTALL;
+      const char* inpath = path;
       MAYREDIRECT;
     }
 

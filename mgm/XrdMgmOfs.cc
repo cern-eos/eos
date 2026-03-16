@@ -834,10 +834,9 @@ XrdMgmOfs::truncate(const char*,
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   ACCESSMODE_W;
   MAYSTALL;
-  {
-    const char* ininfo = "";
-    MAYREDIRECT;
-  }
+  const char* inpath = "/";
+  const char* ininfo = "";
+  MAYREDIRECT;
   gOFS->MgmStats.Add("Truncate", vid.uid, vid.gid, 1);
   return Emsg(epname, error, EOPNOTSUPP, "truncate", path);
 }

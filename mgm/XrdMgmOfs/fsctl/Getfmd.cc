@@ -46,6 +46,7 @@ XrdMgmOfs::Getfmd(const char* path,
 {
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("GetMd", 0, 0, 1);
   char* afid = env.Get("mgm.getfmd.fid"); // decimal fid

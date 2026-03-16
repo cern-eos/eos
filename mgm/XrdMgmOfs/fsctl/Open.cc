@@ -42,6 +42,7 @@ XrdMgmOfs::Open(const char* path,
 {
   ACCESSMODE_R;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("OpenLayout", vid.uid, vid.gid, 1);
   XrdMgmOfsFile* file = new XrdMgmOfsFile(const_cast<char*>(client->tident));

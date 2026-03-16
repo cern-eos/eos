@@ -41,6 +41,7 @@ XrdMgmOfs::Symlink(const char* path,
 {
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Symlink", vid.uid, vid.gid, 1);
   char* starget = env.Get("target");

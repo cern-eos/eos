@@ -96,10 +96,7 @@ XrdMgmOfs::symlink(const char* source_name,
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
-  {
-    const char* path = inpath;
-    MAYREDIRECT;
-  }
+  MAYREDIRECT;
   return symlink(sourcen.c_str(), targetn.c_str(), error, vid, infoO, infoN,
                  overwrite);
 }
@@ -148,10 +145,7 @@ XrdMgmOfs::symlink(const char* source_name,
   BOUNCE_NOT_ALLOWED;
   ACCESSMODE_W;
   MAYSTALL;
-  {
-    const char* path = inpath;
-    MAYREDIRECT;
-  }
+  MAYREDIRECT;
 
   // check access permissions on source
   if ((_access(sourcen.c_str(), W_OK, error, vid, infoO) != SFS_OK)) {

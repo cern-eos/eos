@@ -46,6 +46,7 @@ XrdMgmOfs::Checksum(const char* path,
 {
   ACCESSMODE_R_MASTER;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Checksum", vid.uid, vid.gid, 1);
   XrdOucString checksum = "";

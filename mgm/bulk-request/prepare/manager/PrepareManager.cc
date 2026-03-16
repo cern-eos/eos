@@ -107,7 +107,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
   ACCESSMODE_W;
   MAYSTALL;
   {
-    const char* path = "/";
+    const char* inpath = "/";
     const char* ininfo = "";
     MAYREDIRECT;
   }
@@ -232,7 +232,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       }
     }
     {
-      const char* path = prep_path.c_str();
+      const char* inpath = prep_path.c_str();
       const char* ininfo = "";
       MAYREDIRECT;
     }
@@ -623,7 +623,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
 
   MAYSTALL;
   {
-    const char* path = "/";
+    const char* inpath = "/";
     const char* ininfo = "";
     MAYREDIRECT;
   }
@@ -661,7 +661,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
       prep_path = path;
     }
     {
-      const char* path = rsp.path.c_str();
+      const char* inpath = rsp.path.c_str();
       const char* ininfo = "";
       MAYREDIRECT;
     }

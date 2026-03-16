@@ -103,6 +103,7 @@ XrdMgmOfs::Event(const char* path,
 
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   EXEC_TIMING_BEGIN("Event");
   gOFS->MgmStats.Add("Event", 0, 0, 1);
