@@ -42,6 +42,7 @@ XrdMgmOfs::FuseStat(const char* path,
 {
   ACCESSMODE_R_MASTER;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Stat", vid.uid, vid.gid, 1);
   struct stat buf;

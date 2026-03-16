@@ -41,6 +41,7 @@ XrdMgmOfs::Access(const char* path,
 {
   ACCESSMODE_R;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Access", vid.uid, vid.gid, 1);
   char* smode = env.Get("mode");

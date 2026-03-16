@@ -44,6 +44,7 @@ XrdMgmOfs::Statvfs(const char* path,
 {
   ACCESSMODE_R;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Statvfs", vid.uid, vid.gid, 1);
   XrdOucString space = env.Get("path");

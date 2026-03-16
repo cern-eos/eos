@@ -41,6 +41,7 @@ XrdMgmOfs::Chmod(const char* path,
 {
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Chmod", vid.uid, vid.gid, 1);
   const char* smode = env.Get("mode");

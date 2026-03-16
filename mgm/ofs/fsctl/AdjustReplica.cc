@@ -43,6 +43,7 @@ XrdMgmOfs::AdjustReplica(const char* path,
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   EXEC_TIMING_BEGIN("AdjustReplica");
   // TODO(gbitzes): If vid is replaced with root, why is it even a parameter?!
