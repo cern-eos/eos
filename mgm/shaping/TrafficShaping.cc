@@ -11,9 +11,82 @@
 #include <dlfcn.h>
 #include <google/protobuf/util/json_util.h>
 #include <set>
+#include <sstream>
 #include <sys/stat.h>
 
 namespace eos::mgm::traffic_shaping {
+
+uint64_t
+TrafficShapingPolicy::GetEffectiveWriteLimit() const
+{
+  uint64_t active_user_limit = is_enabled ? limit_write_bytes_per_sec : 0;
+  if (active_user_limit > 0 && controller_limit_write_bytes_per_sec > 0) {
+    return std::min(active_user_limit, controller_limit_write_bytes_per_sec);
+  }
+  return active_user_limit > 0 ? active_user_limit : controller_limit_write_bytes_per_sec;
+}
+
+uint64_t
+TrafficShapingPolicy::GetEffectiveReadLimit() const
+{
+  uint64_t active_user_limit = is_enabled ? limit_read_bytes_per_sec : 0;
+  if (active_user_limit > 0 && controller_limit_read_bytes_per_sec > 0) {
+    return std::min(active_user_limit, controller_limit_read_bytes_per_sec);
+  }
+  return active_user_limit > 0 ? active_user_limit : controller_limit_read_bytes_per_sec;
+}
+
+bool
+TrafficShapingPolicy::IsEmpty() const
+{
+  return limit_write_bytes_per_sec == 0 && limit_read_bytes_per_sec == 0 &&
+         reservation_write_bytes_per_sec == 0 && reservation_read_bytes_per_sec == 0 &&
+         controller_limit_write_bytes_per_sec == 0 &&
+         controller_limit_read_bytes_per_sec == 0;
+}
+
+bool
+TrafficShapingPolicy::IsActive() const
+{
+  const bool has_user_rules =
+      limit_write_bytes_per_sec > 0 || limit_read_bytes_per_sec > 0 ||
+      reservation_write_bytes_per_sec > 0 || reservation_read_bytes_per_sec > 0;
+  const bool has_controller_rules =
+      controller_limit_write_bytes_per_sec > 0 || controller_limit_read_bytes_per_sec > 0;
+  return has_controller_rules || (is_enabled && has_user_rules);
+}
+
+bool
+TrafficShapingPolicy::operator==(const TrafficShapingPolicy& policy) const
+{
+  return limit_write_bytes_per_sec == policy.limit_write_bytes_per_sec &&
+         limit_read_bytes_per_sec == policy.limit_read_bytes_per_sec &&
+         reservation_write_bytes_per_sec == policy.reservation_write_bytes_per_sec &&
+         reservation_read_bytes_per_sec == policy.reservation_read_bytes_per_sec &&
+         is_enabled == policy.is_enabled;
+}
+
+bool
+TrafficShapingPolicy::operator!=(const TrafficShapingPolicy& policy) const
+{
+  return !(*this == policy);
+}
+
+std::string
+TrafficShapingPolicy::ToString() const
+{
+  std::ostringstream oss;
+  oss << (is_enabled ? "Enabled" : "Disabled") << ", "
+      << "Read Limit: " << limit_read_bytes_per_sec << " Bps, "
+      << "Write Limit: " << limit_write_bytes_per_sec << " Bps, "
+      << "Read Reservation: " << reservation_read_bytes_per_sec << " Bps, "
+      << "Write Reservation: " << reservation_write_bytes_per_sec << " Bps, "
+      << "Controller Read Limit: " << controller_limit_read_bytes_per_sec << " Bps, "
+      << "Controller Write Limit: " << controller_limit_write_bytes_per_sec << " Bps";
+  return oss.str();
+}
+
+// --- TrafficShapingManager --------------------------------------------------
 
 TrafficShapingManager::TrafficShapingManager() = default;
 
