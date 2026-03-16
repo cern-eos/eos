@@ -41,6 +41,7 @@ XrdMgmOfs::Chown(const char* path,
 {
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Chown", vid.uid, vid.gid, 1);
   char* suid = env.Get("uid");

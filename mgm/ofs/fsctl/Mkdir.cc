@@ -41,6 +41,7 @@ XrdMgmOfs::Mkdir(const char* path,
 {
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Mkdir", vid.uid, vid.gid, 1);
   char* smode = env.Get("mode");

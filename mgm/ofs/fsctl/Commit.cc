@@ -55,6 +55,7 @@ XrdMgmOfs::Commit(const char* path,
   REQUIRE_SSS_OR_LOCAL_AUTH;
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   EXEC_TIMING_BEGIN("Commit");
   // Checksum string

@@ -41,6 +41,7 @@ XrdMgmOfs::Utimes(const char* path,
 {
   ACCESSMODE_W;
   MAYSTALL;
+  const char* inpath = path;
   MAYREDIRECT;
   gOFS->MgmStats.Add("Fuse-Utimes", vid.uid, vid.gid, 1);
   char* tv1_sec = env.Get("tv1_sec");

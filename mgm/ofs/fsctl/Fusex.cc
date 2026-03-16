@@ -45,6 +45,7 @@ XrdMgmOfs::Fusex(const char* path,
 {
   static const char* epname = "Fusex";
   ACCESSMODE_W;
+  const char* inpath = path;
   MAYREDIRECT;
   EXEC_TIMING_BEGIN("Eosxd::prot::SET");
   eos_static_debug("protobuf-len=%d", protobuf.length());
@@ -54,7 +55,7 @@ XrdMgmOfs::Fusex(const char* path,
     return Emsg(epname, error, EINVAL, "parse protocol buffer [EINVAL]", "");
   }
 
-  // extract the client ID and translate to the app name 
+  // extract the client ID and translate to the app name
   vid.app = gOFS->zMQ->gFuseServer.Client().client2app(md.clientid());
 
   gOFS->MgmStats.Add("Eosxd::prot::SET", vid.uid, vid.gid, 1, vid.app);
