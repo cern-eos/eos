@@ -86,8 +86,6 @@ TrafficShapingPolicy::ToString() const
   return oss.str();
 }
 
-// --- TrafficShapingManager --------------------------------------------------
-
 TrafficShapingManager::TrafficShapingManager() = default;
 
 TrafficShapingManager::~TrafficShapingManager() = default;
@@ -215,8 +213,8 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
     uint64_t delta_bytes_written = 0;
     uint64_t delta_read_iops = 0;
     uint64_t delta_write_iops = 0;
-    bool is_first_stream_contact =
-        (state.last_update_time == std::chrono::steady_clock::time_point{});
+    const bool is_first_stream_contact =
+        state.last_update_time == std::chrono::steady_clock::time_point{};
 
     // Handle New Streams, MGM Restarts, and FST Restarts
     if (is_first_stream_contact || state.generation_id != entry.generation_id()) {
@@ -414,14 +412,18 @@ TrafficShapingManager::CalculateDelayUs(const double limit_bps,
   // --- Tuning Constants ---
   constexpr uint64_t kMaxDelayUs = 2000000;          // 2 seconds max artificial delay
   constexpr int64_t kMaxStepUpUs = kMaxDelayUs / 25; // Max delta to ADD per tick (80ms)
-
-  // ALLOW FASTER RECOVERY: Let the controller shed delay 2.5x faster than it adds it.
+  // Allow faster recovery: shed delay 2.5x faster than we add it.
   constexpr int64_t kMaxStepDownUs =
-      kMaxDelayUs / 10; // Max delta to REMOVE per tick (200ms)
-  // ------------------------
+      kMaxDelayUs / 10;                   // Max delta to REMOVE per tick (200ms)
+  constexpr double kIdleThreshold = 0.01; // < 1% of limit => no meaningful traffic
 
   const double ratio = current_rate_bps / limit_bps;
   uint64_t delay_us = current_delay_us;
+
+  // 0. Idle freeze: preserve the current delay when traffic is essentially absent.
+  if (current_rate_bps < limit_bps * kIdleThreshold) {
+    return delay_us;
+  }
 
   // 1. Kickstart the delay if we breach the limit for the first time
   if (delay_us == 0 && ratio > 1.0) {
@@ -870,10 +872,6 @@ TrafficShapingManager::GetTotalStats() const
   snap.sma = mTotalStats.sma;
   return snap;
 }
-
-// --------------------------------------------------------------------------------------
-// ENGINE IMPLEMENTATION
-// --------------------------------------------------------------------------------------
 
 TrafficShapingEngine::TrafficShapingEngine()
     : mRunning(false)

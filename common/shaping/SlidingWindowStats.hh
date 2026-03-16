@@ -11,12 +11,13 @@ namespace eos::common::traffic_shaping {
 // Not thread-safe on its own; callers must hold any required locks.
 class SlidingWindowStats {
 public:
+  SlidingWindowStats() = default;
+
   SlidingWindowStats(const double max_history_seconds, const double tick_interval_seconds)
       : mTickIntervalSec(tick_interval_seconds)
       , mHistorySize(
             std::max(1, static_cast<int>(max_history_seconds / tick_interval_seconds)))
       , mBuffer(mHistorySize, 0)
-      , mHead(0)
   {
   }
 
@@ -44,10 +45,10 @@ public:
   double GetMedian(bool ignore_zeroes = false) const;
 
 private:
-  double mTickIntervalSec;
+  double mTickIntervalSec{};
   int mHistorySize{};
   std::vector<uint64_t> mBuffer{};
-  int mHead;
+  int mHead{};
 };
 
 inline double

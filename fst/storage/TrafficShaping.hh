@@ -65,7 +65,7 @@ public:
   }
 
   void
-  SetEnabled(bool enabled)
+  SetEnabled(const bool enabled)
   {
     mIsEnabled.store(enabled, std::memory_order_relaxed);
     if (!enabled) {
@@ -94,7 +94,7 @@ class IoDelayConfig {
 public:
   IoDelayConfig()
   {
-    auto initial_config =
+    const auto initial_config =
         std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>();
     std::atomic_store(&mFstIoDelayConfigPtr, initial_config);
   }
@@ -102,7 +102,7 @@ public:
   void
   UpdateConfig(eos::traffic_shaping::TrafficShapingFstIoDelayConfig new_config)
   {
-    auto new_ptr =
+    const auto new_ptr =
         std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>(
             std::move(new_config));
     std::atomic_store_explicit(&mFstIoDelayConfigPtr, new_ptr, std::memory_order_release);
@@ -111,71 +111,13 @@ public:
   uint64_t
   GetReadDelayForAppUidGid(const eos::common::VirtualIdentity& vid) const
   {
-    if (!IsEnabled()) {
-      return 0;
-    }
-
-    const auto& app = vid.app;
-    const auto& uid = vid.uid;
-    const auto& gid = vid.gid;
-
-    const std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
-        current_config =
-            std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
-
-    uint64_t max_delay = 0;
-
-    const auto& app_map = current_config->app_read_delay();
-    if (const auto app_it = app_map.find(app); app_it != app_map.end()) {
-      max_delay = std::max(max_delay, app_it->second);
-    }
-
-    const auto& gid_map = current_config->gid_read_delay();
-    if (const auto gid_it = gid_map.find(gid); gid_it != gid_map.end()) {
-      max_delay = std::max(max_delay, gid_it->second);
-    }
-
-    const auto& uid_map = current_config->uid_read_delay();
-    if (const auto uid_it = uid_map.find(uid); uid_it != uid_map.end()) {
-      max_delay = std::max(max_delay, uid_it->second);
-    }
-
-    return max_delay;
+    return GetDelayForAppUidGid(vid, /*is_write=*/false);
   }
 
   uint64_t
   GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid) const
   {
-    if (!IsEnabled()) {
-      return 0;
-    }
-
-    const auto& app = vid.app;
-    const auto& uid = vid.uid;
-    const auto& gid = vid.gid;
-
-    const std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
-        current_config =
-            std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
-
-    uint64_t max_delay = 0;
-
-    const auto& app_map = current_config->app_write_delay();
-    if (const auto app_it = app_map.find(app); app_it != app_map.end()) {
-      max_delay = std::max(max_delay, app_it->second);
-    }
-
-    const auto& gid_map = current_config->gid_write_delay();
-    if (const auto gid_it = gid_map.find(gid); gid_it != gid_map.end()) {
-      max_delay = std::max(max_delay, gid_it->second);
-    }
-
-    const auto& uid_map = current_config->uid_write_delay();
-    if (const auto uid_it = uid_map.find(uid); uid_it != uid_map.end()) {
-      max_delay = std::max(max_delay, uid_it->second);
-    }
-
-    return max_delay;
+    return GetDelayForAppUidGid(vid, /*is_write=*/true);
   }
 
   void
@@ -185,7 +127,7 @@ public:
   }
 
   void
-  SetEnabled(bool enabled)
+  SetEnabled(const bool enabled)
   {
     mIsEnabled.store(enabled, std::memory_order_relaxed);
     if (!enabled) {
@@ -200,6 +142,37 @@ public:
   }
 
 private:
+  uint64_t
+  GetDelayForAppUidGid(const eos::common::VirtualIdentity& vid, bool is_write) const
+  {
+    if (!IsEnabled()) {
+      return 0;
+    }
+
+    const std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
+        cfg = std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
+
+    uint64_t max_delay = 0;
+
+    auto check = [&](const auto& map, const auto& key) {
+      if (const auto it = map.find(key); it != map.end()) {
+        max_delay = std::max(max_delay, it->second);
+      }
+    };
+
+    if (is_write) {
+      check(cfg->app_write_delay(), vid.app);
+      check(cfg->uid_write_delay(), vid.uid);
+      check(cfg->gid_write_delay(), vid.gid);
+    } else {
+      check(cfg->app_read_delay(), vid.app);
+      check(cfg->uid_read_delay(), vid.uid);
+      check(cfg->gid_read_delay(), vid.gid);
+    }
+
+    return max_delay;
+  }
+
   std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
       mFstIoDelayConfigPtr;
 
