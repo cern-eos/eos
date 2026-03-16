@@ -8,7 +8,10 @@
 
 #include "proto/TrafficShaping.pb.h"
 
+#include <dlfcn.h>
 #include <google/protobuf/util/json_util.h>
+#include <set>
+#include <sys/stat.h>
 
 namespace eos::mgm::traffic_shaping {
 
@@ -17,9 +20,9 @@ TrafficShapingManager::TrafficShapingManager() = default;
 TrafficShapingManager::~TrafficShapingManager() = default;
 
 void
-TrafficShapingManager::ApplyThreadConfig(uint32_t estimators_period_ms,
-                                         uint32_t fst_policy_period_ms,
-                                         uint32_t window_seconds)
+TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
+                                         const uint32_t fst_policy_period_ms,
+                                         const uint32_t window_seconds)
 {
   std::unique_lock lock(mMutex);
 
@@ -36,31 +39,47 @@ TrafficShapingManager::ApplyThreadConfig(uint32_t estimators_period_ms,
 
   estimators_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
                                            mEstimatorsTickIntervalSec);
+  fst_reports_processed_per_second.emplace(mSystemStatsWindowSeconds,
+                                           mEstimatorsTickIntervalSec);
   fst_limits_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
                                            fst_policy_period_ms * 0.001);
 }
 
 double
-TrafficShapingManager::CalculateEma(double current_val, double prev_ema, double alpha)
+TrafficShapingManager::CalculateEma(const double current_val, const double prev_ema,
+                                    const double alpha)
 {
   return (alpha * current_val) + ((1.0 - alpha) * prev_ema);
 }
 
-std::pair<std::unordered_map<std::string, double>,
-          std::unordered_map<std::string, double>>
-TrafficShapingManager::GetCurrentReadAndWriteRateForApps() const
+std::tuple<std::unordered_map<std::string, double>,
+           std::unordered_map<std::string, double>, std::unordered_map<uint32_t, double>,
+           std::unordered_map<uint32_t, double>, std::unordered_map<uint32_t, double>,
+           std::unordered_map<uint32_t, double>>
+TrafficShapingManager::GetCurrentReadAndWriteRates() const
 {
   std::shared_lock lock(mMutex);
 
-  std::unordered_map<std::string, double> app_read_rates;
-  std::unordered_map<std::string, double> app_write_rates;
+  std::unordered_map<std::string, double> app_read_rates, app_write_rates;
+  std::unordered_map<uint32_t, double> uid_read_rates, uid_write_rates;
+  std::unordered_map<uint32_t, double> gid_read_rates, gid_write_rates;
 
   for (const auto& [key, stats] : mGlobalStats) {
-    app_read_rates[key.app] += stats.ema[Ema5s].read_rate_bps;
-    app_write_rates[key.app] += stats.ema[Ema5s].write_rate_bps;
+    const double read_bps = stats.ema[Ema5s].read_rate_bps;
+    const double write_bps = stats.ema[Ema5s].write_rate_bps;
+
+    app_read_rates[key.app] += read_bps;
+    app_write_rates[key.app] += write_bps;
+
+    uid_read_rates[key.uid] += read_bps;
+    uid_write_rates[key.uid] += write_bps;
+
+    gid_read_rates[key.gid] += read_bps;
+    gid_write_rates[key.gid] += write_bps;
   }
 
-  return {app_read_rates, app_write_rates};
+  return {app_read_rates,  app_write_rates, uid_read_rates,
+          uid_write_rates, gid_read_rates,  gid_write_rates};
 }
 
 void
@@ -310,72 +329,256 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
   process_rate(mTotalStats);
 }
 
-void
-TrafficShapingManager::ComputeLimitsAndReservations()
+uint64_t
+TrafficShapingManager::CalculateDelayUs(const double limit_bps,
+                                        const double current_rate_bps,
+                                        const uint64_t current_delay_us)
 {
+  if (limit_bps <= 0.0) {
+    return 0;
+  }
+
+  // --- Tuning Constants ---
+  constexpr uint64_t kMaxDelayUs = 2000000;        // 2 seconds max artificial delay
+  constexpr int64_t kMaxStepUs = kMaxDelayUs / 25; // Max delta per tick
+  // ------------------------
+
+  const double ratio = current_rate_bps / limit_bps;
+  uint64_t delay_us = current_delay_us;
+
+  // 1. Kickstart the delay if we breach the limit for the first time
+  if (delay_us == 0 && ratio > 1.0) {
+    delay_us = 100;
+  }
+  // 2. Adjust the delay using a proportional feedback loop
+  else if (delay_us > 0) {
+    // Asymmetric Proportional Gain (kp): react faster to spikes, recover slower when safe
+    const double kp = (ratio > 1.0) ? 0.15 : 0.05;
+    const double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
+
+    const auto current_delay_signed = static_cast<int64_t>(delay_us);
+    const auto target_delay =
+        static_cast<int64_t>(static_cast<double>(current_delay_signed) * damped_ratio);
+
+    // Apply the step limits to prevent massive overcorrections
+    int64_t delta_us = target_delay - current_delay_signed;
+    if (delta_us > kMaxStepUs) {
+      delta_us = kMaxStepUs;
+    } else if (delta_us < -kMaxStepUs) {
+      delta_us = -kMaxStepUs;
+    }
+
+    delay_us = static_cast<uint64_t>(current_delay_signed + delta_us);
+  }
+
+  // 3. Clamp to absolute maximum
+  delay_us = std::min<uint64_t>(kMaxDelayUs, delay_us);
+
+  // 4. Snap to 0 if the delay drops too low, and we are under the limit
+  if (delay_us < 10 && ratio < 1.0) {
+    delay_us = 0;
+  }
+
+  return delay_us;
+}
+
+void
+TrafficShapingManager::UpdateTrafficShapingController()
+{
+  std::shared_lock read_lock(mPluginMutex);
+
+  if (!mCustomControllerAlgo) {
+    return;
+  }
+
+  // 1. Gather all unique active apps and defined policies
+  std::set<std::string> unique_apps;
+  auto rates = GetCurrentReadAndWriteRates();
+  auto& app_read_map = std::get<0>(rates);
+  auto& app_write_map = std::get<1>(rates);
+
+  for (const auto& [app, _] : app_read_map) {
+    unique_apps.insert(app);
+  }
+  for (const auto& [app, _] : app_write_map) {
+    unique_apps.insert(app);
+  }
+  for (const auto& [app, _] : mAppPolicies) {
+    unique_apps.insert(app);
+  }
+
+  if (unique_apps.empty()) {
+    return;
+  }
+
+  // 2. Prepare the flat array for the plugin
+  std::vector<AppState> app_array;
+  app_array.reserve(unique_apps.size());
+
+  for (const auto& app : unique_apps) {
+    AppState st{}; // Zero-initialize
+    strncpy(st.app_name, app.c_str(), sizeof(st.app_name) - 1);
+
+    // Telemetry
+    if (auto it = app_read_map.find(app); it != app_read_map.end()) {
+      st.current_read_bps = it->second;
+    }
+    if (auto it = app_write_map.find(app); it != app_write_map.end()) {
+      st.current_write_bps = it->second;
+    }
+
+    // Policy
+    if (auto pol_it = mAppPolicies.find(app); pol_it != mAppPolicies.end()) {
+      st.reservation_write_bps = pol_it->second.reservation_write_bytes_per_sec;
+      st.reservation_read_bps = pol_it->second.reservation_read_bytes_per_sec;
+      st.controller_limit_write_bps = pol_it->second.controller_limit_write_bytes_per_sec;
+      st.controller_limit_read_bps = pol_it->second.controller_limit_read_bytes_per_sec;
+    }
+
+    app_array.push_back(st);
+  }
+
+  // 3. INJECT THE DATA INTO THE PLUGIN
+  mCustomControllerAlgo(app_array.data(), app_array.size());
+
+  // 4. Read the results back and apply them
+  for (const auto& st : app_array) {
+    if (st.update_write || st.update_read) {
+      TrafficShapingPolicy policy;
+
+      // Ensure we preserve existing user configuration
+      if (auto pol_it = mAppPolicies.find(st.app_name); pol_it != mAppPolicies.end()) {
+        policy = pol_it->second;
+      }
+
+      if (st.update_write) {
+        policy.controller_limit_write_bytes_per_sec = st.new_controller_limit_write_bps;
+      }
+      if (st.update_read) {
+        policy.controller_limit_read_bytes_per_sec = st.new_controller_limit_read_bps;
+      }
+
+      // Automatically syncs to FSTs because SetAppPolicy bumps the config version
+      SetAppPolicy(st.app_name, policy);
+
+      eos_static_info("msg=\"Plugin applied dynamic controller limits\" app=\"%s\" "
+                      "controller_limit_write_bps=%lu controller_limit_read_bps=%lu",
+                      st.app_name, policy.controller_limit_write_bytes_per_sec,
+                      policy.controller_limit_read_bytes_per_sec);
+    }
+  }
+}
+
+void
+TrafficShapingManager::UpdateLimits()
+{
+  // 1. Evaluate hot-reload status at the start of every tick
+  LoadPluginIfModified();
+
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
+
   auto* app_write_map = fst_io_delay_config.mutable_app_write_delay();
   auto* app_read_map = fst_io_delay_config.mutable_app_read_delay();
-
-  constexpr uint64_t kMaxDelayUs = 1000000;
-  constexpr int64_t kMaxStepUs = kMaxDelayUs / 20;
+  auto* uid_write_map = fst_io_delay_config.mutable_uid_write_delay();
+  auto* uid_read_map = fst_io_delay_config.mutable_uid_read_delay();
+  auto* gid_write_map = fst_io_delay_config.mutable_gid_write_delay();
+  auto* gid_read_map = fst_io_delay_config.mutable_gid_read_delay();
 
   auto adjust_delay = [&](const double limit_bps, const double current_rate,
-                          uint64_t& delay_us, auto* output_map, const std::string& app) {
+                          uint64_t& delay_us, auto* output_map, const auto& entity_key,
+                          const char* entity_type, const std::string& entity_id,
+                          const char* op_type) {
     if (limit_bps <= 0) {
       return;
     }
 
+    const uint64_t old_delay = delay_us;
     const double ratio = current_rate / limit_bps;
 
-    if (delay_us == 0 && ratio > 1.0) {
-      delay_us = 100;
-    } else {
-      const double kp = (ratio > 1.0) ? 0.15 : 0.05;
-      const double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
-
-      const auto current_delay = static_cast<int64_t>(delay_us);
-      const auto target_delay =
-          static_cast<int64_t>(static_cast<double>(current_delay) * damped_ratio);
-
-      int64_t delta_us = target_delay - current_delay;
-      if (delta_us > kMaxStepUs) {
-        delta_us = kMaxStepUs;
-      } else if (delta_us < -kMaxStepUs) {
-        delta_us = -kMaxStepUs;
+    {
+      std::shared_lock read_lock(mPluginMutex);
+      if (mCustomAlgo) {
+        delay_us = mCustomAlgo(limit_bps, current_rate, old_delay);
+      } else {
+        delay_us = CalculateDelayUs(limit_bps, current_rate, old_delay);
       }
-
-      delay_us = static_cast<uint64_t>(current_delay + delta_us);
-    }
-
-    delay_us = std::min<uint64_t>(kMaxDelayUs, delay_us);
-
-    if (delay_us < 10 && ratio < 1.0) {
-      delay_us = 0;
     }
 
     if (delay_us > 0) {
-      (*output_map)[app] = delay_us;
+      (*output_map)[entity_key] = delay_us;
     }
+
+    eos_static_debug("msg=\"throttle evaluation\" type=\"%s\" id=\"%s\" op=\"%s\" "
+                     "limit_bps=%.0f current_rate_bps=%.0f ratio=%.3f "
+                     "old_delay_us=%lu new_delay_us=%lu",
+                     entity_type, entity_id.c_str(), op_type, limit_bps, current_rate,
+                     ratio, old_delay, delay_us);
   };
-  //
+
+  const auto [app_read_rates, app_write_rates, uid_read_rates, uid_write_rates,
+              gid_read_rates, gid_write_rates] = GetCurrentReadAndWriteRates();
+
+  // Helper lambda to do a single-pass map lookup
+  auto get_rate = [](const auto& map, const auto& key) {
+    if (auto it = map.find(key); it != map.end()) {
+      return it->second;
+    }
+    return 0.0;
+  };
+
   {
     std::shared_lock lock(mMutex);
-    const auto [app_read_rates, app_write_rates] = GetCurrentReadAndWriteRateForApps();
 
     for (const auto& [app, policy] : mAppPolicies) {
       if (!policy.IsActive()) {
+        eos_static_debug("msg=\"skipping inactive policy\" type=\"app\" id=\"%s\"",
+                         app.c_str());
         continue;
       }
 
-      adjust_delay(static_cast<double>(policy.limit_write_bytes_per_sec),
-                   app_write_rates.count(app) ? app_write_rates.at(app) : 0.0,
+      adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
+                   get_rate(app_write_rates, app),
                    (*mFstIoDelayConfig.mutable_app_write_delay())[app], app_write_map,
-                   app);
+                   app, "app", app, "write");
 
-      adjust_delay(static_cast<double>(policy.limit_read_bytes_per_sec),
-                   app_read_rates.count(app) ? app_read_rates.at(app) : 0.0,
-                   (*mFstIoDelayConfig.mutable_app_read_delay())[app], app_read_map, app);
+      adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
+                   get_rate(app_read_rates, app),
+                   (*mFstIoDelayConfig.mutable_app_read_delay())[app], app_read_map, app,
+                   "app", app, "read");
+    }
+
+    for (const auto& [uid, policy] : mUidPolicies) {
+      if (!policy.IsActive()) {
+        eos_static_debug("msg=\"skipping inactive policy\" type=\"uid\" id=\"%u\"", uid);
+        continue;
+      }
+
+      adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
+                   get_rate(uid_write_rates, uid),
+                   (*mFstIoDelayConfig.mutable_uid_write_delay())[uid], uid_write_map,
+                   uid, "uid", std::to_string(uid), "write");
+
+      adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
+                   get_rate(uid_read_rates, uid),
+                   (*mFstIoDelayConfig.mutable_uid_read_delay())[uid], uid_read_map, uid,
+                   "uid", std::to_string(uid), "read");
+    }
+
+    for (const auto& [gid, policy] : mGidPolicies) {
+      if (!policy.IsActive()) {
+        eos_static_debug("msg=\"skipping inactive policy\" type=\"gid\" id=\"%u\"", gid);
+        continue;
+      }
+
+      adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
+                   get_rate(gid_write_rates, gid),
+                   (*mFstIoDelayConfig.mutable_gid_write_delay())[gid], gid_write_map,
+                   gid, "gid", std::to_string(gid), "write");
+
+      adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
+                   get_rate(gid_read_rates, gid),
+                   (*mFstIoDelayConfig.mutable_gid_read_delay())[gid], gid_read_map, gid,
+                   "gid", std::to_string(gid), "read");
     }
   }
 
@@ -497,34 +700,62 @@ TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microsec
     estimators_update_loop_micro_sec->Add(time_microseconds);
     estimators_update_loop_micro_sec->Tick();
   }
+  if (fst_reports_processed_per_second) {
+    fst_reports_processed_per_second->Tick();
+  }
 }
 
-std::tuple<double, uint64_t, uint64_t>
+std::tuple<uint64_t, uint64_t, uint64_t>
 TrafficShapingManager::GetEstimatorsUpdateLoopMicroSecStats() const
 {
   std::shared_lock lock(mMutex);
   if (estimators_update_loop_micro_sec) {
     return {
-        estimators_update_loop_micro_sec->GetMean(true),
+        estimators_update_loop_micro_sec->GetMedian(true), // Ignore zeroes correctly
         estimators_update_loop_micro_sec->GetMin(true),
         estimators_update_loop_micro_sec->GetMax(true),
     };
   }
-  return {0.0, 0, 0};
+  return {0, 0, 0};
 }
 
-std::tuple<double, uint64_t, uint64_t>
+std::tuple<uint64_t, uint64_t, uint64_t>
 TrafficShapingManager::GetFstLimitsUpdateLoopMicroSecStats() const
 {
   std::shared_lock lock(mMutex);
   if (fst_limits_update_loop_micro_sec) {
     return {
-        fst_limits_update_loop_micro_sec->GetMean(true),
+        fst_limits_update_loop_micro_sec->GetMedian(true),
         fst_limits_update_loop_micro_sec->GetMin(true),
         fst_limits_update_loop_micro_sec->GetMax(true),
     };
   }
-  return {0.0, 0, 0};
+  return {0, 0, 0};
+}
+
+void
+TrafficShapingManager::UpdateFstReportsProcessed(const uint64_t count)
+{
+  std::unique_lock lock(mMutex);
+  if (fst_reports_processed_per_second) {
+    fst_reports_processed_per_second->Add(count);
+  }
+}
+
+double
+TrafficShapingManager::GetFstReportsProcessedPerSecondMean() const
+{
+  std::shared_lock lock(mMutex);
+  if (fst_reports_processed_per_second) {
+    double multiplier = 1.0;
+    if (mEstimatorsTickIntervalSec > 0.0) {
+      multiplier = 1.0 / mEstimatorsTickIntervalSec;
+    }
+
+    // 0 counts in a tick are valid measurements for processing speed.
+    return fst_reports_processed_per_second->GetMean(false) * multiplier;
+  }
+  return 0.0;
 }
 
 void
@@ -538,6 +769,15 @@ TrafficShapingManager::Clear()
 
   estimators_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
+  fst_reports_processed_per_second.reset();
+
+  if (mPluginHandle) {
+    dlclose(mPluginHandle);
+    mPluginHandle = nullptr;
+    mCustomAlgo = nullptr;
+    mCustomControllerAlgo = nullptr;
+    mPluginLastModified = 0;
+  }
 }
 
 RateSnapshot
@@ -570,7 +810,7 @@ TrafficShapingEngine::~TrafficShapingEngine() { Stop(); }
 
 void
 TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
-                                        uint32_t win_s, bool save_to_config_engine)
+                                        uint32_t win_s, const bool save_to_config_engine)
 {
   if (est_ms < kMinThreadPeriodMs) {
     est_ms = kMinThreadPeriodMs;
@@ -626,7 +866,8 @@ TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32
 }
 
 void
-TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(
+    const uint32_t period_ms)
 {
   ApplyThreadConfig(period_ms, mFstIoPolicyUpdateThreadPeriodMilliseconds,
                     mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
@@ -634,7 +875,8 @@ TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(uint32_t perio
 }
 
 void
-TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(uint32_t period_ms)
+TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(
+    const uint32_t period_ms)
 {
   ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds, period_ms,
                     mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
@@ -706,8 +948,8 @@ TrafficShapingEngine::ApplyConfig()
   const std::string thread_periods =
       FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS);
   if (!thread_periods.empty()) {
-    eos::traffic_shaping::ThreadConfig thread_config;
     try {
+      eos::traffic_shaping::ThreadConfig thread_config;
       thread_config.ParseFromString(thread_periods);
       est_ms = thread_config.update_estimators_period_millis();
       pol_ms = thread_config.fst_policy_update_period_millis();
@@ -815,9 +1057,15 @@ TrafficShapingEngine::ProcessAllQueuedReports()
     std::swap(mReportQueue, local_queue);
   }
 
+  if (mManager == nullptr) {
+    return;
+  }
+
   for (const auto& report : local_queue) {
     mManager->ProcessReport(report);
   }
+
+  mManager->UpdateFstReportsProcessed(local_queue.size());
 }
 
 void
@@ -832,13 +1080,17 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
   constexpr int infrequent_action_threshold = 100;
 
   while (!assistant.terminationRequested()) {
+    if (auto right_now = std::chrono::steady_clock::now(); next_tick < right_now) {
+      next_tick = right_now;
+    }
+
     next_tick += std::chrono::milliseconds(mEstimatorsUpdateThreadPeriodMilliseconds);
     std::this_thread::sleep_until(next_tick);
 
     ProcessAllQueuedReports();
 
     auto now = std::chrono::steady_clock::now();
-    std::chrono::duration<double> elapsed = now - last_run;
+    const std::chrono::duration<double> elapsed = now - last_run;
     const double time_delta_seconds = elapsed.count();
     last_run = now;
 
@@ -850,10 +1102,10 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
           mManager->GarbageCollect(900);
 
       if (removed_node_streams > 0 || removed_global_streams > 0) {
-        eos_static_info("msg=\"Traffic Shaping Garbage Collection\" removed_nodes=%lu "
-                        "removed_node_streams=%lu "
-                        "removed_global_streams=%lu",
-                        removed_nodes, removed_node_streams, removed_global_streams);
+        eos_static_debug("msg=\"Traffic Shaping Garbage Collection\" removed_nodes=%lu "
+                         "removed_node_streams=%lu "
+                         "removed_global_streams=%lu",
+                         removed_nodes, removed_node_streams, removed_global_streams);
       }
     }
 
@@ -877,23 +1129,21 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
 {
   eos_static_info("%s", "msg=\"Starting FstIoPolicyUpdate thread\"");
 
-  auto next_wakeup_time = std::chrono::steady_clock::now();
+  auto next_tick = std::chrono::steady_clock::now();
 
   while (!assistant.terminationRequested()) {
-    const auto current_period =
-        std::chrono::milliseconds(mFstIoPolicyUpdateThreadPeriodMilliseconds);
-
-    next_wakeup_time += current_period;
-
-    if (auto now = std::chrono::steady_clock::now(); next_wakeup_time < now) {
-      next_wakeup_time = now;
+    if (auto right_now = std::chrono::steady_clock::now(); next_tick < right_now) {
+      next_tick = right_now;
     }
 
-    std::this_thread::sleep_until(next_wakeup_time);
+    next_tick += std::chrono::milliseconds(mFstIoPolicyUpdateThreadPeriodMilliseconds);
+    std::this_thread::sleep_until(next_tick);
 
     auto work_start_time = std::chrono::steady_clock::now();
 
-    mManager->ComputeLimitsAndReservations();
+    mManager->UpdateTrafficShapingController();
+
+    mManager->UpdateLimits();
 
     auto work_end_time = std::chrono::steady_clock::now();
     const auto compute_duration_us =
@@ -908,17 +1158,16 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
 void
 TrafficShapingEngine::FstTrafficShapingConfigUpdate(ThreadAssistant& assistant)
 {
-  auto next_wakeup_time = std::chrono::steady_clock::now();
+  auto next_tick = std::chrono::steady_clock::now();
   const auto period = std::chrono::seconds(5);
 
   while (!assistant.terminationRequested()) {
-    next_wakeup_time += period;
-
-    if (auto now = std::chrono::steady_clock::now(); next_wakeup_time < now) {
-      next_wakeup_time = now;
+    if (auto right_now = std::chrono::steady_clock::now(); next_tick < right_now) {
+      next_tick = right_now;
     }
 
-    std::this_thread::sleep_until(next_wakeup_time);
+    next_tick += period;
+    std::this_thread::sleep_until(next_tick);
 
     SyncTrafficShapingEnabledWithFst();
   }
@@ -960,11 +1209,40 @@ TrafficShapingManager::SetUidPolicy(const uint32_t uid,
                                     const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
-  mUidPolicies[uid] = policy;
+  bool config_changed = false;
+  auto it = mUidPolicies.find(uid);
 
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
-                                  SerializePoliciesUnlocked());
-  gOFS->mConfigEngine->AutoSave();
+  if (policy.IsEmpty()) {
+    if (it != mUidPolicies.end()) {
+      mUidPolicies.erase(it);
+      config_changed = true;
+      eos_static_info("msg=\"Removed empty UID Traffic Shaping Policy\" uid=%u", uid);
+    }
+  } else {
+    if (it == mUidPolicies.end()) {
+      mUidPolicies[uid] = policy;
+      config_changed = true;
+      eos_static_info("msg=\"Set UID Traffic Shaping Policy\" uid=%u policy=%s", uid,
+                      policy.ToString().c_str());
+    } else {
+      // operator!= ignores controller limits, so it only flags true user config changes
+      if (it->second != policy) {
+        config_changed = true;
+      }
+      // Always update in-memory to reflect any potential ephemeral controller limit
+      // changes
+      it->second = policy;
+      eos_static_info("msg=\"Updated UID Traffic Shaping Policy\" uid=%u policy=%s "
+                      "persistent_changed=%d",
+                      uid, policy.ToString().c_str(), config_changed);
+    }
+  }
+
+  if (config_changed) {
+    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
+                                    SerializePoliciesUnlocked());
+    gOFS->mConfigEngine->AutoSave();
+  }
 }
 
 void
@@ -972,11 +1250,37 @@ TrafficShapingManager::SetGidPolicy(const uint32_t gid,
                                     const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
-  mGidPolicies[gid] = policy;
+  bool config_changed = false;
+  auto it = mGidPolicies.find(gid);
 
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
-                                  SerializePoliciesUnlocked());
-  gOFS->mConfigEngine->AutoSave();
+  if (policy.IsEmpty()) {
+    if (it != mGidPolicies.end()) {
+      mGidPolicies.erase(it);
+      config_changed = true;
+      eos_static_info("msg=\"Removed empty GID Traffic Shaping Policy\" gid=%u", gid);
+    }
+  } else {
+    if (it == mGidPolicies.end()) {
+      mGidPolicies[gid] = policy;
+      config_changed = true;
+      eos_static_info("msg=\"Set GID Traffic Shaping Policy\" gid=%u policy=%s", gid,
+                      policy.ToString().c_str());
+    } else {
+      if (it->second != policy) {
+        config_changed = true;
+      }
+      it->second = policy;
+      eos_static_info("msg=\"Updated GID Traffic Shaping Policy\" gid=%u policy=%s "
+                      "persistent_changed=%d",
+                      gid, policy.ToString().c_str(), config_changed);
+    }
+  }
+
+  if (config_changed) {
+    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
+                                    SerializePoliciesUnlocked());
+    gOFS->mConfigEngine->AutoSave();
+  }
 }
 
 void
@@ -984,12 +1288,38 @@ TrafficShapingManager::SetAppPolicy(const std::string& app,
                                     const TrafficShapingPolicy& policy)
 {
   std::unique_lock lock(mMutex);
-  mAppPolicies[app] = policy;
+  bool config_changed = false;
+  auto it = mAppPolicies.find(app);
 
-  const std::string serialized = SerializePoliciesUnlocked();
+  if (policy.IsEmpty()) {
+    if (it != mAppPolicies.end()) {
+      mAppPolicies.erase(it);
+      config_changed = true;
+      eos_static_info("msg=\"Removed empty App Traffic Shaping Policy\" app=%s",
+                      app.c_str());
+    }
+  } else {
+    if (it == mAppPolicies.end()) {
+      mAppPolicies[app] = policy;
+      config_changed = true;
+      eos_static_info("msg=\"Set App Traffic Shaping Policy\" app=%s policy=%s",
+                      app.c_str(), policy.ToString().c_str());
+    } else {
+      if (it->second != policy) {
+        config_changed = true;
+      }
+      it->second = policy;
+      eos_static_info("msg=\"Updated App Traffic Shaping Policy\" app=%s policy=%s "
+                      "persistent_changed=%d",
+                      app.c_str(), policy.ToString().c_str(), config_changed);
+    }
+  }
 
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
-  gOFS->mConfigEngine->AutoSave();
+  if (config_changed) {
+    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
+                                    SerializePoliciesUnlocked());
+    gOFS->mConfigEngine->AutoSave();
+  }
 }
 
 void
@@ -997,6 +1327,7 @@ TrafficShapingManager::RemoveUidPolicy(const uint32_t uid)
 {
   std::unique_lock lock(mMutex);
   if (mUidPolicies.erase(uid)) {
+    eos_static_info("msg=\"Removed UID Traffic Shaping Policy\" uid=%u", uid);
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
                                     SerializePoliciesUnlocked());
     gOFS->mConfigEngine->AutoSave();
@@ -1008,6 +1339,7 @@ TrafficShapingManager::RemoveGidPolicy(const uint32_t gid)
 {
   std::unique_lock lock(mMutex);
   if (mGidPolicies.erase(gid)) {
+    eos_static_info("msg=\"Removed GID Traffic Shaping Policy\" gid=%u", gid);
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
                                     SerializePoliciesUnlocked());
     gOFS->mConfigEngine->AutoSave();
@@ -1019,6 +1351,7 @@ TrafficShapingManager::RemoveAppPolicy(const std::string& app)
 {
   std::unique_lock lock(mMutex);
   if (mAppPolicies.erase(app)) {
+    eos_static_info("msg=\"Removed App Traffic Shaping Policy\" app=%s", app.c_str());
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG,
                                     SerializePoliciesUnlocked());
     gOFS->mConfigEngine->AutoSave();
@@ -1105,7 +1438,7 @@ TrafficShapingManager::SerializePoliciesUnlocked() const
   google::protobuf::util::JsonPrintOptions options;
   options.add_whitespace = false;
 
-  if (auto status =
+  if (const auto status =
           google::protobuf::util::MessageToJsonString(proto_config, &json_data, options);
       !status.ok()) {
     eos_static_err("msg=\"Failed to serialize policies to JSON\"");
@@ -1115,9 +1448,9 @@ TrafficShapingManager::SerializePoliciesUnlocked() const
 }
 
 bool
-TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_data)
+TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_policies)
 {
-  if (serialized_data.empty()) {
+  if (serialized_policies.empty()) {
     return true;
   }
 
@@ -1126,39 +1459,142 @@ TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_data
   google::protobuf::util::JsonParseOptions options;
   options.ignore_unknown_fields = true;
 
-  auto status = google::protobuf::util::JsonStringToMessage(serialized_data,
-                                                            &proto_config, options);
+  const auto status = google::protobuf::util::JsonStringToMessage(serialized_policies,
+                                                                  &proto_config, options);
   if (!status.ok()) {
     eos_static_err("msg=\"Failed to parse policies from JSON string\"");
     return false;
   }
 
-  mUidPolicies.clear();
-  mGidPolicies.clear();
-  mAppPolicies.clear();
+  std::unordered_map<uint32_t, TrafficShapingPolicy> new_uid_policies;
+  std::unordered_map<uint32_t, TrafficShapingPolicy> new_gid_policies;
+  std::unordered_map<std::string, TrafficShapingPolicy> new_app_policies;
 
-  auto copy_to_cpp = [](const eos::traffic_shaping::TrafficShapingPolicy& proto_pol)
-      -> TrafficShapingPolicy {
-    TrafficShapingPolicy cpp_pol;
-    cpp_pol.limit_write_bytes_per_sec = proto_pol.limit_write_bytes_per_sec();
-    cpp_pol.limit_read_bytes_per_sec = proto_pol.limit_read_bytes_per_sec();
-    cpp_pol.reservation_write_bytes_per_sec = proto_pol.reservation_write_bytes_per_sec();
-    cpp_pol.reservation_read_bytes_per_sec = proto_pol.reservation_read_bytes_per_sec();
-    cpp_pol.is_enabled = proto_pol.is_enabled();
-    return cpp_pol;
+  std::unique_lock lock(mMutex);
+
+  auto merge_policies = [](auto& current_map, const auto& proto_map, auto& new_map) {
+    auto copy_to_cpp = [](const auto& proto_pol) -> TrafficShapingPolicy {
+      TrafficShapingPolicy cpp_pol;
+      cpp_pol.limit_write_bytes_per_sec = proto_pol.limit_write_bytes_per_sec();
+      cpp_pol.limit_read_bytes_per_sec = proto_pol.limit_read_bytes_per_sec();
+      cpp_pol.reservation_write_bytes_per_sec =
+          proto_pol.reservation_write_bytes_per_sec();
+      cpp_pol.reservation_read_bytes_per_sec = proto_pol.reservation_read_bytes_per_sec();
+      cpp_pol.is_enabled = proto_pol.is_enabled();
+      return cpp_pol;
+    };
+
+    for (const auto& [id, pol] : proto_map) {
+      auto cpp_pol = copy_to_cpp(pol);
+      if (auto it = current_map.find(id); it != current_map.end()) {
+        cpp_pol.controller_limit_read_bytes_per_sec =
+            it->second.controller_limit_read_bytes_per_sec;
+        cpp_pol.controller_limit_write_bytes_per_sec =
+            it->second.controller_limit_write_bytes_per_sec;
+      }
+      new_map[id] = cpp_pol;
+    }
+
+    // 2. Retain Python-generated ephemeral policies (policies with ONLY controller
+    // limits) that might have been skipped by the DB serialization
+    TrafficShapingPolicy empty_user_pol; // All user fields are 0/disabled
+    for (const auto& [id, pol] : current_map) {
+      if (new_map.find(id) == new_map.end()) {
+        // We use operator== because it deliberately ignores controller fields.
+        // If this evaluates to true, it means NO user settings exist for this policy.
+        if (pol == empty_user_pol && (pol.controller_limit_read_bytes_per_sec > 0 ||
+                                      pol.controller_limit_write_bytes_per_sec > 0)) {
+          new_map[id] = pol;
+        }
+      }
+    }
   };
 
-  for (const auto& [uid, pol] : proto_config.uid_policies()) {
-    mUidPolicies[uid] = copy_to_cpp(pol);
-  }
-  for (const auto& [gid, pol] : proto_config.gid_policies()) {
-    mGidPolicies[gid] = copy_to_cpp(pol);
-  }
-  for (const auto& [app, pol] : proto_config.app_policies()) {
-    mAppPolicies[app] = copy_to_cpp(pol);
-  }
+  merge_policies(mUidPolicies, proto_config.uid_policies(), new_uid_policies);
+  merge_policies(mGidPolicies, proto_config.gid_policies(), new_gid_policies);
+  merge_policies(mAppPolicies, proto_config.app_policies(), new_app_policies);
+
+  mUidPolicies = std::move(new_uid_policies);
+  mGidPolicies = std::move(new_gid_policies);
+  mAppPolicies = std::move(new_app_policies);
 
   return true;
+}
+
+void
+TrafficShapingManager::LoadPluginIfModified()
+{
+  const char* plugin_path = "/etc/eos/traffic_shaping_plugin.so";
+  struct stat file_stat;
+
+  // 1. Check if the hot-reload file exists on disk
+  if (stat(plugin_path, &file_stat) == 0) {
+    // 2. Check if the file has been updated since our last load
+    if (file_stat.st_mtime > mPluginLastModified) {
+      eos_static_info("msg=\"Detected new or modified traffic shaping plugin. "
+                      "Loading...\" path=\"%s\"",
+                      plugin_path);
+
+      // ACQUIRE EXCLUSIVE WRITE LOCK: Wait for any active evaluation threads to finish
+      std::unique_lock write_lock(mPluginMutex);
+
+      // Close the old plugin if it exists
+      if (mPluginHandle) {
+        dlclose(mPluginHandle);
+        mPluginHandle = nullptr;
+        mCustomAlgo = nullptr;
+        mCustomControllerAlgo = nullptr;
+      }
+
+      // Open the new plugin
+      mPluginHandle = dlopen(plugin_path, RTLD_NOW | RTLD_LOCAL);
+      if (mPluginHandle) {
+        dlerror(); // Clear any existing errors
+
+        // Find our specific C functions
+        mCustomAlgo = (DelayAlgoFunc)dlsym(mPluginHandle, "calculate_delay");
+        mCustomControllerAlgo =
+            (ControllerAlgoFunc)dlsym(mPluginHandle, "update_controller");
+
+        // We require at least one symbol to be present to consider the load a success
+        if (!mCustomAlgo && !mCustomControllerAlgo) {
+          eos_static_err("msg=\"Failed to find any matching symbols ('calculate_delay' "
+                         "or 'update_controller') in plugin! "
+                         "Falling back to built-in.\" error=\"%s\"",
+                         dlerror());
+          dlclose(mPluginHandle);
+          mPluginHandle = nullptr;
+          mCustomAlgo = nullptr;
+          mCustomControllerAlgo = nullptr;
+        } else {
+          eos_static_info("msg=\"Successfully loaded and activated custom traffic "
+                          "shaping plugin\"");
+        }
+      } else {
+        eos_static_err("msg=\"Failed to load traffic shaping plugin. Falling back to "
+                       "built-in.\" error=\"%s\"",
+                       dlerror());
+      }
+
+      // Update our timestamp so we don't reload it again until it changes
+      mPluginLastModified = file_stat.st_mtime;
+    }
+  } else {
+    // 3. File doesn't exist. If we have one loaded, the user deleted it. Revert to
+    // built-in.
+    if (mPluginHandle) {
+      eos_static_info("msg=\"Traffic shaping plugin file removed. Reverting to "
+                      "built-in algorithm.\"");
+
+      std::unique_lock write_lock(mPluginMutex);
+
+      dlclose(mPluginHandle);
+      mPluginHandle = nullptr;
+      mCustomAlgo = nullptr;
+      mCustomControllerAlgo = nullptr;
+      mPluginLastModified = 0;
+    }
+  }
 }
 
 } // namespace eos::mgm::traffic_shaping

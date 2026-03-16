@@ -131,6 +131,46 @@ public:
     return count == 0 ? 0.0 : static_cast<double>(sum) / count;
   }
 
+  double
+  GetMedian(const bool ignore_zeroes = false) const
+  {
+    std::vector<uint64_t> valid_values;
+    valid_values.reserve(mHistorySize); // Pre-allocate to prevent reallocations
+
+    for (int i = 0; i < mHistorySize; ++i) {
+      if (i == mHead) {
+        continue;
+      }
+
+      if (mBuffer[i] == 0 && ignore_zeroes) {
+        continue;
+      }
+
+      valid_values.push_back(mBuffer[i]);
+    }
+
+    if (valid_values.empty()) {
+      return 0.0;
+    }
+
+    // Sort the valid values to find the median
+    std::sort(valid_values.begin(), valid_values.end());
+
+    const size_t size = valid_values.size();
+    const size_t mid = size / 2;
+
+    if (size % 2 == 0) {
+      // Even number of elements: average the two middle values.
+      // We cast to double before adding to prevent any potential uint64_t overflow.
+      return (static_cast<double>(valid_values[mid - 1]) +
+              static_cast<double>(valid_values[mid])) /
+             2.0;
+    } else {
+      // Odd number of elements: take the exact middle value
+      return static_cast<double>(valid_values[mid]);
+    }
+  }
+
 private:
   double mTickIntervalSec;
   int mHistorySize{};

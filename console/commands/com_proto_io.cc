@@ -316,13 +316,20 @@ com_io_help()
       << "\t   --apps   : show rates by application\n"
       << "\t   --users  : show rates by user (uid)\n"
       << "\t   --groups : show rates by group (gid)\n"
+      << "\t   --nodes  : show rates by storage node (FST)\n"
+      << "\t   --json   : output in JSON format\n"
       << std::endl
       << "     enable  : globally enable traffic shaping\n"
       << "     disable : globally disable traffic shaping\n"
       << std::endl
       << "     policy [action] [options...] : manage shaping limits and reservations\n"
       << "\t   action 'ls' : list configured policies\n"
-      << "\t     usage: policy ls [--apps|--users|--groups|--nodes]\n"
+      << "\t     usage: policy ls [options...]\n"
+      << "\t       --apps       : filter by applications\n"
+      << "\t       --users      : filter by users (uid)\n"
+      << "\t       --groups     : filter by groups (gid)\n"
+      << "\t       --controller : show ephemeral controller limits\n"
+      << "\t       --json       : output in JSON format\n"
       << "\t   action 'set' : configure a new policy or modify an existing one\n"
       << "\t     usage: policy set <identity> [parameters...] [--enable|--disable]\n"
       << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
@@ -365,8 +372,8 @@ com_io_help()
       << "\t   # Completely delete the policy for user 1001\n"
       << "\t   eos io shaping policy rm --uid 1001\n"
       << std::endl
-      << "\t   # List all configured application policies\n"
-      << "\t   eos io shaping policy ls --apps\n"
+      << "\t   # List all configured application policies including machine limits\n"
+      << "\t   eos io shaping policy ls --apps --controller\n"
       << std::endl
       << "\t   # Show current thread configurations\n"
       << "\t   eos io shaping config ls\n"
@@ -445,6 +452,7 @@ SetupPolicyListCommand(CLI::App* policy_cmd, eos::console::IoProto_ShapingProto*
   cmd->add_flag("--apps", "Show application policies");
   cmd->add_flag("--users", "Show user policies");
   cmd->add_flag("--groups", "Show group policies");
+  cmd->add_flag("--controller", "Include ephemeral Traffic Shaping Controller limits");
   cmd->add_flag("--json", "Output in JSON format");
 
   cmd->callback([cmd, proto]() {
@@ -452,6 +460,7 @@ SetupPolicyListCommand(CLI::App* policy_cmd, eos::console::IoProto_ShapingProto*
     action->set_filter_apps(cmd->count("--apps") > 0);
     action->set_filter_users(cmd->count("--users") > 0);
     action->set_filter_groups(cmd->count("--groups") > 0);
+    action->set_show_controller_limits(cmd->count("--controller") > 0);
     action->set_json_output(cmd->count("--json") > 0);
   });
 }
@@ -516,6 +525,12 @@ SetupPolicySetCommand(CLI::App* policy_cmd, eos::console::IoProto_ShapingProto* 
   param_grp->add_option("--limit-write", "Max write rate");
   param_grp->add_option("--reservation-read", "Guaranteed read rate");
   param_grp->add_option("--reservation-write", "Guaranteed write rate");
+  param_grp->add_option(
+      "--controller-limit-read",
+      "Ephemeral read limit to be set by the Traffic Shaping Controller");
+  param_grp->add_option(
+      "--controller-limit-write",
+      "Ephemeral write limit to be set by the Traffic Shaping Controller");
 
   auto* opt_enable = param_grp->add_flag("--enable", "Enable the policy");
   auto* opt_disable = param_grp->add_flag("--disable", "Disable the policy");
@@ -555,6 +570,14 @@ SetupPolicySetCommand(CLI::App* policy_cmd, eos::console::IoProto_ShapingProto* 
     if (cmd->count("--reservation-write")) {
       action->set_reservation_write_bytes_per_sec(
           parse_rate(cmd->get_option("--reservation-write")->as<std::string>()));
+    }
+    if (cmd->count("--controller-limit-read")) {
+      action->set_controller_limit_read_bytes_per_sec(
+          parse_rate(cmd->get_option("--controller-limit-read")->as<std::string>()));
+    }
+    if (cmd->count("--controller-limit-write")) {
+      action->set_controller_limit_write_bytes_per_sec(
+          parse_rate(cmd->get_option("--controller-limit-write")->as<std::string>()));
     }
 
     if (cmd->count("--enable") > 0) {

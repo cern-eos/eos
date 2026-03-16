@@ -15,6 +15,34 @@
 
 namespace eos::mgm::traffic_shaping {
 
+extern "C" {
+// Function signatures for the hot-reloaded plugin
+typedef uint64_t (*DelayAlgoFunc)(double limit_bps, double current_rate_bps,
+                                  uint64_t current_delay_us);
+
+// A flat, simple struct containing all inputs and outputs for ONE app
+struct AppState {
+  char app_name[128]; // Fixed size so we don't mess with pointers
+
+  // Inputs from MGM -> Plugin
+  double current_read_bps;
+  double current_write_bps;
+  uint64_t reservation_write_bps;
+  uint64_t reservation_read_bps;
+  uint64_t controller_limit_write_bps;
+  uint64_t controller_limit_read_bps;
+
+  // Outputs from Plugin -> MGM
+  uint64_t new_controller_limit_write_bps;
+  uint64_t new_controller_limit_read_bps;
+  bool update_write; // Set to true if the plugin wants to apply the new write limit
+  bool update_read;  // Set to true if the plugin wants to apply the new read limit
+};
+
+// Pass the pure data array to avoid C++ ABI name mangling and linking issues
+typedef void (*ControllerAlgoFunc)(AppState* apps, size_t num_apps);
+}
+
 struct StreamState {
   uint64_t last_bytes_read = 0;
   uint64_t last_bytes_written = 0;
@@ -149,6 +177,7 @@ struct StreamKeyHash {
 };
 
 struct TrafficShapingPolicy {
+  // --- Persistent User Configuration ---
   uint64_t limit_write_bytes_per_sec = 0;
   uint64_t limit_read_bytes_per_sec = 0;
   uint64_t reservation_write_bytes_per_sec = 0;
@@ -156,27 +185,88 @@ struct TrafficShapingPolicy {
 
   bool is_enabled = true;
 
+  // --- Ephemeral Controller Configuration ---
+  uint64_t controller_limit_write_bytes_per_sec = 0;
+  uint64_t controller_limit_read_bytes_per_sec = 0;
+
+  uint64_t
+  GetEffectiveWriteLimit() const
+  {
+    // If the policy is disabled, the user limit drops to 0.
+    uint64_t active_user_limit = is_enabled ? limit_write_bytes_per_sec : 0;
+
+    if (active_user_limit > 0 && controller_limit_write_bytes_per_sec > 0) {
+      return std::min(active_user_limit, controller_limit_write_bytes_per_sec);
+    }
+    return active_user_limit > 0 ? active_user_limit
+                                 : controller_limit_write_bytes_per_sec;
+  }
+
+  uint64_t
+  GetEffectiveReadLimit() const
+  {
+    // If the policy is disabled, the user limit drops to 0.
+    uint64_t active_user_limit = is_enabled ? limit_read_bytes_per_sec : 0;
+
+    if (active_user_limit > 0 && controller_limit_read_bytes_per_sec > 0) {
+      return std::min(active_user_limit, controller_limit_read_bytes_per_sec);
+    }
+    return active_user_limit > 0 ? active_user_limit
+                                 : controller_limit_read_bytes_per_sec;
+  }
+
   bool
   IsEmpty() const
   {
     return limit_write_bytes_per_sec == 0 && limit_read_bytes_per_sec == 0 &&
-           reservation_write_bytes_per_sec == 0 && reservation_read_bytes_per_sec == 0;
+           reservation_write_bytes_per_sec == 0 && reservation_read_bytes_per_sec == 0 &&
+           controller_limit_write_bytes_per_sec == 0 &&
+           controller_limit_read_bytes_per_sec == 0;
   }
 
   bool
   IsActive() const
   {
-    return is_enabled && !IsEmpty();
+    const bool has_user_rules =
+        limit_write_bytes_per_sec > 0 || limit_read_bytes_per_sec > 0 ||
+        reservation_write_bytes_per_sec > 0 || reservation_read_bytes_per_sec > 0;
+
+    const bool has_controller_rules = controller_limit_write_bytes_per_sec > 0 ||
+                                      controller_limit_read_bytes_per_sec > 0;
+
+    // The policy is active if the controller has set a limit,
+    // OR if the user has rules configured AND the policy is enabled.
+    return has_controller_rules || (is_enabled && has_user_rules);
+  }
+
+  bool
+  operator==(const TrafficShapingPolicy& policy) const
+  {
+    return limit_write_bytes_per_sec == policy.limit_write_bytes_per_sec &&
+           limit_read_bytes_per_sec == policy.limit_read_bytes_per_sec &&
+           reservation_write_bytes_per_sec == policy.reservation_write_bytes_per_sec &&
+           reservation_read_bytes_per_sec == policy.reservation_read_bytes_per_sec &&
+           is_enabled == policy.is_enabled;
   }
 
   bool
   operator!=(const TrafficShapingPolicy& policy) const
   {
-    return limit_write_bytes_per_sec != policy.limit_write_bytes_per_sec ||
-           limit_read_bytes_per_sec != policy.limit_read_bytes_per_sec ||
-           reservation_write_bytes_per_sec != policy.reservation_write_bytes_per_sec ||
-           reservation_read_bytes_per_sec != policy.reservation_read_bytes_per_sec ||
-           is_enabled != policy.is_enabled;
+    return !(*this == policy);
+  }
+
+  std::string
+  ToString() const
+  {
+    std::ostringstream oss;
+    oss << (is_enabled ? "Enabled" : "Disabled") << ", "
+        << "Read Limit: " << limit_read_bytes_per_sec << " Bps, "
+        << "Write Limit: " << limit_write_bytes_per_sec << " Bps, "
+        << "Read Reservation: " << reservation_read_bytes_per_sec << " Bps, "
+        << "Write Reservation: " << reservation_write_bytes_per_sec << " Bps, "
+        << "Controller Read Limit: " << controller_limit_read_bytes_per_sec << " Bps, "
+        << "Controller Write Limit: " << controller_limit_write_bytes_per_sec << " Bps";
+    return oss.str();
   }
 };
 
@@ -190,7 +280,9 @@ public:
 
   void UpdateEstimators(double time_delta_seconds);
 
-  void ComputeLimitsAndReservations();
+  void UpdateLimits();
+
+  void UpdateTrafficShapingController();
 
   void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
                          uint32_t window_seconds);
@@ -241,9 +333,13 @@ public:
 
   void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
 
-  std::tuple<double, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
+  void UpdateFstReportsProcessed(uint64_t count);
 
-  std::tuple<double, uint64_t, uint64_t> GetFstLimitsUpdateLoopMicroSecStats() const;
+  double GetFstReportsProcessedPerSecondMean() const;
+
+  std::tuple<uint64_t, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
+
+  std::tuple<uint64_t, uint64_t, uint64_t> GetFstLimitsUpdateLoopMicroSecStats() const;
 
   uint32_t
   GetSystemStatsWindowSeconds() const
@@ -251,6 +347,14 @@ public:
     std::shared_lock lock(mMutex);
     return mSystemStatsWindowSeconds;
   }
+
+  std::tuple<std::unordered_map<std::string, double>, // app read
+             std::unordered_map<std::string, double>, // app write
+             std::unordered_map<uint32_t, double>,    // uid read
+             std::unordered_map<uint32_t, double>,    // uid write
+             std::unordered_map<uint32_t, double>,    // gid read
+             std::unordered_map<uint32_t, double>>    // gid write
+  GetCurrentReadAndWriteRates() const;
 
   void Clear();
 
@@ -278,6 +382,8 @@ private:
       estimators_update_loop_micro_sec;
   std::optional<eos::fst::traffic_shaping::SlidingWindowStats>
       fst_limits_update_loop_micro_sec;
+  std::optional<eos::fst::traffic_shaping::SlidingWindowStats>
+      fst_reports_processed_per_second;
 
   double mEstimatorsTickIntervalSec{0.5};
   uint32_t mSystemStatsWindowSeconds{15};
@@ -286,9 +392,18 @@ private:
 
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
-  std::pair<std::unordered_map<std::string, double>,
-            std::unordered_map<std::string, double>>
-  GetCurrentReadAndWriteRateForApps() const;
+  // Calculates the new FST delay microsecond value given the current rate and limit
+  static uint64_t CalculateDelayUs(double limit_bps, double current_rate_bps,
+                                   uint64_t current_delay_us);
+
+  // --- Plugin Hot-Reload State ---
+  void* mPluginHandle = nullptr;
+  DelayAlgoFunc mCustomAlgo = nullptr;
+  ControllerAlgoFunc mCustomControllerAlgo = nullptr;
+  time_t mPluginLastModified = 0;
+  std::shared_mutex mPluginMutex;
+
+  void LoadPluginIfModified();
 };
 
 class TrafficShapingEngine {
@@ -367,21 +482,21 @@ private:
 
   void UpdateThreadConfigs();
 
-  std::shared_ptr<TrafficShapingManager> mManager;
+  std::shared_ptr<TrafficShapingManager> mManager{};
 
   AssistedThread mEstimatorsUpdateThread;
   AssistedThread mFstIoPolicyUpdateThread;
   AssistedThread mFstTrafficShapingConfigUpdateThread;
 
-  std::atomic<bool> mRunning;
+  std::atomic<bool> mRunning{};
 
-  std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds;
-  std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds;
-  std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds;
-  std::atomic<uint32_t> mSystemStatsWindowSeconds;
+  std::atomic<uint32_t> mEstimatorsUpdateThreadPeriodMilliseconds{};
+  std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds{};
+  std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds{};
+  std::atomic<uint32_t> mSystemStatsWindowSeconds{};
 
-  std::vector<eos::traffic_shaping::FstIoReport> mReportQueue;
-  std::mutex mReportQueueMutex;
+  std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
+  std::mutex mReportQueueMutex{};
 };
 
 } // namespace eos::mgm::traffic_shaping

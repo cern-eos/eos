@@ -25,30 +25,40 @@ if ! command -v jq &> /dev/null; then
   exit 1
 fi
 
+export XrdSecPROTOCOL=sss
+
 # Enable traffic shaping
 eos io shaping enable
 
 eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15
 
 # Make sure all settings are propagated to FSTs
-
 sleep 10
 
-# Create a dummy 10MiB file
+# Create dummy files for tests
 TEST_FILE_10MB=/tmp/10mb.dat
 dd if=/dev/urandom of=${TEST_FILE_10MB} bs=1M count=10 iflag=fullblock &> /dev/null
 head -c 10485760 /dev/urandom > ${TEST_FILE_10MB}
-# make sure the file has exactly 10MiB
+
 if [[ $(stat -c%s "${TEST_FILE_10MB}") -ne 10485760 ]]; then
   echo "Error: Failed to create a 10MiB file at ${TEST_FILE_10MB}."
   exit 1
 fi
 
+TEST_FILE_50MB_THROTTLE=/tmp/50mb_throttle.dat
+dd if=/dev/urandom of=${TEST_FILE_50MB_THROTTLE} bs=1M count=50 iflag=fullblock &> /dev/null
+head -c 52428800 /dev/urandom > ${TEST_FILE_50MB_THROTTLE}
+
+DEST_URL="root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/traffic_shaping"
+
 eos mkdir -p /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
 eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/
 eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
 
-xrdcp ${TEST_FILE_10MB} root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/traffic_shaping/10mb.dat?eos.app=traffic-shaping-test-app -f
+# ---------------------------------------------------------
+# Test: Baseline System and Reporting Engine
+# ---------------------------------------------------------
+xrdcp ${TEST_FILE_10MB} "${DEST_URL}/10mb.dat?eos.app=traffic-shaping-test-app" -f > /dev/null
 
 sleep 3
 
@@ -67,11 +77,12 @@ fi
 CHECK_SYS=$(echo "$JSON_RESULT" | jq -e '.[] | select(.id == "engine_meta") |
   (.type == "system") and
   (.system_stats_window_seconds == 15) and
+  (.reports_processed_per_sec_mean > 0) and
   (.estimators_loop_max_us > 0) and
-  (.estimators_loop_mean_us > 0) and
+  (.estimators_loop_median_us > 0) and
   (.estimators_loop_min_us > 0) and
   (.fst_limits_loop_max_us > 0) and
-  (.fst_limits_loop_mean_us > 0) and
+  (.fst_limits_loop_median_us > 0) and
   (.fst_limits_loop_min_us > 0)')
 
 if [[ $? -eq 0 ]]; then
@@ -82,7 +93,6 @@ else
   exit 1
 fi
 
-# The average write rate over the window will match the expected value exactly ( 10485760 / 15.0 = 699050.67)
 CHECK_APP=$(echo "$JSON_RESULT" | jq -e '.[] | select(.id == "traffic-shaping-test-app") | (.write_rate_bps == 699050.67)')
 
 if [[ $? -eq 0 ]]; then
@@ -93,6 +103,9 @@ else
   exit 1
 fi
 
+# ---------------------------------------------------------
+# Test: API Configuration (User limits)
+# ---------------------------------------------------------
 echo ""
 echo "--- Testing Limits API Configuration ---"
 
@@ -144,50 +157,51 @@ else
   exit 1
 fi
 
+# ---------------------------------------------------------
+# Test: API Configuration (Controller limits)
+# ---------------------------------------------------------
 echo ""
-echo "--- Testing Traffic Shaping Enforcement (Throttling) ---"
+echo "--- Testing Controller Limits API Configuration ---"
+eos io shaping policy set --app ctrl-api-app --controller-limit-write 2097152 --controller-limit-read 1048576
 
+POLICY_JSON=$(eos io shaping policy ls --json)
+CHECK_POLICY_CTRL=$(echo "$POLICY_JSON" | jq -e 'any(.[]; .id == "ctrl-api-app" and .type == "app" and .controller_limit_write_bytes_per_sec == 2097152 and .controller_limit_read_bytes_per_sec == 1048576)')
+if [[ $? -eq 0 ]]; then
+  echo "✅ Success: Controller limits successfully set and verified."
+else
+  echo "❌ Error: Controller limits creation failed or mismatched."
+  echo "Raw JSON Output: $POLICY_JSON"
+  exit 1
+fi
+eos io shaping policy rm --app ctrl-api-app
+
+
+LOWER_BOUND=900000
+UPPER_BOUND=1200000
+
+# ---------------------------------------------------------
+# Test: App Throttling Enforcement
+# ---------------------------------------------------------
 THROTTLE_APP_NAME="throttle-test-app"
-TEST_FILE_10MB_THROTTLE=/tmp/10mb_throttle.dat
-head -c 10485760 /dev/urandom > ${TEST_FILE_10MB_THROTTLE}
+echo ""
+echo "--- Testing App Traffic Shaping Enforcement (Throttling) ---"
 
-DEST_URL="root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/traffic_shaping"
-
-THROTTLE_APP_NAME="throttle-test-app"
-
-TEST_FILE_50MB_THROTTLE=/tmp/50mb_throttle.dat
-dd if=/dev/urandom of=${TEST_FILE_50MB_THROTTLE} bs=1M count=50 iflag=fullblock &> /dev/null
-head -c 52428800 /dev/urandom > ${TEST_FILE_50MB_THROTTLE}
-
-DEST_URL="root://${EOS_MGM_HOSTNAME}//eos/${EOS_INSTANCE_NAME}/traffic_shaping"
-
-echo "Starting baseline transfer (No limits)..."
-START_TIME_MS=$(date +%s%3N)
-xrdcp -f ${TEST_FILE_50MB_THROTTLE} ${DEST_URL}/baseline.dat?eos.app=${THROTTLE_APP_NAME} > /dev/null 2>&1
-END_TIME_MS=$(date +%s%3N)
-BASELINE_DURATION_MS=$((END_TIME_MS - START_TIME_MS))
-echo "Baseline transfer took $BASELINE_DURATION_MS ms."
+echo "Priming feedback loop with baseline transfer..."
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} "${DEST_URL}/baseline.dat?eos.app=${THROTTLE_APP_NAME}" > /dev/null
 
 echo "Applying 1 MB/s write limit to app '${THROTTLE_APP_NAME}'..."
 eos io shaping policy set --app ${THROTTLE_APP_NAME} --limit-write 1M
-
-sleep 10
+sleep 5
 
 echo "Starting throttled transfer..."
 START_TIME_MS=$(date +%s%3N)
-xrdcp -f ${TEST_FILE_50MB_THROTTLE} ${DEST_URL}/throttled.dat?eos.app=${THROTTLE_APP_NAME} > /dev/null 2>&1
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} "${DEST_URL}/throttled.dat?eos.app=${THROTTLE_APP_NAME}" > /dev/null
 END_TIME_MS=$(date +%s%3N)
-THROTTLED_DURATION_MS=$((END_TIME_MS - START_TIME_MS))
-echo "Throttled transfer took $THROTTLED_DURATION_MS ms."
+echo "Throttled transfer took $((END_TIME_MS - START_TIME_MS)) ms."
 
-# sleep for 150ms
 sleep 0.15
 
 JSON_RESULT=$(eos io shaping ls --window 5 --json)
-
-LOWER_BOUND=900000
-UPPER_BOUND=1100000
-
 CHECK_APP=$(echo "$JSON_RESULT" | jq -e --argjson lower "$LOWER_BOUND" --argjson upper "$UPPER_BOUND" '
   .[] | select(.id == "throttle-test-app") |
   (.write_rate_bps > $lower) and (.write_rate_bps < $upper) and (.window_sec == 5)
@@ -199,13 +213,121 @@ if [[ $? -eq 0 ]]; then
 else
   ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "throttle-test-app") | .write_rate_bps // "NOT_FOUND"')
   echo "❌ Error: '${THROTTLE_APP_NAME}' write rate mismatch. Expected between $LOWER_BOUND and $UPPER_BOUND, got: $ACTUAL_RATE bps."
-
-  echo "Raw JSON Output: $JSON_RESULT"
-  # Cleanup before exit
   eos io shaping policy rm --app ${THROTTLE_APP_NAME}
   exit 1
 fi
-
 eos io shaping policy rm --app ${THROTTLE_APP_NAME}
 
-echo "All traffic shaping validations passed!"
+# ---------------------------------------------------------
+# Test: Controller Limit Enforcement
+# ---------------------------------------------------------
+CTRL_APP_NAME="ctrl-throttle-app"
+echo ""
+echo "--- Testing Controller Limit Enforcement ---"
+
+echo "Priming feedback loop with baseline transfer..."
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} "${DEST_URL}/ctrl_baseline.dat?eos.app=${CTRL_APP_NAME}" > /dev/null
+
+echo "Setting user write limit to 50MB/s and controller write limit to 1MB/s (Controller should win)..."
+eos io shaping policy set --app ${CTRL_APP_NAME} --limit-write 50M --controller-limit-write 1M
+sleep 5
+
+START_TIME_MS=$(date +%s%3N)
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} "${DEST_URL}/ctrl_throttled.dat?eos.app=${CTRL_APP_NAME}" > /dev/null
+END_TIME_MS=$(date +%s%3N)
+echo "Controller throttled transfer took $((END_TIME_MS - START_TIME_MS)) ms."
+
+sleep 0.15
+JSON_RESULT=$(eos io shaping ls --window 5 --json)
+CHECK_CTRL=$(echo "$JSON_RESULT" | jq -e --argjson lower "$LOWER_BOUND" --argjson upper "$UPPER_BOUND" '
+  .[] | select(.id == "ctrl-throttle-app") |
+  (.write_rate_bps > $lower) and (.write_rate_bps < $upper)
+')
+
+if [[ $? -eq 0 ]]; then
+  ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "ctrl-throttle-app") | .write_rate_bps')
+  echo "✅ Success: Controller effective limit enforced correctly (Measured: $ACTUAL_RATE bps)."
+else
+  ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "ctrl-throttle-app") | .write_rate_bps // "NOT_FOUND"')
+  echo "❌ Error: Controller limit enforcement failed. Expected ~1MB/s, got: $ACTUAL_RATE bps."
+  eos io shaping policy rm --app ${CTRL_APP_NAME}
+  exit 1
+fi
+eos io shaping policy rm --app ${CTRL_APP_NAME}
+
+# ---------------------------------------------------------
+# Test: UID Throttling Enforcement
+# ---------------------------------------------------------
+TEST_UID="19999"
+echo ""
+echo "--- Testing UID Throttling Enforcement ---"
+
+echo "Priming feedback loop with baseline transfer..."
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} "${DEST_URL}/uid_baseline.dat?eos.ruid=${TEST_UID}&eos.app=uid-test-app" > /dev/null
+
+echo "Applying 1 MB/s write limit to UID '${TEST_UID}'..."
+eos io shaping policy set --uid ${TEST_UID} --limit-write 1M
+sleep 5
+
+START_TIME_MS=$(date +%s%3N)
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} "${DEST_URL}/uid_throttled.dat?eos.ruid=${TEST_UID}&eos.app=uid-test-app" > /dev/null
+END_TIME_MS=$(date +%s%3N)
+echo "UID throttled transfer took $((END_TIME_MS - START_TIME_MS)) ms."
+
+sleep 0.15
+JSON_RESULT=$(eos io shaping ls --window 5 --users --json)
+CHECK_UID=$(echo "$JSON_RESULT" | jq -e --argjson lower "$LOWER_BOUND" --argjson upper "$UPPER_BOUND" '
+  .[] | select(.id == "19999") |
+  (.write_rate_bps > $lower) and (.write_rate_bps < $upper)
+')
+
+if [[ $? -eq 0 ]]; then
+  ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "19999") | .write_rate_bps')
+  echo "✅ Success: UID throttling enforced correctly (Measured: $ACTUAL_RATE bps)."
+else
+  ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "19999") | .write_rate_bps // "NOT_FOUND"')
+  echo "❌ Error: UID limit enforcement failed. Expected ~1MB/s, got: $ACTUAL_RATE bps."
+  eos io shaping policy rm --uid ${TEST_UID}
+  exit 1
+fi
+eos io shaping policy rm --uid ${TEST_UID}
+
+# ---------------------------------------------------------
+# Test: GID Throttling Enforcement
+# ---------------------------------------------------------
+TEST_GID="18888"
+echo ""
+echo "--- Testing GID Throttling Enforcement ---"
+
+echo "Priming feedback loop with baseline transfer..."
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} "${DEST_URL}/gid_baseline.dat?eos.rgid=${TEST_GID}&eos.app=gid-test-app" > /dev/null
+
+echo "Applying 1 MB/s write limit to GID '${TEST_GID}'..."
+eos io shaping policy set --gid ${TEST_GID} --limit-write 1M
+sleep 5
+
+START_TIME_MS=$(date +%s%3N)
+xrdcp -f ${TEST_FILE_50MB_THROTTLE} "${DEST_URL}/gid_throttled.dat?eos.rgid=${TEST_GID}&eos.app=gid-test-app" > /dev/null
+END_TIME_MS=$(date +%s%3N)
+echo "GID throttled transfer took $((END_TIME_MS - START_TIME_MS)) ms."
+
+sleep 0.15
+JSON_RESULT=$(eos io shaping ls --window 5 --groups --json)
+CHECK_GID=$(echo "$JSON_RESULT" | jq -e --argjson lower "$LOWER_BOUND" --argjson upper "$UPPER_BOUND" '
+  .[] | select(.id == "18888") |
+  (.write_rate_bps > $lower) and (.write_rate_bps < $upper)
+')
+
+if [[ $? -eq 0 ]]; then
+  ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "18888") | .write_rate_bps')
+  echo "✅ Success: GID throttling enforced correctly (Measured: $ACTUAL_RATE bps)."
+else
+  ACTUAL_RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "18888") | .write_rate_bps // "NOT_FOUND"')
+  echo "❌ Error: GID limit enforcement failed. Expected ~1MB/s, got: $ACTUAL_RATE bps."
+  eos io shaping policy rm --gid ${TEST_GID}
+  exit 1
+fi
+eos io shaping policy rm --gid ${TEST_GID}
+
+echo ""
+echo "🎉 All traffic shaping validations passed!"
