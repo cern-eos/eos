@@ -152,6 +152,7 @@ class IContainerMDSvc;
 class IView;
 class IFileMDChangeListener;
 class IContainerMDChangeListener;
+class QuarkContainerAccounting;
 }
 
 namespace eos::common
@@ -1839,7 +1840,7 @@ public:
   eos::IFileMDSvc* eosFileService; ///< changelog for files
   eos::IView* eosView; ///< hierarchical view of the namespace
   eos::IFsView* eosFsView; ///< filesystem view of the namespace
-  eos::IFileMDChangeListener* eosContainerAccounting; ///< subtree accounting
+  eos::QuarkContainerAccounting* eosContainerAccounting; ///< subtree accounting
   //! Subtree mtime propagation
   eos::IContainerMDChangeListener* eosSyncTimeAccounting;
   eos::mgm::NamespaceStats mNamespaceStats; //namespace-related stats operation

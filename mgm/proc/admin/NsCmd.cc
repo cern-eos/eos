@@ -47,6 +47,7 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include <algorithm>
@@ -54,6 +55,7 @@
 #include <memory>
 #include <qclient/QClient.hh>
 #include <sstream>
+#include <unordered_set>
 #include <vector>
 
 namespace {
@@ -1056,21 +1058,54 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
     return;
   }
 
-  std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
+  // Fail fast before the expensive subtree walk if another recompute is
+  // already running. RecomputeSubtreeWithFencing's own atomic check is
+  // still authoritative for the small race window after this point.
+  if (gOFS->eosContainerAccounting &&
+      gOFS->eosContainerAccounting->isRecomputeInFlight()) {
+    reply.set_std_err("error: another recompute_tree_size is already in "
+                      "progress; retry once it finishes");
+    reply.set_retc(EBUSY);
+    return;
+  }
+
   std::list< std::list<eos::IContainerMD::id_t> > bfs =
     BreadthFirstSearchContainers(cont.get(), tree.depth());
+  std::unordered_set<eos::IContainerMD::id_t> bfsIds;
 
-  for (auto it_level = bfs.crbegin(); it_level != bfs.crend(); ++it_level) {
-    for (const auto& id : *it_level) {
-      try {
-        tmp_cont = gOFS->eosDirectoryService->getContainerMD(id);
-      } catch (const eos::MDException& e) {
-        eos_err("error=\"%s\"", e.what());
-        continue;
-      }
-
-      UpdateTreeSize(tmp_cont);
+  for (const auto& level : bfs) {
+    for (const auto& id : level) {
+      bfsIds.insert(id);
     }
+  }
+
+  // Leaves-to-root recompute body. The accounting layer wraps the fence /
+  // drain / dirty-set protocol around it (EOS-6577).
+  auto run_bfs = [&]() {
+    std::shared_ptr<eos::IContainerMD> tmp_cont;
+    for (auto it_level = bfs.crbegin(); it_level != bfs.crend(); ++it_level) {
+      for (const auto& id : *it_level) {
+        try {
+          tmp_cont = gOFS->eosDirectoryService->getContainerMD(id);
+        } catch (const eos::MDException& e) {
+          eos_err("error=\"%s\"", e.what());
+          continue;
+        }
+
+        UpdateTreeSize(tmp_cont);
+      }
+    }
+  };
+
+  if (gOFS->eosContainerAccounting) {
+    if (!gOFS->eosContainerAccounting->RecomputeSubtreeWithFencing(bfsIds, run_bfs)) {
+      reply.set_std_err("error: another recompute_tree_size is already in "
+                        "progress; retry once it finishes");
+      reply.set_retc(EBUSY);
+      return;
+    }
+  } else {
+    run_bfs();
   }
 }
 

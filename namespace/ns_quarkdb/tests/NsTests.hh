@@ -77,6 +77,7 @@ public:
   eos::IFileMDSvc* fileSvc();
   eos::IView* view();
   eos::IFsView* fsview();
+  eos::QuarkContainerAccounting* getContainerAccounting();
 
   void shut_down_everything();
 

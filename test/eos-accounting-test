@@ -173,6 +173,131 @@ echo "Testing the accounting of $EOS_ACCOUNTING_DIR/source"
 test_accounting $EOS_ACCOUNTING_DIR/source $(((nDirs+(nFiles*nDirs))/2+1)) $((totalNbFiles/2)) $((totalTreeSize/2))
 echo "Done"
 
+# =============================================================================
+# Test: Race condition between concurrent moves and recompute_tree_size
+# (EOS-XXXX) When directory moves happen while recompute_tree_size runs,
+# the BFS sets correct absolute values but stale deltas from the move could
+# be applied on top, causing double-counting at the destination and
+# under-counting at the source. The fix makes recompute_tree_size mark
+# containers as "being recomputed" so PropagateUpdates skips them, then
+# purges stale deltas after the BFS completes.
+# =============================================================================
+echo ""
+echo "=== Testing race condition fix: concurrent move + recompute_tree_size ==="
+
+eos mkdir -p $EOS_ACCOUNTING_DIR/
+
+RACE_DIR=$EOS_ACCOUNTING_DIR/race_test
+eos mkdir -p $RACE_DIR/source
+eos mkdir -p $RACE_DIR/destination
+
+nRaceDirs=100
+nRaceFiles=10
+
+echo "Creating directory structure for race condition test..."
+start_time=$(date +%s)
+for (( i=0; i<$nRaceDirs; i++ )); do
+  eos mkdir -p $RACE_DIR/source/$i &
+done
+wait
+
+for (( i=0; i<$nRaceDirs; i++ )); do
+  for (( j=0; j<$nRaceFiles; j++ )); do
+    eos cp /etc/passwd $url/$RACE_DIR/source/$i/file$j &
+  done
+  wait
+done
+end_time=$(date +%s)
+elapsed=$((end_time - start_time))
+echo "Done, elapsed time = $elapsed seconds"
+
+echo "Waiting 15 seconds for the accounting to kick in..."
+sleep 15
+
+raceTreeSize=$(($nRaceDirs * $nRaceFiles * $passwdFileSize))
+raceTreeFiles=$(($nRaceDirs * $nRaceFiles))
+
+echo "Verifying initial accounting before race condition test..."
+test_accounting $RACE_DIR/source $nRaceDirs $raceTreeFiles $raceTreeSize
+test_accounting $RACE_DIR/destination 0 0 0
+echo "Done"
+
+# Run multiple rounds of concurrent move + recompute_tree_size to maximize
+# the probability of hitting the race window.
+nRaceRounds=1
+for (( round=1; round<=$nRaceRounds; round++ )); do
+  echo "--- Race condition round $round/$nRaceRounds ---"
+
+  # Move all directories from source to destination in parallel
+  echo "Moving directories source -> destination concurrently with recompute..."
+  for (( i=0; i<$nRaceDirs; i++ )); do
+    eos mv $RACE_DIR/source/$i $RACE_DIR/destination/$i &
+  done
+  # Fire recompute_tree_size concurrently with the moves
+  eos ns recompute_tree_size $RACE_DIR/ &
+  wait
+
+  echo "Waiting 15 seconds for accounting to settle..."
+  sleep 15
+
+  test_accounting $RACE_DIR $((nRaceDirs+2)) $raceTreeFiles $raceTreeSize
+
+  # After the concurrent operation, run a clean recompute to normalize any
+  # residual inaccuracy from the non-snapshot BFS, then verify.
+  eos ns recompute_tree_size $RACE_DIR/
+
+  echo "Verifying accounting after move source -> destination..."
+  test_accounting $RACE_DIR/source 0 0 0
+  test_accounting $RACE_DIR/destination $nRaceDirs $raceTreeFiles $raceTreeSize
+  echo "Done"
+
+  # Move everything back for the next round
+  echo "Moving directories destination -> source concurrently with recompute..."
+  for (( i=0; i<$nRaceDirs; i++ )); do
+    eos mv $RACE_DIR/destination/$i $RACE_DIR/source/$i &
+  done
+  eos ns recompute_tree_size $RACE_DIR/ &
+  wait
+
+  echo "Waiting 15 seconds for accounting to settle..."
+  sleep 15
+  test_accounting $RACE_DIR $((nRaceDirs+2)) $raceTreeFiles $raceTreeSize
+
+  eos ns recompute_tree_size $RACE_DIR/
+
+  echo "Verifying accounting after move destination -> source..."
+  test_accounting $RACE_DIR/source $nRaceDirs $raceTreeFiles $raceTreeSize
+  test_accounting $RACE_DIR/destination 0 0 0
+  test_accounting $RACE_DIR $((nRaceDirs+2)) $raceTreeFiles $raceTreeSize
+  echo "Done"
+done
+
+# Move all directories from source to destination in parallel
+echo "Moving directories source -> destination + eoscp concurrently with recompute..."
+eos mkdir -p $RACE_DIR/passwd
+for (( i=0; i<$nRaceDirs; i++ )); do
+  eos mv $RACE_DIR/source/$i $RACE_DIR/destination/$i &
+  eos cp /etc/passwd $url/$RACE_DIR/passwd$i &
+done
+# Fire recompute_tree_size concurrently with the moves
+eos ns recompute_tree_size $RACE_DIR/ &
+wait
+# Add passwd files created during this test
+raceTreeFiles=$((raceTreeFiles+nRaceDirs))
+raceTreeSize=$((raceTreeSize+(nRaceDirs*passwdFileSize)))
+# Add passwd directory to the totalDirectories
+nRaceDirs=$((nRaceDirs+1))
+
+
+echo "Waiting 15 seconds for accounting to settle..."
+sleep 15
+test_accounting $RACE_DIR $((nRaceDirs+2)) $raceTreeFiles $raceTreeSize
+
+echo "Done"
+
+echo "=== Race condition test PASSED ==="
+echo ""
+
 cleanup
 
 test_end_time=$(date +%s)

@@ -24,13 +24,14 @@
 #include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include <algorithm>
@@ -42,6 +43,7 @@
 #include <pthread.h>
 #include <sstream>
 #include <unistd.h>
+#include <unordered_set>
 
 #include <vector>
 
@@ -1557,4 +1559,632 @@ TEST_F(HierarchicalViewF, getMDMultiThreaded)
   for (auto& worker : workers) {
     worker.join();
   }
+}
+
+//------------------------------------------------------------------------------
+// Test that fencing prevents PropagateUpdates from applying deltas to fenced
+// containers. Deltas should be diverted to the journal instead.
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, FencingPreventsDeltaPropagation)
+{
+  auto* accounting = getContainerAccounting();
+  ASSERT_NE(nullptr, accounting);
+
+  // Create /test/dir with 5 files of size 1000 each
+  view()->createContainer("/test/dir/", true);
+
+  for (int i = 0; i < 5; ++i) {
+    auto fmd = view()->createFile("/test/dir/f" + std::to_string(i));
+    fmd->setSize(1000);
+    view()->updateFileStore(fmd.get());
+  }
+
+  // Wait for accounting to propagate
+  ::sleep(6);
+
+  auto dir = view()->getContainer("/test/dir/");
+  ASSERT_EQ(5000u, dir->getTreeSize());
+  ASSERT_EQ(5u, dir->getTreeFiles());
+
+  auto test = view()->getContainer("/test/");
+  ASSERT_EQ(5000u, test->getTreeSize());
+  ASSERT_EQ(5u, test->getTreeFiles());
+
+  // Fence /test/ and /test/dir/
+  std::unordered_set<eos::IContainerMD::id_t> fencedIds;
+  fencedIds.insert(test->getId());
+  fencedIds.insert(dir->getId());
+  accounting->fenceContainers(fencedIds);
+
+  // Create a new file under /test/dir/ — this triggers a size change delta
+  auto newFile = view()->createFile("/test/dir/fnew");
+  newFile->setSize(2000);
+  view()->updateFileStore(newFile.get());
+
+  // Wait for accounting threads to run (deltas should be diverted, not applied)
+  ::sleep(6);
+
+  // Tree sizes should NOT have changed because containers are fenced
+  dir = view()->getContainer("/test/dir/");
+  EXPECT_EQ(5000u, dir->getTreeSize());
+  EXPECT_EQ(5u, dir->getTreeFiles());
+
+  test = view()->getContainer("/test/");
+  EXPECT_EQ(5000u, test->getTreeSize());
+  EXPECT_EQ(5u, test->getTreeFiles());
+
+  // Unfence — deltas are discarded
+  accounting->unfence();
+
+  // After unfence the tree sizes are still stale (deltas were discarded).
+  // New changes going forward will propagate normally.
+  // Create another file to trigger fresh propagation
+  auto newFile2 = view()->createFile("/test/dir/fnew2");
+  newFile2->setSize(3000);
+  view()->updateFileStore(newFile2.get());
+
+  ::sleep(6);
+
+  // Now the fresh delta (+3000, +1 file) should have been applied on top
+  // of the stale values. The fenced delta (+2000, +1 file for fnew) was lost.
+  dir = view()->getContainer("/test/dir/");
+  EXPECT_EQ(5000u + 3000u, dir->getTreeSize());
+  EXPECT_EQ(6u, dir->getTreeFiles());
+}
+
+//------------------------------------------------------------------------------
+// Test that drainFencedDeltas waits until all in-flight deltas for fenced
+// containers are captured in the journal, then discardJournal clears them.
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, DrainAndDiscardJournal)
+{
+  auto* accounting = getContainerAccounting();
+  ASSERT_NE(nullptr, accounting);
+
+  // Create /test/dir with 3 files of size 500 each
+  view()->createContainer("/test/dir/", true);
+
+  for (int i = 0; i < 3; ++i) {
+    auto fmd = view()->createFile("/test/dir/f" + std::to_string(i));
+    fmd->setSize(500);
+    view()->updateFileStore(fmd.get());
+  }
+
+  // Wait for accounting to propagate
+  ::sleep(6);
+
+  auto dir = view()->getContainer("/test/dir/");
+  ASSERT_EQ(1500u, dir->getTreeSize());
+  ASSERT_EQ(3u, dir->getTreeFiles());
+
+  // Now fence and immediately create a file (queue a delta)
+  std::unordered_set<eos::IContainerMD::id_t> fencedIds;
+  fencedIds.insert(dir->getId());
+  fencedIds.insert(view()->getContainer("/test/")->getId());
+  fencedIds.insert(view()->getContainer("/")->getId());
+  accounting->fenceContainers(fencedIds);
+
+  auto newFile = view()->createFile("/test/dir/fextra");
+  newFile->setSize(700);
+  view()->updateFileStore(newFile.get());
+
+  // Drain ensures all in-flight deltas are processed (fenced ones go to journal)
+  accounting->drainFencedDeltas();
+
+  // Tree size should still be unchanged (deltas were diverted)
+  dir = view()->getContainer("/test/dir/");
+  EXPECT_EQ(1500u, dir->getTreeSize());
+
+  // Discard the journal
+  accounting->discardJournal();
+
+  // Unfence
+  accounting->unfence();
+
+  // The delta for fextra was lost. Tree size still reflects old value.
+  dir = view()->getContainer("/test/dir/");
+  EXPECT_EQ(1500u, dir->getTreeSize());
+}
+
+//------------------------------------------------------------------------------
+// Test the full recompute fencing protocol: fence, drain, discard, recompute
+// (set absolute values), discard again, unfence. Simulates what
+// TreeSizeSubcmd will do.
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, RecomputeWithFencing)
+{
+  auto* accounting = getContainerAccounting();
+  ASSERT_NE(nullptr, accounting);
+
+  // Create /test/source/ with 2 subdirs, each with 3 files of size 100
+  view()->createContainer("/test/source/", true);
+
+  for (int d = 0; d < 2; ++d) {
+    std::string subdir = "/test/source/d" + std::to_string(d) + "/";
+    view()->createContainer(subdir, true);
+
+    for (int f = 0; f < 3; ++f) {
+      auto fmd = view()->createFile(subdir + "f" + std::to_string(f));
+      fmd->setSize(100);
+      view()->updateFileStore(fmd.get());
+    }
+  }
+
+  // Wait for accounting
+  ::sleep(6);
+
+  auto source = view()->getContainer("/test/source/");
+  ASSERT_EQ(600u, source->getTreeSize());
+  ASSERT_EQ(6u, source->getTreeFiles());
+  ASSERT_EQ(2u, source->getTreeContainers());
+
+  // Now deliberately corrupt the tree size (simulate accumulated drift)
+  {
+    eos::MDLocking::ContainerWriteLock writeLock(source.get());
+    source->setTreeSize(9999);
+    containerSvc()->updateStore(source.get());
+  }
+
+  ASSERT_EQ(9999u, source->getTreeSize());
+
+  // Collect BFS container IDs
+  std::unordered_set<eos::IContainerMD::id_t> bfsIds;
+  bfsIds.insert(source->getId());
+
+  for (int d = 0; d < 2; ++d) {
+    std::string subdir = "/test/source/d" + std::to_string(d) + "/";
+    bfsIds.insert(view()->getContainer(subdir)->getId());
+  }
+
+  // Phase 1: Fence + drain + discard
+  accounting->fenceContainers(bfsIds);
+  accounting->drainFencedDeltas();
+  accounting->discardJournal();
+
+  // Phase 2: Recompute (simulate leaf-to-root BFS by setting absolute values)
+  // First, recompute subdirs
+  for (int d = 0; d < 2; ++d) {
+    std::string subdir = "/test/source/d" + std::to_string(d) + "/";
+    auto sub = view()->getContainer(subdir);
+    eos::MDLocking::ContainerWriteLock writeLock(sub.get());
+    sub->setTreeSize(300); // 3 files * 100
+    sub->setTreeFiles(3);
+    sub->setTreeContainers(0);
+    containerSvc()->updateStore(sub.get());
+  }
+
+  // Then recompute source
+  {
+    source = view()->getContainer("/test/source/");
+    eos::MDLocking::ContainerWriteLock writeLock(source.get());
+    source->setTreeSize(600); // 2 subdirs * 300
+    source->setTreeFiles(6);
+    source->setTreeContainers(2);
+    containerSvc()->updateStore(source.get());
+  }
+
+  // Phase 3: Drain + unfence
+  accounting->drainFencedDeltas();
+  accounting->unfence();
+
+  // Verify the recompute fixed the corrupted value
+  source = view()->getContainer("/test/source/");
+  EXPECT_EQ(600u, source->getTreeSize());
+  EXPECT_EQ(6u, source->getTreeFiles());
+  EXPECT_EQ(2u, source->getTreeContainers());
+}
+
+//------------------------------------------------------------------------------
+// Test the race condition scenario: concurrent directory move + recompute.
+// Without fencing, the absolute set from recompute could be corrupted by
+// stale deltas from the move. With fencing, tree sizes stay consistent.
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, ConcurrentMoveAndRecompute)
+{
+  auto* accounting = getContainerAccounting();
+  ASSERT_NE(nullptr, accounting);
+  const uint64_t fileSize = 1000;
+  const int nFiles = 5;
+
+  // Create /test/source/moveme/ with files and /test/dest/
+  view()->createContainer("/test/source/", true);
+  view()->createContainer("/test/source/moveme/", true);
+  view()->createContainer("/test/dest/", true);
+
+  for (int i = 0; i < nFiles; ++i) {
+    auto fmd = view()->createFile("/test/source/moveme/f" + std::to_string(i));
+    fmd->setSize(fileSize);
+    view()->updateFileStore(fmd.get());
+  }
+
+  // Wait for accounting
+  ::sleep(6);
+
+  auto test = view()->getContainer("/test/");
+  auto source = view()->getContainer("/test/source/");
+  auto dest = view()->getContainer("/test/dest/");
+  auto moveme = view()->getContainer("/test/source/moveme/");
+
+  const uint64_t expectedTotalSize = nFiles * fileSize;
+  ASSERT_EQ(expectedTotalSize, source->getTreeSize());
+  ASSERT_EQ(expectedTotalSize, test->getTreeSize());
+  ASSERT_EQ(0u, dest->getTreeSize());
+
+  // Collect all container IDs for the BFS set
+  std::unordered_set<eos::IContainerMD::id_t> bfsIds;
+  bfsIds.insert(test->getId());
+  bfsIds.insert(source->getId());
+  bfsIds.insert(dest->getId());
+  bfsIds.insert(moveme->getId());
+
+  // Phase 1: Fence + drain + discard
+  accounting->fenceContainers(bfsIds);
+  accounting->drainFencedDeltas();
+  accounting->discardJournal();
+
+  // Simulate a concurrent move: move /test/source/moveme/ -> /test/dest/moveme/
+  // This is what _rename() does internally.
+  {
+    int64_t treeSize = static_cast<int64_t>(moveme->getTreeSize());
+    int64_t treeFiles = static_cast<int64_t>(moveme->getTreeFiles());
+    int64_t treeCont = static_cast<int64_t>(moveme->getTreeContainers());
+
+    // Remove from source
+    source->removeContainer("moveme");
+    accounting->RemoveTree(source.get(), {treeSize, treeFiles, treeCont});
+    containerSvc()->updateStore(source.get());
+
+    // Reparent
+    moveme->setName("moveme");
+    moveme->setParentId(dest->getId());
+    containerSvc()->updateStore(moveme.get());
+
+    // Add to dest
+    dest->addContainer(moveme.get());
+    accounting->AddTree(dest.get(), {treeSize, treeFiles, treeCont});
+    containerSvc()->updateStore(dest.get());
+  }
+
+  // Phase 2: Simulate BFS recompute (leaves to root)
+  // Recompute moveme (leaf)
+  {
+    moveme = containerSvc()->getContainerMD(moveme->getId());
+    eos::MDLocking::ContainerWriteLock wl(moveme.get());
+    moveme->setTreeSize(expectedTotalSize);
+    moveme->setTreeFiles(nFiles);
+    moveme->setTreeContainers(0);
+    containerSvc()->updateStore(moveme.get());
+  }
+  // Recompute source (now empty after move)
+  {
+    source = containerSvc()->getContainerMD(source->getId());
+    eos::MDLocking::ContainerWriteLock wl(source.get());
+    source->setTreeSize(0);
+    source->setTreeFiles(0);
+    source->setTreeContainers(0);
+    containerSvc()->updateStore(source.get());
+  }
+  // Recompute dest (now has moveme)
+  {
+    dest = containerSvc()->getContainerMD(dest->getId());
+    eos::MDLocking::ContainerWriteLock wl(dest.get());
+    dest->setTreeSize(expectedTotalSize);
+    dest->setTreeFiles(nFiles);
+    dest->setTreeContainers(1);
+    containerSvc()->updateStore(dest.get());
+  }
+  // Recompute test (root of BFS)
+  {
+    test = containerSvc()->getContainerMD(test->getId());
+    eos::MDLocking::ContainerWriteLock wl(test.get());
+    test->setTreeSize(expectedTotalSize);
+    test->setTreeFiles(nFiles);
+    test->setTreeContainers(3); // source + dest + moveme
+    containerSvc()->updateStore(test.get());
+  }
+
+  // Phase 3: Drain + unfence. The journal is discarded on unfence -- the
+  // BFS-set absolute values must stand uncorrupted.
+  accounting->drainFencedDeltas();
+  accounting->unfence();
+
+  // Verify: the BFS absolute values stand uncorrupted by the in-flight
+  // rename deltas.
+  source = view()->getContainer("/test/source/");
+  dest = view()->getContainer("/test/dest/");
+  test = view()->getContainer("/test/");
+
+  EXPECT_EQ(0u, source->getTreeSize());
+  EXPECT_EQ(0u, source->getTreeFiles());
+
+  EXPECT_EQ(expectedTotalSize, dest->getTreeSize());
+  EXPECT_EQ(static_cast<uint64_t>(nFiles), dest->getTreeFiles());
+
+  // Total at /test/ level is preserved
+  EXPECT_EQ(expectedTotalSize, test->getTreeSize());
+  EXPECT_EQ(static_cast<uint64_t>(nFiles), test->getTreeFiles());
+}
+
+//------------------------------------------------------------------------------
+// Test that without fencing, a move's deltas corrupt the recomputed values.
+// This is the "negative" test proving the race condition exists.
+// After the fix, this test demonstrates the difference between fenced and
+// unfenced behavior.
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, MoveWithoutFencingCorruptsTreeSize)
+{
+  auto* accounting = getContainerAccounting();
+  ASSERT_NE(nullptr, accounting);
+  const uint64_t fileSize = 1000;
+  const int nFiles = 5;
+
+  // Create /test/source/moveme/ with files and /test/dest/
+  view()->createContainer("/test/source/", true);
+  view()->createContainer("/test/source/moveme/", true);
+  view()->createContainer("/test/dest/", true);
+
+  for (int i = 0; i < nFiles; ++i) {
+    auto fmd = view()->createFile("/test/source/moveme/f" + std::to_string(i));
+    fmd->setSize(fileSize);
+    view()->updateFileStore(fmd.get());
+  }
+
+  ::sleep(6);
+
+  auto source = view()->getContainer("/test/source/");
+  auto dest = view()->getContainer("/test/dest/");
+  auto moveme = view()->getContainer("/test/source/moveme/");
+  const uint64_t expectedTotalSize = nFiles * fileSize;
+  ASSERT_EQ(expectedTotalSize, source->getTreeSize());
+
+  // Simulate move WITHOUT fencing (the bug scenario)
+  {
+    int64_t treeSize = static_cast<int64_t>(moveme->getTreeSize());
+    int64_t treeFiles = static_cast<int64_t>(moveme->getTreeFiles());
+    int64_t treeCont = static_cast<int64_t>(moveme->getTreeContainers());
+
+    source->removeContainer("moveme");
+    accounting->RemoveTree(source.get(), {treeSize, treeFiles, treeCont});
+    containerSvc()->updateStore(source.get());
+
+    moveme->setName("moveme");
+    moveme->setParentId(dest->getId());
+    containerSvc()->updateStore(moveme.get());
+
+    dest->addContainer(moveme.get());
+    accounting->AddTree(dest.get(), {treeSize, treeFiles, treeCont});
+    containerSvc()->updateStore(dest.get());
+  }
+
+  // Simulate recompute setting absolute values for source and dest
+  {
+    source = containerSvc()->getContainerMD(source->getId());
+    eos::MDLocking::ContainerWriteLock wl(source.get());
+    source->setTreeSize(0); // Correct: source is now empty
+    containerSvc()->updateStore(source.get());
+  }
+  {
+    dest = containerSvc()->getContainerMD(dest->getId());
+    eos::MDLocking::ContainerWriteLock wl(dest.get());
+    dest->setTreeSize(expectedTotalSize); // Correct: dest now has moveme
+    containerSvc()->updateStore(dest.get());
+  }
+
+  // Now let the accounting deltas from the move propagate on top of the
+  // recomputed absolute values — this is the bug!
+  ::sleep(6);
+
+  source = view()->getContainer("/test/source/");
+  dest = view()->getContainer("/test/dest/");
+
+  // Without fencing, the RemoveTree delta (-5000) is applied on top of the
+  // recomputed 0, causing underflow. The AddTree delta (+5000) is applied
+  // on top of the recomputed 5000, causing double-counting to 10000.
+  // The exact result depends on timing, but it will NOT be correct.
+  // We check that at least one of them is wrong.
+  bool sourceCorrect = (source->getTreeSize() == 0u);
+  bool destCorrect = (dest->getTreeSize() == expectedTotalSize);
+  // At least one should be wrong due to the race (the delta was applied
+  // on top of the absolute value set by recompute)
+  EXPECT_FALSE(sourceCorrect && destCorrect)
+      << "Expected race condition to corrupt tree sizes, but both were correct. "
+      << "source=" << source->getTreeSize() << " dest=" << dest->getTreeSize();
+}
+
+//------------------------------------------------------------------------------
+// EOS-6577 regression. After the BFS phase, TreeSizeSubcmd needs to (a) read
+// the set of containers that received deltas while fenced and (b) make that
+// dirty set the new fence. Doing these as two separate calls leaves a window
+// where a delta produced on a different thread can be diverted into the
+// just-emptied journal and then wiped by the second call. `collectAndFenceDirty
+// ()` performs both effects under a single write lock, so the race becomes
+// impossible.
+//
+// The test uses a real worker thread for the racing `createFile` so the
+// cross-thread pathway is exercised end-to-end. A condition variable forces
+// the worker to inject between two phases of the protocol so the test is
+// deterministic.
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, NarrowFenceDoesNotLoseConcurrentDelta)
+{
+  auto* accounting = getContainerAccounting();
+  ASSERT_NE(nullptr, accounting);
+
+  // Three sibling containers, each with a baseline file of size 1000.
+  view()->createContainer("/test/A/", true);
+  view()->createContainer("/test/B/", true);
+  view()->createContainer("/test/C/", true);
+
+  for (const char* path : {"/test/A/", "/test/B/", "/test/C/"}) {
+    auto fmd = view()->createFile(std::string(path) + "f0");
+    fmd->setSize(1000);
+    view()->updateFileStore(fmd.get());
+  }
+
+  ::sleep(6);
+
+  auto A = view()->getContainer("/test/A/");
+  auto B = view()->getContainer("/test/B/");
+  auto C = view()->getContainer("/test/C/");
+  ASSERT_EQ(1000u, A->getTreeSize());
+  ASSERT_EQ(1000u, B->getTreeSize());
+  ASSERT_EQ(1000u, C->getTreeSize());
+
+  // Worker handshake: orchestrator signals kInject after queuing its own
+  // delta for A; the worker creates a file under C on its own thread
+  // (with C still fenced under the wide BFS set) and signals kInjected.
+  enum class Stage { kWait, kInject, kInjected };
+  std::mutex stageMtx;
+  std::condition_variable stageCv;
+  Stage stage = Stage::kWait;
+
+  std::thread writer([&]() {
+    {
+      std::unique_lock<std::mutex> lk(stageMtx);
+      stageCv.wait(lk, [&] { return stage == Stage::kInject; });
+    }
+    auto newC = view()->createFile("/test/C/extra");
+    newC->setSize(700);
+    view()->updateFileStore(newC.get());
+    {
+      std::lock_guard<std::mutex> lk(stageMtx);
+      stage = Stage::kInjected;
+    }
+    stageCv.notify_all();
+  });
+
+  // Fence the BFS set {A, B, C}.
+  std::unordered_set<eos::IContainerMD::id_t> bfsIds = {A->getId(), B->getId(),
+                                                        C->getId()};
+  accounting->fenceContainers(bfsIds);
+
+  // Queue a delta for A on the orchestrator thread.
+  auto newA = view()->createFile("/test/A/extra");
+  newA->setSize(500);
+  view()->updateFileStore(newA.get());
+
+  // Signal the worker so its delta for C lands in the journal while C is
+  // still fenced under the wide BFS set.
+  {
+    std::lock_guard<std::mutex> lk(stageMtx);
+    stage = Stage::kInject;
+  }
+  stageCv.notify_all();
+  {
+    std::unique_lock<std::mutex> lk(stageMtx);
+    stageCv.wait(lk, [&] { return stage == Stage::kInjected; });
+  }
+  writer.join();
+
+  // Drain so both deltas (A from orchestrator, C from worker) are in the
+  // journal before we collect.
+  accounting->drainFencedDeltas();
+
+  // Atomically collect the dirty set and reduce the fence to exactly that
+  // set. Both A and C must be captured here -- otherwise a delta has been
+  // lost.
+  auto dirtyIds = accounting->collectAndFenceDirty();
+  EXPECT_EQ(2u, dirtyIds.size()) << "Concurrent delta was lost from the dirty set";
+  EXPECT_TRUE(dirtyIds.count(A->getId()));
+  EXPECT_TRUE(dirtyIds.count(C->getId()))
+      << "Container C's concurrent delta was dropped from the dirty set";
+
+  accounting->unfence();
+}
+
+//------------------------------------------------------------------------------
+// EOS-6577 regression: under sustained concurrent writes the async dirty
+// recompute loop in `AssistedRecomputeDirty` hits its absolute iteration cap
+// (`kMaxDirtyRecomputeIterations = 3` + a "final pass" with the same race),
+// then `unfence()` runs while deltas are still in the journal -- those
+// deltas are silently dropped. The fix in item 1.4 replaces the absolute
+// cap with shrink-based convergence detection so the loop keeps running as
+// long as progress is being made.
+//
+// The test hammers a single fenced container from several worker threads,
+// schedules an async recompute, lets them race for a short time, stops the
+// writers, and then asserts that the tree counts on the container equal the
+// baseline plus the actually-written files. On HEAD the cap fires and the
+// assertion sees drift.
+//------------------------------------------------------------------------------
+TEST_F(HierarchicalViewF, RecomputeConvergesUnderConcurrentWrites)
+{
+  auto* accounting = getContainerAccounting();
+  ASSERT_NE(nullptr, accounting);
+
+  // Baseline: container X with a known number of baseline files.
+  view()->createContainer("/test/X/", true);
+  constexpr int kBaselineFiles = 50;
+  constexpr uint64_t kBaselineSize = 100;
+
+  for (int i = 0; i < kBaselineFiles; ++i) {
+    auto fmd = view()->createFile("/test/X/baseline" + std::to_string(i));
+    fmd->setSize(kBaselineSize);
+    view()->updateFileStore(fmd.get());
+  }
+
+  ::sleep(6);
+
+  auto X = view()->getContainer("/test/X/");
+  ASSERT_EQ(kBaselineFiles * kBaselineSize, X->getTreeSize());
+  ASSERT_EQ(static_cast<uint64_t>(kBaselineFiles), X->getTreeFiles());
+
+  // Hammer X concurrently with the async recompute.
+  std::atomic<bool> stop{false};
+  std::atomic<int> writeCount{0};
+  constexpr int kNumWriters = 4;
+  constexpr uint64_t kWriterSize = 10;
+  std::vector<std::thread> writers;
+
+  for (int w = 0; w < kNumWriters; ++w) {
+    writers.emplace_back([&, w]() {
+      int n = 0;
+
+      while (!stop.load(std::memory_order_acquire)) {
+        try {
+          std::string name = "/test/X/w" + std::to_string(w) + "_" + std::to_string(n);
+          auto fmd = view()->createFile(name);
+          fmd->setSize(kWriterSize);
+          view()->updateFileStore(fmd.get());
+          writeCount.fetch_add(1, std::memory_order_relaxed);
+        } catch (...) {
+          // Tolerate transient namespace exceptions and keep going.
+        }
+
+        ++n;
+      }
+    });
+  }
+
+  // Fence X and hand it to the async dirty recompute.
+  std::unordered_set<eos::IContainerMD::id_t> bfsIds = {X->getId()};
+  accounting->fenceContainers(bfsIds);
+  accounting->scheduleRecompute(std::move(bfsIds));
+
+  // Let writers and the async recompute race long enough to exhaust the
+  // absolute iteration cap on HEAD.
+  std::this_thread::sleep_for(std::chrono::seconds(1));
+
+  stop.store(true, std::memory_order_release);
+
+  for (auto& t : writers) {
+    t.join();
+  }
+
+  // Wait for any remaining propagation to flush; the container is unfenced
+  // by this point, so trailing deltas should apply via the normal pipeline.
+  ::sleep(8);
+
+  X = view()->getContainer("/test/X/");
+  const uint64_t expectedFiles =
+      static_cast<uint64_t>(kBaselineFiles + writeCount.load());
+  const uint64_t expectedSize =
+      kBaselineFiles * kBaselineSize + writeCount.load() * kWriterSize;
+
+  EXPECT_EQ(expectedFiles, X->getTreeFiles())
+      << "Tree file count drifted under concurrent writes "
+         "(recompute iteration cap likely hit)";
+  EXPECT_EQ(expectedSize, X->getTreeSize())
+      << "Tree size drifted under concurrent writes "
+         "(recompute iteration cap likely hit)";
 }

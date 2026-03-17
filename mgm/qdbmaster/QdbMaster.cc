@@ -22,30 +22,31 @@
  ************************************************************************/
 
 #include "mgm/qdbmaster/QdbMaster.hh"
+#include "common/IntervalStopwatch.hh"
+#include "common/ShellCmd.hh"
+#include "common/plugin_manager/PluginManager.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/devices/Devices.hh"
+#include "mgm/fsck/Fsck.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/lru/LRU.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/quota/Quota.hh"
-#include "mgm/access/Access.hh"
-#include "mgm/wfe/WFE.hh"
-#include "mgm/fsck/Fsck.hh"
-#include "mgm/lru/LRU.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/devices/Devices.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/convert/ConverterEngine.hh"
-#include "mgm/config/IConfigEngine.hh"
 #include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/wfe/WFE.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IFsView.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/IQuota.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/interface/INamespaceGroup.hh"
-#include "common/plugin_manager/PluginManager.hh"
-#include "common/IntervalStopwatch.hh"
+#include "namespace/interface/IQuota.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include <qclient/QClient.hh>
-#include "common/ShellCmd.hh"
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -129,8 +130,11 @@ QdbMaster::BootNamespace()
   gOFS->eosFileService = gOFS->namespaceGroup->getFileService();
   gOFS->eosView = gOFS->namespaceGroup->getHierarchicalView();
   gOFS->eosFsView = gOFS->namespaceGroup->getFilesystemView();
-  gOFS->eosContainerAccounting =
-    gOFS->namespaceGroup->getContainerAccountingView();
+  // QuarkContainerAccounting is the only IFileMDChangeListener implementation
+  // returned here; down-cast once so call sites can use the concrete API
+  // (including RecomputeSubtreeWithFencing) without per-call casting.
+  gOFS->eosContainerAccounting = static_cast<eos::QuarkContainerAccounting*>(
+      gOFS->namespaceGroup->getContainerAccountingView());
   gOFS->eosSyncTimeAccounting = gOFS->namespaceGroup->getSyncTimeAccountingView();
 
   if (!gOFS->eosDirectoryService || !gOFS->eosFileService || !gOFS->eosView ||
@@ -383,7 +387,7 @@ void QdbMaster::PostSlaveToMaster(std::string old_master,
                        + " '" + new_master + "'";
   eos::common::ShellCmd cmd(script);
   auto status = cmd.wait(POST_SLAVE_TO_MASTER_TIMEOUT);
-  
+
   if (status.exit_code) {
     eos_static_warning("msg=\"post slave to master script failed\" "
                        "script=\"%s\" retcode=%d", script.c_str(),
