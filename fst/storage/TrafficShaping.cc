@@ -4,7 +4,6 @@
 namespace eos::fst::traffic_shaping {
 IoStatsEntry::IoStatsEntry()
 {
-  // Use the creation timestamp as the Generation ID
   const auto now = std::chrono::system_clock::now().time_since_epoch();
   generation_id = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 

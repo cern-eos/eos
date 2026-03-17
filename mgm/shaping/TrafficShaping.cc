@@ -11,9 +11,80 @@
 #include <dlfcn.h>
 #include <google/protobuf/util/json_util.h>
 #include <set>
+#include <sstream>
 #include <sys/stat.h>
 
 namespace eos::mgm::traffic_shaping {
+
+uint64_t
+TrafficShapingPolicy::GetEffectiveWriteLimit() const
+{
+  uint64_t active_user_limit = is_enabled ? limit_write_bytes_per_sec : 0;
+  if (active_user_limit > 0 && controller_limit_write_bytes_per_sec > 0) {
+    return std::min(active_user_limit, controller_limit_write_bytes_per_sec);
+  }
+  return active_user_limit > 0 ? active_user_limit : controller_limit_write_bytes_per_sec;
+}
+
+uint64_t
+TrafficShapingPolicy::GetEffectiveReadLimit() const
+{
+  uint64_t active_user_limit = is_enabled ? limit_read_bytes_per_sec : 0;
+  if (active_user_limit > 0 && controller_limit_read_bytes_per_sec > 0) {
+    return std::min(active_user_limit, controller_limit_read_bytes_per_sec);
+  }
+  return active_user_limit > 0 ? active_user_limit : controller_limit_read_bytes_per_sec;
+}
+
+bool
+TrafficShapingPolicy::IsEmpty() const
+{
+  return limit_write_bytes_per_sec == 0 && limit_read_bytes_per_sec == 0 &&
+         reservation_write_bytes_per_sec == 0 && reservation_read_bytes_per_sec == 0 &&
+         controller_limit_write_bytes_per_sec == 0 &&
+         controller_limit_read_bytes_per_sec == 0;
+}
+
+bool
+TrafficShapingPolicy::IsActive() const
+{
+  const bool has_user_rules =
+      limit_write_bytes_per_sec > 0 || limit_read_bytes_per_sec > 0 ||
+      reservation_write_bytes_per_sec > 0 || reservation_read_bytes_per_sec > 0;
+  const bool has_controller_rules =
+      controller_limit_write_bytes_per_sec > 0 || controller_limit_read_bytes_per_sec > 0;
+  return has_controller_rules || (is_enabled && has_user_rules);
+}
+
+bool
+TrafficShapingPolicy::operator==(const TrafficShapingPolicy& policy) const
+{
+  return limit_write_bytes_per_sec == policy.limit_write_bytes_per_sec &&
+         limit_read_bytes_per_sec == policy.limit_read_bytes_per_sec &&
+         reservation_write_bytes_per_sec == policy.reservation_write_bytes_per_sec &&
+         reservation_read_bytes_per_sec == policy.reservation_read_bytes_per_sec &&
+         is_enabled == policy.is_enabled;
+}
+
+bool
+TrafficShapingPolicy::operator!=(const TrafficShapingPolicy& policy) const
+{
+  return !(*this == policy);
+}
+
+std::string
+TrafficShapingPolicy::ToString() const
+{
+  std::ostringstream oss;
+  oss << (is_enabled ? "Enabled" : "Disabled") << ", "
+      << "Read Limit: " << limit_read_bytes_per_sec << " Bps, "
+      << "Write Limit: " << limit_write_bytes_per_sec << " Bps, "
+      << "Read Reservation: " << reservation_read_bytes_per_sec << " Bps, "
+      << "Write Reservation: " << reservation_write_bytes_per_sec << " Bps, "
+      << "Controller Read Limit: " << controller_limit_read_bytes_per_sec << " Bps, "
+      << "Controller Write Limit: " << controller_limit_write_bytes_per_sec << " Bps";
+  return oss.str();
+}
 
 TrafficShapingManager::TrafficShapingManager() = default;
 
@@ -142,8 +213,8 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
     uint64_t delta_bytes_written = 0;
     uint64_t delta_read_iops = 0;
     uint64_t delta_write_iops = 0;
-    bool is_first_stream_contact =
-        (state.last_update_time == std::chrono::steady_clock::time_point{});
+    const bool is_first_stream_contact =
+        state.last_update_time == std::chrono::steady_clock::time_point{};
 
     // Handle New Streams, MGM Restarts, and FST Restarts
     if (is_first_stream_contact || state.generation_id != entry.generation_id()) {
@@ -339,12 +410,20 @@ TrafficShapingManager::CalculateDelayUs(const double limit_bps,
   }
 
   // --- Tuning Constants ---
-  constexpr uint64_t kMaxDelayUs = 2000000;        // 2 seconds max artificial delay
-  constexpr int64_t kMaxStepUs = kMaxDelayUs / 25; // Max delta per tick
-  // ------------------------
+  constexpr uint64_t kMaxDelayUs = 2000000;          // 2 seconds max artificial delay
+  constexpr int64_t kMaxStepUpUs = kMaxDelayUs / 25; // Max delta to ADD per tick (80ms)
+  // Allow faster recovery: shed delay 2.5x faster than we add it.
+  constexpr int64_t kMaxStepDownUs =
+      kMaxDelayUs / 10;                   // Max delta to REMOVE per tick (200ms)
+  constexpr double kIdleThreshold = 0.01; // < 1% of limit => no meaningful traffic
 
   const double ratio = current_rate_bps / limit_bps;
   uint64_t delay_us = current_delay_us;
+
+  // 0. Idle freeze: preserve the current delay when traffic is essentially absent.
+  if (current_rate_bps < limit_bps * kIdleThreshold) {
+    return delay_us;
+  }
 
   // 1. Kickstart the delay if we breach the limit for the first time
   if (delay_us == 0 && ratio > 1.0) {
@@ -352,20 +431,22 @@ TrafficShapingManager::CalculateDelayUs(const double limit_bps,
   }
   // 2. Adjust the delay using a proportional feedback loop
   else if (delay_us > 0) {
-    // Asymmetric Proportional Gain (kp): react faster to spikes, recover slower when safe
-    const double kp = (ratio > 1.0) ? 0.15 : 0.05;
+    // Asymmetric Proportional Gain (kp):
+    // Bumped the recovery gain from 0.05 to 0.10 so it bounces back from undershoots
+    // faster.
+    const double kp = (ratio > 1.0) ? 0.15 : 0.10;
     const double damped_ratio = 1.0 + ((ratio - 1.0) * kp);
 
     const auto current_delay_signed = static_cast<int64_t>(delay_us);
     const auto target_delay =
         static_cast<int64_t>(static_cast<double>(current_delay_signed) * damped_ratio);
 
-    // Apply the step limits to prevent massive overcorrections
+    // Apply the asymmetric step limits
     int64_t delta_us = target_delay - current_delay_signed;
-    if (delta_us > kMaxStepUs) {
-      delta_us = kMaxStepUs;
-    } else if (delta_us < -kMaxStepUs) {
-      delta_us = -kMaxStepUs;
+    if (delta_us > kMaxStepUpUs) {
+      delta_us = kMaxStepUpUs;
+    } else if (delta_us < -kMaxStepDownUs) {
+      delta_us = -kMaxStepDownUs;
     }
 
     delay_us = static_cast<uint64_t>(current_delay_signed + delta_us);
@@ -791,10 +872,6 @@ TrafficShapingManager::GetTotalStats() const
   snap.sma = mTotalStats.sma;
   return snap;
 }
-
-// --------------------------------------------------------------------------------------
-// ENGINE IMPLEMENTATION
-// --------------------------------------------------------------------------------------
 
 TrafficShapingEngine::TrafficShapingEngine()
     : mRunning(false)
