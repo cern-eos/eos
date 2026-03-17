@@ -268,6 +268,8 @@ FsckEntry::RepairBestEffort()
   }
 
   if (ref_fsid == 0) {
+    //@todo(esindril) if the file in the namespace is 0 size with correct
+    // 0-size checksum then we could consider this as repaired!
     eos_static_err("msg=\"no suitable replica for best-effort repair found\" "
                    "fxid=%08llx", mFid);
     return false;
@@ -415,7 +417,10 @@ FsckEntry::RepairMgmXsSzDiff()
       continue;
     }
 
-    if (finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
+    // If we have an un-scanned replica that is different from the one we are
+    // trying to repair then we need to wait for the scanner.
+    if (finfo->mFstFmd.mProtoFmd.diskchecksum().empty() &&
+        (mFsidErr.find(it->first) == mFsidErr.end())) {
       eos_info("msg=\"skip mgm xs/sz diff repair due to un-scanned replica\" "
                "fxid=%08llx", mFid);
       return false;
