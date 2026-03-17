@@ -22,19 +22,72 @@
  ************************************************************************/
 
 #pragma once
+#include "common/AssistedThread.hh"
+#include "common/ConcurrentQueue.hh"
+#include "common/RWMutex.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "common/AssistedThread.hh"
+#include <atomic>
+#include <condition_variable>
 #include <mutex>
 #include <thread>
-#include <vector>
-#include <utility>
 #include <unordered_map>
-#include <atomic>
-#include "common/ConcurrentQueue.hh"
+#include <unordered_set>
+#include <utility>
+#include <vector>
 
 EOSNSNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+//! Source of a tree size delta, used to distinguish file changes from directory
+//! moves so that the recompute fencing can selectively re-apply deltas
+//------------------------------------------------------------------------------
+enum class DeltaSource : uint8_t {
+  kFileChange = 0, ///< File creation, deletion, or size change
+  kRename = 1      ///< Directory/file move (rename operations)
+};
+
+//------------------------------------------------------------------------------
+//! RAII scope guard that sets the thread-local DeltaSource for all accounting
+//! events generated on the current thread. Use this in rename/move operations
+//! so that addContainer/removeContainer/addFile/removeFile events are tagged
+//! as kRename instead of the default kFileChange.
+//!
+//! Example:
+//!   {
+//!     DeltaSourceScope moveScope(DeltaSource::kRename);
+//!     dir->removeContainer("child");
+//!     newdir->addContainer(child.get());
+//!   } // automatically resets to kFileChange
+//------------------------------------------------------------------------------
+class DeltaSourceScope {
+public:
+  explicit DeltaSourceScope(DeltaSource source);
+  ~DeltaSourceScope();
+  DeltaSourceScope(const DeltaSourceScope&) = delete;
+  DeltaSourceScope& operator=(const DeltaSourceScope&) = delete;
+
+private:
+  DeltaSource mPrevious;
+};
+
+//------------------------------------------------------------------------------
+//! Get the thread-local DeltaSource that fileMDChanged should use for tagging
+//! events on the current thread. Defaults to kFileChange.
+//------------------------------------------------------------------------------
+DeltaSource getThreadLocalDeltaSource();
+
+//------------------------------------------------------------------------------
+//! Tree size deltas tagged by source. Allows the fencing journal to track
+//! file-change and tree-move deltas separately.
+//------------------------------------------------------------------------------
+struct TaggedTreeInfos {
+  TreeInfos fileChanges; ///< Accumulated file-change deltas
+  TreeInfos renameDeltas; ///< Accumulated rename deltas
+  bool hadFileChangeActivity =
+      false; ///< True if any kFileChange event touched this entry
+};
 
 //------------------------------------------------------------------------------
 //! Container subtree accounting listener
@@ -112,7 +165,8 @@ public:
   //! @param pid container id
   //! @param dsize size change
   //----------------------------------------------------------------------------
-  void QueueForUpdate(IContainerMD::id_t pid, TreeInfos treeInfos);
+  void QueueForUpdate(IContainerMD::id_t pid, TreeInfos treeInfos,
+                      DeltaSource source = DeltaSource::kFileChange);
 
   //----------------------------------------------------------------------------
   //! Propagate updates in the hierarchical structure
@@ -129,6 +183,75 @@ public:
   //!        update should be done in the calling thread.
   //----------------------------------------------------------------------------
   void AsyncQueueForUpdate(ThreadAssistant * assistant = nullptr);
+
+  //----------------------------------------------------------------------------
+  //! Fence a set of container IDs. While fenced, PropagateUpdates will divert
+  //! deltas for these containers into a journal instead of applying them to the
+  //! namespace. This is used by recompute_tree_size to prevent stale deltas
+  //! from corrupting the recomputed absolute values.
+  //!
+  //! @param ids set of container IDs to fence
+  //----------------------------------------------------------------------------
+  void fenceContainers(const std::unordered_set<IContainerMD::id_t>& ids);
+
+  //----------------------------------------------------------------------------
+  //! Drain all in-flight deltas: wait for the concurrent queue to empty and
+  //! for PropagateUpdates to complete two full cycles. After this returns, all
+  //! pre-existing deltas for fenced containers are in the journal.
+  //----------------------------------------------------------------------------
+  void drainFencedDeltas();
+
+  //----------------------------------------------------------------------------
+  //! Discard all deltas currently held in the recompute journal.
+  //----------------------------------------------------------------------------
+  void discardJournal();
+
+  //----------------------------------------------------------------------------
+  //! Collect file-change deltas from the journal and clear the journal.
+  //! Tree-move deltas (from AddTree/RemoveTree) are discarded. The returned
+  //! deltas can be re-applied after unfencing to preserve file changes that
+  //! occurred during the BFS recompute.
+  //!
+  //! @return map of container ID to file-change TreeInfos deltas
+  //----------------------------------------------------------------------------
+  std::unordered_map<IContainerMD::id_t, TreeInfos> collectFileChangeDeltas();
+
+  //----------------------------------------------------------------------------
+  //! Collect the set of container IDs that had file-change deltas in the
+  //! journal, then clear the journal. Rename deltas are ignored.
+  //! Unlike collectFileChangeDeltas(), this returns only the container IDs
+  //! (not the delta values), allowing the caller to recompute those containers
+  //! from current state rather than re-applying net deltas.
+  //!
+  //! @return set of container IDs that had file-change activity during fencing
+  //----------------------------------------------------------------------------
+  std::unordered_set<IContainerMD::id_t> collectDirtyContainerIds();
+
+  //----------------------------------------------------------------------------
+  //! Clear the fenced set and discard the journal, resuming normal delta
+  //! propagation for all containers.
+  //----------------------------------------------------------------------------
+  void unfence();
+
+  //----------------------------------------------------------------------------
+  //! Set the file metadata service pointer, needed for async recompute of
+  //! dirty containers (iterating files to compute tree size).
+  //!
+  //! @param svc file metadata service
+  //----------------------------------------------------------------------------
+  void setFileMDSvc(IFileMDSvc* svc);
+
+  //----------------------------------------------------------------------------
+  //! Schedule an asynchronous recompute of a set of dirty containers.
+  //! Each container is re-read from current namespace state (files + children)
+  //! and its tree values are set to the correct absolute values. The delta
+  //! between old and new values is propagated to ancestors via the normal
+  //! accounting pipeline. This provides eventual consistency for containers
+  //! whose tree values may have been captured in an intermediate state by BFS.
+  //!
+  //! @param ids set of container IDs to recompute
+  //----------------------------------------------------------------------------
+  void scheduleRecompute(std::unordered_set<IContainerMD::id_t>&& ids);
 
 private:
 
@@ -148,11 +271,32 @@ private:
   //----------------------------------------------------------------------------
   void AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept;
 
+  //----------------------------------------------------------------------------
+  //! Async recompute thread: picks up dirty container IDs and recomputes
+  //! their tree values from current namespace state.
+  //!
+  //! @param assistant thread doing the recompute
+  //----------------------------------------------------------------------------
+  void AssistedRecomputeDirty(ThreadAssistant& assistant) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Recompute a single container's tree values from current namespace state.
+  //! Reads all files and child containers, computes correct absolute values.
+  //! If the parent is not in the dirty set, queues a delta correction for the
+  //! parent via the normal accounting pipeline.
+  //!
+  //! @param id container ID to recompute
+  //! @param dirtySet the full set of dirty container IDs (to avoid
+  //!        propagating deltas to parents that will be recomputed themselves)
+  //----------------------------------------------------------------------------
+  void recomputeContainer(IContainerMD::id_t id,
+                          const std::unordered_set<IContainerMD::id_t>& dirtySet);
+
   //! Update structure containing the nodes that need an update. We try to
   //! optimise the number of updates to the backend by computing the final
   //! size deltas from a number of individual updates.
   struct UpdateT {
-    std::unordered_map<IContainerMD::id_t, TreeInfos> mMap; ///< Map updates
+    std::unordered_map<IContainerMD::id_t, TaggedTreeInfos> mMap; ///< Map updates
   };
 
   //! Vector of two elements containing the batch which is currently being
@@ -166,7 +310,43 @@ private:
   AssistedThread mQueueForUpdateThread; ///< Thread update queueing thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< container MD service
-  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, TreeInfos>>  mIdTreeInfosToUpdateQueue; ///< Queue containing containerIds and their corresponding infos to update
+  //! Entry in the update queue, carrying the delta source tag
+  struct QueueEntry {
+    IContainerMD::id_t id = 0;
+    TreeInfos delta;
+    DeltaSource source = DeltaSource::kFileChange;
+    QueueEntry() = default;
+    QueueEntry(IContainerMD::id_t i, TreeInfos d, DeltaSource s)
+        : id(i)
+        , delta(d)
+        , source(s)
+    {
+    }
+  };
+  eos::common::ConcurrentQueue<QueueEntry>
+      mIdTreeInfosToUpdateQueue; ///< Queue containing containerIds and their
+                                 ///< corresponding infos to update
+
+  //! @name Recompute fencing (prevents race between recompute_tree_size and rename)
+  //! @{
+  eos::common::RWMutex mFenceMutex; ///< Protects mFencedIds and mRecomputeJournal
+  std::unordered_set<IContainerMD::id_t> mFencedIds; ///< Containers being recomputed
+  std::unordered_map<IContainerMD::id_t, TaggedTreeInfos>
+      mRecomputeJournal;                           ///< Diverted deltas (tagged by source)
+  std::atomic<bool> mDrainRequested{false};        ///< Skip sleep in PropagateUpdates
+  std::atomic<uint64_t> mPropagationCycleCount{0}; ///< Drain synchronization counter
+  std::mutex mDrainCompleteMutex;                  ///< Protects mDrainCompleteCV
+  std::condition_variable mDrainCompleteCV; ///< Notified after each propagation cycle
+  //! @}
+
+  //! @name Async dirty container recompute
+  //! @{
+  IFileMDSvc* mFileMDSvc{nullptr};           ///< File MD service (set via setFileMDSvc)
+  AssistedThread mDirtyRecomputeThread;      ///< Thread recomputing dirty containers
+  std::mutex mDirtyRecomputeMutex;           ///< Protects mPendingDirtyRecompute
+  std::condition_variable mDirtyRecomputeCV; ///< Signals new dirty IDs available
+  std::unordered_set<IContainerMD::id_t> mPendingDirtyRecompute; ///< Dirty container IDs
+  //! @}
 };
 
 EOSNSNAMESPACE_END

@@ -42,6 +42,7 @@
 #include "common/Definitions.hh"
 #include "namespace/Constants.hh"
 #include "namespace/interface/ContainerIterators.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/utils/Attributes.hh"
 #include "namespace/utils/Checksum.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"

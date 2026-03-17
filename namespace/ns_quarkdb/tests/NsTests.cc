@@ -21,18 +21,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-
 #include "NsTests.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
-#include <sstream>
 #include <fstream>
 #include <qclient/QClient.hh>
+#include <sstream>
 
 EOSNSTESTING_BEGIN
 
@@ -143,6 +143,14 @@ eos::IView* NsTests::view()
 {
   initServices();
   return namespaceGroupPtr->getHierarchicalView();
+}
+
+eos::QuarkContainerAccounting*
+NsTests::getContainerAccounting()
+{
+  initServices();
+  auto* accountingView = namespaceGroupPtr->getContainerAccountingView();
+  return dynamic_cast<eos::QuarkContainerAccounting*>(accountingView);
 }
 
 eos::IFsView* NsTests::fsview()

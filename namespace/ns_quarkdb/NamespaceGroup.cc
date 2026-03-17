@@ -247,6 +247,7 @@ IFileMDChangeListener* QuarkNamespaceGroup::getContainerAccountingView()
 
   if (!mContainerAccounting) {
     mContainerAccounting.reset(new QuarkContainerAccounting(getContainerService()));
+    mContainerAccounting->setFileMDSvc(getFileService());
     getFileService()->addChangeListener(mContainerAccounting.get());
     getContainerService()->setContainerAccounting(mContainerAccounting.get());
   }
@@ -364,4 +365,3 @@ QuarkNamespaceGroup::getPerformanceMonitor()
 }
 
 EOSNSNAMESPACE_END
-

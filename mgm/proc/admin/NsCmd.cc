@@ -22,31 +22,33 @@
  ************************************************************************/
 
 #include "NsCmd.hh"
+#include "common/BehaviourConfig.hh"
+#include "common/LinuxFds.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
-#include "common/LinuxFds.hh"
-#include "common/BehaviourConfig.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/fsck/Fsck.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/zmq/ZMQ.hh"
+#include "namespace/Constants.hh"
+#include "namespace/Resolver.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
-#include "namespace/Resolver.hh"
-#include "namespace/Constants.hh"
-#include "mgm/config/IConfigEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
-#include "mgm/fsck/Fsck.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/zmq/ZMQ.hh"
-#include "mgm/convert/ConverterEngine.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include <sstream>
+#include <unordered_set>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -831,7 +833,27 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
   std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
   std::list< std::list<eos::IContainerMD::id_t> > bfs =
     BreadthFirstSearchContainers(cont.get(), tree.depth());
+  // Collect all container IDs in the BFS set for fencing
+  std::unordered_set<eos::IContainerMD::id_t> bfsIds;
 
+  for (const auto& level : bfs) {
+    for (const auto& id : level) {
+      bfsIds.insert(id);
+    }
+  }
+
+  // Fence containers in the accounting system to prevent stale deltas from
+  // corrupting the recomputed absolute values (EOS-6577)
+  auto* accounting =
+      dynamic_cast<eos::QuarkContainerAccounting*>(gOFS->eosContainerAccounting);
+
+  if (accounting) {
+    accounting->fenceContainers(bfsIds);
+    accounting->drainFencedDeltas();
+    accounting->discardJournal();
+  }
+
+  // BFS recompute: process from leaves to root
   for (auto it_level = bfs.crbegin(); it_level != bfs.crend(); ++it_level) {
     for (const auto& id : *it_level) {
       try {
@@ -842,6 +864,26 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
       }
 
       UpdateTreeSize(tmp_cont);
+    }
+  }
+
+  // Drain to capture any deltas queued during the BFS into the journal.
+  // Identify containers that had file-change activity during the BFS and
+  // schedule an async recompute from current state. Dirty containers remain
+  // fenced (narrowed from the full BFS set) while the async thread recomputes
+  // them, preventing race conditions with normal delta propagation. The async
+  // thread unfences after processing. (EOS-6577)
+  if (accounting) {
+    accounting->drainFencedDeltas();
+    auto dirtyIds = accounting->collectDirtyContainerIds();
+
+    if (!dirtyIds.empty()) {
+      // Narrow the fence to just the dirty containers
+      accounting->fenceContainers(dirtyIds);
+      accounting->scheduleRecompute(std::move(dirtyIds));
+      // The async recompute thread will unfence after processing
+    } else {
+      accounting->unfence();
     }
   }
 }

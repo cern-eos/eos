@@ -439,6 +439,9 @@ XrdMgmOfs::_rename(const char* old_name,
             auto locks = helper.lockAll();
             COMMONTIMING("rename::move_file_to_different_container_dirs_file_write_lock",
                          &tm);
+            // Tag all accounting events from the file move as kRename so the
+            // recompute fencing protocol discards them (BFS captures moves).
+            eos::DeltaSourceScope renameScope(eos::DeltaSource::kRename);
             dir->removeFile(oPath.GetName());
             dir->setMTimeNow();
             dir->notifyMTimeChange(gOFS->eosDirectoryService);
@@ -730,6 +733,9 @@ XrdMgmOfs::_rename(const char* old_name,
             int64_t tree_size = static_cast<int64_t>(rdir->getTreeSize());
             int64_t tree_files = static_cast<int64_t>(rdir->getTreeFiles());
             int64_t tree_cont = static_cast<int64_t>(rdir->getTreeContainers());
+            // Tag all accounting events from the move as kRename so the
+            // recompute fencing protocol discards them (BFS captures moves).
+            eos::DeltaSourceScope renameScope(eos::DeltaSource::kRename);
             {
               // update the source directory - remove the directory
               dir->removeContainer(oPath.GetName());

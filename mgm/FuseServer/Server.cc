@@ -22,35 +22,36 @@
  ************************************************************************/
 
 #include "mgm/FuseServer/Server.hh"
-#include "mgm/misc/Constants.hh"
+#include "common/Definitions.hh"
+#include "common/Logging.hh"
+#include "common/Path.hh"
 #include "mgm/acl/Acl.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/misc/AuditHelpers.hh"
+#include "mgm/misc/Constants.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
 #include "mgm/recycle/Recycle.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
-#include "mgm/zmq/ZMQ.hh"
 #include "mgm/stat/Stat.hh"
 #include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/workflow/Workflow.hh"
 #include "mgm/xattr/XattrLock.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/interface/IFileMD.hh"
-#include "namespace/interface/IContainerMD.hh"
-#include "namespace/interface/ContainerIterators.hh"
+#include "mgm/zmq/ZMQ.hh"
 #include "namespace/Prefetcher.hh"
+#include "namespace/interface/ContainerIterators.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/utils/Attributes.hh"
-#include "common/Path.hh"
-#include "common/Logging.hh"
-#include "common/Definitions.hh"
+#include "namespace/utils/Checksum.hh"
+#include "proto/Audit.pb.h"
+#include <cstdlib>
 #include <google/protobuf/util/json_util.h>
 #include <string>
-#include <cstdlib>
 #include <thread>
-#include "proto/Audit.pb.h"
-#include "namespace/utils/Checksum.hh"
-#include "mgm/misc/AuditHelpers.hh"
 
 USE_EOSMGMNAMESPACE
 
@@ -1556,6 +1557,9 @@ Server::OpSetDirectory(const std::string& id,
 
         eos_info("msg=\"mv detach source from parent\" moving %lx => %lx",
                  cmd->getParentId(), md.md_pino());
+        // Tag all accounting events from the move as kRename so the
+        // recompute fencing protocol discards them (BFS captures moves).
+        eos::DeltaSourceScope renameScope(eos::DeltaSource::kRename);
         cpcmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
         cpcmd->removeContainer(cmd->getName());
 
@@ -2027,6 +2031,9 @@ Server::OpSetFile(const std::string& id,
           }
 
           // add file to new directory
+          // Tag all accounting events from the file move as kRename so the
+          // recompute fencing protocol discards them (BFS captures moves).
+          eos::DeltaSourceScope renameScope(eos::DeltaSource::kRename);
           eos::IContainerMD::id_t old_cid = fmd->getContainerId();
           pcmd->addFile(fmd.get());
           // remove file from previous directory
@@ -2752,6 +2759,9 @@ Server::OpSetLink(const std::string& id,
 
       if (fmd->getContainerId() != md.md_pino()) {
         op = MOVE;
+        // Tag all accounting events from the symlink move as kRename so the
+        // recompute fencing protocol discards them (BFS captures moves).
+        eos::DeltaSourceScope renameScope(eos::DeltaSource::kRename);
         eos_info("op=MOVE ino=%#lx %s=>%s", (long) md.md_ino(), fmd->getName().c_str(),
                  md.name().c_str());
         opcmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
