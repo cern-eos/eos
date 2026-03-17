@@ -56,9 +56,7 @@ UPPER_BOUND=1350000
 echo ""
 echo "--- Testing Baseline System and Reporting Engine ---"
 xrdcp ${TEST_FILE_10MB} "${DEST_URL}/10mb.dat?eos.app=traffic-shaping-test-app" -f > /dev/null
-sleep 2
-xrdcp ${TEST_FILE_10MB} "${DEST_URL}/10mb.dat?eos.app=traffic-shaping-test-app" -f > /dev/null
-sleep 3
+sleep 1
 
 JSON_RESULT=$(eos io shaping ls --window 15 --sys --json)
 
@@ -66,6 +64,7 @@ if echo "$JSON_RESULT" | jq -e '.[] | select(.id == "traffic-shaping-test-app") 
   echo "✅ Success: Baseline traffic detected."
 else
   echo "❌ Error: Baseline traffic missing."
+  echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -99,6 +98,7 @@ if echo "$JSON_RESULT" | jq -e --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BO
 else
   RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "throttle-test-app") | .write_rate_bps // 0')
   echo "❌ Error: Expected ~1MB/s, got $RATE bps."
+  echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -129,6 +129,7 @@ if echo "$JSON_RESULT" | jq -e --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BO
 else
   RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "19999") | .write_rate_bps // 0')
   echo "❌ Error: Expected ~1MB/s, got $RATE bps."
+  echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -159,6 +160,7 @@ if echo "$JSON_RESULT" | jq -e --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BO
 else
   RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "18888") | .write_rate_bps // 0')
   echo "❌ Error: Expected ~1MB/s, got $RATE bps."
+  echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -190,6 +192,7 @@ if echo "$JSON_RESULT" | jq -e --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BO
 else
   RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "read-throttle-app") | .read_rate_bps // 0')
   echo "❌ Error: Expected ~1MB/s, got $RATE bps."
+  echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -228,6 +231,7 @@ if echo "$JSON_RESULT" | jq -e --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BO
 else
   RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "toggle-test-app") | .write_rate_bps // 0')
   echo "❌ Error: Policy toggle failed. Got $RATE bps."
+  echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -269,6 +273,7 @@ if echo "$JSON_RESULT" | jq -e --argjson l 1600000 --argjson u 2400000 '.[] | se
 else
   RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "dynamic-limit-app") | .write_rate_bps // 0')
   echo "❌ Error: PID convergence failed. Got $RATE bps."
+  echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -295,6 +300,7 @@ if (( $(echo "$RATE_1S > 0" | bc -l) )) && (( $(echo "$RATE_5S > 0" | bc -l) ));
   echo "✅ Success: Both windows report non-zero rates (1s: $RATE_1S bps, 5s: $RATE_5S bps)."
 else
   echo "❌ Error: Zero rate detected. 1s: $RATE_1S bps, 5s: $RATE_5S bps."
+  echo "Debug Info: 1s: $RESULT_1S, 5s: $RESULT_5S"
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -333,6 +339,7 @@ if (( $(echo "$RW_W_RATE > $LOWER_BOUND" | bc -l) )) && (( $(echo "$RW_R_RATE > 
   echo "✅ Success: Both independently throttled (R: $RW_R_RATE, W: $RW_W_RATE)."
 else
   echo "❌ Error: R/W failure. R: $RW_R_RATE, W: $RW_W_RATE."
+  echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 

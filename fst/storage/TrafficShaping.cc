@@ -4,8 +4,7 @@
 namespace eos::fst::traffic_shaping {
 IoStatsEntry::IoStatsEntry()
 {
-  // Use the steady clock for a monotonic, NTP-safe generation ID
-  const auto now = std::chrono::steady_clock::now().time_since_epoch();
+  const auto now = std::chrono::system_clock::now().time_since_epoch();
   generation_id = std::chrono::duration_cast<std::chrono::milliseconds>(now).count();
 
   // Set initial activity timestamp
