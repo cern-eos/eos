@@ -16,10 +16,31 @@ Introduction
 
 This release is based on XRootD V5.
 
-``v5.4.0 Diopside``
+``v5.4.1 Diopside``
 ===================
 
-* **WARNING : Instructions to upgrade from 5.3.X to 5.4.X will be provided soon. We discourage upgrading to that EOS version before then.**
+2026-03-18
+
+Bug
+----
+
+* [EOS-6570] - Fuse file move does not update tree size and no. of files
+* [EOS-6571] - FST crashes due to SIGFPE
+* [EOS-6576] - FST individual stripe checksum not properly bandwidth limited
+
+Improvement
+------------
+
+* [EOS-3963] - Retire Schedule2Delete in favor of the FST manually checking its own unlinked file list
+
+User Documentation
+--------------------
+
+* [EOS-6574] - Document FUSE Client recovery avoiding Reboot for FNAL
+
+
+``v5.4.0 Diopside``
+===================
 
 2026-02-27
 
