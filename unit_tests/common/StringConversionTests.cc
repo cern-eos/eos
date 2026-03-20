@@ -196,4 +196,55 @@ TEST(StringConversion, ReplaceStringInPlace)
   ASSERT_STREQ("aabbccddxyeeffggxyhhiijjxy", input.c_str());
 }
 
+TEST(StringConversion, TokenizeQuoted)
+{
+  std::vector<std::string> tokens;
+
+  StringConversion::TokenizeQuoted("", tokens, " ");
+  ASSERT_EQ(tokens.size(), 0u);
+  tokens.clear();
+
+  StringConversion::TokenizeQuoted("hello world test", tokens, " ");
+  ASSERT_EQ(tokens.size(), 3u);
+  ASSERT_STREQ(tokens[0].c_str(), "hello");
+  ASSERT_STREQ(tokens[1].c_str(), "world");
+  ASSERT_STREQ(tokens[2].c_str(), "test");
+  tokens.clear();
+
+  StringConversion::TokenizeQuoted("user.reva.overleaf.name=\"my first project\"", tokens,
+                                   " ");
+  ASSERT_EQ(tokens.size(), 1u);
+  ASSERT_STREQ(tokens[0].c_str(), "user.reva.overleaf.name=my first project");
+
+  std::vector<std::string> kv;
+  StringConversion::TokenizeQuoted(tokens[0], kv, "=");
+  ASSERT_EQ(kv.size(), 2u);
+  ASSERT_STREQ(kv[0].c_str(), "user.reva.overleaf.name");
+  ASSERT_STREQ(kv[1].c_str(), "my first project");
+  tokens.clear();
+  kv.clear();
+
+  std::string attr_line = "sys.acl=\"u:12345:rwxm+dq\" sys.versioning=\"10\" "
+                          "user.reva.overleaf.name=\"my first project\"";
+  StringConversion::TokenizeQuoted(attr_line, tokens, " ");
+  ASSERT_EQ(tokens.size(), 3u);
+  ASSERT_STREQ(tokens[0].c_str(), "sys.acl=u:12345:rwxm+dq");
+  ASSERT_STREQ(tokens[1].c_str(), "sys.versioning=10");
+  ASSERT_STREQ(tokens[2].c_str(), "user.reva.overleaf.name=my first project");
+  tokens.clear();
+
+  StringConversion::TokenizeQuoted("key=\"value with \\\"quoted\\\" text\"", tokens,
+                                   " =");
+  ASSERT_EQ(tokens.size(), 2u);
+  ASSERT_STREQ(tokens[0].c_str(), "key");
+  ASSERT_STREQ(tokens[1].c_str(), "value with \"quoted\" text");
+  tokens.clear();
+
+  StringConversion::TokenizeQuoted("hello   world", tokens, " ");
+  ASSERT_EQ(tokens.size(), 2u);
+  ASSERT_STREQ(tokens[0].c_str(), "hello");
+  ASSERT_STREQ(tokens[1].c_str(), "world");
+  tokens.clear();
+}
+
 EOSCOMMONTESTING_END
