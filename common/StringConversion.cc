@@ -78,6 +78,53 @@ StringConversion::Tokenize(const std::string& str,
   }
 }
 
+//------------------------------------------------------------------------------
+// Tokenize a string respecting quoted strings and escapes
+//------------------------------------------------------------------------------
+void
+StringConversion::TokenizeQuoted(const std::string& str, std::vector<std::string>& tokens,
+                                 const std::string& delimiters)
+{
+  if (str.empty()) {
+    return;
+  }
+
+  size_t pos = 0;
+  const size_t len = str.length();
+  bool in_quotes = false;
+  bool escaped = false;
+  std::string current_token;
+
+  while (pos < len) {
+    char ch = str[pos++];
+
+    if (escaped) {
+      // Previous char was '\', add this char literally (e.g., \" becomes ")
+      current_token += ch;
+      escaped = false;
+    } else if (ch == '\\') {
+      // escape next character
+      escaped = true;
+    } else if (ch == '"') {
+      // Toggle quote state
+      in_quotes = !in_quotes;
+    } else if (!in_quotes && delimiters.find(ch) != std::string::npos) {
+      // Found delimiter outside quotes - end current token
+      if (!current_token.empty()) {
+        tokens.push_back(std::move(current_token));
+        current_token.clear();
+      }
+    } else {
+      // Regular character or delimiter inside quotes
+      current_token += ch;
+    }
+  }
+
+  // Add final token if any
+  if (!current_token.empty()) {
+    tokens.push_back(std::move(current_token));
+  }
+}
 
 //------------------------------------------------------------------------------
 // Tokenize a string seperated by one single charactor or multichar string
@@ -614,7 +661,7 @@ StringConversion::GetKeyValueMap(const char* mapstring,
   std::string is = mapstring;
   std::string delimiter = sdelimiter;
   std::vector<std::string> slist;
-  Tokenize(is, slist, delimiter);
+  TokenizeQuoted(is, slist, delimiter);
 
   if (!slist.size()) {
     return false;
