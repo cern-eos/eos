@@ -82,6 +82,13 @@ public:
                        std::vector<std::string>& tokens,
                        const std::string& delimiters = " ");
 
+  /**
+   * Tokenize a string respecting quoted strings
+   * Quotes and escape sequences are handled properly
+   */
+  static void TokenizeQuoted(const std::string& str, std::vector<std::string>& tokens,
+                             const std::string& delimiters);
+
   // ---------------------------------------------------------------------------
   /**
    * Tokenize a string

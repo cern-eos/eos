@@ -357,10 +357,6 @@ IProcCommand::ConvertOutputToJsonFormat(const std::string& stdOut)
       for (int i = 1; i < (int)token.size(); i++) {
         jep = &((*jep)[token[i]]);
       }
-
-      // Unquote value
-      std::stringstream quoted_ss(value);
-      quoted_ss >> std::quoted(value);
       // Seal value
       XrdOucString svalue = value.c_str();
       eos::common::StringConversion::Seal(svalue);
