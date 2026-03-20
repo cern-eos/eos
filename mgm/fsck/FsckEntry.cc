@@ -295,7 +295,7 @@ FsckEntry::RepairBestEffort()
     std::string options = "&mgm.verify.compute.checksum=1"
                           "&mgm.verify.commit.checksum=1&mgm.verify.commit.size=1";
 
-    if (!gOFS->_verifystripe(mFid, lerr, root, ref_fsid, options)) {
+    if (gOFS->_verifystripe(mFid, lerr, root, ref_fsid, options)) {
       eos_err("msg=\"failed verify stripe command\" fxid=%08llx fsid=%lu",
               mFid, ref_fsid);
       return false;
