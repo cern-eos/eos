@@ -582,63 +582,65 @@ FsckEntry::RepairMgmXsSzDiff()
 bool
 FsckEntry::RepairFstXsSzDiff()
 {
+  // Rain failures will be flagged and fixed by the stripe_errs
+  if (LayoutId::IsRain(mMgmFmd.layout_id())) {
+    return true;
+  }
+
   std::set<eos::common::FileSystem::fsid_t> bad_fsids;
   std::set<eos::common::FileSystem::fsid_t> good_fsids;
 
-  if (LayoutId::IsRain(mMgmFmd.layout_id())) {
-    bad_fsids.insert(*mFsidErr.begin());
-  } else { // for replica layouts
-    std::string mgm_xs_val =
-      StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
-                                          SHA256_DIGEST_LENGTH,
-                                          LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
-    // Make sure at least one disk xs and size match the MGM ones
-    uint64_t sz_val {0ull};
-    std::string xs_val;
+  // Replica layouts
+  std::string mgm_xs_val =
+    StringConversion::BinData2HexString(mMgmFmd.checksum().c_str(),
+                                        SHA256_DIGEST_LENGTH,
+                                        LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
+  // Make sure at least one disk xs and size match the MGM ones
+  uint64_t sz_val {0ull};
+  std::string xs_val;
 
-    for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
-      auto& finfo = it->second;
+  for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
+    auto& finfo = it->second;
 
-      if (finfo->mFstErr != FstErr::None) {
-        eos_err("msg=\"unavailable replica info\" fxid=%08llx fsid=%lu",
-                mFid, it->first);
-        bad_fsids.insert(it->first);
-        continue;
-      }
+    if (finfo->mFstErr != FstErr::None) {
+      eos_err("msg=\"unavailable replica info\" fxid=%08llx fsid=%lu",
+              mFid, it->first);
+      bad_fsids.insert(it->first);
+      continue;
+    }
 
-      xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
-      sz_val = finfo->mFstFmd.mProtoFmd.disksize();
-      eos_static_debug("mgm_sz=%llu mgm_xs=%s fst_sz_sz=%llu fst_sz_disk=%llu, "
-                       "fst_xs=%s", mMgmFmd.size(), mgm_xs_val.c_str(),
-                       finfo->mFstFmd.mProtoFmd.size(),
-                       finfo->mFstFmd.mProtoFmd.disksize(),
-                       finfo->mFstFmd.mProtoFmd.checksum().c_str());
+    xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
+    sz_val = finfo->mFstFmd.mProtoFmd.disksize();
+    eos_static_debug("mgm_sz=%llu mgm_xs=%s fst_sz_sz=%llu fst_sz_disk=%llu, "
+                     "fst_xs=%s", mMgmFmd.size(), mgm_xs_val.c_str(),
+                     finfo->mFstFmd.mProtoFmd.size(),
+                     finfo->mFstFmd.mProtoFmd.disksize(),
+                     finfo->mFstFmd.mProtoFmd.checksum().c_str());
 
-      // The disksize/xs must also match the original reference size/xs
-      if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val) &&
-          (finfo->mFstFmd.mProtoFmd.size() == sz_val) &&
-          (finfo->mFstFmd.mProtoFmd.checksum() == xs_val)) {
-        good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
-      } else {
-        // It could be that the diskchecksum for the replica was not yet
-        // computed - this does not mean the replica is bad
-        if (!finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
-          bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
-        }
+    // The disksize/xs must also match the original reference size/xs
+    if ((mgm_xs_val == xs_val) && (mMgmFmd.size() == sz_val) &&
+        (finfo->mFstFmd.mProtoFmd.size() == sz_val) &&
+        (finfo->mFstFmd.mProtoFmd.checksum() == xs_val)) {
+      good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
+    } else {
+      // It could be that the diskchecksum for the replica was not yet
+      // computed - this does not mean the replica is bad
+      if (!finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
+        bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
       }
     }
+  }
 
-    if (bad_fsids.empty()) {
-      eos_warning("msg=\"fst xs/size repair skip - no bad replicas\" fxid=%08llx",
-                  mFid);
-      return true;
-    }
+  if (bad_fsids.empty()) {
+    eos_warning("msg=\"fst xs/size repair skip - no bad replicas\" fxid=%08llx",
+                mFid);
+    return true;
+  }
 
-    if (good_fsids.empty()) {
-      eos_err("msg=\"fst xs/size repair failed - no good replicas\" fxid=%08llx",
-              mFid);
-      return RepairBestEffort();
-    }
+  if (good_fsids.empty()) {
+    eos_err("msg=\"fst xs/size repair failed - no good replicas\" fxid=%08llx",
+            mFid);
+    return RepairBestEffort();
   }
 
   // Have more good stripes then layout requirements
