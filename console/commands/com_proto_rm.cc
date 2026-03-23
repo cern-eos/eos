@@ -68,7 +68,7 @@ RmHelper::ParseCommand(const char* arg)
   eos::console::RmProto* rm = mReq.mutable_rm();
   eos::common::StringTokenizer tokenizer(arg);
   bool noconfirmation = false;
-  
+
   tokenizer.GetLine();
 
   while ((option = tokenizer.GetToken(false)).length() > 0 &&
@@ -130,7 +130,8 @@ RmHelper::ParseCommand(const char* arg)
   eos::common::Path cPath(path.c_str());
 
   if (path.length()) {
-    mNeedsConfirmation = rm->recursive() && (cPath.GetSubPathSize() < 4) && !noconfirmation; 
+    mNeedsConfirmation =
+        rm->recursive() && (cPath.GetSubPathSize() < 4) && !noconfirmation;
   }
 
   return true;
@@ -146,22 +147,81 @@ int com_protorm(char* arg)
     global_retc = EINVAL;
     return EINVAL;
   }
+  eos::common::StringTokenizer tokenizer(arg);
+  tokenizer.GetLine();
 
-  RmHelper rm(gGlobalOpts);
+  std::vector<std::string> paths;
+  std::string optStr;
+  std::string currentPath;
+  bool inOptions = true;
 
-  if (!rm.ParseCommand(arg)) {
+  XrdOucString token;
+  while ((token = tokenizer.GetToken(false)).length() > 0) {
+    if (inOptions && token.beginswith("-")) {
+      if (!optStr.empty()) {
+        optStr += " ";
+      }
+      optStr += token.c_str();
+    } else {
+      inOptions = false;
+
+      // Check if this is a new path
+      if (token.beginswith("/") || token.beginswith("fid:") ||
+          token.beginswith("fxid:") || token.beginswith("cid:") ||
+          token.beginswith("cxid:")) {
+        // Save previous path if exists
+        if (!currentPath.empty()) {
+          paths.push_back(std::move(currentPath));
+        }
+        currentPath = token.c_str();
+      } else {
+        // Continue current path
+        if (!currentPath.empty()) {
+          currentPath += " ";
+        }
+        currentPath += token.c_str();
+      }
+    }
+  }
+
+  if (!currentPath.empty()) {
+    paths.push_back(std::move(currentPath));
+  }
+
+  if (paths.empty()) {
     com_rm_help();
     global_retc = EINVAL;
     return EINVAL;
   }
 
-  if (rm.NeedsConfirmation() && !rm.ConfirmOperation()) {
-    global_retc = EINTR;
-    return EINTR;
+  // Execute rm for each path
+  int retc = 0;
+  for (const auto& path : paths) {
+    std::string cmdArg = optStr;
+    if (!cmdArg.empty()) {
+      cmdArg += " ";
+    }
+    cmdArg += path;
+
+    RmHelper rm(gGlobalOpts);
+
+    if (!rm.ParseCommand(cmdArg.c_str())) {
+      com_rm_help();
+      global_retc = EINVAL;
+      return EINVAL;
+    }
+
+    if (rm.NeedsConfirmation() && !rm.ConfirmOperation()) {
+      retc = EINTR;
+      continue;
+    }
+
+    if (const int rc = rm.Execute(true, true); rc != 0) {
+      retc = rc;
+    }
   }
 
-  global_retc = rm.Execute(true, true);
-
+  global_retc = retc;
   return global_retc;
 }
 
