@@ -2680,6 +2680,11 @@ data::datax::peek_pread(fuse_req_t req, char*& buf, size_t count, off_t offset)
 
       proxy = mFile->has_xrdioro(req) ? mFile->xrdioro(req) : mFile->xrdiorw(
                 req); // recovery might change the proxy object
+
+      if (proxy->IsOpening()) {
+        status = proxy->WaitOpen();
+      }
+
       status = proxy->Read(proxy,
                            offset + br + jr,
                            count - br - jr,
