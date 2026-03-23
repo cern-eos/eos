@@ -2419,6 +2419,8 @@ EosFuse::init(void* userdata, struct fuse_conn_info* conn)
   conn->want |= FUSE_CAP_EXPORT_SUPPORT | FUSE_CAP_POSIX_LOCKS |
                 FUSE_CAP_BIG_WRITES;
 #endif
+  conn->max_background = 128;
+  conn->congestion_threshold = 96;
 }
 
 void
