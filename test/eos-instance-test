@@ -1908,6 +1908,45 @@ runtest "### Stat file   " unix SUCCESS "" command eos stat "$rmTestDir/regexx*p
 runtest "### Rm file     " unix SUCCESS "" command eos rm --no-globbing "$rmTestDir/regexx*p.tt\.ern"
 runtest "### Stat file   " unix ERROR "" command eos stat "$rmTestDir/regexx*p.tt\.ern"
 
+# ------------------------------------------------------------------------------
+# Test multiple file removal
+# ------------------------------------------------------------------------------
+RM_MULTI1="/eos/$EOS_TEST_INSTANCE/test/instancetest/multi 1.txt"
+RM_MULTI2="/eos/$EOS_TEST_INSTANCE/test/instancetest/multi 2.txt"
+RM_MULTI3="/eos/$EOS_TEST_INSTANCE/test/instancetest/ multi3 .txt"
+
+runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd "'${RM_MULTI1}'"
+runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd "'${RM_MULTI2}'"
+runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd "'${RM_MULTI3}'"
+runtest "### Delay       " unix SUCCESS "" delay 7
+runtest "### Rm multi    " unix SUCCESS "" eos rm "'${RM_MULTI1}'" "'${RM_MULTI2}'" "'${RM_MULTI3}'"
+runtest "### Delay       " unix SUCCESS "" delay 7
+runtest "### Stat        " unix ERROR "" eos stat "'${RM_MULTI1}'"
+runtest "### Stat        " unix ERROR "" eos stat "'${RM_MULTI2}'"
+runtest "### Stat        " unix ERROR "" eos stat "'${RM_MULTI3}'"
+
+# ------------------------------------------------------------------------------
+# Test multiple recursive directory removal
+# ------------------------------------------------------------------------------
+RM_DIR1="/eos/$EOS_TEST_INSTANCE/test/instancetest/rmdir1"
+RM_DIR2="/eos/$EOS_TEST_INSTANCE/test/instancetest/rmdir2"
+RM_DIR3="/eos/$EOS_TEST_INSTANCE/test/instancetest/rmdir3"
+
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p ${RM_DIR1}
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p ${RM_DIR2}
+runtest "### Mkdir       " unix SUCCESS "" eos mkdir -p ${RM_DIR3}
+runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR1}/file1.txt
+runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR1}/file2.txt
+runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR2}/file1.txt
+runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR2}/file2.txt
+runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR3}/file1.txt
+runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR3}/file2.txt
+runtest "### Rm -r multi " unix SUCCESS "" eos rm -r ${RM_DIR1} ${RM_DIR2} ${RM_DIR3}
+runtest "### Delay       " unix SUCCESS "" delay 7
+runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR1}
+runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR2}
+runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR3}
+
 # Cleanup everything
 runtest "### Cleanup     " unix SUCCESS "" eos rm -rF $rmTestDir/
 
