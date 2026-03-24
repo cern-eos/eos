@@ -24,10 +24,21 @@
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/commands/helpers/)
 
 #-------------------------------------------------------------------------------
+# CLI11 parser submodule (console/parser)
+#-------------------------------------------------------------------------------
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/parser/CMakeLists.txt")
+  set(CLI11_BUILD_TESTS OFF CACHE BOOL "Disable CLI11 tests" FORCE)
+  set(CLI11_BUILD_EXAMPLES OFF CACHE BOOL "Disable CLI11 examples" FORCE)
+  set(CLI11_BUILD_DOCS OFF CACHE BOOL "Disable CLI11 docs" FORCE)
+  set(CLI11_INSTALL ON CACHE BOOL "Install CLI11 headers" FORCE)
+  add_subdirectory(parser)
+endif()
+
+#-------------------------------------------------------------------------------
 # eos executable
 #-------------------------------------------------------------------------------
 add_library(EosConsoleHelpers-Objects OBJECT
-  commands/ICmdHelper.cc            commands/ICmdHelper.hh
+  commands/helpers/ICmdHelper.cc    commands/helpers/ICmdHelper.hh
   commands/helpers/FsHelper.cc      commands/helpers/FsHelper.hh
   commands/helpers/RecycleHelper.cc commands/helpers/RecycleHelper.hh
   commands/helpers/FsckHelper.cc    commands/helpers/FsckHelper.hh
@@ -51,97 +62,115 @@ set_target_properties(EosConsoleHelpers-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
 
 add_library(EosConsoleCommands-Objects OBJECT
+  # Core console framework
   ConsoleMain.cc  ConsoleMain.hh
-  ConsolePipe.cc  ConsolePipe.hh
+  CommandFramework.cc CommandFramework.hh
   ConsoleCompletion.cc ConsoleCompletion.hh
   RegexUtil.cc RegexUtil.hh
+
+  # Core/native base
+  commands/native/CoreNativeCommands.cc
+  commands/native/pwd-native.cc
+  commands/native/status-native.cc
+
+  # Native aliases
+  commands/native/info-alias.cc
+  commands/native/fileinfo-alias.cc
+  commands/native/mv-alias.cc
+  commands/native/ls-compat.cc
+
+  # Native com wrappers
+  commands/native/cat-com-native.cc
+  commands/native/cp-cmd-native.cc
+  commands/native/oldfind-cmd-native.cc
+  commands/native/rclone-cmd-native.cc
+  commands/native/squash-cmd-native.cc
+
+  # Native cmd implementations (mgm.cmd=...)
+  commands/native/accounting-cmd-native.cc
+  commands/native/archive-cmd-native.cc
+  commands/native/attr-cmd-native.cc
+  commands/native/backup-cmd-native.cc
+  commands/native/cd-cmd-native.cc
+  commands/native/chmod-cmd-native.cc
+  commands/native/chown-cmd-native.cc
+  commands/native/clear-cmd-native.cc
+  commands/native/debug-cmd-native.cc
+  commands/native/evict-cmd-native.cc
+  commands/native/file-cmd-native.cc
+  commands/native/geosched-cmd-native.cc
+  commands/native/ln-cmd-native.cc
+  commands/native/ls-cmd-native.cc
+  commands/native/map-cmd-native.cc
+  commands/native/member-cmd-native.cc
+  commands/native/mkdir-cmd-native.cc
+  commands/native/motd-cmd-native.cc
+  commands/native/rmdir-cmd-native.cc
+  commands/native/rtlog-cmd-native.cc
+  commands/native/touch-cmd-native.cc
+  commands/native/version-cmd-native.cc
+  commands/native/vid-cmd-native.cc
+  commands/native/who-cmd-native.cc
+  commands/native/whoami-cmd-native.cc
+
+  # Native proto implementations
+  commands/native/access-proto-native.cc
+  commands/native/acl-proto-native.cc
+  commands/native/config-proto-native.cc
+  commands/native/convert-proto-native.cc
+  commands/native/devices-proto-native.cc
+  commands/native/df-proto-native.cc
+  commands/native/du-proto-native.cc
+  commands/native/find-proto-native.cc
+  commands/native/fs-proto-native.cc
+  commands/native/fsck-proto-native.cc
+  commands/native/group-proto-native.cc
+  commands/native/inspector-proto-native.cc
+  commands/native/io-proto-native.cc
+  commands/native/node-proto-native.cc
+  commands/native/ns-proto-native.cc
+  commands/native/quota-proto-native.cc
+  commands/native/recycle-proto-native.cc
+  commands/native/register-proto-native.cc
+  commands/native/rm-proto-native.cc
+  commands/native/route-proto-native.cc
+  commands/native/sched-proto-native.cc
+  commands/native/space-proto-native.cc
+  commands/native/token-proto-native.cc
+  commands/native/tracker-proto-native.cc
+
+  # Other native commands
+  commands/native/daemon-native.cc
+  commands/native/fuse-native.cc
+  commands/native/fusex-cmd-native.cc
+  commands/native/health-native.cc
+  commands/native/license-native.cc
+  commands/native/reconnect-native.cc
+  commands/native/report-native.cc
+  commands/native/role-native.cc
+  commands/native/scitoken-native.cc
+  commands/native/stat-native.cc
+  commands/native/test-native.cc
+
+  # Legacy symbol aggregation
+  commands/native/LegacySymbols.cc
+
+  # Shared helpers used by native/proto commands
   commands/helpers/NewfindHelper.cc commands/helpers/NewfindHelper.hh
   commands/helpers/AclHelper.cc     commands/helpers/AclHelper.hh
   commands/HealthCommand.cc         commands/HealthCommand.hh
-  commands/com_accounting.cc
-  commands/com_archive.cc
-  commands/com_attr.cc
-  commands/com_backup.cc
-  commands/com_cd.cc
-  commands/com_chmod.cc
-  commands/com_chown.cc
-  commands/com_clear.cc
-  commands/com_cp.cc
-  commands/com_daemon.cc
-  commands/com_file.cc
-  commands/com_old_find.cc
-  commands/com_proto_find.cc
-  commands/com_fuse.cc
-  commands/com_fusex.cc
-  commands/com_geosched.cc
-  commands/com_health.cc
-  commands/com_info.cc
-  commands/com_inspector.cc
-  commands/com_json.cc
-  commands/com_license.cc
-  commands/com_ls.cc
-  commands/com_ln.cc
-  commands/com_map.cc
-  commands/com_member.cc
-  commands/com_mkdir.cc
-  commands/com_motd.cc
-  commands/com_mv.cc
-  commands/com_print.cc
-  commands/com_pwd.cc
-  commands/com_quit.cc
-  commands/com_rclone.cc
-  commands/com_report.cc
-  commands/com_reconnect.cc
-  commands/com_rmdir.cc
-  commands/com_role.cc
-  commands/com_rtlog.cc
-  commands/com_scitoken.cc
-  commands/com_silent.cc
-  commands/com_stat.cc
-  commands/com_status.cc
-  commands/com_squash.cc
-  commands/com_test.cc
-  commands/com_timing.cc
-  commands/com_touch.cc
-  commands/com_proto_token.cc
-  commands/com_tracker.cc
-  commands/com_version.cc
-  commands/com_vid.cc
-  commands/com_whoami.cc
-  commands/com_who.cc
-  commands/com_proto_acl.cc
-  commands/com_proto_convert.cc
-  commands/com_proto_fs.cc
-  commands/com_proto_route.cc
-  commands/com_evict.cc
-  commands/com_proto_ns.cc
-  commands/com_proto_debug.cc
-  commands/com_du.cc
-  commands/com_proto_df.cc
-  commands/com_proto_group.cc
-  commands/com_proto_recycle.cc
-  commands/com_proto_config.cc
-  commands/com_proto_register.cc
-  commands/com_proto_rm.cc
-  #@todo (esindril) drop com_quota when move to 5.0.0
-  commands/com_quota.cc
-  commands/com_proto_quota.cc
-  commands/com_proto_node.cc
-  commands/com_proto_devices.cc
-  commands/com_proto_space.cc
-  commands/com_proto_io.cc
-  #@todo (esindril) drop com_access when move to 5.0.0
-  commands/com_access.cc
-  commands/com_proto_access.cc
-  commands/com_proto_fsck.cc
-  commands/com_proto_sched.cc)
+)
 
 target_link_libraries(EosConsoleCommands-Objects PUBLIC
   EosConsoleHelpers-Objects
   READLINE::READLINE
   JSONCPP::JSONCPP
   SCITOKENS::SCITOKENS
-  XROOTD::UTILS)
+  XROOTD::UTILS
+  CLI11::CLI11)
+
+target_include_directories(EosConsoleCommands-Objects PUBLIC
+  ${CMAKE_CURRENT_SOURCE_DIR}/parser/include)
 
 set_target_properties(EosConsoleCommands-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
