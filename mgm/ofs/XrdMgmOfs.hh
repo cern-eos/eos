@@ -107,6 +107,13 @@
 #include "common/Mapping.hh"
 #include "common/MutexLatencyWatcher.hh"
 #include "common/XrdConnPool.hh"
+#include "common/Audit.hh"
+#include "mgm/proc/ProcCommand.hh"
+#include "mgm/proc/admin/SpaceCmd.hh"
+#include "mgm/proc/admin/NsCmd.hh"
+#include "mgm/drain/Drainer.hh"
+#include "mgm/misc/IdTrackerWithValidity.hh"
+#include "mgm/imaster/IMaster.hh"
 #include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/drain/Drainer.hh"
 #include "mgm/imaster/IMaster.hh"
@@ -123,7 +130,8 @@
 #include "namespace/interface/INamespaceGroup.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-
+#include "mgm/inflighttracker/InFlightTracker.hh"
+#include "mgm/namespacestats/NamespaceStats.hh"
 #include <XrdAcc/XrdAccPrivs.hh>
 #include <chrono>
 #include <mutex>

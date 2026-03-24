@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #pragma once
-#include "console/commands/ICmdHelper.hh"
+#include "console/commands/helpers/ICmdHelper.hh"
 
 //------------------------------------------------------------------------------
 //! Class NewfindHelper
@@ -54,7 +54,7 @@ public:
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
   bool ParseCommand(const char* arg) override;
-  
+
   int FindXroot(std::string path);
   int FindAs3(std::string path);
 

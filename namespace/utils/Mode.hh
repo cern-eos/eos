@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #pragma once
+#include <sys/stat.h>
 #include "common/Logging.hh"
 
 #define S_XATTR 0xa0000000
@@ -98,11 +99,11 @@ inline void modeToBuffer(mode_t mode, char* modestr)
   if (mode & S_IXGRP) {
     modestr[6] = 'x';
   }
-  
+
   if (mode & S_IROTH) {
     modestr[7] = 'r';
   }
-  
+
   if (mode & S_IWOTH) {
     modestr[8] = 'w';
   }
