@@ -45,6 +45,8 @@
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QSet.hh"
 #include <fts.h>
+#include "mgm/misc/Constants.hh"
+#include <memory>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/time.h>
