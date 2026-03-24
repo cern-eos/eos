@@ -137,6 +137,7 @@ Major Change
 
 * **Recycle Bin Configuration Update**: The recycle bin configuration has been refactored.
   Please see :doc:`5.4.0/recycle_bin_config` for important migration instructions regarding new configuration commands and cleanup of legacy attributes.
+<<<<<<< HEAD
 * **MQ removal**: The MQ support has been dropped.
   Upgrading from an EOS version with MQ support to EOS 5.4.0 is disruptive as it requires a full instance restart.
 
@@ -236,6 +237,8 @@ Bug
 
 * MGM: Fix handling of secondary groups that might be missing when an internal cache clean-up is done.
 * FUSE: Serialise fetching metadata of same inode. Fixes a race condition between listing/no-listing requests seen by JRC.
+=======
+>>>>>>> 05d4121e2 (DOC: Update documentation with respect to recycle bin configuration changes)
 
 
 ``v5.3.27 Diopside``
