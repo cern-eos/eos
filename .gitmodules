@@ -35,3 +35,6 @@
 [submodule "fst/css_plugin"]
 	path = fst/css_plugin
 	url = https://gitlab.cern.ch/eos/css_plugin.git
+[submodule "console/parser"]
+	path = console/parser
+	url = https://github.com/CLIUtils/CLI11.git
