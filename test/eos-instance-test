@@ -744,7 +744,7 @@ runtest "### Rm        " unix SUCCESS "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/te
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Chmod     " unix SUCCESS "" eos chmod "755" "/eos/$EOS_TEST_INSTANCE/test/instancetest/"
 runtest "### Motd      " unix SUCCESS "" eos motd
-runtest "### Help      " unix SUCCESS "" eos "help | grep \"Display this text\""
+runtest "### Help      " unix SUCCESS "" eos "help 2>&1| grep \"Display this text\""
 # Define huge nominal space
 runtest "### NomianlSp " unix SUCCESS "" eos space config default space.nominalsize=100T
 ################################################################################
@@ -2020,7 +2020,7 @@ runtest "### Upload    " unix SUCCESS "" eos cp ${TESTSYSFILE1K} ${ADJUST_TEST_F
 adj_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Drop fsid " unix SUCCESS "" eos file drop ${ADJUST_TEST_FILE} ${adj_fsid}
 runtest "### Adjust -  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
-runtest "### Delay     " unix SUCCESS "" delay 4
+runtest "### Delay     " unix SUCCESS "" delay 8
 runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
 # Find a new file system where to over-replicate the current file
 list_fsids=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid)
@@ -2030,7 +2030,7 @@ target_fsid=0
 NUM_FST=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
 for ((i=1; i<=${NUM_FST}; i++)); do if [[ ! " ${array_fsids[*]} " =~ " $i " ]]; then target_fsid=$i; break; fi done
 runtest "### Replicate " unix SUCCESS "" eos file replicate ${ADJUST_TEST_FILE} ${source_fsid} ${target_fsid}
-runtest "### Delay     " unix SUCCESS "" delay 4
+runtest "### Delay     " unix SUCCESS "" delay 8
 runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 3"
 runtest "### Adjust +  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
 runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
@@ -2136,6 +2136,8 @@ runtest "### FUSE stat " unix SUCCESS "" shell stat "/eos/$EOS_TEST_INSTANCE/tes
 runtest "### FUSE stat " unix SUCCESS "" shell stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fuse/dir1/dir2"
 fi
 
+unset X509_USER_PROXY
+unset KRB5CCNAME
 ################################################################################
 # eos FUSE tests
 ################################################################################
@@ -2371,6 +2373,8 @@ test -d /test-fusex/ && rmdir /test-fusex/
 test -e /etc/eos/fuse.sss.keytab && unlink /etc/eos/fuse.sss.keytab
 fi
 
+unset X509_USER_PROXY
+unset KRB5CCNAME
 
 ################################################################################
 # eos rclone test
@@ -2436,6 +2440,9 @@ test -d /eos/ && umount -fl /eos/
 test -d /eos/ && rmdir /eos/
 
 test -e /etc/eos/fuse.sss.keytab.save && mv -f /etc/eos/fuse.sss.keytab.save /etc/eos/fuse.sss.keytab
+
+unset X509_USER_PROXY
+unset KRB5CCNAME
 
 ################################################################################
 # Third party copy tests

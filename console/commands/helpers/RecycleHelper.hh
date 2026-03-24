@@ -22,7 +22,7 @@
  ************************************************************************/
 
 #pragma once
-#include "console/commands/ICmdHelper.hh"
+#include "console/commands/helpers/ICmdHelper.hh"
 
 //------------------------------------------------------------------------------
 //! Class RecycleHelper
