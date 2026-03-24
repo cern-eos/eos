@@ -89,21 +89,37 @@ function get_podname () {
 function check_until_no_errors() {
   local func=$1
   local max_delay=$2
+  local description=${3:-"check"}
 
   local start_time=$(date +%s)
+  local attempt=0
 
   while
+    attempt=$((attempt + 1))
     local current_time=$(date +%s)
-    if ! eval "${func}"; then
-       if (( $((${current_time} - ${start_time})) >= ${max_delay} )); then
-        echo "error: failed to check"
+    local elapsed=$((current_time - start_time))
+    local remaining=$((max_delay - elapsed))
+    local check_output check_rc
+    set +e
+    check_output=$(eval "${func}" 2>&1)
+    check_rc=$?
+    set -e
+    if [[ ${check_rc} -ne 0 ]]; then
+       if (( elapsed >= max_delay )); then
+        echo ""
+        echo "ERROR: ${description} failed after $(secs_to_human ${elapsed}) (timeout)"
+        echo "  Last failure output:"
+        echo "${check_output}" | sed 's/^/    /'
         exit 1
       else
-        echo "info: sleep for 5 seconds, `secs_to_human $((${current_time} - ${start_time}))` passed"
+        echo "  [attempt ${attempt}] Waiting... elapsed=$(secs_to_human ${elapsed}) remaining=$(secs_to_human ${remaining})"
+        if [[ -n "${check_output}" ]]; then
+          echo "${check_output}" | head -5 | sed 's/^/    /'
+        fi
         sleep 5
       fi
     else
-      echo "info: test passed"
+      echo "  OK after ${attempt} attempt(s), $(secs_to_human ${elapsed})"
       false # to end the loop
     fi
   do
