@@ -326,6 +326,7 @@ The EOS server installation
 %files -n eos-server
 %defattr(-, root, root, -)
 %{_bindir}/eos-ns-convert-to-locality-hashes
+%{_bindir}/zstdtail
 %{_sbindir}/eos-tty-broadcast
 %{_sbindir}/eosfstregister
 %{_sbindir}/eosfstinfo
