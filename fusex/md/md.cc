@@ -1251,9 +1251,7 @@ metad::add_sync(fuse_req_t req, shared_md pmd, shared_md md, std::string authid)
   }
 
   eos_static_info("metad::add_sync backend::putMD - stop");
-  std::string mdstream;
   std::string md_name = (*md)()->name();
-  (*md)()->SerializeToString(&mdstream);
   stat.inodes_inc();
   stat.inodes_ever_inc();
 
