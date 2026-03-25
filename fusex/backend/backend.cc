@@ -822,7 +822,12 @@ backend::putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
   std::string mdstream;
   eos_static_info("proto-serialize");
 
-  if (!md->SerializeToString(&mdstream)) {
+  eos::fusex::md tmpmd;
+  // save traffic, don't need to send our list of children to the server
+  tmpmd.mutable_children()->swap(*md->mutable_children());
+  const bool serOk = md->SerializeToString(&mdstream);
+  md->mutable_children()->swap(*tmpmd.mutable_children());
+  if (!serOk) {
     md->clear_authid();
     md->clear_clientuuid();
     md->clear_implied_authid();
@@ -960,7 +965,12 @@ backend::doLock(fuse_req_t req,
   std::string mdstream;
   eos_static_info("proto-serialize");
 
-  if (!md.SerializeToString(&mdstream)) {
+  eos::fusex::md tmpmd;
+  // save traffic, don't need to send our list of children to the server
+  tmpmd.mutable_children()->swap(*md.mutable_children());
+  const bool serOk = md.SerializeToString(&mdstream);
+  md.mutable_children()->swap(*tmpmd.mutable_children());
+  if (!serOk) {
     md.clear_clientuuid();
     md.clear_flock();
     eos_static_err("fatal serialization error");
