@@ -22,14 +22,16 @@
  ************************************************************************/
 
 #include "mgm/quota/Quota.hh"
-#include "mgm/policy/Policy.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+
+#include "Timing.hh"
 #include "common/StringUtils.hh"
 #include "common/table_formatter/TableFormatterBase.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/policy/Policy.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-#include "mgm/config/IConfigEngine.hh"
 #include <errno.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -70,6 +72,7 @@ SpaceQuota::SpaceQuota(const char* path):
   if (quotadir == nullptr) {
     try {
       quotadir = gOFS->eosView->createContainer(path, true);
+      eos::MDLocking::ContainerWriteLock lock(quotadir.get());
       quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IFDIR);
       gOFS->eosView->updateContainerStore(quotadir.get());
     } catch (eos::MDException& e) {
@@ -1886,12 +1889,15 @@ Quota::LoadNodes()
 {
   std::vector<std::string> create_quota;
   // Load all known nodes
+  eos::common::Timing tm("Quota::LoadNodes");
+  COMMONTIMING("begin", &tm);
   {
     std::string quota_path;
     std::shared_ptr<eos::IContainerMD> container;
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+    COMMONTIMING("QuotaLoadNodes::AcquireNsMutex", &tm);
     auto set_ids = gOFS->eosView->getQuotaStats()->getAllIds();
-
+    COMMONTIMING("QuotaLoadNodes::getAllIds", &tm);
     for (const auto elem : set_ids) {
       try {
         container = gOFS->eosDirectoryService->getContainerMD(elem);
@@ -1911,6 +1917,7 @@ Quota::LoadNodes()
                        e.getErrno(), e.getMessage().str().c_str());
       }
     }
+    COMMONTIMING("QuotaLoadNodes::getAllQuotaDirs", &tm);
   }
 
   // Create all the necessary space quota nodes
@@ -1918,12 +1925,15 @@ Quota::LoadNodes()
     eos_static_notice("msg=\"create quota node\" path=\"%s\"", it->c_str());
     (void) Create(it->c_str());
   }
+  COMMONTIMING("QuotaLoadNodes::CreateAllQuotas", &tm);
 
   // Refresh the space quota objects
   {
     // loop over pMapQuota releasing locks each time in the iteration
     eos::common::RWMutexReadLock rd_ns_lock(gOFS->eosViewRWMutex);
+    COMMONTIMING("QuotaLoadNodes::AcquireNsMutex2", &tm);
     eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+    COMMONTIMING("QuotaLoadNodes::AcquireQuotaMapMutex", &tm);
     bool first = true;
     size_t n = 0;
 
@@ -1942,11 +1952,18 @@ Quota::LoadNodes()
       }
 
       it->second->Refresh(5);
+      std::stringstream ss;
+      ss << "QuotaLoadNodes::Refreshing:" << it->first;
+      COMMONTIMING(ss.str().c_str(), &tm);
       n++;
       rd_quota_lock.Release();
       rd_ns_lock.Release();
     } while (1);
   }
+  COMMONTIMING("QuotaLoadNodes::RefreshSpaceQuotaObjects", &tm);
+  std::stringstream ss;
+  ss << "Quota::LoadNodes timings = " << tm.Dump();
+  eos_static_debug(ss.str().c_str());
 }
 
 //------------------------------------------------------------------------------
@@ -1957,28 +1974,38 @@ Quota::PrintOut(const std::string& path, XrdOucString& output,
                 long long int uid_sel, long long int gid_sel, bool monitoring,
                 bool translate_ids)
 {
+
   output = "";
   // Add this to have all quota nodes visible even if they are not in
   // the configuration file
+  eos::common::Timing tm("Quota::PrintOut");
+  COMMONTIMING("begin", &tm);
   LoadNodes();
+  COMMONTIMING("QuotaPrintOut::LoadNodes", &tm);
   eos::common::RWMutexReadLock rd_fs_lock(FsView::gFsView.ViewMutex);
+  COMMONTIMING("QuotaPrintOut::FsViewMutexAcquired", &tm);
   eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
-
+  COMMONTIMING("QuotaPrintOut::pMapMutexAcquired", &tm);
   if (path.empty()) {
     for (auto it = pMapQuota.begin(); it != pMapQuota.end(); ++it) {
       it->second->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
     }
+    COMMONTIMING("QuotaPrintOut::AllPrintoutsForLoop", &tm);
   } else {
     SpaceQuota* squota = GetResponsibleSpaceQuota(path);
-
+    COMMONTIMING("QuotaPrintOut::GetResponsibleSpaceQuota", &tm);
     if (squota) {
       squota->PrintOut(output, uid_sel, gid_sel, monitoring, translate_ids);
+      COMMONTIMING("QuotaPrintOut::PrintSpaceQuota", &tm);
     } else {
       output = "error: no quota for path ";
       output += path.c_str();
       return false;
     }
   }
+  std::stringstream ss;
+  ss << "Quota::PrintOut timings = " << tm.Dump();
+  eos_static_debug(ss.str().c_str());
 
   return true;
 }

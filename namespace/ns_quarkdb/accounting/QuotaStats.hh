@@ -22,6 +22,7 @@
 //------------------------------------------------------------------------------
 
 #pragma once
+#include "common/RWMutex.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IQuota.hh"
 
@@ -187,6 +188,7 @@ private:
   //----------------------------------------------------------------------------
   static bool ParseQuotaId(const std::string& input, IContainerMD::id_t& id);
 
+  mutable eos::common::RWMutex pNodeMapMtx; ///< Mutex protecting pNodeMap
   std::map<IContainerMD::id_t, std::unique_ptr<IQuotaNode>>
       pNodeMap; ///< Map of quota nodes
   qclient::QClient* pQcl; ///< Backend client

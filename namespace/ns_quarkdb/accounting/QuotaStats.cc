@@ -361,10 +361,13 @@ QuarkQuotaStats::configure(const std::map<std::string, std::string>& config)
 IQuotaNode*
 QuarkQuotaStats::getQuotaNode(IContainerMD::id_t node_id)
 {
-  auto it = pNodeMap.find(node_id);
+  {
+    eos::common::RWMutexReadLock rd_lock(pNodeMapMtx);
+    auto it = pNodeMap.find(node_id);
 
-  if (it != pNodeMap.end()) {
-    return it->second.get();
+    if (it != pNodeMap.end()) {
+      return it->second.get();
+    }
   }
 
   std::string snode_id = std::to_string(node_id);
@@ -373,7 +376,16 @@ QuarkQuotaStats::getQuotaNode(IContainerMD::id_t node_id)
       (pQcl->exists(KeyQuotaGidMap(snode_id)) == 1)) {
     QuarkQuotaNode* ptr = new QuarkQuotaNode(this, node_id);
     ptr->updateFromBackend();
-    pNodeMap[node_id].reset(ptr);
+    eos::common::RWMutexWriteLock wr_lock(pNodeMapMtx);
+    auto& entry = pNodeMap[node_id];
+
+    if (entry) {
+      // Another thread inserted it while we were loading from backend
+      delete ptr;
+      return entry.get();
+    }
+
+    entry.reset(ptr);
     return ptr;
   }
 
@@ -387,6 +399,7 @@ IQuotaNode*
 QuarkQuotaStats::registerNewNode(IContainerMD::id_t node_id)
 {
   std::string snode_id = std::to_string(node_id);
+  eos::common::RWMutexWriteLock wr_lock(pNodeMapMtx);
 
   if (pNodeMap.count(node_id) ||
       (pQcl->exists(KeyQuotaUidMap(snode_id)) == 1) ||
@@ -407,10 +420,13 @@ QuarkQuotaStats::registerNewNode(IContainerMD::id_t node_id)
 void
 QuarkQuotaStats::removeNode(IContainerMD::id_t node_id)
 {
-  auto it = pNodeMap.find(node_id);
+  {
+    eos::common::RWMutexWriteLock wr_lock(pNodeMapMtx);
+    auto it = pNodeMap.find(node_id);
 
-  if (it != pNodeMap.end()) {
-    pNodeMap.erase(it);
+    if (it != pNodeMap.end()) {
+      pNodeMap.erase(it);
+    }
   }
 
   std::string snode_id = std::to_string(node_id);

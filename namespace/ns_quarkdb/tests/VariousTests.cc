@@ -21,37 +21,40 @@
 //! @brief Various namespace tests
 //------------------------------------------------------------------------------
 
-#include <memory>
-#include <gtest/gtest.h>
+#include <atomic>
 #include <cstring>
+#include <gtest/gtest.h>
+#include <memory>
+#include <thread>
+#include <vector>
 
-#include "namespace/interface/ContainerIterators.hh"
-#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
-#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
-#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
-#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
-#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
-#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
-#include "namespace/ns_quarkdb/FileMD.hh"
-#include "namespace/ns_quarkdb/ContainerMD.hh"
-#include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
-#include "namespace/ns_quarkdb/inspector/Printing.hh"
-#include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
-#include "namespace/ns_quarkdb/inspector/AttributeExtraction.hh"
-#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
-#include "namespace/ns_quarkdb/accounting/QuotaNodeCore.hh"
-#include "namespace/utils/Checksum.hh"
-#include "namespace/utils/Etag.hh"
-#include "namespace/utils/Attributes.hh"
+#include "TestUtils.hh"
+#include "google/protobuf/util/message_differencer.h"
+#include "namespace/Constants.hh"
 #include "namespace/PermissionHandler.hh"
 #include "namespace/Resolver.hh"
-#include "TestUtils.hh"
-#include <folly/futures/Future.h>
-#include "google/protobuf/util/message_differencer.h"
+#include "namespace/interface/ContainerIterators.hh"
+#include "namespace/ns_quarkdb/ContainerMD.hh"
+#include "namespace/ns_quarkdb/FileMD.hh"
+#include "namespace/ns_quarkdb/accounting/FileSystemView.hh"
+#include "namespace/ns_quarkdb/accounting/QuotaNodeCore.hh"
+#include "namespace/ns_quarkdb/explorer/NamespaceExplorer.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/inspector/AttributeExtraction.hh"
+#include "namespace/ns_quarkdb/inspector/FileMetadataFilter.hh"
+#include "namespace/ns_quarkdb/inspector/Printing.hh"
+#include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
+#include "namespace/ns_quarkdb/persistency/FileSystemIterator.hh"
+#include "namespace/ns_quarkdb/persistency/MetadataFetcher.hh"
+#include "namespace/ns_quarkdb/persistency/RequestBuilder.hh"
+#include "namespace/ns_quarkdb/utils/FutureVectorIterator.hh"
+#include "namespace/ns_quarkdb/views/HierarchicalView.hh"
+#include "namespace/utils/Attributes.hh"
+#include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
 #include <folly/executors/IOThreadPoolExecutor.h>
-
+#include <folly/futures/Future.h>
 
 using namespace eos;
 
@@ -1236,6 +1239,109 @@ TEST(SysMask, BasicSanity)
   ASSERT_EQ(0774, PermissionHandler::filterWithSysMask(xattr, 0774));
 }
 
+TEST(QuotaNodeCore, ConcurrentAddRemoveFile)
+{
+  // Verify that QuotaNodeCore's internal shared_timed_mutex correctly
+  // serializes concurrent addFile/removeFile operations. Each thread adds
+  // and then removes a fixed number of files; at the end all counters
+  // must be back to zero.
+  QuotaNodeCore qn;
+  constexpr int kThreads = 8;
+  constexpr int kOpsPerThread = 10000;
+  std::vector<std::thread> threads;
+  threads.reserve(kThreads);
+
+  for (int t = 0; t < kThreads; ++t) {
+    threads.emplace_back([&qn, t]() {
+      uid_t uid = static_cast<uid_t>(t);
+      gid_t gid = static_cast<gid_t>(t + 100);
+
+      for (int i = 0; i < kOpsPerThread; ++i) {
+        qn.addFile(uid, gid, 1024, 2048);
+      }
+
+      for (int i = 0; i < kOpsPerThread; ++i) {
+        qn.removeFile(uid, gid, 1024, 2048);
+      }
+    });
+  }
+
+  for (auto& th : threads) {
+    th.join();
+  }
+
+  // All counters must be zero after balanced add/remove
+  for (int t = 0; t < kThreads; ++t) {
+    uid_t uid = static_cast<uid_t>(t);
+    gid_t gid = static_cast<gid_t>(t + 100);
+    ASSERT_EQ(qn.getNumFilesByUser(uid), 0u);
+    ASSERT_EQ(qn.getNumFilesByGroup(gid), 0u);
+    ASSERT_EQ(qn.getPhysicalSpaceByUser(uid), 0);
+    ASSERT_EQ(qn.getUsedSpaceByUser(uid), 0);
+    ASSERT_EQ(qn.getPhysicalSpaceByGroup(gid), 0);
+    ASSERT_EQ(qn.getUsedSpaceByGroup(gid), 0);
+  }
+}
+
+TEST(QuotaNodeCore, ConcurrentReadWrite)
+{
+  // Verify that concurrent readers and writers don't cause data races.
+  // Writers add files while readers continuously query counters.
+  QuotaNodeCore qn;
+  constexpr int kWriterThreads = 4;
+  constexpr int kReaderThreads = 4;
+  constexpr int kOpsPerThread = 10000;
+  std::atomic<bool> done{false};
+  std::vector<std::thread> threads;
+
+  // Writer threads: add files
+  for (int t = 0; t < kWriterThreads; ++t) {
+    threads.emplace_back([&qn, t, &done]() {
+      uid_t uid = static_cast<uid_t>(t);
+      gid_t gid = static_cast<gid_t>(t);
+
+      for (int i = 0; i < kOpsPerThread; ++i) {
+        qn.addFile(uid, gid, 100, 200);
+      }
+    });
+  }
+
+  // Reader threads: read concurrently while writes are happening
+  for (int t = 0; t < kReaderThreads; ++t) {
+    threads.emplace_back([&qn, &done]() {
+      while (!done.load(std::memory_order_relaxed)) {
+        // These should never crash or return negative values
+        auto files = qn.getNumFilesByUser(0);
+        auto space = qn.getPhysicalSpaceByUser(0);
+        (void)files;
+        (void)space;
+        qn.getUids();
+        qn.getGids();
+      }
+    });
+  }
+
+  // Wait for writers to finish
+  for (int t = 0; t < kWriterThreads; ++t) {
+    threads[t].join();
+  }
+
+  done.store(true, std::memory_order_relaxed);
+
+  // Wait for readers to finish
+  for (int t = kWriterThreads; t < (int)threads.size(); ++t) {
+    threads[t].join();
+  }
+
+  // Verify final state is consistent
+  for (int t = 0; t < kWriterThreads; ++t) {
+    uid_t uid = static_cast<uid_t>(t);
+    ASSERT_EQ(qn.getNumFilesByUser(uid), (uint64_t)kOpsPerThread);
+    ASSERT_EQ(qn.getPhysicalSpaceByUser(uid), (int64_t)kOpsPerThread * 200);
+    ASSERT_EQ(qn.getUsedSpaceByUser(uid), (int64_t)kOpsPerThread * 100);
+  }
+}
+
 TEST(QuotaNodeCore, BasicSanity)
 {
   QuotaNodeCore qn;
@@ -1394,6 +1500,105 @@ TEST_F(VariousTests, QuotanodeCorruption)
   cont = containerSvc()->getContainerMD(8);
   ASSERT_EQ(cont->getParentId(), 999);
   ASSERT_EQ(view()->getQuotaNode(cont.get()), nullptr);
+}
+
+TEST_F(VariousTests, QuotaStatsConcurrentGetQuotaNode)
+{
+  // Create a quota node so it exists in the backend
+  IContainerMDPtr cont = view()->createContainer("/quota-test/", true);
+  view()->registerQuotaNode(cont.get());
+  IContainerMD::id_t node_id = cont->getId();
+  // Ensure the quota node is persisted
+  mdFlusher()->synchronize();
+  // Remove the in-memory cached node so getQuotaNode must reload from backend
+  IQuotaStats* stats = view()->getQuotaStats();
+  stats->removeNode(node_id);
+  mdFlusher()->synchronize();
+  // Re-register so that the backend keys exist for getQuotaNode to find
+  stats->registerNewNode(node_id);
+  mdFlusher()->synchronize();
+  stats->removeNode(node_id);
+  mdFlusher()->synchronize();
+  // Now re-create backend keys by registering again
+  cont->setFlags(cont->getFlags() & ~QUOTA_NODE_FLAG);
+  view()->registerQuotaNode(cont.get());
+  mdFlusher()->synchronize();
+  // Now have multiple threads concurrently call getQuotaNode - this exercises
+  // pNodeMap concurrent access. Without proper synchronization on pNodeMap,
+  // this will cause data races (detectable by TSAN).
+  constexpr int kThreads = 8;
+  constexpr int kIterations = 100;
+  std::vector<std::thread> threads;
+  std::atomic<int> errors{0};
+
+  for (int t = 0; t < kThreads; ++t) {
+    threads.emplace_back([&stats, node_id, &errors]() {
+      for (int i = 0; i < kIterations; ++i) {
+        IQuotaNode* node = stats->getQuotaNode(node_id);
+
+        if (!node) {
+          errors.fetch_add(1, std::memory_order_relaxed);
+        }
+      }
+    });
+  }
+
+  for (auto& th : threads) {
+    th.join();
+  }
+
+  ASSERT_EQ(errors.load(), 0);
+}
+
+TEST_F(VariousTests, QuotaStatsConcurrentRegisterRemove)
+{
+  // Test concurrent registerNewNode and removeNode on different node IDs.
+  // This exercises pNodeMap write concurrency.
+  constexpr int kThreads = 4;
+  constexpr int kNodesPerThread = 20;
+  std::vector<std::thread> threads;
+  IQuotaStats* stats = view()->getQuotaStats();
+  // Each thread registers its own set of node IDs (non-overlapping)
+  // then removes them. Without pNodeMap synchronization, concurrent
+  // map modifications will cause data races.
+  std::atomic<int> errors{0};
+
+  for (int t = 0; t < kThreads; ++t) {
+    threads.emplace_back([&stats, t, &errors]() {
+      IContainerMD::id_t base_id = 10000 + t * kNodesPerThread;
+
+      for (int i = 0; i < kNodesPerThread; ++i) {
+        IContainerMD::id_t nid = base_id + i;
+
+        try {
+          stats->registerNewNode(nid);
+        } catch (const MDException& e) {
+          errors.fetch_add(1, std::memory_order_relaxed);
+        }
+      }
+
+      // Now remove them all
+      for (int i = 0; i < kNodesPerThread; ++i) {
+        IContainerMD::id_t nid = base_id + i;
+        stats->removeNode(nid);
+      }
+    });
+  }
+
+  for (auto& th : threads) {
+    th.join();
+  }
+
+  ASSERT_EQ(errors.load(), 0);
+
+  // Verify all nodes have been removed
+  for (int t = 0; t < kThreads; ++t) {
+    IContainerMD::id_t base_id = 10000 + t * kNodesPerThread;
+
+    for (int i = 0; i < kNodesPerThread; ++i) {
+      ASSERT_EQ(stats->getQuotaNode(base_id + i), nullptr);
+    }
+  }
 }
 
 TEST_F(VariousTests, UnlinkAllLocations)
