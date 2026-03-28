@@ -255,13 +255,8 @@ utils::GetXrdSfsPrep(const eos::auth::XrdSfsPrepProto& proto_obj)
 //------------------------------------------------------------------------------
 void utils::DeleteXrdSfsPrep(XrdSfsPrep*& obj)
 {
-  if (obj->reqid) {
-    free(obj->reqid);
-  }
-
-  if (obj->notify != nullptr) {
-    free(obj->notify);
-  }
+  free(obj->reqid);
+  free(obj->notify);
 
   XrdOucTList* currentPath = obj->paths;
 

@@ -52,13 +52,8 @@ RainFile::~RainFile()
 {
   eos_debug("calling destructor");
 
-  if (pFile) {
-    delete pFile;
-  }
-
-  if (pRainFile) {
-    delete pRainFile;
-  }
+  delete pFile;
+  delete pRainFile;
 }
 
 

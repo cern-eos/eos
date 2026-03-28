@@ -132,10 +132,8 @@ S3Handler::HandleRequest(eos::common::HttpRequest* request)
 
     if (!mHttpResponse || request->GetBodySize() == 0) {
       // clean-up left-over objects on error or end-of-put
-      if (mFile) {
-        delete mFile;
-        mFile = 0;
-      }
+      delete mFile;
+      mFile = 0;
     }
   }
 }
