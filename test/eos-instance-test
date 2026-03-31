@@ -510,6 +510,17 @@ testout () {
     if [ $failed -gt 0 ]; then touch $FAILFILE; fi
 }
 ################################################################################
+file_is_deleted () {
+    local fxid=$1
+    local output
+    output=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "fxid:${fxid}" 2>&1)
+    local rc=$?
+    if [ $rc -ne 0 ] || echo "$output" | grep -q "pending_deletion\|tombstone\|does not exist"; then
+        return 0
+    fi
+    return 1
+}
+################################################################################
 # Count total number of runtest calls in this script
 if [ "$1" != "list" ]; then
   echo "Counting total number of tests..."
@@ -1812,11 +1823,13 @@ rm_fxid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE}
 rm_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Rm          " unix SUCCESS "" eos rm -F ${RM_TEST_FILE}
 runtest "### Dropdel     " unix SUCCESS "" eos fs dropdeletion "${rm_fsid}"
-runtest "### Delay       " unix SUCCESS "" delay 7
-runtest "### Fileinfo    " unix SUCCESS "" eos fileinfo "fxid:${rm_fxid}"
-runtest "### Rm detached " unix SUCCESS "" eos rm "fxid:${rm_fxid}"
-runtest "### Delay       " unix SUCCESS "" delay 11
-runtest "### Fileinfo    " unix ERROR "" eos fileinfo "fxid:${rm_fxid}"
+runtest "### Delay       " unix SUCCESS "" delay 2
+if ! file_is_deleted "$rm_fxid"; then
+    runtest "### Fileinfo    " unix SUCCESS "" eos fileinfo "fxid:${rm_fxid}"
+    runtest "### Rm detached " unix SUCCESS "" eos rm "fxid:${rm_fxid}"
+    runtest "### Delay       " unix SUCCESS "" delay 2
+fi
+runtest "### File Del    " unix SUCCESS "" file_is_deleted "$rm_fxid"
 # Secondly test that rm -F on a detached file will clean up the namespace
 # without waiting for a confirmation from the diskservers
 runtest "### Upload      " unix SUCCESS "" eos cp /etc/passwd ${RM_TEST_FILE}
@@ -1824,10 +1837,12 @@ rm_fxid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE}
 rm_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Rm          " unix SUCCESS "" eos rm -F ${RM_TEST_FILE}
 runtest "### Dropdel     " unix SUCCESS "" eos fs dropdeletion "${rm_fsid}"
-runtest "### Delay       " unix SUCCESS "" delay 7
-runtest "### Fileinfo    " unix SUCCESS "" eos fileinfo "fxid:${rm_fxid}"
-runtest "### Rm force    " unix SUCCESS "" eos rm -F "fxid:${rm_fxid}"
-runtest "### Fileinfo    " unix ERROR "" eos fileinfo "fxid:${rm_fxid}"
+runtest "### Delay       " unix SUCCESS "" delay 2
+if ! file_is_deleted "$rm_fxid"; then
+    runtest "### Fileinfo    " unix SUCCESS "" eos fileinfo "fxid:${rm_fxid}"
+    runtest "### Rm force    " unix SUCCESS "" eos rm -F "fxid:${rm_fxid}"
+fi
+runtest "### File Del    " unix SUCCESS "" file_is_deleted "$rm_fxid"
 # Create a directory with 10 files in it
 rmTestDir="/eos/$EOS_TEST_INSTANCE/test/instancetest/rm_test"
 eos mkdir -p $rmTestDir
