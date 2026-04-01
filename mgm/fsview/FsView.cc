@@ -1439,6 +1439,7 @@ FsView::GetNodeFormat(std::string option)
     format += "member=cfg.stat.net.outratemib:width=10:format=l:tag=etho-MiB|";
     format += "sum=stat.ropen:width=6:format=l:tag=ropen|";
     format += "sum=stat.wopen:width=6:format=l:tag=wopen|";
+    format += "compute=usage:width=8:format=f:unit=%|";
     format += "sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|";
     format += "sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|";
     format += "sum=stat.usedfiles:width=12:format=+l:tag=used-files|";
@@ -1572,7 +1573,7 @@ FsView::GetFileSystemFormat(std::string option)
     format += "key=stat.net.outratemib:width=10:format=l:tag=etho-MiB|";
     format += "key=stat.ropen:width=6:format=l:tag=ropen|";
     format += "key=stat.wopen:width=6:format=l:tag=wopen|";
-    format += "compute=usage:width=6:format=f|";
+    format += "compute=usage:width=8:format=f:unit=%|";
     format += "key=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|";
     format += "key=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|";
     format += "key=stat.usedfiles:width=12:format=+l:tag=used-files|";
@@ -1710,7 +1711,9 @@ FsView::GetSpaceFormat(std::string option)
     format += "sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|";
     format += "sum=stat.ropen:width=6:format=l:tag=ropen|";
     format += "sum=stat.wopen:width=6:format=l:tag=wopen|";
+    format += "compute=usage:width=8:format=f:unit=%|";
     format += "sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|";
+    format += "member=cfg.nominalsize:width=13:format=+l:tag=nom.capacity:unit=B|";
     format += "sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|";
     format += "sum=stat.usedfiles:width=12:format=+l:tag=used-files|";
     format += "sum=stat.statfs.files:width=11:format=+l:tag=max-files|";
@@ -1817,6 +1820,7 @@ FsView::GetGroupFormat(std::string option)
     format += "sum=stat.net.outratemib:width=10:format=l:tag=etho-MiB|";
     format += "sum=stat.ropen:width=6:format=l:tag=ropen|";
     format += "sum=stat.wopen:width=6:format=l:tag=wopen|";
+    format += "compute=usage:width=8:format=f:unit=%|";
     format += "sum=stat.statfs.usedbytes:width=12:format=+l:unit=B:tag=used-bytes|";
     format += "sum=stat.statfs.capacity:width=12:format=+l:unit=B:tag=max-bytes|";
     format += "sum=stat.usedfiles:width=12:format=+l:tag=used-files|";
@@ -4099,12 +4103,16 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
             long long used_bytes = SumLongLong("stat.statfs.usedbytes", false);
             long long headroom = SumLongLong("headroom", false);
             long long capacity = strtoull(GetMember("cfg.nominalsize").c_str(), 0, 10);
-            std::string header = "";
             std::string format = formattags["format"];
             unsigned int width = (formattags.count("width") ?
                                   atoi(formattags["width"].c_str()) : 0);
             std::string unit = (formattags.count("unit") ? formattags["unit"] : "");
-            table_header.push_back(std::make_tuple("usage", width, format));
+            std::string header = "usage";
+            if (formattags.count("tag")) {
+              header = formattags["tag"];
+            }
+
+            table_header.push_back(std::make_tuple(header, width, format));
 
             if (!capacity) {
               capacity = SumLongLong("stat.statfs.capacity?configstatus@rw", false);
@@ -4120,7 +4128,7 @@ BaseView::Print(TableFormatterBase& table, std::string table_format,
               }
             }
 
-            table_data.back().push_back(TableCell(usage, format));
+            table_data.back().push_back(TableCell(usage, format, unit));
           }
         }
 
