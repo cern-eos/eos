@@ -950,8 +950,14 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
                cont_id, cont_uri.c_str());
     } else {
       quotaNode->replaceCore(qnc);
-      eos_info("msg=\"quota recomputation successful\" cxid=%08llx path=\"%s\"",
-               cont_id, cont_uri.c_str());
+      if (Quota::RefreshFromNsQuota(cont_uri)) {
+        eos_info("msg=\"quota recomputation successful\" cxid=%08llx path=\"%s\"",
+                 cont_id, cont_uri.c_str());
+      } else {
+        eos_warning("msg=\"quota recomputation failed to refresh SpaceQuota\" "
+                    "cxid=%08llx path=\"%s\"",
+                    cont_id, cont_uri.c_str());
+      }
     }
   } catch (const eos::MDException& e) {
     eos_err("msg=\"quota recomputation failed, directory removed\" "

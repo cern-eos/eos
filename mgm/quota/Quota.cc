@@ -2395,4 +2395,43 @@ Quota::AddFile(eos::IFileMD::id_t fid)
   return false;
 }
 
+//------------------------------------------------------------------------------
+// Force refresh of space quota from namespace quota node
+//------------------------------------------------------------------------------
+bool
+Quota::RefreshFromNsQuota(const std::string& path)
+{
+  eos::common::RWMutexReadLock rd_quota_lock(pMapMutex);
+  SpaceQuota* squota = GetResponsibleSpaceQuota(path);
+
+  if (!squota || squota->GetSpaceNameStr().compare(path)) {
+    return false;
+  }
+
+  {
+    XrdSysMutexHelper scope_lock(squota->mMutex);
+    auto it = squota->mMapIdQuota.begin();
+    while (it != squota->mMapIdQuota.end()) {
+      unsigned long tag = squota->UnIndex(it->first);
+
+      // Only remove "Is" tags
+      if (tag == SpaceQuota::kUserBytesIs || tag == SpaceQuota::kUserLogicalBytesIs ||
+          tag == SpaceQuota::kUserFilesIs || tag == SpaceQuota::kGroupBytesIs ||
+          tag == SpaceQuota::kGroupLogicalBytesIs || tag == SpaceQuota::kGroupFilesIs ||
+          tag == SpaceQuota::kAllUserBytesIs ||
+          tag == SpaceQuota::kAllUserLogicalBytesIs ||
+          tag == SpaceQuota::kAllUserFilesIs || tag == SpaceQuota::kAllGroupBytesIs ||
+          tag == SpaceQuota::kAllGroupLogicalBytesIs ||
+          tag == SpaceQuota::kAllGroupFilesIs) {
+        it = squota->mMapIdQuota.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  }
+  squota->Refresh(0);
+
+  return true;
+}
+
 EOSMGMNAMESPACE_END
