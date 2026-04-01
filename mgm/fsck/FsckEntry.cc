@@ -67,11 +67,13 @@ FsckEntry::FsckEntry(eos::IFileMD::id_t fid,
                       eos::common::FileSystem::fsid_t fsid_trg,
                       std::set<eos::common::FileSystem::fsid_t> exclude_srcs,
                       std::set<eos::common::FileSystem::fsid_t> exclude_dsts,
-                      bool drop_src, const std::string & app_tag,
-  bool repair_excluded) {
-    return std::make_shared<FsckRepairJob>(
-             fid, fsid_src, fsid_trg, exclude_srcs, exclude_dsts, drop_src, app_tag,
-             false, eos::common::VirtualIdentity::Root(), repair_excluded);
+                      bool drop_src, const std::string& app_tag, bool repair_excluded) {
+    auto fsck_job = std::make_shared<FsckRepairJob>(
+        fid, fsid_src, fsid_trg, exclude_srcs, exclude_dsts, drop_src, app_tag, false,
+        eos::common::VirtualIdentity::Root(), repair_excluded);
+    // Lower the min transfer rate to 5 MB/s
+    fsck_job->SetMinTransferRate(5);
+    return fsck_job;
   };
 }
 
