@@ -641,6 +641,14 @@ public:
   //----------------------------------------------------------------------------
   static bool AddFile(eos::IFileMD::id_t fid);
 
+  //----------------------------------------------------------------------------
+  //! Force refresh of space quota from namespace quota node
+  //!
+  //! @param path quota node path
+  //!
+  //! @return true if refresh successful, otherwise false
+  //----------------------------------------------------------------------------
+  static bool RefreshFromNsQuota(const std::string& path);
 
   static gid_t gProjectId; ///< gid indicating project quota
   static eos::common::RWMutex pMapMutex; ///< Protect access to pMapQuota
