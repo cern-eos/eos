@@ -618,8 +618,18 @@ ProcCommand::File()
     // -------------------------------------------------------------------------
     if (mSubCmd == "rename") {
       cmdok = true;
-      XrdOucString source = spath;
+      XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
+      if (!source.length()) {
+        source = spath;
+      }
+      if (!ResolveIdentifierToPath(source, source, stdErr, retc)) {
+        return SFS_OK;
+      }
+      if (!ResolveIdentifierToPath(target, target, stdErr, retc)) {
+        return SFS_OK;
+      }
+
       PROC_MOVE_TOKENSCOPE(source.c_str(), target.c_str());
 
       if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0, true)) {
@@ -643,6 +653,14 @@ ProcCommand::File()
       cmdok = true;
       XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
+
+      if (!ResolveIdentifierToPath(source, source, stdErr, retc)) {
+        return SFS_OK;
+      }
+      if (!ResolveIdentifierToPath(target, target, stdErr, retc)) {
+        return SFS_OK;
+      }
+
       PROC_MOVE_TOKENSCOPE(source.c_str(), target.c_str());
 
       if (gOFS->_rename_with_symlink(source.c_str(), target.c_str(),
@@ -668,6 +686,13 @@ ProcCommand::File()
       XrdOucString target = pOpaque->Get("mgm.file.target");
       XrdOucString forceS = pOpaque->Get("mgm.file.force");
       bool force = (forceS == "1");
+
+      if (!ResolveIdentifierToPath(source, source, stdErr, retc)) {
+        return SFS_OK;
+      }
+      if (!ResolveIdentifierToPath(target, target, stdErr, retc)) {
+        return SFS_OK;
+      }
 
       if (gOFS->symlink(source.c_str(), target.c_str(), *mError, *pVid, 0, 0,
                         force)) {
@@ -2234,5 +2259,92 @@ ProcCommand::File()
   }
 
   return SFS_OK;
+}
+bool
+ProcCommand::ResolveIdentifierToPath(XrdOucString& identifier, XrdOucString& resolvedPath,
+                                     XrdOucString& errorMsg, int& retc)
+{
+  auto fail = [&](const char* msg, int err = EINVAL) {
+    errorMsg = msg;
+    errorMsg += " '";
+    errorMsg += identifier.c_str();
+    errorMsg += "'";
+    retc = err;
+    return false;
+  };
+
+  const char* str = identifier.c_str();
+
+  bool is_container = false;
+  int base = 10;
+  const char* num = nullptr;
+
+  if (!strncmp(str, "fid:", 4)) {
+    num = str + 4;
+  } else if (!strncmp(str, "cid:", 4)) {
+    is_container = true;
+    num = str + 4;
+  } else if (!strncmp(str, "fxid:", 5)) {
+    base = 16;
+    num = str + 5;
+  } else if (!strncmp(str, "cxid:", 5)) {
+    is_container = true;
+    base = 16;
+    num = str + 5;
+  } else {
+    resolvedPath = identifier;
+    return true;
+  }
+
+  if (*num == '\0') {
+    return fail("error: empty identifier");
+  }
+
+  char* endptr = nullptr;
+  errno = 0;
+  unsigned long long id = strtoull(num, &endptr, base);
+
+  if (errno != 0 || endptr == num || *endptr != '\0') {
+    return fail(base == 10 ? "error: invalid decimal identifier"
+                           : "error: invalid hex identifier");
+  }
+
+  if (id == 0) {
+    return fail("error: identifier cannot be zero");
+  }
+
+  try {
+    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+
+    if (is_container) {
+      auto dmd = gOFS->eosDirectoryService->getContainerMD(id);
+      resolvedPath = gOFS->eosView->getUri(dmd.get()).c_str();
+      eos_info("msg=\"resolved container id to path\" cid=%llu cxid=%08llx path=%s", id,
+               id, resolvedPath.c_str());
+    } else {
+      auto fmd = gOFS->eosFileService->getFileMD(id);
+      resolvedPath = gOFS->eosView->getUri(fmd.get()).c_str();
+      eos_info("msg=\"resolved file id to path\" fid=%llu fxid=%08llx path=%s", id, id,
+               resolvedPath.c_str());
+    }
+
+    return true;
+  } catch (eos::MDException& e) {
+    errorMsg = "error: cannot resolve ";
+    errorMsg += (is_container ? "container" : "file");
+    errorMsg += " identifier - ";
+    errorMsg += e.getMessage().str().c_str();
+    retc = e.getErrno();
+    return false;
+  } catch (std::exception& e) {
+    errorMsg = "error: exception resolving identifier: ";
+    errorMsg += e.what();
+    retc = EIO;
+    return false;
+  } catch (...) {
+    errorMsg = "error: unknown exception resolving identifier";
+    retc = EIO;
+    return false;
+  }
 }
 EOSMGMNAMESPACE_END
