@@ -511,6 +511,8 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
     if (mVid.uid != 0 && mVid.prot == "sss") {
       if (!skip_hostname_match &&
           tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
+        eos_static_warning("SSS check found hostname mismatch: '%s'!='%s'",
+                           tident.c_str(), rnodename.c_str());
         reply.set_std_err("error: nodes can only be configured as 'root' or by "
                           "connecting from the node itself using the sss protocol(1)");
         reply.set_retc(EPERM);
@@ -623,6 +625,8 @@ void NodeCmd::ProxygroupSubcmd(const eos::console::NodeProto_ProxygroupProto&
     if (mVid.uid != 0 && mVid.prot == "sss") {
       if (!skip_hostname_match &&
           tident.compare(0, tident.length(), rnodename, 0, tident.length())) {
+        eos_static_warning("SSS check found hostname mismatch: '%s'!='%s'",
+                           tident.c_str(), rnodename.c_str());
         reply.set_std_err("error: nodes can only be configured as 'root' or by "
                           "connecting from the node itself using the sss protocol(1)");
         reply.set_retc(EPERM);
