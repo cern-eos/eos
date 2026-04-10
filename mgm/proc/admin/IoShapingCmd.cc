@@ -597,8 +597,6 @@ void
 IoCmd::ShapingSubcommand(const eos::console::IoProto_ShapingProto& shaping,
                          eos::console::ReplyProto& reply)
 {
-  eos::common::RWMutexWriteLock wr_lock(FsView::gFsView.ViewMutex);
-
   switch (shaping.subcmd_case()) {
 
   case eos::console::IoProto_ShapingProto::kList: {
