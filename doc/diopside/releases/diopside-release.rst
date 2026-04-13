@@ -16,6 +16,16 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.2 Diopside``
+===================
+
+2026-04-13
+
+Bug
+----
+
+* MGM: Remove FsView write lock that does nothing
+
 ``v5.4.1 Diopside``
 ===================
 
