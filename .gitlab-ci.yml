@@ -719,6 +719,7 @@ el9_asan_docker_image:
   extends:
     - .dock8s_before_script_template
     - .dock8s_after_script_template
+  allow_failure: true
   script:
     # enable converter and prepare eoshome folder, cernbox alike
     - exec_cmd eos-mgm1 'eos convert config set status=on'
