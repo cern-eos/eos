@@ -520,6 +520,7 @@ file_is_deleted () {
     fi
     return 1
 }
+
 ################################################################################
 # Count total number of runtest calls in this script
 if [ "$1" != "list" ]; then
@@ -2021,7 +2022,7 @@ adj_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_
 runtest "### Drop fsid " unix SUCCESS "" eos file drop ${ADJUST_TEST_FILE} ${adj_fsid}
 runtest "### Adjust -  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
 runtest "### Delay     " unix SUCCESS "" delay 8
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
+runtest "### Check     " unix SUCCESS "" eosj fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2
 # Find a new file system where to over-replicate the current file
 list_fsids=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid)
 array_fsids=($list_fsids)
@@ -2031,9 +2032,9 @@ NUM_FST=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR fs ls | awk '{ if 
 for ((i=1; i<=${NUM_FST}; i++)); do if [[ ! " ${array_fsids[*]} " =~ " $i " ]]; then target_fsid=$i; break; fi done
 runtest "### Replicate " unix SUCCESS "" eos file replicate ${ADJUST_TEST_FILE} ${source_fsid} ${target_fsid}
 runtest "### Delay     " unix SUCCESS "" delay 8
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 3"
+runtest "### Check     " unix SUCCESS "" eosj fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 3
 runtest "### Adjust +  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
+runtest "### Check     " unix SUCCESS "" eosj fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2
 runtest "### Rm        " unix SUCCESS "" eos rm -F ${ADJUST_TEST_FILE}
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir ${ADJUST_TEST_DIR}
 
