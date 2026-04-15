@@ -7,18 +7,25 @@
 #include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <iomanip>
 #include <memory>
 #include <sstream>
 
 namespace {
 std::string MakeDfHelp()
 {
-  return "Usage: df [-m|-H|-b] [path]\n\n"
-         "Print unix-like 'df' information (1024 base).\n\n"
-         "Options:\n"
-         "  -m  print in monitoring format\n"
-         "  -H  print human readable in units of 1000\n"
-         "  -b  print raw bytes/number values\n";
+  std::ostringstream oss;
+  oss << " usage:\n"
+      << "df [-m|-H|-b] [path]\n"
+      << "'[eos] df ...' print unix like 'df' information (1024 base)\n"
+      << std::endl
+      << "Options:\n"
+      << std::endl
+      << "-m : print in monitoring format\n"
+      << "-H : print human readable in units of 1000\n"
+      << "-b : print raw bytes/number values\n"
+      << std::endl;
+  return oss.str();
 }
 
 void ConfigureDfApp(CLI::App& app)
@@ -104,14 +111,17 @@ public:
     return !wants_help(args.c_str());
   }
   int
-  run(const std::vector<std::string>& args, CommandContext&) override
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
     std::ostringstream oss;
     for (size_t i = 0; i < args.size(); ++i) {
       if (i) {
         oss << ' ';
       }
-      oss << args[i];
+      if (args[i].find(' ') != std::string::npos)
+        oss << std::quoted(args[i]);
+      else
+        oss << args[i];
     }
     std::string joined = oss.str();
     if (wants_help(joined.c_str())) {
@@ -119,7 +129,7 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    DfHelper helper(gGlobalOpts);
+    DfHelper helper(*ctx.globalOpts);
     if (!helper.ParseCommand(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;

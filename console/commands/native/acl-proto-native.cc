@@ -5,29 +5,58 @@
 #include "console/CommandFramework.hh"
 #include "console/commands/helpers/AclHelper.hh"
 #include <CLI/CLI.hpp>
+#include <iomanip>
 #include <memory>
 #include <sstream>
 
 namespace {
 std::string MakeAclHelp()
 {
-  return "Usage: acl [-l|--list] [-R|--recursive] [-p|--position <pos>] "
-         "[-f|--front] [--sys|--user] [<rule>] <identifier>\n\n"
-         "Atomically set and modify ACLs for the given directory path/sub-tree.\n\n"
-         "Options:\n"
-         "  -l, --list       list ACL rules\n"
-         "  -R, --recursive  apply to directories recursively\n"
-         "  -p, --position   add the acl rule at specified position\n"
-         "  -f, --front      add the acl rule at the front position\n"
-         "  --user           handle user.acl rules on directory\n"
-         "  --sys            handle sys.acl rules on directory (admin only)\n\n"
-         "<identifier> can be <path>|cid:<cid-dec>|cxid:<cid-hex>\n\n"
-         "<rule> format: [u|g|egroup]:<id> or [u|g|egroup]=<id> with permissions.\n"
-         "  \":\" modifies, \"=\" sets. Use + and - to add/remove flags.\n\n"
-         "Examples:\n"
-         "  acl --user u:1001=rwx /eos/dev/\n"
-         "  acl --user u:1001:-w /eos/dev\n"
-         "  acl --front --user u:1001=rwx /eos/dev\n";
+  std::ostringstream oss;
+  oss << "Usage: eos acl [-l|--list] [-R|--recursive]"
+      << " [-p|--position <pos>] [-f|--front] "
+      << "[--sys|--user] [<rule>] <identifier>" << std::endl
+      << "  atomically set and modify ACLs for the given directory path/sub-tree"
+      << std::endl
+      << std::endl
+      << "  -h, --help      : print help message" << std::endl
+      << "  -R, --recursive : apply to directories recursively" << std::endl
+      << "  -l, --list      : list ACL rules" << std::endl
+      << "  -p, --position  : add the acl rule at specified position" << std::endl
+      << "  -f, --front     : add the acl rule at the front position" << std::endl
+      << "      --user      : handle user.acl rules on directory" << std::endl
+      << "      --sys       : handle sys.acl rules on directory - admin only\n"
+      << std::endl
+      << "  <identifier> can be one of <path>|cid:<cid-dec>|cxid:<cid-hex>\n"
+      << std::endl
+      << "  <rule> is created similarly to chmod rules. Every rule begins with"
+      << std::endl
+      << "    [u|g|egroup] followed by \":\" or \"=\" and an identifier."
+      << std::endl
+      << "    \":\" is used to for modifying permissions while" << std::endl
+      << "    \"=\" is used for setting/overwriting permissions." << std::endl
+      << "    When modifying permissions every ACL flag can be added with"
+      << std::endl
+      << "    \"+\" or removed with \"-\"." << std::endl
+      << "    By default rules are appended at the end of acls" << std::endl
+      << "    This ordering can be changed via --position flag" << std::endl
+      << "    which will add the new rule at a given position starting at 1 or"
+      << std::endl
+      << "    the --front flag which adds the rule at the front instead"
+      << std::endl
+      << std::endl
+      << "Examples:" << std::endl
+      << "  acl --user u:1001=rwx /eos/dev/" << std::endl
+      << "    Set ACLs for user id 1001 to rwx" << std::endl
+      << "  acl --user u:1001:-w /eos/dev" << std::endl
+      << "    Remove \'w\' flag for user id 1001" << std::endl
+      << "  acl --user u:1001:+m /eos/dev" << std::endl
+      << "    Add change mode permission flag for user id 1001" << std::endl
+      << "  acl --user u:1010= /eos/dev" << std::endl
+      << "    Remove all ACls for user id 1001" << std::endl
+      << "  acl --front --user u:1001=rwx /eos/dev" << std::endl
+      << "     Add the user id 1001 rule to the front of ACL rules" << std::endl;
+  return oss.str();
 }
 
 void ConfigureAclApp(CLI::App& app)
@@ -62,12 +91,14 @@ public:
   int
   run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
-    (void)ctx;
     std::ostringstream oss;
     for (size_t i = 0; i < args.size(); ++i) {
       if (i)
         oss << ' ';
-      oss << args[i];
+      if (args[i].find(' ') != std::string::npos)
+        oss << std::quoted(args[i]);
+      else
+        oss << args[i];
     }
     std::string joined = oss.str();
     if (wants_help(joined.c_str())) {
@@ -75,7 +106,7 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    AclHelper acl(gGlobalOpts);
+    AclHelper acl(*ctx.globalOpts);
     if (!acl.ParseCommand(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
