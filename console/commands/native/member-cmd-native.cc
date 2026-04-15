@@ -7,6 +7,7 @@
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
 #include <algorithm>
+#include <iomanip>
 #include <memory>
 #include <sstream>
 #include <vector>
@@ -14,13 +15,15 @@
 namespace {
 std::string MakeMemberHelp()
 {
-  return "Usage: member [--update] <egroup>\n\n"
-         "Show the (cached) information about egroup membership for the "
-         "current user.\n"
-         "If the check is required for a different user then use "
-         "\"eos -r <uid> <gid>\" to switch to a different role.\n\n"
-         "Options:\n"
-         "  --update  refresh cached egroup information\n";
+  std::ostringstream oss;
+  oss << "Usage: member [--update] <egroup>\n"
+      << "   show the (cached) information about egroup membership for the\n"
+      << "   current user running the command. If the check is required for\n"
+      << "   a different user then please use the \"eos -r <uid> <gid>\"\n"
+      << "   command to switch to a different role.\n"
+      << " Options:\n"
+      << "    --update : Refresh cached egroup information\n";
+  return oss.str();
 }
 
 void ConfigureMemberApp(CLI::App& app, bool& opt_update, std::string& egroup)
@@ -60,7 +63,10 @@ public:
     for (size_t i = 0; i < args.size(); ++i) {
       if (i)
         oss << ' ';
-      oss << args[i];
+      if (args[i].find(' ') != std::string::npos)
+        oss << std::quoted(args[i]);
+      else
+        oss << args[i];
     }
     std::string joined = oss.str();
     if (args.empty() || wants_help(joined.c_str())) {

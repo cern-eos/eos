@@ -7,14 +7,24 @@
 #include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <iomanip>
 #include <memory>
 #include <sstream>
 
 namespace {
 std::string MakeTrackerHelp()
 {
-  return "Usage: tracker\n\n"
-         "Print all file replication tracking entries.\n";
+  std::ostringstream oss;
+  oss << " usage:\n"
+      << std::endl
+      << "tracker : print all file replication tracking entries\n"
+      << std::endl
+      << "This is the standalone alias for 'space tracker' (same request as the\n"
+      << "space subcommand; the MGM space defaults to \"default\").\n"
+      << std::endl
+      << "Layout creation tracking for a space can be enabled or disabled with:\n"
+      << "  space config <space-name> space.tracker=on|off [ default=off ]\n";
+  return oss.str();
 }
 
 void ConfigureTrackerApp(CLI::App& app)
@@ -61,13 +71,16 @@ public:
     return !wants_help(args.c_str());
   }
   int
-  run(const std::vector<std::string>& args, CommandContext&) override
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
     std::ostringstream oss;
     for (size_t i = 0; i < args.size(); ++i) {
       if (i)
         oss << ' ';
-      oss << args[i];
+      if (args[i].find(' ') != std::string::npos)
+        oss << std::quoted(args[i]);
+      else
+        oss << args[i];
     }
     std::string joined = oss.str();
     if (wants_help(joined.c_str())) {
@@ -76,7 +89,7 @@ public:
       return 0;
     }
 
-    TrackerHelper helper(gGlobalOpts);
+    TrackerHelper helper(*ctx.globalOpts);
     if (!helper.ParseCommand(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
