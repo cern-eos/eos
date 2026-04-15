@@ -7,16 +7,49 @@
 #include <CLI/CLI.hpp>
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <iomanip>
 #include <memory>
 #include <sstream>
 
 namespace {
 std::string MakeInspectorHelp()
 {
-  return "Usage: inspector [-s|--space <space>] [OPTIONS]\n\n"
-         "Forward arguments to the inspector space subsystem.\n"
-         "Options: -c|--current, -l|--last, -m, -p, -e, -C|--cost, -U|--usage,\n"
-         "  -L|--layouts, -B|--birth, -A|--access, -a|--all, -V|--vs, -M|--money\n";
+  std::ostringstream oss;
+  oss << " usage:\n"
+      << std::endl
+      << "inspector [--current|-c] [--last|-l] [-m] [-p] [-e] [-s|--space "
+         "<space_name>] [--all|-a] [--cost|-C] [--usage|-U] [--birth|-B] "
+         "[--access|-A] [--vs|-V] [--layouts|-L] : show namespace inspector output\n"
+      << std::endl
+      << "Same request as 'space inspector'; default MGM space is \"default\" "
+         "unless -s|--space is given.\n"
+      << std::endl
+      << "\t  -c  : show current scan\n"
+      << "\t  -l  : show last complete scan\n"
+      << "\t  -m  : print last scan in monitoring format ( by default this enables "
+         "--cost --usage --birth --access --layouts)\n"
+      << "\t  -A  : combined with -m prints access time distributions\n"
+      << "\t  -V  : combined with -m prints birth time vs access time distributions\n"
+      << "\t  -B  : combined with -m prints birth time distributions\n"
+      << "\t  -C  : combined with -m prints cost information (storage price per "
+         "user/group)\n"
+      << "\t  -U  : combined with -m prints usage information (stored bytes per "
+         "user/group)\n"
+      << "\t  -L  : combined with -m prints layout statistics\n"
+      << "\t  -a  : combined with -m or -C or -U removes the restriction to show only "
+         "the top 10 user ranking\n"
+      << "\t  -p  : combined with -c or -l lists erroneous files\n"
+      << "\t  -e  : combined with -c or -l exports erroneous files on the MGM into "
+         "/var/log/eos/mgm/FileInspector.<date>.list\n"
+      << "\t  -s  : select target space, by default \"default\" space is used\n"
+      << std::endl
+      << "\t  -M|--money : money output\n"
+      << std::endl
+      << "space config <space-name> space.inspector=on|off                      : "
+         "enable/disable the file inspector [ default=off ]\n"
+      << "space config <space-name> space.inspector.interval=<sec>              : "
+         "time interval after which the inspector will run, default 4h\n";
+  return oss.str();
 }
 
 void ConfigureInspectorApp(CLI::App& app)
@@ -110,13 +143,16 @@ public:
     return !wants_help(args.c_str());
   }
   int
-  run(const std::vector<std::string>& args, CommandContext&) override
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
     std::ostringstream oss;
     for (size_t i = 0; i < args.size(); ++i) {
       if (i)
         oss << ' ';
-      oss << args[i];
+      if (args[i].find(' ') != std::string::npos)
+        oss << std::quoted(args[i]);
+      else
+        oss << args[i];
     }
     std::string joined = oss.str();
     if (wants_help(joined.c_str())) {
@@ -124,7 +160,7 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    InspectorHelper helper(gGlobalOpts);
+    InspectorHelper helper(*ctx.globalOpts);
     if (!helper.ParseCommand(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
