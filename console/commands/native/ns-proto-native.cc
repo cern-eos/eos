@@ -503,22 +503,140 @@ NsNativeHelper::ParseCommand(const char* arg)
 namespace {
 std::string MakeNsHelp()
 {
-  return "Usage: ns stat|mutex|compact|master|cache|drain|reserve-ids|"
-         "benchmark|tracker|behaviour|recompute_tree_size|recompute_quotanode|"
-         "update_quotanode [OPTIONS]\n\n"
-         "  stat [-a] [-m] [-n] [--reset]     namespace statistics\n"
-         "  mutex [--toggletime|--toggleorder|--toggledeadlock|--smplrate*|"
-         "--setblockedtime <ms>]\n"
-         "  compact off|on <delay> [<interval>] [<type>]\n"
-         "  master [<hostname>|--log|--log-clear|--enable|--disable]\n"
-         "  cache set|drop [-d|-f] [<max_num>] [<max_size>]\n"
-         "  drain list|set [<key>=<value>]\n"
-         "  reserve-ids <file_id> <container_id>\n"
-         "  benchmark <n-threads> <n-subdirs> <n-subfiles> [prefix]\n"
-         "  tracker list|clear --name <tracker_type>\n"
-         "  behaviour list|set|get|clear [<behaviour> [<value>]]\n"
-         "  recompute_tree_size|recompute_quotanode|update_quotanode <path>|"
-         "cid:<id>|cxid:<id> [options]\n";
+  std::ostringstream oss;
+  oss << "Usage: ns [stat|mutex|compact|master|recompute_tree_size|"
+         "recompute_quotanode|update_quotanode|cache|drain|reserve-ids|"
+         "benchmark|tracker|behaviour]" << std::endl
+      << "    print or configure basic namespace parameters" << std::endl
+      << "  ns stat [-a] [-x] [-m] [-n] [--reset]" << std::endl
+      << "    print namespace statistics" << std::endl
+      << "    -a      : break down by uid/gid" << std::endl
+      << "    -x      : break down by application" << std::endl
+      << "    -m      : display in monitoring format <key>=<value>"
+      << std::endl
+      << "    -n      : display numerical uid/gid(s)" << std::endl
+      << "    --reset : reset namespace counters" << std::endl
+      << std::endl
+      << "  ns mutex [<option>]" << std::endl
+      << "    manage mutex monitoring. Option can be:" << std::endl
+      << "    --toggletime     : toggle the timing" << std::endl
+      << "    --toggleorder    : toggle the order" << std::endl
+      << "    --toggledeadlock : toggle deadlock check" << std::endl
+      << "    --smplrate1      : set timing sample rate at 1% (default, no "
+         "slow-down)" << std::endl
+      << "    --smplrate10     : set timing sample rate at 10% (medium "
+         "slow-down)" << std::endl
+      << "    --smplrate100    : set timing sample rate at 100% (severe "
+         "slow-down)" << std::endl
+      << "    --setblockedtime <ms>" << std::endl
+      << "                     : set minimum time when a mutex lock lasting "
+         "longer than <ms> \n"
+      << "                       is reported in the log file [default=10000]\n"
+      << std::endl
+      << "  ns compact off|on <delay> [<interval>] [<type>]\n"
+      << "    enable online compaction after <delay> seconds\n"
+      << "    <interval> : if >0 then compaction is repeated automatically \n"
+      << "                 after so many seconds\n"
+      << "    <type>     : can be 'files', 'directories' or 'all'. By default  "
+         "only the file\n"
+      << "                 changelog is compacted. The repair flag can be "
+         "indicated by using:\n"
+      << "                 'files-repair', 'directories-repair' or "
+         "'all-repair'\n"
+      << std::endl
+      << "  ns master [<option>]" << std::endl
+      << "    master/slave operations. Option can be:" << std::endl
+      << "    <master_hostname> : set hostname of MGM master RW daemon"
+      << std::endl
+      << "    --log             : show master log" << std::endl
+      << "    --log-clear       : clean master log" << std::endl
+      << "    --enable          : enable the slave/master supervisor thread "
+         "modifying stall/" << std::endl
+      << "                        redirectorion rules" << std::endl
+      << "    --disable         : disable supervisor thread" << std::endl
+      << std::endl
+      << "  ns recompute_tree_size "
+         "<path>|cid:<decimal_id>|cxid:<hex_id> [--depth <val>]" << std::endl
+      << "    recompute the tree size of a directory and all its subdirectories"
+      << std::endl
+      << "    --depth : maximum depth for recomputation, default 0 i.e no "
+         "limit" << std::endl
+      << std::endl
+      << "  ns recompute_quotanode <path>|cid:<decimal_id>|cxid:<hex_id>"
+      << std::endl
+      << "    recompute the specified quotanode" << std::endl
+      << std::endl
+      << "  ns update_quotanode "
+         "<path>|cid:<decimal_id>|cxid:<hex_id> "
+         "uid:<uid>|gid:<gid> bytes:<bytes> physicalbytes:<bytes> "
+         "inodes:<inodes>\n"
+      << "    update quota node with the specified (and unchecked) values\n"
+      << "    Note: for project quotas the uid values needs to be specified\n"
+      << "    since the accounting is done by accumulating the individual\n"
+      << "    quotas of the users registered with the quota node.\n"
+      << std::endl
+      << "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]"
+      << std::endl
+      << "    set the max number of entries or the max size of the cache. Use "
+         "the" << std::endl
+      << "    ns stat command to see the current values." << std::endl
+      << "    set        : update cache size for files or directories"
+      << std::endl
+      << "    drop       : drop cached file and/or directory entries"
+      << std::endl
+      << "    -d         : control the directory cache" << std::endl
+      << "    -f         : control the file cache" << std::endl
+      << "    <max_num>  : max number of entries" << std::endl
+      << "    <max_size> : max size of the cache - not implemented yet"
+      << std::endl
+      << std::endl
+      << "  ns cache drop-single-file <id of file to drop>\n"
+      << "    force refresh of the given FileMD by dropping it from the "
+         "cache\n"
+      << std::endl
+      << "  ns cache drop-single-container <id of container to drop>\n"
+      << "    force refresh of the given ContainerMD by dropping it from the "
+         "cache\n"
+      << std::endl
+      << "  ns drain list|set [<key>=<value>]                                 \n"
+      << "    list : list the global drain configuration parameters           \n"
+      << "    set  : set one of the following drain configuration parameters  \n"
+      << "           max-thread-pool-size : max number of threads in drain pool\n"
+      << "                                  [default 100, minimum 5]          \n"
+      << "           max-fs-per-node      : max number of file systems per node that\n"
+      << "                                  can be drained in parallel [default 5]\n"
+      << std::endl
+      << "  ns reserve-ids <file id> <container id>\n"
+      << "    blacklist file and container IDs below the given threshold. The namespace\n"
+      << "    will not allocate any file or container with IDs less than, or equal to the\n"
+      << "    given blacklist thresholds.\n"
+      << std::endl
+      << "  ns benchmark <n-threads> <n-subdirs> <n-subfiles> [prefix=/benchmark]\n"
+      << "     run metadata benchmark inside the MGM - results are printed into the MGM logfile and the shell\n"
+      << "                n-threads  : number of parallel threads running a benchmark in the MGM\n"
+      << "                n-subdirs  : directories created by each threads\n"
+      << "                n-subfiles : number of files created in each sub-directory\n"
+      << "                prefix     : absolute directory where to write the benchmarkf iles - default is /benchmark\n"
+      << std::endl
+      << "     example: eos ns benchmark 100 10 10\n"
+      << std::endl
+      << " ns tracker list|clear --name tracker_type\n"
+      << "     list or clear the different file identifier trackers\n"
+      << "     tracker_type : one of the following: drain, balance, fsck, convert, all\n"
+      << std::endl
+      << " ns behaviour list|set|clear\n"
+      << "     modify the behaviour of internal mechanisms for the manager node\n"
+      << "     list                    : list all the behaviour changes enforced\n"
+      << "     set <behaviour> <value> : enforce given behavior\n"
+      << "     get <behaviour>         : get behaviour configuration\n"
+      << "     clear <behaviour>|all   : remove enforced behavior\n"
+      << std::endl
+      << "     The following behaviours are supported:\n"
+      << "       rain_min_fsid_entry : for RAIN files the entry server will deterministically\n"
+      << "         be the file system with the lowest fsid from the list of stripes\n"
+      << "         Accepted values: \"on\" or \"off\" [default off]\n"
+      << std::endl;
+  return oss.str();
 }
 
 void ConfigureNsApp(CLI::App& app)
