@@ -8,21 +8,43 @@
 #include "console/CommandFramework.hh"
 #include <CLI/CLI.hpp>
 #include "console/commands/helpers/ICmdHelper.hh"
+#include <iomanip>
 #include <memory>
 #include <sstream>
 
 namespace {
 std::string MakeRouteHelp()
 {
-  return "Usage: route ls|link|unlink [OPTIONS]\n\n"
-         "Namespace routing to redirect clients to external instances.\n\n"
-         "  ls [<path>]\n"
-         "    list all routes or the one matching for the given path\n\n"
-         "  link <path> <dst_host>[:<xrd_port>[:<http_port>]],...\n"
-         "    create routing from path to destination host(s)\n"
-         "    Default ports: xrd 1094, http 8000\n\n"
-         "  unlink <path>\n"
-         "    remove routing matching path\n";
+  std::ostringstream oss;
+  oss << "Usage: route [ls|link|unlink]" << std::endl
+      << "    namespace routing to redirect clients to external instances"
+      << std::endl
+      << std::endl
+      << "  route ls [<path>]" << std::endl
+      << "    list all routes or the one matching for the given path"
+      << std::endl
+      << "      * as the first character means the node is a master"
+      << std::endl
+      << "      _ as the first character means the node is offline"
+      << std::endl
+      << std::endl
+      << "  route link <path> <dst_host>[:<xrd_port>[:<http_port>]],..."
+      << std::endl
+      << "    create routing from <path> to destination host. If the xrd_port"
+      << std::endl
+      << "    is omitted the default 1094 is used, if the http_port is omitted"
+      << std::endl
+      << "    the default 8000 is used. Several dst_hosts can be specified by"
+      << std::endl
+      << "    separating them with \",\". The redirection will go to the MGM"
+      << std::endl
+      << "    from the specified list"
+      << std::endl
+      << "    e.g route /eos/dummy/ foo.bar:1094:8000" << std::endl
+      << std::endl
+      << "  route unlink <path>" << std::endl
+      << "    remove routing matching path" << std::endl;
+  return oss.str();
 }
 
 void ConfigureRouteApp(CLI::App& app)
@@ -169,13 +191,16 @@ public:
     return !wants_help(args.c_str());
   }
   int
-  run(const std::vector<std::string>& args, CommandContext&) override
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
     std::ostringstream oss;
     for (size_t i = 0; i < args.size(); ++i) {
       if (i)
         oss << ' ';
-      oss << args[i];
+      if (args[i].find(' ') != std::string::npos)
+        oss << std::quoted(args[i]);
+      else
+        oss << args[i];
     }
     std::string joined = oss.str();
     if (wants_help(joined.c_str())) {
@@ -183,7 +208,7 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    RouteHelper helper(gGlobalOpts);
+    RouteHelper helper(*ctx.globalOpts);
     if (!helper.ParseCommand(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
