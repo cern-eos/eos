@@ -16,7 +16,8 @@ namespace {
 std::string MakeIoHelp()
 {
   std::ostringstream oss;
-  oss << "Usage: io stat|enable|disable|report|ns|shaping [OPTIONS]\n\n"
+  oss << " usage:\n"
+      << std::endl
       << "io stat [-l] [-a] [-m] [-n] [-t] [-d] [-x] [--ss] [--sa] [--si] : print io "
          "statistics\n"
       << "\t  -l : show summary information (this is the default if -a,-t,-d,-x is not "
@@ -34,25 +35,32 @@ std::string MakeIoHelp()
          "reports)\n"
       << "\t  Example: asking for data of finished transfers which were transferred "
          "during interval [now - 180s, now - 120s]:\n"
-      << "\t           eos io stat -x --sa 120 --si 60\n\n"
+      << "\t           eos io stat -x --sa 120 --si 60\n"
+      << std::endl
       << "io enable [-r] [-p] [-n] [--udp <address>] : enable collection of io "
          "statistics\n"
       << "\t         no arg. : start the collection thread\n"
       << "\t              -r : enable collection of io reports\n"
       << "\t              -p : enable popularity accounting\n"
       << "\t              -n : enable report namespace\n"
-      << "\t --udp <address> : add a UDP message target for io UDP packets\n\n"
+      << "\t --udp <address> : add a UDP message target for io UDP packets (the "
+         "configured targets are shown by 'io stat -l')\n"
+      << std::endl
       << "io disable [-r] [-p] [-n] [--udp <address>] : disable collection of io "
          "statistics\n"
       << "\t         no arg. : stop the collection thread\n"
       << "\t              -r : disable collection of io reports\n"
       << "\t              -p : disable popularity accounting\n"
       << "\t              -n : disable report namespace\n"
-      << "\t --udp <address> : remove a UDP message target for io UDP packets\n\n"
-      << "io report <path> : show contents of report namespace for <path>\n\n"
-      << "io ns [-a] [-n] [-b] [-100|-1000|-10000] [-w] [-f] : show namespace IO ranking "
-         "(popularity)\n"
+      << "\t --udp <address> : remove a UDP message target for io UDP packets (the "
+         "configured targets are shown by 'io stat -l')\n"
+      << std::endl
+      << "io report <path> : show contents of report namespace for <path>\n"
+      << std::endl
+      << "io ns [-a] [-m] [-n] [-b] [-100|-1000|-10000] [-w] [-f] : show namespace IO "
+         "ranking (popularity)\n"
       << "\t      -a :  don't limit the output list\n"
+      << "\t      -m :  print in <key>=<val> monitoring format\n"
       << "\t      -n :  show ranking by number of accesses\n"
       << "\t      -b :  show ranking by number of bytes\n"
       << "\t    -100 :  show the first 100 in the ranking\n"
@@ -60,9 +68,11 @@ std::string MakeIoHelp()
       << "\t  -10000 :  show the first 10000 in the ranking\n"
       << "\t      -w :  show history for the last 7 days\n"
       << "\t      -f :  show the 'hotfiles' which are the files with highest number of "
-         "present file opens\n\n"
-      << "io shaping ls|enable|disable|policy|config [options...] : interact with the "
-         "Traffic Shaping engine\n\n"
+         "present file opens\n"
+      << std::endl
+      << "io shaping [subcommand] [options...] : interact with the Traffic Shaping "
+         "engine\n"
+      << std::endl
       << "   SUBCOMMANDS\n"
       << "     ls [options...] : view real-time IO rates and shaping status\n"
       << "\t   --apps   : show rates by application\n"
@@ -71,16 +81,72 @@ std::string MakeIoHelp()
       << "\t   --nodes  : show rates by storage node (FST)\n"
       << "\t   --json   : output in JSON format\n"
       << "\t   --sys    : include meta statistics about Traffic Shaping system\n"
-      << "\t   --window <1|5|15|60|300> : time window in seconds for SMA (default 60)\n\n"
+      << "\t   --window <1|5|15|60|300> : time window in seconds for SMA (default 60)\n"
+      << std::endl
       << "     enable  : globally enable traffic shaping\n"
-      << "     disable : globally disable traffic shaping\n\n"
+      << "     disable : globally disable traffic shaping\n"
+      << std::endl
       << "     policy [action] [options...] : manage shaping limits and reservations\n"
       << "\t   action 'ls' : list configured policies\n"
-      << "\t     --apps, --users, --groups, --controller, --json\n"
-      << "\t   action 'set' : configure policy (--app|--uid|--gid, --limit-read, "
-         "--limit-write, etc.)\n"
-      << "\t   action 'rm' : remove a configured policy\n\n"
-      << "     config ls|set : manage traffic shaping thread configurations\n";
+      << "\t     usage: policy ls [options...]\n"
+      << "\t       --apps       : filter by applications\n"
+      << "\t       --users      : filter by users (uid)\n"
+      << "\t       --groups     : filter by groups (gid)\n"
+      << "\t       --controller : show ephemeral controller limits\n"
+      << "\t       --json       : output in JSON format\n"
+      << "\t   action 'set' : configure a new policy or modify an existing one\n"
+      << "\t     usage: policy set <identity> [parameters...] [--enable|--disable]\n"
+      << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
+      << "\t       [parameters] : --limit-read <rate> | --limit-write <rate> | "
+         "--reservation-read <rate> | --reservation-write <rate>\n"
+      << "\t                      | --controller-limit-read <rate> | "
+         "--controller-limit-write <rate>\n"
+      << "\t                      (rate can use suffixes, e.g., 10M, 500K, or 0 to "
+         "remove)\n"
+      << "\t   action 'rm' : completely remove a configured policy\n"
+      << "\t     usage: policy rm <identity>\n"
+      << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
+      << std::endl
+      << "     config [action] [options...] : manage traffic shaping thread "
+         "configurations\n"
+      << "\t   action 'ls' : list current thread update periods\n"
+      << "\t     usage: config ls\n"
+      << "\t   action 'set' : modify configuration settings such as update periods for "
+         "estimators and policy enforcement\n"
+      << "\t     usage: config set [--estimators-period <ms>] [--policy-period <ms>] "
+         "[--report-period <ms>] [--system-window <s>]\n"
+      << std::endl
+      << "   EXAMPLES\n"
+      << "\t   # Show current application rates\n"
+      << "\t   eos io shaping ls --apps\n"
+      << std::endl
+      << "\t   # Globally enable the traffic shaping engine\n"
+      << "\t   eos io shaping enable\n"
+      << std::endl
+      << "\t   # Globally disable the traffic shaping engine\n"
+      << "\t   eos io shaping disable\n"
+      << std::endl
+      << "\t   # Limit 'eoscp' read rate to 10 MB/s and write rate to 50 MB/s\n"
+      << "\t   eos io shaping policy set --app eoscp --limit-read 10M --limit-write 50M\n"
+      << std::endl
+      << "\t   # Temporarily disable the policy for 'eoscp'\n"
+      << "\t   eos io shaping policy set --app eoscp --disable\n"
+      << std::endl
+      << "\t   # Remove the read limit for 'eoscp' but keep the write limit\n"
+      << "\t   eos io shaping policy set --app eoscp --limit-read 0\n"
+      << std::endl
+      << "\t   # Completely delete the policy for user 1001\n"
+      << "\t   eos io shaping policy rm --uid 1001\n"
+      << std::endl
+      << "\t   # List all configured application policies including machine limits\n"
+      << "\t   eos io shaping policy ls --apps --controller\n"
+      << std::endl
+      << "\t   # Show current thread configurations\n"
+      << "\t   eos io shaping config ls\n"
+      << std::endl
+      << "\t   # Change the estimators update period to 200 ms\n"
+      << "\t   eos io shaping config set --estimators-period 200\n"
+      << std::endl;
   return oss.str();
 }
 
@@ -377,7 +443,7 @@ public:
     return !wants_help(args.c_str());
   }
   int
-  run(const std::vector<std::string>& args, CommandContext&) override
+  run(const std::vector<std::string>& args, CommandContext& ctx) override
   {
     std::ostringstream oss;
     for (size_t i = 0; i < args.size(); ++i) {
@@ -394,7 +460,7 @@ public:
       global_retc = EINVAL;
       return 0;
     }
-    IoHelper helper(gGlobalOpts);
+    IoHelper helper(*ctx.globalOpts);
     if (!helper.ParseCommand(joined.c_str())) {
       printHelp();
       global_retc = EINVAL;
