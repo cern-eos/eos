@@ -1,5 +1,5 @@
 // ----------------------------------------------------------------------
-// File: RandUtils.cc
+// File: RandUtils.hh
 // ----------------------------------------------------------------------
 
 /************************************************************************
@@ -22,25 +22,54 @@
 
 #pragma once
 #include "common/Namespace.hh"
-#include <random>
 #include <cstdlib>
+#include <optional>
+#include <random>
 
 EOSCOMMONNAMESPACE_BEGIN
 
 //------------------------------------------------------------------------------
-//! Method to generate random nuber in the given interval - thread safe
+//! Method to generate random number in the given interval - thread safe
 //!
 //! @param start start interval
 //! @param end end interval
+//! @param seed  optional seed for the generator (only effective on first call
+//!              per thread due to thread_local storage)
 //!
 //! @return random number uniformly distributed in the given interval
 //------------------------------------------------------------------------------
-template <typename IntType=uint64_t>
-auto getRandom(IntType start = 0, IntType end = RAND_MAX) -> IntType
+template <typename IntType = uint64_t>
+auto
+getRandom(IntType start = 0, IntType end = static_cast<IntType>(RAND_MAX),
+          std::optional<uint64_t> seed = std::nullopt) -> IntType
 {
-  thread_local std::random_device tlrd;
-  thread_local std::mt19937 generator(tlrd());
+  static_assert(std::is_integral<IntType>::value,
+                "template argument must be an integral type");
+  thread_local std::mt19937 generator(seed.has_value() ? *seed : std::random_device{}());
   std::uniform_int_distribution<IntType> distrib(start, end);
+  return distrib(generator);
+}
+
+//------------------------------------------------------------------------------
+//! Method to generate a random number following a normal distribution
+//! (Gaussian) - thread safe
+//!
+//! @param mean   mean value of the distribution
+//! @param stddev standard deviation of the distribution
+//! @param seed  optional seed for the generator (only effective on first call
+//!              per thread due to thread_local storage)
+//!
+//! @return random number normally distributed with the given mean and stddev
+//------------------------------------------------------------------------------
+template <typename FloatType = double>
+auto
+getRandomNormal(FloatType mean = 0.0, FloatType stddev = 1.0,
+                std::optional<uint64_t> seed = std::nullopt) -> FloatType
+{
+  static_assert(std::is_floating_point<FloatType>::value,
+                "template argument must be a floating point type");
+  thread_local std::mt19937 generator(seed.has_value() ? *seed : std::random_device{}());
+  std::normal_distribution<FloatType> distrib(mean, stddev);
   return distrib(generator);
 }
 

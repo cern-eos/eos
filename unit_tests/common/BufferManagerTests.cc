@@ -21,12 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "common/utils/RandUtils.hh"
+#include "utils/RandUtils.hh"
 #include "gtest/gtest.h"
 #define IN_TEST_HARNESS
 #include "common/BufferManager.hh"
 #undef IN_TEST_HARNESS
 #include "common/StringConversion.hh"
-#include <random>
 #include <thread>
 #include <chrono>
 
@@ -218,13 +219,9 @@ TEST(BufferManager, MultipleThreads)
   using namespace eos::common;
   auto work = [](eos::common::BufferManager & buff_mgr, int num_blocks,
   float mean, float stddev) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
-    std::normal_distribution<> dis(mean, stddev);
-
     for (int i = 0; i < num_blocks; ++i) {
       uint64_t max_buff_sz = (1 << buff_mgr.GetNumSlots()) * MB;
-      uint64_t value = std::round(std::abs(dis(gen)));
+      uint64_t value = std::round(std::abs(eos::common::getRandomNormal(mean, stddev)));
 
       // Make sure the generated value is within limits
       if (value <= 0) {

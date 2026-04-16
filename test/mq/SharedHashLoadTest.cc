@@ -22,14 +22,13 @@
 #include "mq/MessagingRealm.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "qclient/QClient.hh"
-#include "qclient/shared/SharedManager.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
-#include <random>
-#include <string>
+#include "qclient/shared/SharedManager.hh"
+#include "utils/RandUtils.hh"
+#include <functional>
 #include <sstream>
 #include <stdexcept>
-#include <functional>
+#include <string>
 
 #define SSTR(message) static_cast<std::ostringstream&>(std::ostringstream().flush() << message).str()
 
@@ -100,14 +99,11 @@ std::string RandomString(std::string::size_type length)
   static const std::string chrs = "0123456789"
                                   "abcdefghijklmnopqrstuvwxyz"
                                   "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-  thread_local static std::mt19937 rg{std::random_device{}()};
-  thread_local static std::uniform_int_distribution<std::string::size_type>
-  pick(0, chrs.length() - 2);
   std::string s;
   s.reserve(length);
 
   while (length--) {
-    s += chrs[pick(rg)];
+    s += chrs[eos::common::getRandom(0ul, chrs.length() - 2)];
   }
 
   return s;

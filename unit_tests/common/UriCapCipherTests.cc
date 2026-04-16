@@ -20,13 +20,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
 #include "common/UriCapCipher.hh"
+#include "common/utils/RandUtils.hh"
+#include "gtest/gtest.h"
 
 #include <atomic>
 #include <chrono>
-#include <fstream>
-#include <random>
 #include <string>
 #include <thread>
 #include <unistd.h>
@@ -38,24 +37,20 @@ TEST(UriCapCipher, EncodeDecodePerf)
   constexpr size_t kPayloadSize = 4096;
   constexpr int kIters = 10000;
 
-  std::mt19937_64 rng_pw(0xC0FFEEULL);
-  std::uniform_int_distribution<int> dist_pw(0, 255);
   std::string password;
   password.resize(32);
   for (size_t i = 0; i < password.size(); ++i) {
-    password[i] = static_cast<char>(dist_pw(rng_pw));
+    password[i] = static_cast<char>(eos::common::getRandom(0, 255, 0xC0FFEEULL));
   }
 
   UriCapCipher cipher(UriCapCipher::PasswordTag{},
                       UriCapCipher::FixedSaltTag{},
                       password);
 
-  std::mt19937_64 rng(0xBADC0DEULL);
-  std::uniform_int_distribution<int> dist(0, 255);
   std::string payload;
   payload.resize(kPayloadSize);
   for (size_t i = 0; i < payload.size(); ++i) {
-    payload[i] = static_cast<char>(dist(rng));
+    payload[i] = static_cast<char>(eos::common::getRandom(0, 255, 0xBADC0DEULL));
   }
 
   std::vector<std::string> encoded;
@@ -97,12 +92,10 @@ TEST(UriCapCipher, EncodeDecodeConcurrent)
   constexpr int kItersPerThread = 100;
   constexpr size_t kPayloadSize = 4096;
 
-  std::mt19937_64 rng_pw(0xC0FFEEULL);
-  std::uniform_int_distribution<int> dist_pw(0, 255);
   std::string password;
   password.resize(32);
   for (size_t i = 0; i < password.size(); ++i) {
-    password[i] = static_cast<char>(dist_pw(rng_pw));
+    password[i] = static_cast<char>(eos::common::getRandom(0, 255, 0xC0FFEEULL));
   }
 
   UriCapCipher cipher(UriCapCipher::PasswordTag{},
@@ -118,12 +111,11 @@ TEST(UriCapCipher, EncodeDecodeConcurrent)
   auto t0 = std::chrono::high_resolution_clock::now();
   for (int t = 0; t < kThreads; ++t) {
     threads.emplace_back([t, &cipher, &failures, &payloads, &encoded]() {
-      std::mt19937_64 rng(0xBADC0DEULL + static_cast<uint64_t>(t));
-      std::uniform_int_distribution<int> dist(0, 255);
       std::string payload;
       payload.resize(kPayloadSize);
       for (size_t i = 0; i < payload.size(); ++i) {
-        payload[i] = static_cast<char>(dist(rng));
+        payload[i] = static_cast<char>(
+            eos::common::getRandom(0, 255, 0xBADC0DEULL + static_cast<uint64_t>(t)));
       }
 
       payloads[t] = std::move(payload);
@@ -174,4 +166,3 @@ TEST(UriCapCipher, EncodeDecodeConcurrent)
 
   EXPECT_EQ(failures.load(), 0);
 }
-
