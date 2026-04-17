@@ -896,15 +896,22 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
       mProcCmd = ProcInterface::GetProcCommand(tident, vid, path, ininfo, logId);
 
       if (mProcCmd) {
-        eos_static_info("proccmd=%s", mProcCmd->GetCmd(ininfo).c_str());
+        eos::common::Timing tm("ProcCmd");
+        COMMONTIMING("begin", &tm);
+
+        eos_info("proccmd=%s", mProcCmd->GetCmd(ininfo).c_str());
         mProcCmd->SetLogId(logId, vid, tident);
         mProcCmd->SetError(&error);
-        rcode = mProcCmd->open(path, ininfo, vid, &error);
 
+        rcode = mProcCmd->open(path, ininfo, vid, &error);
+        COMMONTIMING("file::open", &tm);
         // If we need to stall the client then save the IProcCommand object and
         // add it to the map for when the client comes back.
         if (rcode > 0) {
           if (mProcCmd->GetCmd(ininfo) != "proto") {
+            COMMONTIMING("client::stall", &tm);
+            eos_debug("proccmd=%s %s stall=%d", mProcCmd->GetCmd(ininfo).c_str(),
+                     tm.Dump().c_str(), rcode);
             return rcode;
           }
 
@@ -916,7 +923,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
           // Now the mProcCmd object is null and moved to the global map
         }
+        COMMONTIMING("end", &tm);
 
+        eos_debug("proccmd=%s %s rcode=%d",
+                 mProcCmd ? mProcCmd->GetCmd(ininfo).c_str() : "moved", tm.Dump().c_str(),
+                 rcode);
         return rcode;
       } else {
         return Emsg(epname, error, ENOMEM, "allocate proc command object for ",
