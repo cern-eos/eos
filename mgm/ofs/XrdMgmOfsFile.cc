@@ -910,7 +910,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         if (rcode > 0) {
           if (mProcCmd->GetCmd(ininfo) != "proto") {
             COMMONTIMING("client::stall", &tm);
-            eos_info("proccmd=%s %s stall=%d", mProcCmd->GetCmd(ininfo).c_str(),
+            eos_debug("proccmd=%s %s stall=%d", mProcCmd->GetCmd(ininfo).c_str(),
                      tm.Dump().c_str(), rcode);
             return rcode;
           }
@@ -925,7 +925,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
         }
         COMMONTIMING("end", &tm);
 
-        eos_info("proccmd=%s %s rcode=%d",
+        eos_debug("proccmd=%s %s rcode=%d",
                  mProcCmd ? mProcCmd->GetCmd(ininfo).c_str() : "moved", tm.Dump().c_str(),
                  rcode);
         return rcode;
