@@ -153,10 +153,11 @@ check_sss_hostname_match(const eos::common::VirtualIdentity& vid,
       if (!skip_hostname_match &&
           vid_hostname.compare(0, target_host.length(), target_host, 0,
                                target_host.length())) {
-        eos_static_warning("SSS check found hostname mismatch: '%s'!='%s'",
-                           vid_hostname.c_str(), target_host.c_str());
-        stdErr = "error: filesystems can only be configured as 'root' or "
-                 "from the server mounting them using sss protocol (1)\n";
+        std::ostringstream err;
+        err << "error: hostname mismatch '" << vid_hostname << "'!='" << target_host
+            << "'; filesystems can only be configured as 'root'"
+            << " or from the server mounting them using sss protocol (1)\n.";
+        stdErr = err.str().c_str();
         return EPERM;
       }
     }
