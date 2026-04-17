@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #define TRACE_debug 0xffff
+#include "common/utils/RandUtils.hh"
 #include "mq/XrdMqClient.hh"
-#include "mq/XrdMqTiming.hh"
 #include "mq/XrdMqMessaging.hh"
 #include "mq/XrdMqSharedObject.hh"
+#include "mq/XrdMqTiming.hh"
 #include <XrdSys/XrdSysLogger.hh>
 #include <stdio.h>
 
@@ -83,7 +84,7 @@ int main(int argc, char* argv[])
 
       hash->Set("hostname", hostname.c_str());
 
-      if (!(rand() % 10)) {
+      if (!eos::common::getRandom(0, 9)) {
         //      fprintf(stderr,"Clearing Hash!\n");
         hash->Clear();
       }

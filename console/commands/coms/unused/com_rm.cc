@@ -22,9 +22,10 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include "console/ConsoleMain.hh"
-#include "common/StringTokenizer.hh"
 #include "common/Path.hh"
+#include "common/StringTokenizer.hh"
+#include "common/utils/RandUtils.hh"
+#include "console/ConsoleMain.hh"
 /*----------------------------------------------------------------------------*/
 
 /* Remove a file */
@@ -121,7 +122,7 @@ com_rm(char* arg1)
       XrdOucString confirmation = "";
 
       for (int i = 0; i < 10; i++) {
-        confirmation += (int)(9.0 * rand() / RAND_MAX);
+        confirmation += eos::common::getRandom<int>(0, 8);
       }
 
       fprintf(stdout, "%s\n", confirmation.c_str());

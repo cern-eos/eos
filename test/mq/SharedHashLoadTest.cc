@@ -19,6 +19,7 @@
 #include "common/CLI11.hpp"
 #include "common/Locators.hh"
 #include "common/PasswordHandler.hh"
+#include "common/utils/RandUtils.hh"
 #include "mq/MessagingRealm.hh"
 #include "mq/SharedHashWrapper.hh"
 #include "namespace/ns_quarkdb/QdbContactDetails.hh"
@@ -130,7 +131,7 @@ GenerateStrings(unsigned int num_keys, unsigned int key_length,
 //------------------------------------------------------------------------------
 unsigned int RandomPick(unsigned int length)
 {
-  return (rand() % length);
+  return (eos::common::getRandom<unsigned int>(0, length - 1));
 }
 
 //------------------------------------------------------------------------------
@@ -142,7 +143,6 @@ void HandleProducer(unsigned int num_keys, unsigned int key_length,
                     Logger* logger)
 {
   using namespace std::chrono;
-  srand(time(NULL));
   std::vector<std::string> keys = GenerateStrings(num_keys, key_length, "key_");
   std::vector<std::string> values = GenerateStrings(num_keys * 2, value_length,
                                     "val_");
