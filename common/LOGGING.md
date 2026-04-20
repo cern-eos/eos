@@ -157,6 +157,7 @@ Logging can optionally replace stdout/fan-out outputs with ZSTD-compressed, time
   - Rotation creates fresh segments under `logs/`; per-stream top-level symlinks are atomically updated to relative targets.
   - When enabled, stdout printing and fan-out FILE* writes are suppressed (compressed streams are authoritative). Stderr is redirected and its lines are written to the main compressed stream.
   - On startup in ZSTD mode, if a plain `xrdlog.<service>` exists with content (e.g., created by XRootD early), its contents are migrated into the compressed main stream and the plain file is unlinked.
+  - MGM-only: the cluster-wide error-report listener (previously `/var/log/eos/mgm/error.log`) switches to a compressed, rotating stream at `<base>/error.zstd -> logs/error-YYYYmmdd-HHMMSS.zst`. When ZSTD logging is disabled the plain `error.log` behaviour is preserved.
 
 Per-tag file names in ZSTD mode
 -------------------------------
