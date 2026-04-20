@@ -80,37 +80,57 @@ XrdMgmOfs::ErrorLogListenerThread(ThreadAssistant& assistant) noexcept
   ThreadAssistant::setSelfThreadName("ErrorLogListener");
   static std::string channel = "/eos/*/errorreport";
   static std::string log_path = "/var/log/eos/mgm/error.log";
-  std::string err_msg;
+  // Tag used when EOS_ZSTD_LOGGING is enabled: produces rotating segments at
+  // <base>/logs/error-YYYYmmdd-HHMMSS.zst with a symlink <base>/error.zstd.
+  static const char* zstd_tag = "error";
+  auto& logging = eos::common::Logging::GetInstance();
+  const bool use_zstd = logging.IsZstdEnabled();
+  FILE* file = nullptr;
 
-  if (!CheckFileExistanceAndPerm(log_path, err_msg)) {
-    eos_static_err("msg=\"failed to stat QDB error log listener\" "
-                   "err_msg=\"%s\"", err_msg.c_str());
-    return;
-  }
+  if (!use_zstd) {
+    std::string err_msg;
 
-  // Open log file or create if necessary
-  FILE* file = fopen(log_path.c_str(), "a+");
+    if (!CheckFileExistanceAndPerm(log_path, err_msg)) {
+      eos_static_err("msg=\"failed to stat QDB error log listener\" "
+                     "err_msg=\"%s\"", err_msg.c_str());
+      return;
+    }
 
-  if (file == nullptr) {
-    eos_static_err("msg=\"failed to open error log file\" path=\"%s\" errno=%d",
-                   log_path.c_str(), errno);
-    return;
+    // Open log file or create if necessary
+    file = fopen(log_path.c_str(), "a+");
+
+    if (file == nullptr) {
+      eos_static_err("msg=\"failed to open error log file\" path=\"%s\" errno=%d",
+                     log_path.c_str(), errno);
+      return;
+    }
+
+    XrdSysLogger logger(fileno(file), 1);
+    int retc = logger.Bind(log_path.c_str(), 1);
+    // Disable XRootD log rotation
+    logger.setRotate(0);
+    eos_static_info("msg=\"starting error report listener\" mode=plain "
+                    "path=\"%s\" bind_retc=%d", log_path.c_str(), retc);
+  } else {
+    eos_static_info("msg=\"starting error report listener\" mode=zstd "
+                    "tag=\"%s\"", zstd_tag);
   }
 
   std::string out;
-  XrdSysLogger logger(fileno(file), 1);
-  int retc = logger.Bind(log_path.c_str(), 1);
-  // Disable XRootD log rotation
-  logger.setRotate(0);
   eos::mq::QdbListener err_listener(mQdbContactDetails, channel);
-  eos_static_info("msg=\"starting error report listener\" bind_retc=%d", retc);
 
   while (!assistant.terminationRequested()) {
     if (err_listener.fetch(out, &assistant)) {
-      fprintf(file, "%s\n", out.c_str());
+      if (use_zstd) {
+        logging.WriteZstd(zstd_tag, out.c_str());
+      } else {
+        fprintf(file, "%s\n", out.c_str());
+      }
     }
   }
 
-  (void) fflush(file);
-  (void) fclose(file);
+  if (file) {
+    (void) fflush(file);
+    (void) fclose(file);
+  }
 }
