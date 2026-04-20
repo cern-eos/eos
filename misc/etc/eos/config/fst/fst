@@ -12,6 +12,8 @@ QDB_PORT=7777
 # LOGGING
 #-------------------------------------------------------------------------------
 # ZSTD-compressed rotating logs (replacement for fan-out files). Disabled by default.
+# When enabled, 'eos daemon run' starts xrootd without '-l <logfile>' so its
+# STDERR flows into the EOS Logging ZSTD pipeline.
 #EOS_ZSTD_LOGGING=0
 # Rotate logging segments every N seconds (default: 3600 = 1 hour)
 #EOS_ZSTD_LOGGING_ROTATION=3600

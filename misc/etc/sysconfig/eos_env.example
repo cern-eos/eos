@@ -178,6 +178,8 @@ EOS_AUDIT_ROTATION=3600
 # ZSTD-compressed Logging and Reports
 #-------------------------------------------------------------------------------
 # Enable ZSTD-compressed rotating logs (replaces fan-out files). Disabled by default.
+# When enabled, xrootd is started without '-l <logfile>' so its STDERR flows
+# into the EOS Logging ZSTD pipeline (handled by eos_start.sh / 'eos daemon run').
 #EOS_ZSTD_LOGGING=0
 # Rotation interval for ZSTD logging in seconds (default 3600 = 1 hour)
 #EOS_ZSTD_LOGGING_ROTATION=3600
