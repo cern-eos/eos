@@ -673,16 +673,47 @@ native_com_daemon(char* arg)
 
       ::chdir(cPath.GetParentPath());
       std::string logfile = "/var/log/eos/xrdlog.";
-      logfile += service.c_str();
+      logfile += name.c_str();
+      // When EOS_ZSTD_LOGGING is enabled (in the [sysconfig] chapter of the
+      // service config), the EOS Logging class ingests xrootd diagnostics from
+      // STDERR and writes them as ZSTD-compressed rotating segments. In that
+      // case we must NOT hand xrootd '-l <logfile>' or it would redirect
+      // stdout/stderr to that file and the Logging pipeline would see nothing.
+      std::string zstd_log = cfg.GetValueByKey("sysconfig", "EOS_ZSTD_LOGGING");
+      auto tolower_str = [](std::string v) {
+        for (auto& c : v) {
+          c = static_cast<char>(::tolower(static_cast<unsigned char>(c)));
+        }
+        return v;
+      };
+      const std::string v = tolower_str(zstd_log);
+      const bool use_stderr = (v == "1" || v == "true" || v == "yes" ||
+                               v == "on");
 
-      if (service == "qdb") {
-        execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
-               name.c_str(), "-c", cfile.c_str(), "-l", logfile.c_str(), "-R",
-               "daemon", "-k", "fifo", "-s", pidfile.c_str(), NULL, envv);
+      if (use_stderr) {
+        fprintf(stderr,
+                "# EOS_ZSTD_LOGGING=%s : xrootd logs to STDERR (no -l)\n",
+                zstd_log.c_str());
+
+        if (service == "qdb") {
+          execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
+                 name.c_str(), "-c", cfile.c_str(), "-R", "daemon", "-k",
+                 "fifo", "-s", pidfile.c_str(), NULL, envv);
+        } else {
+          execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
+                 name.c_str(), "-c", cfile.c_str(), "-R", "daemon", "-s",
+                 pidfile.c_str(), NULL, envv);
+        }
       } else {
-        execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
-               name.c_str(), "-c", cfile.c_str(), "-l", logfile.c_str(), "-R",
-               "daemon", "-s", pidfile.c_str(), NULL, envv);
+        if (service == "qdb") {
+          execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
+                 name.c_str(), "-c", cfile.c_str(), "-l", logfile.c_str(), "-R",
+                 "daemon", "-k", "fifo", "-s", pidfile.c_str(), NULL, envv);
+        } else {
+          execle("/opt/eos/xrootd/bin/xrootd", executable.c_str(), "-n",
+                 name.c_str(), "-c", cfile.c_str(), "-l", logfile.c_str(), "-R",
+                 "daemon", "-s", pidfile.c_str(), NULL, envv);
+        }
       }
 
       return (0);
