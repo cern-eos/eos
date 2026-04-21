@@ -22,33 +22,50 @@
  ************************************************************************/
 
 #include "NsCmd.hh"
+#include "common/BehaviourConfig.hh"
+#include "common/ExpiryCache.hh"
+#include "common/LinuxFds.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
-#include "common/LinuxFds.hh"
-#include "common/BehaviourConfig.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/fsck/Fsck.hh"
+#include "mgm/inspector/FileInspector.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/zmq/ZMQ.hh"
+#include "namespace/Constants.hh"
+#include "namespace/Resolver.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
-#include "namespace/Resolver.hh"
-#include "namespace/Constants.hh"
-#include "mgm/config/IConfigEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
-#include "mgm/fsck/Fsck.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/zmq/ZMQ.hh"
-#include "mgm/convert/ConverterEngine.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
+#include <memory>
 #include <sstream>
+#include <stdexcept>
 
 EOSMGMNAMESPACE_BEGIN
+
+namespace {
+constexpr std::chrono::seconds kNsSnapshotCacheExpiredAfter{5};
+constexpr std::chrono::seconds kNsSnapshotCacheInvalidAfter{15};
+
+eos::common::ExpiryCache<std::string>&
+GetNsSnapshotCache()
+{
+  static eos::common::ExpiryCache<std::string> cache(kNsSnapshotCacheExpiredAfter,
+                                                     kNsSnapshotCacheInvalidAfter);
+  return cache;
+}
+} // namespace
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behaviour of the command executed by the
@@ -63,6 +80,8 @@ NsCmd::ProcessRequest() noexcept
 
   if (subcmd == eos::console::NsProto::kStat) {
     StatSubcmd(ns.stat(), reply);
+  } else if (subcmd == eos::console::NsProto::kSnapshot) {
+    SnapshotSubcmd(ns.snapshot(), reply);
   } else if (subcmd == eos::console::NsProto::kMutex) {
     MutexSubcmd(ns.mutex(), reply);
   } else if (subcmd == eos::console::NsProto::kCompact) {
@@ -756,6 +775,78 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   reply.set_retc(retc);
   reply.set_std_out(oss.str());
   reply.set_std_err(err.str());
+}
+
+//------------------------------------------------------------------------------
+// Execute cached namespace snapshot command
+//------------------------------------------------------------------------------
+void
+NsCmd::SnapshotSubcmd(const eos::console::NsProto_SnapshotProto& snapshot,
+                      eos::console::ReplyProto& reply)
+{
+  if (WantsJsonOutput()) {
+    reply.set_retc(ENOTSUP);
+    reply.set_std_err("error: ns snapshot does not support JSON output");
+    return;
+  }
+
+  auto produceSnapshot = [this]() -> std::string* {
+    auto output = std::make_unique<std::string>();
+    eos::console::ReplyProto statReply;
+    eos::console::NsProto_StatProto stat;
+    stat.set_monitor(true);
+    stat.set_summary(true);
+    StatSubcmd(stat, statReply);
+
+    if (statReply.retc()) {
+      throw std::runtime_error(statReply.std_err().empty()
+                                   ? "failed to collect namespace statistics"
+                                   : statReply.std_err());
+    }
+
+    *output = statReply.std_out();
+
+    if (!output->empty() && output->back() != '\n') {
+      output->push_back('\n');
+    }
+
+    output->append("uid=all gid=all ns.snapshot.generated_at=")
+        .append(std::to_string(time(nullptr)))
+        .append("\nuid=all gid=all ns.snapshot.cache.expired_after=")
+        .append(std::to_string(kNsSnapshotCacheExpiredAfter.count()))
+        .append("\n");
+
+    auto space_it = FsView::gFsView.mSpaceView.find("default");
+
+    if ((space_it == FsView::gFsView.mSpaceView.end()) ||
+        (!space_it->second->mFileInspector)) {
+      output->append("key=error space=default msg=\"inspector unavailable\"\n");
+      return output.release();
+    }
+
+    std::string inspectorOutput;
+    space_it->second->mFileInspector->Dump(inspectorOutput, "lm",
+                                           FileInspector::LockFsView::Off);
+
+    if (!inspectorOutput.empty()) {
+      output->append(inspectorOutput);
+
+      if (output->back() != '\n') {
+        output->push_back('\n');
+      }
+    }
+
+    return output.release();
+  };
+
+  try {
+    reply.set_std_out(
+        GetNsSnapshotCache().getCachedObject(snapshot.refresh(), produceSnapshot));
+  } catch (const std::exception& err) {
+    reply.set_retc(EIO);
+    reply.set_std_err(
+        SSTR("error: failed to generate namespace snapshot: " << err.what()));
+  }
 }
 
 //------------------------------------------------------------------------------

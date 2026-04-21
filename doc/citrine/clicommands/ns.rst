@@ -3,7 +3,7 @@ ns
 
 .. code-block:: text
 
-  ns [stat|mutex|compact|master|cache]
+  ns [stat|snapshot|mutex|compact|master|cache]
     print or configure basic namespace parameters
     ns stat [-a] [-m] [-n] [--reset]
     print namespace statistics
@@ -11,6 +11,10 @@ ns
     -m      : display in monitoring format <key>=<value>
     -n      : display numerical uid/gid(s)
     --reset : reset namespace counters
+    ns snapshot [-m] [--refresh]
+    print a cached, machine-readable namespace snapshot for TUI clients
+    -m        : accepted for compatibility; output is always machine-readable
+    --refresh : bypass the MGM-side cache and regenerate the snapshot
 .. code-block:: text
 
     ns mutex [<option>]
@@ -60,4 +64,3 @@ ns
     blacklist file and container IDs below the given threshold. The namespace
     will not allocate any file or container with IDs less than, or equal to the
     given blacklist thresholds.
-  

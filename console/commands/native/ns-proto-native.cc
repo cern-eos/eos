@@ -384,6 +384,18 @@ NsNativeHelper::ParseCommand(const char* arg)
     }
     reserve->set_fileid(fileID);
     reserve->set_containerid(containerID);
+  } else if (cmd == "snapshot") {
+    eos::console::NsProto_SnapshotProto* snapshot = ns->mutable_snapshot();
+    while ((option = tokenizer.GetToken())) {
+      soption = option;
+      if (soption == "-m") {
+        snapshot->set_monitor(true);
+      } else if (soption == "--refresh") {
+        snapshot->set_refresh(true);
+      } else {
+        return false;
+      }
+    }
   } else if (cmd == "benchmark") {
     using eos::console::NsProto_BenchmarkProto;
     NsProto_BenchmarkProto* benchmark = ns->mutable_benchmark();
@@ -504,18 +516,30 @@ namespace {
 std::string MakeNsHelp()
 {
   std::ostringstream oss;
-  oss << "Usage: ns [stat|mutex|compact|master|recompute_tree_size|"
+  oss << "Usage: ns [stat|snapshot|mutex|compact|master|recompute_tree_size|"
          "recompute_quotanode|update_quotanode|cache|drain|reserve-ids|"
-         "benchmark|tracker|behaviour]" << std::endl
+         "benchmark|tracker|behaviour]"
+      << std::endl
       << "    print or configure basic namespace parameters" << std::endl
       << "  ns stat [-a] [-x] [-m] [-n] [--reset]" << std::endl
       << "    print namespace statistics" << std::endl
       << "    -a      : break down by uid/gid" << std::endl
       << "    -x      : break down by application" << std::endl
-      << "    -m      : display in monitoring format <key>=<value>"
-      << std::endl
+      << "    -m      : display in monitoring format <key>=<value>" << std::endl
       << "    -n      : display numerical uid/gid(s)" << std::endl
       << "    --reset : reset namespace counters" << std::endl
+      << std::endl
+      << "  ns snapshot [-m] [--refresh]" << std::endl
+      << "    print a cached, machine-readable namespace snapshot for TUI clients"
+      << std::endl
+      << "    includes 'ns stat -m' data and the last inspector scan "
+         "('inspector -l -m')"
+      << std::endl
+      << "    -m        : accepted for compatibility; output is always "
+         "machine-readable"
+      << std::endl
+      << "    --refresh : bypass the MGM-side cache and regenerate the snapshot"
+      << std::endl
       << std::endl
       << "  ns mutex [<option>]" << std::endl
       << "    manage mutex monitoring. Option can be:" << std::endl
@@ -523,11 +547,14 @@ std::string MakeNsHelp()
       << "    --toggleorder    : toggle the order" << std::endl
       << "    --toggledeadlock : toggle deadlock check" << std::endl
       << "    --smplrate1      : set timing sample rate at 1% (default, no "
-         "slow-down)" << std::endl
+         "slow-down)"
+      << std::endl
       << "    --smplrate10     : set timing sample rate at 10% (medium "
-         "slow-down)" << std::endl
+         "slow-down)"
+      << std::endl
       << "    --smplrate100    : set timing sample rate at 100% (severe "
-         "slow-down)" << std::endl
+         "slow-down)"
+      << std::endl
       << "    --setblockedtime <ms>" << std::endl
       << "                     : set minimum time when a mutex lock lasting "
          "longer than <ms> \n"
@@ -546,24 +573,25 @@ std::string MakeNsHelp()
       << std::endl
       << "  ns master [<option>]" << std::endl
       << "    master/slave operations. Option can be:" << std::endl
-      << "    <master_hostname> : set hostname of MGM master RW daemon"
-      << std::endl
+      << "    <master_hostname> : set hostname of MGM master RW daemon" << std::endl
       << "    --log             : show master log" << std::endl
       << "    --log-clear       : clean master log" << std::endl
       << "    --enable          : enable the slave/master supervisor thread "
-         "modifying stall/" << std::endl
+         "modifying stall/"
+      << std::endl
       << "                        redirectorion rules" << std::endl
       << "    --disable         : disable supervisor thread" << std::endl
       << std::endl
       << "  ns recompute_tree_size "
-         "<path>|cid:<decimal_id>|cxid:<hex_id> [--depth <val>]" << std::endl
+         "<path>|cid:<decimal_id>|cxid:<hex_id> [--depth <val>]"
+      << std::endl
       << "    recompute the tree size of a directory and all its subdirectories"
       << std::endl
       << "    --depth : maximum depth for recomputation, default 0 i.e no "
-         "limit" << std::endl
+         "limit"
       << std::endl
-      << "  ns recompute_quotanode <path>|cid:<decimal_id>|cxid:<hex_id>"
       << std::endl
+      << "  ns recompute_quotanode <path>|cid:<decimal_id>|cxid:<hex_id>" << std::endl
       << "    recompute the specified quotanode" << std::endl
       << std::endl
       << "  ns update_quotanode "
@@ -575,20 +603,17 @@ std::string MakeNsHelp()
       << "    since the accounting is done by accumulating the individual\n"
       << "    quotas of the users registered with the quota node.\n"
       << std::endl
-      << "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]"
-      << std::endl
+      << "  ns cache set|drop [-d|-f] [<max_num>] [<max_size>K|M|G...]" << std::endl
       << "    set the max number of entries or the max size of the cache. Use "
-         "the" << std::endl
+         "the"
+      << std::endl
       << "    ns stat command to see the current values." << std::endl
-      << "    set        : update cache size for files or directories"
-      << std::endl
-      << "    drop       : drop cached file and/or directory entries"
-      << std::endl
+      << "    set        : update cache size for files or directories" << std::endl
+      << "    drop       : drop cached file and/or directory entries" << std::endl
       << "    -d         : control the directory cache" << std::endl
       << "    -f         : control the file cache" << std::endl
       << "    <max_num>  : max number of entries" << std::endl
-      << "    <max_size> : max size of the cache - not implemented yet"
-      << std::endl
+      << "    <max_size> : max size of the cache - not implemented yet" << std::endl
       << std::endl
       << "  ns cache drop-single-file <id of file to drop>\n"
       << "    force refresh of the given FileMD by dropping it from the "
@@ -608,15 +633,19 @@ std::string MakeNsHelp()
       << std::endl
       << "  ns reserve-ids <file id> <container id>\n"
       << "    blacklist file and container IDs below the given threshold. The namespace\n"
-      << "    will not allocate any file or container with IDs less than, or equal to the\n"
+      << "    will not allocate any file or container with IDs less than, or equal to "
+         "the\n"
       << "    given blacklist thresholds.\n"
       << std::endl
       << "  ns benchmark <n-threads> <n-subdirs> <n-subfiles> [prefix=/benchmark]\n"
-      << "     run metadata benchmark inside the MGM - results are printed into the MGM logfile and the shell\n"
-      << "                n-threads  : number of parallel threads running a benchmark in the MGM\n"
+      << "     run metadata benchmark inside the MGM - results are printed into the MGM "
+         "logfile and the shell\n"
+      << "                n-threads  : number of parallel threads running a benchmark in "
+         "the MGM\n"
       << "                n-subdirs  : directories created by each threads\n"
       << "                n-subfiles : number of files created in each sub-directory\n"
-      << "                prefix     : absolute directory where to write the benchmarkf iles - default is /benchmark\n"
+      << "                prefix     : absolute directory where to write the benchmarkf "
+         "iles - default is /benchmark\n"
       << std::endl
       << "     example: eos ns benchmark 100 10 10\n"
       << std::endl
@@ -632,7 +661,8 @@ std::string MakeNsHelp()
       << "     clear <behaviour>|all   : remove enforced behavior\n"
       << std::endl
       << "     The following behaviours are supported:\n"
-      << "       rain_min_fsid_entry : for RAIN files the entry server will deterministically\n"
+      << "       rain_min_fsid_entry : for RAIN files the entry server will "
+         "deterministically\n"
       << "         be the file system with the lowest fsid from the list of stripes\n"
       << "         Accepted values: \"on\" or \"off\" [default off]\n"
       << std::endl;

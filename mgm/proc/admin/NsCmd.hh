@@ -78,6 +78,15 @@ private:
                   eos::console::ReplyProto& reply);
 
   //----------------------------------------------------------------------------
+  //! Execute cached namespace snapshot command
+  //!
+  //! @param snapshot snapshot subcommand proto object
+  //! @param reply reply proto object
+  //----------------------------------------------------------------------------
+  void SnapshotSubcmd(const eos::console::NsProto_SnapshotProto& snapshot,
+                      eos::console::ReplyProto& reply);
+
+  //----------------------------------------------------------------------------
   //! Execute master command
   //!
   //! @param master master subcommand proto object
