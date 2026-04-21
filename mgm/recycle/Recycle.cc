@@ -1461,8 +1461,9 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
            !AllHierarchyHasXattr(path, Recycle::gRecycleIdXattrKey,
                                  recycle_id_val));
 
-  if (attempts == 0) {
-    std_err = "error: failed to propagate sys.forced.recycleid in the hiearchy ";
+  if ((attempts == 0) &&
+      !AllHierarchyHasXattr(path, Recycle::gRecycleIdXattrKey, recycle_id_val)) {
+    std_err += "error: failed to propagate sys.forced.recycleid in the hiearchy ";
     std_err += path;
     return EINVAL;
   }
