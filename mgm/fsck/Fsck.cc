@@ -1373,10 +1373,15 @@ Fsck::ForceCleanQdbOrphans() const
 {
   static std::string key_orphans = "fsck:orphans_n";
 
-  try {
-    (void) mQcl->del(key_orphans);
-  } catch (const std::exception& e) {
-    eos_static_err("%s", "msg=\"failed while doing qdb orphan clean-up\"");
+  if (mQcl) {
+    try {
+      (void)mQcl->del(key_orphans);
+    } catch (const std::exception& e) {
+      eos_static_err("%s", "msg=\"failed while doing qdb orphan clean-up\"");
+    }
+  } else {
+    eos_static_info("%s", "msg=\"fsck clean orphans skipped as fsck not "
+                          "configured, i.e. missing qclient object\"")
   }
 }
 
