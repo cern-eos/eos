@@ -130,6 +130,47 @@ MvOpType get_operation_type(const std::string& in1, const std::string& in2,
 }
 
 //------------------------------------------------------------------------------
+// Check for hostname matching with SSS protocol
+//------------------------------------------------------------------------------
+static int
+check_sss_hostname_match(const eos::common::VirtualIdentity& vid,
+                         const std::string& target_host, XrdOucString& stdErr)
+{
+  const std::string vid_hostname = vid.host;
+  const std::string vid_prot = vid.prot.c_str();
+
+  // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set (e.g. possibly to avoid
+  // complications in Kubernetes environments), then skip the hostname check.
+  bool skip_hostname_match = false;
+  if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
+    skip_hostname_match = true;
+  }
+
+  // Rough check that the filesystem is added from a host with the same
+  // hostname ... anyway we should have configured 'sss' security
+  if ((vid.uid == 0) || (vid_prot == "sss")) {
+    if ((vid_prot == "sss") && (vid.uid != 0)) {
+      if (!skip_hostname_match &&
+          vid_hostname.compare(0, target_host.length(), target_host, 0,
+                               target_host.length())) {
+        std::ostringstream err;
+        err << "error: hostname mismatch '" << vid_hostname << "'!='" << target_host
+            << "'; filesystems can only be configured as 'root'"
+            << " or from the server mounting them using sss protocol (1)\n.";
+        stdErr = err.str().c_str();
+        return EPERM;
+      }
+    }
+  } else {
+    stdErr = "error: filesystems can only be configured as 'root' or "
+             "from the server mounting them using sss protocol (2)\n";
+    return EPERM;
+  }
+
+  return 0;
+}
+
+//------------------------------------------------------------------------------
 // Dump metadata information
 //------------------------------------------------------------------------------
 int
@@ -309,7 +350,6 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
                const std::string& statusComment)
 {
   int retc = 0;
-  const std::string vid_hostname = vid_in.host;
   eos::common::FileSystem::fsid_t fsid = 0;
 
   // Check if identifier is fsid (must be pure numeric)
@@ -393,30 +433,9 @@ proc_fs_config(std::string& identifier, std::string& key, std::string& value,
           nodename.erase(dpos);
         }
 
-        // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
-        // the check below as this currently breaks the Kubernetes setup.
-        bool skip_hostname_match = false;
-
-        if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
-          skip_hostname_match = true;
-        }
-
-        if ((vid_in.uid == 0) || (vid_in.prot == "sss")) {
-          if ((vid_in.prot == "sss") && (vid_in.uid != 0)) {
-            if (!skip_hostname_match &&
-                vid_hostname.compare(0, nodename.length(),
-                                     nodename, 0, nodename.length())) {
-              stdErr = "error: filesystems can only be configured as 'root' or "
-                       "from the server mounting them using sss protocol (1)\n";
-              retc = EPERM;
-              return retc;
-            }
-          }
-        } else {
-          stdErr = "error: filesystems can only be configured as 'root' or "
-                   "from the server mounting them using sss protocol (2)\n";
-          retc = EPERM;
-          return retc;
+        int rc = check_sss_hostname_match(vid_in, nodename, stdErr);
+        if (rc) {
+          return rc;
         }
 
         if ((key == eos::common::SCAN_IO_RATE_NAME) ||
@@ -545,7 +564,6 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
             XrdOucString& stdErr, eos::common::VirtualIdentity& vid_in, bool force)
 {
   using eos::common::StringConversion;
-  const std::string vid_hostname = vid_in.host;
   common::FileSystem::fsid_t fsid = atoi(sfsid.c_str());
   common::ConfigStatus configStatus =
     common::FileSystem::GetConfigStatusFromString(configstatusStr.c_str());
@@ -566,27 +584,9 @@ proc_fs_add(mq::MessagingRealm* realm, std::string& sfsid, std::string& uuid,
     rnodename.erase(dpos);
   }
 
-  // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
-  // the check below as this currently breaks the Kubernetes setup.
-  bool skip_hostname_match = (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH") ?
-                              true : false);
-
-  // Rough check that the filesystem is added from a host with the same
-  // hostname ... anyway we should have configured 'sss' security
-  if ((vid_in.uid == 0) || (vid_in.prot == "sss")) {
-    if ((vid_in.prot == "sss") && (vid_in.uid != 0)) {
-      if (!skip_hostname_match &&
-          vid_hostname.compare(0, rnodename.length(),
-                               rnodename, 0, rnodename.length())) {
-        stdErr = "error: filesystems can only be configured as 'root' or "
-                 "from the server mounting them using sss protocol (1)";
-        return EPERM;
-      }
-    }
-  } else {
-    stdErr = "error: filesystems can only be configured as 'root' or "
-             "from the server mounting them using sss protocol (2)";
-    return EPERM;
+  int rc = check_sss_hostname_match(vid_in, rnodename, stdErr);
+  if (rc) {
+    return rc;
   }
 
   eos::common::RWMutexWriteLock fs_wr_lock(FsView::gFsView.ViewMutex);
@@ -1381,7 +1381,6 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
            eos::common::VirtualIdentity& vid_in)
 {
   int retc = 0;
-  const std::string vid_hostname = vid_in.host;
   eos::common::FileSystem::fsid_t fsid = 0;
 
   if (id.length()) {
@@ -1413,30 +1412,9 @@ proc_fs_rm(std::string& nodename, std::string& mountpoint, std::string& id,
       nodename.erase(dpos);
     }
 
-    // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set then we skip
-    // the check below as this currently breaks the Kubernetes setup.
-    bool skip_hostname_match = false;
-
-    if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
-      skip_hostname_match = true;
-    }
-
-    if ((vid_in.uid == 0) || (vid_in.prot == "sss")) {
-      if ((vid_in.prot == "sss") && (vid_in.uid != 0)) {
-        if (!skip_hostname_match &&
-            vid_hostname.compare(0, nodename.length(),
-                                 nodename, 0, nodename.length())) {
-          stdErr = "error: filesystems can only be configured as 'root' or "
-                   "from the server mounting them using sss protocol (1)\n";
-          retc = EPERM;
-          return retc;
-        }
-      }
-    } else {
-      stdErr = "error: filesystems can only be configured as 'root' or "
-               "from the server mounting them using sss protocol (2)\n";
-      retc = EPERM;
-      return retc;
+    int rc = check_sss_hostname_match(vid_in, nodename, stdErr);
+    if (rc) {
+      return rc;
     }
 
     // @note We can only remove a file system only if it's empty and
