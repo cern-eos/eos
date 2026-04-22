@@ -29,6 +29,7 @@
 #include "common/LinuxStat.hh"
 #include "common/ParseUtils.hh"
 #include "common/StringConversion.hh"
+#include "common/StringUtils.hh"
 #include "mgm/config/IConfigEngine.hh"
 #include "mgm/convert/ConverterEngine.hh"
 #include "mgm/fsck/Fsck.hh"
@@ -68,12 +69,6 @@ struct HaClusterStatus {
   bool available = false;
 };
 
-bool
-StartsWith(const std::string& value, const char* prefix)
-{
-  return value.rfind(prefix, 0) == 0;
-}
-
 void
 AppendUnique(std::vector<std::string>& values, const std::string& value)
 {
@@ -84,34 +79,6 @@ AppendUnique(std::vector<std::string>& values, const std::string& value)
   if (std::find(values.begin(), values.end(), value) == values.end()) {
     values.push_back(value);
   }
-}
-
-std::vector<std::string>
-SplitByComma(const std::string& value)
-{
-  std::vector<std::string> entries;
-  eos::common::StringConversion::Tokenize(value, entries, ",");
-  return entries;
-}
-
-std::string
-JoinValues(const std::vector<std::string>& values)
-{
-  if (values.empty()) {
-    return "none";
-  }
-
-  std::ostringstream oss;
-
-  for (size_t i = 0; i < values.size(); ++i) {
-    if (i != 0) {
-      oss << ",";
-    }
-
-    oss << values[i];
-  }
-
-  return oss.str();
 }
 
 std::string
@@ -179,15 +146,15 @@ ParseRaftInfoReply(qclient::redisReplyPtr reply, HaClusterStatus& status,
 
     std::string entry(element->str ? element->str : "", element->len);
 
-    if (StartsWith(entry, "LEADER ")) {
+    if (eos::common::startsWith(entry, "LEADER ")) {
       status.leader = entry.substr(7);
-    } else if (StartsWith(entry, "MYSELF ")) {
+    } else if (eos::common::startsWith(entry, "MYSELF ")) {
       status.local = entry.substr(7);
-    } else if (StartsWith(entry, "STATUS ")) {
+    } else if (eos::common::startsWith(entry, "STATUS ")) {
       status.role = entry.substr(7);
-    } else if (StartsWith(entry, "NODES ")) {
-      status.nodes = SplitByComma(entry.substr(6));
-    } else if (StartsWith(entry, "REPLICA ")) {
+    } else if (eos::common::startsWith(entry, "NODES ")) {
+      eos::common::StringConversion::Tokenize(entry.substr(6), status.nodes, ",");
+    } else if (eos::common::startsWith(entry, "REPLICA ")) {
       const auto endpoint_end = entry.find_first_of(" |", 8);
       AppendUnique(status.followers,
                    entry.substr(8, endpoint_end == std::string::npos ? std::string::npos
@@ -454,6 +421,10 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   std::ostringstream oss;
   std::ostringstream err;
   int retc = 0;
+  const auto join_values = [](const std::vector<std::string>& values) {
+    return values.empty() ? std::string("none")
+                          : eos::common::StringConversion::Join(values, ",");
+  };
 
   if (stat.reset()) {
     gOFS->MgmStats.Clear();
@@ -617,7 +588,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.mgm.local=" << mgm_ha_status.local << std::endl
         << "uid=all gid=all ns.mgm.role=" << mgm_ha_status.role << std::endl
         << "uid=all gid=all ns.mgm.leader=" << mgm_ha_status.leader << std::endl
-        << "uid=all gid=all ns.mgm.followers=" << JoinValues(mgm_ha_status.followers)
+        << "uid=all gid=all ns.mgm.followers=" << join_values(mgm_ha_status.followers)
         << std::endl
         << "uid=all gid=all ns.memory.virtual=" << mem.vmsize << std::endl
         << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
@@ -653,7 +624,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       oss << "uid=all gid=all ns.qclient.persistency_type="
           << qdb_group->getMetadataFlusher()->getPersistencyType() << "\n";
       oss << "uid=all gid=all ns.qdb.leader=" << qdb_ha_status.leader << "\n"
-          << "uid=all gid=all ns.qdb.followers=" << JoinValues(qdb_ha_status.followers)
+          << "uid=all gid=all ns.qdb.followers=" << join_values(qdb_ha_status.followers)
           << "\n";
 
       if (info.find("rtt_min") != info.end()) {
@@ -780,7 +751,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << " leader=" << (mgm_ha_status.leader.empty() ? "unknown" : mgm_ha_status.leader)
         << std::endl
         << "ALL      MGM followers                    "
-        << JoinValues(mgm_ha_status.followers) << std::endl;
+        << join_values(mgm_ha_status.followers) << std::endl;
 
     if (qdb_ha_status.available) {
       oss << "ALL      QDB Leadership                   "
@@ -788,7 +759,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << (qdb_ha_status.leader.empty() ? "unknown" : qdb_ha_status.leader)
           << std::endl
           << "ALL      QDB followers                    "
-          << JoinValues(qdb_ha_status.followers) << std::endl;
+          << join_values(qdb_ha_status.followers) << std::endl;
     }
 
     oss << line << std::endl;
