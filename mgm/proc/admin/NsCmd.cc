@@ -225,6 +225,86 @@ GetNsSnapshotCache()
                                                      kNsSnapshotCacheInvalidAfter);
   return cache;
 }
+
+std::string
+JoinValuesOrNone(const std::vector<std::string>& values)
+{
+  return values.empty() ? std::string("none")
+                        : eos::common::StringConversion::Join(values, ",");
+}
+
+void
+EnsureTrailingNewline(std::string& output)
+{
+  if (!output.empty() && output.back() != '\n') {
+    output.push_back('\n');
+  }
+}
+
+HaClusterStatus
+CollectQdbHaStatus(XrdMgmOfs* ofs, std::string& err)
+{
+  HaClusterStatus status;
+
+  if (ofs->namespaceGroup->isInMemory()) {
+    return status;
+  }
+
+  try {
+    auto qdb_status_client = std::make_unique<qclient::QClient>(
+        ofs->mQdbContactDetails.members, ofs->mQdbContactDetails.constructOptions());
+    qclient::redisReplyPtr raft_reply = qdb_status_client->exec("raft-info").get();
+    ParseRaftInfoReply(raft_reply, status, err);
+  } catch (const std::exception& ex) {
+    err = ex.what();
+  }
+
+  return status;
+}
+
+std::string
+DumpDefaultInspectorSnapshot()
+{
+  auto space_it = FsView::gFsView.mSpaceView.find("default");
+
+  if ((space_it == FsView::gFsView.mSpaceView.end()) ||
+      (!space_it->second->mFileInspector)) {
+    return "key=error space=default msg=\"inspector unavailable\"\n";
+  }
+
+  std::string output;
+  space_it->second->mFileInspector->Dump(output, "lm", FileInspector::LockFsView::Off);
+  EnsureTrailingNewline(output);
+  return output;
+}
+
+template <typename StatFunc>
+std::string*
+BuildNamespaceSnapshot(StatFunc&& statFn)
+{
+  auto output = std::make_unique<std::string>();
+  eos::console::ReplyProto statReply;
+  eos::console::NsProto_StatProto stat;
+  stat.set_monitor(true);
+  stat.set_summary(true);
+  statFn(stat, statReply);
+
+  if (statReply.retc()) {
+    throw std::runtime_error(statReply.std_err().empty()
+                                 ? "failed to collect namespace statistics"
+                                 : statReply.std_err());
+  }
+
+  *output = statReply.std_out();
+  EnsureTrailingNewline(*output);
+  output->append("uid=all gid=all ns.snapshot.generated_at=")
+      .append(std::to_string(time(nullptr)))
+      .append("\nuid=all gid=all ns.snapshot.cache.expired_after=")
+      .append(std::to_string(kNsSnapshotCacheExpiredAfter.count()))
+      .append("\n")
+      .append(DumpDefaultInspectorSnapshot());
+  return output.release();
+}
 } // namespace
 
 //------------------------------------------------------------------------------
@@ -421,10 +501,6 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   std::ostringstream oss;
   std::ostringstream err;
   int retc = 0;
-  const auto join_values = [](const std::vector<std::string>& values) {
-    return values.empty() ? std::string("none")
-                          : eos::common::StringConversion::Join(values, ",");
-  };
 
   if (stat.reset()) {
     gOFS->MgmStats.Clear();
@@ -526,20 +602,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   double readcontention = gOFS->MgmStats.GetReadContention();
   double writecontention = gOFS->MgmStats.GetWriteContention();
 
-  if (!gOFS->namespaceGroup->isInMemory()) {
-    try {
-      auto qdb_status_client = std::make_unique<qclient::QClient>(
-          gOFS->mQdbContactDetails.members, gOFS->mQdbContactDetails.constructOptions());
-      qclient::redisReplyPtr raft_reply = qdb_status_client->exec("raft-info").get();
-      ParseRaftInfoReply(raft_reply, qdb_ha_status, qdb_ha_err);
-    } catch (const std::exception& ex) {
-      qdb_ha_err = ex.what();
-    }
+  qdb_ha_status = CollectQdbHaStatus(gOFS, qdb_ha_err);
 
-    if (!qdb_ha_err.empty()) {
-      eos_debug("msg=\"failed to collect qdb raft status for eos ns\" err=\"%s\"",
-                qdb_ha_err.c_str());
-    }
+  if (!qdb_ha_err.empty()) {
+    eos_debug("msg=\"failed to collect qdb raft status for eos ns\" err=\"%s\"",
+              qdb_ha_err.c_str());
   }
 
   HaClusterStatus mgm_ha_status =
@@ -588,8 +655,8 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << "uid=all gid=all ns.mgm.local=" << mgm_ha_status.local << std::endl
         << "uid=all gid=all ns.mgm.role=" << mgm_ha_status.role << std::endl
         << "uid=all gid=all ns.mgm.leader=" << mgm_ha_status.leader << std::endl
-        << "uid=all gid=all ns.mgm.followers=" << join_values(mgm_ha_status.followers)
-        << std::endl
+        << "uid=all gid=all ns.mgm.followers="
+        << JoinValuesOrNone(mgm_ha_status.followers) << std::endl
         << "uid=all gid=all ns.memory.virtual=" << mem.vmsize << std::endl
         << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
         << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
@@ -623,9 +690,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
       oss << "uid=all gid=all ns.qclient.persistency_type="
           << qdb_group->getMetadataFlusher()->getPersistencyType() << "\n";
-      oss << "uid=all gid=all ns.qdb.leader=" << qdb_ha_status.leader << "\n"
-          << "uid=all gid=all ns.qdb.followers=" << join_values(qdb_ha_status.followers)
-          << "\n";
+      oss << "uid=all gid=all ns.qdb.leader=" << qdb_ha_status.leader
+          << "\nuid=all gid=all ns.qdb.followers="
+          << JoinValuesOrNone(qdb_ha_status.followers) << "\n";
 
       if (info.find("rtt_min") != info.end()) {
         oss << "uid=all gid=all ns.qclient.rtt_ms.min="
@@ -751,7 +818,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
         << " leader=" << (mgm_ha_status.leader.empty() ? "unknown" : mgm_ha_status.leader)
         << std::endl
         << "ALL      MGM followers                    "
-        << join_values(mgm_ha_status.followers) << std::endl;
+        << JoinValuesOrNone(mgm_ha_status.followers) << std::endl;
 
     if (qdb_ha_status.available) {
       oss << "ALL      QDB Leadership                   "
@@ -759,7 +826,7 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << (qdb_ha_status.leader.empty() ? "unknown" : qdb_ha_status.leader)
           << std::endl
           << "ALL      QDB followers                    "
-          << join_values(qdb_ha_status.followers) << std::endl;
+          << JoinValuesOrNone(qdb_ha_status.followers) << std::endl;
     }
 
     oss << line << std::endl;
@@ -999,58 +1066,15 @@ NsCmd::SnapshotSubcmd(const eos::console::NsProto_SnapshotProto& snapshot,
     return;
   }
 
-  auto produceSnapshot = [this]() -> std::string* {
-    auto output = std::make_unique<std::string>();
-    eos::console::ReplyProto statReply;
-    eos::console::NsProto_StatProto stat;
-    stat.set_monitor(true);
-    stat.set_summary(true);
-    StatSubcmd(stat, statReply);
-
-    if (statReply.retc()) {
-      throw std::runtime_error(statReply.std_err().empty()
-                                   ? "failed to collect namespace statistics"
-                                   : statReply.std_err());
-    }
-
-    *output = statReply.std_out();
-
-    if (!output->empty() && output->back() != '\n') {
-      output->push_back('\n');
-    }
-
-    output->append("uid=all gid=all ns.snapshot.generated_at=")
-        .append(std::to_string(time(nullptr)))
-        .append("\nuid=all gid=all ns.snapshot.cache.expired_after=")
-        .append(std::to_string(kNsSnapshotCacheExpiredAfter.count()))
-        .append("\n");
-
-    auto space_it = FsView::gFsView.mSpaceView.find("default");
-
-    if ((space_it == FsView::gFsView.mSpaceView.end()) ||
-        (!space_it->second->mFileInspector)) {
-      output->append("key=error space=default msg=\"inspector unavailable\"\n");
-      return output.release();
-    }
-
-    std::string inspectorOutput;
-    space_it->second->mFileInspector->Dump(inspectorOutput, "lm",
-                                           FileInspector::LockFsView::Off);
-
-    if (!inspectorOutput.empty()) {
-      output->append(inspectorOutput);
-
-      if (output->back() != '\n') {
-        output->push_back('\n');
-      }
-    }
-
-    return output.release();
+  auto produce_snapshot = [this]() -> std::string* {
+    return BuildNamespaceSnapshot(
+        [this](const eos::console::NsProto_StatProto& stat,
+               eos::console::ReplyProto& statReply) { StatSubcmd(stat, statReply); });
   };
 
   try {
     reply.set_std_out(
-        GetNsSnapshotCache().getCachedObject(snapshot.refresh(), produceSnapshot));
+        GetNsSnapshotCache().getCachedObject(snapshot.refresh(), produce_snapshot));
   } catch (const std::exception& err) {
     reply.set_retc(EIO);
     reply.set_std_err(
