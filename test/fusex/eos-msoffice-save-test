@@ -1,0 +1,145 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# File: eos-msoffice-save-test
+# Author: Cedric Caffy - CERN
+# ----------------------------------------------------------------------
+
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2026 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+#
+# Verifies the hack-ms-office-file-save in-place-copy mitigation: the
+# observed Office save-by-replace sequence through eosxd must preserve the
+# target's FileID, sys.acl, user.* xattrs, and grow the version directory.
+#
+# Observed Office sequence (per whiteboard, 2026-04-24):
+#   1. Create ~$doc1.docx owner-lock (write mode).
+#   2. Save new content into a random XXXXXX.tmp.
+#   3. mv doc1.docx YYYYYY.tmp     (faked by fusex -- hook 1)
+#   4. mv XXXXXX.tmp doc1.docx     (in-place copy into victim -- hook 2)
+#   5. rm YYYYYY.tmp               (ENOENT -- tolerated)
+#   6. ~$doc1.docx is removed when Office closes.
+#
+# Prerequisites:
+#   - eosxd mount with "hack-ms-office-file-save": true in its JSON options.
+#   - `eos` CLI on PATH.
+#
+# Arguments (all optional, env overrides take precedence):
+#   $1 EOS_MGM_URL     — default: ${EOS_MGM_URL:-root://localhost}
+#   $2 EOSXD_TEST_DIR  — POSIX path through the mount
+#                        (default: /eos/dockertest/msoffice-save)
+#   $3 EOS_TEST_DIR    — same directory as seen by the `eos` CLI
+#                        (default: /eos/dockertest/msoffice-save)
+
+set -eu -o pipefail
+
+MGM=${EOS_MGM_URL:-${1:-root://localhost}}
+LOCAL_DIR=${EOSXD_TEST_DIR:-${2:-/eos/dockertest/msoffice-save}}
+EOS_DIR=${EOS_TEST_DIR:-${3:-/eos/dockertest/msoffice-save}}
+
+TARGET="doc1.docx"
+LOCK="~\$${TARGET}"
+ITERATIONS=3
+
+fail() { echo "FAIL: $*" >&2; exit 1; }
+info() { echo "[eos-msoffice-save-test] $*"; }
+
+export EOS_MGM_URL="${MGM}"
+
+command -v eos >/dev/null || fail "eos CLI not on PATH"
+PARENT_MOUNT=$(dirname -- "${LOCAL_DIR}")
+[ -d "${PARENT_MOUNT}" ] || fail "parent of EOSXD_TEST_DIR does not exist: ${PARENT_MOUNT}"
+
+fid_of() {
+  # Extract numeric fid from `eos fileinfo -m` output.
+  eos -b fileinfo "$1" -m 2>/dev/null \
+    | tr ' ' '\n' | awk -F= '/^fid=/ {print $2; exit}'
+}
+
+info "cleaning and preparing ${LOCAL_DIR} (eos view: ${EOS_DIR})"
+rm -rf -- "${LOCAL_DIR}"/* 2>/dev/null || true
+mkdir -p -- "${LOCAL_DIR}"
+
+info "enabling versioning on ${EOS_DIR}"
+eos -b attr set sys.versioning=5 "${EOS_DIR}" >/dev/null \
+  || fail "could not set sys.versioning"
+
+# Seed the target with an ACL and a user xattr that we want to see preserved.
+echo "rev-0" > "${LOCAL_DIR}/${TARGET}"
+CALLER_UID=$(id -u)
+eos -b attr set "sys.acl=u:${CALLER_UID}:rwx" "${EOS_DIR}/${TARGET}" >/dev/null \
+  || fail "could not seed sys.acl"
+eos -b attr set "user.msoffice.test=preserve-me" "${EOS_DIR}/${TARGET}" >/dev/null \
+  || fail "could not seed user xattr"
+
+FID0=$(fid_of "${EOS_DIR}/${TARGET}")
+[ -n "${FID0}" ] || fail "could not read initial FileID"
+ACL0=$(eos -b attr get sys.acl "${EOS_DIR}/${TARGET}" 2>/dev/null)
+XATTR0=$(eos -b attr get user.msoffice.test "${EOS_DIR}/${TARGET}" 2>/dev/null)
+
+info "initial FileID=${FID0}"
+info "initial sys.acl=${ACL0}"
+
+for i in $(seq 1 ${ITERATIONS}); do
+  info "iteration ${i} — simulating Office save-by-replace"
+  XTMP="X${i}$$.tmp"
+  YTMP="Y${i}$$.tmp"
+
+  : > "${LOCAL_DIR}/${LOCK}"
+  cp "${LOCAL_DIR}/${TARGET}" "${LOCAL_DIR}/${XTMP}"
+  echo "rev-${i}" >> "${LOCAL_DIR}/${XTMP}"
+  mv "${LOCAL_DIR}/${TARGET}" "${LOCAL_DIR}/${YTMP}"
+  mv "${LOCAL_DIR}/${XTMP}" "${LOCAL_DIR}/${TARGET}"
+  # rm on YYYYYY.tmp returns ENOENT upstream (fake-renamed locally only) --
+  # Office's cleanup tolerates, our test does too.
+  rm -f "${LOCAL_DIR}/${YTMP}" || true
+  rm -f "${LOCAL_DIR}/${LOCK}" || true
+
+  FIDi=$(fid_of "${EOS_DIR}/${TARGET}")
+  [ "${FIDi}" = "${FID0}" ] \
+    || fail "FileID changed on iteration ${i}: ${FIDi} != ${FID0}"
+  ACLi=$(eos -b attr get sys.acl "${EOS_DIR}/${TARGET}" 2>/dev/null) \
+    || fail "sys.acl missing on iteration ${i}"
+  [ "${ACLi}" = "${ACL0}" ] \
+    || fail "sys.acl changed on iteration ${i}: ${ACLi} != ${ACL0}"
+  XATTRi=$(eos -b attr get user.msoffice.test "${EOS_DIR}/${TARGET}" 2>/dev/null) \
+    || fail "user.msoffice.test missing on iteration ${i}"
+  [ "${XATTRi}" = "${XATTR0}" ] \
+    || fail "user.msoffice.test lost on iteration ${i}"
+done
+
+info "OK — FileID, sys.acl, user.msoffice.test preserved across ${ITERATIONS} saves"
+
+VCOUNT=$(eos -b ls "${EOS_DIR}/.sys.v#.${TARGET}/" 2>/dev/null | wc -l)
+[ "${VCOUNT}" -ge "${ITERATIONS}" ] \
+  || fail "version directory grew only ${VCOUNT} times, expected >= ${ITERATIONS}"
+info "OK — version directory contains ${VCOUNT} entries"
+
+# Negative: without the owner-lock sibling the mitigation must NOT engage --
+# the MGM rename-over fires and FileID changes.
+info "negative case: save without owner-lock sibling"
+cp "${LOCAL_DIR}/${TARGET}" "${LOCAL_DIR}/nolock.tmp"
+echo "rev-neg" >> "${LOCAL_DIR}/nolock.tmp"
+mv "${LOCAL_DIR}/${TARGET}" "${LOCAL_DIR}/old.tmp"
+mv "${LOCAL_DIR}/nolock.tmp" "${LOCAL_DIR}/${TARGET}"
+rm -f "${LOCAL_DIR}/old.tmp" || true
+FIDN=$(fid_of "${EOS_DIR}/${TARGET}")
+[ "${FIDN}" != "${FID0}" ] \
+  || fail "FileID unexpectedly preserved without owner-lock (mitigation over-triggered)"
+info "OK — mitigation correctly disabled without owner-lock sibling"
+
+info "eos-msoffice-save-test PASSED"

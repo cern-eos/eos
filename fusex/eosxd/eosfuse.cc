@@ -26,19 +26,20 @@
 #ifndef __APPLE__
 #include "common/ShellCmd.hh"
 #endif
-#include "kv/RocksKV.hh"
 #include "eosfuse.hh"
-#include "misc/fusexrdlogin.hh"
+#include "kv/RocksKV.hh"
 #include "misc/filename.hh"
-#include <string>
-#include <map>
-#include <set>
-#include <iostream>
-#include <sstream>
-#include <memory>
+#include "misc/fusexrdlogin.hh"
 #include <algorithm>
-#include <thread>
+#include <iostream>
 #include <iterator>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <thread>
+#include <vector>
 #ifndef __APPLE__
 #include <malloc.h>
 #endif
@@ -99,6 +100,92 @@ namespace
 {
 std::string s_obfuscate_key = "user.obfuscate.key";
 std::string s_encrypted_fp  = "user.encrypted.fp";
+
+// true iff name ends with .docx/.xlsx/.pptx. Case-sensitive: Office writes the
+// extension lowercase on save even when the user-picked name has other casing.
+bool
+is_office_extension(const std::string& name)
+{
+  static const char* kExts[] = {".docx", ".xlsx", ".pptx"};
+
+  for (const char* ext : kExts) {
+    const size_t el = strlen(ext);
+
+    if (name.size() > el && name.compare(name.size() - el, el, ext) == 0) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// true iff an MS Office owner-lock sibling for <name> exists in <parent> and is
+// owned by <uid>. Office's documented form is "~$" + name with the first two
+// chars replaced (Document.doc -> ~$cument.doc); short names are sometimes
+// handled by prepending instead (Help.doc -> ~$Help.doc). We probe both.
+//
+// Guards:
+//   - name already starts with "~$"       -> false (the lock itself is never a
+//     save target; its truncated candidate would be itself and a self-loop on
+//     the md Locker would deadlock the caller).
+//   - truncated candidate equal to name   -> skip that candidate (same reason).
+bool
+has_office_owner_lock(fuse_req_t req, fuse_ino_t parent, const std::string& name,
+                      uid_t uid)
+{
+  eos_static_info("office-save: probe enter parent=%#lx name=%s uid=%u", parent,
+                  name.c_str(), (unsigned)uid);
+
+  if (name.size() >= 2 && name[0] == '~' && name[1] == '$') {
+    eos_static_info("office-save: probe skip name-is-lock parent=%#lx name=%s", parent,
+                    name.c_str());
+    return false;
+  }
+
+  std::vector<std::string> candidates;
+  candidates.reserve(2);
+  candidates.emplace_back(std::string("~$") + name);
+
+  if (name.size() > 2) {
+    std::string truncated = "~$" + name.substr(2);
+
+    if (truncated != name) {
+      candidates.emplace_back(std::move(truncated));
+    }
+  }
+
+  for (const auto& cand : candidates) {
+    eos_static_info("office-save: probe lookup parent=%#lx cand=%s", parent,
+                    cand.c_str());
+    metad::shared_md lockmd = EosFuse::Instance().mds.lookup(req, parent, cand.c_str());
+    eos_static_info("office-save: probe lookup done parent=%#lx cand=%s "
+                    "hit=%d",
+                    parent, cand.c_str(), (bool)lockmd);
+
+    if (!lockmd) {
+      continue;
+    }
+
+    eos_static_info("office-save: probe acquiring locker cand=%s", cand.c_str());
+    XrdSysMutexHelper lk(lockmd->Locker());
+    const bool has_id = (*lockmd)()->id() != 0;
+    const bool deleted = lockmd->deleted();
+    const int err = (*lockmd)()->err();
+    const uid_t owner = static_cast<uid_t>((*lockmd)()->uid());
+    eos_static_info("office-save: probe inspected cand=%s id=%d deleted=%d "
+                    "err=%d uid=%u want_uid=%u",
+                    cand.c_str(), (int)has_id, (int)deleted, err, (unsigned)owner,
+                    (unsigned)uid);
+
+    if (has_id && !deleted && err == 0 && owner == uid) {
+      eos_static_info("office-save: probe HIT cand=%s", cand.c_str());
+      return true;
+    }
+  }
+
+  eos_static_info("office-save: probe MISS parent=%#lx name=%s", parent, name.c_str());
+  return false;
+}
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1075,6 +1162,14 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     if (root["options"].isMember("tmp-fake-rename")) {
       if (root["options"]["tmp-fake-rename"].asInt()) {
         config.options.fakerename = true;
+      }
+    }
+
+    config.options.hack_ms_office_file_save = false;
+
+    if (root["options"].isMember("hack-ms-office-file-save")) {
+      if (root["options"]["hack-ms-office-file-save"].asInt()) {
+        config.options.hack_ms_office_file_save = true;
       }
     }
 
@@ -4607,6 +4702,44 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
     }
 
     if (!rc) {
+      // MS Office save-by-replace — docx->tmp hook. The full Office sequence:
+      //   a. create random XXXXXX.tmp with new content (while ~$doc1.docx is live)
+      //   b. mv doc1.docx -> random YYYYYY.tmp   <-- this call
+      //   c. mv XXXXXX.tmp -> doc1.docx          <-- handled below
+      //   d. rm YYYYYY.tmp
+      // Here we fake (b): do not ship mds.mv, leave the local md cache alone.
+      // The kernel does d_move on its side; the MGM still has the original
+      // doc1.docx so (c) can rename on top of it.
+      if (Instance().Config().options.hack_ms_office_file_save && parent == newparent) {
+        auto ends_with = [](const std::string& str, const std::string& suffix) {
+          return str.size() >= suffix.size() &&
+                 str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+        };
+        const std::string src(name ? name : "");
+        const std::string dst(newname ? newname : "");
+        eos_static_info("office-save: hook-1 gate parent=%#lx src=%s dst=%s", parent,
+                        src.c_str(), dst.c_str());
+
+        if (ends_with(dst, ".tmp") && is_office_extension(src)) {
+          eos_static_info("office-save: hook-1 shape matches — probing owner-lock");
+
+          if (has_office_owner_lock(req, parent, src, (*p1cap)()->uid())) {
+            eos_static_info("office-save: hook-1 fake rename (docx->tmp) "
+                            "parent=%#lx src=%s dst=%s",
+                            parent, src.c_str(), dst.c_str());
+            EXEC_TIMING_END(__func__);
+            fuse_reply_err(req, 0);
+            COMMONTIMING("_stop_", &timing);
+            eos_static_notice("t(ms)=%.03f %s office-save=fake-rename", timing.RealTime(),
+                              dump(id, parent, 0, 0, name).c_str());
+            return;
+          }
+
+          eos_static_info("office-save: hook-1 shape matched but no lock — "
+                          "fall through to normal rename");
+        }
+      }
+
       // fake rename logic for online editing if configured
       if (Instance().Config().options.fakerename && (*p1md)()->tmptime()) {
         auto ends_with = [](const std::string & str, const std::string & suffix) {
@@ -4625,6 +4758,114 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
             (*p1md)()->set_tmptime(0);
             fuse_reply_err(req, rc);
             return ;
+          }
+        }
+      }
+
+      // MS Office save-by-replace — tmp->docx hook. A random tmp is about to
+      // rename-over the original doc1.docx on the MGM. A normal mds.mv would
+      // cause the MGM rename-over path (FuseServer/Server.cc:2062-2253) to
+      // unlink doc1.docx, and with it sys.acl, FileID, version directory and
+      // all xattrs. Instead we rewrite doc1.docx in place (content swap),
+      // leaving its FMD identity intact.
+      if (Instance().Config().options.hack_ms_office_file_save && parent == newparent) {
+        auto ends_with = [](const std::string& str, const std::string& suffix) {
+          return str.size() >= suffix.size() &&
+                 str.compare(str.size() - suffix.size(), suffix.size(), suffix) == 0;
+        };
+        const std::string src(name ? name : "");
+        const std::string dst(newname ? newname : "");
+        eos_static_info("office-save: hook-2 gate parent=%#lx src=%s dst=%s", parent,
+                        src.c_str(), dst.c_str());
+
+        if (is_office_extension(dst) && ends_with(src, ".tmp") &&
+            has_office_owner_lock(req, parent, dst, (*p1cap)()->uid())) {
+          eos_static_info("office-save: hook-2 shape + lock match — "
+                          "looking up dst md parent=%#lx dst=%s",
+                          parent, dst.c_str());
+          metad::shared_md dst_md = Instance().mds.lookup(req, newparent, newname);
+          bool dst_live = false;
+          bool dst_is_dir = false;
+          bool dst_is_hardlink = false;
+          fuse_ino_t victim_ino = 0;
+
+          if (dst_md) {
+            XrdSysMutexHelper dLock(dst_md->Locker());
+
+            if ((*dst_md)()->id() && !dst_md->deleted() && (*dst_md)()->err() == 0) {
+              dst_live = true;
+              victim_ino = (*dst_md)()->id();
+              dst_is_dir = S_ISDIR((*dst_md)()->mode());
+              const auto& a = (*dst_md)()->attr();
+              dst_is_hardlink = a.count(k_mdino) || a.count(k_nlink);
+            }
+          }
+
+          // Check the source too — hardlinked tmp would be surprising; refuse.
+          bool src_is_hardlink = false;
+          {
+            XrdSysMutexHelper sLock(md->Locker());
+            const auto& a = (*md)()->attr();
+            src_is_hardlink = a.count(k_mdino) || a.count(k_nlink);
+          }
+
+          eos_static_info("office-save: hook-2 dst probe live=%d dir=%d "
+                          "hardlink=%d src_hardlink=%d victim=%#lx",
+                          (int)dst_live, (int)dst_is_dir, (int)dst_is_hardlink,
+                          (int)src_is_hardlink, (unsigned long)victim_ino);
+
+          if (dst_live && !dst_is_dir && !dst_is_hardlink && !src_is_hardlink) {
+            fuse_ino_t src_ino_pre = md_ino;
+            eos_static_info("office-save: hook-2 dispatching inplace_copy "
+                            "victim=%#lx src=%#lx",
+                            (unsigned long)victim_ino, (unsigned long)src_ino_pre);
+            int icrc = Instance().office_save_inplace_copy(req, dst_md, md, p1md,
+                                                           (*p1cap)()->authid());
+            eos_static_info("office-save: hook-2 inplace_copy rc=%d "
+                            "victim=%#lx src=%#lx",
+                            icrc, (unsigned long)victim_ino, (unsigned long)src_ino_pre);
+
+            if (icrc == 0) {
+              EXEC_TIMING_END(__func__);
+              fuse_reply_err(req, 0);
+
+              // Kernel VFS just d_move'd src_dentry onto newname — but the
+              // inode at newname is the *preserved* victim, not src. Drop the
+              // stale dentry + attrs so the next access re-resolves through
+              // FUSE and finds victim_ino.
+              //
+              // IMPORTANT: these inval calls MUST run AFTER fuse_reply_err.
+              // The kernel holds VFS locks on the pending rename request and
+              // tries to re-acquire them inside fuse_lowlevel_notify_inval_*;
+              // calling them before the reply is sent deadlocks the mount.
+              if (Instance().Config().options.md_kernelcache) {
+                eos_static_info("office-save: hook-2 kernelcache invalidate "
+                                "newparent=%#lx newname=%s victim=%#lx "
+                                "src=%#lx",
+                                newparent, newname, (unsigned long)victim_ino,
+                                (unsigned long)src_ino_pre);
+                kernelcache::inval_entry(newparent, newname);
+                kernelcache::inval_inode(src_ino_pre, true);
+                kernelcache::inval_inode(victim_ino, true);
+              }
+
+              COMMONTIMING("_stop_", &timing);
+              eos_static_notice("t(ms)=%.03f %s new-parent-ino=%#lx "
+                                "target-name=%s office-save=inplace-copy",
+                                timing.RealTime(), dump(id, parent, 0, 0, name).c_str(),
+                                newparent, newname);
+              return;
+            }
+
+            // In-place copy failed — fall through to the legacy rename below.
+            // Caller sees today's rename-over behaviour (FileID / sys.acl
+            // lost). No regression vs. pre-mitigation.
+            eos_static_err("office-save: hook-2 inplace_copy failed rc=%d — "
+                           "falling back to legacy mds.mv",
+                           icrc);
+          } else if (dst_live) {
+            eos_static_info("office-save: hook-2 refusing mitigation "
+                            "(dir/hardlink) — falling through to legacy mds.mv");
           }
         }
       }
@@ -7471,4 +7712,258 @@ EosFuse::Prefix(std::string path)
   }
 
   return (fullpath + path);
+}
+
+/* -------------------------------------------------------------------------- */
+int
+/* -------------------------------------------------------------------------- */
+EosFuse::office_save_inplace_copy(fuse_req_t req, metad::shared_md victim_md,
+                                  metad::shared_md src_md, metad::shared_md pmd,
+                                  const std::string& authid)
+/* -------------------------------------------------------------------------- */
+{
+  // Preserve the victim's FMD identity (FileID, sys.acl, user.*, version dir)
+  // by rewriting its content in place with src's bytes, then unlinking src
+  // upstream. On success the rename caller replies OK to the client and the
+  // kernel's dentry-cache fix-ups re-resolve newname to the preserved inode.
+  // On failure the caller falls back to the legacy mds.mv path.
+  fuse_ino_t victim_ino = 0;
+  fuse_ino_t src_ino = 0;
+  std::string victim_name;
+  std::string src_name;
+  off_t src_size = 0;
+  {
+    XrdSysMutexHelper vLock(victim_md->Locker());
+    victim_ino = (*victim_md)()->id();
+    victim_name = (*victim_md)()->name();
+  }
+  {
+    XrdSysMutexHelper sLock(src_md->Locker());
+    src_ino = (*src_md)()->id();
+    src_name = (*src_md)()->name();
+    src_size = (off_t)(*src_md)()->size();
+  }
+
+  eos_static_info("office-save: inplace-copy enter victim=%#lx (%s) "
+                  "src=%#lx (%s) src_size=%lld authid=%s",
+                  (unsigned long)victim_ino, victim_name.c_str(), (unsigned long)src_ino,
+                  src_name.c_str(), (long long)src_size, authid.c_str());
+
+  if (!victim_ino || !src_ino) {
+    eos_static_err("office-save: inplace-copy invalid inos victim=%#lx src=%#lx",
+                   (unsigned long)victim_ino, (unsigned long)src_ino);
+    return EIO;
+  }
+
+  // Serialise against concurrent ops on the preserved inode. The rename
+  // caller already holds a Track::Monitor on parent/newparent but NOT on
+  // victim_ino (which is the destination file, not a directory).
+  Track::Monitor monv("office-save", "fs", Instance().Tracker(), req, victim_ino, true);
+
+  const std::string host = Instance().Config().hostport;
+  data::shared_data vio;
+  data::shared_data sio;
+  std::string victim_cookie;
+  std::string src_cookie;
+  bool victim_attached = false;
+  bool src_attached = false;
+  int rc = 0;
+
+  // Acquire data objects.
+  vio = Instance().datas.get(req, victim_ino, victim_md);
+  sio = Instance().datas.get(req, src_ino, src_md);
+
+  if (!vio || !sio) {
+    eos_static_err("office-save: inplace-copy datas.get failed vio=%d sio=%d", (bool)vio,
+                   (bool)sio);
+    rc = EIO;
+    goto out;
+  }
+
+  victim_cookie = victim_md->Cookie();
+  src_cookie = src_md->Cookie();
+
+  // set_remote needs locked md fields for md_ino / md_pino.
+  {
+    uint64_t v_mdino = 0, v_mdpino = 0;
+    std::string v_name;
+    {
+      XrdSysMutexHelper vLock(victim_md->Locker());
+      v_mdino = (*victim_md)()->md_ino();
+      v_mdpino = (*victim_md)()->md_pino();
+      v_name = (*victim_md)()->name();
+    }
+    eos_static_info("office-save: inplace-copy set_remote(victim) name=%s "
+                    "ino=%lu pino=%lu",
+                    v_name.c_str(), (unsigned long)v_mdino, (unsigned long)v_mdpino);
+    vio->set_remote(host, v_name, v_mdino, v_mdpino, req, /*isRW=*/true);
+  }
+  {
+    uint64_t s_mdino = 0, s_mdpino = 0;
+    std::string s_name;
+    {
+      XrdSysMutexHelper sLock(src_md->Locker());
+      s_mdino = (*src_md)()->md_ino();
+      s_mdpino = (*src_md)()->md_pino();
+      s_name = (*src_md)()->name();
+    }
+    eos_static_info("office-save: inplace-copy set_remote(src) name=%s "
+                    "ino=%lu pino=%lu",
+                    s_name.c_str(), (unsigned long)s_mdino, (unsigned long)s_mdpino);
+    sio->set_remote(host, s_name, s_mdino, s_mdpino, req, /*isRW=*/false);
+  }
+
+  // Attach victim for write. EKEYEXPIRED means the local disk-cache cookie no
+  // longer matches the current FMD (expected after prior iterations stamp the
+  // victim: cookie includes mtime.nsec:size). The cache is truncated and
+  // refetched from the MGM, but the attach itself succeeded. Treat it as a
+  // success exactly like the normal open() path does.
+  {
+    int arc = vio->attach(req, victim_cookie, O_WRONLY);
+    eos_static_info("office-save: inplace-copy attach(victim) arc=%d", arc);
+
+    if (arc != 0 && arc != EKEYEXPIRED) {
+      rc = errno ? errno : EIO;
+      eos_static_err("office-save: victim attach failed rc=%d arc=%d ino=%#lx", rc, arc,
+                     (unsigned long)victim_ino);
+      goto out;
+    }
+
+    victim_attached = true;
+  }
+
+  // Wipe victim content. MGM-side versioning (if enabled on the parent) fires
+  // here on the pre-truncate snapshot — same behaviour as any editor doing an
+  // in-place save.
+  eos_static_info("office-save: inplace-copy truncate(victim,0) ino=%#lx",
+                  (unsigned long)victim_ino);
+
+  if (vio->truncate(req, 0)) {
+    rc = errno ? errno : EIO;
+    eos_static_err("office-save: victim truncate failed rc=%d ino=%#lx", rc,
+                   (unsigned long)victim_ino);
+    goto out;
+  }
+
+  // Attach src for read (EKEYEXPIRED tolerant, same reasoning).
+  {
+    int arc = sio->attach(req, src_cookie, O_RDONLY);
+    eos_static_info("office-save: inplace-copy attach(src) arc=%d", arc);
+
+    if (arc != 0 && arc != EKEYEXPIRED) {
+      rc = errno ? errno : EIO;
+      eos_static_err("office-save: src attach failed rc=%d arc=%d ino=%#lx", rc, arc,
+                     (unsigned long)src_ino);
+      goto out;
+    }
+
+    src_attached = true;
+  }
+
+  // Chunked copy loop. 4 MiB is the same chunk size the old Option B used.
+  {
+    constexpr size_t kChunk = 4 * 1024 * 1024;
+    off_t off = 0;
+    eos_static_info("office-save: inplace-copy copy-loop start src_size=%lld",
+                    (long long)src_size);
+
+    while (off < src_size) {
+      size_t want = (size_t)std::min((off_t)kChunk, src_size - off);
+      char* buf = nullptr;
+      ssize_t got = sio->peek_pread(req, buf, want, off);
+
+      if (got < 0 || (got == 0 && want > 0)) {
+        sio->release_pread();
+        rc = errno ? errno : EIO;
+        eos_static_err("office-save: read failed rc=%d off=%lld want=%zu "
+                       "got=%zd",
+                       rc, (long long)off, want, got);
+        goto out;
+      }
+
+      ssize_t wrote = vio->pwrite(req, buf, (size_t)got, off);
+      sio->release_pread();
+
+      if (wrote != got) {
+        rc = errno ? errno : EIO;
+        eos_static_err("office-save: write short/failed rc=%d off=%lld got=%zd "
+                       "wrote=%zd",
+                       rc, (long long)off, got, wrote);
+        goto out;
+      }
+
+      off += got;
+    }
+
+    eos_static_info("office-save: inplace-copy copy-loop done bytes=%lld",
+                    (long long)off);
+  }
+
+  // Flush victim: commits what we wrote, FST-side checksum + layout policy run
+  // on close exactly as for any user-visible overwrite.
+  eos_static_info("office-save: inplace-copy flush(victim) ino=%#lx",
+                  (unsigned long)victim_ino);
+
+  if (vio->flush(req)) {
+    rc = errno ? errno : EIO;
+    eos_static_err("office-save: victim flush failed rc=%d ino=%#lx", rc,
+                   (unsigned long)victim_ino);
+    goto out;
+  }
+
+out:
+  // Tear down attachments in reverse order. Detach is best-effort on the
+  // error path — we must not overwrite a real error with a detach failure.
+  if (src_attached) {
+    eos_static_info("office-save: inplace-copy detach(src) ino=%#lx",
+                    (unsigned long)src_ino);
+    (void)sio->detach(req, src_cookie, O_RDONLY);
+  }
+
+  if (victim_attached) {
+    eos_static_info("office-save: inplace-copy detach(victim) ino=%#lx",
+                    (unsigned long)victim_ino);
+    (void)vio->detach(req, victim_cookie, O_WRONLY);
+  }
+
+  if (sio) {
+    Instance().datas.release(req, src_ino, sio);
+  }
+
+  if (vio) {
+    Instance().datas.release(req, victim_ino, vio);
+  }
+
+  if (rc) {
+    eos_static_err("office-save: inplace-copy finishing with rc=%d", rc);
+    return rc;
+  }
+
+  // Unlink the tmp upstream — same effect as a user-issued `rm src` after the
+  // content has been committed into the victim.
+  eos_static_info("office-save: inplace-copy mds.remove(src=%#lx)",
+                  (unsigned long)src_ino);
+  {
+    bool is_open = Instance().datas.has(src_ino, true);
+    Instance().mds.remove(req, pmd, src_md, authid, /*upstream=*/true, is_open);
+  }
+
+  // Stamp victim_md with the new size/mtime/ctime and propagate via the normal
+  // mdflush — keeps client-side caches coherent with what just landed on the
+  // MGM.
+  {
+    struct timespec tsnow;
+    eos::common::Timing::GetTimeSpec(tsnow);
+    XrdSysMutexHelper vLock(victim_md->Locker());
+    (*victim_md)()->set_size((uint64_t)src_size);
+    (*victim_md)()->set_mtime(tsnow.tv_sec);
+    (*victim_md)()->set_mtime_ns(tsnow.tv_nsec);
+    (*victim_md)()->set_ctime(tsnow.tv_sec);
+    (*victim_md)()->set_ctime_ns(tsnow.tv_nsec);
+    Instance().mds.update(req, victim_md, authid);
+  }
+
+  eos_static_info("office-save: inplace-copy OK victim=%#lx src=%#lx size=%lld",
+                  (unsigned long)victim_ino, (unsigned long)src_ino, (long long)src_size);
+  return 0;
 }

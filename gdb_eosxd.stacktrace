@@ -1,0 +1,860 @@
+[New LWP 4924]
+[New LWP 4933]
+[New LWP 4934]
+[New LWP 4935]
+[New LWP 4936]
+[New LWP 4937]
+[New LWP 4938]
+[New LWP 4939]
+[New LWP 4940]
+[New LWP 4941]
+[New LWP 4942]
+[New LWP 4943]
+[New LWP 4944]
+[New LWP 4945]
+[New LWP 4947]
+[New LWP 4948]
+[New LWP 4964]
+[New LWP 4965]
+[New LWP 4966]
+[New LWP 4967]
+[New LWP 4968]
+[New LWP 4969]
+[New LWP 4970]
+[New LWP 4971]
+[New LWP 4972]
+[New LWP 4973]
+[New LWP 4974]
+[New LWP 4975]
+[New LWP 4976]
+[New LWP 4977]
+[New LWP 4978]
+[New LWP 4979]
+[New LWP 4980]
+[New LWP 4981]
+[New LWP 4982]
+[New LWP 4983]
+[New LWP 4984]
+[New LWP 4985]
+[New LWP 5098]
+[New LWP 5099]
+[New LWP 5100]
+[New LWP 5101]
+[New LWP 5102]
+[New LWP 5103]
+[New LWP 5104]
+[New LWP 5105]
+[New LWP 5106]
+[New LWP 5107]
+[New LWP 5108]
+[New LWP 5109]
+[New LWP 5110]
+[New LWP 5111]
+[New LWP 5112]
+[New LWP 5113]
+[New LWP 5114]
+[New LWP 5115]
+[New LWP 5116]
+[New LWP 5117]
+[New LWP 5118]
+[New LWP 5119]
+[Thread debugging using libthread_db enabled]
+Using host libthread_db library "/lib64/libthread_db.so.1".
+0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+
+Thread 61 (Thread 0x7f493c3ff640 (LWP 5119) "eosxd"):
+#0  0x00007f49638fd5ac in read () from /lib64/libc.so.6
+#1  0x00007f49657d0940 in fuse_kern_chan_receive () from /lib64/libfuse.so.2
+#2  0x00007f49657dc370 in fuse_ll_receive_buf () from /lib64/libfuse.so.2
+#3  0x00007f49657cf933 in fuse_do_work () from /lib64/libfuse.so.2
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 60 (Thread 0x7f493e7eb640 (LWP 5118) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 59 (Thread 0x7f493efec640 (LWP 5117) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 58 (Thread 0x7f493f7ed640 (LWP 5116) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 57 (Thread 0x7f493ffee640 (LWP 5115) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 56 (Thread 0x7f49407ef640 (LWP 5114) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 55 (Thread 0x7f4940ff0640 (LWP 5113) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 54 (Thread 0x7f49417f1640 (LWP 5112) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 53 (Thread 0x7f4941ff2640 (LWP 5111) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 52 (Thread 0x7f49427f3640 (LWP 5110) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 51 (Thread 0x7f4942ff4640 (LWP 5109) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x000000000065aea9 in XrdSysSemaphore::Wait (this=0x7f4949018540) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:509
+#3  0x00007f49655e4810 in XrdCl::SyncQueue<XrdCl::JobManager::JobHelper>::Get (this=0x7f494906d1d8) at /root/xrootd/src/XrdCl/XrdClSyncQueue.hh:66
+#4  0x00007f49655e1715 in XrdCl::JobManager::RunJobs (this=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:151
+#5  0x00007f49655e12a5 in RunRunnerThread (arg=0x7f494906d1c0) at /root/xrootd/src/XrdCl/XrdClJobManager.cc:34
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 50 (Thread 0x7f49437f5640 (LWP 5108) "eosxd"):
+#0  0x00007f49638d3c35 in clock_nanosleep@GLIBC_2.2.5 () from /lib64/libc.so.6
+#1  0x00007f49638d8847 in nanosleep () from /lib64/libc.so.6
+#2  0x00007f4964f7c6a8 in XrdSysTimer::Wait (mills=1000) at /root/xrootd/src/XrdSys/XrdSysTimer.cc:239
+#3  0x00007f4965513094 in XrdCl::TaskManager::RunTasks (this=0x7f494902b0c0) at /root/xrootd/src/XrdCl/XrdClTaskManager.cc:246
+#4  0x00007f49655123fd in RunRunnerThread (arg=0x7f494902b0c0) at /root/xrootd/src/XrdCl/XrdClTaskManager.cc:38
+#5  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#6  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 49 (Thread 0x7f4943ff6640 (LWP 5107) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906da80, syncsem=0x7f49490187a0, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f49490187c0) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 48 (Thread 0x7f49447f7640 (LWP 5106) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d9a0, syncsem=0x7f4949018760, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f4949018780) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 47 (Thread 0x7f4944ff8640 (LWP 5105) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d8c0, syncsem=0x7f4949018720, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f4949018740) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 46 (Thread 0x7f49457f9640 (LWP 5104) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d7e0, syncsem=0x7f49490186e0, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f4949018700) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 45 (Thread 0x7f4945ffa640 (LWP 5103) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d700, syncsem=0x7f4949018620, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f49490186c0) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 44 (Thread 0x7f49467fb640 (LWP 5102) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d620, syncsem=0x7f4949018680, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f49490186a0) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 43 (Thread 0x7f4946ffc640 (LWP 5101) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d540, syncsem=0x7f4949018640, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f4949018660) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 42 (Thread 0x7f49477fd640 (LWP 5100) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d460, syncsem=0x7f49490185e0, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f4949018600) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 41 (Thread 0x7f4947ffe640 (LWP 5099) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d380, syncsem=0x7f49490185a0, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f49490185c0) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 40 (Thread 0x7f49487ff640 (LWP 5098) "eosxd"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f4964f74c62 in XrdSys::IOEvents::PollE::Begin (this=0x7f494906d2a0, syncsem=0x7f4949018560, retcode=@0x7f4949df8c20: 0, eTxt=0x7f4949df8c18) at /root/xrootd/src/XrdSys/XrdSysIOEventsPollE.icc:211
+#2  0x00007f4964f7109f in XrdSys::IOEvents::BootStrap::Start (parg=0x7f4949df8c10) at /root/xrootd/src/XrdSys/XrdSysIOEvents.cc:149
+#3  0x00007f4964f7b97c in XrdSysThread_Xeq (myargs=0x7f4949018580) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:86
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 39 (Thread 0x7f4949dff640 (LWP 4985) "eosxd"):
+#0  0x00007f49638fd5ac in read () from /lib64/libc.so.6
+#1  0x00007f49657d0940 in fuse_kern_chan_receive () from /lib64/libfuse.so.2
+#2  0x00007f49657dc370 in fuse_ll_receive_buf () from /lib64/libfuse.so.2
+#3  0x00007f49657cf933 in fuse_do_work () from /lib64/libfuse.so.2
+#4  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#5  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 38 (Thread 0x7f494abff640 (LWP 4984) "eosxd"):
+#0  0x00007f4963886a80 in __lll_lock_wait () from /lib64/libc.so.6
+#1  0x00007f496388cbd2 in pthread_mutex_lock@@GLIBC_2.2.5 () from /lib64/libc.so.6
+#2  0x0000000000535e1e in XrdSysMutex::Lock (this=0x7f494901b018) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:222
+#3  0x0000000000535f52 in XrdSysMutexHelper::XrdSysMutexHelper (this=0x7f494abf9588, mutex=...) at /opt/myxrootd/include/xrootd/XrdSys/XrdSysPthread.hh:281
+#4  0x00000000005c3c3d in metad::get (this=0xdac6f0 <EosFuse::instance()::i+336>, req=0x7f4949e31000, ino=9223372036863118028, authid="", listing=false, pmd=std::shared_ptr<metad::mdx> (use count 4, weak count 0) = {...}, name=0x7f494900d670 "~$foo.docx", readdir=false) at /devwork/remote/eos/fusex/md/md.cc:726
+#5  0x00000000005c1279 in metad::lookup (this=0xdac6f0 <EosFuse::instance()::i+336>, req=0x7f4949e31000, parent=1, name=0x7f494900d670 "~$foo.docx") at /devwork/remote/eos/fusex/md/md.cc:249
+#6  0x00000000004f8074 in (anonymous namespace)::is_office_save_victim (req=0x7f4949e31000, parent=1, victim_name="~$foo.docx", caller_uid=1001) at /devwork/remote/eos/fusex/eosxd/eosfuse.cc:126
+#7  0x0000000000514a22 in EosFuse::unlink (req=0x7f4949e31000, parent=1, name=0x7f496149a668 "~$foo.docx") at /devwork/remote/eos/fusex/eosxd/eosfuse.cc:4368
+#8  0x00007f49657de9ac in fuse_ll_process_buf () from /lib64/libfuse.so.2
+#9  0x00007f49657cf9ad in fuse_do_work () from /lib64/libfuse.so.2
+#10 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#11 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 37 (Thread 0x7f494bfff640 (LWP 4983) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962466b30, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466b30, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466b30, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962466b30, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x0000000000542ba4 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1l> > > (this=0x7f4962466b00, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x0000000000531df1 in EosFuse::OfficeSaveReaperLoop (this=0xdac5a0 <EosFuse::instance()::i>, assistant=...) at /devwork/remote/eos/fusex/eosxd/eosfuse.cc:8064
+#8  0x00000000005753bc in std::__invoke_impl<void, void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575a88: (void (EosFuse::*)(class EosFuse * const, class ThreadAssistant &)) 0x531d3e <EosFuse::OfficeSaveReaperLoop(ThreadAssistant&)>, __t=@0x7f4962575a80: 0xdac5a0 <EosFuse::instance()::i>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x0000000000575106 in std::__invoke<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575a88: (void (EosFuse::*)(class EosFuse * const, class ThreadAssistant &)) 0x531d3e <EosFuse::OfficeSaveReaperLoop(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x0000000000574e73 in std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575a78) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x0000000000574cb2 in std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575a78) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x0000000000574bfe in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575a70) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 36 (Thread 0x7f494cbeb640 (LWP 4982) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962466ab0, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466ab0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466ab0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962466ab0, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x0000000000542ba4 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1l> > > (this=0x7f4962466a80, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00000000005fa796 in cap::capflush (this=0xdaccb0 <EosFuse::instance()::i+1808>, assistant=...) at /devwork/remote/eos/fusex/cap/cap.cc:572
+#8  0x0000000000575236 in std::__invoke_impl<void, void (cap::*)(ThreadAssistant&), cap*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575ab8: (void (cap::*)(class cap * const, class ThreadAssistant &)) 0x5fa20c <cap::capflush(ThreadAssistant&)>, __t=@0x7f4962575ab0: 0xdaccb0 <EosFuse::instance()::i+1808>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x0000000000574f6c in std::__invoke<void (cap::*)(ThreadAssistant&), cap*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575ab8: (void (cap::*)(class cap * const, class ThreadAssistant &)) 0x5fa20c <cap::capflush(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x0000000000574d9f in std::thread::_Invoker<std::tuple<void (cap::*)(ThreadAssistant&), cap*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575aa8) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x0000000000574c7a in std::thread::_Invoker<std::tuple<void (cap::*)(ThreadAssistant&), cap*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575aa8) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x0000000000574bbe in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (cap::*)(ThreadAssistant&), cap*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575aa0) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 35 (Thread 0x7f494d3ec640 (LWP 4981) "metad::mdcallba"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963888fff in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f4964f7bb81 in XrdSysCondVar::WaitMS (this=0xdaca88 <EosFuse::instance()::i+1256>, msec=0) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:152
+#3  0x00000000005d07b7 in metad::mdcallback (this=0xdac6f0 <EosFuse::instance()::i+336>, assistant=...) at /devwork/remote/eos/fusex/md/md.cc:2768
+#4  0x00000000005752f9 in std::__invoke_impl<void, void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575ae8: (void (metad::*)(class metad * const, class ThreadAssistant &)) 0x5d0692 <metad::mdcallback(ThreadAssistant&)>, __t=@0x7f4962575ae0: 0xdac6f0 <EosFuse::instance()::i+336>) at /usr/include/c++/11/bits/invoke.h:74
+#5  0x0000000000575039 in std::__invoke<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575ae8: (void (metad::*)(class metad * const, class ThreadAssistant &)) 0x5d0692 <metad::mdcallback(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#6  0x0000000000574e09 in std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575ad8) at /usr/include/c++/11/bits/std_thread.h:259
+#7  0x0000000000574c96 in std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575ad8) at /usr/include/c++/11/bits/std_thread.h:266
+#8  0x0000000000574bde in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575ad0) at /usr/include/c++/11/bits/std_thread.h:211
+#9  0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#10 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#11 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 34 (Thread 0x7f494dbed640 (LWP 4980) "metad::mdcommun"):
+#0  0x00007f49639015bf in poll () from /lib64/libc.so.6
+#1  0x00007f496645ac6f in poll (__timeout=<optimized out>, __nfds=1, __fds=<optimized out>) at /usr/include/bits/poll2.h:39
+#2  zmq_poll (items_=0x7f494dbe8190, nitems_=1, timeout_=<optimized out>) at src/zmq.cpp:984
+#3  0x00000000005d52ac in metad::mdcommunicate (this=0xdac6f0 <EosFuse::instance()::i+336>, assistant=...) at /devwork/remote/eos/fusex/md/md.cc:3308
+#4  0x00000000005752f9 in std::__invoke_impl<void, void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575b18: (void (metad::*)(class metad * const, class ThreadAssistant &)) 0x5d4dc6 <metad::mdcommunicate(ThreadAssistant&)>, __t=@0x7f4962575b10: 0xdac6f0 <EosFuse::instance()::i+336>) at /usr/include/c++/11/bits/invoke.h:74
+#5  0x0000000000575039 in std::__invoke<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575b18: (void (metad::*)(class metad * const, class ThreadAssistant &)) 0x5d4dc6 <metad::mdcommunicate(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#6  0x0000000000574e09 in std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575b08) at /usr/include/c++/11/bits/std_thread.h:259
+#7  0x0000000000574c96 in std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575b08) at /usr/include/c++/11/bits/std_thread.h:266
+#8  0x0000000000574bde in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575b00) at /usr/include/c++/11/bits/std_thread.h:211
+#9  0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#10 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#11 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 33 (Thread 0x7f494e3ee640 (LWP 4979) "metad::mdstackf"):
+#0  0x00007f49638d3c35 in clock_nanosleep@GLIBC_2.2.5 () from /lib64/libc.so.6
+#1  0x00007f49638d8847 in nanosleep () from /lib64/libc.so.6
+#2  0x00000000005407ce in std::this_thread::sleep_for<long, std::ratio<1l, 1000l> > (__rtime=...) at /usr/include/c++/11/bits/this_thread_sleep.h:82
+#3  0x00000000005cf139 in metad::mdstackfree (this=0xdac6f0 <EosFuse::instance()::i+336>, assistant=...) at /devwork/remote/eos/fusex/md/md.cc:2519
+#4  0x00000000005752f9 in std::__invoke_impl<void, void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575b48: (void (metad::*)(class metad * const, class ThreadAssistant &)) 0x5cf078 <metad::mdstackfree(ThreadAssistant&)>, __t=@0x7f4962575b40: 0xdac6f0 <EosFuse::instance()::i+336>) at /usr/include/c++/11/bits/invoke.h:74
+#5  0x0000000000575039 in std::__invoke<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575b48: (void (metad::*)(class metad * const, class ThreadAssistant &)) 0x5cf078 <metad::mdstackfree(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#6  0x0000000000574e09 in std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575b38) at /usr/include/c++/11/bits/std_thread.h:259
+#7  0x0000000000574c96 in std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575b38) at /usr/include/c++/11/bits/std_thread.h:266
+#8  0x0000000000574bde in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575b30) at /usr/include/c++/11/bits/std_thread.h:211
+#9  0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#10 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#11 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 32 (Thread 0x7f494ebef640 (LWP 4978) "metad::mdcflush"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963888fff in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f4964f7bb81 in XrdSysCondVar::WaitMS (this=0xdac8f8 <EosFuse::instance()::i+856>, msec=0) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:152
+#3  0x00007f4964f7ba28 in XrdSysCondVar::Wait (this=0xdac8f8 <EosFuse::instance()::i+856>, sec=1) at /root/xrootd/src/XrdSys/XrdSysPthread.cc:113
+#4  0x00000000005cdf4f in metad::mdcflush (this=0xdac6f0 <EosFuse::instance()::i+336>, assistant=...) at /devwork/remote/eos/fusex/md/md.cc:2327
+#5  0x00000000005752f9 in std::__invoke_impl<void, void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575c08: (void (metad::*)(class metad * const, class ThreadAssistant &)) 0x5cde66 <metad::mdcflush(ThreadAssistant&)>, __t=@0x7f4962575c00: 0xdac6f0 <EosFuse::instance()::i+336>) at /usr/include/c++/11/bits/invoke.h:74
+#6  0x0000000000575039 in std::__invoke<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575c08: (void (metad::*)(class metad * const, class ThreadAssistant &)) 0x5cde66 <metad::mdcflush(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#7  0x0000000000574e09 in std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575bf8) at /usr/include/c++/11/bits/std_thread.h:259
+#8  0x0000000000574c96 in std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575bf8) at /usr/include/c++/11/bits/std_thread.h:266
+#9  0x0000000000574bde in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (metad::*)(ThreadAssistant&), metad*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575bf0) at /usr/include/c++/11/bits/std_thread.h:211
+#10 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#11 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#12 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 31 (Thread 0x7f494f3f0640 (LWP 4977) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962466830, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466830, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466830, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f4962466830, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962466800, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x0000000000582020 in Stat::Circulate (this=0xdad438 <EosFuse::instance()::i+3736>, assistant=...) at /devwork/remote/eos/fusex/stat/Stat.cc:1207
+#8  0x00000000005099ea in EosFuse::StatCirculate (this=0xdac5a0 <EosFuse::instance()::i>, assistant=...) at /devwork/remote/eos/fusex/eosxd/eosfuse.cc:2786
+#9  0x00000000005753bc in std::__invoke_impl<void, void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962576028: (void (EosFuse::*)(class EosFuse * const, class ThreadAssistant &)) 0x509960 <EosFuse::StatCirculate(ThreadAssistant&)>, __t=@0x7f4962576020: 0xdac5a0 <EosFuse::instance()::i>) at /usr/include/c++/11/bits/invoke.h:74
+#10 0x0000000000575106 in std::__invoke<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962576028: (void (EosFuse::*)(class EosFuse * const, class ThreadAssistant &)) 0x509960 <EosFuse::StatCirculate(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#11 0x0000000000574e73 in std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962576018) at /usr/include/c++/11/bits/std_thread.h:259
+#12 0x0000000000574cb2 in std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962576018) at /usr/include/c++/11/bits/std_thread.h:266
+#13 0x0000000000574bfe in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962576010) at /usr/include/c++/11/bits/std_thread.h:211
+#14 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#15 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#16 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 30 (Thread 0x7f49521ff640 (LWP 4976) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f49624667b0, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49624667b0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49624667b0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f49624667b0, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x0000000000542ba4 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1l> > > (this=0x7f4962466780, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x0000000000509122 in EosFuse::DumpStatistic (this=0xdac5a0 <EosFuse::instance()::i>, assistant=...) at /devwork/remote/eos/fusex/eosxd/eosfuse.cc:2775
+#8  0x00000000005753bc in std::__invoke_impl<void, void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575ff8: (void (EosFuse::*)(class EosFuse * const, class ThreadAssistant &)) 0x506800 <EosFuse::DumpStatistic(ThreadAssistant&)>, __t=@0x7f4962575ff0: 0xdac5a0 <EosFuse::instance()::i>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x0000000000575106 in std::__invoke<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575ff8: (void (EosFuse::*)(class EosFuse * const, class ThreadAssistant &)) 0x506800 <EosFuse::DumpStatistic(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x0000000000574e73 in std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575fe8) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x0000000000574cb2 in std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575fe8) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x0000000000574bfe in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EosFuse::*)(ThreadAssistant&), EosFuse*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575fe0) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 29 (Thread 0x7f4952ff8640 (LWP 4975) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f49625d4cb0, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49625d4cb0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49625d4cb0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f49625d4cb0, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x0000000000542ba4 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1l> > > (this=0x7f49625d4c80, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00000000006761b0 in dircleaner::leveler (this=0x7f4961ed8810, assistant=...) at /devwork/remote/eos/fusex/data/dircleaner.cc:279
+#8  0x0000000000677c3d in std::__invoke_impl<void, void (dircleaner::*)(ThreadAssistant&), dircleaner*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f49625760e8: (void (dircleaner::*)(class dircleaner * const, class ThreadAssistant &)) 0x67615a <dircleaner::leveler(ThreadAssistant&)>, __t=@0x7f49625760e0: 0x7f4961ed8810) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x0000000000677b7a in std::__invoke<void (dircleaner::*)(ThreadAssistant&), dircleaner*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f49625760e8: (void (dircleaner::*)(class dircleaner * const, class ThreadAssistant &)) 0x67615a <dircleaner::leveler(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x0000000000677aad in std::thread::_Invoker<std::tuple<void (dircleaner::*)(ThreadAssistant&), dircleaner*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f49625760d8) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x0000000000677a4a in std::thread::_Invoker<std::tuple<void (dircleaner::*)(ThreadAssistant&), dircleaner*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f49625760d8) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x0000000000677a2e in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (dircleaner::*)(ThreadAssistant&), dircleaner*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f49625760d0) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 28 (Thread 0x7f49537f9640 (LWP 4974) "ZMQbg/IO/0"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f496641d770 in zmq::epoll_t::loop (this=0x7f496245b260) at src/epoll.cpp:184
+#2  0x00007f496644c421 in thread_routine (arg_=0x7f496245b2b8) at src/thread.cpp:257
+#3  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#4  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 27 (Thread 0x7f4953ffa640 (LWP 4973) "ZMQbg/Reaper"):
+#0  0x00007f496390de3e in epoll_wait () from /lib64/libc.so.6
+#1  0x00007f496641d770 in zmq::epoll_t::loop (this=0x7f496245a9a0) at src/epoll.cpp:184
+#2  0x00007f496644c421 in thread_routine (arg_=0x7f496245a9f8) at src/thread.cpp:257
+#3  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#4  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 26 (Thread 0x7f49547fb640 (LWP 4972) "ActiveTidentsGC"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962444730, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962444730, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962444730, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f4962444730, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962444700, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00007f4965e1d68b in ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector (this=0x7f49663c9120 <eos::common::Mapping::ActiveTidentsSharded[abi:cxx11]>, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x00007f4965e43542 in std::__invoke_impl<void, void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575368: (void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(class ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true> * const, class ThreadAssistant &)) 0x7f4965e1d61c <ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector(ThreadAssistant&)>, __t=@0x7f4962575360: 0x7f49663c9120 <eos::common::Mapping::ActiveTidentsSharded[abi:cxx11]>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00007f4965e43064 in std::__invoke<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575368: (void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(class ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true> * const, class ThreadAssistant &)) 0x7f4965e1d61c <ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00007f4965e42c63 in std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575358) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x00007f4965e42988 in std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575358) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x00007f4965e42184 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, long, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575350) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 25 (Thread 0x7f4954ffc640 (LWP 4971) "ActiveUidsShard"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f49624447b0, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49624447b0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49624447b0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f49624447b0, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962444780, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00007f4965e1d4a9 in ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::garbageCollector (this=0x7f49663c91c0 <eos::common::Mapping::ActiveUidsSharded>, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x00007f4965e43605 in std::__invoke_impl<void, void (ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575098: (void (ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::*)(class ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true> * const, class ThreadAssistant &)) 0x7f4965e1d43a <ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::garbageCollector(ThreadAssistant&)>, __t=@0x7f4962575090: 0x7f49663c91c0 <eos::common::Mapping::ActiveUidsSharded>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00007f4965e43131 in std::__invoke<void (ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575098: (void (ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::*)(class ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true> * const, class ThreadAssistant &)) 0x7f4965e1d43a <ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00007f4965e42ccd in std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575088) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x00007f4965e429a4 in std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575088) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x00007f4965e421a4 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, unsigned long, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575080) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 24 (Thread 0x7f49557fd640 (LWP 4970) "NegUidGC"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f49624445b0, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49624445b0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49624445b0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f49624445b0, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962444580, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00007f4965e1d2c7 in ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector (this=0x7f49663c9080 <eos::common::Mapping::gShardedNegativePhysicalUidCache[abi:cxx11]>, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x00007f4965e436c8 in std::__invoke_impl<void, void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575278: (void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(class ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true> * const, class ThreadAssistant &)) 0x7f4965e1d258 <ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector(ThreadAssistant&)>, __t=@0x7f4962575270: 0x7f49663c9080 <eos::common::Mapping::gShardedNegativePhysicalUidCache[abi:cxx11]>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00007f4965e431fe in std::__invoke<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575278: (void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(class ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true> * const, class ThreadAssistant &)) 0x7f4965e1d258 <ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00007f4965e42d37 in std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575268) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x00007f4965e429c0 in std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575268) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x00007f4965e421c4 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, bool, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575260) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 23 (Thread 0x7f4955ffe640 (LWP 4969) "NegGroupNameGC"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962444530, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962444530, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962444530, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f4962444530, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962444500, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00007f4965e1d0e5 in ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::garbageCollector (this=0x7f49663c8fe0 <eos::common::Mapping::gShardedNegativeGroupNameCache[abi:cxx11]>, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x00007f4965e4378b in std::__invoke_impl<void, void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f49625754e8: (void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(class ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true> * const, class ThreadAssistant &)) 0x7f4965e1d076 <ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::garbageCollector(ThreadAssistant&)>, __t=@0x7f49625754e0: 0x7f49663c8fe0 <eos::common::Mapping::gShardedNegativeGroupNameCache[abi:cxx11]>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00007f4965e432cb in std::__invoke<void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f49625754e8: (void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(class ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true> * const, class ThreadAssistant &)) 0x7f4965e1d076 <ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00007f4965e42da1 in std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f49625754d8) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x00007f4965e429dc in std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f49625754d8) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x00007f4965e421e4 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f49625754d0) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 22 (Thread 0x7f49567ff640 (LWP 4968) "NegUserNameGC"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962444430, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962444430, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962444430, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f4962444430, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962444400, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00007f4965e1d0e5 in ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::garbageCollector (this=0x7f49663c8f40 <eos::common::Mapping::gShardedNegativeUserNameCache[abi:cxx11]>, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x00007f4965e4378b in std::__invoke_impl<void, void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f49625751b8: (void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(class ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true> * const, class ThreadAssistant &)) 0x7f4965e1d076 <ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::garbageCollector(ThreadAssistant&)>, __t=@0x7f49625751b0: 0x7f49663c8f40 <eos::common::Mapping::gShardedNegativeUserNameCache[abi:cxx11]>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00007f4965e432cb in std::__invoke<void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f49625751b8: (void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(class ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true> * const, class ThreadAssistant &)) 0x7f4965e1d076 <ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00007f4965e42da1 in std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f49625751a8) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x00007f4965e429dc in std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f49625751a8) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x00007f4965e421e4 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>::*)(ThreadAssistant&), ShardedCache<unsigned int, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, DefaultHash<unsigned int>, true>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f49625751a0) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 21 (Thread 0x7f49513f4640 (LWP 4967) "GidCacheGC"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962444630, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962444630, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962444630, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f4962444630, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962444600, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00007f4965e1cf03 in ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector (this=0x7f49663c8ea0 <eos::common::Mapping::gShardedPhysicalGidCache[abi:cxx11]>, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x00007f4965e4384e in std::__invoke_impl<void, void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f49625754b8: (void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(class ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true> * const, class ThreadAssistant &)) 0x7f4965e1ce94 <ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector(ThreadAssistant&)>, __t=@0x7f49625754b0: 0x7f49663c8ea0 <eos::common::Mapping::gShardedPhysicalGidCache[abi:cxx11]>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00007f4965e43398 in std::__invoke<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f49625754b8: (void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(class ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true> * const, class ThreadAssistant &)) 0x7f4965e1ce94 <ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00007f4965e42e0b in std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f49625754a8) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x00007f4965e429f8 in std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f49625754a8) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x00007f4965e42204 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::set<unsigned int, std::less<unsigned int>, std::allocator<unsigned int> >, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f49625754a0) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 20 (Thread 0x7f4950bf3640 (LWP 4966) "UidCacheGC"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f49624446b0, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49624446b0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f49624446b0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f49624446b0, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962444680, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00007f4965e1cd21 in ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector (this=0x7f49663c8e00 <eos::common::Mapping::gShardedPhysicalUidCache[abi:cxx11]>, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x00007f4965e43911 in std::__invoke_impl<void, void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575248: (void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(class ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true> * const, class ThreadAssistant &)) 0x7f4965e1ccb2 <ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector(ThreadAssistant&)>, __t=@0x7f4962575240: 0x7f49663c8e00 <eos::common::Mapping::gShardedPhysicalUidCache[abi:cxx11]>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00007f4965e43465 in std::__invoke<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575248: (void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(class ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true> * const, class ThreadAssistant &)) 0x7f4965e1ccb2 <ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00007f4965e42e75 in std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575238) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x00007f4965e42a14 in std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575238) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x00007f4965e42224 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>::*)(ThreadAssistant&), ShardedCache<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, eos::common::Mapping::id_pair, DefaultHash<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, true>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575230) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 19 (Thread 0x7f49503f2640 (LWP 4965) "data::ioflush"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962466730, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466730, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466730, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f4962466730, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962466700, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x000000000061e124 in data::dmap::ioflush (this=0xdacc28 <EosFuse::instance()::i+1672>, assistant=...) at /devwork/remote/eos/fusex/data/data.cc:3492
+#8  0x000000000063bceb in std::__invoke_impl<void, void (data::dmap::*)(ThreadAssistant&), data::dmap*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f4962575218: (void (data::dmap::*)(class data::dmap * const, class ThreadAssistant &)) 0x61b364 <data::dmap::ioflush(ThreadAssistant&)>, __t=@0x7f4962575210: 0xdacc28 <EosFuse::instance()::i+1672>) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x000000000063bc28 in std::__invoke<void (data::dmap::*)(ThreadAssistant&), data::dmap*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f4962575218: (void (data::dmap::*)(class data::dmap * const, class ThreadAssistant &)) 0x61b364 <data::dmap::ioflush(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x000000000063bb5b in std::thread::_Invoker<std::tuple<void (data::dmap::*)(ThreadAssistant&), data::dmap*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f4962575208) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x000000000063ba82 in std::thread::_Invoker<std::tuple<void (data::dmap::*)(ThreadAssistant&), data::dmap*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f4962575208) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x000000000063b9cc in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (data::dmap::*)(ThreadAssistant&), data::dmap*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f4962575200) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 18 (Thread 0x7f494fbf1640 (LWP 4964) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963888fff in pthread_cond_timedwait@@GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x000000000076976a in rocksdb::port::CondVar::TimedWait(unsigned long) ()
+#3  0x0000000000a51767 in rocksdb::InstrumentedCondVar::TimedWait(unsigned long) ()
+#4  0x0000000000975b58 in rocksdb::Timer::Run() ()
+#5  0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 17 (Thread 0x7f4957c6f640 (LWP 4948) "rocksdb:high"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963888e12 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f4963cd56b0 in std::condition_variable::wait(std::unique_lock<std::mutex>&) () from /lib64/libstdc++.so.6
+#3  0x000000000080b130 in rocksdb::ThreadPoolImpl::Impl::BGThread(unsigned long) ()
+#4  0x000000000080b4b3 in rocksdb::ThreadPoolImpl::Impl::BGThreadWrapper(void*) ()
+#5  0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 16 (Thread 0x7f4958470640 (LWP 4947) "rocksdb:low"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963888e12 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f4963cd56b0 in std::condition_variable::wait(std::unique_lock<std::mutex>&) () from /lib64/libstdc++.so.6
+#3  0x000000000080b130 in rocksdb::ThreadPoolImpl::Impl::BGThread(unsigned long) ()
+#4  0x000000000080b4b3 in rocksdb::ThreadPoolImpl::Impl::BGThreadWrapper(void*) ()
+#5  0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#6  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#7  0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 15 (Thread 0x7f4958c71640 (LWP 4945) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963888e12 in pthread_cond_wait@@GLIBC_2.3.2 () from /lib64/libc.so.6
+#2  0x00007f4963cd56b0 in std::condition_variable::wait(std::unique_lock<std::mutex>&) () from /lib64/libstdc++.so.6
+#3  0x00007f4965e6b728 in eos::common::LogBuffer::log_thread (this=0x7f496245a460) at /devwork/remote/eos/common/Logging.cc:560
+#4  0x0000000000536f09 in eos::common::LogBuffer::resume_int()::{lambda()#1}::operator()() const (__closure=0x7f4962409608) at /devwork/remote/eos/common/Logging.hh:414
+#5  0x0000000000575400 in std::__invoke_impl<void, eos::common::LogBuffer::resume_int()::{lambda()#1}>(std::__invoke_other, eos::common::LogBuffer::resume_int()::{lambda()#1}&&) (__f=...) at /usr/include/c++/11/bits/invoke.h:61
+#6  0x0000000000575160 in std::__invoke<eos::common::LogBuffer::resume_int()::{lambda()#1}>(eos::common::LogBuffer::resume_int()::{lambda()#1}&&) (__fn=...) at /usr/include/c++/11/bits/invoke.h:96
+#7  0x0000000000574ea6 in std::thread::_Invoker<std::tuple<eos::common::LogBuffer::resume_int()::{lambda()#1}> >::_M_invoke<0ul>(std::_Index_tuple<0ul>) (this=0x7f4962409608) at /usr/include/c++/11/bits/std_thread.h:259
+#8  0x0000000000574cce in std::thread::_Invoker<std::tuple<eos::common::LogBuffer::resume_int()::{lambda()#1}> >::operator()() (this=0x7f4962409608) at /usr/include/c++/11/bits/std_thread.h:266
+#9  0x0000000000574c1e in std::thread::_State_impl<std::thread::_Invoker<std::tuple<eos::common::LogBuffer::resume_int()::{lambda()#1}> > >::_M_run() (this=0x7f4962409600) at /usr/include/c++/11/bits/std_thread.h:211
+#10 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#11 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#12 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 14 (Thread 0x7f4959472640 (LWP 4944) "ShardedCacheGC"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962466db0, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466db0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466db0, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f4962466db0, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962466d80, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00000000006fd67d in ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::garbageCollector (this=0x7f4962461380, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x0000000000702595 in std::__invoke_impl<void, void (ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::*)(ThreadAssistant&), ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f496244acb8: (void (ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::*)(class ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false> * const, class ThreadAssistant &)) 0x6fd60e <ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::garbageCollector(ThreadAssistant&)>, __t=@0x7f496244acb0: 0x7f4962461380) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00000000007024d2 in std::__invoke<void (ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::*)(ThreadAssistant&), ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f496244acb8: (void (ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::*)(class ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false> * const, class ThreadAssistant &)) 0x6fd60e <ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00000000007023cb in std::thread::_Invoker<std::tuple<void (ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::*)(ThreadAssistant&), ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f496244aca8) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x000000000070231e in std::thread::_Invoker<std::tuple<void (ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::*)(ThreadAssistant&), ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f496244aca8) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x000000000070222e in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>::*)(ThreadAssistant&), ShardedCache<ProcessCache::ProcessCacheKey, ProcessCacheEntry, ProcessCache::KeyHasher, false>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f496244aca0) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 13 (Thread 0x7f495a473640 (LWP 4943) "ShardedCacheGC"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962466d30, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466d30, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962466d30, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000058ec39 in std::condition_variable::wait_for<long, std::ratio<1l, 1000l> > (this=0x7f4962466d30, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x000000000058a562 in ThreadAssistant::wait_for<std::chrono::duration<long, std::ratio<1l, 1000l> > > (this=0x7f4962466d00, duration=...) at /devwork/remote/eos/common/AssistedThread.hh:127
+#7  0x00000000006e4653 in ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::garbageCollector (this=0x7f4962461268, assistant=...) at /devwork/remote/eos/common/ShardedCache.hh:369
+#8  0x00000000006e9359 in std::__invoke_impl<void, void (ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::*)(ThreadAssistant&), ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>*, std::reference_wrapper<ThreadAssistant> > (__f=@0x7f496244ac28: (void (ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::*)(class ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false> * const, class ThreadAssistant &)) 0x6e45e4 <ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::garbageCollector(ThreadAssistant&)>, __t=@0x7f496244ac20: 0x7f4962461268) at /usr/include/c++/11/bits/invoke.h:74
+#9  0x00000000006e9296 in std::__invoke<void (ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::*)(ThreadAssistant&), ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>*, std::reference_wrapper<ThreadAssistant> > (__fn=@0x7f496244ac28: (void (ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::*)(class ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false> * const, class ThreadAssistant &)) 0x6e45e4 <ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::garbageCollector(ThreadAssistant&)>) at /usr/include/c++/11/bits/invoke.h:96
+#10 0x00000000006e918f in std::thread::_Invoker<std::tuple<void (ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::*)(ThreadAssistant&), ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>*, std::reference_wrapper<ThreadAssistant> > >::_M_invoke<0ul, 1ul, 2ul> (this=0x7f496244ac18) at /usr/include/c++/11/bits/std_thread.h:259
+#11 0x00000000006e90d4 in std::thread::_Invoker<std::tuple<void (ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::*)(ThreadAssistant&), ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>*, std::reference_wrapper<ThreadAssistant> > >::operator() (this=0x7f496244ac18) at /usr/include/c++/11/bits/std_thread.h:266
+#12 0x00000000006e8fe4 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>::*)(ThreadAssistant&), ShardedCache<UserCredentials, BoundIdentity, UserCredentialsHasher, false>*, std::reference_wrapper<ThreadAssistant> > > >::_M_run (this=0x7f496244ac10) at /usr/include/c++/11/bits/std_thread.h:211
+#13 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#14 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#15 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 12 (Thread 0x7f495b374640 (LWP 4942) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624a55d0: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624a55c8: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624a55d0: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624a55c8) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624a55c8) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624a55c0) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 11 (Thread 0x7f495bb75640 (LWP 4941) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624a55b0: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624a55a8: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624a55b0: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624a55a8) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624a55a8) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624a55a0) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 10 (Thread 0x7f495c376640 (LWP 4940) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624a5590: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624a5588: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624a5590: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624a5588) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624a5588) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624a5580) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 9 (Thread 0x7f495cb77640 (LWP 4939) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624a5570: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624a5568: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624a5570: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624a5568) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624a5568) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624a5560) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 8 (Thread 0x7f495d378640 (LWP 4938) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624a54f0: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624a54e8: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624a54f0: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624a54e8) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624a54e8) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624a54e0) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 7 (Thread 0x7f495db79640 (LWP 4937) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624a5550: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624a5548: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624a5550: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624a5548) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624a5548) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624a5540) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 6 (Thread 0x7f495e37a640 (LWP 4936) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624a5530: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624a5528: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624a5530: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624a5528) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624a5528) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624a5520) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 5 (Thread 0x7f495eb7b640 (LWP 4935) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624a5510: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624a5508: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624a5510: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624a5508) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624a5508) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624a5500) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 4 (Thread 0x7f495f37c640 (LWP 4934) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f496246a310: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f496246a308: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f496246a310: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f496246a308) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f496246a308) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f496246a300) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 3 (Thread 0x7f495fb7d640 (LWP 4933) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f49638891f0 in pthread_cond_clockwait@GLIBC_2.30 () from /lib64/libc.so.6
+#2  0x0000000000536035 in std::__condvar::wait_until (this=0x7f4962461050, __m=..., __clock=1, __abs_time=...) at /usr/include/c++/11/bits/std_mutex.h:169
+#3  0x0000000000551e1f in std::condition_variable::__wait_until_impl<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:201
+#4  0x000000000054c841 in std::condition_variable::wait_until<std::chrono::duration<long, std::ratio<1l, 1000000000l> > > (this=0x7f4962461050, __lock=..., __atime=...) at /usr/include/c++/11/condition_variable:111
+#5  0x000000000054764b in std::condition_variable::wait_for<long, std::ratio<1l, 1l> > (this=0x7f4962461050, __lock=..., __rtime=...) at /usr/include/c++/11/condition_variable:163
+#6  0x00000000006efac9 in EnvironmentReader::worker (this=0x7f4962461000) at /devwork/remote/eos/fusex/auth/EnvironmentReader.cc:168
+#7  0x00000000006f84a4 in std::__invoke_impl<void, void (EnvironmentReader::*)(), EnvironmentReader*> (__f=@0x7f49624d7670: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>, __t=@0x7f49624d7668: 0x7f4962461000) at /usr/include/c++/11/bits/invoke.h:74
+#8  0x00000000006f8403 in std::__invoke<void (EnvironmentReader::*)(), EnvironmentReader*> (__fn=@0x7f49624d7670: (void (EnvironmentReader::*)(class EnvironmentReader * const)) 0x6ef6e6 <EnvironmentReader::worker()>) at /usr/include/c++/11/bits/invoke.h:96
+#9  0x00000000006f8373 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::_M_invoke<0ul, 1ul> (this=0x7f49624d7668) at /usr/include/c++/11/bits/std_thread.h:259
+#10 0x00000000006f82f8 in std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> >::operator() (this=0x7f49624d7668) at /usr/include/c++/11/bits/std_thread.h:266
+#11 0x00000000006f81fa in std::thread::_State_impl<std::thread::_Invoker<std::tuple<void (EnvironmentReader::*)(), EnvironmentReader*> > >::_M_run (this=0x7f49624d7660) at /usr/include/c++/11/bits/std_thread.h:211
+#12 0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#13 0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#14 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 2 (Thread 0x7f4960b7f640 (LWP 4924) "eosxd"):
+#0  0x00007f49639015bf in poll () from /lib64/libc.so.6
+#1  0x0000000000646115 in ConcurrentMount::runFdServer (this=0x7ffd3173ca90) at /devwork/remote/eos/fusex/misc/ConcurrentMount.cc:303
+#2  0x0000000000645b2d in operator() (__closure=0x7f4962409938) at /devwork/remote/eos/fusex/misc/ConcurrentMount.cc:127
+#3  0x0000000000646c30 in std::__invoke_impl<void, ConcurrentMount::MountDone(int)::<lambda()> >(std::__invoke_other, struct {...} &&) (__f=...) at /usr/include/c++/11/bits/invoke.h:61
+#4  0x0000000000646bf3 in std::__invoke<ConcurrentMount::MountDone(int)::<lambda()> >(struct {...} &&) (__fn=...) at /usr/include/c++/11/bits/invoke.h:96
+#5  0x0000000000646ba0 in std::thread::_Invoker<std::tuple<ConcurrentMount::MountDone(int)::<lambda()> > >::_M_invoke<0>(std::_Index_tuple<0>) (this=0x7f4962409938) at /usr/include/c++/11/bits/std_thread.h:259
+#6  0x0000000000646b74 in std::thread::_Invoker<std::tuple<ConcurrentMount::MountDone(int)::<lambda()> > >::operator()(void) (this=0x7f4962409938) at /usr/include/c++/11/bits/std_thread.h:266
+#7  0x0000000000646b58 in std::thread::_State_impl<std::thread::_Invoker<std::tuple<ConcurrentMount::MountDone(int)::<lambda()> > > >::_M_run(void) (this=0x7f4962409930) at /usr/include/c++/11/bits/std_thread.h:211
+#8  0x00007f4963cdbad4 in execute_native_thread_routine () from /lib64/libstdc++.so.6
+#9  0x00007f49638897e2 in start_thread () from /lib64/libc.so.6
+#10 0x00007f496390e800 in clone3 () from /lib64/libc.so.6
+
+Thread 1 (Thread 0x7f49628d3040 (LWP 4923) "eosxd"):
+#0  0x00007f49638868ba in __futex_abstimed_wait_common () from /lib64/libc.so.6
+#1  0x00007f4963891828 in __new_sem_wait_slow64.constprop.0 () from /lib64/libc.so.6
+#2  0x00007f49657cf300 in fuse_session_loop_mt () from /lib64/libfuse.so.2
+#3  0x000000000050453f in EosFuse::run (this=0xdac5a0 <EosFuse::instance()::i>, argc=3, argv=0x7ffd31740428, userdata=0x0) at /devwork/remote/eos/fusex/eosxd/eosfuse.cc:2197
+#4  0x000000000070f278 in main (argc=3, argv=0x7ffd31740428) at /devwork/remote/eos/fusex/eosxd/main.cc:30
+[Inferior 1 (process 4923) detached]

@@ -30,27 +30,27 @@
 #include "common/LinuxTotalMem.hh"
 #include "common/Murmur3.hh"
 
-#include "stat/Stat.hh"
-#include "md/md.hh"
+#include "auth/CredentialFinder.hh"
+#include "backend/backend.hh"
 #include "cap/cap.hh"
 #include "data/data.hh"
-#include "backend/backend.hh"
-#include "kv/kv.hh"
 #include "kv/NoKV.hh"
+#include "kv/kv.hh"
 #include "llfusexx.hh"
-#include "auth/CredentialFinder.hh"
-#include "misc/Track.hh"
+#include "md/md.hh"
 #include "misc/FuseId.hh"
+#include "misc/Track.hh"
 #include "misc/stringTS.hh"
+#include "stat/Stat.hh"
 #include "submount/SubMount.hh"
+#include <google/dense_hash_map>
+#include <google/dense_hash_set>
+#include <json/json.h>
 #include <set>
 #include <signal.h>
 #include <string.h>
 #include <string>
 #include <thread>
-#include <json/json.h>
-#include <google/dense_hash_set>
-#include <google/dense_hash_map>
 
 // PROTOBUF protocol version announced via heartbeats and attached to URLs by the backend
 #define FUSEPROTOCOLVERSION eos::fusex::heartbeat::PROTOCOLV5
@@ -290,6 +290,7 @@ public:
       std::vector<std::string> nowait_flush_executables;
       bool protect_directory_symlink_loops;
       bool fakerename;
+      bool hack_ms_office_file_save;
     } options_t;
 
     typedef struct recovery {
@@ -562,6 +563,20 @@ private:
 
   void DumpStatistic(ThreadAssistant& assistant);
   void StatCirculate(ThreadAssistant& assistant);
+
+  // MS Office save-by-replace mitigation (hack-ms-office-file-save).
+  // Called from EosFuse::rename when a tmp -> docx rename is about to replace
+  // a live doc1.docx on the MGM while the ~$doc1.docx owner-lock is present.
+  // Instead of letting mds.mv do a rename-over-existing (which unlinks the
+  // victim and loses FileID / sys.acl / version dir), this helper rewrites
+  // the victim in place: it attaches the victim's data object O_WRONLY,
+  // truncates it, copies src's content in, flushes + detaches, then unlinks
+  // src upstream. On success the victim's FMD identity is fully preserved;
+  // on failure the caller falls back to the legacy mds.mv path.
+  // Returns 0 on success, errno on failure.
+  int office_save_inplace_copy(fuse_req_t req, metad::shared_md victim_md,
+                               metad::shared_md src_md, metad::shared_md pmd,
+                               const std::string& authid);
 };
 
 #endif /* FUSE_EOSFUSE_HH_ */
