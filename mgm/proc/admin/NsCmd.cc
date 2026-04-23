@@ -22,31 +22,220 @@
  ************************************************************************/
 
 #include "NsCmd.hh"
+#include "common/BehaviourConfig.hh"
+#include "common/LinuxFds.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
-#include "common/LinuxFds.hh"
-#include "common/BehaviourConfig.hh"
+#include "common/ParseUtils.hh"
+#include "common/StringConversion.hh"
+#include "common/StringUtils.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/fsck/Fsck.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/zmq/ZMQ.hh"
+#include "namespace/Constants.hh"
+#include "namespace/Resolver.hh"
+#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "namespace/interface/IView.hh"
-#include "namespace/interface/ContainerIterators.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
-#include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/NamespaceGroup.hh"
-#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "namespace/ns_quarkdb/QClPerformance.hh"
-#include "namespace/Resolver.hh"
-#include "namespace/Constants.hh"
-#include "mgm/config/IConfigEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
-#include "mgm/fsck/Fsck.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/zmq/ZMQ.hh"
-#include "mgm/convert/ConverterEngine.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
+#include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
+#include <algorithm>
+#include <exception>
+#include <memory>
+#include <qclient/QClient.hh>
 #include <sstream>
+#include <vector>
+
+namespace {
+struct HaClusterStatus {
+  std::string local;
+  std::string role;
+  std::string leader;
+  std::vector<std::string> followers;
+  std::vector<std::string> nodes;
+  bool available = false;
+};
+
+void
+AppendUnique(std::vector<std::string>& values, const std::string& value)
+{
+  if (value.empty()) {
+    return;
+  }
+
+  if (std::find(values.begin(), values.end(), value) == values.end()) {
+    values.push_back(value);
+  }
+}
+
+std::string
+JoinValuesOrNone(const std::vector<std::string>& values)
+{
+  return values.empty() ? std::string("none")
+                        : eos::common::StringConversion::Join(values, ",");
+}
+
+std::string
+ExtractEndpointHost(const std::string& endpoint)
+{
+  std::string host;
+  int port = 0;
+
+  if (eos::common::ParseHostNamePort(endpoint, host, port)) {
+    return host;
+  }
+
+  return endpoint;
+}
+
+std::string
+BuildEndpoint(const std::string& host, int port)
+{
+  if (host.empty() || (port <= 0)) {
+    return "";
+  }
+
+  std::ostringstream oss;
+  oss << host << ":" << port;
+  return oss.str();
+}
+
+void
+DeriveFollowersFromNodes(const std::vector<std::string>& nodes, const std::string& leader,
+                         std::vector<std::string>& followers)
+{
+  for (const auto& node : nodes) {
+    if (node != leader) {
+      AppendUnique(followers, node);
+    }
+  }
+}
+
+bool
+ParseRaftInfoReply(qclient::redisReplyPtr reply, HaClusterStatus& status,
+                   std::string& err)
+{
+  if (!reply) {
+    err = "raft-info returned an empty reply";
+    return false;
+  }
+
+  if (reply->type != REDIS_REPLY_ARRAY) {
+    std::ostringstream oss;
+    oss << "unexpected raft-info reply: " << qclient::describeRedisReply(reply);
+    err = oss.str();
+    return false;
+  }
+
+  for (size_t i = 0; i < reply->elements; ++i) {
+    redisReply* element = reply->element[i];
+
+    if (!element) {
+      continue;
+    }
+
+    if ((element->type != REDIS_REPLY_STRING) && (element->type != REDIS_REPLY_STATUS)) {
+      continue;
+    }
+
+    std::string entry(element->str ? element->str : "", element->len);
+
+    if (eos::common::startsWith(entry, "LEADER ")) {
+      status.leader = entry.substr(7);
+    } else if (eos::common::startsWith(entry, "MYSELF ")) {
+      status.local = entry.substr(7);
+    } else if (eos::common::startsWith(entry, "STATUS ")) {
+      status.role = entry.substr(7);
+    } else if (eos::common::startsWith(entry, "NODES ")) {
+      eos::common::StringConversion::Tokenize(entry.substr(6), status.nodes, ",");
+    } else if (eos::common::startsWith(entry, "REPLICA ")) {
+      const auto endpoint_end = entry.find_first_of(" |", 8);
+      AppendUnique(status.followers,
+                   entry.substr(8, endpoint_end == std::string::npos ? std::string::npos
+                                                                     : endpoint_end - 8));
+    }
+  }
+
+  if (status.followers.empty() && !status.nodes.empty()) {
+    DeriveFollowersFromNodes(status.nodes, status.leader, status.followers);
+  }
+
+  status.available = !(status.local.empty() && status.role.empty() &&
+                       status.leader.empty() && status.followers.empty());
+  return status.available;
+}
+
+HaClusterStatus
+CollectQdbHaStatus(XrdMgmOfs* ofs, std::string& err)
+{
+  HaClusterStatus status;
+
+  if (ofs->namespaceGroup->isInMemory()) {
+    return status;
+  }
+
+  try {
+    auto qdb_status_client = std::make_unique<qclient::QClient>(
+        ofs->mQdbContactDetails.members, ofs->mQdbContactDetails.constructOptions());
+    qclient::redisReplyPtr raft_reply = qdb_status_client->exec("raft-info").get();
+    ParseRaftInfoReply(raft_reply, status, err);
+  } catch (const std::exception& ex) {
+    err = ex.what();
+  }
+
+  return status;
+}
+
+HaClusterStatus
+BuildMgmHaStatus(const std::string& local, bool is_master, const std::string& master_id,
+                 int mgm_port, const HaClusterStatus* qdb_status)
+{
+  HaClusterStatus status;
+  status.local = local;
+  status.role = is_master ? "leader" : "follower";
+  status.leader = master_id;
+
+  int master_port = mgm_port;
+  std::string master_host;
+  const bool have_master_endpoint =
+      eos::common::ParseHostNamePort(master_id, master_host, master_port);
+
+  if (qdb_status && have_master_endpoint && !master_id.empty() && (master_port > 0)) {
+    std::vector<std::string> qdb_nodes = qdb_status->nodes;
+
+    if (qdb_nodes.empty()) {
+      AppendUnique(qdb_nodes, qdb_status->leader);
+
+      for (const auto& follower : qdb_status->followers) {
+        AppendUnique(qdb_nodes, follower);
+      }
+    }
+
+    for (const auto& qdb_node : qdb_nodes) {
+      const std::string host = ExtractEndpointHost(qdb_node);
+      const std::string endpoint = BuildEndpoint(host, master_port);
+
+      if (!endpoint.empty() && (endpoint != master_id)) {
+        AppendUnique(status.followers, endpoint);
+      }
+    }
+  }
+
+  status.available = !(status.local.empty() && status.role.empty() &&
+                       status.leader.empty() && status.followers.empty());
+  return status;
+}
+} // namespace
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -315,6 +504,11 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   }
 
   std::string master_status = gOFS->mMaster->PrintOut();
+  const std::string mgm_master_id = gOFS->mMaster->GetMasterId();
+  const bool is_mgm_master = gOFS->mMaster->IsMaster();
+  const std::string mgm_local_id = gOFS->ManagerId.c_str();
+  HaClusterStatus qdb_ha_status;
+  std::string qdb_ha_err;
   XrdOucString compact_status = "";
   size_t eosxd_nclients = 0;
   size_t eosxd_active_clients = 0;
@@ -338,71 +532,87 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
   double readcontention = gOFS->MgmStats.GetReadContention();
   double writecontention = gOFS->MgmStats.GetWriteContention();
 
+  qdb_ha_status = CollectQdbHaStatus(gOFS, qdb_ha_err);
+
+  if (!qdb_ha_err.empty()) {
+    eos_debug("msg=\"failed to collect qdb raft status for eos ns\" err=\"%s\"",
+              qdb_ha_err.c_str());
+  }
+
+  HaClusterStatus mgm_ha_status =
+      BuildMgmHaStatus(mgm_local_id, is_mgm_master, mgm_master_id, gOFS->ManagerPort,
+                       qdb_ha_status.available ? &qdb_ha_status : nullptr);
+
   if (monitoring) {
     oss << "uid=all gid=all ns.total.files=" << f
         << "\nuid=all gid=all ns.total.directories=" << d
         << "\nuid=all gid=all ns.current.fid=" << fid_now
         << "\nuid=all gid=all ns.current.cid=" << cid_now
         << "\nuid=all gid=all ns.generated.fid=" << (int)(fid_now - gOFS->mBootFileId)
-        << "\nuid=all gid=all ns.generated.cid=" << (int)(cid_now -
-            gOFS->mBootContainerId)
+        << "\nuid=all gid=all ns.generated.cid="
+        << (int)(cid_now - gOFS->mBootContainerId)
         << "\nuid=all gid=all ns.contention.read=" << readcontention
         << "\nuid=all gid=all ns.contention.write=" << writecontention
         << "\nuid=all gid=all ns.cache.files.maxsize=" << fileCacheStats.maxNum
         << "\nuid=all gid=all ns.cache.files.occupancy=" << fileCacheStats.occupancy
         << "\nuid=all gid=all ns.cache.files.requests=" << fileCacheStats.numRequests
         << "\nuid=all gid=all ns.cache.files.hits=" << fileCacheStats.numHits
-        << "\nuid=all gid=all ns.cache.containers.maxsize=" <<
-        containerCacheStats.maxNum
-        << "\nuid=all gid=all ns.cache.containers.occupancy=" <<
-        containerCacheStats.occupancy
-        << "\nuid=all gid=all ns.cache.containers.requests=" <<
-        containerCacheStats.numRequests
+        << "\nuid=all gid=all ns.cache.containers.maxsize=" << containerCacheStats.maxNum
+        << "\nuid=all gid=all ns.cache.containers.occupancy="
+        << containerCacheStats.occupancy
+        << "\nuid=all gid=all ns.cache.containers.requests="
+        << containerCacheStats.numRequests
         << "\nuid=all gid=all ns.cache.containers.hits=" << containerCacheStats.numHits
         << "\nuid=all gid=all ns.total.files.changelog.size="
-        << StringConversion::GetSizeString(clfsize, (unsigned long long) statf.st_size)
+        << StringConversion::GetSizeString(clfsize, (unsigned long long)statf.st_size)
         << std::endl
         << "uid=all gid=all ns.total.directories.changelog.size="
-        << StringConversion::GetSizeString(cldsize, (unsigned long long) statd.st_size)
+        << StringConversion::GetSizeString(cldsize, (unsigned long long)statd.st_size)
         << std::endl
         << "uid=all gid=all ns.total.files.changelog.avg_entry_size="
-        << StringConversion::GetSizeString(clfratio, (unsigned long long) f ?
-                                           (1.0 * statf.st_size) / f : 0)
+        << StringConversion::GetSizeString(
+               clfratio, (unsigned long long)f ? (1.0 * statf.st_size) / f : 0)
         << std::endl
         << "uid=all gid=all ns.total.directories.changelog.avg_entry_size="
-        << StringConversion::GetSizeString(cldratio, (unsigned long long) d ?
-                                           (1.0 * statd.st_size) / d : 0)
+        << StringConversion::GetSizeString(
+               cldratio, (unsigned long long)d ? (1.0 * statd.st_size) / d : 0)
         << std::endl
         << "uid=all gid=all " << compact_status.c_str() << std::endl
         << "uid=all gid=all ns.boot.status=" << bootstring << std::endl
         << "uid=all gid=all ns.boot.time=" << boot_time << std::endl
-        << "uid=all gid=all ns.boot.file.time=" << fboot_time << std::endl
+        << "uid=all gid=all ns.boot.file.time=" << fboot_time
+        << std::endl
+        // Backwards compatibility for callers that still parse the legacy
+        // is_master/master_id fields. Keep this for now, but remove it once
+        // callers have switched to the structured ns.mgm.* fields.
         << "uid=all gid=all " << master_status.c_str() << std::endl
+        << "uid=all gid=all ns.mgm.local=" << mgm_ha_status.local << std::endl
+        << "uid=all gid=all ns.mgm.role=" << mgm_ha_status.role << std::endl
+        << "uid=all gid=all ns.mgm.leader=" << mgm_ha_status.leader << std::endl
+        << "uid=all gid=all ns.mgm.followers="
+        << JoinValuesOrNone(mgm_ha_status.followers) << std::endl
         << "uid=all gid=all ns.memory.virtual=" << mem.vmsize << std::endl
         << "uid=all gid=all ns.memory.resident=" << mem.resident << std::endl
         << "uid=all gid=all ns.memory.share=" << mem.share << std::endl
         << "uid=all gid=all ns.stat.threads=" << pstat.threads << std::endl
         << "uid=all gid=all ns.fds.all=" << fds.all << std::endl
-        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps() <<
-        std::endl
-        << "uid=all gid=all ns.fusex.clients=" <<
-        eosxd_nclients << std::endl
-        << "uid=all gid=all ns.fusex.activeclients=" <<
-        eosxd_active_clients << std::endl
-        << "uid=all gid=all ns.fusex.lockedclients=" <<
-        eosxd_locked_clients << std::endl
-        << "uid=all gid=all ns.hanging=" << gOFS->mViewMutexWatcher.isLockedUp() <<
-        std::endl
+        << "uid=all gid=all ns.fusex.caps=" << gOFS->zMQ->gFuseServer.Cap().ncaps()
+        << std::endl
+        << "uid=all gid=all ns.fusex.clients=" << eosxd_nclients << std::endl
+        << "uid=all gid=all ns.fusex.activeclients=" << eosxd_active_clients << std::endl
+        << "uid=all gid=all ns.fusex.lockedclients=" << eosxd_locked_clients << std::endl
+        << "uid=all gid=all ns.hanging=" << gOFS->mViewMutexWatcher.isLockedUp()
+        << std::endl
         << "uid=all gid=all ns.hanging.since=" << gOFS->mViewMutexWatcher.hangingSince()
         << std::endl
-        << "uid=all gid=all ns.latencypeak.eosviewmutex.last=" <<
-        viewLatency.last.count() << std::endl
-        << "uid=all gid=all ns.latencypeak.eosviewmutex.1min=" <<
-        viewLatency.lastMinute.count() << std::endl
-        << "uid=all gid=all ns.latencypeak.eosviewmutex.2min=" <<
-        viewLatency.last2Minutes.count() << std::endl
-        << "uid=all gid=all ns.latencypeak.eosviewmutex.5min=" <<
-        viewLatency.last5Minutes.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.eosviewmutex.last=" << viewLatency.last.count()
+        << std::endl
+        << "uid=all gid=all ns.latencypeak.eosviewmutex.1min="
+        << viewLatency.lastMinute.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.eosviewmutex.2min="
+        << viewLatency.last2Minutes.count() << std::endl
+        << "uid=all gid=all ns.latencypeak.eosviewmutex.5min="
+        << viewLatency.last5Minutes.count() << std::endl
         << "uid=all gid=all ns.eosviewmutex.penultimateseclocktimepercent="
         << eosViewMutexPenultimateSecWriteLockTimePercentage << std::endl;
 
@@ -414,6 +624,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
       std::map<std::string, unsigned long long> info = perf_monitor->GetPerfMarkers();
       oss << "uid=all gid=all ns.qclient.persistency_type="
           << qdb_group->getMetadataFlusher()->getPersistencyType() << "\n";
+      oss << "uid=all gid=all ns.qdb.leader=" << qdb_ha_status.leader << "\n"
+          << "uid=all gid=all ns.qdb.followers="
+          << JoinValuesOrNone(qdb_ha_status.followers) << "\n";
 
       if (info.find("rtt_min") != info.end()) {
         oss << "uid=all gid=all ns.qclient.rtt_ms.min="
@@ -532,8 +745,23 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
           << line << std::endl;
     }
 
-    oss << "ALL      Replication                      "
-        << master_status.c_str() << std::endl;
+    oss << "ALL      Replication                      " << master_status.c_str()
+        << std::endl
+        << "ALL      MGM Leadership                   "
+        << "leader=" << (mgm_ha_status.leader.empty() ? "unknown" : mgm_ha_status.leader)
+        << " role=" << mgm_ha_status.role << std::endl
+        << "ALL      MGM followers                    "
+        << JoinValuesOrNone(mgm_ha_status.followers) << std::endl;
+
+    if (qdb_ha_status.available) {
+      oss << "ALL      QDB Leadership                   "
+          << "leader="
+          << (qdb_ha_status.leader.empty() ? "unknown" : qdb_ha_status.leader)
+          << std::endl
+          << "ALL      QDB followers                    "
+          << JoinValuesOrNone(qdb_ha_status.followers) << std::endl;
+    }
+
     oss << line << std::endl;
 
     if (clfsize.length() && cldsize.length()) {
