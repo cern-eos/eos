@@ -431,7 +431,27 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
     case eos::console::SpaceProto::kLs:
     case eos::console::SpaceProto::kStatus:
     case eos::console::SpaceProto::kNodeGet:
+    case eos::console::SpaceProto::kTracker:
+    case eos::console::SpaceProto::kInspector:
       return false;
+
+    case eos::console::SpaceProto::kGroupbalancer:
+      switch (req.space().groupbalancer().cmd_case()) {
+      case eos::console::SpaceProto::GroupBalancerProto::kStatus:
+        return false;
+
+      default:
+        return true;
+      }
+
+    case eos::console::SpaceProto::kGroupdrainer:
+      switch (req.space().groupdrainer().cmd_case()) {
+      case eos::console::SpaceProto::GroupDrainerProto::kStatus:
+        return false;
+
+      default:
+        return true;
+      }
 
     default:
       return true;
