@@ -138,7 +138,8 @@ FsckEntry::CollectFstInfo(eos::common::FileSystem::fsid_t fsid)
 {
   using eos::common::FileId;
 
-  if ((fsid == 0ull) || (mFstFileInfo.find(fsid) != mFstFileInfo.end())) {
+  if ((fsid == 0ull) || (fsid == EOS_TAPE_FSID) ||
+      (mFstFileInfo.find(fsid) != mFstFileInfo.end())) {
     return;
   }
 
@@ -1166,6 +1167,15 @@ FsckEntry::Repair()
 
     CollectAllFstInfo();
     CollectFstInfo(*mFsidErr.begin());
+  }
+
+  for (const auto& loc : mMgmFmd.locations()) {
+    if (loc == EOS_TAPE_FSID) {
+      eos_info("msg=\"no repair action, file has tape replica\" fxid=%08llx", mFid);
+      success = false;
+      NotifyOutcome(success);
+      return success;
+    }
   }
 
   if (mReportedErr != FsckErr::None) {
