@@ -60,10 +60,10 @@ bool AllHierarchyHasXattr(std::string_view path, std::string_view xattr_key,
   XrdOucString lout;
   XrdOucErrInfo lerror;
   std::map<std::string, std::set<std::string>> found;
-
-  // Get the total number of sub-dirs in the hierarchy
-  if (gOFS->_find(path.data(), lerror, lout, Recycle::mRootVid,
-                  found, nullptr, nullptr, true)) {
+  // Get the total number of sub-dirs in the hierarchy. Make sure we skip
+  // version directories as these should not have any xattrs set on them.
+  if (gOFS->_find(path.data(), lerror, lout, Recycle::mRootVid, found,      //
+                  nullptr, nullptr, true, 0ull, false, 0, nullptr, true)) { //
     eos_static_err("msg=\"failed computing number of sub-dirs in hierarchy\" "
                    "path=\"%s\"", path.data());
     return false;
@@ -73,8 +73,9 @@ bool AllHierarchyHasXattr(std::string_view path, std::string_view xattr_key,
   found.clear();
 
   // Get the sub-dirs that contain the requested xattr key-value combination
-  if (gOFS->_find(path.data(), lerror, lout, Recycle::mRootVid,
-                  found, xattr_key.data(), xattr_val.data(), true)) {
+  if (gOFS->_find(path.data(), lerror, lout, Recycle::mRootVid,    //
+                  found, xattr_key.data(), xattr_val.data(), true, //
+                  0ull, false, 0, nullptr, true)) {
     eos_static_err("msg=\"failed running find in hierarchy\" path=\"%s\"",
                    path.data());
     return false;
@@ -1418,9 +1419,10 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
     XrdOucString lerr;
     bool exclusive = false;
     std::map<std::string, std::set<std::string>> found;
-
-    if (gOFS->_find(path.data(), lerror, lerr, mRootVid, found, nullptr,
-                    nullptr, true)) {
+    // Make sure we skip version directories as these should not have
+    // any xattrs set on them.
+    if (gOFS->_find(path.data(), lerror, lerr, mRootVid, found, nullptr, //
+                    nullptr, true, 0, false, 0, nullptr, true)) {        //
       std_err = "error: failed to search in given path";
       return errno;
     }
