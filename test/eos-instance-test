@@ -795,6 +795,52 @@ runtest "### Upload    " unix ERROR "" upload    "/etc/passwd" "/eos/$EOS_TEST_I
 runtest "### Upload    " unix ERROR "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/passwd/" "-f"
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename"
 
+################################################################################
+# File/Directory Rename by Identifier (fxid/cxid)
+################################################################################=
+runtest "### Upload     " unix SUCCESS "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file_for_fxid.txt" "-ODeos.space=default"
+runtest "### Mkdir      " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/dir_for_cxid"
+fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/file_for_fxid.txt" | jq -r .id)
+fxid=$(printf "fxid:%08x" $fid)
+runtest "### RenameFxid " unix SUCCESS "" eos file rename ${fxid} /eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_by_fxid.txt
+runtest "### StatRenam  " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_by_fxid.txt"
+runtest "### StatOld    " unix ERROR "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/file_for_fxid.txt"
+runtest "### Upload     " unix SUCCESS "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file_for_fid.txt" "-ODeos.space=default"
+fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/file_for_fid.txt" | jq -r .id)
+runtest "### RenameFid  " unix SUCCESS "" eos file rename fid:${fid} /eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_by_fid.txt
+runtest "### StatRenam  " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_by_fid.txt"
+cid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/dir_for_cxid" | jq -r .id)
+cxid=$(printf "cxid:%08x" $cid)
+runtest "### RenameCxid " unix SUCCESS "" eos file rename ${cxid} /eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_dir_by_cxid
+runtest "### StatRenam  " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_dir_by_cxid"
+runtest "### StatOld    " unix ERROR "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/dir_for_cxid"
+runtest "### Upload     " unix SUCCESS "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/file_for_symlink.txt" "-ODeos.space=default"
+runtest "### Mkdir      " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/symlink_archive"
+fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/file_for_symlink.txt" | jq -r .id)
+fxid=$(printf "fxid:%08x" $fid)
+cid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/symlink_archive" | jq -r .id)
+cxid=$(printf "cxid:%08x" $cid)
+runtest "### RenSymFxid " unix SUCCESS "" eos file rename_with_symlink ${fxid} ${cxid}
+runtest "### ChkSymlink " unix SUCCESS "" eos "ls -l /eos/$EOS_TEST_INSTANCE/test/instancetest/ | grep \"file_for_symlink.txt ->\""
+runtest "### StatTarget " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/symlink_archive/file_for_symlink.txt"
+runtest "### Upload     " unix SUCCESS "" upload    "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/src_file_for_identifier_symlink.txt" "-ODeos.space=default"
+fid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/src_file_for_identifier_symlink.txt" | jq -r .id)
+fxid=$(printf "fxid:%08x" $fid)
+runtest "### SymlinkFx  " unix SUCCESS "" eos file symlink /eos/$EOS_TEST_INSTANCE/test/instancetest/identifier_symlink_test.txt ${fxid}
+runtest "### ChkLink    " unix SUCCESS "" eos "ls -l /eos/$EOS_TEST_INSTANCE/test/instancetest/ | grep \"identifier_symlink_test.txt ->\""
+runtest "### StatLnkTgt " unix SUCCESS "" meta stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/identifier_symlink_test.txt"
+
+runtest "### RenInvFxid " unix ERROR "" eos "file rename fxid:invalid /eos/$EOS_TEST_INSTANCE/test/instancetest/test.txt"
+runtest "### RenInvCxid " unix ERROR "" eos "file rename cxid:999999999 /eos/$EOS_TEST_INSTANCE/test/instancetest/test"
+runtest "### RenInvFid  " unix ERROR "" eos "file rename fid:abc /eos/$EOS_TEST_INSTANCE/test/instancetest/test.txt"
+
+runtest "### Cleanup    " unix SUCCESS "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_dir_by_cxid"
+runtest "### Cleanup    " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_by_fxid.txt"
+runtest "### Cleanup    " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/renamed_by_fid.txt"
+runtest "### Cleanup    " unix SUCCESS "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/symlink_archive"
+runtest "### Cleanup    " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/src_file_for_identifier_symlink.txt"
+runtest "### Cleanup    " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/identifier_symlink_test.txt"
+
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
 runtest "### Mkdir     " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/a\&b"
