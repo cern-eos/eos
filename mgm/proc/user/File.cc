@@ -618,8 +618,18 @@ ProcCommand::File()
     // -------------------------------------------------------------------------
     if (mSubCmd == "rename") {
       cmdok = true;
-      XrdOucString source = spath;
+      XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
+      if (!source.length()) {
+        source = spath;
+      }
+      if (!ResolveIdentifierToPath(source, source, stdErr, retc)) {
+        return SFS_OK;
+      }
+      if (!ResolveIdentifierToPath(target, target, stdErr, retc)) {
+        return SFS_OK;
+      }
+
       PROC_MOVE_TOKENSCOPE(source.c_str(), target.c_str());
 
       if (gOFS->rename(source.c_str(), target.c_str(), *mError, *pVid, 0, 0, true)) {
@@ -643,6 +653,14 @@ ProcCommand::File()
       cmdok = true;
       XrdOucString source = pOpaque->Get("mgm.file.source");
       XrdOucString target = pOpaque->Get("mgm.file.target");
+
+      if (!ResolveIdentifierToPath(source, source, stdErr, retc)) {
+        return SFS_OK;
+      }
+      if (!ResolveIdentifierToPath(target, target, stdErr, retc)) {
+        return SFS_OK;
+      }
+
       PROC_MOVE_TOKENSCOPE(source.c_str(), target.c_str());
 
       if (gOFS->_rename_with_symlink(source.c_str(), target.c_str(),
@@ -668,6 +686,13 @@ ProcCommand::File()
       XrdOucString target = pOpaque->Get("mgm.file.target");
       XrdOucString forceS = pOpaque->Get("mgm.file.force");
       bool force = (forceS == "1");
+
+      if (!ResolveIdentifierToPath(source, source, stdErr, retc)) {
+        return SFS_OK;
+      }
+      if (!ResolveIdentifierToPath(target, target, stdErr, retc)) {
+        return SFS_OK;
+      }
 
       if (gOFS->symlink(source.c_str(), target.c_str(), *mError, *pVid, 0, 0,
                         force)) {
@@ -2235,4 +2260,5 @@ ProcCommand::File()
 
   return SFS_OK;
 }
+
 EOSMGMNAMESPACE_END
