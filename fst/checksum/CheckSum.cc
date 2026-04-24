@@ -44,8 +44,9 @@
 #ifdef __APPLE__
 #define SYSGETTID (std::hash<std::thread::id>()(std::this_thread::get_id()))
 #else
+#include "common/thread_id.hh"
 #include <sys/syscall.h>
-#define SYSGETTID (syscall(SYS_gettid))
+#define SYSGETTID (eos::common::thread_id())
 #endif
 
 EOSFSTNAMESPACE_BEGIN

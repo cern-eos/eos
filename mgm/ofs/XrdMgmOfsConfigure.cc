@@ -22,72 +22,72 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/syscall.h>
-#include <fcntl.h>
-#include <cstring>
-#include <sstream>
-#include "grpc/GrpcServer.hh"
-#include "grpc/GrpcWncServer.hh"
-#include "grpc/GrpcRestGwServer.hh"
-#include "mgm/adminsocket/AdminSocket.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/ofs/XrdMgmOfsTrace.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/access/Access.hh"
-#include "mgm/devices/Devices.hh"
-#include "mgm/recycle/Recycle.hh"
-#include "mgm/drain/Drainer.hh"
-#include "mgm/config/QuarkDBConfigEngine.hh"
-#include "mgm/egroup/Egroup.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/http/HttpServer.hh"
-#include "mgm/zmq/ZMQ.hh"
-#include "mgm/iostat/Iostat.hh"
-#include "mgm/lru/LRU.hh"
-#include "mgm/wfe/WFE.hh"
-#include "mgm/qdbmaster/QdbMaster.hh"
-#include "mgm/convert/ConverterEngine.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
-#include "mgm/tracker/ReplicationTracker.hh"
-#include "mgm/inspector/FileInspector.hh"
-#include "common/RWMutex.hh"
-#include "common/Utils.hh"
-#include "common/StacktraceHere.hh"
-#include "common/plugin_manager/PluginManager.hh"
-#include "common/CommentLog.hh"
-#include "common/Logging.hh"
-#include "common/Path.hh"
 #include "common/Audit.hh"
-#include "common/JeMallocHandler.hh"
-#include "common/PasswordHandler.hh"
+#include "common/CommentLog.hh"
 #include "common/InstanceName.hh"
+#include "common/JeMallocHandler.hh"
+#include "common/Logging.hh"
+#include "common/PasswordHandler.hh"
+#include "common/Path.hh"
+#include "common/RWMutex.hh"
+#include "common/RegexWrapper.hh"
+#include "common/StacktraceHere.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "common/RegexWrapper.hh"
-#include "namespace/interface/IView.hh"
-#include "namespace/ns_quarkdb/QdbContactDetails.hh"
-#include "mq/SharedHashWrapper.hh"
-#include "mq/MessagingRealm.hh"
-#include <XrdAcc/XrdAccAuthorize.hh>
-#include <XrdCl/XrdClDefaultEnv.hh>
-#include <XrdNet/XrdNetUtils.hh>
-#include <XrdNet/XrdNetAddr.hh>
-#include <XrdSys/XrdSysPlugin.hh>
-#include <XrdOuc/XrdOucTrace.hh>
-#include <XrdOuc/XrdOucTrace.hh>
-#include <XrdOuc/XrdOucStream.hh>
-#include "qclient/shared/SharedManager.hh"
+#include "common/Utils.hh"
+#include "common/plugin_manager/PluginManager.hh"
+#include "common/thread_id.hh"
+#include "grpc/GrpcRestGwServer.hh"
+#include "grpc/GrpcServer.hh"
+#include "grpc/GrpcWncServer.hh"
+#include "mgm/access/Access.hh"
+#include "mgm/adminsocket/AdminSocket.hh"
 #include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
 #include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleanerConfig.hh"
-#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/config/QuarkDBConfigEngine.hh"
+#include "mgm/convert/ConverterEngine.hh"
+#include "mgm/devices/Devices.hh"
+#include "mgm/drain/Drainer.hh"
+#include "mgm/egroup/Egroup.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/http/HttpServer.hh"
 #include "mgm/http/rest-api/Constants.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/inspector/FileInspector.hh"
+#include "mgm/iostat/Iostat.hh"
+#include "mgm/lru/LRU.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/ofs/XrdMgmOfsTrace.hh"
 #include "mgm/placement/FsScheduler.hh"
+#include "mgm/qdbmaster/QdbMaster.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/recycle/Recycle.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
+#include "mgm/wfe/WFE.hh"
+#include "mgm/zmq/ZMQ.hh"
+#include "mq/MessagingRealm.hh"
+#include "mq/SharedHashWrapper.hh"
+#include "namespace/interface/IView.hh"
+#include "namespace/ns_quarkdb/QdbContactDetails.hh"
+#include "qclient/shared/SharedManager.hh"
+#include <XrdAcc/XrdAccAuthorize.hh>
+#include <XrdCl/XrdClDefaultEnv.hh>
+#include <XrdNet/XrdNetAddr.hh>
+#include <XrdNet/XrdNetUtils.hh>
+#include <XrdOuc/XrdOucStream.hh>
+#include <XrdOuc/XrdOucTrace.hh>
+#include <XrdSys/XrdSysPlugin.hh>
+#include <cstring>
+#include <fcntl.h>
 #include <filesystem>
+#include <sstream>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 extern XrdOucTrace gMgmOfsTrace;
 extern void xrdmgmofs_shutdown(int sig);
@@ -110,7 +110,7 @@ void xrdmgmofs_stack(int sig)
 
   if (sig == SIGUSR2) {
     stacktime = time(NULL);
-    out << "# ___ thread:" << syscall(SYS_gettid) << " ";
+    out << "# ___ thread:" << eos::common::thread_id() << " ";
     eos::common::RWMutex::PrintMutexOps(out);
     out << std::endl;
     out << "# ................ " << eos::common::getStacktrace();
