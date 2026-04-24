@@ -326,6 +326,27 @@ protected:
   bool HasSlot();
 
   //----------------------------------------------------------------------------
+  //! Resolve an identifier (fid/fxid/cid/cxid) to its corresponding EOS path.
+  //! If the input is not a recognized identifier, it is returned unchanged.
+  //! In case of failure, sets the return code and error message accordingly.
+  //!
+  //! Supported formats:
+  //!   - fid:<decimal>   : file identifier (decimal)
+  //!   - fxid:<hex>      : file identifier (hexadecimal)
+  //!   - cid:<decimal>   : container identifier (decimal)
+  //!   - cxid:<hex>      : container identifier (hexadecimal)
+  //!
+  //! @param identifier   input identifier or path
+  //! @param resolvedPath output resolved EOS path
+  //! @param errorMsg     output error message in case of failure
+  //! @param retc         output return code (errno style)
+  //!
+  //! @return true on success, false on failure
+  //----------------------------------------------------------------------------
+  bool ResolveIdentifierToPath(XrdOucString& identifier, XrdOucString& resolvedPath,
+                               XrdOucString& errorMsg, int& retc);
+
+  //----------------------------------------------------------------------------
   //! Store routing information
   //----------------------------------------------------------------------------
   struct RoutingInfo {
