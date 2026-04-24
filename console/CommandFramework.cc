@@ -71,6 +71,9 @@ void RegisterNativeConsoleCommands()
   // Status
   extern void RegisterStatusNativeCommand();
   RegisterStatusNativeCommand();
+  // Tui
+  extern void RegisterTuiNativeCommand();
+  RegisterTuiNativeCommand();
   // Mkdir/Rm
   extern void RegisterMkdirNativeCommand();
   RegisterMkdirNativeCommand();

@@ -185,6 +185,8 @@ set(CPACK_SOURCE_IGNORE_FILES
 ;/grpc/eos-grpc.spec;/.deps/;~$;'.'o$;/lib/;/.git/;eos.spec.in;elrepopackage.spec;.tar.gz$;\
 .tar.bz2$;${CPACK_SOURCE_IGNORE_FILES};")
 
+set(EOS_TUI_VERSION "0.2.3")
+
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
@@ -245,7 +247,6 @@ if (EOS_GRPC_GW)
   LIST(APPEND RPM_OPTIONS --with eos_grpc_gateway)
 endif()
 
-
 add_custom_target(
   srpm
   COMMAND rpmbuild -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" ${SRPM_DEFINE} ${RPM_OPTIONS})
@@ -256,6 +257,7 @@ add_custom_target(
 
 add_dependencies(srpm dist)
 add_dependencies(rpm dist)
+include(EosTui)
 
 #-------------------------------------------------------------------------------
 # Custom target to build on OSX
