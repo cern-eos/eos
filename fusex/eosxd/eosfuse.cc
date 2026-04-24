@@ -26,8 +26,8 @@
 #ifndef __APPLE__
 #include "common/ShellCmd.hh"
 #endif
-#include "eosfuse.hh"
 #include "kv/RocksKV.hh"
+#include "eosfuse.hh"
 #include "misc/filename.hh"
 #include "misc/fusexrdlogin.hh"
 #include <algorithm>
