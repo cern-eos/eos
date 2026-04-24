@@ -275,7 +275,6 @@ target_link_libraries(EosFstOss-Static PRIVATE
   ISAL::ISAL_CRYPTO
   XXHASH::XXHASH)
 
-include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/ ${CMAKE_BINARY_DIR})
 #-------------------------------------------------------------------------------
 # XrdEosFst library
 #-------------------------------------------------------------------------------
@@ -337,6 +336,7 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::SERVER
   XFS::XFS
+  jwt-cpp::jwt-cpp
   stdc++fs)
 
 if(TARGET PROCPS::PROCPS)

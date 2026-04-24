@@ -104,8 +104,6 @@ set_source_files_properties(
   ofs/cmds/Version.inc
   PROPERTIES HEADER_FILE_ONLY TRUE
 )
-# for verifying token format is correct
-include_directories(${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/ ${CMAKE_BINARY_DIR})
 
 #-------------------------------------------------------------------------------
 # XrdEosMgm-Objects library
@@ -370,7 +368,8 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   XROOTD::POSIX
   LDAP::LDAP
   ZMQ::ZMQ
-  XXHASH::XXHASH)
+  XXHASH::XXHASH
+  jwt-cpp::jwt-cpp)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
