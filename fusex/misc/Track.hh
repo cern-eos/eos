@@ -26,10 +26,11 @@
 #ifndef TRACK_HH_
 #define TRACK_HH_
 
-#include "misc/MacOSXHelper.hh"
-#include <memory>
-#include <map>
 #include "common/Logging.hh"
+#include "common/thread_id.hh"
+#include "misc/MacOSXHelper.hh"
+#include <map>
+#include <memory>
 
 class Track
 {
@@ -266,7 +267,7 @@ public:
       if (!disable) {
         if (EOS_LOGS_DEBUG)
           eos_static_debug("trylock caller=%s self=%lld in=%llu exclusive=%d", caller,
-                           thread_id(), ino, exclusive);
+                           eos::common::thread_id(), ino, exclusive);
 
         this->ino = ino;
         this->caller = caller;
@@ -274,9 +275,9 @@ public:
         this->me = tracker.Attach(this, req, ino, exclusive, caller, origin);
 
         if (EOS_LOGS_DEBUG)
-          eos_static_debug("locked  caller=%s origin=%s self=%lld in=%llu exclusive=%d obj=%llx",
-                           caller, origin, thread_id(), ino, exclusive,
-                           &(*(this->me)));
+          eos_static_debug(
+              "locked  caller=%s origin=%s self=%lld in=%llu exclusive=%d obj=%llx",
+              caller, origin, eos::common::thread_id(), ino, exclusive, &(*(this->me)));
       } else {
         this->ino = 0;
         this->caller = "";
@@ -289,7 +290,7 @@ public:
       if (this->me) {
         if (EOS_LOGS_DEBUG)
           eos_static_debug("unlock  caller=%s self=%lld in=%llu exclusive=%d", caller,
-                           thread_id(), ino, exclusive);
+                           eos::common::thread_id(), ino, exclusive);
 
         if (exclusive) {
           me->mInUse.UnLockWrite();
@@ -301,7 +302,7 @@ public:
 
         if (EOS_LOGS_DEBUG)
           eos_static_debug("unlocked  caller=%s self=%lld in=%llu exclusive=%d", caller,
-                           thread_id(), ino, exclusive);
+                           eos::common::thread_id(), ino, exclusive);
 
         tracker.forget(this, this->me);
       }

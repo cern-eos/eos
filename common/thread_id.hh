@@ -1,9 +1,3 @@
-//------------------------------------------------------------------------------
-//! @file MacOSXHelper.hh
-//! @author Andreas-Joachim Peters, Geoffray Adde, Elvin Sindrilaru CERN
-//! @brief remote IO filesystem implementation
-//------------------------------------------------------------------------------
-
 /************************************************************************
  * EOS - the CERN Disk Storage System                                   *
  * Copyright (C) 2016 CERN/Switzerland                                  *
@@ -22,33 +16,39 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef FUSE_MACOSXHELPER_HH_
-#define FUSE_MACOSXHELPER_HH_
+#ifndef EOS_THREAD_ID_HH
+#define EOS_THREAD_ID_HH
+
+#include "common/Namespace.hh"
 
 #ifdef __APPLE__
-
-#include <errno.h>
 #include <pthread.h>
-#include <signal.h>
-
-#define MTIMESPEC st_mtimespec
-#define ATIMESPEC st_atimespec
-#define CTIMESPEC st_ctimespec
-#define EBADE 52
-#define EBADR 53
-#define EADV 68
-#define EREMOTEIO 121
-#define ENOKEY 126
 #else
-
-#include <sys/types.h>
-#include <signal.h>
+#include <pthread.h>
 #include <sys/syscall.h>
 #include <unistd.h>
-
-#define MTIMESPEC st_mtim
-#define ATIMESPEC st_atim
-#define CTIMESPEC st_ctim
 #endif
 
+EOSCOMMONNAMESPACE_BEGIN
+// Replaces former function-like macros like thread_id(_x_).
+// Macros performed textual substitution at every parse site and collided
+// with identically named members of unrelated types (e.g. rocksdb's
+// ThreadStatus::thread_id) whenever this header was included ahead of the
+// third-party header. Inline functions are scoped and immune to that class
+// of collision.
+#ifdef __APPLE__
+static inline pthread_t
+thread_id()
+{
+  return pthread_self();
+}
+#else
+static inline pthread_t
+thread_id()
+{
+  return (pthread_t)syscall(SYS_gettid);
+}
 #endif
+
+EOSCOMMONNAMESPACE_END
+#endif // EOS_THREAD_ID_HH

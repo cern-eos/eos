@@ -1,8 +1,9 @@
-#include <thread>
-#include <sys/syscall.h>
-#include <unistd.h>
-#include "common/concurrency/ThreadEpochCounter.hh"
 #include "benchmark/benchmark.h"
+#include "common/concurrency/ThreadEpochCounter.hh"
+#include "common/thread_id.hh"
+#include <sys/syscall.h>
+#include <thread>
+#include <unistd.h>
 
 using benchmark::Counter;
 
@@ -18,7 +19,7 @@ static void BM_ThreadId(benchmark::State& state)
 static void BM_SysTID(benchmark::State& state)
 {
   for (auto _: state) {
-    benchmark::DoNotOptimize(syscall(SYS_gettid));
+    benchmark::DoNotOptimize(eos::common::thread_id());
   }
   state.counters["frequency"]=Counter(state.iterations(),
                                       benchmark::Counter::kIsRate);
