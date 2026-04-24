@@ -336,6 +336,7 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::SERVER
   XFS::XFS
+  jwt-cpp::jwt-cpp
   stdc++fs)
 
 if(TARGET PROCPS::PROCPS)
