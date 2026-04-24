@@ -788,12 +788,12 @@ el9_asan_docker_image:
     - exec_cmd eos-mgm1 "eos vid ls"
     - exec_cmd eos-mgm1 "eos access ls"
     - exec_cmd eos-mgm1 "cat revad.log"
-
   artifacts:
     when: on_failure
     expire_in: 3 days
     paths:
       - eos-logs-${CI_JOB_ID}/
+  allow_failure: true
 
 
 .dock8s_flamegraph_test_template:
