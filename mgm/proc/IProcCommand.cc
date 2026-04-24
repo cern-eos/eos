@@ -598,8 +598,6 @@ IProcCommand::ResolveIdentifierToPath(XrdOucString& identifier,
   }
 
   try {
-    eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
-
     if (is_container) {
       auto dmd = gOFS->eosDirectoryService->getContainerMD(id);
       resolvedPath = gOFS->eosView->getUri(dmd.get()).c_str();
