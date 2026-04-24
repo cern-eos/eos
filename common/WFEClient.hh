@@ -85,7 +85,8 @@ public:
     }
 
     context.AddMetadata("authorization", "Bearer " + token_contents);
-    eos_static_info("In WFEGrpcClient::send, successfully attached call credentials");
+    eos_static_debug("msg=\"successfully attached call credentials\" token=\"%s\"",
+                     token_contents.c_str());
 
     switch (request.notification().wf().event()) {
       // this is prepare
