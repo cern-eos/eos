@@ -72,6 +72,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/native/CoreNativeCommands.cc
   commands/native/pwd-native.cc
   commands/native/status-native.cc
+  commands/native/tui-native.cc
 
   # Native aliases
   commands/native/info-alias.cc
