@@ -26,6 +26,7 @@
 #include "cta_frontend.grpc.pb.h"
 #include "cta_frontend.pb.h"
 #include "xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include <jwt-cpp/jwt.h>
 
 #include <XrdSsiPbIStreamBuffer.hpp>
 #include <grpc++/grpc++.h>
@@ -71,11 +72,21 @@ public:
 
     std::string token_contents;
     // read the token from the path
-    eos_static_info("JWT token path is %s", token_path.c_str());
     eos::common::StringConversion::LoadFileIntoString(token_path.c_str(), token_contents);
 
+    // before adding the metadata, ensure that the token contents are not
+    // malformed: if decoding works, it should be a valid JWT
+    try {
+      auto decoded = jwt::decode(token_contents);
+    } catch (std::invalid_argument &ex) {
+      throw std::runtime_error(std::string("Token is not in correct format:") + ex.what());
+    } catch (std::runtime_error &ex) {
+      throw;
+    }
+
     context.AddMetadata("authorization", "Bearer " + token_contents);
-    eos_static_info("successfully attached call credentials in the send method, token contents are %s", token_contents.c_str());
+    eos_static_debug("msg=\"successfully attached call credentials\" token=\"%s\"",
+                     token_contents.c_str());
 
     switch (request.notification().wf().event()) {
       // this is prepare
