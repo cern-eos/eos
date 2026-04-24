@@ -172,7 +172,7 @@ clone_docker:
       else
         source gitlab-ci/setup_ccache.sh;
       fi
-    - rpmbuild --rebuild --with server --with eos_grpc_gateway --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | (ts 2> dev/null || true; tee)
+    - rpmbuild --rebuild --with server --with eos_grpc_gateway --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | (ts 2> /dev/null || true; tee)
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
     - mkdir ${BUILD_NAME}_artifacts; cp -rv build/*RPMS/ build/eos-*.tar.gz ${BUILD_NAME}_artifacts
