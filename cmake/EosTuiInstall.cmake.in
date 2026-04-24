@@ -1,0 +1,23 @@
+# ----------------------------------------------------------------------
+# EOS TUI install helpers
+# ----------------------------------------------------------------------
+
+function(eos_tui_download url destination)
+  if(EXISTS "${destination}")
+    return()
+  endif()
+
+  file(DOWNLOAD "${url}" "${destination}" STATUS download_status TLS_VERIFY ON)
+  list(GET download_status 0 download_code)
+  list(GET download_status 1 download_message)
+
+  if(NOT download_code EQUAL 0)
+    file(REMOVE "${destination}")
+    message(FATAL_ERROR "Failed to download ${url}: ${download_message}")
+  endif()
+endfunction()
+
+file(MAKE_DIRECTORY "@EOS_TUI_INSTALL_STAGING_DIR@")
+eos_tui_download("@EOS_TUI_BINARY_URL@" "@EOS_TUI_BINARY_STAGED@")
+eos_tui_download("@EOS_TUI_LICENSE_URL@" "@EOS_TUI_LICENSE_STAGED@")
+eos_tui_download("@EOS_TUI_README_URL@" "@EOS_TUI_README_STAGED@")

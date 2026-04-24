@@ -69,7 +69,7 @@ Release: @CPACK_PACKAGE_RELEASE@%{dist}%{?_with_asan:.asan}%{?_with_tsan:.tsan}
 Prefix: /usr
 License: none
 Group: Applications/File
-Source: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
+Source0: %{name}-%{version}-@CPACK_PACKAGE_RELEASE@.tar.gz
 BuildRoot: %{_tmppath}/%{name}-root
 
 # Add EPEL repository explicitly which holds many of the other dependencies
@@ -268,6 +268,7 @@ cd build
 %install
 cd build
 %{__make} install DESTDIR=$RPM_BUILD_ROOT
+
 export QA_RPATHS=3
 echo "Installed!"
 
@@ -482,6 +483,7 @@ The EOS shell client.
 %files -n eos-client
 %defattr(-, root, root, -)
 %{_bindir}/eos
+%{_bindir}/eos-tui
 %{_bindir}/eoscp
 %{_libdir}/libEosCommon.so.%{version}
 %{_libdir}/libEosCommon.so.%{major_version}

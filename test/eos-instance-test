@@ -989,6 +989,7 @@ runtest "### Version   " unix SUCCESS "" eos "version | grep EOS_INSTANCE"
 runtest "### Version   " unix SUCCESS "" eos "version | grep EOS_CLIENT_VERSION"
 runtest "### Version   " unix SUCCESS "" eos "version | grep EOS_SERVER_VERSION"
 runtest "### Version   " unix SUCCESS "" eos "version -m | grep xrootd.version"
+runtest "### Tui Ver   " unix SUCCESS "" eos "tui --version"
 ################################################################################
 # COMMENT
 ################################################################################
