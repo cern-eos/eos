@@ -26,33 +26,33 @@
 #include "LayoutId.hh"
 #include "common/Constants.hh"
 #include "common/StringConversion.hh"
+#include "common/thread_id.hh"
 #include "console/commands/helpers/FsHelper.hh"
 #include "fst/Config.hh"
-#include "fst/XrdFstOfs.hh"
 #include "fst/Deletion.hh"
+#include "fst/XrdFstOfs.hh"
 #include "fst/checksum/ChecksumGroup.hh"
-#include "fst/utils/IoPriority.hh"
-#include "fst/filemd/FmdMgm.hh"
-#include "fst/storage/FileSystem.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
+#include "fst/filemd/FmdMgm.hh"
 #include "fst/io/FileIoPluginCommon.hh"
 #include "fst/layout/HeaderCRC.hh"
-#include "fst/layout/ReedSLayout.hh"
-#include "fst/layout/RaidDpLayout.hh"
-#include "fst/utils/ScanRate.hh"
 #include "fst/layout/LayoutPlugin.hh"
+#include "fst/layout/RaidDpLayout.hh"
+#include "fst/layout/ReedSLayout.hh"
+#include "fst/storage/FileSystem.hh"
+#include "fst/utils/IoPriority.hh"
+#include "fst/utils/ScanRate.hh"
 #include "mgm/misc/Constants.hh"
 #include "namespace/ns_quarkdb/Constants.hh"
 #include "qclient/structures/QSet.hh"
+#include <fcntl.h>
 #include <fts.h>
-#include "mgm/misc/Constants.hh"
 #include <memory>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/time.h>
+#include <sys/types.h>
 #include <syslog.h>
 #include <unistd.h>
-#include <fcntl.h>
 #ifndef __APPLE__
 #include <sys/syscall.h>
 #include <asm/unistd.h>
@@ -710,7 +710,7 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   pid_t tid = 0;
 
   if (mBgThread) {
-    tid = (pid_t) syscall(SYS_gettid);
+    tid = eos::common::thread_id();
     int retc = 0;
 
     if ((retc = ioprio_set(IOPRIO_WHO_PROCESS,
