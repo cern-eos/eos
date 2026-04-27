@@ -87,8 +87,8 @@ int main(int argc, char* argv[])
 
     for (unsigned int i = 0; i < samples; ++i) {
       cksums.clear();
-      uint64_t rand_off = eos::common::getRandom(0ull, 1235676367ull);
-      uint32_t rand_len = eos::common::getRandom(4096u, max_buff);
+      uint64_t rand_off = eos::common::getRandom64(0ull, 1235676367ull);
+      uint32_t rand_len = eos::common::getRandom64(4096u, max_buff);
       std::cout << "index: " << i
                 << " pgread: rand_off=" << rand_off
                 << " rand_len=" << rand_len << std::endl;

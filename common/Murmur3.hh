@@ -28,7 +28,7 @@ namespace Murmur3
   struct MurmurHasher<std::string> {
     size_t operator()(const std::string& key) const noexcept
     {
-      static const size_t seed = eos::common::getRandom();
+      static const size_t seed = eos::common::getRandom64();
       static const uint32_t c1 = 0xcc9e2d51;
       static const uint32_t c2 = 0x1b873593;
       static const uint64_t c3 = 0xff51afd7ed558ccd;
