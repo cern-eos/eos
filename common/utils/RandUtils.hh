@@ -31,8 +31,6 @@ EOSCOMMONNAMESPACE_BEGIN
 //!
 //! @param start start interval
 //! @param end end interval
-//! @param seed  optional seed for the generator (only effective on first call
-//!              per thread due to thread_local storage)
 //!
 //! @return random number uniformly distributed in the given interval
 //------------------------------------------------------------------------------
@@ -53,8 +51,6 @@ getRandom(IntType start = 0, IntType end = static_cast<IntType>(RAND_MAX)) -> In
 //!
 //! @param mean   mean value of the distribution
 //! @param stddev standard deviation of the distribution
-//! @param seed  optional seed for the generator (only effective on first call
-//!              per thread due to thread_local storage)
 //!
 //! @return random number normally distributed with the given mean and stddev
 //------------------------------------------------------------------------------
