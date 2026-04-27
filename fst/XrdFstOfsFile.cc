@@ -1680,32 +1680,6 @@ XrdFstOfsFile::_close_rd()
     checksum_err = true;
   }
 
-  if (checksum_err && !mHasReadErr && mChecksumGroup->HasChecksums()) {
-    auto xs = mChecksumGroup->GetDefault();
-
-    if (xs) {
-      const std::string computed_xs = xs->GetHexChecksum();
-      eos_warning("msg=\"updating diskchecksum after read checksum mismatch\" "
-                  "fxid=%08llx fsid=%u xs_computed=%s xs_local=%s",
-                  mFileId, mFsId, computed_xs.c_str(),
-                  mFmd->mProtoFmd.diskchecksum().c_str());
-      mFmd->mProtoFmd.set_diskchecksum(computed_xs);
-      std::unique_ptr<eos::fst::FileIo> io(
-          eos::fst::FileIoPlugin::GetIoObject(mLayout->GetLocalReplicaPath(), this));
-      if (io->attrSet("user.eos.filecxerror", "1")) {
-        eos_err("msg=\"unable to set extended attr <eos.filecxerror>\" "
-                "fxid=%08llx errno=%d",
-                mFileId, errno);
-      }
-
-      if (!gOFS.mFmdHandler->Commit(mFmd.get())) {
-        eos_err("msg=\"failed to commit updated diskchecksum\" "
-                "fxid=%08llx fsid=%u",
-                mFileId, mFsId);
-      }
-    }
-  }
-
   int close_rc = ModifiedWhileInUse();
   close_rc |= mLayout->Close();
 
@@ -1717,6 +1691,32 @@ XrdFstOfsFile::_close_rd()
   gOFS.openedForReading.down(mFsId, mFileId);
 
   if (checksum_err) {
+    if (!gOFS.mSimXsReadErr) {
+      auto xs = mChecksumGroup->GetDefault();
+
+      if (xs) {
+        const std::string computed_xs = xs->GetHexChecksum();
+        eos_warning("msg=\"updating diskchecksum after read checksum mismatch\" "
+                    "fxid=%08llx fsid=%u xs_computed=%s xs_local=%s",
+                    mFileId, mFsId, computed_xs.c_str(),
+                    mFmd->mProtoFmd.diskchecksum().c_str());
+        mFmd->mProtoFmd.set_diskchecksum(computed_xs);
+        std::unique_ptr<eos::fst::FileIo> io(
+            eos::fst::FileIoPlugin::GetIoObject(mLayout->GetLocalReplicaPath(), this));
+        if (io->attrSet("user.eos.filecxerror", "1")) {
+          eos_err("msg=\"unable to set extended attr <eos.filecxerror>\" "
+                  "fxid=%08llx errno=%d",
+                  mFileId, errno);
+        }
+
+        if (!gOFS.mFmdHandler->Commit(mFmd.get())) {
+          eos_err("msg=\"failed to commit updated diskchecksum\" "
+                  "fxid=%08llx fsid=%u",
+                  mFileId, mFsId);
+        }
+      }
+    }
+
     int envlen = 0;
     eos_crit("msg=\"file checksum error detected\" info=\"%s\"",
              mCapOpaque->Env(envlen));
