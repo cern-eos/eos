@@ -16,10 +16,25 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.35 Diopside``
+====================
+
+2026-04-27
+
+Bug
+----
+
+* MGM: Fix ns cache disabling for slave MGMs when a custom cache size is defined in the configuration
+* MGM: Trigger quota refresh after a recomputation - make sure stale entries are removed
+* MGM: Improve fsck repair for entries that don't have a checksum computed on disk
+* MGM: Use consistently the original when deciding where to redirect. This could affect
+  slave MGMs leading to fuse clients not being properly redirected to the master MGM.
+
+
 ``v5.3.34 Diopside``
 ====================
 
-2026-08-12
+2026-03-12
 
 Bug
 ----
@@ -69,7 +84,7 @@ Feature
 * [EOS-6563] MGM: LRU - Add LRU option to clean files based on their size and age
 * MGM: Quota: Do not multiply bookingsize by number of filesystems
 
-  
+
 ``v5.3.30 Diopside``
 ====================
 
