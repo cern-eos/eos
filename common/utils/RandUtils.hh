@@ -22,7 +22,6 @@
 
 #pragma once
 #include "common/Namespace.hh"
-#include <optional>
 #include <random>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -39,12 +38,11 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 template <typename IntType = uint64_t>
 auto
-getRandom(IntType start = 0, IntType end = static_cast<IntType>(RAND_MAX),
-          std::optional<uint64_t> seed = std::nullopt) -> IntType
+getRandom(IntType start = 0, IntType end = static_cast<IntType>(RAND_MAX)) -> IntType
 {
-  static_assert(std::is_integral<IntType>::value,
-                "template argument must be an integral type");
-  thread_local std::mt19937 generator(seed.has_value() ? *seed : std::random_device{}());
+  thread_local std::random_device tlrd;
+  thread_local std::mt19937 generator(tlrd());
+
   std::uniform_int_distribution<IntType> distrib(start, end);
   return distrib(generator);
 }
@@ -62,12 +60,10 @@ getRandom(IntType start = 0, IntType end = static_cast<IntType>(RAND_MAX),
 //------------------------------------------------------------------------------
 template <typename FloatType = double>
 auto
-getRandomNormal(FloatType mean = 0.0, FloatType stddev = 1.0,
-                std::optional<uint64_t> seed = std::nullopt) -> FloatType
+getRandomNormal(FloatType mean = 0.0, FloatType stddev = 1.0) -> FloatType
 {
-  static_assert(std::is_floating_point<FloatType>::value,
-                "template argument must be a floating point type");
-  thread_local std::mt19937 generator(seed.has_value() ? *seed : std::random_device{}());
+  thread_local std::random_device tlrd;
+  thread_local std::mt19937_64 generator(tlrd());
   std::normal_distribution<FloatType> distrib(mean, stddev);
   return distrib(generator);
 }

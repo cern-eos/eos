@@ -24,8 +24,9 @@
 #include "Namespace.hh"
 #include "common/FileId.hh"
 #include "common/InodeTranslator.hh"
-#include "utils/RandUtils.hh"
 #include "gtest/gtest.h"
+#include <iostream>
+#include <random>
 
 #define DBG(message) std::cerr << __FILE__ << ":" << __LINE__ << " -- " << #message << " = " << message << std::endl
 
@@ -154,8 +155,11 @@ TEST(Inode, InodeToFidCompatibility) {
   // Randomize testing by generating random numbers between 1 and the maximum
   // valid inode supported by legacy encoding: 34359738368ull.
 
+  std::mt19937_64 gen(12345678);
+  std::uniform_int_distribution<uint64_t> dist(1ull, 34359738368ull);
+
   for(size_t i = 0; i < 10'000'000; i++) { // 10M rounds
-    uint64_t randomID = eos::common::getRandom(1ull, 34359738368ull);
+    uint64_t randomID = dist(gen);
     ASSERT_EQ(FileId::InodeToFid(FileId::NewFidToInode(randomID)), randomID);
     ASSERT_EQ(FileId::InodeToFid(FileId::LegacyFidToInode(randomID)), randomID);
 
