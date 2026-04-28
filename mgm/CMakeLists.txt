@@ -21,7 +21,12 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include ${CMAKE_SOURCE_DIR}/common/ ${CMAKE_SOURCE_DIR}/mgm ${CMAKE_SOURCE_DIR}/mgm/ofs/)
+include_directories(
+  ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
+  ${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/
+  ${CMAKE_SOURCE_DIR}/common/
+  ${CMAKE_SOURCE_DIR}/mgm
+  ${CMAKE_SOURCE_DIR}/mgm/ofs/)
 
 #-------------------------------------------------------------------------------
 # Generate protocol buffer files
@@ -366,8 +371,7 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   XROOTD::POSIX
   LDAP::LDAP
   ZMQ::ZMQ
-  XXHASH::XXHASH
-  jwt-cpp::jwt-cpp)
+  XXHASH::XXHASH)
 
 target_compile_definitions(XrdEosMgm-Objects PUBLIC
   -DDAEMONUID=${DAEMONUID} -DDAEMONGID=${DAEMONGID})
