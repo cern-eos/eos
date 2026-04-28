@@ -1807,6 +1807,10 @@ public:
   std::string JwtTokenPath;
   //! Use TLS encrypted connections or plaintext connections for grpc
   bool protowfusegrpctls = false;
+  //! Path to the client certificate for mutual TLS
+  std::string protowfusegrpctlscert;
+  //! Path to the client private key for mutual TLS
+  std::string protowfusegrpctlskey;
   static XrdSysError* eDest; ///< error routing object
 
   //----------------------------------------------------------------------------

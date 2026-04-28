@@ -1117,6 +1117,28 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
         }
       }
 
+      if (!strcmp("protowfusegrpctlscert", var)) {
+        if (!(val = Config.GetWord())) {
+          Eroute.Emsg("Config", "argument for protowfusegrpctlscert missing. "
+                      "Should be an absolute path to the client certificate.");
+          NoGo = 1;
+        } else {
+          protowfusegrpctlscert = val;
+          Eroute.Say("=====> mgmofs.protowfusegrpctlscert : ", val);
+        }
+      }
+
+      if (!strcmp("protowfusegrpctlskey", var)) {
+        if (!(val = Config.GetWord())) {
+          Eroute.Emsg("Config", "argument for protowfusegrpctlskey missing. "
+                      "Should be an absolute path to the client private key.");
+          NoGo = 1;
+        } else {
+          protowfusegrpctlskey = val;
+          Eroute.Say("=====> mgmofs.protowfusegrpctlskey : ", val);
+        }
+      }
+
       //Get the XrdHttp server port number
       if (!strcmp("xrd.protocol", var)) {
         val = Config.GetWord();
