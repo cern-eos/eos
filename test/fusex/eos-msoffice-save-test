@@ -1,0 +1,151 @@
+#!/bin/bash
+# ----------------------------------------------------------------------
+# File: eos-msoffice-save-test
+# Author: Cedric Caffy - CERN
+# ----------------------------------------------------------------------
+#
+# Verify the 'hack-ms-office-file-save' fusex option:
+#   - on a directory with sys.versioning>0, the 5-step MS Office save
+#     sequence preserves the pre-save content under .sys.v#.<file>/
+#   - on a directory with sys.versioning unset/0 the hook is a no-op
+#   - with the flag disabled (other mount/dir) the hook is also a no-op
+#
+# Usage:
+#   eos-msoffice-save-test <eosxd-mount-with-hack-on> <eos-prefix> [<eosxd-mount-with-hack-off>]
+#
+#   <eosxd-mount-with-hack-on>  fusex mount where 'hack-ms-office-file-save'
+#                               is true in the eosxd json config.
+#   <eos-prefix>                EOS path matching the mountpoint (used by
+#                               'eos attr ...' and 'eos file versions').
+#   <eosxd-mount-with-hack-off> Optional second mount with the flag off,
+#                               used for the negative test in section 4.
+#                               If omitted, that section is skipped.
+# ----------------------------------------------------------------------
+
+set -e
+set -u
+set -o pipefail
+
+usage() {
+  echo "usage: $(basename "$0") <eosxd-mount-with-hack-on> <eos-prefix> [<eosxd-mount-with-hack-off>]"
+  exit 2
+}
+
+[ $# -ge 2 ] || usage
+
+MNT_ON="$1"
+EOS_PREFIX="$2"
+MNT_OFF="${3:-}"
+
+DIR_ON="$MNT_ON/msoffice-save-test-on"
+DIR_OFF_VERS="$MNT_ON/msoffice-save-test-noversioning"
+EOS_DIR_ON="$EOS_PREFIX/msoffice-save-test-on"
+EOS_DIR_OFF_VERS="$EOS_PREFIX/msoffice-save-test-noversioning"
+
+cleanup() {
+  rm -rf "$DIR_ON" "$DIR_OFF_VERS" 2>/dev/null || true
+  if [ -n "$MNT_OFF" ]; then
+    rm -rf "$MNT_OFF/msoffice-save-test-flag-off" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+# Synthesize Office's 5-step save against an existing v1.docx.
+# Caller writes "v1" content into v1.docx beforehand.
+office_save_sequence() {
+  local dir="$1"
+  local newcontent="$2"
+  # 1. owner-lock (~$<name>) — Office uses an 8.3-truncated form for
+  #    long names; touch the literal short form which our hook also
+  #    probes (~$v1.docx).
+  : > "$dir/~\$v1.docx"
+  # 2. write new content to XXXX.tmp
+  printf '%s' "$newcontent" > "$dir/aaaa.tmp"
+  # 3. backup: rename original v1.docx → YYYY.tmp  (HOOK FIRES HERE)
+  mv "$dir/v1.docx" "$dir/bbbb.tmp"
+  # 4. install: rename new content → v1.docx
+  mv "$dir/aaaa.tmp" "$dir/v1.docx"
+  # 5. discard backup
+  rm -f "$dir/bbbb.tmp"
+  # release owner-lock
+  rm -f "$dir/~\$v1.docx"
+}
+
+#-----------------------------------------------------------------------
+# Section 1: positive — hack ON, sys.versioning set
+#-----------------------------------------------------------------------
+echo "=== positive: hack ON, sys.versioning=5 ==="
+mkdir -p "$DIR_ON"
+eos attr set sys.versioning=5 "$EOS_DIR_ON"
+
+printf 'v1' > "$DIR_ON/v1.docx"
+office_save_sequence "$DIR_ON" 'v2'
+
+# 1.1 v1.docx ends up with new content
+got="$(cat "$DIR_ON/v1.docx")"
+[ "$got" = "v2" ] || { echo "FAIL: v1.docx content '$got' != 'v2'"; exit 1; }
+
+# 1.2 .sys.v#.v1.docx/ contains the pre-save content
+ver_dir="$DIR_ON/.sys.v#.v1.docx"
+[ -d "$ver_dir" ] || { echo "FAIL: $ver_dir missing"; exit 1; }
+nver=$(find "$ver_dir" -maxdepth 1 -type f | wc -l)
+[ "$nver" -ge 1 ] || { echo "FAIL: no version files under $ver_dir"; exit 1; }
+# any version file should contain "v1"
+found="no"
+for f in "$ver_dir"/*; do
+  if [ "$(cat "$f")" = "v1" ]; then found="yes"; break; fi
+done
+[ "$found" = "yes" ] || { echo "FAIL: no version file with content 'v1'"; exit 1; }
+
+# 1.3 'eos file versions' lists at least one version
+eos file versions "$EOS_DIR_ON/v1.docx" | grep -q . \
+  || { echo "FAIL: eos file versions returned nothing"; exit 1; }
+
+#-----------------------------------------------------------------------
+# Section 2: positive — second save adds another version + retention works
+#-----------------------------------------------------------------------
+echo "=== positive: second save grows version dir ==="
+office_save_sequence "$DIR_ON" 'v3'
+got="$(cat "$DIR_ON/v1.docx")"
+[ "$got" = "v3" ] || { echo "FAIL: v1.docx content '$got' != 'v3'"; exit 1; }
+nver2=$(find "$ver_dir" -maxdepth 1 -type f | wc -l)
+[ "$nver2" -gt "$nver" ] || { echo "FAIL: version count did not grow ($nver -> $nver2)"; exit 1; }
+
+#-----------------------------------------------------------------------
+# Section 3: negative — hack ON but parent has no sys.versioning
+#-----------------------------------------------------------------------
+echo "=== negative: hack ON, sys.versioning unset → no version dir ==="
+mkdir -p "$DIR_OFF_VERS"
+# Make sure sys.versioning is NOT set on this dir
+eos attr rm sys.versioning "$EOS_DIR_OFF_VERS" 2>/dev/null || true
+
+printf 'v1' > "$DIR_OFF_VERS/v1.docx"
+office_save_sequence "$DIR_OFF_VERS" 'v2'
+
+[ "$(cat "$DIR_OFF_VERS/v1.docx")" = "v2" ] || { echo "FAIL: docx content"; exit 1; }
+[ ! -d "$DIR_OFF_VERS/.sys.v#.v1.docx" ] \
+  || { echo "FAIL: version dir created without sys.versioning"; exit 1; }
+
+#-----------------------------------------------------------------------
+# Section 4: negative — different mount with hack OFF, sys.versioning set
+#-----------------------------------------------------------------------
+if [ -n "$MNT_OFF" ]; then
+  echo "=== negative: hack OFF mount → no version dir ==="
+  DIR_HACK_OFF="$MNT_OFF/msoffice-save-test-flag-off"
+  mkdir -p "$DIR_HACK_OFF"
+  # Even with sys.versioning set on the dir, the hook is unavailable on
+  # this mount so no snapshot should be produced.
+  eos attr set sys.versioning=5 "$EOS_PREFIX/msoffice-save-test-flag-off" || true
+
+  printf 'v1' > "$DIR_HACK_OFF/v1.docx"
+  office_save_sequence "$DIR_HACK_OFF" 'v2'
+
+  [ "$(cat "$DIR_HACK_OFF/v1.docx")" = "v2" ] || { echo "FAIL: docx content"; exit 1; }
+  [ ! -d "$DIR_HACK_OFF/.sys.v#.v1.docx" ] \
+    || { echo "FAIL: version dir created on hack-off mount"; exit 1; }
+else
+  echo "=== negative section 4 skipped (no second mount given) ==="
+fi
+
+echo "OK"
+exit 0

@@ -89,6 +89,30 @@ public:
 
   int rmRf(fuse_req_t req, eos::fusex::md* md);
 
+  //----------------------------------------------------------------------------
+  //! Snapshot a file into its EOS version directory. Performs mkdir -p
+  //! of the version directory, a server-side TPC copy of the source file
+  //! into `<parent>/.sys.v#.<basename>/<ctime>.<fxid_hex>` (no atomic
+  //! prefix — the FMD identity of `full_path` is left untouched), and
+  //! finally a PurgeVersion call to enforce retention.
+  //!
+  //! @return 0 on success, errno-style error otherwise (logged).
+  //----------------------------------------------------------------------------
+  int versionFile(fuse_req_t req, const std::string& full_path, uint64_t src_ctime,
+                  uint64_t src_fid, int max_versions);
+
+  //----------------------------------------------------------------------------
+  //! Rename `<parent>/.sys.v#.<from_basename>/` to
+  //! `<parent>/.sys.v#.<to_basename>/`. Used to undo the MGM rename
+  //! handler's behaviour of renaming a file's version directory
+  //! alongside the file itself.
+  //!
+  //! @param parent_full_path Parent path (must end with '/').
+  //! @return 0 on success, errno-style error otherwise (logged).
+  //----------------------------------------------------------------------------
+  int renameVersionDir(fuse_req_t req, const std::string& parent_full_path,
+                       const std::string& from_basename, const std::string& to_basename);
+
   int putMD(fuse_req_t req, eos::fusex::md* md, std::string authid,
             XrdSysMutex* locker);
   int putMD(fuse_id& id, eos::fusex::md* md, std::string authid,
@@ -131,6 +155,14 @@ private:
   double put_timeout;
 
   int mapErrCode(int retc);
+
+  //----------------------------------------------------------------------------
+  //! Issue a /proc/user/ command synchronously, with the user identity and
+  //! standard fusex envelope (mgm.uuid, mgm.retc, mgm.cid, eos.app, fuse.v).
+  //!
+  //! @return 0 on success, errno-style error otherwise.
+  //----------------------------------------------------------------------------
+  int procCommand(fuse_req_t req, const XrdCl::URL::ParamsMap& params);
 
   XrdCl::XRootDStatus Query(XrdCl::URL& url,
                             XrdCl::QueryCode::Code query_code, XrdCl::Buffer& arg,

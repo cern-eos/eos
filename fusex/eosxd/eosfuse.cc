@@ -28,17 +28,18 @@
 #endif
 #include "kv/RocksKV.hh"
 #include "eosfuse.hh"
-#include "misc/fusexrdlogin.hh"
 #include "misc/filename.hh"
-#include <string>
-#include <map>
-#include <set>
-#include <iostream>
-#include <sstream>
-#include <memory>
+#include "misc/fusexrdlogin.hh"
 #include <algorithm>
-#include <thread>
+#include <cctype>
+#include <iostream>
 #include <iterator>
+#include <map>
+#include <memory>
+#include <set>
+#include <sstream>
+#include <string>
+#include <thread>
 #ifndef __APPLE__
 #include <malloc.h>
 #endif
@@ -73,19 +74,20 @@ extern "C" { /* this 'extern "C"' brace will eventually end up in the .h file, t
 #include <sys/resource.h>
 #endif
 
-#include "common/Timing.hh"
-#include "common/Logging.hh"
-#include "common/Path.hh"
+#include "auth/Logbook.hh"
+#include "common/FileId.hh"
 #include "common/LinuxMemConsumption.hh"
 #include "common/LinuxStat.hh"
+#include "common/Logging.hh"
+#include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
-#include "auth/Logbook.hh"
-#include "md/md.hh"
-#include "md/kernelcache.hh"
-#include "kv/kv.hh"
+#include "common/Timing.hh"
 #include "data/cache.hh"
 #include "data/cachehandler.hh"
+#include "kv/kv.hh"
+#include "md/kernelcache.hh"
+#include "md/md.hh"
 #include "misc/ConcurrentMount.hh"
 
 #define _FILE_OFFSET_BITS 64
@@ -99,6 +101,94 @@ namespace
 {
 std::string s_obfuscate_key = "user.obfuscate.key";
 std::string s_encrypted_fp  = "user.encrypted.fp";
+
+// Helpers for the 'hack-ms-office-file-save' rename hook.
+
+//----------------------------------------------------------------------------
+//! Case-insensitive suffix check.
+//!
+//! @param s String to test.
+//! @param suffix Suffix to test for.
+//! @return True if `s` ends with `suffix` ignoring ASCII case, false otherwise.
+//----------------------------------------------------------------------------
+static bool
+ends_with_case_ins(const std::string& s, const std::string& suffix)
+{
+  if (s.size() < suffix.size()) {
+    return false;
+  }
+
+  for (size_t i = 0; i < suffix.size(); ++i) {
+    if (std::tolower(static_cast<unsigned char>(s[s.size() - suffix.size() + i])) !=
+        std::tolower(static_cast<unsigned char>(suffix[i]))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//----------------------------------------------------------------------------
+//! Check whether `name` ends with a Microsoft Office filename extension.
+//!
+//! @param name Filename to test (basename, not full path).
+//! @return True if `name` ends with an Office extension (case-insensitive),
+//!         false otherwise.
+//----------------------------------------------------------------------------
+static bool
+is_office_extension(const std::string& name)
+{
+  // Most common extensions first so the short-circuit hits earlier.
+  return ends_with_case_ins(name, ".docx") || ends_with_case_ins(name, ".xlsx") ||
+         ends_with_case_ins(name, ".pptx") || ends_with_case_ins(name, ".doc") ||
+         ends_with_case_ins(name, ".xls") || ends_with_case_ins(name, ".xlsm") ||
+         ends_with_case_ins(name, ".ppt") || ends_with_case_ins(name, ".dotx") ||
+         ends_with_case_ins(name, ".pptm") || ends_with_case_ins(name, ".dot") ||
+         ends_with_case_ins(name, ".pps");
+}
+
+//----------------------------------------------------------------------------
+//! True if a sibling owner-lock for `name` is present among the parent's
+//! children. Office's owner-lock is `~$<name>` for short names and the
+//! truncated form `~$<name[2:]>` for long names, so both forms are probed.
+//! A self-loop guard skips when `name` itself starts with "~$".
+//!
+//! The check uses the parent's local_children map directly rather than
+//! mds.lookup, because a freshly-created sibling's md may have id()==0
+//! until the server response arrives — and that's racy enough to miss
+//! the exact case we care about (Office just created its owner-lock).
+//!
+//! @param pmd Parent directory metadata (locked internally).
+//! @param name Basename of the file whose owner-lock is being looked up.
+//! @return True if an owner-lock sibling is present, false otherwise.
+//----------------------------------------------------------------------------
+static bool
+has_office_owner_lock(metad::shared_md& pmd, const std::string& name)
+{
+  if (name.size() >= 2 && name[0] == '~' && name[1] == '$') {
+    return false;
+  }
+
+  if (!pmd) {
+    return false;
+  }
+
+  const std::string lock_full = "~$" + name;
+  const std::string lock_83 = (name.size() > 2) ? ("~$" + name.substr(2)) : std::string();
+  XrdSysMutexHelper plock(pmd->Locker());
+  const auto& children = pmd->local_children();
+
+  if (children.count(eos::common::StringConversion::EncodeInvalidUTF8(lock_full))) {
+    return true;
+  }
+
+  if (!lock_83.empty() &&
+      children.count(eos::common::StringConversion::EncodeInvalidUTF8(lock_83))) {
+    return true;
+  }
+
+  return false;
+}
 }
 
 /* -------------------------------------------------------------------------- */
@@ -1071,11 +1161,24 @@ EosFuse::run(int argc, char* argv[], void* userdata)
     }
 
     config.options.fakerename = false;
+    config.options.hack_ms_office_file_save = false;
 
     if (root["options"].isMember("tmp-fake-rename")) {
       if (root["options"]["tmp-fake-rename"].asInt()) {
         config.options.fakerename = true;
       }
+    }
+
+    if (root["options"].isMember("hack-ms-office-file-save")) {
+      if (root["options"]["hack-ms-office-file-save"].asInt()) {
+        config.options.hack_ms_office_file_save = true;
+      }
+    }
+
+    if (config.options.fakerename && config.options.hack_ms_office_file_save) {
+      eos_static_err("'tmp-fake-rename' and 'hack-ms-office-file-save' are "
+                     "mutually exclusive - disabling 'tmp-fake-rename'");
+      config.options.fakerename = false;
     }
 
     config.options.fdlimit = root["options"]["fd-limit"].asInt();
@@ -4627,14 +4730,103 @@ EosFuse::rename(fuse_req_t req, fuse_ino_t parent, const char* name,
         }
       }
 
+      // MS Office save-by-replace: when an Office app holds an owner-lock
+      // (~$<file>) and renames its document onto a *.tmp backup, snapshot
+      // the source into its EOS version directory before the rename
+      // makes the previous content unreachable. Gated by the mount-level
+      // opt-in flag and a non-zero sys.versioning xattr on the parent.
+      bool office_snapshot_taken = false;
+      std::string office_snapshot_parent;
+
+      if (Instance().Config().options.hack_ms_office_file_save) {
+        const bool is_office = is_office_extension(name);
+        const bool is_tmp = ends_with_case_ins(newname, ".tmp");
+        const bool has_lock =
+            (is_office && is_tmp) ? has_office_owner_lock(p1md, name) : false;
+        eos_static_debug("msg=\"hack-ms-office-file-save: evaluating rename\" "
+                         "src=\"%s\" dst=\"%s\" is_office=%d is_tmp=%d has_lock=%d",
+                         name, newname, is_office, is_tmp, has_lock);
+
+        if (is_office && is_tmp && has_lock) {
+          int max_versions = 0;
+          std::string pfullpath;
+          {
+            XrdSysMutexHelper pLock(p1md->Locker());
+            pfullpath = (*p1md)()->fullpath();
+            const auto& attrs = (*p1md)()->attr();
+            auto it = attrs.find("sys.versioning");
+
+            if (it != attrs.end()) {
+              max_versions = atoi(it->second.c_str());
+            }
+          }
+
+          if (max_versions > 0) {
+            if (!pfullpath.empty() && pfullpath.back() != '/') {
+              pfullpath += "/";
+            }
+
+            uint64_t src_ctime = 0;
+            uint64_t src_fid = 0;
+            {
+              XrdSysMutexHelper mLock(md->Locker());
+              src_ctime = (*md)()->ctime();
+              src_fid = eos::common::FileId::InodeToFid((*md)()->id());
+            }
+            const std::string src_full = pfullpath + name;
+            eos_static_warning("msg=\"hack-ms-office-file-save: firing\" "
+                               "src=\"%s\" dst=\"%s\" sys.versioning=%d",
+                               src_full.c_str(), newname, max_versions);
+            eos_static_debug("msg=\"hack-ms-office-file-save: snapshotting source "
+                             "before rename\" src=\"%s\" dst=\"%s\" "
+                             "sys.versioning=%d src.ctime=%llu src.fxid=%08llx",
+                             src_full.c_str(), newname, max_versions,
+                             (unsigned long long)src_ctime, (unsigned long long)src_fid);
+
+            if (Instance().mdbackend.versionFile(req, src_full, src_ctime, src_fid,
+                                                 max_versions) == 0) {
+              office_snapshot_taken = true;
+              office_snapshot_parent = pfullpath;
+              eos_static_debug("msg=\"hack-ms-office-file-save: snapshot taken\" "
+                               "src=\"%s\" parent=\"%s\"",
+                               src_full.c_str(), pfullpath.c_str());
+            }
+          } else {
+            eos_static_debug("msg=\"hack-ms-office-file-save: skipping snapshot - "
+                             "sys.versioning unset or equal to 0 on parent\" "
+                             "src=\"%s\"",
+                             name);
+          }
+        }
+      }
+
       Track::Monitor mone("rename", "fs", Instance().Tracker(), req, md_ino, true);
       std::string new_name = newname;
       Instance().mds.mv(req, p1md, p2md, md, newname, (*p1cap)()->authid(),
                         (*p2cap)()->authid());
 
-      if (Instance().Config().options.rename_is_sync) {
+      if (Instance().Config().options.rename_is_sync || office_snapshot_taken) {
+        // Block until the flusher has delivered the rename to the MGM.
+        // For the office-save hack this is required so the server-side
+        // version-dir auto-rename has happened before we try to undo it.
         XrdSysMutexHelper mLock(md->Locker());
         Instance().mds.wait_flush(req, md);
+      }
+
+      if (office_snapshot_taken) {
+        // The MGM rename handler renames the file's version directory
+        // (`.sys.v#.<name>/`) alongside the file itself. That would
+        // place our snapshot under the *.tmp backup name, which Office
+        // subsequently deletes. Move the version directory back so the
+        // snapshot survives.
+        eos_static_debug("msg=\"hack-ms-office-file-save: moving version dir "
+                         "back from .sys.v#.<newname>/ to .sys.v#.<name>/ so "
+                         "the snapshot taken under <name> is not deleted with "
+                         "the *.tmp backup\" parent=\"%s\" name=\"%s\" "
+                         "newname=\"%s\"",
+                         office_snapshot_parent.c_str(), name, newname);
+        (void)Instance().mdbackend.renameVersionDir(
+            req, office_snapshot_parent, std::string(newname), std::string(name));
       }
     }
   }
