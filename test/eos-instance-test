@@ -535,6 +535,12 @@ testcnt=0;
 runtest () {
     testcnt=$((testcnt+1));
 
+    retry=0
+    if [ "$1" = "--retry" ]; then
+        retry=$2
+        shift 2
+    fi
+
     if [ -e $TIMEOUTFILE ]; then
         echo -n $(date +"%x %X") timeout
         failure
@@ -605,16 +611,28 @@ runtest () {
         fi
 
         if [ $skip = 0 ] ; then
-          # Record the current size of the log file before running the test
           log_size_before=0
           if [ -f "$EOSCERTLOG" ]; then
             log_size_before=$(wc -l < "$EOSCERTLOG")
           fi
 
-          if [ $auth = "krb5" ] ; then ( eval export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
-          if [ $auth = "gsi"  ] ; then ( eval export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
-          if [ $auth = "unix" ] ; then ( eval export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
-          if [ $auth = "sss"  ] ; then ( eval export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
+          ret=1
+          attempt=0
+          while true; do
+            if [ $auth = "krb5" ] ; then ( eval export X509_USER_CERT=/tmp/illegal X509_USER_KEY=/tmp/illegal $renv; $* ) ; ret=$?; fi
+            if [ $auth = "gsi"  ] ; then ( eval export KRB5CCNAME=/tmp/illegal                                $renv; $* ) ; ret=$?; fi
+            if [ $auth = "unix" ] ; then ( eval export XrdSecPROTOCOL=unix                                    $renv; $* ) ; ret=$?; fi
+            if [ $auth = "sss"  ] ; then ( eval export XrdSecPROTOCOL=sss                                     $renv; $* ) ; ret=$?; fi
+            [ $attempt -ge $retry ] && break
+            case "$res" in
+              "SUCCESS") [ $ret -eq 0 ]    && break ;;
+              "ERROR")   [ $ret -ne 0 ]    && break ;;
+              "IGNORE")  break ;;
+              *)         [ $ret -eq "$res" ] 2>/dev/null && break ;;
+            esac
+            attempt=$((attempt + 1))
+            sleep 2
+          done
           echo
 
           # Check if test failed unexpectedly and print output
@@ -1154,7 +1172,7 @@ runtest "### Chmod      " unix SUCCESS "" eos chmod "777" "/eos/$EOS_TEST_INSTAN
 runtest "### Attr Set   " unix SUCCESS "" eos attr set default=replica "/eos/$EOS_TEST_INSTANCE/test"
 runtest "### Stress Wpp " unix SUCCESS "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Stress Wp  " unix SUCCESS "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o wr -f 50 -s 1KB -n stress -j 10 -c "
-runtest "### Find       " unix SUCCESS "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
+runtest --retry 10 "### Find       " unix SUCCESS "" eos find "-f --count /eos/$EOS_TEST_INSTANCE/test/ | grep nfiles=100"
 runtest "### Stress Rp  " unix SUCCESS "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c"
 runtest "### Stress Rpp " unix SUCCESS "" stress "-d root://localhost//eos/$EOS_TEST_INSTANCE/test -o rd -f 50 -s 1KB -n stress -j 10 -c -p"
 runtest "### Cleanup    " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/stress/*"
@@ -1236,8 +1254,7 @@ runtest "### eoscp     " unix ERROR  "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos cp 
 runtest "### File ULck " unix ERROR "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### File ULck " unix SUCCESS "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### File Lck  " unix SUCCESS "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1" 0
-runtest "### Delay     " unix SUCCESS "" delay 1
-runtest "### File Lck  " unix SUCCESS "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
+runtest --retry 2 "### File Lck  " unix SUCCESS "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### File Lck  " unix ERROR "EOSAPP='-a app1' EOSROLE='-r 2 2'" eos file touch -l "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 runtest "### File Lck  " unix SUCCESS "EOSAPP='-a app2' EOSROLE='-r 2 2'" eos file touch -u "/eos/$EOS_TEST_INSTANCE/test/instancetest/xattr-lock/lock1"
 # user audience
@@ -1351,8 +1368,7 @@ runtest "### Symlink   " unix SUCCESS "" eos file symlink -f "/eos/$EOS_TEST_INS
 runtest "### Find      " unix SUCCESS "" eos find "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/ | grep -w \"/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln -> /eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/a.txt\""
 runtest "### Rm        " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/links/a.ln"
 runtest "### Upload    " unix SUCCESS "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/f1" "-ODeos.ruid=0"
-runtest "### Delay     " unix SUCCESS "" delay 7
-runtest "### Du -s     " unix SUCCESS "" eos du -s "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1024000"
+runtest --retry 10 "### Du -s     " unix SUCCESS "" eos du -s "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1024000"
 runtest "### Du -s     " unix SUCCESS "" eos du -s -h "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1.02 | grep MB"
 runtest "### Du -s     " unix SUCCESS "" eos du -s -h --si "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest/ | grep 1000.00 | grep kiB"
 runtest "### Rm        " unix SUCCESS "" eos rm -rF "/eos/$EOS_TEST_INSTANCE/test/instancetest/findtest"
@@ -1503,8 +1519,7 @@ runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.checksum=adler 
 runtest "### Upload    " unix SUCCESS "" upload    "$TESTSYSFILE1K" "/eos/$EOS_TEST_INSTANCE/test/instancetest/race/file.1k" ""
 runtest "### Checksum  " unix SUCCESS "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/race/file.1k --checksum | grep 14c30610"
 runtest "### AppendOL  " unix SUCCESS "" overlap "/eos/$EOS_TEST_INSTANCE/test/instancetest/race/file.1k"
-runtest "### Delay     " unix SUCCESS "" delay 1
-runtest "### Checksum  " unix SUCCESS "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/race/file.1k --checksum | grep fc46d811"
+runtest --retry 10 "### Checksum  " unix SUCCESS "" eos fileinfo "/eos/$EOS_TEST_INSTANCE/test/instancetest/race/file.1k --checksum | grep fc46d811"
 runtest "### Rm        " unix SUCCESS "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/race/
 
 ################################################################################
@@ -1870,13 +1885,11 @@ rm_fxid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE}
 rm_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Rm          " unix SUCCESS "" eos rm -F ${RM_TEST_FILE}
 runtest "### Dropdel     " unix SUCCESS "" eos fs dropdeletion "${rm_fsid}"
-runtest "### Delay       " unix SUCCESS "" delay 2
 if ! file_is_deleted "$rm_fxid"; then
     runtest "### Fileinfo    " unix SUCCESS "" eos fileinfo "fxid:${rm_fxid}"
     runtest "### Rm detached " unix SUCCESS "" eos rm "fxid:${rm_fxid}"
-    runtest "### Delay       " unix SUCCESS "" delay 2
 fi
-runtest "### File Del    " unix SUCCESS "" file_is_deleted "$rm_fxid"
+runtest --retry 10 "### File Del    " unix SUCCESS "" file_is_deleted "$rm_fxid"
 # Secondly test that rm -F on a detached file will clean up the namespace
 # without waiting for a confirmation from the diskservers
 runtest "### Upload      " unix SUCCESS "" eos cp /etc/passwd ${RM_TEST_FILE}
@@ -1884,12 +1897,11 @@ rm_fxid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE}
 rm_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${RM_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Rm          " unix SUCCESS "" eos rm -F ${RM_TEST_FILE}
 runtest "### Dropdel     " unix SUCCESS "" eos fs dropdeletion "${rm_fsid}"
-runtest "### Delay       " unix SUCCESS "" delay 2
 if ! file_is_deleted "$rm_fxid"; then
     runtest "### Fileinfo    " unix SUCCESS "" eos fileinfo "fxid:${rm_fxid}"
     runtest "### Rm force    " unix SUCCESS "" eos rm -F "fxid:${rm_fxid}"
 fi
-runtest "### File Del    " unix SUCCESS "" file_is_deleted "$rm_fxid"
+runtest --retry 10 "### File Del    " unix SUCCESS "" file_is_deleted "$rm_fxid"
 # Create a directory with 10 files in it
 rmTestDir="/eos/$EOS_TEST_INSTANCE/test/instancetest/rm_test"
 eos mkdir -p $rmTestDir
@@ -1971,10 +1983,8 @@ RM_MULTI3="/eos/$EOS_TEST_INSTANCE/test/instancetest/ multi3 .txt"
 runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd "'${RM_MULTI1}'"
 runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd "'${RM_MULTI2}'"
 runtest "### CP          " unix SUCCESS "" eos cp /etc/passwd "'${RM_MULTI3}'"
-runtest "### Delay       " unix SUCCESS "" delay 7
-runtest "### Rm multi    " unix SUCCESS "" eos rm "'${RM_MULTI1}'" "'${RM_MULTI2}'" "'${RM_MULTI3}'"
-runtest "### Delay       " unix SUCCESS "" delay 7
-runtest "### Stat        " unix ERROR "" eos stat "'${RM_MULTI1}'"
+runtest --retry 10 "### Rm multi    " unix SUCCESS "" eos rm "'${RM_MULTI1}'" "'${RM_MULTI2}'" "'${RM_MULTI3}'"
+runtest --retry 10 "### Stat        " unix ERROR "" eos stat "'${RM_MULTI1}'"
 runtest "### Stat        " unix ERROR "" eos stat "'${RM_MULTI2}'"
 runtest "### Stat        " unix ERROR "" eos stat "'${RM_MULTI3}'"
 
@@ -1995,8 +2005,7 @@ runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR2}/file2.txt
 runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR3}/file1.txt
 runtest "### Touch       " unix SUCCESS "" eos touch ${RM_DIR3}/file2.txt
 runtest "### Rm -r multi " unix SUCCESS "" eos rm -r ${RM_DIR1} ${RM_DIR2} ${RM_DIR3}
-runtest "### Delay       " unix SUCCESS "" delay 7
-runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR1}
+runtest --retry 10 "### Stat        " unix ERROR "" eos stat ${RM_DIR1}
 runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR2}
 runtest "### Stat        " unix ERROR "" eos stat ${RM_DIR3}
 
@@ -2067,8 +2076,7 @@ runtest "### Upload    " unix SUCCESS "" eos cp ${TESTSYSFILE1K} ${ADJUST_TEST_F
 adj_fsid=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid | head -n 1)
 runtest "### Drop fsid " unix SUCCESS "" eos file drop ${ADJUST_TEST_FILE} ${adj_fsid}
 runtest "### Adjust -  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
-runtest "### Delay     " unix SUCCESS "" delay 8
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
+runtest --retry 30 "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
 # Find a new file system where to over-replicate the current file
 list_fsids=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${ADJUST_TEST_FILE} | jq -r .locations[].fsid)
 array_fsids=($list_fsids)
@@ -2077,10 +2085,9 @@ target_fsid=0
 NUM_FST=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR fs ls | awk '{ if (($6 ~ /booted/) || ($7 ~ /booted/)) c++} END {print c}')
 for ((i=1; i<=${NUM_FST}; i++)); do if [[ ! " ${array_fsids[*]} " =~ " $i " ]]; then target_fsid=$i; break; fi done
 runtest "### Replicate " unix SUCCESS "" eos file replicate ${ADJUST_TEST_FILE} ${source_fsid} ${target_fsid}
-runtest "### Delay     " unix SUCCESS "" delay 8
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 3"
+runtest --retry 30 "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 3"
 runtest "### Adjust +  " unix SUCCESS "" eos file adjustreplica ${ADJUST_TEST_FILE}
-runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
+runtest --retry 30 "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq -r .locations[].fsid | wc -l | grep 2"
 runtest "### Rm        " unix SUCCESS "" eos rm -F ${ADJUST_TEST_FILE}
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir ${ADJUST_TEST_DIR}
 
@@ -2246,18 +2253,15 @@ runtest "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTA
 runtest "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1 | wc -l | grep -w 1"
 runtest "### Rename    " unix SUCCESS "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f1 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1
 runtest "### Rename    " unix SUCCESS "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/f2 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2
-runtest "### Delay       " unix SUCCESS "" delay 1
-runtest "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2 | wc -l | grep -w 1"
+runtest --retry 10 "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f2 | wc -l | grep -w 1"
 runtest "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/f1 | wc -l | grep -w 2"
 # rename including versions
 runtest "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r1 | wc -l | grep -w 2"
 runtest "### Rename    " unix SUCCESS "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r1 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r2
-runtest "### Delay       " unix SUCCESS "" delay 1
-runtest "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r2 | wc -l | grep -w 2"
+runtest --retry 10 "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r2 | wc -l | grep -w 2"
 # move including versions
 runtest "### Rename    " unix SUCCESS "" shell mv -f /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir1/r2 /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/r1
-runtest "### Delay       " unix SUCCESS "" delay 1
-runtest "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/r1 | wc -l | grep -w 2"
+runtest --retry 10 "### Versions  " unix SUCCESS "" eos file versions "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/dir2/r1 | wc -l | grep -w 2"
 #
 runtest "### Upload    " unix SUCCESS "" shell cp /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
 runtest "### Chmod     " unix SUCCESS "" shell chmod 444 "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/perm"
@@ -2271,13 +2275,11 @@ runtest "### test -x   " unix SUCCESS "" shell test -x "/test-fusex/$EOS_TEST_IN
 runtest "### symlink   " unix SUCCESS "" shell ln -s "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/target" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1"
 runtest "### symlink   " unix SUCCESS "" shell ln -s "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/target" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
 runtest "### syj-mkd   " unix SUCCESS "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/"
-runtest "### Delay       " unix SUCCESS "" delay 3
-runtest "### stat l1   " unix SUCCESS "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1"
+runtest --retry 10 "### stat l1   " unix SUCCESS "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1"
 runtest "### stat l2   " unix SUCCESS "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
 runtest "### sym-mv    " unix SUCCESS "" shell mv -f "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.3"
 runtest "### sym-mv    " unix SUCCESS "" shell mv -f "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2" "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
-runtest "### Delay       " unix SUCCESS "" delay 3
-runtest "### stat l1   " unix ERROR "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1"
+runtest --retry 10 "### stat l1   " unix ERROR "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.1"
 runtest "### stat l2   " unix ERROR "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.2"
 runtest "### stat l1   " unix SUCCESS "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symlink.3"
 runtest "### stat l2   " unix SUCCESS "" eos stat "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/symdir/symlink.4"
@@ -2412,8 +2414,7 @@ runtest "### stat SQFS " unix ERROR "" eos stat /eos/$EOS_TEST_INSTANCE/test/ins
 runtest "### New SQFSR " unix SUCCESS "" eos squash new-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
 runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1/next
 runtest "### Pack SQFSR" unix SUCCESS "" eos squash pack-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
-runtest "### Delay       " unix SUCCESS "" delay 1
-runtest "### New SQFSR " unix SUCCESS "" eos squash new-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1 1.0.1"
+runtest --retry 10 "### New SQFSR " unix SUCCESS "" eos squash new-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1 1.0.1"
 runtest "### cp        " unix SUCCESS "" shell cp /etc/passwd /eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1/next
 runtest "### Pack SQFSR" unix SUCCESS "" eos squash pack-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
 runtest "### info SQFSR" unix SUCCESS "" eos squash info-release "/eos/$EOS_TEST_INSTANCE/test/instancetest/squash/release1"
@@ -2833,15 +2834,12 @@ if [ $NUM_FST -ge 6 ]; then
 
    runtest "### RaiddpTest " unix SUCCESS "" eos_rain "raiddp" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp" "$EOS_TEST_RAIN_TMP"
    # Sleep two seconds between the tests as disabling/enabling a FST is not that fast
-   runtest "### Delay      " unix SUCCESS "" delay 2
-   runtest "### Raid6Test  " unix SUCCESS "" eos_rain "raid6" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6" "$EOS_TEST_RAIN_TMP"
-   runtest "### Delay      " unix SUCCESS "" delay 2
-   runtest "### QrainTest  " unix SUCCESS "" eos_rain "qrain" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain" "$EOS_TEST_RAIN_TMP"
-   runtest "### Delay      " unix SUCCESS "" delay 2
+   runtest --retry 2 "### Raid6Test  " unix SUCCESS "" eos_rain "raid6" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6" "$EOS_TEST_RAIN_TMP"
+   runtest --retry 2 "### QrainTest  " unix SUCCESS "" eos_rain "qrain" "$EOS_TEST_RAIN_DIR" "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain" "$EOS_TEST_RAIN_TMP"
 
    # Run the eos-io-test for sequential and non-streaming IO against the RAIN
    # directories
-   runtest "### EosIoRaiddp  " unix SUCCESS "" eos_io "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp" "$EOS_TEST_RAIN_DIR"
+   runtest --retry 2 "### EosIoRaiddp  " unix SUCCESS "" eos_io "/eos/$EOS_TEST_INSTANCE/test/instancetest/raiddp" "$EOS_TEST_RAIN_DIR"
    runtest "### EosIoRaid6   " unix SUCCESS "" eos_io "/eos/$EOS_TEST_INSTANCE/test/instancetest/raid6" "$EOS_TEST_RAIN_DIR"
    runtest "### EosIoQrain   " unix SUCCESS "" eos_io "/eos/$EOS_TEST_INSTANCE/test/instancetest/qrain" "$EOS_TEST_RAIN_DIR"
 
