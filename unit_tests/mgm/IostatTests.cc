@@ -331,13 +331,10 @@ TEST(IostatPeriods, SequentialTx)
   time_t start_ts = 0;
   time_t stop_ts = 0;
   unsigned long long val = 1024 * 1025 * 1024;
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<> distrib(1, 5);
   int count = 0;
 
   while (stop_ts < now) {
-    stop_ts = start_ts + distrib(gen) * 60;
+    stop_ts = start_ts + eos::common::getRandom(1, 5) * 60;
     iop.Add(val, start_ts, stop_ts, now);
     start_ts = stop_ts;
     ++count;

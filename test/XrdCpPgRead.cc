@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "utils/RandUtils.hh"
 #include <XrdCl/XrdClFile.hh>
 #include <iostream>
 #include <memory>
-#include <random>
 //------------------------------------------------------------------------------
 //! This executable simulates a client that reads from a file using pgRead API.
 //------------------------------------------------------------------------------
@@ -83,15 +83,12 @@ int main(int argc, char* argv[])
   if ((offset == 0) && (length == 0)) {
     constexpr uint32_t max_buff = 4 * 1024 * 1024;
     buffer.reset(new char[max_buff]);
-    std::mt19937_64 gen(12345678);
-    std::uniform_int_distribution<uint64_t> dist_off(0ull,  1235676367ull);
-    std::uniform_int_distribution<uint64_t> dist_len(4096ull,  max_buff);
     uint32_t samples = 10000;
 
     for (unsigned int i = 0; i < samples; ++i) {
       cksums.clear();
-      uint64_t rand_off = dist_off(gen);
-      uint32_t rand_len = dist_len(gen);
+      uint64_t rand_off = eos::common::getRandom64(0ull, 1235676367ull);
+      uint32_t rand_len = eos::common::getRandom64(4096u, max_buff);
       std::cout << "index: " << i
                 << " pgread: rand_off=" << rand_off
                 << " rand_len=" << rand_len << std::endl;

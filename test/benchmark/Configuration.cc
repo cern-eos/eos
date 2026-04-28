@@ -22,12 +22,13 @@
  ************************************************************************/
 
 /*----------------------------------------------------------------------------*/
-#include <string>
+#include <cstdint>
 #include <fstream>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
 #include <functional>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+#include <string>
 /*----------------------------------------------------------------------------*/
 #include <uuid/uuid.h>
 /*----------------------------------------------------------------------------*/
@@ -35,6 +36,7 @@
 #include "DirEos.hh"
 #include "ProtoIo.hh"
 #include "common/StringConversion.hh"
+#include "common/utils/RandUtils.hh"
 /*----------------------------------------------------------------------------*/
 
 using namespace std;
@@ -278,7 +280,7 @@ Configuration::CreateConfigFile(const string& outputFile)
   uint64_t block_size;
   ConfigProto_OperationType op_type;
 
-  // Get benchmark instance 
+  // Get benchmark instance
   cout << "Benchmarked instance: ";
 
   while (input_value.empty())
@@ -290,7 +292,7 @@ Configuration::CreateConfigFile(const string& outputFile)
   }
 
   mPbConfig->set_benchmarkinstance(input_value);
-  
+
   // Get benchmark directory where operations are done
   input_value = "";
   cout << "Benchmark directory: ";
@@ -618,7 +620,6 @@ Configuration::CreateConfigFile(const string& outputFile)
       // Generate a set of random (offset, length) pairs
       uint64_t offset;
       uint64_t length;
-      srand(time(NULL));
 
       if (pattern_type == ConfigProto_PatternType_RANDOM)
       {
@@ -653,8 +654,8 @@ Configuration::CreateConfigFile(const string& outputFile)
 
         for (uint32_t i = 0; i < no_requests; i++)
         {
-          offset = (rand() % file_size) + 1;
-          length = (rand() % (file_size - offset)) + 1;
+          offset = eos::common::getRandom<uint64_t>(1, file_size);
+          length = eos::common::getRandom<uint64_t>(1, file_size - offset);
           mPbConfig->add_offset(offset);
           mPbConfig->add_length(length);
         }
@@ -710,7 +711,7 @@ Configuration::CreateConfigFile(const string& outputFile)
     cout << "Error while writing configuration to file" << endl;
     return false;
   }
-    
+
   return true;
 }
 

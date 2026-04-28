@@ -4,7 +4,6 @@
 #include <vector>
 #include <cstdint>
 #include <cstddef>
-#include <random>
 
 namespace eos::mgm::placement {
 
@@ -25,8 +24,6 @@ struct ThreadLocalRRSeed {
   }
 
   static thread_local std::vector<uint64_t> gRRSeeds;
-  static std::mt19937 random_gen;
-  static std::random_device rd;
 };
 
 
