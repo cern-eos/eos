@@ -5,16 +5,15 @@
  *      Author: simonm
  */
 
-
-
-#include "fusex/data/journalcache.hh"
+#include "common/utils/RandUtils.hh"
 #include "fusex/data/cacheconfig.hh"
 #include "fusex/data/cachehandler.hh"
-#include <stdint.h>
-#include <algorithm>
-#include <vector>
-#include <random>
+#include "fusex/data/journalcache.hh"
 #include "gtest/gtest.h"
+#include <algorithm>
+#include <random>
+#include <stdint.h>
+#include <vector>
 
 class TestData
 {
@@ -28,12 +27,11 @@ static std::string random_str(uint64_t size)
     "0123456789"
     "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     "abcdefghijklmnopqrstuvwxyz";
-  srand(time(0));
   std::string ret;
   ret.reserve(size);
 
   for (uint64_t i = 0; i < size; ++i) {
-    ret += alphanum[rand() % (sizeof(alphanum) - 1) ];
+    ret += alphanum[eos::common::getRandom<size_t>(0, sizeof(alphanum) - 1)];
   }
 
   return ret;
@@ -80,14 +78,14 @@ TEST(JournalCache, BasicSanity)
   }
 
   for (int i = 0; i < 10; ++i) {
-    uint64_t offset = rand() % input.size();
+    uint64_t offset = eos::common::getRandom<size_t>(0, input.size() - 1);
     uint64_t max_size = input.size() - offset;
 
     if (max_size > chunk_size) {
       max_size = chunk_size;
     }
 
-    uint64_t size = rand() % max_size;
+    uint64_t size = eos::common::getRandom<size_t>(0, max_size - 1);
     std::string str = random_str(size);
     rc = jc.pwrite(str.c_str(), size, offset);
     ASSERT_EQ(rc, (int64_t) size);
@@ -100,9 +98,9 @@ TEST(JournalCache, BasicSanity)
   ASSERT_FALSE(rc);
 
   for (int i = 0; i < 100; ++i) {
-    uint64_t offset = rand() % input.size();
+    uint64_t offset = eos::common::getRandom<size_t>(0, input.size() - 1);
     uint64_t max_size = input.size() - offset;
-    uint64_t size = rand() % max_size;
+    uint64_t size = eos::common::getRandom<size_t>(0, max_size - 1);
     std::vector<char> buffer(size);
     rc = jc.pread(buffer.data(), size, offset);
     ASSERT_EQ(rc, (int64_t) size);
