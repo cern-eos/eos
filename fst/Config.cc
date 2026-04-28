@@ -23,12 +23,13 @@
 
 #include "fst/Config.hh"
 
-#include "common/Logging.hh"
-#include "common/InstanceName.hh"
-#include "common/StringTokenizer.hh"
 #include "common/AssistedThread.hh"
-#include <thread>
+#include "common/InstanceName.hh"
+#include "common/Logging.hh"
+#include "common/StringTokenizer.hh"
+#include "common/utils/RandUtils.hh"
 #include <chrono>
+#include <thread>
 #include <vector>
 
 EOSFSTNAMESPACE_BEGIN
@@ -148,11 +149,8 @@ std::chrono::seconds Config::getPublishInterval()
 std::chrono::milliseconds Config::getRandomizedPublishInterval()
 {
   std::chrono::seconds interval = getPublishInterval();
-  //@todo(esindril) review this mutex lock
-  std::lock_guard<std::mutex> lock(std::mutex);
-  std::uniform_int_distribution<> dist(interval.count() * 500,
-                                       interval.count() * 1500);
-  return std::chrono::milliseconds(dist(generator));
+  return std::chrono::milliseconds(
+      eos::common::getRandom(interval.count() * 500, interval.count() * 1500));
 }
 
 EOSFSTNAMESPACE_END

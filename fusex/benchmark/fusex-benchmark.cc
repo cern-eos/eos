@@ -11,8 +11,9 @@
 #include <string>
 #include <set>
 
-#include "common/Timing.hh"
 #include "common/ShellCmd.hh"
+#include "common/Timing.hh"
+#include "common/utils/RandUtils.hh"
 
 #define LOOP_1 100
 #define LOOP_2 100
@@ -709,7 +710,7 @@ int main(int argc, char* argv[])
     } while (rdir);
 
     for (size_t i = 0; i < 10 * LOOP_17; i++) {
-      size_t idx = LOOP_17 * (1.0 * std::rand() / (RAND_MAX));
+      size_t idx = eos::common::getRandom<unsigned long>(0, LOOP_17 - 1);
       seekdir(dir, idx);
       rdir = readdir(dir);
 

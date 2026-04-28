@@ -28,6 +28,7 @@
 #include "mgm/placement/PlacementStrategy.hh"
 #include "mgm/placement/RRSeed.hh"
 #include "mgm/placement/ThreadLocalRRSeed.hh"
+#include "utils/RandUtils.hh"
 
 namespace eos::mgm::placement {
 
@@ -76,11 +77,10 @@ struct ThreadLocalRRSeeder : public RRSeeder {
 };
 
 struct RandomSeeder: public RRSeeder {
-  explicit RandomSeeder(size_t max_buckets) : rd(),
-                                              random_gen(rd()),
-                                              dist(0, max_buckets - 1),
-                                              mMaxBuckets(max_buckets)
-  {}
+  explicit RandomSeeder(size_t max_buckets)
+      : mMaxBuckets(max_buckets)
+  {
+  }
 
   size_t
   get(size_t index, size_t, size_t) override
@@ -88,10 +88,9 @@ struct RandomSeeder: public RRSeeder {
     if (index > mMaxBuckets) {
       eos_static_err("msg=\"RandomSeeder index > MaxBuckets\" index=%lu mMaxBuckets=%lu",
                      index, mMaxBuckets);
-      // This is a really bad random number, but this code should be unreachable
-      return dist(random_gen) + index - mMaxBuckets;
+      return eos::common::getRandom(0ul, mMaxBuckets - 1) + index - mMaxBuckets;
     }
-    return dist(random_gen);
+    return eos::common::getRandom(0ul, mMaxBuckets - 1);
   }
 
   size_t
@@ -100,10 +99,7 @@ struct RandomSeeder: public RRSeeder {
     return mMaxBuckets;
   }
 
-  private:
-  std::random_device rd;
-  std::mt19937 random_gen;
-  std::uniform_int_distribution<size_t> dist;
+private:
   size_t mMaxBuckets;
 };
 

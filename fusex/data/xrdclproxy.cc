@@ -1378,7 +1378,7 @@ XrdCl::Proxy::ReadAsyncPrepare(XrdCl::shared_proxy proxy, off_t offset,
   if (ChunkRMap().count(src->offset())) {
     return XrdCl::Proxy::read_handler{};
   }
-  
+
   inc_read_chunks_in_flight();
 
   ChunkRMap()[(uint64_t) src->offset()] = src;
@@ -1573,8 +1573,8 @@ XrdCl::Fuzzing::OpenAsyncSubmitFuzz()
 {
   if (open_async_submit_scaler) {
     if (!(open_async_submit_counter++ % open_async_submit_scaler)) {
-      size_t random_error = rand() % (non_fatal_errors + (open_async_submit_fatal ?
-                                      fatal_errors : 0));
+      size_t random_error = eos::common::getRandom<size_t>(
+          0, non_fatal_errors + (open_async_submit_fatal ? fatal_errors : 0) - 1);
       eos_static_debug("fuzzing error %d", errors[random_error]);
 
       if (random_error < non_fatal_errors) {
@@ -1604,8 +1604,8 @@ XrdCl::Fuzzing::OpenAsyncResponseFuzz()
 {
   if (open_async_return_scaler) {
     if (!(open_async_return_counter++ % open_async_return_scaler)) {
-      size_t random_error = rand() % (non_fatal_errors + (open_async_return_fatal ?
-                                      fatal_errors : 0));
+      size_t random_error = eos::common::getRandom<size_t>(
+          0, non_fatal_errors + (open_async_return_fatal ? fatal_errors : 0) - 1);
       eos_static_debug("fuzzing error %d", errors[random_error]);
 
       if (random_error < non_fatal_errors) {

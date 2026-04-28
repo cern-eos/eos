@@ -24,6 +24,7 @@
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
+#include "common/utils/RandUtils.hh"
 #include <XrdCl/XrdClFile.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <sstream>
@@ -259,10 +260,9 @@ ICmdHelper::ConfirmOperation()
 {
   std::ostringstream out;
   std::string confirmation;
-  srand(time(NULL));
 
   for (int i = 0; i < 10; i++) {
-    confirmation += std::to_string((int)(9.0 * rand() / RAND_MAX));
+    confirmation += std::to_string(eos::common::getRandom<int>(0, 8));
   }
 
   out << "Confirm operation by typing => " << confirmation << std::endl;

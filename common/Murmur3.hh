@@ -1,5 +1,5 @@
 #pragma once
-#include <random>
+#include "common/utils/RandUtils.hh"
 
 namespace Murmur3
 {
@@ -28,10 +28,7 @@ namespace Murmur3
   struct MurmurHasher<std::string> {
     size_t operator()(const std::string& key) const noexcept
     {
-      static std::random_device murmur_rd;
-      static std::mt19937_64 murmur_gen(murmur_rd());
-      static std::uniform_int_distribution<uint64_t> murmur_dis;
-      static const size_t seed = murmur_dis(murmur_gen);
+      static const size_t seed = eos::common::getRandom64();
       static const uint32_t c1 = 0xcc9e2d51;
       static const uint32_t c2 = 0x1b873593;
       static const uint64_t c3 = 0xff51afd7ed558ccd;

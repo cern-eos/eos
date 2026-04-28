@@ -22,10 +22,11 @@
  ************************************************************************/
 
 #pragma once
+#include "common/AssistedThread.hh"
+#include "common/utils/RandUtils.hh"
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
-#include <chrono>
-#include "common/AssistedThread.hh"
 
 // A common pattern in the EOS code for long running threads is:
 //   while (!assistant.terminationRequested()) {
@@ -143,7 +144,7 @@ public:
     std::unique_lock lock(mMutex);
 
     if (mIntervalSec != 0) {
-      random_sleep_time = rand() % mIntervalSec + 1;
+      random_sleep_time = eos::common::getRandom(0ul, mIntervalSec);
     }
 
     if (callback) {

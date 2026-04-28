@@ -311,8 +311,8 @@ com_quota(char* arg1)
       XrdOucString confirmation = "";
 
       for (int i = 0; i < 10; i++) {
-	// coverity[DC.WEAK_CRYPTO]
-	confirmation += (int)(9.0 * rand() / RAND_MAX);
+        // coverity[DC.WEAK_CRYPTO]
+        confirmation += eos::common::getRandom<int>(0, 8);
       }
 
       fprintf(stdout, "%s\n", confirmation.c_str());

@@ -177,10 +177,7 @@ FsBalancer::GetRandomIter(Vect& vect)
     return iter;
   }
 
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<> dist(1, size);
-  size_t index = dist(gen);
+  size_t index = eos::common::getRandom(1ul, size);
 
   while (index > 1) {
     --index;

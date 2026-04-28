@@ -316,11 +316,10 @@ TEST_F(FileSystemViewF, RandomFilePicking)
 //------------------------------------------------------------------------------
 TEST_F(FileSystemViewF, FileIterator)
 {
-  std::srand(std::time(0));
   std::unordered_set<eos::IFileMD::id_t> input_set;
 
   for (std::uint64_t i = 0ull; i < 50000; ++i) {
-    double frac = std::rand() / (double)RAND_MAX;
+    double frac = eos::common::getRandom<uint64_t>(0, UINT64_MAX) / (double)UINT64_MAX;
     (void)input_set.insert((uint64_t)(UINT64_MAX * frac));
   }
 

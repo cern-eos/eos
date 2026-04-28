@@ -22,10 +22,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
-#include <unistd.h>
-#include <climits>
+#include "common/utils/RandUtils.hh"
 #include "fusex/data/rbtree.hh"
+#include "gtest/gtest.h"
+#include <climits>
+#include <unistd.h>
 
 class RBTreeTest
 {
@@ -33,17 +34,15 @@ public:
 
   static void Populate(rbtree<int, std::string>& tree)
   {
-    srand(time(NULL));
-
     for (int i = 0; i < 1000; ++i) {
-      int k = rand() % 1000 + 1;
+      int k = eos::common::getRandom<int>(1, 1000);
       std::stringstream ss;
       ss << k;
       tree.insert(k, ss.str());
     }
 
     for (int i = 0; i < 200; ++i) {
-      int k = rand() % 1000 + 1;
+      int k = eos::common::getRandom<int>(1, 1000);
       tree.erase(k);
     }
   }

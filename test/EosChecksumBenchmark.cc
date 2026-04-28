@@ -27,8 +27,9 @@
 /*-----------------------------------------------------------------------------*/
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
-#include "common/Timing.hh"
 #include "common/StringConversion.hh"
+#include "common/Timing.hh"
+#include "common/utils/RandUtils.hh"
 #include "fst/checksum/ChecksumPlugins.hh"
 /*-----------------------------------------------------------------------------*/
 #include <XrdPosix/XrdPosixXrootd.hh>
@@ -97,7 +98,7 @@ int main(int argc, char* argv[])
       eos_static_info("write randomized contents into %s", size.c_str());
 
       for (off_t i = 0; i < MEMORYBUFFERSIZE; i++) {
-        buffer[i] = (rand()) % 256;
+        buffer[i] = eos::common::getRandom(0, 255);
       }
 
       eos_static_info("write zeros into xs buffers");

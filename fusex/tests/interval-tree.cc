@@ -22,27 +22,25 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <list>
+#include "common/utils/RandUtils.hh"
 #include "fusex/data/interval_tree.hh"
 #include "gtest/gtest.h"
+#include <list>
 
 static void Populate(interval_tree<int, std::string>& tree)
 {
-  std::list< std::pair<int, int> > intervals;
-  srand(time(NULL));
-
+  std::list<std::pair<int, int>> intervals;
   for (int i = 0; i < 1000; ++i) {
-    int m = rand() % 999 + 1;
-    int l = rand() % m + 1;
-    int h = m + rand() % (1000 - m) + 1;
+    int m = eos::common::getRandom<int>(1, 999);
+    int l = eos::common::getRandom<int>(1, m);
+    int h = m + eos::common::getRandom<int>(1, 1000 - m);
     std::stringstream ss;
     ss << "(" << l << ", " << h << ")";
     tree.insert(l, h, ss.str());
     intervals.push_back(std::make_pair(l, h));
   }
-
   for (int i = 0; i < 200; ++i) {
-    int index = rand() % intervals.size();
+    int index = eos::common::getRandom<int>(0, intervals.size() - 1);
     auto itr = intervals.begin();
     std::advance(itr, index);
     tree.erase(itr->first, itr->second);

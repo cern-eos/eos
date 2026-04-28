@@ -1,11 +1,9 @@
 
 #include "ThreadLocalRRSeed.hh"
 #include "common/Logging.hh"
+#include "utils/RandUtils.hh"
 
 namespace eos::mgm::placement {
-
-std::random_device ThreadLocalRRSeed::rd;
-std::mt19937 ThreadLocalRRSeed::random_gen(rd());
 
 thread_local std::vector<uint64_t> ThreadLocalRRSeed::gRRSeeds(kDefaultMaxRRSeeds,0);
 
@@ -14,10 +12,8 @@ ThreadLocalRRSeed::init(size_t max_items, bool randomize)
 {
   gRRSeeds.resize(max_items, 0);
   if (randomize) {
-    std::uniform_int_distribution<uint64_t> dist(0, max_items);
-
     for (size_t i = 0; i < max_items; i++) {
-      gRRSeeds[i] = dist(random_gen);
+      gRRSeeds[i] = eos::common::getRandom(0ul, max_items);
     }
   }
 
@@ -29,10 +25,8 @@ ThreadLocalRRSeed::resize(size_t max_items, bool randomize)
   auto old_size = gRRSeeds.size();
   gRRSeeds.resize(max_items, 0);
   if (randomize) {
-    std::uniform_int_distribution<uint64_t> dist(0, max_items);
-
     for (size_t i = old_size; i < max_items; i++) {
-      gRRSeeds[i] = dist(random_gen);
+      gRRSeeds[i] = eos::common::getRandom(0ul, max_items);
     }
   }
 }
