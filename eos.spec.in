@@ -489,6 +489,9 @@ The EOS shell client.
 %{_libdir}/libEosCommon.so.%{major_version}
 %{_libdir}/libEosCommon.so
 %{_sysconfdir}/bash_completion.d/eos
+%{_sysconfdir}/profile.d/eos-completion.sh
+%{_datadir}/bash-completion/completions/eos
+%{_datadir}/zsh/site-functions/_eos
 %{_sysconfdir}/fuse.conf.eos
 
 # Documentation

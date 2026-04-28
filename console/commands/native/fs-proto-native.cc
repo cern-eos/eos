@@ -3,8 +3,8 @@
 // ----------------------------------------------------------------------
 
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCompletion.hh"
 #include "console/ConsoleMain.hh"
-#include <CLI/CLI.hpp>
 #include "console/commands/helpers/FsHelper.hh"
 #include <iomanip>
 #include <memory>
@@ -264,18 +264,6 @@ std::string MakeFsHelp()
   return oss.str();
 }
 
-void ConfigureFsApp(CLI::App& app)
-{
-  app.name("fs");
-  app.description("File System configuration");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeFsHelp();
-      }));
-}
-
 class FsProtoCommand : public IConsoleCommand {
 public:
   const char*
@@ -287,6 +275,16 @@ public:
   description() const override
   {
     return "File System configuration";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeFsHelp();
+  }
+  std::vector<std::string>
+  complete(const std::vector<std::string>& args) const override
+  {
+    return eos_help_completion_candidates(name(), helpText(), args);
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -325,9 +323,7 @@ public:
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureFsApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 } // namespace

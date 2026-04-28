@@ -22,6 +22,9 @@
 
 #pragma once
 
+#include <string>
+#include <vector>
+
 //------------------------------------------------------------------------------
 //! EOS console custom completion function to be used by the readline library
 //! to provide autocompletion.
@@ -68,6 +71,11 @@ char* eos_all_generator(const char* text, int state);
 char* eos_command_generator(const char* text, int state);
 
 //------------------------------------------------------------------------------
+//! Generic generator for word-based completions returned by a command hook.
+//------------------------------------------------------------------------------
+char* eos_word_generator(const char* text, int state);
+
+//------------------------------------------------------------------------------
 //! Helper function to extract the dirname and base name from a absolute or
 //! relative path. For example:
 //! "/a/b/c/d"  -> dirname: "/a/b/c/"   and basename: "d"
@@ -84,3 +92,49 @@ char* eos_command_generator(const char* text, int state);
 void eos_path_split(const std::string& input, std::string& dirname,
                     std::string& basename);
 
+//------------------------------------------------------------------------------
+//! Tokenize the command prefix before the cursor while honoring simple shell
+//! quoting rules.
+//------------------------------------------------------------------------------
+std::vector<std::string> eos_completion_tokenize_prefix(const std::string& input);
+
+//------------------------------------------------------------------------------
+//! Return completion candidates for shell integrations based on the tokens
+//! already present before the current word and the current word prefix.
+//------------------------------------------------------------------------------
+std::vector<std::string>
+eos_shell_completion_candidates(const std::vector<std::string>& precedingTokens,
+                                const std::string& currentWord);
+
+//------------------------------------------------------------------------------
+//! Return completion candidates derived from a command help text.
+//------------------------------------------------------------------------------
+std::vector<std::string>
+eos_help_completion_candidates(const std::string& commandName,
+                               const std::string& helpText,
+                               const std::vector<std::string>& args);
+
+//------------------------------------------------------------------------------
+//! Decide whether the current shell-completion context should offer EOS path
+//! candidates and whether they should be limited to directories.
+//------------------------------------------------------------------------------
+enum class EosShellPathCompletionMode {
+  None,
+  Any,
+  Directories,
+};
+
+EosShellPathCompletionMode
+eos_shell_path_completion_mode(const std::string& commandName,
+                               const std::vector<std::string>& args,
+                               const std::string& currentWord);
+
+//------------------------------------------------------------------------------
+//! Resolve a shell token into a rooted EOS lookup directory, the prefix that
+//! should be re-applied to display candidates, and the basename currently being
+//! completed.
+//------------------------------------------------------------------------------
+void eos_shell_resolve_rooted_path_input(const std::string& currentWord,
+                                         std::string& lookupDir,
+                                         std::string& displayPrefix,
+                                         std::string& basename);

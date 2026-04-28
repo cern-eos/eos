@@ -1,0 +1,61 @@
+#compdef eos
+
+local current_word="${words[CURRENT]}"
+
+if [[ ${current_word} == ./* || ${current_word} == ../* || ${current_word} == ~/* ]]; then
+  _path_files
+  return $?
+fi
+
+integer eos_command_index=0
+local token
+
+for (( eos_command_index = 2; eos_command_index < CURRENT; ++eos_command_index )); do
+  token="${words[eos_command_index]}"
+
+  case "${token}" in
+    -a|--app)
+      (( ++eos_command_index ))
+      continue
+      ;;
+    -r|--role)
+      (( eos_command_index += 2 ))
+      continue
+      ;;
+    -b|--batch|-h|--help|-j|--json|-s|-v|--version)
+      continue
+      ;;
+    root://*|ipc://*)
+      continue
+      ;;
+    -*)
+      continue
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
+
+local -a eos_args completions
+
+eos_args=("${(@)words[2,CURRENT-1]}")
+eos_args+=("${current_word}")
+
+completions=("${(@f)$(eos __complete "${eos_args[@]}" 2>/dev/null)}")
+
+if (( ${#completions[@]} == 0 )); then
+  if [[ ${current_word} != -* && ${current_word} != /eos* ]] &&
+     (( eos_command_index < CURRENT )) &&
+     [[ "${words[eos_command_index]}" == (acl|attr|cat|cd|chmod|chown|cp|du|file|fileinfo|find|info|ln|ls|mkdir|mv|rm|rmdir|stat|touch) ]]; then
+    _path_files
+    return $?
+  fi
+  return 1
+fi
+
+if (( ${#${(M)completions:#*/}} > 0 )); then
+  compadd -Q -f -S '' -- "${completions[@]}"
+else
+  compadd -Q -- "${completions[@]}"
+fi
