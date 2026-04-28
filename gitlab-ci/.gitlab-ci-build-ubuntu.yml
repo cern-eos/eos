@@ -139,7 +139,7 @@ publish_debian:
     - apt-get install -y sudo apt-utils sssd gpg
     - mkdir /home/stci; chown -R stci:def-cg /home/stci; chmod -R 700 /home/stci;
     - export GNUPGHOME=/home/stci
-    - sudo -u stci -H gpg --import $STCI_REPO_KEY; fi
+    - sudo -u stci -H gpg --import $STCI_REPO_KEY
     - sudo -u stci -H -E ./gitlab-ci/remove_old_artifacts_debian.sh
   allow_failure: true
   only:
