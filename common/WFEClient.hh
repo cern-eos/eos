@@ -37,6 +37,24 @@ public:
   virtual ~WFEClient() = default;
 };
 
+class RequestSenderConfig {
+public:
+  bool protowfusegrpc;
+  std::string endpoint;
+  std::string ssi_resource;
+  std::optional<std::string> root_certs;
+  std::string token_path;
+  bool protowfusegrpctls;
+
+  RequestSenderConfig(bool protowfusegrpc, std::string endpoint, std::string resource, std::optional<std::string> root_certs, std::string token_path, bool protowfusegrpctls) :
+    protowfusegrpc(protowfusegrpc), 
+    endpoint(endpoint),
+    ssi_resource(resource),
+    root_certs(root_certs),
+    token_path(token_path),
+    protowfusegrpctls(protowfusegrpctls) {}
+};
+
 class WFEGrpcClient : public WFEClient {
 public:
   WFEGrpcClient(const std::string& endpoint_str, std::optional<std::string> root_certs, const std::string& token_path_str, bool protowfusegrpctls) {
@@ -163,9 +181,9 @@ private:
 };
 
 std::unique_ptr<WFEClient>
-CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_resource, std::optional<std::string> root_certs, std::string token_path, bool protowfusegrpctls) {
-  if (protowfusegrpc) {
-    return std::make_unique<WFEGrpcClient>(endpoint, root_certs, token_path, protowfusegrpctls);
+CreateRequestSender(const RequestSenderConfig &cf) {
+  if (cf.protowfusegrpc) {
+    return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.root_certs, cf.token_path, cf.protowfusegrpctls);
   } else {
     XrdSsiPb::Config config;
 
@@ -176,6 +194,6 @@ CreateRequestSender(bool protowfusegrpc, std::string endpoint, std::string ssi_r
     }
 
     config.set("request_timeout", "120");
-    return std::make_unique<WFEXrdClient>(endpoint, ssi_resource, config);
+    return std::make_unique<WFEXrdClient>(cf.endpoint, cf.ssi_resource, config);
   }
 }
