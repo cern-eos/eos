@@ -45,21 +45,33 @@ public:
   std::optional<std::string> root_certs;
   std::string token_path;
   bool protowfusegrpctls;
+  std::string client_cert_path;
+  std::string client_key_path;
 
-  RequestSenderConfig(bool protowfusegrpc, std::string endpoint, std::string resource, std::optional<std::string> root_certs, std::string token_path, bool protowfusegrpctls) :
-    protowfusegrpc(protowfusegrpc), 
-    endpoint(endpoint),
-    ssi_resource(resource),
-    root_certs(root_certs),
-    token_path(token_path),
-    protowfusegrpctls(protowfusegrpctls) {}
+  RequestSenderConfig(bool protowfusegrpc, std::string endpoint, std::string resource,
+                      std::optional<std::string> root_certs, std::string token_path,
+                      bool protowfusegrpctls, std::string client_cert_path,
+                      std::string client_key_path)
+      : protowfusegrpc(protowfusegrpc)
+      , endpoint(endpoint)
+      , ssi_resource(resource)
+      , root_certs(root_certs)
+      , token_path(token_path)
+      , protowfusegrpctls(protowfusegrpctls)
+      , client_cert_path(client_cert_path)
+      , client_key_path(client_key_path) {}
 };
 
 class WFEGrpcClient : public WFEClient {
 public:
-  WFEGrpcClient(const std::string& endpoint_str, std::optional<std::string> root_certs, const std::string& token_path_str, bool protowfusegrpctls) {
+  WFEGrpcClient(const std::string& endpoint_str, std::optional<std::string> root_certs,
+                const std::string& token_path_str, bool protowfusegrpctls,
+                const std::string& cert_path_str, const std::string& key_path_str)
+  {
     endpoint = endpoint_str;
     token_path = token_path_str;
+    cert_path = cert_path_str;
+    key_path = key_path_str;
 
     std::shared_ptr<grpc::ChannelCredentials> credentials;
     grpc::SslCredentialsOptions ssl_options;
@@ -70,9 +82,21 @@ public:
         eos::common::StringConversion::LoadFileIntoString(root_certs.value().c_str(), root_certs_contents);
         ssl_options.pem_root_certs = root_certs_contents;
       } else {
-        ssl_options.pem_root_certs = "";
+        ssl_options.pem_root_certs = ""; // grpc will use default root certs if left blank
       }
       eos_static_info("value used in pem_root_certs is %s", ssl_options.pem_root_certs.c_str());
+      if (!cert_path.empty()) {
+        std::string client_cert_contents;
+        eos::common::StringConversion::LoadFileIntoString(cert_path.c_str(), client_cert_contents);
+        ssl_options.pem_cert_chain = client_cert_contents;
+      }
+      if (!key_path.empty()) {
+        std::string client_key_contents;
+        eos::common::StringConversion::LoadFileIntoString(key_path.c_str(), client_key_contents);
+        ssl_options.pem_private_key = client_key_contents;
+      }
+      eos_static_info("mTLS client cert path=\"%s\" key path=\"%s\"",
+                      cert_path.c_str(), key_path.c_str());
       credentials = grpc::SslCredentials(ssl_options);
     } else {
       credentials = grpc::InsecureChannelCredentials();
@@ -161,6 +185,8 @@ private:
   std::string endpoint;
   std::unique_ptr<cta::xrd::CtaRpc::Stub> client_stub;
   std::string token_path;
+  std::string cert_path;
+  std::string key_path;
 };
 
 class WFEXrdClient : public WFEClient {
@@ -183,7 +209,9 @@ private:
 std::unique_ptr<WFEClient>
 CreateRequestSender(const RequestSenderConfig &cf) {
   if (cf.protowfusegrpc) {
-    return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.root_certs, cf.token_path, cf.protowfusegrpctls);
+    return std::make_unique<WFEGrpcClient>(cf.endpoint, cf.root_certs, cf.token_path,
+                                           cf.protowfusegrpctls, cf.client_cert_path,
+                                           cf.client_key_path);
   } else {
     XrdSsiPb::Config config;
 
