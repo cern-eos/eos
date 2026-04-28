@@ -4,7 +4,7 @@
 
 #include "common/StringTokenizer.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleCompletion.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <iomanip>
@@ -40,18 +40,6 @@ std::string MakeGroupHelp()
          "drained to other groups\n"
       << std::endl;
   return oss.str();
-}
-
-void ConfigureGroupApp(CLI::App& app)
-{
-  app.name("group");
-  app.description("Group configuration");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeGroupHelp();
-      }));
 }
 
 class GroupHelper : public ICmdHelper {
@@ -143,6 +131,16 @@ public:
   {
     return "Group configuration";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeGroupHelp();
+  }
+  std::vector<std::string>
+  complete(const std::vector<std::string>& args) const override
+  {
+    return eos_help_completion_candidates(name(), helpText(), args);
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -178,9 +176,7 @@ public:
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureGroupApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 } // namespace

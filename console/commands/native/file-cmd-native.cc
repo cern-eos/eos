@@ -6,14 +6,15 @@
 #include <inttypes.h>
 
 #include "common/FileId.hh"
-#include <CLI/CLI.hpp>
 #include "common/Fmd.hh"
 #include "common/LayoutId.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCompletion.hh"
 #include "console/ConsoleMain.hh"
+#include <CLI/CLI.hpp>
 #include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClURL.hh>
 #include <XrdOuc/XrdOucEnv.hh>
@@ -21,7 +22,6 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdlib>
-#include <vector>
 #include <cstring>
 #include <errno.h>
 #include <limits>
@@ -30,6 +30,7 @@
 #include <set>
 #include <sstream>
 #include <time.h>
+#include <vector>
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -570,6 +571,16 @@ public:
   description() const override
   {
     return "File Handling";
+  }
+  std::string
+  helpText() const override
+  {
+    return MakeFileHelp();
+  }
+  std::vector<std::string>
+  complete(const std::vector<std::string>& args) const override
+  {
+    return eos_help_completion_candidates(name(), helpText(), args);
   }
   bool
   requiresMgm(const std::string& args) const override
@@ -1123,7 +1134,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeFileHelp().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 } // namespace

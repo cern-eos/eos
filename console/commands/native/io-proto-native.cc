@@ -4,6 +4,7 @@
 
 #include "common/StringConversion.hh"
 #include "console/CommandFramework.hh"
+#include "console/ConsoleCompletion.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include <CLI/CLI.hpp>
@@ -437,6 +438,16 @@ public:
   {
     return "IO Interface";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeIoHelp();
+  }
+  std::vector<std::string>
+  complete(const std::vector<std::string>& args) const override
+  {
+    return eos_help_completion_candidates(name(), helpText(), args);
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -472,7 +483,7 @@ public:
   void
   printHelp() const override
   {
-    fprintf(stderr, "%s", MakeIoHelp().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 } // namespace

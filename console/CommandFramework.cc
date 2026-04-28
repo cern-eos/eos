@@ -16,6 +16,10 @@ CommandRegistry& CommandRegistry::instance()
   return inst;
 }
 
+namespace {
+bool gRegistryInitialized = false;
+}
+
 void CommandRegistry::reg(std::unique_ptr<IConsoleCommand> cmd)
 {
   mCommandsView.push_back(cmd.get());
@@ -49,6 +53,12 @@ int CFuncCommandAdapter::run(const std::vector<std::string>& args, CommandContex
 // Default empty; concrete commands will be registered here as they are migrated
 void RegisterNativeConsoleCommands()
 {
+  if (gRegistryInitialized) {
+    return;
+  }
+
+  gRegistryInitialized = true;
+
   // Registration split across native modules for maintainability
   // Core
   extern void RegisterCoreNativeCommands();
@@ -218,4 +228,10 @@ void RegisterNativeConsoleCommands()
   extern void RegisterVidNativeCommand();
   RegisterVidNativeCommand();
   // RemainingLegacyNativeCommands removed
+}
+
+void
+EnsureNativeCommandRegistryInitialized()
+{
+  RegisterNativeConsoleCommands();
 }

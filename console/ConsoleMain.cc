@@ -85,22 +85,11 @@ int done;
 XrdOucEnv* CommandEnv = 0;
 static sigjmp_buf sigjump_buf;
 
-// Registry initialization helper
-static bool registryInitialized = false;
-
-static void EnsureRegistryInitialized()
-{
-  if (!registryInitialized) {
-    RegisterNativeConsoleCommands();
-    registryInitialized = true;
-  }
-}
-
 // Convenience runner using the registered native commands
 static int RunRegisteredCommand(const std::string& cmdName,
                                 const std::vector<std::string>& argsVec)
 {
-  EnsureRegistryInitialized();
+  EnsureNativeCommandRegistryInitialized();
   IConsoleCommand* icmd = CommandRegistry::instance().find(cmdName);
   if (!icmd) {
     fprintf(stderr, "%s: No such command for EOS Console.\n", cmdName.c_str());
@@ -632,6 +621,33 @@ usage()
   fprintf(stderr, "Report bugs to eos-dev@cern.ch\n");
 }
 
+namespace {
+int
+RunShellCompletion(int argc, char* argv[], int argindex)
+{
+  std::vector<std::string> words;
+
+  for (int i = argindex; i < argc; ++i) {
+    words.emplace_back(argv[i] ? argv[i] : "");
+  }
+
+  std::string currentWord;
+
+  if (!words.empty()) {
+    currentWord = words.back();
+    words.pop_back();
+  }
+
+  const auto candidates = eos_shell_completion_candidates(words, currentWord);
+
+  for (const auto& candidate : candidates) {
+    fprintf(stdout, "%s\n", candidate.c_str());
+  }
+
+  return 0;
+}
+} // namespace
+
 //------------------------------------------------------------------------------
 // Main executable
 //------------------------------------------------------------------------------
@@ -690,6 +706,10 @@ Run(int argc, char* argv[])
 
   if (argc > 1) {
     XrdOucString in1 = argv[argindex];
+
+    if (in1 == "__complete") {
+      return RunShellCompletion(argc, argv, argindex + 1);
+    }
 
     if (in1.beginswith("-")) {
       if ((in1 != "--help") &&
@@ -1049,7 +1069,7 @@ execute_line(char* line)
   }
 
   // Initialize registry on first use
-  EnsureRegistryInitialized();
+  EnsureNativeCommandRegistryInitialized();
 
   std::string cmdName = *tokens.begin();
   IConsoleCommand* icmd = CommandRegistry::instance().find(cmdName);
