@@ -647,6 +647,28 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
         }
 
+        if (!strcmp("protowfusegrpctlscert", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for protowfusegrpctlscert missing. "
+                        "Should be an absolute path to the client certificate.");
+            NoGo = 1;
+          } else {
+            gConfig.protowfusegrpctlscert = val;
+            Eroute.Say("=====> fstofs.protowfusegrpctlscert : ", val);
+          }
+        }
+
+        if (!strcmp("protowfusegrpctlskey", var)) {
+          if (!(val = Config.GetWord())) {
+            Eroute.Emsg("Config", "argument for protowfusegrpctlskey missing. "
+                        "Should be an absolute path to the client private key.");
+            NoGo = 1;
+          } else {
+            gConfig.protowfusegrpctlskey = val;
+            Eroute.Say("=====> fstofs.protowfusegrpctlskey : ", val);
+          }
+        }
+
         if (!strcmp("jwttokenpath", var)) {
           if (!(val = Config.GetWord())) {
             Eroute.Emsg("Config", "argument 2 for JwtTokenPath missing. Should be "
