@@ -4107,6 +4107,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   bool protowfusegrpc;
   std::string tokenPath;
   bool protowfusegrpctls;
+  std::string protowfusegrpctlscert;
+  std::string protowfusegrpctlskey;
   {
     XrdSysMutexHelper lock(gConfig.Mutex);
     endPoint = gConfig.ProtoWFEndpoint;
@@ -4114,6 +4116,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
     protowfusegrpc = gConfig.protowfusegrpc;
     tokenPath = gConfig.JwtTokenPath;
     protowfusegrpctls = gConfig.protowfusegrpctls;
+    protowfusegrpctlscert = gConfig.protowfusegrpctlscert;
+    protowfusegrpctlskey = gConfif.protowfeusegrpctlskey;
   }
 
   if (endPoint.empty() || resource.empty()) {
@@ -4131,8 +4135,8 @@ XrdFstOfsFile::NotifyProtoWfEndPointClosew(uint64_t file_id,
   try {
     // Instantiate service object only once, static is also thread-safe
     // If static initialization throws an exception, it will be retried next time
-    static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(
-          protowfusegrpc, endPoint, resource, root_certs, tokenPath, protowfusegrpctls);
+    RequestSenderConfig cf(protowfusegrpc, endPoint, resource, root_certs, tokenPath, protowfusegrpctls);
+    static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(cf);
     auto sentAt = std::chrono::steady_clock::now();
     response_type = request_sender->send(request, response);
     auto receivedAt = std::chrono::steady_clock::now();
