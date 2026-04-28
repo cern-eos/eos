@@ -24,8 +24,8 @@
 include_directories(
   ${CMAKE_SOURCE_DIR}/namespace/ns_quarkdb/qclient/include
   ${CMAKE_SOURCE_DIR}/common/xrootd-ssi-protobuf-interface/include
-  ${CMAKE_SOURCE_DIR}/common
-)
+  ${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/
+  ${CMAKE_SOURCE_DIR}/common)
 
 #-------------------------------------------------------------------------------
 # Add XrdCl RAIN plugin library only if explicitly requested by using the
@@ -336,7 +336,6 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XROOTD::PRIVATE
   XROOTD::SERVER
   XFS::XFS
-  jwt-cpp::jwt-cpp
   stdc++fs)
 
 if(TARGET PROCPS::PROCPS)
