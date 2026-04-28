@@ -21,23 +21,23 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/Namespace.hh"
 #include "common/Mapping.hh"
-#include "common/Macros.hh"
 #include "common/Logging.hh"
+#include "common/Macros.hh"
+#include "common/Namespace.hh"
 #include "common/SecEntity.hh"
-#include "common/SymKeys.hh"
 #include "common/StringUtils.hh"
+#include "common/SymKeys.hh"
 #include "common/token/EosTok.hh"
-#include <XrdNet/XrdNetUtils.hh>
+#include "jwt-cpp/jwt.h"
+#include <XrdAcc/XrdAccAuthorize.hh>
 #include <XrdNet/XrdNetAddr.hh>
+#include <XrdNet/XrdNetUtils.hh>
 #include <XrdOuc/XrdOucEnv.hh>
 #include <XrdSec/XrdSecEntityAttr.hh>
-#include <XrdAcc/XrdAccAuthorize.hh>
-#include <pwd.h>
 #include <grp.h>
+#include <pwd.h>
 #include <sys/stat.h>
-#include <jwt-cpp/jwt.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
