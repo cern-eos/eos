@@ -64,6 +64,7 @@ This
     "submounts" : 0,
     "inmemory-inodes" : 16384,
     "tmp-fake-rename" : false,
+    "hack-ms-office-file-save" : false,
   },
   "auth" : {
     "shared-mount" : 1,
@@ -73,9 +74,9 @@ This
     "ssskeytab" : "/etc/eos/fuse.sss.keytab",
     "sssEndorsement" : "",
     "oauth2" : 1,
-    "ztn" : 1,    	     
+    "ztn" : 1,
     "unix" : 0,
-    "unix-root" : 0,    	  
+    "unix-root" : 0,
     "environ-deadlock-timeout" : 100,
     "forknoexec-heuristic" : 1
   },
@@ -368,7 +369,7 @@ Client Interaction with a FUSE mount
 eosxd provides a command line interface to interact with mounts (see eosxd -h):
 
 ```shell
-# eosxd -h 
+# eosxd -h
 usage CLI   : eosxd get <key> [<path>]
 
                      eos.btime <path>                   : show inode birth time
@@ -377,7 +378,7 @@ usage CLI   : eosxd get <key> [<path>]
                      eos.dsize <path>                   : show total size of files inside a directory
 		     eos.checksum <path>                : show path checksum if defined
                      eos.name <path>                    : show EOS instance name for given path
-                     eos.md_ino <path>                  : show inode number valid on MGM 
+                     eos.md_ino <path>                  : show inode number valid on MGM
                      eos.hostport <path>                : show MGM connection host + port for given path
                      eos.mgmurl <path>                  : show MGM URL for a given path
                      eos.stats <path>                   : show mount statistics

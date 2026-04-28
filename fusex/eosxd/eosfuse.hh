@@ -290,6 +290,7 @@ public:
       std::vector<std::string> nowait_flush_executables;
       bool protect_directory_symlink_loops;
       bool fakerename;
+      bool hack_ms_office_file_save;
     } options_t;
 
     typedef struct recovery {

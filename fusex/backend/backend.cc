@@ -24,11 +24,12 @@
 
 #include "backend/backend.hh"
 #include "cap/cap.hh"
-#include "misc/fusexrdlogin.hh"
-#include "eosfuse.hh"
 #include "common/Logging.hh"
+#include "common/Path.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
+#include "eosfuse.hh"
+#include "misc/fusexrdlogin.hh"
 #include <XrdCl/XrdClFile.hh>
 #include <XrdCl/XrdClURL.hh>
 
@@ -626,6 +627,156 @@ backend::rmRf(fuse_req_t req, eos::fusex::md* md)
       return retc;
     }
   }
+}
+
+int
+/* -------------------------------------------------------------------------- */
+backend::procCommand(fuse_req_t req, const XrdCl::URL::ParamsMap& params)
+/* -------------------------------------------------------------------------- */
+{
+  XrdCl::URL url("root://" + hostport);
+  url.SetPath("/proc/user/");
+  XrdCl::URL::ParamsMap query = params;
+  query["mgm.uuid"] = clientuuid;
+  query["mgm.retc"] = "1";
+
+  if (req) {
+    query["mgm.cid"] = cap::capx::getclientid(req);
+  }
+
+  query["eos.app"] = get_appname();
+  query["fuse.v"] = std::to_string(FUSEPROTOCOLVERSION);
+
+  if (req) {
+    fusexrdlogin::loginurl(url, query, req, 0);
+  }
+
+  url.SetParams(query);
+  std::unique_ptr<XrdCl::File> file(new XrdCl::File());
+  XrdCl::XRootDStatus status =
+      file->Open(url.GetURL().c_str(), XrdCl::OpenFlags::Flags::Read);
+
+  if (status.IsOK()) {
+    return 0;
+  }
+
+  if (status.code == XrdCl::errErrorResponse) {
+    return mapErrCode(status.errNo);
+  }
+
+  return EREMOTEIO;
+}
+
+int
+/* -------------------------------------------------------------------------- */
+backend::versionFile(fuse_req_t req, const std::string& full_path, uint64_t src_ctime,
+                     uint64_t src_fid, int max_versions)
+/* -------------------------------------------------------------------------- */
+{
+  // Build version dir and target path:
+  // <parent>/.sys.v#.<basename>/<ctime>.<fxid_hex>
+  eos::common::Path cPath(full_path.c_str());
+  std::string version_dir =
+      std::string(cPath.GetParentPath()) + ".sys.v#." + cPath.GetName();
+  char vname[64];
+  snprintf(vname, sizeof(vname) - 1, "%llu.%08llx", (unsigned long long)src_ctime,
+           (unsigned long long)src_fid);
+  std::string version_path = version_dir + "/" + vname;
+  eos_static_debug("msg=\"hack-ms-office-file-save: versionFile entry\" "
+                   "src=\"%s\" version_dir=\"%s\" version_path=\"%s\" "
+                   "max_versions=%d",
+                   full_path.c_str(), version_dir.c_str(), version_path.c_str(),
+                   max_versions);
+  // 1) mkdir -p the version directory.
+  int rc = procCommand(
+      req, {{"mgm.cmd", "mkdir"}, {"mgm.path", version_dir}, {"mgm.option", "p"}});
+
+  if (rc && rc != EEXIST) {
+    eos_static_err("msg=\"hack-ms-office-file-save: mkdir version dir failed\" "
+                   "path=\"%s\" errno=%d",
+                   version_dir.c_str(), rc);
+    return rc;
+  }
+
+  eos_static_debug("msg=\"hack-ms-office-file-save: mkdir version dir ok\" "
+                   "path=\"%s\"",
+                   version_dir.c_str());
+  // 2) Server-side TPC copy of the source into the version directory.
+  //    The target has no atomic prefix, so the FST commit's de-atomize
+  //    logic does not run and the source FMD's identity stays put.
+  //    The "f" option forces an overwrite if the target already exists
+  //    (same ctime+fxid collision, duplicate hook fire) so the snapshot
+  //    stays idempotent.
+  rc = procCommand(req, {{"mgm.cmd", "file"},
+                         {"mgm.subcmd", "copy"},
+                         {"mgm.path", full_path},
+                         {"mgm.file.target", version_path},
+                         {"mgm.file.option", "f"}});
+
+  if (rc) {
+    eos_static_err("msg=\"hack-ms-office-file-save: copy to version path failed\" "
+                   "src=\"%s\" target=\"%s\" errno=%d",
+                   full_path.c_str(), version_path.c_str(), rc);
+    return rc;
+  }
+
+  eos_static_debug("msg=\"hack-ms-office-file-save: copy to version path ok\" "
+                   "src=\"%s\" target=\"%s\"",
+                   full_path.c_str(), version_path.c_str());
+
+  // 3) Enforce retention (best-effort; the snapshot is already durable).
+  if (max_versions > 0) {
+    rc = procCommand(req, {{"mgm.cmd", "file"},
+                           {"mgm.subcmd", "purge"},
+                           {"mgm.path", full_path},
+                           {"mgm.purge.version", std::to_string(max_versions)}});
+
+    if (rc) {
+      eos_static_err("msg=\"hack-ms-office-file-save: purge versions failed\" "
+                     "path=\"%s\" errno=%d",
+                     full_path.c_str(), rc);
+    } else {
+      eos_static_debug("msg=\"hack-ms-office-file-save: purge versions ok\" "
+                       "path=\"%s\" max_versions=%d",
+                       full_path.c_str(), max_versions);
+    }
+  }
+
+  return 0;
+}
+
+int
+/* -------------------------------------------------------------------------- */
+backend::renameVersionDir(fuse_req_t req, const std::string& parent_full_path,
+                          const std::string& from_basename,
+                          const std::string& to_basename)
+/* -------------------------------------------------------------------------- */
+{
+  if (from_basename == to_basename) {
+    return 0;
+  }
+
+  std::string from_dir = parent_full_path + ".sys.v#." + from_basename;
+  std::string to_dir = parent_full_path + ".sys.v#." + to_basename;
+  eos_static_debug("msg=\"hack-ms-office-file-save: renameVersionDir entry\" "
+                   "from=\"%s\" to=\"%s\"",
+                   from_dir.c_str(), to_dir.c_str());
+  int rc = procCommand(req, {{"mgm.cmd", "file"},
+                             {"mgm.subcmd", "rename"},
+                             {"mgm.path", from_dir},
+                             {"mgm.file.target", to_dir}});
+
+  if (rc) {
+    eos_static_err("msg=\"hack-ms-office-file-save: restore version dir failed\" "
+                   "from=\"%s\" to=\"%s\" errno=%d",
+                   from_dir.c_str(), to_dir.c_str(), rc);
+  } else {
+    eos_static_debug("msg=\"hack-ms-office-file-save: restore version dir ok\" "
+                     "from=\"%s\" to=\"%s\"",
+                     from_dir.c_str(), to_dir.c_str());
+  }
+
+  return rc;
 }
 
 /* -------------------------------------------------------------------------- */
