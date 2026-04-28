@@ -38,6 +38,9 @@ fstofs.metalog /var/eos/md/
 #fstofs.protowfusegrpc true
 #fstofs.jwttokenpath /etc/grid-security/jwt-token-grpc
 #fstofs.protowfusegrpctls true
+# additionally provide the cert and key for mutual tls
+#fstofs.protowfusegrpctls.cert
+#fstofs.protowfusegrpctls.key
 
 #-------------------------------------------------------------------------------
 # Configuration for XrdHttp http(s) service on port 11000
