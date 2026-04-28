@@ -32,7 +32,17 @@ public:
   virtual ~IConsoleCommand() = default;
   virtual const char* name() const = 0;
   virtual const char* description() const = 0;
+  virtual std::string
+  helpText() const
+  {
+    return {};
+  }
   virtual bool requiresMgm(const std::string& args) const { return !wants_help(args.c_str()); }
+  virtual std::vector<std::string>
+  complete(const std::vector<std::string>& args) const
+  {
+    return {};
+  }
   virtual int run(const std::vector<std::string>& args, CommandContext& ctx) = 0;
   virtual void printHelp() const = 0;
 };
@@ -71,3 +81,4 @@ private:
 
 // Register native (class-based) commands that supersede legacy ones
 void RegisterNativeConsoleCommands();
+void EnsureNativeCommandRegistryInitialized();

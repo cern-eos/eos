@@ -23,8 +23,16 @@
 
 install(DIRECTORY systemd USE_SOURCE_PERMISSIONS DESTINATION lib)
 
-install(DIRECTORY bash_completion.d cron.d eos logrotate.d sysconfig auto.master.d
+install(DIRECTORY bash_completion.d cron.d eos logrotate.d sysconfig auto.master.d profile.d
   USE_SOURCE_PERMISSIONS DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR})
+
+install(FILES
+  bash_completion.d/eos
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/bash-completion/completions)
+
+install(FILES
+  zsh/site-functions/_eos
+  DESTINATION ${CMAKE_INSTALL_DATADIR}/zsh/site-functions)
 
 install(FILES
   eos.keytab
