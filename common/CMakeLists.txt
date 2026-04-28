@@ -21,9 +21,10 @@
 # * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 # ************************************************************************
 
-include_directories(${CMAKE_BINARY_DIR})
+include_directories(
+  ${CMAKE_BINARY_DIR}
+  ${CMAKE_SOURCE_DIR}/common/jwt-cpp/include/)
 
-add_subdirectory(jwt-cpp)
 #-------------------------------------------------------------------------------
 # CTA integration related operations
 #-------------------------------------------------------------------------------
@@ -192,7 +193,6 @@ target_link_libraries(EosCommon-Objects PUBLIC
   ABSL::ABSL
   fmt::fmt-header-only
   GRPC::grpc++
-  jwt-cpp::jwt-cpp
   ${CMAKE_THREAD_LIBS_INIT})
 
 set_target_properties(EosCommon-Objects PROPERTIES
