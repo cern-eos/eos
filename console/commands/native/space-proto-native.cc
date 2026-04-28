@@ -5,7 +5,7 @@
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
 #include "console/CommandFramework.hh"
-#include <CLI/CLI.hpp>
+#include "console/ConsoleCompletion.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/ICmdHelper.hh"
 #include "mgm/http/rest-api/Constants.hh"
@@ -175,18 +175,6 @@ std::string MakeSpaceHelp()
       << "space groupdrainer reset <space-name> <--failed|--all>    : reset failed transfers/all caches\n"
       << std::endl;
   return oss.str();
-}
-
-void ConfigureSpaceApp(CLI::App& app)
-{
-  app.name("space");
-  app.description("Space configuration");
-  app.set_help_flag("");
-  app.allow_extras();
-  app.formatter(std::make_shared<CLI::FormatterLambda>(
-      [](const CLI::App*, std::string, CLI::AppFormatMode) {
-        return MakeSpaceHelp();
-      }));
 }
 
 class SpaceHelper : public ICmdHelper {
@@ -602,6 +590,16 @@ public:
   {
     return "Space configuration";
   }
+  std::string
+  helpText() const override
+  {
+    return MakeSpaceHelp();
+  }
+  std::vector<std::string>
+  complete(const std::vector<std::string>& args) const override
+  {
+    return eos_help_completion_candidates(name(), helpText(), args);
+  }
   bool
   requiresMgm(const std::string& args) const override
   {
@@ -637,9 +635,7 @@ public:
   void
   printHelp() const override
   {
-    CLI::App app;
-    ConfigureSpaceApp(app);
-    fprintf(stderr, "%s", app.help().c_str());
+    fprintf(stderr, "%s", helpText().c_str());
   }
 };
 
