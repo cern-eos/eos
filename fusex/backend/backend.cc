@@ -1216,7 +1216,7 @@ backend::statvfs(fuse_req_t req,
   {
     XrdSysMutexHelper sLock(statmutex);
 
-    if ((time(NULL) - laststat) < ((15 + (int) 5.0 * rand() / RAND_MAX))) {
+    if ((time(NULL) - laststat) < (15 + eos::common::getRandom<int>(0, 4))) {
       stbuf->f_bsize = 4096;
       stbuf->f_frsize = 4096;
       stbuf->f_blocks = a3 / 4096;

@@ -20,8 +20,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
 #include "common/UriCapCipher.hh"
+#include "gtest/gtest.h"
 
 #include <atomic>
 #include <chrono>
@@ -174,4 +174,3 @@ TEST(UriCapCipher, EncodeDecodeConcurrent)
 
   EXPECT_EQ(failures.load(), 0);
 }
-

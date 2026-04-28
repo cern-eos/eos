@@ -22,18 +22,19 @@
  ************************************************************************/
 
 #include "fst/utils/DiskMeasurements.hh"
-#include "common/Logging.hh"
 #include "common/BufferManager.hh"
-#include <iostream>
+#include "common/Logging.hh"
+#include "common/utils/RandUtils.hh"
 #include <chrono>
-#include <random>
+#include <cstdint>
+#include <cstring>
+#include <fcntl.h>
+#include <iostream>
+#include <linux/fs.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <cstring>
-#include <sys/ioctl.h>
-#include <linux/fs.h>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -222,9 +223,6 @@ int ComputeIops(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
 
   auto buf = GetAlignedBuffer(rd_buf_size);
   // Get a uniform int distribution for offset generation
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<> distrib(0, 1024);
   int iterations = 10000;
   int actual_iter = 0;
   uint64_t offset = 0ull;
@@ -233,7 +231,7 @@ int ComputeIops(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
 
   for (; actual_iter < iterations; ++actual_iter) {
     // Generate offset 4kB aligned inside the given file size
-    offset = (((fn_size * distrib(gen)) >> 10) >> 12) << 12;
+    offset = (((fn_size * eos::common::getRandom(0, 1024)) >> 10) >> 12) << 12;
     start = high_resolution_clock::now();
 
     if (pread(fd, buf.get(), rd_buf_size, offset) == -1) {
@@ -278,12 +276,10 @@ int ComputeBandwidth(int fd, uint64_t rd_buf_size, std::chrono::seconds timeout)
   uint64_t offset = 0;
 
   if (fn_size > max_read) {
-    std::random_device rd;
-    std::mt19937 gen(rd());
+    ;
     // Align to rd_buf_size (4MB)
     uint64_t max_blocks = (fn_size - max_read) / rd_buf_size;
-    std::uniform_int_distribution<uint64_t> distrib(0, max_blocks);
-    offset = distrib(gen) * rd_buf_size;
+    offset = eos::common::getRandom(0ul, max_blocks) * rd_buf_size;
   }
 
   uint64_t start_offset = offset;

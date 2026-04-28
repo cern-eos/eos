@@ -1,12 +1,13 @@
-#include <string>
-#include <iostream>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include "common/utils/RandUtils.hh"
 #include <cstdlib>
-#include <vector>
 #include <ctime>
+#include <fcntl.h>
+#include <iostream>
+#include <string>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+#include <vector>
 
 void usage()
 {
@@ -68,9 +69,7 @@ int main(int argc, char* argv[])
       }
     }
   } else {
-    std::srand(std::time(nullptr));
     std::vector<int> fds;
-
     for (size_t i = 0; i < nfiles; i++) {
       std::string path = prefix;
       path += "/pattern.";
@@ -83,26 +82,23 @@ int main(int argc, char* argv[])
         retc = -1;
       }
     }
-
-    for (size_t v = 0 ; v < nverify; v++) {
+    for (size_t v = 0; v < nverify; v++) {
       for (size_t i = 0; i < nfiles; i++) {
-        size_t size = std::rand() % (1024);
-        off_t offset = std::rand() % ((1024 * 1024) - size);
+        size_t size = eos::common::getRandom<size_t>(0, 1023);
+        off_t offset = eos::common::getRandom<off_t>(0, (1024 * 1024) - size - 1);
         unsigned char buffer[1024];
         size_t nr = pread(fds[i], buffer, size, offset);
-
         if (nr != size) {
           fprintf(stderr, "error: failed to read file=%lu offset=%lu size=%lu read=%lu\n",
                   i, offset, size, nr);
           retc = -1;
         }
-
         // verify pattern
         for (size_t l = 0; l < size; l++) {
           if (buffer[l] != ((offset + l + i) % 256)) {
             fprintf(stderr,
-                    "error: pattern for file=%lu offset=%lu should be %x but we got %x\n", i,
-                    offset + l, (unsigned int)(offset + l + i) % 256, buffer[l]);
+                    "error: pattern for file=%lu offset=%lu should be %x but we got %x\n",
+                    i, offset + l, (unsigned int)(offset + l + i) % 256, buffer[l]);
             retc = -1;
           }
         }
