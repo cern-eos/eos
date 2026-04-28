@@ -2943,7 +2943,9 @@ WFE::Job::SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
   cta::xrd::Response response;
   auto root_certs = gOFS->ConcatenatedServerRootCA;
   // Instantiate service object only once, static is thread-safe
-  RequestSenderConfig cf(gOFS->protowfusegrpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource, root_certs, gOFS->JwtTokenPath, gOFS->protowfusegrpctls);
+  RequestSenderConfig cf(gOFS->protowfusegrpc, gOFS->ProtoWFEndPoint, gOFS->ProtoWFResource,
+                         root_certs, gOFS->JwtTokenPath, gOFS->protowfusegrpctls,
+                         gOFS->protowfusegrpctlscert, gOFS->protowfusegrpctlskey);
   static std::unique_ptr<WFEClient> request_sender = CreateRequestSender(cf);
   cta::xrd::Response::ResponseType response_type = cta::xrd::Response::RSP_INVALID;
   // Send the request
