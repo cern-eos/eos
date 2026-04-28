@@ -23,9 +23,7 @@
  ************************************************************************/
 
 #include "gtest/gtest.h"
-#include "eosfuse.hh"
 #include "md/md.hh"
-#include <random>
 
 TEST(LRU, BasicSanity)
 {
@@ -33,9 +31,6 @@ TEST(LRU, BasicSanity)
   metad::pmap tmap;
   std::map<uint64_t, metad::shared_md> lut;
   std::map<uint64_t, bool> blut;
-  std::mt19937 gen(0);
-  std::uniform_int_distribution<> distrib(1, 1000);
-  std::uniform_int_distribution<> op(1, 3);
 
   for (auto i = 1; i <= 1000; i++) {
     metad::shared_md md = std::make_shared<metad::mdx>(i);
@@ -54,8 +49,8 @@ TEST(LRU, BasicSanity)
   }
 
   for (auto i = 1; i < 10000000; i++) {
-    auto k = distrib(gen);
-    auto kop = op(gen);
+    auto k = eos::common::getRandom(1, 1000);
+    auto kop = eos::common::getRandom(1, 3);
 
     if (k == 1) {
       continue;

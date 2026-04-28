@@ -17,13 +17,11 @@
  ************************************************************************/
 
 #include "common/CLI11.hpp"
-#include <random>
-#include <map>
-#include <chrono>
-#include <thread>
-#include <fstream>
-#include <sstream>
+#include "common/utils/RandUtils.hh"
 #include <XrdCl/XrdClFile.hh>
+#include <fstream>
+#include <map>
+#include <sstream>
 
 //------------------------------------------------------------------------------
 //! Generate a map of offset and length that represent individual read requests
@@ -48,16 +46,12 @@ GenerateReadRequests(uint64_t max_size, uint32_t block_sz, uint32_t num_chunks)
   std::map<uint64_t, uint32_t> chunks;
   float mean = 1.0 * block_sz;
   float stddev = 0.5 * block_sz;
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  std::uniform_int_distribution<> off_dist(0, max_size);
-  std::normal_distribution<> len_dist(mean, stddev);
   bool found = false;
 
   for (uint32_t i = 0; i < num_chunks; ++i) {
     do {
       found = false;
-      offset = off_dist(gen);
+      offset = eos::common::getRandom(0ul, max_size);
       auto it = chunks.lower_bound(offset);
 
       if (it != chunks.end()) {
@@ -78,7 +72,7 @@ GenerateReadRequests(uint64_t max_size, uint32_t block_sz, uint32_t num_chunks)
     } while (found);
 
     do {
-      length = std::round(len_dist(gen));
+      length = std::round(eos::common::getRandomNormal(mean, stddev));
       auto it = chunks.lower_bound(offset);
 
       if (it != chunks.end()) {

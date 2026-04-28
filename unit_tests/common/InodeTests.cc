@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "gtest/gtest.h"
 #include "Namespace.hh"
 #include "common/FileId.hh"
 #include "common/InodeTranslator.hh"
+#include "gtest/gtest.h"
 #include <iostream>
 #include <random>
 
@@ -156,7 +156,7 @@ TEST(Inode, InodeToFidCompatibility) {
   // valid inode supported by legacy encoding: 34359738368ull.
 
   std::mt19937_64 gen(12345678);
-  std::uniform_int_distribution<uint64_t> dist(1ull,  34359738368ull);
+  std::uniform_int_distribution<uint64_t> dist(1ull, 34359738368ull);
 
   for(size_t i = 0; i < 10'000'000; i++) { // 10M rounds
     uint64_t randomID = dist(gen);

@@ -28,7 +28,6 @@
 #include <XrdSys/XrdSysPthread.hh>
 #include <atomic>
 #include <chrono>
-#include <random>
 #include <mutex>
 
 //! Forward declaration
@@ -64,7 +63,7 @@ public:
   std::string JwtTokenPath; // where to find the JWT to be used in WFE calls for authentication when gRPC is used
   bool protowfusegrpctls = false; // use TLS encrypted connections or plaintext connections for grpc
 
-  Config() : generator((std::random_device())())
+  Config()
   {
     autoBoot = false;
     PublishInterval = 10;
@@ -105,7 +104,6 @@ private:
   eos::common::SharedHashLocator mNodeHashLocator;
   // Random number generator
   std::mutex generatorMutex;
-  std::mt19937 generator;
 };
 
 extern Config gConfig;
