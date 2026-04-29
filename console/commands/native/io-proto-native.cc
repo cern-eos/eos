@@ -80,6 +80,7 @@ std::string MakeIoHelp()
       << "\t   --users  : show rates by user (uid)\n"
       << "\t   --groups : show rates by group (gid)\n"
       << "\t   --nodes  : show rates by storage node (FST)\n"
+      << "\t   --disks  : show rates by storage node and filesystem id\n"
       << "\t   --json   : output in JSON format\n"
       << "\t   --sys    : include meta statistics about Traffic Shaping system\n"
       << "\t   --window <1|5|15|60|300> : time window in seconds for SMA (default 60)\n"
@@ -115,7 +116,7 @@ std::string MakeIoHelp()
       << "\t   action 'set' : modify configuration settings such as update periods for "
          "estimators and policy enforcement\n"
       << "\t     usage: config set [--estimators-period <ms>] [--policy-period <ms>] "
-         "[--report-period <ms>] [--system-window <s>]\n"
+         "[--report-period <ms>] [--system-window <s>] [--detail aggregate|fs]\n"
       << std::endl
       << "   EXAMPLES\n"
       << "\t   # Show current application rates\n"
@@ -269,6 +270,7 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   grp->add_flag("--users", "Show rates by user");
   grp->add_flag("--groups", "Show rates by group");
   grp->add_flag("--nodes", "Show rates by storage node");
+  grp->add_flag("--disks", "Show rates by storage node and filesystem id");
   shaping_ls->add_flag("--json", "JSON output");
   shaping_ls->add_flag("--sys", "Include system stats");
   shaping_ls->add_option("--window", "Time window (1|5|15|60|300)")
@@ -279,10 +281,12 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     bool su = shaping_ls->count("--users") > 0;
     bool sg = shaping_ls->count("--groups") > 0;
     bool sn = shaping_ls->count("--nodes") > 0;
-    action->set_show_apps(shaping_ls->count("--apps") > 0 || (!su && !sg && !sn));
+    bool sd = shaping_ls->count("--disks") > 0;
+    action->set_show_apps(shaping_ls->count("--apps") > 0 || (!su && !sg && !sn && !sd));
     action->set_show_users(su);
     action->set_show_groups(sg);
     action->set_show_nodes(sn);
+    action->set_show_disks(sd);
     action->set_json_output(shaping_ls->count("--json") > 0);
     action->set_system_stats(shaping_ls->count("--sys") > 0);
     action->set_time_window_seconds(
@@ -384,11 +388,12 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   config_cmd->add_subcommand("ls", "List config")
       ->callback([shaping_proto]() { shaping_proto->mutable_config()->mutable_list(); });
   auto* config_set = config_cmd->add_subcommand("set", "Set config");
-  config_set->require_option(1, 4);
+  config_set->require_option(1, 5);
   config_set->add_option("--estimators-period");
   config_set->add_option("--policy-period");
   config_set->add_option("--report-period");
   config_set->add_option("--system-window");
+  config_set->add_option("--detail")->check(CLI::IsMember({"aggregate", "fs"}));
   config_set->callback([config_set, shaping_proto]() {
     auto* a = shaping_proto->mutable_config()->mutable_set();
     if (config_set->count("--estimators-period"))
@@ -403,6 +408,9 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     if (config_set->count("--system-window"))
       a->set_system_stats_time_window_seconds(
           config_set->get_option("--system-window")->as<uint32_t>());
+    if (config_set->count("--detail")) {
+      a->set_detail_level(config_set->get_option("--detail")->as<std::string>());
+    }
   });
 
   std::string to_parse = "io " + input;
