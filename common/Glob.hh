@@ -24,9 +24,7 @@
 //-----------------------------------------------------------------------------
 //! @brief  Class applying bash pattern amtching
 //-----------------------------------------------------------------------------
-#ifndef __EOSCOMMON__GLOB__HH
-#define __EOSCOMMON__GLOBE__HH
-
+#pragma once
 #include <glob.h>
 #include <mutex>
 #include <string.h>
@@ -55,16 +53,16 @@ class Glob
 {
 public:
   //----------------------------------------------------------------------------
-  //! 
+  //!
   //----------------------------------------------------------------------------
 
   Glob() : mIt(0) {}
-  
+
   virtual ~Glob() {}
   static void *opendir(const char *name) {
     return (DIR*) (gGlob);
   }
-  
+
   static struct dirent *readdir(void *dirp) {
     Glob* thisglob = (Glob*) dirp;
     return thisglob->getEntry();
@@ -77,7 +75,9 @@ public:
   struct dirent* getEntry() {
     if (mIt < mNames.size()) {
       mEntry.d_ino = mIt+1; // 0 leads to NOMATCH with glibc 2-17!!!
+#ifdef __LINUX__
       mEntry.d_off = mIt;
+ #endif
       mEntry.d_reclen = 255;
       mEntry.d_type = DT_REG;;
       snprintf(mEntry.d_name, mEntry.d_reclen, "%s",mNames[mIt++].c_str());
@@ -86,7 +86,7 @@ public:
       return nullptr;
     }
   }
-  
+
   bool Match(const std::string& pattern, const std::string& path) {
     static std::mutex g_i_mutex;
     mIt=0;
@@ -117,7 +117,7 @@ public:
   }
 
   static Glob* gGlob;
-  
+
 private:
   std::vector<std::string> mNames;
   uint64_t mIt;
@@ -125,4 +125,3 @@ private:
 };
 
 EOSCOMMONNAMESPACE_END
-#endif

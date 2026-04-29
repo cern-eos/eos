@@ -264,8 +264,14 @@ startMount(ConcurrentMount& cmdet,
                mntfd, sb.st_mode & S_IFMT, geteuid(), getegid(), opt2);
       fprintf(stderr, "# detected concurrent eosxd, "
               "mounting using existing fuse descriptor\n");
-      const int retval = ::mount(source.c_str(), mountpoint.c_str(), "fuse",
-                                 MS_NODEV | MS_NOSUID, mntopt);
+      const int retval = ::mount(source.c_str(), mountpoint.c_str(),
+#ifdef __LINUX__
+                                 "fuse", MS_NODEV | MS_NOSUID,
+
+#else
+                                 MNT_NODEV | MNT_NOSUID,
+#endif
+                                 mntopt);
 
       if (retval) {
         fprintf(stderr, "# detected concurrent eosxd, but failed mount "
