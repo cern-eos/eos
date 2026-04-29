@@ -28,7 +28,34 @@
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IFsView.hh"
 
+#include <algorithm>
+#include <cctype>
+
 EOSMGMNAMESPACE_BEGIN
+
+namespace {
+
+std::string
+FormatNodeStatusValue(std::string value)
+{
+  if ((value.substr(0, 7) == "base64:") || (value.substr(0, 8) == "zbase64:")) {
+    return value.substr(0, value.find(':') + 1) + "...";
+  }
+
+  if (value.length() > 1024) {
+    return "...";
+  }
+
+  for (const unsigned char c : value) {
+    if (!std::isprint(c)) {
+      return "<binary:" + std::to_string(value.length()) + " bytes>";
+    }
+  }
+
+  return value;
+}
+
+} // namespace
 
 //------------------------------------------------------------------------------
 // Method implementing the specific behavior of the command executed by the
@@ -258,20 +285,19 @@ void NodeCmd::StatusSubcmd(const eos::console::NodeProto_StatusProto& status,
     "# ....................................................................................\n";
   FsView::gFsView.mNodeView[nodename]->GetConfigKeys(keylist);
   std::sort(keylist.begin(), keylist.end());
+  size_t key_width = 32;
+
+  for (const auto& key : keylist) {
+    key_width = std::max(key_width, key.length());
+  }
 
   for (auto& i : keylist) {
     char line[2048];
-    std::string val = FsView::gFsView.mNodeView[nodename]->GetConfigMember(i);
+    std::string val =
+        FormatNodeStatusValue(FsView::gFsView.mNodeView[nodename]->GetConfigMember(i));
 
-    if (val.substr(0, 7) == "base64:") {
-      val = "base64:...";
-    }
-
-    if (val.length() > 1024) {
-      val = "...";
-    }
-
-    snprintf(line, sizeof(line) - 1, "%-32s := %s\n", i.c_str(), val.c_str());
+    snprintf(line, sizeof(line) - 1, "%-*s := %s\n", static_cast<int>(key_width),
+             i.c_str(), val.c_str());
     std_out += line;
   }
 
