@@ -759,6 +759,7 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
             proto->set_uid(key.uid);
             proto->set_gid(key.gid);
             proto->set_generation_id(cur_gen);
+            proto->set_fsid(key.fsid);
 
             proto->set_total_read_ops(cur_r_ops);
             proto->set_total_write_ops(cur_w_ops);

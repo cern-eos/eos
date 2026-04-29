@@ -35,9 +35,11 @@ class IoStatsCollector {
 public:
   IoStatsCollector() = default;
 
-  void RecordRead(const std::string& app, uint32_t uid, uint32_t gid, size_t bytes);
+  void RecordRead(const std::string& app, uint32_t uid, uint32_t gid, uint32_t fsid,
+                  size_t bytes);
 
-  void RecordWrite(const std::string& app, uint32_t uid, uint32_t gid, size_t bytes);
+  void RecordWrite(const std::string& app, uint32_t uid, uint32_t gid, uint32_t fsid,
+                   size_t bytes);
 
   inline static std::atomic<uint32_t> fst_io_stats_reporting_thread_period_milliseconds{
       1000};
@@ -79,15 +81,24 @@ public:
     return mIsEnabled.load(std::memory_order_relaxed);
   }
 
+  bool SetFilesystemDetailEnabled(bool enabled);
+
+  bool
+  IsFilesystemDetailEnabled() const
+  {
+    return mFilesystemDetailEnabled.load(std::memory_order_relaxed);
+  }
+
 private:
   std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid,
-                                         uint32_t gid);
+                                         uint32_t gid, uint32_t fsid);
 
   mutable std::shared_mutex mutex_;
   std::unordered_map<IoStatsKey, std::shared_ptr<IoStatsEntry>, IoStatsKeyHash>
       stats_map_;
 
   std::atomic<bool> mIsEnabled{false};
+  std::atomic<bool> mFilesystemDetailEnabled{false};
 };
 
 class IoDelayConfig {
