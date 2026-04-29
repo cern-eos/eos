@@ -51,9 +51,9 @@ if(NOT PACKAGEONLY)
   find_package(SparseHash REQUIRED)
   find_package(jsoncpp REQUIRED)
   find_package(Libevent REQUIRED)
+  find_package(fmt REQUIRED)
   find_package(bz2 REQUIRED)
   find_package(absl REQUIRED)
-  find_package(fmt REQUIRED)
   find_package(RocksDB REQUIRED)
   find_package(jemalloc)
   find_package(EosGrpcGateway)
@@ -65,39 +65,39 @@ if(NOT PACKAGEONLY)
   find_package(libbfd)
   find_package(davix)
   find_package(nfs)
-  find_package(procps)
-  find_package(libproc2)
-  find_package(Scitokens REQUIRED)
+  find_package(Scitokens)
+  find_package(GRPC REQUIRED)
   find_package(Protobuf3 REQUIRED)
 
-  if(NOT (PROCPS_FOUND OR LIBPROC2_FOUND))
-    message(FATAL_ERROR "Could not find either procps 3.x or libproc2 (procps 4.x). "
-                        "At least one of them is required.")
+  if (GRPC_FOUND AND XROOTD_FOUND)
+    # Library paths for Protobuf, grpc and xrootd needs to be added to the
+    # RPATH of the libraries and binaries built since they are not installed
+    # in the usual system location.
+    set(CMAKE_SKIP_RPATH FALSE)
+    set(CMAKE_SKIP_BUILD_RPATH FALSE)
+    # TODO: To be removed in the future when CMAKE properly handles RPATH.
+    # Currently without this option the koji builds fail with error:
+    # file RPATH_CHANGE could not write new RPATH
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+    get_filename_component(EOS_XROOTD_RPATH ${XROOTD_UTILS_LIBRARY} DIRECTORY)
+    get_filename_component(EOS_GRPC_RPATH ${GRPC_GRPC++_LIBRARY} DIRECTORY)
+    list(APPEND CMAKE_INSTALL_RPATH "${EOS_GRPC_RPATH};${EOS_XROOTD_RPATH}")
+    message(STATUS "Info CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}")
+  else()
+    message(FATAL_ERROR "One of the mandatory dependecies: GPRC(Protobuf) or XRootD not found")
   endif()
 
   if (Linux)
     find_package(help2man)
     find_package(glibc REQUIRED)
     find_package(xfs REQUIRED)
-    find_package(GRPC REQUIRED)
+    find_package(procps)
+    find_package(libproc2)
 
-    if (GRPC_FOUND AND XROOTD_FOUND)
-      # Library paths for Protobuf, grpc and xrootd needs to be added to the
-      # RPATH of the libraries and binaries built since they are not installed
-      # in the usual system location.
-      set(CMAKE_SKIP_RPATH FALSE)
-      set(CMAKE_SKIP_BUILD_RPATH FALSE)
-      # TODO: To be removed in the future when CMAKE properly handles RPATH.
-      # Currently without this option the koji builds fail with error:
-      # file RPATH_CHANGE could not write new RPATH
-      set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
-      set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
-      get_filename_component(EOS_XROOTD_RPATH ${XROOTD_UTILS_LIBRARY} DIRECTORY)
-      get_filename_component(EOS_GRPC_RPATH ${GRPC_GRPC++_LIBRARY} DIRECTORY)
-      set(CMAKE_INSTALL_RPATH "${EOS_GRPC_RPATH};${EOS_XROOTD_RPATH}")
-      message(STATUS "Info CMAKE_INSTALL_RPATH=${CMAKE_INSTALL_RPATH}")
-    else()
-      message(FATAL_ERROR "One of the mandatory dependecies: GPRC(Protobuf) or XRootD not found")
+    if(NOT (PROCPS_FOUND OR LIBPROC2_FOUND))
+      message(FATAL_ERROR "Could not find either procps 3.x or libproc2 (procps 4.x). "
+              "At least one of them is required.")
     endif()
   else ()
     # Add dummy targets for APPLE to simplify the cmake file using these targets
@@ -116,6 +116,15 @@ else()
   message(STATUS "Running CMake in package only mode.")
   # Fake function for building the SRPMS in build system
   function(PROTOBUF_GENERATE_CPP SRCS HDRS)
+    # This is just a hack to be able to run cmake >= 3.11 with -DPACKAGEONLY
+    # enabled. Otherwise the protobuf libraries built using add_library will
+    # complain as they have no SOURCE files.
+    set(${SRCS} "${CMAKE_SOURCE_DIR}/common/Logging.cc" PARENT_SCOPE)
+    set(${HDRS} "${CMAKE_SOURCE_DIR}/common/Logging.hh" PARENT_SCOPE)
+    return()
+  endfunction()
+
+  function(GRPC_GENERATE_CPP SRCS HDRS)
     # This is just a hack to be able to run cmake >= 3.11 with -DPACKAGEONLY
     # enabled. Otherwise the protobuf libraries built using add_library will
     # complain as they have no SOURCE files.

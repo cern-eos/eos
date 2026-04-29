@@ -335,8 +335,11 @@ target_link_libraries(XrdEosFst-Objects PUBLIC
   XROOTD::UTILS
   XROOTD::PRIVATE
   XROOTD::SERVER
-  XFS::XFS
-  stdc++fs)
+  XFS::XFS)
+
+if (Linux)
+  target_link_libraries(XrdEosFst-Objects PUBLIC stdc++fs)
+endif()
 
 if(TARGET PROCPS::PROCPS)
   target_compile_definitions(XrdEosFst-Objects PRIVATE PROCPS3)
@@ -454,7 +457,11 @@ target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-adler32 PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-checksum PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-scan-fs PRIVATE
-  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER stdc++fs)
+  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER)
+
+if (Linux)
+  target_link_libraries(eos-scan-fs PRIVATE stdc++fs)
+endif()
 
 add_executable(eos-create-file-pattern
   utils/CreateFileWithPattern.cc)

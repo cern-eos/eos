@@ -134,7 +134,7 @@ find_program(GRPC_CPP_PLUGIN
 # Find libabsl_synchronization
 find_library(ABSL_SYNCHRONIZATION_LIBRARY
   NAMES absl_synchronization
-  HINTS ${GRPC_ROOT}
+  HINTS ${GRPC_ROOT} ${ABSL_ROOT}
   PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
   NO_DEFAULT_PATH)
@@ -142,7 +142,7 @@ find_library(ABSL_SYNCHRONIZATION_LIBRARY
 # Find libabsl_base
 find_library(ABSL_BASE_LIBRARY
   NAMES absl_base
-  HINTS ${GRPC_ROOT}
+  HINTS ${GRPC_ROOT} ${ABSL_ROOT}
   PATHS /opt/eos/grpc /usr/local /usr
   PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR}
   NO_DEFAULT_PATH)

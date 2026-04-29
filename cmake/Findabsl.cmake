@@ -21,7 +21,7 @@ foreach( lib ${libraries})
     NAMES ${lib}
     HINTS /opt/eos/grpc ${ABSL_ROOT}
     PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
-  
+
   if(ABSL_${lib}_LIBRARY)
     set(ABSL_${lib}_FOUND 1)
     list(APPEND ABSL_LIBRARIES ${ABSL_${lib}_LIBRARY})
@@ -45,6 +45,17 @@ if (ABSL_FOUND AND NOT TARGET ABSL::ABSL)
     IMPORTED_LOCATION "${ABSL_absl_base_LIBRARY}"
     INTERFACE_INCLUDE_DIRECTORIES "${ABSL_INCLUDE_DIR}"
     INTERFACE_LINK_LIBRARIES "${ABSL_LIBRARIES}")
+
+  include(CheckSymbolExists)
+  # Check grpc logging function
+  check_symbol_exists(gpr_set_log_function "${ABLS_INCLUDE_DIR}" HAVE_GRPC_LOGGING)
+
+  if (HAVE_GRPC_LOGGING)
+    message(STATUS "Grpc internal logging!")
+    targe_compile_definitions(ABLS::ABLS PUBLIC HAVE_GRPC_LOGGING)
+  else()
+    message(STATUS "Grpc uses abseil logging!")
+  endif()
 endif ()
 
 unset(ABSL_INCLUDE_DIR)
