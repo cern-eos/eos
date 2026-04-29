@@ -321,6 +321,8 @@ com_io_help()
       << "\t   --all    : show rates by storage node, filesystem id, application, "
          "user, and group\n"
       << "\t   --json   : output in JSON format\n"
+      << "\t   --resolve-ids    : resolve uid/gid values to names\n"
+      << "\t   --no-resolve-ids : keep uid/gid values numeric\n"
       << std::endl
       << "     enable  : globally enable traffic shaping\n"
       << "     disable : globally disable traffic shaping\n"
@@ -418,6 +420,9 @@ SetupTrafficListCommand(CLI::App& app, eos::console::IoProto_ShapingProto* proto
   grp->add_flag(
       "--all", "Show rates by storage node, filesystem id, application, user, and group");
   cmd->add_flag("--json", "Output in JSON format");
+  auto* resolve_ids = cmd->add_flag("--resolve-ids", "Resolve uid/gid values to names");
+  auto* no_resolve_ids = cmd->add_flag("--no-resolve-ids", "Keep uid/gid values numeric");
+  resolve_ids->excludes(no_resolve_ids);
   cmd->add_flag("--sys", "Include meta statistics about Traffic Shaping system");
   cmd->add_option("--window",
                   "Time window in seconds for the simple moving average (SMA)")
@@ -429,6 +434,8 @@ SetupTrafficListCommand(CLI::App& app, eos::console::IoProto_ShapingProto* proto
 
     const bool json_output = cmd->count("--json") > 0;
     const bool include_sys = cmd->count("--sys") > 0;
+    const bool resolve_ids = cmd->count("--no-resolve-ids") == 0 &&
+                             (cmd->count("--resolve-ids") > 0 || !json_output);
 
     const bool show_users = cmd->count("--users") > 0;
     const bool show_groups = cmd->count("--groups") > 0;
@@ -448,6 +455,7 @@ SetupTrafficListCommand(CLI::App& app, eos::console::IoProto_ShapingProto* proto
     action->set_show_fs(show_fs);
     action->set_show_all(show_all);
     action->set_json_output(json_output);
+    action->set_resolve_ids(resolve_ids);
     action->set_system_stats(include_sys);
 
     const auto window_sec = cmd->get_option("--window")->as<uint32_t>();
