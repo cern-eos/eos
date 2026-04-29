@@ -47,6 +47,7 @@ std::set<std::string> Storage::sNodeUpdateKeys{
     common::FST_TRAFFIC_SHAPING_IO_LIMITS,
     common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE,
     common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
+    common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL,
 };
 
 //------------------------------------------------------------------------------
@@ -227,6 +228,18 @@ ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
   }
 }
 
+void
+ProcessTrafficShapingDetailLevel(const std::string& detail_level)
+{
+  const bool fs_detail =
+      detail_level == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM;
+  if (gOFS.mIoStatsCollector.SetFilesystemDetailEnabled(fs_detail)) {
+    eos_static_info("msg=\"Traffic Shaping detail level changed\" new_level=\"%s\"",
+                    fs_detail ? eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM
+                              : eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE);
+  }
+}
+
 //------------------------------------------------------------------------------
 // Process incoming configuration change
 //------------------------------------------------------------------------------
@@ -276,6 +289,8 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
     ProcessTrafficShapingToggle(value == "on" || value == "true" || value == "1");
   } else if (key == eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD) {
     ProcessFstIoStatsReportingThreadPeriod(value);
+  } else if (key == eos::common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL) {
+    ProcessTrafficShapingDetailLevel(value);
   } else if (key == "debug.level") {
     const std::string& debugLevel = value;
     eos_static_info("msg=\"debug level changed\" new_level=\"%s\"", debugLevel.c_str());

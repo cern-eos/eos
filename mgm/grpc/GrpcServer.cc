@@ -27,6 +27,10 @@
 #include "common/StringConversion.hh"
 #include "mgm/macros/Macros.hh"
 #include <XrdSec/XrdSecEntity.hh>
+#include <algorithm>
+#include <map>
+#include <unordered_map>
+#include <vector>
 
 #ifdef EOS_GRPC
 #include "proto/Rpc.grpc.pb.h"
@@ -137,9 +141,9 @@ BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manag
                        .count();
   report->set_timestamp_ms(now_ms);
 
-  bool do_uid = false, do_gid = false, do_app = false;
+  bool do_uid = false, do_gid = false, do_app = false, do_detailed = false;
   if (request->include_types_size() == 0) {
-    // Default: Include All if unspecified
+    // Default: keep the legacy low-cardinality response if unspecified.
     do_uid = do_gid = do_app = true;
   } else {
     for (const auto type : request->include_types()) {
@@ -152,8 +156,17 @@ BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manag
       if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_APP) {
         do_app = true;
       }
+      if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_DETAILED) {
+        do_detailed = true;
+      }
     }
   }
+
+  auto detailed_stats =
+      do_detailed ? manager->GetDetailedStats()
+                  : std::unordered_map<eos::mgm::traffic_shaping::DetailedKey,
+                                       eos::mgm::traffic_shaping::RateSnapshot,
+                                       eos::mgm::traffic_shaping::DetailedKeyHash>{};
 
   // Determine which estimators to calculate (e.g., 5s SMA, 1m EMA, etc.)
   std::vector<eos::traffic_shaping::TrafficShapingRateRequest::Estimators> estimators;
@@ -301,6 +314,49 @@ BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manag
     process_stats(
         app_agg, [&]() { return report->add_app_stats(); },
         [](auto* e, const std::string& id) { e->set_app_name(id); });
+  }
+
+  if (do_detailed && !detailed_stats.empty()) {
+    using DetailedItem = decltype(detailed_stats)::value_type;
+    std::vector<const DetailedItem*> sorted;
+    sorted.reserve(detailed_stats.size());
+
+    for (const auto& item : detailed_stats) {
+      sorted.push_back(&item);
+    }
+
+    auto sorter = [&](const DetailedItem* a, const DetailedItem* b) {
+      return ExtractWindowRates(a->second, sort_window).total_throughput() >
+             ExtractWindowRates(b->second, sort_window).total_throughput();
+    };
+
+    size_t n = sorted.size();
+    if (request->has_top_n() && request->top_n() > 0) {
+      n = std::min(static_cast<size_t>(request->top_n()), n);
+      std::partial_sort(sorted.begin(), sorted.begin() + n, sorted.end(), sorter);
+    } else {
+      std::sort(sorted.begin(), sorted.end(), sorter);
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+      const auto& key = sorted[i]->first;
+      auto* entry = report->add_detailed_stats();
+      entry->set_node_id(key.node_id);
+      entry->set_app_name(key.stream.app);
+      entry->set_uid(key.stream.uid);
+      entry->set_gid(key.stream.gid);
+      entry->set_fsid(key.stream.fsid);
+
+      for (const auto estimator : estimators) {
+        Rates rates = ExtractWindowRates(sorted[i]->second, estimator);
+        auto* stats = entry->add_stats();
+        stats->set_window(estimator);
+        stats->set_bytes_read_per_sec(rates.r_bps);
+        stats->set_bytes_written_per_sec(rates.w_bps);
+        stats->set_iops_read(rates.r_iops);
+        stats->set_iops_write(rates.w_iops);
+      }
+    }
   }
 }
 
