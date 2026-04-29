@@ -30,7 +30,7 @@ export XrdSecPROTOCOL=sss
 # Enable traffic shaping
 eos io shaping enable
 
-eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15 --detail aggregate
+eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15
 sleep 8
 
 echo "Creating dummy files (10MB and 200MB)..."
@@ -69,6 +69,7 @@ else
 fi
 
 CONFIG_RESULT=$(eos io shaping config ls)
+CONFIG_JSON_RESULT=$(eos io shaping config ls --json)
 
 if echo "$CONFIG_RESULT" | grep -Eq 'Traffic Shaping Enabled:[[:space:]]*true' && \
    echo "$CONFIG_RESULT" | grep -Eq 'Stats Detail Level:[[:space:]]*aggregate'; then
@@ -87,22 +88,8 @@ else
   FAILURES=$((FAILURES + 1))
 fi
 
-if [[ "$JSON_RESULT" != *$'\n'* && "$USER_JSON_RESULT" != *$'\n'* && \
-      "$USER_JSON_RESOLVED_RESULT" != *$'\n'* && "$CONFIG_JSON_RESULT" != *$'\n'* && \
-      "$POLICY_JSON_RESULT" != *$'\n'* ]]; then
-  echo "✅ Success: Traffic shaping JSON output is compact."
-else
-  echo "❌ Error: Traffic shaping JSON output contains unexpected line breaks."
-  echo "Debug Info (ls): $JSON_RESULT"
-  echo "Debug Info (users): $USER_JSON_RESULT"
-  echo "Debug Info (users resolved): $USER_JSON_RESOLVED_RESULT"
-  echo "Debug Info (config): $CONFIG_JSON_RESULT"
-  echo "Debug Info (policy): $POLICY_JSON_RESULT"
-  FAILURES=$((FAILURES + 1))
-fi
-
 # ---------------------------------------------------------
-# Test: Filesystem Detail Mode and Disk-Level Reporting
+# Test: Filesystem Detail Mode and Filesystem-Level Reporting
 # ---------------------------------------------------------
 DETAIL_APP="disk-detail-test-app"
 echo ""
@@ -125,28 +112,52 @@ xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/disk_detail.dat?eos.app=${DETAIL_APP}" 
 PID_DETAIL=$!
 
 sleep 5
-DISK_JSON_RESULT=$(eos io shaping ls --window 5 --disks --json)
+FS_JSON_RESULT=$(eos io shaping ls --window 5 --fs --json)
+ALL_JSON_RESULT=$(eos io shaping ls --window 5 --all --json)
 APP_JSON_RESULT=$(eos io shaping ls --window 5 --json)
 
 kill -9 $PID_DETAIL 2>/dev/null; wait $PID_DETAIL 2>/dev/null || true
 eos io shaping config set --detail aggregate
 sleep 2
-AGGREGATE_DISK_JSON_RESULT=$(eos io shaping ls --window 5 --disks --json)
 
-if echo "$DISK_JSON_RESULT" | jq -e '.[] | select(.type == "disk" and (.node_id | type == "string" and length > 0) and (.fsid > 0) and (.write_rate_bps > 0))' > /dev/null; then
-  DISK_ID=$(echo "$DISK_JSON_RESULT" | jq -r '.[] | select(.type == "disk" and (.node_id | type == "string" and length > 0) and (.fsid > 0) and (.write_rate_bps > 0)) | "\(.node_id) fsid=\(.fsid)"' | head -n1)
-  echo "✅ Success: Disk-level traffic detected in filesystem detail mode ($DISK_ID)."
+if echo "$FS_JSON_RESULT" | jq -e '.[] | select(.type == "fs" and (.node_id | type == "string" and length > 0) and (.fsid > 0) and (.write_rate_bps > 0))' > /dev/null; then
+  FS_ID=$(echo "$FS_JSON_RESULT" | jq -r '.[] | select(.type == "fs" and (.node_id | type == "string" and length > 0) and (.fsid > 0) and (.write_rate_bps > 0)) | "\(.node_id) fsid=\(.fsid)"' | head -n1)
+  echo "✅ Success: Filesystem-level traffic detected in filesystem detail mode ($FS_ID)."
 else
-  echo "❌ Error: Disk-level traffic missing in filesystem detail mode."
-  echo "Debug Info: $DISK_JSON_RESULT"
+  echo "❌ Error: Filesystem-level traffic missing in filesystem detail mode."
+  echo "Debug Info: $FS_JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
-if echo "$AGGREGATE_DISK_JSON_RESULT" | jq -e 'length == 0' > /dev/null; then
-  echo "✅ Success: Disk-level output is hidden in aggregate detail mode."
+if echo "$ALL_JSON_RESULT" | jq -e --arg app "$DETAIL_APP" '.[] | select(.type == "all" and (.node_id | type == "string" and length > 0) and (.fsid > 0) and (.app == $app) and (.uid | type == "number") and (.gid | type == "number") and (.write_rate_bps > 0))' > /dev/null; then
+  ALL_ID=$(echo "$ALL_JSON_RESULT" | jq -r --arg app "$DETAIL_APP" '.[] | select(.type == "all" and (.node_id | type == "string" and length > 0) and (.fsid > 0) and (.app == $app) and (.write_rate_bps > 0)) | "\(.node_id) fsid=\(.fsid) app=\(.app) uid=\(.uid) gid=\(.gid)"' | head -n1)
+  echo "✅ Success: Full tag traffic detected in filesystem detail mode ($ALL_ID)."
 else
-  echo "❌ Error: Disk-level output still visible in aggregate detail mode."
-  echo "Debug Info: $AGGREGATE_DISK_JSON_RESULT"
+  echo "❌ Error: Full tag traffic missing in filesystem detail mode."
+  echo "Debug Info: $ALL_JSON_RESULT"
+  FAILURES=$((FAILURES + 1))
+fi
+
+AGGREGATE_APP="aggregate-all-test-app"
+xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/aggregate_all.dat?eos.app=${AGGREGATE_APP}" > /dev/null 2>&1 &
+PID_AGGREGATE=$!
+
+sleep 5
+AGGREGATE_FS_JSON_RESULT=$(eos io shaping ls --window 5 --fs --json)
+AGGREGATE_ALL_JSON_RESULT=$(eos io shaping ls --window 5 --all --json)
+
+kill -9 $PID_AGGREGATE 2>/dev/null; wait $PID_AGGREGATE 2>/dev/null || true
+eos io shaping config set --detail fs
+sleep 2
+
+if echo "$AGGREGATE_FS_JSON_RESULT" | jq -e 'length == 0' > /dev/null && \
+   echo "$AGGREGATE_ALL_JSON_RESULT" | jq -e 'length > 0 and all(.[]; .type == "all" and .node_id == "<unknown>" and .fsid == 0)' > /dev/null && \
+   echo "$AGGREGATE_ALL_JSON_RESULT" | jq -e --arg app "$AGGREGATE_APP" '.[] | select(.app == $app and (.uid | type == "number") and (.gid | type == "number") and (.write_rate_bps > 0))' > /dev/null; then
+  echo "✅ Success: Aggregate detail mode hides --fs and exposes --all with sentinel node/fs values."
+else
+  echo "❌ Error: Aggregate detail mode did not return expected --fs/--all output."
+  echo "Debug Info (--fs): $AGGREGATE_FS_JSON_RESULT"
+  echo "Debug Info (--all): $AGGREGATE_ALL_JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 

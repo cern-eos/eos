@@ -1239,9 +1239,14 @@ TrafficShapingEngine::ApplyConfig()
 
   ApplyThreadConfig(est_ms, pol_ms, rep_ms, win_s, false);
 
-  SetDetailLevel(
-      FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG),
-      false);
+  const std::string detail_level =
+      FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG);
+
+  if (detail_level.empty()) {
+    SetDetailLevel(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE);
+  } else {
+    SetDetailLevel(detail_level, false);
+  }
 
   SyncTrafficShapingEnabledWithFst();
 }

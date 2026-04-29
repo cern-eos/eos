@@ -317,6 +317,9 @@ com_io_help()
       << "\t   --users  : show rates by user (uid)\n"
       << "\t   --groups : show rates by group (gid)\n"
       << "\t   --nodes  : show rates by storage node (FST)\n"
+      << "\t   --fs     : show rates by storage node and filesystem id\n"
+      << "\t   --all    : show rates by storage node, filesystem id, application, "
+         "user, and group\n"
       << "\t   --json   : output in JSON format\n"
       << std::endl
       << "     enable  : globally enable traffic shaping\n"
@@ -344,7 +347,7 @@ com_io_help()
       << "     config [action] [options...] : manage traffic shaping thread "
          "configurations\n"
       << "\t   action 'ls' : list current thread update periods\n"
-      << "\t     usage: config ls\n"
+      << "\t     usage: config ls [--json]\n"
       << "\t   action 'set' : modify configuration settings such as update periods for "
          "estimators and policy enforcement\n"
       << "\t     usage: config set [--estimators-period <ms>] [--policy-period <ms>] "
@@ -411,6 +414,9 @@ SetupTrafficListCommand(CLI::App& app, eos::console::IoProto_ShapingProto* proto
   grp->add_flag("--users", "Show rates by user (uid)");
   grp->add_flag("--groups", "Show rates by group (gid)");
   grp->add_flag("--nodes", "Show rates by storage node");
+  grp->add_flag("--fs", "Show rates by storage node and filesystem id");
+  grp->add_flag(
+      "--all", "Show rates by storage node, filesystem id, application, user, and group");
   cmd->add_flag("--json", "Output in JSON format");
   cmd->add_flag("--sys", "Include meta statistics about Traffic Shaping system");
   cmd->add_option("--window",
@@ -427,15 +433,20 @@ SetupTrafficListCommand(CLI::App& app, eos::console::IoProto_ShapingProto* proto
     const bool show_users = cmd->count("--users") > 0;
     const bool show_groups = cmd->count("--groups") > 0;
     const bool show_nodes = cmd->count("--nodes") > 0;
+    const bool show_fs = cmd->count("--fs") > 0;
+    const bool show_all = cmd->count("--all") > 0;
 
     // If neither is specified, show apps
     const bool show_apps =
-        (cmd->count("--apps") > 0) || (!show_users && !show_groups && !show_nodes);
+        (cmd->count("--apps") > 0) ||
+        (!show_users && !show_groups && !show_nodes && !show_fs && !show_all);
 
     action->set_show_apps(show_apps);
     action->set_show_users(show_users);
     action->set_show_groups(show_groups);
     action->set_show_nodes(show_nodes);
+    action->set_show_fs(show_fs);
+    action->set_show_all(show_all);
     action->set_json_output(json_output);
     action->set_system_stats(include_sys);
 
@@ -471,8 +482,12 @@ SetupConfigCommand(CLI::App* config_cmd, eos::console::IoProto_ShapingProto* pro
   config_cmd->require_subcommand(1);
 
   auto* ls_cmd = config_cmd->add_subcommand("ls", "Show current shaping configuration");
+  ls_cmd->add_flag("--json", "JSON output");
 
-  ls_cmd->callback([proto]() { proto->mutable_config()->mutable_list(); });
+  ls_cmd->callback([ls_cmd, proto]() {
+    auto* action = proto->mutable_config()->mutable_list();
+    action->set_json_output(ls_cmd->count("--json") > 0);
+  });
 
   auto* set_cmd =
       config_cmd->add_subcommand("set", "Set shaping configuration parameters");
