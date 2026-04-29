@@ -26,11 +26,10 @@ std::vector<gid_t> UnixGrentFetcher::getGroups(const std::string &username, gid_
 {
 
     std::vector<gid_t> groups;
-
     std::unique_lock<std::mutex> lock(mtx);
     setgrent();
-
     group *gr {nullptr};
+
     while ((gr = getgrent())) {
         int cnt = 0;
         if (gr->gr_gid == gid) {
@@ -51,15 +50,25 @@ std::vector<gid_t> UnixGroupListFetcher::getGroups(const std::string &username, 
 {
     std::vector<gid_t> groups(kDefaultMaxGroupSize);
     int ngroups = kDefaultMaxGroupSize;
-    if (getgrouplist(username.c_str(), gid, groups.data(), &ngroups) == -1) {
-        groups.resize(ngroups);
+#ifdef __LINUX__
+    if (getgrouplist(username.c_str(), gid, (gid_t*)groups.data(), &ngroups) == -1) {
+#else
+    if (getgrouplist(username.c_str(), gid, (int*)groups.data(), &ngroups) == -1) {
+#endif
+      groups.resize(ngroups);
 
-        if (getgrouplist(username.c_str(), gid, groups.data(), &ngroups) == -1) {
-            // This is very unlikely, we can do this in a tight loop to avoid this, but very much an overkill
-            eos_static_err("msg=\"Groups resized while fetching groupinfo\" uid=%s ngroups=%d",
-                           username.c_str(), ngroups);
-            return groups; // do not resize again as we have lesser groups!
-        }
+#ifdef __LINUX__
+      if (getgrouplist(username.c_str(), gid, (gid_t*)groups.data(), &ngroups) == -1) {
+#else
+      if (getgrouplist(username.c_str(), gid, (int*)groups.data(), &ngroups) == -1) {
+#endif
+        // This is very unlikely, we can do this in a tight loop to avoid this, but very
+        // much an overkill
+        eos_static_err(
+            "msg=\"Groups resized while fetching groupinfo\" uid=%s ngroups=%d",
+            username.c_str(), ngroups);
+        return groups; // do not resize again as we have lesser groups!
+      }
     }
     groups.resize(ngroups);
     return groups;

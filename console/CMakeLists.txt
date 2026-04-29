@@ -54,9 +54,11 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   XROOTD::UTILS
   XROOTD::POSIX
   XROOTD::PRIVATE
-  SCITOKENS::SCITOKENS
-  stdc++fs
-  )
+  SCITOKENS::SCITOKENS)
+
+if (Linux)
+  target_link_libraries(EosConsoleHelpers-Objects PUBLIC stdc++fs)
+endif()
 
 set_target_properties(EosConsoleHelpers-Objects PROPERTIES
   POSITION_INDEPENDENT_CODE TRUE)
@@ -189,9 +191,11 @@ target_link_libraries(
   ZMQ::ZMQ
   XROOTD::POSIX
   SCITOKENS::SCITOKENS
-  EosFstIo-Static
-  stdc++fs
-  )
+  EosFstIo-Static)
+
+if (Linux)
+  target_link_libraries(eos PUBLIC stdc++fs)
+endif()
 
 install(PROGRAMS eosadmin eos-iam-mapfile
   DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

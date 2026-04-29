@@ -44,7 +44,7 @@ safe_strtoll(const std::string& str, uint64_t& ret)
   char* endptr = NULL;
   ret = strtoull(str.c_str(), &endptr, 10);
 
-  if (endptr != str.c_str() + str.size() || ret == ULONG_LONG_MAX) {
+  if (endptr != str.c_str() + str.size() || ret == ULLONG_MAX) {
     return false;
   }
 
