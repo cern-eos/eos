@@ -166,9 +166,16 @@ Storage::FsRegisterStatus Storage::RegisterFileSystem(const std::string& queuepa
 void
 ProcessFstIoLimitsCommand(const std::string& data)
 {
+  std::string serialized;
+
+  if (!eos::common::SymKey::DeBase64(data, serialized)) {
+    eos_static_err("msg=\"Failed to base64-decode FST IO limits config\"");
+    return;
+  }
+
   eos::traffic_shaping::TrafficShapingFstIoDelayConfig fst_io_delay_config;
 
-  if (!fst_io_delay_config.ParseFromString(data)) {
+  if (!fst_io_delay_config.ParseFromString(serialized)) {
     eos_static_err("msg=\"Failed to parse FST IO limits config\"");
     return;
   }
