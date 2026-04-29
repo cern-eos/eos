@@ -59,6 +59,8 @@ xrdcp ${TEST_FILE_10MB} "${DEST_URL}/10mb.dat?eos.app=traffic-shaping-test-app" 
 sleep 1
 
 JSON_RESULT=$(eos io shaping ls --window 15 --sys --json)
+USER_JSON_RESULT=$(eos io shaping ls --window 15 --users --json)
+USER_JSON_RESOLVED_RESULT=$(eos io shaping ls --window 15 --users --json --resolve-ids)
 
 if echo "$JSON_RESULT" | jq -e '.[] | select(.id == "traffic-shaping-test-app") | (.write_rate_bps > 0)' > /dev/null; then
   echo "✅ Success: Baseline traffic detected."
@@ -68,8 +70,19 @@ else
   FAILURES=$((FAILURES + 1))
 fi
 
+if echo "$USER_JSON_RESULT" | jq -e '.[] | select(.type == "uid" and (.write_rate_bps > 0)) | has("name") | not' > /dev/null && \
+   echo "$USER_JSON_RESOLVED_RESULT" | jq -e '.[] | select(.type == "uid" and (.write_rate_bps > 0) and (.name | type == "string" and length > 0))' > /dev/null; then
+  echo "✅ Success: UID/GID name resolution is disabled by default in JSON and enabled on request."
+else
+  echo "❌ Error: UID/GID name resolution JSON defaults are not as expected."
+  echo "Debug Info (--users --json): $USER_JSON_RESULT"
+  echo "Debug Info (--users --json --resolve-ids): $USER_JSON_RESOLVED_RESULT"
+  FAILURES=$((FAILURES + 1))
+fi
+
 CONFIG_RESULT=$(eos io shaping config ls)
 CONFIG_JSON_RESULT=$(eos io shaping config ls --json)
+POLICY_JSON_RESULT=$(eos io shaping policy ls --json)
 
 if echo "$CONFIG_RESULT" | grep -Eq 'Traffic Shaping Enabled:[[:space:]]*true' && \
    echo "$CONFIG_RESULT" | grep -Eq 'Stats Detail Level:[[:space:]]*aggregate'; then
@@ -85,6 +98,20 @@ if echo "$CONFIG_JSON_RESULT" | jq -e '.enabled == true and .detail_level == "ag
 else
   echo "❌ Error: Traffic shaping config JSON output missing expected values."
   echo "Debug Info: $CONFIG_JSON_RESULT"
+  FAILURES=$((FAILURES + 1))
+fi
+
+if [[ "$JSON_RESULT" != *$'\n'* && "$USER_JSON_RESULT" != *$'\n'* && \
+      "$USER_JSON_RESOLVED_RESULT" != *$'\n'* && "$CONFIG_JSON_RESULT" != *$'\n'* && \
+      "$POLICY_JSON_RESULT" != *$'\n'* ]]; then
+  echo "✅ Success: Traffic shaping JSON output is compact."
+else
+  echo "❌ Error: Traffic shaping JSON output contains unexpected line breaks."
+  echo "Debug Info (ls): $JSON_RESULT"
+  echo "Debug Info (users): $USER_JSON_RESULT"
+  echo "Debug Info (users resolved): $USER_JSON_RESOLVED_RESULT"
+  echo "Debug Info (config): $CONFIG_JSON_RESULT"
+  echo "Debug Info (policy): $POLICY_JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
