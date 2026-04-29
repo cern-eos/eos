@@ -62,7 +62,11 @@ RunRegisteredCommand(const std::string& cmdName,
   if (icmd->requiresMgm(rest) && !CheckMgmOnline(serveruri.c_str())) {
     std::cerr << "error: MGM " << serveruri.c_str()
               << " not online/reachable" << std::endl;
+#ifdef __LINUX__
     return ENONET;
+#else
+    return ENOTCONN;
+#endif
   }
 
   CommandContext ctx;

@@ -45,7 +45,7 @@
 #include <sys/time.h>
 #include <sys/stat.h>
 
-#ifdef __linux__
+#ifdef __LINUX__
 # include <sys/ioctl.h>
 # include <sys/mount.h>
 # include <sys/sysmacros.h>
@@ -689,7 +689,7 @@ void parse_options(int argc, char** argv)
   path = argv[optind];
 }
 
-#ifdef __linux__
+#ifdef __LINUX__
 
 void parse_device(dev_t dev)
 {

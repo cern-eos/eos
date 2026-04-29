@@ -21,7 +21,6 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
 #include "console/CommandFramework.hh"
 #include "console/ConsoleMain.hh"
 #include "console/commands/helpers/NewfindHelper.hh"
@@ -32,8 +31,6 @@
 #include "common/CopyProcess.hh"
 #include <CLI/CLI.hpp>
 #include <XrdOuc/XrdOucString.hh>
-/*----------------------------------------------------------------------------*/
-
 #include <XrdCl/XrdClFileSystem.hh>
 #include <XrdCl/XrdClCopyProcess.hh>
 #include <XrdCl/XrdClPropertyList.hh>
@@ -245,20 +242,20 @@ fs_result fs_find(const char* path)
         switch ((buf.st_mode & S_IFMT)) {
         case S_IFDIR :
           p += "/";
-          result.directories[p].mtime = buf.st_mtim;
+          result.directories[p].mtime.tv_sec = buf.st_mtime;
           result.directories[p].size  = buf.st_size;
           //  s << "path=\"" << p << "/\" mtime=" << eos::common::Timing::TimespecToString(buf.st_mtim) << " size=" << buf.st_size << std::endl;
           break;
 
         case S_IFREG :
-          result.files[p].mtime = buf.st_mtim;
+          result.files[p].mtime.tv_sec = buf.st_mtime;
           result.files[p].size  = buf.st_size;
           //s << "path=\"" << p << "\" mtime=" << eos::common::Timing::TimespecToString(buf.st_mtim) << " size=" << buf.st_size << std::endl;
           break;
 
         case S_IFLNK :
           result.links[p].size = 0;
-          result.links[p].mtime = buf.st_mtim;
+          result.links[p].mtime.tv_sec = buf.st_mtime;
           char link[4096];
           ssize_t target = readlink(t.c_str(), link, sizeof(link));
 

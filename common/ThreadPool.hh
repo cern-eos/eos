@@ -326,7 +326,7 @@ public:
 
   static void setSelfThreadName(const std::string& name)
   {
-#ifndef APPLE
+#ifdef __LINUX__
     pthread_setname_np(pthread_self(), name.substr(0, 15).c_str());
 #endif
   }
