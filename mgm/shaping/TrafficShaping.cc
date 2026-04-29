@@ -1,6 +1,7 @@
 #include "mgm/shaping/TrafficShaping.hh"
 #include "Constants.hh"
 #include "common/Logging.hh"
+#include "common/SymKeys.hh"
 #include "config/IConfigEngine.hh"
 #include "fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
@@ -681,12 +682,19 @@ TrafficShapingManager::UpdateLimits()
     }
   }
 
-  const std::string serialized = fst_io_delay_config.SerializeAsString();
+  std::string serialized = fst_io_delay_config.SerializeAsString();
+  std::string encoded;
+
+  if (!eos::common::SymKey::Base64(serialized, encoded)) {
+    eos_static_warning("%s", "msg=\"failed to base64-encode FST IO limits config\"");
+    return;
+  }
+
   for (const auto& node_name : online_nodes) {
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
     auto it = FsView::gFsView.mNodeView.find(node_name);
     if (it != FsView::gFsView.mNodeView.end()) {
-      it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS, serialized,
+      it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS, encoded,
                                   true);
     }
   }
@@ -1010,8 +1018,15 @@ TrafficShapingEngine::UpdateThreadConfigs()
       mFstIoStatsReportThreadPeriodMilliseconds);
   thread_loop_stats.set_system_stats_time_window_seconds(mSystemStatsWindowSeconds);
 
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS,
-                                  thread_loop_stats.SerializeAsString());
+  std::string serialized = thread_loop_stats.SerializeAsString();
+  std::string encoded;
+
+  if (!eos::common::SymKey::Base64(serialized, encoded)) {
+    eos_static_warning("%s", "msg=\"failed to base64-encode thread periods config\"");
+    return;
+  }
+
+  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS, encoded);
   gOFS->mConfigEngine->AutoSave();
 }
 
@@ -1047,12 +1062,24 @@ TrafficShapingEngine::ApplyConfig()
       FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS);
   if (!thread_periods.empty()) {
     try {
+      std::string serialized_thread_periods;
+
+      if (!eos::common::SymKey::DeBase64(thread_periods, serialized_thread_periods)) {
+        eos_static_err("%s", "msg=\"failed to base64-decode thread periods config\"");
+        serialized_thread_periods.clear();
+      }
+
       eos::traffic_shaping::ThreadConfig thread_config;
-      thread_config.ParseFromString(thread_periods);
-      est_ms = thread_config.update_estimators_period_millis();
-      pol_ms = thread_config.fst_policy_update_period_millis();
-      rep_ms = thread_config.fst_io_stats_report_period_millis();
-      win_s = thread_config.system_stats_time_window_seconds();
+
+      if (!serialized_thread_periods.empty() &&
+          thread_config.ParseFromString(serialized_thread_periods)) {
+        est_ms = thread_config.update_estimators_period_millis();
+        pol_ms = thread_config.fst_policy_update_period_millis();
+        rep_ms = thread_config.fst_io_stats_report_period_millis();
+        win_s = thread_config.system_stats_time_window_seconds();
+      } else if (!serialized_thread_periods.empty()) {
+        eos_static_err("%s", "msg=\"failed to parse thread periods config\"");
+      }
     } catch (const std::exception& e) {
       eos_static_err("msg=\"failed to parse thread periods config\" error=%s", e.what());
     }

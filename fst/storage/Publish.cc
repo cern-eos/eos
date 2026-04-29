@@ -814,12 +814,17 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
     if (common::SharedHashLocator locator = gConfig.getNodeHashLocator(configQueue);
         !locator.empty()) {
       mq::SharedHashWrapper::Batch batch;
+      std::string serialized_report = report.SerializeAsString();
+      std::string encoded_report;
 
-      batch.SetTransient(eos::common::FST_TRAFFIC_SHAPING_IO_REPORT,
-                         report.SerializeAsString());
+      if (!eos::common::SymKey::Base64(serialized_report, encoded_report)) {
+        eos_static_warning("%s", "msg=\"failed to base64-encode FST IO report\"");
+      } else {
+        batch.SetTransient(eos::common::FST_TRAFFIC_SHAPING_IO_REPORT, encoded_report);
 
-      mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
-      hash.set(batch);
+        mq::SharedHashWrapper hash(gOFS.mMessagingRealm.get(), locator, true, false);
+        hash.set(batch);
+      }
     } else {
       eos_static_warning(
           "msg=\"no locator for Traffic Shaping stats publishing - skipping\" "
