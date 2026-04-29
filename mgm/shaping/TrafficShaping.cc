@@ -107,6 +107,12 @@ TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
   for (auto& [node, stats] : mNodeStats) {
     stats.ResetWindows(mEstimatorsTickIntervalSec);
   }
+  for (auto& [disk_key, stats] : mDiskStats) {
+    stats.ResetWindows(mEstimatorsTickIntervalSec);
+  }
+  for (auto& [detailed_key, stats] : mDetailedStats) {
+    stats.ResetWindows(mEstimatorsTickIntervalSec);
+  }
   mTotalStats.ResetWindows(mEstimatorsTickIntervalSec);
 
   estimators_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
@@ -206,7 +212,7 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
   uint64_t total_node_delta_write_iops = 0;
 
   for (const auto& entry : report.entries()) {
-    StreamKey key{entry.app_name(), entry.uid(), entry.gid()};
+    StreamKey key{entry.app_name(), entry.uid(), entry.gid(), entry.fsid()};
 
     StreamState& state = node_map[key];
 
@@ -298,6 +304,30 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
       global.read_iops_accumulator += delta_read_iops;
       global.write_iops_accumulator += delta_write_iops;
       global.last_activity_time = now_unix;
+
+      if (entry.fsid() != 0) {
+        DetailedKey detailed_key{node_id, key};
+        auto [detailed_it, detailed_inserted] =
+            mDetailedStats.try_emplace(detailed_key, mEstimatorsTickIntervalSec);
+        MultiWindowRate& detailed = detailed_it->second;
+
+        detailed.bytes_read_accumulator += delta_bytes_read;
+        detailed.bytes_written_accumulator += delta_bytes_written;
+        detailed.read_iops_accumulator += delta_read_iops;
+        detailed.write_iops_accumulator += delta_write_iops;
+        detailed.last_activity_time = now_unix;
+
+        DiskKey disk_key{node_id, entry.fsid()};
+        auto [disk_it, disk_inserted] =
+            mDiskStats.try_emplace(disk_key, mEstimatorsTickIntervalSec);
+        MultiWindowRate& disk = disk_it->second;
+
+        disk.bytes_read_accumulator += delta_bytes_read;
+        disk.bytes_written_accumulator += delta_bytes_written;
+        disk.read_iops_accumulator += delta_read_iops;
+        disk.write_iops_accumulator += delta_write_iops;
+        disk.last_activity_time = now_unix;
+      }
     }
   }
 
@@ -396,6 +426,12 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
     process_rate(stats);
   }
   for (auto& [node_id, stats] : mNodeStats) {
+    process_rate(stats);
+  }
+  for (auto& [disk_key, stats] : mDiskStats) {
+    process_rate(stats);
+  }
+  for (auto& [detailed_key, stats] : mDetailedStats) {
     process_rate(stats);
   }
   process_rate(mTotalStats);
@@ -738,6 +774,42 @@ TrafficShapingManager::GetNodeStats() const
   return snapshot_map;
 }
 
+std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash>
+TrafficShapingManager::GetDiskStats() const
+{
+  std::shared_lock lock(mMutex);
+  std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> snapshot_map;
+  snapshot_map.reserve(mDiskStats.size());
+
+  for (const auto& [disk_key, internal_stat] : mDiskStats) {
+    RateSnapshot& snap = snapshot_map[disk_key];
+    snap.last_activity_time = internal_stat.last_activity_time;
+    snap.active_stream_count = internal_stat.active_stream_count;
+    snap.ema = internal_stat.ema;
+    snap.sma = internal_stat.sma;
+  }
+
+  return snapshot_map;
+}
+
+std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash>
+TrafficShapingManager::GetDetailedStats() const
+{
+  std::shared_lock lock(mMutex);
+  std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash> snapshot_map;
+  snapshot_map.reserve(mDetailedStats.size());
+
+  for (const auto& [detailed_key, internal_stat] : mDetailedStats) {
+    RateSnapshot& snap = snapshot_map[detailed_key];
+    snap.last_activity_time = internal_stat.last_activity_time;
+    snap.active_stream_count = internal_stat.active_stream_count;
+    snap.ema = internal_stat.ema;
+    snap.sma = internal_stat.sma;
+  }
+
+  return snapshot_map;
+}
+
 TrafficShapingManager::GarbageCollectionStats
 TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
 {
@@ -746,7 +818,7 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
   const auto now_steady = std::chrono::steady_clock::now();
   const time_t now_unix = time(nullptr);
 
-  GarbageCollectionStats stats = {0, 0, 0};
+  GarbageCollectionStats stats = {0, 0, 0, 0, 0};
 
   for (auto node_it = mNodeStates.begin(); node_it != mNodeStates.end();) {
     NodeStateMap& map = node_it->second.streams;
@@ -784,6 +856,24 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
     if (now_unix - it->second.last_activity_time > max_idle_seconds) {
       it = mGlobalStats.erase(it);
       stats.removed_global_streams++;
+    } else {
+      ++it;
+    }
+  }
+
+  for (auto it = mDiskStats.begin(); it != mDiskStats.end();) {
+    if (now_unix - it->second.last_activity_time > max_idle_seconds) {
+      it = mDiskStats.erase(it);
+      stats.removed_disk_stats++;
+    } else {
+      ++it;
+    }
+  }
+
+  for (auto it = mDetailedStats.begin(); it != mDetailedStats.end();) {
+    if (now_unix - it->second.last_activity_time > max_idle_seconds) {
+      it = mDetailedStats.erase(it);
+      stats.removed_detailed_stats++;
     } else {
       ++it;
     }
@@ -875,6 +965,8 @@ TrafficShapingManager::Clear()
   mNodeStates.clear();
   mGlobalStats.clear();
   mNodeStats.clear();
+  mDiskStats.clear();
+  mDetailedStats.clear();
   mTotalStats.clear();
 
   estimators_update_loop_micro_sec.reset();
@@ -888,6 +980,26 @@ TrafficShapingManager::Clear()
     mCustomControllerAlgo = nullptr;
     mPluginLastModified = 0;
   }
+}
+
+void
+TrafficShapingManager::ClearRuntimeStats()
+{
+  std::unique_lock lock(mMutex);
+  mNodeStates.clear();
+  mGlobalStats.clear();
+  mNodeStats.clear();
+  mDiskStats.clear();
+  mDetailedStats.clear();
+  mTotalStats.clear();
+}
+
+void
+TrafficShapingManager::ClearDetailedRuntimeStats()
+{
+  std::unique_lock lock(mMutex);
+  mDiskStats.clear();
+  mDetailedStats.clear();
 }
 
 RateSnapshot
@@ -908,6 +1020,7 @@ TrafficShapingEngine::TrafficShapingEngine()
     , mFstIoPolicyUpdateThreadPeriodMilliseconds(200)
     , mFstIoStatsReportThreadPeriodMilliseconds(200)
     , mSystemStatsWindowSeconds(15)
+    , mFilesystemDetailEnabled(false)
 {
   mManager = std::make_shared<TrafficShapingManager>();
 }
@@ -1006,6 +1119,45 @@ TrafficShapingEngine::SetSystemStatsWindowSeconds(uint32_t window_seconds)
 }
 
 void
+TrafficShapingEngine::SetDetailLevel(const std::string& detail_level,
+                                     bool save_to_config_engine)
+{
+  const bool fs_detail =
+      detail_level == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM;
+  const std::string normalized_detail_level =
+      fs_detail ? eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM
+                : eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE;
+  const bool old_value =
+      mFilesystemDetailEnabled.exchange(fs_detail, std::memory_order_relaxed);
+
+  if (mManager != nullptr) {
+    if (old_value != fs_detail) {
+      mManager->ClearRuntimeStats();
+    } else if (!fs_detail) {
+      mManager->ClearDetailedRuntimeStats();
+    }
+  }
+
+  if (save_to_config_engine) {
+    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG,
+                                    normalized_detail_level);
+    gOFS->mConfigEngine->AutoSave();
+  }
+
+  if (save_to_config_engine || old_value != fs_detail) {
+    SyncTrafficShapingEnabledWithFst();
+  }
+}
+
+std::string
+TrafficShapingEngine::GetDetailLevel() const
+{
+  return mFilesystemDetailEnabled.load(std::memory_order_relaxed)
+             ? eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM
+             : eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE;
+}
+
+void
 TrafficShapingEngine::UpdateThreadConfigs()
 {
   eos::traffic_shaping::ThreadConfig thread_loop_stats;
@@ -1086,6 +1238,10 @@ TrafficShapingEngine::ApplyConfig()
   }
 
   ApplyThreadConfig(est_ms, pol_ms, rep_ms, win_s, false);
+
+  SetDetailLevel(
+      FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG),
+      false);
 
   SyncTrafficShapingEnabledWithFst();
 }
@@ -1238,14 +1394,18 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 
     if (++infrequent_action_counter >= infrequent_action_threshold) {
       infrequent_action_counter = 0;
-      const auto [removed_nodes, removed_node_streams, removed_global_streams] =
+      const auto [removed_nodes, removed_node_streams, removed_global_streams,
+                  removed_disk_stats, removed_detailed_stats] =
           mManager->GarbageCollect(900);
 
-      if (removed_node_streams > 0 || removed_global_streams > 0) {
+      if (removed_node_streams > 0 || removed_global_streams > 0 ||
+          removed_disk_stats > 0 || removed_detailed_stats > 0) {
         eos_static_debug("msg=\"Traffic Shaping Garbage Collection\" removed_nodes=%lu "
                          "removed_node_streams=%lu "
-                         "removed_global_streams=%lu",
-                         removed_nodes, removed_node_streams, removed_global_streams);
+                         "removed_global_streams=%lu removed_disk_stats=%lu "
+                         "removed_detailed_stats=%lu",
+                         removed_nodes, removed_node_streams, removed_global_streams,
+                         removed_disk_stats, removed_detailed_stats);
       }
     }
 
@@ -1330,6 +1490,7 @@ TrafficShapingEngine::SyncTrafficShapingEnabledWithFst()
   const std::string enabled_str = enabled ? "true" : "false";
   const std::string period_str =
       std::to_string(mFstIoStatsReportThreadPeriodMilliseconds);
+  const std::string detail_level = GetDetailLevel();
 
   std::vector<std::string> online_nodes;
   {
@@ -1349,6 +1510,8 @@ TrafficShapingEngine::SyncTrafficShapingEnabledWithFst()
                                   enabled_str, true);
       it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
                                   period_str, true);
+      it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL,
+                                  detail_level, true);
     }
   }
 }

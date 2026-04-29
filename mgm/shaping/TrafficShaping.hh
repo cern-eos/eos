@@ -159,6 +159,54 @@ struct RateSnapshot {
 using StreamKey = eos::common::traffic_shaping::IoStatsKey;
 using StreamKeyHash = eos::common::traffic_shaping::IoStatsKeyHash;
 
+struct DiskKey {
+  std::string node_id;
+  uint64_t fsid = 0;
+
+  bool
+  operator==(const DiskKey& other) const
+  {
+    return fsid == other.fsid && node_id == other.node_id;
+  }
+};
+
+struct DiskKeyHash {
+  std::size_t
+  operator()(const DiskKey& k) const
+  {
+    auto combine = [](const std::size_t seed, const std::size_t val) -> std::size_t {
+      return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+    };
+    std::size_t h = std::hash<std::string>{}(k.node_id);
+    h = combine(h, std::hash<uint64_t>{}(k.fsid));
+    return h;
+  }
+};
+
+struct DetailedKey {
+  std::string node_id;
+  StreamKey stream;
+
+  bool
+  operator==(const DetailedKey& other) const
+  {
+    return node_id == other.node_id && stream == other.stream;
+  }
+};
+
+struct DetailedKeyHash {
+  std::size_t
+  operator()(const DetailedKey& k) const
+  {
+    auto combine = [](const std::size_t seed, const std::size_t val) -> std::size_t {
+      return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+    };
+    std::size_t h = std::hash<std::string>{}(k.node_id);
+    h = combine(h, StreamKeyHash{}(k.stream));
+    return h;
+  }
+};
+
 struct TrafficShapingPolicy {
   // --- Persistent User Configuration ---
   uint64_t limit_write_bytes_per_sec = 0;
@@ -208,12 +256,18 @@ public:
 
   std::unordered_map<std::string, RateSnapshot> GetNodeStats() const;
 
+  std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> GetDiskStats() const;
+
+  std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash> GetDetailedStats() const;
+
   RateSnapshot GetTotalStats() const;
 
   struct GarbageCollectionStats {
     size_t removed_nodes;
     size_t removed_node_streams;
     size_t removed_global_streams;
+    size_t removed_disk_stats;
+    size_t removed_detailed_stats;
   };
 
   GarbageCollectionStats GarbageCollect(int max_idle_seconds);
@@ -275,6 +329,10 @@ public:
 
   void Clear();
 
+  void ClearRuntimeStats();
+
+  void ClearDetailedRuntimeStats();
+
 private:
   using NodeStateMap = std::unordered_map<StreamKey, StreamState, StreamKeyHash>;
 
@@ -286,6 +344,8 @@ private:
   std::unordered_map<std::string, NodeData> mNodeStates;
   std::unordered_map<StreamKey, MultiWindowRate, StreamKeyHash> mGlobalStats;
   std::unordered_map<std::string, MultiWindowRate> mNodeStats;
+  std::unordered_map<DiskKey, MultiWindowRate, DiskKeyHash> mDiskStats;
+  std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mDetailedStats;
   // We provide an initial tick interval but this will be refreshed on initialization
   MultiWindowRate mTotalStats{0.5};
 
@@ -386,6 +446,10 @@ public:
 
   void SetSystemStatsWindowSeconds(uint32_t window_seconds);
 
+  void SetDetailLevel(const std::string& detail_level, bool save_to_config_engine = true);
+
+  std::string GetDetailLevel() const;
+
 private:
   void EstimatorsUpdate(ThreadAssistant&);
 
@@ -411,6 +475,7 @@ private:
   std::atomic<uint32_t> mFstIoPolicyUpdateThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mSystemStatsWindowSeconds{};
+  std::atomic<bool> mFilesystemDetailEnabled{};
 
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
   std::mutex mReportQueueMutex{};

@@ -935,7 +935,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   // would turn this into a huge positive value corrupting all the checks below
   const int64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
   if (rc > 0) {
-    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rc);
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rc);
   }
   eos_debug("msg=\"layout read\" rc=%lli xs=%p", rc,
             mChecksumGroup ? mChecksumGroup->GetDefault() : nullptr);
@@ -1077,7 +1077,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
 
   if (rv > 0) {
     totalBytes += rv;
-    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, rv);
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rv);
   }
 
   if (EOS_LOGS_DEBUG) {
@@ -1183,7 +1183,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   eos_debug("rc=%d offset=%lu size=%lu", rc, fileOffset,
             static_cast<unsigned long>(buffer_size));
   if (rc > 0) {
-    gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, rc);
+    gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, mFsId, rc);
   }
   // If we see a remote IO error, we don't fail, we just call repair afterwards,
   // only for replica layouts and not for FuseX clients

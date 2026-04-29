@@ -14,9 +14,10 @@ IoStatsEntry::IoStatsEntry()
 }
 
 std::shared_ptr<IoStatsEntry>
-IoStatsCollector::GetEntry(const std::string& app, uint32_t uid, uint32_t gid)
+IoStatsCollector::GetEntry(const std::string& app, uint32_t uid, uint32_t gid,
+                           uint32_t fsid)
 {
-  const IoStatsKey key{app, uid, gid};
+  const IoStatsKey key{app, uid, gid, fsid};
   {
     std::shared_lock lock(mutex_);
     if (const auto it = stats_map_.find(key); it != stats_map_.end()) {
@@ -39,13 +40,13 @@ IoStatsCollector::GetEntry(const std::string& app, uint32_t uid, uint32_t gid)
 
 void
 IoStatsCollector::RecordRead(const std::string& app, const uint32_t uid,
-                             const uint32_t gid, const size_t bytes)
+                             const uint32_t gid, const uint32_t fsid, const size_t bytes)
 {
   if (!mIsEnabled.load(std::memory_order_relaxed)) {
     return;
   }
 
-  const auto entry = GetEntry(app, uid, gid);
+  const auto entry = GetEntry(app, uid, gid, fsid);
 
   // Atomic updates - thread safe and fast
   entry->bytes_read.fetch_add(bytes, std::memory_order_relaxed);
@@ -60,13 +61,13 @@ IoStatsCollector::RecordRead(const std::string& app, const uint32_t uid,
 
 void
 IoStatsCollector::RecordWrite(const std::string& app, const uint32_t uid,
-                              const uint32_t gid, const size_t bytes)
+                              const uint32_t gid, const uint32_t fsid, const size_t bytes)
 {
   if (!mIsEnabled.load(std::memory_order_relaxed)) {
     return;
   }
 
-  const auto entry = GetEntry(app, uid, gid);
+  const auto entry = GetEntry(app, uid, gid, fsid);
 
   entry->bytes_written.fetch_add(bytes, std::memory_order_relaxed);
   entry->write_iops.fetch_add(1, std::memory_order_relaxed);
@@ -75,6 +76,20 @@ IoStatsCollector::RecordWrite(const std::string& app, const uint32_t uid,
   entry->last_activity_s.store(
       std::chrono::duration_cast<std::chrono::seconds>(now).count(),
       std::memory_order_relaxed);
+}
+
+bool
+IoStatsCollector::SetFilesystemDetailEnabled(const bool enabled)
+{
+  const bool old_value =
+      mFilesystemDetailEnabled.exchange(enabled, std::memory_order_relaxed);
+
+  if (old_value != enabled) {
+    Clear();
+    return true;
+  }
+
+  return false;
 }
 
 size_t

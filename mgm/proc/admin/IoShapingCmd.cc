@@ -1,4 +1,5 @@
 #include "IoCmd.hh"
+#include "common/Constants.hh"
 #include "fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "proto/ConsoleReply.pb.h"
@@ -166,8 +167,23 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     return;
   }
 
+  if (list_req.show_disks() &&
+      engine.GetDetailLevel() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
+    reply.set_retc(0);
+
+    if (list_req.json_output()) {
+      reply.set_std_out("[]\n");
+    } else {
+      reply.set_std_out("Disk-level traffic stats are disabled. Enable them with "
+                        "'eos io shaping config set --detail fs'.\n");
+    }
+
+    return;
+  }
+
   auto global_stats = manager->GetGlobalStats();
   auto node_stats = manager->GetNodeStats();
+  auto disk_stats = manager->GetDiskStats();
   auto total_stats = manager->GetTotalStats();
 
   struct AggregatedStats {
@@ -178,6 +194,7 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
   };
 
   std::map<std::string, AggregatedStats> agg_stats;
+  std::map<std::pair<std::string, uint64_t>, AggregatedStats> disk_agg_stats;
 
   traffic_shaping::SmaIdx sma_idx = traffic_shaping::Sma1m;
   uint32_t window_sec = list_req.time_window_seconds();
@@ -202,7 +219,19 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     break;
   }
 
-  if (list_req.show_nodes()) {
+  if (list_req.show_disks()) {
+    for (const auto& [disk_key, snapshot] : disk_stats) {
+      std::pair<std::string, uint64_t> group_key{
+          disk_key.node_id.empty() ? "<unknown>" : disk_key.node_id, disk_key.fsid};
+      auto& entry = disk_agg_stats[group_key];
+
+      const auto& sma_metrics = snapshot.sma[sma_idx];
+      entry.read_rate += sma_metrics.read_rate_bps;
+      entry.write_rate += sma_metrics.write_rate_bps;
+      entry.read_iops += sma_metrics.read_iops;
+      entry.write_iops += sma_metrics.write_iops;
+    }
+  } else if (list_req.show_nodes()) {
     for (const auto& [node_id, snapshot] : node_stats) {
       std::string group_key = node_id.empty() ? "<unknown>" : node_id;
       auto& entry = agg_stats[group_key];
@@ -255,21 +284,42 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
 
     oss << "[\n";
     bool first = true;
-    for (const auto& [name, stat] : agg_stats) {
-      if (!first) {
-        oss << ",\n";
+
+    if (list_req.show_disks()) {
+      for (const auto& [disk_key, stat] : disk_agg_stats) {
+        if (!first) {
+          oss << ",\n";
+        }
+        first = false;
+        oss << "  {\n"
+            << "    \"type\": \"disk\",\n"
+            << "    \"node_id\": \"" << disk_key.first << "\",\n"
+            << "    \"fsid\": " << disk_key.second << ",\n"
+            << "    \"window_sec\": " << window_sec << ",\n"
+            << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
+            << stat.read_rate << ",\n"
+            << "    \"write_rate_bps\": " << stat.write_rate << ",\n"
+            << "    \"read_iops\": " << stat.read_iops << ",\n"
+            << "    \"write_iops\": " << stat.write_iops << "\n"
+            << "  }";
       }
-      first = false;
-      oss << "  {\n"
-          << "    \"id\": \"" << name << "\",\n"
-          << "    \"type\": \"" << type_str << "\",\n"
-          << "    \"window_sec\": " << window_sec << ",\n"
-          << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
-          << stat.read_rate << ",\n"
-          << "    \"write_rate_bps\": " << stat.write_rate << ",\n"
-          << "    \"read_iops\": " << stat.read_iops << ",\n"
-          << "    \"write_iops\": " << stat.write_iops << "\n"
-          << "  }";
+    } else {
+      for (const auto& [name, stat] : agg_stats) {
+        if (!first) {
+          oss << ",\n";
+        }
+        first = false;
+        oss << "  {\n"
+            << "    \"id\": \"" << name << "\",\n"
+            << "    \"type\": \"" << type_str << "\",\n"
+            << "    \"window_sec\": " << window_sec << ",\n"
+            << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
+            << stat.read_rate << ",\n"
+            << "    \"write_rate_bps\": " << stat.write_rate << ",\n"
+            << "    \"read_iops\": " << stat.read_iops << ",\n"
+            << "    \"write_iops\": " << stat.write_iops << "\n"
+            << "  }";
+      }
     }
 
     if (list_req.system_stats()) {
@@ -316,25 +366,49 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
 
     oss << "--- IO Rates (" << window_sec << "s simple moving average) ---\n";
 
-    oss << std::left << std::setw(40) << header_name << std::right << std::setw(15)
-        << "Read Rate" << std::setw(15) << "Write Rate" << std::setw(12) << "Read IOPS"
-        << std::setw(12) << "Write IOPS" << "\n";
+    if (list_req.show_disks()) {
+      oss << std::left << std::setw(40) << "Storage Node" << std::right << std::setw(10)
+          << "FSID" << std::setw(15) << "Read Rate" << std::setw(15) << "Write Rate"
+          << std::setw(12) << "Read IOPS" << std::setw(12) << "Write IOPS" << "\n";
 
-    oss << std::string(94, '-') << "\n";
+      oss << std::string(104, '-') << "\n";
 
-    for (const auto& [name, stat] : agg_stats) {
-      oss << std::left << std::setw(40) << name << std::right << std::setw(15)
-          << format_rate(stat.read_rate) << std::setw(15) << format_rate(stat.write_rate)
-          << std::fixed << std::setprecision(2) << std::setw(12) << stat.read_iops
-          << std::setw(12) << stat.write_iops << "\n";
+      for (const auto& [disk_key, stat] : disk_agg_stats) {
+        oss << std::left << std::setw(40) << disk_key.first << std::right << std::setw(10)
+            << disk_key.second << std::setw(15) << format_rate(stat.read_rate)
+            << std::setw(15) << format_rate(stat.write_rate) << std::fixed
+            << std::setprecision(2) << std::setw(12) << stat.read_iops << std::setw(12)
+            << stat.write_iops << "\n";
+      }
+
+      oss << std::string(104, '-') << "\n";
+      oss << std::left << std::setw(40) << "Total" << std::right << std::setw(10) << ""
+          << std::setw(15) << format_rate(total_sma_metrics.read_rate_bps)
+          << std::setw(15) << format_rate(total_sma_metrics.write_rate_bps) << std::fixed
+          << std::setprecision(2) << std::setw(12) << total_sma_metrics.read_iops
+          << std::setw(12) << total_sma_metrics.write_iops << "\n";
+    } else {
+      oss << std::left << std::setw(40) << header_name << std::right << std::setw(15)
+          << "Read Rate" << std::setw(15) << "Write Rate" << std::setw(12) << "Read IOPS"
+          << std::setw(12) << "Write IOPS" << "\n";
+
+      oss << std::string(94, '-') << "\n";
+
+      for (const auto& [name, stat] : agg_stats) {
+        oss << std::left << std::setw(40) << name << std::right << std::setw(15)
+            << format_rate(stat.read_rate) << std::setw(15)
+            << format_rate(stat.write_rate) << std::fixed << std::setprecision(2)
+            << std::setw(12) << stat.read_iops << std::setw(12) << stat.write_iops
+            << "\n";
+      }
+
+      oss << std::string(94, '-') << "\n";
+      oss << std::left << std::setw(40) << "Total" << std::right << std::setw(15)
+          << format_rate(total_sma_metrics.read_rate_bps) << std::setw(15)
+          << format_rate(total_sma_metrics.write_rate_bps) << std::fixed
+          << std::setprecision(2) << std::setw(12) << total_sma_metrics.read_iops
+          << std::setw(12) << total_sma_metrics.write_iops << "\n";
     }
-
-    oss << std::string(94, '-') << "\n";
-    oss << std::left << std::setw(40) << "Total" << std::right << std::setw(15)
-        << format_rate(total_sma_metrics.read_rate_bps) << std::setw(15)
-        << format_rate(total_sma_metrics.write_rate_bps) << std::fixed
-        << std::setprecision(2) << std::setw(12) << total_sma_metrics.read_iops
-        << std::setw(12) << total_sma_metrics.write_iops << "\n";
 
     if (list_req.system_stats()) {
       const auto [estimator_median, estimator_min, estimator_max] =
@@ -527,12 +601,15 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
   case eos::console::IoProto_ShapingProto_ConfigAction::kList: {
     std::ostringstream oss;
     oss << "--- Traffic Shaping Thread Configuration ---\n"
+        << std::left << std::setw(45)
+        << "Traffic Shaping Enabled:" << (engine.IsEnabled() ? "true" : "false") << "\n"
         << std::left << std::setw(45) << "Estimators Update Period:"
         << engine.GetEstimatorsUpdateThreadPeriodMilliseconds() << " ms\n"
         << std::setw(45) << "FST IO Policy Update Period:"
         << engine.GetFstIoPolicyUpdateThreadPeriodMilliseconds() << " ms\n"
         << std::setw(45) << "FST IO Stats Reporting Period:"
         << engine.GetFstIoStatsReportThreadPeriodMilliseconds() << " ms\n"
+        << std::setw(45) << "Stats Detail Level:" << engine.GetDetailLevel() << "\n"
         << std::setw(45)
         << "System Stats Time Window:" << engine.GetSystemStatsWindowSeconds() << " s\n";
 
@@ -544,6 +621,14 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
   case eos::console::IoProto_ShapingProto_ConfigAction::kSet: {
     const auto& set_req = config_req.set();
     std::ostringstream oss;
+
+    if (set_req.has_detail_level() &&
+        set_req.detail_level() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE &&
+        set_req.detail_level() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
+      reply.set_retc(EINVAL);
+      reply.set_std_err("error: detail level must be 'aggregate' or 'fs'.\n");
+      break;
+    }
 
     if (set_req.has_update_estimators_thread_period_ms()) {
       engine.SetEstimatorsUpdateThreadPeriodMilliseconds(
@@ -570,6 +655,12 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       engine.SetSystemStatsWindowSeconds(set_req.system_stats_time_window_seconds());
       oss << "success: Set system stats time window to "
           << engine.GetSystemStatsWindowSeconds() << " s\n";
+    }
+
+    if (set_req.has_detail_level()) {
+      const std::string detail_level = set_req.detail_level();
+      engine.SetDetailLevel(detail_level);
+      oss << "success: Set stats detail level to " << engine.GetDetailLevel() << "\n";
     }
 
     if (oss.str().empty()) {
