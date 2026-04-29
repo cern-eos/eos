@@ -37,23 +37,32 @@ EOSCOMMONNAMESPACE_BEGIN
 //------------------------------------------------------------------------------
 class PasswordHandler {
 public:
-
   //----------------------------------------------------------------------------
-  // Check if file permissions are secure.
+  // Check if file permissions are secure: 0400, or 0440 if ending in '.grp'
   //----------------------------------------------------------------------------
-  static bool areFilePermissionsSecure(mode_t mode)
+  static bool
+  areFilePermissionsSecure(mode_t mode, const char* path)
   {
-    if ((mode & 0077) != 0) {
-      // Should disallow access to other users/groups
-      return false;
+    mode_t perms = mode & 0777;
+    size_t len = strlen(path);
+    // this matches upstream xrootd logic in XrdSecsssKT::fileMode
+    bool is_grp = (len >= 4 && memcmp(path + len - 4, ".grp", 4) == 0);
+
+    if (is_grp) {
+      if (perms == 0440) {
+        return true;
+      } else {
+        eos_static_crit("Refusing to read %s: permissions must be 0440.", path);
+      }
+    } else {
+      if (perms == 0400) {
+        return true;
+      } else {
+        eos_static_crit("Refusing to read %s: permissions must be 0400.", path);
+      }
     }
 
-    if ((mode & 0700) != 0400) {
-      // Just read access for user
-      return false;
-    }
-
-    return true;
+    return false;
   }
 
   //----------------------------------------------------------------------------
@@ -66,7 +75,7 @@ public:
 
   //----------------------------------------------------------------------------
   // Read a password file, while taking the following into account:
-  // - Permissions must be 400 - refuse to do anything otherwise.
+  // - Permissions must be secure - refuse to do anything otherwise.
   // - Ending newlines are discarded.
   //----------------------------------------------------------------------------
   static bool readPasswordFile(const std::string &path, std::string &contents) {
@@ -76,7 +85,7 @@ public:
       return false;
     }
 
-    // Ensure file permissions are 400.
+    // Ensure file permissions are secure.
     struct stat sb;
     if(fstat(fileno(in), &sb) != 0) {
       fclose(in);
@@ -84,8 +93,7 @@ public:
       return false;
     }
 
-    if(!areFilePermissionsSecure(sb.st_mode)) {
-      eos_static_crit("Refusing to read %s, bad file permissions, should be 0400.", path.c_str());
+    if (!areFilePermissionsSecure(sb.st_mode, path.c_str())) {
       fclose(in);
       return false;
     }
