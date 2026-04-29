@@ -67,6 +67,7 @@ endif ()
 # Compiler specific flags
 #-------------------------------------------------------------------------------
 
+if (NOT MacOSX)
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
   # Clang requires linking with libatomic
   find_package(Atomic REQUIRED)
@@ -94,6 +95,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     -Werror=return-type
     -fclang-abi-compat=17
   )
+endif()
 endif()
 
 #-------------------------------------------------------------------------------
