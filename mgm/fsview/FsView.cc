@@ -3298,6 +3298,8 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     } else {
       gOFS->mTrafficShapingEngine.Disable();
     }
+  } else if (tokens[1] == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG) {
+    gOFS->mTrafficShapingEngine.SetDetailLevel(val, false);
   }
 
   common::SharedHashLocator locator;

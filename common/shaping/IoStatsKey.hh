@@ -7,17 +7,17 @@
 
 namespace eos::common::traffic_shaping {
 
-// Uniquely identifies a traffic stream by (app, uid, gid).
-// Used by both FST (for recording I/O) and MGM (for policy look-ups and rate tracking).
+// Uniquely identifies a traffic stream by (app, uid, gid, fsid).
 struct IoStatsKey {
-  std::string app;
-  uint32_t uid;
-  uint32_t gid;
+  std::string app = "<unknown>";
+  uint32_t uid = 0;
+  uint32_t gid = 0;
+  uint32_t fsid = 0;
 
   bool
   operator==(const IoStatsKey& other) const
   {
-    return uid == other.uid && gid == other.gid && app == other.app;
+    return uid == other.uid && gid == other.gid && fsid == other.fsid && app == other.app;
   }
 };
 
@@ -26,15 +26,23 @@ struct IoStatsKeyHash {
   operator()(const IoStatsKey& k) const
   {
     // Use hash_combine to avoid XOR's cancellation/commutativity pitfalls
-    // (e.g. uid==gid would collapse to just hash(app) with plain XOR).
-    // The magic constant is the golden-ratio fractional bits, same as
-    // boost::hash_combine.
+    // when mixing several fields into one hash value.
+    //
+    // The constant is the 64-bit fractional part of the golden ratio:
+    //   floor(2^64 / phi) = 0x9e3779b97f4a7c15
+    //
+    // It is commonly used in hash-combine functions, including Boost-style
+    // hash_combine, because it helps spread bits when successive field hashes
+    // are mixed into the accumulated seed.
+
     auto combine = [](const std::size_t seed, const std::size_t val) -> std::size_t {
-      return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
+      return seed ^ (val + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2));
     };
+
     std::size_t h = std::hash<std::string>{}(k.app);
     h = combine(h, std::hash<uint32_t>{}(k.uid));
     h = combine(h, std::hash<uint32_t>{}(k.gid));
+    h = combine(h, std::hash<uint32_t>{}(k.fsid));
     return h;
   }
 };
