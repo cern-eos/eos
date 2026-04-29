@@ -21,34 +21,35 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include <cfloat>
-#include <curl/curl.h>
-#include "common/config/ConfigParsing.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/fsview/FsView.hh"
-#include "mgm/geobalancer/GeoBalancer.hh"
-#include "mgm/groupbalancer/GroupBalancer.hh"
-#include "mgm/groupdrainer/GroupDrainer.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/balancer/FsBalancer.hh"
-#include "mgm/inspector/FileInspector.hh"
-#include "mgm/config/IConfigEngine.hh"
-#include "mgm/tgc/Constants.hh"
-#include "mgm/http/rest-api/Constants.hh"
-#include "mgm/policy/Policy.hh"
-#include "mgm/placement/FsScheduler.hh"
-#include "mgm/zmq/ZMQ.hh"
-#include "common/table_formatter/TableFormatterBase.hh"
-#include "common/StringConversion.hh"
 #include "common/Assert.hh"
+#include "common/Constants.hh"
 #include "common/InstanceName.hh"
 #include "common/LayoutId.hh"
-#include "mq/SharedHashWrapper.hh"
-#include "common/Constants.hh"
+#include "common/StringConversion.hh"
+#include "common/SymKeys.hh"
+#include "common/config/ConfigParsing.hh"
+#include "common/json/Json.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
 #include "common/token/EosTok.hh"
+#include "mgm/balancer/FsBalancer.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/geobalancer/GeoBalancer.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
+#include "mgm/groupbalancer/GroupBalancer.hh"
+#include "mgm/groupdrainer/GroupDrainer.hh"
+#include "mgm/http/rest-api/Constants.hh"
+#include "mgm/inspector/FileInspector.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/placement/FsScheduler.hh"
+#include "mgm/policy/Policy.hh"
+#include "mgm/tgc/Constants.hh"
+#include "mgm/zmq/ZMQ.hh"
+#include "mq/SharedHashWrapper.hh"
 #include "namespace/Prefetcher.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
-#include "common/json/Json.hh"
+#include <cfloat>
+#include <curl/curl.h>
 
 using eos::common::RWMutexReadLock;
 
@@ -2789,7 +2790,15 @@ FsNode::ProcessUpdateCb(qclient::SharedHashUpdate&& upd)
                      "value=\"%s\"", upd.value.c_str());
     }
   } else if (eos::common::FST_TRAFFIC_SHAPING_IO_REPORT == upd.key) {
-    gOFS->mTrafficShapingEngine.ProcessSerializedFstIoReportNonBlocking(upd.value);
+    std::string serialized_report;
+
+    if (!eos::common::SymKey::DeBase64(upd.value, serialized_report)) {
+      eos_static_warning("%s", "msg=\"failed to base64-decode FST IO report\"");
+      return;
+    }
+
+    gOFS->mTrafficShapingEngine.ProcessSerializedFstIoReportNonBlocking(
+        serialized_report);
   } else {
     eos_static_debug("msg=\"ignore node shared hash update\" key=\"%s\" "
                      "value=\"%s\"", upd.key.c_str(), upd.value.c_str());
