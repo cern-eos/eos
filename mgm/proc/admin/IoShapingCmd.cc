@@ -1,9 +1,12 @@
 #include "IoCmd.hh"
 #include "common/Constants.hh"
+#include "common/Mapping.hh"
 #include "fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "proto/ConsoleReply.pb.h"
 
+#include <cstdint>
+#include <json/json.h>
 #include <tuple>
 
 std::string
@@ -20,6 +23,46 @@ format_rate(const double bytes_per_sec)
   ss << std::fixed << std::setprecision(2) << val << " " << units[unit_idx];
   return ss.str();
 };
+
+namespace {
+
+std::string
+CompactJsonString(const Json::Value& value)
+{
+  Json::StreamWriterBuilder builder;
+  builder["indentation"] = "";
+  return Json::writeString(builder, value);
+}
+
+std::string
+FormatResolvedId(const uint32_t id, const std::string& name, const int errc)
+{
+  const std::string id_string = std::to_string(id);
+
+  if (errc || name.empty() || name == id_string) {
+    return id_string;
+  }
+
+  return id_string + "(" + name + ")";
+}
+
+std::string
+UidLabel(const uint32_t uid)
+{
+  int errc = 0;
+  const auto name = eos::common::Mapping::UidToUserName(static_cast<uid_t>(uid), errc);
+  return FormatResolvedId(uid, name, errc);
+}
+
+std::string
+GidLabel(const uint32_t gid)
+{
+  int errc = 0;
+  const auto name = eos::common::Mapping::GidToGroupName(static_cast<gid_t>(gid), errc);
+  return FormatResolvedId(gid, name, errc);
+}
+
+} // namespace
 
 namespace eos::mgm {
 
@@ -210,6 +253,24 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
   std::map<std::string, AggregatedStats> agg_stats;
   std::map<std::pair<std::string, uint64_t>, AggregatedStats> fs_agg_stats;
   std::map<DetailedDisplayKey, AggregatedStats> detailed_agg_stats;
+  const bool resolve_ids =
+      list_req.has_resolve_ids() ? list_req.resolve_ids() : !list_req.json_output();
+
+  auto uid_label = [resolve_ids](const uint32_t uid) -> std::string {
+    if (!resolve_ids) {
+      return std::to_string(uid);
+    }
+
+    return UidLabel(uid);
+  };
+
+  auto gid_label = [resolve_ids](const uint32_t gid) -> std::string {
+    if (!resolve_ids) {
+      return std::to_string(gid);
+    }
+
+    return GidLabel(gid);
+  };
 
   traffic_shaping::SmaIdx sma_idx = traffic_shaping::Sma1m;
   uint32_t window_sec = list_req.time_window_seconds();
@@ -335,64 +396,56 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       type_str = "node";
     }
 
-    oss << "[\n";
-    bool first = true;
+    Json::Value json(Json::arrayValue);
+
+    auto add_rate_fields = [window_sec](Json::Value& entry, const AggregatedStats& stat) {
+      entry["window_sec"] = static_cast<Json::Value::UInt>(window_sec);
+      entry["read_rate_bps"] = stat.read_rate;
+      entry["write_rate_bps"] = stat.write_rate;
+      entry["read_iops"] = stat.read_iops;
+      entry["write_iops"] = stat.write_iops;
+    };
 
     if (list_req.show_all()) {
       for (const auto& [detailed_key, stat] : detailed_agg_stats) {
-        if (!first) {
-          oss << ",\n";
+        Json::Value entry;
+        entry["type"] = "all";
+        entry["node_id"] = detailed_key.node_id;
+        entry["fsid"] = static_cast<Json::Value::UInt64>(detailed_key.fsid);
+        entry["app"] = detailed_key.app;
+        entry["uid"] = static_cast<Json::Value::UInt>(detailed_key.uid);
+        entry["gid"] = static_cast<Json::Value::UInt>(detailed_key.gid);
+
+        if (resolve_ids) {
+          entry["user"] = uid_label(detailed_key.uid);
+          entry["group"] = gid_label(detailed_key.gid);
         }
-        first = false;
-        oss << "  {\n"
-            << "    \"type\": \"all\",\n"
-            << "    \"node_id\": \"" << detailed_key.node_id << "\",\n"
-            << "    \"fsid\": " << detailed_key.fsid << ",\n"
-            << "    \"app\": \"" << detailed_key.app << "\",\n"
-            << "    \"uid\": " << detailed_key.uid << ",\n"
-            << "    \"gid\": " << detailed_key.gid << ",\n"
-            << "    \"window_sec\": " << window_sec << ",\n"
-            << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
-            << stat.read_rate << ",\n"
-            << "    \"write_rate_bps\": " << stat.write_rate << ",\n"
-            << "    \"read_iops\": " << stat.read_iops << ",\n"
-            << "    \"write_iops\": " << stat.write_iops << "\n"
-            << "  }";
+
+        add_rate_fields(entry, stat);
+        json.append(entry);
       }
     } else if (list_req.show_fs()) {
       for (const auto& [fs_key, stat] : fs_agg_stats) {
-        if (!first) {
-          oss << ",\n";
-        }
-        first = false;
-        oss << "  {\n"
-            << "    \"type\": \"fs\",\n"
-            << "    \"node_id\": \"" << fs_key.first << "\",\n"
-            << "    \"fsid\": " << fs_key.second << ",\n"
-            << "    \"window_sec\": " << window_sec << ",\n"
-            << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
-            << stat.read_rate << ",\n"
-            << "    \"write_rate_bps\": " << stat.write_rate << ",\n"
-            << "    \"read_iops\": " << stat.read_iops << ",\n"
-            << "    \"write_iops\": " << stat.write_iops << "\n"
-            << "  }";
+        Json::Value entry;
+        entry["type"] = "fs";
+        entry["node_id"] = fs_key.first;
+        entry["fsid"] = static_cast<Json::Value::UInt64>(fs_key.second);
+        add_rate_fields(entry, stat);
+        json.append(entry);
       }
     } else {
       for (const auto& [name, stat] : agg_stats) {
-        if (!first) {
-          oss << ",\n";
+        Json::Value entry;
+        entry["id"] = name;
+        entry["type"] = type_str;
+
+        if (resolve_ids && (list_req.show_users() || list_req.show_groups())) {
+          entry["name"] = list_req.show_users() ? uid_label(std::stoul(name))
+                                                : gid_label(std::stoul(name));
         }
-        first = false;
-        oss << "  {\n"
-            << "    \"id\": \"" << name << "\",\n"
-            << "    \"type\": \"" << type_str << "\",\n"
-            << "    \"window_sec\": " << window_sec << ",\n"
-            << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
-            << stat.read_rate << ",\n"
-            << "    \"write_rate_bps\": " << stat.write_rate << ",\n"
-            << "    \"read_iops\": " << stat.read_iops << ",\n"
-            << "    \"write_iops\": " << stat.write_iops << "\n"
-            << "  }";
+
+        add_rate_fields(entry, stat);
+        json.append(entry);
       }
     }
 
@@ -404,28 +457,22 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       const auto reports_processed_mean = manager->GetFstReportsProcessedPerSecondMean();
       const auto system_stats_window_seconds = manager->GetSystemStatsWindowSeconds();
 
-      if (!first) {
-        oss << ",\n";
-      }
-      oss << "  {\n"
-          << "    \"id\": \"engine_meta\",\n"
-          << "    \"type\": \"system\",\n"
-          << "    \"estimators_loop_median_us\": " << std::fixed << std::setprecision(2)
-          << estimator_median << ",\n"
-          << "    \"estimators_loop_min_us\": " << estimator_min << ",\n"
-          << "    \"estimators_loop_max_us\": " << estimator_max << ",\n"
-          << "    \"fst_limits_loop_median_us\": " << std::fixed << std::setprecision(2)
-          << fst_limits_median << ",\n"
-          << "    \"fst_limits_loop_min_us\": " << fst_limits_min << ",\n"
-          << "    \"fst_limits_loop_max_us\": " << fst_limits_max << ",\n"
-          << "    \"reports_processed_per_sec_mean\": " << std::fixed
-          << std::setprecision(2) << reports_processed_mean << ",\n"
-          << "    \"system_stats_window_seconds\": " << system_stats_window_seconds
-          << "\n"
-          << "  }";
+      Json::Value entry;
+      entry["id"] = "engine_meta";
+      entry["type"] = "system";
+      entry["estimators_loop_median_us"] = estimator_median;
+      entry["estimators_loop_min_us"] = estimator_min;
+      entry["estimators_loop_max_us"] = estimator_max;
+      entry["fst_limits_loop_median_us"] = fst_limits_median;
+      entry["fst_limits_loop_min_us"] = fst_limits_min;
+      entry["fst_limits_loop_max_us"] = fst_limits_max;
+      entry["reports_processed_per_sec_mean"] = reports_processed_mean;
+      entry["system_stats_window_seconds"] =
+          static_cast<Json::Value::UInt64>(system_stats_window_seconds);
+      json.append(entry);
     }
 
-    oss << "\n]\n";
+    oss << CompactJsonString(json);
   } else {
     std::string header_name = "ID";
     if (list_req.show_apps()) {
@@ -442,26 +489,28 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
 
     if (list_req.show_all()) {
       oss << std::left << std::setw(40) << "Storage Node" << std::right << std::setw(10)
-          << "FSID" << std::setw(24) << "Application" << std::setw(10) << "UID"
-          << std::setw(10) << "GID" << std::setw(15) << "Read Rate" << std::setw(15)
+          << "FSID" << std::setw(24) << "Application" << std::setw(18) << "UID"
+          << std::setw(18) << "GID" << std::setw(15) << "Read Rate" << std::setw(15)
           << "Write Rate" << std::setw(12) << "Read IOPS" << std::setw(12) << "Write IOPS"
           << "\n";
 
-      oss << std::string(148, '-') << "\n";
+      oss << std::string(164, '-') << "\n";
 
       for (const auto& [detailed_key, stat] : detailed_agg_stats) {
+        const std::string uid_display = uid_label(detailed_key.uid);
+        const std::string gid_display = gid_label(detailed_key.gid);
         oss << std::left << std::setw(40) << detailed_key.node_id << std::right
             << std::setw(10) << detailed_key.fsid << std::setw(24) << detailed_key.app
-            << std::setw(10) << detailed_key.uid << std::setw(10) << detailed_key.gid
+            << std::setw(18) << uid_display << std::setw(18) << gid_display
             << std::setw(15) << format_rate(stat.read_rate) << std::setw(15)
             << format_rate(stat.write_rate) << std::fixed << std::setprecision(2)
             << std::setw(12) << stat.read_iops << std::setw(12) << stat.write_iops
             << "\n";
       }
 
-      oss << std::string(148, '-') << "\n";
+      oss << std::string(164, '-') << "\n";
       oss << std::left << std::setw(40) << "Total" << std::right << std::setw(10) << ""
-          << std::setw(24) << "" << std::setw(10) << "" << std::setw(10) << ""
+          << std::setw(24) << "" << std::setw(18) << "" << std::setw(18) << ""
           << std::setw(15) << format_rate(total_sma_metrics.read_rate_bps)
           << std::setw(15) << format_rate(total_sma_metrics.write_rate_bps) << std::fixed
           << std::setprecision(2) << std::setw(12) << total_sma_metrics.read_iops
@@ -495,7 +544,14 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       oss << std::string(94, '-') << "\n";
 
       for (const auto& [name, stat] : agg_stats) {
-        oss << std::left << std::setw(40) << name << std::right << std::setw(15)
+        std::string display_name = name;
+        if (resolve_ids && list_req.show_users()) {
+          display_name = uid_label(std::stoul(name));
+        } else if (resolve_ids && list_req.show_groups()) {
+          display_name = gid_label(std::stoul(name));
+        }
+
+        oss << std::left << std::setw(40) << display_name << std::right << std::setw(15)
             << format_rate(stat.read_rate) << std::setw(15)
             << format_rate(stat.write_rate) << std::fixed << std::setprecision(2)
             << std::setw(12) << stat.read_iops << std::setw(12) << stat.write_iops
@@ -561,32 +617,27 @@ ShapingPolicyList(
   std::ostringstream oss;
 
   if (list_req.json_output()) {
-    oss << "[\n";
-    bool first = true;
+    Json::Value json(Json::arrayValue);
 
     auto print_json_entry = [&](const std::string& type_str, const std::string& id_str,
                                 const auto& policy) {
-      if (!first) {
-        oss << ",\n";
-      }
-      first = false;
-      oss << "  {\n"
-          << "    \"id\": \"" << id_str << "\",\n"
-          << "    \"type\": \"" << type_str << "\",\n"
-          << "    \"is_enabled\": " << (policy.is_enabled ? "true" : "false") << ",\n"
-          << "    \"limit_read_bytes_per_sec\": " << policy.limit_read_bytes_per_sec
-          << ",\n"
-          << "    \"limit_write_bytes_per_sec\": " << policy.limit_write_bytes_per_sec
-          << ",\n"
-          << "    \"reservation_read_bytes_per_sec\": "
-          << policy.reservation_read_bytes_per_sec << ",\n"
-          << "    \"reservation_write_bytes_per_sec\": "
-          << policy.reservation_write_bytes_per_sec << ",\n"
-          << "    \"controller_limit_read_bytes_per_sec\": "
-          << policy.controller_limit_read_bytes_per_sec << ",\n"
-          << "    \"controller_limit_write_bytes_per_sec\": "
-          << policy.controller_limit_write_bytes_per_sec << "\n"
-          << "  }";
+      Json::Value entry;
+      entry["id"] = id_str;
+      entry["type"] = type_str;
+      entry["is_enabled"] = policy.is_enabled;
+      entry["limit_read_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(policy.limit_read_bytes_per_sec);
+      entry["limit_write_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(policy.limit_write_bytes_per_sec);
+      entry["reservation_read_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(policy.reservation_read_bytes_per_sec);
+      entry["reservation_write_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(policy.reservation_write_bytes_per_sec);
+      entry["controller_limit_read_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(policy.controller_limit_read_bytes_per_sec);
+      entry["controller_limit_write_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(policy.controller_limit_write_bytes_per_sec);
+      json.append(entry);
     };
 
     if (show_all || list_req.filter_apps()) {
@@ -607,10 +658,7 @@ ShapingPolicyList(
       }
     }
 
-    if (!first) {
-      oss << "\n";
-    }
-    oss << "]\n";
+    oss << CompactJsonString(json);
 
   } else {
     const bool show_ctrl = list_req.show_controller_limits();
@@ -702,18 +750,18 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
     std::ostringstream oss;
 
     if (config_req.list().json_output()) {
-      oss << "{\n"
-          << "  \"enabled\": " << (engine.IsEnabled() ? "true" : "false") << ",\n"
-          << "  \"estimators_update_period_ms\": "
-          << engine.GetEstimatorsUpdateThreadPeriodMilliseconds() << ",\n"
-          << "  \"fst_io_policy_update_period_ms\": "
-          << engine.GetFstIoPolicyUpdateThreadPeriodMilliseconds() << ",\n"
-          << "  \"fst_io_stats_reporting_period_ms\": "
-          << engine.GetFstIoStatsReportThreadPeriodMilliseconds() << ",\n"
-          << "  \"detail_level\": \"" << engine.GetDetailLevel() << "\",\n"
-          << "  \"system_stats_time_window_seconds\": "
-          << engine.GetSystemStatsWindowSeconds() << "\n"
-          << "}\n";
+      Json::Value json;
+      json["enabled"] = engine.IsEnabled();
+      json["estimators_update_period_ms"] = static_cast<Json::Value::UInt64>(
+          engine.GetEstimatorsUpdateThreadPeriodMilliseconds());
+      json["fst_io_policy_update_period_ms"] = static_cast<Json::Value::UInt64>(
+          engine.GetFstIoPolicyUpdateThreadPeriodMilliseconds());
+      json["fst_io_stats_reporting_period_ms"] = static_cast<Json::Value::UInt64>(
+          engine.GetFstIoStatsReportThreadPeriodMilliseconds());
+      json["detail_level"] = engine.GetDetailLevel();
+      json["system_stats_time_window_seconds"] =
+          static_cast<Json::Value::UInt64>(engine.GetSystemStatsWindowSeconds());
+      oss << CompactJsonString(json);
     } else {
       oss << "--- Traffic Shaping Thread Configuration ---\n"
           << std::left << std::setw(45)

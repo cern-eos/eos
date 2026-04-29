@@ -84,6 +84,8 @@ std::string MakeIoHelp()
       << "\t   --all    : show rates by storage node, filesystem id, application, "
          "user, and group\n"
       << "\t   --json   : output in JSON format\n"
+      << "\t   --resolve-ids    : resolve uid/gid values to names\n"
+      << "\t   --no-resolve-ids : keep uid/gid values numeric\n"
       << "\t   --sys    : include meta statistics about Traffic Shaping system\n"
       << "\t   --window <1|5|15|60|300> : time window in seconds for SMA (default 60)\n"
       << std::endl
@@ -276,6 +278,11 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   grp->add_flag(
       "--all", "Show rates by storage node, filesystem id, application, user, and group");
   shaping_ls->add_flag("--json", "JSON output");
+  auto* resolve_ids =
+      shaping_ls->add_flag("--resolve-ids", "Resolve uid/gid values to names");
+  auto* no_resolve_ids =
+      shaping_ls->add_flag("--no-resolve-ids", "Keep uid/gid values numeric");
+  resolve_ids->excludes(no_resolve_ids);
   shaping_ls->add_flag("--sys", "Include system stats");
   shaping_ls->add_option("--window", "Time window (1|5|15|60|300)")
       ->check(CLI::IsMember({"1", "5", "15", "60", "300"}))
@@ -287,6 +294,9 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     bool sn = shaping_ls->count("--nodes") > 0;
     bool sf = shaping_ls->count("--fs") > 0;
     bool sa = shaping_ls->count("--all") > 0;
+    bool json_output = shaping_ls->count("--json") > 0;
+    bool resolve_ids = shaping_ls->count("--no-resolve-ids") == 0 &&
+                       (shaping_ls->count("--resolve-ids") > 0 || !json_output);
     action->set_show_apps(shaping_ls->count("--apps") > 0 ||
                           (!su && !sg && !sn && !sf && !sa));
     action->set_show_users(su);
@@ -294,7 +304,8 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     action->set_show_nodes(sn);
     action->set_show_fs(sf);
     action->set_show_all(sa);
-    action->set_json_output(shaping_ls->count("--json") > 0);
+    action->set_json_output(json_output);
+    action->set_resolve_ids(resolve_ids);
     action->set_system_stats(shaping_ls->count("--sys") > 0);
     action->set_time_window_seconds(
         static_cast<uint32_t>(std::stoul(shaping_ls->get_option("--window")->as<std::string>())));
