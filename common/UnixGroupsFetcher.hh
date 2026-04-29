@@ -27,7 +27,7 @@
 
 EOSCOMMONNAMESPACE_BEGIN
 
-class VirtualIdentity;
+struct VirtualIdentity;
 // constants
 static constexpr int kDefaultMaxGroupSize = 16;
 

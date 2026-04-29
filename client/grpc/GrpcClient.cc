@@ -21,24 +21,19 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-/*----------------------------------------------------------------------------*/
+#ifdef EOS_GRPC
 #include "GrpcClient.hh"
 #include "proto/Rpc.grpc.pb.h"
 #include "common/StringConversion.hh"
 #include "common/Timing.hh"
 #include "common/Path.hh"
-/*----------------------------------------------------------------------------*/
 #include <absl/log/absl_check.h>
 #include <grpcpp/grpcpp.h>
 #include <grpc/support/log.h>
 #include <google/protobuf/util/json_util.h>
-/*----------------------------------------------------------------------------*/
 #include <sys/stat.h>
-/*----------------------------------------------------------------------------*/
 
 EOSCLIENTNAMESPACE_BEGIN
-
-//#ifdef EOS_GRPC
 
 using grpc::Channel;
 using grpc::ClientAsyncResponseReader;
@@ -689,7 +684,5 @@ GrpcClient::ExportFs(const eos::rpc::MDResponse& response,
   return "";
 }
 
-//#endif
-
-
 EOSCLIENTNAMESPACE_END
+#endif

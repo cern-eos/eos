@@ -20,10 +20,7 @@
  * You should have received a copy of the GNU General Public License    *
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
-
-
 #pragma once
-
 #include <new>
 // Macros to help with alignment, ideally __cpp_lib_hardware_interference_size
 // is a cpp17 feature, but looks like none of the compilers actually implement

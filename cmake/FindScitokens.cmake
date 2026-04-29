@@ -1,8 +1,8 @@
 # Try to find scitokens
 # Once done, this will define
 #
-# SCITOKENS_FOUND          - system has zlib
-# SCITOKENS_INCLUDE_DIRS   - zlib include directories
+# SCITOKENS_FOUND          - system has scitokens
+# SCITOKENS_INCLUDE_DIRS   - scitokens include directories
 #
 # and the following imported targets
 #
@@ -26,7 +26,11 @@ if (SCITOKENS_FOUND AND NOT TARGET SCITOKENS::SCITOKENS)
   add_library(SCITOKENS::SCITOKENS UNKNOWN IMPORTED)
   set_target_properties(SCITOKENS::SCITOKENS PROPERTIES
     IMPORTED_LOCATION "${SCITOKENS_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "${SCITOKENS_INCLUDE_DIR}")
+    INTERFACE_INCLUDE_DIRECTORIES "${SCITOKENS_INCLUDE_DIR}"
+    INTERFACE_COMPILE_DEFINITIONS HAVE_SCITOKENS)
+else()
+  message(WARNING "Notice: scitokens not found, no scitokens support")
+  add_library(SCITOKENS::SCITOKENS INTERFACE IMPORTED)
 endif()
 
 unset(SCITOKENS_LIBRARY)

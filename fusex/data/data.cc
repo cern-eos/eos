@@ -1840,7 +1840,10 @@ data::datax::recover_write(fuse_req_t req)
         auto sourcesize = statInfo->GetSize();
         delete statInfo;
         // try to pre-allocate the size locally
-        int rc = posix_fallocate(fd, 0, sourcesize);
+        int rc = 0;
+#ifdef Linux
+	rc = posix_fallocate(fd, 0, sourcesize);
+#endif
 
         if (rc) {
           return ENOSPC;

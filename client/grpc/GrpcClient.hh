@@ -22,18 +22,13 @@
  ************************************************************************/
 
 #pragma once
-
-/*----------------------------------------------------------------------------*/
 #include "client/Namespace.hh"
 #include "common/AssistedThread.hh"
 #include <list>
-/*----------------------------------------------------------------------------*/
-/*----------------------------------------------------------------------------*/
+
 #ifdef EOS_GRPC
 #include <grpc++/grpc++.h>
 #include "proto/Rpc.grpc.pb.h"
-
-/*----------------------------------------------------------------------------*/
 
 EOSCLIENTNAMESPACE_BEGIN
 
@@ -99,6 +94,5 @@ private:
   std::map<uint64_t, std::string> tree;
 };
 
-#endif
-
 EOSCLIENTNAMESPACE_END
+#endif

@@ -28,7 +28,9 @@ include_directories(
 #-------------------------------------------------------------------------------
 # CTA integration related operations
 #-------------------------------------------------------------------------------
-add_subdirectory(eos_cta_pb)
+if (NOT CLIENT AND Linux)
+  add_subdirectory(eos_cta_pb)
+endif()
 
 #-------------------------------------------------------------------------------
 # EosCrc32c-Objects library
@@ -74,8 +76,8 @@ else()
     set(BLAKE3_AVX_SRCS blake3/blake3_avx2_x86-64_unix.S)
     if (HAVE_AVX512)
       set(BLAKE3_AVX_SRCS
-        "${BLAKE3_AVX_SRCS}"
-        blake3/blake3_avx512_x86-64_unix.S)
+	"${BLAKE3_AVX_SRCS}"
+	blake3/blake3_avx512_x86-64_unix.S)
     endif() # AVX_512
   endif() #AVX2
 
@@ -335,47 +337,43 @@ if(NOT CLIENT AND Linux)
   add_executable(eos-layout-print EosLayoutPrint.cc)
   target_link_libraries(eos-layout-print PUBLIC EosCommon)
   add_executable(mutextest
-    mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc StacktraceHere.cc)
+  mutextest/RWMutexTest.cc RWMutex.cc PthreadRWMutex.cc StacktraceHere.cc)
   # Avoid warnings related to bfd_get_section* macros being redefined
   target_compile_options(mutextest PRIVATE -Wno-macro-redefined)
   target_link_libraries(mutextest PRIVATE
-    EosCommon-Static)
-endif()
+  EosCommon-Static)
 
-#-------------------------------------------------------------------------------
-# Create python module eosscitokenmodule
-#-------------------------------------------------------------------------------
-# Define a custom target to build the Python module
-if(PYTHONSITEPKG_FOUND)
+  #-------------------------------------------------------------------------------
+  # Create python module eosscitokenmodule
+  #-------------------------------------------------------------------------------
+  # Define a custom target to build the Python module
+  if(PYTHONSITEPKG_FOUND)
+    add_custom_target(build_python_module
+      COMMAND ${CMAKE_COMMAND} -E echo "Building Python module..."
+      COMMAND ${CMAKE_COMMAND} -E env BUILD_BASE=${CMAKE_CURRENT_BINARY_DIR} ${Python3_EXECUTABLE} setup.py build
+	WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/token/)
 
-  add_custom_target(build_python_module
-    COMMAND ${CMAKE_COMMAND} -E echo "Building Python module..."
-    COMMAND ${CMAKE_COMMAND} -E env BUILD_BASE=${CMAKE_CURRENT_BINARY_DIR} ${Python3_EXECUTABLE} setup.py build
-    WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/token/)
+    # Define a custom target to install the Python module
+    add_custom_target(install_python_module
+      COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module...in \${DESTDIR}"
+      COMMAND ${CMAKE_COMMAND} -E env SOURCE_BASE=${CMAKE_CURRENT_SOURCE_DIR}/token/ ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/token/setup.py install --root=/ --single-version-externally-managed --prefix=\${DESTDIR}/usr/
+      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-  # Define a custom target to install the Python module
-  add_custom_target(install_python_module
-    COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module...in \${DESTDIR}"
-    COMMAND ${CMAKE_COMMAND} -E env SOURCE_BASE=${CMAKE_CURRENT_SOURCE_DIR}/token/ ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/token/setup.py install --root=/ --single-version-externally-managed --prefix=\${DESTDIR}/usr/
-    WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    # Ensure build_python_module is built after EosCommon
+    add_dependencies(build_python_module EosCommon)
+    # Make install depend on build, so it builds before installing
+    add_dependencies(install_python_module build_python_module)
 
-  # Ensure build_python_module is built after EosCommon
-  add_dependencies(build_python_module EosCommon)
-  # Make install depend on build, so it builds before installing
-  add_dependencies(install_python_module build_python_module)
+    # Hook the Python module build into the 'install' target
+    add_custom_command(
+      TARGET build_python_module POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E echo "Building Python module after install...")
 
-  # Hook the Python module build into the 'install' target
-  add_custom_command(
-    TARGET build_python_module
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Building Python module after install...")
+    add_custom_command(
+      TARGET install_python_module POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module after install...")
 
-  add_custom_command(
-    TARGET install_python_module
-    POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E echo "Installing Python module after install...")
-
-  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target build_python_module)")
-  install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target install_python_module)")
-
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target build_python_module)")
+    install(CODE "execute_process(COMMAND ${CMAKE_COMMAND} --build . --target install_python_module)")
+  endif()
 endif()

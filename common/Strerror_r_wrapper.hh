@@ -22,8 +22,8 @@
  ************************************************************************/
 
 #pragma once
-#include <stddef.h>
 #include "common/Namespace.hh"
+#include <stddef.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 

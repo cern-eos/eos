@@ -94,7 +94,6 @@ endif()
 
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 include(EosFindLibs)
-
 include(CTest)
 
 #-------------------------------------------------------------------------------
@@ -142,12 +141,8 @@ add_subdirectory(misc)
 add_subdirectory(test)
 add_subdirectory(namespace/ns_quarkdb/qclient)
 
-if (GRPC_FOUND)
-  add_subdirectory(client)
-endif()
-
 if (NOT CLIENT)
-
+  add_subdirectory(client)
   add_subdirectory(mgm)
   add_subdirectory(namespace)
   add_subdirectory(utils)

@@ -200,8 +200,8 @@ set_target_properties(EosCliProto-Objects PROPERTIES
 #-------------------------------------------------------------------------------
 # Generate protocol buffer objects for GRPC
 #-------------------------------------------------------------------------------
-if (GRPC_FOUND)
-  add_custom_target(RpcFileGeneration DEPENDS
+if (Linux)
+     add_custom_target(RpcFileGeneration DEPENDS
     ${GRPC_SRCS} ${GRPC_HDRS})
 
   set(GRPC_PROTOS ${CMAKE_SOURCE_DIR}/common/grpc-proto/Rpc.proto)
@@ -235,14 +235,10 @@ if (GRPC_FOUND)
 
   set_target_properties(EosGrpcProto-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
-else ()
-  add_library(EosGrpcProto-Objects INTERFACE)
-endif()
 
-#------------------------------------------------------------------------------
-# Generate gRPC objects for the CLI
-#------------------------------------------------------------------------------
-if (GRPC_FOUND)
+  #------------------------------------------------------------------------------
+  # Generate gRPC objects for the CLI
+  #------------------------------------------------------------------------------
   grpc_generate_cpp(ACCESS_GRPC_SRCS ACCESS_GRPC_HDRS ${GRPC_PROTOBUF_PATH} ${EOS_PROTO_ROOT}/Access.proto)
   grpc_generate_cpp(ACL_GRPC_SRCS ACL_GRPC_HDRS ${GRPC_PROTOBUF_PATH} ${EOS_PROTO_ROOT}/Acl.proto)
   grpc_generate_cpp(ATTR_GRPC_SRCS ATTR_GRPC_HDRS ${GRPC_PROTOBUF_PATH} ${EOS_PROTO_ROOT}/Attr.proto)
@@ -343,12 +339,10 @@ if (GRPC_FOUND)
 
   set_target_properties(EosCliGrpc-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
-endif()
 
-#------------------------------------------------------------------------------
-# Generate protobuf and gRPC objects for EOS Windows native client
-#------------------------------------------------------------------------------
-if (GRPC_FOUND)
+  #------------------------------------------------------------------------------
+  # Generate protobuf and gRPC objects for EOS Windows native client
+  #------------------------------------------------------------------------------
   set(WNC_PROTO ${EOS_PROTO_ROOT}/EosWnc.proto)
   PROTOBUF_GENERATE_CPP(WNC_SRCS WNC_HDRS ${WNC_PROTO})
   grpc_generate_cpp(WNC_GRPC_SRCS WNC_GRPC_HDRS ${GRPC_PROTOBUF_PATH} ${WNC_PROTO})
@@ -383,58 +377,60 @@ if (GRPC_FOUND)
 
   set_target_properties(EosWncGrpcProto-Objects PROPERTIES
     POSITION_INDEPENDENT_CODE TRUE)
-endif()
 
-set(REST_GW_PROTO eos_rest_gateway_service)
-set(PROTO_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
-set(REST_GW_PROTOS ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
-set(REST_GW_SRCS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.cc)
-set(REST_GW_HDRS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.h)
-set(REST_GW_GRPC_SRCS  ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.cc)
-set(REST_GW_GRPC_HDRS  ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.h)
-set(GW_GO_GEN ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.gw.go)
-set(PROTO_GRPC_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}_grpc.pb.go)
-set(PROTO_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.go)
+  #---------------------------------------------------------------------------------
+  # Generate HTTP GRPC REST gateway
+  #---------------------------------------------------------------------------------
+  set(REST_GW_PROTO eos_rest_gateway_service)
+  set(PROTO_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
+  set(REST_GW_PROTOS ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.proto)
+  set(REST_GW_SRCS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.cc)
+  set(REST_GW_HDRS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.pb.h)
+  set(REST_GW_GRPC_SRCS  ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.cc)
+  set(REST_GW_GRPC_HDRS  ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/${REST_GW_PROTO}.grpc.pb.h)
+  set(GW_GO_GEN ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.gw.go)
+  set(PROTO_GRPC_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}_grpc.pb.go)
+  set(PROTO_GO ${CMAKE_BINARY_DIR}/go/eos.rest.gateway.service/${REST_GW_PROTO}.pb.go)
 
-set(ANN_PROTO1 annotations)
-set(ANN_PROTO2 http)
-set(ANN_PROTO1_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.proto)
-set(ANN_PROTO2_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO2}.proto)
-set(ANN_PROTOS ${ANN_PROTO1_PATH} ${ANN_PROTO2_PATH})
-set(ANN_SRCS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.pb.cc
-             ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO2}.pb.cc)
-set(ANN_HDRS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.pb.h
-             ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api//${ANN_PROTO2}.pb.h)
+  set(ANN_PROTO1 annotations)
+  set(ANN_PROTO2 http)
+  set(ANN_PROTO1_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.proto)
+  set(ANN_PROTO2_PATH ${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO2}.proto)
+  set(ANN_PROTOS ${ANN_PROTO1_PATH} ${ANN_PROTO2_PATH})
+  set(ANN_SRCS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.pb.cc
+               ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO2}.pb.cc)
+  set(ANN_HDRS ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api/${ANN_PROTO1}.pb.h
+               ${CMAKE_BINARY_DIR}/proto/eos_rest_gateway/google/api//${ANN_PROTO2}.pb.h)
 
-set_source_files_properties(
+  set_source_files_properties(
     ${ANN_SRCS} ${ANN_HDRS}
     PROPERTIES GENERATED TRUE)
 
-# protoc command for http.proto and annotations.proto
-add_custom_command(
+  # protoc command for http.proto and annotations.proto
+  add_custom_command(
     OUTPUT ${ANN_SRCS} ${ANN_HDRS}
     COMMAND ${PROTOBUF3_PROTOC_EXECUTABLE} -I${CMAKE_SOURCE_DIR} -I${CMAKE_SOURCE_DIR}/common/grpc-proto/ -I${CMAKE_SOURCE_DIR}/proto/eos_rest_gateway -I${GRPC_INCLUDE_DIR}
             --cpp_out=../ ${ANN_PROTOS})
 
-add_library(RestAnnot-Objects OBJECT
+  add_library(RestAnnot-Objects OBJECT
     ${ANN_SRCS} ${ANN_HDRS})
 
-target_include_directories(RestAnnot-Objects PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>")
+  target_include_directories(RestAnnot-Objects PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR}>")
 
-set_target_properties(RestAnnot-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
+  set_target_properties(RestAnnot-Objects PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
 
-target_link_libraries(RestAnnot-Objects PUBLIC
+  target_link_libraries(RestAnnot-Objects PUBLIC
     GRPC::grpc++)
 
-add_custom_target(
-  GoogleApis-Target
-  COMMAND echo "Running protoc for annotations and http"
-  DEPENDS RestAnnot-Objects)
+  add_custom_target(
+    GoogleApis-Target
+    COMMAND echo "Running protoc for annotations and http"
+    DEPENDS RestAnnot-Objects)
 
-# # protoc command for echo_service.proto
-add_custom_command(
+  # protoc command for echo_service.proto
+  add_custom_command(
     OUTPUT ${REST_GW_SRCS} ${REST_GW_HDRS} ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS}
     COMMAND ${CMAKE_COMMAND} -E env
     "LD_LIBRARY_PATH=${GRPC_LD_LIBRARY_PATH}:${LD_LIBRARY_PATH}"
@@ -449,27 +445,28 @@ add_custom_command(
             ${REST_GW_PROTOS}
     DEPENDS GoogleApis-Target EosCliProto-Objects)
 
-set_source_files_properties(
+  set_source_files_properties(
     ${REST_GW_SRCS} ${REST_GW_HDRS} ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS}
     PROPERTIES GENERATED TRUE)
 
-add_library(RestGrpc-Objects OBJECT
-  ${REST_GW_SRCS} ${REST_GW_HDRS}
-  ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS})
+  add_library(RestGrpc-Objects OBJECT
+    ${REST_GW_SRCS} ${REST_GW_HDRS}
+    ${REST_GW_GRPC_SRCS} ${REST_GW_GRPC_HDRS})
 
-# @note avoid warning coming from from protobuf implementation
-# /opt/eos/grpc/include/grpcpp/support/proto_buffer_reader.h:157:24:
-# warning: comparison of integer expressions of different signedness:
-# ‘uint64_t’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
-#       if (slice_length <= count) {
-#           ~~~~~~~~~~~~~^~~~~~~~
-target_compile_options(RestGrpc-Objects PRIVATE -Wno-sign-compare)
+  # @note avoid warning coming from from protobuf implementation
+  # /opt/eos/grpc/include/grpcpp/support/proto_buffer_reader.h:157:24:
+  # warning: comparison of integer expressions of different signedness:
+  # ‘uint64_t’ {aka ‘long unsigned int’} and ‘int’ [-Wsign-compare]
+  #       if (slice_length <= count) {
+  #           ~~~~~~~~~~~~~^~~~~~~~
+  target_compile_options(RestGrpc-Objects PRIVATE -Wno-sign-compare)
 
-target_include_directories(RestGrpc-Objects PUBLIC
-  "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}>;")
+  target_include_directories(RestGrpc-Objects PUBLIC
+    "$<BUILD_INTERFACE:${CMAKE_BINARY_DIR};${CMAKE_CURRENT_BINARY_DIR}>;")
 
-target_link_libraries(RestGrpc-Objects PUBLIC
+  target_link_libraries(RestGrpc-Objects PUBLIC
     GRPC::grpc++)
 
-set_target_properties(RestGrpc-Objects PROPERTIES
-  POSITION_INDEPENDENT_CODE TRUE)
+  set_target_properties(RestGrpc-Objects PROPERTIES
+    POSITION_INDEPENDENT_CODE TRUE)
+endif()

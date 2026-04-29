@@ -43,21 +43,19 @@
 namespace
 {
 //------------------------------------------------------------------------------
-// gRPC log function
-//------------------------------------------------------------------------------
-void
-GrpcLogFunction(gpr_log_func_args* args)
-{
-  // This function intentionally does nothing to suppress gRPC logs
-}
-
-//------------------------------------------------------------------------------
 // Disable gRPC logging
 //------------------------------------------------------------------------------
 void
 DisableGrpcLogging()
 {
+#ifdef HAVE_GRPC_LOGGING
+  auot GrpcLogFunction = []()grpc_log_func_args* args) {
+    // This function intentionally does nothing to suppress gRPC logs
+  };
   gpr_set_log_function(GrpcLogFunction);
+#else
+
+#endif
 }
 
 //------------------------------------------------------------------------------
@@ -66,7 +64,11 @@ DisableGrpcLogging()
 void
 EnableGrpcLogging()
 {
+#ifdef HAVE_GRPC_LOGGING
   gpr_set_log_function(nullptr);
+#else
+
+#endif
 }
 }
 

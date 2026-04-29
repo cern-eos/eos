@@ -2285,12 +2285,23 @@ main(int argc, char* argv[])
       }
 
       if (preserve) {
-        opaque << (hasOpaque ? "&" : "?")
-               << "eos.ctime=" << std::to_string(st[i].st_ctim.tv_sec) << "."
+        opaque << (hasOpaque ? "&" : "?") << "eos.ctime="
+#ifdef __LINUX__
+               << std::to_string(st[i].st_ctim.tv_sec) << "."
                << std::to_string(st[i].st_ctim.tv_nsec)
-               << "&eos.mtime=" << std::to_string(st[i].st_mtim.tv_sec) << "."
+#else
+               << std::to_string(st[i].st_ctimespec.tv_sec) << "."
+               << std::to_string(st[i].st_ctimespec.tv_nsec)
+#endif
+               << "&eos.mtime="
+#ifdef __LINUX__
+               << std::to_string(st[i].st_mtim.tv_sec) << "."
                << std::to_string(st[i].st_mtim.tv_nsec);
-        hasOpaque = true;
+#else
+               << std::to_string(st[i].st_mtimespec.tv_sec) << "."
+               << std::to_string(st[i].st_mtimespec.tv_nsec);
+#endif
+	hasOpaque = true;
       }
 
       location += opaque.str();
