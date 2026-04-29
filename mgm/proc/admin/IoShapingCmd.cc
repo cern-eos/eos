@@ -4,6 +4,8 @@
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "proto/ConsoleReply.pb.h"
 
+#include <tuple>
+
 std::string
 format_rate(const double bytes_per_sec)
 {
@@ -167,23 +169,20 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     return;
   }
 
-  if (list_req.show_disks() &&
+  if (list_req.show_fs() &&
       engine.GetDetailLevel() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
     reply.set_retc(0);
 
     if (list_req.json_output()) {
       reply.set_std_out("[]\n");
     } else {
-      reply.set_std_out("Disk-level traffic stats are disabled. Enable them with "
+      reply.set_std_out("Filesystem-level traffic stats are disabled. Enable them with "
                         "'eos io shaping config set --detail fs'.\n");
     }
 
     return;
   }
 
-  auto global_stats = manager->GetGlobalStats();
-  auto node_stats = manager->GetNodeStats();
-  auto disk_stats = manager->GetDiskStats();
   auto total_stats = manager->GetTotalStats();
 
   struct AggregatedStats {
@@ -193,8 +192,24 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     double write_iops = 0.0;
   };
 
+  struct DetailedDisplayKey {
+    std::string node_id;
+    uint64_t fsid = 0;
+    std::string app;
+    uint32_t uid = 0;
+    uint32_t gid = 0;
+
+    bool
+    operator<(const DetailedDisplayKey& other) const
+    {
+      return std::tie(node_id, fsid, app, uid, gid) <
+             std::tie(other.node_id, other.fsid, other.app, other.uid, other.gid);
+    }
+  };
+
   std::map<std::string, AggregatedStats> agg_stats;
-  std::map<std::pair<std::string, uint64_t>, AggregatedStats> disk_agg_stats;
+  std::map<std::pair<std::string, uint64_t>, AggregatedStats> fs_agg_stats;
+  std::map<DetailedDisplayKey, AggregatedStats> detailed_agg_stats;
 
   traffic_shaping::SmaIdx sma_idx = traffic_shaping::Sma1m;
   uint32_t window_sec = list_req.time_window_seconds();
@@ -219,11 +234,45 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     break;
   }
 
-  if (list_req.show_disks()) {
+  auto add_detailed_stats_entry = [&](const DetailedDisplayKey& group_key,
+                                      const traffic_shaping::RateSnapshot& snapshot) {
+    auto& entry = detailed_agg_stats[group_key];
+
+    const auto& sma_metrics = snapshot.sma[sma_idx];
+    entry.read_rate += sma_metrics.read_rate_bps;
+    entry.write_rate += sma_metrics.write_rate_bps;
+    entry.read_iops += sma_metrics.read_iops;
+    entry.write_iops += sma_metrics.write_iops;
+  };
+
+  if (list_req.show_all()) {
+    if (engine.GetDetailLevel() == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
+      auto detailed_stats = manager->GetDetailedStats();
+
+      for (const auto& [detailed_key, snapshot] : detailed_stats) {
+        DetailedDisplayKey group_key{
+            detailed_key.node_id.empty() ? "<unknown>" : detailed_key.node_id,
+            detailed_key.stream.fsid,
+            detailed_key.stream.app.empty() ? "<unknown>" : detailed_key.stream.app,
+            detailed_key.stream.uid, detailed_key.stream.gid};
+        add_detailed_stats_entry(group_key, snapshot);
+      }
+    } else {
+      auto global_stats = manager->GetGlobalStats();
+
+      for (const auto& [key, snapshot] : global_stats) {
+        DetailedDisplayKey group_key{
+            "<unknown>", 0, key.app.empty() ? "<unknown>" : key.app, key.uid, key.gid};
+        add_detailed_stats_entry(group_key, snapshot);
+      }
+    }
+  } else if (list_req.show_fs()) {
+    auto disk_stats = manager->GetDiskStats();
+
     for (const auto& [disk_key, snapshot] : disk_stats) {
       std::pair<std::string, uint64_t> group_key{
           disk_key.node_id.empty() ? "<unknown>" : disk_key.node_id, disk_key.fsid};
-      auto& entry = disk_agg_stats[group_key];
+      auto& entry = fs_agg_stats[group_key];
 
       const auto& sma_metrics = snapshot.sma[sma_idx];
       entry.read_rate += sma_metrics.read_rate_bps;
@@ -232,6 +281,8 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       entry.write_iops += sma_metrics.write_iops;
     }
   } else if (list_req.show_nodes()) {
+    auto node_stats = manager->GetNodeStats();
+
     for (const auto& [node_id, snapshot] : node_stats) {
       std::string group_key = node_id.empty() ? "<unknown>" : node_id;
       auto& entry = agg_stats[group_key];
@@ -243,6 +294,8 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       entry.write_iops += sma_metrics.write_iops;
     }
   } else {
+    auto global_stats = manager->GetGlobalStats();
+
     for (const auto& [key, snapshot] : global_stats) {
       std::string group_key;
 
@@ -285,16 +338,37 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     oss << "[\n";
     bool first = true;
 
-    if (list_req.show_disks()) {
-      for (const auto& [disk_key, stat] : disk_agg_stats) {
+    if (list_req.show_all()) {
+      for (const auto& [detailed_key, stat] : detailed_agg_stats) {
         if (!first) {
           oss << ",\n";
         }
         first = false;
         oss << "  {\n"
-            << "    \"type\": \"disk\",\n"
-            << "    \"node_id\": \"" << disk_key.first << "\",\n"
-            << "    \"fsid\": " << disk_key.second << ",\n"
+            << "    \"type\": \"all\",\n"
+            << "    \"node_id\": \"" << detailed_key.node_id << "\",\n"
+            << "    \"fsid\": " << detailed_key.fsid << ",\n"
+            << "    \"app\": \"" << detailed_key.app << "\",\n"
+            << "    \"uid\": " << detailed_key.uid << ",\n"
+            << "    \"gid\": " << detailed_key.gid << ",\n"
+            << "    \"window_sec\": " << window_sec << ",\n"
+            << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
+            << stat.read_rate << ",\n"
+            << "    \"write_rate_bps\": " << stat.write_rate << ",\n"
+            << "    \"read_iops\": " << stat.read_iops << ",\n"
+            << "    \"write_iops\": " << stat.write_iops << "\n"
+            << "  }";
+      }
+    } else if (list_req.show_fs()) {
+      for (const auto& [fs_key, stat] : fs_agg_stats) {
+        if (!first) {
+          oss << ",\n";
+        }
+        first = false;
+        oss << "  {\n"
+            << "    \"type\": \"fs\",\n"
+            << "    \"node_id\": \"" << fs_key.first << "\",\n"
+            << "    \"fsid\": " << fs_key.second << ",\n"
             << "    \"window_sec\": " << window_sec << ",\n"
             << "    \"read_rate_bps\": " << std::fixed << std::setprecision(2)
             << stat.read_rate << ",\n"
@@ -366,16 +440,42 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
 
     oss << "--- IO Rates (" << window_sec << "s simple moving average) ---\n";
 
-    if (list_req.show_disks()) {
+    if (list_req.show_all()) {
+      oss << std::left << std::setw(40) << "Storage Node" << std::right << std::setw(10)
+          << "FSID" << std::setw(24) << "Application" << std::setw(10) << "UID"
+          << std::setw(10) << "GID" << std::setw(15) << "Read Rate" << std::setw(15)
+          << "Write Rate" << std::setw(12) << "Read IOPS" << std::setw(12) << "Write IOPS"
+          << "\n";
+
+      oss << std::string(148, '-') << "\n";
+
+      for (const auto& [detailed_key, stat] : detailed_agg_stats) {
+        oss << std::left << std::setw(40) << detailed_key.node_id << std::right
+            << std::setw(10) << detailed_key.fsid << std::setw(24) << detailed_key.app
+            << std::setw(10) << detailed_key.uid << std::setw(10) << detailed_key.gid
+            << std::setw(15) << format_rate(stat.read_rate) << std::setw(15)
+            << format_rate(stat.write_rate) << std::fixed << std::setprecision(2)
+            << std::setw(12) << stat.read_iops << std::setw(12) << stat.write_iops
+            << "\n";
+      }
+
+      oss << std::string(148, '-') << "\n";
+      oss << std::left << std::setw(40) << "Total" << std::right << std::setw(10) << ""
+          << std::setw(24) << "" << std::setw(10) << "" << std::setw(10) << ""
+          << std::setw(15) << format_rate(total_sma_metrics.read_rate_bps)
+          << std::setw(15) << format_rate(total_sma_metrics.write_rate_bps) << std::fixed
+          << std::setprecision(2) << std::setw(12) << total_sma_metrics.read_iops
+          << std::setw(12) << total_sma_metrics.write_iops << "\n";
+    } else if (list_req.show_fs()) {
       oss << std::left << std::setw(40) << "Storage Node" << std::right << std::setw(10)
           << "FSID" << std::setw(15) << "Read Rate" << std::setw(15) << "Write Rate"
           << std::setw(12) << "Read IOPS" << std::setw(12) << "Write IOPS" << "\n";
 
       oss << std::string(104, '-') << "\n";
 
-      for (const auto& [disk_key, stat] : disk_agg_stats) {
-        oss << std::left << std::setw(40) << disk_key.first << std::right << std::setw(10)
-            << disk_key.second << std::setw(15) << format_rate(stat.read_rate)
+      for (const auto& [fs_key, stat] : fs_agg_stats) {
+        oss << std::left << std::setw(40) << fs_key.first << std::right << std::setw(10)
+            << fs_key.second << std::setw(15) << format_rate(stat.read_rate)
             << std::setw(15) << format_rate(stat.write_rate) << std::fixed
             << std::setprecision(2) << std::setw(12) << stat.read_iops << std::setw(12)
             << stat.write_iops << "\n";
@@ -600,18 +700,35 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
   switch (config_req.subcmd_case()) {
   case eos::console::IoProto_ShapingProto_ConfigAction::kList: {
     std::ostringstream oss;
-    oss << "--- Traffic Shaping Thread Configuration ---\n"
-        << std::left << std::setw(45)
-        << "Traffic Shaping Enabled:" << (engine.IsEnabled() ? "true" : "false") << "\n"
-        << std::left << std::setw(45) << "Estimators Update Period:"
-        << engine.GetEstimatorsUpdateThreadPeriodMilliseconds() << " ms\n"
-        << std::setw(45) << "FST IO Policy Update Period:"
-        << engine.GetFstIoPolicyUpdateThreadPeriodMilliseconds() << " ms\n"
-        << std::setw(45) << "FST IO Stats Reporting Period:"
-        << engine.GetFstIoStatsReportThreadPeriodMilliseconds() << " ms\n"
-        << std::setw(45) << "Stats Detail Level:" << engine.GetDetailLevel() << "\n"
-        << std::setw(45)
-        << "System Stats Time Window:" << engine.GetSystemStatsWindowSeconds() << " s\n";
+
+    if (config_req.list().json_output()) {
+      oss << "{\n"
+          << "  \"enabled\": " << (engine.IsEnabled() ? "true" : "false") << ",\n"
+          << "  \"estimators_update_period_ms\": "
+          << engine.GetEstimatorsUpdateThreadPeriodMilliseconds() << ",\n"
+          << "  \"fst_io_policy_update_period_ms\": "
+          << engine.GetFstIoPolicyUpdateThreadPeriodMilliseconds() << ",\n"
+          << "  \"fst_io_stats_reporting_period_ms\": "
+          << engine.GetFstIoStatsReportThreadPeriodMilliseconds() << ",\n"
+          << "  \"detail_level\": \"" << engine.GetDetailLevel() << "\",\n"
+          << "  \"system_stats_time_window_seconds\": "
+          << engine.GetSystemStatsWindowSeconds() << "\n"
+          << "}\n";
+    } else {
+      oss << "--- Traffic Shaping Thread Configuration ---\n"
+          << std::left << std::setw(45)
+          << "Traffic Shaping Enabled:" << (engine.IsEnabled() ? "true" : "false") << "\n"
+          << std::left << std::setw(45) << "Estimators Update Period:"
+          << engine.GetEstimatorsUpdateThreadPeriodMilliseconds() << " ms\n"
+          << std::setw(45) << "FST IO Policy Update Period:"
+          << engine.GetFstIoPolicyUpdateThreadPeriodMilliseconds() << " ms\n"
+          << std::setw(45) << "FST IO Stats Reporting Period:"
+          << engine.GetFstIoStatsReportThreadPeriodMilliseconds() << " ms\n"
+          << std::setw(45) << "Stats Detail Level:" << engine.GetDetailLevel() << "\n"
+          << std::setw(45)
+          << "System Stats Time Window:" << engine.GetSystemStatsWindowSeconds()
+          << " s\n";
+    }
 
     reply.set_retc(0);
     reply.set_std_out(oss.str());
