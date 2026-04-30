@@ -24,18 +24,24 @@
 #ifndef __EOSMGM_WFE__HH__
 #define __EOSMGM_WFE__HH__
 
-#include "mgm/Namespace.hh"
-#include "common/Mapping.hh"
-#include "common/Timing.hh"
-#include "common/FileId.hh"
-#include "common/ThreadPool.hh"
 #include "common/AssistedThread.hh"
+#include "common/FileId.hh"
+#include "common/Mapping.hh"
+#include "common/ThreadPool.hh"
+#include "common/Timing.hh"
 #include "common/xrootd-ssi-protobuf-interface/eos_cta/include/CtaFrontendApi.hpp"
+#include "mgm/EosCtaReporter.hh"
+#include "mgm/Namespace.hh"
 #include "proto/ConsoleReply.pb.h"
-#include <XrdOuc/XrdOucString.hh>
-#include <XrdOuc/XrdOucErrInfo.hh>
 #include <Xrd/XrdJob.hh>
+#include <XrdOuc/XrdOucErrInfo.hh>
+#include <XrdOuc/XrdOucString.hh>
 #include <sys/types.h>
+
+struct FileAvailability {
+  bool onDisk;
+  bool onTape;
+};
 
 //! Forward declaration
 class XrdScheduler;
@@ -278,7 +284,6 @@ public:
     static int SendProtoWFRequest(Job* jobPtr, const std::string& fullPath,
                                   const cta::xrd::Request& request, std::string& errorMsg,
                                   bool retry = false);
-    
 
     //! @brief Execute evict as user root
     //!
@@ -392,6 +397,21 @@ public:
     //! @param errorMsg out parameter giving the text of any error response
     int IdempotentPrepare(const std::string& fullPath, const std::string &prepareRequestId, const std::string& prepareActivity, std::string& errorMsg);
 
+    //! @brief Get the availability information (disk and tape) for a given path
+    //! @param fullPath the full path of the file
+    //! @param eosLog the reporter object to use for logging
+    //! @return optional tuple with disk and tape availability information, or nullopt if
+    //! the information could not be retrieved
+    std::optional<FileAvailability> GetFileAvailability(const std::string& fullPath,
+                                                        EosCtaReporterPrepareWfe& eosLog);
+
+    //! @brief Try to evict a file from disk
+    //! @param fullPath the full path of the file
+    //! @param eventType the name of the event that triggered the eviction attempt
+    //! @param eosLog the reporter object to use for logging
+    //! @return true if the file was successfully evicted
+    bool TryToEvictFile(const std::string& fullPath, const std::string& eventType,
+                        EosCtaReporterPrepareWfe& eosLog);
   };
 
   XrdSysCondVar* GetSignal()

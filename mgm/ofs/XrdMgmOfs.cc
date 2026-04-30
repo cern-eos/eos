@@ -289,34 +289,70 @@ extern "C" {
 //------------------------------------------------------------------------------
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
-XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
-  ConfigFN(0), mConfigEngine(0), mCapabilityValidity(3600),
-  ManagerPort(1094), LinuxStatsStartup{0},
-  HostName(0), HostPref(0),   protowfusegrpc(false),
-  mNamespaceState(NamespaceState::kDown),
-  mFileInitTime(0), mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)),
-  Shutdown(false), mBootFileId(0), mBootContainerId(0), IsRedirect(true),
-  IsStall(true), mAuthorize(false), mAuthLib(""), mTapeEnabled(false),
-  mReqIdMax(64),
-  MgmRedirector(false), mErrLogEnabled(true), eosDirectoryService(0),
-  eosFileService(0), eosView(0), eosFsView(0), eosContainerAccounting(0),
-  eosSyncTimeAccounting(0), mFrontendPort(0), mNumAuthThreads(0),
-  mFrontendLocalhost(1), zMQ(nullptr),
-  mMgmAuthz(nullptr), mTokenAuthz(nullptr), mExtAuthz(nullptr),
-  MgmStatsPtr(new eos::mgm::Stat()),  MgmStats(*MgmStatsPtr),
-  mFsckEngine(new Fsck()), mMaster(nullptr),
-  mRouting(new eos::mgm::PathRouting()), mConverterEngine(),
-  mHttpd(nullptr), GRPCd(nullptr), WNCd(nullptr), mRestGrpcSrv(nullptr),
-  mLRUEngine(new eos::mgm::LRU()),
-  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), mFstGwHost(""),
-  mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
-  mFusexPort(1100), mGRPCPort(50051), mWncPort(50052),
-  mRestGrpcPort(50054),
-  mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
-  mBehaviourCfg(new eos::common::BehaviourConfig()),
-  mDoneOrderlyShutdown(false),
-  mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
-  mJeMallocHandler(new eos::common::JeMallocHandler())
+XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
+    : ConfigFN(0)
+    , mConfigEngine(0)
+    , mCapabilityValidity(3600)
+    , ManagerPort(1094)
+    , LinuxStatsStartup{0}
+    , HostName(0)
+    , HostPref(0)
+    , protowfusegrpc(false)
+    , mNamespaceState(NamespaceState::kDown)
+    , mFileInitTime(0)
+    , mTotalInitTime(time(nullptr))
+    , mStartTime(time(nullptr))
+    , Shutdown(false)
+    , mBootFileId(0)
+    , mBootContainerId(0)
+    , IsRedirect(true)
+    , IsStall(true)
+    , mAuthorize(false)
+    , mAuthLib("")
+    , mTapeEnabled(false)
+    , mReqIdMax(64)
+    , mLateAbortsTriggerEvict(false)
+    , MgmRedirector(false)
+    , mErrLogEnabled(true)
+    , eosDirectoryService(0)
+    , eosFileService(0)
+    , eosView(0)
+    , eosFsView(0)
+    , eosContainerAccounting(0)
+    , eosSyncTimeAccounting(0)
+    , mFrontendPort(0)
+    , mNumAuthThreads(0)
+    , mFrontendLocalhost(1)
+    , zMQ(nullptr)
+    , mMgmAuthz(nullptr)
+    , mTokenAuthz(nullptr)
+    , mExtAuthz(nullptr)
+    , MgmStatsPtr(new eos::mgm::Stat())
+    , MgmStats(*MgmStatsPtr)
+    , mFsckEngine(new Fsck())
+    , mMaster(nullptr)
+    , mRouting(new eos::mgm::PathRouting())
+    , mConverterEngine()
+    , mHttpd(nullptr)
+    , GRPCd(nullptr)
+    , WNCd(nullptr)
+    , mRestGrpcSrv(nullptr)
+    , mLRUEngine(new eos::mgm::LRU())
+    , WFEPtr(new eos::mgm::WFE())
+    , WFEd(*WFEPtr)
+    , mFstGwHost("")
+    , mFstGwPort(0)
+    , mQdbCluster("")
+    , mHttpdPort(8000)
+    , mFusexPort(1100)
+    , mGRPCPort(50051)
+    , mWncPort(50052)
+    , mRestGrpcPort(50054)
+    , mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600))
+    , mBehaviourCfg(new eos::common::BehaviourConfig())
+    , mDoneOrderlyShutdown(false)
+    , mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64)
+    , mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;
   ConfigFN = 0;

@@ -2131,6 +2131,32 @@ WFE::Job::IdempotentPrepare(const std::string& fullPath,
   return sendResult;
 }
 
+std::optional<FileAvailability>
+WFE::Job::GetFileAvailability(const std::string& fullPath,
+                              EosCtaReporterPrepareWfe& eosLog)
+{
+  struct stat statBuf;
+  XrdOucErrInfo errInfo;
+  bool onDisk = false;
+  bool onTape = false;
+
+  if (gOFS->_stat(fullPath.c_str(), &statBuf, errInfo, mVid, nullptr, nullptr, false) ==
+      0) {
+    onDisk =
+        (statBuf.st_mode & EOS_TAPE_MODE_T) ? statBuf.st_nlink > 1 : statBuf.st_nlink > 0;
+    onTape = (statBuf.st_mode & EOS_TAPE_MODE_T) != 0;
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_ONDISK, onDisk);
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_ONTAPE, onTape);
+  } else {
+    std::string warningMessage = "Cannot determine file and disk replicas. Reason: " +
+                                 std::string(errInfo.getErrText());
+    eos_static_warning(warningMessage.c_str());
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, warningMessage);
+    return std::nullopt;
+  }
+
+  return {{onDisk, onTape}};
+}
 
 int
 WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
@@ -2148,6 +2174,16 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   .addParam(EosCtaReportParam::RGID, mVid.gid)
   .addParam(EosCtaReportParam::TD, mVid.tident.c_str())
   .addParam(EosCtaReportParam::PREP_WFE_EVENT, "abort");
+
+  // Check if we have a disk replica
+  // we will need that in order to decide whether we should evict it, if our config
+  // requires us to
+  auto fileAvailability = GetFileAvailability(fullPath, eosLog);
+  if (!fileAvailability) {
+    MoveWithResults(EAGAIN);
+    return EAGAIN;
+  }
+
   XattrSet prepareReqIds;
   {
     eos::common::RWMutexWriteLock lock;
@@ -2191,8 +2227,29 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
 
       eosLog.addParam(EosCtaReportParam::PREP_WFE_REQID, opaqueRequestId);
 
+      // if the request ID is not in the extended attribute list, it means that this abort
+      // is coming late (after the prepare has completed), and the prepare request has
+      // already been cleaned up.
       if (prepareReqIds.values.erase(opaqueRequestId) != 1) {
-        throw_mdexception(EINVAL, "Request ID not found in extended attributes");
+        // Check that the option is available in the configuration and the file is on disk
+        if (gOFS->mLateAbortsTriggerEvict && fileAvailability->onDisk) {
+          lock.Release();
+          // trigger the evict logic (decrease counter and possibly evict from disk)
+          eos_static_info("Triggering evict after late abort for file %s, request ID %s",
+                          fullPath.c_str(), opaqueRequestId);
+
+          if (!TryToEvictFile(fullPath, "abort_prepare", eosLog)) {
+            eos_static_err("Failed to evict file after late abort");
+          }
+
+          eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
+          MoveWithResults(SFS_OK);
+          return SFS_OK;
+        } else {
+          // if we are not configured to trigger eviction for late aborts, just return an
+          // error
+          throw_mdexception(EINVAL, "Request ID not found in extended attributes");
+        }
       }
 
       fmd->setAttribute(RETRIEVE_REQID_ATTR_NAME, prepareReqIds.serialize());
@@ -2210,12 +2267,21 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
     }
   }
 
+  // If we are here, the request ID has been removed from the extended attributes, which
+  // means that it won't be tracked anymore. Now we need to trigger the actual abort
+  // logic, but only if there are no other pending prepare requests for this file.
+
   if (!prepareReqIds.values.empty()) {
-    // There are other pending Prepare requests on this file, just return OK
+    // There are other pending prepare requests on this file, which means that it may
+    // still end up on disk. In that case, stop before sending the abort to the CTA
+    // frontend.
     eosLog.addParam(EosCtaReportParam::PREP_WFE_SENTTOCTA, false);
     MoveWithResults(SFS_OK);
     return SFS_OK;
   }
+
+  // There are no other pending prepare requests - proceed with updating the metadata
+  // accordingly and sending the abort notification to the tape back-end.
 
   // optimization for reduced memory IO during write lock
   cta::xrd::Request request;
@@ -2285,16 +2351,35 @@ WFE::Job::HandleProtoMethodAbortPrepareEvent(const std::string& fullPath,
   return s_ret;
 }
 
+bool
+WFE::Job::TryToEvictFile(const std::string& fullPath, const std::string& eventType,
+                         EosCtaReporterPrepareWfe& eosLog)
+{
+  const auto result = EvictAsRoot(mFid);
+  std::ostringstream logPreamble;
+  std::ostringstream msg;
+
+  logPreamble << "fxid=" << std::hex << mFid << " file=" << fullPath;
+
+  if (result.retc() == 0) {
+    msg << logPreamble.str() << " msg=\"Successful evict triggered by " << eventType
+        << " event\"";
+    eos_static_info(msg.str().c_str());
+    return true;
+  } else {
+    msg << logPreamble.str() << " msg=\"Failed to issue evict triggered by " << eventType
+        << " event\"";
+    eos_static_info(msg.str().c_str());
+    eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+    return false;
+  }
+}
+
 int
 WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
     const char* const ininfo,
     std::string& errorMsg)
 {
-  using namespace std::chrono;
-  struct stat buf;
-  XrdOucErrInfo errInfo;
-  bool onDisk;
-  bool onTape;
   EosCtaReporterPrepareWfe eosLog;
   eosLog
   .addParam(EosCtaReportParam::SEC_APP, "tape_wfe")
@@ -2309,54 +2394,26 @@ WFE::Job::HandleProtoMethodEvictPrepareEvent(const std::string& fullPath,
   std::ostringstream preamble;
   preamble << "fxid=" << std::hex << mFid << " file=" << fullPath;
 
-  // Check if we have a disk replica and if not, whether it's on tape
-  if (gOFS->_stat(fullPath.c_str(), &buf, errInfo, mVid, nullptr, nullptr,
-                  false) == 0) {
-    onDisk = ((buf.st_mode & EOS_TAPE_MODE_T) ? buf.st_nlink - 1 : buf.st_nlink) >
-             0;
-    onTape = (buf.st_mode & EOS_TAPE_MODE_T) != 0;
-    eosLog
-    .addParam(EosCtaReportParam::PREP_WFE_ONDISK, onDisk)
-    .addParam(EosCtaReportParam::PREP_WFE_ONTAPE, onTape);
-  } else {
-    std::ostringstream msg;
-    msg << preamble.str() <<
-        " msg=\"Cannot determine file and disk replicas, not doing the evict. Reason: "
-        << errInfo.getErrText() << "\"";
-    eos_static_err(msg.str().c_str());
-    eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
+  auto fileAvailability = GetFileAvailability(fullPath, eosLog);
+  if (!fileAvailability) {
     MoveWithResults(EAGAIN);
     return EAGAIN;
   }
 
-  if (!onDisk) {
+  if (!fileAvailability->onDisk) {
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on disk, nothing to evict.\"";
     eos_static_info(msg.str().c_str());
-  } else if (!onTape) {
+  } else if (!fileAvailability->onTape) {
     std::ostringstream msg;
     msg << preamble.str() << " msg=\"File is not on tape, cannot evict it.\"";
     eos_static_err(msg.str().c_str());
     eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
     MoveWithResults(ENODATA);
     return ENODATA;
-  } else {
-    const auto result = EvictAsRoot(mFid);
-
-    if (0 == result.retc()) {
-      std::ostringstream msg;
-      msg << preamble.str() <<
-          " msg=\"Successfully issued evict for evict_prepare event\"";
-      eos_static_info(msg.str().c_str());
-    } else {
-      std::ostringstream msg;
-      msg << preamble.str() <<
-          " msg=\"Failed to issue evict for evict_prepare event\"";
-      eos_static_info(msg.str().c_str());
-      eosLog.addParam(EosCtaReportParam::PREP_WFE_ERROR, msg.str());
-      MoveWithResults(EAGAIN);
-      return EAGAIN;
-    }
+  } else if (!TryToEvictFile(fullPath, "evict_prepare", eosLog)) {
+    MoveWithResults(EAGAIN);
+    return EAGAIN;
   }
 
   MoveWithResults(SFS_OK);

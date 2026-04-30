@@ -706,6 +706,21 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
           }
         }
 
+        if (!strcmp("prepare.lateabortsevict", var)) {
+          if ((!(val = Config.GetWord())) ||
+              (strcmp("true", val) && strcmp("false", val) && strcmp("1", val) &&
+               strcmp("0", val))) {
+            Eroute.Emsg("Config", "argument for prepare.lateabortsevict is invalid. "
+                                  "Must be <true>, <false>, <1> or <0>!");
+          } else {
+            if ((!strcmp("true", val) || (!strcmp("1", val)))) {
+              mLateAbortsTriggerEvict = true;
+            }
+
+            Eroute.Say("=====> mgmofs.prepare.lateabortsevict : ", val);
+          }
+        }
+
         if (!strcmp("tgc.enablespace", var)) {
           std::ostringstream tapeGcSpacesStream;
 

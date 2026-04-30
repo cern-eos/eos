@@ -1823,6 +1823,8 @@ public:
   mPrepareDestSpace; ///< Space to be used when retrieving files from tape
   unsigned int
   mReqIdMax; ///< Maximum number of request IDs on a single retrieving file
+  bool mLateAbortsTriggerEvict; ///< true if late aborts of file retrievals should trigger
+                                ///< an evict
   //!  Acts only as a redirector, disables many components in the MGM
   bool MgmRedirector;
   //! Writes error log with cluster wide collected errors in
