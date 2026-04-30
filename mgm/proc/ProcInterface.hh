@@ -150,6 +150,30 @@ public:
 
 private:
   //----------------------------------------------------------------------------
+  //! Check if a virtual identity has MGM admin privileges.
+  //! Single source of truth for the /proc/admin/ branch of Authorize and the
+  //! protobuf admin gate in HandleProtobufRequest, so the legacy CGI plane
+  //! and the protobuf plane stay in lock-step.
+  //!
+  //! @param vid virtual identity of the client
+  //! @param entity optional security entity (preferred protocol source); if
+  //!               null the protocol is read from vid.prot
+  //! @return true if vid is admin, false otherwise
+  //----------------------------------------------------------------------------
+  static bool VidIsAdmin(const eos::common::VirtualIdentity& vid,
+                         const XrdSecEntity* entity = nullptr);
+
+  //----------------------------------------------------------------------------
+  //! Check if a protobuf command class is admin-only and must therefore be
+  //! protected by VidIsAdmin regardless of the URL prefix used to dispatch it.
+  //!
+  //! @param cc command_case from the RequestProto
+  //! @return true if admin-only, false if user-callable
+  //----------------------------------------------------------------------------
+  static bool
+  IsAdminCmd(eos::console::RequestProto::CommandCase cc);
+
+  //----------------------------------------------------------------------------
   //! Handle protobuf request
   //!
   //! @parm path input path of a proc command

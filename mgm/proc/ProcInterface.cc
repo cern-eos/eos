@@ -205,6 +205,21 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
   (void) google::protobuf::util::MessageToJsonString(req, &json_out);
   eos_thread_info("cmd_proto=%s", json_out.c_str());
 
+  // --------------------------------------------------------------------------
+  // Admin-plane gate: protobuf admin command classes must come from an admin
+  // VID regardless of the URL prefix used to reach this dispatcher. The legacy
+  // CGI plane is gated by ProcCommand::open via the /proc/admin/ vs /proc/user/
+  // path prefix; the protobuf plane needs an equivalent check here because the
+  // dispatch is purely by command_case.
+  // --------------------------------------------------------------------------
+  if (IsAdminCmd(req.command_case()) && !VidIsAdmin(vid)) {
+    eos_thread_err("msg=\"admin proto cmd refused\" cmd_case=%d "
+                   "uid=%u gid=%u prot=%s host=%s",
+                   (int) req.command_case(), vid.uid, vid.gid,
+                   vid.prot.c_str(), vid.host.c_str());
+    return cmd;
+  }
+
   switch (req.command_case()) {
   case RequestProto::kAcl:
     cmd.reset(new AclCmd(std::move(req), vid));
@@ -583,24 +598,7 @@ ProcInterface::Authorize(const char* path, const char* info,
 
   // Administrator access
   if (inpath.beginswith("/proc/admin/")) {
-    // Hosts with 'sss' authentication can run 'admin' commands
-    std::string protocol = entity ? entity->prot : "";
-
-    // We allow sss only with the daemon login is admin
-    if ((protocol == "sss") &&
-        (vid.hasUid(DAEMONUID))) {
-      return true;
-    }
-
-    // Root can do it
-    if (!vid.uid) {
-      return true;
-    }
-
-    // One has to be part of the virtual users 2(daemon)/3(adm)/4(adm)
-    return ((vid.hasUid(DAEMONUID)) ||
-            (vid.hasUid(eos::common::ADM_UID)) ||
-            (vid.hasGid(eos::common::ADM_GID)));
+    return VidIsAdmin(vid, entity);
   }
 
   // User access
@@ -609,6 +607,89 @@ ProcInterface::Authorize(const char* path, const char* info,
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Predicate: does the virtual identity have MGM admin privileges?
+//------------------------------------------------------------------------------
+bool
+ProcInterface::VidIsAdmin(const eos::common::VirtualIdentity& vid,
+                          const XrdSecEntity* entity)
+{
+  // Prefer the protocol reported by the security entity (matches the legacy
+  // Authorize behaviour); fall back to vid.prot for callers that don't have
+  // an entity available (e.g. the protobuf dispatcher).
+  const std::string protocol = entity ? entity->prot
+                                      : std::string(vid.prot.c_str());
+
+  // Hosts with 'sss' authentication can run admin commands only when the
+  // login is the daemon account.
+  if ((protocol == "sss") && vid.hasUid(DAEMONUID)) {
+    return true;
+  }
+
+  // Root can do it
+  if (vid.uid == 0) {
+    return true;
+  }
+
+  // One has to be part of the virtual users 2(daemon)/3(adm)/4(adm)
+  return (vid.hasUid(DAEMONUID) ||
+          vid.hasUid(eos::common::ADM_UID) ||
+          vid.hasGid(eos::common::ADM_GID));
+}
+
+//------------------------------------------------------------------------------
+// Classify a protobuf command class as admin-only or user-callable.
+//
+// Admin-only command classes are gated centrally by VidIsAdmin so that the
+// legacy CGI plane (path-prefix gated by Authorize) and the protobuf plane
+// share the same admin predicate. User-callable command classes delegate
+// authorization to the per-handler logic (per-path _access / ACL checks,
+// per-subcommand mVid checks, token scope, etc.).
+//
+// Closed-by-default: unrecognized command_case values are treated as admin.
+//------------------------------------------------------------------------------
+bool
+ProcInterface::IsAdminCmd(eos::console::RequestProto::CommandCase cc)
+{
+  using R = eos::console::RequestProto;
+
+  switch (cc) {
+  // Admin-only command classes.
+  case R::kFs:
+  case R::kNs:
+  case R::kSpace:
+  case R::kNode:
+  case R::kGroup:
+  case R::kConfig:
+  case R::kAccess:
+  case R::kIo:
+  case R::kSched:
+  case R::kDevices:
+  case R::kRecord:
+  case R::kFsck:
+  case R::kDebug:
+  case R::kConvert:
+    return true;
+
+  // User-callable: delegate to per-handler logic.
+  case R::kAcl:
+  case R::kFind:
+  case R::kRm:
+  case R::kDf:
+  case R::kToken:
+  case R::kEvict:
+  case R::kRoute:
+  case R::kRecycle:
+  case R::kQuota:
+    return false;
+
+  // Closed-by-default for unknown / future command classes (this also
+  // covers the proto-generated <COMMAND_NOT_SET> sentinel).
+  default:
+    return true;
+  }
 }
 
 EOSMGMNAMESPACE_END
