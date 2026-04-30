@@ -145,15 +145,11 @@ public:
   //----------------------------------------------------------------------------
   static void DropSubmittedCmd(const char* tident);
 
-  ///! Pool of threads executing asynchronously long-running client commands
-  static eos::common::ThreadPool sProcThreads;
-
-private:
   //----------------------------------------------------------------------------
   //! Check if a virtual identity has MGM admin privileges.
-  //! Single source of truth for the /proc/admin/ branch of Authorize and the
-  //! protobuf admin gate in HandleProtobufRequest, so the legacy CGI plane
-  //! and the protobuf plane stay in lock-step.
+  //! Single source of truth for the /proc/admin/ branch of Authorize, the
+  //! protobuf admin gate in HandleProtobufRequest, and any per-handler
+  //! defense-in-depth admin checks (e.g. FileRegisterCmd).
   //!
   //! @param vid virtual identity of the client
   //! @param entity optional security entity (preferred protocol source); if
@@ -163,6 +159,10 @@ private:
   static bool VidIsAdmin(const eos::common::VirtualIdentity& vid,
                          const XrdSecEntity* entity = nullptr);
 
+  ///! Pool of threads executing asynchronously long-running client commands
+  static eos::common::ThreadPool sProcThreads;
+
+private:
   //----------------------------------------------------------------------------
   //! Check if a protobuf command class is admin-only and must therefore be
   //! protected by VidIsAdmin regardless of the URL prefix used to dispatch it.
