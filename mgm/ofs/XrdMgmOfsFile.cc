@@ -930,8 +930,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
                  rcode);
         return rcode;
       } else {
-        return Emsg(epname, error, ENOMEM, "allocate proc command object for ",
-                    path);
+        // Null mProcCmd here means either the protobuf admin gate refused
+        // the request (see ProcInterface::HandleProtobufRequest /
+        // ProcInterface::IsAdminCmd) or allocation failed. EPERM is the
+        // common case in well-formed deployments.
+        return Emsg(epname, error, EPERM, "execute proc command - admin role"
+                    " required or allocation failed for ", path);
       }
     }
   }
