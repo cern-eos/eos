@@ -344,23 +344,46 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
     return 0;
   }
 
+  // Walk every origin entry. A non-matching entry must NOT short-circuit
+  // the loop: an origin list is a disjunction ("any of these may be the
+  // caller"), and previously the first entry that didn't match the request
+  // returned -EBADE and made multi-entry lists effectively single-entry.
+  //
+  // Distinguish:
+  //   0        - some entry matched
+  //   -ENODATA - all entries are well-formed but none matched
+  //   -EBADE   - at least one entry has a malformed regex AND no entry
+  //              matched (issuance code uses -EBADE to surface "operator
+  //              typed a bad regex pattern")
+  // Empty pattern strings are treated as "matches nothing" rather than
+  // malformed, matching the behaviour of eos_regex_match.
+  auto pattern_valid = [](const std::string& p) {
+    return p.empty() || eos::common::eos_regex_valid(p);
+  };
+  bool any_invalid = false;
+
   for (int i = 0; i < share->token().origins_size(); ++i) {
     const eos::console::TokenAuth& auth = share->token().origins(i);
+
+    if (!pattern_valid(auth.host()) ||
+        !pattern_valid(auth.name()) ||
+        !pattern_valid(auth.prot())) {
+      any_invalid = true;
+      continue;
+    }
+
     int m1 = Match(host, auth.host());
     int m2 = Match(name, auth.name());
     int m3 = Match(prot, auth.prot());
     eos_static_debug("m1=%i m2=%i m3=%i", m1, m2, m3);
 
-    if ((m1 < 0) || (m2 < 0) || (m3 < 0)) {
-      return -EBADE;
-    }
-
     if ((m1 == 1) && (m2 == 1) && (m3 == 1)) {
       return 0;
     }
+    // Otherwise: this origin doesn't match - try the next one.
   }
 
-  return -ENODATA;
+  return any_invalid ? -EBADE : -ENODATA;
 }
 
 int
