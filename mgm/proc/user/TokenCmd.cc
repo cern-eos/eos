@@ -334,32 +334,51 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       if ((ret_c = StoreToken(dump, voucherid, token_path, vid.uid, vid.gid))) {
         errStream << "error: could not store the token: " << ret_c << std::endl;
       } else {
-        eos_warning("creating voucher=%s path=%s owner=%s group=%s perm=%s expires=%lu store=%s token:'%s'\n"
-                    ,
-                    eostoken.Voucher().c_str(),
-                    eostoken.Path().c_str(),
-                    eostoken.Owner().c_str(),
-                    eostoken.Group().c_str(),
-                    eostoken.Permission().c_str(),
-                    eostoken.Expires(),
-                    token_path.c_str(),
-                    dump.c_str());
+        // Routine successful issuance: log the audit-relevant claims as
+        // structured fields. Do not include the dump JSON (its content is
+        // already covered by the explicit fields below) and do not include
+        // the encoded wire token from `Write(key)`.
+        eos_info("msg=\"created token\" voucher=%s path=%s owner=%s group=%s "
+                 "perm=%s expires=%lu store=%s",
+                 eostoken.Voucher().c_str(),
+                 eostoken.Path().c_str(),
+                 eostoken.Owner().c_str(),
+                 eostoken.Group().c_str(),
+                 eostoken.Permission().c_str(),
+                 eostoken.Expires(),
+                 token_path.c_str());
       }
     }
   } else {
+    // -------------------------------------------------------------------
+    // Token decode path. Two ordering invariants we want here:
+    //   1. Expiry / generation must be enforced before any claim payload
+    //      is dumped to the requester (pass ignoreerror=false so Read
+    //      returns -EKEYEXPIRED / -EACCES instead of silently decoding).
+    //   2. Origin must be verified before the dump as well, so an origin
+    //      mismatch cannot leak the decoded claims to a caller that the
+    //      token was not authorized to be presented from.
+    // -------------------------------------------------------------------
     if (!(ret_c = eostoken.Read(token.vtoken(), key,
-                                eos::common::EosTok::sTokenGeneration.load(), true))) {
-      std::string dump;
-      eostoken.Dump(dump);
-      outStream << dump;
+                                eos::common::EosTok::sTokenGeneration.load(),
+                                false))) {
+      int origin_rc = eostoken.VerifyOrigin(vid.host, vid.uid_string,
+                                            std::string(vid.prot.c_str()));
+
+      if (origin_rc == -EBADE) {
+        errStream << "error: one or several origin regexp's are invalid"
+                  << std::endl;
+        ret_c = -EBADE;
+      } else if (origin_rc != 0) {
+        errStream << "error: token origin verification failed" << std::endl;
+        ret_c = origin_rc;
+      } else {
+        std::string dump;
+        eostoken.Dump(dump);
+        outStream << dump;
+      }
     } else {
       errStream << "error: cannot read token" << std::endl;
-    }
-
-    if (eostoken.VerifyOrigin(vid.host, vid.uid_string,
-                              std::string(vid.prot.c_str())) == -EBADE) {
-      errStream << "error: one or several origin regexp's are invalid" << std::endl;
-      ret_c = -EBADE;
     }
   }
 
