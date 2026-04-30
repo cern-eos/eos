@@ -41,6 +41,23 @@ eos::console::ReplyProto
 FileRegisterCmd::ProcessRequest() noexcept
 {
   eos::console::ReplyProto reply;
+
+  // ---------------------------------------------------------------------------
+  // Defense-in-depth admin gate. The dispatcher in
+  // ProcInterface::HandleProtobufRequest already refuses non-admin callers
+  // for kRecord, but FileRegisterCmd writes namespace metadata with caller-
+  // supplied owner uid/gid, so we re-check here to keep this command safe
+  // even if the central gate is ever bypassed or relaxed.
+  // ---------------------------------------------------------------------------
+  if (!ProcInterface::VidIsAdmin(mVid)) {
+    eos_err("msg=\"FileRegisterCmd refused for non-admin\" "
+            "uid=%u gid=%u prot=%s host=%s",
+            mVid.uid, mVid.gid, mVid.prot.c_str(), mVid.host.c_str());
+    reply.set_retc(EPERM);
+    reply.set_std_err("error: file registration requires admin privileges");
+    return reply;
+  }
+
   eos::console::FileRegisterProto reg = mReqProto.record();
   eos::common::Path cPath(reg.path());
   std::shared_ptr<eos::IContainerMD> dir;
