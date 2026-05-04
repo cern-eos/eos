@@ -1117,6 +1117,10 @@ void FsSpace::Stop()
   if (mGeoBalancer) {
     mGeoBalancer->Stop();
   }
+
+  if (mFsBalancer) {
+    mFsBalancer->Stop();
+  }
 }
 
 //------------------------------------------------------------------------------
