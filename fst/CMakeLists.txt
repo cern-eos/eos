@@ -454,7 +454,7 @@ target_compile_options(eos-ioping PRIVATE -std=gnu99)
 target_link_libraries(eos-ioping PRIVATE GLIBC::RT GLIBC::M)
 target_link_libraries(eos-check-blockxs PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo XROOTD::SERVER)
-target_link_libraries(eos-adler32 PRIVATE EosFstIo XROOTD::SERVER)
+target_link_libraries(eos-adler32 PRIVATE EosFstIo XROOTD::SERVER CLI11::CLI11)
 target_link_libraries(eos-checksum PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-scan-fs PRIVATE
   EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER)
@@ -466,10 +466,13 @@ endif()
 add_executable(eos-create-file-pattern
   utils/CreateFileWithPattern.cc)
 
+target_link_libraries(eos-create-file-pattern PRIVATE
+  CLI11::CLI11)
+
 add_executable(eos-readv-pattern
   utils/CheckFileReadWithPattern.cc)
 
-target_link_libraries(eos-readv-pattern PRIVATE XROOTD::CL)
+target_link_libraries(eos-readv-pattern PRIVATE XROOTD::CL CLI11::CLI11)
 
 add_executable(eos-fmd-tool
   tools/ConvertFileMD.cc
@@ -482,7 +485,8 @@ add_executable(eos-fmd-tool
 target_link_libraries(eos-fmd-tool PRIVATE
   EosFstIo
   EosCommonServer
-  XrdEosFst-Static)
+  XrdEosFst-Static
+  CLI11::CLI11)
 
 add_executable(eos-disk-measurements
   utils/DiskMeasurementsMain.cc
