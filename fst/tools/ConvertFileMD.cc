@@ -16,11 +16,11 @@
 //  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
 //  ************************************************************************
 
+#include "CLI/CLI.hpp"
+#include "common/Logging.hh"
+#include "common/StringUtils.hh"
 #include "fst/filemd/FmdAttr.hh"
 #include "fst/utils/FSPathHandler.hh"
-#include "common/StringUtils.hh"
-#include "common/Logging.hh"
-#include "common/CLI11.hpp"
 #include <iostream>
 #include <memory>
 
@@ -46,15 +46,14 @@ main(int argc, char* argv[])
   std::string log_file {""};
   std::string log_level {"err"}; // accepts info, debug, err, crit, warning etc.
   CLI::App app("Tool to inspect filemd metadata");
-  app.add_option("--log-level", log_level, "Logging level", true);
+  app.add_option("--log-level", log_level, "Logging level");
   app.require_subcommand();
   std::string file_path;
   auto inspect_subcmd = app.add_subcommand("inspect",
                         "inspect filemd attributes");
   inspect_subcmd->add_option("--path", file_path, "full path to file")
   ->required();
-  inspect_subcmd->add_option("--log-file", log_file,
-                             "Log file for operations", true);
+  inspect_subcmd->add_option("--log-file", log_file, "Log file for operations");
 
   try {
     app.parse(argc, argv);

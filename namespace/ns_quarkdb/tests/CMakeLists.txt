@@ -59,7 +59,7 @@ add_executable(eosnsbench EosNamespaceBenchmark.cc)
 target_compile_options(eosnsbench PUBLIC -DFILE_OFFSET_BITS=64)
 target_link_libraries(eosnsbench PRIVATE EosNsCommon-Static)
 add_executable(eos-lru-benchmark LruBenchmark.cc)
-target_link_libraries(eos-lru-benchmark EosCommon)
+target_link_libraries(eos-lru-benchmark PRIVATE EosCommon CLI11::CLI11)
 
 install(TARGETS eosnsbench eos-lru-benchmark
   LIBRARY DESTINATION ${CMAKE_INSTALL_FULL_LIBDIR}

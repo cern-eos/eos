@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/CLI11.hpp"
+#include "CLI/CLI.hpp"
 #include "common/FileId.hh"
 
 int main(int argc, char* argv[]) {
@@ -41,4 +41,3 @@ int main(int argc, char* argv[]) {
   std::cout << "fid: " << fid << std::endl;
   return 0;
 }
-

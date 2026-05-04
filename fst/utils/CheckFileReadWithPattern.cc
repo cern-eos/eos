@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/CLI11.hpp"
+#include "CLI/CLI.hpp"
 #include "common/utils/RandUtils.hh"
 #include <XrdCl/XrdClFile.hh>
 #include <fstream>
