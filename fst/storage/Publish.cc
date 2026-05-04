@@ -715,6 +715,10 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
 
   int loop_counter = 0;
 
+  // FstHostPort is set once at startup, so the node id is stable for the
+  // lifetime of this thread; capture it once to avoid touching gConfig per loop.
+  const std::string node_id = gConfig.FstHostPort.c_str();
+
   while (!assistant.terminationRequested()) {
     std::chrono::milliseconds reportInterval =
         std::chrono::milliseconds(traffic_shaping::IoStatsCollector::
@@ -722,9 +726,7 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
     common::IntervalStopwatch stopwatch(reportInterval);
 
     eos::traffic_shaping::FstIoReport report;
-
-    const auto mNodeId = gConfig.FstHostPort.c_str();
-    report.set_node_id(mNodeId);
+    report.set_node_id(node_id);
 
     const int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                                std::chrono::system_clock::now().time_since_epoch())
