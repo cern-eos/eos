@@ -16,12 +16,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/CLI11.hpp"
+#include "CLI/CLI.hpp"
 #include <fstream>
-#include <stdlib.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
-
 
 std::string GetFilePath(const std::string& fname)
 {

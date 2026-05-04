@@ -21,10 +21,10 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "CLI/CLI.hpp"
+#include "fst/checksum/ChecksumPlugins.hh"
 #include <stdio.h>
 #include <stdlib.h>
-#include "fst/checksum/ChecksumPlugins.hh"
-#include "common/CLI11.hpp"
 
 int
 main(int argc, char* argv[])
