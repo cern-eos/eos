@@ -1,12 +1,16 @@
 #include "IoCmd.hh"
 #include "common/Constants.hh"
 #include "common/Mapping.hh"
+#include "common/shaping/IoStatsKey.hh"
 #include "fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/shaping/TrafficShaping.hh"
+
 #include "proto/ConsoleReply.pb.h"
 
 #include <cstdint>
 #include <json/json.h>
+#include <map>
 #include <tuple>
 
 std::string
@@ -22,9 +26,20 @@ format_rate(const double bytes_per_sec)
   std::ostringstream ss;
   ss << std::fixed << std::setprecision(2) << val << " " << units[unit_idx];
   return ss.str();
-};
+}
 
 namespace {
+
+using eos::common::traffic_shaping::kUnknownId;
+
+// Replace empty string identifiers with the shared <unknown> placeholder so the
+// CLI/JSON output never contains a bare empty value.
+const std::string&
+LabelOrUnknown(const std::string& value)
+{
+  static const std::string unknown(kUnknownId);
+  return value.empty() ? unknown : value;
+}
 
 std::string
 CompactJsonString(const Json::Value& value)
@@ -138,7 +153,7 @@ ShapingPolicySet(const eos::console::IoProto_ShapingProto_PolicyAction_SetAction
     manager->SetGidPolicy(set_req.gid(), policy);
   }
 
-  std::string status_str = policy.is_enabled ? "Enabled" : "Disabled";
+  const std::string status_str = policy.is_enabled ? "Enabled" : "Disabled";
 
   reply.set_retc(0);
   reply.set_std_out("success: Updated shaping policy for " + target_desc +
@@ -226,7 +241,7 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     return;
   }
 
-  auto total_stats = manager->GetTotalStats();
+  const auto total_stats = manager->GetTotalStats();
 
   struct AggregatedStats {
     double read_rate = 0.0;
@@ -235,24 +250,12 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     double write_iops = 0.0;
   };
 
-  struct DetailedDisplayKey {
-    std::string node_id;
-    uint64_t fsid = 0;
-    std::string app;
-    uint32_t uid = 0;
-    uint32_t gid = 0;
-
-    bool
-    operator<(const DetailedDisplayKey& other) const
-    {
-      return std::tie(node_id, fsid, app, uid, gid) <
-             std::tie(other.node_id, other.fsid, other.app, other.uid, other.gid);
-    }
-  };
+  using traffic_shaping::DetailedKey;
+  using traffic_shaping::DiskKey;
 
   std::map<std::string, AggregatedStats> agg_stats;
-  std::map<std::pair<std::string, uint64_t>, AggregatedStats> fs_agg_stats;
-  std::map<DetailedDisplayKey, AggregatedStats> detailed_agg_stats;
+  std::map<DiskKey, AggregatedStats> fs_agg_stats;
+  std::map<DetailedKey, AggregatedStats> detailed_agg_stats;
   const bool resolve_ids =
       list_req.has_resolve_ids() ? list_req.resolve_ids() : !list_req.json_output();
 
@@ -295,10 +298,8 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     break;
   }
 
-  auto add_detailed_stats_entry = [&](const DetailedDisplayKey& group_key,
-                                      const traffic_shaping::RateSnapshot& snapshot) {
-    auto& entry = detailed_agg_stats[group_key];
-
+  auto accumulate = [&sma_idx](AggregatedStats& entry,
+                               const traffic_shaping::RateSnapshot& snapshot) {
     const auto& sma_metrics = snapshot.sma[sma_idx];
     entry.read_rate += sma_metrics.read_rate_bps;
     entry.write_rate += sma_metrics.write_rate_bps;
@@ -308,60 +309,36 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
 
   if (list_req.show_all()) {
     if (engine.GetDetailLevel() == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
-      auto detailed_stats = manager->GetDetailedStats();
-
-      for (const auto& [detailed_key, snapshot] : detailed_stats) {
-        DetailedDisplayKey group_key{
-            detailed_key.node_id.empty() ? "<unknown>" : detailed_key.node_id,
-            detailed_key.stream.fsid,
-            detailed_key.stream.app.empty() ? "<unknown>" : detailed_key.stream.app,
-            detailed_key.stream.uid, detailed_key.stream.gid};
-        add_detailed_stats_entry(group_key, snapshot);
+      for (const auto& [detailed_key, snapshot] : manager->GetDetailedStats()) {
+        DetailedKey group_key{LabelOrUnknown(detailed_key.node_id),
+                              {LabelOrUnknown(detailed_key.stream.app),
+                               detailed_key.stream.uid, detailed_key.stream.gid,
+                               detailed_key.stream.fsid}};
+        accumulate(detailed_agg_stats[group_key], snapshot);
       }
     } else {
-      auto global_stats = manager->GetGlobalStats();
-
-      for (const auto& [key, snapshot] : global_stats) {
-        DetailedDisplayKey group_key{
-            "<unknown>", 0, key.app.empty() ? "<unknown>" : key.app, key.uid, key.gid};
-        add_detailed_stats_entry(group_key, snapshot);
+      // Filesystem detail is off: no node/fsid context, so synthesize one
+      // <unknown> bucket per (app, uid, gid) — fsid is omitted (0).
+      for (const auto& [key, snapshot] : manager->GetGlobalStats()) {
+        DetailedKey group_key{kUnknownId, {LabelOrUnknown(key.app), key.uid, key.gid, 0}};
+        accumulate(detailed_agg_stats[group_key], snapshot);
       }
     }
   } else if (list_req.show_fs()) {
-    auto disk_stats = manager->GetDiskStats();
-
-    for (const auto& [disk_key, snapshot] : disk_stats) {
-      std::pair<std::string, uint64_t> group_key{
-          disk_key.node_id.empty() ? "<unknown>" : disk_key.node_id, disk_key.fsid};
-      auto& entry = fs_agg_stats[group_key];
-
-      const auto& sma_metrics = snapshot.sma[sma_idx];
-      entry.read_rate += sma_metrics.read_rate_bps;
-      entry.write_rate += sma_metrics.write_rate_bps;
-      entry.read_iops += sma_metrics.read_iops;
-      entry.write_iops += sma_metrics.write_iops;
+    for (const auto& [disk_key, snapshot] : manager->GetDiskStats()) {
+      DiskKey group_key{LabelOrUnknown(disk_key.node_id), disk_key.fsid};
+      accumulate(fs_agg_stats[group_key], snapshot);
     }
   } else if (list_req.show_nodes()) {
-    auto node_stats = manager->GetNodeStats();
-
-    for (const auto& [node_id, snapshot] : node_stats) {
-      std::string group_key = node_id.empty() ? "<unknown>" : node_id;
-      auto& entry = agg_stats[group_key];
-
-      const auto& sma_metrics = snapshot.sma[sma_idx];
-      entry.read_rate += sma_metrics.read_rate_bps;
-      entry.write_rate += sma_metrics.write_rate_bps;
-      entry.read_iops += sma_metrics.read_iops;
-      entry.write_iops += sma_metrics.write_iops;
+    for (const auto& [node_id, snapshot] : manager->GetNodeStats()) {
+      accumulate(agg_stats[LabelOrUnknown(node_id)], snapshot);
     }
   } else {
-    auto global_stats = manager->GetGlobalStats();
-
-    for (const auto& [key, snapshot] : global_stats) {
+    for (const auto& [key, snapshot] : manager->GetGlobalStats()) {
       std::string group_key;
 
       if (list_req.show_apps()) {
-        group_key = key.app.empty() ? "<unknown>" : key.app;
+        group_key = LabelOrUnknown(key.app);
       } else if (list_req.show_users()) {
         group_key = std::to_string(key.uid);
       } else if (list_req.show_groups()) {
@@ -370,13 +347,7 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
         group_key = "app:" + key.app; // Default fallback
       }
 
-      auto& entry = agg_stats[group_key];
-
-      const auto& sma_metrics = snapshot.sma[sma_idx];
-      entry.read_rate += sma_metrics.read_rate_bps;
-      entry.write_rate += sma_metrics.write_rate_bps;
-      entry.read_iops += sma_metrics.read_iops;
-      entry.write_iops += sma_metrics.write_iops;
+      accumulate(agg_stats[group_key], snapshot);
     }
   }
 
@@ -411,14 +382,14 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
         Json::Value entry;
         entry["type"] = "all";
         entry["node_id"] = detailed_key.node_id;
-        entry["fsid"] = static_cast<Json::Value::UInt64>(detailed_key.fsid);
-        entry["app"] = detailed_key.app;
-        entry["uid"] = static_cast<Json::Value::UInt>(detailed_key.uid);
-        entry["gid"] = static_cast<Json::Value::UInt>(detailed_key.gid);
+        entry["fsid"] = static_cast<Json::Value::UInt64>(detailed_key.stream.fsid);
+        entry["app"] = detailed_key.stream.app;
+        entry["uid"] = static_cast<Json::Value::UInt>(detailed_key.stream.uid);
+        entry["gid"] = static_cast<Json::Value::UInt>(detailed_key.stream.gid);
 
         if (resolve_ids) {
-          entry["user"] = uid_label(detailed_key.uid);
-          entry["group"] = gid_label(detailed_key.gid);
+          entry["user"] = uid_label(detailed_key.stream.uid);
+          entry["group"] = gid_label(detailed_key.stream.gid);
         }
 
         add_rate_fields(entry, stat);
@@ -428,8 +399,8 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       for (const auto& [fs_key, stat] : fs_agg_stats) {
         Json::Value entry;
         entry["type"] = "fs";
-        entry["node_id"] = fs_key.first;
-        entry["fsid"] = static_cast<Json::Value::UInt64>(fs_key.second);
+        entry["node_id"] = fs_key.node_id;
+        entry["fsid"] = static_cast<Json::Value::UInt64>(fs_key.fsid);
         add_rate_fields(entry, stat);
         json.append(entry);
       }
@@ -497,15 +468,15 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       oss << std::string(164, '-') << "\n";
 
       for (const auto& [detailed_key, stat] : detailed_agg_stats) {
-        const std::string uid_display = uid_label(detailed_key.uid);
-        const std::string gid_display = gid_label(detailed_key.gid);
+        const std::string uid_display = uid_label(detailed_key.stream.uid);
+        const std::string gid_display = gid_label(detailed_key.stream.gid);
         oss << std::left << std::setw(40) << detailed_key.node_id << std::right
-            << std::setw(10) << detailed_key.fsid << std::setw(24) << detailed_key.app
-            << std::setw(18) << uid_display << std::setw(18) << gid_display
-            << std::setw(15) << format_rate(stat.read_rate) << std::setw(15)
-            << format_rate(stat.write_rate) << std::fixed << std::setprecision(2)
-            << std::setw(12) << stat.read_iops << std::setw(12) << stat.write_iops
-            << "\n";
+            << std::setw(10) << detailed_key.stream.fsid << std::setw(24)
+            << detailed_key.stream.app << std::setw(18) << uid_display << std::setw(18)
+            << gid_display << std::setw(15) << format_rate(stat.read_rate)
+            << std::setw(15) << format_rate(stat.write_rate) << std::fixed
+            << std::setprecision(2) << std::setw(12) << stat.read_iops << std::setw(12)
+            << stat.write_iops << "\n";
       }
 
       oss << std::string(164, '-') << "\n";
@@ -523,8 +494,8 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       oss << std::string(104, '-') << "\n";
 
       for (const auto& [fs_key, stat] : fs_agg_stats) {
-        oss << std::left << std::setw(40) << fs_key.first << std::right << std::setw(10)
-            << fs_key.second << std::setw(15) << format_rate(stat.read_rate)
+        oss << std::left << std::setw(40) << fs_key.node_id << std::right << std::setw(10)
+            << fs_key.fsid << std::setw(15) << format_rate(stat.read_rate)
             << std::setw(15) << format_rate(stat.write_rate) << std::fixed
             << std::setprecision(2) << std::setw(12) << stat.read_iops << std::setw(12)
             << stat.write_iops << "\n";

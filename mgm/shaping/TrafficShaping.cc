@@ -20,7 +20,7 @@ namespace eos::mgm::traffic_shaping {
 uint64_t
 TrafficShapingPolicy::GetEffectiveWriteLimit() const
 {
-  uint64_t active_user_limit = is_enabled ? limit_write_bytes_per_sec : 0;
+  const uint64_t active_user_limit = is_enabled ? limit_write_bytes_per_sec : 0;
   if (active_user_limit > 0 && controller_limit_write_bytes_per_sec > 0) {
     return std::min(active_user_limit, controller_limit_write_bytes_per_sec);
   }
@@ -30,7 +30,7 @@ TrafficShapingPolicy::GetEffectiveWriteLimit() const
 uint64_t
 TrafficShapingPolicy::GetEffectiveReadLimit() const
 {
-  uint64_t active_user_limit = is_enabled ? limit_read_bytes_per_sec : 0;
+  const uint64_t active_user_limit = is_enabled ? limit_read_bytes_per_sec : 0;
   if (active_user_limit > 0 && controller_limit_read_bytes_per_sec > 0) {
     return std::min(active_user_limit, controller_limit_read_bytes_per_sec);
   }
@@ -173,7 +173,7 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
   NodeData& node_data = mNodeStates[node_id];
   NodeStateMap& node_map = node_data.streams;
 
-  bool is_first_node_contact =
+  const bool is_first_node_contact =
       (node_data.last_report_time == std::chrono::steady_clock::time_point{});
 
   double node_elapsed_sec = 0.0;
@@ -183,7 +183,7 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
   }
   node_data.last_report_time = now_steady;
 
-  bool is_node_delayed =
+  const bool is_node_delayed =
       (!is_first_node_contact && node_elapsed_sec > kMaxThreadPeriodMs * 0.001);
 
   if (is_first_node_contact && !report.entries().empty()) {

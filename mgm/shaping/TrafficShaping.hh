@@ -11,6 +11,7 @@
 #include <shared_mutex>
 #include <string>
 #include <thread>
+#include <tuple>
 #include <unordered_map>
 #include <vector>
 
@@ -168,18 +169,20 @@ struct DiskKey {
   {
     return fsid == other.fsid && node_id == other.node_id;
   }
+
+  bool
+  operator<(const DiskKey& other) const
+  {
+    return std::tie(node_id, fsid) < std::tie(other.node_id, other.fsid);
+  }
 };
 
 struct DiskKeyHash {
   std::size_t
   operator()(const DiskKey& k) const
   {
-    auto combine = [](const std::size_t seed, const std::size_t val) -> std::size_t {
-      return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
-    };
     std::size_t h = std::hash<std::string>{}(k.node_id);
-    h = combine(h, std::hash<uint64_t>{}(k.fsid));
-    return h;
+    return eos::common::traffic_shaping::HashCombine(h, std::hash<uint64_t>{}(k.fsid));
   }
 };
 
@@ -192,18 +195,20 @@ struct DetailedKey {
   {
     return node_id == other.node_id && stream == other.stream;
   }
+
+  bool
+  operator<(const DetailedKey& other) const
+  {
+    return std::tie(node_id, stream) < std::tie(other.node_id, other.stream);
+  }
 };
 
 struct DetailedKeyHash {
   std::size_t
   operator()(const DetailedKey& k) const
   {
-    auto combine = [](const std::size_t seed, const std::size_t val) -> std::size_t {
-      return seed ^ (val + 0x9e3779b9 + (seed << 6) + (seed >> 2));
-    };
-    std::size_t h = std::hash<std::string>{}(k.node_id);
-    h = combine(h, StreamKeyHash{}(k.stream));
-    return h;
+    const std::size_t h = std::hash<std::string>{}(k.node_id);
+    return eos::common::traffic_shaping::HashCombine(h, StreamKeyHash{}(k.stream));
   }
 };
 
