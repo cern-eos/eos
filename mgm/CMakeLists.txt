@@ -436,10 +436,10 @@ add_executable(eos-config-inspect
   ../common/config/ConfigParsing.cc
 )
 
-target_link_libraries(
-  eos-config-inspect
+target_link_libraries(eos-config-inspect PRIVATE
   EosCommon
-  EosNsCommon-Static)
+  EosNsCommon-Static
+  CLI11::CLI11)
 
 #-------------------------------------------------------------------------------
 # Create executables for testing the MGM configuration

@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/CLI11.hpp"
+#include "CLI/CLI.hpp"
 #include "common/FileId.hh"
 #include <qclient/QClient.hh>
 
@@ -49,4 +49,3 @@ int main(int argc, char* argv[]) {
   std::cout << "path: " << path << std::endl;
   return 0;
 }
-

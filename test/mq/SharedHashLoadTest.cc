@@ -16,7 +16,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "common/CLI11.hpp"
+#include "CLI/CLI.hpp"
 #include "common/Locators.hh"
 #include "common/PasswordHandler.hh"
 #include "common/utils/RandUtils.hh"

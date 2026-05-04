@@ -147,7 +147,8 @@ target_link_libraries(threadpooltest PRIVATE EosCommon)
 #-------------------------------------------------------------------------------
 if (NOT CLIENT)
   add_executable(eos-shared-hash-test mq/SharedHashLoadTest.cc)
-  target_link_libraries(eos-shared-hash-test PRIVATE EosCommonServer-Static EosCommon-Static qclient)
+  target_link_libraries(eos-shared-hash-test PRIVATE
+    EosCommonServer-Static EosCommon-Static qclient CLI11::CLI11)
 
   install(TARGETS eos-shared-hash-test
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_BINDIR})
