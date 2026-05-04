@@ -66,16 +66,10 @@ std::string MakeLsHelp(const CLI::App* app)
   return oss.str();
 }
 
-void ConfigureLsApp(CLI::App& app,
-                    bool& opt_l,
-                    bool& opt_y,
-                    bool& opt_a,
-                    bool& opt_i,
-                    bool& opt_c,
-                    bool& opt_n,
-                    bool& opt_F,
-                    bool& opt_s,
-                    bool& opt_no_globbing)
+void
+ConfigureLsApp(CLI::App& app, bool& opt_l, bool& opt_y, bool& opt_a, bool& opt_i,
+               bool& opt_c, bool& opt_n, bool& opt_F, bool& opt_s, bool& opt_r,
+               bool& opt_t, bool& opt_no_globbing)
 {
   app.name("ls");
   app.description("list directory <path>");
@@ -95,6 +89,10 @@ void ConfigureLsApp(CLI::App& app,
   app.add_flag("-F", opt_F, "append indicator '/' to directories");
   app.add_flag("-s", opt_s, "checks only if the directory exists without listing");
   app.add_flag("-N,--no-globbing", opt_no_globbing, "disables globbing");
+  // Hidden flag to make the parsing work also when we have flags that are
+  // common on Linux but not supported by EOS
+  app.add_flag("-r", opt_r, "")->group("");
+  app.add_flag("-t", opt_t, "")->group("");
 }
 
 class LsCommand : public IConsoleCommand {
@@ -130,10 +128,12 @@ public:
     bool opt_n = false;
     bool opt_F = false;
     bool opt_s = false;
+    bool opt_r = false;
+    bool opt_t = false;
     bool opt_no_globbing = false;
 
-    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_n, opt_F, opt_s,
-                   opt_no_globbing);
+    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_n, opt_F, opt_s, opt_r,
+                   opt_t, opt_no_globbing);
 
     std::vector<std::string> positionals;
     app.add_option("path", positionals);
@@ -378,9 +378,11 @@ public:
     bool opt_n = false;
     bool opt_F = false;
     bool opt_s = false;
+    bool opt_r = false;
+    bool opt_t = false;
     bool opt_no_globbing = false;
-    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_n, opt_F, opt_s,
-                   opt_no_globbing);
+    ConfigureLsApp(app, opt_l, opt_y, opt_a, opt_i, opt_c, opt_n, opt_F, opt_s, opt_r,
+                   opt_t, opt_no_globbing);
     const std::string help = app.help();
     fprintf(stderr, "%s", help.c_str());
   }
