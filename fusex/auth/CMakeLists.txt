@@ -51,4 +51,5 @@ target_link_libraries(EosFuseAuth PUBLIC
   KRB5::KRB5
   OpenSSL::SSL
   PROTOBUF::PROTOBUF
-  GOOGLE::SPARSEHASH)
+  GOOGLE::SPARSEHASH
+  fmt::fmt-header-only)

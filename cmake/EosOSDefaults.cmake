@@ -43,8 +43,9 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin" )
   set(MacOSX TRUE )
   set(CLIENT TRUE )
   set(OSDEFINE "-D__APPLE__=1")
-  # On MAC we don't link static objects at all
-  set(FUSE_LIBRARY /usr/local/lib/libosxfuse_i64.dylib)
+  # On MAC we don't link static objects at all. The FUSE library path is
+  # discovered by Findfuse.cmake (libfuse on macFUSE 4.x, libosxfuse on
+  # older installs); do not hardcode it here.
   set(CMAKE_MACOSX_RPATH TRUE)
   set(CMAKE_SKIP_BUILD_RPATH FALSE)
   set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
