@@ -1393,6 +1393,35 @@ Server::OpGetLs(const std::string& id,
 // Server a meta-data SET operation
 //------------------------------------------------------------------------------
 
+
+//------------------------------------------------------------------------------
+// ACL helper
+//------------------------------------------------------------------------------
+
+static bool
+CheckOwnerAcl(const eos::fusex::md& md,
+	      eos::common::VirtualIdentity& vid,
+	      std::shared_ptr<eos::IContainerMD>& cmd)
+{
+  if ((uid_t)md.uid() == vid.uid &&
+      (vid.sudoer || (gid_t)md.gid() == vid.gid ||
+       vid.allowed_gids.count((gid_t)md.gid()))) {
+    return true;        // caller owns new md object
+  }
+  if (vid.uid == 0 || vid.sudoer) {
+    return true;        // root & sudoers can create as any owner
+  }
+  if (vid.hasUid(eos::common::ADM_UID) ||
+      vid.hasGid(eos::common::ADM_GID)) {
+    return true;        // admins can create as any owner
+  }
+  vid.scope = gOFS->eosView->getUri(cmd.get());
+  Acl acl;
+  eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+  acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+  return acl.CanChown(); // we require chown permission
+}
+
 /*----------------------------------------------------------------------------*/
 
 int
@@ -1580,36 +1609,21 @@ Server::OpSetDirectory(const std::string& id,
         eos_info("msg=\"rename\" from=\"%s\" to=\"%s\"", cmd->getName().c_str(),
                  md.name().c_str());
         gOFS->eosView->renameContainer(cmd.get(), md.name());
-      }
+    }
 
-      if (cmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer &&
-          (uid_t)md.uid() != vid.uid) {
-        vid.scope = gOFS->eosView->getUri(cmd.get());
-        /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
-        Acl acl;
-        gOFS->listAttributes(gOFS->eosView, &(*cmd), attrmap, false);
+    if ( (cmd->getCUid() != (uid_t)md.uid()) /* a chown */ &&
+	 !CheckOwnerAcl(md, vid, cmd)) {
+      return EPERM;
+    }
 
-        if (EOS_LOGS_DEBUG) {
-          eos_debug("sysacl '%s' useracl '%s' evaluseracl %d (ignored)",
-                    attrmap["sys.acl"].c_str(), attrmap["user.acl"].c_str(),
-                    attrmap.count("sys.eval.useracl"));
-        }
+    if (pcmd->getMode() & S_ISGID) {
+      sgid_mode = S_ISGID;
+    }
 
-        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
-
-        if (!acl.CanChown()) {
-          return EPERM;
-        }
-      }
-
-      if (pcmd->getMode() & S_ISGID) {
-        sgid_mode = S_ISGID;
-      }
-
-      md_ino = md.md_ino();
-      eos_info("ino=%lx pino=%lx cpino=%lx msg=\"update-dir\"",
-               (long) md.md_ino(),
-               (long) md.md_pino(), (long) cmd->getParentId());
+    md_ino = md.md_ino();
+    eos_info("ino=%lx pino=%lx cpino=%lx msg=\"update-dir\"",
+	     (long) md.md_ino(),
+	     (long) md.md_pino(), (long) cmd->getParentId());
     } else {
       // dir creation
       op = CREATE;
@@ -1620,6 +1634,10 @@ Server::OpSetDirectory(const std::string& id,
         eos_err("ino=%lx name=%s msg=\"atomic path is forbidden as a directory name\"",
                 md.md_pino(), md.name().c_str());
         return EPERM;
+      }
+
+      if ( !CheckOwnerAcl(md, vid, pcmd)) {
+	return EPERM;
       }
 
       if (exclusive && pcmd->findContainer(md.name())) {
@@ -2259,24 +2277,9 @@ Server::OpSetFile(const std::string& id,
                   vid.uid, (uid_t)md.uid(), fmd->getCUid());
       }
 
-      if (fmd->getCUid() != (uid_t)md.uid() /* a chown */ && !vid.sudoer &&
-          (uid_t)md.uid() != vid.uid) {
-        vid.scope = gOFS->eosView->getUri(pcmd.get());
-        /* chown is under control of container sys.acl only, if a vanilla user chowns to other than themselves */
-        Acl acl;
-        attrmap = pcmd->getAttributes();
-
-        if (EOS_LOGS_DEBUG) {
-          eos_debug("sysacl '%s' useracl '%s' (ignored) evaluseracl %d",
-                    attrmap["sys.acl"].c_str(), attrmap["user.acl"].c_str(),
-                    attrmap.count("sys.eval.useracl"));
-        }
-
-        acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
-
-        if (!acl.CanChown()) {
-          return EPERM;
-        }
+      if ( (fmd->getCUid() != (uid_t)md.uid() /* a chown */) &&
+	   !CheckOwnerAcl(md, vid, pcmd)) {
+	return EPERM;
       }
 
       eos_info("fxid=%08llx ino=%lx pino=%lx cpino=%lx update-file",
@@ -2359,6 +2362,10 @@ Server::OpSetFile(const std::string& id,
       if (pcmd->findContainer(
             md.name())) {
         return EEXIST;
+      }
+
+      if ( !CheckOwnerAcl(md, vid, pcmd)) {
+	return EPERM;
       }
 
       unsigned long layoutId = 0;
@@ -2838,6 +2845,11 @@ Server::OpSetLink(const std::string& id,
 
       if (fmd && exclusive) {
         return EEXIST;
+      }
+
+      if ( ((!fmd) || ( fmd->getCUid() != (uid_t) md.uid()) /* a chown */) &&
+	   !CheckOwnerAcl(md, vid, pcmd)) {
+	return EPERM;
       }
 
       fmd = gOFS->eosFileService->createFile(0);
