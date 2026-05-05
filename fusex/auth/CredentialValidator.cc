@@ -182,7 +182,7 @@ static int check_ccache(krb5_context& context, krb5_ccache cache,
 			 princ,
 			 &princstring) == 0) {
     principal = princstring;
-    krb5_free_string(context, princstring);
+    krb5_free_unparsed_name(context, princstring);
   }
 
   krb5_free_principal(context, princ);
@@ -448,7 +448,7 @@ bool CredentialValidator::validate(const JailInformation& jail,
     if (uc.type == CredentialType::KRB5) {
       //--------------------------------------------------------------------------
       // the copied credential is owned by root!
-      //--------------------------------------------------------------------------      
+      //--------------------------------------------------------------------------
       krb5_context krb_ctx;
       krb5_error_code ret = krb5_init_context(&krb_ctx);
 

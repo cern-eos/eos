@@ -4,7 +4,7 @@
 # FUSE_FOUND        - system has fuse
 # FUSE_INCLUDE_DIRS - fuse include directories
 # FUSE_LIBRARIES    - libraries need to use fuse
-# FUSE_MOUNT_VERSION - major version reported by fusermount 
+# FUSE_MOUNT_VERSION - major version reported by fusermount
 #
 # and the following imported target
 # FUSE::FUSE
@@ -19,8 +19,10 @@ find_path(FUSE_INCLUDE_DIR
   PATH_SUFFIXES include include/osxfuse)
 
 if(MacOSX)
+  # macFUSE 4.x renamed the library from libosxfuse to libfuse, keep both for
+  # compatibility with older installs.
   find_library(FUSE_LIBRARY
-    NAMES osxfuse
+    NAMES fuse osxfuse
     HINTS ${FUSE_ROOT} ${PC_fuse_LIBDIR} ${PC_fuse_LIBRARY_DIRS}
     PATH_SUFFIXES ${CMAKE_INSTALL_LIBDIR})
 else()
@@ -38,7 +40,7 @@ else()
     set(${FUSE_MOUNT_VERSION} "" PARENT_SCOPE)
   endif()
 
-  message(STATUS "Setting FUSE_MOUNT_VERSION: ${FUSE_MOUNT_VERSION}")  
+  message(STATUS "Setting FUSE_MOUNT_VERSION: ${FUSE_MOUNT_VERSION}")
 endif()
 
 include(FindPackageHandleStandardArgs)
