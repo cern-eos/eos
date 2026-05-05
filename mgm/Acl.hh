@@ -42,18 +42,21 @@ EOSMGMNAMESPACE_BEGIN
 class Acl
 {
 public:         // [+] prevents '+' interpreted as "one or more"
-  static constexpr auto sRegexUsrGenericAcl =
-    "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(A|a|r|w|wo|X|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
-  static constexpr auto sRegexSysGenericAcl =
-    "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(A|a|r|w|wo|X|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p|t))+)[,]?)*$";
-  static constexpr auto sRegexUsrNumericAcl =
-    "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(A|a|r|w|wo|X|x|i|m|[+]?d|[+]?u|q|c))+)[,]?)*$";
-  static constexpr auto sRegexSysNumericAcl =
-    "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
-    "(!?(A|a|r|w|wo|X|x|i|m|!m|!d|[+]d|!u|[+]u|q|c|p|t))+)[,]?)*$";
+static constexpr auto sRegexUsrGenericAcl =
+  "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
+  "((!?(A|a|r|w|wo|X|x|i|m|q|c))|([+!](d|u)))+)[,]?)*$";
+
+static constexpr auto sRegexSysGenericAcl =
+  "^(((((u|g|k):(([0-9]+)|([\\.[:alnum:]_-]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
+  "((!?(A|a|r|w|wo|X|x|i|m|q|c|p|t))|([+!](d|u)))+)[,]?)*$";
+
+static constexpr auto sRegexUsrNumericAcl =
+  "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
+  "((!?(A|a|r|w|wo|X|x|i|m|q|c))|([+!](d|u)))+)[,]?)*$";
+
+static constexpr auto sRegexSysNumericAcl =
+  "^(((((u|g):(([0-9]+)))|(egroup:([\\.[:alnum:]_-]+))|(z)):"
+  "((!?(A|a|r|w|wo|X|x|i|m|q|c|p|t))|([+!](d|u)))+)[,]?)*$";
   //----------------------------------------------------------------------------
   //! Use regex to check ACL format / syntax
   //!a
