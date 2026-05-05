@@ -1274,7 +1274,7 @@ runtest "### Rmdir     " unix SUCCESS "" eos rmdir "/eos/$EOS_TEST_INSTANCE/test
 ###################################################A############################
 categorie="fileinfo"
 runtest "### Mkdir      " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
-runtest "### Rm_recycle " unit 0 "" eos recycle config --remove-bin "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo"
+runtest "### Rm_recycle " unix SUCCESS "" eos recycle config --remove-bin "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo"
 runtest "### Mkdir      " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirA/"
 runtest "### Mkdir      " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/dirB/"
 runtest "### Chmod      " unix SUCCESS "" eos chmod -r "777" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fileinfo/"
@@ -2310,9 +2310,9 @@ runtest "### Cleanup"    unix SUCCESS "" eos rm  "/eos/$EOS_TEST_INSTANCE/test/i
 #encryption
 runtest "### Id        " unix SUCCESS "" shell env EOS_FUSE_SECRET=bla eosxd get eos.reconnect "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/"
 runtest "### Upload    " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash cp /etc/group "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted"
-runtest "### Download  " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp /etc/group "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted.cp"
-runtest "### Dowload   " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.ok"
-runtest "### Dowload   " unix SUCCESS "EOS_FUSE_SECRET=false" eos cp "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.false"
+runtest "### Download  " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos cp "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted.cp"
+runtest "### Dowload   " unix SUCCESS "EOS_FUSE_SECRET=12e629ee-e68a-4a5b-9743-33ba8f794e07" eos_bash cp "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted" /var/tmp/encrypted.ok
+runtest "### Dowload   " unix SUCCESS "EOS_FUSE_SECRET=false" eos cp "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/obfuscate/encrypted /var/tmp/encrypted.false"
 runtest "### Diff      " unix SUCCESS "" eos_bash diff /etc/group  /var/tmp/encrypted.ok
 runtest "### Diff      " unix ERROR "" eos_bash diff /etc/group  /var/tmp/encrypted.false
 
