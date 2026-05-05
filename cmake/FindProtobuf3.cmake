@@ -51,9 +51,16 @@ if (PROTOBUF3_FOUND AND NOT TARGET PROTOBUF::PROTOBUF)
   set(Protobuf_PROTOC_EXECUTABLE ${PROTOBUF3_PROTOC_EXECUTABLE})
 
   add_library(PROTOBUF::PROTOBUF UNKNOWN IMPORTED)
+  # Modern protobuf (>= 22) pulls in absl headers transitively, so we expose
+  # ABSL_INCLUDE_DIR (set by Findabsl.cmake) on the protobuf interface when
+  # available.
+  set(_protobuf_iface_includes "${PROTOBUF3_INCLUDE_DIR}")
+  if(ABSL_INCLUDE_DIR)
+    list(APPEND _protobuf_iface_includes "${ABSL_INCLUDE_DIR}")
+  endif()
   set_target_properties(PROTOBUF::PROTOBUF PROPERTIES
     IMPORTED_LOCATION "${PROTOBUF3_LIBRARY}"
-    INTERFACE_INCLUDE_DIRECTORIES "${PROTOBUF3_INCLUDE_DIR}")
+    INTERFACE_INCLUDE_DIRECTORIES "${_protobuf_iface_includes}")
   target_compile_definitions(PROTOBUF::PROTOBUF INTERFACE PROTOBUF_USE_DLLS=1)
 
   # Overwrite these since they are used in generating the Protobuf files
