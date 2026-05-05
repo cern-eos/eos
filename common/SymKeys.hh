@@ -147,8 +147,8 @@ public:
   //----------------------------------------------------------------------------
   //! Compute the HMAC SHA-256 value of the data passed as input
   //!
-  //! @param key the key to be used in the encryption process
   //! @param data the message to be used as input
+  //! @param key the key to be used in the encryption process
   //! @param blockSize the size in which the input is divided before the
   //!                  cryptographic function is applied ( 512 bits recommended )
   //! @param resultSize the size of the result ( the size recommended by the
@@ -156,8 +156,7 @@ public:
   //!
   //! @return hash-based message authentication code
   //----------------------------------------------------------------------------
-  static std::string HmacSha256(const std::string& key,
-                                const std::string& data,
+  static std::string HmacSha256(const std::string& data, std::string key = "",
                                 unsigned int blockSize = 64,
                                 unsigned int resultSize = 32);
 
@@ -269,7 +268,7 @@ public:
     void set(const std::string& secret, const std::string& key)
     {
       if (secret.length()) {
-        this->hmac = HmacSha256(secret, key);
+        this->hmac = HmacSha256(key, secret);
         this->key = hmac;
       } else {
         this->key = key;

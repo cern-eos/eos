@@ -41,12 +41,12 @@ int main(void)
   std::string expected = "e44f11c53447641d0183ecf1a2ca07d77408176a116685802432f"
                          "0dff74c2ab1";
 
-  std::string result = SymKey::HmacSha256( key, data );  
+  std::string result = SymKey::HmacSha256(data, key);
   unsigned char* ptrResult = ( unsigned char* ) result.c_str();
 
   XrdOucString expectedBase64;
   XrdOucString resultBase64;
-  
+
   std::string readableStr;
   char str[3];
 
@@ -74,7 +74,7 @@ int main(void)
 
   //fprintf( stdout, "Expected string is:%s \nResult string is  :%s \n",
   //         expectedBase64.c_str(), resultBase64.c_str() );
-  
+
   if ( strncmp( expectedBase64.c_str(), resultBase64.c_str(), expectedBase64.length() ) != 0 ) {
     fprintf( stdout, "Test FAILED. \n" );
     return -1;

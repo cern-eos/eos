@@ -188,7 +188,7 @@ EosTok::Sign(const std::string& key)
 {
   std::string nkey(key);
   std::string nserialized = share->serialized();
-  share->set_signature(eos::common::SymKey::HmacSha256(nkey, nserialized));
+  share->set_signature(eos::common::SymKey::HmacSha256(nserialized, nkey));
   return 0;
 }
 
@@ -199,7 +199,7 @@ EosTok::Verify(const std::string& key)
   std::string nkey = std::to_string(share->seed()) + key + std::to_string(
                        share->seed());
   std::string nserialized = share->serialized();
-  std::string sign = eos::common::SymKey::HmacSha256(nkey, nserialized);
+  std::string sign = eos::common::SymKey::HmacSha256(nserialized, nkey);
 
   if (sign != share->signature()) {
     return -EPERM;
