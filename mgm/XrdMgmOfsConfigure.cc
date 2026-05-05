@@ -1341,9 +1341,6 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("WebDAV", "Http");
     g_logging.AddFanOutAlias("WebDAVHandler", "Http");
     g_logging.AddFanOutAlias("WebDAVReponse", "Http");
-    g_logging.AddFanOutAlias("S3", "Http");
-    g_logging.AddFanOutAlias("S3Store", "Http");
-    g_logging.AddFanOutAlias("S3Handler", "Http");
     g_logging.AddFanOutAlias("DrainTransferJob", "DrainJob");
     g_logging.AddFanOutAlias("DrainFs", "DrainJob");
     g_logging.AddFanOutAlias("Drainer", "DrainJob");

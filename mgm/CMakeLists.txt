@@ -250,8 +250,6 @@ add_library(
   grpc/GrpcRestGwInterface.cc      grpc/GrpcRestGwInterface.hh
   http/HttpServer.cc
   http/HttpHandler.cc
-  http/s3/S3Handler.cc
-  http/s3/S3Store.cc
   http/webdav/WebDAVHandler.cc
   http/webdav/WebDAVResponse.cc
   http/webdav/PropFindResponse.cc

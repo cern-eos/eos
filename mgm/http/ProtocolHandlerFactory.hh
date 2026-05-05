@@ -34,7 +34,6 @@
 /*----------------------------------------------------------------------------*/
 #include "mgm/Namespace.hh"
 #include "mgm/http/HttpHandler.hh"
-#include "mgm/http/s3/S3Handler.hh"
 #include "mgm/http/webdav/WebDAVHandler.hh"
 #include "common/http/ProtocolHandlerFactory.hh"
 /*----------------------------------------------------------------------------*/
@@ -67,11 +66,7 @@ public:
                          std::map<std::string, std::string>    &headers,
                          eos::common::VirtualIdentity          *vid)
   {
-    if (S3Handler::Matches(method, headers))
-    {
-      return new S3Handler(vid);
-    }
-    else if (WebDAVHandler::Matches(method, headers))
+    if (WebDAVHandler::Matches(method, headers))
     {
       return new WebDAVHandler(vid);
     }
