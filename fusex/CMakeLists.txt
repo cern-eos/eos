@@ -115,10 +115,13 @@ target_link_libraries(eosxd-objects PUBLIC
   ZMQ::ZMQ
   fmt::fmt-header-only)
 
-if (FUSE3_FOUND)
+if (FUSE3_FOUND AND NOT APPLE)
 #-------------------------------------------------------------------------------
 # eosxd common objects, shared between tests and main code.
 # An object library prevents having to compile them twice.
+# Note: on macOS macFUSE ships partial fuse3 compat headers, but they diverge
+# from upstream libfuse3 (fuse_darwin_attr etc.), so the fuse3 build path is
+# not viable there. Apple uses the fuse2 path via macFUSE.
 #-------------------------------------------------------------------------------
 add_library(eosxd3-objects OBJECT
   eosxd/eosfuse.cc eosxd/eosfuse.hh
@@ -159,7 +162,7 @@ target_link_libraries(eosxd3-objects PUBLIC
   fmt::fmt-header-only)
 endif()
 
-if (FUSE3_FOUND)
+if (FUSE3_FOUND AND NOT APPLE)
   target_link_libraries(eosxd3-objects PUBLIC FUSE3::FUSE3)
   set_target_properties(eosxd3-objects
     PROPERTIES COMPILE_FLAGS ${EOSXD3_COMPILE_FLAGS})
@@ -198,7 +201,7 @@ install(FILES eosfusebind
 # eoscfsd executables
 #-------------------------------------------------------------------------------
 
-if (FUSE3_FOUND)
+if (FUSE3_FOUND AND NOT APPLE)
   set(EOSCFSD_COMPILE_FLAGS
     "-DFUSE_MOUNT_VERSION=${FUSE_MOUNT_VERSION}0 -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -DVERSION=\\\"${VERSION}\\\"")
 
