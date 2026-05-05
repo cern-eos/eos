@@ -14,6 +14,41 @@
 
 namespace {
 
+const char* kShapingExamples = "\nEXAMPLES:\n"
+                               "  # Show current application rates\n"
+                               "  eos io shaping ls --apps\n"
+                               "\n"
+                               "  # Globally enable the traffic shaping engine\n"
+                               "  eos io shaping enable\n"
+                               "\n"
+                               "  # Globally disable the traffic shaping engine\n"
+                               "  eos io shaping disable\n";
+
+const char* kShapingPolicyExamples =
+    "\nEXAMPLES:\n"
+    "  # Limit 'eoscp' read rate to 10 MB/s and write rate to 50 MB/s\n"
+    "  eos io shaping policy set --app eoscp --limit-read 10M --limit-write 50M\n"
+    "\n"
+    "  # Temporarily disable the policy for 'eoscp'\n"
+    "  eos io shaping policy set --app eoscp --disable\n"
+    "\n"
+    "  # Remove the read limit for 'eoscp' but keep the write limit\n"
+    "  eos io shaping policy set --app eoscp --limit-read 0\n"
+    "\n"
+    "  # Completely delete the policy for user 1001\n"
+    "  eos io shaping policy rm --uid 1001\n"
+    "\n"
+    "  # List all configured application policies including machine limits\n"
+    "  eos io shaping policy ls --apps --controller\n";
+
+const char* kShapingConfigExamples =
+    "\nEXAMPLES:\n"
+    "  # Show current thread configurations\n"
+    "  eos io shaping config ls\n"
+    "\n"
+    "  # Change the estimators update period to 200 ms\n"
+    "  eos io shaping config set --estimators-period 200\n";
+
 std::string MakeIoHelp()
 {
   std::ostringstream oss;
@@ -162,7 +197,10 @@ std::string MakeIoHelp()
 bool
 BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
 {
-  CLI::App app{"io"};
+  CLI::App app{"IO Interface", "io"};
+  auto formatter = std::make_shared<CLI::Formatter>();
+  formatter->enable_footer_formatting(false);
+  app.formatter(formatter);
   app.require_subcommand(1);
 
   // stat
@@ -266,6 +304,7 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   // shaping (nested subcommands)
   auto* shaping_cmd = app.add_subcommand("shaping", "Traffic Shaping engine");
   shaping_cmd->require_subcommand(1);
+  shaping_cmd->footer(kShapingExamples);
   eos::console::IoProto_ShapingProto* shaping_proto = io->mutable_shaping();
 
   auto* shaping_ls = shaping_cmd->add_subcommand("ls", "View real-time IO rates");
@@ -318,13 +357,14 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
 
   auto* policy_cmd = shaping_cmd->add_subcommand("policy", "Manage shaping policies");
   policy_cmd->require_subcommand(1);
+  policy_cmd->footer(kShapingPolicyExamples);
 
   auto* policy_ls = policy_cmd->add_subcommand("ls", "List policies");
-  policy_ls->add_flag("--apps");
-  policy_ls->add_flag("--users");
-  policy_ls->add_flag("--groups");
-  policy_ls->add_flag("--controller");
-  policy_ls->add_flag("--json");
+  policy_ls->add_flag("--apps", "Filter by applications");
+  policy_ls->add_flag("--users", "Filter by users (uid)");
+  policy_ls->add_flag("--groups", "Filter by groups (gid)");
+  policy_ls->add_flag("--controller", "Show ephemeral controller limits");
+  policy_ls->add_flag("--json", "Output in JSON format");
   policy_ls->callback([policy_ls, shaping_proto]() {
     auto* a = shaping_proto->mutable_policy()->mutable_list();
     a->set_filter_apps(policy_ls->count("--apps") > 0);
@@ -336,18 +376,23 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
 
   auto* policy_set = policy_cmd->add_subcommand("set", "Set policy");
   auto* tgrp = policy_set->add_option_group("Target")->require_option(1);
-  tgrp->add_option("--app", "Application");
-  tgrp->add_option("--uid", "User ID");
-  tgrp->add_option("--gid", "Group ID");
+  tgrp->add_option("--app", "Application name")->type_name("NAME");
+  tgrp->add_option("--uid", "User ID")->type_name("ID");
+  tgrp->add_option("--gid", "Group ID")->type_name("ID");
   auto* pgrp = policy_set->add_option_group("Params")->require_option(1, 6);
-  pgrp->add_option("--limit-read");
-  pgrp->add_option("--limit-write");
-  pgrp->add_option("--reservation-read");
-  pgrp->add_option("--reservation-write");
-  pgrp->add_option("--controller-limit-read");
-  pgrp->add_option("--controller-limit-write");
-  auto* pe = pgrp->add_flag("--enable");
-  auto* pd = pgrp->add_flag("--disable");
+  pgrp->add_option("--limit-read", "Read limit rate; use 0 to remove")->type_name("RATE");
+  pgrp->add_option("--limit-write", "Write limit rate; use 0 to remove")
+      ->type_name("RATE");
+  pgrp->add_option("--reservation-read", "Reserved read rate; use 0 to remove")
+      ->type_name("RATE");
+  pgrp->add_option("--reservation-write", "Reserved write rate; use 0 to remove")
+      ->type_name("RATE");
+  pgrp->add_option("--controller-limit-read", "Ephemeral controller read limit")
+      ->type_name("RATE");
+  pgrp->add_option("--controller-limit-write", "Ephemeral controller write limit")
+      ->type_name("RATE");
+  auto* pe = pgrp->add_flag("--enable", "Enable the selected policy");
+  auto* pd = pgrp->add_flag("--disable", "Disable the selected policy");
   pe->excludes(pd);
   policy_set->callback([policy_set, shaping_proto]() {
     auto* a = shaping_proto->mutable_policy()->mutable_set();
@@ -388,9 +433,9 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
 
   auto* policy_rm = policy_cmd->add_subcommand("rm", "Remove policy");
   auto* rgrp = policy_rm->add_option_group("Target")->require_option(1);
-  rgrp->add_option("--app");
-  rgrp->add_option("--uid");
-  rgrp->add_option("--gid");
+  rgrp->add_option("--app", "Application name")->type_name("NAME");
+  rgrp->add_option("--uid", "User ID")->type_name("ID");
+  rgrp->add_option("--gid", "Group ID")->type_name("ID");
   policy_rm->callback([policy_rm, shaping_proto]() {
     auto* a = shaping_proto->mutable_policy()->mutable_remove();
     if (policy_rm->count("--app"))
@@ -403,19 +448,26 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
 
   auto* config_cmd = shaping_cmd->add_subcommand("config", "Shaping config");
   config_cmd->require_subcommand(1);
+  config_cmd->footer(kShapingConfigExamples);
   auto* config_ls = config_cmd->add_subcommand("ls", "List config");
-  config_ls->add_flag("--json");
+  config_ls->add_flag("--json", "Output in JSON format");
   config_ls->callback([config_ls, shaping_proto]() {
     auto* a = shaping_proto->mutable_config()->mutable_list();
     a->set_json_output(config_ls->count("--json") > 0);
   });
   auto* config_set = config_cmd->add_subcommand("set", "Set config");
   config_set->require_option(1, 5);
-  config_set->add_option("--estimators-period");
-  config_set->add_option("--policy-period");
-  config_set->add_option("--report-period");
-  config_set->add_option("--system-window");
-  config_set->add_option("--detail")->check(CLI::IsMember({"aggregate", "fs"}));
+  config_set->add_option("--estimators-period", "Estimator update period")
+      ->type_name("MS");
+  config_set->add_option("--policy-period", "Policy enforcement update period")
+      ->type_name("MS");
+  config_set->add_option("--report-period", "FST statistics reporting period")
+      ->type_name("MS");
+  config_set->add_option("--system-window", "System statistics time window")
+      ->type_name("SEC");
+  config_set->add_option("--detail", "Shaping detail level")
+      ->type_name("LEVEL")
+      ->check(CLI::IsMember({"aggregate", "fs"}));
   config_set->callback([config_set, shaping_proto]() {
     auto* a = shaping_proto->mutable_config()->mutable_set();
     if (config_set->count("--estimators-period"))
@@ -497,7 +549,8 @@ public:
     }
     std::string joined = oss.str();
     if (wants_help(joined.c_str())) {
-      printHelp();
+      eos::console::IoProto io;
+      BuildAndParseIoApp(joined, &io);
       global_retc = EINVAL;
       return 0;
     }
