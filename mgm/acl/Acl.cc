@@ -407,7 +407,7 @@ Acl::Set(std::string sysacl, std::string useracl, std::string tokenacl,
 
             break;
 
-          case 'u':// '!u' denies update, 'u' and '+u' add update. '!+u' and '+!u' would *deny* updates
+          case 'u':// '!u' denies update, re-adding '+u' add update. 
             mCanUpdate = !deny;
 
             if (mCanUpdate && reallow) {
