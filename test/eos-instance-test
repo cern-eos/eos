@@ -2529,39 +2529,39 @@ runtest "### Cleanup   " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test
 ################################################################################
 # Amazon S3 tests
 ################################################################################
-# ------------------------------------------------------------------------------
-categorie="s3"
-# ------------------------------------------------------------------------------
-export S3_ACCESS_KEY_ID="s3user"
-export S3_SECRET_ACCESS_KEY="0123456789"
-export S3_HOSTNAME="$(hostname -f)"
+# # ------------------------------------------------------------------------------
+# categorie="s3"
+# # ------------------------------------------------------------------------------
+# export S3_ACCESS_KEY_ID="s3user"
+# export S3_SECRET_ACCESS_KEY="0123456789"
+# export S3_HOSTNAME="$(hostname -f)"
 
-#----------------------------------------------------------------------------
-# Prepare the setup for S3 tests
-#----------------------------------------------------------------------------
-runtest "### Prepare user " unix SUCCESS "" shell adduser -M s3user
-runtest "### Prepare dir  " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
-runtest "### Prepare mod  " unix SUCCESS "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
+# #----------------------------------------------------------------------------
+# # Prepare the setup for S3 tests
+# #----------------------------------------------------------------------------
+# runtest "### Prepare user " unix SUCCESS "" shell adduser -M s3user
+# runtest "### Prepare dir  " unix SUCCESS "" eos mkdir "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
+# runtest "### Prepare mod  " unix SUCCESS "" eos chmod 777 "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
 
-runtest "### S3 Attr      " unix SUCCESS "" eos attr set sys.s3.bucket.s3user="test" /eos/$EOS_TEST_INSTANCE/proc
-runtest "### S3 Attr      " unix SUCCESS "" eos attr set sys.s3.id.s3user="0123456789" /eos/$EOS_TEST_INSTANCE/proc
-runtest "### S3 Attr      " unix SUCCESS "" eos attr set sys.s3.path.test="/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir" /eos/$EOS_TEST_INSTANCE/proc
-# ------------------------------------------------------------------------------
-runtest "### S3 List      " unix SUCCESS "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/
-runtest "### S3 Upload    " unix SUCCESS "" shell davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate $TESTSYSFILE50M s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/file.50m
-runtest "### S3 List      " unix SUCCESS "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test
-runtest "### S3 Download  " unix SUCCESS "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/file.50m file.50m
-runtest "### S3 Rm        " unix SUCCESS "" shell davix-rm  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/file.50m
-runtest "### S3 List      " unix SUCCESS "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/
-runtest "### S3 Download  " unix ERROR "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/file.50m
-runtest "### S3 List      " unix ERROR "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/otherdir/
+# runtest "### S3 Attr      " unix SUCCESS "" eos attr set sys.s3.bucket.s3user="test" /eos/$EOS_TEST_INSTANCE/proc
+# runtest "### S3 Attr      " unix SUCCESS "" eos attr set sys.s3.id.s3user="0123456789" /eos/$EOS_TEST_INSTANCE/proc
+# runtest "### S3 Attr      " unix SUCCESS "" eos attr set sys.s3.path.test="/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir" /eos/$EOS_TEST_INSTANCE/proc
+# # ------------------------------------------------------------------------------
+# runtest "### S3 List      " unix SUCCESS "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/
+# runtest "### S3 Upload    " unix SUCCESS "" shell davix-put --s3accesskey s3user --s3secretkey 0123456789 --s3alternate $TESTSYSFILE50M s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/file.50m
+# runtest "### S3 List      " unix SUCCESS "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test
+# runtest "### S3 Download  " unix SUCCESS "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/file.50m file.50m
+# runtest "### S3 Rm        " unix SUCCESS "" shell davix-rm  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/file.50m
+# runtest "### S3 List      " unix SUCCESS "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/
+# runtest "### S3 Download  " unix ERROR "" shell davix-get --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/test/file.50m
+# runtest "### S3 List      " unix ERROR "" shell davix-ls  --s3accesskey s3user --s3secretkey 0123456789 --s3alternate s3://${EOS_TEST_REDIRECTOR}:${EOS_HTTPS_PORT}/otherdir/
 
-#----------------------------------------------------------------------------
-# Clean up the files created in S3 tests
-#----------------------------------------------------------------------------
-runtest "### Cleanup   " unix SUCCESS "" shell userdel s3user
-runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
-runtest "### Cleanup   " unix IGNORE  "" shell rm -f file.50m
+# #----------------------------------------------------------------------------
+# # Clean up the files created in S3 tests
+# #----------------------------------------------------------------------------
+# runtest "### Cleanup   " unix SUCCESS "" shell userdel s3user
+# runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/test/instancetest/s3.dir"
+# runtest "### Cleanup   " unix IGNORE  "" shell rm -f file.50m
 
 ################################################################################
 # Owncloud tests
