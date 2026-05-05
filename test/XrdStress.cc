@@ -77,32 +77,13 @@ XrdStress::XrdStress(unsigned int nChilds,
     uuid_t genUuid;
     char charUuid[40];
     vectFilename.reserve(numChilds * numFiles);
-
-    if (concurrentMode) {
-      // Generate file names for first job
-      for (unsigned int idf = 0; idf < numFiles ; idf++) {
-        uuid_generate_time(genUuid);
-        uuid_unparse(genUuid, charUuid);
-        gen_filename = pathTest;
-        gen_filename += charUuid;
-        vectFilename.push_back(gen_filename);
-      }
-
-      // For the rest of the jobs copy the file names form the first one
-      for (unsigned int idj = 1; idj < numChilds; idj++) {
-        for (unsigned int idf = 0; idf < numFiles ; idf++) {
-          vectFilename.push_back(vectFilename[idf]);
-        }
-      }
-    } else {
-      // In non-concurrent mode all jobs operate on different files
-      for (unsigned int indx = 0; indx < (numChilds * numFiles); indx++) {
-        uuid_generate_time(genUuid);
-        uuid_unparse(genUuid, charUuid);
-        gen_filename = pathTest;
-        gen_filename += charUuid;
-        vectFilename.push_back(gen_filename);
-      }
+    // All jobs operate on different files
+    for (unsigned int indx = 0; indx < (numChilds * numFiles); indx++) {
+      uuid_generate_time(genUuid);
+      uuid_unparse(genUuid, charUuid);
+      gen_filename = pathTest;
+      gen_filename += charUuid;
+      vectFilename.push_back(gen_filename);
     }
   } else if (opType == "rd") {
     // If no files in vect. then read the files from the directory

@@ -1545,7 +1545,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
             }
 
             {
-              // a faster replacement for createFile view view
+              // a faster replacement for createFile view
               auto file = gOFS->eosFileService->createFile(0);
 
               if (!file) {
