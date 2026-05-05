@@ -21,14 +21,13 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifndef EOS_COMMON_PASSWORD_HANDLER_HH
-#define EOS_COMMON_PASSWORD_HANDLER_HH
-
-#include <stdio.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include "common/Namespace.hh"
+#pragma once
 #include "common/Logging.hh"
+#include "common/Namespace.hh"
+#include "common/StringUtils.hh"
+#include <stdio.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -41,15 +40,25 @@ public:
   //----------------------------------------------------------------------------
   // Check if file permissions are secure.
   //----------------------------------------------------------------------------
-  static bool areFilePermissionsSecure(mode_t mode)
+  static bool
+  areFilePermissionsSecure(const std::string& path, mode_t mode)
   {
-    if ((mode & 0077) != 0) {
-      // Should disallow access to other users/groups
+    // Disallow access to others
+    if ((mode & 0007) != 0) {
       return false;
     }
+    // By default files need to be readable only by the user
+    mode_t expected_mode = 0400;
+    mode_t expected_mask = 0770;
+    // ".grp" files should be readable by the user and the group
+    if (eos::common::endsWith(path, ".grp")) {
+      expected_mode = 0440;
+    }
 
-    if ((mode & 0700) != 0400) {
-      // Just read access for user
+    if ((mode & expected_mask) != expected_mode) {
+      eos_static_crit("msg=\"unsecure permissions\" path=\"%s\" mode=%o "
+                      "expected_mode=%o",
+                      path.c_str(), mode, expected_mode);
       return false;
     }
 
@@ -57,17 +66,11 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  // Right trim password, remove whitespace
-  //----------------------------------------------------------------------------
-  static void rightTrimWhitespace(std::string &src)
-  {
-    src.erase(src.find_last_not_of(" \t\n\r\f\v") + 1);
-  }
-
-  //----------------------------------------------------------------------------
-  // Read a password file, while taking the following into account:
-  // - Permissions must be 400 - refuse to do anything otherwise.
-  // - Ending newlines are discarded.
+  //! Read a password file, while taking the following into account:
+  //! - Permissions must be secure - refuse to do anything otherwise
+  //! - If file path ends in ".grp" the permissions can be 440
+  //! - Otherwise the permissions need to be 400
+  //! - Ending newlines are discarded.
   //----------------------------------------------------------------------------
   static bool readPasswordFile(const std::string &path, std::string &contents) {
     FILE *in = fopen(path.c_str(), "rb");
@@ -80,12 +83,13 @@ public:
     struct stat sb;
     if(fstat(fileno(in), &sb) != 0) {
       fclose(in);
-      eos_static_crit("Could not fstat %s after opening (should never happen?!)", path.c_str());
+      eos_static_crit("msg=\"failed fstat after open\" path=\"%s\"", path.c_str());
       return false;
     }
 
-    if(!areFilePermissionsSecure(sb.st_mode)) {
-      eos_static_crit("Refusing to read %s, bad file permissions, should be 0400.", path.c_str());
+    if (!areFilePermissionsSecure(path, sb.st_mode)) {
+      eos_static_crit("msg=\"file permissions are not secure\" path=\"%s\"",
+                      path.c_str());
       fclose(in);
       return false;
     }
@@ -113,13 +117,9 @@ public:
 
     fclose(in);
     contents = ss.str();
-
-    rightTrimWhitespace(contents);
+    eos::common::rtrim(contents);
     return retvalue;
   }
-
 };
 
 EOSCOMMONNAMESPACE_END
-
-#endif
