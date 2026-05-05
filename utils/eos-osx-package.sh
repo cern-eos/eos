@@ -33,8 +33,8 @@ if [ $# -lt 1 ]; then
     exit 1
 fi
 
-GIT_TOP_PATH="$(git rev-parse --show-toplevel)"
-CWD="$(pwd)"
+GIT_TOP_PATH="$(cd "$(git rev-parse --show-toplevel)" && pwd -P)"
+CWD="$(pwd -P)"
 
 if [ "${GIT_TOP_PATH}" != "${CWD}" ]; then
     echo "error: script must be launched from the root of the project"
@@ -44,6 +44,13 @@ fi
 EOS_VERSION=$1
 TMP_BUILD="${GIT_TOP_PATH}/build/"
 TMP_DEST=/tmp/eos.dst
+
+# Detect Homebrew prefix: /opt/homebrew on Apple Silicon, /usr/local on Intel.
+if command -v brew >/dev/null 2>&1; then
+    BREW_PREFIX="$(brew --prefix)"
+else
+    BREW_PREFIX="/usr/local"
+fi
 rm -rf ${TMP_BUILD}
 mkdir -p ${TMP_BUILD}
 rm -rf ${TMP_DEST}
@@ -57,7 +64,7 @@ fi
 
 # Build eos
 cd ${TMP_BUILD}
-cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=${TMP_DEST}/usr/local -DZLIB_ROOT=/usr/local/opt/zlib/ -DOPENSSL_ROOT=/usr/local/opt/openssl/ -DNCURSES_ROOT=/usr/local/opt/ncurses/ -DZMQ_ROOT=/usr/local/opt/zeromq/ -DXROOTD_ROOT=/usr/local/opt/xrootd/ -DUUID_ROOT=/usr/local/opt/ossp-uuid -DSPARSEHASH_ROOT=/usr/local/opt/google-sparsehash/ ${CMAKE_OPT} ..
+cmake -DCLIENT=1 -DCMAKE_INSTALL_PREFIX=${TMP_DEST}/usr/local -DZLIB_ROOT=${BREW_PREFIX}/opt/zlib/ -DOPENSSL_ROOT=${BREW_PREFIX}/opt/openssl/ -DNCURSES_ROOT=${BREW_PREFIX}/opt/ncurses/ -DZMQ_ROOT=${BREW_PREFIX}/opt/zeromq/ -DXROOTD_ROOT=${BREW_PREFIX}/opt/xrootd/ -DUUID_ROOT=${BREW_PREFIX}/opt/ossp-uuid -DSPARSEHASH_ROOT=${BREW_PREFIX}/opt/google-sparsehash/ ${CMAKE_OPT} ..
 
 if [ $? -ne 0 ]; then
     echo "error: cmake configuration failed"
@@ -74,7 +81,7 @@ fi
 
 # Copy non-XRootD dependencies e.g openssl, ncurses for eos, eosd and eosxd
 for EOS_EXEC in "${TMP_DEST}/usr/local/bin/eosd" "${TMP_DEST}/usr/local/bin/eosxd" "${TMP_DEST}/usr/local/bin/eos"; do
-  for NAME in `otool -L $EOS_EXEC | grep -v rpath | grep /usr/local/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
+  for NAME in `otool -L $EOS_EXEC | grep -v rpath | grep ${BREW_PREFIX}/ | awk '{print $1}' | grep -v ":" | grep -v libosxfuse | grep -v libXrd`; do
     echo $NAME
     if [ -n "$NAME" ];  then
       sn=`echo $NAME | awk -F "/" '{print $NF}'`
@@ -84,8 +91,8 @@ for EOS_EXEC in "${TMP_DEST}/usr/local/bin/eosd" "${TMP_DEST}/usr/local/bin/eosx
 done
 
 # Copy XRootD dependencies and executables
-cp -v /usr/local/opt/xrootd/lib/libXrd* /tmp/eos.dst/usr/local/lib/
-cp -v /usr/local/opt/xrootd/bin/* /tmp/eos.dst/usr/local/bin/
+cp -v ${BREW_PREFIX}/opt/xrootd/lib/libXrd* /tmp/eos.dst/usr/local/lib/
+cp -v ${BREW_PREFIX}/opt/xrootd/bin/* /tmp/eos.dst/usr/local/bin/
 
 # Exchange the eosx script with the eos binary
 mv ${TMP_DEST}/usr/local/bin/eos ${TMP_DEST}/usr/local/bin/eos.exe
