@@ -7,9 +7,13 @@ set(EOS_TUI_README_URL "https://raw.githubusercontent.com/cern-eos/eos-tui/v${EO
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64)$")
   set(EOS_TUI_BINARY_NAME "eos-tui_v${EOS_TUI_VERSION}_linux_amd64")
-  set(EOS_TUI_BINARY_URL "https://github.com/cern-eos/eos-tui/releases/download/v${EOS_TUI_VERSION}/${EOS_TUI_BINARY_NAME}")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
   set(EOS_TUI_BINARY_NAME "eos-tui_v${EOS_TUI_VERSION}_linux_arm64")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
+  set(EOS_TUI_BINARY_NAME "eos-tui_v${EOS_TUI_VERSION}_macos_arm64")
+endif()
+
+if(EOS_TUI_BINARY_NAME)
   set(EOS_TUI_BINARY_URL "https://github.com/cern-eos/eos-tui/releases/download/v${EOS_TUI_VERSION}/${EOS_TUI_BINARY_NAME}")
 endif()
 
@@ -33,5 +37,5 @@ if(EOS_TUI_BINARY_NAME)
   install(FILES "${EOS_TUI_README_STAGED}"
     DESTINATION "${CMAKE_INSTALL_FULL_DATAROOTDIR}/doc/eos-tui")
 else()
-  message(WARNING "EOS TUI install is only configured for Linux x86_64 and aarch64 builds.")
+  message(WARNING "EOS TUI install is only configured for Linux x86_64/aarch64 and macOS arm64 builds.")
 endif()
