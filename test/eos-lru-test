@@ -31,7 +31,6 @@ eos space config default space.lru=on
 eos space config default space.lru.interval=5
 
 # --- Test the wildcard '*' as an expression for expiration ---
-eos mkdir -p "$EOS_LRU_DIR"
 wildcardLruDir="$EOS_LRU_DIR/wildcardLruDir"
 eos mkdir -p "$wildcardLruDir"
 # Use the pure wildcard to match everything older than 5s
