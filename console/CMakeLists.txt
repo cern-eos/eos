@@ -43,6 +43,7 @@ target_link_libraries(EosConsoleHelpers-Objects PUBLIC
   XROOTD::UTILS
   XROOTD::POSIX
   XROOTD::PRIVATE
+  fmt::fmt-header-only
   SCITOKENS::SCITOKENS)
 
 if (Linux)
