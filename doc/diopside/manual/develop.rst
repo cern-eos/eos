@@ -97,9 +97,170 @@ EL9
 Go to your :code:`eos` directory and type:
 
 .. code-block:: bash
+
    bash ./utils/el9-dev-environment.sh
 
 This should setup eos-depend repo for diopside and install the requisite dependencies. Move on the `Compilation`_ part for the rest of instructions.
+
+macOS
+"""""
+
+EOS builds a client-only configuration on macOS (the :code:`CLIENT` cmake
+flag is auto-set on Darwin). The client build produces:
+
+* :code:`eos` -- the EOS command-line client.
+* :code:`eosxd` -- the FUSE client daemon (uses the macFUSE / fuse2 path).
+
+Server-side components and the fuse3-only targets (:code:`eosxd3`,
+:code:`eoscfsd`) are not built on macOS.
+
+The commands below use :code:`brew --prefix`, so they work with both Apple
+Silicon Homebrew (:code:`/opt/homebrew`) and Intel Homebrew
+(:code:`/usr/local`).
+
+1. Install Homebrew dependencies:
+
+.. code-block:: bash
+
+   brew install \
+     cmake zlib openssl@3 ncurses zeromq cppzmq xrootd ossp-uuid \
+     google-sparsehash rocksdb zstd lz4 snappy grpc abseil protobuf \
+     jsoncpp libevent davix fmt readline krb5
+
+   # macFUSE is needed to actually mount; for building only the headers
+   # and dylib are enough. Installing the cask requires approving a kext
+   # in System Settings -> Privacy & Security and a reboot.
+   brew install --cask macfuse
+
+2. Clone and initialise submodules:
+
+.. code-block:: bash
+
+   git clone https://gitlab.cern.ch/dss/eos.git
+   cd eos
+   git submodule update --init --recursive
+
+3. Create the extra CMake options for the package build. Several Homebrew
+   libraries are installed outside the default paths searched by the EOS CMake
+   find modules, so pass their prefixes explicitly. The packaging script
+   expects these options as one quoted argument.
+
+.. code-block:: bash
+
+   cmake_opts="-DROCKSDB_ROOT=$(brew --prefix rocksdb) \
+   -DZSTD_ROOT=$(brew --prefix zstd) \
+   -DLZ4_ROOT=$(brew --prefix lz4) \
+   -Dsnappy_ROOT_DIR=$(brew --prefix snappy) \
+   -DGRPC_ROOT=$(brew --prefix grpc) \
+   -DABSL_ROOT=$(brew --prefix abseil) \
+   -DPROTOBUF_ROOT=$(brew --prefix protobuf) \
+   -DJSONCPP_ROOT=$(brew --prefix jsoncpp) \
+   -DLIBEVENT_ROOT=$(brew --prefix libevent) \
+   -DDAVIX_ROOT=$(brew --prefix davix) \
+   -DOPENSSL_ROOT=$(brew --prefix openssl@3)"
+
+4. To produce the installable macOS client package, run the packaging script
+   from the repository root:
+
+.. code-block:: bash
+
+   ./utils/eos-osx-package.sh "$(./genversion.sh)" "$cmake_opts"
+
+The script creates a fresh :code:`build/` directory and stages files under
+:code:`/tmp/eos.dst`. A successful run creates these artifacts:
+
+.. code-block:: bash
+
+   build/EOS.pkg
+   build/eos-osx-<version>.dmg
+
+Optional local development build
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Use the packaging script above when validating the macOS client package. For a
+local development build without creating :code:`EOS.pkg` or the :code:`.dmg`,
+configure an out-of-source build directory manually. Note: cmake's default
+generator may be Ninja if the env-var :code:`CMAKE_GENERATOR` is set in your
+shell; ninja is not installed by default on macOS, so we pass
+:code:`-G "Unix Makefiles"` explicitly.
+
+.. code-block:: bash
+
+   brew_prefix="$(brew --prefix)"
+   mkdir -p build-macos && cd build-macos
+   cmake -G "Unix Makefiles" \
+     -DCMAKE_C_COMPILER=/usr/bin/clang \
+     -DCMAKE_CXX_COMPILER=/usr/bin/clang++ \
+     -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+     -DCMAKE_INSTALL_PREFIX=/tmp/eos-install \
+     -DZLIB_ROOT="${brew_prefix}/opt/zlib" \
+     -DOPENSSL_ROOT_DIR="$(brew --prefix openssl@3)" \
+     -DNCURSES_ROOT="${brew_prefix}/opt/ncurses" \
+     -DZMQ_ROOT="${brew_prefix}/opt/zeromq" \
+     -DXROOTD_ROOT="${brew_prefix}/opt/xrootd" \
+     -DUUID_ROOT="${brew_prefix}/opt/ossp-uuid" \
+     -DSPARSEHASH_ROOT="${brew_prefix}/opt/google-sparsehash" \
+     -DREADLINE_ROOT_DIR="${brew_prefix}/opt/readline" \
+     -DROCKSDB_ROOT="$(brew --prefix rocksdb)" \
+     -DZSTD_ROOT="$(brew --prefix zstd)" \
+     -DLZ4_ROOT="$(brew --prefix lz4)" \
+     -Dsnappy_ROOT_DIR="$(brew --prefix snappy)" \
+     -DGRPC_ROOT="$(brew --prefix grpc)" \
+     -DABSL_ROOT="$(brew --prefix abseil)" \
+     -DPROTOBUF_ROOT="$(brew --prefix protobuf)" \
+     -DJSONCPP_ROOT="$(brew --prefix jsoncpp)" \
+     -DLIBEVENT_ROOT="$(brew --prefix libevent)" \
+     -DDAVIX_ROOT="$(brew --prefix davix)" \
+     ..
+
+Build:
+
+.. code-block:: bash
+
+   # Build just the client binaries:
+   make -j$(sysctl -n hw.ncpu) eos eosxd
+
+   # Or build everything that applies on macOS:
+   make -j$(sysctl -n hw.ncpu)
+
+Verify:
+
+.. code-block:: bash
+
+   ./console/eos --version
+   file ./fusex/eosxd
+   ./fusex/eosxd --help
+
+The binaries live at :code:`build-macos/console/eos` and
+:code:`build-macos/fusex/eosxd`. They are not installed unless you run
+:code:`make install`.
+
+Notes
+^^^^^
+
+* :code:`eosxd` requires the macFUSE kernel extension at runtime. The
+  kext must be approved by the user in System Settings and the system
+  rebooted before any FUSE filesystem can be mounted -- this is an
+  Apple policy and cannot be bundled into the EOS build.
+* If cmake reports :code:`Found fuse: /usr/local/lib/libosxfuse_i64.dylib`
+  but the linker fails because that file does not exist, your macFUSE
+  install is the modern (4.x) version which ships :code:`libfuse.dylib`.
+  Make sure you are on a recent enough EOS revision -- the build system
+  detects either name.
+* If CMake reports that RocksDB or gRPC is missing even though Homebrew has
+  installed them, check that the corresponding :code:`-D*_ROOT=...` entry is
+  present in the quoted :code:`cmake_opts` argument.
+* On older checkouts, launching the packaging script from a symlinked path such
+  as :code:`/tmp/eos` can produce :code:`error: script must be launched from the
+  root of the project` because macOS resolves :code:`/tmp` as
+  :code:`/private/tmp`. Change to the physical repository root with
+  :code:`cd "$(git rev-parse --show-toplevel)"` before running the script.
+* During the dependency-copy phase, :code:`utils/eos-osx-package.sh` may print
+  non-fatal messages for an absent :code:`eosd` binary or for duplicate
+  read-only dylibs that were already copied into
+  :code:`/tmp/eos.dst/usr/local/lib`. The build is successful when
+  :code:`EOS.pkg` and :code:`eos-osx-<version>.dmg` are created in
+  :code:`build/`.
 
 Dependencies
 ^^^^^^^^^^^^^^
