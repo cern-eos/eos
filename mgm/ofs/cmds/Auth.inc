@@ -22,6 +22,7 @@
  ************************************************************************/
 
 #include "auth_plugin/ProtoUtils.hh"
+#include <openssl/crypto.h>
 
 //------------------------------------------------------------------------------
 // Authentication master thread startup function
@@ -49,9 +50,9 @@ XrdMgmOfs::AuthMasterThread(ThreadAssistant& assistant) noexcept
   std::ostringstream sstr;
 
   if (mFrontendLocalhost) {
-    sstr << "tcp://*:" << mFrontendPort;
-  } else {
     sstr << "tcp://127.0.0.1:" << mFrontendPort;
+  } else {
+    sstr << "tcp://*:" << mFrontendPort;
   }
 
   try {
@@ -609,7 +610,7 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
     return false;
   }
 
-  std::string comp_hmac = eos::common::SymKey::HmacSha1(smsg);
+  std::string comp_hmac = eos::common::SymKey::HmacSha256(smsg);
   XrdOucString base64hmac;
   bool do_encoding = eos::common::SymKey::Base64Encode((char*)comp_hmac.c_str(),
                      comp_hmac.length(), base64hmac);
@@ -619,12 +620,12 @@ XrdMgmOfs::ValidAuthRequest(eos::auth::RequestProto* reqProto)
     return do_encoding;
   }
 
-  eos_debug("comp_hmac=%s comp_size=%i recv_hmac=%s recv_size=%i key=%s",
+  eos_debug("comp_hmac=%s comp_size=%i recv_hmac=%s recv_size=%i",
             base64hmac.c_str(), base64hmac.length(), recv_hmac.c_str(),
-            recv_hmac.length(), eos::common::gSymKeyStore.GetCurrentKey()->GetKey64());
+            recv_hmac.length());
 
   if (((size_t)base64hmac.length() != recv_hmac.length()) ||
-      strncmp(base64hmac.c_str(), recv_hmac.c_str(), base64hmac.length())) {
+      (CRYPTO_memcmp(base64hmac.c_str(), recv_hmac.c_str(), base64hmac.length()) != 0)) {
     eos_err("computed HMAC different from the received one, this message"
             "has been tampered with ... ");
     return false;
