@@ -138,13 +138,22 @@ SymKey::SymKey(const char* inkey, time_t invalidity)
 // Compute the HMAC SHA-256 value
 //------------------------------------------------------------------------------
 std::string
-SymKey::HmacSha256(const std::string& key,
-                   const std::string& data,
-                   unsigned int blockSize,
+SymKey::HmacSha256(const std::string& data, std::string key, unsigned int blockSize,
                    unsigned int resultSize)
 {
-  HMAC_CTX* ctx = HMAC_CTX_new();
   std::string result;
+
+  if (key.empty()) {
+    const char* pkey = gSymKeyStore.GetCurrentKey()->GetKey64();
+
+    if (pkey == nullptr) {
+      return result;
+    }
+
+    key = pkey;
+  }
+
+  HMAC_CTX* ctx = HMAC_CTX_new();
   unsigned int data_len = data.length();
   unsigned int key_len = key.length();
   unsigned char* pKey = (unsigned char*)key.c_str();
