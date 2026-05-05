@@ -725,7 +725,7 @@ XrdFstOfs::Configure(XrdSysError& Eroute, XrdOucEnv* envP)
           }
 
           // Trim whitespace at the end
-          common::PasswordHandler::rightTrimWhitespace(mQdbContactDetails.password);
+          common::rtrim(mQdbContactDetails.password);
           std::string pwlen = std::to_string(mQdbContactDetails.password.size());
           Eroute.Say("=====> fstofs.qdbpassword length : ", pwlen.c_str());
         }
