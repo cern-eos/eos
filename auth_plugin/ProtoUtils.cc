@@ -347,7 +347,7 @@ utils::ComputeHMAC(RequestProto*& req)
     return false;
   }
 
-  std::string hmac = eos::common::SymKey::HmacSha1(smsg);
+  std::string hmac = eos::common::SymKey::HmacSha256(smsg);
   XrdOucString base64hmac;
   bool do_encoding = eos::common::SymKey::Base64Encode((char*)hmac.c_str(),
                      hmac.length(), base64hmac);
