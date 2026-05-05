@@ -22,7 +22,6 @@
  ************************************************************************/
 
 #pragma once
-
 #include <algorithm>
 #include <iomanip>
 #include <map>
@@ -32,7 +31,6 @@
 #include <cstdint>
 #include <cstddef>
 #include <string_view>
-
 #include "common/Namespace.hh"
 #include "common/utils/TypeTraits.hh"
 
