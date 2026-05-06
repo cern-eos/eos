@@ -813,7 +813,14 @@ Server::FillContainerCAP(uint64_t id,
       dir.mutable_capability()->set_uid(dir.uid());
       dir.mutable_capability()->set_gid(dir.gid());
     } else {
-      ownerauth += ",";
+      // Anchored token match against a comma-separated list. Padding
+      // ownerauth with a leading and trailing ',' lets us search for
+      // ',' + ownerkey + ',' and rules out partial / prefix collisions
+      // (e.g. "krb5:alic" matching "krb5:alicia", or
+      //       "gsi:CN=alice,..." being a substring of a longer DN).
+      std::string padded_auth = ",";
+      padded_auth += ownerauth;
+      padded_auth += ",";
       std::string ownerkey = vid.prot.c_str();
       std::string prot = vid.prot.c_str();
       ownerkey += ":";
@@ -824,7 +831,11 @@ Server::FillContainerCAP(uint64_t id,
         ownerkey += vid.uid_string.c_str();
       }
 
-      if ((ownerauth.find(ownerkey)) != std::string::npos) {
+      std::string anchored_key = ",";
+      anchored_key += ownerkey;
+      anchored_key += ",";
+
+      if (padded_auth.find(anchored_key) != std::string::npos) {
         // sticky ownership for this authentication
         dir.mutable_capability()->set_uid(dir.uid());
         dir.mutable_capability()->set_gid(dir.gid());
