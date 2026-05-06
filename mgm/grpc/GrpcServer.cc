@@ -672,8 +672,14 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
     grpc_ssl_client_certificate_request_type gsccrt =
       GRPC_SSL_REQUEST_AND_REQUIRE_CLIENT_CERTIFICATE_AND_VERIFY;
 
+    // C-4: this env downgrades the auth surface to token-only. Make the
+    // downgrade loud at startup so operators do not enable it accidentally.
     if (getenv("EOS_MGM_GRPC_DONT_REQUEST_CLIENT_CERTIFICATE")) {
       gsccrt = GRPC_SSL_DONT_REQUEST_CLIENT_CERTIFICATE;
+      eos_static_crit("msg=\"client certificate verification DISABLED via "
+                      "EOS_MGM_GRPC_DONT_REQUEST_CLIENT_CERTIFICATE - "
+                      "authentication relies on EOS tokens only\" port=%i",
+                      mPort);
     }
 
     grpc::SslServerCredentialsOptions::PemKeyCertPair keycert = {
