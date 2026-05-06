@@ -477,9 +477,31 @@ class RequestServiceImpl final : public Eos::Service {
       const eos::traffic_shaping::TrafficShapingRateRequest* request,
       ServerWriter<eos::traffic_shaping::TrafficShapingRateResponse>* writer) override
   {
-    eos_static_info("msg=\"Monitoring Stream Start\" peer=%s", context->peer().c_str());
+    eos_static_info("msg=\"Monitoring Stream Start\" peer=%s ip=%s DN=%s",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
+                    GrpcServer::DN(context).c_str());
+    // C-2: require an authenticated admin / sudoer identity. The stream
+    // exposes per-uid / per-gid / per-app / per-fsid throughput which is
+    // sensitive monitoring data and must not be readable by anonymous or
+    // ordinary callers.
+    eos::common::VirtualIdentity vid;
+    GrpcServer::Vid(context, vid, "");
+
+    if ((vid.uid != 0) && !vid.sudoer) {
+      eos_static_warning("msg=\"TrafficShapingRate denied (not admin)\" "
+                         "peer=%s uid=%u gid=%u sudoer=%d DN=%s",
+                         context->peer().c_str(), vid.uid, vid.gid,
+                         (int) vid.sudoer, GrpcServer::DN(context).c_str());
+      return Status(grpc::StatusCode::PERMISSION_DENIED,
+                    "TrafficShapingRate requires an admin or sudoer identity");
+    }
 
     auto brain = gOFS->mTrafficShapingEngine.GetManager();
+
+    if (!brain) {
+      return Status(grpc::StatusCode::UNAVAILABLE,
+                    "traffic-shaping manager not available");
+    }
 
     while (!context->IsCancelled()) {
       auto start = std::chrono::steady_clock::now();
