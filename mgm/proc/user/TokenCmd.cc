@@ -33,6 +33,9 @@
 #include "common/token/EosTok.hh"
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMD.hh"
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -262,27 +265,76 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
 
   eos::common::EosTok eostoken;
   eos::common::SymKey* symkey = eos::common::gSymKeyStore.GetCurrentKey();
-  std::string key = symkey ? symkey->GetKey64() : "0123456789defaultkey";
+  std::string key;
+
+  if (symkey) {
+    key = symkey->GetKey64();
+  }
 
   if (getenv("EOS_MGM_TOKEN_KEYFILE")) {
-    struct stat buf;
+    const char* kfpath = getenv("EOS_MGM_TOKEN_KEYFILE");
+    // Open and validate the keyfile on the same fd we read from to close
+    // the prior stat()-then-open TOCTOU window, mirroring the hardening
+    // in common/Mapping.cc.
+    int kfd = ::open(kfpath, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
 
-    if (::stat(getenv("EOS_MGM_TOKEN_KEYFILE"), &buf)) {
+    if (kfd < 0) {
       reply.set_retc(-ENOKEY);
       reply.set_std_err("error: unable to load token keyfile");
       return reply;
-    } else {
-      if ((buf.st_uid != DAEMONUID) ||
-          (buf.st_mode != 0100400)) {
-        reply.set_retc(-ENOKEY);
-        eos_static_err("mode bit is %o", buf.st_mode);
-        reply.set_std_err("error: unable to load token keyfile - wrong ownership (must be daemon:400)");
-        return reply;
+    }
+
+    struct stat buf;
+
+    if (::fstat(kfd, &buf)) {
+      ::close(kfd);
+      reply.set_retc(-ENOKEY);
+      reply.set_std_err("error: unable to fstat token keyfile");
+      return reply;
+    }
+
+    if (!S_ISREG(buf.st_mode) ||
+        (buf.st_uid != DAEMONUID) ||
+        (buf.st_mode != 0100400)) {
+      ::close(kfd);
+      reply.set_retc(-ENOKEY);
+      eos_static_err("mode bit is %o", buf.st_mode);
+      reply.set_std_err("error: unable to load token keyfile - wrong ownership (must be daemon:400)");
+      return reply;
+    }
+
+    constexpr size_t kMaxKeyFileBytes = 64 * 1024;
+    std::string contents;
+    char rbuf[4096];
+    ssize_t n;
+
+    while ((n = ::read(kfd, rbuf, sizeof(rbuf))) > 0) {
+      contents.append(rbuf, n);
+
+      if (contents.size() > kMaxKeyFileBytes) {
+        break;
       }
     }
 
-    key = eos::common::StringConversion::LoadFileIntoString(
-            getenv("EOS_MGM_TOKEN_KEYFILE"), key);
+    ::close(kfd);
+
+    if (n < 0 || contents.size() > kMaxKeyFileBytes) {
+      reply.set_retc(-ENOKEY);
+      reply.set_std_err("error: unable to read token keyfile");
+      return reply;
+    }
+
+    key = std::move(contents);
+  }
+
+  if (key.empty()) {
+    // Fail closed if no symmetric key store is configured and no keyfile
+    // override is set, instead of falling back to a hardcoded literal that
+    // would silently produce signatures predictable to anyone reading the
+    // source.
+    reply.set_retc(-ENOKEY);
+    reply.set_std_err("error: no token signing key configured");
+    return reply;
   }
 
   if (token.vtoken().empty()) {
