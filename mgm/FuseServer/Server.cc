@@ -1406,7 +1406,7 @@ CheckOwnerAcl(const eos::fusex::md& md,
   if ((uid_t)md.uid() == vid.uid &&
       (vid.sudoer || (gid_t)md.gid() == vid.gid ||
        vid.allowed_gids.count((gid_t)md.gid()))) {
-    return true;        // caller owns new md object
+    return true;        // md and vid agree 
   }
   if (vid.uid == 0 || vid.sudoer) {
     return true;        // root & sudoers can create as any owner
@@ -1419,6 +1419,11 @@ CheckOwnerAcl(const eos::fusex::md& md,
   Acl acl;
   eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
   acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+
+  if (!acl.CanChown()) {
+    eos_static_info("msg=\"rejecting owner change\" scope=\"%s\" md(%lu:%lu) vid(%lu:%lu)",
+		    vid.scope.c_str(), md.uid(), md.gid(), vid.uid, vid.gid);
+  }
   return acl.CanChown(); // we require chown permission
 }
 
@@ -1611,7 +1616,8 @@ Server::OpSetDirectory(const std::string& id,
         gOFS->eosView->renameContainer(cmd.get(), md.name());
     }
 
-    if ( (cmd->getCUid() != (uid_t)md.uid()) /* a chown */ &&
+    if ( ( (cmd->getCUid() != (uid_t)md.uid()) ||
+	   (cmd->getCGid() != (gid_t)md.gid()) ) /* a chown */ &&
 	 !CheckOwnerAcl(md, vid, cmd)) {
       return EPERM;
     }
@@ -1636,7 +1642,7 @@ Server::OpSetDirectory(const std::string& id,
         return EPERM;
       }
 
-      if ( ((md.uid() != vid.uid)||(md.gid() != vid.gid)) && !CheckOwnerAcl(md, vid, pcmd)) /* a create requiring chown */ {
+      if ( !CheckOwnerAcl(md, vid, pcmd)) /* a create requiring chown */ {
 	return EPERM;
       }
       
@@ -2364,7 +2370,7 @@ Server::OpSetFile(const std::string& id,
         return EEXIST;
       }
 
-      if ( ((md.uid() != vid.uid)||(md.gid() != vid.gid)) && !CheckOwnerAcl(md, vid, pcmd)) /* a create requiring chwon */ {
+      if ( !CheckOwnerAcl(md, vid, pcmd)) /* a create */ {
 	return EPERM;
       }
 
@@ -2848,12 +2854,13 @@ Server::OpSetLink(const std::string& id,
       }
 
       if (!fmd) {
-	if ( ((md.uid() != vid.uid)||(md.gid() != vid.gid)) && !CheckOwnerAcl(md, vid, pcmd) ) /* create requiring chown */ {
+	if ( !CheckOwnerAcl(md, vid, pcmd) ) /* create */ {
 	  return EPERM;
 	}
       } else {
-	if ( (fmd->getCUid() != (uid_t) md.uid()) /* an update requiring chown */ &&
-	     !CheckOwnerAcl(md, vid, pcmd)) {
+	if (  ( (fmd->getCUid() != (uid_t) md.uid()) |
+		(fmd->getCGid() != (uid_t) md.gid()) /* an update requiring chown */  &&
+		!CheckOwnerAcl(md, vid, pcmd)) ) {
 	  return EPERM;
 	}
       }
