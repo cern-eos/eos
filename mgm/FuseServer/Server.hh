@@ -28,7 +28,10 @@
 
 #include <map>
 #include <atomic>
+#include <string>
+#include <unordered_map>
 
+#include "common/RWMutex.hh"
 #include "mgm/fusex.pb.h"
 #include "mgm/fuse-locks/LockTracker.hh"
 #include "mgm/FuseServer/Caps.hh"
@@ -194,6 +197,32 @@ public:
                std::string* response = 0,
                uint64_t* clock = 0);
 
+  //----------------------------------------------------------------------------
+  //! Trust-on-first-use binding between the wire (clientid, clientuuid) pair
+  //! and the authenticated principal (vid.uid + normalized vid.host).
+  //!
+  //! On first observation the principal is registered for both keys.
+  //! Subsequent calls verify the principal matches; mismatches return
+  //! false. Empty wire keys are skipped.
+  //!
+  //! @param clientid   wire md.clientid()
+  //! @param clientuuid wire md.clientuuid()
+  //! @param vid        authenticated identity
+  //! @return true if the bindings are fresh or match, false on collision
+  //----------------------------------------------------------------------------
+  bool VerifyOrBindClient(const std::string& clientid,
+                          const std::string& clientuuid,
+                          const eos::common::VirtualIdentity& vid) noexcept;
+
+  //----------------------------------------------------------------------------
+  //! Release the (clientid, clientuuid) bindings registered by
+  //! VerifyOrBindClient. Called from Clients::MonitorHeartBeat when the
+  //! corresponding mount session is evicted, so a subsequent reconnect
+  //! from a fresh principal can re-register cleanly.
+  //----------------------------------------------------------------------------
+  void DropClientBinding(const std::string& clientid,
+                         const std::string& clientuuid) noexcept;
+
   void prefetchMD(const eos::fusex::md& md);
 
   bool CheckRecycleBinOrVersion(std::shared_ptr<eos::IFileMD> fmd);
@@ -222,6 +251,31 @@ protected:
 private:
   std::atomic<bool> terminate_;
   uint64_t c_max_children;
+
+  //----------------------------------------------------------------------------
+  //! Wire-identity to authenticated-principal binding maps. See
+  //! VerifyOrBindClient / DropClientBinding for rationale.
+  //----------------------------------------------------------------------------
+  struct ClientPrincipal {
+    uid_t uid = (uid_t) -1;
+    std::string host;
+
+    bool operator==(const ClientPrincipal& o) const noexcept
+    {
+      return uid == o.uid && host == o.host;
+    }
+    bool operator!=(const ClientPrincipal& o) const noexcept
+    {
+      return !(*this == o);
+    }
+  };
+
+  mutable eos::common::RWMutex mClientBindMutex;
+  std::unordered_map<std::string, ClientPrincipal> mClientIdBind;
+  std::unordered_map<std::string, ClientPrincipal> mClientUuidBind;
+
+  static ClientPrincipal MakePrincipal(
+    const eos::common::VirtualIdentity& vid) noexcept;
 
   //----------------------------------------------------------------------------
   //! Replaces the file's non-system attributes with client-supplied ones.

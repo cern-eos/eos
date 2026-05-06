@@ -133,11 +133,16 @@ FuseServer::Clients::MonitorHeartBeat()
     if (!evictmap.empty()) {
       {
         std::set<std::string> uuids;
+        std::vector<std::pair<std::string, std::string>> drop_bindings;
         {
           eos::common::RWMutexWriteLock lLock(*this);
 
           for (auto it = evictmap.begin(); it != evictmap.end(); ++it) {
             uuids.insert(it->first);
+            // Record (clientid, clientuuid) for binding cleanup once we
+            // have released the Clients lock; evictmap is keyed by uuid
+            // and its value is the clientid identity.
+            drop_bindings.emplace_back(it->second, it->first);
             mMap.erase(it->second);
             mUUIDView.erase(it->first);
             gOFS->zMQ->gFuseServer.Locks().dropLocks(it->first);
@@ -146,6 +151,12 @@ FuseServer::Clients::MonitorHeartBeat()
 
         for (auto it = uuids.begin(); it != uuids.end(); ++it) {
           gOFS->zMQ->gFuseServer.Cap().dropCaps(*it);
+        }
+
+        // Release wire-identity bindings so a fresh principal can re-register
+        // the same clientid/clientuuid on reconnect.
+        for (const auto& kv : drop_bindings) {
+          gOFS->zMQ->gFuseServer.DropClientBinding(kv.first, kv.second);
         }
       }
     }

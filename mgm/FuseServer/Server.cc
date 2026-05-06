@@ -3924,6 +3924,96 @@ Server::CheckRecycleBinOrVersion(std::shared_ptr<eos::IFileMD> fmd)
 }
 
 //------------------------------------------------------------------------------
+// Build a stable principal tuple (uid, lower-cased host) from vid.
+//------------------------------------------------------------------------------
+
+Server::ClientPrincipal
+Server::MakePrincipal(const eos::common::VirtualIdentity& vid) noexcept
+{
+  ClientPrincipal p;
+  p.uid = vid.uid;
+  p.host.reserve(vid.host.size());
+
+  for (char c : vid.host) {
+    if (c >= 'A' && c <= 'Z') {
+      p.host.push_back(c - 'A' + 'a');
+    } else {
+      p.host.push_back(c);
+    }
+  }
+
+  return p;
+}
+
+//------------------------------------------------------------------------------
+// TOFU verification of (clientid, clientuuid) against the principal.
+//------------------------------------------------------------------------------
+
+bool
+Server::VerifyOrBindClient(const std::string& clientid,
+                           const std::string& clientuuid,
+                           const eos::common::VirtualIdentity& vid) noexcept
+{
+  if (clientid.empty() && clientuuid.empty()) {
+    return true;
+  }
+
+  ClientPrincipal presented = MakePrincipal(vid);
+  eos::common::RWMutexWriteLock lock(mClientBindMutex);
+
+  if (!clientid.empty()) {
+    auto it = mClientIdBind.find(clientid);
+
+    if (it == mClientIdBind.end()) {
+      mClientIdBind.emplace(clientid, presented);
+    } else if (it->second != presented) {
+      eos_static_err("msg=\"clientid principal mismatch\" clientid=\"%s\" "
+                     "wire-uid=%u wire-host=\"%s\" registered-uid=%u "
+                     "registered-host=\"%s\"",
+                     clientid.c_str(), presented.uid, presented.host.c_str(),
+                     it->second.uid, it->second.host.c_str());
+      return false;
+    }
+  }
+
+  if (!clientuuid.empty()) {
+    auto it = mClientUuidBind.find(clientuuid);
+
+    if (it == mClientUuidBind.end()) {
+      mClientUuidBind.emplace(clientuuid, presented);
+    } else if (it->second != presented) {
+      eos_static_err("msg=\"clientuuid principal mismatch\" clientuuid=\"%s\" "
+                     "wire-uid=%u wire-host=\"%s\" registered-uid=%u "
+                     "registered-host=\"%s\"",
+                     clientuuid.c_str(), presented.uid, presented.host.c_str(),
+                     it->second.uid, it->second.host.c_str());
+      return false;
+    }
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Release a (clientid, clientuuid) binding pair on heartbeat eviction.
+//------------------------------------------------------------------------------
+
+void
+Server::DropClientBinding(const std::string& clientid,
+                          const std::string& clientuuid) noexcept
+{
+  eos::common::RWMutexWriteLock lock(mClientBindMutex);
+
+  if (!clientid.empty()) {
+    mClientIdBind.erase(clientid);
+  }
+
+  if (!clientuuid.empty()) {
+    mClientUuidBind.erase(clientuuid);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Dispatch meta-data requests
 //------------------------------------------------------------------------------
 
@@ -3934,6 +4024,17 @@ Server::HandleMD(const std::string& id,
                  std::string* response,
                  uint64_t* clock)
 {
+  // Trust-on-first-use: the wire (clientid, clientuuid) pair must be
+  // consistent with the authenticated principal across the lifetime of
+  // the registered client. Empty wire keys are skipped (legacy paths).
+  if (!VerifyOrBindClient(md.clientid(), md.clientuuid(), vid)) {
+    eos_err("msg=\"client identity collision rejected\" "
+            "clientid=\"%s\" clientuuid=\"%s\" wire-uid=%u wire-host=\"%s\"",
+            md.clientid().c_str(), md.clientuuid().c_str(),
+            vid.uid, vid.host.c_str());
+    return EPERM;
+  }
+
   std::string ops;
   int op_type = md.operation();
 
