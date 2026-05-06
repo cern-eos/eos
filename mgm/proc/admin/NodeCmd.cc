@@ -556,8 +556,6 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
   if (!FsView::gFsView.mNodeView.count(nodename)) {
     reply.set_std_out("info: creating node '" + nodename + "'");
 
-    // reply.set_std_err("error: no such node '" + nodename + "'");
-    // reply.set_retc(ENOENT);
     if (!FsView::gFsView.RegisterNode(nodename.c_str())) {
       reply.set_std_err("error: cannot register node <" + nodename + ">");
       reply.set_retc(EIO);
@@ -565,7 +563,17 @@ void NodeCmd::SetSubcmd(const eos::console::NodeProto_SetProto& set,
     }
   }
 
-  if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
+  if (status == "remove") {
+    if (!FsView::gFsView.mNodeView[nodename]->DeleteConfigMember(key)) {
+      reply.set_std_err("error: failed to remove configuration or already done");
+      reply.set_retc(EINVAL);
+      return;
+    } else {
+      reply.set_std_err("info: configuration successfully removed");
+      reply.set_retc(0);
+      return;
+    }
+  } else if (!FsView::gFsView.mNodeView[nodename]->SetConfigMember(key, status)) {
     reply.set_std_err("error: cannot set node config value");
     reply.set_retc(EIO);
     return;

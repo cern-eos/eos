@@ -62,6 +62,9 @@ std::string MakeNodeHelp()
          "levels\n"
       << "\t    <key> : stripexs=on|off        - enable/disable synchronously "
          "stripe checksum computation\n"
+      << "\t    <key> : cbox_forbid_rw_sync=true|false|remove - control CernBox "
+         " behavior to forbid synchronization of files opened in RW mode.\n"
+         "t             By default false.\n"
       << "\t    <key> : for other keys see help of 'fs config' for details\n"
       << std::endl
       << "node set <queue-name>|<host:port> on|off                 : "

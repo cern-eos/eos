@@ -273,16 +273,18 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
 
   COMMONTIMING("path::print", &tm);
 
-  // Check if this is an open for HTTP
-  if (!mIsRW && ((std::string(client->tident) == "http"))) {
-    if (gOFS.openedForWriting.isOpen(mFsId, mFileId)) {
-      eos_err("msg=\"forbid replica open for synchronization, file %s "
-              "opened in RW mode\"", mNsPath.c_str());
-      // Return resource temporarily unavailable as EBUSY cannot be used due to XRootD hack
-      // in Emsg() that returns the integer "5" (proxy hack)
-      return gOFS.Emsg(epname, error, EAGAIN, "open - cannot synchronize "
-                       "file opened in RW mode", mNsPath.c_str());
-    }
+  // If we should forbid sync of RW files and this is a read operation via HTTP
+  // for a file opened for write then we return an error.
+  if (gOFS.mCboxForbidRwSync && (mIsRW == false) &&
+      ((std::string(client->tident) == "http")) &&
+      (gOFS.openedForWriting.isOpen(mFsId, mFileId))) {
+    eos_err("msg=\"forbid replica open for synchronization, file %s "
+            "opened in RW mode\"",
+            mNsPath.c_str());
+    // Return resource temporarily unavailable as EBUSY cannot be used due to
+    // XRootD hack in Emsg() that returns the integer "5" (proxy hack)
+    return gOFS.Emsg(epname, error, EAGAIN,
+                     "open - cannot synchronize file opened in RW mode", mNsPath.c_str());
   }
 
   // Get the layout object

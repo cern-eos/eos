@@ -43,6 +43,7 @@ std::set<std::string> Storage::sNodeUpdateKeys{
     "debug.level",
     "error.simulation",
     "stripexs",
+    common::FST_CBOX_FORBID_RW_SYNC,
     common::FST_TRAFFIC_SHAPING_IO_LIMITS,
     common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE,
     common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
@@ -160,6 +161,9 @@ Storage::FsRegisterStatus Storage::RegisterFileSystem(const std::string& queuepa
   return FsRegisterStatus::kRegistered;
 }
 
+//------------------------------------------------------------------------------
+// Handle fst io limits
+//------------------------------------------------------------------------------
 void
 ProcessFstIoLimitsCommand(const std::string& data)
 {
@@ -183,6 +187,9 @@ ProcessFstIoLimitsCommand(const std::string& data)
   gOFS.mIoDelayConfig.UpdateConfig(std::move(fst_io_delay_config));
 }
 
+//------------------------------------------------------------------------------
+// Handle traffix shaping enforcement
+//------------------------------------------------------------------------------
 void
 ProcessTrafficShapingToggle(bool enable)
 {
@@ -201,6 +208,9 @@ ProcessTrafficShapingToggle(bool enable)
   }
 }
 
+//------------------------------------------------------------------------------
+// Handle traffic shaping report period
+//------------------------------------------------------------------------------
 void
 ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
 {
@@ -218,6 +228,9 @@ ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
   }
 }
 
+//------------------------------------------------------------------------------
+// Handle traffix shaping detail level
+//------------------------------------------------------------------------------
 void
 ProcessTrafficShapingDetailLevel(const std::string& detail_level)
 {
@@ -271,6 +284,8 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
     } catch (const std::exception& e) {
       eos_static_warning("msg=\"invalid PublishInterval value\" value=\"%s\" error=\"%s\"", value.c_str(), e.what());
     }
+  } else if (key == eos::common::FST_CBOX_FORBID_RW_SYNC) {
+    gOFS.mCboxForbidRwSync.store(value == "true");
   } else if (key == eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS) {
     ProcessFstIoLimitsCommand(value);
   } else if (key == eos::common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE) {
