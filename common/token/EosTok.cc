@@ -401,6 +401,27 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
   auto pattern_valid = [](const std::string& p) {
     return p.empty() || eos::common::eos_regex_valid(p);
   };
+  // Defense-in-depth: when the request `name` is purely numeric, the caller's
+  // user name failed to resolve and the mapping layer fell back to the numeric
+  // uid. A token whose origin name regex is wide enough to match any digits
+  // (e.g. ".*" or "[0-9]+") would otherwise authorize every unknown uid that
+  // lands on this code path. Treat numeric-only names as non-matching for the
+  // origin check; tokens that genuinely target a numeric subject must still
+  // present a resolvable identity at the mapping layer.
+  auto is_all_digits = [](const std::string& s) {
+    if (s.empty()) {
+      return false;
+    }
+
+    for (char c : s) {
+      if (c < '0' || c > '9') {
+        return false;
+      }
+    }
+
+    return true;
+  };
+  const bool name_is_numeric = is_all_digits(name);
   bool any_invalid = false;
 
   for (int i = 0; i < share->token().origins_size(); ++i) {
@@ -417,6 +438,10 @@ EosTok::VerifyOrigin(const std::string& host, const std::string& name,
     int m2 = Match(name, auth.name());
     int m3 = Match(prot, auth.prot());
     eos_static_debug("m1=%i m2=%i m3=%i", m1, m2, m3);
+
+    if (name_is_numeric && !auth.name().empty()) {
+      m2 = -1;
+    }
 
     if ((m1 == 1) && (m2 == 1) && (m3 == 1)) {
       return 0;
