@@ -411,6 +411,14 @@ com_daemon(char* arg)
           global_retc = WEXITSTATUS(rc);
 
           if (!global_retc) {
+            kline = "chown -R daemon:daemon ";
+            kline += qdbpath;
+            rc = system(kline.c_str());
+            fprintf(stderr, "info: run '%s' retc=%d\n", kline.c_str(), WEXITSTATUS(rc));
+            global_retc = WEXITSTATUS(rc);
+          }
+
+          if (!global_retc) {
             fprintf(stderr, "info: to get this node joining the cluster you do:\n");
             fprintf(stderr, "1 [ this node ] : systemctl start eos5-@qdb@%s\n",
                     name.c_str());
