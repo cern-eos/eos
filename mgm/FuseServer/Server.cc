@@ -1742,15 +1742,15 @@ Server::OpSetDirectory(const std::string& id,
         }
 
         gOFS->eosView->updateContainerStore(pcmd.get());
-      }
-
-    if (cmd->getName() != md.name()) {
-        // this indicates a directory rename
+      } else if (cmd->getName() != md.name()) {
+        // in-place directory rename (same parent, different leaf name).
+        // mutually exclusive with the MOVE branch above: a cross-parent move
+        // already adopts the new leaf name via cmd->setName() / addContainer().
         op = RENAME;
         eos_info("msg=\"rename\" from=\"%s\" to=\"%s\"", cmd->getName().c_str(),
                  md.name().c_str());
         gOFS->eosView->renameContainer(cmd.get(), md.name());
-    }
+      }
 
     if ( ( (cmd->getCUid() != (uid_t)md.uid()) ||
 	   (cmd->getCGid() != (gid_t)md.gid()) ) /* a chown */ &&
