@@ -736,13 +736,20 @@ HttpServer::Authenticate(std::map<std::string, std::string>& headers)
     }
 
     remotehost = real_ip;
-    XrdNetAddr netaddr;
-    netaddr.Set(real_ip.c_str());
-    // Try to convert IP to corresponding [host] name
-    const char* name = netaddr.Name();
 
-    if (name) {
-      remotehost = name;
+    // Reverse-DNS is opt-in: XrdNetAddr::Name() can block the request
+    // thread on a slow PTR lookup, and the result is attacker-controlled
+    // (any DNS holder can publish a PTR record matching a hostname based
+    // ACL).  Set EOS_MGM_HTTP_REVDNS_XREALIP=1 to restore the legacy
+    // behaviour.  See fix5.html / H-6.
+    if (getenv("EOS_MGM_HTTP_REVDNS_XREALIP")) {
+      XrdNetAddr netaddr;
+      netaddr.Set(real_ip.c_str());
+      const char* name = netaddr.Name();
+
+      if (name) {
+        remotehost = name;
+      }
     }
 
     if (headers.count("auth-type")) {
