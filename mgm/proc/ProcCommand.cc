@@ -39,6 +39,72 @@ EOSMGMNAMESPACE_BEGIN
 namespace
 {
 //------------------------------------------------------------------------------
+//! Redact opaque CGI keys whose values are credentials or wire tokens before
+//! the args string lands in the comment log. Targets:
+//!   authz=...          (xrootd authz blob - may contain bearer tokens)
+//!   mgm.cmd.proto=...  (base64-encoded protobuf request body)
+//!   Bearer XYZ /
+//!   Bearer%20XYZ       (HTTP bearer wrapping inside authz fragments)
+//! Each value is replaced by a fixed "<redacted>" marker; the key and the
+//! surrounding '&' separator are preserved so the log entry stays parseable.
+//------------------------------------------------------------------------------
+std::string
+RedactSecretsForCommentLog(const std::string& args)
+{
+  static const char* kKeys[] = {
+    "authz=", "mgm.cmd.proto=", nullptr
+  };
+  std::string out = args;
+
+  for (const char** p = kKeys; *p; ++p) {
+    const std::string key = *p;
+    size_t pos = 0;
+
+    while ((pos = out.find(key, pos)) != std::string::npos) {
+      // Only replace when this is at the start or immediately after '&'
+      if (pos != 0 && out[pos - 1] != '&' && out[pos - 1] != '?') {
+        ++pos;
+        continue;
+      }
+
+      size_t val_start = pos + key.size();
+      size_t val_end = out.find('&', val_start);
+
+      if (val_end == std::string::npos) {
+        val_end = out.size();
+      }
+
+      out.replace(val_start, val_end - val_start, "<redacted>");
+      pos = val_start + std::string("<redacted>").size();
+    }
+  }
+
+  // Best-effort scrub of inline "Bearer <something>" / "Bearer%20<something>".
+  for (const std::string& tag : {std::string("Bearer "), std::string("Bearer%20")}) {
+    size_t pos = 0;
+
+    while ((pos = out.find(tag, pos)) != std::string::npos) {
+      size_t val_start = pos + tag.size();
+      size_t val_end = val_start;
+
+      while (val_end < out.size() && out[val_end] != '&' && out[val_end] != ' ' &&
+             out[val_end] != '\t' && out[val_end] != '\n') {
+        ++val_end;
+      }
+
+      if (val_end > val_start) {
+        out.replace(val_start, val_end - val_start, "<redacted>");
+        pos = val_start + std::string("<redacted>").size();
+      } else {
+        pos = val_end;
+      }
+    }
+  }
+
+  return out;
+}
+
+//------------------------------------------------------------------------------
 //! Escape a string for safe inclusion as HTML text content or as the value of
 //! a double-quoted attribute. Conservative set covers <, >, &, ", '.
 //------------------------------------------------------------------------------
@@ -560,8 +626,12 @@ ProcCommand::close()
     // Only instance users or sudoers can add to the logbook
     if ((pVid->uid <= 2) || (pVid->sudoer)) {
       if (mComment.length() && gOFS->mCommentLog) {
+        const std::string safe_args =
+          RedactSecretsForCommentLog(std::string(mArgs.c_str()));
+
         if (!gOFS->mCommentLog->Add(mTimestamp, mCmd.c_str(), mSubCmd.c_str(),
-                                    mArgs.c_str(), mComment.c_str(), stdErr.c_str(), retc)) {
+                                    safe_args.c_str(), mComment.c_str(),
+                                    stdErr.c_str(), retc)) {
           eos_err("failed to log to comments logbook");
         }
       }
