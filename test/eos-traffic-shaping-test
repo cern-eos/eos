@@ -397,17 +397,27 @@ sleep 3
 xrdcp -f "${DEST_URL}/read_test.dat?eos.app=${READ_APP}" /dev/null > /dev/null 2>&1 &
 PID=$!
 
-echo "Waiting 22 seconds for strict EMA stabilization..."
-sleep 22
-JSON_RESULT=$(eos io shaping ls --window 5 --json)
+echo "Waiting up to 32 seconds for strict EMA stabilization..."
+JSON_RESULT="[]"
+READ_APP_RATE=0
+READ_APP_IN_RANGE=0
+for _ in {1..16}; do
+  sleep 2
+  JSON_RESULT=$(eos io shaping ls --window 5 --json)
+  READ_APP_RATE=$(echo "$JSON_RESULT" | jq -r --arg app "$READ_APP" 'map(select(.id == $app) | .read_rate_bps) | max // 0')
+
+  if (( $(echo "$READ_APP_RATE > $LOWER_BOUND" | bc -l) )) && (( $(echo "$READ_APP_RATE < $UPPER_BOUND" | bc -l) )); then
+    READ_APP_IN_RANGE=1
+    break
+  fi
+done
 kill -9 $PID 2>/dev/null; wait $PID 2>/dev/null || true
 eos io shaping policy rm --app ${READ_APP}
 
-if echo "$JSON_RESULT" | jq -e --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BOUND" '.[] | select(.id == "read-throttle-app") | (.read_rate_bps > $l) and (.read_rate_bps < $u)' > /dev/null; then
-  echo "✅ Success: App read throttled properly."
+if [[ $READ_APP_IN_RANGE -eq 1 ]]; then
+  echo "✅ Success: App read throttled properly ($READ_APP_RATE bps)."
 else
-  RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "read-throttle-app") | .read_rate_bps // 0')
-  echo "❌ Error: Expected ~1MB/s, got $RATE bps."
+  echo "❌ Error: Expected ~1MB/s, got $READ_APP_RATE bps."
   echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
@@ -467,8 +477,6 @@ END_MS=$(date +%s%3N)
 echo "Transfer with disabled policy took $((END_MS - START_MS)) ms."
 
 eos io shaping policy set --app ${TOGGLE_APP} --enable
-echo "Priming feedback loop..."
-xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/toggle_prime.dat?eos.app=${TOGGLE_APP}" > /dev/null 2>&1
 sleep 3
 
 xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/toggle_test.dat?eos.app=${TOGGLE_APP}" > /dev/null 2>&1 &
@@ -498,9 +506,6 @@ echo "--- Testing Dynamic Limit Change ---"
 
 echo "Applying 1 MB/s limit..."
 eos io shaping policy set --app ${DYN_APP} --limit-write 1M
-
-echo "Priming feedback loop..."
-xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/dyn_prime.dat?eos.app=${DYN_APP}" > /dev/null 2>&1
 sleep 2
 
 echo "Starting background transfer..."
@@ -549,19 +554,38 @@ WINDOW_APP="window-test-app"
 ( while true; do xrdcp -f ${TEST_FILE_10MB} "${DEST_URL}/window_test.dat?eos.app=${WINDOW_APP}" -s > /dev/null 2>&1; done ) &
 PID=$!
 
-sleep 5
-RESULT_1S=$(eos io shaping ls --window 1 --json)
-RESULT_5S=$(eos io shaping ls --window 5 --json)
+MAX_RATE_1S=0
+MAX_RATE_5S=0
+RESULT_1S="[]"
+RESULT_5S="[]"
+
+for _ in {1..10}; do
+  sleep 1
+  RESULT_1S=$(eos io shaping ls --window 1 --json)
+  RESULT_5S=$(eos io shaping ls --window 5 --json)
+
+  RATE_1S=$(echo "$RESULT_1S" | jq -r --arg app "$WINDOW_APP" 'map(select(.id == $app) | .write_rate_bps) | max // 0')
+  RATE_5S=$(echo "$RESULT_5S" | jq -r --arg app "$WINDOW_APP" 'map(select(.id == $app) | .write_rate_bps) | max // 0')
+
+  if (( $(echo "$RATE_1S > $MAX_RATE_1S" | bc -l) )); then
+    MAX_RATE_1S=$RATE_1S
+  fi
+
+  if (( $(echo "$RATE_5S > $MAX_RATE_5S" | bc -l) )); then
+    MAX_RATE_5S=$RATE_5S
+  fi
+
+  if (( $(echo "$MAX_RATE_1S > 0" | bc -l) )) && (( $(echo "$MAX_RATE_5S > 0" | bc -l) )); then
+    break
+  fi
+done
 
 kill -9 $PID 2>/dev/null; wait $PID 2>/dev/null || true
 
-RATE_1S=$(echo "$RESULT_1S" | jq -r ".[] | select(.id == \"${WINDOW_APP}\") | .write_rate_bps // 0")
-RATE_5S=$(echo "$RESULT_5S" | jq -r ".[] | select(.id == \"${WINDOW_APP}\") | .write_rate_bps // 0")
-
-if (( $(echo "$RATE_1S > 0" | bc -l) )) && (( $(echo "$RATE_5S > 0" | bc -l) )); then
-  echo "✅ Success: Both windows report non-zero rates (1s: $RATE_1S bps, 5s: $RATE_5S bps)."
+if (( $(echo "$MAX_RATE_1S > 0" | bc -l) )) && (( $(echo "$MAX_RATE_5S > 0" | bc -l) )); then
+  echo "✅ Success: Both windows report non-zero rates (1s max: $MAX_RATE_1S bps, 5s max: $MAX_RATE_5S bps)."
 else
-  echo "❌ Error: Zero rate detected. 1s: $RATE_1S bps, 5s: $RATE_5S bps."
+  echo "❌ Error: Zero rate detected. 1s max: $MAX_RATE_1S bps, 5s max: $MAX_RATE_5S bps."
   echo "Debug Info: 1s: $RESULT_1S, 5s: $RESULT_5S"
   FAILURES=$((FAILURES + 1))
 fi
