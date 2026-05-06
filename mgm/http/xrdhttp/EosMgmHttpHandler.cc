@@ -330,11 +330,13 @@ EosMgmHttpHandler::ProcessReq(XrdHttpExtReq& req)
   }
 
   if (req.verb == "PROPFIND" && !is_rest_req) {
-    // read the body
-    body.resize(req.length);
-    char* data = 0;
-    int rbytes = req.BuffgetData(req.length, &data, true);
-    body.assign(data, (size_t) rbytes);
+    // read the body, but go through readBody() so it is subject to the
+    // same body-size cap as macaroon / REST POSTs.  See fix5.html / H-4.
+    std::optional<int> retCode = readBody(req, body);
+
+    if (retCode) {
+      return retCode.value();
+    }
   }
 
   std::string err_msg;
@@ -826,6 +828,34 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
     std::string& body)
 {
   std::optional<int> returnCode;
+  // Hard cap on request body size; the only POST/PROPFIND payloads we
+  // expect through this path are macaroon requests, REST gateway calls
+  // and PROPFIND XML, none of which legitimately exceed a few MiB.
+  // Without a cap an unauthenticated client can cause the MGM to
+  // reserve req.length bytes (up to 2^63 - 1) just by sending a large
+  // Content-Length.  See fix5.html / H-4.
+  unsigned long long body_cap = 16ULL * 1024 * 1024;
+
+  if (const char* env = getenv("EOS_MGM_HTTP_BODY_LIMIT")) {
+    try {
+      unsigned long long v = std::stoull(env);
+
+      if (v > 0) {
+        body_cap = v;
+      }
+    } catch (...) {}
+  }
+
+  if (req.length < 0 ||
+      static_cast<unsigned long long>(req.length) > body_cap) {
+    std::string err =
+      "Http server error: request body exceeds configured limit";
+    eos_static_warning("msg=\"refusing oversized body\" length=%lli cap=%llu",
+                       (long long)req.length, body_cap);
+    return req.SendSimpleResp(413, err.c_str(), nullptr, err.c_str(),
+                              err.length());
+  }
+
   body.reserve(req.length);
   const unsigned long long eoshttp_sz = 1024 * 1024;
   const unsigned long long xrdhttp_sz = 256 * 1024;
