@@ -1,11 +1,15 @@
 #pragma once
 
+#include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/shaping/IoStatsKey.hh"
 
 #include "proto/TrafficShaping.pb.h"
 
+#include <algorithm>
 #include <atomic>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
@@ -42,7 +46,7 @@ public:
                    size_t bytes);
 
   inline static std::atomic<uint32_t> fst_io_stats_reporting_thread_period_milliseconds{
-      1000};
+      eos::common::TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS};
 
   // Returns number of entries removed
   size_t PruneStaleEntries(int64_t max_idle_seconds = 3600);
@@ -81,14 +85,6 @@ public:
     return mIsEnabled.load(std::memory_order_relaxed);
   }
 
-  bool SetFilesystemDetailEnabled(bool enabled);
-
-  bool
-  IsFilesystemDetailEnabled() const
-  {
-    return mFilesystemDetailEnabled.load(std::memory_order_relaxed);
-  }
-
 private:
   std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid,
                                          uint32_t gid, uint32_t fsid);
@@ -98,7 +94,6 @@ private:
       stats_map_;
 
   std::atomic<bool> mIsEnabled{false};
-  std::atomic<bool> mFilesystemDetailEnabled{false};
 };
 
 class IoDelayConfig {
