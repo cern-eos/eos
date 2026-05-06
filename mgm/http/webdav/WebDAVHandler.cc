@@ -32,6 +32,7 @@
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "common/Logging.hh"
+#include "common/StringConversion.hh"
 #ifdef __clang__
 #pragma clang diagnostic ignored "-Wformat-security"
 #endif
@@ -282,9 +283,15 @@ WebDAVHandler::Move(eos::common::HttpRequest* request)
             struct stat buf;
             gOFS->_stat(request->GetUrl().c_str(), &buf, error,
                         *mVirtualIdentity, "");
+            // URL-encode the (attacker-controlled) destination before
+            // splicing it into the /proc/user opaque so '&' / '=' /
+            // control characters cannot inject extra mgm.* / eos.*
+            // parameters.  See fix5.html / H-1.
+            std::string enc_dest =
+              eos::common::StringConversion::curl_path_escaped(destination);
             ProcCommand  cmd;
             XrdOucString info = "mgm.cmd=rm&mgm.path=";
-            info += destination.c_str();
+            info += enc_dest.c_str();
 
             if (S_ISDIR(buf.st_mode)) {
               info += "&mgm.option=r";
@@ -398,11 +405,19 @@ WebDAVHandler::Copy(eos::common::HttpRequest* request)
     int           rc = 0;
     XrdOucErrInfo error;
     ProcCommand  cmd;
+    // URL-encode source and destination paths before splicing them into the
+    // /proc/user opaque so '&' / '=' / control characters in the
+    // attacker-controlled Destination header cannot inject extra mgm.* /
+    // eos.* parameters.  See fix5.html / H-1.
+    std::string enc_src =
+      eos::common::StringConversion::curl_path_escaped(request->GetUrl());
+    std::string enc_dst =
+      eos::common::StringConversion::curl_path_escaped(destination);
     XrdOucString info  = "mgm.cmd=file&mgm.subcmd=copy";
     info += "&mgm.path=";
-    info += request->GetUrl().c_str();
+    info += enc_src.c_str();
     info += "&mgm.file.target=";
-    info += destination.c_str();
+    info += enc_dst.c_str();
     info += "&eos.ruid=";
     info += mVirtualIdentity->uid_string.c_str();
     info += "&eos.rgid=";
