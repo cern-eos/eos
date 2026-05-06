@@ -371,6 +371,11 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
          it_fid && it_fid->valid() && ctr < FID_CACHE_LIST_SZ;
          it_fid->next()) {
       const auto fid = it_fid->getElement();
+      if (auto it = mFidRetryCtr.find(fid); it != mFidRetryCtr.end()) {
+        if (!it->second.need_update(mRetryInterval)) {
+          continue;
+        }
+      }
       try {
         auto fmd = gOFS->eosFileService->getFileMD(fid);
       } catch (eos::MDException& e) {

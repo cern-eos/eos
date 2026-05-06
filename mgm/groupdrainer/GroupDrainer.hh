@@ -160,6 +160,8 @@ public:
       std::scoped_lock slock(mTransfersMtx);
       mTransfers.erase(fid);
     }
+
+    mFidRetryCtr[fid].update();
   }
 
   // Returns if a transfer is tracked already by GroupDrainer, we are NOT
@@ -265,6 +267,7 @@ private:
   drain_fs_map_t mDrainFsMap;
   std::map<common::FileSystem::fsid_t, RetryTracker> mFsidRetryCtr;
   std::set<common::FileSystem::fsid_t> mFailedFsids;
+  std::map<common::FileId::fileid_t, RetryTracker> mFidRetryCtr;
   cache_fid_map_t mCacheFileList;
   DrainProgressTracker mDrainProgressTracker;
 };
