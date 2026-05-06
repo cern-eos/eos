@@ -316,44 +316,52 @@ HttpServer::XrdHttpHandler(std::string& method,
   using namespace eos::common;
   WAIT_BOOT;
 
-  // Clients which are gateways/sudoer can pass x-forwarded-for and remote-user
-  if (headers.count("x-forwarded-for")) {
-    // Check if this is a http gateway and sudoer by calling the mapping function
-    std::unique_ptr<VirtualIdentity> vid_tmp  {new VirtualIdentity()};
+  // Clients which are gateways/sudoer can pass x-forwarded-for and remote-user.
+  // The decision whether to honour the forwarded-identity headers
+  // (x-forwarded-for, x-real-ip, remote-user, auth-type) is taken atomically
+  // here from a single trust_forwarded_identity boolean so that no header is
+  // left dangling on a partial scrub. See fix5.html / C-1.
+  if (headers.count("x-forwarded-for") || headers.count("remote-user") ||
+      headers.count("x-real-ip") || headers.count("auth-type")) {
+    bool trust_forwarded_identity = false;
+    std::unique_ptr<VirtualIdentity> vid_tmp {new VirtualIdentity()};
+    XrdSecEntity eclient(client.prot);
+    // Save initial eaAPI pointer and reset after the copy to avoid
+    // double free of the same pointer.
+    auto ea = eclient.eaAPI;
+    eclient = client;
+    eclient.eaAPI = ea;
 
-    if (vid_tmp) {
-      XrdSecEntity eclient(client.prot);
-      // Save initial eaAPI pointer and reset after the copy to avoid
-      // double free of the same pointer.
-      auto ea = eclient.eaAPI;
-      eclient = client;
-      eclient.eaAPI = ea;
+    if (headers.count("x-gateway-authorization")) {
+      eclient.endorsements = (char*)headers["x-gateway-authorization"].c_str();
+    }
 
+    std::string stident = "https.0:0@";
+    stident += std::string(client.host);
+    eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
+    eos_static_debug("vid trace: %s gw:%d sudoer:%d",
+                     vid_tmp->getTrace().c_str(),
+                     vid_tmp->isGateway(), (int)vid_tmp->sudoer);
+
+    // The peer must be a configured gateway over http/https. If the gateway
+    // additionally claims a forwarded identity via x-gateway-authorization,
+    // the operator must have flagged it as sudoer (token verification at the
+    // mapping layer is a future hardening step, see recommendation #1 of
+    // fix5.html).
+    if (vid_tmp->isGateway() &&
+        ((vid_tmp->prot == "https") || (vid_tmp->prot == "http"))) {
       if (headers.count("x-gateway-authorization")) {
-        eclient.endorsements = (char*)headers["x-gateway-authorization"].c_str();
+        trust_forwarded_identity = vid_tmp->sudoer;
+      } else {
+        trust_forwarded_identity = true;
       }
+    }
 
-      std::string stident = "https.0:0@";
-      stident += std::string(client.host);
-      eos::common::Mapping::IdMap(&eclient, "", stident.c_str(), *vid_tmp);
-
-      if (!vid_tmp->isGateway() ||
-          ((vid_tmp->prot != "https") && (vid_tmp->prot != "http"))) {
-        headers.erase("x-forwarded-for");
-        headers.erase("x-real-ip");
-      }
-
-      eos_static_debug("vid trace: %s gw:%d", vid_tmp->getTrace().c_str(),
-                       vid_tmp->isGateway());
-
-      if (headers.count("x-gateway-authorization") && !vid_tmp->sudoer) {
-        headers.erase("remote-user");
-      }
-    } else {
-      err_msg = "failed to allocate memory";
-      eos_static_err("msg=\"failed to allocate VirtualIdentity object\" "
-                     "method=%s uri=\"%s\"", method.c_str(), uri.c_str());
-      return nullptr;
+    if (!trust_forwarded_identity) {
+      headers.erase("x-forwarded-for");
+      headers.erase("x-real-ip");
+      headers.erase("remote-user");
+      headers.erase("auth-type");
     }
   }
 
