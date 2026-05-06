@@ -1401,7 +1401,7 @@ Server::OpGetLs(const std::string& id,
 static bool
 CheckOwnerAcl(const eos::fusex::md& md,
 	      eos::common::VirtualIdentity& vid,
-	      std::shared_ptr<eos::IContainerMD>& cmd)
+	      std::shared_ptr<eos::IContainerMD>& cmd, bool chown=true)
 {
   if ((uid_t)md.uid() == vid.uid &&
       (vid.sudoer || (gid_t)md.gid() == vid.gid ||
@@ -1419,7 +1419,7 @@ CheckOwnerAcl(const eos::fusex::md& md,
   Acl acl;
   eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
   acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
-  return acl.CanChown(); // we require chown permission
+  return chown?acl.CanChown():acl.CanWrite(); // we require chown permission or write permission for creates
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1636,7 +1636,7 @@ Server::OpSetDirectory(const std::string& id,
         return EPERM;
       }
 
-      if ( !CheckOwnerAcl(md, vid, pcmd)) {
+      if ( !CheckOwnerAcl(md, vid, pcmd, false)) {
 	return EPERM;
       }
 
@@ -2364,7 +2364,7 @@ Server::OpSetFile(const std::string& id,
         return EEXIST;
       }
 
-      if ( !CheckOwnerAcl(md, vid, pcmd)) {
+      if ( !CheckOwnerAcl(md, vid, pcmd, false)) {
 	return EPERM;
       }
 
@@ -2847,8 +2847,8 @@ Server::OpSetLink(const std::string& id,
         return EEXIST;
       }
 
-      if ( ((!fmd) || ( fmd->getCUid() != (uid_t) md.uid()) /* a chown */) &&
-	   !CheckOwnerAcl(md, vid, pcmd)) {
+      if ( ((!fmd) || ( fmd->getCUid() != (uid_t) md.uid()) /* a create */) &&
+	   !CheckOwnerAcl(md, vid, pcmd, false)) {
 	return EPERM;
       }
 
