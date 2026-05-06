@@ -29,13 +29,36 @@
 #include "mgm/stat/Stat.hh"
 #include "common/Timing.hh"
 #include "common/ErrnoToString.hh"
+#include "common/StringConversion.hh"
 #include "common/http/PlainHttpResponse.hh"
 #include "common/http/OwnCloud.hh"
 #include "namespace/utils/Mode.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include <algorithm>
+#include <cctype>
 
 EOSMGMNAMESPACE_BEGIN
+
+namespace
+{
+//------------------------------------------------------------------------------
+//! Return true iff the given string is a non-empty decimal unsigned integer.
+//! Used to validate Content-Length / X-OC-Mtime / X-Upload-Mtime header
+//! values before splicing them into the file-open opaque (fix5.html / H-2).
+//------------------------------------------------------------------------------
+inline bool
+IsDecimalNumeric(const std::string& s)
+{
+  if (s.empty()) {
+    return false;
+  }
+
+  return std::all_of(s.begin(), s.end(), [](unsigned char c) {
+    return std::isdigit(c) != 0;
+  });
+}
+}
 
 /*----------------------------------------------------------------------------*/
 bool
@@ -554,6 +577,20 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       std::string query = request->GetQuery();
 
       if (request->GetHeaders().count("content-length")) {
+        // Validate Content-Length is a plain decimal so an attacker can't
+        // splice "&eos.atomic=0&..." into the file-open opaque via the
+        // header value.  See fix5.html / H-2.
+        const std::string& clen = request->GetHeaders()["content-length"];
+
+        if (!IsDecimalNumeric(clen)) {
+          eos_static_warning("method=PUT error=invalid-content-length "
+                             "path=\"%s\"", url.c_str());
+          response = HttpServer::HttpError("invalid Content-Length",
+                                           response->BAD_REQUEST);
+          delete file;
+          return response;
+        }
+
         query += "&eos.bookingsize=";
         //or OC chunked uploads we book the full size
         const char* oclength = eos::common::OwnCloud::getContentSize(request);
@@ -561,12 +598,12 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         if (oclength) {
           query += oclength;
         } else {
-          query += request->GetHeaders()["content-length"];
+          query += clen;
         }
 
         if (!isOcChunked && !isPartialPut) {
           query += "&eos.targetsize=";
-          query += request->GetHeaders()["content-length"];
+          query += clen;
         }
       } else {
         if (!query.empty()) {
@@ -578,14 +615,36 @@ HttpHandler::Put(eos::common::HttpRequest* request)
 
       if (request->GetHeaders().count("x-oc-mtime")) {
         // there is an X-OC-Mtime header to force the mtime for that file
+        const std::string& mtime = request->GetHeaders()["x-oc-mtime"];
+
+        if (!IsDecimalNumeric(mtime)) {
+          eos_static_warning("method=PUT error=invalid-x-oc-mtime "
+                             "path=\"%s\"", url.c_str());
+          response = HttpServer::HttpError("invalid X-OC-Mtime",
+                                           response->BAD_REQUEST);
+          delete file;
+          return response;
+        }
+
         query += "&eos.mtime=";
-        query += request->GetHeaders()["x-oc-mtime"];
+        query += mtime;
       }
 
       if (request->GetHeaders().count("x-upload-mtime")) {
         // there is an x-upload-mtime header to force the mtime for that file
+        const std::string& mtime = request->GetHeaders()["x-upload-mtime"];
+
+        if (!IsDecimalNumeric(mtime)) {
+          eos_static_warning("method=PUT error=invalid-x-upload-mtime "
+                             "path=\"%s\"", url.c_str());
+          response = HttpServer::HttpError("invalid X-Upload-Mtime",
+                                           response->BAD_REQUEST);
+          delete file;
+          return response;
+        }
+
         query += "&eos.mtime=";
-        query += request->GetHeaders()["x-upload-mtime"];
+        query += mtime;
       }
 
       if (isOcChunked) {
@@ -612,7 +671,10 @@ HttpHandler::Put(eos::common::HttpRequest* request)
       }
 
       // -----------------------------------------------------------
-      // 'ArchiveMetadata' header needs to be passed down to CTA
+      // 'ArchiveMetadata' header needs to be passed down to CTA.  URL-encode
+      // the (attacker-controlled) header value so '&' / '=' / control
+      // characters cannot inject extra eos.* / mgm.* parameters.  See
+      // fix5.html / H-2.
       // -----------------------------------------------------------
       if (request->GetHeaders().count("archivemetadata")) {
         if (query.length()) {
@@ -620,7 +682,8 @@ HttpHandler::Put(eos::common::HttpRequest* request)
         }
 
         query += "archivemetadata=";
-        query += request->GetHeaders()["archivemetadata"];
+        query += eos::common::StringConversion::curl_default_escaped(
+                   request->GetHeaders()["archivemetadata"]).c_str();
       }
 
       int rc = file->open(url.c_str(), open_mode, create_mode, &client,
