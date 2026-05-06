@@ -196,7 +196,50 @@ ProcCommand::open(const char* inpath, const char* info,
 
   mSelection = pOpaque->Get("mgm.selection");
   mComment = pOpaque->Get("mgm.comment") ? pOpaque->Get("mgm.comment") : "";
-  mJsonCallback = pOpaque->Get("callback") ? pOpaque->Get("callback") : "";
+  {
+    const char* cb = pOpaque->Get("callback");
+    mJsonCallback = "";
+
+    if (cb && *cb) {
+      // Restrict the JSONP callback name to a safe JavaScript identifier
+      // (with optional dotted member access). Anything else is dropped to
+      // avoid letting a CGI-controlled string land verbatim in a response
+      // body served as application/javascript.
+      bool ok = true;
+      size_t len = strlen(cb);
+
+      if (len == 0 || len > 128) {
+        ok = false;
+      } else {
+        for (size_t i = 0; i < len; ++i) {
+          unsigned char c = static_cast<unsigned char>(cb[i]);
+          bool is_alpha = ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'));
+          bool is_digit = (c >= '0' && c <= '9');
+          bool is_under = (c == '_' || c == '$');
+          bool is_dot = (c == '.');
+
+          if (i == 0) {
+            if (!(is_alpha || is_under)) {
+              ok = false;
+              break;
+            }
+          } else {
+            if (!(is_alpha || is_digit || is_under || is_dot)) {
+              ok = false;
+              break;
+            }
+          }
+        }
+      }
+
+      if (ok) {
+        mJsonCallback = cb;
+      } else {
+        eos_static_warning("msg=\"rejecting JSONP callback - invalid identifier\" "
+                           "callback=\"%s\"", cb);
+      }
+    }
+  }
   mSendRetc = pOpaque->Get("mgm.retc") ? true : false;
   eos_static_debug("json-callback=%s opaque=%s", mJsonCallback.c_str(),
                    sinfo.c_str());
