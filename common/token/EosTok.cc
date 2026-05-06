@@ -168,9 +168,20 @@ EosTok::Read(const std::string& zb64is, const std::string& key,
   }
 
   Deserialize();
-  time_t now = time(NULL);
+  // Verify the HMAC signature first; only then act on any claim coming from
+  // the token. This avoids letting an unauthenticated attacker steer the
+  // result code (EKEYEXPIRED vs EACCES vs EPERM) by tweaking expires() or
+  // generation(), and keeps any future logic added between Deserialize()
+  // and this point from operating on attacker-controlled data.
+  int vrc = Verify(key);
+
+  if (vrc) {
+    return vrc;
+  }
 
   if (!ignoreerror) {
+    time_t now = time(NULL);
+
     if ((time_t)share->token().expires() < now) {
       return -EKEYEXPIRED;
     }
@@ -180,7 +191,7 @@ EosTok::Read(const std::string& zb64is, const std::string& key,
     }
   }
 
-  return Verify(key);
+  return 0;
 }
 
 int
