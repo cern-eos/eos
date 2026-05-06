@@ -680,10 +680,13 @@ Server::FillContainerCAP(uint64_t id,
   size_t leasetime = 0;
 
   {
-    if (dir.attr().count("sys.force.leasetime") > 0) {
-      // directory has leasetime overwrite
-      leasetime = strtoul((*(dir.mutable_attr()))["sys.forced.leasetime"].c_str(), 0,
-                          10);
+    {
+      // directory has leasetime overwrite (read-only lookup; no side-effect on the
+      // attr map, which would otherwise insert an empty entry via operator[])
+      auto it = dir.attr().find("sys.forced.leasetime");
+      if (it != dir.attr().end()) {
+        leasetime = strtoul(it->second.c_str(), 0, 10);
+      }
     }
 
     eos::common::RWMutexReadLock lLock(gOFS->zMQ->gFuseServer.Client());
