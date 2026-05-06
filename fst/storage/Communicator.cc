@@ -228,6 +228,9 @@ ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
   }
 }
 
+//------------------------------------------------------------------------------
+// Handle traffix shaping detail level
+//------------------------------------------------------------------------------
 void
 ProcessTrafficShapingDetailLevel(const std::string& detail_level)
 {
