@@ -200,8 +200,24 @@ EosTok::Verify(const std::string& key)
                        share->seed());
   std::string nserialized = share->serialized();
   std::string sign = eos::common::SymKey::HmacSha256(nserialized, nkey);
+  const std::string& on_token = share->signature();
 
-  if (sign != share->signature()) {
+  // Constant-time comparison: never short-circuit on the first differing byte.
+  // HMAC-SHA256 outputs are fixed length, so the size check is not a side
+  // channel; the byte loop runs over the full length and accumulates with XOR
+  // so its timing does not depend on the position of the mismatch.
+  if (sign.size() != on_token.size()) {
+    return -EPERM;
+  }
+
+  unsigned char diff = 0;
+
+  for (size_t i = 0; i < sign.size(); ++i) {
+    diff |= static_cast<unsigned char>(sign[i]) ^
+            static_cast<unsigned char>(on_token[i]);
+  }
+
+  if (diff != 0) {
     return -EPERM;
   }
 
