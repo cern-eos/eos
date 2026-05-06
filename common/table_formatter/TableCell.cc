@@ -371,6 +371,39 @@ TableCell::TableCell(const std::string& value, const std::string& format,
 }
 
 //------------------------------------------------------------------------------
+// Constructor for uint64_t data
+//------------------------------------------------------------------------------
+TableCell::TableCell(uint64_t value, const std::string& format, const std::string& unit,
+                     bool empty, TableFormatterColor col)
+    : mFormat(format)
+    , mUnit(unit)
+    , mEmpty(empty)
+    , mColor(col)
+    , mSelectedValue(TypeContainingValue::DOUBLE)
+{
+  if (mFormat.find("l") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::UINT;
+    SetValue(value);
+  }
+
+  if (mFormat.find("f") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::DOUBLE;
+    SetValue((double)value);
+  }
+
+  if (mFormat.find("s") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::STRING;
+    std::string value_temp = std::to_string(value);
+    SetValue(value_temp);
+  }
+
+  if (mFormat.find("t") != std::string::npos) {
+    mSelectedValue = TypeContainingValue::TREE;
+    mTree = (unsigned)value;
+  }
+}
+
+//------------------------------------------------------------------------------
 // Set color of cell
 //------------------------------------------------------------------------------
 void TableCell::SetColor(TableFormatterColor color)
@@ -505,6 +538,23 @@ void TableCell::SetValue(const std::string& value)
       mStrValue = cpy_val;
     } else {
       mStrValue = value;
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Set uint64_t value
+//------------------------------------------------------------------------------
+void
+TableCell::SetValue(uint64_t value)
+{
+  if (mSelectedValue == TypeContainingValue::UINT) {
+    // If convert uint64_t value into K,M,G,T,P,E scale
+    if (mFormat.find("+") != std::string::npos && value >= 1000) {
+      mSelectedValue = TypeContainingValue::DOUBLE;
+      SetValue((double)value);
+    } else {
+      m_ullValue = static_cast<unsigned long long int>(value);
     }
   }
 }
