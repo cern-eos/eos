@@ -1427,6 +1427,48 @@ CheckOwnerAcl(const eos::fusex::md& md,
   return acl.CanChown(); // we require chown permission
 }
 
+//------------------------------------------------------------------------------
+// Group-ACL helper. Authorises a chgrp to md.gid() for the SET paths.
+//
+// Mirrors POSIX semantics:
+//   * root, sudoers, and ADM_UID/ADM_GID identities can chgrp arbitrarily;
+//   * the entry's owner can chgrp to any group they are a member of
+//     (vid.gid or any of vid.allowed_gids);
+//   * otherwise the sysacl on the anchor (the entry itself for directories,
+//     the parent for files/links) must grant CanChown.
+//
+// The 'cmd' anchor argument follows the same convention as CheckOwnerAcl
+// when called from the SET paths: cmd for OpSetDirectory, pcmd for
+// OpSetFile / OpSetLink.
+//------------------------------------------------------------------------------
+
+static bool
+CheckGroupAcl(const eos::fusex::md& md,
+              eos::common::VirtualIdentity& vid,
+              std::shared_ptr<eos::IContainerMD>& cmd)
+{
+  if (vid.uid == 0 || vid.sudoer) {
+    return true;
+  }
+  if (vid.hasUid(eos::common::ADM_UID) ||
+      vid.hasGid(eos::common::ADM_GID)) {
+    return true;
+  }
+  // POSIX: only the entry owner can chgrp, and only to a group they are in.
+  if ((uid_t)md.uid() == vid.uid) {
+    if ((gid_t)md.gid() == vid.gid ||
+        vid.allowed_gids.count((gid_t)md.gid())) {
+      return true;
+    }
+  }
+  // Fallback: the sysacl on the anchor grants chown.
+  vid.scope = gOFS->eosView->getUri(cmd.get());
+  Acl acl;
+  eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+  acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+  return acl.CanChown();
+}
+
 /*----------------------------------------------------------------------------*/
 
 int
@@ -1619,6 +1661,13 @@ Server::OpSetDirectory(const std::string& id,
     if ( ( (cmd->getCUid() != (uid_t)md.uid()) ||
 	   (cmd->getCGid() != (gid_t)md.gid()) ) /* a chown */ &&
 	 !CheckOwnerAcl(md, vid, cmd)) {
+      return EPERM;
+    }
+
+    if ( (cmd->getCGid() != (gid_t)md.gid()) /* a chgrp */ &&
+         !CheckGroupAcl(md, vid, cmd)) {
+      eos_err("msg=\"chgrp denied\" ino=%lx old-gid=%u new-gid=%u uid=%u",
+              (long) md.md_ino(), cmd->getCGid(), (gid_t) md.gid(), vid.uid);
       return EPERM;
     }
 
@@ -2288,6 +2337,13 @@ Server::OpSetFile(const std::string& id,
 	return EPERM;
       }
 
+      if ( (fmd->getCGid() != (gid_t)md.gid() /* a chgrp */) &&
+           !CheckGroupAcl(md, vid, pcmd)) {
+        eos_err("msg=\"chgrp denied\" ino=%lx old-gid=%u new-gid=%u uid=%u",
+                (long) md.md_ino(), fmd->getCGid(), (gid_t) md.gid(), vid.uid);
+        return EPERM;
+      }
+
       eos_info("fxid=%08llx ino=%lx pino=%lx cpino=%lx update-file",
                (long) fid,
                (long) md.md_ino(),
@@ -2762,6 +2818,25 @@ Server::OpSetLink(const std::string& id,
     if (fmd) {
       // link MD update
       op = UPDATE;
+
+      // Authorise chown / chgrp before any namespace mutation. The CREATE
+      // branch validates ownership via CheckOwnerAcl below; the
+      // UPDATE/MOVE/RENAME paths must do the same here, since the
+      // unconditional setCUid/setCGid further down would otherwise let
+      // any caller with W_OK rewrite ownership.
+      if ( (fmd->getCUid() != (uid_t) md.uid() /* a chown */) &&
+           !CheckOwnerAcl(md, vid, pcmd)) {
+        eos_err("msg=\"chown denied\" ino=%lx old-uid=%u new-uid=%u uid=%u",
+                (long) md.md_ino(), fmd->getCUid(), (uid_t) md.uid(), vid.uid);
+        return EPERM;
+      }
+
+      if ( (fmd->getCGid() != (gid_t) md.gid() /* a chgrp */) &&
+           !CheckGroupAcl(md, vid, pcmd)) {
+        eos_err("msg=\"chgrp denied\" ino=%lx old-gid=%u new-gid=%u uid=%u",
+                (long) md.md_ino(), fmd->getCGid(), (gid_t) md.gid(), vid.uid);
+        return EPERM;
+      }
 
       if (fmd->getContainerId() != md.md_pino()) {
         op = MOVE;
