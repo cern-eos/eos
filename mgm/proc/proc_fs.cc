@@ -139,8 +139,11 @@ check_sss_hostname_match(const eos::common::VirtualIdentity& vid,
   const std::string vid_hostname = vid.host;
   const std::string vid_prot = vid.prot.c_str();
 
-  // If EOS_SKIP_SSS_HOSTNAME_MATCH env variable is set (e.g. possibly to avoid
-  // complications in Kubernetes environments), then skip the hostname check.
+  // EOS_SKIP_SSS_HOSTNAME_MATCH disables the "filesystem can only be
+  // configured from its mounting host" rule (operator-only escape hatch for
+  // environments where the daemon's view of the hostname differs from the
+  // configured target, e.g. Kubernetes). Loudly audit the cases where the
+  // bypass actually changes the outcome so its use is visible in logs.
   bool skip_hostname_match = false;
   if (getenv("EOS_SKIP_SSS_HOSTNAME_MATCH")) {
     skip_hostname_match = true;
@@ -150,15 +153,25 @@ check_sss_hostname_match(const eos::common::VirtualIdentity& vid,
   // hostname ... anyway we should have configured 'sss' security
   if ((vid.uid == 0) || (vid_prot == "sss")) {
     if ((vid_prot == "sss") && (vid.uid != 0)) {
-      if (!skip_hostname_match &&
-          vid_hostname.compare(0, target_host.length(), target_host, 0,
-                               target_host.length())) {
-        std::ostringstream err;
-        err << "error: hostname mismatch '" << vid_hostname << "'!='" << target_host
-            << "'; filesystems can only be configured as 'root'"
-            << " or from the server mounting them using sss protocol (1)\n.";
-        stdErr = err.str().c_str();
-        return EPERM;
+      const bool host_mismatch =
+        vid_hostname.compare(0, target_host.length(), target_host, 0,
+                             target_host.length()) != 0;
+
+      if (host_mismatch) {
+        if (skip_hostname_match) {
+          eos_static_warning("msg=\"sss hostname-match bypass in effect "
+                             "(EOS_SKIP_SSS_HOSTNAME_MATCH)\" "
+                             "vid_host=\"%s\" target_host=\"%s\" tident=\"%s\"",
+                             vid_hostname.c_str(), target_host.c_str(),
+                             vid.tident.c_str());
+        } else {
+          std::ostringstream err;
+          err << "error: hostname mismatch '" << vid_hostname << "'!='" << target_host
+              << "'; filesystems can only be configured as 'root'"
+              << " or from the server mounting them using sss protocol (1)\n.";
+          stdErr = err.str().c_str();
+          return EPERM;
+        }
       }
     }
   } else {
