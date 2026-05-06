@@ -183,6 +183,79 @@ Mapping::Reset()
   ActiveUidsSharded.clear();
 }
 
+namespace
+{
+//------------------------------------------------------------------------------
+//! Validate the shape of a name coming from an external authorization module
+//! (e.g. eaAPI request.name on HTTPS / ZTN / unix). Free-form names are fed
+//! straight into the user mapping; this rejects values that contain quoting
+//! or shell metacharacters which could confuse downstream parsers, as well
+//! as purely numeric strings which would otherwise be mapped to system uids
+//! that no real account owns.
+//!
+//! Returns true if the name passes basic shape validation.
+//------------------------------------------------------------------------------
+bool
+IsSafeAuthzName(const std::string& s)
+{
+  if (s.empty() || s.size() > 256) {
+    return false;
+  }
+
+  bool all_digits = true;
+
+  for (unsigned char c : s) {
+    // Reject control chars, whitespace and a conservative set of metas that
+    // should not appear in a unix user name.
+    if (c < 0x20 || c == 0x7f) {
+      return false;
+    }
+
+    switch (c) {
+    case ' ':
+    case '\t':
+    case '"':
+    case '\'':
+    case '`':
+    case ':':
+    case ';':
+    case '|':
+    case '&':
+    case '$':
+    case '\\':
+    case '/':
+    case '<':
+    case '>':
+    case '*':
+    case '?':
+    case '(':
+    case ')':
+    case '[':
+    case ']':
+    case '{':
+    case '}':
+    case ',':
+      return false;
+
+    default:
+      break;
+    }
+
+    if (c < '0' || c > '9') {
+      all_digits = false;
+    }
+  }
+
+  // Treat numeric-only names as opaque - they must come from a passwd lookup
+  // path, not be invented by an external authz module.
+  if (all_digits) {
+    return false;
+  }
+
+  return true;
+}
+} // anonymous namespace
+
 //------------------------------------------------------------------------------
 // Map a client to its virtual identity
 //------------------------------------------------------------------------------
@@ -291,6 +364,13 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
     static const std::string user_key = "request.name";
 
     if (client->eaAPI->Get(user_key, user_value)) {
+      if (!IsSafeAuthzName(user_value)) {
+        vid = VirtualIdentity::Nobody();
+        eos_static_err("msg=\"rejecting malformed authz request.name\" "
+                       "prot=\"https\" name=\"%s\"", user_value.c_str());
+        return;
+      }
+
       client_username = user_value;
     } else {
       if (client->name) {
@@ -332,6 +412,13 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       static const std::string user_key = "request.name";
 
       if (client->eaAPI->Get(user_key, user_value)) {
+        if (!IsSafeAuthzName(user_value)) {
+          vid = VirtualIdentity::Nobody();
+          eos_static_err("msg=\"rejecting malformed authz request.name\" "
+                         "prot=\"ztn\" name=\"%s\"", user_value.c_str());
+          return;
+        }
+
         // we got a user name from the token
         client_username = user_value;
       } else {
@@ -379,6 +466,13 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       bool force_mapping = false;
 
       if (client->eaAPI->Get(user_key, user_value)) {
+        if (!IsSafeAuthzName(user_value)) {
+          vid = VirtualIdentity::Nobody();
+          eos_static_err("msg=\"rejecting malformed authz request.name\" "
+                         "prot=\"unix\" name=\"%s\"", user_value.c_str());
+          return;
+        }
+
         force_mapping = true;
         client_username = user_value;
       } else {
