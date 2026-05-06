@@ -212,6 +212,32 @@ eos::mgm::TokenCmd::ProcessRequest() noexcept
       eos::common::StringConversion::MulticharTokenize(token.path(),
                                               paths, "://:");
 
+      // Reject mixed file+directory path lists. Without this check the per-
+      // path branch below toggles set_allowtree(false) on encountering a
+      // file entry, but the final SetPath/SetAllowtree applied to the
+      // request as a whole could disagree with the per-path authorization
+      // checks the loop performed.
+      if (paths.size() > 1) {
+        bool any_dir = false;
+        bool any_file = false;
+
+        for (const auto& p : paths) {
+          if (!p.empty() && p.back() == '/') {
+            any_dir = true;
+          } else if (!p.empty()) {
+            any_file = true;
+          }
+        }
+
+        if (any_dir && any_file) {
+          reply.set_retc(EINVAL);
+          reply.set_std_err("error: refusing token request mixing file and "
+                            "directory paths; issue separate tokens per "
+                            "scope.");
+          return reply;
+        }
+      }
+
       for ( auto p: paths) {
 	// we verify that mVid owns the path in the token
 	if (p.back() == '/') {
