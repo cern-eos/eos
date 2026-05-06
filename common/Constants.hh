@@ -58,6 +58,9 @@ static constexpr auto RETRIEVE_FAILED_WORKFLOW_NAME = "sync::retrieve_failed";
 static constexpr auto ARCHIVE_FAILED_WORKFLOW_NAME = "sync::archive_failed";
 static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_EQUALS = "=";
 static constexpr auto WF_CUSTOM_ATTRIBUTES_TO_FST_SEPARATOR = ";;;";
+//! CernBox behavior that forbids synchronization (read) of files already
+//! opened in RW mode. By default disabled, enable by setting to "1", "on" or "true".
+static constexpr auto FST_CBOX_FORBID_RW_SYNC = "cbox_forbid_rw_sync";
 //! Max rate in MB/s at which the scanner should run
 static constexpr auto SCAN_IO_RATE_NAME = "scanrate";
 //! Time interval after which a scanned filed is rescanned
