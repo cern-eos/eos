@@ -24,6 +24,7 @@
 
 #pragma once
 #include "common/Namespace.hh"
+#include <cstdint>
 #include <sys/types.h>
 
 EOSCOMMONNAMESPACE_BEGIN
@@ -97,11 +98,11 @@ static constexpr auto FST_TRAFFIC_SHAPING_IO_REPORT = "stat.ts.report";
 static constexpr auto FST_TRAFFIC_SHAPING_IO_LIMITS = "stat.ts.limits";
 static constexpr auto FST_TRAFFIC_SHAPING_ENABLE_TOGGLE = "stat.ts.enabled";
 static constexpr auto FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD = "stat.ts.period";
-static constexpr auto FST_TRAFFIC_SHAPING_DETAIL_LEVEL = "stat.ts.detail";
 
 static constexpr auto TRAFFIC_SHAPING_POLICIES_CONFIG = "traffic_shaping::policies";
 static constexpr auto TRAFFIC_SHAPING_ENABLE_CONFIG = "traffic_shaping::is_enabled";
 static constexpr auto TRAFFIC_SHAPING_THREAD_PERIODS = "traffic_shaping::thread_periods";
+static constexpr uint32_t TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS = 200;
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG =
     "traffic_shaping::detail_level";
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE = "aggregate";

@@ -893,12 +893,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  if (const uint64_t sleep_time_micro_sec =
-          gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(vid);
-      sleep_time_micro_sec > 0) {
-    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
-  }
-
   const uint64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);
   if (rc > 0) {
     gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rc);
