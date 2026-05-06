@@ -29,6 +29,10 @@
 #include "namespace/interface/IView.hh"
 #include "namespace/interface/IFileMDSvc.hh"
 #include "json/json.h"
+#include <openssl/rand.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <sys/stat.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -131,10 +135,31 @@ ProcCommand::~ProcCommand()
 bool
 ProcCommand::OpenTemporaryOutputFiles()
 {
+  // Mix the thread id with per-request CSPRNG randomness and the daemon's
+  // effective uid so the temp-file basename cannot be predicted from
+  // outside. The parent dir is still 0700 daemon:daemon (chown below) but
+  // an unguessable basename closes the residual race where a co-located
+  // process could pre-create the entry.
+  unsigned char rnd[16] = {0};
+
+  if (RAND_bytes(rnd, sizeof(rnd)) != 1) {
+    for (size_t i = 0; i < sizeof(rnd); ++i) {
+      rnd[i] = static_cast<unsigned char>(i);
+    }
+  }
+
+  char hex[2 * sizeof(rnd) + 1];
+
+  for (size_t i = 0; i < sizeof(rnd); ++i) {
+    snprintf(hex + 2 * i, 3, "%02x", rnd[i]);
+  }
+
   char tmpdir [4096];
-  snprintf(tmpdir, sizeof(tmpdir) - 1, "%s/%llu",
+  snprintf(tmpdir, sizeof(tmpdir), "%s/%lu.%llu.%s",
            gOFS->TmpStorePath.c_str(),
-           (unsigned long long) XrdSysThread::ID());
+           static_cast<unsigned long>(geteuid()),
+           (unsigned long long) XrdSysThread::ID(),
+           hex);
   fstdoutfilename = tmpdir;
   fstdoutfilename += ".stdout";
   fstderrfilename = tmpdir;
@@ -154,9 +179,42 @@ ProcCommand::OpenTemporaryOutputFiles()
             cPath.GetParentPath());
   }
 
-  fstdout = fopen(fstdoutfilename.c_str(), "w");
-  fstderr = fopen(fstderrfilename.c_str(), "w");
-  fresultStream = fopen(fresultStreamfilename.c_str(), "w+");
+  // Create with O_EXCL so we never reuse a pre-existing entry.
+  auto excl_open_w = [](const std::string & p) -> FILE* {
+    int fd = ::open(p.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
+                    S_IRUSR | S_IWUSR);
+
+    if (fd < 0) {
+      return nullptr;
+    }
+
+    FILE* fp = ::fdopen(fd, "w");
+
+    if (!fp) {
+      ::close(fd);
+    }
+
+    return fp;
+  };
+  auto excl_open_wp = [](const std::string & p) -> FILE* {
+    int fd = ::open(p.c_str(), O_RDWR | O_CREAT | O_EXCL | O_CLOEXEC,
+                    S_IRUSR | S_IWUSR);
+
+    if (fd < 0) {
+      return nullptr;
+    }
+
+    FILE* fp = ::fdopen(fd, "w+");
+
+    if (!fp) {
+      ::close(fd);
+    }
+
+    return fp;
+  };
+  fstdout = excl_open_w(fstdoutfilename.c_str());
+  fstderr = excl_open_w(fstderrfilename.c_str());
+  fresultStream = excl_open_wp(fresultStreamfilename.c_str());
 
   if ((!fstdout) || (!fstderr) || (!fresultStream)) {
     if (fstdout) {

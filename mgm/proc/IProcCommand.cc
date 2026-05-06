@@ -30,6 +30,9 @@
 #include "namespace/interface/IView.hh"
 #include "json/json.h"
 #include <google/protobuf/util/json_util.h>
+#include <openssl/rand.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -228,7 +231,29 @@ IProcCommand::OpenTemporaryOutputFiles()
 {
   std::ostringstream tmpdir;
   tmpdir << "/var/tmp/eos/mgm/";
-  tmpdir << uuid++;
+  // Mix the global atomic counter with per-request CSPRNG randomness and
+  // the daemon's effective uid so the temp-file basename is not predictable
+  // from outside. The parent directory is still owned 0700 daemon:daemon
+  // (chown below) but the unguessable basename closes the residual race
+  // where a co-located non-root process could pre-create the entry.
+  unsigned char rnd[16] = {0};
+
+  if (RAND_bytes(rnd, sizeof(rnd)) != 1) {
+    // CSPRNG unavailable - fall back to the atomic counter only; the
+    // 0700 parent and O_EXCL below still bound the exposure.
+    for (size_t i = 0; i < sizeof(rnd); ++i) {
+      rnd[i] = static_cast<unsigned char>(i);
+    }
+  }
+
+  char hex[2 * sizeof(rnd) + 1];
+
+  for (size_t i = 0; i < sizeof(rnd); ++i) {
+    snprintf(hex + 2 * i, 3, "%02x", rnd[i]);
+  }
+
+  tmpdir << static_cast<unsigned long>(geteuid()) << "."
+         << uuid++ << "." << hex;
   mOfsOutStreamFilename = tmpdir.str();
   mOfsOutStreamFilename += ".stdout";
   mOfsErrStreamFilename = tmpdir.str();
@@ -245,6 +270,27 @@ IProcCommand::OpenTemporaryOutputFiles()
   if (::chown(cPath.GetParentPath(), 2, 2)) {
     eos_err("Unable to own temporary outputfile directory %s",
             cPath.GetParentPath());
+  }
+
+  // Create the entries with O_EXCL so we never reuse an existing file
+  // (truncating a pre-created entry could write into attacker-controlled
+  // inodes if the parent dir tightening ever drifted).
+  auto excl_create = [](const std::string & p) {
+    int fd = ::open(p.c_str(), O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC,
+                    S_IRUSR | S_IWUSR);
+
+    if (fd >= 0) {
+      ::close(fd);
+    }
+
+    return fd >= 0;
+  };
+
+  if (!excl_create(mOfsOutStreamFilename) ||
+      !excl_create(mOfsErrStreamFilename)) {
+    ::unlink(mOfsOutStreamFilename.c_str());
+    ::unlink(mOfsErrStreamFilename.c_str());
+    return false;
   }
 
   mOfsOutStream.open(mOfsOutStreamFilename, std::ofstream::out);
