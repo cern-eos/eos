@@ -22,18 +22,19 @@
  ************************************************************************/
 
 #pragma once
-#include <string_view>
 #include "common/AssistedThread.hh"
-#include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
+#include "common/Logging.hh"
 #include "mgm/fsview/FsView.hh"
-#include <vector>
-#include <unordered_set>
 #include "mgm/groupbalancer/BalancerEngineTypes.hh"
-#include "mgm/groupdrainer/RetryTracker.hh"
 #include "mgm/groupdrainer/DrainProgressTracker.hh"
+#include "mgm/groupdrainer/RetryTracker.hh"
 #include "mgm/utils/FileSystemStatusUtils.hh"
+#include "namespace/interface/IFsView.hh"
+#include <string_view>
+#include <unordered_set>
+#include <vector>
 
 namespace eos::mgm
 {
@@ -160,8 +161,6 @@ public:
       std::scoped_lock slock(mTransfersMtx);
       mTransfers.erase(fid);
     }
-
-    mFidRetryCtr[fid].update();
   }
 
   // Returns if a transfer is tracked already by GroupDrainer, we are NOT
@@ -267,7 +266,9 @@ private:
   drain_fs_map_t mDrainFsMap;
   std::map<common::FileSystem::fsid_t, RetryTracker> mFsidRetryCtr;
   std::set<common::FileSystem::fsid_t> mFailedFsids;
-  std::map<common::FileId::fileid_t, RetryTracker> mFidRetryCtr;
+  std::map<eos::common::FileSystem::fsid_t,
+           std::shared_ptr<eos::ICollectionIterator<IFileMD::id_t>>>
+      mFsidIterators;
   cache_fid_map_t mCacheFileList;
   DrainProgressTracker mDrainProgressTracker;
 };
