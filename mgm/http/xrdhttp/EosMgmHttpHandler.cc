@@ -36,6 +36,7 @@
 #include <XrdAcc/XrdAccAuthorize.hh>
 #include <XrdOuc/XrdOucPinPath.hh>
 #include <stdio.h>
+#include <algorithm>
 #include "mgm/http/rest-api/manager/RestApiManager.hh"
 
 XrdVERSIONINFO(XrdHttpGetExtHandler, EosMgmHttp);
@@ -429,19 +430,35 @@ EosMgmHttpHandler::ProcessRestApiPost(XrdHttpExtReq& req,
     return retCode.value();
   }
 
-  // Extract command name from the resource path
-  // To do so search for the last occurrence of '/'
+  // Extract command name from the resource path. Only accept a strictly
+  // alphanumeric (plus '_' / '-') token after the last '/' to prevent path
+  // injection / traversal into the local REST gateway listening on
+  // 127.0.0.1:40054. See fix5.html / C-3.
   std::string eosCommand;
   size_t lastSlashPos = req.resource.rfind('/');
 
   if (lastSlashPos != std::string::npos &&
       lastSlashPos + 1 < req.resource.length()) {
-    // Extract the command string
     eosCommand = req.resource.substr(lastSlashPos + 1);
   } else {
     errmsg = "invalid input string";
     eos_static_err("msg=\"%s\"", errmsg.c_str());
     return req.SendSimpleResp(500, errmsg.c_str(), "", errmsg.c_str(),
+                              errmsg.length());
+  }
+
+  auto is_safe_command_char = [](char c) {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+           (c >= '0' && c <= '9') || c == '_' || c == '-';
+  };
+
+  if (eosCommand.empty() || eosCommand.size() > 64 ||
+      !std::all_of(eosCommand.begin(), eosCommand.end(),
+                   is_safe_command_char)) {
+    errmsg = "invalid REST command name";
+    eos_static_err("msg=\"%s\" command=\"%s\"", errmsg.c_str(),
+                   eosCommand.c_str());
+    return req.SendSimpleResp(400, errmsg.c_str(), "", errmsg.c_str(),
                               errmsg.length());
   }
 
@@ -501,7 +518,15 @@ EosMgmHttpHandler::ProcessRestApiPost(XrdHttpExtReq& req,
 
 //----------------------------------------------------------------------------
 // Forward the authentication relevant info as custom headers to the
-// GRPC-gateway that will then send them further down to the GRPC server
+// GRPC-gateway that will then send them further down to the GRPC server.
+//
+// Two hardenings vs. fix5.html / C-3:
+//   * the client-tident is the validated XrdSecEntity.tident, never a
+//     synthesised "https.0:0@<host>" that would tell the downstream gateway
+//     "this peer is uid 0";
+//   * every forwarded value is checked for CR / LF / NUL so a malicious
+//     client.name / Authorization header cannot inject extra Grpc-Metadata-*
+//     headers into the curl request.
 //----------------------------------------------------------------------------
 bool
 EosMgmHttpHandler::RestApiGwFrwAuthHeaders(CURL* curl,
@@ -510,17 +535,47 @@ EosMgmHttpHandler::RestApiGwFrwAuthHeaders(CURL* curl,
 {
   static const std::string hdr_prefix = "Grpc-Metadata-";
   static const std::string authz_hdr = "authorization";
+  auto safe_value = [](const char* v) -> bool {
+    if (!v) {
+      return false;
+    }
+
+    for (const char* p = v; *p; ++p) {
+      if (*p == '\r' || *p == '\n' || *p == '\0') {
+        return false;
+      }
+    }
+
+    return true;
+  };
+
+  if (!safe_value(client.name) || !safe_value(client.host) ||
+      !safe_value(client.tident)) {
+    eos_static_err("msg=\"unsafe XrdSecEntity content; refusing to forward\"");
+    return false;
+  }
+
   struct curl_slist* list = NULL;
   list = curl_slist_append(list, SSTR(hdr_prefix << "client-name: "
                                       << client.name).c_str());
+  // Forward the real TLS-validated tident; the downstream REST gateway must
+  // run its own identity mapping rather than blindly trusting "uid 0".
   list = curl_slist_append(list, SSTR(hdr_prefix << "client-tident: "
-                                      << "https.0:0@"
-                                      << client.host).c_str());
+                                      << client.tident).c_str());
   auto it_authz = norm_hdrs.find(authz_hdr);
 
   if (it_authz != norm_hdrs.end()) {
+    const std::string& v = it_authz->second;
+
+    if (v.find('\r') != std::string::npos ||
+        v.find('\n') != std::string::npos) {
+      eos_static_err("msg=\"unsafe authorization header; refusing to forward\"");
+      curl_slist_free_all(list);
+      return false;
+    }
+
     list = curl_slist_append(list, SSTR(hdr_prefix << "client-authorization: "
-                                        << it_authz->second).c_str());
+                                        << v).c_str());
   }
 
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
