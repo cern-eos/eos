@@ -176,7 +176,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL,
         "No taperestapi.sitename has been specified, the tape REST API is therefore disabled";
       std::string errorMsgLog =
         std::string("msg=\"") + errorMsg + "\"" + " requestURL=\"" + requestURL + "\"";
-      eos_static_warning(errorMsgLog.c_str());
+      eos_static_warning("%s", errorMsgLog.c_str());
       return false;
     }
 
@@ -185,7 +185,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL,
         "No mgmofs.alias has been specified, the tape REST API is therefore disabled";
       std::string errorMsgLog =
         std::string("msg=\"") + errorMsg + "\"" + " requestURL=\"" + requestURL + "\"";
-      eos_static_warning(errorMsgLog.c_str());
+      eos_static_warning("%s", errorMsgLog.c_str());
       return false;
     }
 
@@ -194,7 +194,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL,
                  rest::TAPE_REST_API_SWITCH_ON_OFF + "\" space configuration is set to \"on\"";
       std::string errorMsgLog = std::string("msg=\"") + errorMsg + "\"" +
                                 " requestURL=\"" + requestURL + "\"";
-      eos_static_warning(errorMsgLog.c_str());
+      eos_static_warning("%s", errorMsgLog.c_str());
       return false;
     }
 
@@ -203,7 +203,7 @@ bool TapeRestHandler::isRestRequest(const std::string& requestURL,
         "The MGM tapeenabled flag has not been set or is set to false, the tape REST API is therefore disabled. Verify that the tapeenabled flag is set to true on the MGM configuration file.";
       std::string errorMsgLog =
         std::string("msg=\"") + errorMsg + "\"" + " requestURL=\"" + requestURL + "\"";
-      eos_static_warning(errorMsgLog.c_str());
+      eos_static_warning("%s", errorMsgLog.c_str());
       return false;
     }
   }

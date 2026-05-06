@@ -798,7 +798,7 @@ std::optional<int> EosMgmHttpHandler::readBody(XrdHttpExtReq& req,
         oss << "msg=\"In EosMgmHttpHandler::ProcessReq(), unable to read the "
             << "body of the request coming from the user. Internal XRootD Http"
             << " request buffer error\"";
-        eos_static_err(oss.str().c_str());
+        eos_static_err("%s", oss.str().c_str());
         std::string errorMsg = "Http server error: unable to read the request received";
         return req.SendSimpleResp(500, errorMsg.c_str(), nullptr, errorMsg.c_str(),
                                   errorMsg.length());

@@ -36,23 +36,23 @@ common::HttpResponse* HandleWithErrors(ResponseFactory & responseFactory, Fn fn)
   try {
     return fn();
   } catch (const NotFoundException& ex) {
-    eos_static_info(ex.what());
+    eos_static_info("%s", ex.what());
     return responseFactory.NotFound().getHttpResponse();
   } catch (const MethodNotAllowedException& ex) {
-    eos_static_info(ex.what());
+    eos_static_info("%s", ex.what());
     return responseFactory.MethodNotAllowed(ex.what()).getHttpResponse();
   } catch (const ForbiddenException& ex) {
-    eos_static_info(ex.what());
+    eos_static_info("%s", ex.what());
     return responseFactory.Forbidden(ex.what()).getHttpResponse();
   } catch (const NotImplementedException& ex) {
-    eos_static_info(ex.what());
+    eos_static_info("%s", ex.what());
     return responseFactory.NotImplemented().getHttpResponse();
   } catch (const RestException& ex) {
-    eos_static_info(ex.what());
+    eos_static_info("%s", ex.what());
     return responseFactory.InternalError(ex.what()).getHttpResponse();
   } catch (...) {
     std::string errorMsg = "Unknown exception occured";
-    eos_static_err(errorMsg.c_str());
+    eos_static_err("%s", errorMsg.c_str());
     return responseFactory.InternalError(errorMsg).getHttpResponse();
   }
 }

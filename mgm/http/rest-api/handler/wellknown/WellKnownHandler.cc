@@ -47,14 +47,14 @@ common::HttpResponse* WellKnownHandler::handleRequest(common::HttpRequest*
   try {
     return mRouter.dispatch(request, vid);
   } catch (const NotFoundException& ex) {
-    eos_static_info(ex.what());
+    eos_static_info("%s", ex.what());
     return mWellknownResponseFactory.NotFound().getHttpResponse();
   } catch (const MethodNotAllowedException& ex) {
-    eos_static_info(ex.what());
+    eos_static_info("%s", ex.what());
     return mWellknownResponseFactory.MethodNotAllowed(ex.what()).getHttpResponse();
   } catch (...) {
     std::string errorMsg = "Unknown exception occured";
-    eos_static_err(errorMsg.c_str());
+    eos_static_err("%s", errorMsg.c_str());
     return mWellknownResponseFactory.InternalError(errorMsg).getHttpResponse();
   }
 }
