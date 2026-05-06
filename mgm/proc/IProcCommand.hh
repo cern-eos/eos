@@ -82,6 +82,22 @@ public:
   {
     mForceKill.store(true);
 
+    // LaunchJob() captures `this` by raw pointer into a thread pool task.
+    // Lifetime was previously preserved by parking the IProcCommand in
+    // mCmdToDel until KillJob() returned ready, but several Drop/Save/Get
+    // and early-return paths could destruct before the worker had finished
+    // touching `this`. Wait the future out here so the captured pointer is
+    // guaranteed to outlive the worker no matter which teardown path led
+    // us into the destructor. mForceKill above signals the worker to stop
+    // as soon as it next observes the flag.
+    if (mFuture.valid()) {
+      try {
+        (void) mFuture.wait();
+      } catch (...) {
+        // Wait must not throw out of a destructor.
+      }
+    }
+
     if (mOfsOutStream.is_open()) {
       mOfsOutStream.close();
     }
