@@ -35,42 +35,44 @@ When reporting a vulnerability, please include as much detail as possible, inclu
 
 ## Use of AI Coding Assistants in Vulnerability Research
 
-Security reports may include findings discovered, analyzed, or validated with the help of AI coding assistants or other automated tools. We welcome these reports when they are submitted responsibly and include enough information for maintainers to independently verify the issue.
+We welcome thoughtful security reports that are discovered, analyzed, validated, or documented with the help of AI coding assistants, automated scanners, or similar tools. These tools can be useful for reviewing code, identifying suspicious patterns, improving reports, and suggesting possible remediations.
 
-If an AI coding assistant, automated scanner, or similar tool was used, please disclose the tool usage in your report. Include, where applicable:
+To help maintainers understand and reproduce the finding, please mention any AI coding assistant or automated tool that substantially contributed to the report. Where applicable, include:
 
 - The name of the AI coding assistant or tool used
-- The model or version, if known
-- Whether the tool was used for discovery, code review, exploit generation, remediation suggestions, or report writing
-- Any relevant prompts, generated output, or tool findings needed to understand the report
-- The steps you personally took to verify that the vulnerability is real and exploitable
+- The model, version, or service, if known
+- How the tool was used, such as discovery, code review, exploit analysis, remediation suggestions, or report writing
+- Any relevant prompts, generated output, scanner results, or tool findings needed to understand the issue
+- The steps you took to verify the vulnerability and confirm its security impact
 
-Reports generated entirely by AI or automated tools must still include a clear explanation, reproducible steps, and evidence of security impact. We may close reports that contain unverified AI-generated claims, hallucinated issues, or generic scanner output without demonstrated exploitability.
+AI-assisted reports are most helpful when they include clear reasoning, reproducible steps, and evidence that the issue is real and exploitable. Reports do not need to be perfect, but they should provide enough information for maintainers to independently assess the finding.
 
-Do not submit private project data, secrets, credentials, personal data, or other sensitive information to AI tools unless you are authorized to do so and the tool is approved for that use.
+Please avoid submitting private project data, secrets, credentials, personal data, or other sensitive information to AI tools unless you are authorized to do so and the tool is approved for that use.
 
 ## Use of AI Agents in Security Reporting
 
-Security reports may be created, submitted, triaged, or followed up on with the assistance of AI agents, automation agents, or other delegated systems. This is allowed, provided that the report remains accurate, verifiable, and attributable to a responsible human reporter or organization.
+We also welcome reports that are prepared, submitted, triaged, or followed up on with the help of AI agents, automation agents, or other delegated systems. Agent-assisted reporting can be useful when it improves clarity, consistency, and responsiveness.
 
-If an agent was used in preparing or managing a security report, please disclose this in the report. Include, where applicable:
+If an agent was used in preparing or managing a security report, please disclose this so that maintainers understand how the report and any follow-up communication are being handled. Where applicable, include:
 
 - The name or type of agent used
 - The platform, framework, or service provider, if known
 - Whether the agent was used for vulnerability discovery, code analysis, exploit testing, report generation, submission, or follow-up communication
 - Whether the agent acted autonomously or under human supervision
 - The identity or contact details of the human or organization responsible for the report
-- Any limitations of the agent’s findings that maintainers should be aware of
+- Any relevant limitations of the agent’s findings or communication
 
-If follow-up communication is handled by an agent, the reporter must ensure that:
+If follow-up communication is handled by an agent, please make sure that:
 
-- The agent can respond accurately to maintainer questions
-- A human reviewer can be involved when requested
-- The agent does not send excessive, repetitive, or irrelevant messages
-- The agent does not pressure maintainers for immediate action, disclosure, credit, or compensation
-- The agent does not disclose vulnerability details publicly or to unauthorized parties
+- The agent can provide accurate and relevant responses to maintainer questions
+- A human reviewer can join the conversation when requested
+- Communication remains focused, respectful, and useful
+- Vulnerability details are kept private and shared only with authorized parties
+- Requests for disclosure, credit, or compensation are handled appropriately and respectfully
 
-Reports submitted or managed by agents must still follow this security policy, including responsible disclosure requirements. We may pause or close reports where agent-generated communication is misleading, unverifiable, abusive, spam-like, or not backed by a responsible human contact.
+When agents are used to identify or submit multiple findings, please keep the volume of simultaneous reports to a manageable level. Reports should be prioritized and submitted in order of highest criticality and security impact first. Where several related findings exist, consider grouping them into a single report when this helps maintainers understand the overall issue and reduces duplicate or overlapping communication.
+
+Reports submitted or managed with the help of agents remain welcome under this policy, provided they follow the same responsible disclosure expectations as any other report and are backed by a responsible human contact.
 
 ## Supported Versions
 
