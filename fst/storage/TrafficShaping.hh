@@ -81,14 +81,6 @@ public:
     return mIsEnabled.load(std::memory_order_relaxed);
   }
 
-  bool SetFilesystemDetailEnabled(bool enabled);
-
-  bool
-  IsFilesystemDetailEnabled() const
-  {
-    return mFilesystemDetailEnabled.load(std::memory_order_relaxed);
-  }
-
 private:
   std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid,
                                          uint32_t gid, uint32_t fsid);
@@ -98,7 +90,6 @@ private:
       stats_map_;
 
   std::atomic<bool> mIsEnabled{false};
-  std::atomic<bool> mFilesystemDetailEnabled{false};
 };
 
 class IoDelayConfig {

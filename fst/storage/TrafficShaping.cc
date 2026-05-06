@@ -78,20 +78,6 @@ IoStatsCollector::RecordWrite(const std::string& app, const uint32_t uid,
       std::memory_order_relaxed);
 }
 
-bool
-IoStatsCollector::SetFilesystemDetailEnabled(const bool enabled)
-{
-  const bool old_value =
-      mFilesystemDetailEnabled.exchange(enabled, std::memory_order_relaxed);
-
-  if (old_value != enabled) {
-    Clear();
-    return true;
-  }
-
-  return false;
-}
-
 size_t
 IoStatsCollector::PruneStaleEntries(const int64_t max_idle_seconds)
 {

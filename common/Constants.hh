@@ -97,7 +97,6 @@ static constexpr auto FST_TRAFFIC_SHAPING_IO_REPORT = "stat.ts.report";
 static constexpr auto FST_TRAFFIC_SHAPING_IO_LIMITS = "stat.ts.limits";
 static constexpr auto FST_TRAFFIC_SHAPING_ENABLE_TOGGLE = "stat.ts.enabled";
 static constexpr auto FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD = "stat.ts.period";
-static constexpr auto FST_TRAFFIC_SHAPING_DETAIL_LEVEL = "stat.ts.detail";
 
 static constexpr auto TRAFFIC_SHAPING_POLICIES_CONFIG = "traffic_shaping::policies";
 static constexpr auto TRAFFIC_SHAPING_ENABLE_CONFIG = "traffic_shaping::is_enabled";
