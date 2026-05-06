@@ -1213,10 +1213,26 @@ NewfindCmd::ProcessRequest() noexcept
     std::make_unique<qclient::QClient>(gOFS->mQdbContactDetails.members,
                                        gOFS->mQdbContactDetails.constructOptions());
   std::unique_ptr<FindResultProvider> findResultProvider;
-  int depthlimit = ((findRequest.Maxdepth__case() ==
-                     eos::console::FindProto::MAXDEPTH__NOT_SET) ?
-                    eos::common::Path::MAX_LEVELS :
-                    cPath.GetSubPathSize() + findRequest.maxdepth());
+  // Compute the depth limit in uint64_t and clamp explicitly. Previously the
+  // expression cPath.GetSubPathSize() + findRequest.maxdepth() was evaluated
+  // in int, so a maxdepth large enough to overflow the int produced a
+  // negative depth and either unbounded recursion or an under-flow inside
+  // _find. Cap the limit at eos::common::Path::MAX_LEVELS regardless of
+  // caller privilege.
+  uint64_t depthlimit = eos::common::Path::MAX_LEVELS;
+
+  if (findRequest.Maxdepth__case() !=
+      eos::console::FindProto::MAXDEPTH__NOT_SET) {
+    const uint64_t base = static_cast<uint64_t>(cPath.GetSubPathSize());
+    const uint64_t md = findRequest.maxdepth();
+
+    if (md > eos::common::Path::MAX_LEVELS ||
+        base > eos::common::Path::MAX_LEVELS - md) {
+      depthlimit = eos::common::Path::MAX_LEVELS;
+    } else {
+      depthlimit = base + md;
+    }
+  }
   bool onlydirs = (findRequest.directories() &&
                    !findRequest.files()) | findRequest.count() |
                   findRequest.treecount() | findRequest.childcount();
