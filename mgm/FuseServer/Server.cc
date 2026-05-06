@@ -63,6 +63,49 @@ USE_EOSFUSESERVERNAMESPACE
 
 const char* Server::cident = "fxserver";
 
+//------------------------------------------------------------------------------
+// Defensive xattr integer parsers. The std::sto* family throws
+// std::invalid_argument / std::out_of_range on malformed input; the
+// surrounding try blocks in this file only catch eos::MDException, so a
+// non-numeric attribute value would otherwise propagate and tear down the
+// FuseServer dispatch thread. These helpers are noexcept and return the
+// caller-supplied fallback when parsing fails.
+//------------------------------------------------------------------------------
+
+namespace {
+
+inline int
+parse_attr_int(const std::string& s, int fallback = 0) noexcept
+{
+  try {
+    return std::stoi(s);
+  } catch (...) {
+    return fallback;
+  }
+}
+
+inline long
+parse_attr_long(const std::string& s, long fallback = 0) noexcept
+{
+  try {
+    return std::stol(s);
+  } catch (...) {
+    return fallback;
+  }
+}
+
+inline unsigned long long
+parse_attr_ull(const std::string& s, unsigned long long fallback = 0) noexcept
+{
+  try {
+    return std::stoull(s);
+  } catch (...) {
+    return fallback;
+  }
+}
+
+} // anonymous namespace
+
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -465,7 +508,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
 
     if (fmd->hasAttribute(k_mdino)) {
       has_mdino = true;
-      uint64_t mdino = std::stoull(fmd->getAttribute(k_mdino));
+      uint64_t mdino = parse_attr_ull(fmd->getAttribute(k_mdino));
       fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(mdino),
                                             &clock);
       eos_debug("hlnk switched from %s to file %s (%#llx)",
@@ -501,7 +544,7 @@ Server::FillFileMD(uint64_t inode, eos::fusex::md& file,
     int nlink = 1;
 
     if (fmd->hasAttribute(k_nlink)) {
-      nlink = std::stoi(fmd->getAttribute(k_nlink)) + 1;
+      nlink = parse_attr_int(fmd->getAttribute(k_nlink)) + 1;
 
       if (EOS_LOGS_DEBUG) {
         eos_debug("hlnk %s (%#lx) nlink %d", file.name().c_str(), fmd->getId(),
@@ -2076,10 +2119,10 @@ Server::OpSetFile(const std::string& id,
 
             if (attrmap.count("user.fusex.rename.version")) {
               if (attrmap.count("sys.versioning")) {
-                versioning = std::stoi(attrmap["sys.versioning"]);
+                versioning = parse_attr_int(attrmap["sys.versioning"]);
               } else {
                 if (attrmap.count("user.versioning")) {
-                  versioning = std::stoi(attrmap["user.versioning"]);
+                  versioning = parse_attr_int(attrmap["user.versioning"]);
                 }
               }
             }
@@ -2214,10 +2257,10 @@ Server::OpSetFile(const std::string& id,
 
               if (attrmap.count("user.fusex.rename.version")) {
                 if (attrmap.count("sys.versioning")) {
-                  versioning = std::stoi(attrmap["sys.versioning"]);
+                  versioning = parse_attr_int(attrmap["sys.versioning"]);
                 } else {
                   if (attrmap.count("user.versioning")) {
-                    versioning = std::stoi(attrmap["user.versioning"]);
+                    versioning = parse_attr_int(attrmap["user.versioning"]);
                   }
                 }
               }
@@ -2270,12 +2313,12 @@ Server::OpSetFile(const std::string& id,
                 if (!created_version) {
                   if (ofmd->hasAttribute(k_mdino)) {
                     /* this is a hard link, decrease reference count on underlying file */
-                    tgt_md_ino = std::stoull(ofmd->getAttribute(k_mdino));
+                    tgt_md_ino = parse_attr_ull(ofmd->getAttribute(k_mdino));
                     uint64_t clock;
                     /* gmd = the file holding the inode */
                     std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
                                                           eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
-                    long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
+                    long nlink = parse_attr_long(gmd->getAttribute(k_nlink)) - 1;
 
                     if (nlink) {
                       gmd->setAttribute(k_nlink, std::to_string(nlink));
@@ -2306,7 +2349,7 @@ Server::OpSetFile(const std::string& id,
                   } else if (ofmd->hasAttribute(k_nlink)) {
                     /* this is a genuine file, potentially with hard links */
                     tgt_md_ino = eos::common::FileId::FidToInode(ofmd->getId());
-                    long nlink = std::stol(ofmd->getAttribute(k_nlink));
+                    long nlink = parse_attr_long(ofmd->getAttribute(k_nlink));
 
                     if (nlink > 0) {
                       // hard links exist, just rename the file so the inode does not disappear
@@ -2407,7 +2450,7 @@ Server::OpSetFile(const std::string& id,
                                               tgt_md_ino));
       std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile(0);
       int nlink;
-      nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(
+      nlink = (fmd->hasAttribute(k_nlink)) ? parse_attr_int(fmd->getAttribute(
                 k_nlink)) + 1 : 1;
 
       if (EOS_LOGS_DEBUG) {
@@ -3372,12 +3415,12 @@ Server::OpDeleteFile(const std::string& id,
 
       if (fmd->hasAttribute(k_mdino)) {
         /* this is a hard link, decrease reference count on underlying file */
-        tgt_md_ino = std::stoull(fmd->getAttribute(k_mdino));
+        tgt_md_ino = parse_attr_ull(fmd->getAttribute(k_mdino));
         uint64_t clock;
         /* gmd = the file holding the inode */
         std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->getFileMD(
                                               eos::common::FileId::InodeToFid(tgt_md_ino), &clock);
-        long nlink = std::stol(gmd->getAttribute(k_nlink)) - 1;
+        long nlink = parse_attr_long(gmd->getAttribute(k_nlink)) - 1;
 
         if (nlink) {
           gmd->setAttribute(k_nlink, std::to_string(nlink));
@@ -3408,7 +3451,7 @@ Server::OpDeleteFile(const std::string& id,
       } else if (fmd->hasAttribute(k_nlink)) {
         /* this is a genuine file, potentially with hard links */
         tgt_md_ino = eos::common::FileId::FidToInode(fmd->getId());
-        long nlink = std::stol(fmd->getAttribute(k_nlink));
+        long nlink = parse_attr_long(fmd->getAttribute(k_nlink));
 
         if (nlink > 0) {
           // hard links exist, just rename the file so the inode does not disappear
