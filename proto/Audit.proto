@@ -24,6 +24,7 @@ enum Operation {
   RM_XATTR = 15;     // remove extended attribute
   SYMLINK = 16;      // create symbolic link
   UPDATE = 17;       // open file for update (write on existing)
+  HARDLINK = 18;     // create hard link
 }
 
 message AuthInfo {

@@ -12,6 +12,7 @@ This document explains what is logged, the record format, where files are writte
   - **Files**: CREATE, DELETE, RENAME/MOVE, TRUNCATE, WRITE (commit), UPDATE (open for write without create/truncate)
   - **Directories**: MKDIR, RMDIR, RENAME/MOVE
   - **Symlinks**: SYMLINK creation, DELETE
+  - **Hardlinks**: HARDLINK creation
   - **Metadata**: CHMOD, CHOWN, SET_XATTR, RM_XATTR, SET_ACL
 - **Optional**: READ and LIST can be enabled later (not default; high volume).
 - **Excluded**: Failed attempts, internal non-human activities (e.g. purge/version housekeeping).
@@ -23,7 +24,7 @@ Each audit line is a JSON serialization of the `eos.audit.AuditRecord` protobuf 
 - **Common fields**
   - `timestamp` (int64): seconds since epoch (server time)
   - `path` (string): absolute path to object; directory paths end with '/'
-  - `operation` (enum): one of CREATE, DELETE, RENAME, WRITE, TRUNCATE, SET_XATTR, RM_XATTR, SET_ACL, CHMOD, CHOWN, MKDIR, RMDIR, SYMLINK, UPDATE
+  - `operation` (enum): one of CREATE, DELETE, RENAME, WRITE, TRUNCATE, SET_XATTR, RM_XATTR, SET_ACL, CHMOD, CHOWN, MKDIR, RMDIR, SYMLINK, HARDLINK, UPDATE
   - `client_ip` (string), `account` (string)
   - `auth` (mechanism string + attributes map)
   - `authorization` (reasons[])

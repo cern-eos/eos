@@ -2519,13 +2519,24 @@ Server::OpSetFile(const std::string& id,
 
       pcmd->addFile(gmd.get());
       gOFS->eosFileService->updateStore(gmd.get());
-            gOFS->eosView->updateContainerStore(pcmd.get());
-            // Audit rename
-            if (gOFS->mAudit) {
-              std::string newPath = gOFS->eosView->getUri(fmd.get());
-              gOFS->mAudit->audit(eos::audit::RENAME, newPath, vid, logId, cident, "mgm",
-                                  oldname);
-            }
+      gOFS->eosView->updateContainerStore(pcmd.get());
+
+      // Audit hardlink creation: the new directory entry (linkPath) is the
+      // path being created; the existing inode it points at is the target.
+      // The previous code emitted RENAME with `oldname` as the destination
+      // argument, which both mis-classified the operation and conflated the
+      // rename oldname with the link target.
+      if (gOFS->mAudit) {
+        std::string linkPath = gOFS->eosView->getUri(gmd.get());
+        std::string targetPath = gOFS->eosView->getUri(fmd.get());
+        if (gOFS->AllowAuditModification(linkPath)) {
+          gOFS->mAudit->audit(eos::audit::HARDLINK, linkPath, vid,
+                              std::string(logId), std::string(cident), "mgm",
+                              targetPath, nullptr, nullptr,
+                              std::string(), std::string(), std::string(),
+                              __FILE__, __LINE__, VERSION);
+        }
+      }
       eos::fusex::response resp;
       resp.set_type(resp.ACK);
       resp.mutable_ack_()->set_code(resp.ack_().OK);
