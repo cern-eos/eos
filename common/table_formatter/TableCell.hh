@@ -80,6 +80,9 @@ public:
             const std::string& unit = "", bool empty = false,
             TableFormatterColor col = TableFormatterColor::NONE);
 
+  TableCell(uint64_t value, const std::string& format, const std::string& unit = "",
+            bool empty = false, TableFormatterColor col = TableFormatterColor::NONE);
+
   //------------------------------------------------------------------------------
   //! Set color of cell
   //------------------------------------------------------------------------------
@@ -114,6 +117,7 @@ protected:
   void SetValue(long long int value);
   void SetValue(double value);
   void SetValue(const std::string& value);
+  void SetValue(uint64_t value);
 
   //----------------------------------------------------------------------------
   //! Store value for cell
