@@ -38,6 +38,9 @@
 #include <grp.h>
 #include <pwd.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -818,23 +821,62 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       bool skip_key = false;
 
       if (getenv("EOS_MGM_TOKEN_KEYFILE")) {
-        struct stat buf;
+        const char* kfpath = getenv("EOS_MGM_TOKEN_KEYFILE");
+        // Open the keyfile first (without following symlinks) and validate
+        // ownership/mode on the same file descriptor we are about to read
+        // from. This closes the prior stat()+open TOCTOU window where the
+        // path could be swapped between checks and the file content read.
+        int kfd = ::open(kfpath, O_RDONLY | O_NOFOLLOW | O_CLOEXEC);
 
-        if (::stat(getenv("EOS_MGM_TOKEN_KEYFILE"), &buf)) {
-          eos_static_err("msg=\"token keyfile does not exist\" location=\"%s\"",
-                         getenv("EOS_MGM_TOKEN_KEYFILE"));
+        if (kfd < 0) {
+          eos_static_err("msg=\"token keyfile open failed\" location=\"%s\" errno=%d",
+                         kfpath, errno);
           skip_key = true;
         } else {
-          if ((buf.st_uid != DAEMONUID) ||
-              (buf.st_mode != 0100400)) {
+          struct stat buf;
+
+          if (::fstat(kfd, &buf)) {
+            eos_static_err("msg=\"token keyfile fstat failed\" location=\"%s\" errno=%d",
+                           kfpath, errno);
+            skip_key = true;
+          } else if (!S_ISREG(buf.st_mode) ||
+                     (buf.st_uid != DAEMONUID) ||
+                     (buf.st_mode != 0100400)) {
             skip_key = true;
             eos_static_err("msg=\"token keyfile mode bit\" mode=%o", buf.st_mode);
           }
-        }
 
-        if (!skip_key) {
-          key = eos::common::StringConversion::LoadFileIntoString(
-                  getenv("EOS_MGM_TOKEN_KEYFILE"), key);
+          if (!skip_key) {
+            std::string contents;
+
+            // Read the whole file from the validated fd; cap to a sane
+            // upper bound to avoid pathological cases.
+            constexpr size_t kMaxKeyFileBytes = 64 * 1024;
+            char rbuf[4096];
+            ssize_t n;
+
+            while ((n = ::read(kfd, rbuf, sizeof(rbuf))) > 0) {
+              contents.append(rbuf, n);
+
+              if (contents.size() > kMaxKeyFileBytes) {
+                break;
+              }
+            }
+
+            if (n < 0) {
+              eos_static_err("msg=\"token keyfile read failed\" location=\"%s\" errno=%d",
+                             kfpath, errno);
+              skip_key = true;
+            } else if (contents.size() > kMaxKeyFileBytes) {
+              eos_static_err("msg=\"token keyfile too large\" location=\"%s\"",
+                             kfpath);
+              skip_key = true;
+            } else {
+              key = std::move(contents);
+            }
+          }
+
+          ::close(kfd);
         }
       }
 
