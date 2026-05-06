@@ -1396,7 +1396,7 @@ Server::OpGetLs(const std::string& id,
 static bool
 CheckOwnerAcl(const eos::fusex::md& md,
 	      eos::common::VirtualIdentity& vid,
-	      std::shared_ptr<eos::IContainerMD>& cmd, bool chown=true)
+	      std::shared_ptr<eos::IContainerMD>& cmd)
 {
   if ((uid_t)md.uid() == vid.uid &&
       (vid.sudoer || (gid_t)md.gid() == vid.gid ||
@@ -1414,7 +1414,7 @@ CheckOwnerAcl(const eos::fusex::md& md,
   Acl acl;
   eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
   acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
-  return chown?acl.CanChown():acl.CanWrite(); // we require chown permission or write permission for creates
+  return acl.CanChown(); // we require chown permission
 }
 
 /*----------------------------------------------------------------------------*/
@@ -1631,10 +1631,10 @@ Server::OpSetDirectory(const std::string& id,
         return EPERM;
       }
 
-      if ( !CheckOwnerAcl(md, vid, pcmd, false)) {
+      if ( ((md.uid() != vid.uid)||(md.gid() != vid.gid)) && !CheckOwnerAcl(md, vid, pcmd)) /* a create requiring chown */ {
 	return EPERM;
       }
-
+      
       if (exclusive && pcmd->findContainer(md.name())) {
         // O_EXCL set on creation -
         eos_err("ino=%lx name=%s exists", md.md_pino(), md.name().c_str());
@@ -2298,7 +2298,7 @@ Server::OpSetFile(const std::string& id,
         return EEXIST;
       }
 
-      if ( !CheckOwnerAcl(md, vid, pcmd, false)) {
+      if ( ((md.uid() != vid.uid)||(md.gid() != vid.gid)) && !CheckOwnerAcl(md, vid, pcmd)) /* a create requiring chwon */ {
 	return EPERM;
       }
 
@@ -2719,9 +2719,15 @@ Server::OpSetLink(const std::string& id,
         return EEXIST;
       }
 
-      if ( ((!fmd) || ( fmd->getCUid() != (uid_t) md.uid()) /* a create */) &&
-	   !CheckOwnerAcl(md, vid, pcmd, false)) {
-	return EPERM;
+      if (!fmd) {
+	if ( ((md.uid() != vid.uid)||(md.gid() != vid.gid)) && !CheckOwnerAcl(md, vid, pcmd) ) /* create requiring chown */ {
+	  return EPERM;
+	}
+      } else {
+	if ( (fmd->getCUid() != (uid_t) md.uid()) /* an update requiring chown */ &&
+	     !CheckOwnerAcl(md, vid, pcmd)) {
+	  return EPERM;
+	}
       }
 
       fmd = gOFS->eosFileService->createFile(0);
