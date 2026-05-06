@@ -161,14 +161,17 @@ ProcCommand::OpenTemporaryOutputFiles()
   if ((!fstdout) || (!fstderr) || (!fresultStream)) {
     if (fstdout) {
       fclose(fstdout);
+      fstdout = nullptr;
     }
 
     if (fstderr) {
       fclose(fstderr);
+      fstderr = nullptr;
     }
 
     if (fresultStream) {
       fclose(fresultStream);
+      fresultStream = nullptr;
     }
 
     return false;
