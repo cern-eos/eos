@@ -785,10 +785,43 @@ HttpHandler::Delete(eos::common::HttpRequest* request)
     return response;
   }
 
-  XrdOucString info = "mgm.cmd=rm&mgm.path=";
-  info += request->GetUrl().c_str();
+  // Honour the WebDAV/HTTP Depth header on directories: only "infinity"
+  // (the default in the WebDAV RFCs) opts in to a recursive delete.
+  // Without this check a single DELETE on a non-empty directory always
+  // recurses, which surprises COPY-then-DELETE move sequences and lets a
+  // mistyped trailing slash wipe an entire subtree.  See fix5.html / H-3.
+  bool recursive = true;
 
   if (S_ISDIR(buf.st_mode)) {
+    auto it_depth = request->GetHeaders().find("depth");
+
+    if (it_depth != request->GetHeaders().end()) {
+      std::string depth = it_depth->second;
+      std::transform(depth.begin(), depth.end(), depth.begin(),
+                     [](unsigned char c) { return std::tolower(c); });
+
+      if (depth == "0") {
+        recursive = false;
+      } else if (depth != "infinity" && depth != "1") {
+        eos_static_warning("method=DELETE error=invalid-depth depth=\"%s\" "
+                           "path=\"%s\"", it_depth->second.c_str(),
+                           url.c_str());
+        response = HttpServer::HttpError("invalid Depth header",
+                                         response->BAD_REQUEST);
+        return response;
+      }
+    }
+  }
+
+  // URL-encode the path before splicing it into the /proc/user opaque so
+  // '&' / '=' in pathnames cannot inject extra mgm.* / eos.* parameters.
+  // See fix5.html / H-1, H-3.
+  std::string enc_url =
+    eos::common::StringConversion::curl_path_escaped(request->GetUrl());
+  XrdOucString info = "mgm.cmd=rm&mgm.path=";
+  info += enc_url.c_str();
+
+  if (S_ISDIR(buf.st_mode) && recursive) {
     info += "&mgm.option=r";
   }
 
