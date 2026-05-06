@@ -872,8 +872,8 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     }
   }
 
-  if (const uint64_t sleep_time_micro_sec =
-          gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid);
+  if (const uint64_t sleep_time_micro_sec = gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(
+          vid, static_cast<uint64_t>(buffer_size));
       sleep_time_micro_sec > 0) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
@@ -1028,7 +1028,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
   }
 
   if (const uint64_t sleep_time_micro_sec =
-          gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid);
+          gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid, total_read);
       sleep_time_micro_sec > 0) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
@@ -1113,8 +1113,8 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
                    std::unique_lock<std::mutex>() :
                    std::unique_lock<std::mutex>(*mutex);
 
-  if (const uint64_t sleep_time_micro_sec =
-          gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(vid);
+  if (const uint64_t sleep_time_micro_sec = gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(
+          vid, static_cast<uint64_t>(buffer_size));
       sleep_time_micro_sec > 0) {
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }

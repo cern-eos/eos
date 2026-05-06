@@ -115,15 +115,17 @@ public:
   }
 
   uint64_t
-  GetReadDelayForAppUidGid(const eos::common::VirtualIdentity& vid) const
+  GetReadDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
+                           const uint64_t bytes = 0) const
   {
-    return GetDelayForAppUidGid(vid, /*is_write=*/false);
+    return GetDelayForAppUidGid(vid, bytes, /*is_write=*/false);
   }
 
   uint64_t
-  GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid) const
+  GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
+                            const uint64_t bytes = 0) const
   {
-    return GetDelayForAppUidGid(vid, /*is_write=*/true);
+    return GetDelayForAppUidGid(vid, bytes, /*is_write=*/true);
   }
 
   void
@@ -149,11 +151,16 @@ public:
 
 private:
   uint64_t
-  GetDelayForAppUidGid(const eos::common::VirtualIdentity& vid, bool is_write) const
+  GetDelayForAppUidGid(const eos::common::VirtualIdentity& vid, const uint64_t bytes,
+                       bool is_write) const
   {
     if (!IsEnabled()) {
       return 0;
     }
+
+    // The current delay config is still per operation. Keep the request size in
+    // the API so the next scheduler can account delay by bytes at the call site.
+    (void)bytes;
 
     const std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
         cfg = std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
