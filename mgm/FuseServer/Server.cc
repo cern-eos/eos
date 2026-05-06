@@ -104,6 +104,34 @@ parse_attr_ull(const std::string& s, unsigned long long fallback = 0) noexcept
   }
 }
 
+//------------------------------------------------------------------------------
+// Reject anything that is not a single legal POSIX leaf component.
+// Used at the entry of OpSetDirectory / OpSetFile / OpSetLink so the wire
+// md.name() never reaches the namespace store as "", ".", "..", or a
+// path with embedded '/' / NUL.
+//------------------------------------------------------------------------------
+
+inline bool
+IsValidLeafName(const std::string& name) noexcept
+{
+  if (name.empty()) {
+    return false;
+  }
+  if (name == "." || name == "..") {
+    return false;
+  }
+  if (name.size() > 255) {           // NAME_MAX
+    return false;
+  }
+  if (name.find('/')  != std::string::npos) {
+    return false;
+  }
+  if (name.find('\0') != std::string::npos) {
+    return false;
+  }
+  return true;
+}
+
 } // anonymous namespace
 
 
@@ -1576,6 +1604,15 @@ Server::OpSetDirectory(const std::string& id,
 {
   gOFS->MgmStats.Add("Eosxd::ext::SETDIR", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETDIR");
+
+  if (!IsValidLeafName(md.name())) {
+    eos_err("msg=\"invalid leaf name\" op=setdir ino=%lx pino=%lx "
+            "name-len=%zu uid=%u",
+            (long) md.md_ino(), (long) md.md_pino(),
+            md.name().size(), vid.uid);
+    return EINVAL;
+  }
+
   uint64_t md_pino = md.md_pino();
 
   if (!md_pino) {
@@ -2004,6 +2041,15 @@ Server::OpSetFile(const std::string& id,
 {
   gOFS->MgmStats.Add("Eosxd::ext::SETFILE", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETFILE");
+
+  if (!IsValidLeafName(md.name())) {
+    eos_err("msg=\"invalid leaf name\" op=setfile ino=%lx pino=%lx "
+            "name-len=%zu uid=%u",
+            (long) md.md_ino(), (long) md.md_pino(),
+            md.name().size(), vid.uid);
+    return EINVAL;
+  }
+
   enum set_type {
     CREATE, UPDATE, RENAME, MOVE
   };
@@ -2868,6 +2914,15 @@ Server::OpSetLink(const std::string& id,
 {
   gOFS->MgmStats.Add("Eosxd::ext::SETLNK", vid.uid, vid.gid, 1, vid.app);
   EXEC_TIMING_BEGIN("Eosxd::ext::SETLNK");
+
+  if (!IsValidLeafName(md.name())) {
+    eos_err("msg=\"invalid leaf name\" op=setlnk ino=%lx pino=%lx "
+            "name-len=%zu uid=%u",
+            (long) md.md_ino(), (long) md.md_pino(),
+            md.name().size(), vid.uid);
+    return EINVAL;
+  }
+
   enum set_type {
     CREATE, UPDATE, RENAME, MOVE
   };
