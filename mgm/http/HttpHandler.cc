@@ -212,6 +212,22 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
       if ((!gOFS->_readlink(url.c_str(), error, *mVirtualIdentity, link)) &&
           (link != "") && (link.beginswith("http://") ||
                            link.beginswith("https://"))) {
+        // Refuse CR / LF in the symlink target before stuffing it into the
+        // Location header; otherwise the symlink owner could inject extra
+        // response headers (response splitting).  X-Accel-Redirect and
+        // X-Sendfile (reverse-proxy directives) are no longer emitted by
+        // default; set EOS_MGM_HTTP_LEGACY_REDIRECT_HEADERS=1 to restore.
+        // See fix5.html / H-7.
+        std::string slink(link.c_str(), link.length());
+
+        if (slink.find('\r') != std::string::npos ||
+            slink.find('\n') != std::string::npos) {
+          eos_static_warning("method=GET error=invalid-symlink-target "
+                             "path=\"%s\"", url.c_str());
+          response = HttpServer::HttpError("invalid symlink target", EINVAL);
+          return response;
+        }
+
         if (gOFS->access(url.c_str(), R_OK, error, &client, query.c_str())) {
           // no permission or entry doesn't exist
           eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
@@ -227,9 +243,13 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         response = new eos::common::PlainHttpResponse();
         response->SetResponseCode(
           eos::common::HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
-        response->AddHeader("Location", link.c_str());
-        response->AddHeader("X-Accel-Redirect", link.c_str());
-        response->AddHeader("X-Sendfile", link.c_str());
+        response->AddHeader("Location", slink);
+
+        if (getenv("EOS_MGM_HTTP_LEGACY_REDIRECT_HEADERS")) {
+          response->AddHeader("X-Accel-Redirect", slink);
+          response->AddHeader("X-Sendfile", slink);
+        }
+
         return response;
       } else {
         if (gOFS->access(url.c_str(), R_OK, error, &client, query.c_str())) {
@@ -349,6 +369,26 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
 
       if (!gOFS->_attr_get(url.c_str(), error, *mVirtualIdentity, query.c_str(),
                            "sys.http.index", index)) {
+        // Validate the sys.http.index target: only an absolute path
+        // ("/...") or an http(s) URL is acceptable.  Reject CR / LF to
+        // prevent response-header splitting via a malicious xattr.
+        // X-Accel-Redirect / X-Sendfile are no longer emitted by
+        // default; set EOS_MGM_HTTP_LEGACY_REDIRECT_HEADERS=1 to
+        // restore.  See fix5.html / H-7.
+        bool valid_index =
+          (index.compare(0, 7, "http://") == 0) ||
+          (index.compare(0, 8, "https://") == 0) ||
+          (!index.empty() && index[0] == '/');
+
+        if (!valid_index || index.find('\r') != std::string::npos ||
+            index.find('\n') != std::string::npos) {
+          eos_static_warning("method=GET error=invalid-sys-http-index "
+                             "path=\"%s\"", url.c_str());
+          response = HttpServer::HttpError("invalid sys.http.index target",
+                                           EINVAL);
+          return response;
+        }
+
         if (gOFS->access(url.c_str(), R_OK, error, &client, query.c_str())) {
           // no permission or entry doesn't exist
           eos_static_info("method=GET error=%i path=%s", error.getErrInfo(),
@@ -365,8 +405,11 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         response->SetResponseCode(
           eos::common::HttpResponse::ResponseCodes::TEMPORARY_REDIRECT);
         response->AddHeader("Location", index.c_str());
-        response->AddHeader("X-Accel-Redirect", index.c_str());
-        response->AddHeader("X-Sendfile", index.c_str());
+
+        if (getenv("EOS_MGM_HTTP_LEGACY_REDIRECT_HEADERS")) {
+          response->AddHeader("X-Accel-Redirect", index.c_str());
+          response->AddHeader("X-Sendfile", index.c_str());
+        }
         return response;
       }
     }
