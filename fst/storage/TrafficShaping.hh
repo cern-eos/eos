@@ -21,6 +21,11 @@ namespace eos::fst::traffic_shaping {
 using IoStatsKey = eos::common::traffic_shaping::IoStatsKey;
 using IoStatsKeyHash = eos::common::traffic_shaping::IoStatsKeyHash;
 
+inline constexpr uint64_t kIoDelayReferenceBytes = 1024 * 1024;
+inline constexpr uint64_t kMaxScaledIoDelayUs = 30ULL * 1000 * 1000;
+inline constexpr uint64_t kReadDelaySafetyNumerator = 4;
+inline constexpr uint64_t kReadDelaySafetyDenominator = 3;
+
 // "alignas(64)" prevents False Sharing (cache line bouncing) between threads.
 struct alignas(64) IoStatsEntry {
   std::atomic<uint64_t> bytes_read{0};
@@ -158,10 +163,6 @@ private:
       return 0;
     }
 
-    // The current delay config is still per operation. Keep the request size in
-    // the API so the next scheduler can account delay by bytes at the call site.
-    (void)bytes;
-
     const std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
         cfg = std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
 
@@ -183,7 +184,23 @@ private:
       check(cfg->gid_read_delay(), vid.gid);
     }
 
-    return max_delay;
+    if (max_delay == 0 || bytes == 0) {
+      return max_delay;
+    }
+
+    if (bytes > kMaxScaledIoDelayUs * kIoDelayReferenceBytes / max_delay) {
+      return kMaxScaledIoDelayUs;
+    }
+
+    uint64_t scaled_delay =
+        std::max<uint64_t>(1, (max_delay * bytes) / kIoDelayReferenceBytes);
+
+    if (!is_write) {
+      scaled_delay =
+          (scaled_delay * kReadDelaySafetyNumerator) / kReadDelaySafetyDenominator;
+    }
+
+    return std::min(kMaxScaledIoDelayUs, scaled_delay);
   }
 
   std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>

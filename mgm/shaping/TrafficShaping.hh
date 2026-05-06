@@ -359,6 +359,7 @@ private:
   std::unordered_map<std::string, MultiWindowRate> mNodeStats;
   std::unordered_map<DiskKey, MultiWindowRate, DiskKeyHash> mDiskStats;
   std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mDetailedStats;
+  std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mNodeEntityStats;
   // We provide an initial tick interval but this will be refreshed on initialization
   MultiWindowRate mTotalStats{0.5};
 
@@ -366,7 +367,8 @@ private:
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
   std::unordered_map<std::string, TrafficShapingPolicy> mAppPolicies;
 
-  eos::traffic_shaping::TrafficShapingFstIoDelayConfig mFstIoDelayConfig;
+  std::unordered_map<std::string, eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
+      mNodeFstIoDelayConfigs;
 
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       estimators_update_loop_micro_sec;
