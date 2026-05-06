@@ -5,8 +5,16 @@
 #include "common/shaping/SlidingWindowStats.hh"
 #include "proto/TrafficShaping.pb.h"
 
+#include <algorithm>
+#include <array>
 #include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <ctime>
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <shared_mutex>
 #include <string>
@@ -482,7 +490,7 @@ private:
 
   bool ApplyDetailLevelConfig(const std::string& detail_level);
 
-  void StoreDetailLevelConfig(const std::string& detail_level);
+  static void StoreDetailLevelConfig(const std::string& detail_level);
 
   void EstimatorsUpdate(ThreadAssistant&);
 

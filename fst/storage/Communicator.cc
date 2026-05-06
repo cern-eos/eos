@@ -24,13 +24,25 @@
 #include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
+#include "common/mq/SharedHashWrapper.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
-#include "mq/SharedHashWrapper.hh"
-#include "qclient/shared/SharedHashSubscription.hh"
-#include "qclient/structures/QScanner.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/shared/SharedHashSubscription.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QScanner.hh"
+
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <exception>
+#include <functional>
+#include <mutex>
+#include <set>
+#include <string>
+#include <thread>
+#include <vector>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -187,7 +199,7 @@ ProcessFstIoLimitsCommand(const std::string& data)
 }
 
 //------------------------------------------------------------------------------
-// Handle traffix shaping enforcement
+// Handle traffic shaping enforcement
 //------------------------------------------------------------------------------
 void
 ProcessTrafficShapingToggle(bool enable)

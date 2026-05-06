@@ -1,4 +1,6 @@
 #include "fst/storage/TrafficShaping.hh"
+
+#include <chrono>
 #include <mutex>
 
 namespace eos::fst::traffic_shaping {

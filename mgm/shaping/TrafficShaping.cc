@@ -1,14 +1,16 @@
 #include "mgm/shaping/TrafficShaping.hh"
-#include "Constants.hh"
+#include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include "config/IConfigEngine.hh"
-#include "fsview/FsView.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include "namespace/interface/IFsView.hh"
 
 #include "proto/TrafficShaping.pb.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <dlfcn.h>
 #include <google/protobuf/util/json_util.h>
 #include <set>
@@ -16,6 +18,36 @@
 #include <sys/stat.h>
 
 namespace eos::mgm::traffic_shaping {
+
+namespace {
+template <typename DelayMap, typename Key>
+void
+ScaleDelayForLimitChange(DelayMap* delays, const Key& key, const uint64_t old_limit,
+                         const uint64_t new_limit)
+{
+  if (old_limit == new_limit) {
+    return;
+  }
+
+  if (new_limit == 0) {
+    delays->erase(key);
+    return;
+  }
+
+  if (old_limit == 0) {
+    return;
+  }
+
+  auto it = delays->find(key);
+  if (it == delays->end() || it->second == 0) {
+    return;
+  }
+
+  const long double scaled_delay =
+      static_cast<long double>(it->second) * old_limit / new_limit;
+  it->second = std::max<uint64_t>(1, static_cast<uint64_t>(scaled_delay + 0.5L));
+}
+} // namespace
 
 uint64_t
 TrafficShapingPolicy::GetEffectiveWriteLimit() const
@@ -653,7 +685,7 @@ TrafficShapingManager::UpdateLimits()
     return 0.0;
   };
   {
-    std::shared_lock lock(mMutex);
+    std::unique_lock lock(mMutex);
 
     for (const auto& [app, policy] : mAppPolicies) {
       if (!policy.IsActive()) {
@@ -1018,7 +1050,8 @@ TrafficShapingEngine::TrafficShapingEngine()
     : mRunning(false)
     , mEstimatorsUpdateThreadPeriodMilliseconds(200)
     , mFstIoPolicyUpdateThreadPeriodMilliseconds(200)
-    , mFstIoStatsReportThreadPeriodMilliseconds(200)
+    , mFstIoStatsReportThreadPeriodMilliseconds(
+          eos::common::TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS)
     , mSystemStatsWindowSeconds(15)
     , mFilesystemDetailEnabled(false)
 {
@@ -1193,8 +1226,6 @@ TrafficShapingEngine::StoreThreadConfig()
 void
 TrafficShapingEngine::ApplyConfig()
 {
-  EnsureFstEnabledSyncThread();
-
   const bool is_enabled =
       FsView::gFsView.GetBoolGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG);
   eos_static_info("msg=\"Applying Traffic Shaping Config\" enabled=%s",
@@ -1254,8 +1285,7 @@ TrafficShapingEngine::ApplyConfig()
     ApplyDetailLevelConfig(detail_level);
   }
 
-  SyncTrafficShapingEnabledWithFst();
-  SyncTrafficShapingConfigWithFst();
+  EnsureFstEnabledSyncThread();
 }
 
 void
@@ -1422,7 +1452,7 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
         std::chrono::duration_cast<std::chrono::microseconds>(work_done - now).count();
 
     if (static_cast<double>(work_duration_micro_sec) >
-        static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.1 * 1000.0) {
+        static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.5 * 1000.0) {
       eos_static_warning(
           "msg=\"Traffic Shaping Estimators Update loop is slow\" work_duration_ms=%.2f",
           static_cast<double>(work_duration_micro_sec) / 1000.0);
@@ -1472,6 +1502,7 @@ TrafficShapingEngine::FstTrafficShapingEnabledUpdate(ThreadAssistant& assistant)
     }
 
     SyncTrafficShapingEnabledWithFst();
+    SyncTrafficShapingConfigWithFst();
   }
 }
 
@@ -1601,16 +1632,26 @@ TrafficShapingManager::SetUidPolicy(const uint32_t uid,
     if (policy.IsEmpty()) {
       if (it != mUidPolicies.end()) {
         mUidPolicies.erase(it);
+        mFstIoDelayConfig.mutable_uid_write_delay()->erase(uid);
+        mFstIoDelayConfig.mutable_uid_read_delay()->erase(uid);
         config_changed = true;
         eos_static_info("msg=\"Removed empty UID Traffic Shaping Policy\" uid=%u", uid);
       }
     } else {
       if (it == mUidPolicies.end()) {
         mUidPolicies[uid] = policy;
+        mFstIoDelayConfig.mutable_uid_write_delay()->erase(uid);
+        mFstIoDelayConfig.mutable_uid_read_delay()->erase(uid);
         config_changed = true;
         eos_static_info("msg=\"Set UID Traffic Shaping Policy\" uid=%u policy=%s", uid,
                         policy.ToString().c_str());
       } else {
+        const uint64_t old_write_limit = it->second.GetEffectiveWriteLimit();
+        const uint64_t new_write_limit = policy.GetEffectiveWriteLimit();
+        const uint64_t old_read_limit = it->second.GetEffectiveReadLimit();
+        const uint64_t new_read_limit = policy.GetEffectiveReadLimit();
+        const bool write_limit_changed = old_write_limit != new_write_limit;
+        const bool read_limit_changed = old_read_limit != new_read_limit;
         // operator!= ignores controller limits, so it only flags true user config changes
         if (it->second != policy) {
           config_changed = true;
@@ -1618,6 +1659,14 @@ TrafficShapingManager::SetUidPolicy(const uint32_t uid,
         // Always update in-memory to reflect any potential ephemeral controller limit
         // changes
         it->second = policy;
+        if (write_limit_changed) {
+          ScaleDelayForLimitChange(mFstIoDelayConfig.mutable_uid_write_delay(), uid,
+                                   old_write_limit, new_write_limit);
+        }
+        if (read_limit_changed) {
+          ScaleDelayForLimitChange(mFstIoDelayConfig.mutable_uid_read_delay(), uid,
+                                   old_read_limit, new_read_limit);
+        }
         eos_static_info("msg=\"Updated UID Traffic Shaping Policy\" uid=%u policy=%s "
                         "persistent_changed=%d",
                         uid, policy.ToString().c_str(), config_changed);
@@ -1648,20 +1697,38 @@ TrafficShapingManager::SetGidPolicy(const uint32_t gid,
     if (policy.IsEmpty()) {
       if (it != mGidPolicies.end()) {
         mGidPolicies.erase(it);
+        mFstIoDelayConfig.mutable_gid_write_delay()->erase(gid);
+        mFstIoDelayConfig.mutable_gid_read_delay()->erase(gid);
         config_changed = true;
         eos_static_info("msg=\"Removed empty GID Traffic Shaping Policy\" gid=%u", gid);
       }
     } else {
       if (it == mGidPolicies.end()) {
         mGidPolicies[gid] = policy;
+        mFstIoDelayConfig.mutable_gid_write_delay()->erase(gid);
+        mFstIoDelayConfig.mutable_gid_read_delay()->erase(gid);
         config_changed = true;
         eos_static_info("msg=\"Set GID Traffic Shaping Policy\" gid=%u policy=%s", gid,
                         policy.ToString().c_str());
       } else {
+        const uint64_t old_write_limit = it->second.GetEffectiveWriteLimit();
+        const uint64_t new_write_limit = policy.GetEffectiveWriteLimit();
+        const uint64_t old_read_limit = it->second.GetEffectiveReadLimit();
+        const uint64_t new_read_limit = policy.GetEffectiveReadLimit();
+        const bool write_limit_changed = old_write_limit != new_write_limit;
+        const bool read_limit_changed = old_read_limit != new_read_limit;
         if (it->second != policy) {
           config_changed = true;
         }
         it->second = policy;
+        if (write_limit_changed) {
+          ScaleDelayForLimitChange(mFstIoDelayConfig.mutable_gid_write_delay(), gid,
+                                   old_write_limit, new_write_limit);
+        }
+        if (read_limit_changed) {
+          ScaleDelayForLimitChange(mFstIoDelayConfig.mutable_gid_read_delay(), gid,
+                                   old_read_limit, new_read_limit);
+        }
         eos_static_info("msg=\"Updated GID Traffic Shaping Policy\" gid=%u policy=%s "
                         "persistent_changed=%d",
                         gid, policy.ToString().c_str(), config_changed);
@@ -1692,6 +1759,8 @@ TrafficShapingManager::SetAppPolicy(const std::string& app,
     if (policy.IsEmpty()) {
       if (it != mAppPolicies.end()) {
         mAppPolicies.erase(it);
+        mFstIoDelayConfig.mutable_app_write_delay()->erase(app);
+        mFstIoDelayConfig.mutable_app_read_delay()->erase(app);
         config_changed = true;
         eos_static_info("msg=\"Removed empty App Traffic Shaping Policy\" app=%s",
                         app.c_str());
@@ -1699,14 +1768,30 @@ TrafficShapingManager::SetAppPolicy(const std::string& app,
     } else {
       if (it == mAppPolicies.end()) {
         mAppPolicies[app] = policy;
+        mFstIoDelayConfig.mutable_app_write_delay()->erase(app);
+        mFstIoDelayConfig.mutable_app_read_delay()->erase(app);
         config_changed = true;
         eos_static_info("msg=\"Set App Traffic Shaping Policy\" app=%s policy=%s",
                         app.c_str(), policy.ToString().c_str());
       } else {
+        const uint64_t old_write_limit = it->second.GetEffectiveWriteLimit();
+        const uint64_t new_write_limit = policy.GetEffectiveWriteLimit();
+        const uint64_t old_read_limit = it->second.GetEffectiveReadLimit();
+        const uint64_t new_read_limit = policy.GetEffectiveReadLimit();
+        const bool write_limit_changed = old_write_limit != new_write_limit;
+        const bool read_limit_changed = old_read_limit != new_read_limit;
         if (it->second != policy) {
           config_changed = true;
         }
         it->second = policy;
+        if (write_limit_changed) {
+          ScaleDelayForLimitChange(mFstIoDelayConfig.mutable_app_write_delay(), app,
+                                   old_write_limit, new_write_limit);
+        }
+        if (read_limit_changed) {
+          ScaleDelayForLimitChange(mFstIoDelayConfig.mutable_app_read_delay(), app,
+                                   old_read_limit, new_read_limit);
+        }
         eos_static_info("msg=\"Updated App Traffic Shaping Policy\" app=%s policy=%s "
                         "persistent_changed=%d",
                         app.c_str(), policy.ToString().c_str(), config_changed);
