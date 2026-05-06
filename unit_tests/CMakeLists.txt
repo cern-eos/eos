@@ -90,6 +90,7 @@ set(MGM_UT_SRCS
   mgm/PolicyTests.cc
   mgm/RecycleTests.cc
   mgm/RecyclePolicyTests.cc
+  mgm/TrafficShapingTests.cc
   mgm/placement/ClusterMapTests.cc
   mgm/placement/RRSeedTests.cc
   mgm/placement/SchedulerTests.cc
