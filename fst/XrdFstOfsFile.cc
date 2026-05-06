@@ -2894,6 +2894,16 @@ int
 XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
 {
   EPNAME(__FUNCTION__);
+
+  // Defense-in-depth: refuse the open if the framework hands us a null
+  // XrdSecEntity. Normal XRootD paths always populate it, but a custom OFS
+  // wrapper or a future API change must not turn this into a crash.
+  if (!client) {
+    eos_err("%s", "msg=\"null XrdSecEntity in TPC opaque processing\"");
+    return gOFS.Emsg(epname, error, EINVAL,
+                     "open - missing security entity", mNsPath.c_str());
+  }
+
   mIsHttp = (client->tident ? (strncmp(client->tident, "http", 4) == 0) : false);
   eos::common::StringConversion::ReplaceStringInPlace(opaque, "?", "&");
   eos::common::StringConversion::ReplaceStringInPlace(opaque, "&&", "&");
@@ -2940,8 +2950,15 @@ XrdFstOfsFile::ProcessTpcOpaque(std::string& opaque, const XrdSecEntity* client)
     // @todo(esindril) Xrootd 4.0
     // std::string origin_host = client->addrInfo->Name();
     std::string origin_host = client->host ? client->host : "<sss-auth>";
-    std::string origin_tident = client->tident;
-    origin_tident.erase(origin_tident.find(":"));
+    // tident may be null and may not contain a ':'. Guard both: erase(npos)
+    // would throw std::out_of_range and kill the worker handling the open.
+    std::string origin_tident = client->tident ? client->tident : "";
+    const auto colon_pos = origin_tident.find(':');
+
+    if (colon_pos != std::string::npos) {
+      origin_tident.erase(colon_pos);
+    }
+
     tpc_org = origin_tident;
     tpc_org += "@";
     tpc_org += origin_host;
