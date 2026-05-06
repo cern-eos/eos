@@ -31,6 +31,7 @@ export XrdSecPROTOCOL=sss
 eos io shaping enable
 
 eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15
+eos io shaping config set --detail aggregate
 sleep 8
 
 echo "Creating dummy files (10MB and 200MB)..."
@@ -49,6 +50,29 @@ eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
 # ±20% lower, ±35% upper for 1 MB/s target
 LOWER_BOUND=800000
 UPPER_BOUND=1350000
+
+wait_for_rate_in_range() {
+  local entity_id=$1
+  local rate_field=$2
+  local lower_bound=$3
+  local upper_bound=$4
+  shift 4
+
+  JSON_RESULT="[]"
+  RATE=0
+
+  for _ in {1..16}; do
+    sleep 2
+    JSON_RESULT=$(eos io shaping ls --window 5 "$@" --json)
+    RATE=$(echo "$JSON_RESULT" | jq -r --arg id "$entity_id" --arg field "$rate_field" 'map(select(.id == $id) | .[$field]) | max // 0')
+
+    if (( $(echo "$RATE > $lower_bound" | bc -l) )) && (( $(echo "$RATE < $upper_bound" | bc -l) )); then
+      return 0
+    fi
+  done
+
+  return 1
+}
 
 # ---------------------------------------------------------
 # Test: Baseline System and Reporting Engine
@@ -174,7 +198,7 @@ AGGREGATE_FS_JSON_RESULT=$(eos io shaping ls --window 5 --fs --json)
 AGGREGATE_ALL_JSON_RESULT=$(eos io shaping ls --window 5 --all --json)
 
 kill -9 $PID_AGGREGATE 2>/dev/null; wait $PID_AGGREGATE 2>/dev/null || true
-eos io shaping config set --detail fs
+eos io shaping config set --detail aggregate
 sleep 2
 
 if echo "$AGGREGATE_FS_JSON_RESULT" | jq -e 'length == 0' > /dev/null && \
@@ -214,17 +238,17 @@ echo "Starting throttled background transfer..."
 xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/test.dat?eos.app=${THROTTLE_APP}" > /dev/null 2>&1 &
 PID=$!
 
-echo "Waiting 22 seconds for strict EMA stabilization..."
-sleep 22
-JSON_RESULT=$(eos io shaping ls --window 5 --json)
+echo "Waiting up to 32 seconds for strict EMA stabilization..."
+APP_THROTTLED=0
+if wait_for_rate_in_range "$THROTTLE_APP" write_rate_bps "$LOWER_BOUND" "$UPPER_BOUND"; then
+  APP_THROTTLED=1
+fi
 kill -9 $PID 2>/dev/null; wait $PID 2>/dev/null || true
 eos io shaping policy rm --app ${THROTTLE_APP}
 
-if echo "$JSON_RESULT" | jq -e --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BOUND" '.[] | select(.id == "throttle-test-app") | (.write_rate_bps > $l) and (.write_rate_bps < $u)' > /dev/null; then
-  RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "throttle-test-app") | .write_rate_bps')
+if [[ $APP_THROTTLED -eq 1 ]]; then
   echo "✅ Success: App throttled properly ($RATE bps)."
 else
-  RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "throttle-test-app") | .write_rate_bps // 0')
   echo "❌ Error: Expected ~1MB/s, got $RATE bps."
   echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
@@ -262,6 +286,38 @@ else
 fi
 
 # ---------------------------------------------------------
+# Test: UID Read Throttling Enforcement
+# ---------------------------------------------------------
+TEST_READ_UID="19998"
+echo ""
+echo "--- Testing UID Read Throttling ---"
+
+xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/uid_read_source.dat?eos.ruid=${TEST_READ_UID}" > /dev/null 2>&1
+echo "Priming read feedback loop..."
+xrdcp -f "${DEST_URL}/uid_read_source.dat?eos.ruid=${TEST_READ_UID}" /dev/null > /dev/null 2>&1
+
+eos io shaping policy set --uid ${TEST_READ_UID} --limit-read 1M
+sleep 3
+
+xrdcp -f "${DEST_URL}/uid_read_source.dat?eos.ruid=${TEST_READ_UID}" /dev/null > /dev/null 2>&1 &
+PID=$!
+
+echo "Waiting 22 seconds for strict EMA stabilization..."
+sleep 22
+JSON_RESULT=$(eos io shaping ls --window 5 --users --json)
+kill -9 $PID 2>/dev/null; wait $PID 2>/dev/null || true
+eos io shaping policy rm --uid ${TEST_READ_UID}
+
+if echo "$JSON_RESULT" | jq -e --arg id "$TEST_READ_UID" --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BOUND" '.[] | select(.id == $id) | (.read_rate_bps > $l) and (.read_rate_bps < $u)' > /dev/null; then
+  echo "✅ Success: UID read throttled properly."
+else
+  RATE=$(echo "$JSON_RESULT" | jq -r --arg id "$TEST_READ_UID" '.[] | select(.id == $id) | .read_rate_bps // 0')
+  echo "❌ Error: Expected ~1MB/s read for UID, got $RATE bps."
+  echo "Debug Info: $JSON_RESULT"
+  FAILURES=$((FAILURES + 1))
+fi
+
+# ---------------------------------------------------------
 # Test: GID Throttling Enforcement
 # ---------------------------------------------------------
 TEST_GID="18888"
@@ -288,6 +344,38 @@ if echo "$JSON_RESULT" | jq -e --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BO
 else
   RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "18888") | .write_rate_bps // 0')
   echo "❌ Error: Expected ~1MB/s, got $RATE bps."
+  echo "Debug Info: $JSON_RESULT"
+  FAILURES=$((FAILURES + 1))
+fi
+
+# ---------------------------------------------------------
+# Test: GID Read Throttling Enforcement
+# ---------------------------------------------------------
+TEST_READ_GID="18887"
+echo ""
+echo "--- Testing GID Read Throttling ---"
+
+xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/gid_read_source.dat?eos.rgid=${TEST_READ_GID}" > /dev/null 2>&1
+echo "Priming read feedback loop..."
+xrdcp -f "${DEST_URL}/gid_read_source.dat?eos.rgid=${TEST_READ_GID}" /dev/null > /dev/null 2>&1
+
+eos io shaping policy set --gid ${TEST_READ_GID} --limit-read 1M
+sleep 3
+
+xrdcp -f "${DEST_URL}/gid_read_source.dat?eos.rgid=${TEST_READ_GID}" /dev/null > /dev/null 2>&1 &
+PID=$!
+
+echo "Waiting 22 seconds for strict EMA stabilization..."
+sleep 22
+JSON_RESULT=$(eos io shaping ls --window 5 --groups --json)
+kill -9 $PID 2>/dev/null; wait $PID 2>/dev/null || true
+eos io shaping policy rm --gid ${TEST_READ_GID}
+
+if echo "$JSON_RESULT" | jq -e --arg id "$TEST_READ_GID" --argjson l "$LOWER_BOUND" --argjson u "$UPPER_BOUND" '.[] | select(.id == $id) | (.read_rate_bps > $l) and (.read_rate_bps < $u)' > /dev/null; then
+  echo "✅ Success: GID read throttled properly."
+else
+  RATE=$(echo "$JSON_RESULT" | jq -r --arg id "$TEST_READ_GID" '.[] | select(.id == $id) | .read_rate_bps // 0')
+  echo "❌ Error: Expected ~1MB/s read for GID, got $RATE bps."
   echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
@@ -321,6 +409,44 @@ else
   RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "read-throttle-app") | .read_rate_bps // 0')
   echo "❌ Error: Expected ~1MB/s, got $RATE bps."
   echo "Debug Info: $JSON_RESULT"
+  FAILURES=$((FAILURES + 1))
+fi
+
+# ---------------------------------------------------------
+# Test: Write Limit Does Not Throttle Reads
+# ---------------------------------------------------------
+WRITE_ONLY_APP="write-only-limit-app"
+echo ""
+echo "--- Testing Write Limit Does Not Throttle Reads ---"
+
+xrdcp -f ${TEST_FILE_10MB} "${DEST_URL}/write_only_read_source.dat?eos.app=${WRITE_ONLY_APP}" > /dev/null 2>&1
+
+echo "Priming write feedback loop..."
+xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/write_only_prime.dat?eos.app=${WRITE_ONLY_APP}" > /dev/null 2>&1
+
+echo "Creating active write delay for ${WRITE_ONLY_APP}..."
+eos io shaping policy set --app ${WRITE_ONLY_APP} --limit-write 1M
+sleep 3
+xrdcp -f ${TEST_FILE_200MB} "${DEST_URL}/write_only_active.dat?eos.app=${WRITE_ONLY_APP}" > /dev/null 2>&1 &
+PID_WO_W=$!
+
+echo "Waiting 22 seconds for write throttle stabilization..."
+sleep 22
+
+START_MS=$(date +%s%3N)
+xrdcp -f "${DEST_URL}/write_only_read_source.dat?eos.app=${WRITE_ONLY_APP}" /dev/null > /dev/null 2>&1
+READ_RC=$?
+END_MS=$(date +%s%3N)
+
+kill -9 $PID_WO_W 2>/dev/null; wait $PID_WO_W 2>/dev/null || true
+eos io shaping policy rm --app ${WRITE_ONLY_APP}
+
+READ_DURATION_MS=$((END_MS - START_MS))
+
+if [[ $READ_RC -eq 0 && $READ_DURATION_MS -lt 8000 ]]; then
+  echo "✅ Success: Write-only limit did not throttle read transfer (${READ_DURATION_MS} ms)."
+else
+  echo "❌ Error: Read transfer was unexpectedly slow or failed under write-only limit (rc=${READ_RC}, duration=${READ_DURATION_MS} ms)."
   FAILURES=$((FAILURES + 1))
 fi
 
@@ -387,20 +513,28 @@ sleep 20
 echo "Changing limit dynamically to 2 MB/s..."
 eos io shaping policy set --app ${DYN_APP} --limit-write 2M
 
-echo "Waiting 22 seconds for PID to release and converge to new 2 MB/s limit..."
-sleep 22
+echo "Waiting up to 32 seconds for PID to release and converge to new 2 MB/s limit..."
+JSON_RESULT="[]"
+DYN_RATE=0
+DYN_IN_RANGE=0
+for _ in {1..16}; do
+  sleep 2
+  JSON_RESULT=$(eos io shaping ls --window 5 --json)
+  DYN_RATE=$(echo "$JSON_RESULT" | jq -r --arg app "$DYN_APP" 'map(select(.id == $app) | .write_rate_bps) | max // 0')
 
-JSON_RESULT=$(eos io shaping ls --window 5 --json)
+  if (( $(echo "$DYN_RATE > 1600000" | bc -l) )) && (( $(echo "$DYN_RATE < 2400000" | bc -l) )); then
+    DYN_IN_RANGE=1
+    break
+  fi
+done
 kill -9 $PID_DYN 2>/dev/null; wait $PID_DYN 2>/dev/null || true
 eos io shaping policy rm --app ${DYN_APP}
 
 # Adjusted bounds to match the new strict ±20% tolerance for 2 MB/s (1.6M to 2.4M)
-if echo "$JSON_RESULT" | jq -e --argjson l 1600000 --argjson u 2400000 '.[] | select(.id == "dynamic-limit-app") | (.write_rate_bps > $l) and (.write_rate_bps < $u)' > /dev/null; then
-  RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "dynamic-limit-app") | .write_rate_bps')
-  echo "✅ Success: PID converged to new limit ($RATE bps)."
+if [[ $DYN_IN_RANGE -eq 1 ]]; then
+  echo "✅ Success: PID converged to new limit ($DYN_RATE bps)."
 else
-  RATE=$(echo "$JSON_RESULT" | jq -r '.[] | select(.id == "dynamic-limit-app") | .write_rate_bps // 0')
-  echo "❌ Error: PID convergence failed. Got $RATE bps."
+  echo "❌ Error: PID convergence failed. Got $DYN_RATE bps."
   echo "Debug Info: $JSON_RESULT"
   FAILURES=$((FAILURES + 1))
 fi

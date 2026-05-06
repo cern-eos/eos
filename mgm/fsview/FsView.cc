@@ -3290,16 +3290,6 @@ FsView::ApplyGlobalConfig(const char* key, std::string& val)
     // this is a space attribute
     std::unique_lock<std::mutex> lock(gOFS->mSpaceAttributesMutex);
     gOFS->mSpaceAttributes[space][key] = val;
-  } else if (tokens[1] == eos::common::TRAFFIC_SHAPING_POLICIES_CONFIG) {
-    // set the map
-  } else if (tokens[1] == eos::common::TRAFFIC_SHAPING_ENABLE_CONFIG) {
-    if (val == "true" || val == "1") {
-      gOFS->mTrafficShapingEngine.Enable();
-    } else {
-      gOFS->mTrafficShapingEngine.Disable();
-    }
-  } else if (tokens[1] == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG) {
-    gOFS->mTrafficShapingEngine.SetDetailLevel(val, false);
   }
 
   common::SharedHashLocator locator;
