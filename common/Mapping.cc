@@ -1609,7 +1609,7 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
   (void) getpwnam_r(username.c_str(), &pwbuf, buffer, buflen, &pwbufp);
 
   if (pwbufp == NULL) {
-    bool is_number = true;
+    bool is_number = !username.empty();
 
     for (size_t i = 0; i < username.length(); i++) {
       if (!isdigit(username[i])) {
@@ -1618,16 +1618,33 @@ Mapping::UserNameToUid(const std::string& username, int& errc)
       }
     }
 
-    uid = atoi(username.c_str());
-
-    if ((uid != 0) && (is_number)) {
-      errc = 0;
-      return uid;
-    } else {
+    if (!is_number) {
       errc = EINVAL;
-      uid = VirtualIdentity::kNobodyUid;
-      return uid;
+      return VirtualIdentity::kNobodyUid;
     }
+
+    // Numeric fallback: only accept the string if the resulting uid is
+    // backed by a real passwd entry. This blocks attacker-controlled free
+    // form names (e.g. eos.ruid / authz request.name) from being mapped to
+    // arbitrary system uids that no real account owns.
+    uid_t parsed = static_cast<uid_t>(strtoul(username.c_str(), nullptr, 10));
+
+    if (parsed == 0) {
+      errc = EINVAL;
+      return VirtualIdentity::kNobodyUid;
+    }
+
+    struct passwd revpw;
+    struct passwd* revpwp = nullptr;
+    (void) getpwuid_r(parsed, &revpw, buffer, buflen, &revpwp);
+
+    if (revpwp == nullptr) {
+      errc = EINVAL;
+      return VirtualIdentity::kNobodyUid;
+    }
+
+    errc = 0;
+    return parsed;
   } else {
     uid = pwbuf.pw_uid;
     errc = 0;
@@ -1671,7 +1688,7 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
   (void) getgrnam_r(groupname.c_str(), &grbuf, buffer, buflen, &grbufp);
 
   if (!grbufp) {
-    bool is_number = true;
+    bool is_number = !groupname.empty();
 
     for (size_t i = 0; i < groupname.length(); i++) {
       if (!isdigit(groupname[i])) {
@@ -1680,15 +1697,31 @@ Mapping::GroupNameToGid(const std::string& groupname, int& errc)
       }
     }
 
-    gid = atoi(groupname.c_str());
-
-    if ((gid != 0) && (is_number)) {
-      errc = 0;
-      return gid;
-    } else {
+    if (!is_number) {
       errc = EINVAL;
-      gid = VirtualIdentity::kNobodyGid;
+      return VirtualIdentity::kNobodyGid;
     }
+
+    // Numeric fallback: only accept the string if the resulting gid is
+    // backed by a real group entry, mirroring UserNameToUid above.
+    gid_t parsed = static_cast<gid_t>(strtoul(groupname.c_str(), nullptr, 10));
+
+    if (parsed == 0) {
+      errc = EINVAL;
+      return VirtualIdentity::kNobodyGid;
+    }
+
+    struct group revgr;
+    struct group* revgrp = nullptr;
+    (void) getgrgid_r(parsed, &revgr, buffer, buflen, &revgrp);
+
+    if (revgrp == nullptr) {
+      errc = EINVAL;
+      return VirtualIdentity::kNobodyGid;
+    }
+
+    errc = 0;
+    return parsed;
   } else {
     gid = grbuf.gr_gid;
     errc = 0;
