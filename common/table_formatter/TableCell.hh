@@ -26,6 +26,8 @@
 
 #include "TableFormatting.hh"
 
+#include <cstdint>
+
 class TableCell
 {
 public:
