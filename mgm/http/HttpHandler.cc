@@ -429,11 +429,36 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         char buffer[65536];
         offset_t offset = 0;
         std::string result;
+        // Cap the size of an in-memory /proc/user response (or any file
+        // returned via SFS_OK on this branch) so a single privileged
+        // request can't OOM the MGM by asking for an enormous listing.
+        // Default 64 MiB, overridable via EOS_MGM_HTTP_PROC_MAX.  See
+        // fix5.html / H-5.
+        size_t result_cap = 64ULL * 1024 * 1024;
+
+        if (const char* env = getenv("EOS_MGM_HTTP_PROC_MAX")) {
+          try {
+            size_t v = std::stoull(env);
+
+            if (v > 0) {
+              result_cap = v;
+            }
+          } catch (...) {}
+        }
+
+        bool truncated = false;
 
         do {
           size_t nread = file->read(offset, buffer, sizeof(buffer));
 
           if (nread > 0) {
+            if (result.size() + nread > result_cap) {
+              size_t remaining = result_cap - result.size();
+              result.append(buffer, remaining);
+              truncated = true;
+              break;
+            }
+
             result.append(buffer, nread);
           }
 
@@ -445,16 +470,24 @@ HttpHandler::Get(eos::common::HttpRequest* request, bool isHEAD)
         } while (true);
 
         file->close();
-        response = new eos::common::PlainHttpResponse();
-        XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
 
-        if (!gOFS->stat(url.c_str(), &buf, error, &etag, &client, "")) {
-          response->AddHeader("ETag", etag);
-          response->AddHeader("Last-Modified",
-                              eos::common::Timing::utctime(buf.st_mtime));
+        if (truncated) {
+          eos_static_warning("method=GET msg=\"truncated /proc response\" "
+                             "path=\"%s\" cap=%zu", url.c_str(), result_cap);
+          response = HttpServer::HttpError(
+                       "response exceeds configured limit", EFBIG);
+        } else {
+          response = new eos::common::PlainHttpResponse();
+          XrdOucErrInfo error(mVirtualIdentity->tident.c_str());
+
+          if (!gOFS->stat(url.c_str(), &buf, error, &etag, &client, "")) {
+            response->AddHeader("ETag", etag);
+            response->AddHeader("Last-Modified",
+                                eos::common::Timing::utctime(buf.st_mtime));
+          }
+
+          response->SetBody(result);
         }
-
-        response->SetBody(result);
       }
 
       // clean up the object
