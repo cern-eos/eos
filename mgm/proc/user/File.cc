@@ -49,6 +49,49 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+namespace
+{
+//------------------------------------------------------------------------------
+//! Escape a string for safe inclusion as HTML text or as the value of a
+//! double-quoted attribute. Conservative encoding for <, >, &, ", '.
+//------------------------------------------------------------------------------
+std::string
+HtmlEscape(const std::string& in)
+{
+  std::string out;
+  out.reserve(in.size());
+
+  for (char c : in) {
+    switch (c) {
+    case '&':
+      out.append("&amp;");
+      break;
+
+    case '<':
+      out.append("&lt;");
+      break;
+
+    case '>':
+      out.append("&gt;");
+      break;
+
+    case '"':
+      out.append("&quot;");
+      break;
+
+    case '\'':
+      out.append("&#39;");
+      break;
+
+    default:
+      out.push_back(c);
+    }
+  }
+
+  return out;
+}
+} // anonymous namespace
+
 int
 ProcCommand::File()
 {
@@ -587,19 +630,19 @@ ProcCommand::File()
           stdOut += "<h4 id=\"sharevalidity\" >File Sharing Links: [ valid until  ";
           struct tm* newtime;
           newtime = localtime(&expires);
-          stdOut += asctime(newtime);
+          stdOut += HtmlEscape(asctime(newtime)).c_str();
           stdOut.erase(stdOut.length() - 1);
           stdOut += " ]</h4>\n";
-          stdOut += path;
+          stdOut += HtmlEscape(path ? std::string(path) : std::string()).c_str();
           stdOut += "<table border=\"0\"><tr><td>";
           stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
           stdOut += "<a id=\"httpshare\" href=\"";
-          stdOut += httppath.c_str();
+          stdOut += HtmlEscape(std::string(httppath.c_str())).c_str();
           stdOut += "\">HTTP</a></td>";
           stdOut += "</tr><tr><td>";
           stdOut += "<img alt=\"\" src=\"data:image/gif;base64,R0lGODlhEAANAJEAAAJ6xv///wAAAAAAACH5BAkAAAEALAAAAAAQAA0AAAg0AAMIHEiwoMGDCBMqFAigIYCFDBsadPgwAMWJBB1axBix4kGPEhN6HDgyI8eTJBFSvEgwIAA7\">";
           stdOut += "<a id=\"rootshare\" href=\"";
-          stdOut += rootUrl.c_str();
+          stdOut += HtmlEscape(std::string(rootUrl.c_str())).c_str();
           stdOut += "\">ROOT</a></td>";
           stdOut += "</tr></table>\n";
         } else {

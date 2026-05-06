@@ -32,6 +32,49 @@
 
 EOSMGMNAMESPACE_BEGIN
 
+namespace
+{
+//------------------------------------------------------------------------------
+//! Escape a string for safe inclusion as HTML text content or as the value of
+//! a double-quoted attribute. Conservative set covers <, >, &, ", '.
+//------------------------------------------------------------------------------
+std::string
+HtmlEscape(const std::string& in)
+{
+  std::string out;
+  out.reserve(in.size());
+
+  for (char c : in) {
+    switch (c) {
+    case '&':
+      out.append("&amp;");
+      break;
+
+    case '<':
+      out.append("&lt;");
+      break;
+
+    case '>':
+      out.append("&gt;");
+      break;
+
+    case '"':
+      out.append("&quot;");
+      break;
+
+    case '\'':
+      out.append("&#39;");
+      break;
+
+    default:
+      out.push_back(c);
+    }
+  }
+
+  return out;
+}
+} // anonymous namespace
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -512,20 +555,23 @@ ProcCommand::MakeResult()
             "<meta http-equiv=\"Content-Security-Policy\" content=\"script-src https://code.jquery.com 'self';\">\n";
         }
 
+        // mCmd / mSubCmd come straight from the caller's CGI - escape them
+        // before they land in the div id attribute.
         mResultStream += "<div class=\"httptable\" id=\"";
-        mResultStream += mCmd.c_str();
+        mResultStream += HtmlEscape(std::string(mCmd.c_str())).c_str();
         mResultStream += "_";
-        mResultStream += mSubCmd.c_str();
+        mResultStream += HtmlEscape(std::string(mSubCmd.c_str())).c_str();
         mResultStream += "\">\n";
 
         // FUSE format contains only STDOUT
         if (stdOut.length() && KeyValToHttpTable(stdOut)) {
+          // KeyValToHttpTable rebuilds stdOut as an escaped HTML table.
           mResultStream += stdOut.c_str();
         } else {
           if (stdErr.length() || retc) {
-            mResultStream += stdOut.c_str();
+            mResultStream += HtmlEscape(std::string(stdOut.c_str())).c_str();
             mResultStream += "<h3>&#9888;&nbsp;<font color=\"red\">";
-            mResultStream += stdErr.c_str();
+            mResultStream += HtmlEscape(std::string(stdErr.c_str())).c_str();
             mResultStream += "</font></h3>";
           } else {
             if (!stdOut.length()) {
@@ -533,7 +579,7 @@ ProcCommand::MakeResult()
               mResultStream += "Success!";
               mResultStream += "</h3>";
             } else {
-              mResultStream += stdOut.c_str();
+              mResultStream += HtmlEscape(std::string(stdOut.c_str())).c_str();
             }
           }
         }
@@ -709,7 +755,7 @@ table
       if (pos != std::string::npos)
         dotkeys.erase(0, pos + 1);
       //table += dotkeys;
-      table += keys[i];
+      table += HtmlEscape(keys[i]);
       table += "</font>";
       table += "</th>";
       table += "\n";
@@ -734,12 +780,12 @@ table
           while (decodeURI.replace("%20", " "))
           {
           }
-          table += decodeURI.c_str();
+          table += HtmlEscape(std::string(decodeURI.c_str()));
         }
         else
         {
           eos::common::StringConversion::GetReadableSizeString(sizestring, val, "");
-          table += sizestring.c_str();
+          table += HtmlEscape(std::string(sizestring.c_str()));
         }
         table += "</font>";
         table += "</td>";
