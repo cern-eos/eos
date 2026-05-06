@@ -46,6 +46,8 @@
 #include <iostream>
 #include <XrdOuc/XrdOucEnv.hh>
 #include "common/Logging.hh"
+#include <openssl/rand.h>
+#include <limits>
 
 EOSCOMMONNAMESPACE_BEGIN
 
@@ -73,7 +75,19 @@ std::string
 EosTok::Write(const std::string& key)
 {
   valid = false;
-  share->set_seed(eos::common::getRandom());
+  // Per-token seed: full 64 bits sourced from OpenSSL's CSPRNG. The seed is
+  // mixed into the HMAC key as seed+key+seed (see Sign/Verify), so any
+  // predictability in the seed weakens the only per-token entropy in the
+  // signing process. Fall back to the non-CSPRNG generator only if the
+  // OS RNG is unavailable, which is an exceptional condition for the daemon.
+  uint64_t seed = 0;
+
+  if (RAND_bytes(reinterpret_cast<unsigned char*>(&seed), sizeof(seed)) != 1) {
+    seed = (static_cast<uint64_t>(eos::common::getRandom64<uint64_t>(
+                                    0, std::numeric_limits<uint64_t>::max())));
+  }
+
+  share->set_seed(seed);
   // create a unique id for this token
   share->mutable_token()->set_voucher(
     eos::common::StringConversion::random_uuidstring());
