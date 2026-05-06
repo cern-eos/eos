@@ -25,6 +25,8 @@
 #define EOS_CLUSTERDATATYPES_HH
 
 #include "common/FileSystem.hh"
+#include "common/table_formatter/TableFormatterBase.hh"
+#include "table_formatter/TableFormatterBase.hh"
 #include <array>
 #include <unordered_map>
 
@@ -230,6 +232,34 @@ struct Bucket {
   }
 };
 
+static constexpr size_t kMaxItemsInline = 12;
+static inline std::string
+FormatItemList(const std::vector<item_id_t>& items)
+{
+  if (items.empty()) {
+    return "-";
+  }
+
+  std::string out;
+  const size_t limit = std::min(items.size(), kMaxItemsInline);
+
+  for (size_t i = 0; i < limit; ++i) {
+    if (i > 0) {
+      out += ", ";
+    }
+
+    out += std::to_string(items[i]);
+  }
+
+  if (items.size() > kMaxItemsInline) {
+    out += " ... (";
+    out += std::to_string(items.size());
+    out += " total)";
+  }
+
+  return out;
+}
+
 struct ClusterData {
   std::vector<Disk> disks;
   std::vector<Bucket> buckets;
@@ -269,41 +299,132 @@ struct ClusterData {
     return true;
   }
 
+  //----------------------------------------------------------------------------
+  //! Return the disk list as a formatted table.
+  //!
+  //! Columns: fsid | config | active | weight | used% | geotag
+  //----------------------------------------------------------------------------
   std::string getDisksAsString() const
   {
-    std::string result_str;
-    result_str.append("Total Disks: ");
-    result_str.append(std::to_string(disks.size()));
-    result_str.append("\n");
+    TableFormatterBase table;
+
+    table.SetHeader({
+        std::make_tuple("fsid", 9, "l"),
+        std::make_tuple("config", 15, "s"),
+        std::make_tuple("active", 15, "s"),
+        std::make_tuple("weight", 10, "l"),
+        std::make_tuple("used%", 8, "l"),
+        std::make_tuple("geotag", 30, "s"),
+    });
 
     for (const auto& d : disks) {
-      result_str.append(d.to_string());
-      result_str.append("\n");
-      if (auto kv= disk_tag_map.find(d.id); kv != disk_tag_map.end()) {
-        result_str.append("geotag: ");
-        result_str.append(kv->second);
-        result_str.append("\n");
+      auto cs = d.config_status.load(std::memory_order_relaxed);
+      auto as = d.active_status.load(std::memory_order_relaxed);
+      uint8_t pct = d.percent_used.load(std::memory_order_relaxed);
+
+      std::string configStr = common::FileSystem::GetConfigStatusAsString(cs);
+      std::string activeStr = common::FileSystem::GetActiveStatusAsString(as);
+
+      TableFormatterColor configColor = NONE;
+      switch (cs) {
+      case ConfigStatus::kRW:
+        configColor = BGREEN;
+        break;
+      case ConfigStatus::kRO:
+        configColor = BYELLOW;
+        break;
+      case ConfigStatus::kDrain:
+      case ConfigStatus::kDrainDead:
+      case ConfigStatus::kOff:
+        configColor = BRED;
+        break;
+      default:
+        break;
       }
 
+      TableFormatterColor activeColor = NONE;
+      if (as == ActiveStatus::kOnline) {
+        activeColor = BGREEN;
+      } else if (as == ActiveStatus::kOffline) {
+        activeColor = BRED;
+      }
+
+      // warn at >=80%, alert at >=95%
+      TableFormatterColor pctColor = NONE;
+      if (pct >= 95) {
+        pctColor = BRED;
+      } else if (pct >= 80) {
+        pctColor = BYELLOW;
+      }
+
+      std::string geotag;
+      if (auto it = disk_tag_map.find(d.id); it != disk_tag_map.end()) {
+        geotag = it->second;
+      }
+
+      TableRow row;
+      row.emplace_back(static_cast<long long int>(d.id), "l");
+      row.emplace_back(configStr, "s", "", false, configColor);
+      row.emplace_back(activeStr, "s", "", false, activeColor);
+      row.emplace_back(
+          static_cast<long long int>(d.weight.load(std::memory_order_relaxed)), "l");
+      row.emplace_back(static_cast<long long int>(pct), "l", "%", false, pctColor);
+      row.emplace_back(geotag, "s-");
+
+      table.AddRows({row});
     }
 
-    return result_str;
+    return table.GenerateTable(HEADER);
   }
 
+  //----------------------------------------------------------------------------
+  //! Return the bucket hierarchy as a formatted table.
+  //!
+  //! Columns: type | id | group | weight | item_count | items
+  //----------------------------------------------------------------------------
   std::string getBucketsAsString() const
   {
-    std::string result_str;
+    TableFormatterBase table;
+
+    table.SetHeader({
+        std::make_tuple("type", 10, "s"),
+        std::make_tuple("id", 9, "l"),
+        std::make_tuple("group", 9, "l"),
+        std::make_tuple("weight", 10, "l"),
+        std::make_tuple("item_count", 8, "l"),
+        std::make_tuple("items", 57, "s"),
+    });
 
     for (const auto& b : buckets) {
       if (b.id == 0 && b.bucket_type == 0) {
         continue;
       }
 
-      result_str.append(b.to_string());
-      result_str.append("\n");
+      auto btype = static_cast<StdBucketType>(b.bucket_type);
+
+      long long groupIndex = -1;
+      if (btype == StdBucketType::GROUP) {
+        groupIndex = static_cast<long long>(BucketIDtoGroupID(b.id));
+      }
+
+      TableRow row;
+      row.emplace_back(BucketTypeToStr(btype), "s");
+      row.emplace_back(static_cast<long long int>(b.id), "l");
+
+      if (groupIndex >= 0) {
+        row.emplace_back(groupIndex, "l");
+      } else {
+        row.emplace_back(std::string("-"), "s");
+      }
+
+      row.emplace_back(static_cast<long long int>(b.total_weight), "l");
+      row.emplace_back(static_cast<long long int>(b.items.size()), "l");
+      row.emplace_back(FormatItemList(b.items), "s-");
+
+      table.AddRows({row});
     }
 
-    return result_str;
+    return table.GenerateTable(HEADER);
   }
 
 };
