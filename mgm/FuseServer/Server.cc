@@ -1743,8 +1743,42 @@ Server::OpSetDirectory(const std::string& id,
     cmd->setName(md.name());
     cmd->setCUid(md.uid());
     cmd->setCGid(md.gid());
-    // @todo (apeters): is sgid_mode still needed?
-    cmd->setMode(md.mode() | sgid_mode);
+
+    // Mask the wire mode to permission + setuid/setgid/sticky bits. Anything
+    // outside that range is dropped on the floor rather than persisted.
+    // POSIX-equivalent gate on the high three bits: only root / sudoer /
+    // admins / the entry's owner may flip them. For CREATE the future owner
+    // is md.uid() (already validated by CheckOwnerAcl); for UPDATE / RENAME /
+    // MOVE the existing cmd->getCUid() is authoritative.
+    {
+      const mode_t kPermBits = S_IRWXU | S_IRWXG | S_IRWXO;
+      const mode_t kHighBits = S_ISUID | S_ISGID | S_ISVTX;
+      mode_t requested = (mode_t) md.mode() & (kPermBits | kHighBits);
+      mode_t requested_high = requested & kHighBits;
+      mode_t current_high = (op == CREATE)
+                            ? (mode_t) 0
+                            : (cmd->getMode() & kHighBits);
+
+      if (current_high != requested_high) {
+        uid_t owner_after = (op == CREATE)
+                            ? (uid_t) md.uid()
+                            : cmd->getCUid();
+        bool privileged = (vid.uid == 0) || vid.sudoer ||
+                          vid.hasUid(eos::common::ADM_UID) ||
+                          vid.hasGid(eos::common::ADM_GID) ||
+                          (owner_after == vid.uid);
+
+        if (!privileged) {
+          eos_err("msg=\"setuid/setgid/sticky change denied\" "
+                  "ino=%lx old=0%o new=0%o uid=%u",
+                  (long) md.md_ino(), current_high, requested_high, vid.uid);
+          return EPERM;
+        }
+      }
+
+      // @todo (apeters): is sgid_mode still needed?
+      cmd->setMode(requested | sgid_mode);
+    }
     eos::IContainerMD::ctime_t ctime;
     eos::IContainerMD::ctime_t mtime;
     eos::IContainerMD::ctime_t pmtime;
