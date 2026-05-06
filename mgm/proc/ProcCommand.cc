@@ -874,6 +874,13 @@ table
 )literal";
 
     table += "<table border=\"8\" cellspacing=\"10\" cellpadding=\"20\">\n";
+    // Defensive cap: a misbehaving caller can drive a very large keyvalue
+    // input into here. Bound the rendered table so we never accumulate more
+    // than a few MB of HTML in memory while still serving normal-size
+    // results.
+    constexpr size_t kHttpTableCap = 16 * 1024 * 1024;
+    bool table_truncated = false;
+
     // build the header
     table += "<tr>\n";
     for (size_t i = 0; i < keys.size(); i++)
@@ -897,6 +904,11 @@ table
 
     for (size_t i = 0; i < keyvaluetable.size(); i++)
     {
+      if (table.size() > kHttpTableCap) {
+        table_truncated = true;
+        break;
+      }
+
       table += "<tr>\n";
       for (size_t j = 0; j < keys.size(); j++)
       {
@@ -923,6 +935,12 @@ table
       }
       table += "</tr>\n";
       table += "\n";
+    }
+
+    if (table_truncated) {
+      table += "<tr><td colspan=\"";
+      table += std::to_string(keys.size());
+      table += "\"><i>... output truncated</i></td></tr>\n";
     }
 
 

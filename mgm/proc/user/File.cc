@@ -1014,6 +1014,15 @@ ProcCommand::File()
 
               if (S_ISDIR(srcbuf.st_mode) && S_ISDIR(dstbuf.st_mode)) {
                 if (!gOFS->_find(src.c_str(), *mError, stdErr, *pVid, found)) {
+                  // Defensive caps: the per-line "info: copying ..." preview
+                  // is informational, the copy itself proceeds via
+                  // lCopySourceList. Truncate the preview if it would grow
+                  // past a reasonable size so a deep tree doesn't make the
+                  // response stream balloon in memory; the actual copy list
+                  // is unaffected.
+                  constexpr size_t kStdOutCap = 8 * 1024 * 1024;
+                  bool stdout_truncated = false;
+
                   // Add all to the copy source,target list ...
                   for (auto dirit = found.begin(); dirit != found.end(); dirit++) {
                     // Loop over dirs and add all the files
@@ -1028,11 +1037,20 @@ ProcCommand::File()
                       dst_path += *fileit;
                       lCopySourceList.push_back(src_path.c_str());
                       lCopyTargetList.push_back(dst_path.c_str());
-                      stdOut += "info: copying '";
-                      stdOut += src_path.c_str();
-                      stdOut += "' => '";
-                      stdOut += dst_path.c_str();
-                      stdOut += "' ... \n";
+
+                      if (!stdout_truncated) {
+                        stdOut += "info: copying '";
+                        stdOut += src_path.c_str();
+                        stdOut += "' => '";
+                        stdOut += dst_path.c_str();
+                        stdOut += "' ... \n";
+
+                        if ((size_t) stdOut.length() > kStdOutCap) {
+                          stdOut += "info: ... (preview truncated, copy "
+                                    "continues)\n";
+                          stdout_truncated = true;
+                        }
+                      }
                     }
                   }
                 } else {
