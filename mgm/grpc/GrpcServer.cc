@@ -364,10 +364,9 @@ class RequestServiceImpl final : public Eos::Service {
   Status Ping(ServerContext* context, const eos::rpc::PingRequest* request,
               eos::rpc::PingReply* reply) override
   {
-    eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s token=%s len=%lu",
+    eos_static_info("grpc::ping from client peer=%s ip=%s DN=%s len=%lu",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str(),
-                    request->message().length());
+                    GrpcServer::DN(context).c_str(), request->message().length());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     reply->set_message(request->message());
@@ -378,9 +377,10 @@ class RequestServiceImpl final : public Eos::Service {
                     const eos::rpc::FileInsertRequest* request,
                     eos::rpc::InsertReply* reply) override
   {
-    eos_static_info("grpc::fileinsert from client peer=%s ip=%s DN=%s token=%s",
+    eos_static_info("grpc::fileinsert from client peer=%s ip=%s DN=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+                    GrpcServer::DN(context).c_str());
+    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -391,9 +391,10 @@ class RequestServiceImpl final : public Eos::Service {
                          const eos::rpc::ContainerInsertRequest* request,
                          eos::rpc::InsertReply* reply) override
   {
-    eos_static_info("grpc::containerinsert from client peer=%s ip=%s DN=%s token=%s",
+    eos_static_info("grpc::containerinsert from client peer=%s ip=%s DN=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+                    GrpcServer::DN(context).c_str());
+    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -403,9 +404,9 @@ class RequestServiceImpl final : public Eos::Service {
   Status MD(ServerContext* context, const eos::rpc::MDRequest* request,
             ServerWriter<eos::rpc::MDResponse>* writer) override
   {
-    eos_static_info("grpc::md from client peer=%s ip=%s DN=%s token=%s",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+    eos_static_info("grpc::md from client peer=%s ip=%s DN=%s", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str());
+    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -431,9 +432,9 @@ class RequestServiceImpl final : public Eos::Service {
   Status Find(ServerContext* context, const eos::rpc::FindRequest* request,
               ServerWriter<eos::rpc::MDResponse>* writer) override
   {
-    eos_static_info("grpc::find from client peer=%s ip=%s DN=%s token=%s",
-                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+    eos_static_info("grpc::find from client peer=%s ip=%s DN=%s", context->peer().c_str(),
+                    GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str());
+    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -444,9 +445,10 @@ class RequestServiceImpl final : public Eos::Service {
                 const eos::rpc::NsStatRequest* request,
                 eos::rpc::NsStatResponse* reply) override
   {
-    eos_static_info("grpc::nsstat::request from client peer=%s ip=%s DN=%s token=%s",
+    eos_static_info("grpc::nsstat::request from client peer=%s ip=%s DN=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(), request->authkey().c_str());
+                    GrpcServer::DN(context).c_str());
+    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -458,10 +460,10 @@ class RequestServiceImpl final : public Eos::Service {
               eos::rpc::NSResponse* reply) override
   {
     eos_static_info("grpc::exec::request from client peer=%s ip=%s DN=%s "
-                    "token=%s req_type=%lu", context->peer().c_str(),
-                    GrpcServer::IP(context).c_str(),
-                    GrpcServer::DN(context).c_str(),
-                    request->authkey().c_str(), request->command_case());
+                    "req_type=%lu",
+                    context->peer().c_str(), GrpcServer::IP(context).c_str(),
+                    GrpcServer::DN(context).c_str(), request->command_case());
+    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
