@@ -1471,7 +1471,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
                                     n_threads * n_subdirs / rt);
     oss << l;
     oss << std::endl;
-    eos_static_notice(l);
+    eos_static_notice("%s", l);
   }
   {
     eos::common::Timing bench("Benchmark");
@@ -1517,7 +1517,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
                                     1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
-    eos_static_notice(l);
+    eos_static_notice("%s", l);
   }
   {
     eos::common::Timing bench("Benchmark");
@@ -1566,7 +1566,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
                                     1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
-    eos_static_notice(l);
+    eos_static_notice("%s", l);
   }
   {
     eos::common::Timing bench("Benchmark");
@@ -1611,7 +1611,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
                                     1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
-    eos_static_notice(l);
+    eos_static_notice("%s", l);
   }
   {
     eos::common::Timing bench("Benchmark");
@@ -1657,7 +1657,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
                                     1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
-    eos_static_notice(l);
+    eos_static_notice("%s", l);
   }
   {
     eos::common::Timing bench("Benchmark");
@@ -1702,7 +1702,7 @@ NsCmd::BenchmarkSubCmd(const eos::console::NsProto_BenchmarkProto& benchmark,
                                     1.0 * n_threads * n_subdirs * n_subfiles / rt);
     oss << l;
     oss << std::endl;
-    eos_static_notice(l);
+    eos_static_notice("%s", l);
   }
   reply.set_retc(0);
   reply.set_std_out(oss.str().c_str());
