@@ -1,4 +1,6 @@
 #include "fst/storage/TrafficShaping.hh"
+
+#include <chrono>
 #include <mutex>
 
 namespace eos::fst::traffic_shaping {
@@ -76,20 +78,6 @@ IoStatsCollector::RecordWrite(const std::string& app, const uint32_t uid,
   entry->last_activity_s.store(
       std::chrono::duration_cast<std::chrono::seconds>(now).count(),
       std::memory_order_relaxed);
-}
-
-bool
-IoStatsCollector::SetFilesystemDetailEnabled(const bool enabled)
-{
-  const bool old_value =
-      mFilesystemDetailEnabled.exchange(enabled, std::memory_order_relaxed);
-
-  if (old_value != enabled) {
-    Clear();
-    return true;
-  }
-
-  return false;
 }
 
 size_t

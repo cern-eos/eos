@@ -925,12 +925,6 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
     std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
   }
 
-  if (const uint64_t sleep_time_micro_sec =
-          gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(vid);
-      sleep_time_micro_sec > 0) {
-    std::this_thread::sleep_for(std::chrono::microseconds(sleep_time_micro_sec));
-  }
-
   // Must stay signed - Layout::Read returns -1 on error and an unsigned type
   // would turn this into a huge positive value corrupting all the checks below
   const int64_t rc = mLayout->Read(fileOffset, buffer, buffer_size);

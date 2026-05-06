@@ -24,13 +24,25 @@
 #include "common/Constants.hh"
 #include "common/StringTokenizer.hh"
 #include "common/SymKeys.hh"
+#include "common/mq/SharedHashWrapper.hh"
 #include "fst/Config.hh"
 #include "fst/XrdFstOfs.hh"
 #include "fst/storage/FileSystem.hh"
 #include "fst/storage/Storage.hh"
-#include "mq/SharedHashWrapper.hh"
-#include "qclient/shared/SharedHashSubscription.hh"
-#include "qclient/structures/QScanner.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/shared/SharedHashSubscription.hh"
+#include "namespace/ns_quarkdb/qclient/include/qclient/structures/QScanner.hh"
+
+#include <algorithm>
+#include <chrono>
+#include <cstdint>
+#include <cstdlib>
+#include <exception>
+#include <functional>
+#include <mutex>
+#include <set>
+#include <string>
+#include <thread>
+#include <vector>
 
 EOSFSTNAMESPACE_BEGIN
 
@@ -47,7 +59,6 @@ std::set<std::string> Storage::sNodeUpdateKeys{
     common::FST_TRAFFIC_SHAPING_IO_LIMITS,
     common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE,
     common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
-    common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL,
 };
 
 //------------------------------------------------------------------------------
@@ -188,7 +199,7 @@ ProcessFstIoLimitsCommand(const std::string& data)
 }
 
 //------------------------------------------------------------------------------
-// Handle traffix shaping enforcement
+// Handle traffic shaping enforcement
 //------------------------------------------------------------------------------
 void
 ProcessTrafficShapingToggle(bool enable)
@@ -216,30 +227,20 @@ ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
 {
   try {
     unsigned long long period_millis = std::stoull(period_millis_as_str);
-    traffic_shaping::IoStatsCollector::fst_io_stats_reporting_thread_period_milliseconds =
-        period_millis;
-    eos_static_debug("msg=\"Traffic Shaping FST IO stats reporting thread period "
-                     "changed\" new_period_ms=%llu",
-                     period_millis);
+    const auto new_period = static_cast<uint32_t>(period_millis);
+    const uint32_t old_period =
+        traffic_shaping::IoStatsCollector::
+            fst_io_stats_reporting_thread_period_milliseconds.exchange(new_period);
+
+    if (old_period != new_period) {
+      eos_static_info("msg=\"Traffic Shaping FST IO stats reporting thread period "
+                      "changed\" old_period_ms=%u new_period_ms=%u",
+                      old_period, new_period);
+    }
   } catch (const std::exception& e) {
     eos_static_err("msg=\"invalid FST IO stats reporting thread period value\" "
                    "value=\"%s\" error=\"%s\"",
                    period_millis_as_str.c_str(), e.what());
-  }
-}
-
-//------------------------------------------------------------------------------
-// Handle traffix shaping detail level
-//------------------------------------------------------------------------------
-void
-ProcessTrafficShapingDetailLevel(const std::string& detail_level)
-{
-  const bool fs_detail =
-      detail_level == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM;
-  if (gOFS.mIoStatsCollector.SetFilesystemDetailEnabled(fs_detail)) {
-    eos_static_info("msg=\"Traffic Shaping detail level changed\" new_level=\"%s\"",
-                    fs_detail ? eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM
-                              : eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE);
   }
 }
 
@@ -292,8 +293,6 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
     ProcessTrafficShapingToggle(value == "on" || value == "true" || value == "1");
   } else if (key == eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD) {
     ProcessFstIoStatsReportingThreadPeriod(value);
-  } else if (key == eos::common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL) {
-    ProcessTrafficShapingDetailLevel(value);
   } else if (key == "debug.level") {
     const std::string& debugLevel = value;
     eos_static_info("msg=\"debug level changed\" new_level=\"%s\"", debugLevel.c_str());

@@ -1,14 +1,16 @@
 #include "mgm/shaping/TrafficShaping.hh"
-#include "Constants.hh"
+#include "common/Constants.hh"
 #include "common/Logging.hh"
 #include "common/SymKeys.hh"
-#include "config/IConfigEngine.hh"
-#include "fsview/FsView.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
-#include "namespace/interface/IFsView.hh"
 
 #include "proto/TrafficShaping.pb.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <cstring>
 #include <dlfcn.h>
 #include <google/protobuf/util/json_util.h>
 #include <set>
@@ -1018,7 +1020,8 @@ TrafficShapingEngine::TrafficShapingEngine()
     : mRunning(false)
     , mEstimatorsUpdateThreadPeriodMilliseconds(200)
     , mFstIoPolicyUpdateThreadPeriodMilliseconds(200)
-    , mFstIoStatsReportThreadPeriodMilliseconds(200)
+    , mFstIoStatsReportThreadPeriodMilliseconds(
+          eos::common::TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS)
     , mSystemStatsWindowSeconds(15)
     , mFilesystemDetailEnabled(false)
 {
@@ -1027,9 +1030,9 @@ TrafficShapingEngine::TrafficShapingEngine()
 
 TrafficShapingEngine::~TrafficShapingEngine() { Stop(); }
 
-void
+bool
 TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
-                                        uint32_t win_s, const bool save_to_config_engine)
+                                        uint32_t win_s)
 {
   if (est_ms < kMinThreadPeriodMs) {
     est_ms = kMinThreadPeriodMs;
@@ -1078,9 +1081,16 @@ TrafficShapingEngine::ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32
     mManager->ApplyThreadConfig(est_ms, pol_ms, win_s);
   }
 
-  if (save_to_config_engine && changed) {
-    UpdateThreadConfigs();
-    SyncTrafficShapingEnabledWithFst();
+  return changed;
+}
+
+void
+TrafficShapingEngine::SetThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
+                                      uint32_t win_s)
+{
+  if (ApplyThreadConfig(est_ms, pol_ms, rep_ms, win_s)) {
+    StoreThreadConfig();
+    SyncTrafficShapingConfigWithFst();
   }
 }
 
@@ -1088,45 +1098,46 @@ void
 TrafficShapingEngine::SetEstimatorsUpdateThreadPeriodMilliseconds(
     const uint32_t period_ms)
 {
-  ApplyThreadConfig(period_ms, mFstIoPolicyUpdateThreadPeriodMilliseconds,
-                    mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
-                    true);
+  SetThreadConfig(period_ms, mFstIoPolicyUpdateThreadPeriodMilliseconds,
+                  mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds);
 }
 
 void
 TrafficShapingEngine::SetFstIoPolicyUpdateThreadPeriodMilliseconds(
     const uint32_t period_ms)
 {
-  ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds, period_ms,
-                    mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
-                    true);
+  SetThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds, period_ms,
+                  mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds);
 }
 
 void
 TrafficShapingEngine::SetFstIoStatsReportThreadPeriodMilliseconds(uint32_t period_ms)
 {
-  ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
-                    mFstIoPolicyUpdateThreadPeriodMilliseconds, period_ms,
-                    mSystemStatsWindowSeconds, true);
+  SetThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
+                  mFstIoPolicyUpdateThreadPeriodMilliseconds, period_ms,
+                  mSystemStatsWindowSeconds);
 }
 
 void
 TrafficShapingEngine::SetSystemStatsWindowSeconds(uint32_t window_seconds)
 {
-  ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
-                    mFstIoPolicyUpdateThreadPeriodMilliseconds,
-                    mFstIoStatsReportThreadPeriodMilliseconds, window_seconds, true);
+  SetThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
+                  mFstIoPolicyUpdateThreadPeriodMilliseconds,
+                  mFstIoStatsReportThreadPeriodMilliseconds, window_seconds);
 }
 
 void
-TrafficShapingEngine::SetDetailLevel(const std::string& detail_level,
-                                     bool save_to_config_engine)
+TrafficShapingEngine::SetDetailLevel(const std::string& detail_level)
+{
+  ApplyDetailLevelConfig(detail_level);
+  StoreDetailLevelConfig(GetDetailLevel());
+}
+
+bool
+TrafficShapingEngine::ApplyDetailLevelConfig(const std::string& detail_level)
 {
   const bool fs_detail =
       detail_level == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM;
-  const std::string normalized_detail_level =
-      fs_detail ? eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM
-                : eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE;
   const bool old_value =
       mFilesystemDetailEnabled.exchange(fs_detail, std::memory_order_relaxed);
 
@@ -1138,15 +1149,15 @@ TrafficShapingEngine::SetDetailLevel(const std::string& detail_level,
     }
   }
 
-  if (save_to_config_engine) {
-    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG,
-                                    normalized_detail_level);
-    gOFS->mConfigEngine->AutoSave();
-  }
+  return old_value != fs_detail;
+}
 
-  if (save_to_config_engine || old_value != fs_detail) {
-    SyncTrafficShapingEnabledWithFst();
-  }
+void
+TrafficShapingEngine::StoreDetailLevelConfig(const std::string& detail_level)
+{
+  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG,
+                                  detail_level);
+  gOFS->mConfigEngine->AutoSave();
 }
 
 std::string
@@ -1158,7 +1169,7 @@ TrafficShapingEngine::GetDetailLevel() const
 }
 
 void
-TrafficShapingEngine::UpdateThreadConfigs()
+TrafficShapingEngine::StoreThreadConfig()
 {
   eos::traffic_shaping::ThreadConfig thread_loop_stats;
 
@@ -1189,11 +1200,7 @@ TrafficShapingEngine::ApplyConfig()
       FsView::gFsView.GetBoolGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG);
   eos_static_info("msg=\"Applying Traffic Shaping Config\" enabled=%s",
                   is_enabled ? "true" : "false");
-  if (is_enabled) {
-    Enable();
-  } else {
-    Disable();
-  }
+  ApplyEnabledConfig(is_enabled);
 
   const std::string config =
       FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG);
@@ -1237,18 +1244,18 @@ TrafficShapingEngine::ApplyConfig()
     }
   }
 
-  ApplyThreadConfig(est_ms, pol_ms, rep_ms, win_s, false);
+  ApplyThreadConfig(est_ms, pol_ms, rep_ms, win_s);
 
   const std::string detail_level =
       FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG);
 
   if (detail_level.empty()) {
-    SetDetailLevel(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE);
+    ApplyDetailLevelConfig(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE);
   } else {
-    SetDetailLevel(detail_level, false);
+    ApplyDetailLevelConfig(detail_level);
   }
 
-  SyncTrafficShapingEnabledWithFst();
+  EnsureFstEnabledSyncThread();
 }
 
 void
@@ -1265,27 +1272,25 @@ TrafficShapingEngine::Start()
   mFstIoPolicyUpdateThread.reset(&TrafficShapingEngine::FstIoPolicyUpdate, this);
   mFstIoPolicyUpdateThread.setName("Traffic Shaping FST Policy Update");
 
-  mFstTrafficShapingConfigUpdateThread.reset(
-      &TrafficShapingEngine::FstTrafficShapingConfigUpdate, this);
-  mFstTrafficShapingConfigUpdateThread.setName("Traffic Shaping FST Config Update");
-
   ApplyThreadConfig(mEstimatorsUpdateThreadPeriodMilliseconds,
                     mFstIoPolicyUpdateThreadPeriodMilliseconds,
-                    mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds,
-                    false);
+                    mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds);
 
-  // NOTE: Do NOT call SyncTrafficShapingEnabledWithFst() here.
-  // Start() can be invoked from Enable() which is called from
-  // FsView::ApplyGlobalConfig() while the ViewMutex WRITE lock is held.
-  // SyncTrafficShapingEnabledWithFst() acquires ViewMutex READ lock, which
-  // would deadlock the same thread.  The periodic FstTrafficShapingConfigUpdate
-  // thread provides the heartbeat sync, and TrafficShapingEngine::ApplyConfig()
-  // (called after the write lock is released) provides the immediate sync.
+  // NOTE: Do NOT call SyncTrafficShapingEnabledWithFst() here. Start() can be
+  // invoked while config replay is in progress; TrafficShapingEngine::ApplyConfig()
+  // provides the immediate sync after the FsView write lock is released.
   eos_static_info("msg=\"Traffic Shaping Engine Started\"");
 }
 
 void
 TrafficShapingEngine::Stop()
+{
+  StopRuntime();
+  StopFstEnabledSyncThread();
+}
+
+void
+TrafficShapingEngine::StopRuntime()
 {
   if (!mRunning) {
     return;
@@ -1294,7 +1299,6 @@ TrafficShapingEngine::Stop()
 
   mEstimatorsUpdateThread.join();
   mFstIoPolicyUpdateThread.join();
-  mFstTrafficShapingConfigUpdateThread.join();
   {
     std::lock_guard lock(mReportQueueMutex);
     mReportQueue.clear();
@@ -1305,8 +1309,7 @@ TrafficShapingEngine::Stop()
   }
 
   // NOTE: Do NOT call SyncTrafficShapingEnabledWithFst() here for the same
-  // reason as in Start(): Stop() can be called from Disable() which is called
-  // from FsView::ApplyGlobalConfig() while ViewMutex write lock is held.
+  // reason as in Start(): config replay synchronizes after releasing ViewMutex.
   eos_static_info("msg=\"Traffic Shaping Engine Stopped\"");
 }
 
@@ -1419,7 +1422,7 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
         std::chrono::duration_cast<std::chrono::microseconds>(work_done - now).count();
 
     if (static_cast<double>(work_duration_micro_sec) >
-        static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.1 * 1000.0) {
+        static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.5 * 1000.0) {
       eos_static_warning(
           "msg=\"Traffic Shaping Estimators Update loop is slow\" work_duration_ms=%.2f",
           static_cast<double>(work_duration_micro_sec) / 1000.0);
@@ -1459,7 +1462,7 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
 }
 
 void
-TrafficShapingEngine::FstTrafficShapingConfigUpdate(ThreadAssistant& assistant)
+TrafficShapingEngine::FstTrafficShapingEnabledUpdate(ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(5));
@@ -1469,34 +1472,79 @@ TrafficShapingEngine::FstTrafficShapingConfigUpdate(ThreadAssistant& assistant)
     }
 
     SyncTrafficShapingEnabledWithFst();
+    SyncTrafficShapingConfigWithFst();
   }
 }
 
 void
 TrafficShapingEngine::Enable()
 {
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG, true);
-  gOFS->mConfigEngine->AutoSave();
-  Start();
+  SetEnabled(true);
 }
 
 void
 TrafficShapingEngine::Disable()
 {
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG, false);
-  gOFS->mConfigEngine->AutoSave();
-  Stop();
+  SetEnabled(false);
 }
 
 void
-TrafficShapingEngine::SyncTrafficShapingEnabledWithFst()
+TrafficShapingEngine::SetEnabled(bool enabled)
 {
-  const bool enabled = mRunning;
-  const std::string enabled_str = enabled ? "true" : "false";
-  const std::string period_str =
-      std::to_string(mFstIoStatsReportThreadPeriodMilliseconds);
-  const std::string detail_level = GetDetailLevel();
+  EnsureFstEnabledSyncThread();
+  StoreEnabledConfig(enabled);
+  ApplyEnabledConfig(enabled);
+  SyncTrafficShapingEnabledWithFst();
+}
 
+void
+TrafficShapingEngine::ApplyEnabledConfig(bool enabled)
+{
+  if (enabled) {
+    Start();
+  } else {
+    StopRuntime();
+  }
+}
+
+void
+TrafficShapingEngine::StoreEnabledConfig(bool enabled)
+{
+  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG, enabled);
+  gOFS->mConfigEngine->AutoSave();
+}
+
+void
+TrafficShapingEngine::EnsureFstEnabledSyncThread()
+{
+  std::lock_guard lock(mFstEnabledSyncThreadMutex);
+
+  if (mFstEnabledSyncThreadStarted) {
+    return;
+  }
+
+  mFstTrafficShapingEnabledUpdateThread.reset(
+      &TrafficShapingEngine::FstTrafficShapingEnabledUpdate, this);
+  mFstTrafficShapingEnabledUpdateThread.setName("Traffic Shaping FST Enabled Update");
+  mFstEnabledSyncThreadStarted = true;
+}
+
+void
+TrafficShapingEngine::StopFstEnabledSyncThread()
+{
+  std::lock_guard lock(mFstEnabledSyncThreadMutex);
+
+  if (!mFstEnabledSyncThreadStarted) {
+    return;
+  }
+
+  mFstTrafficShapingEnabledUpdateThread.join();
+  mFstEnabledSyncThreadStarted = false;
+}
+
+std::vector<std::string>
+TrafficShapingEngine::GetOnlineFstNodeNames() const
+{
   std::vector<std::string> online_nodes;
   {
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
@@ -1506,17 +1554,37 @@ TrafficShapingEngine::SyncTrafficShapingEnabledWithFst()
       }
     }
   }
+  return online_nodes;
+}
 
-  for (const auto& node_name : online_nodes) {
+void
+TrafficShapingEngine::SyncTrafficShapingEnabledWithFst()
+{
+  const bool enabled = mRunning;
+  const std::string enabled_str = enabled ? "true" : "false";
+
+  for (const auto& node_name : GetOnlineFstNodeNames()) {
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
     auto it = FsView::gFsView.mNodeView.find(node_name);
     if (it != FsView::gFsView.mNodeView.end()) {
       it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE,
                                   enabled_str, true);
+    }
+  }
+}
+
+void
+TrafficShapingEngine::SyncTrafficShapingConfigWithFst()
+{
+  const std::string period_str =
+      std::to_string(mFstIoStatsReportThreadPeriodMilliseconds);
+
+  for (const auto& node_name : GetOnlineFstNodeNames()) {
+    eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+    auto it = FsView::gFsView.mNodeView.find(node_name);
+    if (it != FsView::gFsView.mNodeView.end()) {
       it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
                                   period_str, true);
-      it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL,
-                                  detail_level, true);
     }
   }
 }

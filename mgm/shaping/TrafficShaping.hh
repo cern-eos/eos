@@ -5,8 +5,16 @@
 #include "common/shaping/SlidingWindowStats.hh"
 #include "proto/TrafficShaping.pb.h"
 
+#include <algorithm>
+#include <array>
 #include <atomic>
+#include <chrono>
+#include <cstddef>
+#include <cstdint>
+#include <ctime>
+#include <functional>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <shared_mutex>
 #include <string>
@@ -404,6 +412,8 @@ public:
 
   void Disable();
 
+  void SetEnabled(bool enabled);
+
   bool
   IsEnabled() const
   {
@@ -412,12 +422,11 @@ public:
 
   void SyncTrafficShapingEnabledWithFst();
 
+  void SyncTrafficShapingConfigWithFst();
+
   std::shared_ptr<TrafficShapingManager> GetManager() const;
 
   void ProcessSerializedFstIoReportNonBlocking(const std::string& serialized_report);
-
-  void ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
-                         uint32_t win_s, bool save_to_config_engine = true);
 
   uint32_t
   GetEstimatorsUpdateThreadPeriodMilliseconds() const
@@ -451,28 +460,55 @@ public:
 
   void SetSystemStatsWindowSeconds(uint32_t window_seconds);
 
-  void SetDetailLevel(const std::string& detail_level, bool save_to_config_engine = true);
+  void SetDetailLevel(const std::string& detail_level);
 
   std::string GetDetailLevel() const;
 
+#ifdef IN_TEST_HARNESS
+public:
+#else
 private:
+#endif
+  void ApplyEnabledConfig(bool enabled);
+
+  void StoreEnabledConfig(bool enabled);
+
+  void StopRuntime();
+
+  void EnsureFstEnabledSyncThread();
+
+  void StopFstEnabledSyncThread();
+
+  std::vector<std::string> GetOnlineFstNodeNames() const;
+
+  bool ApplyThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms,
+                         uint32_t win_s);
+
+  void SetThreadConfig(uint32_t est_ms, uint32_t pol_ms, uint32_t rep_ms, uint32_t win_s);
+
+  void StoreThreadConfig();
+
+  bool ApplyDetailLevelConfig(const std::string& detail_level);
+
+  static void StoreDetailLevelConfig(const std::string& detail_level);
+
   void EstimatorsUpdate(ThreadAssistant&);
 
   void FstIoPolicyUpdate(ThreadAssistant&) const;
 
-  void FstTrafficShapingConfigUpdate(ThreadAssistant&);
+  void FstTrafficShapingEnabledUpdate(ThreadAssistant&);
 
   void AddReportToQueue(const eos::traffic_shaping::FstIoReport& report);
 
   void ProcessAllQueuedReports();
 
-  void UpdateThreadConfigs();
-
   std::shared_ptr<TrafficShapingManager> mManager{};
 
   AssistedThread mEstimatorsUpdateThread;
   AssistedThread mFstIoPolicyUpdateThread;
-  AssistedThread mFstTrafficShapingConfigUpdateThread;
+  AssistedThread mFstTrafficShapingEnabledUpdateThread;
+  bool mFstEnabledSyncThreadStarted = false;
+  std::mutex mFstEnabledSyncThreadMutex;
 
   std::atomic<bool> mRunning{};
 
