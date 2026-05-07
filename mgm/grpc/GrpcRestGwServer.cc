@@ -565,8 +565,9 @@ GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
   std::string bind_address = "0.0.0.0:";
   bind_address += std::to_string(mPort);
   // gateway bind address
+  int port = 40054;
   std::string gw_bind_address = "0.0.0.0:";
-  gw_bind_address += "40054";
+  gw_bind_address += std::to_string(port);
   builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
   mRestGwServer = builder.BuildAndStart();
@@ -576,9 +577,10 @@ GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
   char* path = (char*)"../../../../protos/examplepb";
   char* network = (char*)"tcp";
   const auto gatewayServer = SpawnGrpcGateway(gwaddr, network, addr, path);
-  eos_static_notice("%s", "msg=\"spawning GRPC GATEWAY, REST API available\"");
+  eos_static_notice("%s", "msg=\"spawning gRPC REST GATEWAY\"");
 
   if (mRestGwServer) {
+    eos_static_info("msg=\"gRPC REST server is running\" port=%i", mPort);
     mRestGwServer->Wait();
   }
 
