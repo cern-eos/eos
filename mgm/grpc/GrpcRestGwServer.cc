@@ -1,15 +1,38 @@
+// ----------------------------------------------------------------------
+// File: GrpcRestGwServer.cc
+// Author: Elvin Sindrilaru - CERN
+// ----------------------------------------------------------------------
+
+/************************************************************************
+ * EOS - the CERN Disk Storage System                                   *
+ * Copyright (C) 2026 CERN/Switzerland                                  *
+ *                                                                      *
+ * This program is free software: you can redistribute it and/or modify *
+ * it under the terms of the GNU General Public License as published by *
+ * the Free Software Foundation, either version 3 of the License, or    *
+ * (at your option) any later version.                                  *
+ *                                                                      *
+ * This program is distributed in the hope that it will be useful,      *
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+ * GNU General Public License for more details.                         *
+ *                                                                      *
+ * You should have received a copy of the GNU General Public License    *
+ * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+ ************************************************************************/
+
+#ifdef EOS_GRPC_GATEWAY
 #include "GrpcRestGwServer.hh"
-#include <google/protobuf/util/json_util.h>
+
+#include "EosGrpcGateway.h"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/macros/Macros.hh"
-#include <XrdSec/XrdSecEntity.hh>
-
-#ifdef EOS_GRPC_GATEWAY
 #include "proto/eos_rest_gateway/eos_rest_gateway_service.grpc.pb.h"
-#include "EosGrpcGateway.h"
-
+#include <XrdSec/XrdSecEntity.hh>
+#include <google/protobuf/util/json_util.h>
 #include <grpc++/security/credentials.h>
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
 
 using grpc::Server;
 using grpc::ServerBuilder;
@@ -560,6 +583,9 @@ GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
 {
 #ifdef EOS_GRPC_GATEWAY
   EosRestGatewayServiceImpl service;
+  // This line is often optional if the plugin is linked correctly,
+  // but calling it explicitly ensures the plugin is registered.
+  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   grpc::ServerBuilder builder;
   // server bind address
   std::string bind_address = "0.0.0.0:";

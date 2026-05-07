@@ -28,6 +28,7 @@
 #include "mgm/macros/Macros.hh"
 #include <XrdSec/XrdSecEntity.hh>
 #include <algorithm>
+#include <grpcpp/ext/proto_server_reflection_plugin.h>
 #include <map>
 #include <unordered_map>
 #include <vector>
@@ -627,6 +628,9 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
 
   int selected_port = 0;
   RequestServiceImpl service;
+  // This line is often optional if the plugin is linked correctly,
+  // but calling it explicitly ensures the plugin is registered.
+  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   std::string bind_address = "0.0.0.0:";
   bind_address += std::to_string(mPort);
   grpc::ServerBuilder builder;
