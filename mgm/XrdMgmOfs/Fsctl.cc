@@ -228,8 +228,9 @@ XrdMgmOfs::FSctl(const int cmd,
   EXEC_TIMING_BEGIN("IdMap");
   // @todo(esindril) the access operation type should be reviewed depending
   // on the type of incoming request and adjust accordingly.
+  
   eos::common::Mapping::IdMap(client, ininfo, tident, vid, gOFS->mTokenAuthz,
-                              AOP_Stat, inpath, false);
+                              AOP_Stat, fusexset?"/proc/fusex":inpath, false);
   EXEC_TIMING_END("IdMap");
   gOFS->MgmStats.Add("IdMap", vid.uid, vid.gid, 1);
   tlLogId.SetSingleShotLogId(tident);
