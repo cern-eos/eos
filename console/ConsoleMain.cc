@@ -873,10 +873,25 @@ Run(int argc, char* argv[])
           if (i == argindex) {
             cmdline += argv[i];
           } else {
-            std::stringstream ss;
-            ss << std::quoted(argv[i]);
             cmdline += " ";
-            cmdline += ss.str().c_str();
+            std::string arg = argv[i];
+            // Only wrap in quotes if necessary; escape only internal double-quotes
+            bool needs_quoting = (arg.find(' ') != std::string::npos ||
+                                  arg.find('"') != std::string::npos);
+            if (needs_quoting) {
+              std::string quoted;
+              quoted += '"';
+              for (char c : arg) {
+                if (c == '"') {
+                  quoted += '\\'; // escape embedded quotes only
+                }
+                quoted += c;
+              }
+              quoted += '"';
+              cmdline += quoted.c_str();
+            } else {
+              cmdline += arg.c_str();
+            }
           }
         }
 
