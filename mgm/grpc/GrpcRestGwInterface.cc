@@ -38,6 +38,7 @@
 #include "namespace/interface/IView.hh"
 //-----------------------------------------------------------------------------
 #include <XrdPosix/XrdPosixXrootd.hh>
+#include <google/protobuf/util/json_util.h>
 //-----------------------------------------------------------------------------
 
 EOSMGMNAMESPACE_BEGIN
@@ -45,6 +46,9 @@ EOSMGMNAMESPACE_BEGIN
 grpc::Status GrpcRestGwInterface::AclCall(VirtualIdentity& vid,
     const AclProto* aclRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*aclRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the AclProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_acl()->CopyFrom(*aclRequest);
@@ -56,6 +60,9 @@ grpc::Status GrpcRestGwInterface::AclCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::AccessCall(VirtualIdentity& vid,
     const AccessProto* accessRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*accessRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_access()->CopyFrom(*accessRequest);
@@ -67,6 +74,9 @@ grpc::Status GrpcRestGwInterface::AccessCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::ArchiveCall(VirtualIdentity& vid,
     const ArchiveProto* archiveRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*archiveRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the ArchiveProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_archive()->CopyFrom(*archiveRequest);
@@ -92,6 +102,9 @@ grpc::Status GrpcRestGwInterface::ArchiveCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
     const AttrProto* attrRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*attrRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the AttrProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_attr()->CopyFrom(*attrRequest);
@@ -238,6 +251,9 @@ grpc::Status GrpcRestGwInterface::AttrCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::BackupCall(VirtualIdentity& vid,
     const BackupProto* backupRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*backupRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the BackupProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_backup()->CopyFrom(*backupRequest);
@@ -299,6 +315,9 @@ grpc::Status GrpcRestGwInterface::BackupCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::ChmodCall(VirtualIdentity& vid,
     const ChmodProto* chmodRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*chmodRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the ChmodProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_chmod()->CopyFrom(*chmodRequest);
@@ -351,6 +370,9 @@ grpc::Status GrpcRestGwInterface::ChmodCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
     const ChownProto* chownRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*chownRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the ChownProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_chown()->CopyFrom(*chownRequest);
@@ -431,6 +453,9 @@ grpc::Status GrpcRestGwInterface::ChownCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::ConfigCall(VirtualIdentity& vid,
     const ConfigProto* configRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*configRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the ConfigProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_config()->CopyFrom(*configRequest);
@@ -442,6 +467,9 @@ grpc::Status GrpcRestGwInterface::ConfigCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::ConvertCall(VirtualIdentity& vid,
     const ConvertProto* convertRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*convertRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the ConvertProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_convert()->CopyFrom(*convertRequest);
@@ -453,6 +481,9 @@ grpc::Status GrpcRestGwInterface::ConvertCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
     const CpProto* cpRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*cpRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the CpProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_cp()->CopyFrom(*cpRequest);
@@ -570,6 +601,9 @@ grpc::Status GrpcRestGwInterface::CpCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::DebugCall(VirtualIdentity& vid,
     const DebugProto* debugRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*debugRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the DebugProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_debug()->CopyFrom(*debugRequest);
@@ -581,6 +615,9 @@ grpc::Status GrpcRestGwInterface::DebugCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::EvictCall(VirtualIdentity& vid,
     const EvictProto* evictRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*evictRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the EvictProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_debug()->CopyFrom(*evictRequest);
@@ -603,6 +640,9 @@ FileHelper_GetRemoteFmdFromLocalDb(const char* manager, const char* shexfid,
 grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
     const FileProto* fileRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*fileRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_file()->CopyFrom(*fileRequest);
@@ -1303,6 +1343,9 @@ grpc::Status GrpcRestGwInterface::FileCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
     const FileinfoProto* fileinfoRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*fileinfoRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the FileinfoProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fileinfo()->CopyFrom(*fileinfoRequest);
@@ -1440,6 +1483,9 @@ grpc::Status GrpcRestGwInterface::FileinfoCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::FindCall(VirtualIdentity& vid,
     const FindProto* findRequest, ServerWriter<ReplyProto>* writer)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*findRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the FindProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_find()->CopyFrom(*findRequest);
@@ -1451,6 +1497,9 @@ grpc::Status GrpcRestGwInterface::FindCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::FsCall(VirtualIdentity& vid,
     const FsProto* fsRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*fsRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the FsProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fs()->CopyFrom(*fsRequest);
@@ -1462,6 +1511,9 @@ grpc::Status GrpcRestGwInterface::FsCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::FsckCall(VirtualIdentity& vid,
     const FsckProto* fsckRequest, ServerWriter<ReplyProto>* writer)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*fsckRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the FsckProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_fsck()->CopyFrom(*fsckRequest);
@@ -1473,6 +1525,9 @@ grpc::Status GrpcRestGwInterface::FsckCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
     const GeoschedProto* geoschedRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*geoschedRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the AccessProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_geosched()->CopyFrom(*geoschedRequest);
@@ -1677,6 +1732,9 @@ grpc::Status GrpcRestGwInterface::GeoschedCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::GroupCall(VirtualIdentity& vid,
     const GroupProto* groupRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*groupRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the GroupProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_group()->CopyFrom(*groupRequest);
@@ -1688,6 +1746,9 @@ grpc::Status GrpcRestGwInterface::GroupCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::HealthCall(VirtualIdentity& vid,
     const HealthProto* healthRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*healthRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the HealthProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_health()->CopyFrom(*healthRequest);
@@ -1721,6 +1782,9 @@ grpc::Status GrpcRestGwInterface::HealthCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::IoCall(VirtualIdentity& vid,
     const IoProto* ioRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*ioRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the IoProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_io()->CopyFrom(*ioRequest);
@@ -1732,6 +1796,9 @@ grpc::Status GrpcRestGwInterface::IoCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::LsCall(VirtualIdentity& vid,
     const LsProto* lsRequest, ServerWriter<ReplyProto>* writer)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*lsRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the LsProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_ls()->CopyFrom(*lsRequest);
@@ -1926,6 +1993,9 @@ grpc::Status GrpcRestGwInterface::LsCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::MapCall(VirtualIdentity& vid,
     const MapProto* mapRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*mapRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the MapProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_map()->CopyFrom(*mapRequest);
@@ -1946,6 +2016,9 @@ grpc::Status GrpcRestGwInterface::MapCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::MemberCall(VirtualIdentity& vid,
     const MemberProto* memberRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*memberRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the MemberProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_member()->CopyFrom(*memberRequest);
@@ -1976,6 +2049,9 @@ grpc::Status GrpcRestGwInterface::MemberCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::MkdirCall(VirtualIdentity& vid,
     const MkdirProto* mkdirRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*mkdirRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the MkdirProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_mkdir()->CopyFrom(*mkdirRequest);
@@ -2009,6 +2085,9 @@ grpc::Status GrpcRestGwInterface::MkdirCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
     const MoveProto* mvRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*mvRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the MoveProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_mv()->CopyFrom(*mvRequest);
@@ -2051,6 +2130,9 @@ grpc::Status GrpcRestGwInterface::MvCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::NodeCall(VirtualIdentity& vid,
     const NodeProto* nodeRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*nodeRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_node()->CopyFrom(*nodeRequest);
@@ -2062,6 +2144,9 @@ grpc::Status GrpcRestGwInterface::NodeCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::NsCall(VirtualIdentity& vid,
     const NsProto* nsRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*nsRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_ns()->CopyFrom(*nsRequest);
@@ -2073,6 +2158,9 @@ grpc::Status GrpcRestGwInterface::NsCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::QuotaCall(VirtualIdentity& vid,
     const QuotaProto* quotaRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*quotaRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the QuotaProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_quota()->CopyFrom(*quotaRequest);
@@ -2084,6 +2172,9 @@ grpc::Status GrpcRestGwInterface::QuotaCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::RecycleCall(VirtualIdentity& vid,
     const RecycleProto* recycleRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*recycleRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the RecycleProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_recycle()->CopyFrom(*recycleRequest);
@@ -2095,6 +2186,9 @@ grpc::Status GrpcRestGwInterface::RecycleCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::RmCall(VirtualIdentity& vid,
     const RmProto* rmRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*rmRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the RmProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_rm()->CopyFrom(*rmRequest);
@@ -2106,6 +2200,9 @@ grpc::Status GrpcRestGwInterface::RmCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::RmdirCall(VirtualIdentity& vid,
     const RmdirProto* rmdirRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*rmdirRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the NodeProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_rmdir()->CopyFrom(*rmdirRequest);
@@ -2136,6 +2233,9 @@ grpc::Status GrpcRestGwInterface::RmdirCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::RouteCall(VirtualIdentity& vid,
     const RouteProto* routeRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*routeRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the RouteProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_route()->CopyFrom(*routeRequest);
@@ -2147,6 +2247,9 @@ grpc::Status GrpcRestGwInterface::RouteCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid,
     const SpaceProto* spaceRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*spaceRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the SpaceProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_space()->CopyFrom(*spaceRequest);
@@ -2175,6 +2278,9 @@ grpc::Status GrpcRestGwInterface::SpaceCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::StatCall(VirtualIdentity& vid,
     const StatProto* statRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*statRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the StatProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_stat()->CopyFrom(*statRequest);
@@ -2225,6 +2331,9 @@ grpc::Status GrpcRestGwInterface::StatCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::StatusCall(VirtualIdentity& vid,
     const StatusProto* statusRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*statusRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the StatusProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_status()->CopyFrom(*statusRequest);
@@ -2257,6 +2366,9 @@ grpc::Status GrpcRestGwInterface::StatusCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::TokenCall(VirtualIdentity& vid,
     const TokenProto* tokenRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*tokenRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the TokenProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_token()->CopyFrom(*tokenRequest);
@@ -2268,6 +2380,9 @@ grpc::Status GrpcRestGwInterface::TokenCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::TouchCall(VirtualIdentity& vid,
     const TouchProto* touchRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*touchRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the TokenProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_touch()->CopyFrom(*touchRequest);
@@ -2311,6 +2426,9 @@ grpc::Status GrpcRestGwInterface::TouchCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::VersionCall(VirtualIdentity& vid,
     const VersionProto* versionRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*versionRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the VersionProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_version()->CopyFrom(*versionRequest);
@@ -2335,6 +2453,9 @@ grpc::Status GrpcRestGwInterface::VersionCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
     const VidProto* vidRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*vidRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the VidProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_vid()->CopyFrom(*vidRequest);
@@ -2663,6 +2784,9 @@ grpc::Status GrpcRestGwInterface::VidCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::WhoCall(VirtualIdentity& vid,
     const WhoProto* whoRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*whoRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the WhoProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_who()->CopyFrom(*whoRequest);
@@ -2703,6 +2827,9 @@ grpc::Status GrpcRestGwInterface::WhoCall(VirtualIdentity& vid,
 grpc::Status GrpcRestGwInterface::WhoamiCall(VirtualIdentity& vid,
     const WhoamiProto* whoamiRequest, ReplyProto* reply)
 {
+  std::string json_req;
+  (void)google::protobuf::util::MessageToJsonString(*whoamiRequest, &json_req);
+  eos_static_info("request=\"%s\"", json_req.c_str());
   // wrap the WhoamiProto object into a RequestProto object
   eos::console::RequestProto req;
   req.mutable_whoami()->CopyFrom(*whoamiRequest);
