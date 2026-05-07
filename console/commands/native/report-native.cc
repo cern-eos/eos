@@ -28,9 +28,9 @@ public:
     return "Generate cluster report";
   }
   bool
-  requiresMgm(const std::string& args) const override
+  requiresMgm(const std::string& /*args*/) const override
   {
-    return !wants_help(args.c_str());
+    return false;
   }
   int
   run(const std::vector<std::string>& args, CommandContext&) override
@@ -58,6 +58,7 @@ public:
     bool reading = false;
     bool writing = false;
     bool json = false;
+    bool addvector = false;
     Json::Value gjson;
     do {
       arg = subtokenizer.GetToken();
@@ -95,6 +96,10 @@ public:
       }
       if (arg == "--json") {
         json = true;
+        continue;
+      }
+      if (arg == "--addvector") {
+        addvector = true;
         continue;
       }
       if (arg == "--max-efficiency") {
@@ -171,6 +176,9 @@ public:
         double weff = 0;
         double swleff = 0;
         sum_w = sum_r = 0;
+        uint64_t sum_nrc = 0;
+        uint64_t sum_nwc = 0;
+        uint64_t sum_rv_op = 0;
         std::string sizestring;
         size_t n_reports = 0;
         regex_t regex;
@@ -201,7 +209,8 @@ public:
             if (!sregex.length() && map["td"].substr(0, 6) == "daemon") {
               continue;
             }
-            if (!map.count("rb") && !map.count("wb")) {
+            if (!map.count("rb") && !map.count("wb") &&
+                !(addvector && map.count("rvb_sum"))) {
               continue;
             }
             if (map["sec.app"] == "deletion") {
@@ -224,8 +233,20 @@ public:
               first_ts = start_ots;
             }
             last_ts = start_cts;
-            ssize_t wsize = std::stol(map["wb"]);
-            ssize_t rsize = std::stol(map["rb"]);
+            ssize_t wsize = map.count("wb") ? std::stol(map["wb"]) : 0;
+            ssize_t rsize = map.count("rb") ? std::stol(map["rb"]) : 0;
+            ssize_t rvsize =
+                (addvector && map.count("rvb_sum")) ? std::stol(map["rvb_sum"])
+                                                    : 0;
+            if (addvector) {
+              rsize += rvsize;
+            }
+            uint64_t nrc =
+                map.count("nrc") ? std::stoull(map["nrc"]) : 0ULL;
+            uint64_t nwc =
+                map.count("nwc") ? std::stoull(map["nwc"]) : 0ULL;
+            uint64_t rv_op =
+                map.count("rv_op") ? std::stoull(map["rv_op"]) : 0ULL;
             double iot = std::stod(map["iot"]);
             double idt = std::stod(map["idt"]);
             double lwt = std::stod(map["lwt"]);
@@ -260,42 +281,50 @@ public:
               std::string str = Json::writeString(builder, ljson);
               fprintf(stdout, "%s\n", str.c_str());
             }
-            if (std::stol(map["wb"]) > 0 && writing) {
+            if (wsize > 0 && writing) {
               sum_w += wsize;
               n_w++;
               weff += deff;
               swleff += lweff;
+              sum_nwc += nwc;
               double tt = std::stoul(map["cts"]) - std::stoul(map["ots"]) +
                           (0.001 * std::stoul(map["ctms"])) -
                           (0.001 * std::stoul(map["otms"]));
               float rate = wsize / tt / 1000000.0;
+              double w_iops = (tt > 0) ? (nwc / tt) : 0.0;
               if (!silent && !json) {
                 fprintf(stdout,
                         "W %-16s t=%06.02f [s] r=%06.02f [MB/s] eff=%02d/%02d "
-                        "[%%] path=%64s\n",
+                        "[%%] iops=%07.0f n=%lu path=%64s\n",
                         eos::common::StringConversion::GetReadableSizeString(
                             sizestring, wsize, ""),
-                        tt, rate, eff, (int)lweff, map["path"].c_str());
+                        tt, rate, eff, (int)lweff, w_iops,
+                        (unsigned long)nwc, map["path"].c_str());
               }
               w_t.insert(tt);
               found = true;
             }
-            if (std::stol(map["rb"]) > 0 && reading) {
+            if (rsize > 0 && reading) {
               sum_r += rsize;
               n_r++;
               reff += deff;
               srleff += lreff;
+              sum_nrc += nrc;
+              sum_rv_op += rv_op;
               double tt = std::stoul(map["cts"]) - std::stoul(map["ots"]) +
                           (0.001 * std::stoul(map["ctms"])) -
                           (0.001 * std::stoul(map["otms"]));
               float rate = rsize / tt / 1000000.0;
+              double r_iops = (tt > 0) ? ((nrc + rv_op) / tt) : 0.0;
               if (!silent && !json && !squash.length()) {
                 fprintf(stdout,
                         "R %-16s t=%06.02f [s] r=%06.02f [MB/s] eff=%02d/%02d "
-                        "[%%] path=%64s\n",
+                        "[%%] iops=%07.0f n=%lu+%luv path=%64s\n",
                         eos::common::StringConversion::GetReadableSizeString(
                             sizestring, rsize, ""),
-                        tt, rate, eff, (int)lreff, map["path"].c_str());
+                        tt, rate, eff, (int)lreff, r_iops,
+                        (unsigned long)nrc, (unsigned long)rv_op,
+                        map["path"].c_str());
               }
               r_t.insert(tt);
               found = true;
@@ -388,6 +417,19 @@ public:
               n_w ? ((int)(weff / n_w)) : 0, n_w ? ((int)(swleff / n_w)) : 0,
               (last_ts - first_ts) ? sum_w / 1000000.0 / (last_ts - first_ts)
                                    : 0);
+          fprintf(
+              stdout,
+              "- r:ops nrc: %lu rv_op: %lu total: %lu avg: %.02f IOPS\n",
+              (unsigned long)sum_nrc, (unsigned long)sum_rv_op,
+              (unsigned long)(sum_nrc + sum_rv_op),
+              (last_ts - first_ts)
+                  ? (double)(sum_nrc + sum_rv_op) / (last_ts - first_ts)
+                  : 0.0);
+          fprintf(
+              stdout, "- w:ops nwc: %lu avg: %.02f IOPS\n",
+              (unsigned long)sum_nwc,
+              (last_ts - first_ts) ? (double)sum_nwc / (last_ts - first_ts)
+                                   : 0.0);
           fprintf(stdout, "----------------------------------------------------"
                           "-----------------\n");
         } else if (silent) {
@@ -431,6 +473,21 @@ public:
               n_w ? (weff / n_w) : 0;
           gjson["report"]["rd"]["efficiency"]["server"] =
               n_w ? (swleff / n_w) : 0;
+          gjson["report"]["rd"]["ops"]["nrc"] =
+              (Json::Value::UInt64)sum_nrc;
+          gjson["report"]["rd"]["ops"]["rv_op"] =
+              (Json::Value::UInt64)sum_rv_op;
+          gjson["report"]["rd"]["ops"]["total"] =
+              (Json::Value::UInt64)(sum_nrc + sum_rv_op);
+          gjson["report"]["rd"]["ops"]["iops"] =
+              (last_ts - first_ts)
+                  ? (double)(sum_nrc + sum_rv_op) / (last_ts - first_ts)
+                  : 0.0;
+          gjson["report"]["wr"]["ops"]["nwc"] =
+              (Json::Value::UInt64)sum_nwc;
+          gjson["report"]["wr"]["ops"]["iops"] =
+              (last_ts - first_ts) ? (double)sum_nwc / (last_ts - first_ts)
+                                   : 0.0;
           Json::StreamWriterBuilder builder2;
           builder2["indentation"] = "";
           std::string out = Json::writeString(builder2, gjson);
@@ -455,7 +512,7 @@ public:
     fprintf(stderr,
             "               [--max-efficiency <0-100>] [--squash <path>]\n");
     fprintf(stderr,
-            "               [--start <epoch>] [--stop <epoch>] [--json] [-s] <file>\n");
+            "               [--start <epoch>] [--stop <epoch>] [--json] [--addvector] [-s] <file>\n");
     fprintf(stderr,
             "options:\n");
     fprintf(stderr, "  --read                 filter read reports only\n");
@@ -469,6 +526,9 @@ public:
     fprintf(stderr, "  --start <epoch>        only include reports >= start time\n");
     fprintf(stderr, "  --stop <epoch>         only include reports <= stop time\n");
     fprintf(stderr, "  --json                 output JSON summary\n");
+    fprintf(stderr,
+            "  --addvector            include vector-read bytes (rvb_sum) in read totals,\n"
+            "                         rates and efficiency computations\n");
     fprintf(stderr, "  -s                     silent (no output)\n");
   }
 };
