@@ -662,7 +662,7 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
   }
 
   if (mServer) {
-    eos_static_info("msg=\"gRPC server for EOS is running\" port=%i.", mPort);
+    eos_static_info("msg=\"gRPC server for EOS is running\" port=%i", mPort);
     mServer->Wait();
   }
 
