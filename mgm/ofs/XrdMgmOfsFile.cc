@@ -2835,8 +2835,12 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     // the recovery will fail on non xfs filesystem otherwise.
     capability += "0";
   } else {
+    unsigned long long capBookingSize = bookingsize;
+    if (eos::common::LayoutId::IsRain(layoutId) && capBookingSize) {
+      capBookingSize = eos::common::LayoutId::GetStripeFileSize(layoutId, capBookingSize);
+    }
     capability +=
-      eos::common::StringConversion::GetSizeString(sizestring, bookingsize);
+        eos::common::StringConversion::GetSizeString(sizestring, capBookingSize);
   }
 
   if (minimumsize) {
@@ -2854,8 +2858,11 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // Expected size of the target file on close
   if (targetsize) {
     capability += "&mgm.targetsize=";
-    capability += eos::common::StringConversion::GetSizeString(sizestring,
-                  targetsize);
+    unsigned long long capTargetSize = targetsize;
+    if (eos::common::LayoutId::IsRain(layoutId) && capTargetSize) {
+      capTargetSize = eos::common::LayoutId::GetStripeFileSize(layoutId, capTargetSize);
+    }
+    capability += eos::common::StringConversion::GetSizeString(sizestring, capTargetSize);
   }
 
   if (LayoutId::GetLayoutType(layoutId) == LayoutId::kPlain) {

@@ -620,22 +620,20 @@ DrainTransferJob::SelectDstFs(const FileDrainInfo& fdrain)
   }
 
   bool res = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
-               group, nfilesystems,
-               &new_repl,
-               (ino64_t) fdrain.mProto.id(),
-               NULL, // entrypoints
-               NULL, // firewall
-               // This methods is only called for drain functionality, for
-               // balance we already provide the destination file system
-               GeoTreeEngine::draining,
-               &existing_repl,
-               &fsid_geotags,
-               fdrain.mProto.size(),
-               "",// start from geotag
-               "",// client geo tag
-               ncollocatedfs,
-               &mExcludeDsts,
-               &fsid_geotags); // excludeGeoTags
+      group, nfilesystems, &new_repl, (ino64_t)fdrain.mProto.id(),
+      NULL, // entrypoints
+      NULL, // firewall
+      // This methods is only called for drain functionality, for
+      // balance we already provide the destination file system
+      GeoTreeEngine::draining, &existing_repl, &fsid_geotags,
+      eos::common::LayoutId::IsRain(fdrain.mProto.layout_id())
+          ? eos::common::LayoutId::GetStripeFileSize(fdrain.mProto.layout_id(),
+                                                     fdrain.mProto.size())
+          : fdrain.mProto.size(),
+      "", // start from geotag
+      "", // client geo tag
+      ncollocatedfs, &mExcludeDsts,
+      &fsid_geotags); // excludeGeoTags
 
   if (!res || new_repl.empty())  {
     eos_err("msg=\"fxid=%08llx could not place new replica\"", mFileId.load());

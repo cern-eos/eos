@@ -227,21 +227,15 @@ Scheduler::FilePlacement(PlacementArguments* args)
                      group->mName.c_str(), FsView::gFsView.mSpaceGroupView[*args->spacename].size(),
                      groupsToTry.size());
     bool placeRes = gOFS->mGeoTreeEngine->placeNewReplicasOneGroup(
-                      group, nfilesystems,
-                      args->selected_filesystems,
-                      args->inode,
-                      args->dataproxys,
-                      args->firewallentpts,
-                      GeoTreeEngine::regularRW,
-                      // file systems to avoid are assumed to already host a replica
-                      args->alreadyused_filesystems,
-                      &fsidsgeotags,
-                      args->bookingsize,
-                      args->plctTrgGeotag ? *args->plctTrgGeotag : "",
-                      args->vid->geolocation,
-                      ncollocatedfs,
-                      args->exclude_filesystems,
-                      NULL);
+        group, nfilesystems, args->selected_filesystems, args->inode, args->dataproxys,
+        args->firewallentpts, GeoTreeEngine::regularRW,
+        // file systems to avoid are assumed to already host a replica
+        args->alreadyused_filesystems, &fsidsgeotags,
+        eos::common::LayoutId::IsRain(args->lid)
+            ? eos::common::LayoutId::GetStripeFileSize(args->lid, args->bookingsize)
+            : args->bookingsize,
+        args->plctTrgGeotag ? *args->plctTrgGeotag : "", args->vid->geolocation,
+        ncollocatedfs, args->exclude_filesystems, NULL);
     eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
 
     if (g_logging.gLogMask & LOG_MASK(LOG_DEBUG)) {
