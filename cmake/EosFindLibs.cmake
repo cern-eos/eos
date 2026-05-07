@@ -70,7 +70,7 @@ if(NOT PACKAGEONLY)
   find_package(Protobuf3 REQUIRED)
 
   if (GRPC_FOUND AND XROOTD_FOUND)
-    # Library paths for Protobuf, grpc and xrootd needs to be added to the
+    # Library paths for Protobuf, grpc and xrootd need to be added to the
     # RPATH of the libraries and binaries built since they are not installed
     # in the usual system location.
     set(CMAKE_SKIP_RPATH FALSE)
