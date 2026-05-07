@@ -227,6 +227,7 @@ if (Linux)
   target_link_libraries(EosGrpcProto-Objects PUBLIC
     GRPC::grpc
     GRPC::grpc++
+    GRPC::grpc++_reflection
     PROTOBUF::PROTOBUF
     ABSL::ABSL)
 
