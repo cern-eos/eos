@@ -132,6 +132,41 @@ macaroon() {
 
 }
 
+### GFAL token request
+# Returns 0 if a Storage Element issued token is retrieved successfully.
+gfaltoken() {
+    command -v gfal-token >/dev/null 2>&1 || {
+      echo -e '\terror: gfal-token is not installed'
+      return 1
+    }
+
+    # certificate and private key
+    export X509_USER_CERT=${cert}
+    export X509_USER_KEY=${key}
+
+    # Override EOS_GFAL_TOKEN_URL to reproduce against a specific external path.
+    local gfal_token_path="${testdir%/}"
+    local gfal_token_url="${EOS_GFAL_TOKEN_URL:-https://${host}:${port}/${gfal_token_path}}"
+    local gfal_token_output
+
+    gfal_token_output="$(gfal-token -E "${cert}" --key "${key}" "${gfal_token_url}" 2>&1)"
+    local gfal_token_code=$?
+
+    if [[ ${gfal_token_code} -ne 0 ]]; then
+      echo -e "\tgfal-token -> failed for ${gfal_token_url}"
+      echo "${gfal_token_output}" | sed 's/^/\t/'
+      return 1
+    fi
+
+    if [[ -z "${gfal_token_output//[[:space:]]/}" ]]; then
+      echo -e "\tgfal-token -> empty token for ${gfal_token_url}"
+      return 1
+    fi
+
+    echo -e "\tgfal-token -> token issued for ${gfal_token_url}"
+    return 0
+}
+
 ### TPC
 # Returns 0 if successful, 1 if tcp pull failed, 2 if tcp push failed, 3 if both failed
 tcp() {
@@ -255,6 +290,15 @@ macaroon
 macarooncode=$?
 echo "macaroon:"$macarooncode
 
+gfaltokencode=0
+if [[ "${EOS_CI_GFAL_TOKEN_TEST:-0}" == "1" ]]; then
+  gfaltoken
+  gfaltokencode=$?
+  echo "gfaltoken:"$gfaltokencode
+else
+  echo "gfaltoken:skipped"
+fi
+
 eostoken
 eostokencode=$?
 echo "eostoken:"$eostokencode
@@ -267,4 +311,4 @@ echo "info: cleanup https test directory"
 eos ls -lrta ${testdir}
 eos rm -rF ${testdir}
 
-exit $x509code$macarooncode$eostokencode$tpccode
+exit $x509code$macarooncode$gfaltokencode$eostokencode$tpccode

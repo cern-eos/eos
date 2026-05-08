@@ -567,6 +567,7 @@ el9_asan_docker_image:
   script:
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
+    - exec_cmd eos-mgm1 'dnf install --nogpg -y gfal2-util-scripts'
     - exec_cmd eos-mgm1 'eos-instance-test-ci'
     - date
     - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
