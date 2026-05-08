@@ -371,10 +371,10 @@ TableCell::TableCell(const std::string& value, const std::string& format,
 }
 
 //------------------------------------------------------------------------------
-// Constructor for uint64_t data
+// Constructor for unsigned long int data
 //------------------------------------------------------------------------------
-TableCell::TableCell(uint64_t value, const std::string& format, const std::string& unit,
-                     bool empty, TableFormatterColor col)
+TableCell::TableCell(unsigned long int value, const std::string& format,
+                     const std::string& unit, bool empty, TableFormatterColor col)
     : mFormat(format)
     , mUnit(unit)
     , mEmpty(empty)
@@ -543,13 +543,13 @@ void TableCell::SetValue(const std::string& value)
 }
 
 //------------------------------------------------------------------------------
-// Set uint64_t value
+// Set unsigned long int value
 //------------------------------------------------------------------------------
 void
-TableCell::SetValue(uint64_t value)
+TableCell::SetValue(unsigned long int value)
 {
   if (mSelectedValue == TypeContainingValue::UINT) {
-    // If convert uint64_t value into K,M,G,T,P,E scale
+    // If convert unsigned long int value into K,M,G,T,P,E scale
     if (mFormat.find("+") != std::string::npos && value >= 1000) {
       mSelectedValue = TypeContainingValue::DOUBLE;
       SetValue((double)value);
