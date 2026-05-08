@@ -7,11 +7,16 @@
 #include "mgm/shaping/TrafficShaping.hh"
 
 #include "proto/ConsoleReply.pb.h"
+#include "proto/TrafficShaping.pb.h"
 
+#include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <json/json.h>
 #include <map>
 #include <tuple>
+#include <unordered_map>
+#include <vector>
 
 std::string
 format_rate(const double bytes_per_sec)
@@ -80,6 +85,308 @@ GidLabel(const uint32_t gid)
 } // namespace
 
 namespace eos::mgm {
+
+namespace {
+
+struct Rates {
+  double r_bps = 0;
+  double w_bps = 0;
+  double r_iops = 0;
+  double w_iops = 0;
+
+  double
+  total_throughput() const
+  {
+    return r_bps + w_bps;
+  }
+
+  void
+  add(const Rates& other)
+  {
+    r_bps += other.r_bps;
+    w_bps += other.w_bps;
+    r_iops += other.r_iops;
+    w_iops += other.w_iops;
+  }
+};
+
+Rates
+ExtractWindowRates(const traffic_shaping::RateSnapshot& snap,
+                   eos::traffic_shaping::TrafficShapingRateRequest::Estimators estimator)
+{
+  auto unpack = [](const traffic_shaping::RateMetrics& m) -> Rates {
+    return {m.read_rate_bps, m.write_rate_bps, m.read_iops, m.write_iops};
+  };
+
+  using Request = eos::traffic_shaping::TrafficShapingRateRequest;
+  switch (estimator) {
+  case Request::SMA_1_SECONDS:
+    return unpack(snap.sma[traffic_shaping::Sma1s]);
+  case Request::SMA_5_SECONDS:
+    return unpack(snap.sma[traffic_shaping::Sma5s]);
+  case Request::SMA_15_SECONDS:
+    return unpack(snap.sma[traffic_shaping::Sma15s]);
+  case Request::SMA_1_MINUTES:
+    return unpack(snap.sma[traffic_shaping::Sma1m]);
+  case Request::SMA_5_MINUTES:
+    return unpack(snap.sma[traffic_shaping::Sma5m]);
+  case Request::EMA_1_SECONDS:
+    return unpack(snap.ema[traffic_shaping::Ema1s]);
+  case Request::EMA_5_SECONDS:
+    return unpack(snap.ema[traffic_shaping::Ema5s]);
+  case Request::UNSPECIFIED:
+  default:
+    return unpack(snap.sma[traffic_shaping::Sma1m]);
+  }
+}
+
+void
+SetRateStats(eos::traffic_shaping::RateStats* stats,
+             eos::traffic_shaping::TrafficShapingRateRequest::Estimators estimator,
+             const Rates& rates)
+{
+  stats->set_window(estimator);
+  stats->set_bytes_read_per_sec(rates.r_bps);
+  stats->set_bytes_written_per_sec(rates.w_bps);
+  stats->set_iops_read(rates.r_iops);
+  stats->set_iops_write(rates.w_iops);
+}
+
+void
+BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manager,
+            const eos::traffic_shaping::TrafficShapingRateRequest& request,
+            eos::traffic_shaping::TrafficShapingRateResponse& report)
+{
+  auto global_stats = manager->GetGlobalStats();
+
+  const auto [estimator_mean, estimator_min, estimator_max] =
+      manager->GetEstimatorsUpdateLoopMicroSecStats();
+  const auto [fst_limits_mean, fst_limits_min, fst_limits_max] =
+      manager->GetFstLimitsUpdateLoopMicroSecStats();
+
+  auto* est_stats = report.mutable_estimators_update_thread_loop_stats();
+  est_stats->set_mean_elapsed_time_micro_sec(estimator_mean);
+  est_stats->set_min_elapsed_time_micro_sec(estimator_min);
+  est_stats->set_max_elapsed_time_micro_sec(estimator_max);
+
+  auto* fst_stats = report.mutable_fst_limits_update_thread_loop_stats();
+  fst_stats->set_mean_elapsed_time_micro_sec(fst_limits_mean);
+  fst_stats->set_min_elapsed_time_micro_sec(fst_limits_min);
+  fst_stats->set_max_elapsed_time_micro_sec(fst_limits_max);
+
+  const int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
+                             std::chrono::system_clock::now().time_since_epoch())
+                             .count();
+  report.set_timestamp_ms(now_ms);
+
+  bool do_uid = false, do_gid = false, do_app = false, do_detailed = false;
+  if (request.include_types_size() == 0) {
+    do_uid = do_gid = do_app = true;
+  } else {
+    for (const auto type : request.include_types()) {
+      if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_UID) {
+        do_uid = true;
+      }
+      if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_GID) {
+        do_gid = true;
+      }
+      if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_APP) {
+        do_app = true;
+      }
+      if (type == eos::traffic_shaping::TrafficShapingRateRequest::ENTITY_DETAILED) {
+        do_detailed = true;
+      }
+    }
+  }
+
+  auto detailed_stats = do_detailed
+                            ? manager->GetDetailedStats()
+                            : std::unordered_map<traffic_shaping::DetailedKey,
+                                                 traffic_shaping::RateSnapshot,
+                                                 traffic_shaping::DetailedKeyHash>{};
+
+  std::vector<eos::traffic_shaping::TrafficShapingRateRequest::Estimators> estimators;
+  if (request.estimators_size() == 0) {
+    estimators.push_back(eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_SECONDS);
+  } else {
+    for (auto w : request.estimators()) {
+      if (w != eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED) {
+        estimators.push_back(
+            static_cast<eos::traffic_shaping::TrafficShapingRateRequest::Estimators>(w));
+      }
+    }
+  }
+
+  if (estimators.empty()) {
+    estimators.push_back(eos::traffic_shaping::TrafficShapingRateRequest::SMA_5_SECONDS);
+  }
+
+  eos::traffic_shaping::TrafficShapingRateRequest::Estimators sort_window = estimators[0];
+  if (request.has_sort_by_estimator() &&
+      request.sort_by_estimator() !=
+          eos::traffic_shaping::TrafficShapingRateRequest::UNSPECIFIED) {
+    sort_window = request.sort_by_estimator();
+  }
+
+  struct AggregatedEntity {
+    uint32_t active_streams = 0;
+    std::map<eos::traffic_shaping::TrafficShapingRateRequest::Estimators, Rates>
+        window_rates{};
+  };
+
+  std::map<uint32_t, AggregatedEntity> uid_agg;
+  std::map<uint32_t, AggregatedEntity> gid_agg;
+  std::map<std::string, AggregatedEntity> app_agg;
+
+  for (const auto& [key, snap] : global_stats) {
+    for (auto win : estimators) {
+      Rates rates = ExtractWindowRates(snap, win);
+
+      if (do_uid) {
+        auto& agg = uid_agg[key.uid];
+        agg.window_rates[win].add(rates);
+        if (win == estimators[0]) {
+          agg.active_streams++;
+        }
+      }
+      if (do_gid) {
+        auto& agg = gid_agg[key.gid];
+        agg.window_rates[win].add(rates);
+        if (win == estimators[0]) {
+          agg.active_streams++;
+        }
+      }
+      if (do_app) {
+        auto& agg = app_agg[key.app];
+        agg.window_rates[win].add(rates);
+        if (win == estimators[0]) {
+          agg.active_streams++;
+        }
+      }
+    }
+  }
+
+  auto process_stats = [&](const auto& source_map, auto add_entry_fn, auto set_id_fn) {
+    if (source_map.empty()) {
+      return;
+    }
+
+    using PairType = typename std::decay_t<decltype(source_map)>::value_type;
+    std::vector<const PairType*> vec;
+    vec.reserve(source_map.size());
+    for (const auto& item : source_map) {
+      vec.push_back(&item);
+    }
+
+    auto sorter = [&](const PairType* a, const PairType* b) {
+      double val_a = 0, val_b = 0;
+      if (auto it = a->second.window_rates.find(sort_window);
+          it != a->second.window_rates.end()) {
+        val_a = it->second.total_throughput();
+      }
+      if (auto it = b->second.window_rates.find(sort_window);
+          it != b->second.window_rates.end()) {
+        val_b = it->second.total_throughput();
+      }
+      return val_a > val_b;
+    };
+
+    size_t n = vec.size();
+    if (request.has_top_n() && request.top_n() > 0) {
+      n = std::min(static_cast<size_t>(request.top_n()), n);
+      std::partial_sort(vec.begin(), vec.begin() + n, vec.end(), sorter);
+    } else {
+      std::sort(vec.begin(), vec.end(), sorter);
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+      auto* entry = add_entry_fn();
+      set_id_fn(entry, vec[i]->first);
+
+      for (const auto& [estimator, rates] : vec[i]->second.window_rates) {
+        SetRateStats(entry->add_stats(), estimator, rates);
+      }
+    }
+  };
+
+  if (do_uid) {
+    process_stats(
+        uid_agg, [&]() { return report.add_user_stats(); },
+        [](auto* e, uint32_t id) { e->set_uid(id); });
+  }
+
+  if (do_gid) {
+    process_stats(
+        gid_agg, [&]() { return report.add_group_stats(); },
+        [](auto* e, uint32_t id) { e->set_gid(id); });
+  }
+
+  if (do_app) {
+    process_stats(
+        app_agg, [&]() { return report.add_app_stats(); },
+        [](auto* e, const std::string& id) { e->set_app_name(id); });
+  }
+
+  if (do_detailed && !detailed_stats.empty()) {
+    using DetailedItem = decltype(detailed_stats)::value_type;
+    std::vector<const DetailedItem*> sorted;
+    sorted.reserve(detailed_stats.size());
+
+    for (const auto& item : detailed_stats) {
+      sorted.push_back(&item);
+    }
+
+    auto sorter = [&](const DetailedItem* a, const DetailedItem* b) {
+      return ExtractWindowRates(a->second, sort_window).total_throughput() >
+             ExtractWindowRates(b->second, sort_window).total_throughput();
+    };
+
+    size_t n = sorted.size();
+    if (request.has_top_n() && request.top_n() > 0) {
+      n = std::min(static_cast<size_t>(request.top_n()), n);
+      std::partial_sort(sorted.begin(), sorted.begin() + n, sorted.end(), sorter);
+    } else {
+      std::sort(sorted.begin(), sorted.end(), sorter);
+    }
+
+    for (size_t i = 0; i < n; ++i) {
+      const auto& key = sorted[i]->first;
+      auto* entry = report.add_detailed_stats();
+      entry->set_node_id(key.node_id);
+      entry->set_app_name(key.stream.app);
+      entry->set_uid(key.stream.uid);
+      entry->set_gid(key.stream.gid);
+      entry->set_fsid(key.stream.fsid);
+
+      for (const auto estimator : estimators) {
+        SetRateStats(entry->add_stats(), estimator,
+                     ExtractWindowRates(sorted[i]->second, estimator));
+      }
+    }
+  }
+}
+
+} // namespace
+
+bool
+BuildTrafficShapingRateReport(
+    const eos::traffic_shaping::TrafficShapingRateRequest& request,
+    eos::traffic_shaping::TrafficShapingRateResponse& report, std::string* error)
+{
+  const auto& engine = gOFS->mTrafficShapingEngine;
+  const std::shared_ptr<traffic_shaping::TrafficShapingManager> manager =
+      engine.GetManager();
+
+  if (!manager) {
+    if (error) {
+      *error = "Traffic shaping engine is not initialized";
+    }
+    return false;
+  }
+
+  BuildReport(manager, request, report);
+  return true;
+}
 
 void
 ShapingPolicySet(const eos::console::IoProto_ShapingProto_PolicyAction_SetAction& set_req,
