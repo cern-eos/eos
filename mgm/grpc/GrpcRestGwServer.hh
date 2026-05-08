@@ -42,35 +42,50 @@ EOSMGMNAMESPACE_BEGIN
  */
 class GrpcRestGwServer: public eos::common::LogId
 {
-private:
-  int mPort;
-  bool mSSL;
-  std::string mSSLCert;
-  std::string mSSLKey;
-  std::string mSSLCa;
-  std::string mSSLCertFile;
-  std::string mSSLKeyFile;
-  std::string mSSLCaFile;
-  AssistedThread mThread; // Thread running GRPC service
-
-#ifdef EOS_GRPC_GATEWAY
-  std::unique_ptr<grpc::Server> mRestGwServer;
-#endif /// EOS_GRPC_GATEWAY
-
 public:
+#ifdef EOS_GRPC_GATEWAY
+  //----------------------------------------------------------------------------
+  //! Get client IP based on the context information
+  //!
+  //! @param context server context
+  //! @param id contains the IP address
+  //! @param port contains port information if available
+  //!
+  //! @param return IP address if available, otherwise empty string
+  //----------------------------------------------------------------------------
+  static std::string IP(grpc::ServerContext* context, std::string* id = 0,
+                        std::string* port = 0);
 
-  /* Default Constructor - enabling port 50054 by default
-   */
-  GrpcRestGwServer(int port = 50054) : mPort(port), mSSL(false) {  }
+  //----------------------------------------------------------------------------
+  //! Populate virtual identity based on the context information
+  //!
+  //! @param context server context
+  //! @param vid virtual identity
+  //!
+  //----------------------------------------------------------------------------
+  static void Vid(grpc::ServerContext* context, eos::common::VirtualIdentity& vid);
+#endif // EOS_GRPC_GATEWAY
 
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param grpc_port port on which internal GRPC REST GW service runs
+  //----------------------------------------------------------------------------
+  GrpcRestGwServer(int port = 50054)
+      : mGrpcGwPort(port)
+      , mSSL(false)
+  {
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //----------------------------------------------------------------------------
   ~GrpcRestGwServer()
   {
 #ifdef EOS_GRPC_GATEWAY
-
     if (mRestGwServer) {
       mRestGwServer->Shutdown();
     }
-
 #endif // EOS_GRPC_GATEWAY
     mThread.join();
   }
@@ -84,18 +99,20 @@ public:
     mThread.reset(&GrpcRestGwServer::Run, this);
   }
 
+private:
+  int mHttpGwPort{40054}; ///< Internal HTTP Gateway port forwarding to GRPC
+  int mGrpcGwPort{50054}; ///< Internal GRPC Gateway port
+  bool mSSL;
+  std::string mSSLCert;
+  std::string mSSLKey;
+  std::string mSSLCa;
+  std::string mSSLCertFile;
+  std::string mSSLKeyFile;
+  std::string mSSLCaFile;
+  AssistedThread mThread; // Thread running GRPC service
 #ifdef EOS_GRPC_GATEWAY
-
-  /* return client DN*/
-  static std::string DN(grpc::ServerContext* context);
-  /* return client IP*/
-  static std::string IP(grpc::ServerContext* context, std::string* id = 0,
-                        std::string* port = 0);
-  /* return VID for a given call */
-  static void Vid(grpc::ServerContext* context,
-                  eos::common::VirtualIdentity& vid);
-
-#endif // EOS_GRPC_GATEWAY
+  std::unique_ptr<grpc::Server> mRestGwServer;
+#endif /// EOS_GRPC_GATEWAY
 };
 
 EOSMGMNAMESPACE_END
