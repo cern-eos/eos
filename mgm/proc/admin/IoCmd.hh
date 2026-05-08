@@ -25,7 +25,19 @@
 #include "mgm/Namespace.hh"
 #include "mgm/proc/ProcCommand.hh"
 
+#include <string>
+
+namespace eos::traffic_shaping {
+class TrafficShapingRateRequest;
+class TrafficShapingRateResponse;
+} // namespace eos::traffic_shaping
+
 EOSMGMNAMESPACE_BEGIN
+
+bool BuildTrafficShapingRateReport(
+    const eos::traffic_shaping::TrafficShapingRateRequest& request,
+    eos::traffic_shaping::TrafficShapingRateResponse& report,
+    std::string* error = nullptr);
 
 //------------------------------------------------------------------------------
 //! Class IoCmd - class handling io commands
