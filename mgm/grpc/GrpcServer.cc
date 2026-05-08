@@ -650,10 +650,21 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
 
   int selected_port = 0;
   RequestServiceImpl service;
-  // This line is often optional if the plugin is linked correctly,
-  // but calling it explicitly ensures the plugin is registered.
-  grpc::reflection::InitProtoReflectionServerBuilderPlugin();
-  std::string bind_address = "0.0.0.0:";
+  // C-3: refuse to expose the gRPC service on a public interface without
+  // TLS. If TLS is not configured, the operator must explicitly set
+  // EOS_MGM_GRPC_ALLOW_INSECURE=1 to acknowledge the risk; in that case we
+  // bind to the loopback interface only.
+  const bool allow_insecure = (getenv("EOS_MGM_GRPC_ALLOW_INSECURE") != nullptr);
+
+  if (!mSSL && !allow_insecure) {
+    eos_static_crit("msg=\"refusing to start gRPC server without TLS - "
+                    "set EOS_MGM_GRPC_SSL_{CERT,KEY,CA} or "
+                    "EOS_MGM_GRPC_ALLOW_INSECURE=1 (loopback only)\" "
+                    "port=%i", mPort);
+    return;
+  }
+
+  std::string bind_address = (mSSL ? "0.0.0.0:" : "127.0.0.1:");
   bind_address += std::to_string(mPort);
   grpc::ServerBuilder builder;
 
@@ -675,6 +686,9 @@ GrpcServer::Run(ThreadAssistant& assistant) noexcept
     builder.AddListeningPort(bind_address, grpc::SslServerCredentials(sslOps),
                              &selected_port);
   } else {
+    eos_static_crit("msg=\"gRPC server starting in INSECURE mode - "
+                    "bound to loopback only\" bind=\"%s\"",
+                    bind_address.c_str());
     builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
   }
 
