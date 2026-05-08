@@ -91,6 +91,111 @@ EOSMGMNAMESPACE_BEGIN
 
 #ifdef EOS_GRPC_GATEWAY
 
+//------------------------------------------------------------------------------
+// Get client IP based on the context information
+//------------------------------------------------------------------------------
+std::string
+GrpcRestGwServer::IP(grpc::ServerContext* context, std::string* id, std::string* port)
+{
+  // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
+  // but net and id are populated as well with the prefix and suffix, respectively
+  // The context peer information is curl encoded
+  const std::string decoded_peer =
+      eos::common::StringConversion::curl_default_unescaped(context->peer().c_str());
+  std::vector<std::string> tokens;
+  eos::common::StringConversion::Tokenize(decoded_peer, tokens, "[]");
+
+  if (tokens.size() == 3) {
+    if (id) {
+      *id = tokens[0].substr(0, tokens[0].size() - 1);
+    }
+
+    if (port) {
+      *port = tokens[2].substr(1, tokens[2].size() - 1);
+    }
+
+    return "[" + tokens[1] + "]";
+  } else {
+    tokens.clear();
+    eos::common::StringConversion::Tokenize(decoded_peer, tokens, ":");
+
+    if (tokens.size() == 3) {
+      if (id) {
+        *id = tokens[0].substr(0, tokens[0].size());
+      }
+
+      if (port) {
+        *port = tokens[2].substr(0, tokens[2].size());
+      }
+
+      return tokens[1];
+    }
+
+    return "";
+  }
+}
+
+//------------------------------------------------------------------------------
+// Populate virtual identity based on the context information
+//------------------------------------------------------------------------------
+void
+GrpcRestGwServer::Vid(grpc::ServerContext* context, eos::common::VirtualIdentity& vid)
+{
+  // C-1: the REST gateway has no transport-level authentication and the
+  // identity is taken from three client-supplied gRPC metadata headers.
+  // This is only safe when the peer is co-located on the same host as the
+  // MGM (the gateway is intended to run as a sidecar). For any non-loopback
+  // peer we must refuse to honour the headers and fall back to 'nobody',
+  // so that an attacker who can reach the port cannot impersonate any
+  // configured identity.
+  std::string peer_ip = GrpcRestGwServer::IP(context);
+  const bool peer_is_local = (peer_ip == "127.0.0.1") || (peer_ip == "[::1]") ||
+                             (peer_ip == "[::ffff:127.0.0.1]");
+
+  if (!peer_is_local) {
+    eos_static_warning("msg=\"refusing REST gateway request from non-loopback "
+                       "peer - falling back to nobody\" peer=\"%s\" ip=\"%s\"",
+                       context->peer().c_str(), peer_ip.c_str());
+    vid = eos::common::VirtualIdentity::Nobody();
+    return;
+  }
+
+  static const std::string hdr_name = "client-name";
+  static const std::string hdr_tident = "client-tident";
+  static const std::string hdr_authz = "client-authorization";
+  const auto& map_hdrs = context->client_metadata();
+  std::string name_val, tident_val, authz_val;
+  XrdSecEntity client("https");
+  // Populate client name
+  auto it = map_hdrs.find(hdr_name);
+
+  if (it != map_hdrs.end()) {
+    name_val = std::string(it->second.data(), it->second.length());
+    client.name = const_cast<char*>(name_val.c_str());
+  }
+
+  // Populate client tident
+  it = map_hdrs.find(hdr_tident);
+
+  if (it != map_hdrs.end()) {
+    tident_val = std::string(it->second.data(), it->second.length());
+    client.tident = const_cast<char*>(tident_val.c_str());
+  }
+
+  // Populate client endorsemetns if authz info present
+  it = map_hdrs.find(hdr_authz);
+
+  if (it != map_hdrs.end()) {
+    authz_val = std::string(it->second.data(), it->second.length());
+    client.endorsements = const_cast<char*>(authz_val.c_str());
+  }
+
+  eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);
+}
+
+//------------------------------------------------------------------------------
+// Class EosRestGatewayServiceImpl
+//------------------------------------------------------------------------------
 class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   public eos::common::LogId
 {
@@ -473,175 +578,37 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   }
 };
 
-/* return client DN*/
-std::string
-GrpcRestGwServer::DN(grpc::ServerContext* context)
-{
-  /*
-    The methods GetPeerIdentityPropertyName() and GetPeerIdentity() from grpc::ServerContext.auth_context
-    will prioritize SAN fields (x509_subject_alternative_name) in favor of x509_common_name
-  */
-  std::string tag = "x509_common_name";
-  auto resp = context->auth_context()->FindPropertyValues(tag);
-
-  if (resp.empty()) {
-    tag = "x509_subject_alternative_name";
-    auto resp = context->auth_context()->FindPropertyValues(tag);
-
-    if (resp.empty()) {
-      return "";
-    }
-  }
-
-  return resp[0].data();
-}
-
-/* return client IP */
-std::string GrpcRestGwServer::IP(grpc::ServerContext* context, std::string* id,
-                                 std::string* port)
-{
-  // format is ipv4:<ip>:<..> or ipv6:<ip>:<..> - we just return the IP address
-  // but net and id are populated as well with the prefix and suffix, respectively
-  // The context peer information is curl encoded
-  const std::string decoded_peer =
-    eos::common::StringConversion::curl_default_unescaped(context->peer().c_str());
-  std::vector<std::string> tokens;
-  eos::common::StringConversion::Tokenize(decoded_peer, tokens, "[]");
-
-  if (tokens.size() == 3) {
-    if (id) {
-      *id = tokens[0].substr(0, tokens[0].size() - 1);
-    }
-
-    if (port) {
-      *port = tokens[2].substr(1, tokens[2].size() - 1);
-    }
-
-    return "[" + tokens[1] + "]";
-  } else {
-    tokens.clear();
-    eos::common::StringConversion::Tokenize(decoded_peer, tokens, ":");
-
-    if (tokens.size() == 3) {
-      if (id) {
-        *id = tokens[0].substr(0, tokens[0].size());
-      }
-
-      if (port) {
-        *port = tokens[2].substr(0, tokens[2].size());
-      }
-
-      return tokens[1];
-    }
-
-    return "";
-  }
-}
-
-/* return VID for a given call */
-void
-GrpcRestGwServer::Vid(grpc::ServerContext* context,
-                      eos::common::VirtualIdentity& vid)
-{
-  // C-1: the REST gateway has no transport-level authentication and the
-  // identity is taken from three client-supplied gRPC metadata headers.
-  // This is only safe when the peer is co-located on the same host as the
-  // MGM (the gateway is intended to run as a sidecar). For any non-loopback
-  // peer we must refuse to honour the headers and fall back to 'nobody',
-  // so that an attacker who can reach the port cannot impersonate any
-  // configured identity.
-  std::string peer_ip = GrpcRestGwServer::IP(context);
-  const bool peer_is_local = (peer_ip == "127.0.0.1") ||
-                             (peer_ip == "[::1]") ||
-                             (peer_ip == "[::ffff:127.0.0.1]");
-
-  if (!peer_is_local) {
-    eos_static_warning("msg=\"refusing REST gateway request from non-loopback "
-                       "peer - falling back to nobody\" peer=%s ip=%s",
-                       context->peer().c_str(), peer_ip.c_str());
-    vid = eos::common::VirtualIdentity::Nobody();
-    return;
-  }
-
-  static const std::string hdr_name = "client-name";
-  static const std::string hdr_tident = "client-tident";
-  static const std::string hdr_authz = "client-authorization";
-  const auto& map_hdrs = context->client_metadata();
-  std::string name_val, tident_val, authz_val;
-  XrdSecEntity client("https");
-  // Populate client name
-  auto it = map_hdrs.find(hdr_name);
-
-  if (it != map_hdrs.end()) {
-    name_val = std::string(it->second.data(), it->second.length());
-    client.name = const_cast<char*>(name_val.c_str());
-  }
-
-  // Populate client tident
-  it = map_hdrs.find(hdr_tident);
-
-  if (it != map_hdrs.end()) {
-    tident_val = std::string(it->second.data(), it->second.length());
-    client.tident = const_cast<char*>(tident_val.c_str());
-  }
-
-  // Populate client endorsemetns if authz info present
-  it = map_hdrs.find(hdr_authz);
-
-  if (it != map_hdrs.end()) {
-    authz_val = std::string(it->second.data(), it->second.length());
-    client.endorsements = const_cast<char*>(authz_val.c_str());
-  }
-
-  eos::common::Mapping::IdMap(&client, "eos.app=grpc", client.tident, vid);
-}
-
 #endif // EOS_GRPC_GATEWAY
 
 void
 GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
 {
 #ifdef EOS_GRPC_GATEWAY
-
-  // C-1: the REST gateway has no transport-level authentication and trusts
-  // identity headers supplied by the caller. Refuse to expose it on a public
-  // interface and require an explicit operator acknowledgment to start at
-  // all; bind to loopback only.
-  if (!getenv("EOS_MGM_REST_ALLOW_INSECURE")) {
-    eos_static_crit("msg=\"refusing to start REST gateway gRPC server - "
-                    "this listener has no transport authentication and "
-                    "trusts client-name/client-tident/client-authorization "
-                    "headers; set EOS_MGM_REST_ALLOW_INSECURE=1 to enable "
-                    "(loopback only)\" port=%i", mPort);
-    return;
-  }
-
   eos_static_crit("msg=\"REST gateway gRPC server starting in INSECURE "
-                  "mode - bound to loopback only\" port=%i", mPort);
+                  "mode - bound to loopback only\" http_port=%i grpc_port=i",
+                  mHttpGwPort, mGrpcGwPort);
   EosRestGatewayServiceImpl service;
   // This line is often optional if the plugin is linked correctly,
   // but calling it explicitly ensures the plugin is registered.
   grpc::reflection::InitProtoReflectionServerBuilderPlugin();
   grpc::ServerBuilder builder;
-  // server bind address - loopback only since transport is unauthenticated
-  std::string bind_address = "127.0.0.1:";
-  bind_address += std::to_string(mPort);
-  // gateway bind address - loopback only
-  std::string gw_bind_address = "127.0.0.1:";
-  gw_bind_address += "40054";
-  builder.AddListeningPort(bind_address, grpc::InsecureServerCredentials());
+  // GRPC server bind address - loopback only since transport is unauthenticated
+  std::string ipv4_grpc_localhost = "127.0.0.1:" + std::to_string(mGrpcGwPort);
+  builder.AddListeningPort(ipv4_grpc_localhost, grpc::InsecureServerCredentials());
   builder.RegisterService(&service);
   mRestGwServer = builder.BuildAndStart();
-  // spawn grpc gateway
-  char* const addr = const_cast<char*>(bind_address.c_str());
-  char* const gwaddr = const_cast<char*>(gw_bind_address.c_str());
+  // Http gateway bind address - loopback only
+  std::string ipv4_http_localhost = "127.0.0.1:" + std::to_string(mHttpGwPort);
+  // Spawn HTTP-GRPC gateway
+  char* const grpc_addr = const_cast<char*>(ipv4_grpc_localhost.c_str());
+  char* const http_addr = const_cast<char*>(ipv4_http_localhost.c_str());
   char* path = (char*)"../../../../protos/examplepb";
   char* network = (char*)"tcp";
-  const auto gatewayServer = SpawnGrpcGateway(gwaddr, network, addr, path);
+  const auto gatewayServer = SpawnGrpcGateway(http_addr, network, grpc_addr, path);
   eos_static_notice("%s", "msg=\"spawning gRPC REST GATEWAY\"");
 
   if (mRestGwServer) {
-    eos_static_info("msg=\"gRPC REST server is running\" port=%i", mPort);
+    eos_static_info("msg=\"gRPC REST server is running\" port=%i", mGrpcGwPort);
     mRestGwServer->Wait();
   }
 
