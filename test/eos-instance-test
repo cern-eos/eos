@@ -2771,7 +2771,7 @@ runtest "### Cleanup   " unix IGNORE  "" eos rm "-r" "/eos/$EOS_TEST_INSTANCE/te
 # ------------------------------------------------------------------------------
 categorie="grpc"
 # ------------------------------------------------------------------------------
-runtest "### eos-grpc  " unix SUCCESS "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/grpc.dir/"
+runtest "### eos-grpc  " unix SUCCESS "" eos_grpc "/eos/$EOS_TEST_INSTANCE/test/instancetest/grpc.dir/" ${EOS_TEST_FULL_REDIRECTOR}
 
 ################################################################################
 # Accounting tests
