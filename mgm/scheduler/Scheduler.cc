@@ -314,14 +314,9 @@ int Scheduler::FlatSchedulerFileAccess(AccessArguments *args) {
     return EINVAL;
   }
 
-  placement::AccessArguments access_args {
-    *args->fsindex,
-    args->inode,
-    strategy,
-    args->vid->geolocation,
-    args->unavailfs,
-    *args->locationsfs
-  };
+  placement::AccessArguments access_args{*args->fsindex,  args->inode,
+                                         strategy,        args->vid->geolocation,
+                                         args->unavailfs, *args->locationsfs};
 
   return gOFS->mFsScheduler->access(spaceName, access_args);
 }
@@ -352,51 +347,81 @@ int Scheduler::FileAccess(AccessArguments* args)
     return ENODATA;
   }
 
+  int rc = 0;
+
   if (!FlatSchedulerFileAccess(args)) {
     eos_static_debug("msg=\"successfully accessed file via FlatScheduler\" index=%zu",
                      *args->fsindex);
-    return 0;
   } else {
     eos_static_info("%s", "msg=\"Failed access via FlatScheduler, falling back to geotree\"");
-  }
+    eos_static_debug("requesting file access from geolocation %s",
+                     args->vid->geolocation.c_str());
+    GeoTreeEngine::SchedType st = toGeoTreeSchedtype(args->schedtype, args->isRW);
 
-  eos_static_debug("requesting file access from geolocation %s",
-                   args->vid->geolocation.c_str());
-  GeoTreeEngine::SchedType st = toGeoTreeSchedtype(args->schedtype, args->isRW);
+    // make sure we have the matching geo location before the not matching one
+    if (!args->tried_cgi->empty()) {
+      std::vector<std::string> hosts;
 
-
-  // make sure we have the matching geo location before the not matching one
-  if (!args->tried_cgi->empty()) {
-    std::vector<std::string> hosts;
-
-    if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(*args->locationsfs, 0,
-        &hosts, 0)) {
-      eos_static_debug("could not retrieve host for all the avoided fsids");
-    }
-
-    size_t idx = 0;
-
-    // we store unavailable filesystems in the unavail vector
-    for (auto it = hosts.begin(); it != hosts.end(); it++) {
-      if ((!it->empty()) && args->tried_cgi->find((*it) + ",") != std::string::npos) {
-        // - this matters for RAID layouts because we have to remove there URLs
-        // to let the RAID driver use only online stripes
-        args->unavailfs->push_back((*args->locationsfs)[idx]);
+      if (!gOFS->mGeoTreeEngine->getInfosFromFsIds(*args->locationsfs, 0, &hosts, 0)) {
+        eos_static_debug("could not retrieve host for all the avoided fsids");
       }
 
-      idx++;
+      size_t idx = 0;
+
+      // we store unavailable filesystems in the unavail vector
+      for (auto it = hosts.begin(); it != hosts.end(); it++) {
+        if ((!it->empty()) && args->tried_cgi->find((*it) + ",") != std::string::npos) {
+          // - this matters for RAID layouts because we have to remove there URLs
+          // to let the RAID driver use only online stripes
+          args->unavailfs->push_back((*args->locationsfs)[idx]);
+        }
+
+        idx++;
+      }
+    }
+
+    rc = gOFS->mGeoTreeEngine->accessHeadReplicaMultipleGroup(
+        nReqStripes, *args->fsindex, *args->locationsfs, args->inode, args->dataproxys,
+        args->firewallentpts, st, args->vid->geolocation, args->forcedfsid,
+        args->unavailfs);
+  }
+
+  // Honour the exclusion list: if the chosen file system is excluded, try to
+  // find another suitable location that is neither excluded nor unavailable.
+  // If no such location exists then the access request can not be satisfied.
+  if (rc == 0 && args->exclude_filesystems && !args->exclude_filesystems->empty() &&
+      *args->fsindex < args->locationsfs->size()) {
+    auto chosen = (*args->locationsfs)[*args->fsindex];
+    bool is_excluded =
+        std::find(args->exclude_filesystems->begin(), args->exclude_filesystems->end(),
+                  chosen) != args->exclude_filesystems->end();
+    if (is_excluded) {
+      bool found = false;
+
+      for (size_t i = 0; i < args->locationsfs->size(); ++i) {
+        auto fsid = (*args->locationsfs)[i];
+        bool excluded = std::find(args->exclude_filesystems->begin(),
+                                  args->exclude_filesystems->end(),
+                                  fsid) != args->exclude_filesystems->end();
+        bool unavail =
+            args->unavailfs && std::find(args->unavailfs->begin(), args->unavailfs->end(),
+                                         fsid) != args->unavailfs->end();
+        if (!excluded && !unavail) {
+          *args->fsindex = i;
+          found = true;
+          break;
+        }
+      }
+
+      if (!found) {
+        eos_static_err("%s", "msg=\"no accessible file system location left after "
+                             "applying the eos.excludefsid exclusion list\"");
+        rc = ENODATA;
+      }
     }
   }
 
-  return gOFS->mGeoTreeEngine->accessHeadReplicaMultipleGroup(nReqStripes,
-         *args->fsindex,
-         *args->locationsfs,
-         args->inode,
-         args->dataproxys,
-         args->firewallentpts,
-         st,
-         args->vid->geolocation,
-         args->forcedfsid, args->unavailfs);
+  return rc;
 }
 
 void Scheduler::ReshuffleFs(std::vector<unsigned int> &selectedfs)
