@@ -475,7 +475,7 @@ eos_acl_concurrent() {
 }
 
 eos_grpc() {
-   echo eos-grpc-test $1 ; eval eos-grpc-test $1 >> $EOSCERTLOG 2>&1
+   echo eos-grpc-test $1 $2; eval eos-grpc-test $1 $2 >> $EOSCERTLOG 2>&1
 }
 
 eos_token() {
