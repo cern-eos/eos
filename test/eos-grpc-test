@@ -6,7 +6,6 @@ prefix=${prefix%/}
 host=${2-"localhost"}
 grpc_port=${3-"50051"}
 grpc_endpoint="${host}:${grpc_port}"
-url=root://$host
 host_ips=($(hostname -i))
 
 test -z "$1" && echo "error: must specify test directory " && exit -1
@@ -215,7 +214,7 @@ eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token $authkey --uid 99 re
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token $authkey --uid 99 recycle restore -p invalid | grep "\"code\": \"22\"" || exit -13
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token $authkey --uid 99 recycle restore 2>&1 | grep "failed to parse recycle command restore" || exit -13
 eos recycle config --add-bin $prefix/t_grpc/recycle
-xrdcp -f /etc/passwd "$url/$prefix/t_grpc/recycle/file1.dat?eos.ruid=11&eos.rgid=11" || exit -2
+xrdcp -f /etc/passwd "root://localhost/$prefix/t_grpc/recycle/file1.dat?eos.ruid=11&eos.rgid=11" || exit -2
 eos rm $prefix/t_grpc/recycle/file1.dat
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token $authkey --uid 99 recycle ls --uid | grep "$prefix/t_grpc/recycle/file1.dat" && exit -15
 eos-grpc-ns --endpoint ${grpc_endpoint} --force-ssl --token $authkey --uid 11 recycle ls --uid | grep "$prefix/t_grpc/recycle/file1.dat" || exit -16
