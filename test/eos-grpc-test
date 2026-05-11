@@ -7,11 +7,16 @@ host=${2-"localhost"}
 grpc_port=${3-"50051"}
 grpc_endpoint="${host}:${grpc_port}"
 url=root://$host
+host_ips=($(hostname -i))
 
 test -z "$1" && echo "error: must specify test directory " && exit -1
 test -z "$2" && echo "error: must specify FQDN of GRPC endpoint" && exit -1
 
 authkey=12345678
+
+for ip in "${host_ips[@]}"; do
+  eos vid add gateway "$ip" grpc
+done
 
 eos vid add gateway "127.0.0.1" grpc
 eos vid add gateway "[:1]" grpc
