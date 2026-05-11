@@ -781,8 +781,10 @@ el9_asan_docker_image:
     - echo ${MGM_POD_HOSTNAME}
 
     # We connect over https, and the certificate is only valid for the hostname, so replace localhost with the MGM's hostname
-    - exec_cmd eos-mgm1 'sed -i -e "s/^\(master_url = \"https:\/\/\)localhost\(:[0-9][0-9]*\"\)/\1$(hostname -f)\2/" \
+    - |
+      exec_cmd eos-mgm1 'sed -i -e "s/^\(master_url = \"https:\/\/\)localhost\(:[0-9][0-9]*\"\)/\1$(hostname -f)\2/" \
                                 -e "s/^\(master_grpc_uri = \"\)localhost\(:[0-9][0-9]*\"\)/\1$(hostname -f)\2/" \
+                                -e "s/^\(allow_insecure = \)true/\1false/" \
                                 reva/tests/integration/reva-cli/config/revad-eos.toml'
 
     # Start revad
