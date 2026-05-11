@@ -2121,6 +2121,36 @@ runtest "### Check     " unix SUCCESS "" eosj fileinfo "${ADJUST_TEST_FILE} | jq
 runtest "### Rm        " unix SUCCESS "" eos rm -F ${ADJUST_TEST_FILE}
 runtest "### Rmdir     " unix SUCCESS "" eos rmdir ${ADJUST_TEST_DIR}
 
+# ------------------------------------------------------------------------------
+categorie="excludefsid"
+# ------------------------------------------------------------------------------
+# Check that eos.excludefsid is honoured when scheduling read access
+EXCL_TEST_DIR="/eos/$EOS_TEST_INSTANCE/test/instancetest/excludefsid"
+EXCL_TEST_FILE="${EXCL_TEST_DIR}/file.dat"
+runtest "### Mkdir     " unix SUCCESS "" eos mkdir ${EXCL_TEST_DIR}
+runtest "### Attr      " unix SUCCESS "" eos attr set default=replica ${EXCL_TEST_DIR}
+runtest "### Upload    " unix SUCCESS "" eos cp ${TESTSYSFILE1K} ${EXCL_TEST_FILE}
+# The file has two replicas - exclude the first one and check the other is used
+excl_fsid0=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${EXCL_TEST_FILE} | jq -r .locations[0].fsid)
+excl_fsid1=$(command eos -j -b root://$EOS_TEST_REDIRECTOR fileinfo ${EXCL_TEST_FILE} | jq -r .locations[1].fsid)
+# Download a few times so we don't end up on the surviving replica just by luck
+for i in 1 2 3; do
+  download "$EOS_TEST_TESTSYS/dumpit" "${EXCL_TEST_FILE}?eos.excludefsid=${excl_fsid0}"
+done
+excl_used=0
+while read -r line; do
+  # the selected file system is target[replicaindex]=(host,fsid)
+  idx=$(echo "$line" | grep -oP 'replicaindex=\K[0-9]+')
+  chosen_fsid=$(echo "$line" | grep -oP "target\[${idx}\]=\([^,]+,\K[0-9]+")
+  [ "${chosen_fsid}" = "${excl_fsid0}" ] && excl_used=1
+done < <(grep "path=${EXCL_TEST_FILE} " /var/log/eos/mgm/xrdlog.mgm | grep replicaindex | tail -3)
+runtest "### ExclFsid  " unix SUCCESS "" shell test "${excl_used}" = "0"
+# Excluding both replicas leaves no location available - access must fail
+runtest "### ExclAll   " unix ERROR   "" download "$EOS_TEST_TESTSYS/dumpit" "${EXCL_TEST_FILE}?eos.excludefsid=${excl_fsid0},${excl_fsid1}"
+runtest "### Rm        " unix SUCCESS "" eos rm -F ${EXCL_TEST_FILE}
+runtest "### Rmdir     " unix SUCCESS "" eos rmdir ${EXCL_TEST_DIR}
+rm -rf "$EOS_TEST_TESTSYS/dumpit"
+
 # --------------------------
 # Parallel sockets (does not work currently with 3.1.0 clients)
 # --------------------------
