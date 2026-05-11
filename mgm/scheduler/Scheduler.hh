@@ -235,22 +235,25 @@ public:
     unsigned long* fsindex;
     //! return filesystems currently unavailable
     std::vector<unsigned int>* unavailfs;
+    //! filesystem ids to exclude from access scheduling (eos.excludefsid)
+    const std::vector<uint32_t>* exclude_filesystems;
 
-    AccessArguments() :
-      forcedfsid(0),
-      forcedspace(0),
-      tried_cgi(),
-      lid(0),
-      inode(0),
-      isRW(false),
-      bookingsize(0),
-      schedtype(regular),
-      vid(nullptr),
-      locationsfs(nullptr),
-      dataproxys(nullptr),
-      firewallentpts(nullptr),
-      fsindex(nullptr),
-      unavailfs(nullptr)
+    AccessArguments()
+        : forcedfsid(0)
+        , forcedspace(0)
+        , tried_cgi()
+        , lid(0)
+        , inode(0)
+        , isRW(false)
+        , bookingsize(0)
+        , schedtype(regular)
+        , vid(nullptr)
+        , locationsfs(nullptr)
+        , dataproxys(nullptr)
+        , firewallentpts(nullptr)
+        , fsindex(nullptr)
+        , unavailfs(nullptr)
+        , exclude_filesystems(nullptr)
     {}
 
     bool isValid() const

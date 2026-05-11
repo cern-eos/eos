@@ -250,15 +250,19 @@ struct PlacementArguments {
     std::string_view geolocation;
     std::vector<uint32_t>* unavailfs {nullptr};
     const std::vector<uint32_t>& selectedfs;
+    const std::vector<uint32_t>* excludefs{nullptr};
 
-    AccessArguments(size_t& _selectedIndex, ino64_t _inode,
-                    PlacementStrategyT _strategy,
-                    std::string_view _geolocation,
-                    std::vector<uint32_t>* _unavailfs,
-                    const std::vector<uint32_t>& _selectedfs) :
-      selectedIndex(_selectedIndex), inode(_inode),
-      strategy(_strategy), geolocation(_geolocation),
-      unavailfs(_unavailfs), selectedfs(_selectedfs)
+    AccessArguments(size_t& _selectedIndex, ino64_t _inode, PlacementStrategyT _strategy,
+                    std::string_view _geolocation, std::vector<uint32_t>* _unavailfs,
+                    const std::vector<uint32_t>& _selectedfs,
+                    const std::vector<uint32_t>* _excludefs = nullptr)
+        : selectedIndex(_selectedIndex)
+        , inode(_inode)
+        , strategy(_strategy)
+        , geolocation(_geolocation)
+        , unavailfs(_unavailfs)
+        , selectedfs(_selectedfs)
+        , excludefs(_excludefs)
     {
     }
 
