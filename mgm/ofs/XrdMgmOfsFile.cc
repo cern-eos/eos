@@ -2230,6 +2230,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
 
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int> excludefs = GetExcludedFsids();
+  std::vector<uint32_t> excludefs_access(excludefs.begin(), excludefs.end());
   std::vector<std::string> proxys;
   std::vector<std::string> firewalleps;
   // file systems which are unavailable during a read operation
@@ -2334,6 +2335,7 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     acsargs.tried_cgi = &tried_cgi;
     acsargs.unavailfs = &unavailfs;
     acsargs.vid = &vid;
+    acsargs.exclude_filesystems = &excludefs_access;
 
     if (!acsargs.isValid()) {
       // there is something wrong in the arguments of file access
