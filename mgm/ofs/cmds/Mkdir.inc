@@ -156,6 +156,16 @@ XrdMgmOfs::_mkdir(const char* path,
       bool stdpermcheck = false;
 
       if (acl.HasAcl()) {
+        // An explicit '!w' ACL denial overrides POSIX mode bits and must
+        // not fall through to the standard permission check.
+        if (!nopermissioncheck && acl.CanNotWrite() && vid.uid &&
+            !vid.sudoer) {
+          errno = EPERM;
+          return Emsg(epname, error, EPERM,
+                      "create directory - forbidden by ACL",
+                      cPath.GetParentPath());
+        }
+
         if ((!acl.CanWrite()) && (!acl.CanWriteOnce())) {
           // we have to check the standard permissions
           stdpermcheck = true;
@@ -273,6 +283,16 @@ XrdMgmOfs::_mkdir(const char* path,
       bool stdpermcheck = false;
 
       if (acl.HasAcl()) {
+        // An explicit '!w' ACL denial overrides POSIX mode bits and must
+        // not fall through to the standard permission check.
+        if (!nopermissioncheck && acl.CanNotWrite() && vid.uid &&
+            !vid.sudoer) {
+          errno = EPERM;
+          return Emsg(epname, error, EPERM,
+                      "create parent directory - forbidden by ACL",
+                      cPath.GetParentPath());
+        }
+
         if (!acl.CanWrite() && !acl.CanWriteOnce()) {
           // We have to check the standard permissions
           stdpermcheck = true;

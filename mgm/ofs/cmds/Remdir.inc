@@ -185,6 +185,17 @@ XrdMgmOfs::_remdir(const char* path,
       return Emsg(epname, error, EPERM, "rmdir by ACL", path);
     }
 
+    // An explicit '!w' ACL denial overrides POSIX mode bits and must
+    // not fall through to the standard permission check.
+    if ((dh->getCUid() != vid.uid) &&
+        (vid.uid) && // not the root user
+        (vid.uid != 3) && // not the admin user
+        (vid.gid != 4) && // not the admin group
+        (acl.CanNotWrite())) {
+      errno = EPERM;
+      return Emsg(epname, error, EPERM, "rmdir - forbidden by ACL", path);
+    }
+
     if ((!acl.CanWrite())) {
       // we have to check the standard permissions
       stdpermcheck = true;
