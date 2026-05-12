@@ -2,8 +2,10 @@
 # EOS TUI packaging helpers
 # ----------------------------------------------------------------------
 
-set(EOS_TUI_LICENSE_URL "https://raw.githubusercontent.com/cern-eos/eos-tui/v${EOS_TUI_VERSION}/LICENSE")
-set(EOS_TUI_README_URL "https://raw.githubusercontent.com/cern-eos/eos-tui/v${EOS_TUI_VERSION}/README.md")
+# Mirrored from the eos-tui GitHub release by the eos-tui GitLab CI.
+set(EOS_TUI_RELEASE_BASE_URL "https://storage-ci.web.cern.ch/storage-ci/eos-tui/releases/v${EOS_TUI_VERSION}")
+set(EOS_TUI_LICENSE_URL "${EOS_TUI_RELEASE_BASE_URL}/LICENSE")
+set(EOS_TUI_README_URL "${EOS_TUI_RELEASE_BASE_URL}/README.md")
 
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(x86_64|amd64)$")
   set(EOS_TUI_BINARY_NAME "eos-tui_v${EOS_TUI_VERSION}_linux_amd64")
@@ -14,7 +16,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^
 endif()
 
 if(EOS_TUI_BINARY_NAME)
-  set(EOS_TUI_BINARY_URL "https://github.com/cern-eos/eos-tui/releases/download/v${EOS_TUI_VERSION}/${EOS_TUI_BINARY_NAME}")
+  set(EOS_TUI_BINARY_URL "${EOS_TUI_RELEASE_BASE_URL}/${EOS_TUI_BINARY_NAME}")
 endif()
 
 set(EOS_TUI_INSTALL_STAGING_DIR "${CMAKE_BINARY_DIR}/eos-tui/v${EOS_TUI_VERSION}")
