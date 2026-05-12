@@ -16,6 +16,27 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.36 Diopside``
+====================
+
+2026-05-12
+
+Note
+----
+
+* Update dependency to eos-xrootd-5.9.4
+
+Bug
+----
+
+* [EOS-6592] - MGM deadlock during balancing and FsView reload
+
+Improvements
+------------
+
+* MGM: restrict regex in ACL syntax to documented syntax (!!u !!m !+u !+m !-u !-m) should not be accepted
+
+
 ``v5.3.35 Diopside``
 ====================
 
