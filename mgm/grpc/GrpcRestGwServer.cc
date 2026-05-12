@@ -21,9 +21,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#ifdef EOS_GRPC_GATEWAY
 #include "GrpcRestGwServer.hh"
-
+#ifdef EOS_GRPC_GATEWAY
 #include "EosGrpcGateway.h"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
@@ -617,7 +616,8 @@ GrpcRestGwServer::Run(ThreadAssistant& assistant) noexcept
   eos_static_notice("%s", "msg=\"no GRPC GATEWAY support, "
                     "REST API unavailable\"");
   // Make the compiler happy
-  (void) mPort;
+  (void)mHttpGwPort;
+  (void)mGrpcGwPort;
   (void) mSSL;
 #endif
 }
