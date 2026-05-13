@@ -120,7 +120,7 @@ macaroon() {
     }
 
     # Make sure the macaroon library does not allow random caveats
-    eos-macaroon-init --activity UPLOAD,DOWNLOAD --validity 60 --caveat "dummy:random" https://${host}:${port}/${testdir}/)
+    eos-macaroon-init --activity UPLOAD,DOWNLOAD --validity 60 --caveat "dummy:random" https://${host}:${port}/${testdir}/
 
     if [[ $? -eq 0 ]]; then
         echo -e "error: macaroon library allowd random caveat requets"
