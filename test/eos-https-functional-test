@@ -35,6 +35,8 @@ usage() { echo '''Usage: eos-https-functional-test [-h|--host <host>[:<port>| (-
                            [-P|--capath <CA certificate path - derived from the certificate as well>]
                            [-t|--dir <directory on which to run tests>]
                            [-v|--verbose]
+                           [--macaroons] - run only macaroon tests
+                           [--tpc]       - run only TPC tests
 
                            [--help] - usage & exit
 '''; }
@@ -116,6 +118,14 @@ macaroon() {
     "yum install --enablerepo=osg-development -y x509-scitokens-issuer-client";
     exit 256;
     }
+
+    # Make sure the macaroon library does not allow random caveats
+    eos-macaroon-init --activity UPLOAD,DOWNLOAD --validity 60 --caveat "dummy:random" https://${host}:${port}/${testdir}/)
+
+    if [[ $? -eq 0 ]]; then
+        echo -e "error: macaroon library allowd random caveat requets"
+        exit 1;
+    fi
 
     export MACAROON="$(eos-macaroon-init --activity UPLOAD,DOWNLOAD --validity 60 https://${host}:${port}/${testdir}/)"
     respMacaroonUpload="$(curl -I -sS ${verbose} -L -H "Authorization: Bearer ${MACAROON}" https://${host}:${port}${testdir}/helloworld-macaroon.txt --upload-file <(echo ola) | grep HTTP | tr -d '\r' | paste -sd'+')"
@@ -247,24 +257,43 @@ echo "info: prepare https test directory ${testdir}"
 eos mkdir -p ${testdir}
 eos chown eos-user:eos-user ${testdir}
 
-x509
-x509code=$?
-echo "x509:"$x509code
+x509code=0
+macarooncode=0
+eostokencode=0
+tcpcode=0
 
-macaroon
-macarooncode=$?
-echo "macaroon:"$macarooncode
+if [[ -z "$macaroons" && -z "$tpc" ]]; then
+  x509
+  x509code=$?
+  echo "x509:"$x509code
 
-eostoken
-eostokencode=$?
-echo "eostoken:"$eostokencode
+  macaroon
+  macarooncode=$?
+  echo "macaroon:"$macarooncode
 
-tcp
-tcpcode=$?
-echo "tpc:"$tcpcode
+  eostoken
+  eostokencode=$?
+  echo "eostoken:"$eostokencode
+
+  tcp
+  tcpcode=$?
+  echo "tpc:"$tcpcode
+else
+  if [[ -n "$macaroons" ]]; then
+    macaroon
+    macarooncode=$?
+    echo "macaroon:"$macarooncode
+  fi
+
+  if [[ -n "$tpc" ]]; then
+    tcp
+    tcpcode=$?
+    echo "tpc:"$tcpcode
+  fi
+fi
 
 echo "info: cleanup https test directory"
 eos ls -lrta ${testdir}
 eos rm -rF ${testdir}
 
-exit $x509code$macarooncode$eostokencode$tpccode
+exit $((x509code | macarooncode | eostokencode | tcpcode))

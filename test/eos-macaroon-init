@@ -27,6 +27,9 @@ def parse_args():
     parser.add_argument("--validity", type=int, default=10, help="Time,"
                         "in minutes, the resulting macaroon should be valid.",
                         required=False)
+    parser.add_argument("--caveat", nargs="+", default=[],
+                        help="Additional caveats in key:value form (e.g. path:/eos/cms).",
+                        required=False)
     return parser.parse_args()
 
 
@@ -58,7 +61,7 @@ def configure_authenticated_session():
     return session
 
 
-def generate_token(url, validity, activity):
+def generate_token(url, validity, activity, caveats=None):
     """
     Call out to the macaroon issuer, using the specified validity and activity,
     and receive a resulting token.
@@ -67,8 +70,15 @@ def generate_token(url, validity, activity):
     validity = "PT%dM" % validity
     print("Validity: %s, activities: %s." % (validity, ", ".join(activity)),
           file=sys.stderr)
-    data_json = {"caveats": ["activity:%s" % ",".join(activity)],
-                 "validity": validity}
+    caveat_list = ["activity:%s" % ",".join(activity)]
+    if caveats:
+        for caveat in caveats:
+            if ":" not in caveat or caveat.startswith(":") or caveat.split(":", 1)[1] == "":
+                print("Error: caveat %r is not in key:value form." % caveat, file=sys.stderr)
+                sys.exit(1)
+        print("Additional caveats: %s." % ", ".join(caveats), file=sys.stderr)
+        caveat_list.extend(caveats)
+    data_json = {"caveats": caveat_list, "validity": validity}
     with configure_authenticated_session() as session:
         response = session.post(url,
                                 headers={"Content-Type": "application/macaroon-request"},
@@ -85,7 +95,7 @@ def generate_token(url, validity, activity):
 
 def main():
     args = parse_args()
-    token = generate_token(args.url, args.validity, args.activity)
+    token = generate_token(args.url, args.validity, args.activity, args.caveat)
     print(token)
 
 
