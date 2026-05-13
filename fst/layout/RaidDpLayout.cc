@@ -459,13 +459,25 @@ RaidDpLayout::WriteParityToFiles(std::shared_ptr<eos::fst::RainGroup>& grp)
     unsigned int index_dpblock = (i + 1) * (mNbDataFiles + 1) + i;
     off_parity_local = (grp_off / mNbDataFiles) + (i * mStripeWidth);
     off_parity_local += mSizeHeader;
-    // Writing simple and double parity
-    grp->StoreFuture(mStripe[physical_pindex]->
-                     fileWriteAsync(data_blocks[index_pblock](),
-                                    off_parity_local, mStripeWidth));
-    grp->StoreFuture(mStripe[physical_dpindex]
-                     ->fileWriteAsync(data_blocks[index_dpblock](),
+
+    // Option (B): zero-copy fan-out for both the simple- and the double-
+    // parity stripe. Falls back to the copy-based overload when
+    // EOS_FST_RAIN_LEGACY_COPY is set.
+    if (LegacyCopyDispatch()) {
+      grp->StoreFuture(mStripe[physical_pindex]->
+                       fileWriteAsync(data_blocks[index_pblock](),
                                       off_parity_local, mStripeWidth));
+      grp->StoreFuture(mStripe[physical_dpindex]
+                       ->fileWriteAsync(data_blocks[index_dpblock](),
+                                        off_parity_local, mStripeWidth));
+    } else {
+      auto pbuf  = data_blocks[index_pblock].GetBufferShared();
+      auto dpbuf = data_blocks[index_dpblock].GetBufferShared();
+      grp->StoreFuture(mStripe[physical_pindex]->fileWriteAsync(
+                         std::move(pbuf), 0, off_parity_local, mStripeWidth));
+      grp->StoreFuture(mStripe[physical_dpindex]->fileWriteAsync(
+                         std::move(dpbuf), 0, off_parity_local, mStripeWidth));
+    }
   }
 
   return SFS_OK;

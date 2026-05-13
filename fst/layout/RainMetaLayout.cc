@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include <cmath>
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <utility>
 #include <stdint.h>
@@ -40,6 +42,30 @@
 #endif
 
 EOSFSTNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Kill-switch for the zero-copy async fan-out (option B).
+//
+// EOS_FST_RAIN_LEGACY_COPY=1 keeps the historical, copy-based dispatch
+// (XrdIoHandler memcpys the stripe into a pool buffer). Useful for triage
+// in case a backend regression appears. The check is performed once at
+// first call and cached for the lifetime of the process; the env var is
+// only sampled once so concurrent threads see a consistent answer.
+//------------------------------------------------------------------------------
+bool
+RainMetaLayout::LegacyCopyDispatch() noexcept
+{
+  static const bool sLegacy = []() noexcept -> bool {
+    const char* v = ::getenv("EOS_FST_RAIN_LEGACY_COPY");
+
+    if (!v) {
+      return false;
+    }
+
+    return std::strcmp(v, "0") != 0;
+  }();
+  return sLegacy;
+}
 
 //------------------------------------------------------------------------------
 // Constructor
@@ -1230,7 +1256,19 @@ RainMetaLayout::AddDataBlock(uint64_t offset, const char* buffer,
       return false;
     }
 
-    grp->StoreFuture(file->fileWriteAsync(ptr, file_offset, length));
+    // Option (B): hand the RainBlock's shared buffer directly to the IO
+    // backend so XrdIo does not memcpy the stripe into a per-request pool
+    // buffer. The backing buffer is kept alive by the XrdIoHandler until
+    // XrdCl signals completion - well past RainGroup recycling.
+    if (LegacyCopyDispatch()) {
+      grp->StoreFuture(file->fileWriteAsync(ptr, file_offset, length));
+    } else {
+      auto sbuf = data_blocks[indx_block].GetBufferShared();
+      const XrdSfsFileOffset buf_off =
+        (XrdSfsFileOffset)(ptr - sbuf->GetDataPtr());
+      grp->StoreFuture(file->fileWriteAsync(std::move(sbuf), buf_off,
+                                            file_offset, length));
+    }
   }
 
   // Group completed - compute and write parity info
