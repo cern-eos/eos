@@ -20,6 +20,9 @@
 namespace eos::mgm::traffic_shaping {
 
 namespace {
+constexpr double kUnknownIoPressure = 1.0;
+constexpr double kMinIoPressureForIdleDelay = 0.01;
+
 template <typename DelayMap, typename Key>
 void
 ScaleDelayForLimitChange(DelayMap* delays, const Key& key, const uint64_t old_limit,
@@ -46,6 +49,16 @@ ScaleDelayForLimitChange(DelayMap* delays, const Key& key, const uint64_t old_li
   const long double scaled_delay =
       static_cast<long double>(it->second) * old_limit / new_limit;
   it->second = std::max<uint64_t>(1, static_cast<uint64_t>(scaled_delay + 0.5L));
+}
+
+std::string
+NormalizeFstNodeId(const std::string& node_id)
+{
+  if (node_id.rfind("/eos/", 0) == 0) {
+    return node_id;
+  }
+
+  return SSTR("/eos/" << node_id << "/fst");
 }
 } // namespace
 
@@ -232,7 +245,7 @@ AddDeltas(MultiWindowRate& stats, const uint64_t delta_bytes_read,
 void
 TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& report)
 {
-  const std::string& node_id = report.node_id();
+  const std::string node_id = NormalizeFstNodeId(report.node_id());
 
   const auto now_steady = std::chrono::steady_clock::now();
   const time_t now_unix = time(nullptr);
@@ -505,7 +518,8 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
 uint64_t
 TrafficShapingManager::CalculateDelayUs(const double limit_bps,
                                         const double current_rate_bps,
-                                        const uint64_t current_delay_us)
+                                        const uint64_t current_delay_us,
+                                        const double io_pressure)
 {
   if (limit_bps <= 0.0) {
     return 0;
@@ -527,8 +541,14 @@ TrafficShapingManager::CalculateDelayUs(const double limit_bps,
 
   // 0. Idle seed: when traffic is sparse, use the current limit's baseline
   // delay. This shapes the first transfer and lets raised limits release old
-  // delay even before dense samples arrive.
+  // delay even before dense samples arrive. If EOS already measures no storage
+  // pressure for this FST, release an existing idle delay instead of keeping a
+  // sparse low-demand app throttled indefinitely.
   if (current_rate_bps < limit_bps * kIdleThreshold) {
+    if (delay_us > 0 && io_pressure < kMinIoPressureForIdleDelay) {
+      return static_cast<uint64_t>(
+          std::max(int64_t{0}, static_cast<int64_t>(delay_us) - kMaxStepDownUs));
+    }
     return seed_delay_us;
   }
 
@@ -675,7 +695,8 @@ TrafficShapingManager::UpdateLimits()
   auto adjust_delay = [&](const double limit_bps, const double current_rate,
                           uint64_t& delay_us, auto* output_map, const auto& entity_key,
                           const std::string& node_id, const char* entity_type,
-                          const std::string& entity_id, const char* op_type) {
+                          const std::string& entity_id, const char* op_type,
+                          const double io_pressure) {
     if (limit_bps <= 0) {
       return;
     }
@@ -687,7 +708,7 @@ TrafficShapingManager::UpdateLimits()
       if (mCustomAlgo) {
         delay_us = mCustomAlgo(limit_bps, current_rate, old_delay);
       } else {
-        delay_us = CalculateDelayUs(limit_bps, current_rate, old_delay);
+        delay_us = CalculateDelayUs(limit_bps, current_rate, old_delay, io_pressure);
       }
     }
 
@@ -697,10 +718,10 @@ TrafficShapingManager::UpdateLimits()
 
     eos_static_debug(
         "msg=\"throttle evaluation\" node=\"%s\" type=\"%s\" id=\"%s\" op=\"%s\" "
-        "limit_bps=%.0f current_rate_bps=%.0f ratio=%.3f "
+        "limit_bps=%.0f current_rate_bps=%.0f ratio=%.3f io_pressure=%.3f "
         "old_delay_us=%lu new_delay_us=%lu",
         node_id.c_str(), entity_type, entity_id.c_str(), op_type, limit_bps, current_rate,
-        ratio, old_delay, delay_us);
+        ratio, io_pressure, old_delay, delay_us);
   };
 
   // Helper lambda to do a single-pass map lookup
@@ -712,14 +733,39 @@ TrafficShapingManager::UpdateLimits()
   };
 
   std::vector<std::string> online_nodes;
+  std::unordered_map<std::string, double> node_io_pressure;
   {
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
     for (const auto& [node_name, node_view] : FsView::gFsView.mNodeView) {
       if (node_view->GetStatus() == "online") {
         online_nodes.push_back(node_name);
+
+        bool have_pressure_sample = false;
+        double max_disk_load = 0.0;
+
+        for (auto fsid_it = node_view->begin(); fsid_it != node_view->end(); ++fsid_it) {
+          auto* fs = FsView::gFsView.mIdView.lookupByID(*fsid_it);
+          if (!BaseView::ConsiderForStatistics(fs)) {
+            continue;
+          }
+
+          max_disk_load = std::max(max_disk_load, fs->GetDouble("stat.disk.load"));
+          have_pressure_sample = true;
+        }
+
+        if (have_pressure_sample) {
+          node_io_pressure[node_name] = max_disk_load;
+        }
       }
     }
   }
+
+  auto get_pressure = [&](const std::string& node_id) {
+    if (auto it = node_io_pressure.find(node_id); it != node_io_pressure.end()) {
+      return it->second;
+    }
+    return kUnknownIoPressure;
+  };
 
   std::unordered_map<std::string, eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
       fst_io_delay_configs;
@@ -744,6 +790,7 @@ TrafficShapingManager::UpdateLimits()
 
     for (const auto& node_id : online_nodes) {
       const EntityRateMaps& rates = node_rates[node_id];
+      const double io_pressure = get_pressure(node_id);
       auto& previous_config = mNodeFstIoDelayConfigs[node_id];
       eos::traffic_shaping::TrafficShapingFstIoDelayConfig next_config;
 
@@ -765,12 +812,12 @@ TrafficShapingManager::UpdateLimits()
         adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
                      get_rate(rates.app_write, app),
                      (*previous_config.mutable_app_write_delay())[app], app_write_map,
-                     app, node_id, "app", app, "write");
+                     app, node_id, "app", app, "write", io_pressure);
 
         adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
                      get_rate(rates.app_read, app),
                      (*previous_config.mutable_app_read_delay())[app], app_read_map, app,
-                     node_id, "app", app, "read");
+                     node_id, "app", app, "read", io_pressure);
       }
 
       for (const auto& [uid, policy] : mUidPolicies) {
@@ -784,12 +831,12 @@ TrafficShapingManager::UpdateLimits()
         adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
                      get_rate(rates.uid_write, uid),
                      (*previous_config.mutable_uid_write_delay())[uid], uid_write_map,
-                     uid, node_id, "uid", std::to_string(uid), "write");
+                     uid, node_id, "uid", std::to_string(uid), "write", io_pressure);
 
         adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
                      get_rate(rates.uid_read, uid),
                      (*previous_config.mutable_uid_read_delay())[uid], uid_read_map, uid,
-                     node_id, "uid", std::to_string(uid), "read");
+                     node_id, "uid", std::to_string(uid), "read", io_pressure);
       }
 
       for (const auto& [gid, policy] : mGidPolicies) {
@@ -803,12 +850,12 @@ TrafficShapingManager::UpdateLimits()
         adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
                      get_rate(rates.gid_write, gid),
                      (*previous_config.mutable_gid_write_delay())[gid], gid_write_map,
-                     gid, node_id, "gid", std::to_string(gid), "write");
+                     gid, node_id, "gid", std::to_string(gid), "write", io_pressure);
 
         adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
                      get_rate(rates.gid_read, gid),
                      (*previous_config.mutable_gid_read_delay())[gid], gid_read_map, gid,
-                     node_id, "gid", std::to_string(gid), "read");
+                     node_id, "gid", std::to_string(gid), "read", io_pressure);
       }
 
       previous_config = next_config;

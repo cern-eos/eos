@@ -386,7 +386,7 @@ private:
 
   // Calculates the new FST delay microsecond value given the current rate and limit
   static uint64_t CalculateDelayUs(double limit_bps, double current_rate_bps,
-                                   uint64_t current_delay_us);
+                                   uint64_t current_delay_us, double io_pressure);
 
   // --- Plugin Hot-Reload State ---
   void* mPluginHandle = nullptr;
