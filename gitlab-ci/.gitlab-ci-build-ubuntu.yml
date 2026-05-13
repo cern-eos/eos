@@ -118,12 +118,6 @@ publish_debian:
     - sudo -u stci -H -E gpg --import $STCI_REPO_KEY
     - sudo -u stci -H -E ./gitlab-ci/publish_deb.sh ${BUILD_TYPE}
   allow_failure: true
-  needs:
-    - job: ubuntu-jammy
-    - job: ubuntu-noble
-    - job: ubuntu-noble-arm
-    - job: ubuntu-plucky
-    - job: ubuntu-questing
   tags:
     - docker_node
     - publish
