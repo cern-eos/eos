@@ -16,6 +16,7 @@
 #include <set>
 #include <sstream>
 #include <sys/stat.h>
+#include <utility>
 
 namespace eos::mgm::traffic_shaping {
 
@@ -519,7 +520,9 @@ uint64_t
 TrafficShapingManager::CalculateDelayUs(const double limit_bps,
                                         const double current_rate_bps,
                                         const uint64_t current_delay_us,
-                                        const double io_pressure)
+                                        const double io_pressure,
+                                        const bool has_rate_sample,
+                                        const bool allow_idle_release)
 {
   if (limit_bps <= 0.0) {
     return 0;
@@ -542,10 +545,17 @@ TrafficShapingManager::CalculateDelayUs(const double limit_bps,
   // 0. Idle seed: when traffic is sparse, use the current limit's baseline
   // delay. This shapes the first transfer and lets raised limits release old
   // delay even before dense samples arrive. If EOS already measures no storage
-  // pressure for this FST, release an existing idle delay instead of keeping a
-  // sparse low-demand app throttled indefinitely.
+  // pressure for this FST, this is a controller-only limit, and we have seen
+  // this entity on the node, release the idle delay instead of keeping a sparse
+  // low-demand app throttled indefinitely. Do not release explicit user limits
+  // or a pre-traffic seed, otherwise a hard policy can decay away before or
+  // during the first transfer.
   if (current_rate_bps < limit_bps * kIdleThreshold) {
-    if (delay_us > 0 && io_pressure < kMinIoPressureForIdleDelay) {
+    if (allow_idle_release && has_rate_sample &&
+        io_pressure < kMinIoPressureForIdleDelay) {
+      if (delay_us == 0) {
+        return 0;
+      }
       return static_cast<uint64_t>(
           std::max(int64_t{0}, static_cast<int64_t>(delay_us) - kMaxStepDownUs));
     }
@@ -692,44 +702,45 @@ TrafficShapingManager::UpdateLimits()
   // 1. Evaluate hot-reload status at the start of every tick
   LoadPluginIfModified();
 
-  auto adjust_delay = [&](const double limit_bps, const double current_rate,
-                          uint64_t& delay_us, auto* output_map, const auto& entity_key,
-                          const std::string& node_id, const char* entity_type,
-                          const std::string& entity_id, const char* op_type,
-                          const double io_pressure) {
-    if (limit_bps <= 0) {
-      return;
-    }
+  auto adjust_delay =
+      [&](const double limit_bps, const double current_rate, const bool has_rate_sample,
+          const bool allow_idle_release, uint64_t& delay_us, auto* output_map,
+          const auto& entity_key, const std::string& node_id, const char* entity_type,
+          const std::string& entity_id, const char* op_type, const double io_pressure) {
+        if (limit_bps <= 0) {
+          return;
+        }
 
-    const uint64_t old_delay = delay_us;
-    const double ratio = current_rate / limit_bps;
-    {
-      std::shared_lock read_lock(mPluginMutex);
-      if (mCustomAlgo) {
-        delay_us = mCustomAlgo(limit_bps, current_rate, old_delay);
-      } else {
-        delay_us = CalculateDelayUs(limit_bps, current_rate, old_delay, io_pressure);
-      }
-    }
+        const uint64_t old_delay = delay_us;
+        const double ratio = current_rate / limit_bps;
+        {
+          std::shared_lock read_lock(mPluginMutex);
+          if (mCustomAlgo) {
+            delay_us = mCustomAlgo(limit_bps, current_rate, old_delay);
+          } else {
+            delay_us = CalculateDelayUs(limit_bps, current_rate, old_delay, io_pressure,
+                                        has_rate_sample, allow_idle_release);
+          }
+        }
 
-    if (delay_us > 0) {
-      (*output_map)[entity_key] = delay_us;
-    }
+        if (delay_us > 0) {
+          (*output_map)[entity_key] = delay_us;
+        }
 
-    eos_static_debug(
-        "msg=\"throttle evaluation\" node=\"%s\" type=\"%s\" id=\"%s\" op=\"%s\" "
-        "limit_bps=%.0f current_rate_bps=%.0f ratio=%.3f io_pressure=%.3f "
-        "old_delay_us=%lu new_delay_us=%lu",
-        node_id.c_str(), entity_type, entity_id.c_str(), op_type, limit_bps, current_rate,
-        ratio, io_pressure, old_delay, delay_us);
-  };
+        eos_static_debug(
+            "msg=\"throttle evaluation\" node=\"%s\" type=\"%s\" id=\"%s\" op=\"%s\" "
+            "limit_bps=%.0f current_rate_bps=%.0f ratio=%.3f io_pressure=%.3f "
+            "allow_idle_release=%d old_delay_us=%lu new_delay_us=%lu",
+            node_id.c_str(), entity_type, entity_id.c_str(), op_type, limit_bps,
+            current_rate, ratio, io_pressure, allow_idle_release, old_delay, delay_us);
+      };
 
   // Helper lambda to do a single-pass map lookup
   auto get_rate = [](const auto& map, const auto& key) {
     if (auto it = map.find(key); it != map.end()) {
-      return it->second;
+      return std::pair{it->second, true};
     }
-    return 0.0;
+    return std::pair{0.0, false};
   };
 
   std::vector<std::string> online_nodes;
@@ -809,13 +820,19 @@ TrafficShapingManager::UpdateLimits()
           continue;
         }
 
-        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
-                     get_rate(rates.app_write, app),
+        const auto [write_rate, has_write_rate] = get_rate(rates.app_write, app);
+        const bool allow_write_idle_release =
+            !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
+        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()), write_rate,
+                     has_write_rate, allow_write_idle_release,
                      (*previous_config.mutable_app_write_delay())[app], app_write_map,
                      app, node_id, "app", app, "write", io_pressure);
 
-        adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
-                     get_rate(rates.app_read, app),
+        const auto [read_rate, has_read_rate] = get_rate(rates.app_read, app);
+        const bool allow_read_idle_release =
+            !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
+        adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()), read_rate,
+                     has_read_rate, allow_read_idle_release,
                      (*previous_config.mutable_app_read_delay())[app], app_read_map, app,
                      node_id, "app", app, "read", io_pressure);
       }
@@ -828,13 +845,19 @@ TrafficShapingManager::UpdateLimits()
           continue;
         }
 
-        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
-                     get_rate(rates.uid_write, uid),
+        const auto [write_rate, has_write_rate] = get_rate(rates.uid_write, uid);
+        const bool allow_write_idle_release =
+            !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
+        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()), write_rate,
+                     has_write_rate, allow_write_idle_release,
                      (*previous_config.mutable_uid_write_delay())[uid], uid_write_map,
                      uid, node_id, "uid", std::to_string(uid), "write", io_pressure);
 
-        adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
-                     get_rate(rates.uid_read, uid),
+        const auto [read_rate, has_read_rate] = get_rate(rates.uid_read, uid);
+        const bool allow_read_idle_release =
+            !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
+        adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()), read_rate,
+                     has_read_rate, allow_read_idle_release,
                      (*previous_config.mutable_uid_read_delay())[uid], uid_read_map, uid,
                      node_id, "uid", std::to_string(uid), "read", io_pressure);
       }
@@ -847,13 +870,19 @@ TrafficShapingManager::UpdateLimits()
           continue;
         }
 
-        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
-                     get_rate(rates.gid_write, gid),
+        const auto [write_rate, has_write_rate] = get_rate(rates.gid_write, gid);
+        const bool allow_write_idle_release =
+            !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
+        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()), write_rate,
+                     has_write_rate, allow_write_idle_release,
                      (*previous_config.mutable_gid_write_delay())[gid], gid_write_map,
                      gid, node_id, "gid", std::to_string(gid), "write", io_pressure);
 
-        adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
-                     get_rate(rates.gid_read, gid),
+        const auto [read_rate, has_read_rate] = get_rate(rates.gid_read, gid);
+        const bool allow_read_idle_release =
+            !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
+        adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()), read_rate,
+                     has_read_rate, allow_read_idle_release,
                      (*previous_config.mutable_gid_read_delay())[gid], gid_read_map, gid,
                      node_id, "gid", std::to_string(gid), "read", io_pressure);
       }

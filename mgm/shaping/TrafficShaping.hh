@@ -382,11 +382,18 @@ private:
 
   mutable std::shared_mutex mMutex;
 
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
   // Calculates the new FST delay microsecond value given the current rate and limit
   static uint64_t CalculateDelayUs(double limit_bps, double current_rate_bps,
-                                   uint64_t current_delay_us, double io_pressure);
+                                   uint64_t current_delay_us, double io_pressure,
+                                   bool has_rate_sample, bool allow_idle_release);
+#ifdef IN_TEST_HARNESS
+private:
+#endif
 
   // --- Plugin Hot-Reload State ---
   void* mPluginHandle = nullptr;
