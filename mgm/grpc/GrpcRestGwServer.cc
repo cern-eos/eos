@@ -173,13 +173,32 @@ GrpcRestGwServer::Vid(grpc::ServerContext* context, eos::common::VirtualIdentity
     client.name = const_cast<char*>(name_val.c_str());
   }
 
-  // Populate client tident
+  // Populate client tident.
+  //
+  // SECURITY/STABILITY: XrdSecEntity declares tident as a const char* with no
+  // in-class initialiser; the XRootD invariant is that the security plugin
+  // sets it before the entity reaches consumer code. Because we stack-
+  // construct the entity here and the value is supplied via an *optional*
+  // gRPC metadata header, tident would otherwise stay nullptr whenever the
+  // peer omits the header. Downstream code in eos::common::Mapping::IdMap
+  // (see common/Mapping.cc) calls strlen(client->tident) unconditionally to
+  // detect the XrdHttp "http" tident workaround and would segfault the
+  // entire MGM process on a single anonymous gRPC request.
+  //
+  // We therefore always synthesise a non-null tident: the caller-supplied
+  // header value if present, otherwise a sentinel derived from the peer
+  // identity so the audit trail still reflects the originator. The backing
+  // std::string lives in this stack frame, which outlives the IdMap call.
   it = map_hdrs.find(hdr_tident);
 
   if (it != map_hdrs.end()) {
     tident_val = std::string(it->second.data(), it->second.length());
-    client.tident = const_cast<char*>(tident_val.c_str());
+  } else {
+    tident_val = "grpc.";
+    tident_val += (peer_ip.empty() ? std::string("local") : peer_ip);
   }
+
+  client.tident = tident_val.c_str();
 
   // Populate client endorsemetns if authz info present
   it = map_hdrs.find(hdr_authz);

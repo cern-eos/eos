@@ -223,7 +223,14 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   // @todo (esindril) this is just a workaround for the fact that XrdHttp
   // does not properly populate the prot field in the XrdSecEntity object.
   // See https://github.com/xrootd/xrootd/issues/1122
-  if ((strlen(client->tident) == 4) &&
+  //
+  // SECURITY/STABILITY: XrdSecEntity::tident is documented as "always
+  // preset" by the security plugin, but that invariant is not honoured by
+  // every caller that stack-constructs an entity (e.g. the gRPC REST
+  // gateway used to leave it nullptr on a missing client-tident header).
+  // An unguarded strlen() here turns any such bug into a daemon-wide
+  // segfault, so explicitly null-check before the strcmp.
+  if (client->tident && (strlen(client->tident) == 4) &&
       (strcmp(client->tident, "http") == 0)) {
     vid.prot = "https";
   }
