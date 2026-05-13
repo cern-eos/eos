@@ -25,6 +25,7 @@
 #include "GrpcNsInterface.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
+#include "common/SymKeys.hh"
 #include "mgm/macros/Macros.hh"
 #include "mgm/proc/admin/IoCmd.hh"
 #include <XrdSec/XrdSecEntity.hh>
@@ -74,7 +75,6 @@ class RequestServiceImpl final : public Eos::Service {
     eos_static_info("grpc::fileinsert from client peer=%s ip=%s DN=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str());
-    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -88,7 +88,6 @@ class RequestServiceImpl final : public Eos::Service {
     eos_static_info("grpc::containerinsert from client peer=%s ip=%s DN=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str());
-    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -100,7 +99,6 @@ class RequestServiceImpl final : public Eos::Service {
   {
     eos_static_info("grpc::md from client peer=%s ip=%s DN=%s", context->peer().c_str(),
                     GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str());
-    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -128,7 +126,6 @@ class RequestServiceImpl final : public Eos::Service {
   {
     eos_static_info("grpc::find from client peer=%s ip=%s DN=%s", context->peer().c_str(),
                     GrpcServer::IP(context).c_str(), GrpcServer::DN(context).c_str());
-    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -142,7 +139,6 @@ class RequestServiceImpl final : public Eos::Service {
     eos_static_info("grpc::nsstat::request from client peer=%s ip=%s DN=%s",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str());
-    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -157,7 +153,6 @@ class RequestServiceImpl final : public Eos::Service {
                     "req_type=%lu",
                     context->peer().c_str(), GrpcServer::IP(context).c_str(),
                     GrpcServer::DN(context).c_str(), request->command_case());
-    eos_static_debug("token=\"%s\"", request->authkey().c_str());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
@@ -284,9 +279,46 @@ GrpcServer::Vid(grpc::ServerContext* context,
   XrdSecEntity client("grpc");
   std::string dn = DN(context);
   client.name = const_cast<char*>(dn.c_str());
-  bool isEosToken = (authkey.substr(0, 8) == "zteos64:");
-  std::string tident = dn.length() ? dn.c_str() : (isEosToken ? "eostoken" :
-                       authkey.c_str());
+  // ----------------------------------------------------------------------
+  // SECURITY: build the tident prefix.
+  //
+  // Previously the code used the raw authkey string as the tident prefix
+  // whenever no DN was present and the authkey was not a "zteos64:" EOS
+  // token (i.e. SSS / shared-secret style credentials). The resulting
+  // tident is stored on vid.tident by Mapping::IdMap and propagates into
+  // many log lines that run at >= INFO severity, including the
+  // unauthorized-access path in mgm/macros/Macros.hh which uses eos_err.
+  // That turned every audit/error log into a verbatim credential dump.
+  //
+  // We now emit a stable, non-secret sentinel for the no-DN case and
+  // attach a short HexSha256 fingerprint (16 hex chars = 64 bits) only
+  // at DEBUG severity so operators can still correlate calls without the
+  // credential bytes ever touching INFO+ logs.
+  // ----------------------------------------------------------------------
+  const bool isEosToken = (authkey.compare(0, 8, "zteos64:") == 0);
+  std::string tident;
+
+  if (dn.length()) {
+    tident = dn;
+  } else if (isEosToken) {
+    tident = "eostoken";
+  } else if (authkey.length()) {
+    tident = "grpc-key";
+  } else {
+    tident = "grpc-anon";
+  }
+
+  if (EOS_LOGS_DEBUG && authkey.length() && !isEosToken && !dn.length()) {
+    std::string fp = eos::common::SymKey::HexSha256(authkey);
+
+    if (fp.length() > 16) {
+      fp.resize(16);
+    }
+
+    eos_static_debug("msg=\"grpc authkey fingerprint\" fp=%s len=%zu",
+                     fp.c_str(), authkey.length());
+  }
+
   std::string id;
   std::string ip = GrpcServer::IP(context, &id).c_str();
   tident += ".1:";
