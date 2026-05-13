@@ -771,7 +771,7 @@ el9_asan_docker_image:
     - exec_cmd eos-mgm1 "eos vid add gateway \"127.0.0.1\" https"
     - exec_cmd eos-mgm1 "eos vid add gateway \"[:1]\" https"
     - exec_cmd eos-mgm1 "eos vid add gateway \"[::1]\" https"
-    - exec_cmd eos-mgm1 "for ip in $(hostname -i); do eos vid add gateway \$ip https; done"
+    - exec_cmd eos-mgm1 "for ip in \$(hostname -i); do eos vid add gateway \$ip https; done"
     - exec_cmd eos-mgm1 "eos vid set map -grpc key:auth_key vuid:11  vgid:11"
     - exec_cmd eos-mgm1 "eos vid set map -https key:auth_key vuid:11  vgid:11"
     - exec_cmd eos-mgm1 "eos vid set membership 11 +sudo"
