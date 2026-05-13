@@ -2295,15 +2295,100 @@ Server::OpSetFile(const std::string& id,
     } else if (strncmp(md.target().c_str(), "////hlnk",
                        8) == 0) {  /* hard link creation */
       fs_rd_lock.Release();
-      uint64_t tgt_md_ino = atoll(md.target().c_str() + 8);
+      // ----------------------------------------------------------------------
+      // SECURITY: parse and validate the target inode supplied via md.target().
+      // The eosxd client enforces a same-parent invariant and authorizes the
+      // target. None of that can be trusted on the server side because a
+      // modified client could request a hard link to any inode in the
+      // namespace. We therefore re-enforce the invariants here:
+      //   1. The target inode encoding must be a valid non-zero number.
+      //   2. The target file must exist.
+      //   3. The target file must live in the same parent container as the
+      //      new hard link (same-parent invariant). This matches the client
+      //      side EXDEV check in eosfuse.cc and ensures the caller already
+      //      holds W_OK on the directory containing the target -- which is
+      //      the POSIX requirement for link(2).
+      //   4. The target must itself be a regular file, not a hard link entry
+      //      (hard-link chains are not supported and would corrupt nlink
+      //      bookkeeping).
+      // Without these checks an attacker can leak metadata/xattrs of any
+      // file via BroadcastMD, tamper with k_nlink on arbitrary files, and
+      // gain read/write access to arbitrary file contents.
+      // ----------------------------------------------------------------------
+      const char* tgt_str = md.target().c_str() + 8;
+
+      if (*tgt_str == '\0') {
+        eos_err("msg=\"hlnk rejected: empty target inode\" uid=%u gid=%u name=\"%s\"",
+                vid.uid, vid.gid, md.name().c_str());
+        return EINVAL;
+      }
+
+      char* end = nullptr;
+      errno = 0;
+      uint64_t tgt_md_ino = strtoull(tgt_str, &end, 10);
+
+      if (errno != 0 || end == tgt_str || (end && *end != '\0') ||
+          tgt_md_ino == 0) {
+        eos_err("msg=\"hlnk rejected: malformed target inode\" target=\"%s\" "
+                "uid=%u gid=%u name=\"%s\"",
+                md.target().c_str(), vid.uid, vid.gid, md.name().c_str());
+        return EINVAL;
+      }
 
       if (pcmd->findContainer(md.name())) {
         return EEXIST;
       }
 
       /* fmd is the target file corresponding to tgt_fid, gmd the file corresponding to new name */
-      fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
-                                              tgt_md_ino));
+      try {
+        fmd = gOFS->eosFileService->getFileMD(eos::common::FileId::InodeToFid(
+                                                tgt_md_ino));
+      } catch (eos::MDException& e) {
+        eos_err("msg=\"hlnk rejected: target inode not found\" tgt_ino=%lx "
+                "uid=%u gid=%u name=\"%s\" err=\"%s\"",
+                (unsigned long) tgt_md_ino, vid.uid, vid.gid,
+                md.name().c_str(), e.getMessage().str().c_str());
+        return ENOENT;
+      }
+
+      if (!fmd) {
+        eos_err("msg=\"hlnk rejected: target inode not found\" tgt_ino=%lx "
+                "uid=%u gid=%u name=\"%s\"",
+                (unsigned long) tgt_md_ino, vid.uid, vid.gid,
+                md.name().c_str());
+        return ENOENT;
+      }
+
+      // Enforce the same-parent invariant. This is the server-side mirror of
+      // the EXDEV check in fusex/eosxd/eosfuse.cc. Refuse to link a file from
+      // a different parent container; doing otherwise would let an
+      // unauthorized caller create entries pointing at arbitrary inodes,
+      // exposing their metadata and content via the subsequent BroadcastMD
+      // and any read/write operations performed through the new entry.
+      if (fmd->getContainerId() != md.md_pino()) {
+        eos_warning("msg=\"hlnk rejected: cross-parent hard link denied\" "
+                    "tgt_ino=%lx tgt_pino=%lx req_pino=%lx uid=%u gid=%u "
+                    "name=\"%s\"",
+                    (unsigned long) tgt_md_ino,
+                    (unsigned long) fmd->getContainerId(),
+                    (unsigned long) md.md_pino(), vid.uid, vid.gid,
+                    md.name().c_str());
+        return EXDEV;
+      }
+
+      // Refuse to create a hard link whose target is itself a hard link
+      // entry. The on-disk representation stores the indirection on the
+      // canonical inode via k_nlink; chaining via k_mdino would both
+      // bypass the same-parent check transitively and corrupt the
+      // reference count maintained on the canonical file.
+      if (fmd->hasAttribute(k_mdino)) {
+        eos_warning("msg=\"hlnk rejected: target is itself a hard link\" "
+                    "tgt_ino=%lx uid=%u gid=%u name=\"%s\"",
+                    (unsigned long) tgt_md_ino, vid.uid, vid.gid,
+                    md.name().c_str());
+        return EPERM;
+      }
+
       std::shared_ptr<eos::IFileMD> gmd = gOFS->eosFileService->createFile(0);
       int nlink;
       nlink = (fmd->hasAttribute(k_nlink)) ? std::stoi(fmd->getAttribute(
