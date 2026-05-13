@@ -895,7 +895,9 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   if (shaping_delay_us == 0 || static_cast<uint64_t>(buffer_size) <=
                                    eos::fst::traffic_shaping::kIoDelayReferenceBytes) {
     if (shaping_delay_us > 0) {
-      std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
+      const uint64_t reserved_delay_us = gOFS.mIoDelayConfig.ReserveReadDelayForAppUidGid(
+          vid, static_cast<uint64_t>(buffer_size));
+      std::this_thread::sleep_for(std::chrono::microseconds(reserved_delay_us));
     }
 
     rc = mLayout->Read(fileOffset, buffer, buffer_size);
@@ -910,7 +912,7 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
           std::min<uint64_t>(eos::fst::traffic_shaping::kIoDelayReferenceBytes,
                              static_cast<uint64_t>(buffer_size) - total_read_shaped);
       const uint64_t chunk_delay_us =
-          gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid, chunk_size);
+          gOFS.mIoDelayConfig.ReserveReadDelayForAppUidGid(vid, chunk_size);
 
       if (chunk_delay_us > 0) {
         std::this_thread::sleep_for(std::chrono::microseconds(chunk_delay_us));
@@ -1073,7 +1075,9 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
   if (shaping_delay_us == 0 ||
       total_read <= eos::fst::traffic_shaping::kIoDelayReferenceBytes) {
     if (shaping_delay_us > 0) {
-      std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
+      const uint64_t reserved_delay_us =
+          gOFS.mIoDelayConfig.ReserveReadDelayForAppUidGid(vid, total_read);
+      std::this_thread::sleep_for(std::chrono::microseconds(reserved_delay_us));
     }
 
     rv = mLayout->ReadV(chunkList, total_read);
@@ -1092,7 +1096,7 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
             std::min<uint64_t>(eos::fst::traffic_shaping::kIoDelayReferenceBytes,
                                static_cast<uint64_t>(readV[i].size) - chunk_offset);
         const uint64_t chunk_delay_us =
-            gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid, chunk_size);
+            gOFS.mIoDelayConfig.ReserveReadDelayForAppUidGid(vid, chunk_size);
 
         if (chunk_delay_us > 0) {
           std::this_thread::sleep_for(std::chrono::microseconds(chunk_delay_us));
@@ -1238,7 +1242,10 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   if (shaping_delay_us == 0 || static_cast<uint64_t>(buffer_size) <=
                                    eos::fst::traffic_shaping::kIoDelayReferenceBytes) {
     if (shaping_delay_us > 0) {
-      std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
+      const uint64_t reserved_delay_us =
+          gOFS.mIoDelayConfig.ReserveWriteDelayForAppUidGid(
+              vid, static_cast<uint64_t>(buffer_size));
+      std::this_thread::sleep_for(std::chrono::microseconds(reserved_delay_us));
     }
 
     rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
@@ -1253,7 +1260,7 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
           std::min<uint64_t>(eos::fst::traffic_shaping::kIoDelayReferenceBytes,
                              static_cast<uint64_t>(buffer_size) - total_written_shaped);
       const uint64_t chunk_delay_us =
-          gOFS.mIoDelayConfig.GetWriteDelayForAppUidGid(vid, chunk_size);
+          gOFS.mIoDelayConfig.ReserveWriteDelayForAppUidGid(vid, chunk_size);
 
       if (chunk_delay_us > 0) {
         std::this_thread::sleep_for(std::chrono::microseconds(chunk_delay_us));
