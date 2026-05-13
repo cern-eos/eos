@@ -193,11 +193,12 @@ class WncService final : public EosWnc::Service
       break;
     }
 
-    eos_static_debug("eos-wnc request from peer=%s IP=%s DN=%s token=\"%s\" "
-                     "command=\"%s\"",
+    eos_static_debug("eos-wnc request from peer=%s IP=%s DN=%s "
+                     "command=\"%s\" token_len=%zu",
                      context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                     GrpcServer::DN(context).c_str(), request->auth().authkey().c_str(),
-                     command.c_str());
+                     GrpcServer::DN(context).c_str(),
+                     command.c_str(),
+                     request->auth().authkey().length());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
@@ -226,11 +227,12 @@ class WncService final : public EosWnc::Service
       break;
     }
 
-    eos_static_debug("eos-wnc request from peer=%s IP=%s DN=%s token=\"%s\" "
-                     "command=\"%s\"",
+    eos_static_debug("eos-wnc request from peer=%s IP=%s DN=%s "
+                     "command=\"%s\" token_len=%zu",
                      context->peer().c_str(), GrpcServer::IP(context).c_str(),
-                     GrpcServer::DN(context).c_str(), request->auth().authkey().c_str(),
-                     command.c_str());
+                     GrpcServer::DN(context).c_str(),
+                     command.c_str(),
+                     request->auth().authkey().length());
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
