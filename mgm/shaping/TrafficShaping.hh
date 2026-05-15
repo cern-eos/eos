@@ -359,6 +359,7 @@ private:
   std::unordered_map<std::string, MultiWindowRate> mNodeStats;
   std::unordered_map<DiskKey, MultiWindowRate, DiskKeyHash> mDiskStats;
   std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mDetailedStats;
+  std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mNodeEntityStats;
   // We provide an initial tick interval but this will be refreshed on initialization
   MultiWindowRate mTotalStats{0.5};
 
@@ -366,7 +367,8 @@ private:
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
   std::unordered_map<std::string, TrafficShapingPolicy> mAppPolicies;
 
-  eos::traffic_shaping::TrafficShapingFstIoDelayConfig mFstIoDelayConfig;
+  std::unordered_map<std::string, eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
+      mNodeFstIoDelayConfigs;
 
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       estimators_update_loop_micro_sec;
@@ -380,11 +382,19 @@ private:
 
   mutable std::shared_mutex mMutex;
 
+#ifdef IN_TEST_HARNESS
+public:
+#endif
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
   // Calculates the new FST delay microsecond value given the current rate and limit
   static uint64_t CalculateDelayUs(double limit_bps, double current_rate_bps,
-                                   uint64_t current_delay_us);
+                                   uint64_t current_delay_us, double io_pressure,
+                                   bool has_rate_sample, bool allow_idle_release,
+                                   double delay_reference_bps = 0.0);
+#ifdef IN_TEST_HARNESS
+private:
+#endif
 
   // --- Plugin Hot-Reload State ---
   void* mPluginHandle = nullptr;
