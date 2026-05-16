@@ -25,7 +25,7 @@ constexpr double kUnknownIoPressure = 1.0;
 constexpr double kMinIoPressureForIdleDelay = 0.01;
 constexpr double kActiveEntityNodeRateBps = 1024.0 * 1024.0;
 // The FST reserves this multiple of the configured delay to serialize concurrent
-// app/uid/gid lanes. Account for it here when sizing the per-node delay seed.
+// app/uid/gid lanes. Account for it here when sizing the delay seed.
 constexpr double kFstIoDelayParallelReservationFactor = 4.0;
 
 template <typename DelayMap, typename Key>
@@ -603,7 +603,10 @@ TrafficShapingManager::CalculateDelayUs(
   // this entity on the node, release the idle delay instead of keeping a sparse
   // low-demand app throttled indefinitely. Do not release explicit user limits
   // or a pre-traffic seed, otherwise a hard policy can decay away before or
-  // during the first transfer.
+  // during the first transfer. For explicit limits, shed existing delay slowly
+  // while the entity still has a rate sample; a delayed stream can briefly report
+  // near zero rate, and resetting straight to the seed creates a burst/collapse
+  // cycle.
   if (current_rate_bps < limit_bps * kIdleThreshold) {
     if (allow_idle_release && has_rate_sample &&
         io_pressure < kMinIoPressureForIdleDelay) {
@@ -612,6 +615,11 @@ TrafficShapingManager::CalculateDelayUs(
       }
       return static_cast<uint64_t>(
           std::max(int64_t{0}, static_cast<int64_t>(delay_us) - kIdleReleaseStepDownUs));
+    }
+    if (has_rate_sample) {
+      const uint64_t released_delay_us = static_cast<uint64_t>(
+          std::max(int64_t{0}, static_cast<int64_t>(delay_us) - kMaxStepDownUs));
+      return std::max(released_delay_us, seed_delay_us);
     }
     return seed_delay_us;
   }
@@ -759,6 +767,24 @@ TrafficShapingManager::UpdateTrafficShapingController()
 }
 
 void
+TrafficShapingManager::SetPerFstDelaysEnabled(const bool enabled)
+{
+  const bool old_value =
+      mPerFstDelaysEnabled.exchange(enabled, std::memory_order_relaxed);
+
+  if (old_value != enabled) {
+    std::unique_lock lock(mMutex);
+    mNodeFstIoDelayConfigs.clear();
+  }
+}
+
+bool
+TrafficShapingManager::GetPerFstDelaysEnabled() const
+{
+  return mPerFstDelaysEnabled.load(std::memory_order_relaxed);
+}
+
+void
 TrafficShapingManager::UpdateLimits()
 {
   // 1. Evaluate hot-reload status at the start of every tick
@@ -766,28 +792,36 @@ TrafficShapingManager::UpdateLimits()
 
   auto adjust_delay =
       [&](const double limit_bps, const double global_rate, const double node_rate,
-          const size_t active_node_count, const bool has_entity_rate_sample,
-          const bool allow_idle_release, uint64_t& delay_us, auto* output_map,
-          const auto& entity_key, const std::string& node_id, const char* entity_type,
+          const size_t active_node_count, const bool has_global_rate_sample,
+          const bool has_node_rate_sample, const bool allow_idle_release,
+          uint64_t& delay_us, auto* output_map, const auto& entity_key,
+          const std::string& node_id, const char* entity_type,
           const std::string& entity_id, const char* op_type, const double io_pressure) {
         if (limit_bps <= 0) {
           return;
         }
 
         const uint64_t old_delay = delay_us;
-        const double ratio = global_rate / limit_bps;
+        const bool per_fst_delays = GetPerFstDelaysEnabled();
+        const size_t effective_active_nodes =
+            per_fst_delays ? std::max<size_t>(1, active_node_count) : size_t{1};
+        const double control_limit_bps =
+            per_fst_delays ? limit_bps / effective_active_nodes : limit_bps;
+        const double control_rate_bps = per_fst_delays ? node_rate : global_rate;
+        const bool has_control_rate_sample =
+            per_fst_delays ? has_node_rate_sample
+                           : (has_node_rate_sample || has_global_rate_sample);
+        const double ratio = control_rate_bps / control_limit_bps;
         const double delay_reference_bps =
-            active_node_count > 0
-                ? (limit_bps / active_node_count) * kFstIoDelayParallelReservationFactor
-                : limit_bps;
+            control_limit_bps * kFstIoDelayParallelReservationFactor;
         {
           std::shared_lock read_lock(mPluginMutex);
           if (mCustomAlgo) {
-            delay_us = mCustomAlgo(limit_bps, global_rate, old_delay);
+            delay_us = mCustomAlgo(control_limit_bps, control_rate_bps, old_delay);
           } else {
-            delay_us = CalculateDelayUs(limit_bps, global_rate, old_delay, io_pressure,
-                                        has_entity_rate_sample, allow_idle_release,
-                                        delay_reference_bps);
+            delay_us = CalculateDelayUs(control_limit_bps, control_rate_bps, old_delay,
+                                        io_pressure, has_control_rate_sample,
+                                        allow_idle_release, delay_reference_bps);
           }
         }
 
@@ -798,10 +832,15 @@ TrafficShapingManager::UpdateLimits()
         eos_static_debug(
             "msg=\"throttle evaluation\" node=\"%s\" type=\"%s\" id=\"%s\" op=\"%s\" "
             "limit_bps=%.0f global_rate_bps=%.0f node_rate_bps=%.0f ratio=%.3f "
-            "active_nodes=%zu delay_reference_bps=%.0f io_pressure=%.3f "
+            "delay_mode=\"%s\" active_nodes=%zu control_limit_bps=%.0f "
+            "control_rate_bps=%.0f delay_reference_bps=%.0f "
+            "io_pressure=%.3f "
             "allow_idle_release=%d old_delay_us=%lu new_delay_us=%lu",
             node_id.c_str(), entity_type, entity_id.c_str(), op_type, limit_bps,
-            global_rate, node_rate, ratio, active_node_count, delay_reference_bps,
+            global_rate, node_rate, ratio,
+            per_fst_delays ? eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST
+                           : eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL,
+            active_node_count, control_limit_bps, control_rate_bps, delay_reference_bps,
             io_pressure, allow_idle_release, old_delay, delay_us);
       };
 
@@ -872,8 +911,10 @@ TrafficShapingManager::UpdateLimits()
       AddActiveNodeCounts(active_node_counts, rates);
     }
 
-    // Policies are global for an app/uid/gid. Drive the feedback error with the
-    // 1s aggregate rate, while node-local rates size the per-FST delay seed.
+    // Policies are global for an app/uid/gid. In global delay mode every FST
+    // follows the aggregate feedback loop. In FST delay mode each FST follows
+    // its local rate against the policy's active-node share, avoiding a global
+    // burst forcing every FST to raise delay in lockstep.
     EntityRateMaps global_rates;
     for (const auto& [key, stats] : mGlobalStats) {
       AddStreamRates(global_rates, key, stats.ema[Ema1s]);
@@ -915,12 +956,12 @@ TrafficShapingManager::UpdateLimits()
             get_rate(rates.app_write, app);
         const bool allow_write_idle_release =
             !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
-        adjust_delay(
-            static_cast<double>(policy.GetEffectiveWriteLimit()), global_write_rate,
-            node_write_rate, get_active_node_count(active_node_counts.app_write, app),
-            has_node_write_rate || has_global_write_rate, allow_write_idle_release,
-            (*previous_config.mutable_app_write_delay())[app], app_write_map, app,
-            node_id, "app", app, "write", io_pressure);
+        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
+                     global_write_rate, node_write_rate,
+                     get_active_node_count(active_node_counts.app_write, app),
+                     has_global_write_rate, has_node_write_rate, allow_write_idle_release,
+                     (*previous_config.mutable_app_write_delay())[app], app_write_map,
+                     app, node_id, "app", app, "write", io_pressure);
 
         const auto [global_read_rate, has_global_read_rate] =
             get_rate(global_rates.app_read, app);
@@ -930,7 +971,7 @@ TrafficShapingManager::UpdateLimits()
         adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
                      global_read_rate, node_read_rate,
                      get_active_node_count(active_node_counts.app_read, app),
-                     has_node_read_rate || has_global_read_rate, allow_read_idle_release,
+                     has_global_read_rate, has_node_read_rate, allow_read_idle_release,
                      (*previous_config.mutable_app_read_delay())[app], app_read_map, app,
                      node_id, "app", app, "read", io_pressure);
       }
@@ -949,12 +990,12 @@ TrafficShapingManager::UpdateLimits()
             get_rate(rates.uid_write, uid);
         const bool allow_write_idle_release =
             !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
-        adjust_delay(
-            static_cast<double>(policy.GetEffectiveWriteLimit()), global_write_rate,
-            node_write_rate, get_active_node_count(active_node_counts.uid_write, uid),
-            has_node_write_rate || has_global_write_rate, allow_write_idle_release,
-            (*previous_config.mutable_uid_write_delay())[uid], uid_write_map, uid,
-            node_id, "uid", std::to_string(uid), "write", io_pressure);
+        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
+                     global_write_rate, node_write_rate,
+                     get_active_node_count(active_node_counts.uid_write, uid),
+                     has_global_write_rate, has_node_write_rate, allow_write_idle_release,
+                     (*previous_config.mutable_uid_write_delay())[uid], uid_write_map,
+                     uid, node_id, "uid", std::to_string(uid), "write", io_pressure);
 
         const auto [global_read_rate, has_global_read_rate] =
             get_rate(global_rates.uid_read, uid);
@@ -964,7 +1005,7 @@ TrafficShapingManager::UpdateLimits()
         adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
                      global_read_rate, node_read_rate,
                      get_active_node_count(active_node_counts.uid_read, uid),
-                     has_node_read_rate || has_global_read_rate, allow_read_idle_release,
+                     has_global_read_rate, has_node_read_rate, allow_read_idle_release,
                      (*previous_config.mutable_uid_read_delay())[uid], uid_read_map, uid,
                      node_id, "uid", std::to_string(uid), "read", io_pressure);
       }
@@ -983,12 +1024,12 @@ TrafficShapingManager::UpdateLimits()
             get_rate(rates.gid_write, gid);
         const bool allow_write_idle_release =
             !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
-        adjust_delay(
-            static_cast<double>(policy.GetEffectiveWriteLimit()), global_write_rate,
-            node_write_rate, get_active_node_count(active_node_counts.gid_write, gid),
-            has_node_write_rate || has_global_write_rate, allow_write_idle_release,
-            (*previous_config.mutable_gid_write_delay())[gid], gid_write_map, gid,
-            node_id, "gid", std::to_string(gid), "write", io_pressure);
+        adjust_delay(static_cast<double>(policy.GetEffectiveWriteLimit()),
+                     global_write_rate, node_write_rate,
+                     get_active_node_count(active_node_counts.gid_write, gid),
+                     has_global_write_rate, has_node_write_rate, allow_write_idle_release,
+                     (*previous_config.mutable_gid_write_delay())[gid], gid_write_map,
+                     gid, node_id, "gid", std::to_string(gid), "write", io_pressure);
 
         const auto [global_read_rate, has_global_read_rate] =
             get_rate(global_rates.gid_read, gid);
@@ -998,7 +1039,7 @@ TrafficShapingManager::UpdateLimits()
         adjust_delay(static_cast<double>(policy.GetEffectiveReadLimit()),
                      global_read_rate, node_read_rate,
                      get_active_node_count(active_node_counts.gid_read, gid),
-                     has_node_read_rate || has_global_read_rate, allow_read_idle_release,
+                     has_global_read_rate, has_node_read_rate, allow_read_idle_release,
                      (*previous_config.mutable_gid_read_delay())[gid], gid_read_map, gid,
                      node_id, "gid", std::to_string(gid), "read", io_pressure);
       }
@@ -1333,6 +1374,7 @@ TrafficShapingEngine::TrafficShapingEngine()
           eos::common::TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS)
     , mSystemStatsWindowSeconds(15)
     , mFilesystemDetailEnabled(false)
+    , mPerFstDelaysEnabled(false)
 {
   mManager = std::make_shared<TrafficShapingManager>();
 }
@@ -1478,6 +1520,42 @@ TrafficShapingEngine::GetDetailLevel() const
 }
 
 void
+TrafficShapingEngine::SetDelayMode(const std::string& delay_mode)
+{
+  ApplyDelayModeConfig(delay_mode);
+  StoreDelayModeConfig(GetDelayMode());
+}
+
+bool
+TrafficShapingEngine::ApplyDelayModeConfig(const std::string& delay_mode)
+{
+  const bool per_fst = delay_mode == eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST;
+  const bool old_value =
+      mPerFstDelaysEnabled.exchange(per_fst, std::memory_order_relaxed);
+
+  if (mManager != nullptr) {
+    mManager->SetPerFstDelaysEnabled(per_fst);
+  }
+
+  return old_value != per_fst;
+}
+
+void
+TrafficShapingEngine::StoreDelayModeConfig(const std::string& delay_mode)
+{
+  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_DELAY_MODE_CONFIG, delay_mode);
+  gOFS->mConfigEngine->AutoSave();
+}
+
+std::string
+TrafficShapingEngine::GetDelayMode() const
+{
+  return mPerFstDelaysEnabled.load(std::memory_order_relaxed)
+             ? eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST
+             : eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL;
+}
+
+void
 TrafficShapingEngine::StoreThreadConfig()
 {
   eos::traffic_shaping::ThreadConfig thread_loop_stats;
@@ -1562,6 +1640,15 @@ TrafficShapingEngine::ApplyConfig()
     ApplyDetailLevelConfig(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE);
   } else {
     ApplyDetailLevelConfig(detail_level);
+  }
+
+  const std::string delay_mode =
+      FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_DELAY_MODE_CONFIG);
+
+  if (delay_mode.empty()) {
+    ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL);
+  } else {
+    ApplyDelayModeConfig(delay_mode);
   }
 
   EnsureFstEnabledSyncThread();

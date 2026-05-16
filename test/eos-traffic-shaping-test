@@ -30,7 +30,7 @@ export XrdSecPROTOCOL=sss
 # Enable traffic shaping
 eos io shaping enable
 
-eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15
+eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15 --delay-mode global
 eos io shaping config set --detail aggregate
 sleep 8
 
@@ -54,6 +54,8 @@ WRITE_10MB_LOWER_MS=8000
 WRITE_10MB_UPPER_MS=22000
 READ_10MB_LOWER_MS=10000
 READ_10MB_UPPER_MS=30000
+FST_WRITE_10MB_LOWER_MS=7000
+FST_WRITE_10MB_UPPER_MS=30000
 
 measure_transfer_ms() {
   local src=$1
@@ -124,15 +126,16 @@ CONFIG_JSON_RESULT=$(eos io shaping config ls --json)
 POLICY_JSON_RESULT=$(eos io shaping policy ls --json)
 
 if echo "$CONFIG_RESULT" | grep -Eq 'Traffic Shaping Enabled:[[:space:]]*true' && \
-   echo "$CONFIG_RESULT" | grep -Eq 'Stats Detail Level:[[:space:]]*aggregate'; then
+   echo "$CONFIG_RESULT" | grep -Eq 'Stats Detail Level:[[:space:]]*aggregate' && \
+   echo "$CONFIG_RESULT" | grep -Eq 'Delay Mode:[[:space:]]*global'; then
   echo "✅ Success: Default aggregate detail mode reported."
 else
-  echo "❌ Error: Traffic shaping config output missing enabled state or aggregate detail mode."
+  echo "❌ Error: Traffic shaping config output missing enabled state, aggregate detail mode, or global delay mode."
   echo "Debug Info: $CONFIG_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
-if echo "$CONFIG_JSON_RESULT" | jq -e '.enabled == true and .detail_level == "aggregate" and (.estimators_update_period_ms == 100) and (.fst_io_policy_update_period_ms == 100) and (.fst_io_stats_reporting_period_ms == 100) and (.system_stats_time_window_seconds == 15)' > /dev/null; then
+if echo "$CONFIG_JSON_RESULT" | jq -e '.enabled == true and .detail_level == "aggregate" and .delay_mode == "global" and (.estimators_update_period_ms == 100) and (.fst_io_policy_update_period_ms == 100) and (.fst_io_stats_reporting_period_ms == 100) and (.system_stats_time_window_seconds == 15)' > /dev/null; then
   echo "✅ Success: Traffic shaping config JSON output reported expected values."
 else
   echo "❌ Error: Traffic shaping config JSON output missing expected values."
@@ -257,6 +260,39 @@ else
   echo "❌ Error: Expected app write transfer duration between ${WRITE_10MB_LOWER_MS}-${WRITE_10MB_UPPER_MS} ms, got ${APP_WRITE_MS} ms."
   FAILURES=$((FAILURES + 1))
 fi
+
+# ---------------------------------------------------------
+# Test: FST Delay Mode Smoke
+# ---------------------------------------------------------
+FST_MODE_APP="fst-mode-test-app-$$"
+echo ""
+echo "--- Testing FST Delay Mode Smoke ---"
+
+eos io shaping config set --delay-mode fst
+sleep 1
+CONFIG_JSON_RESULT=$(eos io shaping config ls --json)
+
+if echo "$CONFIG_JSON_RESULT" | jq -e '.delay_mode == "fst"' > /dev/null; then
+  eos io shaping policy set --app ${FST_MODE_APP} --limit-write 1M
+  sleep 3
+  FST_MODE_WRITE_MS=$(measure_transfer_ms "${TEST_FILE_10MB}" "${DEST_URL}/fst_mode.dat?eos.app=${FST_MODE_APP}")
+  eos io shaping policy rm --app ${FST_MODE_APP}
+
+  if [[ $FST_MODE_WRITE_MS -ge $FST_WRITE_10MB_LOWER_MS && $FST_MODE_WRITE_MS -le $FST_WRITE_10MB_UPPER_MS ]]; then
+    echo "✅ Success: FST delay mode app write throttled (${FST_MODE_WRITE_MS} ms)."
+  else
+    echo "❌ Error: Expected FST mode app write duration between ${FST_WRITE_10MB_LOWER_MS}-${FST_WRITE_10MB_UPPER_MS} ms, got ${FST_MODE_WRITE_MS} ms."
+    FAILURES=$((FAILURES + 1))
+  fi
+else
+  echo "❌ Error: Failed to switch traffic shaping delay mode to fst."
+  echo "Debug Info: $CONFIG_JSON_RESULT"
+  FAILURES=$((FAILURES + 1))
+fi
+
+eos io shaping policy rm --app ${FST_MODE_APP} > /dev/null 2>&1 || true
+eos io shaping config set --delay-mode global
+sleep 1
 
 # ---------------------------------------------------------
 # Test: UID Throttling Enforcement

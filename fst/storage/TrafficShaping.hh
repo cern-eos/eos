@@ -209,6 +209,7 @@ private:
   struct IoDelayReservation {
     std::chrono::steady_clock::time_point next_available{};
     std::chrono::steady_clock::time_point last_used{};
+    uint64_t delay_remainder = 0;
   };
 
   struct IoDelayEntry {
@@ -238,6 +239,9 @@ private:
     return std::min(kMaxScaledIoDelayUs, scaled_delay);
   }
 
+  uint64_t CalculateReservationDelay(const uint64_t delay_us, const uint64_t bytes,
+                                     const bool is_write, uint64_t& remainder) const;
+
   std::vector<IoDelayEntry>
   GetDelayEntriesForAppUidGid(const eos::common::VirtualIdentity& vid,
                               const uint64_t bytes, const bool is_write) const
@@ -253,15 +257,14 @@ private:
 
     auto check_app = [&](const auto& map) {
       if (const auto it = map.find(vid.app); it != map.end()) {
-        entries.push_back({{IoDelayPolicyType::App, is_write, 0, vid.app},
-                           ScaleDelay(it->second, bytes, is_write)});
+        entries.push_back({{IoDelayPolicyType::App, is_write, 0, vid.app}, it->second});
       }
     };
     auto check_id = [&](const auto& map, const auto& key,
                         const IoDelayPolicyType policy_type) {
       if (const auto it = map.find(key); it != map.end()) {
-        entries.push_back({{policy_type, is_write, static_cast<uint32_t>(key), {}},
-                           ScaleDelay(it->second, bytes, is_write)});
+        entries.push_back(
+            {{policy_type, is_write, static_cast<uint32_t>(key), {}}, it->second});
       }
     };
 
@@ -286,7 +289,7 @@ private:
     uint64_t max_delay = 0;
 
     for (const auto& entry : entries) {
-      max_delay = std::max(max_delay, entry.delay_us);
+      max_delay = std::max(max_delay, ScaleDelay(entry.delay_us, bytes, is_write));
     }
 
     return max_delay;

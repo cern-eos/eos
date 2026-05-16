@@ -25,7 +25,7 @@ void
 ExpectNearDelay(const uint64_t actual, const uint64_t expected)
 {
   constexpr uint64_t tolerance_us = 5000;
-  EXPECT_GE(actual, expected - tolerance_us);
+  EXPECT_GE(actual, expected > tolerance_us ? expected - tolerance_us : 0);
   EXPECT_LE(actual, expected + tolerance_us);
 }
 
@@ -127,4 +127,27 @@ TEST(IoDelayConfigTest, ParallelReservationFactorCompensatesIndependentLanes)
   }
 
   ExpectNearDelay(*std::max_element(lane_totals.begin(), lane_totals.end()), 12000000);
+}
+
+TEST(IoDelayConfigTest, SmallBufferReservationsRemainProportional)
+{
+  eos::fst::traffic_shaping::IoDelayConfig delay_config;
+  eos::traffic_shaping::TrafficShapingFstIoDelayConfig config;
+  (*config.mutable_app_write_delay())["small-buffer-app"] = 10000;
+
+  delay_config.SetEnabled(true);
+  delay_config.UpdateConfig(std::move(config));
+
+  const auto vid = MakeVid("small-buffer-app");
+  constexpr uint64_t chunk_size = 512;
+  constexpr uint64_t expected_delay_us = 40000;
+  uint64_t total_delay_us = 0;
+
+  for (uint64_t bytes = 0; bytes < eos::fst::traffic_shaping::kIoDelayReferenceBytes;
+       bytes += chunk_size) {
+    total_delay_us = delay_config.ReserveWriteDelayForAppUidGid(vid, chunk_size);
+  }
+
+  EXPECT_NEAR(static_cast<double>(total_delay_us), static_cast<double>(expected_delay_us),
+              2000.0);
 }

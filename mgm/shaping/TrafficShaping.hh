@@ -262,6 +262,10 @@ public:
 
   void UpdateTrafficShapingController();
 
+  void SetPerFstDelaysEnabled(bool enabled);
+
+  bool GetPerFstDelaysEnabled() const;
+
   void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
                          uint32_t window_seconds);
 
@@ -404,6 +408,8 @@ private:
   std::shared_mutex mPluginMutex;
 
   void LoadPluginIfModified();
+
+  std::atomic<bool> mPerFstDelaysEnabled{false};
 };
 
 class TrafficShapingEngine {
@@ -474,6 +480,10 @@ public:
 
   std::string GetDetailLevel() const;
 
+  void SetDelayMode(const std::string& delay_mode);
+
+  std::string GetDelayMode() const;
+
 #ifdef IN_TEST_HARNESS
 public:
 #else
@@ -502,6 +512,10 @@ private:
 
   static void StoreDetailLevelConfig(const std::string& detail_level);
 
+  bool ApplyDelayModeConfig(const std::string& delay_mode);
+
+  static void StoreDelayModeConfig(const std::string& delay_mode);
+
   void EstimatorsUpdate(ThreadAssistant&);
 
   void FstIoPolicyUpdate(ThreadAssistant&) const;
@@ -527,6 +541,7 @@ private:
   std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mSystemStatsWindowSeconds{};
   std::atomic<bool> mFilesystemDetailEnabled{};
+  std::atomic<bool> mPerFstDelaysEnabled{};
 
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
   std::mutex mReportQueueMutex{};

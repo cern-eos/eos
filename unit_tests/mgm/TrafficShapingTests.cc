@@ -39,6 +39,23 @@ TEST(TrafficShapingEngine, DetailConfigReplayDoesNotSyncWhileViewLocked)
             engine.GetDetailLevel());
 }
 
+TEST(TrafficShapingEngine, DelayModeDefaultsToGlobalAndTogglesManager)
+{
+  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
+
+  ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, engine.GetDelayMode());
+  ASSERT_FALSE(engine.GetManager()->GetPerFstDelaysEnabled());
+
+  ASSERT_TRUE(engine.ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST));
+  ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST, engine.GetDelayMode());
+  ASSERT_TRUE(engine.GetManager()->GetPerFstDelaysEnabled());
+
+  ASSERT_TRUE(
+      engine.ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL));
+  ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, engine.GetDelayMode());
+  ASSERT_FALSE(engine.GetManager()->GetPerFstDelaysEnabled());
+}
+
 TEST(TrafficShapingManager, IdleDelaySeedIsKeptBeforeEntityTrafficIsSeen)
 {
   constexpr double limit_bps = 1024.0 * 1024.0;
@@ -78,6 +95,31 @@ TEST(TrafficShapingManager, IdleDelaySeedIsKeptForExplicitLimitAfterTrafficIsSee
         limit_bps, 0.0, delay_us, 0.0, true, false);
     ASSERT_EQ(1000000u, delay_us);
   }
+}
+
+TEST(TrafficShapingManager, ExplicitLimitSlowlyReleasesHighDelayOnSparseSample)
+{
+  constexpr double limit_bps = 1024.0 * 1024.0;
+  constexpr uint64_t current_delay_us = 1500000;
+
+  const uint64_t delay_us =
+      eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
+          limit_bps, 0.0, current_delay_us, 1.0, true, false);
+
+  ASSERT_LT(delay_us, current_delay_us);
+  ASSERT_GT(delay_us, 1000000u);
+}
+
+TEST(TrafficShapingManager, DelaySeedAccountsForFstReservationFactor)
+{
+  constexpr double limit_bps = 1024.0 * 1024.0;
+  constexpr double fst_reservation_factor = 4.0;
+
+  const uint64_t delay_us =
+      eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
+          limit_bps, 0.0, 0, 1.0, false, false, limit_bps * fst_reservation_factor);
+
+  ASSERT_NEAR(250000.0, static_cast<double>(delay_us), 1000.0);
 }
 
 TEST(TrafficShapingManager, GlobalRateSeedsDelayWhenNodeShardIsBelowLimit)
