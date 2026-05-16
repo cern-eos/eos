@@ -255,6 +255,8 @@ struct TrafficShapingPolicy {
   // --- Ephemeral Controller Configuration ---
   uint64_t controller_limit_write_bytes_per_sec = 0;
   uint64_t controller_limit_read_bytes_per_sec = 0;
+  std::chrono::steady_clock::time_point controller_limit_write_update_time{};
+  std::chrono::steady_clock::time_point controller_limit_read_update_time{};
 
   uint64_t GetEffectiveWriteLimit() const;
 
@@ -288,6 +290,18 @@ public:
   void SetPerFstDelaysEnabled(bool enabled);
 
   bool GetPerFstDelaysEnabled() const;
+
+  void SetLimitsEnabled(bool enabled);
+
+  bool GetLimitsEnabled() const;
+
+  void SetReservationsEnabled(bool enabled);
+
+  bool GetReservationsEnabled() const;
+
+  size_t ClearControllerLimits();
+
+  size_t ExpireControllerLimits(std::chrono::steady_clock::time_point now);
 
   void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
                          uint32_t window_seconds);
@@ -420,10 +434,13 @@ public:
                                    bool has_rate_sample, bool allow_idle_release,
                                    double delay_reference_bps = 0.0);
 
-  static void ApplyDefaultReservationController(std::vector<AppState>& apps);
+  static void ApplyDefaultReservationController(std::vector<AppState>& apps,
+                                                bool reservations_enabled = true);
 #ifdef IN_TEST_HARNESS
 private:
 #endif
+
+  size_t ClearControllerLimitsUnlocked();
 
   // --- Plugin Hot-Reload State ---
   void* mPluginHandle = nullptr;
@@ -435,6 +452,8 @@ private:
   void LoadPluginIfModified();
 
   std::atomic<bool> mPerFstDelaysEnabled{false};
+  std::atomic<bool> mLimitsEnabled{true};
+  std::atomic<bool> mReservationsEnabled{true};
 };
 
 class TrafficShapingEngine {
@@ -509,6 +528,14 @@ public:
 
   std::string GetDelayMode() const;
 
+  void SetLimitsEnabled(bool enabled);
+
+  bool GetLimitsEnabled() const;
+
+  void SetReservationsEnabled(bool enabled);
+
+  bool GetReservationsEnabled() const;
+
 #ifdef IN_TEST_HARNESS
 public:
 #else
@@ -541,6 +568,14 @@ private:
 
   static void StoreDelayModeConfig(const std::string& delay_mode);
 
+  bool ApplyLimitsEnabledConfig(bool enabled);
+
+  static void StoreLimitsEnabledConfig(bool enabled);
+
+  bool ApplyReservationsEnabledConfig(bool enabled);
+
+  static void StoreReservationsEnabledConfig(bool enabled);
+
   void EstimatorsUpdate(ThreadAssistant&);
 
   void FstIoPolicyUpdate(ThreadAssistant&) const;
@@ -567,6 +602,8 @@ private:
   std::atomic<uint32_t> mSystemStatsWindowSeconds{};
   std::atomic<bool> mFilesystemDetailEnabled{};
   std::atomic<bool> mPerFstDelaysEnabled{};
+  std::atomic<bool> mLimitsEnabled{true};
+  std::atomic<bool> mReservationsEnabled{true};
 
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
   std::mutex mReportQueueMutex{};

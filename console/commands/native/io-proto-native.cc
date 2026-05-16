@@ -50,7 +50,16 @@ const char* kShapingConfigExamples =
     "  eos io shaping config set --estimators-period 200\n"
     "\n"
     "  # Enable FST delay sizing\n"
-    "  eos io shaping config set --delay-mode fst\n";
+    "  eos io shaping config set --delay-mode fst\n"
+    "\n"
+    "  # Temporarily disable limit or reservation enforcement without deleting policies\n"
+    "  eos io shaping config set --limits disabled --reservations disabled\n";
+
+bool
+EnabledConfigValue(const std::string& value)
+{
+  return value == "enabled";
+}
 
 std::string MakeIoHelp()
 {
@@ -159,7 +168,8 @@ std::string MakeIoHelp()
          "estimators and policy enforcement\n"
       << "\t     usage: config set [--estimators-period <ms>] [--policy-period <ms>] "
          "[--report-period <ms>] [--system-window <s>] [--detail aggregate|fs] "
-         "[--delay-mode global|fst]\n"
+         "[--delay-mode global|fst] [--limits enabled|disabled] "
+         "[--reservations enabled|disabled]\n"
       << std::endl
       << "   EXAMPLES\n"
       << "\t   # Show current application rates\n"
@@ -460,7 +470,7 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     a->set_json_output(config_ls->count("--json") > 0);
   });
   auto* config_set = config_cmd->add_subcommand("set", "Set config");
-  config_set->require_option(1, 6);
+  config_set->require_option(1, 8);
   config_set->add_option("--estimators-period", "Estimator update period")
       ->type_name("MS");
   config_set->add_option("--policy-period", "Policy enforcement update period")
@@ -475,6 +485,12 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   config_set->add_option("--delay-mode", "Delay control mode")
       ->type_name("MODE")
       ->check(CLI::IsMember({"global", "fst"}));
+  config_set->add_option("--limits", "Limit enforcement toggle")
+      ->type_name("STATE")
+      ->check(CLI::IsMember({"enabled", "disabled"}));
+  config_set->add_option("--reservations", "Reservation enforcement toggle")
+      ->type_name("STATE")
+      ->check(CLI::IsMember({"enabled", "disabled"}));
   config_set->callback([config_set, shaping_proto]() {
     auto* a = shaping_proto->mutable_config()->mutable_set();
     if (config_set->count("--estimators-period"))
@@ -494,6 +510,14 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     }
     if (config_set->count("--delay-mode")) {
       a->set_delay_mode(config_set->get_option("--delay-mode")->as<std::string>());
+    }
+    if (config_set->count("--limits")) {
+      a->set_limits_enabled(
+          EnabledConfigValue(config_set->get_option("--limits")->as<std::string>()));
+    }
+    if (config_set->count("--reservations")) {
+      a->set_reservations_enabled(EnabledConfigValue(
+          config_set->get_option("--reservations")->as<std::string>()));
     }
   });
 

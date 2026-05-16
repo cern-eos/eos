@@ -1038,6 +1038,8 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
           engine.GetFstIoStatsReportThreadPeriodMilliseconds());
       json["detail_level"] = engine.GetDetailLevel();
       json["delay_mode"] = engine.GetDelayMode();
+      json["limits_enabled"] = engine.GetLimitsEnabled();
+      json["reservations_enabled"] = engine.GetReservationsEnabled();
       json["system_stats_time_window_seconds"] =
           static_cast<Json::Value::UInt64>(engine.GetSystemStatsWindowSeconds());
       oss << CompactJsonString(json);
@@ -1053,6 +1055,10 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
           << engine.GetFstIoStatsReportThreadPeriodMilliseconds() << " ms\n"
           << std::setw(45) << "Stats Detail Level:" << engine.GetDetailLevel() << "\n"
           << std::setw(45) << "Delay Mode:" << engine.GetDelayMode() << "\n"
+          << std::setw(45)
+          << "Limits Enabled:" << (engine.GetLimitsEnabled() ? "true" : "false") << "\n"
+          << std::setw(45) << "Reservations Enabled:"
+          << (engine.GetReservationsEnabled() ? "true" : "false") << "\n"
           << std::setw(45)
           << "System Stats Time Window:" << engine.GetSystemStatsWindowSeconds()
           << " s\n";
@@ -1120,6 +1126,18 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       const std::string delay_mode = set_req.delay_mode();
       engine.SetDelayMode(delay_mode);
       oss << "success: Set delay mode to " << engine.GetDelayMode() << "\n";
+    }
+
+    if (set_req.has_limits_enabled()) {
+      engine.SetLimitsEnabled(set_req.limits_enabled());
+      oss << "success: Set limits enabled to "
+          << (engine.GetLimitsEnabled() ? "true" : "false") << "\n";
+    }
+
+    if (set_req.has_reservations_enabled()) {
+      engine.SetReservationsEnabled(set_req.reservations_enabled());
+      oss << "success: Set reservations enabled to "
+          << (engine.GetReservationsEnabled() ? "true" : "false") << "\n";
     }
 
     if (oss.str().empty()) {
