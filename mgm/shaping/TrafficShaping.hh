@@ -27,8 +27,20 @@ namespace eos::mgm::traffic_shaping {
 
 extern "C" {
 // Function signatures for the hot-reloaded plugin
-typedef uint64_t (*DelayAlgoFunc)(double limit_bps, double current_rate_bps,
-                                  uint64_t current_delay_us);
+struct DelayState {
+  double limit_bps;
+  double current_rate_bps;
+  uint64_t current_delay_us;
+  double io_pressure;
+  bool has_rate_sample;
+  bool allow_idle_release;
+  double delay_reference_bps;
+  double fst_reservation_factor;
+  uint64_t active_node_count;
+  bool fst_delay_mode;
+};
+
+typedef uint64_t (*DelayAlgoFunc)(const DelayState* state);
 
 // A flat, simple struct containing all inputs and outputs for ONE app
 struct AppState {
@@ -37,16 +49,27 @@ struct AppState {
   // Inputs from MGM -> Plugin
   double current_read_bps;
   double current_write_bps;
+  // Max FST disk-load pressure on nodes where this app is currently active.
+  // The corresponding has_* flag is false when the app has no active IO sample,
+  // so reservation controllers should not create limits on its behalf.
+  double current_read_io_pressure;
+  double current_write_io_pressure;
   uint64_t reservation_write_bps;
   uint64_t reservation_read_bps;
   uint64_t controller_limit_write_bps;
   uint64_t controller_limit_read_bps;
+  bool has_read_io_pressure;
+  bool has_write_io_pressure;
 
   // Outputs from Plugin -> MGM
   uint64_t new_controller_limit_write_bps;
   uint64_t new_controller_limit_read_bps;
   bool update_write; // Set to true if the plugin wants to apply the new write limit
   bool update_read;  // Set to true if the plugin wants to apply the new read limit
+  uint64_t new_reservation_write_bps;
+  uint64_t new_reservation_read_bps;
+  bool update_reservation_write;
+  bool update_reservation_read;
 };
 
 // Pass the pure data array to avoid C++ ABI name mangling and linking issues
@@ -396,6 +419,8 @@ public:
                                    uint64_t current_delay_us, double io_pressure,
                                    bool has_rate_sample, bool allow_idle_release,
                                    double delay_reference_bps = 0.0);
+
+  static void ApplyDefaultReservationController(std::vector<AppState>& apps);
 #ifdef IN_TEST_HARNESS
 private:
 #endif
