@@ -33,6 +33,26 @@ format_rate(const double bytes_per_sec)
   return ss.str();
 }
 
+std::string
+format_io_pressure(const double pressure)
+{
+  std::ostringstream ss;
+  ss << std::fixed << std::setprecision(3) << pressure;
+  return ss.str();
+}
+
+std::string
+format_optional_io_pressure(const bool has_pressure, const double pressure)
+{
+  return has_pressure ? format_io_pressure(pressure) : "-";
+}
+
+const char*
+format_bool(const bool value)
+{
+  return value ? "yes" : "no";
+}
+
 namespace {
 
 using eos::common::traffic_shaping::kUnknownId;
@@ -563,6 +583,10 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
   std::map<std::string, AggregatedStats> agg_stats;
   std::map<DiskKey, AggregatedStats> fs_agg_stats;
   std::map<DetailedKey, AggregatedStats> detailed_agg_stats;
+  const auto reserved_app_io_pressure =
+      list_req.show_apps()
+          ? manager->GetReservedAppIoPressure()
+          : std::unordered_map<std::string, traffic_shaping::AppIoPressureSnapshot>{};
   const bool resolve_ids =
       list_req.has_resolve_ids() ? list_req.resolve_ids() : !list_req.json_output();
 
@@ -656,6 +680,12 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
 
       accumulate(agg_stats[group_key], snapshot);
     }
+
+    if (list_req.show_apps()) {
+      for (const auto& [app, _] : reserved_app_io_pressure) {
+        agg_stats.try_emplace(app);
+      }
+    }
   }
 
   const auto& total_sma_metrics = total_stats.sma[sma_idx];
@@ -683,6 +713,26 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       entry["read_iops"] = stat.read_iops;
       entry["write_iops"] = stat.write_iops;
     };
+
+    auto add_app_io_pressure_fields =
+        [&reserved_app_io_pressure](Json::Value& entry, const std::string& app) {
+          const auto pressure_it = reserved_app_io_pressure.find(app);
+
+          if (pressure_it == reserved_app_io_pressure.end()) {
+            return;
+          }
+
+          entry["has_read_io_pressure"] = pressure_it->second.has_read;
+          entry["has_write_io_pressure"] = pressure_it->second.has_write;
+
+          if (pressure_it->second.has_read) {
+            entry["read_io_pressure"] = pressure_it->second.read;
+          }
+
+          if (pressure_it->second.has_write) {
+            entry["write_io_pressure"] = pressure_it->second.write;
+          }
+        };
 
     if (list_req.show_all()) {
       for (const auto& [detailed_key, stat] : detailed_agg_stats) {
@@ -723,6 +773,9 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
         }
 
         add_rate_fields(entry, stat);
+        if (list_req.show_apps()) {
+          add_app_io_pressure_fields(entry, name);
+        }
         json.append(entry);
       }
     }
@@ -817,9 +870,15 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     } else {
       oss << std::left << std::setw(40) << header_name << std::right << std::setw(15)
           << "Read Rate" << std::setw(15) << "Write Rate" << std::setw(12) << "Read IOPS"
-          << std::setw(12) << "Write IOPS" << "\n";
+          << std::setw(12) << "Write IOPS";
 
-      oss << std::string(94, '-') << "\n";
+      if (list_req.show_apps()) {
+        oss << std::setw(12) << "Read Press" << std::setw(12) << "Write Press";
+      }
+
+      oss << "\n";
+
+      oss << std::string(list_req.show_apps() ? 118 : 94, '-') << "\n";
 
       for (const auto& [name, stat] : agg_stats) {
         std::string display_name = name;
@@ -832,16 +891,40 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
         oss << std::left << std::setw(40) << display_name << std::right << std::setw(15)
             << format_rate(stat.read_rate) << std::setw(15)
             << format_rate(stat.write_rate) << std::fixed << std::setprecision(2)
-            << std::setw(12) << stat.read_iops << std::setw(12) << stat.write_iops
-            << "\n";
+            << std::setw(12) << stat.read_iops << std::setw(12) << stat.write_iops;
+
+        if (list_req.show_apps()) {
+          const auto pressure_it = reserved_app_io_pressure.find(name);
+
+          if (pressure_it != reserved_app_io_pressure.end()) {
+            oss << std::setw(12)
+                << (pressure_it->second.has_read
+                        ? format_io_pressure(pressure_it->second.read)
+                        : "-")
+                << std::setw(12)
+                << (pressure_it->second.has_write
+                        ? format_io_pressure(pressure_it->second.write)
+                        : "-");
+          } else {
+            oss << std::setw(12) << "-" << std::setw(12) << "-";
+          }
+        }
+
+        oss << "\n";
       }
 
-      oss << std::string(94, '-') << "\n";
+      oss << std::string(list_req.show_apps() ? 118 : 94, '-') << "\n";
       oss << std::left << std::setw(40) << "Total" << std::right << std::setw(15)
           << format_rate(total_sma_metrics.read_rate_bps) << std::setw(15)
           << format_rate(total_sma_metrics.write_rate_bps) << std::fixed
           << std::setprecision(2) << std::setw(12) << total_sma_metrics.read_iops
-          << std::setw(12) << total_sma_metrics.write_iops << "\n";
+          << std::setw(12) << total_sma_metrics.write_iops;
+
+      if (list_req.show_apps()) {
+        oss << std::setw(12) << "" << std::setw(12) << "";
+      }
+
+      oss << "\n";
     }
 
     if (list_req.system_stats()) {
@@ -1018,6 +1101,110 @@ ShapingPolicyList(
 }
 
 void
+ShapingPressureList(
+    const eos::console::IoProto_ShapingProto_PressureAction_ListAction& list_req,
+    eos::console::ReplyProto& reply)
+{
+  const auto& engine = gOFS->mTrafficShapingEngine;
+  const std::shared_ptr<traffic_shaping::TrafficShapingManager> manager =
+      engine.GetManager();
+
+  if (!manager) {
+    reply.set_retc(EINVAL);
+    reply.set_std_err("error: Traffic shaping engine is not initialized.\n");
+    return;
+  }
+
+  const auto snapshots = manager->GetReservedAppNodeIoPressure();
+  std::ostringstream oss;
+
+  if (list_req.json_output()) {
+    Json::Value json(Json::arrayValue);
+
+    for (const auto& snapshot : snapshots) {
+      Json::Value entry;
+      entry["type"] = "app_node_pressure";
+      entry["app"] = snapshot.app;
+      entry["node_id"] = snapshot.node_id;
+      entry["node_io_pressure"] = snapshot.node_io_pressure;
+      entry["has_node_io_pressure"] = snapshot.has_node_io_pressure;
+      entry["read_rate_bps"] = snapshot.read_rate_bps;
+      entry["write_rate_bps"] = snapshot.write_rate_bps;
+      entry["global_read_rate_bps"] = snapshot.global_read_rate_bps;
+      entry["global_write_rate_bps"] = snapshot.global_write_rate_bps;
+      entry["reservation_read_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(snapshot.reservation_read_bytes_per_sec);
+      entry["reservation_write_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(snapshot.reservation_write_bytes_per_sec);
+      entry["read_reservation_deficit_bps"] = snapshot.read_reservation_deficit_bps;
+      entry["write_reservation_deficit_bps"] = snapshot.write_reservation_deficit_bps;
+      entry["has_read_io_pressure"] = snapshot.has_read_io_pressure;
+      entry["has_write_io_pressure"] = snapshot.has_write_io_pressure;
+      entry["read_pressure_active"] = snapshot.read_pressure_active;
+      entry["write_pressure_active"] = snapshot.write_pressure_active;
+      entry["read_reservation_deficit_active"] = snapshot.read_reservation_deficit_active;
+      entry["write_reservation_deficit_active"] =
+          snapshot.write_reservation_deficit_active;
+      entry["read_triggers_competitor_throttling"] =
+          snapshot.read_triggers_competitor_throttling;
+      entry["write_triggers_competitor_throttling"] =
+          snapshot.write_triggers_competitor_throttling;
+      entry["node_has_pressured_read_reservation"] =
+          snapshot.node_has_pressured_read_reservation;
+      entry["node_has_pressured_write_reservation"] =
+          snapshot.node_has_pressured_write_reservation;
+
+      if (snapshot.has_read_io_pressure) {
+        entry["read_io_pressure"] = snapshot.node_io_pressure;
+      }
+
+      if (snapshot.has_write_io_pressure) {
+        entry["write_io_pressure"] = snapshot.node_io_pressure;
+      }
+
+      json.append(entry);
+    }
+
+    oss << CompactJsonString(json);
+  } else {
+    oss << "--- Reserved Application IO Pressure by Node ---\n";
+    oss << std::left << std::setw(30) << "Application" << std::setw(36) << "Node"
+        << std::right << std::setw(14) << "Read Rate" << std::setw(14) << "Write Rate"
+        << std::setw(12) << "Node Press" << std::setw(12) << "Read Press" << std::setw(12)
+        << "Write Press" << std::setw(10) << "Rd Trig" << std::setw(10) << "Wr Trig"
+        << std::setw(10) << "Node Rd" << std::setw(10) << "Node Wr" << "\n";
+    oss << std::string(160, '-') << "\n";
+
+    for (const auto& snapshot : snapshots) {
+      oss << std::left << std::setw(30) << snapshot.app << std::setw(36)
+          << snapshot.node_id << std::right << std::setw(14)
+          << format_rate(snapshot.read_rate_bps) << std::setw(14)
+          << format_rate(snapshot.write_rate_bps) << std::setw(12)
+          << format_optional_io_pressure(snapshot.has_node_io_pressure,
+                                         snapshot.node_io_pressure)
+          << std::setw(12)
+          << format_optional_io_pressure(snapshot.has_read_io_pressure,
+                                         snapshot.node_io_pressure)
+          << std::setw(12)
+          << format_optional_io_pressure(snapshot.has_write_io_pressure,
+                                         snapshot.node_io_pressure)
+          << std::setw(10) << format_bool(snapshot.read_triggers_competitor_throttling)
+          << std::setw(10) << format_bool(snapshot.write_triggers_competitor_throttling)
+          << std::setw(10) << format_bool(snapshot.node_has_pressured_read_reservation)
+          << std::setw(10) << format_bool(snapshot.node_has_pressured_write_reservation)
+          << "\n";
+    }
+
+    if (snapshots.empty()) {
+      oss << "No application reservations configured.\n";
+    }
+  }
+
+  reply.set_retc(0);
+  reply.set_std_out(oss.str());
+}
+
+void
 ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
               eos::console::ReplyProto& reply)
 {
@@ -1040,6 +1227,9 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       json["delay_mode"] = engine.GetDelayMode();
       json["limits_enabled"] = engine.GetLimitsEnabled();
       json["reservations_enabled"] = engine.GetReservationsEnabled();
+      json["controller_min_limit_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(engine.GetControllerMinLimit());
+      json["io_pressure_threshold"] = engine.GetIoPressureThreshold();
       json["system_stats_time_window_seconds"] =
           static_cast<Json::Value::UInt64>(engine.GetSystemStatsWindowSeconds());
       oss << CompactJsonString(json);
@@ -1059,6 +1249,11 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
           << "Limits Enabled:" << (engine.GetLimitsEnabled() ? "true" : "false") << "\n"
           << std::setw(45) << "Reservations Enabled:"
           << (engine.GetReservationsEnabled() ? "true" : "false") << "\n"
+          << std::setw(45)
+          << "Controller Minimum Limit:" << format_rate(engine.GetControllerMinLimit())
+          << "\n"
+          << std::setw(45) << "IO Pressure Threshold:"
+          << format_io_pressure(engine.GetIoPressureThreshold()) << "\n"
           << std::setw(45)
           << "System Stats Time Window:" << engine.GetSystemStatsWindowSeconds()
           << " s\n";
@@ -1093,6 +1288,13 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
         set_req.delay_mode() == eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST) {
       reply.set_retc(EOPNOTSUPP);
       reply.set_std_err("error: delay mode 'fst' is not implemented yet.\n");
+      break;
+    }
+
+    if (set_req.has_io_pressure_threshold() && (set_req.io_pressure_threshold() < 0.0 ||
+                                                set_req.io_pressure_threshold() > 1.0)) {
+      reply.set_retc(EINVAL);
+      reply.set_std_err("error: IO pressure threshold must be between 0 and 1.\n");
       break;
     }
 
@@ -1145,6 +1347,18 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       engine.SetReservationsEnabled(set_req.reservations_enabled());
       oss << "success: Set reservations enabled to "
           << (engine.GetReservationsEnabled() ? "true" : "false") << "\n";
+    }
+
+    if (set_req.has_controller_min_limit_bytes_per_sec()) {
+      engine.SetControllerMinLimit(set_req.controller_min_limit_bytes_per_sec());
+      oss << "success: Set controller minimum limit to "
+          << format_rate(engine.GetControllerMinLimit()) << "\n";
+    }
+
+    if (set_req.has_io_pressure_threshold()) {
+      engine.SetIoPressureThreshold(set_req.io_pressure_threshold());
+      oss << "success: Set IO pressure threshold to "
+          << format_io_pressure(engine.GetIoPressureThreshold()) << "\n";
     }
 
     if (oss.str().empty()) {
@@ -1213,6 +1427,21 @@ IoCmd::ShapingSubcommand(const eos::console::IoProto_ShapingProto& shaping,
 
   case eos::console::IoProto_ShapingProto::kConfig: {
     ShapingConfig(shaping.config(), reply);
+    break;
+  }
+  case eos::console::IoProto_ShapingProto::kPressure: {
+    switch (const auto& pressure = shaping.pressure(); pressure.subcmd_case()) {
+    case eos::console::IoProto_ShapingProto_PressureAction::kList:
+      ShapingPressureList(pressure.list(), reply);
+      break;
+
+    default:
+      reply.set_retc(EINVAL);
+      reply.set_std_err(
+          "error: Shaping pressure: invalid or missing subcommand (list).\n");
+      break;
+    }
+
     break;
   }
   case eos::console::IoProto_ShapingProto::SUBCMD_NOT_SET:
