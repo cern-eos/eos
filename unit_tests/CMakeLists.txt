@@ -152,6 +152,7 @@ set(FST_UT_SRCS
   fst/XrdFstOfsTests.cc
   fst/XrdFstOssFileTest.cc
   fst/HealthTest.cc
+  fst/TrafficShapingTests.cc
   fst/UtilsTest.cc
   fst/XrdFstOfsFileInternalTest.cc
   fst/ScanDirTests.cc
