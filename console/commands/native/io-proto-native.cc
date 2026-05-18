@@ -22,7 +22,10 @@ const char* kShapingExamples = "\nEXAMPLES:\n"
                                "  eos io shaping enable\n"
                                "\n"
                                "  # Globally disable the traffic shaping engine\n"
-                               "  eos io shaping disable\n";
+                               "  eos io shaping disable\n"
+                               "\n"
+                               "  # Show reservation pressure by application and node\n"
+                               "  eos io shaping pressure ls\n";
 
 const char* kShapingPolicyExamples =
     "\nEXAMPLES:\n"
@@ -160,6 +163,11 @@ std::string MakeIoHelp()
       << "\t     usage: policy rm <identity>\n"
       << "\t       <identity>   : --app <name> | --uid <id> | --gid <id>\n"
       << std::endl
+      << "     pressure [action] [options...] : inspect reservation IO pressure\n"
+      << "\t   action 'ls' : list reserved application pressure by storage node\n"
+      << "\t     usage: pressure ls [--json]\n"
+      << "\t       --json       : output in JSON format\n"
+      << std::endl
       << "     config [action] [options...] : manage traffic shaping thread "
          "configurations\n"
       << "\t   action 'ls' : list current thread update periods\n"
@@ -169,7 +177,8 @@ std::string MakeIoHelp()
       << "\t     usage: config set [--estimators-period <ms>] [--policy-period <ms>] "
          "[--report-period <ms>] [--system-window <s>] [--detail aggregate|fs] "
          "[--delay-mode global|fst] [--limits enabled|disabled] "
-         "[--reservations enabled|disabled]\n"
+         "[--reservations enabled|disabled] [--controller-min-limit <rate>] "
+         "[--io-pressure-threshold <value>]\n"
       << std::endl
       << "   EXAMPLES\n"
       << "\t   # Show current application rates\n"
@@ -195,6 +204,9 @@ std::string MakeIoHelp()
       << std::endl
       << "\t   # List all configured application policies including machine limits\n"
       << "\t   eos io shaping policy ls --apps --controller\n"
+      << std::endl
+      << "\t   # Show reservation pressure by application and node\n"
+      << "\t   eos io shaping pressure ls\n"
       << std::endl
       << "\t   # Show current thread configurations\n"
       << "\t   eos io shaping config ls\n"
@@ -369,6 +381,20 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   shaping_cmd->add_subcommand("disable", "Disable traffic shaping")
       ->callback([shaping_proto]() { shaping_proto->mutable_disable(); });
 
+  auto* pressure_cmd =
+      shaping_cmd->add_subcommand("pressure", "Inspect reservation IO pressure");
+  pressure_cmd->require_subcommand(1);
+
+  auto* pressure_ls =
+      pressure_cmd->add_subcommand("ls", "List reserved app pressure by node");
+  pressure_ls->add_flag("--apps",
+                        "Deprecated no-op; pressure currently lists applications");
+  pressure_ls->add_flag("--json", "Output in JSON format");
+  pressure_ls->callback([pressure_ls, shaping_proto]() {
+    auto* action = shaping_proto->mutable_pressure()->mutable_list();
+    action->set_json_output(pressure_ls->count("--json") > 0);
+  });
+
   auto* policy_cmd = shaping_cmd->add_subcommand("policy", "Manage shaping policies");
   policy_cmd->require_subcommand(1);
   policy_cmd->footer(kShapingPolicyExamples);
@@ -491,8 +517,20 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   config_set->add_option("--reservations", "Reservation enforcement toggle")
       ->type_name("STATE")
       ->check(CLI::IsMember({"enabled", "disabled"}));
+  config_set->add_option("--controller-min-limit", "Minimum ephemeral controller limit")
+      ->type_name("RATE");
+  config_set
+      ->add_option("--io-pressure-threshold",
+                   "Disk-load threshold for reservation pressure")
+      ->type_name("VALUE")
+      ->check(CLI::Range(0.0, 1.0));
   config_set->callback([config_set, shaping_proto]() {
     auto* a = shaping_proto->mutable_config()->mutable_set();
+    auto parse_rate = [](const std::string& s) -> uint64_t {
+      uint64_t n = 0;
+      eos::common::StringConversion::GetSizeFromString(s, n);
+      return n;
+    };
     if (config_set->count("--estimators-period"))
       a->set_update_estimators_thread_period_ms(
           config_set->get_option("--estimators-period")->as<uint32_t>());
@@ -518,6 +556,14 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     if (config_set->count("--reservations")) {
       a->set_reservations_enabled(EnabledConfigValue(
           config_set->get_option("--reservations")->as<std::string>()));
+    }
+    if (config_set->count("--controller-min-limit")) {
+      a->set_controller_min_limit_bytes_per_sec(parse_rate(
+          config_set->get_option("--controller-min-limit")->as<std::string>()));
+    }
+    if (config_set->count("--io-pressure-threshold")) {
+      a->set_io_pressure_threshold(
+          config_set->get_option("--io-pressure-threshold")->as<double>());
     }
   });
 

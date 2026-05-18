@@ -114,6 +114,10 @@ static constexpr auto TRAFFIC_SHAPING_LIMITS_ENABLED_CONFIG =
     "traffic_shaping::limits_enabled";
 static constexpr auto TRAFFIC_SHAPING_RESERVATIONS_ENABLED_CONFIG =
     "traffic_shaping::reservations_enabled";
+static constexpr auto TRAFFIC_SHAPING_CONTROLLER_MIN_LIMIT_CONFIG =
+    "traffic_shaping::controller_min_limit";
+static constexpr auto TRAFFIC_SHAPING_IO_PRESSURE_THRESHOLD_CONFIG =
+    "traffic_shaping::io_pressure_threshold";
 
 //! ADM uid and gid
 static constexpr uid_t ADM_UID = 3;
