@@ -1037,6 +1037,7 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       json["fst_io_stats_reporting_period_ms"] = static_cast<Json::Value::UInt64>(
           engine.GetFstIoStatsReportThreadPeriodMilliseconds());
       json["detail_level"] = engine.GetDetailLevel();
+      json["delay_mode"] = engine.GetDelayMode();
       json["system_stats_time_window_seconds"] =
           static_cast<Json::Value::UInt64>(engine.GetSystemStatsWindowSeconds());
       oss << CompactJsonString(json);
@@ -1051,6 +1052,7 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
           << std::setw(45) << "FST IO Stats Reporting Period:"
           << engine.GetFstIoStatsReportThreadPeriodMilliseconds() << " ms\n"
           << std::setw(45) << "Stats Detail Level:" << engine.GetDetailLevel() << "\n"
+          << std::setw(45) << "Delay Mode:" << engine.GetDelayMode() << "\n"
           << std::setw(45)
           << "System Stats Time Window:" << engine.GetSystemStatsWindowSeconds()
           << " s\n";
@@ -1070,6 +1072,14 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
         set_req.detail_level() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
       reply.set_retc(EINVAL);
       reply.set_std_err("error: detail level must be 'aggregate' or 'fs'.\n");
+      break;
+    }
+
+    if (set_req.has_delay_mode() &&
+        set_req.delay_mode() != eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL &&
+        set_req.delay_mode() != eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST) {
+      reply.set_retc(EINVAL);
+      reply.set_std_err("error: delay mode must be 'global' or 'fst'.\n");
       break;
     }
 
@@ -1104,6 +1114,12 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       const std::string detail_level = set_req.detail_level();
       engine.SetDetailLevel(detail_level);
       oss << "success: Set stats detail level to " << engine.GetDetailLevel() << "\n";
+    }
+
+    if (set_req.has_delay_mode()) {
+      const std::string delay_mode = set_req.delay_mode();
+      engine.SetDelayMode(delay_mode);
+      oss << "success: Set delay mode to " << engine.GetDelayMode() << "\n";
     }
 
     if (oss.str().empty()) {
