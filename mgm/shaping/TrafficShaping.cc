@@ -2031,6 +2031,7 @@ TrafficShapingEngine::TrafficShapingEngine()
     , mReservationsEnabled(true)
     , mControllerMinLimitBps(kDefaultControllerMinLimitBps)
     , mIoPressureThreshold(kDefaultIoPressureThreshold)
+    , mGarbageCollectionIdleSeconds(kDefaultGarbageCollectionIdleSec)
 {
   mManager = std::make_shared<TrafficShapingManager>();
 }
@@ -2313,6 +2314,35 @@ TrafficShapingEngine::StoreIoPressureThresholdConfig(const double threshold)
 }
 
 void
+TrafficShapingEngine::SetGarbageCollectionIdleSeconds(const uint32_t idle_seconds)
+{
+  ApplyGarbageCollectionIdleSecondsConfig(idle_seconds);
+  StoreGarbageCollectionIdleSecondsConfig(GetGarbageCollectionIdleSeconds());
+}
+
+bool
+TrafficShapingEngine::ApplyGarbageCollectionIdleSecondsConfig(uint32_t idle_seconds)
+{
+  if (idle_seconds < kMinGarbageCollectionIdleSec) {
+    idle_seconds = kMinGarbageCollectionIdleSec;
+  } else if (idle_seconds > kMaxGarbageCollectionIdleSec) {
+    idle_seconds = kMaxGarbageCollectionIdleSec;
+  }
+
+  const uint32_t old_value =
+      mGarbageCollectionIdleSeconds.exchange(idle_seconds, std::memory_order_relaxed);
+  return old_value != idle_seconds;
+}
+
+void
+TrafficShapingEngine::StoreGarbageCollectionIdleSecondsConfig(const uint32_t idle_seconds)
+{
+  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_GARBAGE_COLLECTION_IDLE_CONFIG,
+                                  std::to_string(idle_seconds));
+  gOFS->mConfigEngine->AutoSave();
+}
+
+void
 TrafficShapingEngine::StoreThreadConfig()
 {
   eos::traffic_shaping::ThreadConfig thread_loop_stats;
@@ -2435,6 +2465,21 @@ TrafficShapingEngine::ApplyConfig()
                      "value=\"%s\" error=\"%s\"",
                      io_pressure_threshold.c_str(), e.what());
       ApplyIoPressureThresholdConfig(kDefaultIoPressureThreshold);
+    }
+  }
+
+  const std::string garbage_collection_idle = FsView::gFsView.GetGlobalConfig(
+      common::TRAFFIC_SHAPING_GARBAGE_COLLECTION_IDLE_CONFIG);
+  if (garbage_collection_idle.empty()) {
+    ApplyGarbageCollectionIdleSecondsConfig(kDefaultGarbageCollectionIdleSec);
+  } else {
+    try {
+      ApplyGarbageCollectionIdleSecondsConfig(std::stoul(garbage_collection_idle));
+    } catch (const std::exception& e) {
+      eos_static_err("msg=\"failed to parse Traffic Shaping garbage collection idle "
+                     "seconds\" value=\"%s\" error=\"%s\"",
+                     garbage_collection_idle.c_str(), e.what());
+      ApplyGarbageCollectionIdleSecondsConfig(kDefaultGarbageCollectionIdleSec);
     }
   }
 
@@ -2587,9 +2632,11 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 
     if (++infrequent_action_counter >= infrequent_action_threshold) {
       infrequent_action_counter = 0;
+      const uint32_t garbage_collection_idle_seconds =
+          mGarbageCollectionIdleSeconds.load(std::memory_order_relaxed);
       const auto [removed_nodes, removed_node_streams, removed_global_streams,
                   removed_disk_stats, removed_detailed_stats] =
-          mManager->GarbageCollect(900);
+          mManager->GarbageCollect(garbage_collection_idle_seconds);
 
       if (removed_node_streams > 0 || removed_global_streams > 0 ||
           removed_disk_stats > 0 || removed_detailed_stats > 0) {

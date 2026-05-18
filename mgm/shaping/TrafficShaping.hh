@@ -154,6 +154,9 @@ constexpr uint32_t kMinThreadPeriodMs = 50;
 constexpr uint32_t kMaxThreadPeriodMs = 3000;
 constexpr uint32_t kMinSystemStatsWindowSec = 5;
 constexpr uint32_t kMaxSystemStatsWindowSec = 300;
+constexpr uint32_t kMinGarbageCollectionIdleSec = 1;
+constexpr uint32_t kMaxGarbageCollectionIdleSec = 24 * 60 * 60;
+constexpr uint32_t kDefaultGarbageCollectionIdleSec = 15 * 60;
 constexpr uint64_t kDefaultControllerMinLimitBps = 100ULL * 1000ULL * 1000ULL;
 constexpr double kDefaultIoPressureThreshold = 0.1;
 
@@ -624,6 +627,14 @@ public:
 
   double GetIoPressureThreshold() const;
 
+  void SetGarbageCollectionIdleSeconds(uint32_t idle_seconds);
+
+  uint32_t
+  GetGarbageCollectionIdleSeconds() const
+  {
+    return mGarbageCollectionIdleSeconds.load(std::memory_order_relaxed);
+  }
+
 #ifdef IN_TEST_HARNESS
 public:
 #else
@@ -668,6 +679,10 @@ private:
 
   static void StoreIoPressureThresholdConfig(double threshold);
 
+  bool ApplyGarbageCollectionIdleSecondsConfig(uint32_t idle_seconds);
+
+  static void StoreGarbageCollectionIdleSecondsConfig(uint32_t idle_seconds);
+
   void EstimatorsUpdate(ThreadAssistant&);
 
   void FstIoPolicyUpdate(ThreadAssistant&) const;
@@ -697,6 +712,7 @@ private:
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
   std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
+  std::atomic<uint32_t> mGarbageCollectionIdleSeconds{kDefaultGarbageCollectionIdleSec};
 
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
   std::mutex mReportQueueMutex{};
