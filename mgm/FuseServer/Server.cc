@@ -23,6 +23,7 @@
 
 #include "mgm/FuseServer/Server.hh"
 #include "mgm/misc/Constants.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
@@ -602,6 +603,38 @@ Server::FillContainerCAP(uint64_t id,
               (uid_t) dir.uid(), dir.name().c_str());
   }
 
+  // ---------------------------------------------------------------------------
+  // Honor sys.owner.auth BEFORE the cap mode/ACLs are computed so that a
+  // client authenticated as the directory owner (keyed 'prot:key' form)
+  // inherits the owner's permissions — same semantics as
+  // attr::checkDirOwner() used in XrdMgmOfsFile::open.
+  //
+  // Note: the sticky '*' form intentionally does NOT rewrite eff_vid here.
+  // Mirroring XrdMgmOfsFile::open and _mkdir, '*' only affects the
+  // ownership stamp of new entries (cap.uid/gid below), never the
+  // permission decision (cap mode / ACL evaluation).
+  //
+  // We work on a local copy of vid because FillContainerCAP is called in a
+  // loop during directory listings, and the caller's vid must not be
+  // perturbed across iterations.
+  // ---------------------------------------------------------------------------
+  eos::common::VirtualIdentity eff_vid = vid;
+  bool sticky_owner = false;
+  bool owner_auth = false;
+  {
+    eos::IContainerMD::XAttrMap xattrs;
+
+    for (const auto& kv : dir.attr()) {
+      xattrs[kv.first] = kv.second;
+    }
+
+    owner_auth = eos::mgm::attr::checkDirOwner(xattrs, (uid_t) dir.uid(),
+                                               (gid_t) dir.gid(), eff_vid,
+                                               sticky_owner,
+                                               dir.fullpath().c_str());
+    (void) sticky_owner;
+  }
+
   struct timespec ts;
 
   eos::common::Timing::GetTimeSpec(ts, true);
@@ -637,18 +670,19 @@ Server::FillContainerCAP(uint64_t id,
 
   mode_t mode = dir.mode() & S_IFDIR;
 
-  // define the permissions
-  if (vid.uid == 0) {
+  // define the permissions (use eff_vid so sys.owner.auth impersonation is
+  // honored at the same point as in attr::checkDirOwner-aware code paths)
+  if (eff_vid.uid == 0) {
     // grant all permissions
     dir.mutable_capability()->set_mode(0xff | mode);
   } else {
-    if (!vid.token) {
-      if (vid.sudoer) {
+    if (!eff_vid.token) {
+      if (eff_vid.sudoer) {
         mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
                 ; // chown + chmod permission + all the rest
       }
 
-      if (vid.uid == (uid_t) dir.uid()) {
+      if (eff_vid.uid == (uid_t) dir.uid()) {
         // we don't apply a mask if we are the owner
         if (dir.mode() & S_IRUSR) {
           mode |= R_OK | M_OK | SU_OK;
@@ -665,11 +699,11 @@ Server::FillContainerCAP(uint64_t id,
 
       bool same_group = false;
 
-      if (vid.gid == (gid_t) dir.gid()) {
+      if (eff_vid.gid == (gid_t) dir.gid()) {
         same_group = true;
       } else {
         if (eos::common::Mapping::gSecondaryGroups) {
-          if (vid.allowed_gids.count(dir.gid())) {
+          if (eff_vid.allowed_gids.count(dir.gid())) {
             same_group = true;
           }
         }
@@ -717,20 +751,20 @@ Server::FillContainerCAP(uint64_t id,
     if (EOS_LOGS_DEBUG) {
       std::string tokenDump;
 
-      if (vid.token) {
-        vid.token->Dump(tokenDump, true, false);
+      if (eff_vid.token) {
+        eff_vid.token->Dump(tokenDump, true, false);
       }
 
       eos_debug("token='%s' scope='%s'", tokenDump.c_str(), dir.fullpath().c_str());
     }
 
-    if (sysacl.length() || useracl.length() || vid.token) {
+    if (sysacl.length() || useracl.length() || eff_vid.token) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
                          dir.attr().count("sys.eval.useracl") > 0;
-      vid.scope = dir.fullpath();
+      eff_vid.scope = dir.fullpath();
       Acl acl(sysacl,
               useracl,
-              vid,
+              eff_vid,
               evaluseracl);
 
       if (EOS_LOGS_DEBUG)
@@ -775,7 +809,7 @@ Server::FillContainerCAP(uint64_t id,
         }
 
         // the owner can always delete
-        if ((vid.uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
+        if ((eff_vid.uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
           mode &= ~D_OK;
         }
       } else {
@@ -795,7 +829,7 @@ Server::FillContainerCAP(uint64_t id,
       }
     }
 
-    if (!gOFS->allow_public_access(dir.fullpath().c_str(), vid)) {
+    if (!gOFS->allow_public_access(dir.fullpath().c_str(), eff_vid)) {
       eos_debug("msg=\"no public access\" path=\"%s\"", dir.fullpath().c_str());
       mode = dir.mode() & S_IFDIR;
       mode |= X_OK;
@@ -804,38 +838,15 @@ Server::FillContainerCAP(uint64_t id,
     dir.mutable_capability()->set_mode(mode);
   }
 
-  std::string ownerauth = (*(dir.mutable_attr()))["sys.owner.auth"];
-
-  // define new target owner
-  if (ownerauth.length()) {
-    if (ownerauth == "*") {
-      // sticky ownership for everybody
-      dir.mutable_capability()->set_uid(dir.uid());
-      dir.mutable_capability()->set_gid(dir.gid());
-    } else {
-      ownerauth += ",";
-      std::string ownerkey = vid.prot.c_str();
-      std::string prot = vid.prot.c_str();
-      ownerkey += ":";
-
-      if (prot == "gsi") {
-        ownerkey += vid.dn.c_str();
-      } else {
-        ownerkey += vid.uid_string.c_str();
-      }
-
-      if ((ownerauth.find(ownerkey)) != std::string::npos) {
-        // sticky ownership for this authentication
-        dir.mutable_capability()->set_uid(dir.uid());
-        dir.mutable_capability()->set_gid(dir.gid());
-      } else {
-        // no sticky ownership for this authentication
-        dir.mutable_capability()->set_uid(vid.uid);
-        dir.mutable_capability()->set_gid(vid.gid);
-      }
-    }
+  // Stamp cap.uid/gid honouring sys.owner.auth:
+  //  - keyed 'prot:key' match: eff_vid above was rewritten for cap.mode;
+  //    new entries inherit the directory owner's uid/gid (same as _mkdir);
+  //  - sticky '*' form: ownership-only stamp to the directory owner;
+  //  - no attribute / no match: use the caller's identity.
+  if (owner_auth) {
+    dir.mutable_capability()->set_uid(dir.uid());
+    dir.mutable_capability()->set_gid(dir.gid());
   } else {
-    // no sticky ownership
     dir.mutable_capability()->set_uid(vid.uid);
     dir.mutable_capability()->set_gid(vid.gid);
   }
@@ -994,6 +1005,73 @@ Server::Header(const std::string& response)
 }
 
 //------------------------------------------------------------------------------
+// ACL helper
+//------------------------------------------------------------------------------
+
+static bool
+ApplyDirOwnerAuth(const std::shared_ptr<eos::IContainerMD>& cmd,
+                  eos::common::VirtualIdentity& vid,
+                  const char* path = nullptr)
+{
+  if (!cmd) {
+    return false;
+  }
+
+  eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+  bool sticky_owner = false;
+  bool owner_auth = eos::mgm::attr::checkDirOwner(attrmap, cmd->getCUid(),
+                                                  cmd->getCGid(), vid,
+                                                  sticky_owner, path);
+  (void) sticky_owner;
+  return owner_auth;
+}
+
+static bool
+CheckOwnerAcl(const eos::fusex::md& md,
+	      eos::common::VirtualIdentity& vid,
+	      std::shared_ptr<eos::IContainerMD>& cmd)
+{
+  if ((uid_t)md.uid() == vid.uid &&
+      (vid.sudoer || (gid_t)md.gid() == vid.gid ||
+       vid.allowed_gids.count((gid_t)md.gid()))) {
+    return true;        // md and vid agree 
+  }
+  if (vid.uid == 0 || vid.sudoer) {
+    return true;        // root & sudoers can create as any owner
+  }
+  if (vid.hasUid(eos::common::ADM_UID) ||
+      vid.hasGid(eos::common::ADM_GID)) {
+    return true;        // admins can create as any owner
+  }
+
+  // sys.owner.auth: the FUSE client stamps new entries with the parent
+  // directory owner's uid/gid (via cap.uid/gid). Allow that without a
+  // separate chown ACL when the caller is authorized on the parent.
+  if ((uid_t)md.uid() == cmd->getCUid() &&
+      (gid_t)md.gid() == cmd->getCGid()) {
+    eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+    bool sticky_owner = false;
+    eos::common::VirtualIdentity check_vid = vid;
+
+    if (eos::mgm::attr::checkDirOwner(attrmap, cmd->getCUid(), cmd->getCGid(),
+                                      check_vid, sticky_owner, nullptr)) {
+      return true;
+    }
+  }
+
+  vid.scope = gOFS->eosView->getUri(cmd.get());
+  Acl acl;
+  eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
+  acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
+
+  if (!acl.CanChown()) {
+    eos_static_info("msg=\"rejecting owner change\" scope=\"%s\" md(%lu:%lu) vid(%lu:%lu)",
+		    vid.scope.c_str(), md.uid(), md.gid(), vid.uid, vid.gid);
+  }
+  return acl.CanChown(); // we require chown permission
+}
+
+//------------------------------------------------------------------------------
 // Validate permissions froa given meta-data object
 //------------------------------------------------------------------------------
 
@@ -1025,6 +1103,7 @@ Server::ValidatePERM(const eos::fusex::md& md, const std::string& mode,
   try {
     cmd = gOFS->eosDirectoryService->getContainerMD(md.md_pino(), &clock);
     path = gOFS->eosView->getUri(cmd.get());
+    ApplyDirOwnerAuth(cmd, vid, path.c_str());
     // for performance reasons we implement a seperate access control check here, because
     // we want to avoid another id=path translation and unlock lock of the namespace
     eos::IContainerMD::XAttrMap attrmap;
@@ -1394,39 +1473,6 @@ Server::OpGetLs(const std::string& id,
 //------------------------------------------------------------------------------
 
 
-//------------------------------------------------------------------------------
-// ACL helper
-//------------------------------------------------------------------------------
-
-static bool
-CheckOwnerAcl(const eos::fusex::md& md,
-	      eos::common::VirtualIdentity& vid,
-	      std::shared_ptr<eos::IContainerMD>& cmd)
-{
-  if ((uid_t)md.uid() == vid.uid &&
-      (vid.sudoer || (gid_t)md.gid() == vid.gid ||
-       vid.allowed_gids.count((gid_t)md.gid()))) {
-    return true;        // md and vid agree 
-  }
-  if (vid.uid == 0 || vid.sudoer) {
-    return true;        // root & sudoers can create as any owner
-  }
-  if (vid.hasUid(eos::common::ADM_UID) ||
-      vid.hasGid(eos::common::ADM_GID)) {
-    return true;        // admins can create as any owner
-  }
-  vid.scope = gOFS->eosView->getUri(cmd.get());
-  Acl acl;
-  eos::IContainerMD::XAttrMap attrmap = cmd->getAttributes();
-  acl.SetFromAttrMap(attrmap, vid, NULL, true /* sysacl-only */);
-
-  if (!acl.CanChown()) {
-    eos_static_info("msg=\"rejecting owner change\" scope=\"%s\" md(%lu:%lu) vid(%lu:%lu)",
-		    vid.scope.c_str(), md.uid(), md.gid(), vid.uid, vid.gid);
-  }
-  return acl.CanChown(); // we require chown permission
-}
-
 /*----------------------------------------------------------------------------*/
 
 int
@@ -1437,6 +1483,37 @@ Server::OpSet(const std::string& id,
               uint64_t* clock)
 {
   gOFS->MgmStats.Add("Eosxd::ext::SET", vid.uid, vid.gid, 1, vid.app);
+
+  // Keyed sys.owner.auth on the relevant directory rewrites vid to the
+  // directory owner so OpSet* permission checks see the impersonated
+  // identity (sticky '*' intentionally does not rewrite vid here).
+  {
+    uint64_t auth_ino = 0;
+
+    if (md.md_ino() && S_ISDIR(md.mode()) && md.type() != md.EXCL) {
+      auth_ino = md.md_ino();
+    } else {
+      auth_ino = md.md_pino();
+
+      if (!auth_ino) {
+        auth_ino = InodeFromCAP(md);
+      }
+    }
+
+    if (auth_ino) {
+      try {
+        eos::common::RWMutexReadLock lock(gOFS->eosViewRWMutex);
+        auto auth_cmd = gOFS->eosDirectoryService->getContainerMD(auth_ino);
+
+        if (auth_cmd) {
+          std::string path = gOFS->eosView->getUri(auth_cmd.get());
+          ApplyDirOwnerAuth(auth_cmd, vid, path.c_str());
+        }
+      } catch (const eos::MDException& e) {
+        eos_debug("msg=\"sys.owner.auth lookup failed\" ino=%lx", auth_ino);
+      }
+    }
+  }
 
   if (!ValidateCAP(md, W_OK | SA_OK, vid)) {
     std::string perm = "W";

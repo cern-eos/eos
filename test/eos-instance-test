@@ -2224,6 +2224,64 @@ runtest "### Diff      " unix ERROR "" eos_bash diff /etc/group  "/test-fusex/$E
 runtest "### defaultcc " unix SUCCESS "" eos_defaultcc "/test-fusex/"
 runtest "### sycntime  " unix SUCCESS "" eos_synctime "/test-fusex/" "$EOS_TEST_INSTANCE/test/instancetest/fusex/"
 
+# ---------------------------------------------------------------------------
+# sys.owner.auth FuseServer tests
+#
+# Verify that sys.owner.auth is honored by Server::FillContainerCAP():
+#   - without the attribute a non-owner FUSE client is denied on a 0700
+#     root-owned directory (baseline);
+#   - with sys.owner.auth=<prot>:<user> matching the FUSE connection the
+#     client gains write access AND new entries are owned by the directory
+#     owner (i.e. the cap MODE is now computed as the owner, not just the
+#     cap.uid/gid stamp);
+#   - sys.owner.auth=<prot>:<user>-no-such-user (a superstring of the real
+#     ownerkey) must NOT grant access -- regression test for the comma-anchor
+#     fix in attr::checkDirOwner.
+# ---------------------------------------------------------------------------
+runtest "### OwnerAuth " unix SUCCESS "" eos mkdir "-p" "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth"
+runtest "### OwnerAuth " unix SUCCESS "" eos chown root:root "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth"
+runtest "### OwnerAuth " unix SUCCESS "" eos chmod 700 "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth"
+
+# Discover the FUSE-side authentication protocol (sss for our keytab); the
+# keytab maps to the local 'nobody' user, so the ownerkey is "<prot>:nobody".
+OWNERAUTH_WHOAMI=$(cat "/test-fusex/$EOS_TEST_INSTANCE/proc/whoami" 2>/dev/null)
+echo "OwnerAuth: whoami='$OWNERAUTH_WHOAMI'" >> $EOSCERTLOG 2>&1
+OWNERAUTH_PROT=$(echo "$OWNERAUTH_WHOAMI" | sed -nE 's/.*\[authz:([^]]+)\].*/\1/p')
+[ -z "$OWNERAUTH_PROT" ] && OWNERAUTH_PROT=sss
+OWNERAUTH_KEY="${OWNERAUTH_PROT}:nobody"
+echo "OwnerAuth: ownerkey='${OWNERAUTH_KEY}'" >> $EOSCERTLOG 2>&1
+
+# Baseline: 0700 root:root, no sys.owner.auth -> the FUSE client (nobody)
+# must be denied for mkdir. We only test directory operations because they
+# go through the FuseServer cap path (Server::FillContainerCAP) which is
+# what this fix is about; xrootd-open-based file creation in eosxd may use
+# the local process credentials and is therefore not a reliable indicator.
+runtest "### OwnerNeg  " unix ERROR   "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth/sub.baseline"
+
+# Grant ownership via sys.owner.auth=<prot>:<user> matching the FUSE client.
+runtest "### OwnerAuth " unix SUCCESS "" eos attr set sys.owner.auth=${OWNERAUTH_KEY} "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth"
+runtest "### OwnerAuth " unix SUCCESS "" shell eosxd set system.eos.dropcap - "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth"
+runtest "### Delay     " unix SUCCESS "" delay 1
+
+# With sys.owner.auth matching, mkdir via FUSE must now succeed.
+# Before the FillContainerCAP fix the cap MODE was still 0 and this would
+# fail despite cap.uid being stamped as the directory owner.
+runtest "### OwnerPos  " unix SUCCESS "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth/sub.granted"
+# The new directory must be owned by the directory owner (root, uid 0),
+# not by the impersonating FUSE user.
+runtest "### OwnerUid  " unix SUCCESS "" test "$(stat -c '%u' /test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth/sub.granted)" = 0
+
+# Substring-anchor regression: a superstring like '<prot>:nobody-no-such-user'
+# must NOT match the ownerkey '<prot>:nobody'. Previously a plain substring
+# search in attr::checkDirOwner would falsely grant access.
+runtest "### OwnerAuth " unix SUCCESS "" eos attr set sys.owner.auth=${OWNERAUTH_KEY}-no-such-user "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth"
+runtest "### OwnerAuth " unix SUCCESS "" shell eosxd set system.eos.dropcap - "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth"
+runtest "### Delay     " unix SUCCESS "" delay 1
+runtest "### OwnerAnch " unix ERROR   "" shell mkdir "/test-fusex/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth/sub.anchored"
+
+# Cleanup
+runtest "### OwnerAuth " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/fusex/ownerauth"
+
 # enable sss now
 chmod 400 /etc/eos/fuse.sss.keytab
 runtest "### EnableTok " unix SUCCESS "" eos space config default space.token.generation=1
