@@ -175,7 +175,7 @@ std::string MakeIoHelp()
          "[--report-period <ms>] [--system-window <s>] [--detail aggregate|fs] "
          "[--limits enabled|disabled] "
          "[--reservations enabled|disabled] [--controller-min-limit <rate>] "
-         "[--io-pressure-threshold <value>]\n"
+         "[--io-pressure-threshold <value>] [--gc-idle <s>]\n"
       << std::endl
       << "   EXAMPLES\n"
       << "\t   # Show current application rates\n"
@@ -493,7 +493,7 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     a->set_json_output(config_ls->count("--json") > 0);
   });
   auto* config_set = config_cmd->add_subcommand("set", "Set config");
-  config_set->require_option(1, 8);
+  config_set->require_option(1, 9);
   config_set->add_option("--estimators-period", "Estimator update period")
       ->type_name("MS");
   config_set->add_option("--policy-period", "Policy enforcement update period")
@@ -518,6 +518,9 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
                    "Disk-load threshold for reservation pressure")
       ->type_name("VALUE")
       ->check(CLI::Range(0.0, 1.0));
+  config_set->add_option("--gc-idle", "Garbage collection idle timeout")
+      ->type_name("SEC")
+      ->check(CLI::Range(1, 86400));
   config_set->callback([config_set, shaping_proto]() {
     auto* a = shaping_proto->mutable_config()->mutable_set();
     auto parse_rate = [](const std::string& s) -> uint64_t {
@@ -555,6 +558,10 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     if (config_set->count("--io-pressure-threshold")) {
       a->set_io_pressure_threshold(
           config_set->get_option("--io-pressure-threshold")->as<double>());
+    }
+    if (config_set->count("--gc-idle")) {
+      a->set_garbage_collection_idle_seconds(
+          config_set->get_option("--gc-idle")->as<uint32_t>());
     }
   });
 

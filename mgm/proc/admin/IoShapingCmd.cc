@@ -1271,6 +1271,8 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       json["controller_min_limit_bytes_per_sec"] =
           static_cast<Json::Value::UInt64>(engine.GetControllerMinLimit());
       json["io_pressure_threshold"] = engine.GetIoPressureThreshold();
+      json["garbage_collection_idle_seconds"] =
+          static_cast<Json::Value::UInt64>(engine.GetGarbageCollectionIdleSeconds());
       json["system_stats_time_window_seconds"] =
           static_cast<Json::Value::UInt64>(engine.GetSystemStatsWindowSeconds());
       oss << CompactJsonString(json);
@@ -1294,6 +1296,9 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
           << "\n"
           << std::setw(45) << "IO Pressure Threshold:"
           << format_io_pressure(engine.GetIoPressureThreshold()) << "\n"
+          << std::setw(45)
+          << "Garbage Collection Idle Time:" << engine.GetGarbageCollectionIdleSeconds()
+          << " s\n"
           << std::setw(45)
           << "System Stats Time Window:" << engine.GetSystemStatsWindowSeconds()
           << " s\n";
@@ -1378,6 +1383,12 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       engine.SetIoPressureThreshold(set_req.io_pressure_threshold());
       oss << "success: Set IO pressure threshold to "
           << format_io_pressure(engine.GetIoPressureThreshold()) << "\n";
+    }
+
+    if (set_req.has_garbage_collection_idle_seconds()) {
+      engine.SetGarbageCollectionIdleSeconds(set_req.garbage_collection_idle_seconds());
+      oss << "success: Set garbage collection idle time to "
+          << engine.GetGarbageCollectionIdleSeconds() << " s\n";
     }
 
     if (oss.str().empty()) {

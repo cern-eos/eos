@@ -115,6 +115,8 @@ static constexpr auto TRAFFIC_SHAPING_CONTROLLER_MIN_LIMIT_CONFIG =
     "traffic_shaping::controller_min_limit";
 static constexpr auto TRAFFIC_SHAPING_IO_PRESSURE_THRESHOLD_CONFIG =
     "traffic_shaping::io_pressure_threshold";
+static constexpr auto TRAFFIC_SHAPING_GARBAGE_COLLECTION_IDLE_CONFIG =
+    "traffic_shaping::gc_idle_seconds";
 
 //! ADM uid and gid
 static constexpr uid_t ADM_UID = 3;
