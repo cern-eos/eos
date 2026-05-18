@@ -787,6 +787,7 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           manager->GetFstLimitsUpdateLoopMicroSecStats();
       const auto reports_processed_mean = manager->GetFstReportsProcessedPerSecondMean();
       const auto system_stats_window_seconds = manager->GetSystemStatsWindowSeconds();
+      const auto map_cardinality = manager->GetMapCardinalityStats();
 
       Json::Value entry;
       entry["id"] = "engine_meta";
@@ -800,6 +801,31 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       entry["reports_processed_per_sec_mean"] = reports_processed_mean;
       entry["system_stats_window_seconds"] =
           static_cast<Json::Value::UInt64>(system_stats_window_seconds);
+      entry["node_states_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.node_states);
+      entry["node_state_streams_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.node_state_streams);
+      entry["global_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.global_stats);
+      entry["node_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.node_stats);
+      entry["disk_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.disk_stats);
+      entry["detailed_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.detailed_stats);
+      entry["node_entity_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.node_entity_stats);
+      entry["uid_policies_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.uid_policies);
+      entry["gid_policies_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.gid_policies);
+      entry["app_policies_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.app_policies);
+      entry["node_fst_io_delay_configs_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.node_fst_io_delay_configs);
+      entry["published_fst_io_delay_configs_cardinality"] =
+          static_cast<Json::Value::UInt64>(
+              map_cardinality.published_fst_io_delay_configs);
       json.append(entry);
     }
 
@@ -934,6 +960,7 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           manager->GetFstLimitsUpdateLoopMicroSecStats();
       const auto reports_processed_mean = manager->GetFstReportsProcessedPerSecondMean();
       const auto system_stats_window_seconds = manager->GetSystemStatsWindowSeconds();
+      const auto map_cardinality = manager->GetMapCardinalityStats();
 
       oss << "\n--- System Statistics (averaged over last " << system_stats_window_seconds
           << " seconds) ---\n";
@@ -952,6 +979,21 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       oss << std::left << std::setw(30) << "FST Reports Per Second:"
           << "Mean = " << std::fixed << std::setprecision(2) << reports_processed_mean
           << "\n";
+
+      oss << std::left << std::setw(30) << "Map Cardinality:"
+          << "node_states=" << map_cardinality.node_states
+          << " node_state_streams=" << map_cardinality.node_state_streams
+          << " global_stats=" << map_cardinality.global_stats
+          << " node_stats=" << map_cardinality.node_stats
+          << " node_entity_stats=" << map_cardinality.node_entity_stats
+          << " disk_stats=" << map_cardinality.disk_stats
+          << " detailed_stats=" << map_cardinality.detailed_stats
+          << " app_policies=" << map_cardinality.app_policies
+          << " uid_policies=" << map_cardinality.uid_policies
+          << " gid_policies=" << map_cardinality.gid_policies
+          << " node_fst_io_delay_configs=" << map_cardinality.node_fst_io_delay_configs
+          << " published_fst_io_delay_configs="
+          << map_cardinality.published_fst_io_delay_configs << "\n";
     }
   }
 

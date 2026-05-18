@@ -1909,6 +1909,30 @@ TrafficShapingManager::GetFstLimitsUpdateLoopMicroSecStats() const
   return {0, 0, 0};
 }
 
+MapCardinalityStats
+TrafficShapingManager::GetMapCardinalityStats() const
+{
+  std::shared_lock lock(mMutex);
+
+  MapCardinalityStats stats;
+  stats.node_states = static_cast<uint64_t>(mNodeStates.size());
+  for (const auto& node_entry : mNodeStates) {
+    stats.node_state_streams += static_cast<uint64_t>(node_entry.second.streams.size());
+  }
+  stats.global_stats = static_cast<uint64_t>(mGlobalStats.size());
+  stats.node_stats = static_cast<uint64_t>(mNodeStats.size());
+  stats.disk_stats = static_cast<uint64_t>(mDiskStats.size());
+  stats.detailed_stats = static_cast<uint64_t>(mDetailedStats.size());
+  stats.node_entity_stats = static_cast<uint64_t>(mNodeEntityStats.size());
+  stats.uid_policies = static_cast<uint64_t>(mUidPolicies.size());
+  stats.gid_policies = static_cast<uint64_t>(mGidPolicies.size());
+  stats.app_policies = static_cast<uint64_t>(mAppPolicies.size());
+  stats.node_fst_io_delay_configs = static_cast<uint64_t>(mNodeFstIoDelayConfigs.size());
+  stats.published_fst_io_delay_configs =
+      static_cast<uint64_t>(mPublishedFstIoDelayConfigs.size());
+  return stats;
+}
+
 void
 TrafficShapingManager::UpdateFstReportsProcessed(const uint64_t count)
 {
