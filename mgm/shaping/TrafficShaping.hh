@@ -128,6 +128,21 @@ struct AppNodeIoPressureSnapshot {
   bool node_has_pressured_write_reservation = false;
 };
 
+struct MapCardinalityStats {
+  uint64_t node_states = 0;
+  uint64_t node_state_streams = 0;
+  uint64_t global_stats = 0;
+  uint64_t node_stats = 0;
+  uint64_t disk_stats = 0;
+  uint64_t detailed_stats = 0;
+  uint64_t node_entity_stats = 0;
+  uint64_t uid_policies = 0;
+  uint64_t gid_policies = 0;
+  uint64_t app_policies = 0;
+  uint64_t node_fst_io_delay_configs = 0;
+  uint64_t published_fst_io_delay_configs = 0;
+};
+
 constexpr std::array<int, 2> EmaWindowSec = {1, 5};
 constexpr std::array<int, 5> SmaWindowSec = {1, 5, 15, 60, 300};
 
@@ -409,6 +424,8 @@ public:
   std::tuple<uint64_t, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
 
   std::tuple<uint64_t, uint64_t, uint64_t> GetFstLimitsUpdateLoopMicroSecStats() const;
+
+  MapCardinalityStats GetMapCardinalityStats() const;
 
   uint32_t
   GetSystemStatsWindowSeconds() const
