@@ -39,21 +39,110 @@ TEST(TrafficShapingEngine, DetailConfigReplayDoesNotSyncWhileViewLocked)
             engine.GetDetailLevel());
 }
 
-TEST(TrafficShapingEngine, DelayModeDefaultsToGlobalAndTogglesManager)
+TEST(TrafficShapingEngine, DelayModeDefaultsToGlobalAndRejectsFstMode)
 {
   eos::mgm::traffic_shaping::TrafficShapingEngine engine;
 
   ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, engine.GetDelayMode());
   ASSERT_FALSE(engine.GetManager()->GetPerFstDelaysEnabled());
+  ASSERT_TRUE(engine.GetLimitsEnabled());
+  ASSERT_TRUE(engine.GetReservationsEnabled());
 
-  ASSERT_TRUE(engine.ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST));
-  ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST, engine.GetDelayMode());
-  ASSERT_TRUE(engine.GetManager()->GetPerFstDelaysEnabled());
+  ASSERT_FALSE(engine.ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST));
+  ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, engine.GetDelayMode());
+  ASSERT_FALSE(engine.GetManager()->GetPerFstDelaysEnabled());
 
-  ASSERT_TRUE(
+  ASSERT_FALSE(
       engine.ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL));
   ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, engine.GetDelayMode());
   ASSERT_FALSE(engine.GetManager()->GetPerFstDelaysEnabled());
+}
+
+TEST(TrafficShapingEngine, LimitAndReservationTogglesPropagateToManager)
+{
+  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
+  auto manager = engine.GetManager();
+
+  ASSERT_TRUE(engine.ApplyLimitsEnabledConfig(false));
+  ASSERT_FALSE(engine.GetLimitsEnabled());
+  ASSERT_FALSE(manager->GetLimitsEnabled());
+
+  ASSERT_FALSE(engine.ApplyLimitsEnabledConfig(false));
+
+  ASSERT_TRUE(engine.ApplyReservationsEnabledConfig(false));
+  ASSERT_FALSE(engine.GetReservationsEnabled());
+  ASSERT_FALSE(manager->GetReservationsEnabled());
+
+  ASSERT_FALSE(engine.ApplyReservationsEnabledConfig(false));
+
+  ASSERT_TRUE(engine.ApplyLimitsEnabledConfig(true));
+  ASSERT_TRUE(engine.GetLimitsEnabled());
+  ASSERT_TRUE(manager->GetLimitsEnabled());
+
+  ASSERT_TRUE(engine.ApplyReservationsEnabledConfig(true));
+  ASSERT_TRUE(engine.GetReservationsEnabled());
+  ASSERT_TRUE(manager->GetReservationsEnabled());
+}
+
+TEST(TrafficShapingManager, DisablingReservationsClearsEphemeralLimits)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+
+  ASSERT_TRUE(
+      manager.LoadPoliciesFromString("{\"appPolicies\":{\"reserved-app\":{"
+                                     "\"reservationWriteBytesPerSec\":300000000}}}"));
+
+  auto policy = manager.GetAppPolicy("reserved-app");
+  ASSERT_TRUE(policy.has_value());
+  policy->controller_limit_write_bytes_per_sec = 300000000;
+  manager.SetAppPolicy("reserved-app", *policy);
+
+  policy = manager.GetAppPolicy("reserved-app");
+  ASSERT_TRUE(policy.has_value());
+  ASSERT_EQ(300000000u, policy->controller_limit_write_bytes_per_sec);
+
+  manager.SetReservationsEnabled(false);
+
+  policy = manager.GetAppPolicy("reserved-app");
+  ASSERT_TRUE(policy.has_value());
+  ASSERT_EQ(300000000u, policy->reservation_write_bytes_per_sec);
+  ASSERT_EQ(0u, policy->controller_limit_write_bytes_per_sec);
+  ASSERT_EQ(0u, policy->controller_limit_read_bytes_per_sec);
+}
+
+TEST(TrafficShapingManager, EphemeralLimitsExpireWithoutHeartbeat)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+
+  ASSERT_TRUE(
+      manager.LoadPoliciesFromString("{\"appPolicies\":{\"reserved-app\":{"
+                                     "\"reservationWriteBytesPerSec\":300000000}}}"));
+
+  auto policy = manager.GetAppPolicy("reserved-app");
+  ASSERT_TRUE(policy.has_value());
+  policy->controller_limit_write_bytes_per_sec = 300000000;
+  manager.SetAppPolicy("reserved-app", *policy);
+
+  policy = manager.GetAppPolicy("reserved-app");
+  ASSERT_TRUE(policy.has_value());
+  ASSERT_EQ(300000000u, policy->controller_limit_write_bytes_per_sec);
+  ASSERT_NE(std::chrono::steady_clock::time_point{},
+            policy->controller_limit_write_update_time);
+
+  const auto heartbeat_time = policy->controller_limit_write_update_time;
+  ASSERT_EQ(0u,
+            manager.ExpireControllerLimits(heartbeat_time + std::chrono::seconds(299)));
+
+  policy = manager.GetAppPolicy("reserved-app");
+  ASSERT_TRUE(policy.has_value());
+  ASSERT_EQ(300000000u, policy->controller_limit_write_bytes_per_sec);
+
+  ASSERT_EQ(1u, manager.ExpireControllerLimits(heartbeat_time + std::chrono::minutes(5)));
+
+  policy = manager.GetAppPolicy("reserved-app");
+  ASSERT_TRUE(policy.has_value());
+  ASSERT_EQ(300000000u, policy->reservation_write_bytes_per_sec);
+  ASSERT_EQ(0u, policy->controller_limit_write_bytes_per_sec);
 }
 
 TEST(TrafficShapingManager, IdleDelaySeedIsKeptBeforeEntityTrafficIsSeen)
@@ -64,7 +153,7 @@ TEST(TrafficShapingManager, IdleDelaySeedIsKeptBeforeEntityTrafficIsSeen)
   for (int tick = 0; tick < 30; ++tick) {
     delay_us = eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
         limit_bps, 0.0, delay_us, 0.0, false, true);
-    ASSERT_EQ(1000000u, delay_us);
+    ASSERT_NEAR(1282051.0, static_cast<double>(delay_us), 1000.0);
   }
 }
 
@@ -93,7 +182,7 @@ TEST(TrafficShapingManager, IdleDelaySeedIsKeptForExplicitLimitAfterTrafficIsSee
   for (int tick = 0; tick < 30; ++tick) {
     delay_us = eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
         limit_bps, 0.0, delay_us, 0.0, true, false);
-    ASSERT_EQ(1000000u, delay_us);
+    ASSERT_NEAR(1282051.0, static_cast<double>(delay_us), 1000.0);
   }
 }
 
@@ -107,19 +196,19 @@ TEST(TrafficShapingManager, ExplicitLimitSlowlyReleasesHighDelayOnSparseSample)
           limit_bps, 0.0, current_delay_us, 1.0, true, false);
 
   ASSERT_LT(delay_us, current_delay_us);
-  ASSERT_GT(delay_us, 1000000u);
+  ASSERT_GT(delay_us, 1282051u);
 }
 
-TEST(TrafficShapingManager, DelaySeedAccountsForFstReservationFactor)
+TEST(TrafficShapingManager, DelaySeedAccountsForReferenceRate)
 {
   constexpr double limit_bps = 1024.0 * 1024.0;
-  constexpr double fst_reservation_factor = 4.0;
+  constexpr double delay_reference_bps = limit_bps * 4.0;
 
   const uint64_t delay_us =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          limit_bps, 0.0, 0, 1.0, false, false, limit_bps * fst_reservation_factor);
+          limit_bps, 0.0, 0, 1.0, false, false, delay_reference_bps);
 
-  ASSERT_NEAR(250000.0, static_cast<double>(delay_us), 1000.0);
+  ASSERT_NEAR(320512.0, static_cast<double>(delay_us), 1000.0);
 }
 
 TEST(TrafficShapingManager, GlobalRateSeedsDelayWhenNodeShardIsBelowLimit)
@@ -139,36 +228,32 @@ TEST(TrafficShapingManager, GlobalRateSeedsDelayWhenNodeShardIsBelowLimit)
   ASSERT_GT(global_delay, 0u);
 }
 
-TEST(TrafficShapingManager, DelaySeedScalesWithActiveNodeShare)
+TEST(TrafficShapingManager, DelaySeedScalesWithLowerReferenceRate)
 {
   constexpr double global_limit_bps = 200.0 * 1024.0 * 1024.0;
   constexpr double global_bps = 650.0 * 1024.0 * 1024.0;
-  constexpr double per_node_limit_bps = global_limit_bps / 16.0;
-  constexpr double fst_reservation_factor = 4.0;
+  constexpr double lower_reference_bps = global_limit_bps / 4.0;
 
   const uint64_t global_seed =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
           global_limit_bps, global_bps, 0, 1.0, true, false);
   const uint64_t per_node_seed =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          global_limit_bps, global_bps, 0, 1.0, true, false,
-          per_node_limit_bps * fst_reservation_factor);
+          global_limit_bps, global_bps, 0, 1.0, true, false, lower_reference_bps);
 
   ASSERT_GT(per_node_seed, global_seed);
-  ASSERT_NEAR(20000.0, static_cast<double>(per_node_seed), 1000.0);
+  ASSERT_NEAR(185641.0, static_cast<double>(per_node_seed), 1000.0);
 }
 
-TEST(TrafficShapingManager, AboveLimitKeepsActiveNodeDelaySeedFloor)
+TEST(TrafficShapingManager, AboveLimitKeepsReferenceDelaySeedFloor)
 {
   constexpr double global_limit_bps = 300.0 * 1000.0 * 1000.0;
   constexpr double global_bps = 1.2 * 1000.0 * 1000.0 * 1000.0;
-  constexpr double per_node_limit_bps = global_limit_bps / 15.0;
-  constexpr double fst_reservation_factor = 4.0;
+  constexpr double lower_reference_bps = global_limit_bps / 4.0;
 
   const uint64_t delay_us =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          global_limit_bps, global_bps, 5000, 1.0, true, false,
-          per_node_limit_bps * fst_reservation_factor);
+          global_limit_bps, global_bps, 5000, 1.0, true, false, lower_reference_bps);
 
   ASSERT_GT(delay_us, 12000u);
 }
@@ -178,15 +263,228 @@ TEST(TrafficShapingManager, NearTargetKeepsDelayStable)
   constexpr double limit_bps = 300.0 * 1000.0 * 1000.0;
   constexpr uint64_t current_delay_us = 120000;
 
+  constexpr double control_limit_bps = limit_bps * 0.78;
+
   const uint64_t slightly_low_delay =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          limit_bps, limit_bps * 0.97, current_delay_us, 1.0, true, false,
+          limit_bps, control_limit_bps * 0.97, current_delay_us, 1.0, true, false,
           limit_bps / 15.0);
   const uint64_t slightly_high_delay =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          limit_bps, limit_bps * 1.03, current_delay_us, 1.0, true, false,
+          limit_bps, control_limit_bps * 1.01, current_delay_us, 1.0, true, false,
           limit_bps / 15.0);
 
   ASSERT_EQ(current_delay_us, slightly_low_delay);
   ASSERT_EQ(current_delay_us, slightly_high_delay);
+}
+
+TEST(TrafficShapingManager, DefaultReservationControllerRequiresIoPressure)
+{
+  constexpr uint64_t reservation_bps = 300ULL * 1000ULL * 1000ULL;
+
+  eos::mgm::traffic_shaping::AppState app{};
+  app.reservation_write_bps = reservation_bps;
+  app.current_write_bps = 1.2 * 1000.0 * 1000.0 * 1000.0;
+
+  std::vector<eos::mgm::traffic_shaping::AppState> apps{app};
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+  ASSERT_FALSE(apps[0].update_write);
+
+  apps[0] = app;
+  apps[0].has_write_io_pressure = true;
+  apps[0].current_write_io_pressure = 0.0;
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+  ASSERT_FALSE(apps[0].update_write);
+
+  apps[0] = app;
+  apps[0].has_write_io_pressure = true;
+  apps[0].current_write_io_pressure = 0.02;
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+  ASSERT_FALSE(apps[0].update_write);
+}
+
+TEST(TrafficShapingManager, DefaultReservationControllerLimitsCompetitors)
+{
+  constexpr uint64_t reservation_bps = 1000ULL * 1000ULL * 1000ULL;
+  constexpr double reserved_rate_bps = 700.0 * 1000.0 * 1000.0;
+  constexpr double competitor_rate_bps = 700.0 * 1000.0 * 1000.0;
+
+  eos::mgm::traffic_shaping::AppState reserved_app{};
+  reserved_app.reservation_write_bps = reservation_bps;
+  reserved_app.current_write_bps = reserved_rate_bps;
+  reserved_app.has_write_io_pressure = true;
+  reserved_app.current_write_io_pressure = 0.5;
+
+  eos::mgm::traffic_shaping::AppState competitor{};
+  competitor.current_write_bps = competitor_rate_bps;
+  competitor.has_write_io_pressure = true;
+  competitor.current_write_io_pressure = 0.5;
+
+  std::vector<eos::mgm::traffic_shaping::AppState> apps{reserved_app, competitor};
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+
+  ASSERT_FALSE(apps[0].update_write);
+  ASSERT_TRUE(apps[1].update_write);
+  ASSERT_EQ(400ULL * 1000ULL * 1000ULL, apps[1].new_controller_limit_write_bps);
+}
+
+TEST(TrafficShapingManager,
+     DefaultReservationControllerDoesNotLimitCompetitorsWithoutPressure)
+{
+  constexpr uint64_t reservation_bps = 1000ULL * 1000ULL * 1000ULL;
+
+  eos::mgm::traffic_shaping::AppState reserved_app{};
+  reserved_app.reservation_write_bps = reservation_bps;
+  reserved_app.current_write_bps = 700.0 * 1000.0 * 1000.0;
+  reserved_app.has_write_io_pressure = true;
+  reserved_app.current_write_io_pressure = 0.0;
+
+  eos::mgm::traffic_shaping::AppState competitor{};
+  competitor.current_write_bps = 700.0 * 1000.0 * 1000.0;
+  competitor.controller_limit_write_bps = 400ULL * 1000ULL * 1000ULL;
+
+  std::vector<eos::mgm::traffic_shaping::AppState> apps{reserved_app, competitor};
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+
+  ASSERT_FALSE(apps[0].update_write);
+  ASSERT_TRUE(apps[1].update_write);
+  ASSERT_EQ(0u, apps[1].new_controller_limit_write_bps);
+}
+
+TEST(TrafficShapingManager, DefaultReservationControllerIgnoresSmallReservationDeficits)
+{
+  constexpr uint64_t reservation_bps = 1000ULL * 1000ULL * 1000ULL;
+
+  eos::mgm::traffic_shaping::AppState reserved_app{};
+  reserved_app.reservation_write_bps = reservation_bps;
+  reserved_app.current_write_bps = 970.0 * 1000.0 * 1000.0;
+  reserved_app.has_write_io_pressure = true;
+  reserved_app.current_write_io_pressure = 0.5;
+
+  eos::mgm::traffic_shaping::AppState competitor{};
+  competitor.current_write_bps = 700.0 * 1000.0 * 1000.0;
+  competitor.controller_limit_write_bps = 600ULL * 1000ULL * 1000ULL;
+
+  std::vector<eos::mgm::traffic_shaping::AppState> apps{reserved_app, competitor};
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+
+  ASSERT_FALSE(apps[0].update_write);
+  ASSERT_TRUE(apps[1].update_write);
+  ASSERT_EQ(0u, apps[1].new_controller_limit_write_bps);
+}
+
+TEST(TrafficShapingManager, DefaultReservationControllerCanBeDisabled)
+{
+  constexpr uint64_t reservation_bps = 300ULL * 1000ULL * 1000ULL;
+
+  eos::mgm::traffic_shaping::AppState app{};
+  app.reservation_write_bps = reservation_bps;
+  app.controller_limit_write_bps = reservation_bps;
+  app.has_write_io_pressure = true;
+  app.current_write_io_pressure = 0.5;
+
+  std::vector<eos::mgm::traffic_shaping::AppState> apps{app};
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps, false);
+
+  ASSERT_TRUE(apps[0].update_write);
+  ASSERT_EQ(0u, apps[0].new_controller_limit_write_bps);
+}
+
+TEST(TrafficShapingManager, DefaultReservationControllerClearsReservedAppLimit)
+{
+  constexpr uint64_t reservation_bps = 300ULL * 1000ULL * 1000ULL;
+
+  eos::mgm::traffic_shaping::AppState app{};
+  app.reservation_write_bps = reservation_bps;
+  app.controller_limit_write_bps = reservation_bps;
+  app.has_write_io_pressure = true;
+  app.current_write_io_pressure = 0.5;
+
+  std::vector<eos::mgm::traffic_shaping::AppState> apps{app};
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+
+  ASSERT_TRUE(apps[0].update_write);
+  ASSERT_EQ(0u, apps[0].new_controller_limit_write_bps);
+}
+
+TEST(TrafficShapingManager, DefaultReservationControllerClearsStaleLimits)
+{
+  constexpr uint64_t reservation_bps = 300ULL * 1000ULL * 1000ULL;
+
+  eos::mgm::traffic_shaping::AppState app{};
+  app.reservation_write_bps = reservation_bps;
+  app.controller_limit_write_bps = reservation_bps;
+  app.reservation_read_bps = reservation_bps;
+  app.controller_limit_read_bps = reservation_bps;
+
+  std::vector<eos::mgm::traffic_shaping::AppState> apps{app};
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+
+  ASSERT_TRUE(apps[0].update_write);
+  ASSERT_EQ(0u, apps[0].new_controller_limit_write_bps);
+  ASSERT_TRUE(apps[0].update_read);
+  ASSERT_EQ(0u, apps[0].new_controller_limit_read_bps);
+}
+
+TEST(TrafficShapingManager, DefaultReservationControllerHandlesReadReservations)
+{
+  constexpr uint64_t reservation_bps = 200ULL * 1000ULL * 1000ULL;
+
+  eos::mgm::traffic_shaping::AppState app{};
+  app.reservation_read_bps = reservation_bps;
+  app.current_read_bps = 600.0 * 1000.0 * 1000.0;
+  app.has_read_io_pressure = true;
+  app.current_read_io_pressure = 0.03;
+
+  std::vector<eos::mgm::traffic_shaping::AppState> apps{app};
+  eos::mgm::traffic_shaping::TrafficShapingManager::ApplyDefaultReservationController(
+      apps);
+
+  ASSERT_FALSE(apps[0].update_read);
+  ASSERT_FALSE(apps[0].update_write);
+}
+
+TEST(TrafficShapingManager, ExplicitLimitsArePublishedWithoutReservationPressure)
+{
+  eos::mgm::traffic_shaping::TrafficShapingPolicy policy;
+  policy.limit_write_bytes_per_sec = 100ULL * 1000ULL * 1000ULL;
+
+  ASSERT_TRUE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 0.0, 0.0, false, true, true));
+}
+
+TEST(TrafficShapingManager, EphemeralCompetitorLimitsNeedPressuredReservationNode)
+{
+  eos::mgm::traffic_shaping::TrafficShapingPolicy policy;
+  policy.controller_limit_write_bytes_per_sec = 100ULL * 1000ULL * 1000ULL;
+
+  ASSERT_FALSE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 500.0 * 1000.0 * 1000.0, 1.0, false, true, true));
+  ASSERT_TRUE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 500.0 * 1000.0 * 1000.0, 1.0, true, true, true));
+  ASSERT_FALSE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 500.0 * 1000.0 * 1000.0, 1.0, true, true, false));
+}
+
+TEST(TrafficShapingManager, ReservedAppEphemeralLimitRequiresLocalPressure)
+{
+  eos::mgm::traffic_shaping::TrafficShapingPolicy policy;
+  policy.reservation_write_bytes_per_sec = 300ULL * 1000ULL * 1000ULL;
+  policy.controller_limit_write_bytes_per_sec = 100ULL * 1000ULL * 1000ULL;
+
+  ASSERT_FALSE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 0.0, 1.0, true, true, true));
+  ASSERT_FALSE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 500.0 * 1000.0 * 1000.0, 0.0, true, true, true));
+  ASSERT_TRUE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 500.0 * 1000.0 * 1000.0, 1.0, false, true, true));
 }

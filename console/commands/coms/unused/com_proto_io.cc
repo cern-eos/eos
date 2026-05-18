@@ -33,6 +33,12 @@ extern int com_io(char*);
 
 void com_io_help();
 
+bool
+EnabledConfigValue(const std::string& value)
+{
+  return value == "enabled";
+}
+
 //------------------------------------------------------------------------------
 //! Class IoHelper
 //------------------------------------------------------------------------------
@@ -501,12 +507,16 @@ SetupConfigCommand(CLI::App* config_cmd, eos::console::IoProto_ShapingProto* pro
       config_cmd->add_subcommand("set", "Set shaping configuration parameters");
 
   // At least one of the parameters must be provided when using 'set'
-  set_cmd->require_option(1, 4);
+  set_cmd->require_option(1, 6);
 
   set_cmd->add_option("--estimators-period", "Estimators update thread period (ms)");
   set_cmd->add_option("--policy-period", "FST IO policy update thread period (ms)");
   set_cmd->add_option("--report-period", "FST IO stats reporting thread period (ms)");
   set_cmd->add_option("--system-window", "Time window for calculating system stats (s)");
+  set_cmd->add_option("--limits", "Limit enforcement toggle")
+      ->check(CLI::IsMember({"enabled", "disabled"}));
+  set_cmd->add_option("--reservations", "Reservation enforcement toggle")
+      ->check(CLI::IsMember({"enabled", "disabled"}));
 
   set_cmd->callback([set_cmd, proto]() {
     auto* action = proto->mutable_config()->mutable_set();
@@ -529,6 +539,16 @@ SetupConfigCommand(CLI::App* config_cmd, eos::console::IoProto_ShapingProto* pro
     if (set_cmd->count("--system-window")) {
       action->set_system_stats_time_window_seconds(
           set_cmd->get_option("--system-window")->as<uint32_t>());
+    }
+
+    if (set_cmd->count("--limits")) {
+      action->set_limits_enabled(
+          EnabledConfigValue(set_cmd->get_option("--limits")->as<std::string>()));
+    }
+
+    if (set_cmd->count("--reservations")) {
+      action->set_reservations_enabled(
+          EnabledConfigValue(set_cmd->get_option("--reservations")->as<std::string>()));
     }
   });
 }

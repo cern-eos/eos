@@ -27,8 +27,17 @@ namespace eos::mgm::traffic_shaping {
 
 extern "C" {
 // Function signatures for the hot-reloaded plugin
-typedef uint64_t (*DelayAlgoFunc)(double limit_bps, double current_rate_bps,
-                                  uint64_t current_delay_us);
+struct DelayState {
+  double limit_bps;
+  double current_rate_bps;
+  uint64_t current_delay_us;
+  double io_pressure;
+  bool has_rate_sample;
+  bool allow_idle_release;
+  double delay_reference_bps;
+};
+
+typedef uint64_t (*DelayAlgoFunc)(const DelayState* state);
 
 // A flat, simple struct containing all inputs and outputs for ONE app
 struct AppState {
@@ -37,16 +46,27 @@ struct AppState {
   // Inputs from MGM -> Plugin
   double current_read_bps;
   double current_write_bps;
+  // Max FST disk-load pressure on nodes where this app is currently active.
+  // The corresponding has_* flag is false when the app has no active IO sample,
+  // so reservation controllers should not create limits on its behalf.
+  double current_read_io_pressure;
+  double current_write_io_pressure;
   uint64_t reservation_write_bps;
   uint64_t reservation_read_bps;
   uint64_t controller_limit_write_bps;
   uint64_t controller_limit_read_bps;
+  bool has_read_io_pressure;
+  bool has_write_io_pressure;
 
   // Outputs from Plugin -> MGM
   uint64_t new_controller_limit_write_bps;
   uint64_t new_controller_limit_read_bps;
   bool update_write; // Set to true if the plugin wants to apply the new write limit
   bool update_read;  // Set to true if the plugin wants to apply the new read limit
+  uint64_t new_reservation_write_bps;
+  uint64_t new_reservation_read_bps;
+  bool update_reservation_write;
+  bool update_reservation_read;
 };
 
 // Pass the pure data array to avoid C++ ABI name mangling and linking issues
@@ -232,6 +252,8 @@ struct TrafficShapingPolicy {
   // --- Ephemeral Controller Configuration ---
   uint64_t controller_limit_write_bytes_per_sec = 0;
   uint64_t controller_limit_read_bytes_per_sec = 0;
+  std::chrono::steady_clock::time_point controller_limit_write_update_time{};
+  std::chrono::steady_clock::time_point controller_limit_read_update_time{};
 
   uint64_t GetEffectiveWriteLimit() const;
 
@@ -265,6 +287,18 @@ public:
   void SetPerFstDelaysEnabled(bool enabled);
 
   bool GetPerFstDelaysEnabled() const;
+
+  void SetLimitsEnabled(bool enabled);
+
+  bool GetLimitsEnabled() const;
+
+  void SetReservationsEnabled(bool enabled);
+
+  bool GetReservationsEnabled() const;
+
+  size_t ClearControllerLimits();
+
+  size_t ExpireControllerLimits(std::chrono::steady_clock::time_point now);
 
   void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
                          uint32_t window_seconds);
@@ -396,9 +430,19 @@ public:
                                    uint64_t current_delay_us, double io_pressure,
                                    bool has_rate_sample, bool allow_idle_release,
                                    double delay_reference_bps = 0.0);
+
+  static void ApplyDefaultReservationController(std::vector<AppState>& apps,
+                                                bool reservations_enabled = true);
+
+  static bool ShouldEmitDelayForPolicy(const TrafficShapingPolicy& policy, bool is_write,
+                                       double node_rate_bps, double io_pressure,
+                                       bool node_has_pressured_reservation,
+                                       bool limits_enabled, bool reservations_enabled);
 #ifdef IN_TEST_HARNESS
 private:
 #endif
+
+  size_t ClearControllerLimitsUnlocked();
 
   // --- Plugin Hot-Reload State ---
   void* mPluginHandle = nullptr;
@@ -410,6 +454,8 @@ private:
   void LoadPluginIfModified();
 
   std::atomic<bool> mPerFstDelaysEnabled{false};
+  std::atomic<bool> mLimitsEnabled{true};
+  std::atomic<bool> mReservationsEnabled{true};
 };
 
 class TrafficShapingEngine {
@@ -484,6 +530,14 @@ public:
 
   std::string GetDelayMode() const;
 
+  void SetLimitsEnabled(bool enabled);
+
+  bool GetLimitsEnabled() const;
+
+  void SetReservationsEnabled(bool enabled);
+
+  bool GetReservationsEnabled() const;
+
 #ifdef IN_TEST_HARNESS
 public:
 #else
@@ -516,6 +570,14 @@ private:
 
   static void StoreDelayModeConfig(const std::string& delay_mode);
 
+  bool ApplyLimitsEnabledConfig(bool enabled);
+
+  static void StoreLimitsEnabledConfig(bool enabled);
+
+  bool ApplyReservationsEnabledConfig(bool enabled);
+
+  static void StoreReservationsEnabledConfig(bool enabled);
+
   void EstimatorsUpdate(ThreadAssistant&);
 
   void FstIoPolicyUpdate(ThreadAssistant&) const;
@@ -542,6 +604,8 @@ private:
   std::atomic<uint32_t> mSystemStatsWindowSeconds{};
   std::atomic<bool> mFilesystemDetailEnabled{};
   std::atomic<bool> mPerFstDelaysEnabled{};
+  std::atomic<bool> mLimitsEnabled{true};
+  std::atomic<bool> mReservationsEnabled{true};
 
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
   std::mutex mReportQueueMutex{};
