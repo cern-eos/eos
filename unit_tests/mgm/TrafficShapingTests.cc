@@ -99,6 +99,51 @@ TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
   ASSERT_FALSE(manager.GetDetailedStats().empty());
 }
 
+TEST(TrafficShapingManager, MapCardinalityStatsTrackInternalMaps)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+
+  auto make_report = [](const std::string& node_id, const std::string& app,
+                        const uint32_t uid, const uint64_t total_bytes_written) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id(node_id);
+    auto* entry = report.add_entries();
+    entry->set_app_name(app);
+    entry->set_uid(uid);
+    entry->set_gid(2);
+    entry->set_fsid(3);
+    entry->set_generation_id(1);
+    entry->set_total_bytes_written(total_bytes_written);
+    entry->set_total_write_ops(total_bytes_written / 4096);
+    return report;
+  };
+
+  manager.ProcessReport(
+      make_report("/eos/fst-a.example:1095/fst", "cardinality-app-a", 1, 1024 * 1024));
+  manager.ProcessReport(make_report("/eos/fst-a.example:1095/fst", "cardinality-app-a", 1,
+                                    2 * 1024 * 1024));
+  manager.ProcessReport(
+      make_report("/eos/fst-b.example:1095/fst", "cardinality-app-b", 2, 1024 * 1024));
+
+  ASSERT_TRUE(manager.LoadPoliciesFromString(
+      "{\"appPolicies\":{\"cardinality-app-a\":{\"limitWriteBytesPerSec\":1000,"
+      "\"isEnabled\":true}},"
+      "\"uidPolicies\":{\"1\":{\"limitWriteBytesPerSec\":1000,\"isEnabled\":true}},"
+      "\"gidPolicies\":{\"2\":{\"limitWriteBytesPerSec\":1000,\"isEnabled\":true}}}"));
+
+  const auto stats = manager.GetMapCardinalityStats();
+  ASSERT_EQ(2u, stats.node_states);
+  ASSERT_EQ(2u, stats.node_state_streams);
+  ASSERT_EQ(1u, stats.global_stats);
+  ASSERT_EQ(1u, stats.node_stats);
+  ASSERT_EQ(1u, stats.node_entity_stats);
+  ASSERT_EQ(0u, stats.disk_stats);
+  ASSERT_EQ(0u, stats.detailed_stats);
+  ASSERT_EQ(1u, stats.app_policies);
+  ASSERT_EQ(1u, stats.uid_policies);
+  ASSERT_EQ(1u, stats.gid_policies);
+}
+
 TEST(TrafficShapingManager, DisablingReservationsClearsEphemeralLimits)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
