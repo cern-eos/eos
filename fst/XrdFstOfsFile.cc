@@ -892,52 +892,13 @@ XrdFstOfsFile::read(XrdSfsFileOffset fileOffset, char* buffer,
   }
 
   int64_t rc = 0;
-  if (shaping_delay_us == 0 || static_cast<uint64_t>(buffer_size) <=
-                                   eos::fst::traffic_shaping::kIoDelayReferenceBytes) {
-    if (shaping_delay_us > 0) {
-      const uint64_t reserved_delay_us = gOFS.mIoDelayConfig.ReserveReadDelayForAppUidGid(
-          vid, static_cast<uint64_t>(buffer_size));
-      std::this_thread::sleep_for(std::chrono::microseconds(reserved_delay_us));
-    }
+  if (shaping_delay_us > 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
+  }
 
-    rc = mLayout->Read(fileOffset, buffer, buffer_size);
-    if (rc > 0) {
-      gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rc);
-    }
-  } else {
-    uint64_t total_read_shaped = 0;
-
-    while (total_read_shaped < static_cast<uint64_t>(buffer_size)) {
-      const uint64_t chunk_size =
-          std::min<uint64_t>(eos::fst::traffic_shaping::kIoDelayReferenceBytes,
-                             static_cast<uint64_t>(buffer_size) - total_read_shaped);
-      const uint64_t chunk_delay_us =
-          gOFS.mIoDelayConfig.ReserveReadDelayForAppUidGid(vid, chunk_size);
-
-      if (chunk_delay_us > 0) {
-        std::this_thread::sleep_for(std::chrono::microseconds(chunk_delay_us));
-      }
-
-      const int64_t chunk_rc =
-          mLayout->Read(fileOffset + total_read_shaped, buffer + total_read_shaped,
-                        static_cast<XrdSfsXferSize>(chunk_size));
-
-      if (chunk_rc > 0) {
-        gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, chunk_rc);
-        total_read_shaped += static_cast<uint64_t>(chunk_rc);
-
-        if (static_cast<uint64_t>(chunk_rc) < chunk_size) {
-          break;
-        }
-      } else {
-        rc = chunk_rc;
-        break;
-      }
-    }
-
-    if (total_read_shaped > 0) {
-      rc = static_cast<int64_t>(total_read_shaped);
-    }
+  rc = mLayout->Read(fileOffset, buffer, buffer_size);
+  if (rc > 0) {
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rc);
   }
   eos_debug("layout read %lli checkSum %d", static_cast<long long>(rc),
             mChecksumGroup ? nullptr : mChecksumGroup->GetDefault());
@@ -1072,61 +1033,13 @@ XrdFstOfsFile::readv(XrdOucIOVec* readV, int readCount)
   const uint64_t shaping_delay_us =
       gOFS.mIoDelayConfig.GetReadDelayForAppUidGid(vid, total_read);
   int64_t rv = 0;
-  if (shaping_delay_us == 0 ||
-      total_read <= eos::fst::traffic_shaping::kIoDelayReferenceBytes) {
-    if (shaping_delay_us > 0) {
-      const uint64_t reserved_delay_us =
-          gOFS.mIoDelayConfig.ReserveReadDelayForAppUidGid(vid, total_read);
-      std::this_thread::sleep_for(std::chrono::microseconds(reserved_delay_us));
-    }
+  if (shaping_delay_us > 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
+  }
 
-    rv = mLayout->ReadV(chunkList, total_read);
-    if (rv > 0) {
-      gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rv);
-    }
-  } else {
-    uint64_t total_read_shaped = 0;
-    bool stop_reading = false;
-
-    for (int i = 0; i < readCount && !stop_reading; ++i) {
-      uint64_t chunk_offset = 0;
-
-      while (chunk_offset < static_cast<uint64_t>(readV[i].size)) {
-        const uint64_t chunk_size =
-            std::min<uint64_t>(eos::fst::traffic_shaping::kIoDelayReferenceBytes,
-                               static_cast<uint64_t>(readV[i].size) - chunk_offset);
-        const uint64_t chunk_delay_us =
-            gOFS.mIoDelayConfig.ReserveReadDelayForAppUidGid(vid, chunk_size);
-
-        if (chunk_delay_us > 0) {
-          std::this_thread::sleep_for(std::chrono::microseconds(chunk_delay_us));
-        }
-
-        const int64_t chunk_rc =
-            mLayout->Read(static_cast<XrdSfsFileOffset>(readV[i].offset + chunk_offset),
-                          static_cast<char*>(readV[i].data) + chunk_offset,
-                          static_cast<XrdSfsXferSize>(chunk_size));
-
-        if (chunk_rc > 0) {
-          gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, chunk_rc);
-          total_read_shaped += static_cast<uint64_t>(chunk_rc);
-          chunk_offset += static_cast<uint64_t>(chunk_rc);
-
-          if (static_cast<uint64_t>(chunk_rc) < chunk_size) {
-            stop_reading = true;
-            break;
-          }
-        } else {
-          rv = chunk_rc;
-          stop_reading = true;
-          break;
-        }
-      }
-    }
-
-    if (total_read_shaped > 0) {
-      rv = static_cast<int64_t>(total_read_shaped);
-    }
+  rv = mLayout->ReadV(chunkList, total_read);
+  if (rv > 0) {
+    gOFS.mIoStatsCollector.RecordRead(vid.app, vid.uid, vid.gid, mFsId, rv);
   }
   totalBytes += rv;
 
@@ -1239,54 +1152,13 @@ XrdFstOfsFile::write(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   int64_t rc = 0;
-  if (shaping_delay_us == 0 || static_cast<uint64_t>(buffer_size) <=
-                                   eos::fst::traffic_shaping::kIoDelayReferenceBytes) {
-    if (shaping_delay_us > 0) {
-      const uint64_t reserved_delay_us =
-          gOFS.mIoDelayConfig.ReserveWriteDelayForAppUidGid(
-              vid, static_cast<uint64_t>(buffer_size));
-      std::this_thread::sleep_for(std::chrono::microseconds(reserved_delay_us));
-    }
+  if (shaping_delay_us > 0) {
+    std::this_thread::sleep_for(std::chrono::microseconds(shaping_delay_us));
+  }
 
-    rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
-    if (rc > 0) {
-      gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, mFsId, rc);
-    }
-  } else {
-    uint64_t total_written_shaped = 0;
-
-    while (total_written_shaped < static_cast<uint64_t>(buffer_size)) {
-      const uint64_t chunk_size =
-          std::min<uint64_t>(eos::fst::traffic_shaping::kIoDelayReferenceBytes,
-                             static_cast<uint64_t>(buffer_size) - total_written_shaped);
-      const uint64_t chunk_delay_us =
-          gOFS.mIoDelayConfig.ReserveWriteDelayForAppUidGid(vid, chunk_size);
-
-      if (chunk_delay_us > 0) {
-        std::this_thread::sleep_for(std::chrono::microseconds(chunk_delay_us));
-      }
-
-      const int64_t chunk_rc =
-          mLayout->Write(fileOffset + total_written_shaped,
-                         const_cast<char*>(buffer) + total_written_shaped,
-                         static_cast<XrdSfsXferSize>(chunk_size));
-
-      if (chunk_rc > 0) {
-        gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, mFsId, chunk_rc);
-        total_written_shaped += static_cast<uint64_t>(chunk_rc);
-
-        if (static_cast<uint64_t>(chunk_rc) < chunk_size) {
-          break;
-        }
-      } else {
-        rc = chunk_rc;
-        break;
-      }
-    }
-
-    if (total_written_shaped > 0) {
-      rc = static_cast<int64_t>(total_written_shaped);
-    }
+  rc = mLayout->Write(fileOffset, const_cast<char*>(buffer), buffer_size);
+  if (rc > 0) {
+    gOFS.mIoStatsCollector.RecordWrite(vid.app, vid.uid, vid.gid, mFsId, rc);
   }
   eos_debug("rc=%lli offset=%lu size=%lu", static_cast<long long>(rc), fileOffset,
             static_cast<unsigned long>(buffer_size));
