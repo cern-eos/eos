@@ -3104,15 +3104,22 @@ Server::OpSetLink(const std::string& id,
 
     struct timespec pt_mtime;
 
-    pcmd->setMTime(ctime);
+    // Stamp the parent with the symlink's mtime (matching OpSetFile and
+    // OpDeleteLink), and propagate the change up the tree so that ttime
+    // on ancestor containers is bumped — without notifyMTimeChange()
+    // 'eos.ttime' on any ancestor would not reflect symlink
+    // create/update/rename/move, breaking tree-mtime change detection.
+    pcmd->setMTime(mtime);
 
-    pt_mtime.tv_sec = ctime.tv_sec;
+    pt_mtime.tv_sec = mtime.tv_sec;
 
-    pt_mtime.tv_nsec = ctime.tv_nsec;
+    pt_mtime.tv_nsec = mtime.tv_nsec;
 
     gOFS->eosFileService->updateStore(fmd.get());
 
     gOFS->eosDirectoryService->updateStore(pcmd.get());
+
+    pcmd->notifyMTimeChange(gOFS->eosDirectoryService);
 
     // release the namespace lock before serialization/broadcasting
     lock.Release();
