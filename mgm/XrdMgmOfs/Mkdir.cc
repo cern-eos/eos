@@ -136,6 +136,24 @@ XrdMgmOfs::_mkdir(const char* path,
     if (dir) {
       uid_t d_uid = dir->getCUid();
       gid_t d_gid = dir->getCGid();
+
+      // Populate attrmap from the parent directory BEFORE
+      // attr::checkDirOwner(). Acl(path,...) below would fill the map
+      // via _attr_ls(), but checkDirOwner has to be evaluated FIRST so
+      // a keyed 'prot:key' match can rewrite vid before the ACL/POSIX
+      // checks run. listAttributes() matches the data view that
+      // Acl(path,...) would otherwise produce (with linked-attribute
+      // evaluation); the Acl ctor will refresh the map afterwards.
+      eos::listAttributes(gOFS->eosView, dir.get(), attrmap);
+
+      // sys.owner.auth: for a keyed 'prot:key' match checkDirOwner()
+      // rewrites vid to (d_uid, d_gid) BEFORE the ACL and POSIX checks so
+      // the client can act as the directory owner — same ordering as
+      // XrdMgmOfsFile::open. The sticky '*' case is applied AFTER the
+      // perm check (ownership-only semantics).
+      bool sticky_owner = false;
+      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
+
       // ACL and permission check
       Acl acl(cPath.GetParentPath(), error, vid, attrmap);
       eos_info("path=%s acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
@@ -174,11 +192,10 @@ XrdMgmOfs::_mkdir(const char* path,
 	}
       }
 
-      // Check for sys.owner.auth entries, which let users operate as
-      // the owner of the directory
-      bool sticky_owner = false;
-      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
-
+      // sticky '*' form: vid was intentionally not rewritten by
+      // checkDirOwner() above so the perm check ran as the caller; now
+      // rewrite vid so the newly-created directory inherits the parent's
+      // owner uid/gid (ownership-only semantics).
       if (sticky_owner) {
         eos_info("msg=\"client acting as directory owner\" path=\"%s\" "
                  "uid=\"%u=>%u\" gid=\"%u=>%u\"", path, vid.uid,
@@ -256,6 +273,18 @@ XrdMgmOfs::_mkdir(const char* path,
         return Emsg(epname, error, ENODATA, "create directory", cPath.GetSubPath(i));
       }
 
+      // Populate attrmap from the first existing ancestor BEFORE
+      // attr::checkDirOwner(); see the corresponding block in the
+      // non-recursive branch above for the rationale.
+      eos::listAttributes(gOFS->eosView, dir.get(), attrmap);
+
+      // sys.owner.auth: same ordering as the simple branch (and as
+      // XrdMgmOfsFile::open) — keyed 'prot:key' rewrites vid here so the
+      // ACL/POSIX checks below see the directory owner; sticky '*' is
+      // applied after the perm check (ownership-only semantics).
+      bool sticky_owner = false;
+      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
+
       // ACL and permission check
       Acl acl(found_path.c_str(), error, vid, attrmap);
       eos_info("path=\"%s\" acl=%d r=%d w=%d wo=%d egroup=%d mutable=%d",
@@ -290,11 +319,9 @@ XrdMgmOfs::_mkdir(const char* path,
 	}
       }
 
-      // Check for sys.owner.auth entries, which let users operate as
-      // the owner of the directory
-      bool sticky_owner = false;
-      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
-
+      // sticky '*' form: rewrite vid AFTER the perm check so the newly-
+      // created directory inherits the parent's owner uid/gid
+      // (ownership-only semantics).
       if (sticky_owner) {
         eos_info("msg=\"client acting as directory owner\" path=\"%s\" "
                  "uid=\"%u=>%u\" gid=\"%u=>%u\"", found_path.c_str(),

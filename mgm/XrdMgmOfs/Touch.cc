@@ -220,10 +220,37 @@ XrdMgmOfs::_touch(const char* path,
         lock.Grab(gOFS->eosViewRWMutex);
         fmd = gOFS->eosView->getFile(path);
       } else {
+        // No-layout path: apply sys.owner.auth ownership stamp.
+        // _access() above already ran checkDirOwner for keyed 'prot:key'
+        // matches (rewriting vid before the W_OK check). For the sticky
+        // '*' form only the ownership stamp is applied here — access was
+        // already decided as the caller inside _access().
+        {
+          eos::common::Path touchPath(path);
+          try {
+            auto pcmd = gOFS->eosView->getContainer(touchPath.GetParentPath());
+            uid_t d_uid = pcmd->getCUid();
+            gid_t d_gid = pcmd->getCGid();
+            eos::IContainerMD::XAttrMap touch_attrmap;
+            eos::listAttributes(gOFS->eosView, pcmd.get(), touch_attrmap);
+            bool sticky_owner = false;
+            attr::checkDirOwner(touch_attrmap, d_uid, d_gid, vid,
+                                sticky_owner, path);
+            if (sticky_owner) {
+              vid.uid = d_uid;
+              vid.gid = d_gid;
+            }
+          } catch (eos::MDException& e) {
+            eos_debug("msg=\"exception\" ec=%d emsg=\"%s\"\n",
+                      e.getErrno(), e.getMessage().str().c_str());
+          }
+        }
         fmd = gOFS->eosView->createFile(path, vid.uid, vid.gid);
       }
 
-      // get the file
+      // Stamp ownership using vid, which open() (useLayout path) or the
+      // checkDirOwner blocks above (-n path / _access) may have rewritten
+      // to the directory owner via sys.owner.auth.
       fmd->setCUid(vid.uid);
       fmd->setCGid(vid.gid);
       fmd->setCTimeNow();

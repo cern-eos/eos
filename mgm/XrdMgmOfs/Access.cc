@@ -115,6 +115,20 @@ XrdMgmOfs::_access(const char* path, int mode, XrdOucErrInfo& error,
       attr_path = pPath.GetParentPath();
     }
 
+    // Honor sys.owner.auth BEFORE the ACL/POSIX checks so a keyed
+    // 'prot:key' match can satisfy W_OK/R_OK as the directory owner
+    // (same ordering as XrdMgmOfsFile::open and _mkdir). The sticky
+    // '*' form intentionally does NOT rewrite vid here — _access only
+    // decides permission, not new-entry ownership.
+    {
+      uid_t d_uid = dh->getCUid();
+      gid_t d_gid = dh->getCGid();
+      eos::listAttributes(gOFS->eosView, dh.get(), attrmap);
+      bool sticky_owner = false;
+      attr::checkDirOwner(attrmap, d_uid, d_gid, vid, sticky_owner, path);
+      (void) sticky_owner;
+    }
+
     // ACL and permission check
     Acl acl(attr_path.c_str(), error, vid, attrmap);
 

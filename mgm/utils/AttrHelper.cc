@@ -20,6 +20,9 @@ checkDirOwner(const eos::IContainerMD::XAttrMap& attrmap, uid_t d_uid,
   if (auto kv = attrmap.find(SYS_OWNER_AUTH);
       kv != attrmap.end()) {
     if (kv->second == "*") {
+      eos_static_info("msg=\"client authenticated as directory owner (sticky '*')\" "
+                      "path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
+                      path, vid.uid, vid.gid, d_uid, d_gid);
       sticky_owner = true;
     } else {
       std::string ownerkey = vid.prot.c_str();
@@ -31,8 +34,22 @@ checkDirOwner(const eos::IContainerMD::XAttrMap& attrmap, uid_t d_uid,
         ownerkey += vid.uid_string;
       }
 
-      if (kv->second.find(ownerkey) != std::string::npos) {
-        eos_static_info("msg=\"client authenticated as directory owner\" path=\"%s\"uid=\"%u=>%u\" gid=\"%u=>%u\"",
+      // Anchor the match with ',' separators so that a partial prefix in the
+      // comma-separated list cannot match a longer key (e.g. attribute value
+      // 'krb5:alice123' must NOT match an ownerkey 'krb5:alice').
+      std::string haystack;
+      haystack.reserve(kv->second.size() + 2);
+      haystack.append(1, ',');
+      haystack.append(kv->second);
+      haystack.append(1, ',');
+      std::string needle;
+      needle.reserve(ownerkey.size() + 2);
+      needle.append(1, ',');
+      needle.append(ownerkey);
+      needle.append(1, ',');
+
+      if (haystack.find(needle) != std::string::npos) {
+        eos_static_info("msg=\"client authenticated as directory owner\" path=\"%s\" uid=\"%u=>%u\" gid=\"%u=>%u\"",
                         path, vid.uid, vid.gid, d_uid, d_gid);
         // yes the client can operate as the owner, we rewrite the virtual
         // identity to the directory uid/gid pair
