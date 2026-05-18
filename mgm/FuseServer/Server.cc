@@ -23,6 +23,7 @@
 
 #include "mgm/FuseServer/Server.hh"
 #include "mgm/misc/Constants.hh"
+#include "mgm/utils/AttrHelper.hh"
 #include "mgm/acl/Acl.hh"
 #include "mgm/policy/Policy.hh"
 #include "mgm/quota/Quota.hh"
@@ -602,6 +603,35 @@ Server::FillContainerCAP(uint64_t id,
               (uid_t) dir.uid(), dir.name().c_str());
   }
 
+  // ---------------------------------------------------------------------------
+  // Honor sys.owner.auth BEFORE the cap mode/ACLs are computed so that a
+  // client authenticated as the directory owner (keyed 'prot:key' form)
+  // inherits the owner's permissions — same semantics as
+  // attr::checkDirOwner() used in XrdMgmOfsFile::open.
+  //
+  // Note: the sticky '*' form intentionally does NOT rewrite eff_vid here.
+  // Mirroring XrdMgmOfsFile::open and _mkdir, '*' only affects the
+  // ownership stamp of new entries (cap.uid/gid below), never the
+  // permission decision (cap mode / ACL evaluation).
+  //
+  // We work on a local copy of vid because FillContainerCAP is called in a
+  // loop during directory listings, and the caller's vid must not be
+  // perturbed across iterations.
+  // ---------------------------------------------------------------------------
+  eos::common::VirtualIdentity eff_vid = vid;
+  bool sticky_owner = false;
+  {
+    eos::IContainerMD::XAttrMap xattrs;
+
+    for (const auto& kv : dir.attr()) {
+      xattrs[kv.first] = kv.second;
+    }
+
+    eos::mgm::attr::checkDirOwner(xattrs, (uid_t) dir.uid(),
+                                  (gid_t) dir.gid(), eff_vid, sticky_owner,
+                                  dir.fullpath().c_str());
+  }
+
   struct timespec ts;
 
   eos::common::Timing::GetTimeSpec(ts, true);
@@ -637,18 +667,19 @@ Server::FillContainerCAP(uint64_t id,
 
   mode_t mode = dir.mode() & S_IFDIR;
 
-  // define the permissions
-  if (vid.uid == 0) {
+  // define the permissions (use eff_vid so sys.owner.auth impersonation is
+  // honored at the same point as in attr::checkDirOwner-aware code paths)
+  if (eff_vid.uid == 0) {
     // grant all permissions
     dir.mutable_capability()->set_mode(0xff | mode);
   } else {
-    if (!vid.token) {
-      if (vid.sudoer) {
+    if (!eff_vid.token) {
+      if (eff_vid.sudoer) {
         mode |= C_OK | M_OK | U_OK | W_OK | D_OK | SA_OK | SU_OK
                 ; // chown + chmod permission + all the rest
       }
 
-      if (vid.uid == (uid_t) dir.uid()) {
+      if (eff_vid.uid == (uid_t) dir.uid()) {
         // we don't apply a mask if we are the owner
         if (dir.mode() & S_IRUSR) {
           mode |= R_OK | M_OK | SU_OK;
@@ -665,11 +696,11 @@ Server::FillContainerCAP(uint64_t id,
 
       bool same_group = false;
 
-      if (vid.gid == (gid_t) dir.gid()) {
+      if (eff_vid.gid == (gid_t) dir.gid()) {
         same_group = true;
       } else {
         if (eos::common::Mapping::gSecondaryGroups) {
-          if (vid.allowed_gids.count(dir.gid())) {
+          if (eff_vid.allowed_gids.count(dir.gid())) {
             same_group = true;
           }
         }
@@ -717,20 +748,20 @@ Server::FillContainerCAP(uint64_t id,
     if (EOS_LOGS_DEBUG) {
       std::string tokenDump;
 
-      if (vid.token) {
-        vid.token->Dump(tokenDump, true, false);
+      if (eff_vid.token) {
+        eff_vid.token->Dump(tokenDump, true, false);
       }
 
       eos_debug("token='%s' scope='%s'", tokenDump.c_str(), dir.fullpath().c_str());
     }
 
-    if (sysacl.length() || useracl.length() || vid.token) {
+    if (sysacl.length() || useracl.length() || eff_vid.token) {
       bool evaluseracl = (!S_ISDIR(dir.mode())) ||
                          dir.attr().count("sys.eval.useracl") > 0;
-      vid.scope = dir.fullpath();
+      eff_vid.scope = dir.fullpath();
       Acl acl(sysacl,
               useracl,
-              vid,
+              eff_vid,
               evaluseracl);
 
       if (EOS_LOGS_DEBUG)
@@ -775,7 +806,7 @@ Server::FillContainerCAP(uint64_t id,
         }
 
         // the owner can always delete
-        if ((vid.uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
+        if ((eff_vid.uid != (uid_t) dir.uid()) && acl.CanNotDelete()) {
           mode &= ~D_OK;
         }
       } else {
@@ -795,7 +826,7 @@ Server::FillContainerCAP(uint64_t id,
       }
     }
 
-    if (!gOFS->allow_public_access(dir.fullpath().c_str(), vid)) {
+    if (!gOFS->allow_public_access(dir.fullpath().c_str(), eff_vid)) {
       eos_debug("msg=\"no public access\" path=\"%s\"", dir.fullpath().c_str());
       mode = dir.mode() & S_IFDIR;
       mode |= X_OK;
@@ -804,40 +835,19 @@ Server::FillContainerCAP(uint64_t id,
     dir.mutable_capability()->set_mode(mode);
   }
 
-  std::string ownerauth = (*(dir.mutable_attr()))["sys.owner.auth"];
-
-  // define new target owner
-  if (ownerauth.length()) {
-    if (ownerauth == "*") {
-      // sticky ownership for everybody
-      dir.mutable_capability()->set_uid(dir.uid());
-      dir.mutable_capability()->set_gid(dir.gid());
-    } else {
-      ownerauth += ",";
-      std::string ownerkey = vid.prot.c_str();
-      std::string prot = vid.prot.c_str();
-      ownerkey += ":";
-
-      if (prot == "gsi") {
-        ownerkey += vid.dn.c_str();
-      } else {
-        ownerkey += vid.uid_string.c_str();
-      }
-
-      if ((ownerauth.find(ownerkey)) != std::string::npos) {
-        // sticky ownership for this authentication
-        dir.mutable_capability()->set_uid(dir.uid());
-        dir.mutable_capability()->set_gid(dir.gid());
-      } else {
-        // no sticky ownership for this authentication
-        dir.mutable_capability()->set_uid(vid.uid);
-        dir.mutable_capability()->set_gid(vid.gid);
-      }
-    }
+  // Stamp cap.uid/gid honouring sys.owner.auth:
+  //  - keyed 'prot:key' match: checkDirOwner() already rewrote eff_vid to
+  //    (dir.uid(), dir.gid()); reuse those values here;
+  //  - sticky '*' form: eff_vid was intentionally NOT rewritten (so the
+  //    cap mode above stays evaluated as the caller), but the new-entry
+  //    ownership stamp MUST still be the directory owner;
+  //  - no attribute: use the caller's identity.
+  if (sticky_owner) {
+    dir.mutable_capability()->set_uid(dir.uid());
+    dir.mutable_capability()->set_gid(dir.gid());
   } else {
-    // no sticky ownership
-    dir.mutable_capability()->set_uid(vid.uid);
-    dir.mutable_capability()->set_gid(vid.gid);
+    dir.mutable_capability()->set_uid(eff_vid.uid);
+    dir.mutable_capability()->set_gid(eff_vid.gid);
   }
 
   dir.mutable_capability()->set_authid(reuse_uuid.length() ?
