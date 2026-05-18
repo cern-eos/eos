@@ -65,6 +65,25 @@ TEST(TrafficShapingEngine, LimitAndReservationTogglesPropagateToManager)
   ASSERT_TRUE(manager->GetReservationsEnabled());
 }
 
+TEST(TrafficShapingEngine, GarbageCollectionIdleConfigIsClamped)
+{
+  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
+
+  ASSERT_FALSE(engine.ApplyGarbageCollectionIdleSecondsConfig(
+      eos::mgm::traffic_shaping::kDefaultGarbageCollectionIdleSec));
+  ASSERT_EQ(eos::mgm::traffic_shaping::kDefaultGarbageCollectionIdleSec,
+            engine.GetGarbageCollectionIdleSeconds());
+
+  ASSERT_TRUE(engine.ApplyGarbageCollectionIdleSecondsConfig(0));
+  ASSERT_EQ(eos::mgm::traffic_shaping::kMinGarbageCollectionIdleSec,
+            engine.GetGarbageCollectionIdleSeconds());
+
+  ASSERT_TRUE(engine.ApplyGarbageCollectionIdleSecondsConfig(
+      eos::mgm::traffic_shaping::kMaxGarbageCollectionIdleSec + 1));
+  ASSERT_EQ(eos::mgm::traffic_shaping::kMaxGarbageCollectionIdleSec,
+            engine.GetGarbageCollectionIdleSeconds());
+}
+
 TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
