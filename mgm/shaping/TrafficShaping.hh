@@ -35,6 +35,7 @@ struct DelayState {
   bool has_rate_sample;
   bool allow_idle_release;
   double delay_reference_bps;
+  double io_pressure_threshold;
 };
 
 typedef uint64_t (*DelayAlgoFunc)(const DelayState* state);
@@ -55,8 +56,12 @@ struct AppState {
   uint64_t reservation_read_bps;
   uint64_t controller_limit_write_bps;
   uint64_t controller_limit_read_bps;
+  uint64_t controller_min_limit_bps;
+  double io_pressure_threshold;
   bool has_read_io_pressure;
   bool has_write_io_pressure;
+  bool has_read_reservation_competition;
+  bool has_write_reservation_competition;
 
   // Outputs from Plugin -> MGM
   uint64_t new_controller_limit_write_bps;
@@ -91,6 +96,38 @@ struct RateMetrics {
   double write_iops = 0.0;
 };
 
+struct AppIoPressureSnapshot {
+  double read = 0.0;
+  double write = 0.0;
+  bool has_read = false;
+  bool has_write = false;
+};
+
+struct AppNodeIoPressureSnapshot {
+  std::string app;
+  std::string node_id;
+  double node_io_pressure = 0.0;
+  double read_rate_bps = 0.0;
+  double write_rate_bps = 0.0;
+  double global_read_rate_bps = 0.0;
+  double global_write_rate_bps = 0.0;
+  double read_reservation_deficit_bps = 0.0;
+  double write_reservation_deficit_bps = 0.0;
+  uint64_t reservation_read_bytes_per_sec = 0;
+  uint64_t reservation_write_bytes_per_sec = 0;
+  bool has_node_io_pressure = false;
+  bool has_read_io_pressure = false;
+  bool has_write_io_pressure = false;
+  bool read_pressure_active = false;
+  bool write_pressure_active = false;
+  bool read_reservation_deficit_active = false;
+  bool write_reservation_deficit_active = false;
+  bool read_triggers_competitor_throttling = false;
+  bool write_triggers_competitor_throttling = false;
+  bool node_has_pressured_read_reservation = false;
+  bool node_has_pressured_write_reservation = false;
+};
+
 constexpr std::array<int, 2> EmaWindowSec = {1, 5};
 constexpr std::array<int, 5> SmaWindowSec = {1, 5, 15, 60, 300};
 
@@ -102,6 +139,8 @@ constexpr uint32_t kMinThreadPeriodMs = 50;
 constexpr uint32_t kMaxThreadPeriodMs = 3000;
 constexpr uint32_t kMinSystemStatsWindowSec = 5;
 constexpr uint32_t kMaxSystemStatsWindowSec = 300;
+constexpr uint64_t kDefaultControllerMinLimitBps = 100ULL * 1000ULL * 1000ULL;
+constexpr double kDefaultIoPressureThreshold = 0.1;
 
 struct MultiWindowRate {
   double tick_interval_seconds;
@@ -296,6 +335,14 @@ public:
 
   bool GetReservationsEnabled() const;
 
+  void SetControllerMinLimit(uint64_t limit_bps);
+
+  uint64_t GetControllerMinLimit() const;
+
+  void SetIoPressureThreshold(double threshold);
+
+  double GetIoPressureThreshold() const;
+
   size_t ClearControllerLimits();
 
   size_t ExpireControllerLimits(std::chrono::steady_clock::time_point now);
@@ -378,6 +425,10 @@ public:
              std::unordered_map<uint32_t, double>>    // gid write
   GetCurrentReadAndWriteRates() const;
 
+  std::unordered_map<std::string, AppIoPressureSnapshot> GetReservedAppIoPressure() const;
+
+  std::vector<AppNodeIoPressureSnapshot> GetReservedAppNodeIoPressure() const;
+
   void Clear();
 
   void ClearRuntimeStats();
@@ -426,18 +477,23 @@ public:
   static double CalculateEma(double current_val, double prev_ema, double alpha);
 
   // Calculates the new FST delay microsecond value given the current rate and limit
-  static uint64_t CalculateDelayUs(double limit_bps, double current_rate_bps,
-                                   uint64_t current_delay_us, double io_pressure,
-                                   bool has_rate_sample, bool allow_idle_release,
-                                   double delay_reference_bps = 0.0);
+  static uint64_t
+  CalculateDelayUs(double limit_bps, double current_rate_bps, uint64_t current_delay_us,
+                   double io_pressure, bool has_rate_sample, bool allow_idle_release,
+                   double delay_reference_bps = 0.0,
+                   double io_pressure_threshold = kDefaultIoPressureThreshold);
 
-  static void ApplyDefaultReservationController(std::vector<AppState>& apps,
-                                                bool reservations_enabled = true);
+  static void ApplyDefaultReservationController(
+      std::vector<AppState>& apps, bool reservations_enabled = true,
+      uint64_t controller_min_limit_bps = kDefaultControllerMinLimitBps,
+      double io_pressure_threshold = kDefaultIoPressureThreshold);
 
-  static bool ShouldEmitDelayForPolicy(const TrafficShapingPolicy& policy, bool is_write,
-                                       double node_rate_bps, double io_pressure,
-                                       bool node_has_pressured_reservation,
-                                       bool limits_enabled, bool reservations_enabled);
+  static bool
+  ShouldEmitDelayForPolicy(const TrafficShapingPolicy& policy, bool is_write,
+                           double node_rate_bps, double io_pressure,
+                           bool node_has_pressured_reservation, bool limits_enabled,
+                           bool reservations_enabled,
+                           double io_pressure_threshold = kDefaultIoPressureThreshold);
 #ifdef IN_TEST_HARNESS
 private:
 #endif
@@ -456,6 +512,8 @@ private:
   std::atomic<bool> mPerFstDelaysEnabled{false};
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
+  std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
+  std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
 };
 
 class TrafficShapingEngine {
@@ -538,6 +596,14 @@ public:
 
   bool GetReservationsEnabled() const;
 
+  void SetControllerMinLimit(uint64_t limit_bps);
+
+  uint64_t GetControllerMinLimit() const;
+
+  void SetIoPressureThreshold(double threshold);
+
+  double GetIoPressureThreshold() const;
+
 #ifdef IN_TEST_HARNESS
 public:
 #else
@@ -578,6 +644,14 @@ private:
 
   static void StoreReservationsEnabledConfig(bool enabled);
 
+  bool ApplyControllerMinLimitConfig(uint64_t limit_bps);
+
+  static void StoreControllerMinLimitConfig(uint64_t limit_bps);
+
+  bool ApplyIoPressureThresholdConfig(double threshold);
+
+  static void StoreIoPressureThresholdConfig(double threshold);
+
   void EstimatorsUpdate(ThreadAssistant&);
 
   void FstIoPolicyUpdate(ThreadAssistant&) const;
@@ -606,6 +680,8 @@ private:
   std::atomic<bool> mPerFstDelaysEnabled{};
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
+  std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
+  std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
 
   std::vector<eos::traffic_shaping::FstIoReport> mReportQueue{};
   std::mutex mReportQueueMutex{};
