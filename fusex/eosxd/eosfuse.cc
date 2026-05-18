@@ -6094,6 +6094,29 @@ EosFuse::getxattr(fuse_req_t req, fuse_ino_t ino, const char* xattr_name,
         }
       } else if (!rc) {
         md = Instance().mds.get(req, ino);
+
+        // For tree-aggregate xattr queries on directories ('eos.ttime',
+        // 'eos.tsize'), force a fresh fetch from the MGM so the returned
+        // value reflects any updates that may not yet have been
+        // broadcast to this client (e.g. a child modification was just
+        // committed on the MGM side and the updated container MD has
+        // not yet reached us). Without this, eos.ttime/eos.tsize would
+        // return whatever the local cache last received, which can be
+        // stale by up to one broadcast cycle. The refresh is restricted
+        // to directories because on regular files eos.ttime returns
+        // the file's own mtime and eos.tsize returns the file size,
+        // both of which the standard cap/broadcast machinery already
+        // keeps consistent.
+        if ((key == "eos.ttime" || key == "eos.tsize") &&
+            md && (*md)()->id() && !md->deleted() &&
+            S_ISDIR((*md)()->mode())) {
+          {
+            XrdSysMutexHelper refreshLock(md->Locker());
+            md->force_refresh();
+          }
+          md = Instance().mds.get(req, ino);
+        }
+
         XrdSysMutexHelper mLock(md->Locker());
 
         if (!(*md)()->id() || md->deleted()) {
