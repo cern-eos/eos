@@ -715,9 +715,9 @@ Storage::SendTrafficShapingStats(ThreadAssistant& assistant) noexcept
 
   int loop_counter = 0;
 
-  // FstHostPort is set once at startup, so the node id is stable for the
-  // lifetime of this thread; capture it once to avoid touching gConfig per loop.
-  const std::string node_id = gConfig.FstHostPort.c_str();
+  // FstHostPort is set once at startup, so the FsView node queue is stable for
+  // the lifetime of this thread; capture it once to avoid touching gConfig per loop.
+  const std::string node_id = SSTR("/eos/" << gConfig.FstHostPort << "/fst");
 
   while (!assistant.terminationRequested()) {
     std::chrono::milliseconds reportInterval =
