@@ -107,9 +107,6 @@ static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG =
     "traffic_shaping::detail_level";
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE = "aggregate";
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM = "fs";
-static constexpr auto TRAFFIC_SHAPING_DELAY_MODE_CONFIG = "traffic_shaping::delay_mode";
-static constexpr auto TRAFFIC_SHAPING_DELAY_MODE_GLOBAL = "global";
-static constexpr auto TRAFFIC_SHAPING_DELAY_MODE_FST = "fst";
 static constexpr auto TRAFFIC_SHAPING_LIMITS_ENABLED_CONFIG =
     "traffic_shaping::limits_enabled";
 static constexpr auto TRAFFIC_SHAPING_RESERVATIONS_ENABLED_CONFIG =

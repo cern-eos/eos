@@ -26,6 +26,9 @@ constexpr double kActiveEntityNodeRateBps = 1024.0 * 1024.0;
 constexpr double kMinReservationDeficitFraction = 0.05;
 constexpr double kMinReservationDeficitBps = 16.0 * 1024.0 * 1024.0;
 constexpr auto kControllerLimitTtl = std::chrono::minutes(5);
+constexpr auto kControllerUpdateInterval = std::chrono::milliseconds(500);
+constexpr auto kFstIoDelayConfigRefreshInterval = std::chrono::seconds(5);
+constexpr auto kPluginCheckInterval = std::chrono::seconds(1);
 
 template <typename DelayMap, typename Key>
 void
@@ -214,6 +217,12 @@ TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
                                            mEstimatorsTickIntervalSec);
   fst_limits_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
                                            fst_policy_period_ms * 0.001);
+}
+
+void
+TrafficShapingManager::SetFilesystemDetailEnabled(const bool enabled)
+{
+  mFilesystemDetailEnabled.store(enabled, std::memory_order_relaxed);
 }
 
 double
@@ -488,7 +497,7 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
       AddDeltas(node_entity, delta_bytes_read, delta_bytes_written, delta_read_iops,
                 delta_write_iops, now_unix);
 
-      if (entry.fsid() != 0) {
+      if (mFilesystemDetailEnabled.load(std::memory_order_relaxed) && entry.fsid() != 0) {
         DetailedKey detailed_key{node_id, key};
         auto [detailed_it, detailed_inserted] =
             mDetailedStats.try_emplace(detailed_key, mEstimatorsTickIntervalSec);
@@ -842,11 +851,9 @@ TrafficShapingManager::ShouldEmitDelayForPolicy(
 }
 
 void
-TrafficShapingManager::UpdateTrafficShapingController()
+TrafficShapingManager::UpdateTrafficShapingController(
+    const std::unordered_map<std::string, double>& node_io_pressure)
 {
-  std::shared_lock read_lock(mPluginMutex);
-
-  auto* controller_algo = mCustomControllerAlgo;
   const bool limits_enabled = GetLimitsEnabled();
   const bool reservations_enabled = GetReservationsEnabled();
   const uint64_t controller_min_limit_bps = GetControllerMinLimit();
@@ -861,7 +868,6 @@ TrafficShapingManager::UpdateTrafficShapingController()
   auto rates = GetCurrentReadAndWriteRates();
   auto& app_read_map = std::get<0>(rates);
   auto& app_write_map = std::get<1>(rates);
-  const auto node_io_pressure = CollectNodeIoPressure();
   std::unordered_map<std::string, AppIoPressureSnapshot> app_io_pressure;
 
   for (const auto& [app, _] : app_read_map) {
@@ -1030,14 +1036,26 @@ TrafficShapingManager::UpdateTrafficShapingController()
 
   // 3. Let the hot-reloaded plugin update controller state, or fall back to the
   // built-in reservation controller.
+  bool used_custom_controller = false;
   if (!limits_enabled || !reservations_enabled) {
     ApplyDefaultReservationController(app_array, false, controller_min_limit_bps,
                                       io_pressure_threshold);
-  } else if (controller_algo) {
-    controller_algo(app_array.data(), app_array.size());
   } else {
-    ApplyDefaultReservationController(app_array, true, controller_min_limit_bps,
-                                      io_pressure_threshold);
+    // Keep the plugin lock scoped to the actual callback. Applying the resulting
+    // policy updates can persist config, so it must not run while holding the
+    // hot-reload lock.
+    {
+      std::shared_lock read_lock(mPluginMutex);
+      if (mCustomControllerAlgo) {
+        mCustomControllerAlgo(app_array.data(), app_array.size());
+        used_custom_controller = true;
+      }
+    }
+
+    if (!used_custom_controller) {
+      ApplyDefaultReservationController(app_array, true, controller_min_limit_bps,
+                                        io_pressure_threshold);
+    }
   }
 
   // 4. Read the results back and apply them
@@ -1090,7 +1108,7 @@ TrafficShapingManager::UpdateTrafficShapingController()
                         "source=\"%s\" app=\"%s\" "
                         "controller_limit_write_bps=%lu controller_limit_read_bps=%lu "
                         "reservation_write_bps=%lu reservation_read_bps=%lu",
-                        controller_algo ? "plugin" : "default", st.app_name,
+                        used_custom_controller ? "plugin" : "default", st.app_name,
                         policy.controller_limit_write_bytes_per_sec,
                         policy.controller_limit_read_bytes_per_sec,
                         policy.reservation_write_bytes_per_sec,
@@ -1098,24 +1116,6 @@ TrafficShapingManager::UpdateTrafficShapingController()
       }
     }
   }
-}
-
-void
-TrafficShapingManager::SetPerFstDelaysEnabled(const bool enabled)
-{
-  const bool old_value =
-      mPerFstDelaysEnabled.exchange(enabled, std::memory_order_relaxed);
-
-  if (old_value != enabled) {
-    std::unique_lock lock(mMutex);
-    mNodeFstIoDelayConfigs.clear();
-  }
-}
-
-bool
-TrafficShapingManager::GetPerFstDelaysEnabled() const
-{
-  return mPerFstDelaysEnabled.load(std::memory_order_relaxed);
 }
 
 void
@@ -1304,7 +1304,9 @@ TrafficShapingManager::ExpireControllerLimits(
 }
 
 void
-TrafficShapingManager::UpdateLimits()
+TrafficShapingManager::UpdateLimits(
+    const std::unordered_map<std::string, double>& node_io_pressure,
+    const std::vector<std::string>& online_nodes)
 {
   // 1. Evaluate hot-reload status at the start of every tick
   LoadPluginIfModified();
@@ -1353,14 +1355,12 @@ TrafficShapingManager::UpdateLimits()
     eos_static_debug(
         "msg=\"throttle evaluation\" node=\"%s\" type=\"%s\" id=\"%s\" op=\"%s\" "
         "limit_bps=%.0f global_rate_bps=%.0f node_rate_bps=%.0f ratio=%.3f "
-        "delay_mode=\"%s\" active_nodes=%zu control_limit_bps=%.0f "
-        "control_rate_bps=%.0f delay_reference_bps=%.0f "
-        "io_pressure=%.3f "
+        "active_nodes=%zu control_limit_bps=%.0f control_rate_bps=%.0f "
+        "delay_reference_bps=%.0f io_pressure=%.3f "
         "allow_idle_release=%d old_delay_us=%lu new_delay_us=%lu",
         node_id.c_str(), entity_type, entity_id.c_str(), op_type, limit_bps, global_rate,
-        node_rate, ratio, eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, size_t{1},
-        control_limit_bps, control_rate_bps, delay_reference_bps, io_pressure,
-        allow_idle_release, old_delay, delay_us);
+        node_rate, ratio, size_t{1}, control_limit_bps, control_rate_bps,
+        delay_reference_bps, io_pressure, allow_idle_release, old_delay, delay_us);
   };
 
   // Helper lambda to do a single-pass map lookup
@@ -1393,9 +1393,6 @@ TrafficShapingManager::UpdateLimits()
     return user_limit > 0 ? user_limit : controller_limit;
   };
 
-  std::vector<std::string> online_nodes;
-  const auto node_io_pressure = CollectNodeIoPressure(&online_nodes);
-
   auto get_pressure = [&](const std::string& node_id) {
     if (auto it = node_io_pressure.find(node_id); it != node_io_pressure.end()) {
       return it->second;
@@ -1409,56 +1406,6 @@ TrafficShapingManager::UpdateLimits()
   {
     std::unique_lock lock(mMutex);
 
-    std::unordered_map<std::string, EntityRateMaps> node_rates;
-    for (const auto& [node_entity_key, stats] : mNodeEntityStats) {
-      AddStreamRates(node_rates[node_entity_key.node_id], node_entity_key.stream,
-                     stats.ema[Ema1s]);
-    }
-
-    // Policies are global for an app/uid/gid. Each FST follows the aggregate
-    // feedback loop and receives the same delay for a matching policy.
-    EntityRateMaps global_rates;
-    for (const auto& [key, stats] : mGlobalStats) {
-      AddStreamRates(global_rates, key, stats.ema[Ema1s]);
-    }
-
-    auto has_pressured_app_reservation =
-        [&](const EntityRateMaps& rates, const bool is_write, const double io_pressure) {
-          if (!reservations_enabled || io_pressure < io_pressure_threshold) {
-            return false;
-          }
-
-          for (const auto& [app, policy] : mAppPolicies) {
-            const uint64_t reservation_bps = is_write
-                                                 ? policy.reservation_write_bytes_per_sec
-                                                 : policy.reservation_read_bytes_per_sec;
-            if (reservation_bps == 0) {
-              continue;
-            }
-
-            const auto [global_rate_bps, _] =
-                get_rate(is_write ? global_rates.app_write : global_rates.app_read, app);
-            const auto [node_rate_bps, has_node_rate_sample] =
-                get_rate(is_write ? rates.app_write : rates.app_read, app);
-
-            if (!has_node_rate_sample || node_rate_bps < kActiveEntityNodeRateBps) {
-              continue;
-            }
-
-            const double reserved_deficit_bps =
-                std::max(0.0, static_cast<double>(reservation_bps) - global_rate_bps);
-            const double min_meaningful_deficit_bps =
-                std::max(kMinReservationDeficitBps, static_cast<double>(reservation_bps) *
-                                                        kMinReservationDeficitFraction);
-
-            if (reserved_deficit_bps >= min_meaningful_deficit_bps) {
-              return true;
-            }
-          }
-
-          return false;
-        };
-
     std::set<std::string> online_node_set(online_nodes.begin(), online_nodes.end());
     for (auto it = mNodeFstIoDelayConfigs.begin(); it != mNodeFstIoDelayConfigs.end();) {
       if (online_node_set.find(it->first) == online_node_set.end()) {
@@ -1468,145 +1415,224 @@ TrafficShapingManager::UpdateLimits()
       }
     }
 
-    for (const auto& node_id : online_nodes) {
-      const EntityRateMaps& rates = node_rates[node_id];
-      const double io_pressure = get_pressure(node_id);
-      const bool node_has_pressured_write_reservation =
-          has_pressured_app_reservation(rates, true, io_pressure);
-      const bool node_has_pressured_read_reservation =
-          has_pressured_app_reservation(rates, false, io_pressure);
-      auto& previous_config = mNodeFstIoDelayConfigs[node_id];
-      eos::traffic_shaping::TrafficShapingFstIoDelayConfig next_config;
-
-      auto* app_write_map = next_config.mutable_app_write_delay();
-      auto* app_read_map = next_config.mutable_app_read_delay();
-      auto* uid_write_map = next_config.mutable_uid_write_delay();
-      auto* uid_read_map = next_config.mutable_uid_read_delay();
-      auto* gid_write_map = next_config.mutable_gid_write_delay();
-      auto* gid_read_map = next_config.mutable_gid_read_delay();
-
-      for (const auto& [app, policy] : mAppPolicies) {
-        if (!policy.IsActive()) {
-          eos_static_debug(
-              "msg=\"skipping inactive policy\" node=\"%s\" type=\"app\" id=\"%s\"",
-              node_id.c_str(), app.c_str());
-          continue;
-        }
-
-        const auto [global_write_rate, has_global_write_rate] =
-            get_rate(global_rates.app_write, app);
-        const auto [node_write_rate, has_node_write_rate] =
-            get_rate(rates.app_write, app);
-        const bool allow_write_idle_release =
-            !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
-        if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
-                                     node_has_pressured_write_reservation, limits_enabled,
-                                     reservations_enabled, io_pressure_threshold)) {
-          adjust_delay(static_cast<double>(effective_limit(policy, true)),
-                       global_write_rate, node_write_rate, has_global_write_rate,
-                       has_node_write_rate, allow_write_idle_release,
-                       (*previous_config.mutable_app_write_delay())[app], app_write_map,
-                       app, node_id, "app", app, "write", io_pressure);
-        }
-
-        const auto [global_read_rate, has_global_read_rate] =
-            get_rate(global_rates.app_read, app);
-        const auto [node_read_rate, has_node_read_rate] = get_rate(rates.app_read, app);
-        const bool allow_read_idle_release =
-            !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
-        if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
-                                     node_has_pressured_read_reservation, limits_enabled,
-                                     reservations_enabled, io_pressure_threshold)) {
-          adjust_delay(static_cast<double>(effective_limit(policy, false)),
-                       global_read_rate, node_read_rate, has_global_read_rate,
-                       has_node_read_rate, allow_read_idle_release,
-                       (*previous_config.mutable_app_read_delay())[app], app_read_map,
-                       app, node_id, "app", app, "read", io_pressure);
+    auto has_active_policy = [](const auto& policies) {
+      for (const auto& [id, policy] : policies) {
+        if (policy.IsActive()) {
+          return true;
         }
       }
 
-      for (const auto& [uid, policy] : mUidPolicies) {
-        if (!policy.IsActive()) {
-          eos_static_debug(
-              "msg=\"skipping inactive policy\" node=\"%s\" type=\"uid\" id=\"%u\"",
-              node_id.c_str(), uid);
-          continue;
-        }
+      return false;
+    };
 
-        const auto [global_write_rate, has_global_write_rate] =
-            get_rate(global_rates.uid_write, uid);
-        const auto [node_write_rate, has_node_write_rate] =
-            get_rate(rates.uid_write, uid);
-        const bool allow_write_idle_release =
-            !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
-        if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
-                                     node_has_pressured_write_reservation, limits_enabled,
-                                     reservations_enabled, io_pressure_threshold)) {
-          adjust_delay(static_cast<double>(effective_limit(policy, true)),
-                       global_write_rate, node_write_rate, has_global_write_rate,
-                       has_node_write_rate, allow_write_idle_release,
-                       (*previous_config.mutable_uid_write_delay())[uid], uid_write_map,
-                       uid, node_id, "uid", std::to_string(uid), "write", io_pressure);
-        }
+    const bool has_active_policies = has_active_policy(mAppPolicies) ||
+                                     has_active_policy(mUidPolicies) ||
+                                     has_active_policy(mGidPolicies);
 
-        const auto [global_read_rate, has_global_read_rate] =
-            get_rate(global_rates.uid_read, uid);
-        const auto [node_read_rate, has_node_read_rate] = get_rate(rates.uid_read, uid);
-        const bool allow_read_idle_release =
-            !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
-        if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
-                                     node_has_pressured_read_reservation, limits_enabled,
-                                     reservations_enabled, io_pressure_threshold)) {
-          adjust_delay(static_cast<double>(effective_limit(policy, false)),
-                       global_read_rate, node_read_rate, has_global_read_rate,
-                       has_node_read_rate, allow_read_idle_release,
-                       (*previous_config.mutable_uid_read_delay())[uid], uid_read_map,
-                       uid, node_id, "uid", std::to_string(uid), "read", io_pressure);
-        }
+    if (!has_active_policies) {
+      for (const auto& node_id : online_nodes) {
+        mNodeFstIoDelayConfigs[node_id].Clear();
+        fst_io_delay_configs[node_id] =
+            eos::traffic_shaping::TrafficShapingFstIoDelayConfig{};
+      }
+    } else {
+      std::unordered_map<std::string, EntityRateMaps> node_rates;
+      for (const auto& [node_entity_key, stats] : mNodeEntityStats) {
+        AddStreamRates(node_rates[node_entity_key.node_id], node_entity_key.stream,
+                       stats.ema[Ema1s]);
       }
 
-      for (const auto& [gid, policy] : mGidPolicies) {
-        if (!policy.IsActive()) {
-          eos_static_debug(
-              "msg=\"skipping inactive policy\" node=\"%s\" type=\"gid\" id=\"%u\"",
-              node_id.c_str(), gid);
-          continue;
-        }
-
-        const auto [global_write_rate, has_global_write_rate] =
-            get_rate(global_rates.gid_write, gid);
-        const auto [node_write_rate, has_node_write_rate] =
-            get_rate(rates.gid_write, gid);
-        const bool allow_write_idle_release =
-            !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
-        if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
-                                     node_has_pressured_write_reservation, limits_enabled,
-                                     reservations_enabled, io_pressure_threshold)) {
-          adjust_delay(static_cast<double>(effective_limit(policy, true)),
-                       global_write_rate, node_write_rate, has_global_write_rate,
-                       has_node_write_rate, allow_write_idle_release,
-                       (*previous_config.mutable_gid_write_delay())[gid], gid_write_map,
-                       gid, node_id, "gid", std::to_string(gid), "write", io_pressure);
-        }
-
-        const auto [global_read_rate, has_global_read_rate] =
-            get_rate(global_rates.gid_read, gid);
-        const auto [node_read_rate, has_node_read_rate] = get_rate(rates.gid_read, gid);
-        const bool allow_read_idle_release =
-            !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
-        if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
-                                     node_has_pressured_read_reservation, limits_enabled,
-                                     reservations_enabled, io_pressure_threshold)) {
-          adjust_delay(static_cast<double>(effective_limit(policy, false)),
-                       global_read_rate, node_read_rate, has_global_read_rate,
-                       has_node_read_rate, allow_read_idle_release,
-                       (*previous_config.mutable_gid_read_delay())[gid], gid_read_map,
-                       gid, node_id, "gid", std::to_string(gid), "read", io_pressure);
-        }
+      // Policies are global for an app/uid/gid. Each FST follows the aggregate
+      // feedback loop and receives the same delay for a matching policy.
+      EntityRateMaps global_rates;
+      for (const auto& [key, stats] : mGlobalStats) {
+        AddStreamRates(global_rates, key, stats.ema[Ema1s]);
       }
 
-      previous_config = next_config;
-      fst_io_delay_configs[node_id] = std::move(next_config);
+      auto has_pressured_app_reservation = [&](const EntityRateMaps& rates,
+                                               const bool is_write,
+                                               const double io_pressure) {
+        if (!reservations_enabled || io_pressure < io_pressure_threshold) {
+          return false;
+        }
+
+        for (const auto& [app, policy] : mAppPolicies) {
+          const uint64_t reservation_bps = is_write
+                                               ? policy.reservation_write_bytes_per_sec
+                                               : policy.reservation_read_bytes_per_sec;
+          if (reservation_bps == 0) {
+            continue;
+          }
+
+          const auto [global_rate_bps, _] =
+              get_rate(is_write ? global_rates.app_write : global_rates.app_read, app);
+          const auto [node_rate_bps, has_node_rate_sample] =
+              get_rate(is_write ? rates.app_write : rates.app_read, app);
+
+          if (!has_node_rate_sample || node_rate_bps < kActiveEntityNodeRateBps) {
+            continue;
+          }
+
+          const double reserved_deficit_bps =
+              std::max(0.0, static_cast<double>(reservation_bps) - global_rate_bps);
+          const double min_meaningful_deficit_bps =
+              std::max(kMinReservationDeficitBps, static_cast<double>(reservation_bps) *
+                                                      kMinReservationDeficitFraction);
+
+          if (reserved_deficit_bps >= min_meaningful_deficit_bps) {
+            return true;
+          }
+        }
+
+        return false;
+      };
+
+      for (const auto& node_id : online_nodes) {
+        const EntityRateMaps& rates = node_rates[node_id];
+        const double io_pressure = get_pressure(node_id);
+        const bool node_has_pressured_write_reservation =
+            has_pressured_app_reservation(rates, true, io_pressure);
+        const bool node_has_pressured_read_reservation =
+            has_pressured_app_reservation(rates, false, io_pressure);
+        auto& previous_config = mNodeFstIoDelayConfigs[node_id];
+        eos::traffic_shaping::TrafficShapingFstIoDelayConfig next_config;
+
+        auto* app_write_map = next_config.mutable_app_write_delay();
+        auto* app_read_map = next_config.mutable_app_read_delay();
+        auto* uid_write_map = next_config.mutable_uid_write_delay();
+        auto* uid_read_map = next_config.mutable_uid_read_delay();
+        auto* gid_write_map = next_config.mutable_gid_write_delay();
+        auto* gid_read_map = next_config.mutable_gid_read_delay();
+
+        for (const auto& [app, policy] : mAppPolicies) {
+          if (!policy.IsActive()) {
+            eos_static_debug(
+                "msg=\"skipping inactive policy\" node=\"%s\" type=\"app\" id=\"%s\"",
+                node_id.c_str(), app.c_str());
+            continue;
+          }
+
+          const auto [global_write_rate, has_global_write_rate] =
+              get_rate(global_rates.app_write, app);
+          const auto [node_write_rate, has_node_write_rate] =
+              get_rate(rates.app_write, app);
+          const bool allow_write_idle_release =
+              !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
+          if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
+                                       node_has_pressured_write_reservation,
+                                       limits_enabled, reservations_enabled,
+                                       io_pressure_threshold)) {
+            adjust_delay(static_cast<double>(effective_limit(policy, true)),
+                         global_write_rate, node_write_rate, has_global_write_rate,
+                         has_node_write_rate, allow_write_idle_release,
+                         (*previous_config.mutable_app_write_delay())[app], app_write_map,
+                         app, node_id, "app", app, "write", io_pressure);
+          }
+
+          const auto [global_read_rate, has_global_read_rate] =
+              get_rate(global_rates.app_read, app);
+          const auto [node_read_rate, has_node_read_rate] = get_rate(rates.app_read, app);
+          const bool allow_read_idle_release =
+              !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
+          if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
+                                       node_has_pressured_read_reservation,
+                                       limits_enabled, reservations_enabled,
+                                       io_pressure_threshold)) {
+            adjust_delay(static_cast<double>(effective_limit(policy, false)),
+                         global_read_rate, node_read_rate, has_global_read_rate,
+                         has_node_read_rate, allow_read_idle_release,
+                         (*previous_config.mutable_app_read_delay())[app], app_read_map,
+                         app, node_id, "app", app, "read", io_pressure);
+          }
+        }
+
+        for (const auto& [uid, policy] : mUidPolicies) {
+          if (!policy.IsActive()) {
+            eos_static_debug(
+                "msg=\"skipping inactive policy\" node=\"%s\" type=\"uid\" id=\"%u\"",
+                node_id.c_str(), uid);
+            continue;
+          }
+
+          const auto [global_write_rate, has_global_write_rate] =
+              get_rate(global_rates.uid_write, uid);
+          const auto [node_write_rate, has_node_write_rate] =
+              get_rate(rates.uid_write, uid);
+          const bool allow_write_idle_release =
+              !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
+          if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
+                                       node_has_pressured_write_reservation,
+                                       limits_enabled, reservations_enabled,
+                                       io_pressure_threshold)) {
+            adjust_delay(static_cast<double>(effective_limit(policy, true)),
+                         global_write_rate, node_write_rate, has_global_write_rate,
+                         has_node_write_rate, allow_write_idle_release,
+                         (*previous_config.mutable_uid_write_delay())[uid], uid_write_map,
+                         uid, node_id, "uid", std::to_string(uid), "write", io_pressure);
+          }
+
+          const auto [global_read_rate, has_global_read_rate] =
+              get_rate(global_rates.uid_read, uid);
+          const auto [node_read_rate, has_node_read_rate] = get_rate(rates.uid_read, uid);
+          const bool allow_read_idle_release =
+              !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
+          if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
+                                       node_has_pressured_read_reservation,
+                                       limits_enabled, reservations_enabled,
+                                       io_pressure_threshold)) {
+            adjust_delay(static_cast<double>(effective_limit(policy, false)),
+                         global_read_rate, node_read_rate, has_global_read_rate,
+                         has_node_read_rate, allow_read_idle_release,
+                         (*previous_config.mutable_uid_read_delay())[uid], uid_read_map,
+                         uid, node_id, "uid", std::to_string(uid), "read", io_pressure);
+          }
+        }
+
+        for (const auto& [gid, policy] : mGidPolicies) {
+          if (!policy.IsActive()) {
+            eos_static_debug(
+                "msg=\"skipping inactive policy\" node=\"%s\" type=\"gid\" id=\"%u\"",
+                node_id.c_str(), gid);
+            continue;
+          }
+
+          const auto [global_write_rate, has_global_write_rate] =
+              get_rate(global_rates.gid_write, gid);
+          const auto [node_write_rate, has_node_write_rate] =
+              get_rate(rates.gid_write, gid);
+          const bool allow_write_idle_release =
+              !(policy.is_enabled && policy.limit_write_bytes_per_sec > 0);
+          if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
+                                       node_has_pressured_write_reservation,
+                                       limits_enabled, reservations_enabled,
+                                       io_pressure_threshold)) {
+            adjust_delay(static_cast<double>(effective_limit(policy, true)),
+                         global_write_rate, node_write_rate, has_global_write_rate,
+                         has_node_write_rate, allow_write_idle_release,
+                         (*previous_config.mutable_gid_write_delay())[gid], gid_write_map,
+                         gid, node_id, "gid", std::to_string(gid), "write", io_pressure);
+          }
+
+          const auto [global_read_rate, has_global_read_rate] =
+              get_rate(global_rates.gid_read, gid);
+          const auto [node_read_rate, has_node_read_rate] = get_rate(rates.gid_read, gid);
+          const bool allow_read_idle_release =
+              !(policy.is_enabled && policy.limit_read_bytes_per_sec > 0);
+          if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
+                                       node_has_pressured_read_reservation,
+                                       limits_enabled, reservations_enabled,
+                                       io_pressure_threshold)) {
+            adjust_delay(static_cast<double>(effective_limit(policy, false)),
+                         global_read_rate, node_read_rate, has_global_read_rate,
+                         has_node_read_rate, allow_read_idle_release,
+                         (*previous_config.mutable_gid_read_delay())[gid], gid_read_map,
+                         gid, node_id, "gid", std::to_string(gid), "read", io_pressure);
+          }
+        }
+
+        previous_config = next_config;
+        fst_io_delay_configs[node_id] = std::move(next_config);
+      }
     }
   }
 
@@ -1627,14 +1653,53 @@ TrafficShapingManager::UpdateLimits()
     encoded_configs.emplace_back(node_name, std::move(encoded));
   }
 
+  const auto now = std::chrono::steady_clock::now();
+  std::vector<std::pair<std::string, std::string>> configs_to_publish;
   {
-    eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+    std::unique_lock lock(mMutex);
+    std::set<std::string> online_node_set(online_nodes.begin(), online_nodes.end());
+    for (auto it = mPublishedFstIoDelayConfigs.begin();
+         it != mPublishedFstIoDelayConfigs.end();) {
+      if (online_node_set.find(it->first) == online_node_set.end()) {
+        it = mPublishedFstIoDelayConfigs.erase(it);
+      } else {
+        ++it;
+      }
+    }
+
     for (const auto& [node_name, encoded] : encoded_configs) {
+      auto& published = mPublishedFstIoDelayConfigs[node_name];
+      const bool config_changed = published.encoded_config != encoded;
+      const bool refresh_due =
+          published.last_publish_time == std::chrono::steady_clock::time_point{} ||
+          now - published.last_publish_time >= kFstIoDelayConfigRefreshInterval;
+
+      if (config_changed || refresh_due) {
+        configs_to_publish.emplace_back(node_name, encoded);
+      }
+    }
+  }
+
+  std::vector<std::pair<std::string, std::string>> published_configs;
+  if (!configs_to_publish.empty()) {
+    eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
+    for (const auto& [node_name, encoded] : configs_to_publish) {
       auto it = FsView::gFsView.mNodeView.find(node_name);
       if (it != FsView::gFsView.mNodeView.end()) {
-        it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS, encoded,
-                                    true);
+        if (it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_IO_LIMITS,
+                                        encoded, true)) {
+          published_configs.emplace_back(node_name, encoded);
+        }
       }
+    }
+  }
+
+  if (!published_configs.empty()) {
+    std::unique_lock lock(mMutex);
+    for (const auto& [node_name, encoded] : published_configs) {
+      auto& published = mPublishedFstIoDelayConfigs[node_name];
+      published.encoded_config = encoded;
+      published.last_publish_time = now;
     }
   }
 }
@@ -1880,6 +1945,8 @@ TrafficShapingManager::Clear()
   mDetailedStats.clear();
   mNodeEntityStats.clear();
   mTotalStats.clear();
+  mNodeFstIoDelayConfigs.clear();
+  mPublishedFstIoDelayConfigs.clear();
 
   estimators_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
@@ -1891,6 +1958,7 @@ TrafficShapingManager::Clear()
     mCustomAlgo = nullptr;
     mCustomControllerAlgo = nullptr;
     mPluginLastModified = 0;
+    mNextPluginCheckTime = {};
   }
 }
 
@@ -1935,7 +2003,6 @@ TrafficShapingEngine::TrafficShapingEngine()
           eos::common::TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS)
     , mSystemStatsWindowSeconds(15)
     , mFilesystemDetailEnabled(false)
-    , mPerFstDelaysEnabled(false)
     , mLimitsEnabled(true)
     , mReservationsEnabled(true)
     , mControllerMinLimitBps(kDefaultControllerMinLimitBps)
@@ -2058,6 +2125,8 @@ TrafficShapingEngine::ApplyDetailLevelConfig(const std::string& detail_level)
       mFilesystemDetailEnabled.exchange(fs_detail, std::memory_order_relaxed);
 
   if (mManager != nullptr) {
+    mManager->SetFilesystemDetailEnabled(fs_detail);
+
     if (old_value != fs_detail) {
       mManager->ClearRuntimeStats();
     } else if (!fs_detail) {
@@ -2082,47 +2151,6 @@ TrafficShapingEngine::GetDetailLevel() const
   return mFilesystemDetailEnabled.load(std::memory_order_relaxed)
              ? eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM
              : eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE;
-}
-
-void
-TrafficShapingEngine::SetDelayMode(const std::string& delay_mode)
-{
-  ApplyDelayModeConfig(delay_mode);
-  StoreDelayModeConfig(GetDelayMode());
-}
-
-bool
-TrafficShapingEngine::ApplyDelayModeConfig(const std::string& delay_mode)
-{
-  if (delay_mode == eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST) {
-    eos_static_warning("msg=\"Ignoring unsupported traffic shaping delay mode\" "
-                       "delay_mode=\"%s\"",
-                       delay_mode.c_str());
-    return false;
-  }
-
-  const bool old_value = mPerFstDelaysEnabled.exchange(false, std::memory_order_relaxed);
-
-  if (mManager != nullptr) {
-    mManager->SetPerFstDelaysEnabled(false);
-  }
-
-  return old_value;
-}
-
-void
-TrafficShapingEngine::StoreDelayModeConfig(const std::string& delay_mode)
-{
-  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_DELAY_MODE_CONFIG, delay_mode);
-  gOFS->mConfigEngine->AutoSave();
-}
-
-std::string
-TrafficShapingEngine::GetDelayMode() const
-{
-  return mPerFstDelaysEnabled.load(std::memory_order_relaxed)
-             ? eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST
-             : eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL;
 }
 
 void
@@ -2347,15 +2375,6 @@ TrafficShapingEngine::ApplyConfig()
     ApplyDetailLevelConfig(detail_level);
   }
 
-  const std::string delay_mode =
-      FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_DELAY_MODE_CONFIG);
-
-  if (delay_mode.empty()) {
-    ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL);
-  } else {
-    ApplyDelayModeConfig(delay_mode);
-  }
-
   const std::string limits_enabled =
       FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_LIMITS_ENABLED_CONFIG);
   ApplyLimitsEnabledConfig(limits_enabled.empty() || limits_enabled == "true");
@@ -2531,14 +2550,16 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
       break;
     }
 
+    auto work_start = std::chrono::steady_clock::now();
     ProcessAllQueuedReports();
+    auto reports_done = std::chrono::steady_clock::now();
 
-    auto now = std::chrono::steady_clock::now();
-    const std::chrono::duration<double> elapsed = now - last_run;
+    const std::chrono::duration<double> elapsed = reports_done - last_run;
     const double time_delta_seconds = elapsed.count();
-    last_run = now;
+    last_run = reports_done;
 
     mManager->UpdateEstimators(time_delta_seconds);
+    auto estimators_done = std::chrono::steady_clock::now();
 
     if (++infrequent_action_counter >= infrequent_action_threshold) {
       infrequent_action_counter = 0;
@@ -2559,13 +2580,28 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 
     auto work_done = std::chrono::steady_clock::now();
     const auto work_duration_micro_sec =
-        std::chrono::duration_cast<std::chrono::microseconds>(work_done - now).count();
+        std::chrono::duration_cast<std::chrono::microseconds>(work_done - work_start)
+            .count();
+    const auto report_duration_micro_sec =
+        std::chrono::duration_cast<std::chrono::microseconds>(reports_done - work_start)
+            .count();
+    const auto estimator_duration_micro_sec =
+        std::chrono::duration_cast<std::chrono::microseconds>(estimators_done -
+                                                              reports_done)
+            .count();
+    const auto gc_duration_micro_sec =
+        std::chrono::duration_cast<std::chrono::microseconds>(work_done - estimators_done)
+            .count();
 
     if (static_cast<double>(work_duration_micro_sec) >
         static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.5 * 1000.0) {
       eos_static_warning(
-          "msg=\"Traffic Shaping Estimators Update loop is slow\" work_duration_ms=%.2f",
-          static_cast<double>(work_duration_micro_sec) / 1000.0);
+          "msg=\"Traffic Shaping Estimators Update loop is slow\" total_ms=%.2f "
+          "reports_ms=%.2f estimators_ms=%.2f gc_ms=%.2f",
+          static_cast<double>(work_duration_micro_sec) / 1000.0,
+          static_cast<double>(report_duration_micro_sec) / 1000.0,
+          static_cast<double>(estimator_duration_micro_sec) / 1000.0,
+          static_cast<double>(gc_duration_micro_sec) / 1000.0);
     }
 
     mManager->UpdateEstimatorsLoopMicroSec(work_duration_micro_sec);
@@ -2576,6 +2612,7 @@ void
 TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
 {
   eos_static_info("%s", "msg=\"Starting FstIoPolicyUpdate thread\"");
+  auto last_controller_update = std::chrono::steady_clock::time_point{};
 
   while (!assistant.terminationRequested()) {
     assistant.wait_for(
@@ -2587,15 +2624,48 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
 
     auto work_start_time = std::chrono::steady_clock::now();
 
-    mManager->UpdateTrafficShapingController();
+    std::vector<std::string> online_nodes;
+    const auto node_io_pressure = CollectNodeIoPressure(&online_nodes);
+    const auto pressure_done_time = std::chrono::steady_clock::now();
 
-    mManager->UpdateLimits();
+    const bool run_controller =
+        last_controller_update == std::chrono::steady_clock::time_point{} ||
+        pressure_done_time - last_controller_update >= kControllerUpdateInterval;
+    if (run_controller) {
+      mManager->UpdateTrafficShapingController(node_io_pressure);
+      last_controller_update = pressure_done_time;
+    }
+    const auto controller_done_time = std::chrono::steady_clock::now();
+
+    mManager->UpdateLimits(node_io_pressure, online_nodes);
 
     auto work_end_time = std::chrono::steady_clock::now();
     const auto compute_duration_us =
         std::chrono::duration_cast<std::chrono::microseconds>(work_end_time -
                                                               work_start_time)
             .count();
+    const auto pressure_duration_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(pressure_done_time -
+                                                              work_start_time)
+            .count();
+    const auto controller_duration_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(controller_done_time -
+                                                              pressure_done_time)
+            .count();
+    const auto limits_duration_us = std::chrono::duration_cast<std::chrono::microseconds>(
+                                        work_end_time - controller_done_time)
+                                        .count();
+
+    if (static_cast<double>(compute_duration_us) >
+        static_cast<double>(mFstIoPolicyUpdateThreadPeriodMilliseconds) * 0.5 * 1000.0) {
+      eos_static_warning(
+          "msg=\"Traffic Shaping FST policy update loop is slow\" total_ms=%.2f "
+          "pressure_ms=%.2f controller_ms=%.2f limits_ms=%.2f controller_ran=%d",
+          static_cast<double>(compute_duration_us) / 1000.0,
+          static_cast<double>(pressure_duration_us) / 1000.0,
+          static_cast<double>(controller_duration_us) / 1000.0,
+          static_cast<double>(limits_duration_us) / 1000.0, run_controller);
+    }
 
     mManager->UpdateFstLimitsLoopMicroSec(compute_duration_us);
   }
@@ -3334,6 +3404,12 @@ TrafficShapingManager::LoadPoliciesFromString(const std::string& serialized_poli
 void
 TrafficShapingManager::LoadPluginIfModified()
 {
+  const auto now = std::chrono::steady_clock::now();
+  if (now < mNextPluginCheckTime) {
+    return;
+  }
+  mNextPluginCheckTime = now + kPluginCheckInterval;
+
   const char* plugin_path = "/etc/eos/traffic_shaping_plugin.so";
   struct stat file_stat;
 

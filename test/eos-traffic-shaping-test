@@ -30,7 +30,7 @@ export XrdSecPROTOCOL=sss
 # Enable traffic shaping
 eos io shaping enable
 
-eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15 --delay-mode global
+eos io shaping config set --estimators-period 100 --report-period 100 --policy-period 100 --system-window 15
 eos io shaping config set --detail aggregate
 sleep 8
 
@@ -47,16 +47,13 @@ eos mkdir -p /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
 eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/
 eos chmod 2777 /eos/${EOS_INSTANCE_NAME}/traffic_shaping/
 
-# The k8s validation is an enforcement smoke test rather than a precision
-# benchmark. Small 10MB transfers can spend several feedback windows at the
-# seeded delay, especially on busy CI nodes, so keep the upper bounds generous
-# enough to distinguish "throttled" from "stalled".
+# -20% lower, +35% upper for 1 MB/s target
 LOWER_BOUND=800000
 UPPER_BOUND=1350000
 WRITE_10MB_LOWER_MS=8000
-WRITE_10MB_UPPER_MS=35000
+WRITE_10MB_UPPER_MS=22000
 READ_10MB_LOWER_MS=10000
-READ_10MB_UPPER_MS=35000
+READ_10MB_UPPER_MS=30000
 
 measure_transfer_ms() {
   local src=$1
@@ -127,16 +124,15 @@ CONFIG_JSON_RESULT=$(eos io shaping config ls --json)
 POLICY_JSON_RESULT=$(eos io shaping policy ls --json)
 
 if echo "$CONFIG_RESULT" | grep -Eq 'Traffic Shaping Enabled:[[:space:]]*true' && \
-   echo "$CONFIG_RESULT" | grep -Eq 'Stats Detail Level:[[:space:]]*aggregate' && \
-   echo "$CONFIG_RESULT" | grep -Eq 'Delay Mode:[[:space:]]*global'; then
+   echo "$CONFIG_RESULT" | grep -Eq 'Stats Detail Level:[[:space:]]*aggregate'; then
   echo "✅ Success: Default aggregate detail mode reported."
 else
-  echo "❌ Error: Traffic shaping config output missing enabled state, aggregate detail mode, or global delay mode."
+  echo "❌ Error: Traffic shaping config output missing enabled state or aggregate detail mode."
   echo "Debug Info: $CONFIG_RESULT"
   FAILURES=$((FAILURES + 1))
 fi
 
-if echo "$CONFIG_JSON_RESULT" | jq -e '.enabled == true and .detail_level == "aggregate" and .delay_mode == "global" and (.estimators_update_period_ms == 100) and (.fst_io_policy_update_period_ms == 100) and (.fst_io_stats_reporting_period_ms == 100) and (.system_stats_time_window_seconds == 15)' > /dev/null; then
+if echo "$CONFIG_JSON_RESULT" | jq -e '.enabled == true and .detail_level == "aggregate" and (.estimators_update_period_ms == 100) and (.fst_io_policy_update_period_ms == 100) and (.fst_io_stats_reporting_period_ms == 100) and (.system_stats_time_window_seconds == 15)' > /dev/null; then
   echo "✅ Success: Traffic shaping config JSON output reported expected values."
 else
   echo "❌ Error: Traffic shaping config JSON output missing expected values."
@@ -261,33 +257,6 @@ else
   echo "❌ Error: Expected app write transfer duration between ${WRITE_10MB_LOWER_MS}-${WRITE_10MB_UPPER_MS} ms, got ${APP_WRITE_MS} ms."
   FAILURES=$((FAILURES + 1))
 fi
-
-# ---------------------------------------------------------
-# Test: FST Delay Mode Is Not Implemented
-# ---------------------------------------------------------
-echo ""
-echo "--- Testing FST Delay Mode Is Not Implemented ---"
-
-if FST_MODE_RESULT=$(eos io shaping config set --delay-mode fst 2>&1); then
-  echo "❌ Error: FST delay mode unexpectedly succeeded."
-  FAILURES=$((FAILURES + 1))
-elif echo "$FST_MODE_RESULT" | grep -q "not implemented"; then
-  CONFIG_JSON_RESULT=$(eos io shaping config ls --json)
-  if echo "$CONFIG_JSON_RESULT" | jq -e '.delay_mode == "global"' > /dev/null; then
-    echo "✅ Success: FST delay mode is rejected and global mode remains active."
-  else
-    echo "❌ Error: FST delay mode was rejected but global mode is not active."
-    echo "Debug Info: $CONFIG_JSON_RESULT"
-    FAILURES=$((FAILURES + 1))
-  fi
-else
-  echo "❌ Error: FST delay mode failed with unexpected output."
-  echo "Debug Info: $FST_MODE_RESULT"
-  FAILURES=$((FAILURES + 1))
-fi
-
-eos io shaping config set --delay-mode global
-sleep 1
 
 # ---------------------------------------------------------
 # Test: UID Throttling Enforcement

@@ -39,25 +39,6 @@ TEST(TrafficShapingEngine, DetailConfigReplayDoesNotSyncWhileViewLocked)
             engine.GetDetailLevel());
 }
 
-TEST(TrafficShapingEngine, DelayModeDefaultsToGlobalAndRejectsFstMode)
-{
-  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
-
-  ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, engine.GetDelayMode());
-  ASSERT_FALSE(engine.GetManager()->GetPerFstDelaysEnabled());
-  ASSERT_TRUE(engine.GetLimitsEnabled());
-  ASSERT_TRUE(engine.GetReservationsEnabled());
-
-  ASSERT_FALSE(engine.ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_FST));
-  ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, engine.GetDelayMode());
-  ASSERT_FALSE(engine.GetManager()->GetPerFstDelaysEnabled());
-
-  ASSERT_FALSE(
-      engine.ApplyDelayModeConfig(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL));
-  ASSERT_EQ(eos::common::TRAFFIC_SHAPING_DELAY_MODE_GLOBAL, engine.GetDelayMode());
-  ASSERT_FALSE(engine.GetManager()->GetPerFstDelaysEnabled());
-}
-
 TEST(TrafficShapingEngine, LimitAndReservationTogglesPropagateToManager)
 {
   eos::mgm::traffic_shaping::TrafficShapingEngine engine;
@@ -82,6 +63,40 @@ TEST(TrafficShapingEngine, LimitAndReservationTogglesPropagateToManager)
   ASSERT_TRUE(engine.ApplyReservationsEnabledConfig(true));
   ASSERT_TRUE(engine.GetReservationsEnabled());
   ASSERT_TRUE(manager->GetReservationsEnabled());
+}
+
+TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+
+  auto make_report = [](const uint64_t total_bytes_written) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id("/eos/fst.example:1095/fst");
+    auto* entry = report.add_entries();
+    entry->set_app_name("detail-test-app");
+    entry->set_uid(1);
+    entry->set_gid(2);
+    entry->set_fsid(3);
+    entry->set_generation_id(1);
+    entry->set_total_bytes_written(total_bytes_written);
+    entry->set_total_write_ops(total_bytes_written / 4096);
+    return report;
+  };
+
+  manager.ProcessReport(make_report(1024 * 1024));
+  manager.ProcessReport(make_report(2 * 1024 * 1024));
+  manager.UpdateEstimators(1.0);
+
+  ASSERT_FALSE(manager.GetGlobalStats().empty());
+  ASSERT_TRUE(manager.GetDiskStats().empty());
+  ASSERT_TRUE(manager.GetDetailedStats().empty());
+
+  manager.SetFilesystemDetailEnabled(true);
+  manager.ProcessReport(make_report(3 * 1024 * 1024));
+  manager.UpdateEstimators(1.0);
+
+  ASSERT_FALSE(manager.GetDiskStats().empty());
+  ASSERT_FALSE(manager.GetDetailedStats().empty());
 }
 
 TEST(TrafficShapingManager, DisablingReservationsClearsEphemeralLimits)

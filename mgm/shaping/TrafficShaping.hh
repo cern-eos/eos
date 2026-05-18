@@ -319,13 +319,11 @@ public:
 
   void UpdateEstimators(double time_delta_seconds);
 
-  void UpdateLimits();
+  void UpdateLimits(const std::unordered_map<std::string, double>& node_io_pressure,
+                    const std::vector<std::string>& online_nodes);
 
-  void UpdateTrafficShapingController();
-
-  void SetPerFstDelaysEnabled(bool enabled);
-
-  bool GetPerFstDelaysEnabled() const;
+  void UpdateTrafficShapingController(
+      const std::unordered_map<std::string, double>& node_io_pressure);
 
   void SetLimitsEnabled(bool enabled);
 
@@ -349,6 +347,8 @@ public:
 
   void ApplyThreadConfig(uint32_t estimators_period_ms, uint32_t fst_policy_period_ms,
                          uint32_t window_seconds);
+
+  void SetFilesystemDetailEnabled(bool enabled);
 
   std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> GetGlobalStats() const;
 
@@ -459,6 +459,12 @@ private:
   std::unordered_map<std::string, eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
       mNodeFstIoDelayConfigs;
 
+  struct PublishedFstIoDelayConfig {
+    std::string encoded_config;
+    std::chrono::steady_clock::time_point last_publish_time{};
+  };
+  std::unordered_map<std::string, PublishedFstIoDelayConfig> mPublishedFstIoDelayConfigs;
+
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       estimators_update_loop_micro_sec;
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
@@ -468,6 +474,7 @@ private:
 
   double mEstimatorsTickIntervalSec{0.5};
   uint32_t mSystemStatsWindowSeconds{15};
+  std::atomic<bool> mFilesystemDetailEnabled{false};
 
   mutable std::shared_mutex mMutex;
 
@@ -505,11 +512,11 @@ private:
   DelayAlgoFunc mCustomAlgo = nullptr;
   ControllerAlgoFunc mCustomControllerAlgo = nullptr;
   time_t mPluginLastModified = 0;
+  std::chrono::steady_clock::time_point mNextPluginCheckTime{};
   std::shared_mutex mPluginMutex;
 
   void LoadPluginIfModified();
 
-  std::atomic<bool> mPerFstDelaysEnabled{false};
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
@@ -584,10 +591,6 @@ public:
 
   std::string GetDetailLevel() const;
 
-  void SetDelayMode(const std::string& delay_mode);
-
-  std::string GetDelayMode() const;
-
   void SetLimitsEnabled(bool enabled);
 
   bool GetLimitsEnabled() const;
@@ -632,10 +635,6 @@ private:
 
   static void StoreDetailLevelConfig(const std::string& detail_level);
 
-  bool ApplyDelayModeConfig(const std::string& delay_mode);
-
-  static void StoreDelayModeConfig(const std::string& delay_mode);
-
   bool ApplyLimitsEnabledConfig(bool enabled);
 
   static void StoreLimitsEnabledConfig(bool enabled);
@@ -677,7 +676,6 @@ private:
   std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mSystemStatsWindowSeconds{};
   std::atomic<bool> mFilesystemDetailEnabled{};
-  std::atomic<bool> mPerFstDelaysEnabled{};
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
