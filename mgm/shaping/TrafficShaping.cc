@@ -2607,9 +2607,8 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
   eos_static_info("%s", "msg=\"Starting Traffic Shaping estimators update thread\"");
 
   auto last_run = std::chrono::steady_clock::now();
-
-  int infrequent_action_counter = 0;
-  constexpr int infrequent_action_threshold = 100;
+  auto last_garbage_collection = last_run;
+  constexpr auto garbage_collection_period = std::chrono::seconds(20);
 
   while (!assistant.terminationRequested()) {
     assistant.wait_for(
@@ -2630,8 +2629,8 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
     mManager->UpdateEstimators(time_delta_seconds);
     auto estimators_done = std::chrono::steady_clock::now();
 
-    if (++infrequent_action_counter >= infrequent_action_threshold) {
-      infrequent_action_counter = 0;
+    if (estimators_done - last_garbage_collection >= garbage_collection_period) {
+      last_garbage_collection = estimators_done;
       const uint32_t garbage_collection_idle_seconds =
           mGarbageCollectionIdleSeconds.load(std::memory_order_relaxed);
       const auto [removed_nodes, removed_node_streams, removed_global_streams,
