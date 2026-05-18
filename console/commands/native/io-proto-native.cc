@@ -52,9 +52,6 @@ const char* kShapingConfigExamples =
     "  # Change the estimators update period to 200 ms\n"
     "  eos io shaping config set --estimators-period 200\n"
     "\n"
-    "  # FST delay sizing is reserved for future use\n"
-    "  eos io shaping config set --delay-mode fst\n"
-    "\n"
     "  # Temporarily disable limit or reservation enforcement without deleting policies\n"
     "  eos io shaping config set --limits disabled --reservations disabled\n";
 
@@ -176,7 +173,7 @@ std::string MakeIoHelp()
          "estimators and policy enforcement\n"
       << "\t     usage: config set [--estimators-period <ms>] [--policy-period <ms>] "
          "[--report-period <ms>] [--system-window <s>] [--detail aggregate|fs] "
-         "[--delay-mode global|fst] [--limits enabled|disabled] "
+         "[--limits enabled|disabled] "
          "[--reservations enabled|disabled] [--controller-min-limit <rate>] "
          "[--io-pressure-threshold <value>]\n"
       << std::endl
@@ -508,9 +505,6 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   config_set->add_option("--detail", "Shaping detail level")
       ->type_name("LEVEL")
       ->check(CLI::IsMember({"aggregate", "fs"}));
-  config_set->add_option("--delay-mode", "Delay control mode")
-      ->type_name("MODE")
-      ->check(CLI::IsMember({"global", "fst"}));
   config_set->add_option("--limits", "Limit enforcement toggle")
       ->type_name("STATE")
       ->check(CLI::IsMember({"enabled", "disabled"}));
@@ -545,9 +539,6 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
           config_set->get_option("--system-window")->as<uint32_t>());
     if (config_set->count("--detail")) {
       a->set_detail_level(config_set->get_option("--detail")->as<std::string>());
-    }
-    if (config_set->count("--delay-mode")) {
-      a->set_delay_mode(config_set->get_option("--delay-mode")->as<std::string>());
     }
     if (config_set->count("--limits")) {
       a->set_limits_enabled(
