@@ -107,6 +107,9 @@ static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG =
     "traffic_shaping::detail_level";
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE = "aggregate";
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM = "fs";
+static constexpr auto TRAFFIC_SHAPING_DELAY_MODE_CONFIG = "traffic_shaping::delay_mode";
+static constexpr auto TRAFFIC_SHAPING_DELAY_MODE_GLOBAL = "global";
+static constexpr auto TRAFFIC_SHAPING_DELAY_MODE_FST = "fst";
 
 //! ADM uid and gid
 static constexpr uid_t ADM_UID = 3;

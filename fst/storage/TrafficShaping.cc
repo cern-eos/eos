@@ -1,5 +1,6 @@
 #include "fst/storage/TrafficShaping.hh"
 
+#include <algorithm>
 #include <chrono>
 #include <mutex>
 
@@ -101,5 +102,114 @@ IoStatsCollector::PruneStaleEntries(const int64_t max_idle_seconds)
     }
   }
   return removed;
+}
+
+uint64_t
+IoDelayConfig::CalculateReservationDelay(const uint64_t delay_us, const uint64_t bytes,
+                                         const bool is_write, uint64_t& remainder) const
+{
+  if (delay_us == 0) {
+    remainder = 0;
+    return 0;
+  }
+
+  if (bytes == 0) {
+    return 0;
+  }
+
+  uint64_t denominator = kIoDelayReferenceBytes;
+  __uint128_t numerator =
+      static_cast<__uint128_t>(delay_us) * bytes * kIoDelayParallelReservationFactor;
+
+  if (!is_write) {
+    numerator *= kReadDelaySafetyNumerator;
+    denominator *= kReadDelaySafetyDenominator;
+  }
+
+  numerator += remainder;
+
+  constexpr uint64_t kMaxReservationDelayUs =
+      kMaxScaledIoDelayUs * kIoDelayParallelReservationFactor;
+  const __uint128_t max_numerator =
+      static_cast<__uint128_t>(kMaxReservationDelayUs) * denominator;
+
+  if (numerator >= max_numerator) {
+    remainder = 0;
+    return kMaxReservationDelayUs;
+  }
+
+  const uint64_t reservation_delay_us = static_cast<uint64_t>(numerator / denominator);
+  remainder = static_cast<uint64_t>(numerator % denominator);
+  return reservation_delay_us;
+}
+
+uint64_t
+IoDelayConfig::ReserveDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
+                                        const uint64_t bytes, const bool is_write)
+{
+  const auto entries = GetDelayEntriesForAppUidGid(vid, bytes, is_write);
+
+  if (entries.empty()) {
+    return 0;
+  }
+
+  const auto now = std::chrono::steady_clock::now();
+  auto latest_finish = now;
+
+  {
+    std::lock_guard<std::mutex> lock(mDelayReservationMutex);
+
+    if (++mDelayReservationCounter % kIoDelayReservationPruneInterval == 0) {
+      PruneDelayReservations(now);
+    }
+
+    for (const auto& entry : entries) {
+      if (entry.delay_us == 0) {
+        continue;
+      }
+
+      auto& reservation = mDelayReservations[entry.key];
+      const uint64_t reservation_delay_us = CalculateReservationDelay(
+          entry.delay_us, bytes, is_write, reservation.delay_remainder);
+      reservation.last_used = now;
+
+      if (reservation_delay_us == 0) {
+        continue;
+      }
+
+      const auto start = std::max(now, reservation.next_available);
+      const auto finish = start + std::chrono::microseconds(reservation_delay_us);
+      reservation.next_available = finish;
+      latest_finish = std::max(latest_finish, finish);
+    }
+  }
+
+  return static_cast<uint64_t>(
+      std::chrono::duration_cast<std::chrono::microseconds>(latest_finish - now).count());
+}
+
+void
+IoDelayConfig::ClearDelayReservations()
+{
+  std::lock_guard<std::mutex> lock(mDelayReservationMutex);
+  mDelayReservations.clear();
+  mDelayReservationCounter = 0;
+}
+
+void
+IoDelayConfig::PruneDelayReservations(const std::chrono::steady_clock::time_point now)
+{
+  for (auto it = mDelayReservations.begin(); it != mDelayReservations.end();) {
+    const auto idle_us =
+        std::chrono::duration_cast<std::chrono::microseconds>(now - it->second.last_used)
+            .count();
+
+    if (it->second.next_available <= now &&
+        idle_us > static_cast<int64_t>(kIoDelayReservationMaxIdleUs)) {
+      it = mDelayReservations.erase(it);
+    } else {
+      ++it;
+    }
+  }
 }
 } // namespace eos::fst::traffic_shaping
