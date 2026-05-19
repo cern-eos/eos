@@ -1185,7 +1185,10 @@ private:
   std::string zmq_clienthost;
   std::string zmq_clientuuid;
   std::mutex zmq_socket_mutex;
-  std::atomic<int> want_zmq_connect;
+  // want connect: 0 no connect wanted or ongoing
+  //               1 in connect()
+  //               2 send error, should reconnect
+  std::atomic<int> want_zmq_connect; 
   std::atomic<int> fusex_visible;
   backend* mdbackend;
 

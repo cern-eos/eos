@@ -7624,7 +7624,7 @@ EosFuse::TrackMgm(const std::string& lasturl)
   eos_static_info("current-mgm:%s last-url:%s", currentmgm.c_str(),
                   newmgm.c_str());
 
-  if (currentmgm != newmgm) {
+  if (currentmgm != newmgm || mds.zmq_wants_to_connect() == 2) {
     // for the first call currentmgm is an empty string, so we assume there is no failover needed
     if (currentmgm.length()) {
       // let's failover the ZMQ connection
