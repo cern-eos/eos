@@ -71,6 +71,8 @@ public:
   std::pair<bool, eos::common::FmdHelper>
   LocalRetrieveFmd(const std::string& path);
 
+  bool LocalPutFmd(const eos::common::FmdHelper& fmd, const std::string& path);
+
 private:
   std::unique_ptr<FSPathHandler> mFSPathHandler;
 
@@ -88,9 +90,6 @@ private:
                    eos::common::FileId::fileid_t fid,
                    eos::common::FileSystem::fsid_t fsid,
                    const std::string& path = "") override;
-
-  bool LocalPutFmd(const eos::common::FmdHelper& fmd,
-                   const std::string& path);
 
   void LocalDeleteFmd(const std::string& path, bool drop_file);
 
