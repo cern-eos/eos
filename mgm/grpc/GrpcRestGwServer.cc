@@ -24,6 +24,7 @@
 #include "GrpcRestGwServer.hh"
 #ifdef EOS_GRPC_GATEWAY
 #include "EosGrpcGateway.h"
+#include "GrpcRedirect.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "mgm/macros/Macros.hh"
@@ -220,6 +221,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status AclRequest(ServerContext* context, const AclProto* request,
                     ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, acl, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -229,6 +231,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status AccessRequest(ServerContext* context, const AccessProto* request,
                        ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, access, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -238,6 +241,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status ArchiveRequest(ServerContext* context, const ArchiveProto* request,
                         ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, archive, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -247,6 +251,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status AttrRequest(ServerContext* context, const AttrProto* request,
                      ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, attr, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -256,6 +261,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status BackupRequest(ServerContext* context, const BackupProto* request,
                        ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, backup, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -265,6 +271,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status ChmodRequest(ServerContext* context, const ChmodProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, chmod, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -274,6 +281,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status ChownRequest(ServerContext* context, const ChownProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, chown, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -283,6 +291,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status ConfigRequest(ServerContext* context, const ConfigProto* request,
                        ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, config, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -292,6 +301,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status ConvertRequest(ServerContext* context, const ConvertProto* request,
                         ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, convert, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -301,6 +311,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status CpRequest(ServerContext* context, const CpProto* request,
                    ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, cp, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -310,6 +321,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status DebugRequest(ServerContext* context, const DebugProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, debug, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -319,6 +331,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status EvictRequest(ServerContext* context, const EvictProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, evict, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -328,6 +341,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status FileRequest(ServerContext* context, const FileProto* request,
                      ReplyProto* reply)
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, file, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -355,6 +369,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status FsRequest(ServerContext* context, const FsProto* request,
                    ReplyProto* reply)
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, fs, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -373,6 +388,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status GeoschedRequest(ServerContext* context, const GeoschedProto* request,
                          ReplyProto* reply)
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, geosched, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -382,6 +398,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status GroupRequest(ServerContext* context, const GroupProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, group, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -418,6 +435,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status MapRequest(ServerContext* context, const MapProto* request,
                     ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, map, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -427,6 +445,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status MemberRequest(ServerContext* context, const MemberProto* request,
                        ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, member, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -436,6 +455,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status MkdirRequest(ServerContext* context, const MkdirProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, mkdir, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -445,6 +465,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status MvRequest(ServerContext* context, const MoveProto* request,
                    ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, mv, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -454,6 +475,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status NodeRequest(ServerContext* context, const NodeProto* request,
                      ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, node, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -463,6 +485,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status NsRequest(ServerContext* context, const NsProto* request,
                    ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, ns, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -472,6 +495,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status QuotaRequest(ServerContext* context, const QuotaProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, quota, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -481,6 +505,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status RecycleRequest(ServerContext* context, const RecycleProto* request,
                         ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, recycle, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -490,6 +515,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status RmRequest(ServerContext* context, const RmProto* request,
                    ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, rm, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -499,6 +525,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status RmdirRequest(ServerContext* context, const RmdirProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, rmdir, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -508,6 +535,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status RouteRequest(ServerContext* context, const RouteProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, route, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -517,6 +545,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status SpaceRequest(ServerContext* context, const SpaceProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, space, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -544,6 +573,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status TokenRequest(ServerContext* context, const TokenProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, token, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -553,6 +583,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status TouchRequest(ServerContext* context, const TouchProto* request,
                       ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, touch, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
@@ -571,6 +602,7 @@ class EosRestGatewayServiceImpl final : public EosRestGatewayService::Service,
   Status VidRequest(ServerContext* context, const VidProto* request,
                     ReplyProto* reply) override
   {
+    EOS_GRPC_REDIRECT_WRITE_IF_SLAVE(context, vid, request);
     eos::common::VirtualIdentity vid;
     GrpcRestGwServer::Vid(context, vid);
     GrpcRestGwInterface restGwInterface;
