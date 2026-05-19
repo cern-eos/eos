@@ -169,17 +169,20 @@ folly::Future<common::Status> QuarkConfigHandler::writeConfiguration(
   bool overwrite, const std::string& backup)
 {
   std::string configKey = SSTR("eos-config:" << name);
-  qclient::IntegerParser hlenResp(mQcl->exec("HLEN", configKey).get());
 
-  if (!hlenResp.ok()) {
-    return common::Status(EINVAL,
-                          SSTR("received unexpected response in HLEN check: " <<
-                               hlenResp.err()));
-  }
+  if (!overwrite) {
+    qclient::IntegerParser hlenResp(mQcl->exec("HLEN", configKey).get());
 
-  if (!overwrite && hlenResp.value() != 0) {
-    return common::Status(EINVAL,
-                          "There's MGM configuration stored in QDB already -- will not delete.");
+    if (!hlenResp.ok()) {
+      return common::Status(EINVAL,
+                            SSTR("received unexpected response in HLEN check: " <<
+                                 hlenResp.err()));
+    }
+
+    if (hlenResp.value() != 0) {
+      return common::Status(EINVAL,
+                            "There's MGM configuration stored in QDB already -- will not delete.");
+    }
   }
 
   //----------------------------------------------------------------------------
