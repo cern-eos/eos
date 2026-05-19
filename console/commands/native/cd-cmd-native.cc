@@ -6,8 +6,10 @@
 #include "console/ConsoleMain.hh"
 #include <CLI/CLI.hpp>
 #include <algorithm>
+#include <fcntl.h>
 #include <memory>
 #include <sstream>
+#include <unistd.h>
 #include <vector>
 
 namespace {
@@ -139,6 +141,20 @@ public:
         ctx.outputResult(ctx.clientCommand(lsminuss, false, nullptr), true);
     if (global_retc) {
       gPwd = oldpwd;
+    } else if (pwdfile.length()) {
+      // store the last used directory
+      int cfd = open(pwdfile.c_str(), O_CREAT | O_TRUNC | O_RDWR, S_IRWXU);
+
+      if (cfd >= 0) {
+        if ((::write(cfd, gPwd.c_str(), gPwd.length())) != gPwd.length()) {
+          fprintf(stderr, "warning: unable to store CWD to %s [errno=%d]\n",
+                  pwdfile.c_str(), errno);
+        }
+
+        close(cfd);
+      } else {
+        fprintf(stderr, "warning: unable to store CWD to %s\n", pwdfile.c_str());
+      }
     }
     return 0;
   }
