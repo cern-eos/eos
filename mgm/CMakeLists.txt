@@ -265,6 +265,7 @@ add_library(
   workflow/Workflow.cc
   inflighttracker/InFlightTracker.cc
   grpc/GrpcServer.cc   grpc/GrpcServer.hh
+  grpc/GrpcRedirect.hh
   grpc/GrpcNsInterface.cc   grpc/GrpcNsInterface.hh
   grpc/GrpcWncServer.cc      grpc/GrpcWncServer.hh
   grpc/GrpcWncInterface.cc      grpc/GrpcWncInterface.hh
