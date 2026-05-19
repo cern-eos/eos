@@ -2563,7 +2563,7 @@ GrpcNsInterface::Acl(eos::common::VirtualIdentity& vid,
       eos::console::ReplyProto preply = aclcmd.ProcessRequest();
 
       if (preply.retc()) {
-        if (prely.rect() != ENODATA) {
+        if (preply.retc() != ENODATA) {
           reply->set_code(preply.retc());
           reply->set_msg(preply.std_err());
         } else {
