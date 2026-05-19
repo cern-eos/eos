@@ -100,11 +100,11 @@ metad::connect(std::string zmqtarget, std::string zmqidentity,
   set_zmq_wants_to_connect(1);
   std::lock_guard<std::mutex> connectionMutex(zmq_socket_mutex);
 
-  if (z_socket && z_socket->handle() && (zmqtarget != zmq_target)) {
-    // delete the exinsting ZMQ connection
-    delete z_socket;
-    delete z_ctx;
-  }
+  // delete the exinsting ZMQ connection
+  delete z_socket;
+  delete z_ctx;
+  z_socket = nullptr;
+  z_ctx = nullptr;
 
   if (zmqtarget.length()) {
     zmq_target = zmqtarget;
@@ -3291,6 +3291,7 @@ metad::mdcommunicate(ThreadAssistant& assistant)
         if (zmq_wants_to_connect()) {
           connectionMutex.unlock();
           std::this_thread::sleep_for(std::chrono::milliseconds(100));
+          connectionMutex.lock();
           continue;
         }
 
@@ -3422,7 +3423,8 @@ metad::mdcommunicate(ThreadAssistant& assistant)
       hb.SerializeToString(&hbstream);
       hb_msg.rebuild(hbstream.c_str(), hbstream.length());
 
-      if (!z_socket->send(hb_msg, zmq::send_flags::none)) {
+      if (!z_socket->send(hb_msg, zmq::send_flags::dontwait)) {
+        set_zmq_wants_to_connect(2);
         eos_static_err("err sending heartbeat: hbstream.c_str()=%s, hbstream.length()=%d, hbstream:hex=%s",
                        hbstream.c_str(), hbstream.length(),
                        eos::common::stringToHex(hbstream).c_str());
