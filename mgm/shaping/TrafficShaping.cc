@@ -2167,7 +2167,6 @@ TrafficShapingEngine::StoreDetailLevelConfig(const std::string& detail_level)
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG,
                                   detail_level);
-  gOFS->mConfigEngine->AutoSave();
 }
 
 std::string
@@ -2207,7 +2206,6 @@ void
 TrafficShapingEngine::StoreLimitsEnabledConfig(const bool enabled)
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_LIMITS_ENABLED_CONFIG, enabled);
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -2241,7 +2239,6 @@ TrafficShapingEngine::StoreReservationsEnabledConfig(const bool enabled)
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_RESERVATIONS_ENABLED_CONFIG,
                                   enabled);
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -2275,7 +2272,6 @@ TrafficShapingEngine::StoreControllerMinLimitConfig(const uint64_t limit_bps)
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_CONTROLLER_MIN_LIMIT_CONFIG,
                                   std::to_string(limit_bps));
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -2310,7 +2306,6 @@ TrafficShapingEngine::StoreIoPressureThresholdConfig(const double threshold)
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_IO_PRESSURE_THRESHOLD_CONFIG,
                                   std::to_string(threshold));
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -2339,7 +2334,6 @@ TrafficShapingEngine::StoreGarbageCollectionIdleSecondsConfig(const uint32_t idl
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_GARBAGE_COLLECTION_IDLE_CONFIG,
                                   std::to_string(idle_seconds));
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -2364,7 +2358,6 @@ TrafficShapingEngine::StoreThreadConfig()
   }
 
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_THREAD_PERIODS, encoded);
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -2791,7 +2784,6 @@ void
 TrafficShapingEngine::StoreEnabledConfig(bool enabled)
 {
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_ENABLE_CONFIG, enabled);
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -2940,7 +2932,6 @@ TrafficShapingManager::SetUidPolicy(const uint32_t uid,
 
   if (config_changed) {
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
-    gOFS->mConfigEngine->AutoSave();
   }
 }
 
@@ -3012,7 +3003,6 @@ TrafficShapingManager::SetGidPolicy(const uint32_t gid,
 
   if (config_changed) {
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
-    gOFS->mConfigEngine->AutoSave();
   }
 }
 
@@ -3085,7 +3075,6 @@ TrafficShapingManager::SetAppPolicy(const std::string& app,
 
   if (config_changed) {
     FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
-    gOFS->mConfigEngine->AutoSave();
   }
 }
 
@@ -3102,7 +3091,6 @@ TrafficShapingManager::RemoveUidPolicy(const uint32_t uid)
     serialized = SerializePoliciesUnlocked();
   }
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -3118,7 +3106,6 @@ TrafficShapingManager::RemoveGidPolicy(const uint32_t gid)
     serialized = SerializePoliciesUnlocked();
   }
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
-  gOFS->mConfigEngine->AutoSave();
 }
 
 void
@@ -3134,7 +3121,6 @@ TrafficShapingManager::RemoveAppPolicy(const std::string& app)
     serialized = SerializePoliciesUnlocked();
   }
   FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
-  gOFS->mConfigEngine->AutoSave();
 }
 
 std::unordered_map<uint32_t, TrafficShapingPolicy>
