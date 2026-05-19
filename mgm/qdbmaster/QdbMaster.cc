@@ -383,7 +383,7 @@ void QdbMaster::PostSlaveToMaster(std::string old_master,
                        + " '" + new_master + "'";
   eos::common::ShellCmd cmd(script);
   auto status = cmd.wait(POST_SLAVE_TO_MASTER_TIMEOUT);
-
+  
   if (status.exit_code) {
     eos_static_warning("msg=\"post slave to master script failed\" "
                        "script=\"%s\" retcode=%d", script.c_str(),
@@ -485,6 +485,7 @@ QdbMaster::MasterToSlave()
       std::chrono::milliseconds(100));
   // We are the slave, we just listen and don't broadcast anything
   gOFS->mMessagingRealm->DisableBroadcast();
+  DisableNsCaching();
 
   // When we boot the first time also load the config
   if (mOneOff) {
@@ -495,11 +496,6 @@ QdbMaster::MasterToSlave()
       std::abort();
     }
   }
-
-  // Disable NS cahcing after the configuration is applied otherwise
-  // a namespace cache size override might apply and we end up the
-  // slave caching information.
-  DisableNsCaching();
 
   // Stop the tape garbage collector if tape is configured and enabled
   if (gOFS->mTapeEnabled) {
