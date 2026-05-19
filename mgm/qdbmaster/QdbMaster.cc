@@ -315,7 +315,7 @@ QdbMaster::Supervisor(ThreadAssistant& assistant) noexcept
             continue;
           }
 
-          MasterLog(eos_log(LOG_ERR, "%s", "msg=\"acquired the master lease\""));
+          MasterLog(eos_log(LOG_NOTICE, "%s", "msg=\"acquired the master lease\""));
           SlaveToMaster();
           PostSlaveToMaster(old_master_id, GetMasterId());
         }

@@ -64,7 +64,7 @@ SpaceQuota::SpaceQuota(const char* path):
   try {
     quotadir = gOFS->eosView->getContainer(path);
   } catch (const eos::MDException& e) {
-    eos_err("No such path=%s", path);
+    eos_err("msg=\"failed to get container\" path=\"%s\" err_msg=\"%s\"", path, e.what());
   }
 
   if (quotadir == nullptr) {
