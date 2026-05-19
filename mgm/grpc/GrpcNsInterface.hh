@@ -93,6 +93,14 @@ public:
                            eos::rpc::NSResponse* reply,
                            const eos::rpc::NSRequest* request);
 
+  //----------------------------------------------------------------------------
+  //! Classify an NSRequest as a write that mutates state and therefore must
+  //! be served by the master. Returns true for unambiguous writes and for
+  //! sub-commands that mutate state (e.g. AclRequest::MODIFY); returns false
+  //! for reads (LIST/GET) and unknown commands.
+  //----------------------------------------------------------------------------
+  static bool IsWriteRequest(const eos::rpc::NSRequest* request);
+
   static grpc::Status Mkdir(eos::common::VirtualIdentity& vid,
                             eos::rpc::NSResponse::ErrorResponse* reply,
                             const eos::rpc::NSRequest::MkdirRequest* request);

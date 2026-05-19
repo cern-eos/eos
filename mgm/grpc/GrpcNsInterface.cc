@@ -1461,6 +1461,58 @@ GrpcNsInterface::Exec(eos::common::VirtualIdentity& ivid,
   return grpc::Status::OK;
 }
 
+bool
+GrpcNsInterface::IsWriteRequest(const eos::rpc::NSRequest* request)
+{
+  if (request == nullptr) {
+    return false;
+  }
+
+  switch (request->command_case()) {
+  // Unambiguous writes
+  case eos::rpc::NSRequest::kMkdir:
+  case eos::rpc::NSRequest::kRmdir:
+  case eos::rpc::NSRequest::kTouch:
+  case eos::rpc::NSRequest::kUnlink:
+  case eos::rpc::NSRequest::kRm:
+  case eos::rpc::NSRequest::kRename:
+  case eos::rpc::NSRequest::kSymlink:
+  case eos::rpc::NSRequest::kXattr:
+  case eos::rpc::NSRequest::kChown:
+  case eos::rpc::NSRequest::kChmod:
+    return true;
+
+  // kToken just signs a token (no namespace mutation) - keep consistent with
+  // ProcInterface::IsProtoWriteAccess which treats it as a read.
+  case eos::rpc::NSRequest::kToken:
+    return false;
+
+  case eos::rpc::NSRequest::kAcl:
+    return request->acl().cmd() != eos::rpc::NSRequest::AclRequest::LIST;
+
+  case eos::rpc::NSRequest::kVersion:
+    return request->version().cmd() !=
+           eos::rpc::NSRequest::VersionRequest::LIST;
+
+  case eos::rpc::NSRequest::kOldRecycle:
+    return request->old_recycle().cmd() !=
+           eos::rpc::NSRequest::RecycleRequest::LIST;
+
+  case eos::rpc::NSRequest::kRecycle:
+    // Only the listing sub-command is a pure read.
+    return request->recycle().subcmd_case() !=
+           eos::console::RecycleProto::kLs;
+
+  case eos::rpc::NSRequest::kQuota:
+    return request->quota().op() != eos::rpc::QUOTAOP::GET;
+
+  // Be conservative for unknown commands: treat them as writes so a future
+  // namespace-mutating addition will redirect to the master by default.
+  default:
+    return true;
+  }
+}
+
 grpc::Status
 GrpcNsInterface::Mkdir(eos::common::VirtualIdentity& vid,
                        eos::rpc::NSResponse::ErrorResponse* reply,

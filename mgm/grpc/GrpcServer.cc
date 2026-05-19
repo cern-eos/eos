@@ -23,6 +23,7 @@
 
 #include "GrpcServer.hh"
 #include "GrpcNsInterface.hh"
+#include "GrpcRedirect.hh"
 #include "common/Logging.hh"
 #include "common/StringConversion.hh"
 #include "common/SymKeys.hh"
@@ -78,6 +79,12 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
+    std::string master_id = GetSlaveRedirectTarget();
+
+    if (!master_id.empty()) {
+      return MakeSlaveRedirectStatus(context, master_id);
+    }
+
     return GrpcNsInterface::FileInsert(vid, reply, request);
   }
 
@@ -91,6 +98,12 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
+    std::string master_id = GetSlaveRedirectTarget();
+
+    if (!master_id.empty()) {
+      return MakeSlaveRedirectStatus(context, master_id);
+    }
+
     return GrpcNsInterface::ContainerInsert(vid, reply, request);
   }
 
@@ -156,6 +169,15 @@ class RequestServiceImpl final : public Eos::Service {
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->authkey());
     WAIT_BOOT;
+
+    if (GrpcNsInterface::IsWriteRequest(request)) {
+      std::string master_id = GetSlaveRedirectTarget();
+
+      if (!master_id.empty()) {
+        return MakeSlaveRedirectStatus(context, master_id);
+      }
+    }
+
     return GrpcNsInterface::Exec(vid, reply, request);
   }
 
