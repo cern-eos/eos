@@ -93,6 +93,14 @@ public:
   static bool ProtoIsWriteAccess(const char* opaque);
 
   //----------------------------------------------------------------------------
+  //! Check if a parsed proto proc command contains a 'write' action on the
+  //! instance. Same classification as ProtoIsWriteAccess but operates on an
+  //! already-parsed request, so it can be reused by callers (e.g. the gRPC
+  //! layer) that never go through the CGI opaque encoding.
+  //----------------------------------------------------------------------------
+  static bool IsProtoWriteAccess(const eos::console::RequestProto& req);
+
+  //----------------------------------------------------------------------------
   //! Check if a proc command contains a 'write' action on the instance
   //!
   //! @param path input arguments for proc command

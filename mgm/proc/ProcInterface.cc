@@ -327,8 +327,6 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
 bool
 ProcInterface::ProtoIsWriteAccess(const char* opaque)
 {
-  using eos::console::RequestProto;
-  std::unique_ptr<IProcCommand> cmd;
   std::ostringstream oss;
   std::string raw_pb;
   XrdOucEnv env(opaque);
@@ -351,6 +349,16 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   // Log the type of command that we received
   std::string json_out;
   (void)google::protobuf::util::MessageToJsonString(req, &json_out);
+  return IsProtoWriteAccess(req);
+}
+
+//----------------------------------------------------------------------------
+// Classify a parsed protobuf proc request as read or write
+//----------------------------------------------------------------------------
+bool
+ProcInterface::IsProtoWriteAccess(const eos::console::RequestProto& req)
+{
+  using eos::console::RequestProto;
 
   /* being conservative, true by default. Add false clauses explicitly */
   switch (req.command_case()) {
@@ -368,6 +376,14 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   case RequestProto::kDebug:
   case RequestProto::kConfig:
   case RequestProto::kToken:
+  case RequestProto::kStat:
+  case RequestProto::kStatus:
+  case RequestProto::kHealth:
+  case RequestProto::kFileinfo:
+  case RequestProto::kVersion:
+  case RequestProto::kWho:
+  case RequestProto::kWhoami:
+  case RequestProto::kLs:
     return false;
 
   // conditional on the subcommand
