@@ -8,7 +8,9 @@
 #include "GrpcWncServer.hh"
 //-----------------------------------------------------------------------------
 #include "console/ConsoleMain.hh"
+#include "GrpcRedirect.hh"
 #include "GrpcServer.hh"
+#include "GrpcWncInterface.hh"
 #include "mgm/macros/Macros.hh"
 //-----------------------------------------------------------------------------
 #ifdef EOS_GRPC
@@ -202,6 +204,15 @@ class WncService final : public EosWnc::Service
     eos::common::VirtualIdentity vid;
     GrpcServer::Vid(context, vid, request->auth().authkey());
     WAIT_BOOT;
+
+    if (GrpcWncInterface::IsWriteRequest(request)) {
+      std::string master_id = GetSlaveRedirectTarget();
+
+      if (!master_id.empty()) {
+        return MakeSlaveRedirectStatus(context, master_id);
+      }
+    }
+
     GrpcWncInterface wnc;
     return wnc.ExecCmd(vid, request, reply);
   }

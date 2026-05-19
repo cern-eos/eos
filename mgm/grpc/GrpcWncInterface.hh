@@ -38,6 +38,14 @@ public:
   grpc::Status ExecStreamCmd(eos::common::VirtualIdentity& vid,
                              const eos::console::RequestProto* request,
                              ServerWriter<eos::console::ReplyProto>* writer);
+
+//-----------------------------------------------------------------------------
+// Classify an EOS-wnc request as a write that mutates state and therefore
+// must be served by the master. The classifier is intentionally conservative:
+// commands that mix read and write subcommands without a cheap way to tell
+// them apart are reported as writes so a slave will redirect them.
+//-----------------------------------------------------------------------------
+  static bool IsWriteRequest(const eos::console::RequestProto* request);
 //-----------------------------------------------------------------------------
 
 private:

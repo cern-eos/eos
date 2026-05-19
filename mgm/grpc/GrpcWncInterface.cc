@@ -29,6 +29,7 @@
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
 #include "mgm/proc/admin/EvictCmd.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
 #include "mgm/proc/user/RecycleCmd.hh"
@@ -42,6 +43,16 @@
 #include <XrdPosix/XrdPosixXrootd.hh>
 
 EOSMGMNAMESPACE_BEGIN
+
+bool
+GrpcWncInterface::IsWriteRequest(const eos::console::RequestProto* request)
+{
+  if (request == nullptr) {
+    return false;
+  }
+
+  return ProcInterface::IsProtoWriteAccess(*request);
+}
 
 grpc::Status
 GrpcWncInterface::ExecCmd(eos::common::VirtualIdentity& vid,
