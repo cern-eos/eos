@@ -118,6 +118,75 @@ TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
   ASSERT_FALSE(manager.GetDetailedStats().empty());
 }
 
+TEST(TrafficShapingManager, GlobalStatsAggregateAcrossFilesystems)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+
+  auto make_report = [](const uint32_t fsid, const uint64_t total_bytes_written) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id("/eos/fst.example:1095/fst");
+    auto* entry = report.add_entries();
+    entry->set_app_name("aggregate-app");
+    entry->set_uid(1);
+    entry->set_gid(2);
+    entry->set_fsid(fsid);
+    entry->set_generation_id(1);
+    entry->set_total_bytes_written(total_bytes_written);
+    entry->set_total_write_ops(total_bytes_written / 4096);
+    return report;
+  };
+
+  manager.ProcessReport(make_report(3, 1024 * 1024));
+  manager.ProcessReport(make_report(3, 2 * 1024 * 1024));
+  manager.ProcessReport(make_report(4, 1024 * 1024));
+  manager.ProcessReport(make_report(4, 2 * 1024 * 1024));
+  manager.UpdateEstimators(1.0);
+
+  const auto global_stats = manager.GetGlobalStats();
+  ASSERT_EQ(1u, global_stats.size());
+  ASSERT_EQ(0u, global_stats.begin()->first.fsid);
+  EXPECT_DOUBLE_EQ(
+      2.0 * 1024.0 * 1024.0,
+      global_stats.begin()->second.ema[eos::mgm::traffic_shaping::Ema1s].write_rate_bps);
+
+  const auto cardinality = manager.GetMapCardinalityStats();
+  EXPECT_EQ(2u, cardinality.node_state_streams);
+  EXPECT_EQ(1u, cardinality.global_stats);
+  EXPECT_EQ(1u, cardinality.global_cumulative_stats);
+}
+
+TEST(TrafficShapingManager, GlobalStatsKeepFilesystemWhenDetailEnabled)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.SetFilesystemDetailEnabled(true);
+
+  auto make_report = [](const uint32_t fsid, const uint64_t total_bytes_written) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id("/eos/fst.example:1095/fst");
+    auto* entry = report.add_entries();
+    entry->set_app_name("fs-detail-app");
+    entry->set_uid(1);
+    entry->set_gid(2);
+    entry->set_fsid(fsid);
+    entry->set_generation_id(1);
+    entry->set_total_bytes_written(total_bytes_written);
+    entry->set_total_write_ops(total_bytes_written / 4096);
+    return report;
+  };
+
+  manager.ProcessReport(make_report(3, 1024 * 1024));
+  manager.ProcessReport(make_report(3, 2 * 1024 * 1024));
+  manager.ProcessReport(make_report(4, 1024 * 1024));
+  manager.ProcessReport(make_report(4, 2 * 1024 * 1024));
+  manager.UpdateEstimators(1.0);
+
+  const auto cardinality = manager.GetMapCardinalityStats();
+  EXPECT_EQ(2u, cardinality.global_stats);
+  EXPECT_EQ(2u, cardinality.global_cumulative_stats);
+  EXPECT_EQ(2u, cardinality.disk_stats);
+  EXPECT_EQ(2u, cardinality.detailed_stats);
+}
+
 TEST(TrafficShapingManager, MapCardinalityStatsTrackInternalMaps)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
@@ -161,6 +230,52 @@ TEST(TrafficShapingManager, MapCardinalityStatsTrackInternalMaps)
   ASSERT_EQ(1u, stats.app_policies);
   ASSERT_EQ(1u, stats.uid_policies);
   ASSERT_EQ(1u, stats.gid_policies);
+}
+
+TEST(TrafficShapingManager, GarbageCollectionPrunesCumulativeStats)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.SetFilesystemDetailEnabled(true);
+
+  auto make_report = [](const std::string& node_id, const uint64_t total_bytes_written) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id(node_id);
+    auto* entry = report.add_entries();
+    entry->set_app_name("gc-app");
+    entry->set_uid(1);
+    entry->set_gid(2);
+    entry->set_fsid(3);
+    entry->set_generation_id(1);
+    entry->set_total_bytes_written(total_bytes_written);
+    entry->set_total_write_ops(total_bytes_written / 4096);
+    return report;
+  };
+
+  manager.ProcessReport(make_report("/eos/fst-a.example:1095/fst", 1024 * 1024));
+  manager.ProcessReport(make_report("/eos/fst-a.example:1095/fst", 2 * 1024 * 1024));
+  manager.UpdateEstimators(1.0);
+
+  auto cardinality = manager.GetMapCardinalityStats();
+  ASSERT_EQ(1u, cardinality.global_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.node_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.disk_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.detailed_cumulative_stats);
+
+  manager.GarbageCollect(3600);
+
+  cardinality = manager.GetMapCardinalityStats();
+  EXPECT_EQ(1u, cardinality.global_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.node_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.disk_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.detailed_cumulative_stats);
+
+  manager.GarbageCollect(-1);
+
+  cardinality = manager.GetMapCardinalityStats();
+  EXPECT_EQ(0u, cardinality.global_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.node_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.disk_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.detailed_cumulative_stats);
 }
 
 TEST(TrafficShapingManager, DisablingReservationsClearsEphemeralLimits)

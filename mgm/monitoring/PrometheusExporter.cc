@@ -375,6 +375,18 @@ public:
     auto config_detail_filesystem = MakeGaugeFamily(
         "eos_io_shaping_config_detail_filesystem",
         "Traffic shaping stats detail level (1 if filesystem, 0 otherwise).");
+    auto config_detail_auto_enabled =
+        MakeGaugeFamily("eos_io_shaping_config_detail_auto_enabled",
+                        "Traffic shaping automatic stats detail level status "
+                        "(1 if enabled, 0 if disabled).");
+    auto config_detail_auto_low_cardinality = MakeGaugeFamily(
+        "eos_io_shaping_config_detail_auto_low_cardinality",
+        "Node stream cardinality at or below which automatic detail level selects "
+        "filesystem detail.");
+    auto config_detail_auto_high_cardinality = MakeGaugeFamily(
+        "eos_io_shaping_config_detail_auto_high_cardinality",
+        "Node stream cardinality above which automatic detail level selects aggregate "
+        "detail.");
     auto config_system_stats_time_window_sec =
         MakeGaugeFamily("eos_io_shaping_config_system_stats_time_window_seconds",
                         "Configured IO shaping system stats time window in seconds.");
@@ -396,6 +408,8 @@ public:
     AddConfigFamilies(config_enabled, config_estimators_update_period_ms,
                       config_fst_io_policy_update_period_ms,
                       config_fst_io_stats_reporting_period_ms, config_detail_filesystem,
+                      config_detail_auto_enabled, config_detail_auto_low_cardinality,
+                      config_detail_auto_high_cardinality,
                       config_system_stats_time_window_sec, config_limits_enabled,
                       config_reservations_enabled, config_controller_min_limit_bytes,
                       config_io_pressure_threshold,
@@ -433,6 +447,9 @@ public:
         std::move(config_fst_io_policy_update_period_ms),
         std::move(config_fst_io_stats_reporting_period_ms),
         std::move(config_detail_filesystem),
+        std::move(config_detail_auto_enabled),
+        std::move(config_detail_auto_low_cardinality),
+        std::move(config_detail_auto_high_cardinality),
         std::move(config_system_stats_time_window_sec),
         std::move(ns_traffic_shaping_enabled)};
 
@@ -733,6 +750,9 @@ private:
                     prometheus::MetricFamily& config_fst_io_policy_update_period_ms,
                     prometheus::MetricFamily& config_fst_io_stats_reporting_period_ms,
                     prometheus::MetricFamily& config_detail_filesystem,
+                    prometheus::MetricFamily& config_detail_auto_enabled,
+                    prometheus::MetricFamily& config_detail_auto_low_cardinality,
+                    prometheus::MetricFamily& config_detail_auto_high_cardinality,
                     prometheus::MetricFamily& config_system_stats_time_window_sec,
                     prometheus::MetricFamily& config_limits_enabled,
                     prometheus::MetricFamily& config_reservations_enabled,
@@ -765,6 +785,12 @@ private:
                      eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM
                  ? 1.0
                  : 0.0);
+    AddGauge(config_detail_auto_enabled, labels,
+             mEngine.GetAutomaticDetailLevelEnabled() ? 1.0 : 0.0);
+    AddGauge(config_detail_auto_low_cardinality, labels,
+             static_cast<double>(mEngine.GetAutomaticDetailLevelLowCardinality()));
+    AddGauge(config_detail_auto_high_cardinality, labels,
+             static_cast<double>(mEngine.GetAutomaticDetailLevelHighCardinality()));
     AddGauge(config_system_stats_time_window_sec, labels,
              static_cast<double>(mEngine.GetSystemStatsWindowSeconds()));
   }

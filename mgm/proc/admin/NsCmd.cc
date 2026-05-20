@@ -895,6 +895,9 @@ NsCmd::StatSubcmd(const eos::console::NsProto_StatProto& stat,
     oss << "ALL      traffic shaping info             "
         << "is_enabled=" << (gOFS->mTrafficShapingEngine.IsEnabled() ? "true" : "false")
         << " detail_level=" << gOFS->mTrafficShapingEngine.GetDetailLevel()
+        << " detail_auto="
+        << (gOFS->mTrafficShapingEngine.GetAutomaticDetailLevelEnabled() ? "true"
+                                                                         : "false")
         << " limits_enabled="
         << (gOFS->mTrafficShapingEngine.GetLimitsEnabled() ? "true" : "false")
         << " reservations_enabled="

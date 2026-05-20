@@ -15,13 +15,33 @@ IoStatsEntry::IoStatsEntry()
                         .count();
 }
 
+uint32_t
+IoStatsCollector::NormalizeFsid(const uint32_t fsid) const
+{
+  return mFilesystemDetailEnabled.load(std::memory_order_relaxed) ? fsid : 0;
+}
+
+bool
+IoStatsCollector::SetFilesystemDetailEnabled(const bool enabled)
+{
+  std::unique_lock lock(mutex_);
+  const bool old_value =
+      mFilesystemDetailEnabled.exchange(enabled, std::memory_order_relaxed);
+
+  if (old_value != enabled) {
+    stats_map_.clear();
+  }
+
+  return old_value != enabled;
+}
+
 std::shared_ptr<IoStatsEntry>
 IoStatsCollector::GetEntry(const std::string& app, uint32_t uid, uint32_t gid,
                            uint32_t fsid)
 {
-  const IoStatsKey key{app, uid, gid, fsid};
   {
     std::shared_lock lock(mutex_);
+    const IoStatsKey key{app, uid, gid, NormalizeFsid(fsid)};
     if (const auto it = stats_map_.find(key); it != stats_map_.end()) {
       return it->second;
     }
@@ -29,6 +49,7 @@ IoStatsCollector::GetEntry(const std::string& app, uint32_t uid, uint32_t gid,
   //
   {
     std::unique_lock lock(mutex_);
+    const IoStatsKey key{app, uid, gid, NormalizeFsid(fsid)};
     // Double-check in case another thread created it while we waited for lock
     if (const auto it = stats_map_.find(key); it != stats_map_.end()) {
       return it->second;

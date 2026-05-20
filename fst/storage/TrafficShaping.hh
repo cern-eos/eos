@@ -48,6 +48,14 @@ public:
   void RecordWrite(const std::string& app, uint32_t uid, uint32_t gid, uint32_t fsid,
                    size_t bytes);
 
+  bool SetFilesystemDetailEnabled(bool enabled);
+
+  bool
+  GetFilesystemDetailEnabled() const
+  {
+    return mFilesystemDetailEnabled.load(std::memory_order_relaxed);
+  }
+
   inline static std::atomic<uint32_t> fst_io_stats_reporting_thread_period_milliseconds{
       eos::common::TRAFFIC_SHAPING_FST_IO_STATS_REPORT_PERIOD_DEFAULT_MS};
 
@@ -89,6 +97,8 @@ public:
   }
 
 private:
+  uint32_t NormalizeFsid(uint32_t fsid) const;
+
   std::shared_ptr<IoStatsEntry> GetEntry(const std::string& app, uint32_t uid,
                                          uint32_t gid, uint32_t fsid);
 
@@ -97,6 +107,7 @@ private:
       stats_map_;
 
   std::atomic<bool> mIsEnabled{false};
+  std::atomic<bool> mFilesystemDetailEnabled{false};
 };
 
 class IoDelayConfig {

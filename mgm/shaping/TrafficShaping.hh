@@ -161,6 +161,8 @@ constexpr uint32_t kMaxSystemStatsWindowSec = 300;
 constexpr uint32_t kMinGarbageCollectionIdleSec = 1;
 constexpr uint32_t kMaxGarbageCollectionIdleSec = 24 * 60 * 60;
 constexpr uint32_t kDefaultGarbageCollectionIdleSec = 15 * 60;
+constexpr uint64_t kDefaultAutomaticFilesystemDetailLowCardinality = 5000;
+constexpr uint64_t kDefaultAutomaticFilesystemDetailHighCardinality = 8000;
 constexpr uint64_t kDefaultControllerMinLimitBps = 100ULL * 1000ULL * 1000ULL;
 constexpr double kDefaultIoPressureThreshold = 0.1;
 
@@ -637,6 +639,25 @@ public:
 
   std::string GetDetailLevel() const;
 
+  void SetAutomaticDetailLevelEnabled(bool enabled);
+
+  bool GetAutomaticDetailLevelEnabled() const;
+
+  void SetAutomaticDetailLevelCardinality(uint64_t low_cardinality,
+                                          uint64_t high_cardinality);
+
+  uint64_t
+  GetAutomaticDetailLevelLowCardinality() const
+  {
+    return mAutomaticDetailLevelLowCardinality.load(std::memory_order_relaxed);
+  }
+
+  uint64_t
+  GetAutomaticDetailLevelHighCardinality() const
+  {
+    return mAutomaticDetailLevelHighCardinality.load(std::memory_order_relaxed);
+  }
+
   void SetLimitsEnabled(bool enabled);
 
   bool GetLimitsEnabled() const;
@@ -687,7 +708,22 @@ private:
 
   bool ApplyDetailLevelConfig(const std::string& detail_level);
 
+  void LogDetailLevelSwitch(const char* reason, const std::string& detail_level,
+                            const MapCardinalityStats& cardinality) const;
+
   static void StoreDetailLevelConfig(const std::string& detail_level);
+
+  bool ApplyAutomaticDetailLevelEnabledConfig(bool enabled);
+
+  static void StoreAutomaticDetailLevelEnabledConfig(bool enabled);
+
+  bool ApplyAutomaticDetailLevelCardinalityConfig(uint64_t low_cardinality,
+                                                  uint64_t high_cardinality);
+
+  static void StoreAutomaticDetailLevelCardinalityConfig(uint64_t low_cardinality,
+                                                         uint64_t high_cardinality);
+
+  void ApplyAutomaticDetailLevel();
 
   bool ApplyLimitsEnabledConfig(bool enabled);
 
@@ -734,6 +770,12 @@ private:
   std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mSystemStatsWindowSeconds{};
   std::atomic<bool> mFilesystemDetailEnabled{};
+  std::atomic<bool> mAutomaticDetailLevelEnabled{true};
+  std::atomic<uint64_t> mAutomaticDetailLevelLowCardinality{
+      kDefaultAutomaticFilesystemDetailLowCardinality};
+  std::atomic<uint64_t> mAutomaticDetailLevelHighCardinality{
+      kDefaultAutomaticFilesystemDetailHighCardinality};
+  std::chrono::steady_clock::time_point mLastAutomaticDetailLevelChange{};
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
