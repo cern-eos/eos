@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <string>
+#include <unordered_map>
 #include <utility>
 
 namespace {
@@ -20,6 +21,73 @@ MakeVid(const std::string& app, const uint32_t uid = 1000, const uint32_t gid = 
 }
 
 } // namespace
+
+TEST(IoStatsCollectorTest, AggregatesFilesystemKeyByDefault)
+{
+  eos::fst::traffic_shaping::IoStatsCollector collector;
+  collector.SetEnabled(true);
+
+  collector.RecordRead("aggregate-app", 1000, 1001, 10, 4096);
+  collector.RecordRead("aggregate-app", 1000, 1001, 20, 8192);
+
+  uint32_t fsid = 999;
+  uint64_t bytes_read = 0;
+  uint64_t read_iops = 0;
+  size_t entries = 0;
+  collector.VisitEntries([&](const eos::fst::traffic_shaping::IoStatsKey& key,
+                             const eos::fst::traffic_shaping::IoStatsEntry& entry) {
+    ++entries;
+    fsid = key.fsid;
+    bytes_read = entry.bytes_read.load(std::memory_order_relaxed);
+    read_iops = entry.read_iops.load(std::memory_order_relaxed);
+  });
+
+  EXPECT_EQ(1u, entries);
+  EXPECT_EQ(0u, fsid);
+  EXPECT_EQ(12288u, bytes_read);
+  EXPECT_EQ(2u, read_iops);
+}
+
+TEST(IoStatsCollectorTest, DetailModeChangesClearAndSwitchFilesystemKeying)
+{
+  eos::fst::traffic_shaping::IoStatsCollector collector;
+  collector.SetEnabled(true);
+
+  collector.RecordWrite("mode-app", 1000, 1001, 10, 4096);
+  ASSERT_TRUE(collector.SetFilesystemDetailEnabled(true));
+
+  size_t entries = 0;
+  collector.VisitEntries(
+      [&](const eos::fst::traffic_shaping::IoStatsKey&,
+          const eos::fst::traffic_shaping::IoStatsEntry&) { ++entries; });
+  ASSERT_EQ(0u, entries);
+
+  collector.RecordWrite("mode-app", 1000, 1001, 10, 4096);
+  collector.RecordWrite("mode-app", 1000, 1001, 20, 8192);
+
+  std::unordered_map<uint32_t, uint64_t> bytes_by_fsid;
+  collector.VisitEntries([&](const eos::fst::traffic_shaping::IoStatsKey& key,
+                             const eos::fst::traffic_shaping::IoStatsEntry& entry) {
+    bytes_by_fsid[key.fsid] = entry.bytes_written.load(std::memory_order_relaxed);
+  });
+
+  ASSERT_EQ(2u, bytes_by_fsid.size());
+  EXPECT_EQ(4096u, bytes_by_fsid[10]);
+  EXPECT_EQ(8192u, bytes_by_fsid[20]);
+
+  ASSERT_TRUE(collector.SetFilesystemDetailEnabled(false));
+  collector.RecordWrite("mode-app", 1000, 1001, 10, 4096);
+  collector.RecordWrite("mode-app", 1000, 1001, 20, 8192);
+
+  bytes_by_fsid.clear();
+  collector.VisitEntries([&](const eos::fst::traffic_shaping::IoStatsKey& key,
+                             const eos::fst::traffic_shaping::IoStatsEntry& entry) {
+    bytes_by_fsid[key.fsid] = entry.bytes_written.load(std::memory_order_relaxed);
+  });
+
+  ASSERT_EQ(1u, bytes_by_fsid.size());
+  EXPECT_EQ(12288u, bytes_by_fsid[0]);
+}
 
 TEST(IoDelayConfigTest, ScalesWriteDelayWithBufferSize)
 {

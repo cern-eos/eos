@@ -58,6 +58,7 @@
 #include "mgm/inspector/FileInspector.hh"
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/lru/LRU.hh"
+#include "mgm/monitoring/Monitoring.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
 #include "mgm/ofs/XrdMgmOfsTrace.hh"
 #include "mgm/placement/FsScheduler.hh"
@@ -1270,15 +1271,30 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   // Setup the circular in-memory logging buffer
   eos::common::Logging& g_logging = eos::common::Logging::GetInstance();
   // Configure log-file fan out
-  std::vector<std::string> lFanOutTags{
-      "Grpc",          "Balancer",      "Converter",
-      "DrainJob",      "ZMQ",           "MetadataFlusher",
-      "Http",          "Master",        "Recycle",
-      "LRU",           "WFE",           "Wnc",
-      "WFE::Job",      "GroupBalancer", "GroupDrainer",
-      "GeoBalancer",   "GeoTreeEngine", "ReplicationTracker",
-      "FileInspector", "Mounts",        "OAuth",
-      "TokenCmd",      "TrafficShaping"};
+  std::vector<std::string> lFanOutTags{"Grpc",
+                                       "Balancer",
+                                       "Converter",
+                                       "DrainJob",
+                                       "ZMQ",
+                                       "MetadataFlusher",
+                                       "Http",
+                                       "Master",
+                                       "Recycle",
+                                       "LRU",
+                                       "WFE",
+                                       "Wnc",
+                                       "Monitoring",
+                                       "WFE::Job",
+                                       "GroupBalancer",
+                                       "GroupDrainer",
+                                       "GeoBalancer",
+                                       "GeoTreeEngine",
+                                       "ReplicationTracker",
+                                       "FileInspector",
+                                       "Mounts",
+                                       "OAuth",
+                                       "TokenCmd",
+                                       "TrafficShaping"};
   // Get the XRootD log directory
   char* logdir = 0;
   XrdOucEnv::Import("XRDLOGDIR", logdir);
@@ -1323,6 +1339,8 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
     g_logging.AddFanOutAlias("ConverterEngine", "Converter");
     g_logging.AddFanOutAlias("TrafficShapingEngine", "TrafficShaping");
     g_logging.AddFanOutAlias("TrafficShapingManager", "TrafficShaping");
+    g_logging.AddFanOutAlias("PrometheusExporter", "Monitoring");
+    g_logging.AddFanOutAlias("CachedCollectable", "Monitoring");
   }
 
   Eroute.Say("=====> mgmofs.broker : ", MgmOfsBrokerUrl.c_str(), "");
@@ -2142,6 +2160,12 @@ XrdMgmOfs::Configure(XrdSysError& Eroute)
   }
 
 #endif
+
+  std::string monitoring_err;
+  if (!ApplyMonitoringConfig(&monitoring_err)) {
+    eos::mgm::monitoring::LogMonitoringConfigError(monitoring_err);
+  }
+
   // start the Admin socket
   {
     std::string admin_socket_path = std::string(gOFS->MgmMetaLogDir.c_str()) +

@@ -243,6 +243,9 @@ ProcCommand::open(const char* inpath, const char* info,
     } else if (mCmd == "geosched") {
       GeoSched();
       mDoSort = false;
+    } else if (mCmd == "monit") {
+      Monit();
+      mDoSort = false;
     } else if (mCmd == "fusex") {
       Fusex();
       mDoSort = false;

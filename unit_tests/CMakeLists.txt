@@ -116,6 +116,7 @@ set(COMMON_UT_SRCS
   common/StringTokenizerTests.cc
   common/StringSplitTests.cc
   common/StringUtilsTests.cc
+  common/SlidingWindowStatsTests.cc
   common/SymKeysTests.cc
   common/ThreadPoolTest.cc
   common/TimingTests.cc
