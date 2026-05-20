@@ -118,6 +118,75 @@ TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
   ASSERT_FALSE(manager.GetDetailedStats().empty());
 }
 
+TEST(TrafficShapingManager, GlobalStatsAggregateAcrossFilesystems)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+
+  auto make_report = [](const uint32_t fsid, const uint64_t total_bytes_written) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id("/eos/fst.example:1095/fst");
+    auto* entry = report.add_entries();
+    entry->set_app_name("aggregate-app");
+    entry->set_uid(1);
+    entry->set_gid(2);
+    entry->set_fsid(fsid);
+    entry->set_generation_id(1);
+    entry->set_total_bytes_written(total_bytes_written);
+    entry->set_total_write_ops(total_bytes_written / 4096);
+    return report;
+  };
+
+  manager.ProcessReport(make_report(3, 1024 * 1024));
+  manager.ProcessReport(make_report(3, 2 * 1024 * 1024));
+  manager.ProcessReport(make_report(4, 1024 * 1024));
+  manager.ProcessReport(make_report(4, 2 * 1024 * 1024));
+  manager.UpdateEstimators(1.0);
+
+  const auto global_stats = manager.GetGlobalStats();
+  ASSERT_EQ(1u, global_stats.size());
+  ASSERT_EQ(0u, global_stats.begin()->first.fsid);
+  EXPECT_DOUBLE_EQ(
+      2.0 * 1024.0 * 1024.0,
+      global_stats.begin()->second.ema[eos::mgm::traffic_shaping::Ema1s].write_rate_bps);
+
+  const auto cardinality = manager.GetMapCardinalityStats();
+  EXPECT_EQ(2u, cardinality.node_state_streams);
+  EXPECT_EQ(1u, cardinality.global_stats);
+  EXPECT_EQ(1u, cardinality.global_cumulative_stats);
+}
+
+TEST(TrafficShapingManager, GlobalStatsKeepFilesystemWhenDetailEnabled)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.SetFilesystemDetailEnabled(true);
+
+  auto make_report = [](const uint32_t fsid, const uint64_t total_bytes_written) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id("/eos/fst.example:1095/fst");
+    auto* entry = report.add_entries();
+    entry->set_app_name("fs-detail-app");
+    entry->set_uid(1);
+    entry->set_gid(2);
+    entry->set_fsid(fsid);
+    entry->set_generation_id(1);
+    entry->set_total_bytes_written(total_bytes_written);
+    entry->set_total_write_ops(total_bytes_written / 4096);
+    return report;
+  };
+
+  manager.ProcessReport(make_report(3, 1024 * 1024));
+  manager.ProcessReport(make_report(3, 2 * 1024 * 1024));
+  manager.ProcessReport(make_report(4, 1024 * 1024));
+  manager.ProcessReport(make_report(4, 2 * 1024 * 1024));
+  manager.UpdateEstimators(1.0);
+
+  const auto cardinality = manager.GetMapCardinalityStats();
+  EXPECT_EQ(2u, cardinality.global_stats);
+  EXPECT_EQ(2u, cardinality.global_cumulative_stats);
+  EXPECT_EQ(2u, cardinality.disk_stats);
+  EXPECT_EQ(2u, cardinality.detailed_stats);
+}
+
 TEST(TrafficShapingManager, MapCardinalityStatsTrackInternalMaps)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
@@ -143,6 +212,8 @@ TEST(TrafficShapingManager, MapCardinalityStatsTrackInternalMaps)
                                     2 * 1024 * 1024));
   manager.ProcessReport(
       make_report("/eos/fst-b.example:1095/fst", "cardinality-app-b", 2, 1024 * 1024));
+  manager.ProcessReport(make_report("/eos/fst-b.example:1095/fst", "cardinality-app-b", 2,
+                                    2 * 1024 * 1024));
 
   ASSERT_TRUE(manager.LoadPoliciesFromString(
       "{\"appPolicies\":{\"cardinality-app-a\":{\"limitWriteBytesPerSec\":1000,"
@@ -153,14 +224,76 @@ TEST(TrafficShapingManager, MapCardinalityStatsTrackInternalMaps)
   const auto stats = manager.GetMapCardinalityStats();
   ASSERT_EQ(2u, stats.node_states);
   ASSERT_EQ(2u, stats.node_state_streams);
-  ASSERT_EQ(1u, stats.global_stats);
-  ASSERT_EQ(1u, stats.node_stats);
-  ASSERT_EQ(1u, stats.node_entity_stats);
+  ASSERT_EQ(2u, stats.global_stats);
+  ASSERT_EQ(2u, stats.node_stats);
+  ASSERT_EQ(2u, stats.node_entity_stats);
   ASSERT_EQ(0u, stats.disk_stats);
   ASSERT_EQ(0u, stats.detailed_stats);
+  ASSERT_EQ(2u, stats.projection_app_cumulative_stats);
+  ASSERT_EQ(2u, stats.projection_uid_cumulative_stats);
+  ASSERT_EQ(1u, stats.projection_gid_cumulative_stats);
+  ASSERT_EQ(2u, stats.projection_node_cumulative_stats);
   ASSERT_EQ(1u, stats.app_policies);
   ASSERT_EQ(1u, stats.uid_policies);
   ASSERT_EQ(1u, stats.gid_policies);
+}
+
+TEST(TrafficShapingManager, GarbageCollectionPrunesCumulativeStats)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.SetFilesystemDetailEnabled(true);
+
+  auto make_report = [](const std::string& node_id, const uint64_t total_bytes_written) {
+    eos::traffic_shaping::FstIoReport report;
+    report.set_node_id(node_id);
+    auto* entry = report.add_entries();
+    entry->set_app_name("gc-app");
+    entry->set_uid(1);
+    entry->set_gid(2);
+    entry->set_fsid(3);
+    entry->set_generation_id(1);
+    entry->set_total_bytes_written(total_bytes_written);
+    entry->set_total_write_ops(total_bytes_written / 4096);
+    return report;
+  };
+
+  manager.ProcessReport(make_report("/eos/fst-a.example:1095/fst", 1024 * 1024));
+  manager.ProcessReport(make_report("/eos/fst-a.example:1095/fst", 2 * 1024 * 1024));
+  manager.UpdateEstimators(1.0);
+
+  auto cardinality = manager.GetMapCardinalityStats();
+  ASSERT_EQ(1u, cardinality.global_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.node_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.disk_cumulative_stats);
+  ASSERT_EQ(1u, cardinality.detailed_cumulative_stats);
+  auto projection_stats = manager.GetProjectionCumulativeStats();
+  ASSERT_EQ(1u, projection_stats.app.size());
+  ASSERT_EQ(1024u * 1024u, projection_stats.app["gc-app"].bytes_written_total);
+  ASSERT_EQ(1u, projection_stats.uid.size());
+  ASSERT_EQ(1u, projection_stats.gid.size());
+  ASSERT_EQ(1u, projection_stats.node.size());
+
+  manager.GarbageCollect(3600);
+
+  cardinality = manager.GetMapCardinalityStats();
+  EXPECT_EQ(1u, cardinality.global_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.node_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.disk_cumulative_stats);
+  EXPECT_EQ(1u, cardinality.detailed_cumulative_stats);
+
+  manager.GarbageCollect(-1);
+
+  cardinality = manager.GetMapCardinalityStats();
+  EXPECT_EQ(0u, cardinality.global_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.node_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.disk_cumulative_stats);
+  EXPECT_EQ(0u, cardinality.detailed_cumulative_stats);
+
+  projection_stats = manager.GetProjectionCumulativeStats();
+  EXPECT_TRUE(projection_stats.app.empty());
+  EXPECT_TRUE(projection_stats.uid.empty());
+  EXPECT_TRUE(projection_stats.gid.empty());
+  EXPECT_TRUE(projection_stats.node.empty());
 }
 
 TEST(TrafficShapingManager, DisablingReservationsClearsEphemeralLimits)
@@ -250,7 +383,7 @@ TEST(TrafficShapingManager, IdleDelaySeedIsKeptBeforeEntityTrafficIsSeen)
   for (int tick = 0; tick < 30; ++tick) {
     delay_us = eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
         limit_bps, 0.0, delay_us, 0.0, false, true);
-    ASSERT_NEAR(1282051.0, static_cast<double>(delay_us), 1000.0);
+    ASSERT_NEAR(1000000.0, static_cast<double>(delay_us), 1000.0);
   }
 }
 
@@ -279,7 +412,7 @@ TEST(TrafficShapingManager, IdleDelaySeedIsKeptForExplicitLimitAfterTrafficIsSee
   for (int tick = 0; tick < 30; ++tick) {
     delay_us = eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
         limit_bps, 0.0, delay_us, 0.0, true, false);
-    ASSERT_NEAR(1282051.0, static_cast<double>(delay_us), 1000.0);
+    ASSERT_NEAR(1000000.0, static_cast<double>(delay_us), 1000.0);
   }
 }
 
@@ -293,7 +426,7 @@ TEST(TrafficShapingManager, ExplicitLimitSlowlyReleasesHighDelayOnSparseSample)
           limit_bps, 0.0, current_delay_us, 1.0, true, false);
 
   ASSERT_LT(delay_us, current_delay_us);
-  ASSERT_GT(delay_us, 1282051u);
+  ASSERT_GT(delay_us, 1000000u);
 }
 
 TEST(TrafficShapingManager, DelaySeedAccountsForReferenceRate)
@@ -305,7 +438,7 @@ TEST(TrafficShapingManager, DelaySeedAccountsForReferenceRate)
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
           limit_bps, 0.0, 0, 1.0, false, false, delay_reference_bps);
 
-  ASSERT_NEAR(320512.0, static_cast<double>(delay_us), 1000.0);
+  ASSERT_NEAR(250000.0, static_cast<double>(delay_us), 1000.0);
 }
 
 TEST(TrafficShapingManager, GlobalRateSeedsDelayWhenNodeShardIsBelowLimit)
@@ -339,7 +472,7 @@ TEST(TrafficShapingManager, DelaySeedScalesWithLowerReferenceRate)
           global_limit_bps, global_bps, 0, 1.0, true, false, lower_reference_bps);
 
   ASSERT_GT(per_node_seed, global_seed);
-  ASSERT_NEAR(185641.0, static_cast<double>(per_node_seed), 1000.0);
+  ASSERT_NEAR(177500.0, static_cast<double>(per_node_seed), 1000.0);
 }
 
 TEST(TrafficShapingManager, AboveLimitKeepsReferenceDelaySeedFloor)
@@ -355,20 +488,31 @@ TEST(TrafficShapingManager, AboveLimitKeepsReferenceDelaySeedFloor)
   ASSERT_GT(delay_us, 12000u);
 }
 
+TEST(TrafficShapingManager, BelowTargetCanReleaseBelowSeedDelay)
+{
+  constexpr double limit_bps = 200.0 * 1000.0 * 1000.0;
+  constexpr uint64_t seed_delay_us =
+      static_cast<uint64_t>((1024.0 * 1024.0 * 1000000.0) / limit_bps);
+
+  const uint64_t delay_us =
+      eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
+          limit_bps, limit_bps * 0.865, seed_delay_us, 1.0, true, false);
+
+  ASSERT_LT(delay_us, seed_delay_us);
+}
+
 TEST(TrafficShapingManager, NearTargetKeepsDelayStable)
 {
   constexpr double limit_bps = 300.0 * 1000.0 * 1000.0;
   constexpr uint64_t current_delay_us = 120000;
 
-  constexpr double control_limit_bps = limit_bps * 0.78;
-
   const uint64_t slightly_low_delay =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          limit_bps, control_limit_bps * 0.97, current_delay_us, 1.0, true, false,
+          limit_bps, limit_bps * 0.97, current_delay_us, 1.0, true, false,
           limit_bps / 15.0);
   const uint64_t slightly_high_delay =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          limit_bps, control_limit_bps * 1.01, current_delay_us, 1.0, true, false,
+          limit_bps, limit_bps * 1.01, current_delay_us, 1.0, true, false,
           limit_bps / 15.0);
 
   ASSERT_EQ(current_delay_us, slightly_low_delay);
