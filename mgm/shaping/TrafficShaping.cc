@@ -658,7 +658,6 @@ TrafficShapingManager::CalculateDelayUs(
   constexpr uint64_t kDelayReferenceBytes = 1024 * 1024;
   constexpr uint64_t kIdleReleaseStepDownUs = 250000;
   constexpr uint64_t kSparseSampleStepDownUs = 80000;
-  constexpr double kControlBias = 0.78;
   constexpr double kIdleRatio = 0.01;
   constexpr double kLowerDeadbandRatio = 0.94;
   constexpr double kUpperDeadbandRatio = 1.02;
@@ -666,12 +665,10 @@ TrafficShapingManager::CalculateDelayUs(
   uint64_t delay_us = current_delay_us;
   const double reference_bps =
       delay_reference_bps > 0.0 ? delay_reference_bps : limit_bps;
-  const double biased_limit_bps = limit_bps * kControlBias;
-  const double biased_reference_bps = reference_bps * kControlBias;
   const uint64_t seed_delay_us = std::min<uint64_t>(
       kMaxDelayUs,
-      static_cast<uint64_t>((kDelayReferenceBytes * 1000000.0) / biased_reference_bps));
-  const double ratio = current_rate_bps / biased_limit_bps;
+      static_cast<uint64_t>((kDelayReferenceBytes * 1000000.0) / reference_bps));
+  const double ratio = current_rate_bps / limit_bps;
 
   // 0. Idle seed: when traffic is sparse, use the current limit's baseline
   // delay. This shapes the first transfer and lets raised limits release old
@@ -719,10 +716,6 @@ TrafficShapingManager::CalculateDelayUs(
     const uint64_t step = std::clamp<uint64_t>(
         std::max<uint64_t>(proportional_step, seed_delay_us / 5), 250, 25000);
     delay_us = delay_us > step ? delay_us - step : 0;
-
-    if (ratio > 0.70) {
-      delay_us = std::max(delay_us, seed_delay_us);
-    }
   } else if (delay_us < seed_delay_us) {
     delay_us = seed_delay_us;
   }

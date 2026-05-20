@@ -250,7 +250,7 @@ TEST(TrafficShapingManager, IdleDelaySeedIsKeptBeforeEntityTrafficIsSeen)
   for (int tick = 0; tick < 30; ++tick) {
     delay_us = eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
         limit_bps, 0.0, delay_us, 0.0, false, true);
-    ASSERT_NEAR(1282051.0, static_cast<double>(delay_us), 1000.0);
+    ASSERT_NEAR(1000000.0, static_cast<double>(delay_us), 1000.0);
   }
 }
 
@@ -279,7 +279,7 @@ TEST(TrafficShapingManager, IdleDelaySeedIsKeptForExplicitLimitAfterTrafficIsSee
   for (int tick = 0; tick < 30; ++tick) {
     delay_us = eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
         limit_bps, 0.0, delay_us, 0.0, true, false);
-    ASSERT_NEAR(1282051.0, static_cast<double>(delay_us), 1000.0);
+    ASSERT_NEAR(1000000.0, static_cast<double>(delay_us), 1000.0);
   }
 }
 
@@ -293,7 +293,7 @@ TEST(TrafficShapingManager, ExplicitLimitSlowlyReleasesHighDelayOnSparseSample)
           limit_bps, 0.0, current_delay_us, 1.0, true, false);
 
   ASSERT_LT(delay_us, current_delay_us);
-  ASSERT_GT(delay_us, 1282051u);
+  ASSERT_GT(delay_us, 1000000u);
 }
 
 TEST(TrafficShapingManager, DelaySeedAccountsForReferenceRate)
@@ -305,7 +305,7 @@ TEST(TrafficShapingManager, DelaySeedAccountsForReferenceRate)
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
           limit_bps, 0.0, 0, 1.0, false, false, delay_reference_bps);
 
-  ASSERT_NEAR(320512.0, static_cast<double>(delay_us), 1000.0);
+  ASSERT_NEAR(250000.0, static_cast<double>(delay_us), 1000.0);
 }
 
 TEST(TrafficShapingManager, GlobalRateSeedsDelayWhenNodeShardIsBelowLimit)
@@ -339,7 +339,7 @@ TEST(TrafficShapingManager, DelaySeedScalesWithLowerReferenceRate)
           global_limit_bps, global_bps, 0, 1.0, true, false, lower_reference_bps);
 
   ASSERT_GT(per_node_seed, global_seed);
-  ASSERT_NEAR(185641.0, static_cast<double>(per_node_seed), 1000.0);
+  ASSERT_NEAR(177500.0, static_cast<double>(per_node_seed), 1000.0);
 }
 
 TEST(TrafficShapingManager, AboveLimitKeepsReferenceDelaySeedFloor)
@@ -355,20 +355,31 @@ TEST(TrafficShapingManager, AboveLimitKeepsReferenceDelaySeedFloor)
   ASSERT_GT(delay_us, 12000u);
 }
 
+TEST(TrafficShapingManager, BelowTargetCanReleaseBelowSeedDelay)
+{
+  constexpr double limit_bps = 200.0 * 1000.0 * 1000.0;
+  constexpr uint64_t seed_delay_us =
+      static_cast<uint64_t>((1024.0 * 1024.0 * 1000000.0) / limit_bps);
+
+  const uint64_t delay_us =
+      eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
+          limit_bps, limit_bps * 0.865, seed_delay_us, 1.0, true, false);
+
+  ASSERT_LT(delay_us, seed_delay_us);
+}
+
 TEST(TrafficShapingManager, NearTargetKeepsDelayStable)
 {
   constexpr double limit_bps = 300.0 * 1000.0 * 1000.0;
   constexpr uint64_t current_delay_us = 120000;
 
-  constexpr double control_limit_bps = limit_bps * 0.78;
-
   const uint64_t slightly_low_delay =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          limit_bps, control_limit_bps * 0.97, current_delay_us, 1.0, true, false,
+          limit_bps, limit_bps * 0.97, current_delay_us, 1.0, true, false,
           limit_bps / 15.0);
   const uint64_t slightly_high_delay =
       eos::mgm::traffic_shaping::TrafficShapingManager::CalculateDelayUs(
-          limit_bps, control_limit_bps * 1.01, current_delay_us, 1.0, true, false,
+          limit_bps, limit_bps * 1.01, current_delay_us, 1.0, true, false,
           limit_bps / 15.0);
 
   ASSERT_EQ(current_delay_us, slightly_low_delay);
