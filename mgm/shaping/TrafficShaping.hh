@@ -135,6 +135,14 @@ struct MapCardinalityStats {
   uint64_t node_stats = 0;
   uint64_t disk_stats = 0;
   uint64_t detailed_stats = 0;
+  uint64_t global_cumulative_stats = 0;
+  uint64_t node_cumulative_stats = 0;
+  uint64_t disk_cumulative_stats = 0;
+  uint64_t detailed_cumulative_stats = 0;
+  uint64_t projection_app_cumulative_stats = 0;
+  uint64_t projection_uid_cumulative_stats = 0;
+  uint64_t projection_gid_cumulative_stats = 0;
+  uint64_t projection_node_cumulative_stats = 0;
   uint64_t node_entity_stats = 0;
   uint64_t uid_policies = 0;
   uint64_t gid_policies = 0;
@@ -156,7 +164,9 @@ constexpr uint32_t kMinSystemStatsWindowSec = 5;
 constexpr uint32_t kMaxSystemStatsWindowSec = 300;
 constexpr uint32_t kMinGarbageCollectionIdleSec = 1;
 constexpr uint32_t kMaxGarbageCollectionIdleSec = 24 * 60 * 60;
-constexpr uint32_t kDefaultGarbageCollectionIdleSec = 15 * 60;
+constexpr uint32_t kDefaultGarbageCollectionIdleSec = 5 * 60;
+constexpr uint64_t kDefaultAutomaticFilesystemDetailLowCardinality = 5000;
+constexpr uint64_t kDefaultAutomaticFilesystemDetailHighCardinality = 8000;
 constexpr uint64_t kDefaultControllerMinLimitBps = 100ULL * 1000ULL * 1000ULL;
 constexpr double kDefaultIoPressureThreshold = 0.1;
 
@@ -234,12 +244,23 @@ struct MultiWindowRate {
 struct RateSnapshot {
   uint64_t bytes_read_accumulator = 0;
   uint64_t bytes_written_accumulator = 0;
+  uint64_t bytes_read_total = 0;
+  uint64_t bytes_written_total = 0;
+  uint64_t read_ops_total = 0;
+  uint64_t write_ops_total = 0;
 
   std::array<RateMetrics, EmaWindowSec.size()> ema{};
   std::array<RateMetrics, SmaWindowSec.size()> sma{};
 
   uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
+};
+
+struct ProjectionCumulativeStats {
+  std::unordered_map<std::string, RateSnapshot> app;
+  std::unordered_map<uint32_t, RateSnapshot> uid;
+  std::unordered_map<uint32_t, RateSnapshot> gid;
+  std::unordered_map<std::string, RateSnapshot> node;
 };
 
 using StreamKey = eos::common::traffic_shaping::IoStatsKey;
@@ -378,6 +399,20 @@ public:
 
   RateSnapshot GetTotalStats() const;
 
+  std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash>
+  GetGlobalCumulativeStats() const;
+
+  std::unordered_map<std::string, RateSnapshot> GetNodeCumulativeStats() const;
+
+  std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> GetDiskCumulativeStats() const;
+
+  std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash>
+  GetDetailedCumulativeStats() const;
+
+  ProjectionCumulativeStats GetProjectionCumulativeStats() const;
+
+  RateSnapshot GetTotalCumulativeStats() const;
+
   struct GarbageCollectionStats {
     size_t removed_nodes;
     size_t removed_node_streams;
@@ -471,6 +506,13 @@ private:
   std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mNodeEntityStats;
   // We provide an initial tick interval but this will be refreshed on initialization
   MultiWindowRate mTotalStats{0.5};
+
+  std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> mGlobalCumulativeStats;
+  std::unordered_map<std::string, RateSnapshot> mNodeCumulativeStats;
+  std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> mDiskCumulativeStats;
+  std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash> mDetailedCumulativeStats;
+  ProjectionCumulativeStats mProjectionCumulativeStats;
+  RateSnapshot mCumulativeTotalStats;
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
@@ -611,6 +653,25 @@ public:
 
   std::string GetDetailLevel() const;
 
+  void SetAutomaticDetailLevelEnabled(bool enabled);
+
+  bool GetAutomaticDetailLevelEnabled() const;
+
+  void SetAutomaticDetailLevelCardinality(uint64_t low_cardinality,
+                                          uint64_t high_cardinality);
+
+  uint64_t
+  GetAutomaticDetailLevelLowCardinality() const
+  {
+    return mAutomaticDetailLevelLowCardinality.load(std::memory_order_relaxed);
+  }
+
+  uint64_t
+  GetAutomaticDetailLevelHighCardinality() const
+  {
+    return mAutomaticDetailLevelHighCardinality.load(std::memory_order_relaxed);
+  }
+
   void SetLimitsEnabled(bool enabled);
 
   bool GetLimitsEnabled() const;
@@ -661,7 +722,22 @@ private:
 
   bool ApplyDetailLevelConfig(const std::string& detail_level);
 
+  void LogDetailLevelSwitch(const char* reason, const std::string& detail_level,
+                            const MapCardinalityStats& cardinality) const;
+
   static void StoreDetailLevelConfig(const std::string& detail_level);
+
+  bool ApplyAutomaticDetailLevelEnabledConfig(bool enabled);
+
+  static void StoreAutomaticDetailLevelEnabledConfig(bool enabled);
+
+  bool ApplyAutomaticDetailLevelCardinalityConfig(uint64_t low_cardinality,
+                                                  uint64_t high_cardinality);
+
+  static void StoreAutomaticDetailLevelCardinalityConfig(uint64_t low_cardinality,
+                                                         uint64_t high_cardinality);
+
+  void ApplyAutomaticDetailLevel();
 
   bool ApplyLimitsEnabledConfig(bool enabled);
 
@@ -708,6 +784,12 @@ private:
   std::atomic<uint32_t> mFstIoStatsReportThreadPeriodMilliseconds{};
   std::atomic<uint32_t> mSystemStatsWindowSeconds{};
   std::atomic<bool> mFilesystemDetailEnabled{};
+  std::atomic<bool> mAutomaticDetailLevelEnabled{true};
+  std::atomic<uint64_t> mAutomaticDetailLevelLowCardinality{
+      kDefaultAutomaticFilesystemDetailLowCardinality};
+  std::atomic<uint64_t> mAutomaticDetailLevelHighCardinality{
+      kDefaultAutomaticFilesystemDetailHighCardinality};
+  std::chrono::steady_clock::time_point mLastAutomaticDetailLevelChange{};
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};

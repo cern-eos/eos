@@ -179,6 +179,8 @@ void RegisterNativeConsoleCommands()
   RegisterEvictNativeCommand();
   extern void RegisterMotdNativeCommand();
   RegisterMotdNativeCommand();
+  extern void RegisterMonitNativeCommand();
+  RegisterMonitNativeCommand();
   extern void RegisterOldfindNativeCommand();
   RegisterOldfindNativeCommand();
   extern void RegisterRcloneNativeCommand();
