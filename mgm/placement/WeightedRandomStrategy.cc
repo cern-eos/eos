@@ -130,9 +130,10 @@ int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments& ar
   }
 
   uint64_t best_score = 0;
-  size_t best_index = std::numeric_limits<size_t>::max();
+  size_t best_pos = std::numeric_limits<size_t>::max();
 
-  for (const auto& fsid: args.selectedfs) {
+  for (size_t i = 0; i < args.selectedfs.size(); ++i) {
+    const auto fsid = args.selectedfs[i];
     if ((size_t)fsid > data.disks.size()) {
       eos_static_info("msg=\"FlatScheduler Access - Skipping invalid fsid\" fsid=%u", fsid);
       continue;
@@ -144,23 +145,25 @@ int WeightedRandomPlacement::access(const ClusterData &data, AccessArguments& ar
       continue;
     }
 
-    auto h = hashFid(args.inode, fsid);
     auto wt = disk.weight.load(std::memory_order_relaxed);
-    uint64_t score = h/wt;
-    if (best_index == std::numeric_limits<size_t>::max() ||
-        score < best_score) {
-      best_score = score;
-      best_index = fsid;
+    if (wt == 0) {
+      continue;
     }
 
+    uint64_t score = hashFid(args.inode, fsid) / wt;
+    if (best_pos == std::numeric_limits<size_t>::max() ||
+        score < best_score) {
+      best_score = score;
+      best_pos = i;
+    }
   }
 
-  if (best_index <= args.selectedfs.size()) {
-    args.selectedIndex = best_index;
-    return 0;
+  if (best_pos == std::numeric_limits<size_t>::max()) {
+    return ENOENT;
   }
 
-  return ENOENT;
+  args.selectedIndex = best_pos;
+  return 0;
 }
 
 WeightedRandomPlacement::~WeightedRandomPlacement() = default;

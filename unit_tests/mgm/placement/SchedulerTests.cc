@@ -28,6 +28,7 @@
 #include "mgm/placement/WeightedRandomStrategy.hh"
 #include "unit_tests/mgm/placement/ClusterMapFixture.hh"
 #include "gtest/gtest.h"
+#include <cerrno>
 using eos::mgm::placement::item_id_t;
 
 TEST_F(SimpleClusterF, RoundRobinBasic)
@@ -499,8 +500,72 @@ TEST(FlatScheduler, TLSingleSiteWeighted)
   AccessArguments access_args {index, strategy, result_vector};
   auto status = flat_scheduler.access(cluster_data_ptr(), access_args);
   ASSERT_EQ(status, 0);
-  ASSERT_LE(index, result_vector.size());
-  
+  ASSERT_LT(index, result_vector.size());
+
+}
+
+TEST(FlatScheduler, WeightedRandomAccessSelectedIndex)
+{
+  using namespace eos::mgm::placement;
+  ClusterMgr mgr;
+  const PlacementStrategyT strategy = PlacementStrategyT::kWeightedRandom;
+  WeightedRandomPlacement weighted_random(strategy, 2048);
+
+  {
+    auto sh = mgr.getStorageHandler(1024);
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::ROOT), 0));
+    ASSERT_TRUE(sh.addBucket(get_bucket_type(StdBucketType::GROUP), -100, 0));
+    ASSERT_TRUE(sh.addDisk(Disk(100, ConfigStatus::kRW, ActiveStatus::kOnline, 1), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(200, ConfigStatus::kRW, ActiveStatus::kOnline, 2), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(300, ConfigStatus::kRW, ActiveStatus::kOnline, 4), -100));
+    ASSERT_TRUE(sh.addDisk(Disk(400, ConfigStatus::kRW, ActiveStatus::kOnline, 0), -100));
+  }
+
+  auto cluster_data_ptr = mgr.getClusterData();
+  const ino64_t inode = 42;
+  const std::vector<uint32_t> locations {100, 200, 300};
+
+  size_t expected_pos = std::numeric_limits<size_t>::max();
+  uint64_t expected_score = 0;
+  for (size_t i = 0; i < locations.size(); ++i) {
+    const auto fsid = locations[i];
+    const auto wt = cluster_data_ptr->disks[fsid - 1].weight.load(std::memory_order_relaxed);
+    ASSERT_GT(wt, 0u);
+    const uint64_t score = hashFid(inode, fsid) / wt;
+    if (expected_pos == std::numeric_limits<size_t>::max() || score < expected_score) {
+      expected_score = score;
+      expected_pos = i;
+    }
+  }
+  ASSERT_NE(expected_pos, std::numeric_limits<size_t>::max());
+
+  size_t selected_index = std::numeric_limits<size_t>::max();
+  AccessArguments access_args {
+    selected_index, inode, strategy, std::string_view {}, nullptr, locations
+  };
+  ASSERT_EQ(weighted_random.access(cluster_data_ptr(), access_args), 0);
+  ASSERT_EQ(selected_index, expected_pos);
+  ASSERT_LT(selected_index, locations.size());
+  ASSERT_EQ(locations[selected_index], locations[expected_pos]);
+  // Pre-fix stored fsid in selectedIndex (e.g. 200), not a vector index.
+  ASSERT_NE(selected_index, static_cast<size_t>(locations[selected_index]));
+
+  // Zero-weight disks are skipped (no division by zero).
+  const std::vector<uint32_t> with_zero_weight {100, 400};
+  selected_index = std::numeric_limits<size_t>::max();
+  AccessArguments zero_weight_args {
+    selected_index, inode, strategy, std::string_view {}, nullptr, with_zero_weight
+  };
+  ASSERT_EQ(weighted_random.access(cluster_data_ptr(), zero_weight_args), 0);
+  ASSERT_EQ(selected_index, 0u);
+  ASSERT_EQ(with_zero_weight[selected_index], 100u);
+
+  const std::vector<uint32_t> only_zero_weight {400};
+  selected_index = std::numeric_limits<size_t>::max();
+  AccessArguments only_zero_args {
+    selected_index, inode, strategy, std::string_view {}, nullptr, only_zero_weight
+  };
+  ASSERT_EQ(weighted_random.access(cluster_data_ptr(), only_zero_args), ENOENT);
 }
 
 TEST(FlatScheduler, TLNoSite)
