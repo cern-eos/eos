@@ -42,6 +42,24 @@ format_io_pressure(const double pressure)
 }
 
 std::string
+format_duration_us(const uint64_t microseconds)
+{
+  std::ostringstream ss;
+
+  if (microseconds >= 1000000) {
+    ss << std::fixed << std::setprecision(2)
+       << static_cast<double>(microseconds) / 1000000.0 << " s";
+  } else if (microseconds >= 1000) {
+    ss << std::fixed << std::setprecision(2) << static_cast<double>(microseconds) / 1000.0
+       << " ms";
+  } else {
+    ss << microseconds << " us";
+  }
+
+  return ss.str();
+}
+
+std::string
 format_optional_io_pressure(const bool has_pressure, const double pressure)
 {
   return has_pressure ? format_io_pressure(pressure) : "-";
@@ -948,16 +966,14 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       oss << "\n--- System Statistics (averaged over last " << system_stats_window_seconds
           << " seconds) ---\n";
       oss << std::left << std::setw(30) << "Estimators Update:"
-          << "Median = " << std::fixed << std::setprecision(2) << estimator_median
-          << " us | "
-          << "Min = " << estimator_min << " us | "
-          << "Max = " << estimator_max << " us\n";
+          << "Median = " << format_duration_us(estimator_median) << " | "
+          << "Min = " << format_duration_us(estimator_min) << " | "
+          << "Max = " << format_duration_us(estimator_max) << "\n";
 
       oss << std::left << std::setw(30) << "FST Policy Update:"
-          << "Median = " << std::fixed << std::setprecision(2) << fst_limits_median
-          << " us | "
-          << "Min = " << fst_limits_min << " us | "
-          << "Max = " << fst_limits_max << " us\n";
+          << "Median = " << format_duration_us(fst_limits_median) << " | "
+          << "Min = " << format_duration_us(fst_limits_min) << " | "
+          << "Max = " << format_duration_us(fst_limits_max) << "\n";
 
       oss << std::left << std::setw(30) << "FST Reports Per Second:"
           << "Mean = " << std::fixed << std::setprecision(2) << reports_processed_mean
