@@ -228,13 +228,13 @@ test_read_xs_error() {
 #-------------------------------------------------------------------------------
 # Test writing a file which is below the minsize policy. With xrdcp this should
 # return an error on open with the following error message:
-# Unable to open - bookingsize violates minimum allowed filesize
+# Unable to open - target size violates minimum allowed filesize
 #-------------------------------------------------------------------------------
 test_write_min_filesize() {
   echo "info: test write with min file size"
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_min_filesize.dat"
-  local error_msg="Unable to open - bookingsize violates minimum allowed filesize"
+  local error_msg="Unable to open - target size violates minimum allowed filesize"
   exec_cmd eos-cli1 "eos -r 0 0 attr set sys.forced.minsize=$((25*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
   output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
   local rc1=0
@@ -259,13 +259,13 @@ test_write_min_filesize() {
 #-------------------------------------------------------------------------------
 # Test writing a file which is above the maxsize policy. With xrdcp this should
 # return an error on open with the following error message:
-# Unable to open - bookingsize violates maximum allowed filesize
+# Unable to open - target size violates maximum allowed filesize
 #-------------------------------------------------------------------------------
 test_write_max_filesize() {
   echo "info: test write with max file size"
   local test_fn=${1}
   local eos_fn="${EOS_REPLICA_DIR}/xrdcp_max_filesize.dat"
-  local error_msg="Unable to open - bookingsize violates maximum allowed filesize"
+  local error_msg="Unable to open - target size violates maximum allowed filesize"
   exec_cmd eos-cli1 "eos -r 0 0 attr set sys.forced.maxsize=$((1*1024*1024)) ${EOS_REPLICA_DIR} >& /dev/null"
   output=$(exec_cmd eos-cli1 "${XRDCP_BIN} -f --nopbar ${test_fn} ${EOS_MGM_URL}/${eos_fn} 2>&1 || true")
   local rc1=0
