@@ -1,6 +1,6 @@
 #include "IoCmd.hh"
 #include "common/Constants.hh"
-#include "common/Mapping.hh"
+#include "common/shaping/Identity.hh"
 #include "common/shaping/IoStatsKey.hh"
 #include "fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
@@ -12,8 +12,10 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdint>
+#include <cstring>
 #include <json/json.h>
 #include <map>
+#include <optional>
 #include <tuple>
 #include <unordered_map>
 #include <vector>
@@ -42,6 +44,24 @@ format_io_pressure(const double pressure)
 }
 
 std::string
+format_duration_us(const uint64_t microseconds)
+{
+  std::ostringstream ss;
+
+  if (microseconds >= 1000000) {
+    ss << std::fixed << std::setprecision(2)
+       << static_cast<double>(microseconds) / 1000000.0 << " s";
+  } else if (microseconds >= 1000) {
+    ss << std::fixed << std::setprecision(2) << static_cast<double>(microseconds) / 1000.0
+       << " ms";
+  } else {
+    ss << microseconds << " us";
+  }
+
+  return ss.str();
+}
+
+std::string
 format_optional_io_pressure(const bool has_pressure, const double pressure)
 {
   return has_pressure ? format_io_pressure(pressure) : "-";
@@ -55,7 +75,10 @@ format_bool(const bool value)
 
 namespace {
 
+using eos::common::traffic_shaping::GidLabel;
 using eos::common::traffic_shaping::kUnknownId;
+using eos::common::traffic_shaping::NodeLabel;
+using eos::common::traffic_shaping::UidLabel;
 
 // Replace empty string identifiers with the shared <unknown> placeholder so the
 // CLI/JSON output never contains a bare empty value.
@@ -74,32 +97,59 @@ CompactJsonString(const Json::Value& value)
   return Json::writeString(builder, value);
 }
 
-std::string
-FormatResolvedId(const uint32_t id, const std::string& name, const int errc)
-{
-  const std::string id_string = std::to_string(id);
+constexpr const char* kAutomaticDetailCardinalityPrefix = "auto-cardinality:";
 
-  if (errc || name.empty() || name == id_string) {
-    return id_string;
+bool
+ParseAutomaticDetailCardinalityConfig(const std::string& value,
+                                      std::optional<uint64_t>& low_cardinality,
+                                      std::optional<uint64_t>& high_cardinality,
+                                      std::optional<bool>& automatic_enabled)
+{
+  if (value.rfind(kAutomaticDetailCardinalityPrefix, 0) != 0) {
+    return false;
   }
 
-  return id_string + "(" + name + ")";
-}
+  const std::string payload =
+      value.substr(std::strlen(kAutomaticDetailCardinalityPrefix));
+  const size_t separator = payload.find(':');
 
-std::string
-UidLabel(const uint32_t uid)
-{
-  int errc = 0;
-  const auto name = eos::common::Mapping::UidToUserName(static_cast<uid_t>(uid), errc);
-  return FormatResolvedId(uid, name, errc);
-}
+  if (separator == std::string::npos) {
+    return false;
+  }
 
-std::string
-GidLabel(const uint32_t gid)
-{
-  int errc = 0;
-  const auto name = eos::common::Mapping::GidToGroupName(static_cast<gid_t>(gid), errc);
-  return FormatResolvedId(gid, name, errc);
+  const size_t state_separator = payload.find(':', separator + 1);
+  const std::string low = payload.substr(0, separator);
+  const std::string high =
+      state_separator == std::string::npos
+          ? payload.substr(separator + 1)
+          : payload.substr(separator + 1, state_separator - separator - 1);
+  const std::string state =
+      state_separator == std::string::npos ? "" : payload.substr(state_separator + 1);
+
+  try {
+    if (!low.empty()) {
+      low_cardinality = std::stoull(low);
+    }
+
+    if (!high.empty()) {
+      high_cardinality = std::stoull(high);
+    }
+  } catch (const std::exception&) {
+    return false;
+  }
+
+  if (!state.empty()) {
+    if (state == "enabled") {
+      automatic_enabled = true;
+    } else if (state == "disabled") {
+      automatic_enabled = false;
+    } else {
+      return false;
+    }
+  }
+
+  return low_cardinality.has_value() || high_cardinality.has_value() ||
+         automatic_enabled.has_value();
 }
 
 } // namespace
@@ -372,7 +422,7 @@ BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manag
     for (size_t i = 0; i < n; ++i) {
       const auto& key = sorted[i]->first;
       auto* entry = report.add_detailed_stats();
-      entry->set_node_id(key.node_id);
+      entry->set_node_id(NodeLabel(LabelOrUnknown(key.node_id)));
       entry->set_app_name(key.stream.app);
       entry->set_uid(key.stream.uid);
       entry->set_gid(key.stream.gid);
@@ -641,7 +691,7 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
   if (list_req.show_all()) {
     if (engine.GetDetailLevel() == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
       for (const auto& [detailed_key, snapshot] : manager->GetDetailedStats()) {
-        DetailedKey group_key{LabelOrUnknown(detailed_key.node_id),
+        DetailedKey group_key{NodeLabel(LabelOrUnknown(detailed_key.node_id)),
                               {LabelOrUnknown(detailed_key.stream.app),
                                detailed_key.stream.uid, detailed_key.stream.gid,
                                detailed_key.stream.fsid}};
@@ -657,12 +707,12 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     }
   } else if (list_req.show_fs()) {
     for (const auto& [disk_key, snapshot] : manager->GetDiskStats()) {
-      DiskKey group_key{LabelOrUnknown(disk_key.node_id), disk_key.fsid};
+      DiskKey group_key{NodeLabel(LabelOrUnknown(disk_key.node_id)), disk_key.fsid};
       accumulate(fs_agg_stats[group_key], snapshot);
     }
   } else if (list_req.show_nodes()) {
     for (const auto& [node_id, snapshot] : manager->GetNodeStats()) {
-      accumulate(agg_stats[LabelOrUnknown(node_id)], snapshot);
+      accumulate(agg_stats[NodeLabel(LabelOrUnknown(node_id))], snapshot);
     }
   } else {
     for (const auto& [key, snapshot] : manager->GetGlobalStats()) {
@@ -801,6 +851,13 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       entry["reports_processed_per_sec_mean"] = reports_processed_mean;
       entry["system_stats_window_seconds"] =
           static_cast<Json::Value::UInt64>(system_stats_window_seconds);
+      entry["detail_auto_enabled"] =
+          gOFS->mTrafficShapingEngine.GetAutomaticDetailLevelEnabled();
+      entry["detail_auto_low_cardinality"] = static_cast<Json::Value::UInt64>(
+          gOFS->mTrafficShapingEngine.GetAutomaticDetailLevelLowCardinality());
+      entry["detail_auto_high_cardinality"] = static_cast<Json::Value::UInt64>(
+          gOFS->mTrafficShapingEngine.GetAutomaticDetailLevelHighCardinality());
+      entry["detail_auto_indicator"] = "node_state_streams";
       entry["node_states_cardinality"] =
           static_cast<Json::Value::UInt64>(map_cardinality.node_states);
       entry["node_state_streams_cardinality"] =
@@ -813,6 +870,14 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           static_cast<Json::Value::UInt64>(map_cardinality.disk_stats);
       entry["detailed_stats_cardinality"] =
           static_cast<Json::Value::UInt64>(map_cardinality.detailed_stats);
+      entry["global_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.global_cumulative_stats);
+      entry["node_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.node_cumulative_stats);
+      entry["disk_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.disk_cumulative_stats);
+      entry["detailed_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.detailed_cumulative_stats);
       entry["node_entity_stats_cardinality"] =
           static_cast<Json::Value::UInt64>(map_cardinality.node_entity_stats);
       entry["uid_policies_cardinality"] =
@@ -965,20 +1030,28 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       oss << "\n--- System Statistics (averaged over last " << system_stats_window_seconds
           << " seconds) ---\n";
       oss << std::left << std::setw(30) << "Estimators Update:"
-          << "Median = " << std::fixed << std::setprecision(2) << estimator_median
-          << " us | "
-          << "Min = " << estimator_min << " us | "
-          << "Max = " << estimator_max << " us\n";
+          << "Median = " << format_duration_us(estimator_median) << " | "
+          << "Min = " << format_duration_us(estimator_min) << " | "
+          << "Max = " << format_duration_us(estimator_max) << "\n";
 
       oss << std::left << std::setw(30) << "FST Policy Update:"
-          << "Median = " << std::fixed << std::setprecision(2) << fst_limits_median
-          << " us | "
-          << "Min = " << fst_limits_min << " us | "
-          << "Max = " << fst_limits_max << " us\n";
+          << "Median = " << format_duration_us(fst_limits_median) << " | "
+          << "Min = " << format_duration_us(fst_limits_min) << " | "
+          << "Max = " << format_duration_us(fst_limits_max) << "\n";
 
       oss << std::left << std::setw(30) << "FST Reports Per Second:"
           << "Mean = " << std::fixed << std::setprecision(2) << reports_processed_mean
           << "\n";
+
+      oss << std::left << std::setw(30) << "Automatic Detail:"
+          << "enabled="
+          << (gOFS->mTrafficShapingEngine.GetAutomaticDetailLevelEnabled() ? "true"
+                                                                           : "false")
+          << " indicator=node_state_streams"
+          << " fs_threshold="
+          << gOFS->mTrafficShapingEngine.GetAutomaticDetailLevelLowCardinality()
+          << " aggregate_threshold="
+          << gOFS->mTrafficShapingEngine.GetAutomaticDetailLevelHighCardinality() << "\n";
 
       oss << std::left << std::setw(30) << "Map Cardinality:"
           << "node_states=" << map_cardinality.node_states
@@ -988,6 +1061,10 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           << " node_entity_stats=" << map_cardinality.node_entity_stats
           << " disk_stats=" << map_cardinality.disk_stats
           << " detailed_stats=" << map_cardinality.detailed_stats
+          << " global_cumulative_stats=" << map_cardinality.global_cumulative_stats
+          << " node_cumulative_stats=" << map_cardinality.node_cumulative_stats
+          << " disk_cumulative_stats=" << map_cardinality.disk_cumulative_stats
+          << " detailed_cumulative_stats=" << map_cardinality.detailed_cumulative_stats
           << " app_policies=" << map_cardinality.app_policies
           << " uid_policies=" << map_cardinality.uid_policies
           << " gid_policies=" << map_cardinality.gid_policies
@@ -1164,10 +1241,11 @@ ShapingPressureList(
     Json::Value json(Json::arrayValue);
 
     for (const auto& snapshot : snapshots) {
+      const std::string node_label = NodeLabel(LabelOrUnknown(snapshot.node_id));
       Json::Value entry;
       entry["type"] = "app_node_pressure";
       entry["app"] = snapshot.app;
-      entry["node_id"] = snapshot.node_id;
+      entry["node_id"] = node_label;
       entry["node_io_pressure"] = snapshot.node_io_pressure;
       entry["has_node_io_pressure"] = snapshot.has_node_io_pressure;
       entry["read_rate_bps"] = snapshot.read_rate_bps;
@@ -1218,10 +1296,10 @@ ShapingPressureList(
     oss << std::string(160, '-') << "\n";
 
     for (const auto& snapshot : snapshots) {
-      oss << std::left << std::setw(30) << snapshot.app << std::setw(36)
-          << snapshot.node_id << std::right << std::setw(14)
-          << format_rate(snapshot.read_rate_bps) << std::setw(14)
-          << format_rate(snapshot.write_rate_bps) << std::setw(12)
+      const std::string node_label = NodeLabel(LabelOrUnknown(snapshot.node_id));
+      oss << std::left << std::setw(30) << snapshot.app << std::setw(36) << node_label
+          << std::right << std::setw(14) << format_rate(snapshot.read_rate_bps)
+          << std::setw(14) << format_rate(snapshot.write_rate_bps) << std::setw(12)
           << format_optional_io_pressure(snapshot.has_node_io_pressure,
                                          snapshot.node_io_pressure)
           << std::setw(12)
@@ -1266,6 +1344,11 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       json["fst_io_stats_reporting_period_ms"] = static_cast<Json::Value::UInt64>(
           engine.GetFstIoStatsReportThreadPeriodMilliseconds());
       json["detail_level"] = engine.GetDetailLevel();
+      json["detail_auto_enabled"] = engine.GetAutomaticDetailLevelEnabled();
+      json["detail_auto_low_cardinality"] = static_cast<Json::Value::UInt64>(
+          engine.GetAutomaticDetailLevelLowCardinality());
+      json["detail_auto_high_cardinality"] = static_cast<Json::Value::UInt64>(
+          engine.GetAutomaticDetailLevelHighCardinality());
       json["limits_enabled"] = engine.GetLimitsEnabled();
       json["reservations_enabled"] = engine.GetReservationsEnabled();
       json["controller_min_limit_bytes_per_sec"] =
@@ -1287,6 +1370,11 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
           << std::setw(45) << "FST IO Stats Reporting Period:"
           << engine.GetFstIoStatsReportThreadPeriodMilliseconds() << " ms\n"
           << std::setw(45) << "Stats Detail Level:" << engine.GetDetailLevel() << "\n"
+          << std::setw(45) << "Automatic Detail Level:"
+          << (engine.GetAutomaticDetailLevelEnabled() ? "true" : "false")
+          << " (fs <= " << engine.GetAutomaticDetailLevelLowCardinality()
+          << ", aggregate > " << engine.GetAutomaticDetailLevelHighCardinality()
+          << " node-state streams)\n"
           << std::setw(45)
           << "Limits Enabled:" << (engine.GetLimitsEnabled() ? "true" : "false") << "\n"
           << std::setw(45) << "Reservations Enabled:"
@@ -1313,12 +1401,38 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
     const auto& set_req = config_req.set();
     std::ostringstream oss;
 
-    if (set_req.has_detail_level() &&
+    std::optional<uint64_t> requested_detail_auto_low;
+    std::optional<uint64_t> requested_detail_auto_high;
+    std::optional<bool> requested_detail_auto_enabled;
+    const bool has_detail_auto_cardinality =
+        set_req.has_detail_level() &&
+        ParseAutomaticDetailCardinalityConfig(
+            set_req.detail_level(), requested_detail_auto_low, requested_detail_auto_high,
+            requested_detail_auto_enabled);
+
+    if (set_req.has_detail_level() && !has_detail_auto_cardinality &&
         set_req.detail_level() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE &&
-        set_req.detail_level() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
+        set_req.detail_level() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM &&
+        set_req.detail_level() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AUTO &&
+        set_req.detail_level() != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_MANUAL) {
       reply.set_retc(EINVAL);
-      reply.set_std_err("error: detail level must be 'aggregate' or 'fs'.\n");
+      reply.set_std_err("error: detail level must be 'aggregate', 'fs', 'auto', "
+                        "'manual', or automatic cardinality thresholds.\n");
       break;
+    }
+
+    if (has_detail_auto_cardinality) {
+      const uint64_t low = requested_detail_auto_low.value_or(
+          engine.GetAutomaticDetailLevelLowCardinality());
+      const uint64_t high = requested_detail_auto_high.value_or(
+          engine.GetAutomaticDetailLevelHighCardinality());
+
+      if (low > high) {
+        reply.set_retc(EINVAL);
+        reply.set_std_err("error: automatic detail low cardinality must be <= high "
+                          "cardinality.\n");
+        break;
+      }
     }
 
     if (set_req.has_io_pressure_threshold() && (set_req.io_pressure_threshold() < 0.0 ||
@@ -1357,8 +1471,36 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
 
     if (set_req.has_detail_level()) {
       const std::string detail_level = set_req.detail_level();
-      engine.SetDetailLevel(detail_level);
-      oss << "success: Set stats detail level to " << engine.GetDetailLevel() << "\n";
+
+      if (has_detail_auto_cardinality) {
+        const uint64_t low = requested_detail_auto_low.value_or(
+            engine.GetAutomaticDetailLevelLowCardinality());
+        const uint64_t high = requested_detail_auto_high.value_or(
+            engine.GetAutomaticDetailLevelHighCardinality());
+        if (requested_detail_auto_enabled.has_value()) {
+          engine.SetAutomaticDetailLevelEnabled(*requested_detail_auto_enabled);
+        }
+        engine.SetAutomaticDetailLevelCardinality(low, high);
+        if (requested_detail_auto_enabled.has_value()) {
+          oss << "success: Set automatic stats detail level to "
+              << (engine.GetAutomaticDetailLevelEnabled() ? "enabled" : "disabled")
+              << "\n";
+        }
+        oss << "success: Set automatic stats detail thresholds to fs <= "
+            << engine.GetAutomaticDetailLevelLowCardinality() << ", aggregate > "
+            << engine.GetAutomaticDetailLevelHighCardinality() << " node-state streams\n";
+      } else if (detail_level == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AUTO) {
+        engine.SetAutomaticDetailLevelEnabled(true);
+        oss << "success: Set automatic stats detail level to enabled\n";
+      } else if (detail_level == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_MANUAL) {
+        engine.SetAutomaticDetailLevelEnabled(false);
+        oss << "success: Set automatic stats detail level to disabled\n";
+      } else {
+        engine.SetAutomaticDetailLevelEnabled(false);
+        engine.SetDetailLevel(detail_level);
+        oss << "success: Set stats detail level to " << engine.GetDetailLevel()
+            << " (automatic detail disabled)\n";
+      }
     }
 
     if (set_req.has_limits_enabled()) {

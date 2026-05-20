@@ -185,6 +185,18 @@ TrafficShapingManager::TrafficShapingManager() = default;
 TrafficShapingManager::~TrafficShapingManager() { Clear(); }
 
 void
+AddCumulativeStats(RateSnapshot& snapshot, const uint64_t bytes_read,
+                   const uint64_t bytes_written, const uint64_t read_ops,
+                   const uint64_t write_ops, const time_t now_unix)
+{
+  snapshot.bytes_read_total += bytes_read;
+  snapshot.bytes_written_total += bytes_written;
+  snapshot.read_ops_total += read_ops;
+  snapshot.write_ops_total += write_ops;
+  snapshot.last_activity_time = now_unix;
+}
+
+void
 TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
                                          const uint32_t fst_policy_period_ms,
                                          const uint32_t window_seconds)
@@ -292,7 +304,7 @@ CollectNodeIoPressure(std::vector<std::string>* online_nodes = nullptr)
 
     for (auto fsid_it = node_view->begin(); fsid_it != node_view->end(); ++fsid_it) {
       auto* fs = FsView::gFsView.mIdView.lookupByID(*fsid_it);
-      if (!BaseView::ConsiderForStatistics(fs)) {
+      if (!fs || !BaseView::ConsiderForStatistics(fs)) {
         continue;
       }
 
@@ -399,9 +411,13 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
   uint64_t total_node_delta_write_iops = 0;
 
   for (const auto& entry : report.entries()) {
-    StreamKey key{entry.app_name(), entry.uid(), entry.gid(), entry.fsid()};
+    const StreamKey stream_key{entry.app_name(), entry.uid(), entry.gid(), entry.fsid()};
+    const StreamKey stats_key =
+        mFilesystemDetailEnabled.load(std::memory_order_relaxed)
+            ? stream_key
+            : StreamKey{entry.app_name(), entry.uid(), entry.gid(), 0};
 
-    StreamState& state = node_map[key];
+    StreamState& state = node_map[stream_key];
 
     uint64_t delta_bytes_read = 0;
     uint64_t delta_bytes_written = 0;
@@ -483,13 +499,27 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
     if (delta_bytes_read > 0 || delta_bytes_written > 0 || delta_read_iops > 0 ||
         delta_write_iops > 0) {
 
-      auto [it, inserted] = mGlobalStats.try_emplace(key, mEstimatorsTickIntervalSec);
+      auto [it, inserted] =
+          mGlobalStats.try_emplace(stats_key, mEstimatorsTickIntervalSec);
       MultiWindowRate& global = it->second;
 
       AddDeltas(global, delta_bytes_read, delta_bytes_written, delta_read_iops,
                 delta_write_iops, now_unix);
+      AddCumulativeStats(mGlobalCumulativeStats[stats_key], delta_bytes_read,
+                         delta_bytes_written, delta_read_iops, delta_write_iops,
+                         now_unix);
+      AddCumulativeStats(mProjectionCumulativeStats.app[stream_key.app], delta_bytes_read,
+                         delta_bytes_written, delta_read_iops, delta_write_iops,
+                         now_unix);
+      AddCumulativeStats(mProjectionCumulativeStats.uid[stream_key.uid], delta_bytes_read,
+                         delta_bytes_written, delta_read_iops, delta_write_iops,
+                         now_unix);
+      AddCumulativeStats(mProjectionCumulativeStats.gid[stream_key.gid], delta_bytes_read,
+                         delta_bytes_written, delta_read_iops, delta_write_iops,
+                         now_unix);
 
-      DetailedKey node_entity_key{node_id, {key.app, key.uid, key.gid, 0}};
+      DetailedKey node_entity_key{node_id,
+                                  {stream_key.app, stream_key.uid, stream_key.gid, 0}};
       auto [node_entity_it, node_entity_inserted] =
           mNodeEntityStats.try_emplace(node_entity_key, mEstimatorsTickIntervalSec);
       MultiWindowRate& node_entity = node_entity_it->second;
@@ -498,13 +528,16 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
                 delta_write_iops, now_unix);
 
       if (mFilesystemDetailEnabled.load(std::memory_order_relaxed) && entry.fsid() != 0) {
-        DetailedKey detailed_key{node_id, key};
+        DetailedKey detailed_key{node_id, stream_key};
         auto [detailed_it, detailed_inserted] =
             mDetailedStats.try_emplace(detailed_key, mEstimatorsTickIntervalSec);
         MultiWindowRate& detailed = detailed_it->second;
 
         AddDeltas(detailed, delta_bytes_read, delta_bytes_written, delta_read_iops,
                   delta_write_iops, now_unix);
+        AddCumulativeStats(mDetailedCumulativeStats[detailed_key], delta_bytes_read,
+                           delta_bytes_written, delta_read_iops, delta_write_iops,
+                           now_unix);
 
         DiskKey disk_key{node_id, entry.fsid()};
         auto [disk_it, disk_inserted] =
@@ -513,6 +546,9 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
 
         AddDeltas(disk, delta_bytes_read, delta_bytes_written, delta_read_iops,
                   delta_write_iops, now_unix);
+        AddCumulativeStats(mDiskCumulativeStats[disk_key], delta_bytes_read,
+                           delta_bytes_written, delta_read_iops, delta_write_iops,
+                           now_unix);
       }
     }
   }
@@ -525,9 +561,18 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
 
     AddDeltas(node_stat, total_node_delta_bytes_read, total_node_delta_bytes_written,
               total_node_delta_read_iops, total_node_delta_write_iops, now_unix);
+    AddCumulativeStats(mNodeCumulativeStats[node_id], total_node_delta_bytes_read,
+                       total_node_delta_bytes_written, total_node_delta_read_iops,
+                       total_node_delta_write_iops, now_unix);
+    AddCumulativeStats(mProjectionCumulativeStats.node[node_id],
+                       total_node_delta_bytes_read, total_node_delta_bytes_written,
+                       total_node_delta_read_iops, total_node_delta_write_iops, now_unix);
 
     AddDeltas(mTotalStats, total_node_delta_bytes_read, total_node_delta_bytes_written,
               total_node_delta_read_iops, total_node_delta_write_iops, now_unix);
+    AddCumulativeStats(mCumulativeTotalStats, total_node_delta_bytes_read,
+                       total_node_delta_bytes_written, total_node_delta_read_iops,
+                       total_node_delta_write_iops, now_unix);
   }
 }
 
@@ -588,10 +633,10 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
     stats.iops_read_window.Add(read_iops_now);
     stats.iops_write_window.Add(write_iops_now);
 
-    stats.bytes_read_window.Tick();
-    stats.bytes_written_window.Tick();
-    stats.iops_read_window.Tick();
-    stats.iops_write_window.Tick();
+    stats.bytes_read_window.Tick(time_delta_seconds);
+    stats.bytes_written_window.Tick(time_delta_seconds);
+    stats.iops_read_window.Tick(time_delta_seconds);
+    stats.iops_write_window.Tick(time_delta_seconds);
 
     for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
       const int window_sec = SmaWindowSec[i];
@@ -635,7 +680,6 @@ TrafficShapingManager::CalculateDelayUs(
   constexpr uint64_t kDelayReferenceBytes = 1024 * 1024;
   constexpr uint64_t kIdleReleaseStepDownUs = 250000;
   constexpr uint64_t kSparseSampleStepDownUs = 80000;
-  constexpr double kControlBias = 0.78;
   constexpr double kIdleRatio = 0.01;
   constexpr double kLowerDeadbandRatio = 0.94;
   constexpr double kUpperDeadbandRatio = 1.02;
@@ -643,12 +687,10 @@ TrafficShapingManager::CalculateDelayUs(
   uint64_t delay_us = current_delay_us;
   const double reference_bps =
       delay_reference_bps > 0.0 ? delay_reference_bps : limit_bps;
-  const double biased_limit_bps = limit_bps * kControlBias;
-  const double biased_reference_bps = reference_bps * kControlBias;
   const uint64_t seed_delay_us = std::min<uint64_t>(
       kMaxDelayUs,
-      static_cast<uint64_t>((kDelayReferenceBytes * 1000000.0) / biased_reference_bps));
-  const double ratio = current_rate_bps / biased_limit_bps;
+      static_cast<uint64_t>((kDelayReferenceBytes * 1000000.0) / reference_bps));
+  const double ratio = current_rate_bps / limit_bps;
 
   // 0. Idle seed: when traffic is sparse, use the current limit's baseline
   // delay. This shapes the first transfer and lets raised limits release old
@@ -696,10 +738,6 @@ TrafficShapingManager::CalculateDelayUs(
     const uint64_t step = std::clamp<uint64_t>(
         std::max<uint64_t>(proportional_step, seed_delay_us / 5), 250, 25000);
     delay_us = delay_us > step ? delay_us - step : 0;
-
-    if (ratio > 0.70) {
-      delay_us = std::max(delay_us, seed_delay_us);
-    }
   } else if (delay_us < seed_delay_us) {
     delay_us = seed_delay_us;
   }
@@ -1855,6 +1893,25 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
     }
   }
 
+  auto prune_cumulative_stats = [now_unix, max_idle_seconds](auto& map) {
+    for (auto it = map.begin(); it != map.end();) {
+      if (now_unix - it->second.last_activity_time > max_idle_seconds) {
+        it = map.erase(it);
+      } else {
+        ++it;
+      }
+    }
+  };
+
+  prune_cumulative_stats(mGlobalCumulativeStats);
+  prune_cumulative_stats(mNodeCumulativeStats);
+  prune_cumulative_stats(mDiskCumulativeStats);
+  prune_cumulative_stats(mDetailedCumulativeStats);
+  prune_cumulative_stats(mProjectionCumulativeStats.app);
+  prune_cumulative_stats(mProjectionCumulativeStats.uid);
+  prune_cumulative_stats(mProjectionCumulativeStats.gid);
+  prune_cumulative_stats(mProjectionCumulativeStats.node);
+
   return stats;
 }
 
@@ -1923,6 +1980,19 @@ TrafficShapingManager::GetMapCardinalityStats() const
   stats.node_stats = static_cast<uint64_t>(mNodeStats.size());
   stats.disk_stats = static_cast<uint64_t>(mDiskStats.size());
   stats.detailed_stats = static_cast<uint64_t>(mDetailedStats.size());
+  stats.global_cumulative_stats = static_cast<uint64_t>(mGlobalCumulativeStats.size());
+  stats.node_cumulative_stats = static_cast<uint64_t>(mNodeCumulativeStats.size());
+  stats.disk_cumulative_stats = static_cast<uint64_t>(mDiskCumulativeStats.size());
+  stats.detailed_cumulative_stats =
+      static_cast<uint64_t>(mDetailedCumulativeStats.size());
+  stats.projection_app_cumulative_stats =
+      static_cast<uint64_t>(mProjectionCumulativeStats.app.size());
+  stats.projection_uid_cumulative_stats =
+      static_cast<uint64_t>(mProjectionCumulativeStats.uid.size());
+  stats.projection_gid_cumulative_stats =
+      static_cast<uint64_t>(mProjectionCumulativeStats.gid.size());
+  stats.projection_node_cumulative_stats =
+      static_cast<uint64_t>(mProjectionCumulativeStats.node.size());
   stats.node_entity_stats = static_cast<uint64_t>(mNodeEntityStats.size());
   stats.uid_policies = static_cast<uint64_t>(mUidPolicies.size());
   stats.gid_policies = static_cast<uint64_t>(mGidPolicies.size());
@@ -1971,6 +2041,12 @@ TrafficShapingManager::Clear()
   mTotalStats.clear();
   mNodeFstIoDelayConfigs.clear();
   mPublishedFstIoDelayConfigs.clear();
+  mGlobalCumulativeStats.clear();
+  mNodeCumulativeStats.clear();
+  mDiskCumulativeStats.clear();
+  mDetailedCumulativeStats.clear();
+  mProjectionCumulativeStats = ProjectionCumulativeStats{};
+  mCumulativeTotalStats = RateSnapshot{};
 
   estimators_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
@@ -1997,6 +2073,12 @@ TrafficShapingManager::ClearRuntimeStats()
   mDetailedStats.clear();
   mNodeEntityStats.clear();
   mTotalStats.clear();
+  mGlobalCumulativeStats.clear();
+  mNodeCumulativeStats.clear();
+  mDiskCumulativeStats.clear();
+  mDetailedCumulativeStats.clear();
+  mProjectionCumulativeStats = ProjectionCumulativeStats{};
+  mCumulativeTotalStats = RateSnapshot{};
 }
 
 void
@@ -2005,6 +2087,8 @@ TrafficShapingManager::ClearDetailedRuntimeStats()
   std::unique_lock lock(mMutex);
   mDiskStats.clear();
   mDetailedStats.clear();
+  mDiskCumulativeStats.clear();
+  mDetailedCumulativeStats.clear();
 }
 
 RateSnapshot
@@ -2017,6 +2101,48 @@ TrafficShapingManager::GetTotalStats() const
   snap.ema = mTotalStats.ema;
   snap.sma = mTotalStats.sma;
   return snap;
+}
+
+std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash>
+TrafficShapingManager::GetGlobalCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mGlobalCumulativeStats;
+}
+
+std::unordered_map<std::string, RateSnapshot>
+TrafficShapingManager::GetNodeCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mNodeCumulativeStats;
+}
+
+std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash>
+TrafficShapingManager::GetDiskCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mDiskCumulativeStats;
+}
+
+std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash>
+TrafficShapingManager::GetDetailedCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mDetailedCumulativeStats;
+}
+
+ProjectionCumulativeStats
+TrafficShapingManager::GetProjectionCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mProjectionCumulativeStats;
+}
+
+RateSnapshot
+TrafficShapingManager::GetTotalCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mCumulativeTotalStats;
 }
 
 TrafficShapingEngine::TrafficShapingEngine()
@@ -2137,8 +2263,14 @@ TrafficShapingEngine::SetSystemStatsWindowSeconds(uint32_t window_seconds)
 void
 TrafficShapingEngine::SetDetailLevel(const std::string& detail_level)
 {
-  ApplyDetailLevelConfig(detail_level);
+  const MapCardinalityStats cardinality =
+      mManager != nullptr ? mManager->GetMapCardinalityStats() : MapCardinalityStats{};
+  const bool changed = ApplyDetailLevelConfig(detail_level);
   StoreDetailLevelConfig(GetDetailLevel());
+  if (changed) {
+    LogDetailLevelSwitch("manual", GetDetailLevel(), cardinality);
+    SyncTrafficShapingConfigWithFst();
+  }
 }
 
 bool
@@ -2151,7 +2283,6 @@ TrafficShapingEngine::ApplyDetailLevelConfig(const std::string& detail_level)
 
   if (mManager != nullptr) {
     mManager->SetFilesystemDetailEnabled(fs_detail);
-
     if (old_value != fs_detail) {
       mManager->ClearRuntimeStats();
     } else if (!fs_detail) {
@@ -2175,6 +2306,158 @@ TrafficShapingEngine::GetDetailLevel() const
   return mFilesystemDetailEnabled.load(std::memory_order_relaxed)
              ? eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM
              : eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE;
+}
+
+void
+TrafficShapingEngine::LogDetailLevelSwitch(const char* reason,
+                                           const std::string& detail_level,
+                                           const MapCardinalityStats& cardinality) const
+{
+  eos_static_info(
+      "msg=\"Traffic Shaping detail level switch\" reason=\"%s\" "
+      "detail_level=\"%s\" auto_enabled=%s auto_low_cardinality=%llu "
+      "auto_high_cardinality=%llu node_states=%llu node_state_streams=%llu "
+      "global_stats=%llu node_stats=%llu disk_stats=%llu detailed_stats=%llu "
+      "global_cumulative_stats=%llu node_cumulative_stats=%llu "
+      "disk_cumulative_stats=%llu detailed_cumulative_stats=%llu "
+      "node_entity_stats=%llu app_policies=%llu uid_policies=%llu gid_policies=%llu "
+      "node_fst_io_delay_configs=%llu published_fst_io_delay_configs=%llu",
+      reason, detail_level.c_str(),
+      mAutomaticDetailLevelEnabled.load(std::memory_order_relaxed) ? "true" : "false",
+      static_cast<unsigned long long>(
+          mAutomaticDetailLevelLowCardinality.load(std::memory_order_relaxed)),
+      static_cast<unsigned long long>(
+          mAutomaticDetailLevelHighCardinality.load(std::memory_order_relaxed)),
+      static_cast<unsigned long long>(cardinality.node_states),
+      static_cast<unsigned long long>(cardinality.node_state_streams),
+      static_cast<unsigned long long>(cardinality.global_stats),
+      static_cast<unsigned long long>(cardinality.node_stats),
+      static_cast<unsigned long long>(cardinality.disk_stats),
+      static_cast<unsigned long long>(cardinality.detailed_stats),
+      static_cast<unsigned long long>(cardinality.global_cumulative_stats),
+      static_cast<unsigned long long>(cardinality.node_cumulative_stats),
+      static_cast<unsigned long long>(cardinality.disk_cumulative_stats),
+      static_cast<unsigned long long>(cardinality.detailed_cumulative_stats),
+      static_cast<unsigned long long>(cardinality.node_entity_stats),
+      static_cast<unsigned long long>(cardinality.app_policies),
+      static_cast<unsigned long long>(cardinality.uid_policies),
+      static_cast<unsigned long long>(cardinality.gid_policies),
+      static_cast<unsigned long long>(cardinality.node_fst_io_delay_configs),
+      static_cast<unsigned long long>(cardinality.published_fst_io_delay_configs));
+}
+
+void
+TrafficShapingEngine::SetAutomaticDetailLevelEnabled(const bool enabled)
+{
+  ApplyAutomaticDetailLevelEnabledConfig(enabled);
+  StoreAutomaticDetailLevelEnabledConfig(GetAutomaticDetailLevelEnabled());
+
+  if (enabled) {
+    ApplyAutomaticDetailLevel();
+  }
+}
+
+bool
+TrafficShapingEngine::GetAutomaticDetailLevelEnabled() const
+{
+  return mAutomaticDetailLevelEnabled.load(std::memory_order_relaxed);
+}
+
+void
+TrafficShapingEngine::SetAutomaticDetailLevelCardinality(const uint64_t low_cardinality,
+                                                         const uint64_t high_cardinality)
+{
+  ApplyAutomaticDetailLevelCardinalityConfig(low_cardinality, high_cardinality);
+  StoreAutomaticDetailLevelCardinalityConfig(GetAutomaticDetailLevelLowCardinality(),
+                                             GetAutomaticDetailLevelHighCardinality());
+
+  if (GetAutomaticDetailLevelEnabled()) {
+    ApplyAutomaticDetailLevel();
+  }
+}
+
+bool
+TrafficShapingEngine::ApplyAutomaticDetailLevelEnabledConfig(const bool enabled)
+{
+  const bool old_value =
+      mAutomaticDetailLevelEnabled.exchange(enabled, std::memory_order_relaxed);
+  return old_value != enabled;
+}
+
+void
+TrafficShapingEngine::StoreAutomaticDetailLevelEnabledConfig(const bool enabled)
+{
+  FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_AUTO_CONFIG, enabled);
+}
+
+bool
+TrafficShapingEngine::ApplyAutomaticDetailLevelCardinalityConfig(
+    uint64_t low_cardinality, uint64_t high_cardinality)
+{
+  if (high_cardinality < low_cardinality) {
+    high_cardinality = low_cardinality;
+  }
+
+  const uint64_t old_low = mAutomaticDetailLevelLowCardinality.exchange(
+      low_cardinality, std::memory_order_relaxed);
+  const uint64_t old_high = mAutomaticDetailLevelHighCardinality.exchange(
+      high_cardinality, std::memory_order_relaxed);
+  return old_low != low_cardinality || old_high != high_cardinality;
+}
+
+void
+TrafficShapingEngine::StoreAutomaticDetailLevelCardinalityConfig(
+    const uint64_t low_cardinality, const uint64_t high_cardinality)
+{
+  FsView::gFsView.SetGlobalConfig(
+      common::TRAFFIC_SHAPING_DETAIL_AUTO_LOW_CARDINALITY_CONFIG,
+      std::to_string(low_cardinality));
+  FsView::gFsView.SetGlobalConfig(
+      common::TRAFFIC_SHAPING_DETAIL_AUTO_HIGH_CARDINALITY_CONFIG,
+      std::to_string(high_cardinality));
+}
+
+void
+TrafficShapingEngine::ApplyAutomaticDetailLevel()
+{
+  if (!mAutomaticDetailLevelEnabled.load(std::memory_order_relaxed) ||
+      mManager == nullptr) {
+    return;
+  }
+
+  const auto cardinality = mManager->GetMapCardinalityStats();
+  const uint64_t streams = cardinality.node_state_streams;
+  const bool fs_detail = mFilesystemDetailEnabled.load(std::memory_order_relaxed);
+  const uint64_t low_cardinality =
+      mAutomaticDetailLevelLowCardinality.load(std::memory_order_relaxed);
+  const uint64_t high_cardinality =
+      mAutomaticDetailLevelHighCardinality.load(std::memory_order_relaxed);
+  const auto now = std::chrono::steady_clock::now();
+  const auto aggregate_holdoff =
+      std::chrono::seconds(mGarbageCollectionIdleSeconds.load(std::memory_order_relaxed));
+
+  if (fs_detail && streams > high_cardinality) {
+    if (ApplyDetailLevelConfig(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE)) {
+      mLastAutomaticDetailLevelChange = now;
+      LogDetailLevelSwitch("automatic_high_cardinality",
+                           eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE,
+                           cardinality);
+      SyncTrafficShapingConfigWithFst();
+    }
+  } else if (!fs_detail && streams <= low_cardinality) {
+    if (mLastAutomaticDetailLevelChange != std::chrono::steady_clock::time_point{} &&
+        now - mLastAutomaticDetailLevelChange < aggregate_holdoff) {
+      return;
+    }
+
+    if (ApplyDetailLevelConfig(eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM)) {
+      mLastAutomaticDetailLevelChange = now;
+      LogDetailLevelSwitch("automatic_low_cardinality",
+                           eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM,
+                           cardinality);
+      SyncTrafficShapingConfigWithFst();
+    }
+  }
 }
 
 void
@@ -2422,6 +2705,39 @@ TrafficShapingEngine::ApplyConfig()
     ApplyDetailLevelConfig(detail_level);
   }
 
+  const std::string detail_auto =
+      FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_DETAIL_AUTO_CONFIG);
+  ApplyAutomaticDetailLevelEnabledConfig(detail_auto.empty() || detail_auto == "true");
+
+  uint64_t detail_auto_low = kDefaultAutomaticFilesystemDetailLowCardinality;
+  uint64_t detail_auto_high = kDefaultAutomaticFilesystemDetailHighCardinality;
+
+  const std::string configured_detail_auto_low = FsView::gFsView.GetGlobalConfig(
+      common::TRAFFIC_SHAPING_DETAIL_AUTO_LOW_CARDINALITY_CONFIG);
+  if (!configured_detail_auto_low.empty()) {
+    try {
+      detail_auto_low = std::stoull(configured_detail_auto_low);
+    } catch (const std::exception& e) {
+      eos_static_err("msg=\"failed to parse Traffic Shaping automatic detail low "
+                     "cardinality\" value=\"%s\" error=\"%s\"",
+                     configured_detail_auto_low.c_str(), e.what());
+    }
+  }
+
+  const std::string configured_detail_auto_high = FsView::gFsView.GetGlobalConfig(
+      common::TRAFFIC_SHAPING_DETAIL_AUTO_HIGH_CARDINALITY_CONFIG);
+  if (!configured_detail_auto_high.empty()) {
+    try {
+      detail_auto_high = std::stoull(configured_detail_auto_high);
+    } catch (const std::exception& e) {
+      eos_static_err("msg=\"failed to parse Traffic Shaping automatic detail high "
+                     "cardinality\" value=\"%s\" error=\"%s\"",
+                     configured_detail_auto_high.c_str(), e.what());
+    }
+  }
+
+  ApplyAutomaticDetailLevelCardinalityConfig(detail_auto_low, detail_auto_high);
+
   const std::string limits_enabled =
       FsView::gFsView.GetGlobalConfig(common::TRAFFIC_SHAPING_LIMITS_ENABLED_CONFIG);
   ApplyLimitsEnabledConfig(limits_enabled.empty() || limits_enabled == "true");
@@ -2476,6 +2792,8 @@ TrafficShapingEngine::ApplyConfig()
     }
   }
 
+  ApplyAutomaticDetailLevel();
+
   EnsureFstEnabledSyncThread();
 }
 
@@ -2498,8 +2816,8 @@ TrafficShapingEngine::Start()
                     mFstIoStatsReportThreadPeriodMilliseconds, mSystemStatsWindowSeconds);
 
   // NOTE: Do NOT call SyncTrafficShapingEnabledWithFst() here. Start() can be
-  // invoked while config replay is in progress; TrafficShapingEngine::ApplyConfig()
-  // provides the immediate sync after the FsView write lock is released.
+  // invoked while config replay is in progress; the background sync thread
+  // publishes the enabled state after the FsView write lock is released.
   eos_static_info("msg=\"Traffic Shaping Engine Started\"");
 }
 
@@ -2622,6 +2940,8 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
     mManager->UpdateEstimators(time_delta_seconds);
     auto estimators_done = std::chrono::steady_clock::now();
 
+    ApplyAutomaticDetailLevel();
+
     if (estimators_done - last_garbage_collection >= garbage_collection_period) {
       last_garbage_collection = estimators_done;
       const uint32_t garbage_collection_idle_seconds =
@@ -2658,7 +2978,7 @@ TrafficShapingEngine::EstimatorsUpdate(ThreadAssistant& assistant)
 
     if (static_cast<double>(work_duration_micro_sec) >
         static_cast<double>(mEstimatorsUpdateThreadPeriodMilliseconds) * 0.5 * 1000.0) {
-      eos_static_warning(
+      eos_static_debug(
           "msg=\"Traffic Shaping Estimators Update loop is slow\" total_ms=%.2f "
           "reports_ms=%.2f estimators_ms=%.2f gc_ms=%.2f",
           static_cast<double>(work_duration_micro_sec) / 1000.0,
@@ -2738,14 +3058,14 @@ void
 TrafficShapingEngine::FstTrafficShapingEnabledUpdate(ThreadAssistant& assistant)
 {
   while (!assistant.terminationRequested()) {
+    SyncTrafficShapingEnabledWithFst();
+    SyncTrafficShapingConfigWithFst();
+
     assistant.wait_for(std::chrono::seconds(5));
 
     if (assistant.terminationRequested()) {
       break;
     }
-
-    SyncTrafficShapingEnabledWithFst();
-    SyncTrafficShapingConfigWithFst();
   }
 }
 
@@ -2764,10 +3084,12 @@ TrafficShapingEngine::Disable()
 void
 TrafficShapingEngine::SetEnabled(bool enabled)
 {
-  EnsureFstEnabledSyncThread();
   StoreEnabledConfig(enabled);
   ApplyEnabledConfig(enabled);
-  SyncTrafficShapingEnabledWithFst();
+
+  if (!enabled) {
+    EnsureFstEnabledSyncThread();
+  }
 }
 
 void
@@ -2775,6 +3097,7 @@ TrafficShapingEngine::ApplyEnabledConfig(bool enabled)
 {
   if (enabled) {
     Start();
+    EnsureFstEnabledSyncThread();
   } else {
     StopRuntime();
   }
@@ -2850,6 +3173,7 @@ TrafficShapingEngine::SyncTrafficShapingConfigWithFst()
 {
   const std::string period_str =
       std::to_string(mFstIoStatsReportThreadPeriodMilliseconds);
+  const std::string detail_level = GetDetailLevel();
 
   for (const auto& node_name : GetOnlineFstNodeNames()) {
     eos::common::RWMutexReadLock viewlock(FsView::gFsView.ViewMutex);
@@ -2857,6 +3181,8 @@ TrafficShapingEngine::SyncTrafficShapingConfigWithFst()
     if (it != FsView::gFsView.mNodeView.end()) {
       it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
                                   period_str, true);
+      it->second->SetConfigMember(eos::common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL,
+                                  detail_level, true);
     }
   }
 }

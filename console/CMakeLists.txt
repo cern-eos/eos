@@ -97,6 +97,7 @@ add_library(EosConsoleCommands-Objects OBJECT
   commands/native/map-cmd-native.cc
   commands/native/member-cmd-native.cc
   commands/native/mkdir-cmd-native.cc
+  commands/native/monit-proto-native.cc
   commands/native/motd-cmd-native.cc
   commands/native/rmdir-cmd-native.cc
   commands/native/rtlog-cmd-native.cc

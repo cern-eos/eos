@@ -98,6 +98,7 @@ static constexpr auto FST_TRAFFIC_SHAPING_IO_REPORT = "stat.ts.report";
 static constexpr auto FST_TRAFFIC_SHAPING_IO_LIMITS = "stat.ts.limits";
 static constexpr auto FST_TRAFFIC_SHAPING_ENABLE_TOGGLE = "stat.ts.enabled";
 static constexpr auto FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD = "stat.ts.period";
+static constexpr auto FST_TRAFFIC_SHAPING_DETAIL_LEVEL = "stat.ts.detail_level";
 
 static constexpr auto TRAFFIC_SHAPING_POLICIES_CONFIG = "traffic_shaping::policies";
 static constexpr auto TRAFFIC_SHAPING_ENABLE_CONFIG = "traffic_shaping::is_enabled";
@@ -107,6 +108,13 @@ static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_CONFIG =
     "traffic_shaping::detail_level";
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE = "aggregate";
 static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM = "fs";
+static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_AUTO = "auto";
+static constexpr auto TRAFFIC_SHAPING_DETAIL_LEVEL_MANUAL = "manual";
+static constexpr auto TRAFFIC_SHAPING_DETAIL_AUTO_CONFIG = "traffic_shaping::detail_auto";
+static constexpr auto TRAFFIC_SHAPING_DETAIL_AUTO_LOW_CARDINALITY_CONFIG =
+    "traffic_shaping::detail_auto_low_cardinality";
+static constexpr auto TRAFFIC_SHAPING_DETAIL_AUTO_HIGH_CARDINALITY_CONFIG =
+    "traffic_shaping::detail_auto_high_cardinality";
 static constexpr auto TRAFFIC_SHAPING_LIMITS_ENABLED_CONFIG =
     "traffic_shaping::limits_enabled";
 static constexpr auto TRAFFIC_SHAPING_RESERVATIONS_ENABLED_CONFIG =

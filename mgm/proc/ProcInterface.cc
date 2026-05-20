@@ -22,24 +22,24 @@
  ************************************************************************/
 
 #include "ProcInterface.hh"
-#include <XrdOuc/XrdOucEnv.hh>
 #include "common/Constants.hh"
 #include "mgm/proc/admin/AccessCmd.hh"
 #include "mgm/proc/admin/ConfigCmd.hh"
 #include "mgm/proc/admin/ConvertCmd.hh"
 #include "mgm/proc/admin/DebugCmd.hh"
 #include "mgm/proc/admin/DevicesCmd.hh"
+#include "mgm/proc/admin/EvictCmd.hh"
+#include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/admin/FsCmd.hh"
 #include "mgm/proc/admin/FsckCmd.hh"
 #include "mgm/proc/admin/GroupCmd.hh"
 #include "mgm/proc/admin/IoCmd.hh"
+#include "mgm/proc/admin/MonitCmd.hh"
 #include "mgm/proc/admin/NodeCmd.hh"
 #include "mgm/proc/admin/NsCmd.hh"
 #include "mgm/proc/admin/QuotaCmd.hh"
 #include "mgm/proc/admin/SchedCmd.hh"
 #include "mgm/proc/admin/SpaceCmd.hh"
-#include "mgm/proc/admin/EvictCmd.hh"
-#include "mgm/proc/admin/FileRegisterCmd.hh"
 #include "mgm/proc/user/AclCmd.hh"
 #include "mgm/proc/user/DfCmd.hh"
 #include "mgm/proc/user/NewfindCmd.hh"
@@ -47,6 +47,7 @@
 #include "mgm/proc/user/RmCmd.hh"
 #include "mgm/proc/user/RouteCmd.hh"
 #include "mgm/proc/user/TokenCmd.hh"
+#include <XrdOuc/XrdOucEnv.hh>
 #include <google/protobuf/util/json_util.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -249,6 +250,10 @@ ProcInterface::HandleProtobufRequest(eos::console::RequestProto& req,
     cmd.reset(new DevicesCmd(std::move(req), vid));
     break;
 
+  case RequestProto::kMonit:
+    cmd.reset(new MonitCmd(std::move(req), vid));
+    break;
+
   case RequestProto::kToken:
     cmd.reset(new TokenCmd(std::move(req), vid));
     break;
@@ -369,6 +374,16 @@ ProcInterface::ProtoIsWriteAccess(const char* opaque)
   case RequestProto::kConfig:
   case RequestProto::kToken:
     return false;
+
+  case RequestProto::kMonit:
+    switch (req.monit().subcmd_case()) {
+    case eos::console::MonitProto::kConfig:
+      return req.monit().config().subcmd_case() !=
+             eos::console::MonitProto_ConfigProto::kLs;
+
+    default:
+      return true;
+    }
 
   // conditional on the subcommand
   case RequestProto::kAcl:
@@ -522,64 +537,31 @@ ProcInterface::IsWriteAccess(const char* path, const char* info)
 
   // Filter here all namespace modifying proc messages
   if (((cmd == "file") &&
-       ((subcmd == "adjustreplica") ||
-        (subcmd == "drop") ||
-        (subcmd == "layout") ||
-        (subcmd == "touch") ||
-        (subcmd == "verify") ||
-        (subcmd == "version") ||
-        (subcmd == "versions") ||
-        (subcmd == "move") ||
-        (subcmd == "rename"))) ||
-      ((cmd == "attr") &&
-       ((subcmd == "set") ||
-        (subcmd == "rm"))) ||
-      ((cmd == "archive") &&
-       ((subcmd == "create") ||
-        (subcmd == "get")  ||
-        (subcmd == "purge")  ||
-        (subcmd == "delete"))) ||
-      ((cmd == "backup")) ||
-      ((cmd == "mkdir")) ||
-      ((cmd == "rmdir")) ||
-      ((cmd == "rm")) ||
-      ((cmd == "chown")) ||
-      ((cmd == "chmod")) ||
-      ((cmd == "fuseX")) ||
+       ((subcmd == "adjustreplica") || (subcmd == "drop") || (subcmd == "layout") ||
+        (subcmd == "touch") || (subcmd == "verify") || (subcmd == "version") ||
+        (subcmd == "versions") || (subcmd == "move") || (subcmd == "rename"))) ||
+      ((cmd == "attr") && ((subcmd == "set") || (subcmd == "rm"))) ||
+      ((cmd == "archive") && ((subcmd == "create") || (subcmd == "get") ||
+                              (subcmd == "purge") || (subcmd == "delete"))) ||
+      ((cmd == "backup")) || ((cmd == "mkdir")) || ((cmd == "rmdir")) ||
+      ((cmd == "rm")) || ((cmd == "chown")) || ((cmd == "chmod")) || ((cmd == "fuseX")) ||
       ((cmd == "fusex")) ||
       ((cmd == "fs") &&
-       ((subcmd == "config") ||
-        (subcmd == "boot") ||
-        (subcmd == "dropdeletion") ||
-        (subcmd == "add") ||
-        (subcmd == "mv") ||
-        (subcmd == "rm"))) ||
+       ((subcmd == "config") || (subcmd == "boot") || (subcmd == "dropdeletion") ||
+        (subcmd == "add") || (subcmd == "mv") || (subcmd == "rm"))) ||
       ((cmd == "space") &&
-       ((subcmd == "config") ||
-        (subcmd == "define") ||
-        (subcmd == "set") ||
-        (subcmd == "rm") ||
-        (subcmd == "quota"))) ||
+       ((subcmd == "config") || (subcmd == "define") || (subcmd == "set") ||
+        (subcmd == "rm") || (subcmd == "quota"))) ||
       ((cmd == "node") &&
-       ((subcmd == "rm") ||
-        (subcmd == "config") ||
-        (subcmd == "set") ||
-        (subcmd == "register") ||
-        (subcmd == "gw"))) ||
-      ((cmd == "group") &&
-       ((subcmd == "set") ||
-        (subcmd == "rm"))) ||
-      ((cmd == "map") &&
-       ((subcmd == "link") ||
-        (subcmd == "unlink"))) ||
-      ((cmd == "quota") &&
-       ((subcmd != "ls"))) ||
-      ((cmd == "vid") &&
-       ((subcmd != "ls"))) ||
-      ((cmd == "transfer") &&
-       ((subcmd != ""))) ||
-      ((cmd == "recycle") &&
-       ((subcmd != "ls")))) {
+       ((subcmd == "rm") || (subcmd == "config") || (subcmd == "set") ||
+        (subcmd == "register") || (subcmd == "gw"))) ||
+      ((cmd == "group") && ((subcmd == "set") || (subcmd == "rm"))) ||
+      ((cmd == "map") && ((subcmd == "link") || (subcmd == "unlink"))) ||
+      ((cmd == "quota") && ((subcmd != "ls"))) ||
+      ((cmd == "vid") && ((subcmd != "ls"))) ||
+      ((cmd == "transfer") && ((subcmd != ""))) ||
+      ((cmd == "recycle") && ((subcmd != "ls"))) ||
+      ((cmd == "monit") && ((subcmd == "enable") || (subcmd == "disable")))) {
     return true;
   }
 
@@ -667,6 +649,7 @@ ProcInterface::IsAdminCmd(eos::console::RequestProto::CommandCase cc)
   case R::kIo:
   case R::kSched:
   case R::kDevices:
+  case R::kMonit:
   case R::kRecord:
   case R::kFsck:
   case R::kDebug:

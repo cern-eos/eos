@@ -142,6 +142,8 @@ add_library(EosCommon-Objects OBJECT
   SymKeys.cc
   InstanceName.cc
   Mapping.cc
+  shaping/Identity.cc
+  shaping/SlidingWindowStats.cc
   MutexLatencyWatcher.cc
   RWMutex.cc
   RegexWrapper.cc

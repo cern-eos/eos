@@ -61,6 +61,8 @@ EnabledConfigValue(const std::string& value)
   return value == "enabled";
 }
 
+constexpr const char* kAutomaticDetailCardinalityPrefix = "auto-cardinality:";
+
 std::string MakeIoHelp()
 {
   std::ostringstream oss;
@@ -493,7 +495,7 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     a->set_json_output(config_ls->count("--json") > 0);
   });
   auto* config_set = config_cmd->add_subcommand("set", "Set config");
-  config_set->require_option(1, 9);
+  config_set->require_option(1, 11);
   config_set->add_option("--estimators-period", "Estimator update period")
       ->type_name("MS");
   config_set->add_option("--policy-period", "Policy enforcement update period")
@@ -505,6 +507,17 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
   config_set->add_option("--detail", "Shaping detail level")
       ->type_name("LEVEL")
       ->check(CLI::IsMember({"aggregate", "fs"}));
+  config_set->add_option("--detail-auto", "Automatic shaping detail level toggle")
+      ->type_name("STATE")
+      ->check(CLI::IsMember({"enabled", "disabled"}));
+  config_set
+      ->add_option("--detail-auto-low-cardinality",
+                   "Node-state stream cardinality for switching back to fs detail")
+      ->type_name("COUNT");
+  config_set
+      ->add_option("--detail-auto-high-cardinality",
+                   "Node-state stream cardinality for switching to aggregate detail")
+      ->type_name("COUNT");
   config_set->add_option("--limits", "Limit enforcement toggle")
       ->type_name("STATE")
       ->check(CLI::IsMember({"enabled", "disabled"}));
@@ -540,8 +553,36 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     if (config_set->count("--system-window"))
       a->set_system_stats_time_window_seconds(
           config_set->get_option("--system-window")->as<uint32_t>());
+    if (config_set->count("--detail-auto")) {
+      const bool enabled =
+          EnabledConfigValue(config_set->get_option("--detail-auto")->as<std::string>());
+      a->set_detail_level(enabled ? "auto" : "manual");
+    }
     if (config_set->count("--detail")) {
       a->set_detail_level(config_set->get_option("--detail")->as<std::string>());
+    }
+    if (config_set->count("--detail-auto-low-cardinality") ||
+        config_set->count("--detail-auto-high-cardinality")) {
+      std::ostringstream encoded;
+      encoded << kAutomaticDetailCardinalityPrefix;
+
+      if (config_set->count("--detail-auto-low-cardinality")) {
+        encoded
+            << config_set->get_option("--detail-auto-low-cardinality")->as<uint64_t>();
+      }
+
+      encoded << ":";
+
+      if (config_set->count("--detail-auto-high-cardinality")) {
+        encoded
+            << config_set->get_option("--detail-auto-high-cardinality")->as<uint64_t>();
+      }
+
+      if (config_set->count("--detail-auto")) {
+        encoded << ":" << config_set->get_option("--detail-auto")->as<std::string>();
+      }
+
+      a->set_detail_level(encoded.str());
     }
     if (config_set->count("--limits")) {
       a->set_limits_enabled(

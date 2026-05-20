@@ -21,111 +21,116 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "common/BehaviourConfig.hh"
+#include "common/BufferManager.hh"
 #include "common/CommentLog.hh"
 #include "common/Constants.hh"
-#include "common/Mapping.hh"
+#include "common/Definitions.hh"
 #include "common/FileId.hh"
+#include "common/JeMallocHandler.hh"
 #include "common/LayoutId.hh"
+#include "common/Mapping.hh"
+#include "common/ParseUtils.hh"
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
 #include "common/StackTrace.hh"
-#include "common/SymKeys.hh"
-#include "common/ParseUtils.hh"
-#include "common/http/OwnCloud.hh"
-#include "common/JeMallocHandler.hh"
-#include "common/plugin_manager/Plugin.hh"
-#include "common/plugin_manager/DynamicLibrary.hh"
-#include "common/plugin_manager/PluginManager.hh"
 #include "common/Strerror_r_wrapper.hh"
-#include "common/BufferManager.hh"
-#include "common/BehaviourConfig.hh"
-#include "common/Definitions.hh"
-#include "namespace/Constants.hh"
-#include "namespace/interface/ContainerIterators.hh"
-#include "namespace/utils/Attributes.hh"
-#include "namespace/utils/Checksum.hh"
-#include "namespace/utils/RenameSafetyCheck.hh"
-#include "namespace/utils/Stat.hh"
-#include "namespace/utils/Etag.hh"
+#include "common/SymKeys.hh"
+#include "common/http/OwnCloud.hh"
+#include "common/plugin_manager/DynamicLibrary.hh"
+#include "common/plugin_manager/Plugin.hh"
+#include "common/plugin_manager/PluginManager.hh"
+#include "google/protobuf/io/zero_copy_stream_impl.h"
+#include "grpc/GrpcRestGwServer.hh"
 #include "grpc/GrpcServer.hh"
 #include "grpc/GrpcWncServer.hh"
-#include "grpc/GrpcRestGwServer.hh"
-#include "mgm/misc/Constants.hh"
-#include "mgm/adminsocket/AdminSocket.hh"
-#include "mgm/stat/Stat.hh"
+#include "mgm/FuseServer/FusexCastBatch.hh"
 #include "mgm/access/Access.hh"
-#include "mgm/filesystem/FileSystem.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/authz/XrdMgmAuthz.hh"
-#include "mgm/ofs/XrdMgmOfsDirectory.hh"
-#include "mgm/ofs/XrdMgmOfsFile.hh"
-#include "mgm/ofs/XrdMgmOfsTrace.hh"
-#include "mgm/ofs/XrdMgmOfsSecurity.hh"
-#include "mgm/commandmap/CommandMap.hh"
-#include "mgm/policy/Policy.hh"
-#include "mgm/quota/Quota.hh"
 #include "mgm/acl/Acl.hh"
-#include "mgm/workflow/Workflow.hh"
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/recycle/Recycle.hh"
+#include "mgm/adminsocket/AdminSocket.hh"
+#include "mgm/auth/AccessChecker.hh"
+#include "mgm/authz/XrdMgmAuthz.hh"
+#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
+#include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
+#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
+#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
+#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
+#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
+#include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
+#include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
+#include "mgm/bulk-request/utils/json/QueryPrepareResponseJson.hh"
+#include "mgm/commandmap/CommandMap.hh"
+#include "mgm/config/IConfigEngine.hh"
+#include "mgm/convert/ConverterEngine.hh"
 #include "mgm/devices/Devices.hh"
-#include "mgm/pathrouting/PathRouting.hh"
-#include "mgm/macros/Macros.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/egroup/Egroup.hh"
+#include "mgm/filesystem/FileSystem.hh"
+#include "mgm/fsck/Fsck.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/http/HttpServer.hh"
-#include "mgm/zmq/ZMQ.hh"
+#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/manager/RestApiManager.hh"
+#include "mgm/imaster/IMaster.hh"
 #include "mgm/iostat/Iostat.hh"
 #include "mgm/lru/LRU.hh"
-#include "mgm/wfe/WFE.hh"
-#include "mgm/fsck/Fsck.hh"
-#include "mgm/imaster/IMaster.hh"
-#include "mgm/convert/ConverterEngine.hh"
-#include "mgm/FuseServer/FusexCastBatch.hh"
-#include "mgm/tgc/RealTapeGcMgm.hh"
-#include "mgm/tgc/MultiSpaceTapeGc.hh"
-#include "mgm/tracker/ReplicationTracker.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/misc/Constants.hh"
+#include "mgm/monitoring/Monitoring.hh"
+#include "mgm/monitoring/MonitoringConfig.hh"
+#include "mgm/monitoring/PrometheusExporter.hh"
+#include "mgm/ofs/XrdMgmOfsDirectory.hh"
+#include "mgm/ofs/XrdMgmOfsFile.hh"
+#include "mgm/ofs/XrdMgmOfsSecurity.hh"
+#include "mgm/ofs/XrdMgmOfsTrace.hh"
 #include "mgm/ofs/fsctl/CommitHelper.hh"
-#include "mgm/xattr/XattrLock.hh"
-#include "mgm/auth/AccessChecker.hh"
-#include "mgm/config/IConfigEngine.hh"
-#include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
+#include "mgm/pathrouting/PathRouting.hh"
 #include "mgm/placement/FsScheduler.hh"
-#include "mq/SharedHashWrapper.hh"
+#include "mgm/policy/Policy.hh"
+#include "mgm/proc/ProcInterface.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/recycle/Recycle.hh"
+#include "mgm/stat/Stat.hh"
+#include "mgm/tgc/MultiSpaceTapeGc.hh"
+#include "mgm/tgc/RealTapeGcMgm.hh"
+#include "mgm/tracker/ReplicationTracker.hh"
+#include "mgm/utils/AttrHelper.hh"
+#include "mgm/wfe/WFE.hh"
+#include "mgm/workflow/Workflow.hh"
+#include "mgm/xattr/XattrLock.hh"
+#include "mgm/zmq/ZMQ.hh"
 #include "mq/FsChangeListener.hh"
 #include "mq/GlobalConfigChangeListener.hh"
 #include "mq/MessagingRealm.hh"
 #include "mq/QdbListener.hh"
-#include "namespace/interface/IFsView.hh"
+#include "mq/SharedHashWrapper.hh"
+#include "namespace/Constants.hh"
 #include "namespace/Prefetcher.hh"
-#include <XrdVersion.hh>
+#include "namespace/interface/ContainerIterators.hh"
+#include "namespace/interface/IFsView.hh"
+#include "namespace/utils/Attributes.hh"
+#include "namespace/utils/Checksum.hh"
+#include "namespace/utils/Etag.hh"
+#include "namespace/utils/RenameSafetyCheck.hh"
+#include "namespace/utils/Stat.hh"
 #include <XrdOss/XrdOss.hh>
 #include <XrdOuc/XrdOucBuffer.hh>
 #include <XrdOuc/XrdOucEnv.hh>
-#include <XrdOuc/XrdOucTokenizer.hh>
 #include <XrdOuc/XrdOucTList.hh>
+#include <XrdOuc/XrdOucTokenizer.hh>
 #include <XrdOuc/XrdOucTrace.hh>
+#include <XrdSec/XrdSecInterface.hh>
+#include <XrdSfs/XrdSfsAio.hh>
+#include <XrdSfs/XrdSfsFAttr.hh>
+#include <XrdSfs/XrdSfsFlags.hh>
 #include <XrdSys/XrdSysError.hh>
 #include <XrdSys/XrdSysLogger.hh>
 #include <XrdSys/XrdSysPthread.hh>
-#include <XrdSec/XrdSecInterface.hh>
-#include <XrdSfs/XrdSfsAio.hh>
-#include <XrdSfs/XrdSfsFlags.hh>
-#include <XrdSfs/XrdSfsFAttr.hh>
-#include "google/protobuf/io/zero_copy_stream_impl.h"
-#include "mgm/bulk-request/dao/factories/AbstractDAOFactory.hh"
-#include "mgm/bulk-request/dao/factories/ProcDirectoryDAOFactory.hh"
-#include "mgm/bulk-request/business/BulkRequestBusiness.hh"
-#include "mgm/bulk-request/interface/RealMgmFileSystemInterface.hh"
-#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
-#include "mgm/bulk-request/dao/proc/ProcDirectoryBulkRequestLocations.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
-#include "mgm/bulk-request/dao/proc/cleaner/BulkRequestProcCleaner.hh"
-#include "mgm/bulk-request/utils/json/QueryPrepareResponseJson.hh"
-#include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
-#include "mgm/http/rest-api/manager/RestApiManager.hh"
-#include "mgm/utils/AttrHelper.hh"
+#include <XrdVersion.hh>
+#include <exception>
+#include <sstream>
 
 #ifdef __APPLE__
 #define ECOMM 70
@@ -289,34 +294,70 @@ extern "C" {
 //------------------------------------------------------------------------------
 // Constructor MGM Ofs
 //------------------------------------------------------------------------------
-XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
-  ConfigFN(0), mConfigEngine(0), mCapabilityValidity(3600),
-  ManagerPort(1094), LinuxStatsStartup{0},
-  HostName(0), HostPref(0),   protowfusegrpc(false),
-  mNamespaceState(NamespaceState::kDown),
-  mFileInitTime(0), mTotalInitTime(time(nullptr)), mStartTime(time(nullptr)),
-  Shutdown(false), mBootFileId(0), mBootContainerId(0), IsRedirect(true),
-  IsStall(true), mAuthorize(false), mAuthLib(""), mTapeEnabled(false),
-  mReqIdMax(64),
-  MgmRedirector(false), mErrLogEnabled(true), eosDirectoryService(0),
-  eosFileService(0), eosView(0), eosFsView(0), eosContainerAccounting(0),
-  eosSyncTimeAccounting(0), mFrontendPort(0), mNumAuthThreads(0),
-  mFrontendLocalhost(1), zMQ(nullptr),
-  mMgmAuthz(nullptr), mTokenAuthz(nullptr), mExtAuthz(nullptr),
-  MgmStatsPtr(new eos::mgm::Stat()),  MgmStats(*MgmStatsPtr),
-  mFsckEngine(new Fsck()), mMaster(nullptr),
-  mRouting(new eos::mgm::PathRouting()), mConverterEngine(),
-  mHttpd(nullptr), GRPCd(nullptr), WNCd(nullptr), mRestGrpcSrv(nullptr),
-  mLRUEngine(new eos::mgm::LRU()),
-  WFEPtr(new eos::mgm::WFE()), WFEd(*WFEPtr), mFstGwHost(""),
-  mFstGwPort(0), mQdbCluster(""), mHttpdPort(8000),
-  mFusexPort(1100), mGRPCPort(50051), mWncPort(50052),
-  mRestGrpcPort(50054),
-  mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600)),
-  mBehaviourCfg(new eos::common::BehaviourConfig()),
-  mDoneOrderlyShutdown(false),
-  mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64),
-  mJeMallocHandler(new eos::common::JeMallocHandler())
+XrdMgmOfs::XrdMgmOfs(XrdSysError* ep)
+    : ConfigFN(0)
+    , mConfigEngine(0)
+    , mCapabilityValidity(3600)
+    , ManagerPort(1094)
+    , LinuxStatsStartup{0}
+    , HostName(0)
+    , HostPref(0)
+    , protowfusegrpc(false)
+    , mNamespaceState(NamespaceState::kDown)
+    , mFileInitTime(0)
+    , mTotalInitTime(time(nullptr))
+    , mStartTime(time(nullptr))
+    , Shutdown(false)
+    , mBootFileId(0)
+    , mBootContainerId(0)
+    , IsRedirect(true)
+    , IsStall(true)
+    , mAuthorize(false)
+    , mAuthLib("")
+    , mTapeEnabled(false)
+    , mReqIdMax(64)
+    , MgmRedirector(false)
+    , mErrLogEnabled(true)
+    , eosDirectoryService(0)
+    , eosFileService(0)
+    , eosView(0)
+    , eosFsView(0)
+    , eosContainerAccounting(0)
+    , eosSyncTimeAccounting(0)
+    , mFrontendPort(0)
+    , mNumAuthThreads(0)
+    , mFrontendLocalhost(1)
+    , zMQ(nullptr)
+    , mMgmAuthz(nullptr)
+    , mTokenAuthz(nullptr)
+    , mExtAuthz(nullptr)
+    , MgmStatsPtr(new eos::mgm::Stat())
+    , MgmStats(*MgmStatsPtr)
+    , mFsckEngine(new Fsck())
+    , mMaster(nullptr)
+    , mRouting(new eos::mgm::PathRouting())
+    , mConverterEngine()
+    , mHttpd(nullptr)
+    , GRPCd(nullptr)
+    , WNCd(nullptr)
+    , mRestGrpcSrv(nullptr)
+    , mPrometheusExporter(nullptr)
+    , mLRUEngine(new eos::mgm::LRU())
+    , WFEPtr(new eos::mgm::WFE())
+    , WFEd(*WFEPtr)
+    , mFstGwHost("")
+    , mFstGwPort(0)
+    , mQdbCluster("")
+    , mHttpdPort(8000)
+    , mFusexPort(1100)
+    , mGRPCPort(50051)
+    , mWncPort(50052)
+    , mRestGrpcPort(50054)
+    , mFidTracker(std::chrono::seconds(600), std::chrono::seconds(3600))
+    , mBehaviourCfg(new eos::common::BehaviourConfig())
+    , mDoneOrderlyShutdown(false)
+    , mXrdBuffPool(2 * eos::common::KB, 2 * eos::common::MB, 8, 64)
+    , mJeMallocHandler(new eos::common::JeMallocHandler())
 {
   eDest = ep;
   ConfigFN = 0;
@@ -455,6 +496,153 @@ XrdMgmOfs::XrdMgmOfs(XrdSysError* ep):
 }
 
 //------------------------------------------------------------------------------
+// Apply monitoring configuration
+//------------------------------------------------------------------------------
+bool
+XrdMgmOfs::ApplyMonitoringConfig(std::string* err)
+{
+  using namespace eos::mgm::monitoring;
+
+  std::lock_guard<std::mutex> lock(mPrometheusExporterMutex);
+  std::string enabled = FsView::gFsView.GetGlobalConfig(kPrometheusEnabledConfig);
+  std::string port = FsView::gFsView.GetGlobalConfig(kPrometheusPortConfig);
+  std::string cache_ttl = FsView::gFsView.GetGlobalConfig(kPrometheusCacheTtlConfig);
+
+  if (enabled.empty()) {
+    if (const char* env_port = getenv("EOS_MGM_PROMETHEUS_PORT")) {
+      enabled = "true";
+
+      if (port.empty()) {
+        port = env_port;
+      }
+    }
+  }
+
+  if (cache_ttl.empty()) {
+    if (const char* env_cache_ttl = getenv("EOS_MGM_PROMETHEUS_CACHE_TTL_SECONDS")) {
+      cache_ttl = env_cache_ttl;
+    }
+  }
+
+  if (enabled.empty() || enabled == "false") {
+    if (mPrometheusExporter) {
+      mPrometheusExporter.reset();
+      mPrometheusExporterBindAddress.clear();
+      mPrometheusExporterCacheTtlSeconds = 0;
+      monitoring::LogPrometheusEndpointStopped();
+    }
+
+    return true;
+  }
+
+  if (enabled != "true") {
+    if (err) {
+      *err = SSTR("invalid value for " << kPrometheusEnabledConfig << ": " << enabled);
+    }
+
+    return false;
+  }
+
+  if (port.empty()) {
+    port = std::to_string(kDefaultPrometheusPort);
+  }
+
+  uint16_t prometheus_port = 0;
+
+  if (!ParsePortConfig(port, prometheus_port)) {
+    if (err) {
+      *err = SSTR("invalid value for " << kPrometheusPortConfig << ": "
+                                       << (port.empty() ? "<unset>" : port));
+    }
+
+    return false;
+  }
+
+  const std::string bind_address =
+      std::string("0.0.0.0:") + std::to_string(prometheus_port);
+  uint32_t cache_ttl_seconds = kDefaultPrometheusCacheTtlSeconds;
+
+  if (!cache_ttl.empty() && (!ParseUint32Config(cache_ttl, cache_ttl_seconds) ||
+                             !IsValidCacheTtl(cache_ttl_seconds))) {
+    if (err) {
+      *err = SSTR("invalid value for " << kPrometheusCacheTtlConfig << ": " << cache_ttl);
+    }
+
+    return false;
+  }
+
+  if (mPrometheusExporter && mPrometheusExporterBindAddress == bind_address &&
+      mPrometheusExporterCacheTtlSeconds == cache_ttl_seconds) {
+    return true;
+  }
+
+  mPrometheusExporter.reset();
+  mPrometheusExporterBindAddress.clear();
+  mPrometheusExporterCacheTtlSeconds = 0;
+
+  try {
+    monitoring::LogPrometheusEndpointStarting(bind_address, cache_ttl_seconds);
+    mPrometheusExporter = std::make_unique<monitoring::PrometheusExporter>(
+        bind_address, mTrafficShapingEngine, MgmOfsInstanceName.c_str(),
+        std::chrono::seconds(cache_ttl_seconds),
+        [this]() { return mMaster && mMaster->IsMaster(); });
+    mPrometheusExporterBindAddress = bind_address;
+    mPrometheusExporterCacheTtlSeconds = cache_ttl_seconds;
+    monitoring::LogPrometheusEndpointStarted(bind_address, cache_ttl_seconds);
+  } catch (const std::exception& exception) {
+    if (err) {
+      *err = SSTR("failed to start Prometheus metrics endpoint at "
+                  << bind_address << ": " << exception.what());
+    }
+
+    monitoring::LogPrometheusEndpointStartFailed(bind_address, exception.what());
+    return false;
+  } catch (...) {
+    const std::string unknown_error = "unknown exception";
+
+    if (err) {
+      *err = SSTR("failed to start Prometheus metrics endpoint at "
+                  << bind_address << ": " << unknown_error);
+    }
+
+    monitoring::LogPrometheusEndpointStartFailed(bind_address, unknown_error);
+    return false;
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Get monitoring configuration
+//------------------------------------------------------------------------------
+std::string
+XrdMgmOfs::GetMonitoringConfig() const
+{
+  using namespace eos::mgm::monitoring;
+
+  std::lock_guard<std::mutex> lock(mPrometheusExporterMutex);
+  std::ostringstream out;
+  const std::string enabled = FsView::gFsView.GetGlobalConfig(kPrometheusEnabledConfig);
+  const std::string port = FsView::gFsView.GetGlobalConfig(kPrometheusPortConfig);
+  const std::string cache_ttl =
+      FsView::gFsView.GetGlobalConfig(kPrometheusCacheTtlConfig);
+
+  out << "prometheus.enabled=" << (enabled.empty() ? "false" : enabled) << '\n'
+      << "prometheus.port="
+      << (port.empty() ? std::to_string(kDefaultPrometheusPort) : port) << '\n'
+      << "prometheus.cache_ttl_seconds="
+      << (cache_ttl.empty() ? std::to_string(kDefaultPrometheusCacheTtlSeconds)
+                            : cache_ttl)
+      << '\n'
+      << "prometheus.bind="
+      << (mPrometheusExporterBindAddress.empty() ? "<stopped>"
+                                                 : mPrometheusExporterBindAddress)
+      << '\n'
+      << "prometheus.status=" << (mPrometheusExporter ? "running" : "stopped") << '\n';
+  return out.str();
+}
+
+//------------------------------------------------------------------------------
 // Destructor
 //------------------------------------------------------------------------------
 XrdMgmOfs::~XrdMgmOfs()
@@ -579,6 +767,11 @@ XrdMgmOfs::OrderlyShutdown()
   if (mHttpd) {
     eos_warning("%s", "msg=\"stopping and deleting HTTP daemon\"");
     mHttpd.reset();
+  }
+
+  if (mPrometheusExporter) {
+    mPrometheusExporter.reset();
+    monitoring::LogPrometheusEndpointStopped();
   }
 
   if (WNCd) {
