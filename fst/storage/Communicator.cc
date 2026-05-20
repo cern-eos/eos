@@ -59,6 +59,7 @@ std::set<std::string> Storage::sNodeUpdateKeys{
     common::FST_TRAFFIC_SHAPING_IO_LIMITS,
     common::FST_TRAFFIC_SHAPING_ENABLE_TOGGLE,
     common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD,
+    common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL,
 };
 
 //------------------------------------------------------------------------------
@@ -245,6 +246,29 @@ ProcessFstIoStatsReportingThreadPeriod(const std::string& period_millis_as_str)
 }
 
 //------------------------------------------------------------------------------
+// Handle traffic shaping detail level
+//------------------------------------------------------------------------------
+void
+ProcessTrafficShapingDetailLevel(const std::string& detail_level)
+{
+  if (detail_level != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM &&
+      detail_level != eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_AGGREGATE) {
+    eos_static_err("msg=\"invalid Traffic Shaping detail level for FST\" value=\"%s\"",
+                   detail_level.c_str());
+    return;
+  }
+
+  const bool fs_detail =
+      detail_level == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM;
+
+  if (gOFS.mIoStatsCollector.SetFilesystemDetailEnabled(fs_detail)) {
+    eos_static_info("msg=\"Traffic Shaping FST detail level changed\" "
+                    "detail_level=\"%s\"",
+                    detail_level.c_str());
+  }
+}
+
+//------------------------------------------------------------------------------
 // Process incoming configuration change
 //------------------------------------------------------------------------------
 void Storage::ProcessFstConfigChange(const std::string& key, const std::string& value) {
@@ -293,6 +317,8 @@ void Storage::ProcessFstConfigChange(const std::string& key, const std::string& 
     ProcessTrafficShapingToggle(value == "on" || value == "true" || value == "1");
   } else if (key == eos::common::FST_TRAFFIC_SHAPING_STATS_THREAD_PERIOD) {
     ProcessFstIoStatsReportingThreadPeriod(value);
+  } else if (key == eos::common::FST_TRAFFIC_SHAPING_DETAIL_LEVEL) {
+    ProcessTrafficShapingDetailLevel(value);
   } else if (key == "debug.level") {
     const std::string& debugLevel = value;
     eos_static_info("msg=\"debug level changed\" new_level=\"%s\"", debugLevel.c_str());

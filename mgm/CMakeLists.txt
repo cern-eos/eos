@@ -134,6 +134,7 @@ add_library(
   proc/admin/FsckCmd.cc
   proc/admin/Fusex.cc
   proc/admin/GeoSched.cc
+  proc/admin/Monit.cc
   proc/admin/NsCmd.cc
   proc/admin/Rtlog.cc
   proc/admin/EvictCmd.cc proc/admin/EvictCmd.hh
@@ -147,6 +148,7 @@ add_library(
   proc/admin/GroupCmd.cc proc/admin/GroupCmd.hh
   proc/admin/IoShapingCmd.cc proc/admin/IoCmd.cc proc/admin/IoCmd.hh
   proc/admin/FileRegisterCmd.cc proc/admin/FileRegisterCmd.hh
+  proc/admin/MonitCmd.cc proc/admin/MonitCmd.hh
   proc/admin/NodeCmd.cc proc/admin/NodeCmd.hh
   proc/admin/SchedCmd.cc
   proc/admin/SpaceCmd.cc proc/admin/SpaceCmd.hh
@@ -270,6 +272,13 @@ add_library(
   grpc/GrpcWncInterface.cc      grpc/GrpcWncInterface.hh
   grpc/GrpcRestGwServer.cc grpc/GrpcRestGwServer.hh
   grpc/GrpcRestGwInterface.cc      grpc/GrpcRestGwInterface.hh
+  monitoring/CachedCollectable.cc
+  monitoring/CachedCollectable.hh
+  monitoring/Monitoring.cc
+  monitoring/Monitoring.hh
+  monitoring/MonitoringConfig.hh
+  monitoring/PrometheusExporter.cc
+  monitoring/PrometheusExporter.hh
   http/HttpServer.cc
   http/HttpHandler.cc
   http/webdav/WebDAVHandler.cc
@@ -367,6 +376,7 @@ target_link_libraries(XrdEosMgm-Objects PUBLIC
   EosGrpcGateway::EosGrpcGateway
   GOOGLE::SPARSEHASH
   JSONCPP::JSONCPP
+  prometheus-cpp::pull
   XROOTD::PRIVATE
   XROOTD::POSIX
   LDAP::LDAP
@@ -397,6 +407,7 @@ target_link_libraries(XrdEosMgm-${XRDPLUGIN_SOVERSION} PUBLIC
   RestGrpc-Objects
   RestAnnot-Objects
   EosGrpcGateway::EosGrpcGateway
+  prometheus-cpp::pull
   ZLIB::ZLIB
   XROOTD::CL
   XROOTD::SSI
@@ -465,6 +476,7 @@ if(Linux)
     XROOTD::PRIVATE
     XROOTD::POSIX
     EosGrpcGateway::EosGrpcGateway
+    prometheus-cpp::pull
     EosNsCommon-Static
     EosCommon-Static)
 
