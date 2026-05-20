@@ -621,10 +621,10 @@ TrafficShapingManager::UpdateEstimators(const double time_delta_seconds)
     stats.iops_read_window.Add(read_iops_now);
     stats.iops_write_window.Add(write_iops_now);
 
-    stats.bytes_read_window.Tick();
-    stats.bytes_written_window.Tick();
-    stats.iops_read_window.Tick();
-    stats.iops_write_window.Tick();
+    stats.bytes_read_window.Tick(time_delta_seconds);
+    stats.bytes_written_window.Tick(time_delta_seconds);
+    stats.iops_read_window.Tick(time_delta_seconds);
+    stats.iops_write_window.Tick(time_delta_seconds);
 
     for (size_t i = 0; i < SmaWindowSec.size(); ++i) {
       const int window_sec = SmaWindowSec[i];

@@ -143,6 +143,7 @@ add_library(EosCommon-Objects OBJECT
   InstanceName.cc
   Mapping.cc
   shaping/Identity.cc
+  shaping/SlidingWindowStats.cc
   MutexLatencyWatcher.cc
   RWMutex.cc
   RegexWrapper.cc

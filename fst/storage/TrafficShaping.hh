@@ -2,11 +2,11 @@
 
 #include "common/Constants.hh"
 #include "common/Logging.hh"
+#include "common/VirtualIdentity.hh"
 #include "common/shaping/IoStatsKey.hh"
 
 #include "proto/TrafficShaping.pb.h"
 
-#include <algorithm>
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -112,113 +112,27 @@ private:
 
 class IoDelayConfig {
 public:
-  IoDelayConfig()
-  {
-    const auto initial_config =
-        std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>();
-    std::atomic_store(&mFstIoDelayConfigPtr, initial_config);
-  }
+  IoDelayConfig();
 
-  void
-  UpdateConfig(eos::traffic_shaping::TrafficShapingFstIoDelayConfig new_config)
-  {
-    const auto new_ptr =
-        std::make_shared<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>(
-            std::move(new_config));
-    std::atomic_store_explicit(&mFstIoDelayConfigPtr, new_ptr, std::memory_order_release);
-  }
+  void UpdateConfig(eos::traffic_shaping::TrafficShapingFstIoDelayConfig new_config);
 
-  uint64_t
-  GetReadDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
-                           const uint64_t bytes = 0) const
-  {
-    return GetDelayForAppUidGid(vid, bytes, /*is_write=*/false);
-  }
+  uint64_t GetReadDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
+                                    uint64_t bytes = 0) const;
 
-  uint64_t
-  GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
-                            const uint64_t bytes = 0) const
-  {
-    return GetDelayForAppUidGid(vid, bytes, /*is_write=*/true);
-  }
+  uint64_t GetWriteDelayForAppUidGid(const eos::common::VirtualIdentity& vid,
+                                     uint64_t bytes = 0) const;
 
-  void
-  Clear()
-  {
-    UpdateConfig({});
-  }
+  void Clear();
 
-  void
-  SetEnabled(const bool enabled)
-  {
-    mIsEnabled.store(enabled, std::memory_order_relaxed);
-    if (!enabled) {
-      Clear();
-    }
-  }
+  void SetEnabled(bool enabled);
 
-  bool
-  IsEnabled() const
-  {
-    return mIsEnabled.load(std::memory_order_relaxed);
-  }
+  bool IsEnabled() const;
 
 private:
-  uint64_t
-  ScaleDelay(const uint64_t delay_us, const uint64_t bytes) const
-  {
-    if (delay_us == 0 || bytes == 0) {
-      return delay_us;
-    }
+  uint64_t ScaleDelay(uint64_t delay_us, uint64_t bytes) const;
 
-    const __uint128_t numerator = static_cast<__uint128_t>(delay_us) * bytes;
-    const __uint128_t capped =
-        std::min<__uint128_t>(numerator, static_cast<__uint128_t>(kMaxScaledIoDelayUs) *
-                                             kIoDelayReferenceBytes);
-    const uint64_t scaled_delay = static_cast<uint64_t>(capped / kIoDelayReferenceBytes);
-    if (scaled_delay == 0) {
-      return 1;
-    }
-
-    return scaled_delay;
-  }
-
-  uint64_t
-  GetDelayForAppUidGid(const eos::common::VirtualIdentity& vid, const uint64_t bytes,
-                       bool is_write) const
-  {
-    if (!IsEnabled()) {
-      return 0;
-    }
-
-    const std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
-        cfg = std::atomic_load_explicit(&mFstIoDelayConfigPtr, std::memory_order_acquire);
-
-    uint64_t max_delay = 0;
-
-    auto check_app = [&](const auto& map) {
-      if (const auto it = map.find(vid.app); it != map.end()) {
-        max_delay = std::max(max_delay, ScaleDelay(it->second, bytes));
-      }
-    };
-    auto check_id = [&](const auto& map, const auto& key) {
-      if (const auto it = map.find(key); it != map.end()) {
-        max_delay = std::max(max_delay, ScaleDelay(it->second, bytes));
-      }
-    };
-
-    if (is_write) {
-      check_app(cfg->app_write_delay());
-      check_id(cfg->uid_write_delay(), vid.uid);
-      check_id(cfg->gid_write_delay(), vid.gid);
-    } else {
-      check_app(cfg->app_read_delay());
-      check_id(cfg->uid_read_delay(), vid.uid);
-      check_id(cfg->gid_read_delay(), vid.gid);
-    }
-
-    return max_delay;
-  }
+  uint64_t GetDelayForAppUidGid(const eos::common::VirtualIdentity& vid, uint64_t bytes,
+                                bool is_write) const;
 
   std::shared_ptr<const eos::traffic_shaping::TrafficShapingFstIoDelayConfig>
       mFstIoDelayConfigPtr;
