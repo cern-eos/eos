@@ -865,22 +865,54 @@ runtest "### RmNode    " unix SUCCESS "" eos "node rm __test__"
 runtest "### eos-rename" unix SUCCESS "" eos_rename "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename-test"
 runtest "### Rm        " unix SUCCESS "" eos rm -rf "/eos/$EOS_TEST_INSTANCE/test/instancetest/rename-test"
 
+# ----------------------------
+# Check big file upload
+# ----------------------------
+# Get the the minimum amount of free space on any of the file systems
+fs_min_size=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR geosched show -m snapshot default.0 plct |
+grep fsid |
+gawk -M -v RS=" |\n" -F= '/^(fsid|totW)=/{ if($1=="fsid") f=$2; else print $2, f }' |
+sort -rn |
+tail -1 |
+awk '{print $1;}')
+# Get the the maximum amount of free space on any of the file systems
+fs_max_size=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR geosched show -m snapshot default.0 plct |
+grep fsid |
+gawk -M -v RS=" |\n" -F= '/^(fsid|totW)=/{ if($1=="fsid") f=$2; else print $2, f }' |
+sort -rn |
+grep fsid |
+head -1 |
+awk '{print $1;}')
+# Tests for the replica layout
+runtest "### Mkdir     " unix SUCCESS "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/replica"
+runtest "### Attr      " unix SUCCESS "" eos "attr set default=replica /eos/$EOS_TEST_INSTANCE/test/instancetest/replica"
+runtest "### Upload    " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/replica/file.dat" "-ODeos.bookingsize=$((fs_max_size + 1024*1024*1024))"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/replica/file.dat" "-ODeos.bookingsize=$((fs_min_size - 1024*1024*1024))"
+# Tests for the rain layout
+runtest "### Mkdir     " unix SUCCESS "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/rain"
+runtest "### Attr      " unix SUCCESS "" eos "attr set default=raid6 /eos/$EOS_TEST_INSTANCE/test/instancetest/rain"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rain/file.dat" "-ODeos.bookingsize=$((fs_max_size + 1024*1024*1024))"
+runtest "### Upload    " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rain/file.dat" "-ODeos.bookingsize=$((fs_max_size * 7))"
+# Cleanup
+runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/replica"
+runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/rain"
+
 # --------------------------
 # Constrain minimum file size
 # --------------------------
 runtest "### Mkdir     " unix SUCCESS "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/minsize"
-runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.minsize=1000000 /eos/$EOS_TEST_INSTANCE/test/instancetest/minsize
-runtest "### Upload    " unix ERROR "" upload   "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/minsize/f1"
-runtest "### Upload    " unix SUCCESS "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/minsize/f1"
+runtest "### Attr      " unix SUCCESS "" eos "attr set sys.forced.minsize=1000000 /eos/$EOS_TEST_INSTANCE/test/instancetest/minsize"
+runtest "### Upload    " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/minsize/f1"
+runtest "### Upload    " unix SUCCESS "" upload "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/minsize/f1"
 runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/minsize"
 
 # --------------------------
 # Constrain maximum file size
 # --------------------------
 runtest "### Mkdir     " unix SUCCESS "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize"
-runtest "### Attr      " unix SUCCESS "" eos attr set sys.forced.maxsize=1000000 /eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize
-runtest "### Upload    " unix ERROR "" upload   "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize/f1"
-runtest "### Upload    " unix SUCCESS "" upload   "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize/f1"
+runtest "### Attr      " unix SUCCESS "" eos "attr set sys.forced.maxsize=1000000 /eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize"
+runtest "### Upload    " unix ERROR   "" upload "$TESTSYSFILE1M" "/eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize/f1"
+runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize/f1"
 runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/maxsize"
 
 # --------------------------
