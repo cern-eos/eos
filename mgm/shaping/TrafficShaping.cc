@@ -508,6 +508,15 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
       AddCumulativeStats(mGlobalCumulativeStats[stats_key], delta_bytes_read,
                          delta_bytes_written, delta_read_iops, delta_write_iops,
                          now_unix);
+      AddCumulativeStats(mProjectionCumulativeStats.app[stream_key.app], delta_bytes_read,
+                         delta_bytes_written, delta_read_iops, delta_write_iops,
+                         now_unix);
+      AddCumulativeStats(mProjectionCumulativeStats.uid[stream_key.uid], delta_bytes_read,
+                         delta_bytes_written, delta_read_iops, delta_write_iops,
+                         now_unix);
+      AddCumulativeStats(mProjectionCumulativeStats.gid[stream_key.gid], delta_bytes_read,
+                         delta_bytes_written, delta_read_iops, delta_write_iops,
+                         now_unix);
 
       DetailedKey node_entity_key{node_id,
                                   {stream_key.app, stream_key.uid, stream_key.gid, 0}};
@@ -555,6 +564,9 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
     AddCumulativeStats(mNodeCumulativeStats[node_id], total_node_delta_bytes_read,
                        total_node_delta_bytes_written, total_node_delta_read_iops,
                        total_node_delta_write_iops, now_unix);
+    AddCumulativeStats(mProjectionCumulativeStats.node[node_id],
+                       total_node_delta_bytes_read, total_node_delta_bytes_written,
+                       total_node_delta_read_iops, total_node_delta_write_iops, now_unix);
 
     AddDeltas(mTotalStats, total_node_delta_bytes_read, total_node_delta_bytes_written,
               total_node_delta_read_iops, total_node_delta_write_iops, now_unix);
@@ -1895,6 +1907,10 @@ TrafficShapingManager::GarbageCollect(const int max_idle_seconds)
   prune_cumulative_stats(mNodeCumulativeStats);
   prune_cumulative_stats(mDiskCumulativeStats);
   prune_cumulative_stats(mDetailedCumulativeStats);
+  prune_cumulative_stats(mProjectionCumulativeStats.app);
+  prune_cumulative_stats(mProjectionCumulativeStats.uid);
+  prune_cumulative_stats(mProjectionCumulativeStats.gid);
+  prune_cumulative_stats(mProjectionCumulativeStats.node);
 
   return stats;
 }
@@ -1969,6 +1985,14 @@ TrafficShapingManager::GetMapCardinalityStats() const
   stats.disk_cumulative_stats = static_cast<uint64_t>(mDiskCumulativeStats.size());
   stats.detailed_cumulative_stats =
       static_cast<uint64_t>(mDetailedCumulativeStats.size());
+  stats.projection_app_cumulative_stats =
+      static_cast<uint64_t>(mProjectionCumulativeStats.app.size());
+  stats.projection_uid_cumulative_stats =
+      static_cast<uint64_t>(mProjectionCumulativeStats.uid.size());
+  stats.projection_gid_cumulative_stats =
+      static_cast<uint64_t>(mProjectionCumulativeStats.gid.size());
+  stats.projection_node_cumulative_stats =
+      static_cast<uint64_t>(mProjectionCumulativeStats.node.size());
   stats.node_entity_stats = static_cast<uint64_t>(mNodeEntityStats.size());
   stats.uid_policies = static_cast<uint64_t>(mUidPolicies.size());
   stats.gid_policies = static_cast<uint64_t>(mGidPolicies.size());
@@ -2021,6 +2045,7 @@ TrafficShapingManager::Clear()
   mNodeCumulativeStats.clear();
   mDiskCumulativeStats.clear();
   mDetailedCumulativeStats.clear();
+  mProjectionCumulativeStats = ProjectionCumulativeStats{};
   mCumulativeTotalStats = RateSnapshot{};
 
   estimators_update_loop_micro_sec.reset();
@@ -2052,6 +2077,7 @@ TrafficShapingManager::ClearRuntimeStats()
   mNodeCumulativeStats.clear();
   mDiskCumulativeStats.clear();
   mDetailedCumulativeStats.clear();
+  mProjectionCumulativeStats = ProjectionCumulativeStats{};
   mCumulativeTotalStats = RateSnapshot{};
 }
 
@@ -2103,6 +2129,13 @@ TrafficShapingManager::GetDetailedCumulativeStats() const
 {
   std::shared_lock lock(mMutex);
   return mDetailedCumulativeStats;
+}
+
+ProjectionCumulativeStats
+TrafficShapingManager::GetProjectionCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mProjectionCumulativeStats;
 }
 
 RateSnapshot

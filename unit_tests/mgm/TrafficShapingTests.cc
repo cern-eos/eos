@@ -212,6 +212,8 @@ TEST(TrafficShapingManager, MapCardinalityStatsTrackInternalMaps)
                                     2 * 1024 * 1024));
   manager.ProcessReport(
       make_report("/eos/fst-b.example:1095/fst", "cardinality-app-b", 2, 1024 * 1024));
+  manager.ProcessReport(make_report("/eos/fst-b.example:1095/fst", "cardinality-app-b", 2,
+                                    2 * 1024 * 1024));
 
   ASSERT_TRUE(manager.LoadPoliciesFromString(
       "{\"appPolicies\":{\"cardinality-app-a\":{\"limitWriteBytesPerSec\":1000,"
@@ -222,11 +224,15 @@ TEST(TrafficShapingManager, MapCardinalityStatsTrackInternalMaps)
   const auto stats = manager.GetMapCardinalityStats();
   ASSERT_EQ(2u, stats.node_states);
   ASSERT_EQ(2u, stats.node_state_streams);
-  ASSERT_EQ(1u, stats.global_stats);
-  ASSERT_EQ(1u, stats.node_stats);
-  ASSERT_EQ(1u, stats.node_entity_stats);
+  ASSERT_EQ(2u, stats.global_stats);
+  ASSERT_EQ(2u, stats.node_stats);
+  ASSERT_EQ(2u, stats.node_entity_stats);
   ASSERT_EQ(0u, stats.disk_stats);
   ASSERT_EQ(0u, stats.detailed_stats);
+  ASSERT_EQ(2u, stats.projection_app_cumulative_stats);
+  ASSERT_EQ(2u, stats.projection_uid_cumulative_stats);
+  ASSERT_EQ(1u, stats.projection_gid_cumulative_stats);
+  ASSERT_EQ(2u, stats.projection_node_cumulative_stats);
   ASSERT_EQ(1u, stats.app_policies);
   ASSERT_EQ(1u, stats.uid_policies);
   ASSERT_EQ(1u, stats.gid_policies);
@@ -260,6 +266,12 @@ TEST(TrafficShapingManager, GarbageCollectionPrunesCumulativeStats)
   ASSERT_EQ(1u, cardinality.node_cumulative_stats);
   ASSERT_EQ(1u, cardinality.disk_cumulative_stats);
   ASSERT_EQ(1u, cardinality.detailed_cumulative_stats);
+  auto projection_stats = manager.GetProjectionCumulativeStats();
+  ASSERT_EQ(1u, projection_stats.app.size());
+  ASSERT_EQ(1024u * 1024u, projection_stats.app["gc-app"].bytes_written_total);
+  ASSERT_EQ(1u, projection_stats.uid.size());
+  ASSERT_EQ(1u, projection_stats.gid.size());
+  ASSERT_EQ(1u, projection_stats.node.size());
 
   manager.GarbageCollect(3600);
 
@@ -276,6 +288,12 @@ TEST(TrafficShapingManager, GarbageCollectionPrunesCumulativeStats)
   EXPECT_EQ(0u, cardinality.node_cumulative_stats);
   EXPECT_EQ(0u, cardinality.disk_cumulative_stats);
   EXPECT_EQ(0u, cardinality.detailed_cumulative_stats);
+
+  projection_stats = manager.GetProjectionCumulativeStats();
+  EXPECT_TRUE(projection_stats.app.empty());
+  EXPECT_TRUE(projection_stats.uid.empty());
+  EXPECT_TRUE(projection_stats.gid.empty());
+  EXPECT_TRUE(projection_stats.node.empty());
 }
 
 TEST(TrafficShapingManager, DisablingReservationsClearsEphemeralLimits)

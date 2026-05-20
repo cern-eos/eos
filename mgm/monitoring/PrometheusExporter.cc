@@ -477,10 +477,18 @@ private:
              static_cast<double>(all_entries_available));
     AddGauge(all_entries_limited, {{"cluster", mCluster}}, export_all_tags ? 0.0 : 1.0);
 
-    for (const auto& [key, snapshot] : manager.GetGlobalCumulativeStats()) {
-      standard_totals[{"app", LabelOrUnknown(key.app)}].Add(snapshot);
-      standard_totals[{"uid", UidLabel(key.uid)}].Add(snapshot);
-      standard_totals[{"gid", GidLabel(key.gid)}].Add(snapshot);
+    const auto projection_totals = manager.GetProjectionCumulativeStats();
+
+    for (const auto& [app, snapshot] : projection_totals.app) {
+      standard_totals[{"app", LabelOrUnknown(app)}].Add(snapshot);
+    }
+
+    for (const auto& [uid, snapshot] : projection_totals.uid) {
+      standard_totals[{"uid", UidLabel(uid)}].Add(snapshot);
+    }
+
+    for (const auto& [gid, snapshot] : projection_totals.gid) {
+      standard_totals[{"gid", GidLabel(gid)}].Add(snapshot);
     }
 
     if (export_all_tags) {
@@ -509,7 +517,7 @@ private:
       AddGauge(all_entries_exported, {{"cluster", mCluster}}, 0.0);
     }
 
-    for (const auto& [node_id, snapshot] : manager.GetNodeCumulativeStats()) {
+    for (const auto& [node_id, snapshot] : projection_totals.node) {
       standard_totals[{"node", NodeLabel(LabelOrUnknown(node_id))}].Add(snapshot);
     }
 
@@ -602,6 +610,18 @@ private:
     AddGauge(map_cardinality,
              {{"cluster", mCluster}, {"map", "detailed_cumulative_stats"}},
              static_cast<double>(cardinality.detailed_cumulative_stats));
+    AddGauge(map_cardinality,
+             {{"cluster", mCluster}, {"map", "projection_app_cumulative_stats"}},
+             static_cast<double>(cardinality.projection_app_cumulative_stats));
+    AddGauge(map_cardinality,
+             {{"cluster", mCluster}, {"map", "projection_uid_cumulative_stats"}},
+             static_cast<double>(cardinality.projection_uid_cumulative_stats));
+    AddGauge(map_cardinality,
+             {{"cluster", mCluster}, {"map", "projection_gid_cumulative_stats"}},
+             static_cast<double>(cardinality.projection_gid_cumulative_stats));
+    AddGauge(map_cardinality,
+             {{"cluster", mCluster}, {"map", "projection_node_cumulative_stats"}},
+             static_cast<double>(cardinality.projection_node_cumulative_stats));
     AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "node_entity_stats"}},
              static_cast<double>(cardinality.node_entity_stats));
     AddGauge(map_cardinality, {{"cluster", mCluster}, {"map", "uid_policies"}},

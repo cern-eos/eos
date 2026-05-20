@@ -139,6 +139,10 @@ struct MapCardinalityStats {
   uint64_t node_cumulative_stats = 0;
   uint64_t disk_cumulative_stats = 0;
   uint64_t detailed_cumulative_stats = 0;
+  uint64_t projection_app_cumulative_stats = 0;
+  uint64_t projection_uid_cumulative_stats = 0;
+  uint64_t projection_gid_cumulative_stats = 0;
+  uint64_t projection_node_cumulative_stats = 0;
   uint64_t node_entity_stats = 0;
   uint64_t uid_policies = 0;
   uint64_t gid_policies = 0;
@@ -160,7 +164,7 @@ constexpr uint32_t kMinSystemStatsWindowSec = 5;
 constexpr uint32_t kMaxSystemStatsWindowSec = 300;
 constexpr uint32_t kMinGarbageCollectionIdleSec = 1;
 constexpr uint32_t kMaxGarbageCollectionIdleSec = 24 * 60 * 60;
-constexpr uint32_t kDefaultGarbageCollectionIdleSec = 15 * 60;
+constexpr uint32_t kDefaultGarbageCollectionIdleSec = 5 * 60;
 constexpr uint64_t kDefaultAutomaticFilesystemDetailLowCardinality = 5000;
 constexpr uint64_t kDefaultAutomaticFilesystemDetailHighCardinality = 8000;
 constexpr uint64_t kDefaultControllerMinLimitBps = 100ULL * 1000ULL * 1000ULL;
@@ -250,6 +254,13 @@ struct RateSnapshot {
 
   uint32_t active_stream_count = 0;
   time_t last_activity_time = 0;
+};
+
+struct ProjectionCumulativeStats {
+  std::unordered_map<std::string, RateSnapshot> app;
+  std::unordered_map<uint32_t, RateSnapshot> uid;
+  std::unordered_map<uint32_t, RateSnapshot> gid;
+  std::unordered_map<std::string, RateSnapshot> node;
 };
 
 using StreamKey = eos::common::traffic_shaping::IoStatsKey;
@@ -398,6 +409,8 @@ public:
   std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash>
   GetDetailedCumulativeStats() const;
 
+  ProjectionCumulativeStats GetProjectionCumulativeStats() const;
+
   RateSnapshot GetTotalCumulativeStats() const;
 
   struct GarbageCollectionStats {
@@ -498,6 +511,7 @@ private:
   std::unordered_map<std::string, RateSnapshot> mNodeCumulativeStats;
   std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> mDiskCumulativeStats;
   std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash> mDetailedCumulativeStats;
+  ProjectionCumulativeStats mProjectionCumulativeStats;
   RateSnapshot mCumulativeTotalStats;
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;

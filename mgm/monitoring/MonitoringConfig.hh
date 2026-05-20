@@ -13,8 +13,8 @@ constexpr const char* kPrometheusPortConfig = "monitoring.prometheus.port";
 constexpr const char* kPrometheusCacheTtlConfig =
     "monitoring.prometheus.cache_ttl_seconds";
 constexpr uint32_t kDefaultPrometheusPort = 9987;
-constexpr uint32_t kDefaultPrometheusCacheTtlSeconds = 5;
-constexpr uint32_t kMaxPrometheusCacheTtlSeconds = 3600;
+constexpr uint32_t kDefaultPrometheusCacheTtlSeconds = 1;
+constexpr uint32_t kMaxPrometheusCacheTtlSeconds = 60;
 
 inline bool
 ParseUint32Config(const std::string& value, uint32_t& parsed)
