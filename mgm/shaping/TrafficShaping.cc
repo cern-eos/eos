@@ -185,6 +185,17 @@ TrafficShapingManager::TrafficShapingManager() = default;
 TrafficShapingManager::~TrafficShapingManager() { Clear(); }
 
 void
+AddCumulativeStats(RateSnapshot& snapshot, const uint64_t bytes_read,
+                   const uint64_t bytes_written, const uint64_t read_ops,
+                   const uint64_t write_ops)
+{
+  snapshot.bytes_read_total += bytes_read;
+  snapshot.bytes_written_total += bytes_written;
+  snapshot.read_ops_total += read_ops;
+  snapshot.write_ops_total += write_ops;
+}
+
+void
 TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
                                          const uint32_t fst_policy_period_ms,
                                          const uint32_t window_seconds)
@@ -292,7 +303,7 @@ CollectNodeIoPressure(std::vector<std::string>* online_nodes = nullptr)
 
     for (auto fsid_it = node_view->begin(); fsid_it != node_view->end(); ++fsid_it) {
       auto* fs = FsView::gFsView.mIdView.lookupByID(*fsid_it);
-      if (!BaseView::ConsiderForStatistics(fs)) {
+      if (!fs || !BaseView::ConsiderForStatistics(fs)) {
         continue;
       }
 
@@ -488,6 +499,8 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
 
       AddDeltas(global, delta_bytes_read, delta_bytes_written, delta_read_iops,
                 delta_write_iops, now_unix);
+      AddCumulativeStats(mGlobalCumulativeStats[key], delta_bytes_read,
+                         delta_bytes_written, delta_read_iops, delta_write_iops);
 
       DetailedKey node_entity_key{node_id, {key.app, key.uid, key.gid, 0}};
       auto [node_entity_it, node_entity_inserted] =
@@ -505,6 +518,8 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
 
         AddDeltas(detailed, delta_bytes_read, delta_bytes_written, delta_read_iops,
                   delta_write_iops, now_unix);
+        AddCumulativeStats(mDetailedCumulativeStats[detailed_key], delta_bytes_read,
+                           delta_bytes_written, delta_read_iops, delta_write_iops);
 
         DiskKey disk_key{node_id, entry.fsid()};
         auto [disk_it, disk_inserted] =
@@ -513,6 +528,8 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
 
         AddDeltas(disk, delta_bytes_read, delta_bytes_written, delta_read_iops,
                   delta_write_iops, now_unix);
+        AddCumulativeStats(mDiskCumulativeStats[disk_key], delta_bytes_read,
+                           delta_bytes_written, delta_read_iops, delta_write_iops);
       }
     }
   }
@@ -525,9 +542,15 @@ TrafficShapingManager::ProcessReport(const eos::traffic_shaping::FstIoReport& re
 
     AddDeltas(node_stat, total_node_delta_bytes_read, total_node_delta_bytes_written,
               total_node_delta_read_iops, total_node_delta_write_iops, now_unix);
+    AddCumulativeStats(mNodeCumulativeStats[node_id], total_node_delta_bytes_read,
+                       total_node_delta_bytes_written, total_node_delta_read_iops,
+                       total_node_delta_write_iops);
 
     AddDeltas(mTotalStats, total_node_delta_bytes_read, total_node_delta_bytes_written,
               total_node_delta_read_iops, total_node_delta_write_iops, now_unix);
+    AddCumulativeStats(mCumulativeTotalStats, total_node_delta_bytes_read,
+                       total_node_delta_bytes_written, total_node_delta_read_iops,
+                       total_node_delta_write_iops);
   }
 }
 
@@ -1923,6 +1946,11 @@ TrafficShapingManager::GetMapCardinalityStats() const
   stats.node_stats = static_cast<uint64_t>(mNodeStats.size());
   stats.disk_stats = static_cast<uint64_t>(mDiskStats.size());
   stats.detailed_stats = static_cast<uint64_t>(mDetailedStats.size());
+  stats.global_cumulative_stats = static_cast<uint64_t>(mGlobalCumulativeStats.size());
+  stats.node_cumulative_stats = static_cast<uint64_t>(mNodeCumulativeStats.size());
+  stats.disk_cumulative_stats = static_cast<uint64_t>(mDiskCumulativeStats.size());
+  stats.detailed_cumulative_stats =
+      static_cast<uint64_t>(mDetailedCumulativeStats.size());
   stats.node_entity_stats = static_cast<uint64_t>(mNodeEntityStats.size());
   stats.uid_policies = static_cast<uint64_t>(mUidPolicies.size());
   stats.gid_policies = static_cast<uint64_t>(mGidPolicies.size());
@@ -1971,6 +1999,11 @@ TrafficShapingManager::Clear()
   mTotalStats.clear();
   mNodeFstIoDelayConfigs.clear();
   mPublishedFstIoDelayConfigs.clear();
+  mGlobalCumulativeStats.clear();
+  mNodeCumulativeStats.clear();
+  mDiskCumulativeStats.clear();
+  mDetailedCumulativeStats.clear();
+  mCumulativeTotalStats = RateSnapshot{};
 
   estimators_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
@@ -1997,6 +2030,11 @@ TrafficShapingManager::ClearRuntimeStats()
   mDetailedStats.clear();
   mNodeEntityStats.clear();
   mTotalStats.clear();
+  mGlobalCumulativeStats.clear();
+  mNodeCumulativeStats.clear();
+  mDiskCumulativeStats.clear();
+  mDetailedCumulativeStats.clear();
+  mCumulativeTotalStats = RateSnapshot{};
 }
 
 void
@@ -2005,6 +2043,8 @@ TrafficShapingManager::ClearDetailedRuntimeStats()
   std::unique_lock lock(mMutex);
   mDiskStats.clear();
   mDetailedStats.clear();
+  mDiskCumulativeStats.clear();
+  mDetailedCumulativeStats.clear();
 }
 
 RateSnapshot
@@ -2017,6 +2057,41 @@ TrafficShapingManager::GetTotalStats() const
   snap.ema = mTotalStats.ema;
   snap.sma = mTotalStats.sma;
   return snap;
+}
+
+std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash>
+TrafficShapingManager::GetGlobalCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mGlobalCumulativeStats;
+}
+
+std::unordered_map<std::string, RateSnapshot>
+TrafficShapingManager::GetNodeCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mNodeCumulativeStats;
+}
+
+std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash>
+TrafficShapingManager::GetDiskCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mDiskCumulativeStats;
+}
+
+std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash>
+TrafficShapingManager::GetDetailedCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mDetailedCumulativeStats;
+}
+
+RateSnapshot
+TrafficShapingManager::GetTotalCumulativeStats() const
+{
+  std::shared_lock lock(mMutex);
+  return mCumulativeTotalStats;
 }
 
 TrafficShapingEngine::TrafficShapingEngine()

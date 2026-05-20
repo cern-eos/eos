@@ -1,6 +1,6 @@
 #include "IoCmd.hh"
 #include "common/Constants.hh"
-#include "common/Mapping.hh"
+#include "common/shaping/Identity.hh"
 #include "common/shaping/IoStatsKey.hh"
 #include "fsview/FsView.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
@@ -55,7 +55,10 @@ format_bool(const bool value)
 
 namespace {
 
+using eos::common::traffic_shaping::GidLabel;
 using eos::common::traffic_shaping::kUnknownId;
+using eos::common::traffic_shaping::NodeLabel;
+using eos::common::traffic_shaping::UidLabel;
 
 // Replace empty string identifiers with the shared <unknown> placeholder so the
 // CLI/JSON output never contains a bare empty value.
@@ -72,34 +75,6 @@ CompactJsonString(const Json::Value& value)
   Json::StreamWriterBuilder builder;
   builder["indentation"] = "";
   return Json::writeString(builder, value);
-}
-
-std::string
-FormatResolvedId(const uint32_t id, const std::string& name, const int errc)
-{
-  const std::string id_string = std::to_string(id);
-
-  if (errc || name.empty() || name == id_string) {
-    return id_string;
-  }
-
-  return id_string + "(" + name + ")";
-}
-
-std::string
-UidLabel(const uint32_t uid)
-{
-  int errc = 0;
-  const auto name = eos::common::Mapping::UidToUserName(static_cast<uid_t>(uid), errc);
-  return FormatResolvedId(uid, name, errc);
-}
-
-std::string
-GidLabel(const uint32_t gid)
-{
-  int errc = 0;
-  const auto name = eos::common::Mapping::GidToGroupName(static_cast<gid_t>(gid), errc);
-  return FormatResolvedId(gid, name, errc);
 }
 
 } // namespace
@@ -372,7 +347,7 @@ BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manag
     for (size_t i = 0; i < n; ++i) {
       const auto& key = sorted[i]->first;
       auto* entry = report.add_detailed_stats();
-      entry->set_node_id(key.node_id);
+      entry->set_node_id(NodeLabel(LabelOrUnknown(key.node_id)));
       entry->set_app_name(key.stream.app);
       entry->set_uid(key.stream.uid);
       entry->set_gid(key.stream.gid);
@@ -641,7 +616,7 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
   if (list_req.show_all()) {
     if (engine.GetDetailLevel() == eos::common::TRAFFIC_SHAPING_DETAIL_LEVEL_FILESYSTEM) {
       for (const auto& [detailed_key, snapshot] : manager->GetDetailedStats()) {
-        DetailedKey group_key{LabelOrUnknown(detailed_key.node_id),
+        DetailedKey group_key{NodeLabel(LabelOrUnknown(detailed_key.node_id)),
                               {LabelOrUnknown(detailed_key.stream.app),
                                detailed_key.stream.uid, detailed_key.stream.gid,
                                detailed_key.stream.fsid}};
@@ -657,12 +632,12 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
     }
   } else if (list_req.show_fs()) {
     for (const auto& [disk_key, snapshot] : manager->GetDiskStats()) {
-      DiskKey group_key{LabelOrUnknown(disk_key.node_id), disk_key.fsid};
+      DiskKey group_key{NodeLabel(LabelOrUnknown(disk_key.node_id)), disk_key.fsid};
       accumulate(fs_agg_stats[group_key], snapshot);
     }
   } else if (list_req.show_nodes()) {
     for (const auto& [node_id, snapshot] : manager->GetNodeStats()) {
-      accumulate(agg_stats[LabelOrUnknown(node_id)], snapshot);
+      accumulate(agg_stats[NodeLabel(LabelOrUnknown(node_id))], snapshot);
     }
   } else {
     for (const auto& [key, snapshot] : manager->GetGlobalStats()) {
@@ -813,6 +788,14 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           static_cast<Json::Value::UInt64>(map_cardinality.disk_stats);
       entry["detailed_stats_cardinality"] =
           static_cast<Json::Value::UInt64>(map_cardinality.detailed_stats);
+      entry["global_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.global_cumulative_stats);
+      entry["node_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.node_cumulative_stats);
+      entry["disk_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.disk_cumulative_stats);
+      entry["detailed_cumulative_stats_cardinality"] =
+          static_cast<Json::Value::UInt64>(map_cardinality.detailed_cumulative_stats);
       entry["node_entity_stats_cardinality"] =
           static_cast<Json::Value::UInt64>(map_cardinality.node_entity_stats);
       entry["uid_policies_cardinality"] =
@@ -988,6 +971,10 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           << " node_entity_stats=" << map_cardinality.node_entity_stats
           << " disk_stats=" << map_cardinality.disk_stats
           << " detailed_stats=" << map_cardinality.detailed_stats
+          << " global_cumulative_stats=" << map_cardinality.global_cumulative_stats
+          << " node_cumulative_stats=" << map_cardinality.node_cumulative_stats
+          << " disk_cumulative_stats=" << map_cardinality.disk_cumulative_stats
+          << " detailed_cumulative_stats=" << map_cardinality.detailed_cumulative_stats
           << " app_policies=" << map_cardinality.app_policies
           << " uid_policies=" << map_cardinality.uid_policies
           << " gid_policies=" << map_cardinality.gid_policies
@@ -1164,10 +1151,11 @@ ShapingPressureList(
     Json::Value json(Json::arrayValue);
 
     for (const auto& snapshot : snapshots) {
+      const std::string node_label = NodeLabel(LabelOrUnknown(snapshot.node_id));
       Json::Value entry;
       entry["type"] = "app_node_pressure";
       entry["app"] = snapshot.app;
-      entry["node_id"] = snapshot.node_id;
+      entry["node_id"] = node_label;
       entry["node_io_pressure"] = snapshot.node_io_pressure;
       entry["has_node_io_pressure"] = snapshot.has_node_io_pressure;
       entry["read_rate_bps"] = snapshot.read_rate_bps;
@@ -1218,10 +1206,10 @@ ShapingPressureList(
     oss << std::string(160, '-') << "\n";
 
     for (const auto& snapshot : snapshots) {
-      oss << std::left << std::setw(30) << snapshot.app << std::setw(36)
-          << snapshot.node_id << std::right << std::setw(14)
-          << format_rate(snapshot.read_rate_bps) << std::setw(14)
-          << format_rate(snapshot.write_rate_bps) << std::setw(12)
+      const std::string node_label = NodeLabel(LabelOrUnknown(snapshot.node_id));
+      oss << std::left << std::setw(30) << snapshot.app << std::setw(36) << node_label
+          << std::right << std::setw(14) << format_rate(snapshot.read_rate_bps)
+          << std::setw(14) << format_rate(snapshot.write_rate_bps) << std::setw(12)
           << format_optional_io_pressure(snapshot.has_node_io_pressure,
                                          snapshot.node_io_pressure)
           << std::setw(12)

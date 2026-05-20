@@ -169,6 +169,9 @@ class HttpServer;
 class GrpcServer;
 class GrpcWncServer;
 class GrpcRestGwServer;
+namespace monitoring {
+class PrometheusExporter;
+}
 class Egroup;
 class GeoTreeEngine;
 class ZMQ;
@@ -1420,6 +1423,16 @@ public:
   virtual int Configure(XrdSysError&);
 
   //----------------------------------------------------------------------------
+  //! Apply monitoring endpoint configuration.
+  //----------------------------------------------------------------------------
+  bool ApplyMonitoringConfig(std::string* err = nullptr);
+
+  //----------------------------------------------------------------------------
+  //! Print the current monitoring configuration and runtime state.
+  //----------------------------------------------------------------------------
+  std::string GetMonitoringConfig() const;
+
+  //----------------------------------------------------------------------------
   //! Init function
   //!
   //! This is just kept to be compatible with standard OFS plugins, but it is
@@ -2079,6 +2092,11 @@ public:
   std::unique_ptr<GrpcWncServer> WNCd; ///< GRPC server for EOS Wnc
   //! GRPC server for REST API
   std::unique_ptr<GrpcRestGwServer> mRestGrpcSrv;
+  //! Prometheus metrics endpoint
+  std::unique_ptr<monitoring::PrometheusExporter> mPrometheusExporter;
+  std::string mPrometheusExporterBindAddress;
+  uint32_t mPrometheusExporterCacheTtlSeconds = 0;
+  mutable std::mutex mPrometheusExporterMutex;
 
   //! LRU object running the LRU policy engine
   std::unique_ptr<LRU> mLRUEngine;

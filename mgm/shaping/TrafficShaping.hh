@@ -135,6 +135,10 @@ struct MapCardinalityStats {
   uint64_t node_stats = 0;
   uint64_t disk_stats = 0;
   uint64_t detailed_stats = 0;
+  uint64_t global_cumulative_stats = 0;
+  uint64_t node_cumulative_stats = 0;
+  uint64_t disk_cumulative_stats = 0;
+  uint64_t detailed_cumulative_stats = 0;
   uint64_t node_entity_stats = 0;
   uint64_t uid_policies = 0;
   uint64_t gid_policies = 0;
@@ -234,6 +238,10 @@ struct MultiWindowRate {
 struct RateSnapshot {
   uint64_t bytes_read_accumulator = 0;
   uint64_t bytes_written_accumulator = 0;
+  uint64_t bytes_read_total = 0;
+  uint64_t bytes_written_total = 0;
+  uint64_t read_ops_total = 0;
+  uint64_t write_ops_total = 0;
 
   std::array<RateMetrics, EmaWindowSec.size()> ema{};
   std::array<RateMetrics, SmaWindowSec.size()> sma{};
@@ -378,6 +386,18 @@ public:
 
   RateSnapshot GetTotalStats() const;
 
+  std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash>
+  GetGlobalCumulativeStats() const;
+
+  std::unordered_map<std::string, RateSnapshot> GetNodeCumulativeStats() const;
+
+  std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> GetDiskCumulativeStats() const;
+
+  std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash>
+  GetDetailedCumulativeStats() const;
+
+  RateSnapshot GetTotalCumulativeStats() const;
+
   struct GarbageCollectionStats {
     size_t removed_nodes;
     size_t removed_node_streams;
@@ -471,6 +491,12 @@ private:
   std::unordered_map<DetailedKey, MultiWindowRate, DetailedKeyHash> mNodeEntityStats;
   // We provide an initial tick interval but this will be refreshed on initialization
   MultiWindowRate mTotalStats{0.5};
+
+  std::unordered_map<StreamKey, RateSnapshot, StreamKeyHash> mGlobalCumulativeStats;
+  std::unordered_map<std::string, RateSnapshot> mNodeCumulativeStats;
+  std::unordered_map<DiskKey, RateSnapshot, DiskKeyHash> mDiskCumulativeStats;
+  std::unordered_map<DetailedKey, RateSnapshot, DetailedKeyHash> mDetailedCumulativeStats;
+  RateSnapshot mCumulativeTotalStats;
 
   std::unordered_map<uint32_t, TrafficShapingPolicy> mUidPolicies;
   std::unordered_map<uint32_t, TrafficShapingPolicy> mGidPolicies;
