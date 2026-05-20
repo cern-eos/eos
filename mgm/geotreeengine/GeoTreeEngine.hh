@@ -1277,7 +1277,6 @@ protected:
 
   template<class T> bool placeNewReplicas(SchedTME* entry,
                                           const size_t& nNewReplicas,
-
                                           std::vector<SchedTreeBase::tFastTreeIdx>* newReplicas,
                                           T* placementTree,
                                           std::vector<SchedTreeBase::tFastTreeIdx>* existingReplicas = NULL,

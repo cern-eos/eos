@@ -451,25 +451,28 @@ XrdFstOfsFile::open(const char* path, XrdSfsFileOpenMode open_mode,
       }
     }
 
-    // Check if the booking size violates the min/max-size criteria
-    if (mBookingSize && mMaxSize) {
-      if (mBookingSize > mMaxSize) {
+    // Check if the target size violates the min/max-size criteria
+    if (mTargetSize && mMaxSize) {
+      if (mTargetSize > mMaxSize) {
         DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
-        eos_err("msg=\"invalid bookingsize specified - violates maximum "
-                "file size criteria\" booking_sz=%llu", mBookingSize);
-        return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
-                         "maximum allowed filesize", mNsPath.c_str());
+        eos_err("msg=\"invalid target size specified - violates maximum "
+                "file size criteria\" booking_sz=%llu",
+                mTargetSize);
+        return gOFS.Emsg(epname, error, ENOSPC,
+                         "open - target size violates maximum allowed filesize",
+                         mNsPath.c_str());
       }
     }
 
-    if (mBookingSize && mMinSize) {
-      if (mBookingSize < mMinSize) {
+    if (mTargetSize && mMinSize) {
+      if (mTargetSize < mMinSize) {
         DropFromMgm(mFileId, drop_fsid, mNsPath.c_str(), mRdrManager.c_str());
-        eos_err("msg=\"invalid bookingsize specified - violates minimum "
+        eos_err("msg=\"invalid target size specified - violates minimum "
                 "file size criteria\" fxid=%08llx booking_sz=%llu",
-                mFileId, mBookingSize);
-        return gOFS.Emsg(epname, error, ENOSPC, "open - bookingsize violates "
-                         "minimum allowed filesize", mNsPath.c_str());
+                mFileId, mTargetSize);
+        return gOFS.Emsg(epname, error, ENOSPC,
+                         "open - target size violates minimum allowed filesize",
+                         mNsPath.c_str());
       }
     }
   }
@@ -2322,8 +2325,7 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
   }
 
   if (mFsId) {
-    if ((mTargetSize && (mTargetSize == mBookingSize)) ||
-        (mBookingSize >= fileOffset + buffer_size)) {
+    if (mBookingSize && (mBookingSize >= fileOffset + buffer_size)) {
       // Space has been successfully pre-allocated, let client write
     } else {
       // Check if the file system is full
@@ -2352,15 +2354,12 @@ XrdFstOfsFile::writeofs(XrdSfsFileOffset fileOffset, const char* buffer,
     }
   }
 
-  if (mMaxSize) {
-    // Check that the user didn't exceed the maximum file size policy
-    if ((fileOffset + buffer_size) > mMaxSize) {
-      writeErrorFlag = kOfsMaxSizeError;
-      return gOFS.Emsg("writeofs", error, ENOSPC, "write file - your file "
-                       "exceeds the maximum file size setting of bytes<=",
-                       mCapOpaque ? (mCapOpaque->Get("mgm.maxsize") ?
-                                     mCapOpaque->Get("mgm.maxsize") : "<undef>") : "undef");
-    }
+  // Check that the user didn't exceed the maximum file size policy
+  if (mMaxSize && (fileOffset + buffer_size > mMaxSize)) {
+    writeErrorFlag = kOfsMaxSizeError;
+    return gOFS.Emsg("writeofs", error, ENOSPC,
+                     "write file - file exceeds the maximum file size setting of bytes<=",
+                     std::to_string(mMaxSize).c_str());
   }
 
   gettimeofday(&cTime, &tz);

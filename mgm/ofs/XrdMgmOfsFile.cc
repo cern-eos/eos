@@ -2198,31 +2198,38 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
     capability += containertag.c_str();
   }
 
-  // Size which will be reserved with a placement of one replica for the file
+  bool has_client_booking = false;
+  // File size to be reserved on each file system where data will be placed,
+  // this is updated depending on the type of layout of the file.
   unsigned long long bookingsize = 0;
-  bool hasClientBookingSize = false;
+  // Full logical file size to be stored in EOS
   unsigned long long targetsize = 0;
   unsigned long long minimumsize = 0;
   unsigned long long maximumsize = 0;
 
-  if (attr::getValue(attrmap, "sys.forced.bookingsize", bookingsize)) {
-    // we allow only a system attribute not to get fooled by a user
-  } else {
-    if (attr::getValue(attrmap, "user.forced.bookingsize", bookingsize)) {
-      // fallback to user booking size
-    } else {
+  // Allow only a system attribute not to get fooled by a user
+  if (!attr::getValue(attrmap, "sys.forced.bookingsize", bookingsize)) {
+    // Fallback to user booking size xattr
+    if (!attr::getValue(attrmap, "user.forced.bookingsize", bookingsize)) {
+      // Fallback to user specified booking size
       if (XrdUtils::GetEnv(*openOpaque, "eos.bookingsize", bookingsize, 1024ull)) {
-        hasClientBookingSize = true;
+        has_client_booking = true;
       } else {
-        hasClientBookingSize = XrdUtils::GetEnv(*openOpaque, "oss.asize", bookingsize, 1024ull);
+        // Fallback to XRootD specific file size opaque info
+        has_client_booking =
+            XrdUtils::GetEnv(*openOpaque, "oss.asize", bookingsize, 1024ull);
       }
     }
   }
+
   attr::getValue(attrmap, "sys.forced.minsize", minimumsize);
   attr::getValue(attrmap, "sys.forced.maxsize", maximumsize);
 
-  XrdUtils::GetEnv(*openOpaque, "oss.asize", targetsize);
-  XrdUtils::GetEnv(*openOpaque, "eos.targetsize", targetsize);
+  if (!XrdUtils::GetEnv(*openOpaque, "eos.targetsize", targetsize)) {
+    if (!XrdUtils::GetEnv(*openOpaque, "oss.asize", targetsize)) {
+      targetsize = bookingsize;
+    }
+  }
 
   std::vector<unsigned int> selectedfs;
   std::vector<unsigned int> excludefs = GetExcludedFsids();
@@ -2238,30 +2245,35 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   // Place a new file
   if (isCreation || (!fmd->getNumLocation()) || isInjection) {
     Scheduler::PlacementArguments plctargs;
-    {
-      unsigned long long _bookingsize;
+    bookingsize = eos::common::LayoutId::GetStripeFileSize(layoutId, bookingsize);
 
-      if (isRepair) {
-        _bookingsize = bookingsize ? bookingsize : gOFS->getFuseBookingSize();
-      } else {
-        _bookingsize = isFuse ? (isTouch ? 0 : gOFS->getFuseBookingSize()) :
-                       bookingsize;
+    if (isRepair) {
+      if (bookingsize == 0) {
+        bookingsize = gOFS->getFuseBookingSize();
       }
-
-      using namespace eos::mgm::scheduler;
-      plctargs.setFileParams(space, Path(path), GroupTag(containertag.c_str()),
-                             Lid(layoutId), (ino64_t)fmd->getId(),
-                             BookingSize(_bookingsize), open_flags & O_TRUNC, vid)
-      .setFsParams(&selectedfs, &excludefs, &selectedfs)
-      .setPlctParams(plctplcy, &targetgeotag, forced_group,
-                     openOpaque->Get("eos.schedulingstrategy"));
-      plctargs.dataproxys = &proxys;
-      plctargs.firewallentpts = &firewalleps;
-
-      if (!plctargs.isValid()) {
-        return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
+    } else if (isFuse) {
+      if (isTouch) {
+        bookingsize = 0;
+      } else {
+        bookingsize = gOFS->getFuseBookingSize();
       }
     }
+
+    using namespace eos::mgm::scheduler;
+    plctargs
+        .setFileParams(space, Path(path), GroupTag(containertag.c_str()), Lid(layoutId),
+                       (ino64_t)fmd->getId(), BookingSize(bookingsize),
+                       open_flags & O_TRUNC, vid)
+        .setFsParams(&selectedfs, &excludefs, &selectedfs)
+        .setPlctParams(plctplcy, &targetgeotag, forced_group,
+                       openOpaque->Get("eos.schedulingstrategy"));
+    plctargs.dataproxys = &proxys;
+    plctargs.firewallentpts = &firewalleps;
+
+    if (!plctargs.isValid()) {
+      return Emsg(epname, error, EINVAL, "open - invalid placement argument", path);
+    }
+
     COMMONTIMING("Scheduler::FilePlacement", &tm);
     eos::common::RWMutexReadLock fs_rd_lock(FsView::gFsView.ViewMutex);
     retc = Quota::FilePlacement(&plctargs);
@@ -2545,8 +2557,8 @@ XrdMgmOfsFile::open(eos::common::VirtualIdentity* invid,
   } else {
     if (isRW) {
       // we want to define the order of chunks during creation, so we attach also rain layouts
-      if (isCreation && hasClientBookingSize && ((bookingsize == 0) ||
-          ocUploadUuid.length() || (LayoutId::IsRain(layoutId)))) {
+      if (isCreation && has_client_booking &&
+          ((bookingsize == 0) || ocUploadUuid.length() || (LayoutId::IsRain(layoutId)))) {
         // ---------------------------------------------------------------------
         // if this is a creation we commit the scheduled replicas NOW
         // we do the same for chunked/parallel uploads
