@@ -27,6 +27,8 @@
 #include "mgm/shaping/TrafficShaping.hh"
 #undef IN_TEST_HARNESS
 
+#include <cstring>
+
 TEST(TrafficShapingEngine, DetailConfigReplayDoesNotSyncWhileViewLocked)
 {
   eos::mgm::traffic_shaping::TrafficShapingEngine engine;
@@ -95,6 +97,44 @@ TEST(TrafficShapingEngine, ActiveNodeRateThresholdPropagatesToManager)
   ASSERT_EQ(threshold_bps, manager->GetActiveNodeRateThreshold());
 
   ASSERT_FALSE(engine.ApplyActiveNodeRateThresholdConfig(threshold_bps));
+}
+
+TEST(TrafficShapingManager, ControllerOnlyPolicyUpdatesStayEphemeral)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  eos::mgm::traffic_shaping::AppState app{};
+  std::strncpy(app.app_name, "controller-only-app", sizeof(app.app_name) - 1);
+  app.update_write = true;
+  app.new_controller_limit_write_bps = 100ULL * 1000ULL * 1000ULL;
+
+  manager.ApplyControllerPolicyUpdates({app}, false, std::chrono::steady_clock::now());
+
+  const auto policies = manager.GetAppPolicies();
+  ASSERT_EQ(1u, policies.size());
+  ASSERT_EQ(100ULL * 1000ULL * 1000ULL,
+            policies.at("controller-only-app").controller_limit_write_bytes_per_sec);
+  ASSERT_EQ("{}", manager.SerializePoliciesUnlocked());
+}
+
+TEST(TrafficShapingManager, ReservationControllerAndFstLimitLoopStatsAreSeparate)
+{
+  eos::mgm::traffic_shaping::TrafficShapingManager manager;
+  manager.ApplyThreadConfig(200, 200, 15);
+
+  manager.UpdateReservationControllerLoopMicroSec(123456);
+  manager.UpdateFstLimitsLoopMicroSec(789);
+
+  const auto [controller_median, controller_min, controller_max] =
+      manager.GetReservationControllerUpdateLoopMicroSecStats();
+  const auto [limits_median, limits_min, limits_max] =
+      manager.GetFstLimitsUpdateLoopMicroSecStats();
+
+  ASSERT_EQ(123456u, controller_median);
+  ASSERT_EQ(123456u, controller_min);
+  ASSERT_EQ(123456u, controller_max);
+  ASSERT_EQ(789u, limits_median);
+  ASSERT_EQ(789u, limits_min);
+  ASSERT_EQ(789u, limits_max);
 }
 
 TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)

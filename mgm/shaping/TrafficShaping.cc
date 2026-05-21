@@ -226,6 +226,8 @@ TrafficShapingManager::ApplyThreadConfig(const uint32_t estimators_period_ms,
                                            mEstimatorsTickIntervalSec);
   fst_reports_processed_per_second.emplace(mSystemStatsWindowSeconds,
                                            mEstimatorsTickIntervalSec);
+  reservation_controller_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
+                                                       fst_policy_period_ms * 0.001);
   fst_limits_update_loop_micro_sec.emplace(mSystemStatsWindowSeconds,
                                            fst_policy_period_ms * 0.001);
 }
@@ -1100,63 +1102,144 @@ TrafficShapingManager::UpdateTrafficShapingController(
     }
   }
 
-  // 4. Read the results back and apply them
-  for (const auto& st : app_array) {
-    if (st.update_write || st.update_read || st.update_reservation_write ||
-        st.update_reservation_read) {
-      TrafficShapingPolicy policy;
+  ApplyControllerPolicyUpdates(app_array, used_custom_controller, now);
+}
 
-      // Preserve existing user configuration from snapshot.
-      // SetAppPolicy acquires mMutex internally; do not hold it here.
-      if (auto pol_it = policies_snapshot.find(st.app_name);
-          pol_it != policies_snapshot.end()) {
-        policy = pol_it->second;
+void
+TrafficShapingManager::ApplyControllerPolicyUpdates(
+    const std::vector<AppState>& app_array, const bool used_custom_controller,
+    const std::chrono::steady_clock::time_point now)
+{
+  struct LogEntry {
+    std::string app;
+    uint64_t controller_limit_write_bps = 0;
+    uint64_t controller_limit_read_bps = 0;
+    uint64_t reservation_write_bps = 0;
+    uint64_t reservation_read_bps = 0;
+  };
+
+  bool persistent_config_changed = false;
+  std::string serialized;
+  std::vector<LogEntry> log_entries;
+
+  {
+    std::unique_lock lock(mMutex);
+
+    for (const auto& st : app_array) {
+      if (!st.update_write && !st.update_read && !st.update_reservation_write &&
+          !st.update_reservation_read) {
+        continue;
       }
 
-      const bool write_controller_changed =
-          st.update_write && policy.controller_limit_write_bytes_per_sec !=
-                                 st.new_controller_limit_write_bps;
-      const bool read_controller_changed =
-          st.update_read &&
-          policy.controller_limit_read_bytes_per_sec != st.new_controller_limit_read_bps;
+      const std::string app{st.app_name};
+      const auto it = mAppPolicies.find(app);
+      const bool had_policy = it != mAppPolicies.end();
+      const TrafficShapingPolicy old_policy =
+          had_policy ? it->second : TrafficShapingPolicy{};
+      TrafficShapingPolicy next_policy = old_policy;
 
       if (st.update_write) {
-        policy.controller_limit_write_bytes_per_sec = st.new_controller_limit_write_bps;
-        policy.controller_limit_write_update_time =
+        next_policy.controller_limit_write_bytes_per_sec =
+            st.new_controller_limit_write_bps;
+        next_policy.controller_limit_write_update_time =
             st.new_controller_limit_write_bps > 0
                 ? now
                 : std::chrono::steady_clock::time_point{};
       }
       if (st.update_read) {
-        policy.controller_limit_read_bytes_per_sec = st.new_controller_limit_read_bps;
-        policy.controller_limit_read_update_time =
+        next_policy.controller_limit_read_bytes_per_sec =
+            st.new_controller_limit_read_bps;
+        next_policy.controller_limit_read_update_time =
             st.new_controller_limit_read_bps > 0
                 ? now
                 : std::chrono::steady_clock::time_point{};
       }
       if (st.update_reservation_write) {
-        policy.reservation_write_bytes_per_sec = st.new_reservation_write_bps;
+        next_policy.reservation_write_bytes_per_sec = st.new_reservation_write_bps;
       }
       if (st.update_reservation_read) {
-        policy.reservation_read_bytes_per_sec = st.new_reservation_read_bps;
+        next_policy.reservation_read_bytes_per_sec = st.new_reservation_read_bps;
       }
 
-      // Automatically syncs to FSTs because SetAppPolicy bumps the config version
-      SetAppPolicy(st.app_name, policy);
+      next_policy = PreparePolicyForSet(next_policy, had_policy ? &old_policy : nullptr);
+
+      const bool write_limit_changed =
+          old_policy.GetEffectiveWriteLimit() != next_policy.GetEffectiveWriteLimit();
+      const bool read_limit_changed =
+          old_policy.GetEffectiveReadLimit() != next_policy.GetEffectiveReadLimit();
+      const bool user_config_changed = old_policy != next_policy;
+      const bool write_controller_changed =
+          old_policy.controller_limit_write_bytes_per_sec !=
+          next_policy.controller_limit_write_bytes_per_sec;
+      const bool read_controller_changed =
+          old_policy.controller_limit_read_bytes_per_sec !=
+          next_policy.controller_limit_read_bytes_per_sec;
+
+      if (next_policy.IsEmpty()) {
+        if (!had_policy) {
+          continue;
+        }
+
+        mAppPolicies.erase(it);
+        for (auto& node_config : mNodeFstIoDelayConfigs) {
+          node_config.second.mutable_app_write_delay()->erase(app);
+          node_config.second.mutable_app_read_delay()->erase(app);
+        }
+      } else {
+        if (!had_policy) {
+          mAppPolicies[app] = next_policy;
+          for (auto& node_config : mNodeFstIoDelayConfigs) {
+            node_config.second.mutable_app_write_delay()->erase(app);
+            node_config.second.mutable_app_read_delay()->erase(app);
+          }
+        } else {
+          it->second = next_policy;
+
+          if (write_limit_changed) {
+            for (auto& node_config : mNodeFstIoDelayConfigs) {
+              ScaleDelayForLimitChange(node_config.second.mutable_app_write_delay(), app,
+                                       old_policy.GetEffectiveWriteLimit(),
+                                       next_policy.GetEffectiveWriteLimit());
+            }
+          }
+          if (read_limit_changed) {
+            for (auto& node_config : mNodeFstIoDelayConfigs) {
+              ScaleDelayForLimitChange(node_config.second.mutable_app_read_delay(), app,
+                                       old_policy.GetEffectiveReadLimit(),
+                                       next_policy.GetEffectiveReadLimit());
+            }
+          }
+        }
+      }
+
+      persistent_config_changed |= user_config_changed;
 
       if (write_controller_changed || read_controller_changed ||
           st.update_reservation_write || st.update_reservation_read) {
-        eos_static_info("msg=\"Dynamic traffic shaping controller applied policy\" "
-                        "source=\"%s\" app=\"%s\" "
-                        "controller_limit_write_bps=%lu controller_limit_read_bps=%lu "
-                        "reservation_write_bps=%lu reservation_read_bps=%lu",
-                        used_custom_controller ? "plugin" : "default", st.app_name,
-                        policy.controller_limit_write_bytes_per_sec,
-                        policy.controller_limit_read_bytes_per_sec,
-                        policy.reservation_write_bytes_per_sec,
-                        policy.reservation_read_bytes_per_sec);
+        log_entries.push_back({app, next_policy.controller_limit_write_bytes_per_sec,
+                               next_policy.controller_limit_read_bytes_per_sec,
+                               next_policy.reservation_write_bytes_per_sec,
+                               next_policy.reservation_read_bytes_per_sec});
       }
     }
+
+    if (persistent_config_changed) {
+      serialized = SerializePoliciesUnlocked();
+    }
+  }
+
+  if (persistent_config_changed) {
+    FsView::gFsView.SetGlobalConfig(common::TRAFFIC_SHAPING_POLICIES_CONFIG, serialized);
+  }
+
+  for (const auto& entry : log_entries) {
+    eos_static_info("msg=\"Dynamic traffic shaping controller applied policy\" "
+                    "source=\"%s\" app=\"%s\" "
+                    "controller_limit_write_bps=%lu controller_limit_read_bps=%lu "
+                    "reservation_write_bps=%lu reservation_read_bps=%lu",
+                    used_custom_controller ? "plugin" : "default", entry.app.c_str(),
+                    entry.controller_limit_write_bps, entry.controller_limit_read_bps,
+                    entry.reservation_write_bps, entry.reservation_read_bps);
   }
 }
 
@@ -1955,6 +2038,17 @@ TrafficShapingManager::UpdateFstLimitsLoopMicroSec(const uint64_t time_microseco
 }
 
 void
+TrafficShapingManager::UpdateReservationControllerLoopMicroSec(
+    const uint64_t time_microseconds)
+{
+  std::unique_lock lock(mMutex);
+  if (reservation_controller_update_loop_micro_sec) {
+    reservation_controller_update_loop_micro_sec->Add(time_microseconds);
+    reservation_controller_update_loop_micro_sec->Tick();
+  }
+}
+
+void
 TrafficShapingManager::UpdateEstimatorsLoopMicroSec(const uint64_t time_microseconds)
 {
   std::unique_lock lock(mMutex);
@@ -1990,6 +2084,20 @@ TrafficShapingManager::GetFstLimitsUpdateLoopMicroSecStats() const
         fst_limits_update_loop_micro_sec->GetMedian(true),
         fst_limits_update_loop_micro_sec->GetMin(true),
         fst_limits_update_loop_micro_sec->GetMax(true),
+    };
+  }
+  return {0, 0, 0};
+}
+
+std::tuple<uint64_t, uint64_t, uint64_t>
+TrafficShapingManager::GetReservationControllerUpdateLoopMicroSecStats() const
+{
+  std::shared_lock lock(mMutex);
+  if (reservation_controller_update_loop_micro_sec) {
+    return {
+        reservation_controller_update_loop_micro_sec->GetMedian(true),
+        reservation_controller_update_loop_micro_sec->GetMin(true),
+        reservation_controller_update_loop_micro_sec->GetMax(true),
     };
   }
   return {0, 0, 0};
@@ -2078,6 +2186,7 @@ TrafficShapingManager::Clear()
   mCumulativeTotalStats = RateSnapshot{};
 
   estimators_update_loop_micro_sec.reset();
+  reservation_controller_update_loop_micro_sec.reset();
   fst_limits_update_loop_micro_sec.reset();
   fst_reports_processed_per_second.reset();
 
@@ -3128,7 +3237,8 @@ TrafficShapingEngine::FstIoPolicyUpdate(ThreadAssistant& assistant) const
           static_cast<double>(limits_duration_us) / 1000.0, run_controller);
     }
 
-    mManager->UpdateFstLimitsLoopMicroSec(compute_duration_us);
+    mManager->UpdateReservationControllerLoopMicroSec(controller_duration_us);
+    mManager->UpdateFstLimitsLoopMicroSec(limits_duration_us);
   }
 }
 
@@ -3762,14 +3872,24 @@ TrafficShapingManager::SerializePoliciesUnlocked() const
     proto_pol.set_reservation_read_bytes_per_sec(cpp_pol.reservation_read_bytes_per_sec);
     proto_pol.set_is_enabled(cpp_pol.is_enabled);
   };
+  const TrafficShapingPolicy empty_user_policy;
 
   for (const auto& [uid, pol] : mUidPolicies) {
+    if (pol == empty_user_policy) {
+      continue;
+    }
     copy_to_proto(pol, (*proto_config.mutable_uid_policies())[uid]);
   }
   for (const auto& [gid, pol] : mGidPolicies) {
+    if (pol == empty_user_policy) {
+      continue;
+    }
     copy_to_proto(pol, (*proto_config.mutable_gid_policies())[gid]);
   }
   for (const auto& [app, pol] : mAppPolicies) {
+    if (pol == empty_user_policy) {
+      continue;
+    }
     copy_to_proto(pol, (*proto_config.mutable_app_policies())[app]);
   }
 

@@ -587,6 +587,8 @@ private:
   {
     AddLoopStats(system_loop_duration_us, mCluster, "estimators",
                  manager.GetEstimatorsUpdateLoopMicroSecStats());
+    AddLoopStats(system_loop_duration_us, mCluster, "reservation_controller",
+                 manager.GetReservationControllerUpdateLoopMicroSecStats());
     AddLoopStats(system_loop_duration_us, mCluster, "fst_limits",
                  manager.GetFstLimitsUpdateLoopMicroSecStats());
     AddGauge(reports_processed, {{"cluster", mCluster}, {"stat", "mean"}},

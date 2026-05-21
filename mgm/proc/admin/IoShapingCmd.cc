@@ -247,6 +247,9 @@ BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manag
       manager->GetEstimatorsUpdateLoopMicroSecStats();
   const auto [fst_limits_mean, fst_limits_min, fst_limits_max] =
       manager->GetFstLimitsUpdateLoopMicroSecStats();
+  const auto [reservation_controller_mean, reservation_controller_min,
+              reservation_controller_max] =
+      manager->GetReservationControllerUpdateLoopMicroSecStats();
 
   auto* est_stats = report.mutable_estimators_update_thread_loop_stats();
   est_stats->set_mean_elapsed_time_micro_sec(estimator_mean);
@@ -257,6 +260,15 @@ BuildReport(const std::shared_ptr<traffic_shaping::TrafficShapingManager>& manag
   fst_stats->set_mean_elapsed_time_micro_sec(fst_limits_mean);
   fst_stats->set_min_elapsed_time_micro_sec(fst_limits_min);
   fst_stats->set_max_elapsed_time_micro_sec(fst_limits_max);
+
+  auto* reservation_controller_stats =
+      report.mutable_reservation_controller_update_thread_loop_stats();
+  reservation_controller_stats->set_mean_elapsed_time_micro_sec(
+      reservation_controller_mean);
+  reservation_controller_stats->set_min_elapsed_time_micro_sec(
+      reservation_controller_min);
+  reservation_controller_stats->set_max_elapsed_time_micro_sec(
+      reservation_controller_max);
 
   const int64_t now_ms = std::chrono::duration_cast<std::chrono::milliseconds>(
                              std::chrono::system_clock::now().time_since_epoch())
@@ -849,6 +861,9 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           manager->GetEstimatorsUpdateLoopMicroSecStats();
       const auto [fst_limits_median, fst_limits_min, fst_limits_max] =
           manager->GetFstLimitsUpdateLoopMicroSecStats();
+      const auto [reservation_controller_median, reservation_controller_min,
+                  reservation_controller_max] =
+          manager->GetReservationControllerUpdateLoopMicroSecStats();
       const auto reports_processed_mean = manager->GetFstReportsProcessedPerSecondMean();
       const auto system_stats_window_seconds = manager->GetSystemStatsWindowSeconds();
       const auto map_cardinality = manager->GetMapCardinalityStats();
@@ -862,6 +877,9 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
       entry["fst_limits_loop_median_us"] = fst_limits_median;
       entry["fst_limits_loop_min_us"] = fst_limits_min;
       entry["fst_limits_loop_max_us"] = fst_limits_max;
+      entry["reservation_controller_loop_median_us"] = reservation_controller_median;
+      entry["reservation_controller_loop_min_us"] = reservation_controller_min;
+      entry["reservation_controller_loop_max_us"] = reservation_controller_max;
       entry["reports_processed_per_sec_mean"] = reports_processed_mean;
       entry["system_stats_window_seconds"] =
           static_cast<Json::Value::UInt64>(system_stats_window_seconds);
@@ -1037,6 +1055,9 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           manager->GetEstimatorsUpdateLoopMicroSecStats();
       const auto [fst_limits_median, fst_limits_min, fst_limits_max] =
           manager->GetFstLimitsUpdateLoopMicroSecStats();
+      const auto [reservation_controller_median, reservation_controller_min,
+                  reservation_controller_max] =
+          manager->GetReservationControllerUpdateLoopMicroSecStats();
       const auto reports_processed_mean = manager->GetFstReportsProcessedPerSecondMean();
       const auto system_stats_window_seconds = manager->GetSystemStatsWindowSeconds();
       const auto map_cardinality = manager->GetMapCardinalityStats();
@@ -1052,6 +1073,11 @@ ShapingList(const eos::console::IoProto_ShapingProto_ListAction& list_req,
           << "Median = " << format_duration_us(fst_limits_median) << " | "
           << "Min = " << format_duration_us(fst_limits_min) << " | "
           << "Max = " << format_duration_us(fst_limits_max) << "\n";
+
+      oss << std::left << std::setw(30) << "Reservation Controller:"
+          << "Median = " << format_duration_us(reservation_controller_median) << " | "
+          << "Min = " << format_duration_us(reservation_controller_min) << " | "
+          << "Max = " << format_duration_us(reservation_controller_max) << "\n";
 
       oss << std::left << std::setw(30) << "FST Reports Per Second:"
           << "Mean = " << std::fixed << std::setprecision(2) << reports_processed_mean
