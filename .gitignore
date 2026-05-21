@@ -51,6 +51,7 @@ my_clang_cache.cmake
 doc/_build/
 doc/html/
 debian/control
+/.claude/
 
 # ApMon specific
 ApMon/*.tar.gz
