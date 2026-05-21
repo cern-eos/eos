@@ -458,6 +458,8 @@ public:
 
   void UpdateFstLimitsLoopMicroSec(uint64_t time_microseconds);
 
+  void UpdateReservationControllerLoopMicroSec(uint64_t time_microseconds);
+
   void UpdateEstimatorsLoopMicroSec(uint64_t time_microseconds);
 
   void UpdateFstReportsProcessed(uint64_t count);
@@ -467,6 +469,9 @@ public:
   std::tuple<uint64_t, uint64_t, uint64_t> GetEstimatorsUpdateLoopMicroSecStats() const;
 
   std::tuple<uint64_t, uint64_t, uint64_t> GetFstLimitsUpdateLoopMicroSecStats() const;
+
+  std::tuple<uint64_t, uint64_t, uint64_t>
+  GetReservationControllerUpdateLoopMicroSecStats() const;
 
   MapCardinalityStats GetMapCardinalityStats() const;
 
@@ -535,6 +540,8 @@ private:
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       estimators_update_loop_micro_sec;
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
+      reservation_controller_update_loop_micro_sec;
+  std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       fst_limits_update_loop_micro_sec;
   std::optional<eos::common::traffic_shaping::SlidingWindowStats>
       fst_reports_processed_per_second;
@@ -569,6 +576,10 @@ public:
       bool reservations_enabled,
       double io_pressure_threshold = kDefaultIoPressureThreshold,
       uint64_t active_node_rate_threshold_bps = kDefaultActiveNodeRateThresholdBps);
+
+  void ApplyControllerPolicyUpdates(const std::vector<AppState>& app_array,
+                                    bool used_custom_controller,
+                                    std::chrono::steady_clock::time_point now);
 #ifdef IN_TEST_HARNESS
 private:
 #endif
