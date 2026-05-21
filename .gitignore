@@ -62,3 +62,6 @@ ApMon/eos-apmon-*
 # clangd file
 compile_commands.json
 .cache
+
+# Local AI-agent preferences
+AGENTS.local.md
