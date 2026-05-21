@@ -168,6 +168,7 @@ constexpr uint32_t kDefaultGarbageCollectionIdleSec = 5 * 60;
 constexpr uint64_t kDefaultAutomaticFilesystemDetailLowCardinality = 5000;
 constexpr uint64_t kDefaultAutomaticFilesystemDetailHighCardinality = 8000;
 constexpr uint64_t kDefaultControllerMinLimitBps = 100ULL * 1000ULL * 1000ULL;
+constexpr uint64_t kDefaultActiveNodeRateThresholdBps = 1024ULL * 1024ULL;
 constexpr double kDefaultIoPressureThreshold = 0.1;
 
 struct MultiWindowRate {
@@ -376,6 +377,10 @@ public:
 
   uint64_t GetControllerMinLimit() const;
 
+  void SetActiveNodeRateThreshold(uint64_t threshold_bps);
+
+  uint64_t GetActiveNodeRateThreshold() const;
+
   void SetIoPressureThreshold(double threshold);
 
   double GetIoPressureThreshold() const;
@@ -555,14 +560,15 @@ public:
   static void ApplyDefaultReservationController(
       std::vector<AppState>& apps, bool reservations_enabled = true,
       uint64_t controller_min_limit_bps = kDefaultControllerMinLimitBps,
-      double io_pressure_threshold = kDefaultIoPressureThreshold);
+      double io_pressure_threshold = kDefaultIoPressureThreshold,
+      uint64_t active_node_rate_threshold_bps = kDefaultActiveNodeRateThresholdBps);
 
-  static bool
-  ShouldEmitDelayForPolicy(const TrafficShapingPolicy& policy, bool is_write,
-                           double node_rate_bps, double io_pressure,
-                           bool node_has_pressured_reservation, bool limits_enabled,
-                           bool reservations_enabled,
-                           double io_pressure_threshold = kDefaultIoPressureThreshold);
+  static bool ShouldEmitDelayForPolicy(
+      const TrafficShapingPolicy& policy, bool is_write, double node_rate_bps,
+      double io_pressure, bool node_has_pressured_reservation, bool limits_enabled,
+      bool reservations_enabled,
+      double io_pressure_threshold = kDefaultIoPressureThreshold,
+      uint64_t active_node_rate_threshold_bps = kDefaultActiveNodeRateThresholdBps);
 #ifdef IN_TEST_HARNESS
 private:
 #endif
@@ -582,6 +588,7 @@ private:
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
+  std::atomic<uint64_t> mActiveNodeRateThresholdBps{kDefaultActiveNodeRateThresholdBps};
   std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
 };
 
@@ -684,6 +691,10 @@ public:
 
   uint64_t GetControllerMinLimit() const;
 
+  void SetActiveNodeRateThreshold(uint64_t threshold_bps);
+
+  uint64_t GetActiveNodeRateThreshold() const;
+
   void SetIoPressureThreshold(double threshold);
 
   double GetIoPressureThreshold() const;
@@ -751,6 +762,10 @@ private:
 
   static void StoreControllerMinLimitConfig(uint64_t limit_bps);
 
+  bool ApplyActiveNodeRateThresholdConfig(uint64_t threshold_bps);
+
+  static void StoreActiveNodeRateThresholdConfig(uint64_t threshold_bps);
+
   bool ApplyIoPressureThresholdConfig(double threshold);
 
   static void StoreIoPressureThresholdConfig(double threshold);
@@ -793,6 +808,7 @@ private:
   std::atomic<bool> mLimitsEnabled{true};
   std::atomic<bool> mReservationsEnabled{true};
   std::atomic<uint64_t> mControllerMinLimitBps{kDefaultControllerMinLimitBps};
+  std::atomic<uint64_t> mActiveNodeRateThresholdBps{kDefaultActiveNodeRateThresholdBps};
   std::atomic<double> mIoPressureThreshold{kDefaultIoPressureThreshold};
   std::atomic<uint32_t> mGarbageCollectionIdleSeconds{kDefaultGarbageCollectionIdleSec};
 
