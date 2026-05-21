@@ -16,6 +16,43 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.4 Diopside``
+===================
+
+2026-05-21
+
+Bug
+----
+
+* MGM: Honor sys.owner.auth in the FuseServer cap path and align semantics
+* MGM: Disable NS cache as early as possible to avoid shadow entries created by the the quota nodes on a slave MGM
+
+
+``v5.4.3 Diopside``
+===================
+
+2026-05-12
+
+Bug
+----
+
+* [EOS-5500] - eos CLI - should give error on unknown options
+* [EOS-6451] - MGM: Quota recomputation does not update user files/bytes if no files own by user
+* [EOS-6579] - Spurious crashes in the file deletion tests
+* [EOS-6592] - MGM deadlock during balancing and FsView reload
+
+New Feature
+------------
+
+* [EOS-6589] - RFE: do not prevent "open" files from being downloaded by web clients
+
+Improvement
+-------------
+
+* [EOS-6254] - RFE: do no log (full) GRPC tokens
+* [EOS-6400] - RFE: fake-delete Office files from SMB
+
+
 ``v5.4.2 Diopside``
 ===================
 
