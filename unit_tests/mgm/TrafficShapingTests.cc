@@ -84,6 +84,19 @@ TEST(TrafficShapingEngine, GarbageCollectionIdleConfigIsClamped)
             engine.GetGarbageCollectionIdleSeconds());
 }
 
+TEST(TrafficShapingEngine, ActiveNodeRateThresholdPropagatesToManager)
+{
+  eos::mgm::traffic_shaping::TrafficShapingEngine engine;
+  auto manager = engine.GetManager();
+  constexpr uint64_t threshold_bps = 100ULL * 1000ULL;
+
+  ASSERT_TRUE(engine.ApplyActiveNodeRateThresholdConfig(threshold_bps));
+  ASSERT_EQ(threshold_bps, engine.GetActiveNodeRateThreshold());
+  ASSERT_EQ(threshold_bps, manager->GetActiveNodeRateThreshold());
+
+  ASSERT_FALSE(engine.ApplyActiveNodeRateThresholdConfig(threshold_bps));
+}
+
 TEST(TrafficShapingManager, FilesystemDetailStatsFollowDetailToggle)
 {
   eos::mgm::traffic_shaping::TrafficShapingManager manager;
@@ -828,4 +841,17 @@ TEST(TrafficShapingManager, EphemeralDelayPublicationHonorsPressureThreshold)
       policy, true, 500.0 * 1000.0 * 1000.0, 0.02, false, true, true, 0.05));
   ASSERT_TRUE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
       policy, true, 500.0 * 1000.0 * 1000.0, 0.02, false, true, true, 0.01));
+}
+
+TEST(TrafficShapingManager, ReservedAppEphemeralLimitHonorsActiveNodeRateThreshold)
+{
+  eos::mgm::traffic_shaping::TrafficShapingPolicy policy;
+  policy.reservation_write_bytes_per_sec = 300ULL * 1000ULL * 1000ULL;
+  policy.controller_limit_write_bytes_per_sec = 100ULL * 1000ULL * 1000ULL;
+
+  ASSERT_FALSE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 500.0 * 1000.0, 1.0, false, true, true));
+  ASSERT_TRUE(eos::mgm::traffic_shaping::TrafficShapingManager::ShouldEmitDelayForPolicy(
+      policy, true, 500.0 * 1000.0, 1.0, false, true, true,
+      eos::mgm::traffic_shaping::kDefaultIoPressureThreshold, 100ULL * 1000ULL));
 }

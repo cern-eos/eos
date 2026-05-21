@@ -177,7 +177,8 @@ std::string MakeIoHelp()
          "[--report-period <ms>] [--system-window <s>] [--detail aggregate|fs] "
          "[--limits enabled|disabled] "
          "[--reservations enabled|disabled] [--controller-min-limit <rate>] "
-         "[--io-pressure-threshold <value>] [--gc-idle <s>]\n"
+         "[--active-node-rate-threshold <rate>] [--io-pressure-threshold <value>] "
+         "[--gc-idle <s>]\n"
       << std::endl
       << "   EXAMPLES\n"
       << "\t   # Show current application rates\n"
@@ -495,7 +496,7 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     a->set_json_output(config_ls->count("--json") > 0);
   });
   auto* config_set = config_cmd->add_subcommand("set", "Set config");
-  config_set->require_option(1, 11);
+  config_set->require_option(1, 12);
   config_set->add_option("--estimators-period", "Estimator update period")
       ->type_name("MS");
   config_set->add_option("--policy-period", "Policy enforcement update period")
@@ -525,6 +526,10 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
       ->type_name("STATE")
       ->check(CLI::IsMember({"enabled", "disabled"}));
   config_set->add_option("--controller-min-limit", "Minimum ephemeral controller limit")
+      ->type_name("RATE");
+  config_set
+      ->add_option("--active-node-rate-threshold",
+                   "Per-node app rate required to treat reservation pressure as active")
       ->type_name("RATE");
   config_set
       ->add_option("--io-pressure-threshold",
@@ -595,6 +600,10 @@ BuildAndParseIoApp(const std::string& input, eos::console::IoProto* io)
     if (config_set->count("--controller-min-limit")) {
       a->set_controller_min_limit_bytes_per_sec(parse_rate(
           config_set->get_option("--controller-min-limit")->as<std::string>()));
+    }
+    if (config_set->count("--active-node-rate-threshold")) {
+      a->set_active_node_rate_threshold_bytes_per_sec(parse_rate(
+          config_set->get_option("--active-node-rate-threshold")->as<std::string>()));
     }
     if (config_set->count("--io-pressure-threshold")) {
       a->set_io_pressure_threshold(
