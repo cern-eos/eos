@@ -96,7 +96,7 @@ public:
     if (opt_update) {
       in += "&mgm.egroupupdate=true";
     }
-    global_retc = ctx.outputResult(ctx.clientCommand(in, true, nullptr), true);
+    global_retc = ctx.outputResult(ctx.clientCommand(in, false, nullptr), true);
     return 0;
   }
   void
