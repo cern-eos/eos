@@ -357,6 +357,9 @@ public:
     auto config_controller_min_limit_bytes = MakeGaugeFamily(
         "eos_io_shaping_config_controller_min_limit_bytes",
         "Configured minimum controller-generated limit in bytes per second.");
+    auto config_active_node_rate_threshold_bytes =
+        MakeGaugeFamily("eos_io_shaping_config_active_node_rate_threshold_bytes",
+                        "Configured active node rate threshold in bytes per second.");
     auto config_io_pressure_threshold =
         MakeGaugeFamily("eos_io_shaping_config_io_pressure_threshold",
                         "Configured IO pressure threshold for reservation pressure.");
@@ -405,15 +408,15 @@ public:
                         app_node_reservation_deficit_active, app_node_pressure_active,
                         app_node_reservation_trigger_active,
                         node_pressured_reservation_active);
-    AddConfigFamilies(config_enabled, config_estimators_update_period_ms,
-                      config_fst_io_policy_update_period_ms,
-                      config_fst_io_stats_reporting_period_ms, config_detail_filesystem,
-                      config_detail_auto_enabled, config_detail_auto_low_cardinality,
-                      config_detail_auto_high_cardinality,
-                      config_system_stats_time_window_sec, config_limits_enabled,
-                      config_reservations_enabled, config_controller_min_limit_bytes,
-                      config_io_pressure_threshold,
-                      config_garbage_collection_idle_seconds, ns_traffic_shaping_enabled);
+    AddConfigFamilies(
+        config_enabled, config_estimators_update_period_ms,
+        config_fst_io_policy_update_period_ms, config_fst_io_stats_reporting_period_ms,
+        config_detail_filesystem, config_detail_auto_enabled,
+        config_detail_auto_low_cardinality, config_detail_auto_high_cardinality,
+        config_system_stats_time_window_sec, config_limits_enabled,
+        config_reservations_enabled, config_controller_min_limit_bytes,
+        config_active_node_rate_threshold_bytes, config_io_pressure_threshold,
+        config_garbage_collection_idle_seconds, ns_traffic_shaping_enabled);
 
     std::vector<prometheus::MetricFamily> metrics = {
         std::move(bytes_total),
@@ -441,6 +444,7 @@ public:
         std::move(config_limits_enabled),
         std::move(config_reservations_enabled),
         std::move(config_controller_min_limit_bytes),
+        std::move(config_active_node_rate_threshold_bytes),
         std::move(config_io_pressure_threshold),
         std::move(config_garbage_collection_idle_seconds),
         std::move(config_estimators_update_period_ms),
@@ -777,6 +781,7 @@ private:
                     prometheus::MetricFamily& config_limits_enabled,
                     prometheus::MetricFamily& config_reservations_enabled,
                     prometheus::MetricFamily& config_controller_min_limit_bytes,
+                    prometheus::MetricFamily& config_active_node_rate_threshold_bytes,
                     prometheus::MetricFamily& config_io_pressure_threshold,
                     prometheus::MetricFamily& config_garbage_collection_idle_seconds,
                     prometheus::MetricFamily& ns_traffic_shaping_enabled) const
@@ -791,6 +796,8 @@ private:
              mEngine.GetReservationsEnabled() ? 1.0 : 0.0);
     AddGauge(config_controller_min_limit_bytes, labels,
              static_cast<double>(mEngine.GetControllerMinLimit()));
+    AddGauge(config_active_node_rate_threshold_bytes, labels,
+             static_cast<double>(mEngine.GetActiveNodeRateThreshold()));
     AddGauge(config_io_pressure_threshold, labels, mEngine.GetIoPressureThreshold());
     AddGauge(config_garbage_collection_idle_seconds, labels,
              static_cast<double>(mEngine.GetGarbageCollectionIdleSeconds()));
