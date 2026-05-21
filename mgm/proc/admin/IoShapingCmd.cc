@@ -73,6 +73,20 @@ format_bool(const bool value)
   return value ? "yes" : "no";
 }
 
+std::string
+format_table_label(const std::string& value, const size_t width)
+{
+  if (value.size() <= width) {
+    return value;
+  }
+
+  if (width <= 3) {
+    return value.substr(0, width);
+  }
+
+  return value.substr(0, width - 3) + "...";
+}
+
 namespace {
 
 using eos::common::traffic_shaping::GidLabel;
@@ -1287,19 +1301,27 @@ ShapingPressureList(
 
     oss << CompactJsonString(json);
   } else {
+    constexpr size_t kPressureAppWidth = 40;
+    constexpr size_t kPressureNodeWidth = 42;
+    constexpr size_t kPressureSeparatorWidth = 176;
+
     oss << "--- Reserved Application IO Pressure by Node ---\n";
-    oss << std::left << std::setw(30) << "Application" << std::setw(36) << "Node"
-        << std::right << std::setw(14) << "Read Rate" << std::setw(14) << "Write Rate"
-        << std::setw(12) << "Node Press" << std::setw(12) << "Read Press" << std::setw(12)
-        << "Write Press" << std::setw(10) << "Rd Trig" << std::setw(10) << "Wr Trig"
-        << std::setw(10) << "Node Rd" << std::setw(10) << "Node Wr" << "\n";
-    oss << std::string(160, '-') << "\n";
+    oss << std::left << std::setw(kPressureAppWidth) << "Application"
+        << std::setw(kPressureNodeWidth) << "Node" << std::right << std::setw(14)
+        << "Read Rate" << std::setw(14) << "Write Rate" << std::setw(12) << "Node Press"
+        << std::setw(12) << "Read Press" << std::setw(12) << "Write Press"
+        << std::setw(10) << "Rd Trig" << std::setw(10) << "Wr Trig" << std::setw(10)
+        << "Node Rd" << std::setw(10) << "Node Wr" << "\n";
+    oss << std::string(kPressureSeparatorWidth, '-') << "\n";
 
     for (const auto& snapshot : snapshots) {
       const std::string node_label = NodeLabel(LabelOrUnknown(snapshot.node_id));
-      oss << std::left << std::setw(30) << snapshot.app << std::setw(36) << node_label
-          << std::right << std::setw(14) << format_rate(snapshot.read_rate_bps)
-          << std::setw(14) << format_rate(snapshot.write_rate_bps) << std::setw(12)
+      oss << std::left << std::setw(kPressureAppWidth)
+          << format_table_label(snapshot.app, kPressureAppWidth)
+          << std::setw(kPressureNodeWidth)
+          << format_table_label(node_label, kPressureNodeWidth) << std::right
+          << std::setw(14) << format_rate(snapshot.read_rate_bps) << std::setw(14)
+          << format_rate(snapshot.write_rate_bps) << std::setw(12)
           << format_optional_io_pressure(snapshot.has_node_io_pressure,
                                          snapshot.node_io_pressure)
           << std::setw(12)
@@ -1353,6 +1375,8 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       json["reservations_enabled"] = engine.GetReservationsEnabled();
       json["controller_min_limit_bytes_per_sec"] =
           static_cast<Json::Value::UInt64>(engine.GetControllerMinLimit());
+      json["active_node_rate_threshold_bytes_per_sec"] =
+          static_cast<Json::Value::UInt64>(engine.GetActiveNodeRateThreshold());
       json["io_pressure_threshold"] = engine.GetIoPressureThreshold();
       json["garbage_collection_idle_seconds"] =
           static_cast<Json::Value::UInt64>(engine.GetGarbageCollectionIdleSeconds());
@@ -1382,6 +1406,8 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
           << std::setw(45)
           << "Controller Minimum Limit:" << format_rate(engine.GetControllerMinLimit())
           << "\n"
+          << std::setw(45) << "Active Node Rate Threshold:"
+          << format_rate(engine.GetActiveNodeRateThreshold()) << "\n"
           << std::setw(45) << "IO Pressure Threshold:"
           << format_io_pressure(engine.GetIoPressureThreshold()) << "\n"
           << std::setw(45)
@@ -1519,6 +1545,13 @@ ShapingConfig(const eos::console::IoProto_ShapingProto_ConfigAction& config_req,
       engine.SetControllerMinLimit(set_req.controller_min_limit_bytes_per_sec());
       oss << "success: Set controller minimum limit to "
           << format_rate(engine.GetControllerMinLimit()) << "\n";
+    }
+
+    if (set_req.has_active_node_rate_threshold_bytes_per_sec()) {
+      engine.SetActiveNodeRateThreshold(
+          set_req.active_node_rate_threshold_bytes_per_sec());
+      oss << "success: Set active node rate threshold to "
+          << format_rate(engine.GetActiveNodeRateThreshold()) << "\n";
     }
 
     if (set_req.has_io_pressure_threshold()) {

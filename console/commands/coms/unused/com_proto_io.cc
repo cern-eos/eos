@@ -39,6 +39,14 @@ EnabledConfigValue(const std::string& value)
   return value == "enabled";
 }
 
+uint64_t
+ParseRate(const std::string& input)
+{
+  uint64_t size = 0;
+  eos::common::StringConversion::GetSizeFromString(input, size);
+  return size;
+}
+
 //------------------------------------------------------------------------------
 //! Class IoHelper
 //------------------------------------------------------------------------------
@@ -507,7 +515,7 @@ SetupConfigCommand(CLI::App* config_cmd, eos::console::IoProto_ShapingProto* pro
       config_cmd->add_subcommand("set", "Set shaping configuration parameters");
 
   // At least one of the parameters must be provided when using 'set'
-  set_cmd->require_option(1, 6);
+  set_cmd->require_option(1, 7);
 
   set_cmd->add_option("--estimators-period", "Estimators update thread period (ms)");
   set_cmd->add_option("--policy-period", "FST IO policy update thread period (ms)");
@@ -517,6 +525,9 @@ SetupConfigCommand(CLI::App* config_cmd, eos::console::IoProto_ShapingProto* pro
       ->check(CLI::IsMember({"enabled", "disabled"}));
   set_cmd->add_option("--reservations", "Reservation enforcement toggle")
       ->check(CLI::IsMember({"enabled", "disabled"}));
+  set_cmd->add_option(
+      "--active-node-rate-threshold",
+      "Per-node app rate required to treat reservation pressure as active");
 
   set_cmd->callback([set_cmd, proto]() {
     auto* action = proto->mutable_config()->mutable_set();
@@ -549,6 +560,11 @@ SetupConfigCommand(CLI::App* config_cmd, eos::console::IoProto_ShapingProto* pro
     if (set_cmd->count("--reservations")) {
       action->set_reservations_enabled(
           EnabledConfigValue(set_cmd->get_option("--reservations")->as<std::string>()));
+    }
+
+    if (set_cmd->count("--active-node-rate-threshold")) {
+      action->set_active_node_rate_threshold_bytes_per_sec(ParseRate(
+          set_cmd->get_option("--active-node-rate-threshold")->as<std::string>()));
     }
   });
 }
@@ -592,35 +608,29 @@ SetupPolicySetCommand(CLI::App* policy_cmd, eos::console::IoProto_ShapingProto* 
       action->set_gid(cmd->get_option("--gid")->as<uint32_t>());
     }
 
-    auto parse_rate = [](const std::string& input) -> uint64_t {
-      uint64_t size = 0;
-      eos::common::StringConversion::GetSizeFromString(input, size);
-      return size;
-    };
-
     if (cmd->count("--limit-read")) {
       action->set_limit_read_bytes_per_sec(
-          parse_rate(cmd->get_option("--limit-read")->as<std::string>()));
+          ParseRate(cmd->get_option("--limit-read")->as<std::string>()));
     }
     if (cmd->count("--limit-write")) {
       action->set_limit_write_bytes_per_sec(
-          parse_rate(cmd->get_option("--limit-write")->as<std::string>()));
+          ParseRate(cmd->get_option("--limit-write")->as<std::string>()));
     }
     if (cmd->count("--reservation-read")) {
       action->set_reservation_read_bytes_per_sec(
-          parse_rate(cmd->get_option("--reservation-read")->as<std::string>()));
+          ParseRate(cmd->get_option("--reservation-read")->as<std::string>()));
     }
     if (cmd->count("--reservation-write")) {
       action->set_reservation_write_bytes_per_sec(
-          parse_rate(cmd->get_option("--reservation-write")->as<std::string>()));
+          ParseRate(cmd->get_option("--reservation-write")->as<std::string>()));
     }
     if (cmd->count("--controller-limit-read")) {
       action->set_controller_limit_read_bytes_per_sec(
-          parse_rate(cmd->get_option("--controller-limit-read")->as<std::string>()));
+          ParseRate(cmd->get_option("--controller-limit-read")->as<std::string>()));
     }
     if (cmd->count("--controller-limit-write")) {
       action->set_controller_limit_write_bytes_per_sec(
-          parse_rate(cmd->get_option("--controller-limit-write")->as<std::string>()));
+          ParseRate(cmd->get_option("--controller-limit-write")->as<std::string>()));
     }
 
     if (cmd->count("--enable") > 0) {

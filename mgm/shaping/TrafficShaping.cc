@@ -22,7 +22,6 @@ namespace eos::mgm::traffic_shaping {
 
 namespace {
 constexpr double kUnknownIoPressure = 1.0;
-constexpr double kActiveEntityNodeRateBps = 1024.0 * 1024.0;
 constexpr double kMinReservationDeficitFraction = 0.05;
 constexpr double kMinReservationDeficitBps = 16.0 * 1024.0 * 1024.0;
 constexpr auto kControllerLimitTtl = std::chrono::minutes(5);
@@ -322,14 +321,15 @@ CollectNodeIoPressure(std::vector<std::string>* online_nodes = nullptr)
 
 void
 UpdateAppIoPressure(AppIoPressureSnapshot& app_pressure, const RateMetrics& metrics,
-                    const double node_pressure)
+                    const double node_pressure,
+                    const uint64_t active_node_rate_threshold_bps)
 {
-  if (metrics.read_rate_bps >= kActiveEntityNodeRateBps) {
+  if (metrics.read_rate_bps >= active_node_rate_threshold_bps) {
     app_pressure.read = std::max(app_pressure.read, node_pressure);
     app_pressure.has_read = true;
   }
 
-  if (metrics.write_rate_bps >= kActiveEntityNodeRateBps) {
+  if (metrics.write_rate_bps >= active_node_rate_threshold_bps) {
     app_pressure.write = std::max(app_pressure.write, node_pressure);
     app_pressure.has_write = true;
   }
@@ -752,13 +752,14 @@ TrafficShapingManager::CalculateDelayUs(
 void
 TrafficShapingManager::ApplyDefaultReservationController(
     std::vector<AppState>& apps, const bool reservations_enabled,
-    const uint64_t controller_min_limit_bps, const double io_pressure_threshold)
+    const uint64_t controller_min_limit_bps, const double io_pressure_threshold,
+    const uint64_t active_node_rate_threshold_bps)
 {
   const double pressure_threshold = std::max(0.0, std::min(1.0, io_pressure_threshold));
 
   auto update_direction = [reservations_enabled, controller_min_limit_bps,
-                           pressure_threshold](std::vector<AppState>& apps,
-                                               const bool is_write) {
+                           pressure_threshold, active_node_rate_threshold_bps](
+                              std::vector<AppState>& apps, const bool is_write) {
     auto reservation = [is_write](const AppState& app) {
       return is_write ? app.reservation_write_bps : app.reservation_read_bps;
     };
@@ -802,7 +803,7 @@ TrafficShapingManager::ApplyDefaultReservationController(
         reserved_limit_bps += reservation(app);
         reserved_rate_bps += current_rate(app);
       } else if (reservation(app) == 0 && has_reservation_competition(app) &&
-                 current_rate(app) >= kActiveEntityNodeRateBps) {
+                 current_rate(app) >= active_node_rate_threshold_bps) {
         competitor_rate_bps += current_rate(app);
       }
     }
@@ -831,7 +832,7 @@ TrafficShapingManager::ApplyDefaultReservationController(
 
       if (should_throttle_competitors && reservation(app) == 0 &&
           has_reservation_competition(app) &&
-          current_rate(app) >= kActiveEntityNodeRateBps) {
+          current_rate(app) >= active_node_rate_threshold_bps) {
         desired_limit = static_cast<uint64_t>(current_rate(app) * competitor_scale + 0.5);
 
         if (controller_min_limit_bps > 0) {
@@ -854,7 +855,7 @@ TrafficShapingManager::ShouldEmitDelayForPolicy(
     const TrafficShapingPolicy& policy, const bool is_write, const double node_rate_bps,
     const double io_pressure, const bool node_has_pressured_reservation,
     const bool limits_enabled, const bool reservations_enabled,
-    const double io_pressure_threshold)
+    const double io_pressure_threshold, const uint64_t active_node_rate_threshold_bps)
 {
   if (!limits_enabled) {
     return false;
@@ -884,7 +885,7 @@ TrafficShapingManager::ShouldEmitDelayForPolicy(
     return node_has_pressured_reservation;
   }
 
-  return node_rate_bps >= kActiveEntityNodeRateBps &&
+  return node_rate_bps >= active_node_rate_threshold_bps &&
          io_pressure >= std::max(0.0, std::min(1.0, io_pressure_threshold));
 }
 
@@ -896,6 +897,7 @@ TrafficShapingManager::UpdateTrafficShapingController(
   const bool reservations_enabled = GetReservationsEnabled();
   const uint64_t controller_min_limit_bps = GetControllerMinLimit();
   const double io_pressure_threshold = GetIoPressureThreshold();
+  const uint64_t active_node_rate_threshold_bps = GetActiveNodeRateThreshold();
   const auto now = std::chrono::steady_clock::now();
 
   ExpireControllerLimits(now);
@@ -934,7 +936,7 @@ TrafficShapingManager::UpdateTrafficShapingController(
                                        ? pressure_it->second
                                        : kUnknownIoPressure;
       UpdateAppIoPressure(app_io_pressure[node_entity_key.stream.app], stats.ema[Ema1s],
-                          node_pressure);
+                          node_pressure, active_node_rate_threshold_bps);
     }
 
     auto node_has_pressured_reservation = [&](const EntityRateMaps& node_rates,
@@ -959,7 +961,7 @@ TrafficShapingManager::UpdateTrafficShapingController(
             global_it != global_map.end() ? global_it->second : 0.0;
         const double node_rate_bps = node_it != node_map.end() ? node_it->second : 0.0;
 
-        if (node_rate_bps < kActiveEntityNodeRateBps) {
+        if (node_rate_bps < active_node_rate_threshold_bps) {
           continue;
         }
 
@@ -993,7 +995,7 @@ TrafficShapingManager::UpdateTrafficShapingController(
 
       if (has_write_reservation) {
         for (const auto& [app, rate_bps] : rates.app_write) {
-          if (rate_bps < kActiveEntityNodeRateBps) {
+          if (rate_bps < active_node_rate_threshold_bps) {
             continue;
           }
 
@@ -1009,7 +1011,7 @@ TrafficShapingManager::UpdateTrafficShapingController(
 
       if (has_read_reservation) {
         for (const auto& [app, rate_bps] : rates.app_read) {
-          if (rate_bps < kActiveEntityNodeRateBps) {
+          if (rate_bps < active_node_rate_threshold_bps) {
             continue;
           }
 
@@ -1077,7 +1079,8 @@ TrafficShapingManager::UpdateTrafficShapingController(
   bool used_custom_controller = false;
   if (!limits_enabled || !reservations_enabled) {
     ApplyDefaultReservationController(app_array, false, controller_min_limit_bps,
-                                      io_pressure_threshold);
+                                      io_pressure_threshold,
+                                      active_node_rate_threshold_bps);
   } else {
     // Keep the plugin lock scoped to the actual callback. Applying the resulting
     // policy updates can persist config, so it must not run while holding the
@@ -1092,7 +1095,8 @@ TrafficShapingManager::UpdateTrafficShapingController(
 
     if (!used_custom_controller) {
       ApplyDefaultReservationController(app_array, true, controller_min_limit_bps,
-                                        io_pressure_threshold);
+                                        io_pressure_threshold,
+                                        active_node_rate_threshold_bps);
     }
   }
 
@@ -1213,6 +1217,24 @@ uint64_t
 TrafficShapingManager::GetControllerMinLimit() const
 {
   return mControllerMinLimitBps.load(std::memory_order_relaxed);
+}
+
+void
+TrafficShapingManager::SetActiveNodeRateThreshold(const uint64_t threshold_bps)
+{
+  const uint64_t old_value =
+      mActiveNodeRateThresholdBps.exchange(threshold_bps, std::memory_order_relaxed);
+
+  if (old_value != threshold_bps) {
+    std::unique_lock lock(mMutex);
+    mNodeFstIoDelayConfigs.clear();
+  }
+}
+
+uint64_t
+TrafficShapingManager::GetActiveNodeRateThreshold() const
+{
+  return mActiveNodeRateThresholdBps.load(std::memory_order_relaxed);
 }
 
 void
@@ -1352,6 +1374,7 @@ TrafficShapingManager::UpdateLimits(
   const bool limits_enabled = GetLimitsEnabled();
   const bool reservations_enabled = GetReservationsEnabled();
   const double io_pressure_threshold = GetIoPressureThreshold();
+  const uint64_t active_node_rate_threshold_bps = GetActiveNodeRateThreshold();
 
   auto adjust_delay = [&](const double limit_bps, const double global_rate,
                           const double node_rate, const bool has_global_rate_sample,
@@ -1507,7 +1530,7 @@ TrafficShapingManager::UpdateLimits(
           const auto [node_rate_bps, has_node_rate_sample] =
               get_rate(is_write ? rates.app_write : rates.app_read, app);
 
-          if (!has_node_rate_sample || node_rate_bps < kActiveEntityNodeRateBps) {
+          if (!has_node_rate_sample || node_rate_bps < active_node_rate_threshold_bps) {
             continue;
           }
 
@@ -1559,7 +1582,8 @@ TrafficShapingManager::UpdateLimits(
           if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
                                        node_has_pressured_write_reservation,
                                        limits_enabled, reservations_enabled,
-                                       io_pressure_threshold)) {
+                                       io_pressure_threshold,
+                                       active_node_rate_threshold_bps)) {
             adjust_delay(static_cast<double>(effective_limit(policy, true)),
                          global_write_rate, node_write_rate, has_global_write_rate,
                          has_node_write_rate, allow_write_idle_release,
@@ -1575,7 +1599,8 @@ TrafficShapingManager::UpdateLimits(
           if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
                                        node_has_pressured_read_reservation,
                                        limits_enabled, reservations_enabled,
-                                       io_pressure_threshold)) {
+                                       io_pressure_threshold,
+                                       active_node_rate_threshold_bps)) {
             adjust_delay(static_cast<double>(effective_limit(policy, false)),
                          global_read_rate, node_read_rate, has_global_read_rate,
                          has_node_read_rate, allow_read_idle_release,
@@ -1601,7 +1626,8 @@ TrafficShapingManager::UpdateLimits(
           if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
                                        node_has_pressured_write_reservation,
                                        limits_enabled, reservations_enabled,
-                                       io_pressure_threshold)) {
+                                       io_pressure_threshold,
+                                       active_node_rate_threshold_bps)) {
             adjust_delay(static_cast<double>(effective_limit(policy, true)),
                          global_write_rate, node_write_rate, has_global_write_rate,
                          has_node_write_rate, allow_write_idle_release,
@@ -1617,7 +1643,8 @@ TrafficShapingManager::UpdateLimits(
           if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
                                        node_has_pressured_read_reservation,
                                        limits_enabled, reservations_enabled,
-                                       io_pressure_threshold)) {
+                                       io_pressure_threshold,
+                                       active_node_rate_threshold_bps)) {
             adjust_delay(static_cast<double>(effective_limit(policy, false)),
                          global_read_rate, node_read_rate, has_global_read_rate,
                          has_node_read_rate, allow_read_idle_release,
@@ -1643,7 +1670,8 @@ TrafficShapingManager::UpdateLimits(
           if (ShouldEmitDelayForPolicy(policy, true, node_write_rate, io_pressure,
                                        node_has_pressured_write_reservation,
                                        limits_enabled, reservations_enabled,
-                                       io_pressure_threshold)) {
+                                       io_pressure_threshold,
+                                       active_node_rate_threshold_bps)) {
             adjust_delay(static_cast<double>(effective_limit(policy, true)),
                          global_write_rate, node_write_rate, has_global_write_rate,
                          has_node_write_rate, allow_write_idle_release,
@@ -1659,7 +1687,8 @@ TrafficShapingManager::UpdateLimits(
           if (ShouldEmitDelayForPolicy(policy, false, node_read_rate, io_pressure,
                                        node_has_pressured_read_reservation,
                                        limits_enabled, reservations_enabled,
-                                       io_pressure_threshold)) {
+                                       io_pressure_threshold,
+                                       active_node_rate_threshold_bps)) {
             adjust_delay(static_cast<double>(effective_limit(policy, false)),
                          global_read_rate, node_read_rate, has_global_read_rate,
                          has_node_read_rate, allow_read_idle_release,
@@ -2558,6 +2587,40 @@ TrafficShapingEngine::StoreControllerMinLimitConfig(const uint64_t limit_bps)
 }
 
 void
+TrafficShapingEngine::SetActiveNodeRateThreshold(const uint64_t threshold_bps)
+{
+  ApplyActiveNodeRateThresholdConfig(threshold_bps);
+  StoreActiveNodeRateThresholdConfig(GetActiveNodeRateThreshold());
+}
+
+uint64_t
+TrafficShapingEngine::GetActiveNodeRateThreshold() const
+{
+  return mActiveNodeRateThresholdBps.load(std::memory_order_relaxed);
+}
+
+bool
+TrafficShapingEngine::ApplyActiveNodeRateThresholdConfig(const uint64_t threshold_bps)
+{
+  const uint64_t old_value =
+      mActiveNodeRateThresholdBps.exchange(threshold_bps, std::memory_order_relaxed);
+
+  if (mManager != nullptr) {
+    mManager->SetActiveNodeRateThreshold(threshold_bps);
+  }
+
+  return old_value != threshold_bps;
+}
+
+void
+TrafficShapingEngine::StoreActiveNodeRateThresholdConfig(const uint64_t threshold_bps)
+{
+  FsView::gFsView.SetGlobalConfig(
+      common::TRAFFIC_SHAPING_ACTIVE_NODE_RATE_THRESHOLD_CONFIG,
+      std::to_string(threshold_bps));
+}
+
+void
 TrafficShapingEngine::SetIoPressureThreshold(const double threshold)
 {
   ApplyIoPressureThresholdConfig(threshold);
@@ -2759,6 +2822,21 @@ TrafficShapingEngine::ApplyConfig()
                      "value=\"%s\" error=\"%s\"",
                      controller_min_limit.c_str(), e.what());
       ApplyControllerMinLimitConfig(kDefaultControllerMinLimitBps);
+    }
+  }
+
+  const std::string active_node_rate_threshold = FsView::gFsView.GetGlobalConfig(
+      common::TRAFFIC_SHAPING_ACTIVE_NODE_RATE_THRESHOLD_CONFIG);
+  if (active_node_rate_threshold.empty()) {
+    ApplyActiveNodeRateThresholdConfig(kDefaultActiveNodeRateThresholdBps);
+  } else {
+    try {
+      ApplyActiveNodeRateThresholdConfig(std::stoull(active_node_rate_threshold));
+    } catch (const std::exception& e) {
+      eos_static_err("msg=\"failed to parse Traffic Shaping active node rate "
+                     "threshold\" value=\"%s\" error=\"%s\"",
+                     active_node_rate_threshold.c_str(), e.what());
+      ApplyActiveNodeRateThresholdConfig(kDefaultActiveNodeRateThresholdBps);
     }
   }
 
@@ -3474,6 +3552,8 @@ std::unordered_map<std::string, AppIoPressureSnapshot>
 TrafficShapingManager::GetReservedAppIoPressure() const
 {
   const auto node_io_pressure = CollectNodeIoPressure();
+  const uint64_t active_node_rate_threshold_bps =
+      mActiveNodeRateThresholdBps.load(std::memory_order_relaxed);
   std::unordered_map<std::string, AppIoPressureSnapshot> pressure_by_app;
 
   std::shared_lock lock(mMutex);
@@ -3499,7 +3579,8 @@ TrafficShapingManager::GetReservedAppIoPressure() const
     const auto pressure_it = node_io_pressure.find(node_entity_key.node_id);
     const double node_pressure =
         pressure_it != node_io_pressure.end() ? pressure_it->second : kUnknownIoPressure;
-    UpdateAppIoPressure(app_it->second, stats.ema[Ema1s], node_pressure);
+    UpdateAppIoPressure(app_it->second, stats.ema[Ema1s], node_pressure,
+                        active_node_rate_threshold_bps);
   }
 
   return pressure_by_app;
@@ -3547,6 +3628,8 @@ TrafficShapingManager::GetReservedAppNodeIoPressure() const
   const bool reservations_enabled = mReservationsEnabled.load(std::memory_order_relaxed);
   const double io_pressure_threshold =
       mIoPressureThreshold.load(std::memory_order_relaxed);
+  const uint64_t active_node_rate_threshold_bps =
+      mActiveNodeRateThresholdBps.load(std::memory_order_relaxed);
   std::unordered_map<std::string, std::pair<bool, bool>> node_has_pressured_reservation;
 
   for (const auto& [app, policy] : mAppPolicies) {
@@ -3593,9 +3676,9 @@ TrafficShapingManager::GetReservedAppNodeIoPressure() const
         snapshot.read_rate_bps = read_rate_bps;
         snapshot.write_rate_bps = write_rate_bps;
         snapshot.has_read_io_pressure =
-            has_read_rate && read_rate_bps >= kActiveEntityNodeRateBps;
+            has_read_rate && read_rate_bps >= active_node_rate_threshold_bps;
         snapshot.has_write_io_pressure =
-            has_write_rate && write_rate_bps >= kActiveEntityNodeRateBps;
+            has_write_rate && write_rate_bps >= active_node_rate_threshold_bps;
       }
 
       snapshot.read_pressure_active = snapshot.has_read_io_pressure &&
