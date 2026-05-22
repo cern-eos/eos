@@ -41,8 +41,6 @@ if(EOSFOLLY_FOUND AND NOT TARGET FOLLY::FOLLY)
 endif()
 
 # This is done to preserve compatibility with qclient
-set(FOLLY_INCLUDE_DIRS ${EOSFOLLY_INCLUDE_DIR})
-set(FOLLY_LIBRARIES    ${EOSFOLLY_LIBRARY} glog gflags)
 set(FOLLY_FOUND TRUE)
 unset(EOSFOLLY_LIBRARY)
 unset(EOSFOLLY_INCLUDE_DIR)
