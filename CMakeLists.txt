@@ -180,7 +180,7 @@ set(CPACK_SOURCE_IGNORE_FILES
 ;/grpc/eos-grpc.spec;/.deps/;~$;'.'o$;/lib/;/.git/;eos.spec.in;elrepopackage.spec;.tar.gz$;\
 .tar.bz2$;${CPACK_SOURCE_IGNORE_FILES};")
 
-set(EOS_TUI_VERSION "0.2.11")
+set(EOS_TUI_VERSION "0.2.14")
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
