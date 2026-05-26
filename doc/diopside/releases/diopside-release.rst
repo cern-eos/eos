@@ -16,6 +16,17 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.3.37 Diopside``
+====================
+
+2026-05-26
+
+Bug
+----
+
+* [FUSEX] honor sys.owner.auth in the FuseServer cap path
+
+
 ``v5.3.36 Diopside``
 ====================
 
