@@ -1,0 +1,12 @@
+# Files / directories excluded from source archives produced by `git archive`
+# (and therefore from the eos source tarball and source rpm).
+#
+# Mirrors the old CPACK_SOURCE_IGNORE_FILES exclusions, in particular the
+# auxiliary .spec files that would otherwise make `rpmbuild -ts/-tb` fail
+# with: "Found more than one spec file in <archive>".
+
+/ApMon/             export-ignore
+/nginx/             export-ignore
+/gitlab-ci/         export-ignore
+/elrepopackage.spec export-ignore
+/eos.spec.in        export-ignore
