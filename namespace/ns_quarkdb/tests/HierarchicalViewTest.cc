@@ -24,18 +24,19 @@
 #include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include <algorithm>
 #include <cstdint>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <future>
 #include <gtest/gtest.h>
 #include <memory>
 #include <numeric>
@@ -1002,6 +1003,124 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
             view()->getContainer("/test/")->getTreeSize());
   ASSERT_EQ(100, view()->getContainer("/test/")->getTreeContainers());
   ASSERT_EQ(1001, view()->getContainer("/test/")->getTreeFiles());
+}
+
+// EOS-6577. The `eos ns tree-size` recompute samples a container's
+// children (file sizes, subcontainer tree_size totals) without locking the
+// container, then writes the total back under the container's write lock.
+// In parallel, the async QuarkContainerAccounting thread applies additive
+// deltas to the same `tree_size` counter when files mutate. If one such
+// delta lands between the sample and the write-back, the absolute write
+// clobbers it permanently — the bug this test guards against.
+//
+// The patched recompute bumps mTreeMutationVersion on every tree-size
+// mutation, snapshots it before sampling, and re-checks it under the
+// write lock; on mismatch it skips the write-back. The injector runs on
+// a separate thread to exercise cross-thread visibility of that bump,
+// and std::promise serializes sample -> inject -> write-back so the
+// race is deterministic.
+TEST_F(HierarchicalViewF, TreeSizeRecomputeSkipsWhenConcurrentMutation)
+{
+  constexpr int kN = 4;
+  constexpr uint64_t kS = 1000;
+  view()->createContainer("/test", true);
+  for (int i = 0; i < kN; ++i) {
+    auto fmd = view()->createFile("/test/f" + std::to_string(i));
+    fmd->setSize(kS);
+    view()->updateFileStore(fmd.get());
+  }
+  // Let the async QuarkContainerAccounting drain so cont.tree_size = kN*kS.
+  ::sleep(6);
+  auto cont = view()->getContainer("/test");
+  ASSERT_EQ(kN * kS, cont->getTreeSize());
+
+  const uint64_t version_start = cont->getTreeMutationVersion();
+  const uint64_t recomputed_tree_size = kN * kS;
+
+  std::promise<void> sample_done;
+  std::promise<void> injection_done;
+  constexpr int64_t kDelta = 7777;
+  std::thread injector([&]() {
+    sample_done.get_future().wait();
+    eos::MDLocking::ContainerWriteLock injectorLock(cont.get());
+    cont->updateTreeSize(kDelta);
+    containerSvc()->updateStore(cont.get());
+    injection_done.set_value();
+  });
+
+  // Sampling is complete (recomputed_tree_size above); let the injector run.
+  sample_done.set_value();
+  injection_done.get_future().wait();
+  ASSERT_EQ(kN * kS + kDelta, cont->getTreeSize());
+
+  // Write-back under the container write lock, gated on the version snapshot.
+  {
+    eos::MDLocking::ContainerWriteLock writeLock(cont.get());
+    if (cont->getTreeMutationVersion() == version_start) {
+      cont->setTreeSize(recomputed_tree_size);
+      containerSvc()->updateStore(cont.get());
+    }
+  }
+
+  injector.join();
+  // The injected delta must survive the recompute.
+  ASSERT_EQ(kN * kS + kDelta, cont->getTreeSize());
+}
+
+// Companion to TreeSizeRecomputeSkipsWhenConcurrentMutation. A concurrent
+// mutation that does NOT touch tree-size accounting (here, setMTimeNow on
+// a worker thread) must leave mTreeMutationVersion unchanged so the
+// patched recompute still applies its write-back. Guards against the
+// version check over-skipping on unrelated metadata updates.
+TEST_F(HierarchicalViewF, TreeSizeRecomputeUpdatesWhenStable)
+{
+  constexpr int kN = 4;
+  constexpr uint64_t kS = 1000;
+  view()->createContainer("/test", true);
+  for (int i = 0; i < kN; ++i) {
+    auto fmd = view()->createFile("/test/f" + std::to_string(i));
+    fmd->setSize(kS);
+    view()->updateFileStore(fmd.get());
+  }
+  ::sleep(6);
+  auto cont = view()->getContainer("/test");
+  ASSERT_EQ(kN * kS, cont->getTreeSize());
+
+  // Drift tree_size deliberately so the recompute has something to fix.
+  {
+    eos::MDLocking::ContainerWriteLock driftLock(cont.get());
+    cont->setTreeSize(0);
+    containerSvc()->updateStore(cont.get());
+  }
+  ASSERT_EQ(0u, cont->getTreeSize());
+
+  // Snapshot AFTER the drift so the version reflects the post-drift state.
+  const uint64_t version_start = cont->getTreeMutationVersion();
+  const uint64_t recomputed_tree_size = kN * kS;
+
+  std::promise<void> phase1_done;
+  std::promise<void> injection_done;
+  std::thread injector([&]() {
+    phase1_done.get_future().wait();
+    eos::MDLocking::ContainerWriteLock injectorLock(cont.get());
+    cont->setMTimeNow();
+    containerSvc()->updateStore(cont.get());
+    injection_done.set_value();
+  });
+
+  phase1_done.set_value();
+  injection_done.get_future().wait();
+
+  {
+    eos::MDLocking::ContainerWriteLock writeLock(cont.get());
+    if (cont->getTreeMutationVersion() == version_start) {
+      cont->setTreeSize(recomputed_tree_size);
+      containerSvc()->updateStore(cont.get());
+    }
+  }
+
+  injector.join();
+  ASSERT_EQ(kN * kS, cont->getTreeSize());
 }
 
 TEST_F(HierarchicalViewF, fileMDLockedClone)

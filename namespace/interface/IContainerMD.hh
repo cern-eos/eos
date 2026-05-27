@@ -312,6 +312,13 @@ public:
   virtual uint64_t getTreeFiles() const = 0;
 
   //----------------------------------------------------------------------------
+  //! Get monotonic version counter bumped on each tree-size accounting
+  //! mutation. Used by the namespace recompute to detect concurrent updates
+  //! from the async accounting propagator and skip the absolute write-back.
+  //----------------------------------------------------------------------------
+  virtual uint64_t getTreeMutationVersion() const = 0;
+
+  //----------------------------------------------------------------------------
   //! Get creation time
   //----------------------------------------------------------------------------
   virtual void getCTime(ctime_t& ctime) const = 0;

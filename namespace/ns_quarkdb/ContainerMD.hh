@@ -24,13 +24,14 @@
 #ifndef EOS_NS_CONTAINER_MD_HH
 #define EOS_NS_CONTAINER_MD_HH
 
+#include "common/FutureWrapper.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "namespace/ns_quarkdb/flusher/MetadataFlusher.hh"
 #include "proto/ContainerMd.pb.h"
-#include "common/FutureWrapper.hh"
-#include <sys/time.h>
+#include <atomic>
 #include <cstdint>
+#include <sys/time.h>
 
 #define FRIEND_TEST(test_case_name, test_name)\
 friend class test_case_name##_##test_name##_Test
@@ -274,6 +275,7 @@ public:
   {
     runWriteOp([this,treesize](){
       mCont.set_tree_size(treesize);
+      mTreeMutationVersion.fetch_add(1, std::memory_order_release);
     });
   }
 
@@ -298,6 +300,7 @@ public:
   inline void setTreeContainers(uint64_t treeContainers) override {
     runWriteOp([this,treeContainers](){
       mCont.set_tree_containers(treeContainers);
+      mTreeMutationVersion.fetch_add(1, std::memory_order_release);
     });
   }
 
@@ -316,6 +319,7 @@ public:
   inline void setTreeFiles(uint64_t treeFiles) override {
     runWriteOp([this,treeFiles](){
       mCont.set_tree_files(treeFiles);
+      mTreeMutationVersion.fetch_add(1, std::memory_order_release);
     });
   }
 
@@ -326,6 +330,16 @@ public:
     return runReadOp([this](){
       return mCont.tree_files();
     });
+  }
+
+  //----------------------------------------------------------------------------
+  //! Get monotonic version counter bumped on each tree-size accounting
+  //! mutation. See IContainerMD::getTreeMutationVersion.
+  //----------------------------------------------------------------------------
+  uint64_t
+  getTreeMutationVersion() const override
+  {
+    return mTreeMutationVersion.load(std::memory_order_acquire);
   }
 
   //----------------------------------------------------------------------------
@@ -653,6 +667,9 @@ private:
   std::string pFilesKey;                ///< Map files key
   std::string pDirsKey;                 ///< Map dir key
   uint64_t mClock;                      ///< Value tracking changes
+  //! Bumped on each tree-size accounting mutation; read lock-free by
+  //! NsCmd::UpdateTreeSize to detect concurrent propagator updates.
+  std::atomic<uint64_t> mTreeMutationVersion{0};
 
   common::FutureWrapper<ContainerMap> mSubcontainers;
   common::FutureWrapper<FileMap> mFiles;

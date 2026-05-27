@@ -1235,53 +1235,71 @@ void
 NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
 {
   eos_debug("cont name=%s, id=%llu", cont->getName().c_str(), cont->getId());
-  std::shared_ptr<eos::IFileMD> tmp_fmd {nullptr};
-  std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
-  uint64_t tree_size = 0u;
-  uint64_t tree_containers = 0u;
-  uint64_t tree_files = 0u;
+  // Best-effort race protection vs. the async QuarkContainerAccounting
+  // propagator. Each attempt snapshots the container's mutation version
+  // before sampling children and re-checks it under the write lock at
+  // write-back; on mismatch the attempt is retried with fresh data. The
+  // final attempt writes unconditionally so a continuously-mutated subtree
+  // still converges, at the cost of a single possible clobber of an
+  // in-flight propagator delta on that attempt.
+  constexpr int kMaxAttempts = 4;
 
-  for (auto fit = FileMapIterator(cont); fit.valid(); fit.next()) {
-    try {
-      tmp_fmd = gOFS->eosFileService->getFileMD(fit.value());
-    } catch (const eos::MDException& e) {
-      eos_err("error=\"%s\"", e.what());
-      continue;
+  for (int attempt = 1; attempt <= kMaxAttempts; ++attempt) {
+    const uint64_t version_start = cont->getTreeMutationVersion();
+    std::shared_ptr<eos::IFileMD> tmp_fmd{nullptr};
+    std::shared_ptr<eos::IContainerMD> tmp_cont{nullptr};
+    uint64_t tree_size = 0u;
+    uint64_t tree_containers = 0u;
+    uint64_t tree_files = 0u;
+
+    for (auto fit = FileMapIterator(cont); fit.valid(); fit.next()) {
+      try {
+        tmp_fmd = gOFS->eosFileService->getFileMD(fit.value());
+      } catch (const eos::MDException& e) {
+        eos_err("error=\"%s\"", e.what());
+        continue;
+      }
+
+      // No need to lock the file here as it's only one operation to be done
+      tree_size += tmp_fmd->getSize();
+      tree_files += 1;
     }
 
-    // No need to lock the file here as it's only one operation to be done
-    tree_size += tmp_fmd->getSize();
-    tree_files += 1;
-  }
+    for (auto cit = ContainerMapIterator(cont); cit.valid(); cit.next()) {
+      try {
+        tmp_cont = gOFS->eosDirectoryService->getContainerMD(cit.value());
+      } catch (const eos::MDException& e) {
+        eos_err("error=\"%s\"", e.what());
+        continue;
+      }
 
-  for (auto cit = ContainerMapIterator(cont); cit.valid(); cit.next()) {
-    try {
-      tmp_cont = gOFS->eosDirectoryService->getContainerMD(cit.value());
-    } catch (const eos::MDException& e) {
-      eos_err("error=\"%s\"", e.what());
-      continue;
+      // Read lock the container here
+      eos::MDLocking::ContainerReadLock readLock(tmp_cont.get());
+      tree_size += tmp_cont->getTreeSize();
+      tree_containers +=
+          tmp_cont->getTreeContainers() +
+          1; // Count the current cont' children + the subChildren (getDirCount())
+      tree_files += tmp_cont->getTreeFiles();
     }
 
-    // Read lock the container here
-    eos::MDLocking::ContainerReadLock readLock(tmp_cont.get());
-    tree_size += tmp_cont->getTreeSize();
-    tree_containers += tmp_cont->getTreeContainers() +
-                       1; //Count the current cont' children + the subChildren (getDirCount())
-    tree_files += tmp_cont->getTreeFiles();
+    eos::ContainerIdentifier id;
+    eos::ContainerIdentifier parentId;
+    {
+      eos::MDLocking::ContainerWriteLock writeLock(cont.get());
+      const bool force = (attempt == kMaxAttempts);
+      if (!force && cont->getTreeMutationVersion() != version_start) {
+        continue;
+      }
+      id = cont->getIdentifier();
+      parentId = cont->getParentIdentifier();
+      cont->setTreeSize(tree_size);
+      cont->setTreeFiles(tree_files);
+      cont->setTreeContainers(tree_containers);
+      gOFS->eosDirectoryService->updateStore(cont.get());
+    }
+    gOFS->FuseXCastRefresh(id, parentId);
+    return;
   }
-
-  eos::ContainerIdentifier id;
-  eos::ContainerIdentifier parentId;
-  {
-    eos::MDLocking::ContainerWriteLock writeLock(cont.get());
-    id = cont->getIdentifier();
-    parentId = cont->getParentIdentifier();
-    cont->setTreeSize(tree_size);
-    cont->setTreeFiles(tree_files);
-    cont->setTreeContainers(tree_containers);
-    gOFS->eosDirectoryService->updateStore(cont.get());
-  }
-  gOFS->FuseXCastRefresh(id, parentId);
 }
 
 //------------------------------------------------------------------------------

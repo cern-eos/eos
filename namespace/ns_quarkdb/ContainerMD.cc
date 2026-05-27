@@ -692,6 +692,7 @@ QuarkContainerMD::updateTreeSize(int64_t delta)
     uint64_t sz = mCont.tree_size();
     eos::common::ComputeSize(sz, delta);
     mCont.set_tree_size(sz);
+    mTreeMutationVersion.fetch_add(1, std::memory_order_release);
     return sz;
   });
 }
@@ -702,6 +703,7 @@ uint64_t QuarkContainerMD::updateTreeContainers(int64_t delta)
     uint64_t sz = mCont.tree_containers();
     eos::common::ComputeSize(sz, delta);
     mCont.set_tree_containers(sz);
+    mTreeMutationVersion.fetch_add(1, std::memory_order_release);
     return sz;
   });
 }
@@ -713,6 +715,7 @@ uint64_t QuarkContainerMD::updateTreeFiles(int64_t delta)
     // Avoid negative tree size
     eos::common::ComputeSize(sz, delta);
     mCont.set_tree_files(sz);
+    mTreeMutationVersion.fetch_add(1, std::memory_order_release);
     return sz;
   });
 }
