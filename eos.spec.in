@@ -231,7 +231,7 @@ BuildRequires: compiler-rt
 %description
 The EOS software package.
 %prep
-%setup -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
+%setup -q -n %{name}-%{version}-@CPACK_PACKAGE_RELEASE@
 %global build_type RelWithDebInfo
 %global build_flags -DBUILD_MANPAGES=1
 %if %{without server}
