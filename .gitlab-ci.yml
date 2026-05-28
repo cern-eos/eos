@@ -153,10 +153,9 @@ clone_docker:
   stage: build:rpm
   variables:
     PKG_MGR: dnf
-    CMAKE_BIN: cmake
   script:
     - git submodule sync --recursive && git submodule update --init -f --recursive
-    - mkdir build; cd build; ${CMAKE_BIN} .. -DPACKAGEONLY=1 -DEOS_GRPC_GW=1 -Wno-dev; make srpm; cd ..;
+    - mkdir build; cd build; cmake .. -DPACKAGEONLY=1 -DEOS_GRPC_GW=1 -Wno-dev; make srpm; cd ..;
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-$(rpm --eval '%{rhel}')/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
     - |
       if [[ ${PKG_MGR} == "yum" ]]; then
@@ -175,7 +174,8 @@ clone_docker:
     - rpmbuild --rebuild --with server --with eos_grpc_gateway --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | (ts 2> /dev/null || true; tee)
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir ${BUILD_NAME}_artifacts; cp -rv build/*RPMS/ build/eos-*.tar.gz ${BUILD_NAME}_artifacts
+    - mkdir ${BUILD_NAME}-artifacts; cp -rv build/*RPMS/ build/eos-*.tar.gz ${BUILD_NAME}-artifacts
+    - echo "OS_TAG=$(rpm --eval '%{?dist}')" > build.env
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -183,7 +183,9 @@ clone_docker:
   artifacts:
     expire_in: 60 days
     paths:
-      - ${BUILD_NAME}_artifacts/
+      - ${BUILD_NAME}-artifacts/
+    reports:
+      dotenv: build.env
 
 
 build_el8:
@@ -240,12 +242,12 @@ build_el9_arm64:
     - mkdir -pv build; cd build;
     - cmake ../ -DPACKAGEONLY=1 -DCLIENT=1 -Wno-dev
     - make srpm; cd ..;
-    - mkdir -p ${CI_JOB_NAME}_artifacts
-    - cp -rv build/SRPMS/ ${CI_JOB_NAME}_artifacts
+    - mkdir -p ${CI_JOB_NAME}-artifacts
+    - cp -rv build/SRPMS/ ${CI_JOB_NAME}-artifacts
   artifacts:
     expire_in: 60 days
     paths:
-      - ${CI_JOB_NAME}_artifacts
+      - ${CI_JOB_NAME}-artifacts
   only:
     - schedules
     - tags
@@ -283,7 +285,7 @@ rh-10:
     - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - mkdir ${BUILD_NAME}_artifacts; cp -R build/SRPMS build/RPMS ${BUILD_NAME}_artifacts
+    - mkdir ${BUILD_NAME}-artifacts; cp -R build/SRPMS build/RPMS ${BUILD_NAME}-artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -291,7 +293,7 @@ rh-10:
   artifacts:
     expire_in: 60 days
     paths:
-      - ${BUILD_NAME}_artifacts/
+      - ${BUILD_NAME}-artifacts/
   allow_failure: true
 
 
@@ -323,13 +325,12 @@ build_fedora_rawhide:
   stage: build:rpm
   variables:
     PKG_MGR: dnf
-    CMAKE_CMD: cmake3
   script:
     - export DIST=$(rpm --eval '%{rhel}')
     - ${PKG_MGR} install -y git ccache tar sudo which tar gzip moreutils
     - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build; cd build
-    - ${CMAKE_CMD} .. -DPACKAGEONLY=1 ${CMAKE_OPTIONS} -Wno-dev
+    - cmake .. -DPACKAGEONLY=1 ${CMAKE_OPTIONS} -Wno-dev
     - make srpm; cd ..;
     - |
       if [[ "$RPMBUILD_OPTIONS" == *asan* ]]; then
@@ -350,12 +351,13 @@ build_fedora_rawhide:
         ${PKG_MGR} install -y dnf-plugins-core
         ${PKG_MGR} builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
       fi
-    - mkdir -p ${BUILD_NAME}_artifacts
+    - mkdir -p ${BUILD_NAME}-artifacts
     - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
     - rpmbuild --rebuild ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
     - ccache -s
     - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
-    - cp -R build/SRPMS/ build/RPMS/ ${BUILD_NAME}_artifacts
+    - cp -R build/SRPMS/ build/RPMS/ ${BUILD_NAME}-artifacts
+    - echo "OS_TAG=$(rpm --eval '%{?dist}')" > build.env
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
     paths:
@@ -363,7 +365,9 @@ build_fedora_rawhide:
   artifacts:
     expire_in: 1 day
     paths:
-      - ${BUILD_NAME}_artifacts/
+      - ${BUILD_NAME}-artifacts/
+    reports:
+      dotenv: build.env
   dependencies: []
   allow_failure: true
 
@@ -371,7 +375,6 @@ build_fedora_rawhide:
 build_el9_asan:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
-    CMAKE_CMD: cmake
     BUILD_NAME: el-9-asan
     CMAKE_OPTIONS: "-DASAN=1"
     RPMBUILD_OPTIONS: "--with server --with asan"
@@ -385,7 +388,6 @@ build_el9_asan:
 build_client_el9_tsan:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
-    CMAKE_CMD: cmake
     BUILD_NAME: el-9-tsan
     CMAKE_OPTIONS: "-DTSAN=1"
     RPMBUILD_OPTIONS: "--with tsan"
@@ -427,7 +429,7 @@ build_cc7_opt_xrootd:
 build_el9_coverage:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:
-    BUILD_NAME: el9_coverage
+    BUILD_NAME: el-9-coverage
     RPMBUILD_OPTIONS: "--with coverage"
   only:
     variables:
@@ -445,6 +447,11 @@ build_el9_coverage:
     entrypoint: [""]
   variables:
     EXTRA_TAG: ""
+    DOCKERFILE: eos-docker/docker/Dockerfile
+    TARGET: test
+    BASE_IMAGE: ""
+    INSTALL_EXTRA: ""
+    INSTALL_REPO_DISABLE: ""
   script:
     # @note keep $CACHE orthogonal to $IMAGE_TAG, do not join the "if"s
     - if [[ -n "$CI_COMMIT_TAG" ]] || [[ "x$CI_PIPELINE_SOURCE" == "xschedule" ]];
@@ -457,26 +464,44 @@ build_el9_coverage:
       fi
     - IMAGE_REPO="gitlab-registry.cern.ch/dss/eos/eos-ci"
     - DESTINATION="${IMAGE_REPO}:${IMAGE_TAG}"
-    - echo "CACHE=$CACHE - DESTINATION=$DESTINATION"
+    # Deduce the artefact directory from DIST unless explicitly overridden.
+    # Convention (see .build-template / .build_exotic-template): ${DIST}-artifacts/RPMS
+    - ARTIFACT_DIR="${ARTIFACT_DIR:-${DIST}-artifacts/RPMS}"
+    - echo "CACHE=$CACHE - DESTINATION=$DESTINATION - DIST=$DIST - TARGET=$TARGET - ARTIFACT_DIR=$ARTIFACT_DIR"
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=$CACHE --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --compressed-caching=false --use-new-run
+    - |
+      set -- \
+        --cache=$CACHE \
+        --destination "$DESTINATION" \
+        --dockerfile "$DOCKERFILE" \
+        --context "$CI_PROJECT_DIR" \
+        --target "$TARGET" \
+        --compressed-caching=false \
+        --use-new-run \
+        --build-arg=EOS_CODENAME="${CODENAME}" \
+        --build-arg=DIST="${DIST}" \
+        --build-arg=ARTIFACT_DIR="${ARTIFACT_DIR}"
+      [[ -n "$BASE_IMAGE"           ]] && set -- "$@" --build-arg=BASE_IMAGE="${BASE_IMAGE}"
+      [[ -n "$INSTALL_EXTRA"        ]] && set -- "$@" --build-arg=INSTALL_EXTRA="${INSTALL_EXTRA}"
+      [[ -n "$INSTALL_REPO_DISABLE" ]] && set -- "$@" --build-arg=INSTALL_REPO_DISABLE="${INSTALL_REPO_DISABLE}"
+      /kaniko/executor "$@"
   retry: 1
 
 
 el9_docker_image:
   extends: .build_dockerimage-template
   variables:
-    DOCKERFILE: eos-docker/Dockerfile_el9
-    OS_TAG: ".el9"
+    DIST: el-9
   needs:
     - job: clone_docker
     - job: build_el9
 
+
 el10_docker_image:
   extends: .build_dockerimage-template
   variables:
-    DOCKERFILE: eos-docker/Dockerfile_el10
-    OS_TAG: ".el10"
+    DIST: el-10
+    BASE_IMAGE: gitlab-registry.cern.ch/linuxsupport/alma10-base
   needs:
     - job: clone_docker
     - job: build_el10
@@ -488,9 +513,10 @@ el10_docker_image:
 el9_asan_docker_image:
   extends: .build_dockerimage-template
   variables:
-    DOCKERFILE: eos-docker/Dockerfile_el9_asan
+    DIST: el-9-asan
+    INSTALL_EXTRA: "eos-folly-2019.11.11.00 eos-folly-deps-2019.11.11.00"
+    INSTALL_REPO_DISABLE: "cern*"
     EXTRA_TAG: "_asan"
-    OS_TAG: ".el9"
   needs:
     - job: clone_docker
     - job: build_el9_asan
@@ -501,9 +527,8 @@ el9_asan_docker_image:
 .el9_coverage_docker_image:
   extends: .build_dockerimage-template
   variables:
-    DOCKERFILE: eos-docker/Dockerfile_coverage
+    DIST: el-9-coverage
     EXTRA_TAG: "_coverage"
-    OS_TAG: ".el9"
   needs:
     - job: clone_docker
     - job: build_el9_coverage
@@ -885,7 +910,7 @@ unit_test_asan:
     - yum install --nogpg -y sssd-client
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     # KOJI_SCRATCH will be set for branches and empty for tags
-    - koji build ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}_artifacts/SRPMS/*.src.rpm
+    - koji build ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}-artifacts/SRPMS/*.src.rpm
   tags:
     - docker_node
     - publish
@@ -1125,6 +1150,11 @@ rpm_stable_artifacts:
   image:
     name: gcr.io/kaniko-project/executor:debug
     entrypoint: [""]
+  variables:
+    # eos-docker (redesigned layout): single minimal Dockerfile, parameterised
+    DOCKERFILE: eos-docker/docker/Dockerfile.minimal
+    DIST: el-9
+    PACKAGES: ""
   script:
     - if [[ -n "$CI_COMMIT_TAG" ]]; then
         export REPOBRANCH="tag-testing";
@@ -1134,16 +1164,27 @@ rpm_stable_artifacts:
         export DESTINATION="${IMAGE_REPO}:${CI_COMMIT_SHORT_SHA}${OS_TAG}";
       fi
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
-    - /kaniko/executor --cache=false --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --build-arg=REPOBRANCH="${REPOBRANCH}" --compressed-caching=false --use-new-run
+    - |
+      set -- \
+        --cache=false \
+        --destination "$DESTINATION" \
+        --dockerfile "$DOCKERFILE" \
+        --context "$CI_PROJECT_DIR" \
+        --compressed-caching=false \
+        --use-new-run \
+        --build-arg=EOS_CODENAME="${CODENAME}" \
+        --build-arg=DIST="${DIST}" \
+        --build-arg=REPOBRANCH="${REPOBRANCH}"
+      [[ -n "$PACKAGES" ]] && set -- "$@" --build-arg=PACKAGES="${PACKAGES}"
+      /kaniko/executor "$@"
   retry: 1
 
 
 el9_publish_dockerimage_all:
   extends: .publish_dockerimage-template
   variables:
-    DOCKERFILE: eos-docker/minimal/el9_minimal.Dockerfile
     IMAGE_REPO: "gitlab-registry.cern.ch/dss/eos/eos-all"
-    OS_TAG: ".el9"
+    DIST: el-9
   needs:
     - job: clone_docker
     - job: build_el9
@@ -1154,9 +1195,10 @@ el9_publish_dockerimage_all:
 el9_publish_dockerimage_fusex:
   extends: .publish_dockerimage-template
   variables:
-    DOCKERFILE: eos-docker/minimal/el9_minimal.fusex-only.Dockerfile
     IMAGE_REPO: "gitlab-registry.cern.ch/dss/eos/eos-fusex"
-    OS_TAG: ".el9"
+    DIST: el-9
+    # Restrict the package set to the fuse client only
+    PACKAGES: "eos-fusex"
   needs:
     - job: clone_docker
     - job: build_el9
@@ -1211,50 +1253,6 @@ clean_helm_cluster:
   allow_failure: true
   only:
     - schedules
-
-
-#-------------------------------------------------------------------------------
-# Manually triggered builds
-#-------------------------------------------------------------------------------
-
-.eos_nginx_build_template:
-  stage: build:manual
-  variables:
-    PKG_MGR: dnf
-  script:
-    - ${PKG_MGR} install --nogpg -y gcc-c++ cmake make rpm-build which git sudo yum-utils createrepo sssd-client
-    - cd nginx
-    - ./makesrpm.sh
-    - |
-      if [[ ${PKG_MGR} == "yum" ]]; then
-        ${PKG_MGR}-builddep -y --nogpgcheck *.src.rpm
-      else
-        ${PKG_MGR} install -y dnf-plugins-core
-        ${PKG_MGR} builddep -y --nogpgcheck *.src.rpm
-      fi
-    - mkdir RPMS
-    - rpmbuild --rebuild --define "_rpmdir RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" *.src.rpm
-    - STORAGE_PATH=/eos/project/s/storage-ci/www/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64
-    - sudo -u stci -H mkdir -p $STORAGE_PATH
-    - sudo -u stci -H cp -f RPMS/*.rpm $STORAGE_PATH
-    - sudo -u stci -H createrepo --update -q $STORAGE_PATH
-  tags:
-    - docker_node
-  when: manual
-
-
-eos_nginx_el-8:
-  extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/alma8-base
-  variables:
-    BUILD_NAME: el-8
-
-
-eos_nginx_el-9:
-  extends: .eos_nginx_build_template
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
-  variables:
-    BUILD_NAME: el-9
 
 
 #-------------------------------------------------------------------------------
