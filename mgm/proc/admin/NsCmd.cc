@@ -1084,6 +1084,7 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
   }
 
   std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
+  std::unordered_map<eos::IContainerMD::id_t, eos::TreeInfos> recomputed_tree_infos;
   std::list< std::list<eos::IContainerMD::id_t> > bfs =
     BreadthFirstSearchContainers(cont.get(), tree.depth());
 
@@ -1096,7 +1097,7 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
         continue;
       }
 
-      UpdateTreeSize(tmp_cont);
+      UpdateTreeSize(tmp_cont, recomputed_tree_infos);
     }
   }
 }
@@ -1231,15 +1232,23 @@ NsCmd::QuotaSizeSubcmd(const eos::console::NsProto_QuotaSizeProto& tree,
 // subcontainers tree size values are correct and adding the size of files
 // attached directly to the current container
 //------------------------------------------------------------------------------
-void
-NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
+bool
+NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont,
+                      std::unordered_map<eos::IContainerMD::id_t, eos::TreeInfos>&
+                          recomputedTreeInfos) const
 {
-  eos_debug("cont name=%s, id=%llu", cont->getName().c_str(), cont->getId());
+  const auto cont_id = cont->getId();
+  eos_debug("cont name=%s, id=%llu", cont->getName().c_str(), cont_id);
   std::shared_ptr<eos::IFileMD> tmp_fmd {nullptr};
   std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
   uint64_t tree_size = 0u;
   uint64_t tree_containers = 0u;
   uint64_t tree_files = 0u;
+  uint64_t scan_sequence = 0u;
+
+  if (gOFS->eosContainerAccounting) {
+    scan_sequence = gOFS->eosContainerAccounting->GetAccountingSequence();
+  }
 
   for (auto fit = FileMapIterator(cont); fit.valid(); fit.next()) {
     try {
@@ -1262,12 +1271,36 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
       continue;
     }
 
+    const auto recomputed_it = recomputedTreeInfos.find(cit.value());
+
+    if (recomputed_it != recomputedTreeInfos.end()) {
+      tree_size += recomputed_it->second.dsize;
+      tree_containers += recomputed_it->second.dtreecontainers + 1;
+      tree_files += recomputed_it->second.dtreefiles;
+      continue;
+    }
+
     // Read lock the container here
     eos::MDLocking::ContainerReadLock readLock(tmp_cont.get());
     tree_size += tmp_cont->getTreeSize();
     tree_containers += tmp_cont->getTreeContainers() +
                        1; //Count the current cont' children + the subChildren (getDirCount())
     tree_files += tmp_cont->getTreeFiles();
+  }
+
+  eos::TreeInfos tree_infos{static_cast<int64_t>(tree_size),
+                            static_cast<int64_t>(tree_files),
+                            static_cast<int64_t>(tree_containers)};
+
+  if (gOFS->eosContainerAccounting &&
+      gOFS->eosContainerAccounting->SetTreeIfAccountingUnchanged(cont_id, tree_infos,
+                                                                 scan_sequence)) {
+    recomputedTreeInfos[cont_id] = tree_infos;
+    return true;
+  }
+
+  if (gOFS->eosContainerAccounting) {
+    return false;
   }
 
   eos::ContainerIdentifier id;
@@ -1282,6 +1315,8 @@ NsCmd::UpdateTreeSize(eos::IContainerMDPtr cont) const
     gOFS->eosDirectoryService->updateStore(cont.get());
   }
   gOFS->FuseXCastRefresh(id, parentId);
+  recomputedTreeInfos[cont_id] = tree_infos;
+  return true;
 }
 
 //------------------------------------------------------------------------------

@@ -81,27 +81,90 @@ public:
   //! Event sent to the listener
   //----------------------------------------------------------------------------
   struct Event {
-    Event(IFileMD* _file, Action _action,
-          IFileMD::location_t _location = 0,
-          TreeInfos _changed_tree = {0,0,0}):
-      file(_file),
-      action(_action),
-      treeChange(_changed_tree),
-      location(_location) {}
+    Event(IFileMD* _file, Action _action, IFileMD::location_t _location = 0,
+          TreeInfos _changed_tree = {0, 0, 0}, IContainerMD::id_t _container_id = 0)
+        : file(_file)
+        , action(_action)
+        , treeChange(_changed_tree)
+        , location(_location)
+        , containerId(_container_id ? _container_id : _location)
+    {
+    }
 
     IFileMD*             file;
     Action               action;
     TreeInfos            treeChange;
     IFileMD::location_t  location;
+    IContainerMD::id_t containerId;
+  };
 
+  //---------------------------------------------------------------------------
+  //! Accounting delta reserved before a metadata change becomes visible
+  //----------------------------------------------------------------------------
+  struct ReservedAccountingDelta {
+    bool valid = false;
+    uint64_t sequence = 0;
+    uint64_t deltaSequence = 0;
+    IContainerMD::id_t containerId = 0;
+    TreeInfos treeChange;
   };
 
   virtual ~IFileMDChangeListener() {}
   virtual void fileMDChanged(Event* event) = 0;
   virtual void fileMDRead(IFileMD* obj) = 0;
   virtual bool fileMDCheck(IFileMD* obj) = 0;
-  virtual void AddTree(IContainerMD* obj , TreeInfos treeInfos) = 0;
-  virtual void RemoveTree(IContainerMD* obj , TreeInfos treeInfos) = 0;
+  virtual void AddTree(IContainerMD::id_t id, TreeInfos treeInfos) = 0;
+  virtual void
+  AddTree(IContainerMD* obj, TreeInfos treeInfos)
+  {
+    AddTree(obj->getId(), treeInfos);
+  }
+  virtual void RemoveTree(IContainerMD::id_t id, TreeInfos treeInfos) = 0;
+  virtual void
+  RemoveTree(IContainerMD* obj, TreeInfos treeInfos)
+  {
+    RemoveTree(obj->getId(), treeInfos);
+  }
+  virtual void
+  MoveTree(IContainerMD::id_t oldParentId, IContainerMD::id_t newParentId,
+           IContainerMD::id_t movedId, TreeInfos treeInfos)
+  {
+    (void)movedId;
+    RemoveTree(oldParentId, treeInfos);
+    AddTree(newParentId, treeInfos);
+  }
+  virtual void
+  MoveTree(IContainerMD* oldParent, IContainerMD* newParent, IContainerMD* moved,
+           TreeInfos treeInfos)
+  {
+    MoveTree(oldParent->getId(), newParent->getId(), moved->getId(), treeInfos);
+  }
+  virtual uint64_t
+  GetAccountingSequence() const
+  {
+    return 0;
+  }
+  virtual bool
+  SetTreeIfAccountingUnchanged(IContainerMD::id_t id, TreeInfos treeInfos,
+                               uint64_t accountingSequence)
+  {
+    return false;
+  }
+  virtual bool
+  SetTreeIfAccountingUnchanged(IContainerMD* obj, TreeInfos treeInfos,
+                               uint64_t accountingSequence)
+  {
+    return SetTreeIfAccountingUnchanged(obj->getId(), treeInfos, accountingSequence);
+  }
+  virtual ReservedAccountingDelta
+  ReserveAccountingDelta(IContainerMD::id_t containerId, TreeInfos treeInfos)
+  {
+    return {};
+  }
+  virtual void
+  PublishAccountingDelta(const ReservedAccountingDelta& delta)
+  {
+  }
 };
 
 //------------------------------------------------------------------------------
@@ -203,6 +266,25 @@ public:
   //! Notify the listeners about the change
   //------------------------------------------------------------------------
   virtual void notifyListeners(IFileMDChangeListener::Event* event) = 0;
+
+  //------------------------------------------------------------------------
+  //! Reserve an accounting delta sequence before the metadata change
+  //! becomes visible. The returned delta must be published after releasing
+  //! namespace object locks.
+  //------------------------------------------------------------------------
+  virtual IFileMDChangeListener::ReservedAccountingDelta
+  ReserveAccountingDelta(IContainerMD::id_t containerId, TreeInfos treeInfos)
+  {
+    return {};
+  }
+
+  //------------------------------------------------------------------------
+  //! Publish a previously reserved accounting delta.
+  //------------------------------------------------------------------------
+  virtual void
+  PublishAccountingDelta(const IFileMDChangeListener::ReservedAccountingDelta& delta)
+  {
+  }
 
   //----------------------------------------------------------------------------
   //! Set the QuotaStats object for the follower

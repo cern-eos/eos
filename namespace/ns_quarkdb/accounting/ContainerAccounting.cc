@@ -17,8 +17,10 @@
  ************************************************************************/
 
 #include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
-#include <iostream>
+#include <algorithm>
 #include <chrono>
+#include <iostream>
+#include <map>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -44,7 +46,11 @@ QuarkContainerAccounting::QuarkContainerAccounting(IContainerMDSvc* svc, int32_t
 QuarkContainerAccounting::~QuarkContainerAccounting()
 {
   // Stop the AsyncQueueUpdate thread by queuing containerID = 0
-  mIdTreeInfosToUpdateQueue.emplace(0,TreeInfos{0,0,0});
+  {
+    std::lock_guard<std::mutex> scope_lock(mMutexEventQueue);
+    mAccountingQueue.emplace(EventType::Stop, NextSequence(), 0, 0, TreeInfos{0, 0, 0});
+  }
+
   if (mUpdateIntervalSec) {
     mThread.join();
     mQueueForUpdateThread.join();
@@ -60,14 +66,12 @@ QuarkContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
   switch (e->action) {
   // We are only interested in SizeChange events
   case IFileMDChangeListener::SizeChange:
-    // e->file can be nullptr here
-    if ((e->file && e->file->getContainerId() == 0) || !e->file) {
-      // NOTE: This is an ugly hack. The file object has not reference to the
-      // container id, therefore we hijack the "location" member of the Event
-      // class to pass in the container id.
-      QueueForUpdate(e->location, e->treeChange);
-    } else {
+    if (e->containerId) {
+      QueueForUpdate(e->containerId, e->treeChange);
+    } else if (e->file) {
       QueueForUpdate(e->file->getContainerId(), e->treeChange);
+    } else {
+      QueueForUpdate(e->location, e->treeChange);
     }
 
     break;
@@ -81,18 +85,131 @@ QuarkContainerAccounting::fileMDChanged(IFileMDChangeListener::Event* e)
 // Add tree
 //------------------------------------------------------------------------------
 void
+QuarkContainerAccounting::AddTree(IContainerMD::id_t id, TreeInfos treeAccounting)
+{
+  QueueForUpdate(id, treeAccounting);
+}
+
+void
 QuarkContainerAccounting::AddTree(IContainerMD* obj, TreeInfos treeAccounting)
 {
-  QueueForUpdate(obj->getId(), treeAccounting);
+  AddTree(obj->getId(), treeAccounting);
 }
 
 //-------------------------------------------------------------------------------
 // Remove tree
 //-------------------------------------------------------------------------------
 void
+QuarkContainerAccounting::RemoveTree(IContainerMD::id_t id, TreeInfos treeAccounting)
+{
+  QueueForUpdate(id, -treeAccounting);
+}
+
+void
 QuarkContainerAccounting::RemoveTree(IContainerMD* obj, TreeInfos treeAccounting)
 {
-  QueueForUpdate(obj->getId(), -treeAccounting);
+  RemoveTree(obj->getId(), treeAccounting);
+}
+
+//------------------------------------------------------------------------------
+// Move tree
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::MoveTree(IContainerMD::id_t oldParentId,
+                                   IContainerMD::id_t newParentId,
+                                   IContainerMD::id_t movedId, TreeInfos treeAccounting)
+{
+  {
+    std::lock_guard<std::mutex> scope_lock(mMutexEventQueue);
+    const auto sequence = mSequence.fetch_add(2) + 1;
+    const auto deltaSequence = ++mDeltaSequence;
+    // A directory move is one logical tree change: remove the moved subtree
+    // from the old parent and add it to the new parent. Recording the move at
+    // this sequence lets pending deltas below the moved directory walk the
+    // parent chain that was valid when they were queued, instead of racing with
+    // the current topology.
+    //
+    // Lock order: mMutexEventQueue may be taken before mMutexParentHistory (in
+    // RecordMove). Never take mMutexEventQueue while holding mMutexParentHistory.
+    RecordMove(sequence, movedId, oldParentId, newParentId);
+    mAccountingQueue.emplace(EventType::Delta, sequence, deltaSequence, oldParentId,
+                             -treeAccounting);
+    mAccountingQueue.emplace(EventType::Delta, sequence + 1, deltaSequence, newParentId,
+                             treeAccounting);
+  }
+}
+
+void
+QuarkContainerAccounting::MoveTree(IContainerMD* oldParent, IContainerMD* newParent,
+                                   IContainerMD* moved, TreeInfos treeAccounting)
+{
+  MoveTree(oldParent->getId(), newParent->getId(), moved->getId(), treeAccounting);
+}
+
+//------------------------------------------------------------------------------
+// Get current accounting sequence
+//------------------------------------------------------------------------------
+uint64_t
+QuarkContainerAccounting::GetAccountingSequence() const
+{
+  return mDeltaSequence.load();
+}
+
+//------------------------------------------------------------------------------
+// Set tree if accounting unchanged
+//------------------------------------------------------------------------------
+bool
+QuarkContainerAccounting::SetTreeIfAccountingUnchanged(IContainerMD::id_t id,
+                                                       TreeInfos treeAccounting,
+                                                       uint64_t accountingSequence)
+{
+  std::lock_guard<std::mutex> scope_lock(mMutexEventQueue);
+
+  if (mDeltaSequence.load() != accountingSequence) {
+    return false;
+  }
+
+  mAccountingQueue.emplace(EventType::Reset, NextSequence(), accountingSequence, id,
+                           treeAccounting);
+  return true;
+}
+
+bool
+QuarkContainerAccounting::SetTreeIfAccountingUnchanged(IContainerMD* obj,
+                                                       TreeInfos treeAccounting,
+                                                       uint64_t accountingSequence)
+{
+  return SetTreeIfAccountingUnchanged(obj->getId(), treeAccounting, accountingSequence);
+}
+
+//------------------------------------------------------------------------------
+// Reserve accounting delta
+//------------------------------------------------------------------------------
+IFileMDChangeListener::ReservedAccountingDelta
+QuarkContainerAccounting::ReserveAccountingDelta(IContainerMD::id_t containerId,
+                                                 TreeInfos treeInfos)
+{
+  if (((treeInfos.dsize == 0) && (treeInfos.dtreefiles == 0) &&
+       (treeInfos.dtreecontainers == 0))) {
+    return {};
+  }
+
+  return {true, NextSequence(), ++mDeltaSequence, containerId, treeInfos};
+}
+
+//------------------------------------------------------------------------------
+// Publish accounting delta
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::PublishAccountingDelta(
+    const IFileMDChangeListener::ReservedAccountingDelta& delta)
+{
+  if (!delta.valid) {
+    return;
+  }
+
+  mAccountingQueue.emplace(EventType::Delta, delta.sequence, delta.deltaSequence,
+                           delta.containerId, delta.treeChange);
 }
 
 //------------------------------------------------------------------------------
@@ -101,12 +218,75 @@ QuarkContainerAccounting::RemoveTree(IContainerMD* obj, TreeInfos treeAccounting
 void
 QuarkContainerAccounting::QueueForUpdate(IContainerMD::id_t id, TreeInfos treeAccounting)
 {
-  if(id) {
-    // The condition to stop the queueing thread is that the id = 0. The minimum container id is 1 and
-    // corresponds to "/"
-    // We therefore prevent users to queue the container id = 0 for update (which should not happen!)
-    mIdTreeInfosToUpdateQueue.emplace(id,treeAccounting);
+  PublishAccountingDelta(ReserveAccountingDelta(id, treeAccounting));
+}
+
+//------------------------------------------------------------------------------
+// Get the next accounting sequence
+//------------------------------------------------------------------------------
+QuarkContainerAccounting::AccountingSequence
+QuarkContainerAccounting::NextSequence()
+{
+  return mSequence.fetch_add(1) + 1;
+}
+
+//------------------------------------------------------------------------------
+// Record a container parent change
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::RecordMove(AccountingSequence sequence,
+                                     IContainerMD::id_t movedId,
+                                     IContainerMD::id_t oldParentId,
+                                     IContainerMD::id_t newParentId)
+{
+  if (oldParentId == newParentId) {
+    return;
   }
+
+  std::lock_guard<std::mutex> scope_lock(mMutexParentHistory);
+  mParentHistory[movedId].push_back({sequence, oldParentId, newParentId});
+}
+
+//------------------------------------------------------------------------------
+// Return the parent id a container had at the given accounting sequence
+//------------------------------------------------------------------------------
+IContainerMD::id_t
+QuarkContainerAccounting::ParentAt(IContainerMD::id_t id, AccountingSequence sequence)
+{
+  {
+    std::lock_guard<std::mutex> scope_lock(mMutexParentHistory);
+    auto it = mParentHistory.find(id);
+
+    if (it != mParentHistory.end() && !it->second.empty()) {
+      const auto& history = it->second;
+
+      for (auto move_it = history.rbegin(); move_it != history.rend(); ++move_it) {
+        if (sequence >= move_it->mSequence) {
+          return move_it->mNewParentId;
+        }
+      }
+
+      return history.front().mOldParentId;
+    }
+  }
+
+  auto cont = mContainerMDSvc->getContainerMD(id);
+  return cont->getParentId();
+}
+
+//------------------------------------------------------------------------------
+// Move pending delta map to ordered commit operations
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::FlushDeltasToOperations(UpdateBatch& batch)
+{
+  if (batch.mMap.empty()) {
+    return;
+  }
+
+  batch.mOperations.emplace_back(batch.mDeltaSequence, std::move(batch.mMap));
+  batch.mMap.clear();
+  batch.mDeltaSequence = 0;
 }
 
 //------------------------------------------------------------------------------
@@ -144,24 +324,53 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
     }
 
     auto& batch = mBatch[mCommitIndx];
+    FlushDeltasToOperations(batch);
 
-    if(!batch.mMap.empty()){
-      for (auto const& elem : batch.mMap) {
-        try {
-          auto cont = mContainerMDSvc->getContainerMD(elem.first);
-          eos::MDLocking::ContainerWriteLock contLock(cont.get());
-          cont->updateTreeSize(elem.second.dsize);
-          cont->updateTreeFiles(elem.second.dtreefiles);
-          cont->updateTreeContainers(elem.second.dtreecontainers);
-          mContainerMDSvc->updateStore(cont.get());
-        } catch (const MDException& e) {
-          // TODO: (esindril) error message using default logging
+    if (!batch.mOperations.empty()) {
+      for (auto const& operation : batch.mOperations) {
+        if (operation.mType == CommitOperationType::Reset) {
+          if ((mDeltaSequence.load() != operation.mDeltaSequence) ||
+              (mAppliedDeltaSequence.load() < operation.mDeltaSequence)) {
+            continue;
+          }
+
+          try {
+            auto cont = mContainerMDSvc->getContainerMD(operation.mId);
+            eos::MDLocking::ContainerWriteLock contLock(cont.get());
+
+            cont->setTreeSize(static_cast<uint64_t>(operation.mTreeInfos.dsize));
+            cont->setTreeFiles(static_cast<uint64_t>(operation.mTreeInfos.dtreefiles));
+            cont->setTreeContainers(
+                static_cast<uint64_t>(operation.mTreeInfos.dtreecontainers));
+            mContainerMDSvc->updateStore(cont.get());
+          } catch (const MDException& e) {
+            // TODO: (esindril) error message using default logging
+            continue;
+          }
+
           continue;
         }
+
+        for (auto const& elem : operation.mDeltas) {
+          try {
+            auto cont = mContainerMDSvc->getContainerMD(elem.first);
+            eos::MDLocking::ContainerWriteLock contLock(cont.get());
+            cont->updateTreeSize(elem.second.dsize);
+            cont->updateTreeFiles(elem.second.dtreefiles);
+            cont->updateTreeContainers(elem.second.dtreecontainers);
+            mContainerMDSvc->updateStore(cont.get());
+          } catch (const MDException& e) {
+            // TODO: (esindril) error message using default logging
+            continue;
+          }
+        }
+
+        mAppliedDeltaSequence.store(
+            std::max(mAppliedDeltaSequence.load(), operation.mDeltaSequence));
       }
     }
 
-    batch.mMap.clear();
+    batch.mOperations.clear();
 
     if (mUpdateIntervalSec) {
       if (assistant) {
@@ -182,28 +391,37 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
 //------------------------------------------------------------------------------
 void QuarkContainerAccounting::AsyncQueueForUpdate(ThreadAssistant* assistant)
 {
-  std::pair<eos::IContainerMD::id_t,TreeInfos> contIdTreeInfos;
+  AccountingEvent event;
+  std::map<AccountingSequence, AccountingEvent> pendingEvents;
   std::vector<IContainerMD::id_t> idsToUpdate;
+  AccountingSequence nextSequence = 1;
 
-  while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
-    uint16_t deepness = 0;
-
-    mIdTreeInfosToUpdateQueue.wait_pop(contIdTreeInfos);
-    if(!contIdTreeInfos.first) {
-      // Container ID = 0 (see ~QuarkContainerAccounting()), we
-      // stop this thread
-      break;
+  auto processEvent = [this, &idsToUpdate](const AccountingEvent& event) {
+    if (event.mType == EventType::Stop) {
+      return true;
     }
 
-    IContainerMD::id_t id = contIdTreeInfos.first;
+    if (event.mType == EventType::Reset) {
+      std::lock_guard<std::mutex> scope_lock(mMutexBatch);
+      auto& batch = mBatch[mAccumulateIndx];
+      FlushDeltasToOperations(batch);
+      batch.mOperations.emplace_back(event.mDeltaSequence, event.mId, event.mTreeInfos);
+      return false;
+    }
+
+    IContainerMD::id_t id = event.mId;
+    uint16_t deepness = 0;
+
     // Go up the tree and give the ids to update to the batch that will
     // be taken by the PropagateUpdate thread
     while ((id > 1) && (deepness < 255)) {
       try {
+        if (std::find(idsToUpdate.begin(), idsToUpdate.end(), id) != idsToUpdate.end()) {
+          break;
+        }
+
         idsToUpdate.push_back(id);
-        auto cont = mContainerMDSvc->getContainerMD(id);
-        // One operation, no need to lock the container
-        id = cont->getParentId();
+        id = ParentAt(id, event.mSequence);
         ++deepness;
       } catch (const MDException& e) {
         // TODO (esindril): error message using default logging
@@ -218,13 +436,42 @@ void QuarkContainerAccounting::AsyncQueueForUpdate(ThreadAssistant* assistant)
       auto it_map = batch.mMap.find(idToUpdate);
 
       if (it_map != batch.mMap.end()) {
-        it_map->second += contIdTreeInfos.second;
+        it_map->second += event.mTreeInfos;
       } else {
-        batch.mMap.emplace(idToUpdate, contIdTreeInfos.second);
+        batch.mMap.emplace(idToUpdate, event.mTreeInfos);
       }
     }
 
+    batch.mDeltaSequence = std::max(batch.mDeltaSequence, event.mDeltaSequence);
+
     idsToUpdate.clear();
+    return false;
+  };
+
+  while ((assistant && !assistant->terminationRequested()) || (!assistant)) {
+    mAccountingQueue.wait_pop(event);
+
+    if (event.mSequence < nextSequence) {
+      continue;
+    }
+
+    pendingEvents.emplace(event.mSequence, event);
+
+    while (true) {
+      auto it = pendingEvents.find(nextSequence);
+
+      if (it == pendingEvents.end()) {
+        break;
+      }
+
+      const bool stop = processEvent(it->second);
+      pendingEvents.erase(it);
+      ++nextSequence;
+
+      if (stop) {
+        return;
+      }
+    }
   }
 }
 

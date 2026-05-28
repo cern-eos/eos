@@ -1034,7 +1034,7 @@ CheckOwnerAcl(const eos::fusex::md& md,
   if ((uid_t)md.uid() == vid.uid &&
       (vid.sudoer || (gid_t)md.gid() == vid.gid ||
        vid.allowed_gids.count((gid_t)md.gid()))) {
-    return true;        // md and vid agree 
+    return true; // md and vid agree
   }
   if (vid.uid == 0 || vid.sudoer) {
     return true;        // root & sudoers can create as any owner
@@ -1617,19 +1617,21 @@ Server::OpSetDirectory(const std::string& id,
 
       oldname = cmd->getName();
 
-      if (cmd->getParentId() != md.md_pino()) {
+      const auto oldParentId = cmd->getParentId();
+
+      if (oldParentId != md.md_pino()) {
         // this indicates a directory move
         {
           // we have to check that we have write permission on the source parent
           eos::fusex::md source_md;
-          source_md.set_md_pino(cmd->getParentId());
+          source_md.set_md_pino(oldParentId);
           source_md.set_mode(S_IFDIR);
           std::string perm = "W";
 
           if (!ValidatePERM(source_md, perm, vid, false)) {
-            eos_err("msg=\"no write permission on source directory to do mv\" source-ino=%lx ino=%lx",
-                    cmd->getParentId(),
-                    md.md_ino());
+            eos_err("msg=\"no write permission on source directory to do mv\" "
+                    "source-ino=%lx ino=%lx",
+                    oldParentId, md.md_ino());
             return EPERM;
           }
         }
@@ -1665,22 +1667,19 @@ Server::OpSetDirectory(const std::string& id,
           }
         }
 
-        eos_info("msg=\"mv detach source from parent\" moving %lx => %lx",
-                 cmd->getParentId(), md.md_pino());
-        cpcmd = gOFS->eosDirectoryService->getContainerMD(cmd->getParentId());
-        cpcmd->removeContainer(cmd->getName());
+        eos_info("msg=\"mv detach source from parent\" moving %lx => %lx", oldParentId,
+                 md.md_pino());
+        cpcmd = gOFS->eosDirectoryService->getContainerMD(oldParentId);
 
         if (gOFS->eosContainerAccounting) {
-          gOFS->eosContainerAccounting->RemoveTree(cpcmd.get(), {tree_size, tree_files, tree_cont});
+          gOFS->eosContainerAccounting->MoveTree(oldParentId, md.md_pino(), md.md_ino(),
+                                                 {tree_size, tree_files, tree_cont});
         }
 
+        cpcmd->removeContainer(cmd->getName());
         gOFS->eosView->updateContainerStore(cpcmd.get());
         cmd->setName(md.name());
         pcmd->addContainer(cmd.get());
-
-        if (gOFS->eosContainerAccounting) {
-          gOFS->eosContainerAccounting->AddTree(pcmd.get(), {tree_size, tree_files, tree_cont});
-        }
 
         gOFS->eosView->updateContainerStore(pcmd.get());
       }
@@ -1722,7 +1721,7 @@ Server::OpSetDirectory(const std::string& id,
       if ( !CheckOwnerAcl(md, vid, pcmd)) /* a create requiring chown */ {
 	return EPERM;
       }
-      
+
       if (exclusive && pcmd->findContainer(md.name())) {
         // O_EXCL set on creation -
         eos_err("ino=%lx name=%s msg=\"name already exists\"", md.md_pino(),

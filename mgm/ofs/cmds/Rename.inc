@@ -730,15 +730,17 @@ XrdMgmOfs::_rename(const char* old_name,
             int64_t tree_size = static_cast<int64_t>(rdir->getTreeSize());
             int64_t tree_files = static_cast<int64_t>(rdir->getTreeFiles());
             int64_t tree_cont = static_cast<int64_t>(rdir->getTreeContainers());
+
+            if (gOFS->eosContainerAccounting) {
+              gOFS->eosContainerAccounting->MoveTree(dir.get(), newdir.get(), rdir.get(),
+                                                     {tree_size, tree_files, tree_cont});
+            }
+
             {
               // update the source directory - remove the directory
               dir->removeContainer(oPath.GetName());
               dir->setMTimeNow();
               dir->notifyMTimeChange(gOFS->eosDirectoryService);
-
-              if (gOFS->eosContainerAccounting) {
-                gOFS->eosContainerAccounting->RemoveTree(dir.get(), {tree_size, tree_files, tree_cont});
-              }
 
               eosView->updateContainerStore(dir.get());
               COMMONTIMING("rename::move_dir_remove_source_tree", &tm);
@@ -769,10 +771,6 @@ XrdMgmOfs::_rename(const char* old_name,
               // update the target directory - add the directory
               newdir->addContainer(rdir.get());
               newdir->setMTimeNow();
-
-              if (gOFS->eosContainerAccounting) {
-                gOFS->eosContainerAccounting->AddTree(newdir.get(), {tree_size, tree_files, tree_cont});
-              }
 
               const eos::ContainerIdentifier rdid = rdir->getIdentifier();
               newdir->notifyMTimeChange(gOFS->eosDirectoryService);

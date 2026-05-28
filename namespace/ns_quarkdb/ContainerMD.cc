@@ -229,28 +229,29 @@ QuarkContainerMD::findItem(const std::string& name)
 void
 QuarkContainerMD::removeContainer(const std::string& name)
 {
-  runWriteOp([this, &name]() {
-    auto it = mSubcontainers->find(name);
+  IFileMDChangeListener::ReservedAccountingDelta accountingDelta;
+  try {
+    runWriteOp([this, &name, &accountingDelta]() {
+      auto it = mSubcontainers->find(name);
 
-    if (it == mSubcontainers->end()) {
-      MDException e(ENOENT);
-      e.getMessage()  << __FUNCTION__ << " Container " << name << " not found";
-      throw e;
-    }
+      if (it == mSubcontainers->end()) {
+        MDException e(ENOENT);
+        e.getMessage() << __FUNCTION__ << " Container " << name << " not found";
+        throw e;
+      }
 
-    mSubcontainers->erase(it);
-    // mSubcontainers->resize(0);
-    // Delete container also from KV backend
-    pFlusher->hdel(pDirsKey, name);
-  });
-  // NOTE: This is an ugly hack. There's no file object here
-  // and we hijack the "location" member of the Event
-  // class to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
-                                 mCont.id(),
-                                 // remove this container from the tree container counter
-  {0, 0, -1});
-  pFileSvc->notifyListeners(&e);
+      accountingDelta = pFileSvc->ReserveAccountingDelta(mCont.id(), {0, 0, -1});
+      mSubcontainers->erase(it);
+      // mSubcontainers->resize(0);
+      // Delete container also from KV backend
+      pFlusher->hdel(pDirsKey, name);
+    });
+  } catch (...) {
+    pFileSvc->PublishAccountingDelta(accountingDelta);
+    throw;
+  }
+
+  pFileSvc->PublishAccountingDelta(accountingDelta);
 }
 
 //------------------------------------------------------------------------------
@@ -259,47 +260,49 @@ QuarkContainerMD::removeContainer(const std::string& name)
 void
 QuarkContainerMD::addContainer(IContainerMD* container)
 {
-  runWriteOp([this, container]() {
-    if (container->getName().empty()) {
-      eos_static_crit(eos::common::getStacktrace().c_str());
-      throw_mdexception(EINVAL,
-                        "Attempted to add container with empty name! ID: " << container->getId() <<
-                        ", target container ID: " << mCont.id());
-    }
+  IFileMDChangeListener::ReservedAccountingDelta accountingDelta;
+  try {
+    runWriteOp([this, container, &accountingDelta]() {
+      if (container->getName().empty()) {
+        eos_static_crit(eos::common::getStacktrace().c_str());
+        throw_mdexception(EINVAL, "Attempted to add container with empty name! ID: "
+                                      << container->getId()
+                                      << ", target container ID: " << mCont.id());
+      }
 
-    auto containerConflict = mSubcontainers->find(container->getName());
+      auto containerConflict = mSubcontainers->find(container->getName());
 
-    if (containerConflict != mSubcontainers->end() &&
-        containerConflict->second != container->getId()) {
-      eos_static_crit(eos::common::getStacktrace().c_str());
-      throw_mdexception(EEXIST, "Attempted to add container with name "
-                        << container->getName()
-                        << " while a different subcontainer exists already there.");
-    }
+      if (containerConflict != mSubcontainers->end() &&
+          containerConflict->second != container->getId()) {
+        eos_static_crit(eos::common::getStacktrace().c_str());
+        throw_mdexception(EEXIST,
+                          "Attempted to add container with name "
+                              << container->getName()
+                              << " while a different subcontainer exists already there.");
+      }
 
-    auto fileConflict = mFiles->find(container->getName());
+      auto fileConflict = mFiles->find(container->getName());
 
-    if (fileConflict != mFiles->end()) {
-      eos_static_crit(eos::common::getStacktrace().c_str());
-      throw_mdexception(EEXIST, "Attempted to add container with name "
-                        << container->getName()
-                        << " while a file exists already there.");
-    }
+      if (fileConflict != mFiles->end()) {
+        eos_static_crit(eos::common::getStacktrace().c_str());
+        throw_mdexception(EEXIST, "Attempted to add container with name "
+                                      << container->getName()
+                                      << " while a file exists already there.");
+      }
 
-    container->setParentId(mCont.id());
-    (void) mSubcontainers->insert(std::make_pair(container->getName(),
-                                  container->getId()));
-    // Add to new container to KV backend
-    pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
-  });
-  // NOTE: This is an ugly hack. There's no file object here
-  // and we hijack the "location" member of the Event
-  // class to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange,
-                                 mCont.id(),
-                                 //Add this container to the tree container counter
-  {0, 0, 1});
-  pFileSvc->notifyListeners(&e);
+      accountingDelta = pFileSvc->ReserveAccountingDelta(mCont.id(), {0, 0, 1});
+      container->setParentId(mCont.id());
+      (void)mSubcontainers->insert(
+          std::make_pair(container->getName(), container->getId()));
+      // Add to new container to KV backend
+      pFlusher->hset(pDirsKey, container->getName(), stringify(container->getId()));
+    });
+  } catch (...) {
+    pFileSvc->PublishAccountingDelta(accountingDelta);
+    throw;
+  }
+
+  pFileSvc->PublishAccountingDelta(accountingDelta);
 }
 
 //------------------------------------------------------------------------------
@@ -344,41 +347,46 @@ QuarkContainerMD::findContainer(const std::string& name)
 void
 QuarkContainerMD::addFile(IFileMD* file)
 {
-  runWriteOp([this, file]() {
-    if (file->getName().empty()) {
-      eos_static_crit(eos::common::getStacktrace().c_str());
-      throw_mdexception(EINVAL,
-                        "Attempted to add file with empty filename! ID: " << file->getId() <<
-                        ", target container ID: " << mCont.id());
-    }
+  IFileMDChangeListener::ReservedAccountingDelta accountingDelta;
+  try {
+    runWriteOp([this, file, &accountingDelta]() {
+      if (file->getName().empty()) {
+        eos_static_crit(eos::common::getStacktrace().c_str());
+        throw_mdexception(EINVAL, "Attempted to add file with empty filename! ID: "
+                                      << file->getId()
+                                      << ", target container ID: " << mCont.id());
+      }
 
-    auto containerConflict = mSubcontainers->find(file->getName());
+      auto containerConflict = mSubcontainers->find(file->getName());
 
-    if (containerConflict != mSubcontainers->end()) {
-      eos_static_crit(eos::common::getStacktrace().c_str());
-      throw_mdexception(EEXIST,
-                        "Attempted to add file with name " << file->getName() <<
-                        " while a subcontainer exists already there.");
-    }
+      if (containerConflict != mSubcontainers->end()) {
+        eos_static_crit(eos::common::getStacktrace().c_str());
+        throw_mdexception(EEXIST, "Attempted to add file with name "
+                                      << file->getName()
+                                      << " while a subcontainer exists already there.");
+      }
 
-    auto fileConflict = mFiles->find(file->getName());
+      auto fileConflict = mFiles->find(file->getName());
 
-    if (fileConflict != mFiles->end() && fileConflict->second != file->getId()) {
-      eos_static_crit(eos::common::getStacktrace().c_str());
-      throw_mdexception(EEXIST,
-                        "Attempted to add file with name " << file->getName() <<
-                        " while a different file exists already there.");
-    }
+      if (fileConflict != mFiles->end() && fileConflict->second != file->getId()) {
+        eos_static_crit(eos::common::getStacktrace().c_str());
+        throw_mdexception(EEXIST, "Attempted to add file with name "
+                                      << file->getName()
+                                      << " while a different file exists already there.");
+      }
 
-    file->setContainerId(mCont.id());
-    (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
-    pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
-  });
-  // NOTE: We hijack the "location" member of the Event to pass in the container id.
-  IFileMDChangeListener::Event e(nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
-                                 // add the file size and do +1 in the tree files counter
-                                 {static_cast<int64_t>(file->getSize()), 1, 0});
-  pFileSvc->notifyListeners(&e);
+      accountingDelta = pFileSvc->ReserveAccountingDelta(
+          mCont.id(), {static_cast<int64_t>(file->getSize()), 1, 0});
+      file->setContainerId(mCont.id());
+      (void)mFiles->insert(std::make_pair(file->getName(), file->getId()));
+      pFlusher->hset(pFilesKey, file->getName(), std::to_string(file->getId()));
+    });
+  } catch (...) {
+    pFileSvc->PublishAccountingDelta(accountingDelta);
+    throw;
+  }
+
+  pFileSvc->PublishAccountingDelta(accountingDelta);
 }
 
 //------------------------------------------------------------------------------
@@ -388,31 +396,59 @@ void
 QuarkContainerMD::removeFile(const std::string& name)
 {
   bool found = false;
-  IFileMD::id_t id;
-  runWriteOp([this, &name, &found, &id]() {
+  IFileMD::id_t id = 0;
+  std::shared_ptr<IFileMD> file;
+  IFileMDChangeListener::ReservedAccountingDelta accountingDelta;
+
+  runReadOp([this, &name, &id]() {
     auto iter = mFiles->find(name);
 
     if (iter != mFiles->end()) {
-      found = true;
       id = iter->second;
-      mFiles->erase(iter);
-      // mFiles->resize(0);
-      pFlusher->hdel(pFilesKey, name);
     }
   });
 
-  if (found) {
+  if (id) {
     try {
-      std::shared_ptr<IFileMD> file = pFileSvc->getFileMD(id);
-      // NOTE: We hijack the "location" member of the Event to pass in the cid
-      IFileMDChangeListener::Event e(
-          nullptr, IFileMDChangeListener::SizeChange, mCont.id(),
-          // remove the file size and do -1 in the tree files counter
-          {-static_cast<int64_t>(file->getSize()), -1, 0});
-      pFileSvc->notifyListeners(&e);
+      file = pFileSvc->getFileMD(id);
     } catch (MDException& e) {
       // File already removed
     }
+  }
+
+  try {
+    runWriteOp([this, &name, &found, &id, &file, &accountingDelta]() {
+      auto iter = mFiles->find(name);
+
+      if (iter != mFiles->end()) {
+        found = true;
+        id = iter->second;
+
+        if (!file || (file->getId() != id)) {
+          try {
+            file = pFileSvc->getFileMD(id);
+          } catch (MDException& e) {
+            file.reset();
+          }
+        }
+
+        if (file) {
+          accountingDelta = pFileSvc->ReserveAccountingDelta(
+              mCont.id(), {-static_cast<int64_t>(file->getSize()), -1, 0});
+        }
+
+        mFiles->erase(iter);
+        // mFiles->resize(0);
+        pFlusher->hdel(pFilesKey, name);
+      }
+    });
+  } catch (...) {
+    pFileSvc->PublishAccountingDelta(accountingDelta);
+    throw;
+  }
+
+  if (found) {
+    pFileSvc->PublishAccountingDelta(accountingDelta);
   }
 }
 

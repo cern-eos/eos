@@ -135,6 +135,19 @@ public:
   virtual void notifyListeners(IFileMDChangeListener::Event* event) override;
 
   //----------------------------------------------------------------------------
+  //! Reserve an accounting delta sequence before the metadata mutation
+  //! becomes visible.
+  //----------------------------------------------------------------------------
+  IFileMDChangeListener::ReservedAccountingDelta
+  ReserveAccountingDelta(IContainerMD::id_t containerId, TreeInfos treeInfos) override;
+
+  //----------------------------------------------------------------------------
+  //! Publish a previously reserved accounting delta.
+  //----------------------------------------------------------------------------
+  void PublishAccountingDelta(
+      const IFileMDChangeListener::ReservedAccountingDelta& delta) override;
+
+  //----------------------------------------------------------------------------
   //! Set container service
   //!
   //! @param cont_svc container service

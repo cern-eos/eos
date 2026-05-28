@@ -336,12 +336,14 @@ public:
   //----------------------------------------------------------------------------
   //! Add tree - no-op for this type of view
   //----------------------------------------------------------------------------
-  void AddTree(IContainerMD* obj, TreeInfos treeInfos) override {};
+  using IFileMDChangeListener::AddTree;
+  void AddTree(IContainerMD::id_t id, TreeInfos treeInfos) override {};
 
   //----------------------------------------------------------------------------
   //! Remove tree - no-op for this type of view
   //----------------------------------------------------------------------------
-  void RemoveTree(IContainerMD* obj, TreeInfos treeInfos) override {};
+  using IFileMDChangeListener::RemoveTree;
+  void RemoveTree(IContainerMD::id_t id, TreeInfos treeInfos) override {};
 
 private:
 

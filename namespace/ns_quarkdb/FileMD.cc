@@ -361,13 +361,23 @@ void
 QuarkFileMD::setSize(uint64_t size)
 {
   int64_t sizeChange = 0;
-  this->runWriteOp([this, size, &sizeChange]() {
-    sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
-    mFile.set_size(size & 0x0000ffffffffffff);
-  });
-  IFileMDChangeListener::Event e(this, IFileMDChangeListener::SizeChange, 0,
-  {sizeChange, 0, 0});
-  pFileMDSvc->notifyListeners(&e);
+  IContainerMD::id_t containerId = 0;
+  IFileMDChangeListener::ReservedAccountingDelta accountingDelta;
+
+  try {
+    this->runWriteOp([this, size, &sizeChange, &containerId, &accountingDelta]() {
+      sizeChange = (size & 0x0000ffffffffffff) - mFile.size();
+      containerId = mFile.cont_id();
+      accountingDelta =
+          pFileMDSvc->ReserveAccountingDelta(containerId, {sizeChange, 0, 0});
+      mFile.set_size(size & 0x0000ffffffffffff);
+    });
+  } catch (...) {
+    pFileMDSvc->PublishAccountingDelta(accountingDelta);
+    throw;
+  }
+
+  pFileMDSvc->PublishAccountingDelta(accountingDelta);
 }
 
 //------------------------------------------------------------------------------

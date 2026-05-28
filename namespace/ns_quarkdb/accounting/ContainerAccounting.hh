@@ -22,17 +22,17 @@
  ************************************************************************/
 
 #pragma once
+#include "common/AssistedThread.hh"
+#include "common/ConcurrentQueue.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "common/AssistedThread.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccountingTypes.hh"
+#include <atomic>
 #include <mutex>
 #include <thread>
-#include <vector>
-#include <utility>
 #include <unordered_map>
-#include <atomic>
-#include "common/ConcurrentQueue.hh"
+#include <vector>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -93,18 +93,64 @@ public:
   //----------------------------------------------------------------------------
   //! Add tree
   //!
-  //! @param obj container where the tree information should be added
+  //! @param id container id where the tree information should be added
   //! @param treeAccounting tree accounting information to be updated
   //----------------------------------------------------------------------------
-  void AddTree(IContainerMD* obj, TreeInfos treeAccounting);
+  void AddTree(IContainerMD::id_t id, TreeInfos treeAccounting) override;
+  void AddTree(IContainerMD* obj, TreeInfos treeAccounting) override;
 
   //----------------------------------------------------------------------------
   //! Remove tree
   //!
-  //! @param obj container where the tree should be removed from
-  //! @param dsize size of the subtree to be removed
+  //! @param id container id where the tree should be removed from
+  //! @param treeAccounting tree accounting information to be removed
   //----------------------------------------------------------------------------
-  void RemoveTree(IContainerMD* obj, TreeInfos treeAccounting);
+  void RemoveTree(IContainerMD::id_t id, TreeInfos treeAccounting) override;
+  void RemoveTree(IContainerMD* obj, TreeInfos treeAccounting) override;
+
+  //----------------------------------------------------------------------------
+  //! Move tree accounting from one parent to another
+  //!
+  //! @param oldParent old parent container
+  //! @param newParent new parent container
+  //! @param moved moved container
+  //! @param treeAccounting tree accounting information to be moved
+  //----------------------------------------------------------------------------
+  void MoveTree(IContainerMD::id_t oldParentId, IContainerMD::id_t newParentId,
+                IContainerMD::id_t movedId, TreeInfos treeAccounting) override;
+  void MoveTree(IContainerMD* oldParent, IContainerMD* newParent, IContainerMD* moved,
+                TreeInfos treeAccounting) override;
+
+  //----------------------------------------------------------------------------
+  //! Get current accounting sequence
+  //----------------------------------------------------------------------------
+  uint64_t GetAccountingSequence() const override;
+
+  //----------------------------------------------------------------------------
+  //! Set absolute tree accounting if accounting stream is unchanged
+  //!
+  //! @param obj container where the tree information should be reset
+  //! @param treeAccounting absolute tree accounting values
+  //! @param accountingSequence expected accounting sequence
+  //!
+  //! @return true if the reset was handled
+  //----------------------------------------------------------------------------
+  bool SetTreeIfAccountingUnchanged(IContainerMD::id_t id, TreeInfos treeAccounting,
+                                    uint64_t accountingSequence) override;
+  bool SetTreeIfAccountingUnchanged(IContainerMD* obj, TreeInfos treeAccounting,
+                                    uint64_t accountingSequence) override;
+
+  //----------------------------------------------------------------------------
+  //! Reserve an accounting delta sequence before a metadata change becomes visible
+  //----------------------------------------------------------------------------
+  IFileMDChangeListener::ReservedAccountingDelta
+  ReserveAccountingDelta(IContainerMD::id_t containerId, TreeInfos treeInfos) override;
+
+  //----------------------------------------------------------------------------
+  //! Publish a previously reserved accounting delta
+  //----------------------------------------------------------------------------
+  void PublishAccountingDelta(
+      const IFileMDChangeListener::ReservedAccountingDelta& delta) override;
 
   //----------------------------------------------------------------------------
   //! Queue info for update
@@ -148,17 +194,39 @@ private:
   //----------------------------------------------------------------------------
   void AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept;
 
-  //! Update structure containing the nodes that need an update. We try to
-  //! optimise the number of updates to the backend by computing the final
-  //! size deltas from a number of individual updates.
-  struct UpdateT {
-    std::unordered_map<IContainerMD::id_t, TreeInfos> mMap; ///< Map updates
-  };
+  using AccountingSequence = container_accounting::AccountingSequence;
+  using AccountingEvent = container_accounting::AccountingEvent;
+  using CommitOperation = container_accounting::CommitOperation;
+  using CommitOperationType = container_accounting::CommitOperationType;
+  using EventType = container_accounting::EventType;
+  using ParentMove = container_accounting::ParentMove;
+  using UpdateBatch = container_accounting::UpdateBatch;
+
+  //----------------------------------------------------------------------------
+  //! Get the next accounting sequence number
+  //----------------------------------------------------------------------------
+  AccountingSequence NextSequence();
+
+  //----------------------------------------------------------------------------
+  //! Record a container parent change
+  //----------------------------------------------------------------------------
+  void RecordMove(AccountingSequence sequence, IContainerMD::id_t movedId,
+                  IContainerMD::id_t oldParentId, IContainerMD::id_t newParentId);
+
+  //----------------------------------------------------------------------------
+  //! Return the parent id a container had at the given accounting sequence
+  //----------------------------------------------------------------------------
+  IContainerMD::id_t ParentAt(IContainerMD::id_t id, AccountingSequence sequence);
+
+  //----------------------------------------------------------------------------
+  //! Move pending delta map to ordered commit operations
+  //----------------------------------------------------------------------------
+  void FlushDeltasToOperations(UpdateBatch& batch);
 
   //! Vector of two elements containing the batch which is currently being
   //! accumulated and the batch which is being committed to the namespace by
   //! the asynchronous thread
-  std::vector<UpdateT> mBatch;
+  std::vector<UpdateBatch> mBatch;
   std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index o the batch committing updates
@@ -166,7 +234,17 @@ private:
   AssistedThread mQueueForUpdateThread; ///< Thread update queueing thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< container MD service
-  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, TreeInfos>>  mIdTreeInfosToUpdateQueue; ///< Queue containing containerIds and their corresponding infos to update
+
+  std::atomic<AccountingSequence> mSequence{0};      ///< Order of all accounting events
+  std::atomic<AccountingSequence> mDeltaSequence{0}; ///< Latest queued accounting delta
+  std::atomic<AccountingSequence> mAppliedDeltaSequence{
+      0};                         ///< Latest applied accounting delta
+  std::mutex mMutexEventQueue;    ///< Mutex protecting multi-event queue operations
+  std::mutex mMutexParentHistory; ///< Mutex protecting parent history
+  std::unordered_map<IContainerMD::id_t, std::vector<ParentMove>>
+      mParentHistory; ///< Parent changes indexed by moved container id
+  eos::common::ConcurrentQueue<AccountingEvent>
+      mAccountingQueue; ///< Queue containing accounting events to update
 };
 
 EOSNSNAMESPACE_END

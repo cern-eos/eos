@@ -23,10 +23,12 @@
 
 #pragma once
 #include "mgm/Namespace.hh"
-#include "proto/Ns.pb.h"
 #include "mgm/proc/ProcCommand.hh"
 #include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMDSvc.hh"
+#include "proto/Ns.pb.h"
 #include <list>
+#include <unordered_map>
 
 EOSMGMNAMESPACE_BEGIN
 
@@ -194,7 +196,9 @@ private:
   //!
   //! @param cont container object
   //----------------------------------------------------------------------------
-  void UpdateTreeSize(eos::IContainerMDPtr cont) const;
+  bool UpdateTreeSize(eos::IContainerMDPtr cont,
+                      std::unordered_map<eos::IContainerMD::id_t, eos::TreeInfos>&
+                          recomputedTreeInfos) const;
 
   //----------------------------------------------------------------------------
   //! Apply text highlighting to ns output

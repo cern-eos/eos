@@ -4,11 +4,13 @@ set -x
 
 prefix=$1
 host=${2-"localhost"}
+mode=${3-"basic"}
 url=root://$host
 EOS_ACCOUNTING_DIR=$prefix
 
 echo "prefix = $prefix"
 echo "host = $host"
+echo "mode = $mode"
 echo "url = $url"
 echo "EOS_ACCOUNTING_DIR = $EOS_ACCOUNTING_DIR"
 
@@ -53,7 +55,139 @@ test_accounting() {
   fi
 }
 
+run_race_test() {
+  local nDirs=30
+  local nFiles=8
+  local nExtraFiles=4
+  local passwdFileSize
+  local totalNbFiles
+  local totalTreeSize
+  local expectedTreeContainers
+  local recompute_pid
+  local stop_file
+  local start_time
+  local end_time
+  local elapsed
+  local mutation_pids
+  local pid
+
+  cleanup
+
+  eos mkdir -p $EOS_ACCOUNTING_DIR/source
+  eos mkdir -p $EOS_ACCOUNTING_DIR/destination
+
+  echo "Creating directory structures for the racy recompute test..."
+  start_time=$(date +%s)
+
+  for (( i=0; i<$nDirs; i++ ));
+  do
+    eos mkdir -p $EOS_ACCOUNTING_DIR/source/$i &
+  done
+  wait
+
+  for (( i=0; i<$nDirs; i++ ));
+  do
+    for (( j=0; j<$nFiles; j++));
+    do
+      eos mkdir -p $EOS_ACCOUNTING_DIR/source/$i/dir$j && eos touch $EOS_ACCOUNTING_DIR/source/$i/dir$j/touch$j &
+      eos cp /etc/passwd $url/$EOS_ACCOUNTING_DIR/source/$i/passwd$j &
+    done
+    wait
+  done
+
+  end_time=$(date +%s)
+  elapsed=$((end_time - start_time))
+  echo "Done, elapsed time = $elapsed seconds"
+
+  echo "Waiting 10 seconds for the initial accounting to kick in..."
+  sleep 10
+
+  passwdFileSize=`stat -c%s /etc/passwd`
+  totalNbFiles=$((2*nFiles*nDirs))
+  totalTreeSize=$((nDirs*nFiles*passwdFileSize))
+  expectedTreeContainers=$((nDirs+(nFiles*nDirs)+2))
+
+  test_accounting $EOS_ACCOUNTING_DIR $expectedTreeContainers $totalNbFiles $totalTreeSize
+  test_accounting $EOS_ACCOUNTING_DIR/source $((nDirs+(nFiles*nDirs))) $totalNbFiles $totalTreeSize
+  test_accounting $EOS_ACCOUNTING_DIR/destination 0 0 0
+
+  stop_file=$(mktemp /tmp/eos-accounting-race-stop.XXXXXX)
+  echo "Starting background recompute loop for $EOS_ACCOUNTING_DIR ..."
+  (
+    set +x
+    while [[ -f $stop_file ]];
+    do
+      eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/ >/dev/null 2>&1
+    done
+  ) &
+  recompute_pid=$!
+
+  echo "Moving directories while recompute is running..."
+  start_time=$(date +%s)
+  mutation_pids=()
+  for (( i=0; i<$nDirs; i++ ));
+  do
+    eos mv $EOS_ACCOUNTING_DIR/source/$i $EOS_ACCOUNTING_DIR/destination/$i &
+    mutation_pids+=($!)
+  done
+  for pid in "${mutation_pids[@]}"; do
+    wait $pid
+  done
+
+  echo "Creating extra files in moved directories while recompute is running..."
+  for (( i=0; i<$nDirs; i++ ));
+  do
+    mutation_pids=()
+    for (( j=0; j<$nExtraFiles; j++));
+    do
+      eos cp /etc/passwd $url/$EOS_ACCOUNTING_DIR/destination/$i/extra$j &
+      mutation_pids+=($!)
+    done
+    for pid in "${mutation_pids[@]}"; do
+      wait $pid
+    done
+  done
+
+  echo "Moving half of the directories back while recompute is running..."
+  mutation_pids=()
+  for (( i=0; i<$nDirs; i+=2 ));
+  do
+    eos mv $EOS_ACCOUNTING_DIR/destination/$i $EOS_ACCOUNTING_DIR/source/$i &
+    mutation_pids+=($!)
+  done
+  for pid in "${mutation_pids[@]}"; do
+    wait $pid
+  done
+
+  rm -f $stop_file
+  wait $recompute_pid
+  end_time=$(date +%s)
+  elapsed=$((end_time - start_time))
+  echo "Concurrent mutation elapsed time = $elapsed seconds"
+
+  echo "Waiting 15 seconds for pending accounting to drain..."
+  sleep 15
+
+  totalNbFiles=$(((2*nFiles+nExtraFiles)*nDirs))
+  totalTreeSize=$(((nFiles+nExtraFiles)*nDirs*passwdFileSize))
+
+  echo "Checking accounting after racy recompute and accounting drain..."
+  test_accounting $EOS_ACCOUNTING_DIR $expectedTreeContainers $totalNbFiles $totalTreeSize
+  test_accounting $EOS_ACCOUNTING_DIR/source $(((nDirs/2)*(nFiles+1))) $(((nDirs/2)*(2*nFiles+nExtraFiles))) $(((nDirs/2)*(nFiles+nExtraFiles)*passwdFileSize))
+  test_accounting $EOS_ACCOUNTING_DIR/destination $(((nDirs/2)*(nFiles+1))) $(((nDirs/2)*(2*nFiles+nExtraFiles))) $(((nDirs/2)*(nFiles+nExtraFiles)*passwdFileSize))
+
+  cleanup
+}
+
 test_start_time=$(date +%s)
+
+if [[ "$mode" == "race" ]]; then
+  run_race_test
+  test_end_time=$(date +%s)
+  test_elapsed=$((test_end_time - test_start_time))
+  echo "Test elapsed time = $test_elapsed seconds"
+  exit 0
+fi
 
 cleanup
 

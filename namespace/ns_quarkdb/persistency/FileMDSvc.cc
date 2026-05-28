@@ -285,6 +285,40 @@ QuarkFileMDSvc::notifyListeners(IFileMDChangeListener::Event* event)
 }
 
 //------------------------------------------------------------------------------
+// Reserve an accounting delta sequence
+//------------------------------------------------------------------------------
+IFileMDChangeListener::ReservedAccountingDelta
+QuarkFileMDSvc::ReserveAccountingDelta(IContainerMD::id_t containerId,
+                                       TreeInfos treeInfos)
+{
+  for (const auto& elem : pListeners) {
+    auto delta = elem->ReserveAccountingDelta(containerId, treeInfos);
+
+    if (delta.valid) {
+      return delta;
+    }
+  }
+
+  return {};
+}
+
+//------------------------------------------------------------------------------
+// Publish a previously reserved accounting delta
+//------------------------------------------------------------------------------
+void
+QuarkFileMDSvc::PublishAccountingDelta(
+    const IFileMDChangeListener::ReservedAccountingDelta& delta)
+{
+  if (!delta.valid) {
+    return;
+  }
+
+  for (const auto& elem : pListeners) {
+    elem->PublishAccountingDelta(delta);
+  }
+}
+
+//------------------------------------------------------------------------------
 // Set container service
 //------------------------------------------------------------------------------
 void
