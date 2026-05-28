@@ -94,7 +94,13 @@ endif()
 
 set(CMAKE_INSTALL_SYSCONFDIR /etc)
 include(EosFindLibs)
+
 include(CTest)
+
+#-------------------------------------------------------------------------------
+# git is required for building the source tarball (see `dist` target below)
+#-------------------------------------------------------------------------------
+find_package(Git REQUIRED)
 
 #-------------------------------------------------------------------------------
 # Make gtest / gmock available for all downstream CMakeLists.txt that need it
@@ -141,8 +147,11 @@ add_subdirectory(misc)
 add_subdirectory(test)
 add_subdirectory(namespace/ns_quarkdb/qclient)
 
-if (NOT CLIENT)
+if (GRPC_FOUND)
   add_subdirectory(client)
+endif()
+
+if (NOT CLIENT)
   add_subdirectory(mgm)
   add_subdirectory(namespace)
   add_subdirectory(utils)
@@ -165,49 +174,45 @@ add_custom_target(
   "${CMAKE_COMMAND}" -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/cmake_uninstall.cmake")
 
 #-------------------------------------------------------------------------------
-# Packaging
+# Source packaging
 #-------------------------------------------------------------------------------
-set(CPACK_SOURCE_GENERATOR "TGZ")
-set(CPACK_PACKAGE_NAME "${CMAKE_PROJECT_NAME}")
-set(CPACK_PACKAGE_VERSION "${VERSION}")
-set(CPACK_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
-set(CPACK_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
-set(CPACK_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
-set(CPACK_PACKAGE_RELEASE "${RELEASE}")
-set(CPACK_SOURCE_PACKAGE_FILE_NAME "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}")
-set(CPACK_SOURCE_IGNORE_FILES
-"${CMAKE_CURRENT_BINARY_DIR};/ApMon/;/git/;/gitlab-ci/;/ccache/;/xrootd-dsi/;/nginx/;/dsi/;\
-;/grpc/eos-grpc.spec;/.deps/;~$;'.'o$;/lib/;/.git/;eos.spec.in;elrepopackage.spec;.tar.gz$;\
-.tar.bz2$;${CPACK_SOURCE_IGNORE_FILES};")
-
+set(EOS_PACKAGE_NAME "${CMAKE_PROJECT_NAME}")
+set(EOS_PACKAGE_VERSION "${VERSION}")
+set(EOS_PACKAGE_VERSION_MAJOR "${VERSION_MAJOR}")
+set(EOS_PACKAGE_VERSION_MINOR "${VERSION_MINOR}")
+set(EOS_PACKAGE_VERSION_PATCH "${VERSION_PATCH}")
+set(EOS_PACKAGE_RELEASE "${RELEASE}")
+set(EOS_SOURCE_PACKAGE_NAME "${EOS_PACKAGE_NAME}-${EOS_PACKAGE_VERSION}-${EOS_PACKAGE_RELEASE}")
+set(EOS_ARCHIVE "${EOS_SOURCE_PACKAGE_NAME}.tar.gz")
+set(EOS_ARCHIVE_PATH "${CMAKE_BINARY_DIR}/${EOS_ARCHIVE}")
 set(EOS_TUI_VERSION "0.2.14")
 
 configure_file(
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/config_spec.cmake.in"
   "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake" @ONLY IMMEDIATE)
 
+# Generate eos.spec in the build dir (it will be embedded into the tarball
+# at <prefix>/eos.spec by the archive script).
 add_custom_command(
-  OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
+  OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/eos.spec"
   COMMAND ${CMAKE_COMMAND} -P "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
   DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/cmake/config_spec.cmake"
-  "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
+          "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec.in")
 
+# Build the source archive from git (top-level repo + all submodules).
 add_custom_target(
   dist
-  COMMAND ${CMAKE_MAKE_PROGRAM} package_source
-  DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec")
-
-add_custom_command(
-  TARGET dist POST_BUILD
-  COMMAND rm ARGS -rf "${CMAKE_CURRENT_SOURCE_DIR}/eos.spec"
-  COMMENT "Clean generated spec file")
-
-include(CPack)
+  COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/cmake/eos-make-source-archive.sh
+          "${CMAKE_CURRENT_SOURCE_DIR}"
+          "${EOS_ARCHIVE_PATH}"
+          "${EOS_SOURCE_PACKAGE_NAME}"
+          "${CMAKE_CURRENT_BINARY_DIR}/eos.spec"
+  DEPENDS "${CMAKE_CURRENT_BINARY_DIR}/eos.spec"
+  COMMENT "Creating source archive ${EOS_ARCHIVE} from git")
 
 #-------------------------------------------------------------------------------
 # Source and binary rpms
 #-------------------------------------------------------------------------------
-set(EOS_ARCHIVE "${CMAKE_PROJECT_NAME}-${CPACK_PACKAGE_VERSION}-${CPACK_PACKAGE_RELEASE}.tar.gz")
 set(SRPM_DEFINE --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5")
 
 if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" OR CLANG_BUILD)
@@ -242,24 +247,24 @@ if (EOS_GRPC_GW)
   LIST(APPEND RPM_OPTIONS --with eos_grpc_gateway)
 endif()
 
+
 add_custom_target(
   srpm
-  COMMAND rpmbuild -ts ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" ${SRPM_DEFINE} ${RPM_OPTIONS})
+  COMMAND rpmbuild -ts ${EOS_ARCHIVE_PATH} --define "_topdir ${CMAKE_BINARY_DIR}" ${SRPM_DEFINE} ${RPM_OPTIONS})
 
 add_custom_target(
   rpm
-  COMMAND rpmbuild -tb ${EOS_ARCHIVE} --define "_topdir ${CMAKE_BINARY_DIR}" ${RPM_OPTIONS})
+  COMMAND rpmbuild -tb ${EOS_ARCHIVE_PATH} --define "_topdir ${CMAKE_BINARY_DIR}" ${RPM_OPTIONS})
 
 add_dependencies(srpm dist)
 add_dependencies(rpm dist)
-include(EosTui)
 
 #-------------------------------------------------------------------------------
 # Custom target to build on OSX
 #-------------------------------------------------------------------------------
 add_custom_target(
   osx
-  COMMAND sudo ../utils/eos-osx-package.sh ${CPACK_PACKAGE_VERSION})
+  COMMAND sudo ../utils/eos-osx-package.sh ${EOS_PACKAGE_VERSION})
 
 #-------------------------------------------------------------------------------
 # Custom target to build graphviz for all target
