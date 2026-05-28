@@ -480,7 +480,8 @@ build_el9_coverage:
         --use-new-run \
         --build-arg=EOS_CODENAME="${CODENAME}" \
         --build-arg=DIST="${DIST}" \
-        --build-arg=ARTIFACT_DIR="${ARTIFACT_DIR}"
+        --build-arg=ARTIFACT_DIR="${ARTIFACT_DIR}" \
+        --build-arg=BAKE_SECRETS=true
       [[ -n "$BASE_IMAGE"           ]] && set -- "$@" --build-arg=BASE_IMAGE="${BASE_IMAGE}"
       [[ -n "$INSTALL_EXTRA"        ]] && set -- "$@" --build-arg=INSTALL_EXTRA="${INSTALL_EXTRA}"
       [[ -n "$INSTALL_REPO_DISABLE" ]] && set -- "$@" --build-arg=INSTALL_REPO_DISABLE="${INSTALL_REPO_DISABLE}"
