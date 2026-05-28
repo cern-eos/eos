@@ -138,7 +138,7 @@ clone_docker:
   image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
     - dnf install --nogpg -y git
-    - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    - git clone https://gitlab.cern.ch/eos/eos-docker.git -b wip-redesign
   artifacts:
     expire_in: 1 day
     paths:
