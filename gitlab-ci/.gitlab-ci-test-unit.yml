@@ -1,0 +1,79 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2023 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Unit tests run inside the per-commit / per-tag docker image.
+
+.unit_test_template:
+  stage: test
+  variables:
+    OS_TAG: ".el9"
+  script:
+    # generic unit tests
+    - eos-unit-tests
+    - eos-unit-tests-fst
+    - eos-fusex-tests
+    - pip3 install pytest; python3 -m pytest /usr/sbin/test-eos-iam-mapfile.py
+    # namespace specific unit tests
+    - export EOS_QUARKDB_HOSTPORT=localhost:7777
+    - quarkdb-create --path /var/quarkdb/node-0
+    - chown -R daemon:daemon /var/quarkdb/node-0
+    - xrootd -n qdb -c /etc/xrd.cf.quarkdb -l /var/log/eos/xrdlog.qdb -b -Rdaemon
+    - eos-ns-quarkdb-tests
+    - cp /usr/sbin/qclient-tests . && GTEST_DEATH_TEST_USE_FORK=1 ./qclient-tests
+  needs:
+    - job: el9_docker_image
+      artifacts: false
+  retry: 1
+  tags:
+     - docker_node
+     - dock
+
+
+unit_test:tag:
+  extends: .unit_test_template
+  image:
+    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_TAG}${OS_TAG}
+    entrypoint: ["/bin/bash", "-c"]
+  rules: !reference [.rules-tags-only, rules]
+
+
+unit_test:
+  extends: .unit_test_template
+  image:
+    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}
+    entrypoint: ["/bin/bash", "-c"]
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: on_success
+
+
+unit_test_asan:
+  extends: .unit_test_template
+  image:
+    name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}${EXTRA_TAG}
+    entrypoint: ["/bin/bash", "-c"]
+  variables:
+    LSAN_OPTIONS: "suppressions=/var/eos/test/LeakSanitizer.supp"  # Suppress known memory leaks. For the generic tests
+    ASAN_OPTIONS: "fast_unwind_on_malloc=0"  # Avoid indirect leaks from linked dependencies. For the namespace tests
+    EXTRA_TAG: "_asan"
+  needs:
+    - job: el9_asan_docker_image
+      artifacts: false
+  rules: !reference [.rules-manual, rules]
+  allow_failure: true
