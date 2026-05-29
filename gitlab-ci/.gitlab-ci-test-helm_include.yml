@@ -151,7 +151,7 @@ helm_cbox:
   needs:
     - job: el9_docker_image
       artifacts: false
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 helm_conv_fsck_recycle:
   stage: test
@@ -186,7 +186,7 @@ helm_conv_fsck_recycle:
   needs:
     - job: el9_docker_image
       artifacts: false
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 .helm_fusex_test_template:
   stage: test
@@ -229,25 +229,9 @@ helm_conv_fsck_recycle:
 helm_fusex:
   extends: .helm_fusex_test_template
   needs:
-   - job: el9_docker_image
-     artifacts: false
-  when: manual
-
-.helm_fusex_ub_focal:
-  extends: .helm_fusex_test_template
-  variables:
-    CLI_BASETAG: "ubuntu_focal_client_"
-  needs:
     - job: el9_docker_image
       artifacts: false
-    - job: ubuntu_focal_docker_image
-      artifacts: false
-  only:
-    - schedules
-    - tags
-  allow_failure: true
-  retry: 1
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 .helm_fusex_ub_jammy:
   extends: .helm_fusex_test_template
@@ -258,13 +242,9 @@ helm_fusex:
       artifacts: false
     - job: ubuntu_jammy_docker_image
       artifacts: false
-  only:
-    - eosclient-tests-python3
-    - schedules
-    - tags
   allow_failure: true
   retry: 1
-  when: manual
+  rules: !reference [.rules-schedules-and-tags-manual, rules]
 
 helm_rtb_clone:
   stage: test
@@ -291,7 +271,7 @@ helm_rtb_clone:
     - job: el9_docker_image
       artifacts: false
   allow_failure: true
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 helm_stress:
   stage: test
@@ -321,7 +301,7 @@ helm_stress:
   needs:
     - job: el9_docker_image
       artifacts: false
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 .helm_system_test_template:
   stage: test
@@ -342,7 +322,7 @@ helm_system:
   needs:
     - job: el9_docker_image
       artifacts: false
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 helm_groupdrainer:
   stage: test
@@ -394,6 +374,6 @@ helm_traffic_shaping:
   needs:
     - job: cc7_xrd_testing_docker_image
       artifacts: false
-  only:
-    - schedules
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
   allow_failure: true
