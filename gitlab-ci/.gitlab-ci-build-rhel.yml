@@ -252,19 +252,6 @@ build_el9_clang:
   rules: !reference [.rules-schedules-and-triggers, rules]
 
 
-# @note Please contact CTA team / jleduc if you want to change this job
-build_cc7_opt_xrootd:
-  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
-  variables:
-    BUILD_NAME: cc7_opt_xrootd
-    CMAKE_OPTIONS: "-DEOS_XROOTD=1"
-    RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
-  before_script:
-    - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
-  extends: .build_exotic-template
-  rules: !reference [.rules-except-tags-manual, rules]
-
-
 build_el9_coverage:
   image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
   variables:

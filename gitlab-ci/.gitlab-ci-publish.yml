@@ -222,7 +222,7 @@ rpm_commit_artifacts:
   script:
     - dnf install --nogpg -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then echo "This only works for commits"; exit 0; else BUILD_TYPE="commit"; fi
-    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${CODENAME} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
+    - sudo -u stci -H ./gitlab-ci/publish_rpm.sh ${CODENAME} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
   tags:
     - docker_node
     - publish
@@ -238,7 +238,7 @@ rpm_testing_artifacts:
   script:
     - dnf install --nogpg -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag/testing"; else BUILD_TYPE="commit"; fi
-    - sudo -u stci -H ./gitlab-ci/store_artifacts.sh ${CODENAME} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
+    - sudo -u stci -H ./gitlab-ci/publish_rpm.sh ${CODENAME} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
   tags:
     - docker_node
     - publish
@@ -251,7 +251,7 @@ rpm_stable_artifacts:
   script:
     - dnf install --nogpg -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag"; else echo "This only works for tags"; exit 0; fi
-    - ./gitlab-ci/store_artifacts.sh ${CODENAME} ${BUILD_TYPE} /mnt/eos_repositories/eos
+    - ./gitlab-ci/publish_rpm.sh ${CODENAME} ${BUILD_TYPE} /mnt/eos_repositories/eos
     - sudo -u stci -H ./gitlab-ci/store_stable_artifacts.sh ${CODENAME} /eos/project/s/storage-ci/www/eos ${CI_COMMIT_TAG}
     - echo ${CI_COMMIT_TAG} | sudo -u stci tee /eos/project/s/storage-ci/www/eos/${CODENAME}/tag/latest_version
   tags:
