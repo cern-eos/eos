@@ -127,6 +127,7 @@ publish_debian:
     - when: manual
       allow_failure: true
 
+
 .clean_debian_artifacts:
   stage: clean
   image: registry.cern.ch/docker.io/ubuntu:noble
