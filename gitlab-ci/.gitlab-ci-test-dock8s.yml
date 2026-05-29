@@ -215,6 +215,7 @@
     - exec_cmd eos-mgm1 "eos vid add gateway \"127.0.0.1\" grpc"
     - exec_cmd eos-mgm1 "eos vid add gateway \"[:1]\" grpc"
     - exec_cmd eos-mgm1 "eos vid add gateway \"[::1]\" grpc"
+    - exec_cmd eos-mgm1 "for ip in \$(hostname -i); do eos vid add gateway \$ip grpc; done"
     - exec_cmd eos-mgm1 "eos vid add gateway \"127.0.0.1\" https"
     - exec_cmd eos-mgm1 "eos vid add gateway \"[:1]\" https"
     - exec_cmd eos-mgm1 "eos vid add gateway \"[::1]\" https"
@@ -231,17 +232,19 @@
     - |
       exec_cmd eos-mgm1 'sed -i -e "s/^\(master_url = \"https:\/\/\)localhost\(:[0-9][0-9]*\"\)/\1$(hostname -f)\2/" \
                                 -e "s/^\(master_grpc_uri = \"\)localhost\(:[0-9][0-9]*\"\)/\1$(hostname -f)\2/" \
-                                -e "s/^\(allow_insecure = \)true/\1false/" \
                                 reva/tests/integration/reva-cli/config/revad-eos.toml'
 
     # Start revad
     - exec_cmd eos-mgm1 './reva/cmd/revad/revad -c reva/tests/integration/reva-cli/config/revad-eos.toml </dev/null >revad.log 2>&1 & echo $! > revad.pid'
 
     # Tests and debug output
-    - exec_cmd eos-mgm1 "cd reva; make test-reva-cli"
-    - exec_cmd eos-mgm1 "eos vid ls"
-    - exec_cmd eos-mgm1 "eos access ls"
-    - exec_cmd eos-mgm1 "cat revad.log"
+    - |
+      exec_cmd eos-mgm1 "cd reva; make test-reva-cli; echo \$? > /tmp/test_exitcode"
+      exec_cmd eos-mgm1 "eos vid ls"
+      exec_cmd eos-mgm1 "eos access ls"
+      exec_cmd eos-mgm1 "cat revad.log"
+      REVA_RESULT=$(exec_cmd eos-mgm1 "cat /tmp/test_exitcode" | tr -d '[:space:]')
+      test "${REVA_RESULT}" = "0"
   allow_failure: true
 
 
