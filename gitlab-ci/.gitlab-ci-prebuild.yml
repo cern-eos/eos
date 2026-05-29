@@ -34,24 +34,14 @@
     - if: '$PREBUILD_TRIGGER'
 
 
-prebuild-el8:
+prebuild:
   extends: .prebuild-template
-  variables:
-    PREBUILD_NAME: el8
+  parallel:
+    matrix:
+      - PREBUILD_NAME: [el8, el9, el10]
 
 
-prebuild-el9:
-  extends: .prebuild-template
-  variables:
-    PREBUILD_NAME: el9
-
-
-prebuild-el10:
-  extends: .prebuild-template
-  variables:
-    PREBUILD_NAME: el10
-
-
+# arm64 stays separate: parallel:matrix can't vary the `tags:` key per cell
 prebuild-el9-arm64:
   extends: .prebuild-template
   variables:

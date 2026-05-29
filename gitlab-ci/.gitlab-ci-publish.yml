@@ -37,6 +37,10 @@
   rules: !reference [.rules-manual, rules]
 
 
+# publish_koji_* jobs can't be matrixed: GitLab does not interpolate variables
+# in `needs:job` strings, so each consumer must reference its upstream by literal
+# name. (The `rh` build matrix and the `prebuild`/`eos_apmon` matrices are fine
+# because they have no `needs:` of their own.)
 publish_koji_al8:
   extends: .publish_koji_template
   variables:
@@ -76,7 +80,8 @@ publish_koji_rh-8:
     BUILD_NAME: "rh-8"
   rules: !reference [.rules-schedules-and-tags-manual, rules]
   needs:
-    - job: rh-8
+    - job: "rh: [8]"
+      artifacts: true
 
 
 publish_koji_rh-9:
@@ -86,7 +91,8 @@ publish_koji_rh-9:
     BUILD_NAME: "rh-9"
   rules: !reference [.rules-schedules-and-tags-manual, rules]
   needs:
-    - job: rh-9
+    - job: "rh: [9]"
+      artifacts: true
 
 
 publish_koji_rh-10:
@@ -96,7 +102,8 @@ publish_koji_rh-10:
     BUILD_NAME: "rh-10"
   rules: !reference [.rules-schedules-and-tags-manual, rules]
   needs:
-    - job: rh-10
+    - job: "rh: [10]"
+      artifacts: true
 
 
 #-------------------------------------------------------------------------------
