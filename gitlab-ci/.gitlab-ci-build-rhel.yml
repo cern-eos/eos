@@ -102,28 +102,23 @@ build_el9_arm64:
     - mkdir -pv build; cd build;
     - cmake ../ -DPACKAGEONLY=1 -DCLIENT=1 -Wno-dev
     - make srpm; cd ..;
-    - mkdir -p ${CI_JOB_NAME}-artifacts
-    - cp -rv build/SRPMS/ ${CI_JOB_NAME}-artifacts
+    - mkdir -p ${BUILD_NAME}-artifacts
+    - cp -rv build/SRPMS/ ${BUILD_NAME}-artifacts
   artifacts:
     expire_in: 60 days
     paths:
-      - ${CI_JOB_NAME}-artifacts
+      - ${BUILD_NAME}-artifacts
   rules: !reference [.rules-schedules-and-tags, rules]
 
 
-rh-8:
- extends: .build-client-srpm-template
- image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
-
-
-rh-9:
- extends: .build-client-srpm-template
- image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
-
-
-rh-10:
- extends: .build-client-srpm-template
- image: gitlab-registry.cern.ch/linuxsupport/ubi10/ubi
+rh:
+  extends: .build-client-srpm-template
+  image: gitlab-registry.cern.ch/linuxsupport/ubi${RHEL_MAJOR}/ubi
+  variables:
+    BUILD_NAME: "rh-${RHEL_MAJOR}"
+  parallel:
+    matrix:
+      - RHEL_MAJOR: ["8", "9", "10"]
 
 
 #-------------------------------------------------------------------------------
