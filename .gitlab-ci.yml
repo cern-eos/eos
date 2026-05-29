@@ -28,9 +28,17 @@ stages:
 
 variables:
   CODENAME: "diopside"
+  GIT_SUBMODULE_STRATEGY: recursive
+  GIT_SUBMODULE_DEPTH: 1
 
 default:
   interruptible: true
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
+  retry:
+    max: 1
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
   before_script:
     - source gitlab-ci/export_commit-type.sh
     - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
@@ -78,22 +86,27 @@ workflow:
     - if: '$CI_COMMIT_TAG'
       when: never
     - when: manual
+      allow_failure: true
 
 .rules-manual-on-schedule:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: manual
+      allow_failure: true
 
 .rules-manual:
   rules:
     - when: manual
+      allow_failure: true
 
 .rules-schedules-and-tags-manual:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: manual
+      allow_failure: true
     - if: '$CI_COMMIT_TAG'
       when: manual
+      allow_failure: true
 
 .rules-master-and-tags:
   rules:
@@ -104,6 +117,7 @@ workflow:
   rules:
     - if: '$CI_COMMIT_TAG'
       when: manual
+      allow_failure: true
 
 #-------------------------------------------------------------------------------
 # Prebuild
@@ -135,7 +149,7 @@ workflow:
 .prebuild-template:
   stage: prebuild
   image:
-    name: gcr.io/kaniko-project/executor:debug
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
   script:
     - export DESTINATION="gitlab-registry.cern.ch/dss/eos/prebuild-${PREBUILD_NAME}-${CODENAME}"
@@ -183,7 +197,6 @@ prebuild-el9-arm64:
 
 clone_docker:
   stage: build:rpm
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
     - dnf install --nogpg -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git -b wip-redesign
@@ -200,7 +213,6 @@ clone_docker:
 .build-template:
   stage: build:rpm
   script:
-    - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build; cd build; cmake .. -DPACKAGEONLY=1 -DEOS_GRPC_GW=1 -Wno-dev; make srpm; cd ..;
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-$(rpm --eval '%{rhel}')/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
     - dnf builddep --nogpgcheck --allowerasing -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*;
@@ -272,7 +284,6 @@ build_el9_arm64:
     - dnf install cern-gpg-keys --nogpgcheck -y
     - rpm --import /etc/pki/rpm-gpg/* || true
     - dnf install rpm-build cmake gcc-c++ git -y
-    - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir -pv build; cd build;
     - cmake ../ -DPACKAGEONLY=1 -DCLIENT=1 -Wno-dev
     - make srpm; cd ..;
@@ -308,7 +319,6 @@ rh-10:
   stage: build:rpm
   script:
     - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git tar dnf-plugins-core ccache rpm-sign
-    - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build; cd build
     - cmake .. -DPACKAGEONLY=1 -Wno-dev; make srpm; cd ..
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n" > /etc/yum.repos.d/eos-depend.repo
@@ -354,7 +364,6 @@ build_fedora_rawhide:
   script:
     - export DIST=$(rpm --eval '%{rhel}')
     - dnf install -y git ccache tar sudo which tar gzip moreutils
-    - git submodule sync --recursive && git submodule update --init -f --recursive
     - mkdir build; cd build
     - cmake .. -DPACKAGEONLY=1 ${CMAKE_OPTIONS} -Wno-dev
     - make srpm; cd ..;
@@ -458,7 +467,7 @@ build_el9_coverage:
 .build_dockerimage-template:
   stage: build:dockerimage
   image:
-    name: gcr.io/kaniko-project/executor:debug
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
   variables:
     EXTRA_TAG: ""
@@ -954,26 +963,24 @@ publish_koji_rh-10:
 
 
 email_notification:
-   stage: publish
-   image: gitlab-registry.cern.ch/linuxsupport/alma9-base
-   variables:
-     ENV: production
-     TO_ADDRS: project-eos-commits@cern.ch,lxbatch-experts@cern.ch
-   script:
-     - dnf install -y git python pip
-     - git clone https://token:$EOS_REPO_MAILSERVICE_TOKEN@gitlab.cern.ch/eos/eos-mailservices-code-samples.git
-     - cd eos-mailservices-code-samples/Python/oauth2-samples; pip install --no-input -r requirements.txt
-     - export EOS_VERSION=$CI_COMMIT_TAG
-     - python -m oauth2_smtp
-   needs:
-     - job: publish_koji_al9
-   rules: !reference [.rules-tags-only, rules]
+  stage: publish
+  variables:
+    ENV: production
+    TO_ADDRS: project-eos-commits@cern.ch,lxbatch-experts@cern.ch
+  script:
+    - dnf install -y git python pip
+    - git clone https://token:$EOS_REPO_MAILSERVICE_TOKEN@gitlab.cern.ch/eos/eos-mailservices-code-samples.git
+    - cd eos-mailservices-code-samples/Python/oauth2-samples; pip install --no-input -r requirements.txt
+    - export EOS_VERSION=$CI_COMMIT_TAG
+    - python -m oauth2_smtp
+  needs:
+    - job: publish_koji_al9
+  rules: !reference [.rules-tags-only, rules]
 
 # This job uses CI_JOB_TOKEN to trigger a pipeline in the CTA project.
 # This means that whoever triggers this job, must have the rights to start a pipeline in CTA.
 notify_cta_project:
   stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   needs:
     - job: el9_docker_image
       artifacts: false
@@ -1043,7 +1050,6 @@ notify_cta_project:
 
 rpm_commit_artifacts:
   stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   needs:
     - job: build_el8
       artifacts: true
@@ -1075,7 +1081,6 @@ rpm_commit_artifacts:
 
 rpm_testing_artifacts:
   stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
     - dnf install --nogpg -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag/testing"; else BUILD_TYPE="commit"; fi
@@ -1089,7 +1094,6 @@ rpm_testing_artifacts:
 
 rpm_stable_artifacts:
   stage: publish
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
     - dnf install --nogpg -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag"; else echo "This only works for tags"; exit 0; fi
@@ -1107,7 +1111,7 @@ rpm_stable_artifacts:
 .publish_dockerimage-template:
   stage: publish
   image:
-    name: gcr.io/kaniko-project/executor:debug
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
     entrypoint: [""]
   variables:
     # eos-docker (redesigned layout): single minimal Dockerfile, parameterised
@@ -1171,7 +1175,6 @@ el9_publish_dockerimage_fusex:
 
 clean_rpm_artifacts:
   stage: clean
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
     - dnf install --nogpg -y sssd-client sudo createrepo
     - sudo -u stci -H ./gitlab-ci/remove_old_artifacts.sh
@@ -1241,7 +1244,6 @@ eos_apmon_el-8:
 
 
 eos_apmon_el-9:
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   variables:
     STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-9/x86_64
   extends: .build-apmon-template
@@ -1249,7 +1251,6 @@ eos_apmon_el-9:
 
 eos_docs:
   stage: build:manual
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
     - dnf install --nogpg -y make python3-sphinx sssd-client sudo which git
     - cd doc
