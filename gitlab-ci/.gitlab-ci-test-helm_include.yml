@@ -343,6 +343,7 @@ helm_groupdrainer:
   needs:
     - job: el9_docker_image
       artifacts: false
+  retry: 1
 
 helm_traffic_shaping:
   stage: test

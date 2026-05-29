@@ -15,16 +15,12 @@ set -ex
 # Define a mapping between builds and repos
 declare -A BUILDMAP
 
-BUILDMAP[cc7]=el-7
 BUILDMAP[el-8]=el-8
 BUILDMAP[el-9]=el-9
 BUILDMAP[el-10]=el-10
-BUILDMAP[fc-38]=fc-38
-BUILDMAP[fc-40]=fc-40
+BUILDMAP[fc-44]=fc-44
 BUILDMAP[fc-rawhide]=fc-rawhide
 BUILDMAP[osx]=osx
-BUILDMAP[cc7_asan]=el-7-asan
-BUILDMAP[cc7_tsan]=el-7-tsan
 BUILDMAP[el-9-asan]=el-9-asan
 BUILDMAP[el-9-tsan]=el-9-tsan
 BUILDMAP[el-9-arm64]=el-9
