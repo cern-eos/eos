@@ -1,0 +1,60 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2023 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Scheduled cleanup jobs: prune old RPM artifacts and stale k8s/helm namespaces.
+
+clean_rpm_artifacts:
+  stage: clean
+  script:
+    - dnf install --nogpg -y sssd-client sudo createrepo
+    - sudo -u stci -H ./gitlab-ci/remove_old_artifacts.sh
+  allow_failure: true
+  rules: !reference [.rules-schedules-and-triggers, rules]
+  tags:
+    - docker_node
+
+
+# get all the namespaces, filter out the "mgmt" ones, delete if older than 30h
+clean_k8s_cluster:
+  stage: clean
+  image: alpine/k8s:1.18.2
+  script:
+    - export KUBECONFIG=$K8S_CONFIG
+    - set +o pipefail
+    - kubectl get namespaces --no-headers | grep -v 'default\|kube-node-lease\|kube-public\|kube-system\|magnum-tiller' |
+        awk 'match($3,/(([3-9][0-9]|[1-9][0-9][0-9]+)h|[1-9][0-9]*d)/) {print $1}' | xargs --no-run-if-empty kubectl delete namespaces
+  dependencies: []
+  allow_failure: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  tags:
+    - docker_node
+    - k8s
+
+
+# @todo cleanup helm leftover for failed / hanging tests. May be merged to 'clean_k8s_cluster'
+clean_helm_cluster:
+  stage: clean
+  image: gitlab-registry.cern.ch/dss/alpine-enhanced:3.13.5
+  script:
+    - export KUBECONFIG=$K8S_CONFIG
+    - echo "Please, implement me!"
+  dependencies: []
+  allow_failure: true
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'

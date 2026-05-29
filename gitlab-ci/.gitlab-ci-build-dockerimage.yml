@@ -1,0 +1,126 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2023 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Docker image builds: clones the eos-docker repo and bakes per-variant test
+# images that downstream test stages consume.
+
+clone_docker:
+  stage: build:rpm
+  script:
+    - dnf install --nogpg -y git
+    - git clone https://gitlab.cern.ch/eos/eos-docker.git -b wip-redesign
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - eos-docker/
+
+
+.build_dockerimage-template:
+  stage: build:dockerimage
+  image:
+    name: gcr.io/kaniko-project/executor:v1.23.2-debug
+    entrypoint: [""]
+  variables:
+    EXTRA_TAG: ""
+    DOCKERFILE: eos-docker/docker/Dockerfile
+    TARGET: test
+    BASE_IMAGE: ""
+    INSTALL_EXTRA: ""
+    INSTALL_REPO_DISABLE: ""
+  script:
+    # @note keep $CACHE orthogonal to $IMAGE_TAG, do not join the "if"s
+    - if [[ -n "$CI_COMMIT_TAG" ]] || [[ "x$CI_PIPELINE_SOURCE" == "xschedule" ]];
+      then CACHE="false";
+      else CACHE="true";
+      fi
+    - if [[ -n "$CI_COMMIT_TAG" ]];
+      then IMAGE_TAG="$CI_COMMIT_TAG${OS_TAG}${EXTRA_TAG}";
+      else IMAGE_TAG="$CI_COMMIT_SHORT_SHA${OS_TAG}${EXTRA_TAG}";
+      fi
+    - IMAGE_REPO="gitlab-registry.cern.ch/dss/eos/eos-ci"
+    - DESTINATION="${IMAGE_REPO}:${IMAGE_TAG}"
+    # Deduce the artefact directory from DIST unless explicitly overridden.
+    # Convention (see .build-template / .build_exotic-template): ${DIST}-artifacts/RPMS
+    - ARTIFACT_DIR="${ARTIFACT_DIR:-${DIST}-artifacts/RPMS}"
+    - echo "CACHE=$CACHE - DESTINATION=$DESTINATION - DIST=$DIST - TARGET=$TARGET - ARTIFACT_DIR=$ARTIFACT_DIR"
+    - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
+    - |
+      set -- \
+        --cache=$CACHE \
+        --destination "$DESTINATION" \
+        --dockerfile "$DOCKERFILE" \
+        --context "$CI_PROJECT_DIR" \
+        --target "$TARGET" \
+        --compressed-caching=false \
+        --use-new-run \
+        --build-arg=EOS_CODENAME="${CODENAME}" \
+        --build-arg=DIST="${DIST}" \
+        --build-arg=ARTIFACT_DIR="${ARTIFACT_DIR}" \
+        --build-arg=BAKE_SECRETS=true
+      [[ -n "$BASE_IMAGE"           ]] && set -- "$@" --build-arg=BASE_IMAGE="${BASE_IMAGE}"
+      [[ -n "$INSTALL_EXTRA"        ]] && set -- "$@" --build-arg=INSTALL_EXTRA="${INSTALL_EXTRA}"
+      [[ -n "$INSTALL_REPO_DISABLE" ]] && set -- "$@" --build-arg=INSTALL_REPO_DISABLE="${INSTALL_REPO_DISABLE}"
+      /kaniko/executor "$@"
+  retry: 1
+
+
+el9_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DIST: el-9
+  needs:
+    - job: clone_docker
+    - job: build_el9
+
+
+el10_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DIST: el-10
+    BASE_IMAGE: gitlab-registry.cern.ch/linuxsupport/alma10-base
+  needs:
+    - job: clone_docker
+    - job: build_el10
+  rules: !reference [.rules-schedules-and-tags, rules]
+
+
+el9_asan_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DIST: el-9-asan
+    INSTALL_EXTRA: "eos-folly-2019.11.11.00 eos-folly-deps-2019.11.11.00"
+    INSTALL_REPO_DISABLE: "cern*"
+    EXTRA_TAG: "_asan"
+  needs:
+    - job: clone_docker
+    - job: build_el9_asan
+  rules: !reference [.rules-manual, rules]
+  allow_failure: true
+
+
+.el9_coverage_docker_image:
+  extends: .build_dockerimage-template
+  variables:
+    DIST: el-9-coverage
+    EXTRA_TAG: "_coverage"
+  needs:
+    - job: clone_docker
+    - job: build_el9_coverage
+  rules:
+    - if: '$COVERAGE_SCHEDULE'
+  allow_failure: true

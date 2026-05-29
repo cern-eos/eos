@@ -1,0 +1,258 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2023 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Hidden templates for the dock8s test framework (runs the same tests against
+# both docker-compose and k8s namespaces via exec_cmd). Consumed by the k8s and
+# (legacy) docker include files.
+
+.dock8s_base:
+  stage: test
+  variables:
+    OS_TAG: ".el9"
+  before_script:
+    - case $CI_JOB_NAME in
+      "k8s"*  )
+        source ./gitlab-ci/before_script_k8s_test.sh;
+        source ./gitlab-ci/utilities_func_for_tests.sh --type k8s $K8S_NAMESPACE ;;
+      "dock"* )
+        source ./gitlab-ci/before_script_docker_test.sh;
+        source ./gitlab-ci/utilities_func_for_tests.sh --type docker; ;;
+      esac
+  after_script:
+    - case $CI_JOB_NAME in
+      "k8s"*  )
+        source ./gitlab-ci/after_script_k8s_test.sh ;;
+      "dock"* )
+        source ./gitlab-ci/after_script_docker_test.sh ;;
+      esac
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
+
+
+.dock8s_system_test_template:
+  extends: .dock8s_base
+  script:
+    - date
+    - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
+    - exec_cmd eos-mgm1 'eos-instance-test-ci'
+    - date
+    - exec_cmd eos-mgm1 'eos-unit-tests-with-instance -n root://localhost//eos/dockertest/'
+    - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
+    - date
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils; chmod +x eos-test-utils
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-fst-close-test ./eos-fst-close-test; chmod +x eos-fst-close-test
+    - case $CI_JOB_NAME in
+      "k8s"*  )
+        export EOS_MGM_URL="root://eos-mgm1.eos-mgm1.$K8S_NAMESPACE.svc.cluster.local";
+        ./eos-fst-close-test --mgm ${EOS_MGM_URL} --type k8s $K8S_NAMESPACE ;;
+      "dock"* )
+        ./eos-fst-close-test --type docker ;;
+      esac
+    - date
+
+
+.dock8s_convert_fsck_recycle_template:
+  extends: .dock8s_base
+  script:
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils; chmod +x eos-test-utils
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-convert-test ./eos-convert-test; chmod +x eos-convert-test
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-fsck-test ./eos-fsck-test; chmod +x eos-fsck-test
+    - cp_to_local_cmd eos-cli1:/usr/sbin/eos-recycle-test ./eos-recycle-test; chmod +x eos-recycle-test
+    - case $CI_JOB_NAME in
+      "k8s"*  )
+        ./eos-convert-test --type k8s $K8S_NAMESPACE;
+        ./eos-fsck-test --max-delay 600 --type k8s $K8S_NAMESPACE;
+        ./eos-recycle-test --type k8s $K8S_NAMESPACE;;
+      "dock"* )
+        ./eos-convert-test --type docker;
+        ./eos-fsck-test --max-delay 600 --type docker;
+        ./eos-recycle-test --type docker;;
+      esac
+    - rm -rf eos-test-utils
+    - rm -rf eos-convert-test
+    - rm -rf eos-fsck-test
+    - rm -rf eos-recycle-test
+
+
+.dock8s_rtb_clone_template:
+  extends: .dock8s_base
+  script:
+    # prepare mountpoints
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # download tests repo
+    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    - exec_cmd eos-cli1 'cd /eosclient-tests && pip install -r requirements.txt'
+    # ubuntu releases do not support 'clone' yet, skip its test
+    - case $CI_JOB_NAME in
+      "ub_focal"* | "ub_jammy"* ) ;;
+      *                          ) exec_cmd eos-cli1 'cd /eosclient-tests; clone_tests/clone_test.sh prepare; rc=$?; exit $rc' ;;
+      esac
+
+
+.dock8s_fusex_test_template:
+  extends: .dock8s_base
+  script:
+    # prepare mountpoints
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos1/dockertest/ ]] || [[ ! -d /eos2/dockertest/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # fusex functional bindings
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eosfunctionaltest/ && mount -t fuse eosxd -ofsname=eosdockertest /eosfunctionaltest/;"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && [[ ! -d /eosfunctionaltest/dockertest/ ]] ; do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    - exec_cmd eos-cli1 'su eos-user -c "mkdir -m 700 -p /eosfunctionaltest/dockertest/credentialtest/ && cd /eosfunctionaltest/dockertest/credentialtest/"'
+    - exec_cmd eos-cli1 'su eos-user -c "eos-test-credential-bindings /eosfunctionaltest/dockertest/credentialtest/"'
+    # fusex benchmark
+    - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
+    - exec_cmd eos-cli1 'su eos-user -c "mkdir -p /eos1/dockertest/fusex_tests/ && cd /eos1/dockertest/fusex_tests/ && fusex-benchmark"'
+    - exec_cmd eos-mgm1 'grep "RWMutex. Order Checking Error in thread" /var/log/eos/mgm/xrdlog.mgm && exit 1 || exit 0'
+    # download tests repo
+    - exec_cmd eos-cli1 'git clone https://gitlab.cern.ch/dss/eosclient-tests.git'
+    - exec_cmd eos-cli1 'cd /eosclient-tests && pip install -r requirements.txt'
+    # run the tests
+
+    # @todo(esindril): run "all" tests in schedule mode once these are properly supported
+    # if [[ "$CI_PIPELINE_SOURCE" == "schedule" ]];
+    # then
+    #   exec_cmd eos-mgm1 'eos vid add gateway "eos-cli1.eos-cli1.${K8S_NAMESPACE}.svc.cluster.local" unix';
+    #   exec_cmd eos-cli1 'env EOS_FUSE_NO_ROOT_SQUASH=1 python3 /eosclient-tests/run.py --workdir="/eos1/dockertest /eos2/dockertest" ci';
+    # fi
+    # until then just run the "ci" tests
+    - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n prepare; done'
+    - exec_cmd eos-cli1 'su eos-user -c "python3 /eosclient-tests/run.py --workdir=\"/eos1/dockertest /eos2/dockertest\" ci"'
+    - exec_cmd eos-cli1 'cd eosclient-tests; for n in prepare/*.sh; do /bin/bash $n cleanup; done'
+
+    # fusex test SAMBA gateways authentication settings
+    # this will run on the client pod
+    - exec_cmd eos-mgm1 'eos vid enable sss'
+    - exec_cmd eos-mgm1 'eos vid enable unix'
+    - CLI_POD_HOSTNAME="$(exec_cmd eos-cli1 'hostname -f')"
+    - echo ${CLI_POD_HOSTNAME}
+    - exec_cmd eos-mgm1 "eos vid add gateway ${CLI_POD_HOSTNAME} unix"
+    - exec_cmd eos-cli1 'eos-fusex-functional-test --samba'
+
+
+.dock8s_cbox_test_template:
+  extends: .dock8s_base
+  script:
+    # enable converter and prepare eoshome folder, cernbox alike
+    - exec_cmd eos-mgm1 'eos convert config set status=on'
+    - exec_cmd eos-mgm1 './eos_create_userhome.sh eos-user'
+    # prepare mountpoints
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos/ && mount -t fuse eosxd -ofsname=eosdockertest /eos/"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+    # set krb5 ticket and download tests repo @note the 'export KRB5CCNAME to FILE: type' is a spooky trick, can be made nicer.
+    - exec_cmd eos-cli1 'echo -e "export KRB5CCNAME=FILE:/tmp/krb5cc_$(id -u eos-user)" >> ~/.bashrc'
+    - exec_cmd eos-cli1 'su eos-user -c "kinit eos-user@TEST.EOS -k -t /home/eos-user/eos-user.keytab"'
+    - exec_cmd eos-cli1 'su eos-user -c "git clone https://gitlab.cern.ch/dss/eosclient-tests.git /eos/user/e/eos-user/eosclient-tests"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user/eosclient-tests && pip install -r requirements.txt"'
+    # launch the tests
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
+    - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
+
+
+.dock8s_reva_test_template:
+  extends: .dock8s_base
+  script:
+    # enable converter and prepare eoshome folder, cernbox alike
+    - exec_cmd eos-mgm1 'eos convert config set status=on'
+    - exec_cmd eos-mgm1 './eos_create_userhome.sh eos-user'
+    # prepare mountpoints
+    - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos/ && mount -t fuse eosxd -ofsname=eosdockertest /eos/"'
+    - exec_cmd eos-cli1 'count=0; while [[ $count -le 10 ]] && ( [[ ! -d /eos/ ]] ); do echo "Wait for mount... $count"; (( count++ )); sleep 1; done;'
+
+    # install dependencies
+    - exec_cmd eos-mgm1 'yum -y install nodejs npm git make tar'
+
+    # Install go
+    - exec_cmd eos-mgm1 "export PATH=\"/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:$PATH\" && /usr/bin/wget https://go.dev/dl/go1.25.1.linux-amd64.tar.gz && /usr/bin/tar -C /usr/local -xzf go1.25.1.linux-amd64.tar.gz && ln -s /usr/local/go/bin/go /usr/bin/go && ln -s /usr/local/go/bin/gofmt /usr/bin/gofmt || echo Failed to install golang"
+    - exec_cmd eos-mgm1 'npm install -g @intuit/judo'
+
+    # Build reva from latest tag
+    - exec_cmd eos-mgm1 'git clone https://github.com/cs3org/reva.git'
+    - exec_cmd eos-mgm1 'export PATH="$(/usr/bin/go env GOPATH)/bin:$PATH"; cd reva; git fetch --tags ;
+      export latest_tag=$(git describe --tags "$(git rev-list --tags --max-count=1)") ;
+      git checkout "$latest_tag"; make reva; make cernbox-revad; mkdir -p reva/tmp'
+
+    # Put users.json and groups.json in the right place
+    - exec_cmd eos-mgm1 'cp reva/tests/integration/reva-cli/config/users.json tmp/users.json'
+    - exec_cmd eos-mgm1 'cp reva/tests/integration/reva-cli/config/groups.json tmp/groups.json'
+
+    # Put eos path as basepath for tests:
+    - |
+      exec_cmd eos-mgm1 \
+      "find reva/tests/integration/reva-cli -type f -name '*.yaml' -exec sed -i 's|^[[:space:]]*BASEDIR: \"/localfs\"$|  BASEDIR: \"/eos/test\"|' {} +"
+
+    # Prepare mgm (add users, set vid mapping, create directory)
+    - exec_cmd eos-mgm1 "groupadd -g 123 myusers"
+    - exec_cmd eos-mgm1 "useradd -u 1255 -g myusers testuser"
+    - exec_cmd eos-mgm1 "useradd -u 1256 -g myusers testreceivinguser"
+    - exec_cmd eos-mgm1 "eos mkdir /eos/test"
+    - exec_cmd eos-mgm1 "eos chown 1255:123 /eos/test"
+    - exec_cmd eos-mgm1 "eos acl --sys u:1255=rwx /eos"
+    - exec_cmd eos-mgm1 "eos recycle config --add-bin /eos/"
+    - exec_cmd eos-mgm1 "eos attr set sys.versioning=\"10\" /eos/test"
+    - exec_cmd eos-mgm1 "eos attr set sys.forced.atomic=\"1\" /eos/test"
+    - exec_cmd eos-mgm1 "eos attr set sys.allow.oc.sync=\"1\" /eos/test"
+    - exec_cmd eos-mgm1 "eos attr ls /eos/test"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"127.0.0.1\" grpc"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"[:1]\" grpc"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"[::1]\" grpc"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"127.0.0.1\" https"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"[:1]\" https"
+    - exec_cmd eos-mgm1 "eos vid add gateway \"[::1]\" https"
+    - exec_cmd eos-mgm1 "for ip in \$(hostname -i); do eos vid add gateway \$ip https; done"
+    - exec_cmd eos-mgm1 "eos vid set map -grpc key:auth_key vuid:11  vgid:11"
+    - exec_cmd eos-mgm1 "eos vid set map -https key:auth_key vuid:11  vgid:11"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 +sudo"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 -uids 3"
+    - exec_cmd eos-mgm1 "eos vid set membership 11 -gids 4"
+    - exec_cmd eos-mgm1 "eos access allow group myusers"
+    - echo ${MGM_POD_HOSTNAME}
+
+    # We connect over https, and the certificate is only valid for the hostname, so replace localhost with the MGM's hostname
+    - |
+      exec_cmd eos-mgm1 'sed -i -e "s/^\(master_url = \"https:\/\/\)localhost\(:[0-9][0-9]*\"\)/\1$(hostname -f)\2/" \
+                                -e "s/^\(master_grpc_uri = \"\)localhost\(:[0-9][0-9]*\"\)/\1$(hostname -f)\2/" \
+                                -e "s/^\(allow_insecure = \)true/\1false/" \
+                                reva/tests/integration/reva-cli/config/revad-eos.toml'
+
+    # Start revad
+    - exec_cmd eos-mgm1 './reva/cmd/revad/revad -c reva/tests/integration/reva-cli/config/revad-eos.toml </dev/null >revad.log 2>&1 & echo $! > revad.pid'
+
+    # Tests and debug output
+    - exec_cmd eos-mgm1 "cd reva; make test-reva-cli"
+    - exec_cmd eos-mgm1 "eos vid ls"
+    - exec_cmd eos-mgm1 "eos access ls"
+    - exec_cmd eos-mgm1 "cat revad.log"
+  allow_failure: true
+
+
+.dock8s_flamegraph_test_template:
+  extends: .dock8s_base
+  script:
+    - date
+    - echo 0 > /proc/sys/kernel/perf_event_paranoid; cat /proc/sys/kernel/perf_event_paranoid
+    - echo 0 > /proc/sys/kernel/kptr_restrict; cat /proc/sys/kernel/kptr_restrict
+    - exec_cmd eos-mgm1 "mkdir eos-flamegraph-data; cd eos-flamegraph-data; /usr/sbin/eos-make-flamegraph"
+  artifacts:
+    expire_in: 1 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
