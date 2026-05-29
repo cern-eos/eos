@@ -1,0 +1,112 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2023 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# Miscellaneous jobs: ALICE ApMon RPM builds, Sphinx docs deployment,
+# pre-commit / clang-format check.
+
+#-------------------------------------------------------------------------------
+# ALICE ApMon builds
+#-------------------------------------------------------------------------------
+
+.build-apmon-template:
+  stage: build:manual
+  script:
+    - dnf install --nogpg -y gcc-c++ make rpm-build which git sssd-client sudo createrepo rsync tar gawk
+    - cd ApMon; ./maketar.sh
+    - rpmbuild --define "_source_filedigest_algorithm md5" --define "_binary_filedigest_algorithm md5" --define "_topdir ./rpmbuild" -ts eos-apmon-*.tar.gz
+    - dnf install -y dnf-plugins-core
+    - dnf builddep -y --nogpgcheck rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - rpmbuild --rebuild --define "_rpmdir rpmbuild/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" rpmbuild/SRPMS/eos-apmon-*.src.rpm
+    - sudo -u stci -H mkdir -p ${STORAGE_PATH}
+    - sudo -u stci -H cp -f rpmbuild/RPMS/*.rpm ${STORAGE_PATH}
+    - sudo -u stci -H createrepo --update -q ${STORAGE_PATH}
+  tags:
+    - docker_node
+  rules: !reference [.rules-manual, rules]
+
+
+eos_apmon_el-8:
+  image: gitlab-registry.cern.ch/linuxsupport/alma8-base
+  variables:
+    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-8/x86_64
+  extends: .build-apmon-template
+
+
+eos_apmon_el-9:
+  variables:
+    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-9/x86_64
+  extends: .build-apmon-template
+
+
+#-------------------------------------------------------------------------------
+# Documentation
+#-------------------------------------------------------------------------------
+
+eos_docs:
+  stage: build:manual
+  script:
+    - dnf install --nogpg -y make python3-sphinx sssd-client sudo which git
+    - cd doc
+    - export PYTHONPATH=`pwd`/_themes/
+    - cd diopside
+    - make html
+    - make html
+    - sudo kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
+    - sudo -u stci -H rm -rf /eos/project/e/eos/www/docs/diopside/*
+    - sudo -u stci -H cp -R _build/html/* /eos/project/e/eos/www/docs/diopside
+  tags:
+    - docker_node
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: on_success
+      allow_failure: true
+    - when: manual
+      allow_failure: true
+
+
+#-------------------------------------------------------------------------------
+# Pre-commit / clang-format
+#-------------------------------------------------------------------------------
+
+pre_commit:
+  stage: pre-commit
+  image: gitlab-registry.cern.ch/linuxsupport/alma10-base
+  needs: [ ]
+  variables:
+    PIP_NO_CACHE_DIR: "1"
+  before_script:
+    - dnf install -y git python python-pip clang-tools-extra
+    - python -m pip install --upgrade pip
+    - pip install pre-commit
+  script:
+    # Run pre-commit against all files starting from a given commit to HEAD
+    # This is done to avoid issues with large diffs when running pre-commit on all files (blocks the CI for ~10 minutes)
+    # When (if) the whole is formatted, we can remove the `--from-ref` and `--to-ref` options to always check all files
+
+    # pre-commit is run but clang-format will not be applied to all files, just to changed lines.
+    # In this stage it will not run since there are no changes, so clang-format here will do nothing
+    - pre-commit run --from-ref $(git merge-base origin/master HEAD) --to-ref HEAD --all-files
+
+    # Now we compute the diff and run clang-format on the diff only, as if we had the hook installed during our commits.
+    # This will modify the files in place, so you can copy-paste this command to fix the formatting issues locally and then commit the changes but if you have the hook installed you should never need to!
+    - git diff -U0 $(git merge-base origin/master HEAD) HEAD | python3 utils/clang-format-diff.py -p1 -i
+
+    # check if the previous command made any changes, if so, fail the job to enforce formatting
+    - git diff --exit-code || (echo "Code is not properly formatted, please run the above command to fix the formatting issues and commit the changes." && exit 1)
+
+  allow_failure: true # we could enable this soon but let's keep it optional for now until people have had time to adapt to the new formatting rules

@@ -1,0 +1,280 @@
+# ************************************************************************
+# * EOS - the CERN Disk Storage System                                   *
+# * Copyright (C) 2023 CERN/Switzerland                                  *
+# *                                                                      *
+# * This program is free software: you can redistribute it and/or modify *
+# * it under the terms of the GNU General Public License as published by *
+# * the Free Software Foundation, either version 3 of the License, or    *
+# * (at your option) any later version.                                  *
+# *                                                                      *
+# * This program is distributed in the hope that it will be useful,      *
+# * but WITHOUT ANY WARRANTY; without even the implied warranty of       *
+# * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the        *
+# * GNU General Public License for more details.                         *
+# *                                                                      *
+# * You should have received a copy of the GNU General Public License    *
+# * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
+# ************************************************************************
+
+# RHEL-family RPM builds: AlmaLinux server RPMs, RHEL client SRPMs, Fedora,
+# and "exotic" variants (asan / tsan / clang / coverage / CC7+xrootd).
+
+#-------------------------------------------------------------------------------
+# Build RPMs
+#-------------------------------------------------------------------------------
+
+.build-template:
+  stage: build:rpm
+  script:
+    - mkdir build; cd build; cmake .. -DPACKAGEONLY=1 -DEOS_GRPC_GW=1 -Wno-dev; make srpm; cd ..;
+    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-$(rpm --eval '%{rhel}')/$(uname -m)/\ngpgcheck=0\nenabled=1\npriority=2\n" >> /etc/yum.repos.d/eos-depend.repo
+    - dnf builddep --nogpgcheck --allowerasing -y --setopt="cern*.exclude=xrootd*" build/SRPMS/*;
+    - |
+      if [[ -n "$CI_COMMIT_TAG" ]]; then
+        export CCACHE_DISABLE=1;
+        dnf install -y gnupg2;
+      else
+        source gitlab-ci/setup_ccache.sh;
+      fi
+    - rpmbuild --rebuild --with server --with eos_grpc_gateway --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | (ts 2> /dev/null || true; tee)
+    - ccache -s
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - mkdir ${BUILD_NAME}-artifacts; cp -rv build/*RPMS/ build/eos-*.tar.gz ${BUILD_NAME}-artifacts
+    - echo "OS_TAG=$(rpm --eval '%{?dist}')" > build.env
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "$CI_JOB_NAME-master"
+    paths:
+      - ccache/
+  artifacts:
+    expire_in: 60 days
+    paths:
+      - ${BUILD_NAME}-artifacts/
+    reports:
+      dotenv: build.env
+
+
+build_el8:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el8-${CODENAME}
+  variables:
+    BUILD_NAME: el-8
+  extends: .build-template
+  rules: !reference [.rules-schedules-and-tags, rules]
+
+
+build_el9:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
+  variables:
+    BUILD_NAME: el-9
+  extends: .build-template
+
+
+build_el10:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el10-${CODENAME}
+  variables:
+    BUILD_NAME: el-10
+  extends: .build-template
+  rules: !reference [.rules-schedules-and-tags, rules]
+
+
+build_el9_arm64:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-arm64-${CODENAME}
+  variables:
+    BUILD_NAME: el-9-arm64
+  extends: .build-template
+  tags:
+    - k8s-arm
+  rules: !reference [.rules-schedules-and-tags, rules]
+
+
+#-------------------------------------------------------------------------------
+# EOS client builds for RHEL
+#-------------------------------------------------------------------------------
+
+.build-client-srpm-template:
+  stage: build:rpm
+  script:
+    - dnf config-manager --add-repo https://linuxsoft.cern.ch/cern/rhel/$(rpm --eval '%{rhel}')/CERN/$(uname -m)/ --set-enabled
+    - dnf install cern-gpg-keys --nogpgcheck -y
+    - rpm --import /etc/pki/rpm-gpg/* || true
+    - dnf install rpm-build cmake gcc-c++ git -y
+    - mkdir -pv build; cd build;
+    - cmake ../ -DPACKAGEONLY=1 -DCLIENT=1 -Wno-dev
+    - make srpm; cd ..;
+    - mkdir -p ${CI_JOB_NAME}-artifacts
+    - cp -rv build/SRPMS/ ${CI_JOB_NAME}-artifacts
+  artifacts:
+    expire_in: 60 days
+    paths:
+      - ${CI_JOB_NAME}-artifacts
+  rules: !reference [.rules-schedules-and-tags, rules]
+
+
+rh-8:
+ extends: .build-client-srpm-template
+ image: gitlab-registry.cern.ch/linuxsupport/ubi8/ubi
+
+
+rh-9:
+ extends: .build-client-srpm-template
+ image: gitlab-registry.cern.ch/linuxsupport/ubi9/ubi
+
+
+rh-10:
+ extends: .build-client-srpm-template
+ image: gitlab-registry.cern.ch/linuxsupport/ubi10/ubi
+
+
+#-------------------------------------------------------------------------------
+# Fedora builds
+#-------------------------------------------------------------------------------
+
+.build-fedora-template:
+  stage: build:rpm
+  script:
+    - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git tar dnf-plugins-core ccache rpm-sign
+    - mkdir build; cd build
+    - cmake .. -DPACKAGEONLY=1 -Wno-dev; make srpm; cd ..
+    - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n" > /etc/yum.repos.d/eos-depend.repo
+    - dnf builddep --nogpgcheck --allowerasing -y build/SRPMS/*
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache_fc.sh; fi
+    - rpmbuild --rebuild --with server --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/*
+    - ccache -s
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - mkdir ${BUILD_NAME}-artifacts; cp -R build/SRPMS build/RPMS ${BUILD_NAME}-artifacts
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "$CI_JOB_NAME-master"
+    paths:
+      - ccache/
+  artifacts:
+    expire_in: 60 days
+    paths:
+      - ${BUILD_NAME}-artifacts/
+  allow_failure: true
+
+
+build_fedora_44:
+  extends: .build-fedora-template
+  image: registry.fedoraproject.org/fedora:44
+  variables:
+    BUILD_NAME: fc-44
+  rules: !reference [.rules-schedules-and-tags, rules]
+
+
+build_fedora_rawhide:
+  extends: .build-fedora-template
+  image: registry.fedoraproject.org/fedora:rawhide
+  variables:
+    BUILD_NAME: fc-rawhide
+  rules: !reference [.rules-manual-on-schedule, rules]
+
+
+#-------------------------------------------------------------------------------
+# Exotic builds
+#-------------------------------------------------------------------------------
+
+.build_exotic-template:
+  stage: build:rpm
+  script:
+    - export DIST=$(rpm --eval '%{rhel}')
+    - dnf install -y git ccache tar sudo which tar gzip moreutils
+    - mkdir build; cd build
+    - cmake .. -DPACKAGEONLY=1 ${CMAKE_OPTIONS} -Wno-dev
+    - make srpm; cd ..;
+    - |
+      if [[ "$RPMBUILD_OPTIONS" == *asan* ]]; then
+        echo -e "[eos-asan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-${DIST}-asan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
+        # Install the asan enabled dependencies
+        dnf remove -y eos-xrootd eos-folly eos-grpc eos-rocksdb || true;
+      elif [[ "$RPMBUILD_OPTIONS" == *tsan* ]]; then
+        echo -e "[eos-tsan-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-${DIST}-tsan/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
+        # Install the tsan enabled dependencies
+        dnf remove -y eos-xrootd eos-folly eos-grpc eos-rocksdb || true;
+      else
+        echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/el-${DIST}/x86_64/\ngpgcheck=0\nenabled=1\npriority=2\n" > /etc/yum.repos.d/eos-depend.repo;
+      fi
+    - dnf install -y dnf-plugins-core
+    - dnf builddep --nogpgcheck --setopt="cern*.exclude=xrootd*" -y build/SRPMS/*
+    - mkdir -p ${BUILD_NAME}-artifacts
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then export CCACHE_DISABLE=1; else source gitlab-ci/setup_ccache.sh; fi
+    - rpmbuild --rebuild ${RPMBUILD_OPTIONS} --define "_rpmdir build/RPMS/" --define "_build_name_fmt %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm" build/SRPMS/* | ts
+    - ccache -s
+    - if [[ -n "$CI_COMMIT_TAG" ]]; then gpg2 --batch --import $STCI_REPO_KEY; printf "" | setsid rpmsign --define='%_gpg_name stci@cern.ch' --define='%_signature gpg' --addsign build/RPMS/*.rpm; fi
+    - cp -R build/SRPMS/ build/RPMS/ ${BUILD_NAME}-artifacts
+    - echo "OS_TAG=$(rpm --eval '%{?dist}')" > build.env
+  cache:
+    key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "$CI_JOB_NAME-master"
+    paths:
+      - ccache/
+  artifacts:
+    expire_in: 1 day
+    paths:
+      - ${BUILD_NAME}-artifacts/
+    reports:
+      dotenv: build.env
+  dependencies: []
+  allow_failure: true
+
+
+build_el9_asan:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
+  variables:
+    BUILD_NAME: el-9-asan
+    CMAKE_OPTIONS: "-DASAN=1"
+    RPMBUILD_OPTIONS: "--with server --with asan"
+    CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
+  before_script:
+    - dnf install -y epel-release libasan cmake gcc gcc-c++ rpmdevtools
+  extends: .build_exotic-template
+  rules: !reference [.rules-manual, rules]
+
+
+build_client_el9_tsan:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
+  variables:
+    BUILD_NAME: el-9-tsan
+    CMAKE_OPTIONS: "-DTSAN=1"
+    RPMBUILD_OPTIONS: "--with tsan"
+    CXXFLAGS: "-Wno-parentheses"    # Avoid boost header compilation errors
+  before_script:
+    - dnf install -y epel-release libtsan cmake gcc gcc-c++ which rpmdevtools
+  extends: .build_exotic-template
+  rules: !reference [.rules-manual, rules]
+
+
+build_el9_clang:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
+  variables:
+    BUILD_NAME: el-9-clang
+    CMAKE_OPTIONS: "-DCLANG_BUILD=1"
+    RPMBUILD_OPTIONS: "--with clang --with server"
+  extends: .build_exotic-template
+  rules: !reference [.rules-schedules-and-triggers, rules]
+
+
+# @note Please contact CTA team / jleduc if you want to change this job
+build_cc7_opt_xrootd:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-cc7-${CODENAME}
+  variables:
+    BUILD_NAME: cc7_opt_xrootd
+    CMAKE_OPTIONS: "-DEOS_XROOTD=1"
+    RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
+  before_script:
+    - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
+  extends: .build_exotic-template
+  rules: !reference [.rules-except-tags-manual, rules]
+
+
+build_el9_coverage:
+  image: gitlab-registry.cern.ch/dss/eos/prebuild-el9-${CODENAME}
+  variables:
+    BUILD_NAME: el-9-coverage
+    RPMBUILD_OPTIONS: "--with coverage"
+  extends: .build_exotic-template
+  rules:
+    - if: '$COVERAGE_SCHEDULE'
