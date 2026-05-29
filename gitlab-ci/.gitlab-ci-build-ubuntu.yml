@@ -53,6 +53,8 @@
     - mkdir ${CI_JOB_NAME}; cp deb_packages/*.deb ${CI_JOB_NAME}
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "$CI_JOB_NAME-master"
     paths:
       - ccache/
   artifacts:
