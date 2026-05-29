@@ -38,7 +38,7 @@ default:
 include:
   # - template: Code-Quality.gitlab-ci.yml
   #  - local: /gitlab-ci/.gitlab-ci-test-dock_include.yml @note on the file
-  #  - local: /gitlab-ci/.gitalb-ci-build-macos.yml
+  #  - local: /gitlab-ci/.gitlab-ci-build-macos.yml
   - local: /gitlab-ci/.gitlab-ci-build-ubuntu.yml
   - local: /gitlab-ci/.gitlab-ci-test-k8s_include.yml
   - local: /gitlab-ci/.gitlab-ci-test-helm_include.yml
@@ -82,7 +82,7 @@ workflow:
     - when: never
 
 
-.prebuild-template: &prebuild-template_definition
+.prebuild-template:
   stage: prebuild
   image:
     name: gcr.io/kaniko-project/executor:debug
@@ -149,7 +149,7 @@ clone_docker:
 # Build RPMs
 #-------------------------------------------------------------------------------
 
-.build-template: &build-template_definition
+.build-template:
   stage: build:rpm
   script:
     - git submodule sync --recursive && git submodule update --init -f --recursive
@@ -223,7 +223,7 @@ build_el9_arm64:
 # EOS client builds for RHEL
 #-------------------------------------------------------------------------------
 
-.build-client-srpm-template: &build-client-srpm-template_definition
+.build-client-srpm-template:
   stage: build:rpm
   script:
     - dnf config-manager --add-repo https://linuxsoft.cern.ch/cern/rhel/$(rpm --eval '%{rhel}')/CERN/$(uname -m)/ --set-enabled
@@ -264,7 +264,7 @@ rh-10:
 # Fedora builds
 #-------------------------------------------------------------------------------
 
-.build-fedora-template: &build-fedora-template_definition
+.build-fedora-template:
   stage: build:rpm
   script:
     - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git tar dnf-plugins-core ccache rpm-sign
@@ -313,7 +313,7 @@ build_fedora_rawhide:
 # Exotic builds
 #-------------------------------------------------------------------------------
 
-.build_exotic-template: &build_exotic-template_definition
+.build_exotic-template:
   stage: build:rpm
   script:
     - export DIST=$(rpm --eval '%{rhel}')
@@ -545,8 +545,10 @@ el9_asan_docker_image:
 # Dock8rnetes testing framework (exec_cmd wraps both docker and k8s!)
 #-------------------------------------------------------------------------------
 
-.dock8s_before_script_template: &dock8s_before_script_template
+.dock8s_base:
   stage: test
+  variables:
+    OS_TAG: ".el9"
   before_script:
     - case $CI_JOB_NAME in
       "k8s"*  )
@@ -556,11 +558,6 @@ el9_asan_docker_image:
         source ./gitlab-ci/before_script_docker_test.sh;
         source ./gitlab-ci/utilities_func_for_tests.sh --type docker; ;;
       esac
-  variables:
-    OS_TAG: ".el9"
-
-
-.dock8s_after_script_template: &dock8s_after_script_template
   after_script:
     - case $CI_JOB_NAME in
       "k8s"*  )
@@ -568,12 +565,15 @@ el9_asan_docker_image:
       "dock"* )
         source ./gitlab-ci/after_script_docker_test.sh ;;
       esac
+  artifacts:
+    when: on_failure
+    expire_in: 3 days
+    paths:
+      - eos-logs-${CI_JOB_ID}/
 
 
 .dock8s_system_test_template:
-  extends:
-    - .dock8s_before_script_template
-    - .dock8s_after_script_template
+  extends: .dock8s_base
   script:
     - date
     - exec_cmd eos-mgm1 'eos ns mutex --toggleorder'
@@ -592,17 +592,10 @@ el9_asan_docker_image:
         ./eos-fst-close-test --type docker ;;
       esac
     - date
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs-${CI_JOB_ID}/
 
 
 .dock8s_convert_fsck_recycle_template:
-  extends:
-    - .dock8s_before_script_template
-    - .dock8s_after_script_template
+  extends: .dock8s_base
   script:
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-test-utils ./eos-test-utils; chmod +x eos-test-utils
     - cp_to_local_cmd eos-cli1:/usr/sbin/eos-convert-test ./eos-convert-test; chmod +x eos-convert-test
@@ -623,17 +616,9 @@ el9_asan_docker_image:
     - rm -rf eos-fsck-test
     - rm -rf eos-recycle-test
 
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs-${CI_JOB_ID}/
-
 
 .dock8s_rtb_clone_template:
-  extends:
-    - .dock8s_before_script_template
-    - .dock8s_after_script_template
+  extends: .dock8s_base
   script:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
@@ -646,17 +631,10 @@ el9_asan_docker_image:
       "ub_focal"* | "ub_jammy"* ) ;;
       *                          ) exec_cmd eos-cli1 'cd /eosclient-tests; clone_tests/clone_test.sh prepare; rc=$?; exit $rc' ;;
       esac
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs-${CI_JOB_ID}/
 
 
 .dock8s_fusex_test_template:
-  extends:
-    - .dock8s_before_script_template
-    - .dock8s_after_script_template
+  extends: .dock8s_base
   script:
     # prepare mountpoints
     - exec_cmd eos-cli1 'atd; at now <<< "mkdir -p /eos1/ && mount -t fuse eosxd -ofsname=mount-1 /eos1/; mkdir -p /eos2/ && mount -t fuse eosxd -ofsname=mount-2 /eos2/;"'
@@ -694,16 +672,10 @@ el9_asan_docker_image:
     - echo ${CLI_POD_HOSTNAME}
     - exec_cmd eos-mgm1 "eos vid add gateway ${CLI_POD_HOSTNAME} unix"
     - exec_cmd eos-cli1 'eos-fusex-functional-test --samba'
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs-${CI_JOB_ID}/
+
 
 .dock8s_cbox_test_template:
-  extends:
-    - .dock8s_before_script_template
-    - .dock8s_after_script_template
+  extends: .dock8s_base
   script:
     # enable converter and prepare eoshome folder, cernbox alike
     - exec_cmd eos-mgm1 'eos convert config set status=on'
@@ -719,16 +691,10 @@ el9_asan_docker_image:
     # launch the tests
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user ci-eosfuse_release"'
     - exec_cmd eos-cli1 'su eos-user -c "cd /eos/user/e/eos-user && python3 ./eosclient-tests/run.py --workdir=/eos/user/e/eos-user regression"'
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs-${CI_JOB_ID}/
+
 
 .dock8s_reva_test_template:
-  extends:
-    - .dock8s_before_script_template
-    - .dock8s_after_script_template
+  extends: .dock8s_base
   script:
     # enable converter and prepare eoshome folder, cernbox alike
     - exec_cmd eos-mgm1 'eos convert config set status=on'
@@ -801,18 +767,11 @@ el9_asan_docker_image:
     - exec_cmd eos-mgm1 "eos vid ls"
     - exec_cmd eos-mgm1 "eos access ls"
     - exec_cmd eos-mgm1 "cat revad.log"
-  artifacts:
-    when: on_failure
-    expire_in: 3 days
-    paths:
-      - eos-logs-${CI_JOB_ID}/
   allow_failure: true
 
 
 .dock8s_flamegraph_test_template:
-  extends:
-    - .dock8s_before_script_template
-    - .dock8s_after_script_template
+  extends: .dock8s_base
   script:
     - date
     - echo 0 > /proc/sys/kernel/perf_event_paranoid; cat /proc/sys/kernel/perf_event_paranoid
@@ -824,7 +783,7 @@ el9_asan_docker_image:
       - eos-logs-${CI_JOB_ID}/
 
 
-.unit_test_template: &unit_test_template_definition
+.unit_test_template:
   stage: test
   variables:
     OS_TAG: ".el9"
@@ -888,7 +847,7 @@ unit_test_asan:
 # RPM publishing
 #-------------------------------------------------------------------------------
 
-.publish_koji_template: &publish_koji_template_definition
+.publish_koji_template:
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
   script:
@@ -903,7 +862,7 @@ unit_test_asan:
 
 
 publish_koji_al8:
-  <<: *publish_koji_template_definition
+  extends: .publish_koji_template
   variables:
     TARGET: "eos8al"
     BUILD_NAME: "el-8"
@@ -916,7 +875,7 @@ publish_koji_al8:
 
 
 publish_koji_al9:
-  <<: *publish_koji_template_definition
+  extends: .publish_koji_template
   variables:
     TARGET: "eos9al"
     BUILD_NAME: "el-9"
@@ -926,7 +885,7 @@ publish_koji_al9:
 
 
 publish_koji_al10:
-  <<: *publish_koji_template_definition
+  extends: .publish_koji_template
   variables:
     TARGET: "eos10al"
     BUILD_NAME: "el-10"
@@ -939,7 +898,7 @@ publish_koji_al10:
 
 
 publish_koji_rh-8:
-  <<: *publish_koji_template_definition
+  extends: .publish_koji_template
   variables:
     TARGET: "eos8el"
     BUILD_NAME: "rh-8"
@@ -951,7 +910,7 @@ publish_koji_rh-8:
 
 
 publish_koji_rh-9:
-  <<: *publish_koji_template_definition
+  extends: .publish_koji_template
   variables:
     TARGET: "eos9el"
     BUILD_NAME: "rh-9"
@@ -963,7 +922,7 @@ publish_koji_rh-9:
 
 
 publish_koji_rh-10:
-  <<: *publish_koji_template_definition
+  extends: .publish_koji_template
   variables:
     TARGET: "eos10el"
     BUILD_NAME: "rh-10"
@@ -1079,7 +1038,7 @@ rpm_commit_artifacts:
     - job: build_el9_arm64
       artifacts: true
       optional: true
-    - job: build_fedora_38
+    - job: build_fedora_44
       artifacts: true
       optional: true
   script:
@@ -1244,7 +1203,7 @@ clean_helm_cluster:
 # ALICE ApMon builds
 #-------------------------------------------------------------------------------
 
-.build-apmon-template: &build-apmon-template-definition
+.build-apmon-template:
   stage: build:manual
   script:
     - dnf install --nogpg -y gcc-c++ make rpm-build which git sssd-client sudo createrepo rsync tar gawk
@@ -1279,7 +1238,7 @@ eos_docs:
   stage: build:manual
   image: gitlab-registry.cern.ch/linuxsupport/alma9-base
   script:
-    - yum install --nogpg -y make python3-sphinx sssd-client sudo which git
+    - dnf install --nogpg -y make python3-sphinx sssd-client sudo which git
     - cd doc
     - export PYTHONPATH=`pwd`/_themes/
     - cd diopside
