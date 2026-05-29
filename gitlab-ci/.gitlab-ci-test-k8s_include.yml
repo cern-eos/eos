@@ -152,9 +152,7 @@ k8s_stress:
       artifacts: false
   retry: 1
   allow_failure: true
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags, rules]
   tags:
     - docker_node
     - k8s
@@ -172,9 +170,7 @@ k8s_stress:
       artifacts: false
   retry: 1
   allow_failure: true
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags, rules]
   tags:
     - docker_node
     - k8s
@@ -192,8 +188,8 @@ k8s_stress:
       artifacts: false
   retry: 1
   allow_failure: true
-  only:
-    - schedules
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
   tags:
     - docker_node
     - k8s
