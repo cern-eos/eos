@@ -40,17 +40,14 @@
   rules: !reference [.rules-manual, rules]
 
 
-eos_apmon_el-8:
-  image: gitlab-registry.cern.ch/linuxsupport/alma8-base
-  variables:
-    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-8/x86_64
+eos_apmon:
   extends: .build-apmon-template
-
-
-eos_apmon_el-9:
+  image: gitlab-registry.cern.ch/linuxsupport/alma${RHEL_MAJOR}-base
   variables:
-    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-9/x86_64
-  extends: .build-apmon-template
+    STORAGE_PATH: /eos/project/s/storage-ci/www/eos/${CODENAME}-depend/el-${RHEL_MAJOR}/x86_64
+  parallel:
+    matrix:
+      - RHEL_MAJOR: ["8", "9"]
 
 
 #-------------------------------------------------------------------------------
