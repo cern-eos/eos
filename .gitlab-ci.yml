@@ -56,6 +56,56 @@ workflow:
       variables:
         KOJI_SCRATCH: ""
 #-------------------------------------------------------------------------------
+# Shared rule fragments
+# Pull these into a job via:  rules: !reference [.rules-..., rules]
+#-------------------------------------------------------------------------------
+.rules-schedules-and-tags:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_COMMIT_TAG'
+
+.rules-schedules-and-triggers:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "trigger"'
+
+.rules-tags-only:
+  rules:
+    - if: '$CI_COMMIT_TAG'
+
+.rules-except-tags-manual:
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: manual
+
+.rules-manual-on-schedule:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: manual
+
+.rules-manual:
+  rules:
+    - when: manual
+
+.rules-schedules-and-tags-manual:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: manual
+    - if: '$CI_COMMIT_TAG'
+      when: manual
+
+.rules-master-and-tags:
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_TAG'
+
+.rules-tags-manual:
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: manual
+
+#-------------------------------------------------------------------------------
 # Prebuild
 #-------------------------------------------------------------------------------
 .doc-skip:
@@ -93,9 +143,8 @@ workflow:
     - echo "{\"auths\":{\"$CI_REGISTRY\":{\"auth\":\"$(echo -n $CI_REGISTRY_USER:$CI_REGISTRY_PASSWORD | base64)\"}}}" > /kaniko/.docker/config.json
     # no need yet for --build-arg PREBUILD_NAME="$PREBUILD_NAME" --build-arg CMAKE_OPTIONS="$CMAKE_OPTIONS" --build-arg CXXFLAGS="$CXXFLAGS"
     - /kaniko/executor --cache="false" --destination $DESTINATION --dockerfile $DOCKERFILE --context $CI_PROJECT_DIR --build-arg=EOS_CODENAME="${CODENAME}" --compressed-caching=false --use-new-run
-  only:
-    variables:
-      - $PREBUILD_TRIGGER
+  rules:
+    - if: '$PREBUILD_TRIGGER'
 
 
 prebuild-el8:
@@ -128,9 +177,8 @@ prebuild-el9-arm64:
   extends: .prebuild-template
   variables:
     PREBUILD_NAME: el9_coverage
-  only:
-    variables:
-      - $COVERAGE_SCHEDULE
+  rules:
+    - if: '$COVERAGE_SCHEDULE'
 
 
 clone_docker:
@@ -185,9 +233,7 @@ build_el8:
   variables:
     BUILD_NAME: el-8
   extends: .build-template
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags, rules]
 
 
 build_el9:
@@ -202,9 +248,7 @@ build_el10:
   variables:
     BUILD_NAME: el-10
   extends: .build-template
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags, rules]
 
 
 build_el9_arm64:
@@ -214,9 +258,7 @@ build_el9_arm64:
   extends: .build-template
   tags:
     - k8s-arm
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags, rules]
 
 
 #-------------------------------------------------------------------------------
@@ -240,9 +282,7 @@ build_el9_arm64:
     expire_in: 60 days
     paths:
       - ${CI_JOB_NAME}-artifacts
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags, rules]
 
 
 rh-8:
@@ -294,9 +334,7 @@ build_fedora_44:
   image: registry.fedoraproject.org/fedora:44
   variables:
     BUILD_NAME: fc-44
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags, rules]
 
 
 build_fedora_rawhide:
@@ -304,9 +342,7 @@ build_fedora_rawhide:
   image: registry.fedoraproject.org/fedora:rawhide
   variables:
     BUILD_NAME: fc-rawhide
-  only:
-    - schedules
-  when: manual
+  rules: !reference [.rules-manual-on-schedule, rules]
 
 
 #-------------------------------------------------------------------------------
@@ -367,7 +403,7 @@ build_el9_asan:
   before_script:
     - dnf install -y epel-release libasan cmake gcc gcc-c++ rpmdevtools
   extends: .build_exotic-template
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 
 build_client_el9_tsan:
@@ -380,7 +416,7 @@ build_client_el9_tsan:
   before_script:
     - dnf install -y epel-release libtsan cmake gcc gcc-c++ which rpmdevtools
   extends: .build_exotic-template
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 
 build_el9_clang:
@@ -390,9 +426,7 @@ build_el9_clang:
     CMAKE_OPTIONS: "-DCLANG_BUILD=1"
     RPMBUILD_OPTIONS: "--with clang --with server"
   extends: .build_exotic-template
-  only:
-    - schedules
-    - triggers
+  rules: !reference [.rules-schedules-and-triggers, rules]
 
 
 # @note Please contact CTA team / jleduc if you want to change this job
@@ -404,10 +438,8 @@ build_cc7_opt_xrootd:
     RPMBUILD_OPTIONS: "--with eos_xrootd_rh"
   before_script:
     - sed -i "s/pgm \/usr\/bin\/xrdcp/pgm \/bin\/true/g" misc/etc/xrd.cf.fst
-  except:
-    - tags
   extends: .build_exotic-template
-  when: manual
+  rules: !reference [.rules-except-tags-manual, rules]
 
 
 build_el9_coverage:
@@ -415,10 +447,9 @@ build_el9_coverage:
   variables:
     BUILD_NAME: el-9-coverage
     RPMBUILD_OPTIONS: "--with coverage"
-  only:
-    variables:
-      - $COVERAGE_SCHEDULE
   extends: .build_exotic-template
+  rules:
+    - if: '$COVERAGE_SCHEDULE'
 
 #-------------------------------------------------------------------------------
 # Build docker images
@@ -490,9 +521,7 @@ el10_docker_image:
   needs:
     - job: clone_docker
     - job: build_el10
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags, rules]
 
 
 el9_asan_docker_image:
@@ -505,7 +534,7 @@ el9_asan_docker_image:
   needs:
     - job: clone_docker
     - job: build_el9_asan
-  when: manual
+  rules: !reference [.rules-manual, rules]
   allow_failure: true
 
 
@@ -517,9 +546,8 @@ el9_asan_docker_image:
   needs:
     - job: clone_docker
     - job: build_el9_coverage
-  only:
-    variables:
-      - $COVERAGE_SCHEDULE
+  rules:
+    - if: '$COVERAGE_SCHEDULE'
   allow_failure: true
 
 
@@ -814,8 +842,7 @@ unit_test:tag:
   image:
     name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_TAG}${OS_TAG}
     entrypoint: ["/bin/bash", "-c"]
-  only:
-    - tags
+  rules: !reference [.rules-tags-only, rules]
 
 
 unit_test:
@@ -823,8 +850,10 @@ unit_test:
   image:
     name: gitlab-registry.cern.ch/dss/eos/eos-ci:${CI_COMMIT_SHORT_SHA}${OS_TAG}
     entrypoint: ["/bin/bash", "-c"]
-  except:
-    - tags
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: on_success
 
 
 unit_test_asan:
@@ -839,7 +868,7 @@ unit_test_asan:
   needs:
     - job: el9_asan_docker_image
       artifacts: false
-  when: manual
+  rules: !reference [.rules-manual, rules]
   allow_failure: true
 
 
@@ -858,7 +887,7 @@ unit_test_asan:
   tags:
     - docker_node
     - publish
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 
 publish_koji_al8:
@@ -866,9 +895,7 @@ publish_koji_al8:
   variables:
     TARGET: "eos8al"
     BUILD_NAME: "el-8"
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags-manual, rules]
   needs:
     - job: build_el8
       artifacts: true
@@ -889,9 +916,7 @@ publish_koji_al10:
   variables:
     TARGET: "eos10al"
     BUILD_NAME: "el-10"
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags-manual, rules]
   needs:
     - job: build_el10
       artifacts: true
@@ -902,9 +927,7 @@ publish_koji_rh-8:
   variables:
     TARGET: "eos8el"
     BUILD_NAME: "rh-8"
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags-manual, rules]
   needs:
     - job: rh-8
 
@@ -914,9 +937,7 @@ publish_koji_rh-9:
   variables:
     TARGET: "eos9el"
     BUILD_NAME: "rh-9"
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags-manual, rules]
   needs:
     - job: rh-9
 
@@ -926,9 +947,7 @@ publish_koji_rh-10:
   variables:
     TARGET: "eos10el"
     BUILD_NAME: "rh-10"
-  only:
-    - schedules
-    - tags
+  rules: !reference [.rules-schedules-and-tags-manual, rules]
   needs:
     - job: rh-10
 
@@ -948,8 +967,7 @@ email_notification:
      - python -m oauth2_smtp
    needs:
      - job: publish_koji_al9
-   only:
-     - tags
+   rules: !reference [.rules-tags-only, rules]
 
 # This job uses CI_JOB_TOKEN to trigger a pipeline in the CTA project.
 # This means that whoever triggers this job, must have the rights to start a pipeline in CTA.
@@ -1048,10 +1066,11 @@ rpm_commit_artifacts:
   tags:
     - docker_node
     - publish
-  except:
-    - tags
+  rules:
+    - if: '$CI_COMMIT_TAG'
+      when: never
+    - when: manual
   allow_failure: true
-  when: manual
 
 
 rpm_testing_artifacts:
@@ -1064,9 +1083,7 @@ rpm_testing_artifacts:
   tags:
     - docker_node
     - publish
-  only:
-    - master
-    - tags
+  rules: !reference [.rules-master-and-tags, rules]
   retry: 1
 
 
@@ -1082,10 +1099,8 @@ rpm_stable_artifacts:
   tags:
     - docker_node
     - publish
-  only:
-    - tags
+  rules: !reference [.rules-tags-manual, rules]
   dependencies: []
-  when: manual
 
 
 #to be run after the rpm publish
@@ -1133,7 +1148,7 @@ el9_publish_dockerimage_all:
     - job: clone_docker
     - job: build_el9
   allow_failure: true
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 
 el9_publish_dockerimage_fusex:
@@ -1147,7 +1162,7 @@ el9_publish_dockerimage_fusex:
     - job: clone_docker
     - job: build_el9
   allow_failure: true
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 
 #-------------------------------------------------------------------------------
@@ -1161,9 +1176,7 @@ clean_rpm_artifacts:
     - dnf install --nogpg -y sssd-client sudo createrepo
     - sudo -u stci -H ./gitlab-ci/remove_old_artifacts.sh
   allow_failure: true
-  only:
-    - triggers
-    - schedules
+  rules: !reference [.rules-schedules-and-triggers, rules]
   tags:
     - docker_node
 
@@ -1179,8 +1192,8 @@ clean_k8s_cluster:
         awk 'match($3,/(([3-9][0-9]|[1-9][0-9][0-9]+)h|[1-9][0-9]*d)/) {print $1}' | xargs --no-run-if-empty kubectl delete namespaces
   dependencies: []
   allow_failure: true
-  only:
-    - schedules
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
   tags:
     - docker_node
     - k8s
@@ -1195,8 +1208,8 @@ clean_helm_cluster:
     - echo "Please, implement me!"
   dependencies: []
   allow_failure: true
-  only:
-    - schedules
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
 
 
 #-------------------------------------------------------------------------------
@@ -1217,7 +1230,7 @@ clean_helm_cluster:
     - sudo -u stci -H createrepo --update -q ${STORAGE_PATH}
   tags:
     - docker_node
-  when: manual
+  rules: !reference [.rules-manual, rules]
 
 
 eos_apmon_el-8:
