@@ -39,9 +39,6 @@ default:
     when:
       - runner_system_failure
       - stuck_or_timeout_failure
-  before_script:
-    - source gitlab-ci/export_commit-type.sh
-    - echo "Exporting COMMIT_TYPE=${COMMIT_TYPE}"
 
 include:
   # - template: Code-Quality.gitlab-ci.yml
@@ -56,13 +53,24 @@ workflow:
     on_new_commit: interruptible
 
   rules:
-    - if: $CI_COMMIT_BRANCH
+    # Scheduled pipelines always run (don't evaluate file changes for them)
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      variables:
+        KOJI_SCRATCH: "--scratch"
+    # Tag pipelines always run
+    - if: '$CI_COMMIT_TAG'
+      variables:
+        KOJI_SCRATCH: ""
+    # Branch pipelines: skip if only docs/ changed compared to master
+    - if: '$CI_COMMIT_BRANCH'
+      changes:
+        compare_to: 'refs/heads/master'
+        paths:
+          - '**/*'
+          - '!docs/**/*'
       variables:
         #KOJI_SCRATCH: "--scratch --skip-tag"
         KOJI_SCRATCH: "--scratch"
-    - if: $CI_COMMIT_TAG
-      variables:
-        KOJI_SCRATCH: ""
 #-------------------------------------------------------------------------------
 # Shared rule fragments
 # Pull these into a job via:  rules: !reference [.rules-..., rules]
@@ -122,30 +130,6 @@ workflow:
 #-------------------------------------------------------------------------------
 # Prebuild
 #-------------------------------------------------------------------------------
-.doc-skip:
-  stage: .pre
-  script:
-    - |
-      if git diff --name-only $CI_COMMIT_BEFORE_SHA..$CI_COMMIT_SHA | grep -qv '^docs/'; then
-         echo "Non doc changes detected, running full pipeline"
-         exit 0
-      fi
-      echo "Documentation-only changes detected. Skipping pipeline."
-      # In an ideal world this job failing at the top should not trigger builds
-      # we don't live in that world! In order to avoid creating more complex
-      # dependency graphs, we just cancel the pipeline
-      curl -X POST -H "PRIVATE-TOKEN: $GITLAB_CI_TOKEN" "$CI_API_V4_URL/projects/$CI_PROJECT_ID/pipelines/$CI_PIPELINE_ID/cancel"
-      exit 1
-  allow_failure: true
-  rules:
-    - if: '$CI_PIPELINE_SOURCE == "schedule"'
-      when: never
-    - changes:
-        - docs/**/*
-      when: always
-    - when: never
-
-
 .prebuild-template:
   stage: prebuild
   image:
@@ -230,6 +214,8 @@ clone_docker:
     - echo "OS_TAG=$(rpm --eval '%{?dist}')" > build.env
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "$CI_JOB_NAME-master"
     paths:
       - ccache/
   artifacts:
@@ -330,6 +316,8 @@ rh-10:
     - mkdir ${BUILD_NAME}-artifacts; cp -R build/SRPMS build/RPMS ${BUILD_NAME}-artifacts
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "$CI_JOB_NAME-master"
     paths:
       - ccache/
   artifacts:
@@ -390,6 +378,8 @@ build_fedora_rawhide:
     - echo "OS_TAG=$(rpm --eval '%{?dist}')" > build.env
   cache:
     key: "$CI_JOB_NAME-$CI_COMMIT_REF_SLUG"
+    fallback_keys:
+      - "$CI_JOB_NAME-master"
     paths:
       - ccache/
   artifacts:
