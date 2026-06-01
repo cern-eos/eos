@@ -380,13 +380,20 @@ ProcCommand::File()
           }
 
           if (computechecksum == "1" && commitchecksum == "1") {
-            auto dmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
-            eos::IContainerMD::XAttrMap attrmap;
-            eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
+            try {
+              auto dmd = gOFS->eosDirectoryService->getContainerMD(fmd->getContainerId());
+              eos::IContainerMD::XAttrMap attrmap;
+              eos::listAttributes(gOFS->eosView, dmd.get(), attrmap, false);
 
-            if (attrmap.count(SYS_ALTCHECKSUMS)) {
-              option += "&mgm.verify.compute.altchecksum=";
-              option += attrmap[SYS_ALTCHECKSUMS].c_str();
+              if (attrmap.count(SYS_ALTCHECKSUMS)) {
+                option += "&mgm.verify.compute.altchecksum=";
+                option += attrmap[SYS_ALTCHECKSUMS].c_str();
+              }
+            } catch (eos::MDException& e) {
+              eos_debug("msg=\"failed to get parent container for altchecksum\" "
+                        "fxid=%08llx cxid=%08llx errno=%d emsg=\"%s\"",
+                        fmd->getId(), fmd->getContainerId(), e.getErrno(),
+                        e.getMessage().str().c_str());
             }
           }
 
