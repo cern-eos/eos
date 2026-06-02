@@ -392,6 +392,7 @@ FsckEntry::RepairBestEffort()
 bool
 FsckEntry::RepairMgmXsSzDiff()
 {
+  static const auto s_xs_val_undef = "00000000";
   // This only makes sense for replica layouts
   if (LayoutId::IsRain(mMgmFmd.layout_id())) {
     return true;
@@ -630,10 +631,11 @@ FsckEntry::RepairFstXsSzDiff()
         (finfo->mFstFmd.mProtoFmd.checksum() == xs_val)) {
       good_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
     } else {
-      // It could be that the diskchecksum for the replica was not yet
-      // computed - this does not mean the replica is bad
-      if (!finfo->mFstFmd.mProtoFmd.diskchecksum().empty()) {
-        bad_fsids.insert(finfo->mFstFmd.mProtoFmd.fsid());
+      // If the disk checksum is computed or if the file system was explicitly
+      // marked as corrupted then we consider this replica bad.
+      if (!finfo->mFstFmd.mProtoFmd.diskchecksum().empty() ||
+          (mFsidErr.find(it->first) != mFsidErr.end())) {
+        bad_fsids.insert(it->first);
       }
     }
   }
