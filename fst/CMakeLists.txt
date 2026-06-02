@@ -428,18 +428,6 @@ add_executable(eos-compute-blockxs
   checksum/Adler.cc
   checksum/CheckSum.cc)
 
-add_executable(eos-scan-fs
-  tools/ScanXS.cc
-  ScanDir.cc
-  Load.cc
-  filemd/FmdHandler.cc
-  filemd/FmdMgm.cc
-  Config.cc
-  checksum/Adler.cc
-  checksum/CheckSum.cc)
-
-target_compile_definitions(eos-scan-fs PUBLIC -D_NOOFS=1)
-
 add_executable(eos-adler32
   tools/Adler32.cc
   checksum/Adler.cc
@@ -456,12 +444,6 @@ target_link_libraries(eos-check-blockxs PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-compute-blockxs PRIVATE EosFstIo XROOTD::SERVER)
 target_link_libraries(eos-adler32 PRIVATE EosFstIo XROOTD::SERVER CLI11::CLI11)
 target_link_libraries(eos-checksum PRIVATE EosFstIo XROOTD::SERVER)
-target_link_libraries(eos-scan-fs PRIVATE
-  EosFstIo EosCommonServer EosNsCommon-Static XROOTD::SERVER)
-
-if (Linux)
-  target_link_libraries(eos-scan-fs PRIVATE stdc++fs)
-endif()
 
 add_executable(eos-create-file-pattern
   utils/CreateFileWithPattern.cc)
@@ -501,7 +483,7 @@ install(PROGRAMS
 
 install(TARGETS
   eos-ioping eos-adler32 eos-checksum eos-rain-hd-dump
-  eos-check-blockxs eos-compute-blockxs eos-scan-fs
+  eos-check-blockxs eos-compute-blockxs
   eos-create-file-pattern eos-readv-pattern eos-fmd-tool
   eos-rain-check
   RUNTIME DESTINATION ${CMAKE_INSTALL_FULL_SBINDIR})

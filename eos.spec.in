@@ -337,7 +337,6 @@ The EOS server installation
 %{_sbindir}/eos-check-blockxs
 %{_sbindir}/eos-udp-dumper
 %{_sbindir}/eos-compute-blockxs
-%{_sbindir}/eos-scan-fs
 %{_sbindir}/eos-adler32
 %{_sbindir}/eos-checksum
 %{_sbindir}/eos-mmap
