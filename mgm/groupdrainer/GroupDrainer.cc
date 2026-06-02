@@ -35,10 +35,7 @@ GroupDrainer::GroupDrainer(std::string_view spacename):
   mThread.reset(&GroupDrainer::GroupDrain, this);
 }
 
-GroupDrainer::~GroupDrainer()
-{
-  mThread.join();
-}
+GroupDrainer::~GroupDrainer() { Stop(); }
 
 void
 GroupDrainer::GroupDrain(ThreadAssistant& assistant) noexcept
