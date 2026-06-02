@@ -147,12 +147,10 @@ ScanDir::ScanDir(const char* dirpath, eos::common::FileSystem::fsid_t fsid,
   if (mBgThread) {
     openlog("scandir", LOG_PID | LOG_NDELAY, LOG_USER);
     mDiskThread.reset(&ScanDir::RunDiskScan, this);
-#ifndef _NOOFS
     mRateLimit.reset(new eos::common::RequestRateLimit());
     mRateLimit->SetRatePerSecond(sDefaultNsScanRate);
     mNsThread.reset(&ScanDir::RunNsScan, this);
     mAltXsThread.reset(&ScanDir::RunAltXsScan, this);
-#endif
   }
 }
 
@@ -191,9 +189,7 @@ ScanDir::SetConfig(const std::string& key, long long value)
   } else if (key == eos::common::SCAN_DISK_INTERVAL_NAME) {
     mDiskInterval.set(value);
   } else if (key == eos::common::SCAN_NS_INTERVAL_NAME) {
-#ifndef _NOOFS
     mNsInterval.set(value);
-#endif
   } else if (key == eos::common::SCAN_NS_RATE_NAME) {
     mRateLimit->SetRatePerSecond(value);
   } else if (key == eos::common::SCAN_ALTXS_INTERVAL_NAME) {
@@ -205,7 +201,6 @@ ScanDir::SetConfig(const std::string& key, long long value)
   }
 }
 
-#ifndef _NOOFS
 //------------------------------------------------------------------------------
 // Infinite loop doing the scanning of namespace entries
 //------------------------------------------------------------------------------
@@ -302,7 +297,6 @@ bool CommitAlternativeChecksums(uint64_t fid,
                                 const std::map<eos::common::LayoutId::eChecksum, std::string>& alt_xs,
                                 const std::set<unsigned int>* to_delete = nullptr)
 {
-#ifndef _NOOFS
 
   if (alt_xs.empty() && (to_delete == nullptr || to_delete->empty())) {
     return true;
@@ -347,7 +341,6 @@ bool CommitAlternativeChecksums(uint64_t fid,
     return false;
   }
 
-#endif
   return true;
 }
 };
@@ -696,7 +689,6 @@ ScanDir::CollectNsFids(const std::string& type) const
   return queue;
 }
 
-#endif
 
 //------------------------------------------------------------------------------
 // Infinite loop doing the scanning
@@ -723,7 +715,6 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     }
   }
 
-#ifndef _NOOFS
 
   // Wait for the corresponding file system to boot before starting
   while (gOFS.Storage->IsFsBooting(mFsId)) {
@@ -740,7 +731,6 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
     return;
   }
 
-#endif
 
   if (mBgThread) {
     mDiskInterval.random_wait(assistant, true, [this](uint64_t sleep_time) {
@@ -790,6 +780,9 @@ ScanDir::RunDiskScan(ThreadAssistant& assistant) noexcept
   eos_notice("msg=\"done disk scan\" pid=%u fsid=%lu", tid, mFsId);
 }
 
+//------------------------------------------------------------------------------
+// Scan file system
+//------------------------------------------------------------------------------
 void ScanDir::ScanFsTree(ThreadAssistant& assistant, ScanFunc f,
                          bool skip_internal, const WaitInterval* interval) noexcept
 {
@@ -851,13 +844,15 @@ void ScanDir::ScanFsTree(ThreadAssistant& assistant, ScanFunc f,
   }
 }
 
+//------------------------------------------------------------------------------
+// Method calling the scan functionality for the entire file system tree
+//------------------------------------------------------------------------------
 void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
 {
   eos::common::FsckErrsPerFsMap errs_map;
   auto scan_func = [this, &errs_map](const std::string & fpath) {
     std::unique_ptr<FileIo> io(FileIoPluginHelper::GetIoObject(fpath));
     // Collect fsck errors and save them to be sent later on to QDB
-#ifndef _NOOFS
     auto fid = eos::common::FileId::PathToFid(fpath.c_str());
 
     if (!fid) {
@@ -867,44 +862,39 @@ void ScanDir::CheckTree(ThreadAssistant& assistant) noexcept
     }
 
     auto fmd = gOFS.mFmdHandler->LocalGetFmd(fid, mFsId, true, false);
-#endif
 
     if (CheckFile(io.get(), fpath)) {
-#ifndef _NOOFS
 
       if (fmd) {
         CollectInconsistencies(*fmd.get(), mFsId, errs_map);
       }
 
-#endif
     }
 
-#ifndef _NOOFS
 
     if (fmd) {
       UpdateLocalAltXsMetadata(*fmd.get());
     }
 
-#endif
     return;
   };
   ScanFsTree(assistant, scan_func);
-#ifndef _NOOFS
 
   // Push collected errors to QDB
   if (!gOFS.Storage->PushToQdb(mFsId, errs_map)) {
     eos_err("msg=\"failed to push fsck errors to QDB\" fsid=%lu", mFsId);
   }
 
-#endif
 }
 
+//------------------------------------------------------------------------------
+// Update alternative checksum metadata
+//------------------------------------------------------------------------------
 void ScanDir::UpdateLocalAltXsMetadata(eos::common::FmdHelper& fmd)
 {
-#ifndef _NOOFS
 
   if (!DoAltXsSync(fmd)) {
-    eos_debug("msg=\"skipping local altxs metadata synchronization\" fxid=%08llx fsid=%lu",
+    eos_debug("msg=\"skipping local altxs metadata sync\" fxid=%08llx fsid=%lu",
               fmd.mProtoFmd.fid(), mFsId);
     return;
   }
@@ -931,7 +921,6 @@ void ScanDir::UpdateLocalAltXsMetadata(eos::common::FmdHelper& fmd)
                 (std::chrono::system_clock::now().time_since_epoch()).count();
   fmd.mProtoFmd.set_altxssync(now_ts);
   gOFS.mFmdHandler->Commit(&fmd);
-#endif
   return;
 }
 
@@ -982,13 +971,10 @@ bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
     return false;
   }
 
-#ifndef _NOOFS
   gOFS.mFmdHandler->ClearErrors(fid, mFsId, false);
-#endif
   return ScanFile(io, io->GetPath(), fid, last_scan, mtime);
 }
 
-#ifndef _NOOFS
 //------------------------------------------------------------------------------
 // Check the given replica file
 //------------------------------------------------------------------------------
@@ -1005,7 +991,6 @@ bool ScanDir::CheckRainFile(eos::fst::FileIo* io,
   gOFS.mFmdHandler->ClearErrors(fmd->mProtoFmd.fid(), mFsId, true);
   return ScanRainFile(io, fmd, last_scan);
 }
-#endif
 
 //------------------------------------------------------------------------------
 // Check the given file for errors and properly account them both at the
@@ -1033,7 +1018,6 @@ ScanDir::CheckFile(eos::fst::FileIo* io, const std::string& fpath)
   }
 
   ++mNumTotalFiles;
-#ifndef _NOOFS
 
   if (mBgThread) {
     if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
@@ -1063,7 +1047,6 @@ ScanDir::CheckFile(eos::fst::FileIo* io, const std::string& fpath)
     return CheckRainFile(io, fmd.get());
   }
 
-#endif
   return CheckReplicaFile(io, fid, info.st_mtime);
 }
 
@@ -1177,7 +1160,6 @@ ScanDir::ScanFile(eos::fst::FileIo* io,
   }
 
   bool reopened = false;
-#ifndef _NOOFS
 
   if (mBgThread) {
     if (gOFS.openedForWriting.isOpen(mFsId, fid)) {
@@ -1187,7 +1169,6 @@ ScanDir::ScanFile(eos::fst::FileIo* io,
     }
   }
 
-#endif
   // If file changed or opened for update in the meantime then skip the scan
   struct stat info;
 
@@ -1230,14 +1211,12 @@ ScanDir::ScanFile(eos::fst::FileIo* io,
     LogMsg(LOG_ERR, "msg=\"failed to set xattrs\" path=%s", fpath.c_str());
   }
 
-#ifndef _NOOFS
 
   if (mBgThread) {
     gOFS.mFmdHandler->UpdateWithScanInfo(fid, mFsId, fpath, scan_size,
                                          scan_xs_hex, gOFS.mQcl);
   }
 
-#endif
   return true;
 }
 //------------------------------------------------------------------------------
@@ -1369,7 +1348,6 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io,
   return true;
 }
 
-#ifndef _NOOFS
 //------------------------------------------------------------------------------
 // Check the given file for rain stripes errors
 //------------------------------------------------------------------------------
@@ -1479,7 +1457,6 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
       invalid_fsid.insert(mFsId);
     }
   } else {
-#ifndef _NOOFS
     // The stripe checkum is not stored in the file header
     // So we fallback to the old procedure, storing the checksum
     // for the future checks.
@@ -1495,7 +1472,6 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
       return false;
     }
 
-#endif
   }
 
   if (ShouldSkipAfterCheck(io, fid, info_before)) {
@@ -1929,7 +1905,6 @@ ScanDir::ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
                   fid, duration_sec.count());
   return true;
 }
-#endif
 
 //------------------------------------------------------------------------------
 // Get timestamp smeared +/-20% of mEntryIntervalSec around the current
