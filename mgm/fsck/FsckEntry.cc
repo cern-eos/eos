@@ -37,6 +37,10 @@
 using eos::common::StringConversion;
 using eos::common::LayoutId;
 
+namespace {
+static const auto sXsValueUndefined = "00000000";
+}
+
 EOSMGMNAMESPACE_BEGIN
 
 //----------------------------------------------------------------------------
@@ -240,6 +244,7 @@ FsckEntry::RepairBestEffort()
                                         SHA256_DIGEST_LENGTH,
                                         LayoutId::GetChecksumLen(mMgmFmd.layout_id()));
 
+  // Find the best replica
   for (auto it = mFstFileInfo.cbegin(); it != mFstFileInfo.cend(); ++it) {
     auto& finfo = it->second;
 
@@ -261,7 +266,6 @@ FsckEntry::RepairBestEffort()
       ref_xs = finfo->mFstFmd.mProtoFmd.diskchecksum();
       break;
     }
-
     // First available replica or the one with more data is the reference
     if ((ref_fsid == 0) || (ref_sz < finfo->mDiskSize)) {
       ref_fsid = it->first;
@@ -271,8 +275,6 @@ FsckEntry::RepairBestEffort()
   }
 
   if (ref_fsid == 0) {
-    //@todo(esindril) if the file in the namespace is 0 size with correct
-    // 0-size checksum then we could consider this as repaired!
     eos_static_err("msg=\"no suitable replica for best-effort repair found\" "
                    "fxid=%08llx", mFid);
     return false;
@@ -296,7 +298,8 @@ FsckEntry::RepairBestEffort()
     XrdOucErrInfo lerr;
     auto root = eos::common::VirtualIdentity::Root();
     std::string options = "&mgm.verify.compute.checksum=1"
-                          "&mgm.verify.commit.checksum=1&mgm.verify.commit.size=1";
+                          "&mgm.verify.commit.checksum=1"
+                          "&mgm.verify.commit.size=1";
 
     if (gOFS->_verifystripe(mFid, lerr, root, ref_fsid, options)) {
       eos_err("msg=\"failed verify stripe command\" fxid=%08llx fsid=%lu",
@@ -433,9 +436,8 @@ FsckEntry::RepairMgmXsSzDiff()
       xs_val = finfo->mFstFmd.mProtoFmd.diskchecksum();
       sz_val = finfo->mFstFmd.mProtoFmd.size();
 
-      if ((mgm_xs_val == xs_val) &&
-          (mMgmFmd.size() == sz_val) &&
-          (mMgmFmd.size() == finfo->mDiskSize)) {
+      if ((mgm_xs_val != sXsValueUndefined) && (mgm_xs_val == xs_val) &&
+          (mMgmFmd.size() == sz_val) && (mMgmFmd.size() == finfo->mDiskSize)) {
         mgm_xs_sz_match = true;
         continue;
       }
@@ -469,9 +471,11 @@ FsckEntry::RepairMgmXsSzDiff()
 
       if ((mMgmFmd.size() != finfo->mFstFmd.mProtoFmd.size()) ||
           (mMgmFmd.size() != finfo->mDiskSize) ||
-          (mgm_xs_val != finfo->mFstFmd.mProtoFmd.diskchecksum())) {
+          (mgm_xs_val != finfo->mFstFmd.mProtoFmd.diskchecksum()) ||
+          (mgm_xs_val != finfo->mFstFmd.mProtoFmd.checksum())) {
         if ((mMgmFmd.size() != finfo->mDiskSize) ||
-            (mgm_xs_val != finfo->mFstFmd.mProtoFmd.diskchecksum())) {
+            (mgm_xs_val != finfo->mFstFmd.mProtoFmd.diskchecksum()) ||
+            (mgm_xs_val != finfo->mFstFmd.mProtoFmd.checksum())) {
           bad_fsids.insert(it->first);
         } else {
           // Trigger a resync of the FST info as it looks to be out of sync
