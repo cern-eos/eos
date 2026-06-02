@@ -1461,7 +1461,6 @@ bool
 Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
                    const eos::common::FsckErrsPerFsMap& errs_map)
 {
-#ifndef _NOOFS
   static const uint32_t s_max_batch_size = 10000;
 
   if (gOFS.mQcl == nullptr) {
@@ -1498,7 +1497,6 @@ Storage::PushToQdb(eos::common::FileSystem::fsid_t fsid,
     return false;
   }
 
-#endif
   return true;
 }
 

@@ -89,7 +89,6 @@ public:
   //------------------------------------------------------------------------------
   void RunDiskScan(ThreadAssistant& assistant) noexcept;
 
-#ifndef _NOOFS
   //------------------------------------------------------------------------------
   //! Infinite loop doing the scanning of namespace entries
   //!
@@ -103,7 +102,6 @@ public:
   //! @param assistant thread running the job
   //------------------------------------------------------------------------------
   void RunAltXsScan(ThreadAssistant& assistant) noexcept;
-#endif
 
   using ScanFunc = std::function<void(const std::string&)>;
 
@@ -196,7 +194,6 @@ public:
                         eos::common::FileId::fileid_t fid,
                         time_t mtime);
 
-#ifndef _NOOFS
   //----------------------------------------------------------------------------
   //! Check the given rain file for errors.
   //!
@@ -275,7 +272,6 @@ public:
   bool
   ScanRainFileLoadAware(eos::common::FileId::fileid_t fid,
                         std::set<eos::common::FileSystem::fsid_t>& invalid_fsid);
-#endif
   //----------------------------------------------------------------------------
   //! Check the given file for rain stripes errors
   //!
@@ -314,7 +310,6 @@ private:
 public:
 #endif
 
-#ifndef _NOOFS
   //----------------------------------------------------------------------------
   //! Collect all file ids present on the current file system from the NS view
   //!
@@ -335,7 +330,6 @@ public:
   //----------------------------------------------------------------------------
   void CleanupUnlinked();
 
-#endif
 
   //! Default ns scan rate is bound by the number of IO ops a disk can handle
   //! and we set it to half the average max IOOPS for HDD which is 100.

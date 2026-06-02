@@ -610,9 +610,7 @@ FmdHandler::ResyncFileFromQdb(eos::common::FileId::fileid_t fid,
     }
 
     FmdHandler::MoveToOrphans(fpath);
-#ifndef _NOOFS
     gOFS.Storage->PublishFsckError(fid, fsid, eos::common::FsckErr::Orphans);
-#endif
     return ENOENT;
   }
 
