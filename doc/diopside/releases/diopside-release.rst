@@ -16,6 +16,19 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.5 Diopside``
+===================
+
+2026-06-02
+
+Bug
+----
+
+* [EOS-6591] - Investigate atlas aibuild build machines blocked on eos fuse
+* [EOS-6593] - Creating a symlink doesn't update eos.ttime of parent dir
+* [EOS-6598] - EOS MGM crash due to uncaught exception
+
+
 ``v5.4.4 Diopside``
 ===================
 
