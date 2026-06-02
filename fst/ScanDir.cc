@@ -960,9 +960,9 @@ bool ScanDir::DoAltXsSync(const eos::common::FmdHelper& fmd)
 //------------------------------------------------------------------------------
 // Check the given RAIN file
 //------------------------------------------------------------------------------
-bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
-                               eos::common::FileId::fileid_t fid,
-                               time_t mtime)
+bool
+ScanDir::CheckReplicaFile(eos::fst::FileIo* io, eos::common::FileId::fileid_t fid,
+                          eos::common::FmdHelper* fmd, time_t mtime)
 {
   auto last_scan = getScanTimestamp(io, "user.eos.timestamp");
 
@@ -972,7 +972,7 @@ bool ScanDir::CheckReplicaFile(eos::fst::FileIo* io,
   }
 
   gOFS.mFmdHandler->ClearErrors(fid, mFsId, false);
-  return ScanFile(io, io->GetPath(), fid, last_scan, mtime);
+  return ScanFile(io, io->GetPath(), fid, fmd, last_scan, mtime);
 }
 
 //------------------------------------------------------------------------------
@@ -1047,7 +1047,7 @@ ScanDir::CheckFile(eos::fst::FileIo* io, const std::string& fpath)
     return CheckRainFile(io, fmd.get());
   }
 
-  return CheckReplicaFile(io, fid, info.st_mtime);
+  return CheckReplicaFile(io, fid, fmd.get(), info.st_mtime);
 }
 
 //------------------------------------------------------------------------------
@@ -1138,11 +1138,9 @@ ScanDir::DoRescan(std::chrono::seconds last_scan, bool rain_ts) const
 // scanner level and also by setting the proper xattrs on the file.
 //------------------------------------------------------------------------------
 bool
-ScanDir::ScanFile(eos::fst::FileIo* io,
-                  const std::string& fpath,
-                  eos::common::FileId::fileid_t fid,
-                  std::chrono::seconds last_scan,
-                  time_t mtime)
+ScanDir::ScanFile(eos::fst::FileIo* io, const std::string& fpath,
+                  eos::common::FileId::fileid_t fid, eos::common::FmdHelper* fmd,
+                  std::chrono::seconds last_scan, time_t mtime)
 {
   std::string lfn, previous_xs_err;
   io->attrGet("user.eos.lfn", lfn);
@@ -1155,7 +1153,7 @@ ScanDir::ScanFile(eos::fst::FileIo* io,
   unsigned long long scan_size{0ull};
   std::string scan_xs_hex;
 
-  if (!ScanFileLoadAware(io, scan_size, scan_xs_hex, filexs_err, blockxs_err)) {
+  if (!ScanFileLoadAware(io, fmd, scan_size, scan_xs_hex, filexs_err, blockxs_err)) {
     return false;
   }
 
@@ -1223,9 +1221,8 @@ ScanDir::ScanFile(eos::fst::FileIo* io,
 // Scan file taking the load into consideration
 //------------------------------------------------------------------------------
 bool
-ScanDir::ScanFileLoadAware(eos::fst::FileIo* io,
-                           unsigned long long& scan_size,
-                           std::string& scan_xs_hex,
+ScanDir::ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
+                           unsigned long long& scan_size, std::string& scan_xs_hex,
                            bool& filexs_err, bool& blockxs_err)
 {
   scan_size = 0ull;
@@ -1249,13 +1246,23 @@ ScanDir::ScanFileLoadAware(eos::fst::FileIo* io,
   auto comp_file_xs = eos::fst::ChecksumPlugins::GetXsObj(xs_type);
   std::unique_ptr<eos::fst::CheckSum> blockXS {GetBlockXS(file_path)};
 
+  if (!comp_file_xs && fmd) {
+    // The checksum type could not be determined from the file extended
+    // attributes, fall back to the one encoded in the layout id from the Fmd.
+    comp_file_xs = eos::fst::ChecksumPlugins::GetChecksumObject(fmd->mProtoFmd.lid());
+
+    if (comp_file_xs) {
+      eos_static_info("msg=\"checksum type recovered from fmd layout id\" "
+                      "path=\"%s\"",
+                      file_path.c_str());
+    }
+  }
+
   if (comp_file_xs) {
     comp_file_xs->Reset();
   } else {
-    eos_static_warning("msg=\"file has no checksum type xattr\", path=\"%s\"",
+    eos_static_warning("msg=\"file has no checksum type\", path=\"%s\"",
                        file_path.c_str());
-    //@todo(esindril) if this happens we should get the checksum type
-    // from the Fmd information attached also as an xattr.
   }
 
   int64_t nread = 0;
@@ -1471,7 +1478,6 @@ bool ScanDir::ScanRainFile(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
     if (!ScanRainFileLoadAware(fid, invalid_fsid)) {
       return false;
     }
-
   }
 
   if (ShouldSkipAfterCheck(io, fid, info_before)) {

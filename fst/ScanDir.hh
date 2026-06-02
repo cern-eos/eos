@@ -156,19 +156,22 @@ public:
   //! @param io io object attached to the file
   //! @param fpath file path
   //! @param fid file id
+  //! @param fmd file metadata object used as a fallback for the checksum type
   //! @param last_scan time file was last checked
   //! @param mtime time file contents was last modified
   //!
   //! @return true if file check, otherwise false
   //----------------------------------------------------------------------------
-  bool ScanFile(eos::fst::FileIo* io,
-                const std::string& fpath, eos::common::FileId::fileid_t fid,
+  bool ScanFile(eos::fst::FileIo* io, const std::string& fpath,
+                eos::common::FileId::fileid_t fid, eos::common::FmdHelper* fmd,
                 std::chrono::seconds last_scan, time_t mtime);
 
   //----------------------------------------------------------------------------
   //! Scan the given file for checksum errors taking the load into consideration
   //!
   //! @param io io object attached to the file
+  //! @param fmd file metadata object used as a fallback for the checksum type
+  //!        when it can not be determined from the file extended attributes
   //! @param scan_size final scan size
   //! @param scan_xs_hex scanned file checksum in hex
   //! @param filexs_err set to true if file has a checksum error
@@ -177,9 +180,8 @@ public:
   //! @return true if file is correct, otherwise false if file does not exist,
   //!        or there is any type of checksum error
   //----------------------------------------------------------------------------
-  bool ScanFileLoadAware(eos::fst::FileIo* io,
-                         unsigned long long& scan_size,
-                         std::string& scan_xs_hex,
+  bool ScanFileLoadAware(eos::fst::FileIo* io, eos::common::FmdHelper* fmd,
+                         unsigned long long& scan_size, std::string& scan_xs_hex,
                          bool& filexs_err, bool& blockxs_err);
 
   //----------------------------------------------------------------------------
@@ -187,12 +189,12 @@ public:
   //!
   //! @param io io object attached to the file
   //! @param fid file id
+  //! @param fmd file metadata object used as a fallback for the checksum type
   //! @param mtime time file contents was last modified
   //!
   //! @return true if file check, otherwise false
-  bool CheckReplicaFile(eos::fst::FileIo* io,
-                        eos::common::FileId::fileid_t fid,
-                        time_t mtime);
+  bool CheckReplicaFile(eos::fst::FileIo* io, eos::common::FileId::fileid_t fid,
+                        eos::common::FmdHelper* fmd, time_t mtime);
 
   //----------------------------------------------------------------------------
   //! Check the given rain file for errors.
