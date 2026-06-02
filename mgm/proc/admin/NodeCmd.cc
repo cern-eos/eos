@@ -22,9 +22,10 @@
  ************************************************************************/
 
 #include "NodeCmd.hh"
-#include "mgm/proc/ProcInterface.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "common/Constants.hh"
 #include "mgm/config/IConfigEngine.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/proc/ProcInterface.hh"
 #include "mq/MessagingRealm.hh"
 #include "namespace/interface/IFsView.hh"
 
@@ -411,6 +412,31 @@ void NodeCmd::ConfigSubcmd(const eos::console::NodeProto_ConfigProto& config,
         } else {
           reply.set_std_err("error: failed to store stripexs config");
           reply.set_retc(EFAULT);
+        }
+      }
+    } else if (config.node_key() == eos::common::FST_CBOX_FORBID_RW_SYNC) {
+      if ((config.node_value() != "true") && (config.node_value() != "false") &&
+          (config.node_value() != "remove")) {
+        reply.set_std_err("error: cbox_forbid_rw_sync value can be either"
+                          " \"true\", \"false\" or \"remove\"");
+        reply.set_retc(EINVAL);
+      } else {
+        if (config.node_value() == "remove") {
+          if (!node->DeleteConfigMember(config.node_key())) {
+            reply.set_std_err("error: failed to remove configuration or already done");
+            reply.set_retc(EINVAL);
+          } else {
+            reply.set_std_err("info: configuration successfully removed");
+            reply.set_retc(0);
+          }
+        } else {
+          if (!node->SetConfigMember(config.node_key(), config.node_value())) {
+            reply.set_std_err("error: cannot set node config value");
+            reply.set_retc(EIO);
+          } else {
+            reply.set_std_out("success: configuration updated");
+            reply.set_retc(0);
+          }
         }
       }
     } else {
