@@ -1121,6 +1121,10 @@ void FsSpace::Stop()
   if (mFsBalancer) {
     mFsBalancer->Stop();
   }
+
+  if (mGroupDrainer) {
+    mGroupDrainer->Stop();
+  }
 }
 
 //------------------------------------------------------------------------------
