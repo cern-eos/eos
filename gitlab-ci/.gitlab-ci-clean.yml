@@ -21,7 +21,7 @@
 clean_rpm_artifacts:
   stage: clean
   script:
-    - dnf install --nogpg -y sssd-client sudo createrepo
+    - dnf install --nogpgcheck -y sssd-client sudo createrepo
     - sudo -u stci -H ./gitlab-ci/remove_old_artifacts.sh
   allow_failure: true
   rules: !reference [.rules-schedules-and-triggers, rules]

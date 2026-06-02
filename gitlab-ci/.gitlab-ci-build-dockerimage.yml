@@ -22,7 +22,7 @@
 clone_docker:
   stage: build:rpm
   script:
-    - dnf install --nogpg -y git
+    - dnf install --nogpgcheck -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
   artifacts:
     expire_in: 1 day

@@ -128,7 +128,7 @@ rh:
 .build-fedora-template:
   stage: build:rpm
   script:
-    - dnf install --nogpg -y gcc-c++ cmake make rpm-build which git tar dnf-plugins-core ccache rpm-sign
+    - dnf install --nogpgcheck -y gcc-c++ cmake make rpm-build which git tar dnf-plugins-core ccache rpm-sign
     - mkdir build; cd build
     - cmake .. -DPACKAGEONLY=1 -Wno-dev; make srpm; cd ..
     - echo -e "[eos-depend]\nname=EOS dependencies\nbaseurl=http://storage-ci.web.cern.ch/storage-ci/eos/${CODENAME}-depend/${BUILD_NAME}/x86_64/\ngpgcheck=0\nenabled=1\nexclude=xrootd*\npriority=4\n" > /etc/yum.repos.d/eos-depend.repo
