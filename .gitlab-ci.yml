@@ -139,6 +139,10 @@ clone_docker:
   script:
     - dnf install --nogpg -y git
     - git clone https://gitlab.cern.ch/eos/eos-docker.git
+    - cd eos-docker
+    # Checkout specific commit that still uses the old layout
+    # of the eos-docker project.
+    - git checkout a9bebcaadf9df81d38d8d78fc659b577c446f89b
   artifacts:
     expire_in: 1 day
     paths:
