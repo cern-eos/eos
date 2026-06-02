@@ -2886,8 +2886,7 @@ void XrdFstOfsFile::ProcessAltXsRequest()
     compute = std::strncmp(mCapOpaque->Get("mgm.altxs.compute"), "1", 1) == 0;
   }
 
-  std::string altStr = mCapOpaque->Get("mgm.altxs") ? mCapOpaque->Get("mgm.altxs")
-                       : "0";
+  std::string altStr = mCapOpaque->Get("mgm.altxs") ? mCapOpaque->Get("mgm.altxs") : "";
 
   if (!altStr.empty()) {
     auto io = mLayout->GetFileIo();
