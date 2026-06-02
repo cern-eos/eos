@@ -392,7 +392,6 @@ FsckEntry::RepairBestEffort()
 bool
 FsckEntry::RepairMgmXsSzDiff()
 {
-  static const auto s_xs_val_undef = "00000000";
   // This only makes sense for replica layouts
   if (LayoutId::IsRain(mMgmFmd.layout_id())) {
     return true;

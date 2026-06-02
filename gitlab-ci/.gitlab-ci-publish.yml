@@ -27,7 +27,7 @@
   stage: publish
   image: gitlab-registry.cern.ch/linuxsupport/rpmci/kojicli
   script:
-    - yum install --nogpg -y sssd-client
+    - dnf install --nogpgcheck -y sssd-client
     - kinit stci@CERN.CH -k -t /stci.krb5/stci.keytab
     # KOJI_SCRATCH will be set for branches and empty for tags
     - koji build ${KOJI_SCRATCH} ${TARGET} ${BUILD_NAME}-artifacts/SRPMS/*.src.rpm
@@ -136,7 +136,7 @@ notify_cta_project:
   variables:
     CTA_BRANCH: main
   script:
-    - dnf install --nogpg -y curl gawk jq
+    - dnf install --nogpgcheck -y curl gawk jq
     - CTA_PROJECT_ID="139306"
     - CTA_PROJECT_API="https://gitlab.cern.ch/api/v4/projects/$CTA_PROJECT_ID"
     - TRIGGER_URL="$CTA_PROJECT_API/trigger/pipeline"
@@ -220,7 +220,7 @@ rpm_commit_artifacts:
       artifacts: true
       optional: true
   script:
-    - dnf install --nogpg -y sudo sssd-client createrepo
+    - dnf install --nogpgcheck -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then echo "This only works for commits"; exit 0; else BUILD_TYPE="commit"; fi
     - sudo -u stci -H ./gitlab-ci/publish_rpm.sh ${CODENAME} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
   tags:
@@ -236,7 +236,7 @@ rpm_commit_artifacts:
 rpm_testing_artifacts:
   stage: publish
   script:
-    - dnf install --nogpg -y sudo sssd-client createrepo
+    - dnf install --nogpgcheck -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag/testing"; else BUILD_TYPE="commit"; fi
     - sudo -u stci -H ./gitlab-ci/publish_rpm.sh ${CODENAME} ${BUILD_TYPE} /eos/project/s/storage-ci/www/eos
   tags:
@@ -249,7 +249,7 @@ rpm_testing_artifacts:
 rpm_stable_artifacts:
   stage: publish
   script:
-    - dnf install --nogpg -y sudo sssd-client createrepo
+    - dnf install --nogpgcheck -y sudo sssd-client createrepo
     - if [[ -n "$CI_COMMIT_TAG" ]]; then BUILD_TYPE="tag"; else echo "This only works for tags"; exit 0; fi
     - ./gitlab-ci/publish_rpm.sh ${CODENAME} ${BUILD_TYPE} /mnt/eos_repositories/eos
     - sudo -u stci -H ./gitlab-ci/store_stable_artifacts.sh ${CODENAME} /eos/project/s/storage-ci/www/eos ${CI_COMMIT_TAG}
