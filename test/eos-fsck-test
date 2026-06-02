@@ -58,6 +58,7 @@ function create_test_files() {
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_REPLICA_DIR}/file_orphan.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_REPLICA_DIR}/best_effort1.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_REPLICA_DIR}/best_effort2.dat &&
+                     xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_REPLICA_DIR}/fmd_xs_fallback.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_blockxs_err.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_stripe_diff.dat &&
                      xrdcp -f /tmp/test_file.dat \${EOS_MGM_URL}/${EOS_RAIN_DIR}/rain_stripe_sz_err.dat &&
@@ -79,6 +80,7 @@ function create_test_files() {
   FXID_ORPHAN=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/file_orphan.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_BEST_EFFORT1=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/best_effort1.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_BEST_EFFORT2=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/best_effort2.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
+  FXID_FMD_XS_FALLBACK=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_REPLICA_DIR}/fmd_xs_fallback.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_RAIN_BLOCKXS=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_blockxs_err.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_RAIN_DIFF=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_stripe_diff.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
   FXID_RAIN_STRIPE_SZ=$(exec_cmd eos-cli1 "eos fileinfo ${EOS_RAIN_DIR}/rain_stripe_sz_err.dat -m | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '\$1==\"fxid\" {print \$2};' | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*\$//'")
@@ -103,6 +105,7 @@ function create_test_files() {
         -z "${FXID_ORPHAN}"               ||
         -z "${FXID_BEST_EFFORT1}"         ||
         -z "${FXID_BEST_EFFORT2}"         ||
+        -z "${FXID_FMD_XS_FALLBACK}"      ||
         -z "${FXID_RAIN_BLOCKXS}"         ||
         -z "${FXID_RAIN_DIFF}"            ||
         -z "${FXID_RAIN_STRIPE_SZ}"       ||
@@ -339,6 +342,91 @@ function corrupt_best_effort2() {
   exec_cmd eos-cli1 "eos -r 0 0 ns cache drop-single-file $(( 16#${FXID_BEST_EFFORT2} )) || true"
 }
 
+# Verify the FST scanner falls back to the checksum type encoded in the Fmd
+# layout id when the checksum type xattr is missing from the physical replica.
+# After removing the user.eos.checksumtype and user.eos.timestamp xattrs, the
+# scanner is forced to rescan the replica and recompute the disk checksum
+# relying on the Fmd as a fallback for the checksum type. The user.eos.checksum
+# xattr is intentionally kept to avoid introducing any checksum inconsistency.
+# The recomputed diskchecksum must match the checksum already registered in the
+# Fmd object.
+function check_fmd_xs_fallback() {
+  # Collect the (fsid, local_path) pairs for all the replicas
+  local LOCATIONS=$(exec_cmd eos-cli1 "eos -j fileinfo fxid:${FXID_FMD_XS_FALLBACK} | jq -r '.locations | .[] | (.fsid|tostring) + \" \" + .fstpath'")
+
+  if [[ -z "${LOCATIONS}" ]]; then
+    echo "error: could not retrieve locations for fmd_xs_fallback file"
+    cleanup
+    exit 1
+  fi
+
+  # Drop the checksum type xattr together with the scan timestamp so that the
+  # scanner reprocesses the replica and has to fall back to the Fmd layout id to
+  # determine the checksum type. We keep user.eos.checksum to avoid introducing
+  # any checksum inconsistency.
+  while read -r FSID LPATH; do
+    [[ -z "${FSID}" ]] && continue
+    exec_cmd "eos-fst${FSID}" "setfattr -x user.eos.checksumtype ${LPATH}"
+    exec_cmd "eos-fst${FSID}" "setfattr -x user.eos.timestamp ${LPATH} || true"
+  done <<< "${LOCATIONS}"
+
+  # Wait until both replicas have been rescanned - signaled by the presence of
+  # the user.eos.timestamp xattr that is written at the end of each scan.
+  local WAIT_START=$(date +%s)
+  local WAIT_MAX=120
+  while true; do
+    local ALL_SCANNED=true
+    while read -r FSID LPATH; do
+      [[ -z "${FSID}" ]] && continue
+      local TS=$(exec_cmd "eos-fst${FSID}" "getfattr --absolute-names --only-values -n user.eos.timestamp ${LPATH} 2>/dev/null || true")
+      if [[ -z "${TS}" ]]; then
+        ALL_SCANNED=false
+      fi
+    done <<< "${LOCATIONS}"
+
+    if [[ "${ALL_SCANNED}" == true ]]; then
+      break
+    fi
+
+    if (( $(( $(date +%s) - ${WAIT_START} )) >= ${WAIT_MAX} )); then
+      echo "error: replicas of fmd_xs_fallback were not rescanned in time"
+      cleanup
+      exit 1
+    fi
+    echo "info: waiting for scanner to recompute checksum on fmd_xs_fallback replicas"
+    sleep 5
+  done
+
+  # Inspect the Fmd of each replica and make sure the recomputed diskchecksum is
+  # valid (non-zero) and matches the checksum already registered in the Fmd.
+  while read -r FSID LPATH; do
+    [[ -z "${FSID}" ]] && continue
+    local FMD_OUT=$(exec_cmd "eos-fst${FSID}" "eos-fmd-tool inspect --path ${LPATH}")
+    local FMD_CKSUM=$(echo "${FMD_OUT}" | awk -F '"' '/^[[:space:]]*checksum:/ {print $2; exit}')
+    local FMD_DISKXS=$(echo "${FMD_OUT}" | awk -F '"' '/^[[:space:]]*diskchecksum:/ {print $2; exit}')
+    echo "info: fmd_xs_fallback fsid=${FSID} checksum=${FMD_CKSUM} diskchecksum=${FMD_DISKXS}"
+
+    if [[ -z "${FMD_DISKXS}" || "${FMD_DISKXS}" =~ ^0+$ ]]; then
+      echo "error: diskchecksum was not recomputed for fmd_xs_fallback replica on fsid=${FSID}"
+      echo "${FMD_OUT}"
+      cleanup
+      exit 1
+    fi
+
+    if [[ "${FMD_DISKXS}" != "${FMD_CKSUM}" ]]; then
+      echo "error: recomputed diskchecksum (${FMD_DISKXS}) does not match Fmd checksum (${FMD_CKSUM}) for fsid=${FSID}"
+      echo "${FMD_OUT}"
+      cleanup
+      exit 1
+    fi
+  done <<< "${LOCATIONS}"
+
+  echo "info: fmd checksum fallback verified successfully on all replicas"
+  # Remove the file completely (bypass the recycle bin with -F) so that it does
+  # not interfere with the rest of the fsck tests.
+  exec_cmd eos-cli1 "eos rm -F ${EOS_REPLICA_DIR}/fmd_xs_fallback.dat"
+}
+
 # Corrupt file to generate RAIN stripe size error
 function corrupt_rain_stripe_size() {
   local CMD_OUT=$(exec_cmd eos-cli1 "eos fileinfo fxid:${FXID_RAIN_STRIPE_SZ} -m --fullpath | sed -r 's/[[:alnum:]]+=/\n&/g' | awk -F '=' '{if (\$1 ==\"fsid\" || \$1 ==\"fullpath\") {print \$2};}' | tail -n2")
@@ -420,6 +508,7 @@ function corrupt_rain_stripe_diff_over() {
 
   # Force resync of fmd on new fst
   exec_cmd eos-cli1 "eos -r 0 0 file verify fxid:${FXID_RAIN_DIFF_OVER} ${NEW_FSID} -resync"
+  exec_cmd eos-cli1 "eos -r 0 0 fileinfo fxid:${FXID_RAIN_DIFF_OVER}"
 }
 
 # Duplicate stripe and corrupt another stripe to generate RAIN stripe error
@@ -495,9 +584,10 @@ function configure_fsck() {
                         eos -r 0 0 fs config ${i} scan_rain_interval=15"
   done
 
-  # Reduce the interval when the fsck collection thread runs
-  exec_cmd eos-cli1  "eos -r 0 0 fsck config collect-interval-min 0.25;"
-  exec_cmd eos-cli1  "eos -r 0 0 fsck config collect on;"
+  # Reduce the interval when the fsck collection thread runs and disable repiar
+  exec_cmd eos-cli1 "eos -r 0 0 fsck config repair off"
+  exec_cmd eos-cli1 "eos -r 0 0 fsck config collect-interval-min 0.25"
+  exec_cmd eos-cli1 "eos -r 0 0 fsck config collect on"
 }
 
 # Check that we collected all the errors that we expect
@@ -548,7 +638,7 @@ function check_all_errors_collected() {
           -z "${FOUND_RAIN_INVALID_STRIPE}"  ||
           -z "${FOUND_RAIN_INVALID_STRIPE2}" ||
           -z "${FOUND_RAIN_DIFF_OVER}"       ||
-          -z "${FOUND_RAIN_DIFF_OVER2}"      ]]
+          -z "${FOUND_RAIN_DIFF_OVER2}"      ||
           -z "${FOUND_RAIN_INVALID_HEADER}"  ]]; then
       if (( $((${CURRENT_TIME} - ${START_TIME})) >= ${MAX_DELAY} )); then
         echo "error: some errors not discovered"
@@ -664,6 +754,10 @@ configure_fsck
 
 # Create test file
 create_test_files
+
+# Verify the scanner falls back to the Fmd layout id for the checksum type
+# when the checksum type xattr is missing from the physical replicas
+check_fmd_xs_fallback
 
 # Create different type of corruptions for different files
 corrupt_d_mem_sz_diff
