@@ -34,7 +34,7 @@ set(OSDEFINE "")
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
   include(GNUInstallDirs)
   set(Linux TRUE )
-  set(OSDEFINE "-D__LINUX__=1")
+  set(OSDEFINE "__LINUX__=1")
 endif()
 
 # Check if we are on MacOSX
@@ -42,7 +42,7 @@ if("${CMAKE_SYSTEM_NAME}" STREQUAL "Darwin" )
   include(GNUInstallDirs)
   set(MacOSX TRUE )
   set(CLIENT TRUE )
-  set(OSDEFINE "-D__APPLE__=1")
+  set(OSDEFINE "__APPLE__=1")
   # On MAC we don't link static objects at all. The FUSE library path is
   # discovered by Findfuse.cmake (libfuse on macFUSE 4.x, libosxfuse on
   # older installs); do not hardcode it here.
@@ -61,7 +61,7 @@ endif()
 # Check if we are on Windows
 if("${CMAKE_SYSTEM_NAME}" STREQUAL "Windows")
   set(Windows TRUE )
-  set(OSDEFINE "-D__WINDOWS__=1")
+  set(OSDEFINE "__WINDOWS__=1")
 endif()
 
 add_compile_definitions(${OSDEFINE})
