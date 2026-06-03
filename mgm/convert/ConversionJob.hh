@@ -63,9 +63,9 @@ public:
   //! @param source         the source url of the current job
   //! @param destination    the destination url of the current job
   //----------------------------------------------------------------------------
-  void BeginJob(uint16_t jobNum, uint16_t jobTotal,
-                const XrdCl::URL* source,
-                const XrdCl::URL* destination) override
+  void
+  BeginJob(uint32_t jobNum, uint32_t jobTotal, const XrdCl::URL* source,
+           const XrdCl::URL* destination) override
   {
     mStartTimestamp = std::chrono::duration_cast<std::chrono::seconds>(
                         std::chrono::system_clock::now().time_since_epoch()).count();
@@ -78,8 +78,8 @@ public:
   //! @param bytesProcessed bytes processed by the current job
   //! @param bytesTotal     total number of bytes to be processed
   //----------------------------------------------------------------------------
-  void JobProgress(uint16_t jobNum, uint64_t bytesProcessed,
-                   uint64_t bytesTotal) override
+  void
+  JobProgress(uint32_t jobNum, uint64_t bytesProcessed, uint64_t bytesTotal) override
   {
     mBytesProcessed = bytesProcessed;
     mProgress = static_cast<int>(100.0 * bytesProcessed / bytesTotal);
@@ -88,7 +88,8 @@ public:
   //----------------------------------------------------------------------------
   //! Determine whether the job should be cancelled
   //----------------------------------------------------------------------------
-  bool ShouldCancel(uint16_t jobNum) override
+  bool
+  ShouldCancel(uint32_t jobNum) override
   {
     return mCancel;
   }
