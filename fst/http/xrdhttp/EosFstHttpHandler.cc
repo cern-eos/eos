@@ -191,9 +191,9 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
                                   response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str(),
                                   nullptr, content_length);
       } else {
-        retc = req.SendSimpleResp(0, response->GetResponseCodeDescription().c_str(),
-                                  response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str(),
-                                  nullptr, content_length);
+        retc = req.StartChunkedResp(
+            response->GetResponseCode(), response->GetResponseCodeDescription().c_str(),
+            response->GetHdrsWithFilter({HttpResponse::kContentLength}).c_str());
       }
 
       if (retc) {
@@ -214,7 +214,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
 
         if (nread >= 0) {
           pos += nread;
-          retc |= req.SendSimpleResp(1, nullptr, nullptr, &buffer[0], nread);
+          retc |= req.ChunkResp(&buffer[0], nread);
           eos_static_debug("retc=%d", retc);
         } else {
           retc = -1;
@@ -225,6 +225,7 @@ EosFstHttpHandler::ProcessReq(XrdHttpExtReq& req)
         }
       } while ((pos != content_length) && (nread > 0) && !retc);
 
+      retc |= req.ChunkResp(nullptr, 0);
       OFS->mHttpd->FileClose(handler.get(), retc, eskip);
       return retc;
     }
