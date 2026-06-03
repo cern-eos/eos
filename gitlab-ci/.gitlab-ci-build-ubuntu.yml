@@ -45,7 +45,7 @@
     - if [[ -n "$CI_COMMIT_TAG" ]]; then
         export CCACHE_DISABLE=1;
       else
-        source gitlab-ci/setup_ccache_deb.sh;
+        source gitlab-ci/setup_ccache.sh;
         export GRPC_BUILD_ENABLE_CCACHE=1;
       fi
     - dpkg-buildpackage -b -us -uc -tc --buildinfo-option="-udeb_packages" --changes-option="-udeb_packages" --buildinfo-file="deb_packages/eos_${EOS_VERSION}_$(dpkg-architecture -qDEB_BUILD_ARCH).buildinfo" --changes-file="deb_packages/eos_${EOS_VERSION}_$(dpkg-architecture -qDEB_BUILD_ARCH).changes"
