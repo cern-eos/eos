@@ -347,6 +347,19 @@ FileSystem::IoPing()
 
   // Open the file for direct access
   int fd = open(device_path.c_str(), O_RDONLY | O_DIRECT);
+
+  if (fd < 0) {
+    // Fallback to open without O_DIRECT flag
+    fd = open(device_path.c_str(), O_RDONLY);
+
+    if (fd < 0) {
+      eos_static_notice("msg=\"skip disk measurements, failed to open "
+                        "device\" path=\"%s\" errno=%i",
+                        GetPath().c_str(), errno);
+      return;
+    }
+  }
+
   using namespace std::chrono;
   auto start_iops = high_resolution_clock::now();
   IOPS = eos::fst::ComputeIops(fd);
