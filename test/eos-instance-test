@@ -880,19 +880,18 @@ fs_max_size=$(command eos -b $EOSROLE root://$EOS_TEST_REDIRECTOR geosched show 
 grep fsid |
 gawk -M -v RS=" |\n" -F= '/^(fsid|totW)=/{ if($1=="fsid") f=$2; else print $2, f }' |
 sort -rn |
-grep fsid |
 head -1 |
 awk '{print $1;}')
 # Tests for the replica layout
 runtest "### Mkdir     " unix SUCCESS "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/replica"
 runtest "### Attr      " unix SUCCESS "" eos "attr set default=replica /eos/$EOS_TEST_INSTANCE/test/instancetest/replica"
-runtest "### Upload    " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/replica/file.dat" "-ODeos.bookingsize=$((fs_max_size + 1024*1024*1024))"
-runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/replica/file.dat" "-ODeos.bookingsize=$((fs_min_size - 1024*1024*1024))"
+runtest "### UploadMax+" unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/replica/file.dat" "-ODeos.bookingsize=$((fs_max_size + 1024*1024*1024))"
+runtest "### UploadMax-" unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/replica/file.dat" "-ODeos.bookingsize=$((fs_min_size - 1024*1024*1024))"
 # Tests for the rain layout
 runtest "### Mkdir     " unix SUCCESS "" eos "mkdir /eos/$EOS_TEST_INSTANCE/test/instancetest/rain"
 runtest "### Attr      " unix SUCCESS "" eos "attr set default=raid6 /eos/$EOS_TEST_INSTANCE/test/instancetest/rain"
-runtest "### Upload    " unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rain/file.dat" "-ODeos.bookingsize=$((fs_max_size + 1024*1024*1024))"
-runtest "### Upload    " unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rain/file.dat" "-ODeos.bookingsize=$((fs_max_size * 7))"
+runtest "### UploadMax+" unix SUCCESS "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rain/file.dat" "-ODeos.bookingsize=$((fs_max_size + 1024*1024*1024))"
+runtest "### UploadMax-" unix ERROR   "" upload "/etc/group" "/eos/$EOS_TEST_INSTANCE/test/instancetest/rain/file.dat" "-ODeos.bookingsize=$((fs_max_size * 7))"
 # Cleanup
 runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/replica"
 runtest "### Rem       " unix SUCCESS "" eos rm -r "/eos/$EOS_TEST_INSTANCE/test/instancetest/rain"
