@@ -1407,6 +1407,8 @@ Recycle::RecycleIdSetup(std::string_view path, std::string_view acl,
 
     if (reply.retc()) {
       std_err = reply.std_err();
+      eos_static_err("msg=\"failed acl update\" path=\"%s\" msg=\"%s\" retc=%i",
+                     proj_recycle_path.c_str(), std_err.c_str(), reply.retc());
       return reply.retc();
     }
   }
