@@ -24,15 +24,17 @@
 #ifndef EOS_NS_I_FILE_MD_SVC_HH
 #define EOS_NS_I_FILE_MD_SVC_HH
 
-#include "namespace/Namespace.hh"
-#include "namespace/interface/IFileMD.hh"
 #include "namespace/MDException.hh"
+#include "namespace/MDLocking.hh"
+#include "namespace/Namespace.hh"
+#include "namespace/interface/IContainerMD.hh"
+#include "namespace/interface/IFileMD.hh"
 #include "namespace/interface/Identifiers.hh"
 #include "namespace/interface/Misc.hh"
-#include "namespace/MDLocking.hh"
 #include <folly/futures/Future.h>
 #include <map>
 #include <string>
+#include <vector>
 
 EOSNSNAMESPACE_BEGIN
 
@@ -102,6 +104,35 @@ public:
   virtual bool fileMDCheck(IFileMD* obj) = 0;
   virtual void AddTree(IContainerMD* obj , TreeInfos treeInfos) = 0;
   virtual void RemoveTree(IContainerMD* obj , TreeInfos treeInfos) = 0;
+  virtual void
+  FlushTreeSizeUpdates(bool is_admin_recompute = false)
+  {
+  }
+  // Only one tree-size recompute context may be active. This boolean API does
+  // not protect stale callers from touching a newer active context.
+  virtual bool
+  StartTreeSizeRecompute(std::vector<IContainerMD::id_t>)
+  {
+    return false;
+  }
+  virtual void
+  ResetTreeSizeRecomputeDirty()
+  {
+  }
+  virtual bool
+  IsTreeSizeRecomputeDirty() const
+  {
+    return false;
+  }
+  virtual bool
+  TryFinishTreeSizeRecompute()
+  {
+    return true;
+  }
+  virtual void
+  AbortTreeSizeRecompute()
+  {
+  }
 };
 
 //------------------------------------------------------------------------------

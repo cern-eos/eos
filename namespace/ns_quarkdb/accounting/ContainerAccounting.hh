@@ -22,19 +22,71 @@
  ************************************************************************/
 
 #pragma once
+#include "common/AssistedThread.hh"
+#include "common/ConcurrentQueue.hh"
 #include "namespace/Namespace.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "common/AssistedThread.hh"
+#include <algorithm>
+#include <future>
+#include <memory>
 #include <mutex>
 #include <thread>
-#include <vector>
-#include <utility>
 #include <unordered_map>
-#include <atomic>
-#include "common/ConcurrentQueue.hh"
+#include <utility>
+#include <vector>
 
 EOSNSNAMESPACE_BEGIN
+
+namespace container_accounting {
+
+//! Accounting queue item
+struct QueuedUpdate {
+  enum class Type { Update, Barrier, Stop };
+
+  QueuedUpdate() = default;
+  QueuedUpdate(IContainerMD::id_t id, TreeInfos treeInfos)
+      : mType(Type::Update)
+      , mId(id)
+      , mTreeInfos(treeInfos)
+  {
+  }
+  explicit QueuedUpdate(Type type)
+      : mType(type)
+  {
+  }
+  explicit QueuedUpdate(std::shared_ptr<std::promise<void>> barrier)
+      : mType(Type::Barrier)
+      , mBarrier(std::move(barrier))
+  {
+  }
+
+  Type mType = Type::Update;
+  IContainerMD::id_t mId = 0;
+  TreeInfos mTreeInfos;
+  std::shared_ptr<std::promise<void>> mBarrier;
+};
+
+//! Active tree-size recompute coverage
+struct TreeSizeRecomputeContext {
+  explicit TreeSizeRecomputeContext(std::vector<IContainerMD::id_t> ids)
+      : mIds(std::move(ids))
+  {
+    std::sort(mIds.begin(), mIds.end());
+    mIds.erase(std::unique(mIds.begin(), mIds.end()), mIds.end());
+  }
+
+  bool
+  Contains(IContainerMD::id_t id) const
+  {
+    return std::binary_search(mIds.begin(), mIds.end(), id);
+  }
+
+  std::vector<IContainerMD::id_t> mIds;
+  bool mDirty = false;
+};
+
+} // namespace container_accounting
 
 //------------------------------------------------------------------------------
 //! Container subtree accounting listener
@@ -107,6 +159,40 @@ public:
   void RemoveTree(IContainerMD* obj, TreeInfos treeAccounting);
 
   //----------------------------------------------------------------------------
+  //! Flush queued tree-size accounting updates
+  //----------------------------------------------------------------------------
+  void FlushTreeSizeUpdates(bool is_admin_recompute = false) override;
+
+  //----------------------------------------------------------------------------
+  //! Start a best-effort tree-size recompute window
+  //!
+  //! Only one recompute context can be active. One can use epoch numbers
+  //! instead of the boolean if there is a need to have different
+  //! recompute contexts.
+  //----------------------------------------------------------------------------
+  bool StartTreeSizeRecompute(std::vector<IContainerMD::id_t> ids) override;
+
+  //----------------------------------------------------------------------------
+  //! Reset dirty marker for a recompute window
+  //----------------------------------------------------------------------------
+  void ResetTreeSizeRecomputeDirty() override;
+
+  //----------------------------------------------------------------------------
+  //! Check whether accounting touched the recompute window
+  //----------------------------------------------------------------------------
+  bool IsTreeSizeRecomputeDirty() const override;
+
+  //----------------------------------------------------------------------------
+  //! Atomically finish a recompute window if it is still clean
+  //----------------------------------------------------------------------------
+  bool TryFinishTreeSizeRecompute() override;
+
+  //----------------------------------------------------------------------------
+  //! Abort a recompute window
+  //----------------------------------------------------------------------------
+  void AbortTreeSizeRecompute() override;
+
+  //----------------------------------------------------------------------------
   //! Queue info for update
   //!
   //! @param pid container id
@@ -148,6 +234,21 @@ private:
   //----------------------------------------------------------------------------
   void AssistedQueueForUpdate(ThreadAssistant& assistant) noexcept;
 
+  //----------------------------------------------------------------------------
+  //! Queue one delta for all ancestors of the given container
+  //----------------------------------------------------------------------------
+  void QueueAncestorsForUpdate(IContainerMD::id_t id, TreeInfos treeInfos);
+
+  //----------------------------------------------------------------------------
+  //! Propagate one accumulated batch
+  //----------------------------------------------------------------------------
+  void PropagateUpdatesOnce(bool is_admin_recompute = false);
+
+  //----------------------------------------------------------------------------
+  //! Mark recompute context dirty if the update is covered by admin recompute
+  //----------------------------------------------------------------------------
+  bool MarkDirtyIfInAdminRecomputeContext(IContainerMD::id_t id);
+
   //! Update structure containing the nodes that need an update. We try to
   //! optimise the number of updates to the backend by computing the final
   //! size deltas from a number of individual updates.
@@ -155,18 +256,38 @@ private:
     std::unordered_map<IContainerMD::id_t, TreeInfos> mMap; ///< Map updates
   };
 
+  //----------------------------------------------------------------------------
+  //! Merge source update batch into destination update batch
+  //----------------------------------------------------------------------------
+  void MergeBatch(const UpdateT& src, UpdateT& dst);
+
+  //----------------------------------------------------------------------------
+  //! Get active recompute context
+  //----------------------------------------------------------------------------
+  std::shared_ptr<const container_accounting::TreeSizeRecomputeContext>
+  GetRecomputeContext() const;
+
   //! Vector of two elements containing the batch which is currently being
   //! accumulated and the batch which is being committed to the namespace by
   //! the asynchronous thread
   std::vector<UpdateT> mBatch;
   std::mutex mMutexBatch; ///< Mutex protecting access to the updates batch
+  //! Serialize propagation passes. This is intentionally separate from
+  //! mMutexBatch so queueing can keep accumulating new deltas while a
+  //! propagation pass performs container lookups, locking and store updates.
+  std::mutex mMutexPropagate;
   uint8_t mAccumulateIndx; ///< Index of the batch accumulating updates
   uint8_t mCommitIndx; ///< Index o the batch committing updates
   AssistedThread mThread; ///< Thread updating the namespace
   AssistedThread mQueueForUpdateThread; ///< Thread update queueing thread
   uint32_t mUpdateIntervalSec; ///< Interval in seconds when updates are pushed
   IContainerMDSvc* mContainerMDSvc; ///< container MD service
-  eos::common::ConcurrentQueue<std::pair<IContainerMD::id_t, TreeInfos>>  mIdTreeInfosToUpdateQueue; ///< Queue containing containerIds and their corresponding infos to update
+  eos::common::ConcurrentQueue<container_accounting::QueuedUpdate>
+      mIdTreeInfosToUpdateQueue;      ///< Queue containing containerIds and their
+                                      ///< corresponding infos to update
+  mutable std::mutex mMutexRecompute; ///< Mutex protecting recompute context
+  std::shared_ptr<container_accounting::TreeSizeRecomputeContext>
+      mActiveRecompute;                         ///< Active recompute context
 };
 
 EOSNSNAMESPACE_END

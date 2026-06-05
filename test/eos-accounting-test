@@ -1,73 +1,329 @@
 #!/bin/bash
 
-set -x
-
 prefix=$1
 host=${2-"localhost"}
 url=root://$host
 EOS_ACCOUNTING_DIR=$prefix
 
-echo "prefix = $prefix"
-echo "host = $host"
-echo "url = $url"
-echo "EOS_ACCOUNTING_DIR = $EOS_ACCOUNTING_DIR"
-
-cleanup() {
-  echo "Cleaning up the test directories"
-  start_time=$(date +%s)
-  eos rm -rF --no-confirmation $EOS_ACCOUNTING_DIR/
-  end_time=$(date +%s)
-  elapsed=$((end_time - start_time))
-  echo "Done, elapsed time = $elapsed seconds"
+log_section() {
+  echo
+  echo "=== $* ==="
 }
 
-# Convenient function to test the accounting variables
-test_accounting() {
+log_step() {
+  echo "-- $*"
+}
+
+log_ok() {
+  echo "OK: $*"
+}
+
+log_fail() {
+  echo "FAIL: $*"
+  exit 1
+}
+
+run_timed() {
+  description=$1
+  shift
+
+  log_step "$description"
+  start_time=$(date +%s)
+  "$@"
+  rc=$?
+  end_time=$(date +%s)
+  elapsed=$((end_time - start_time))
+
+  if [[ $rc -ne 0 ]];
+  then
+    log_fail "$description failed with rc=$rc after ${elapsed}s"
+  fi
+
+  log_ok "$description completed in ${elapsed}s"
+}
+
+cleanup() {
+  log_step "Cleaning up $EOS_ACCOUNTING_DIR"
+  start_time=$(date +%s)
+  output=$(eos rm -rF --no-confirmation $EOS_ACCOUNTING_DIR/ 2>&1)
+  rc=$?
+  end_time=$(date +%s)
+  elapsed=$((end_time - start_time))
+
+  if [[ $rc -ne 0 ]] && ! echo "$output" | grep -q "no such file or directory";
+  then
+    echo "$output"
+    log_fail "Cleaning up $EOS_ACCOUNTING_DIR failed with rc=$rc after ${elapsed}s"
+  fi
+
+  log_ok "Cleanup completed in ${elapsed}s"
+}
+
+accounting_matches() {
   path=$1
   expected_treecont=$2
   expected_treefiles=$3
   expected_treesize=$4
+  verbose=${5:-0}
   fileinfoRes=`eos fileinfo $path -m`
   treecont=`echo $fileinfoRes | grep -o 'treecontainers=[^ ]\+' | cut -d= -f2`
   treefiles=`echo $fileinfoRes | grep -o 'treefiles=[^ ]\+' | cut -d= -f2`
   treesize=`echo $fileinfoRes | grep -o 'treesize=[^ ]\+' | cut -d= -f2`
   error=0
-  if [[ $treecont -ne $expected_treecont ]];
+  if [[ ${treecont:--1} -ne $expected_treecont ]];
   then
-    echo "path: "$path " expected $expected_treecont treecontainers, got $treecont"
+    if [[ $verbose -eq 1 ]];
+    then
+      echo "path: "$path " expected $expected_treecont treecontainers, got $treecont"
+    fi
     error=1
   fi
-  if [[ $treefiles -ne $expected_treefiles ]];
+  if [[ ${treefiles:--1} -ne $expected_treefiles ]];
   then
     error=1
-    echo "path: "$path " expected $expected_treefiles treefiles, got $treefiles"
+    if [[ $verbose -eq 1 ]];
+    then
+      echo "path: "$path " expected $expected_treefiles treefiles, got $treefiles"
+    fi
   fi
-  if [[ $treesize -ne $expected_treesize ]];
+  if [[ ${treesize:--1} -ne $expected_treesize ]];
   then
     error=1
-    echo "path: "$path " expected $expected_treesize treesize, got $treesize"
+    if [[ $verbose -eq 1 ]];
+    then
+      echo "path: "$path " expected $expected_treesize treesize, got $treesize"
+    fi
   fi
-  if [[ $error -eq 1 ]];
+
+  return $error
+}
+
+# Convenient function to test the accounting variables
+test_accounting() {
+  accounting_matches "$1" "$2" "$3" "$4" 1
+
+  if [[ $? -eq 0 ]];
   then
-    exit 1
+    log_ok "$1 accounting matches treecontainers=$2 treefiles=$3 treesize=$4"
+    return
   fi
+
+  log_fail "$1 accounting mismatch"
+}
+
+wait_accounting() {
+  path=$1
+  expected_treecont=$2
+  expected_treefiles=$3
+  expected_treesize=$4
+  timeout=${5:-30}
+  deadline=$(($(date +%s)+timeout))
+  start_time=$(date +%s)
+
+  log_step "Waiting for accounting on $path"
+
+  while [[ $(date +%s) -le $deadline ]];
+  do
+    if accounting_matches "$path" "$expected_treecont" "$expected_treefiles" "$expected_treesize";
+    then
+      elapsed=$(($(date +%s)-start_time))
+      log_ok "$path accounting matched after ${elapsed}s"
+      return
+    fi
+
+    sleep 1
+  done
+
+  echo "Timed out waiting for accounting on $path"
+  test_accounting "$path" "$expected_treecont" "$expected_treefiles" "$expected_treesize"
+}
+
+wait_accounting_stable() {
+  path=$1
+  expected_treecont=$2
+  expected_treefiles=$3
+  expected_treesize=$4
+  stable_for=${5:-6}
+  timeout=${6:-30}
+  deadline=$(($(date +%s)+timeout))
+  stable_start=0
+  start_time=$(date +%s)
+
+  log_step "Waiting for stable accounting on $path"
+
+  while [[ $(date +%s) -le $deadline ]];
+  do
+    if accounting_matches "$path" "$expected_treecont" "$expected_treefiles" "$expected_treesize";
+    then
+      if [[ $stable_start -eq 0 ]];
+      then
+        stable_start=$(date +%s)
+      fi
+
+      if [[ $(($(date +%s)-stable_start)) -ge $stable_for ]];
+      then
+        elapsed=$(($(date +%s)-start_time))
+        log_ok "$path accounting stayed stable for ${stable_for}s after ${elapsed}s"
+        return
+      fi
+    else
+      stable_start=0
+    fi
+
+    sleep 1
+  done
+
+  echo "Timed out waiting for stable accounting on $path"
+  test_accounting "$path" "$expected_treecont" "$expected_treefiles" "$expected_treesize"
+}
+
+expect_recompute_inconsistency_error() {
+  path=$1
+  race_dir=$path/recompute-race
+  stop_file=$(mktemp /tmp/eos-accounting-race-stop.XXXXXX)
+  rm -f "$stop_file"
+  mutator_pids=""
+  race_dirs=30
+  race_base_files=5
+  race_mutators=8
+
+  eos mkdir -p "$race_dir"
+  for (( i=0; i<$race_dirs; i++ ));
+  do
+    eos mkdir -p "$race_dir/$i"
+
+    for (( j=0; j<$race_base_files; j++ ));
+    do
+      eos cp /etc/passwd "$url/$race_dir/$i/base_$j" >/dev/null 2>&1
+    done
+  done
+
+  for (( i=0; i<$race_mutators; i++ ));
+  do
+    (
+      n=0
+      while [[ ! -f "$stop_file" ]];
+      do
+        eos cp /etc/passwd "$url/$race_dir/$i/race_$n" >/dev/null 2>&1
+        n=$((n+1))
+      done
+    ) &
+    mutator_pids="$mutator_pids $!"
+  done
+
+  sleep 1
+  rc=0
+  output=""
+
+  for (( attempt=0; attempt<5; attempt++ ));
+  do
+    output=$(eos ns recompute_tree_size "$path" 2>&1)
+    rc=$?
+
+    if [[ $rc -ne 0 ]];
+    then
+      break
+    fi
+
+    sleep 1
+  done
+
+  touch "$stop_file"
+
+  for pid in $mutator_pids;
+  do
+    wait "$pid"
+  done
+
+  rm -f "$stop_file"
+  eos rm -rF --no-confirmation "$race_dir"
+
+  if [[ $rc -eq 0 ]];
+  then
+    echo "Expected recompute_tree_size to fail under concurrent modifications"
+    echo "$output"
+    log_fail "recompute_tree_size succeeded under concurrent modifications"
+  fi
+
+  if ! echo "$output" | grep -q "concurrent modifications";
+  then
+    echo "Expected recompute_tree_size output to mention concurrent modifications"
+    echo "$output"
+    log_fail "recompute_tree_size failed without concurrent modification warning"
+  fi
+
+  log_ok "recompute_tree_size failed as expected with concurrent modification warning"
+}
+
+expect_concurrent_recompute_busy() {
+  path=$1
+  output=""
+  busy_seen=0
+
+  for (( attempt=0; attempt<10; attempt++ ));
+  do
+    first_output=$(mktemp /tmp/eos-accounting-recompute.XXXXXX)
+    eos ns recompute_tree_size "$path" > "$first_output" 2>&1 &
+    first_pid=$!
+
+    for (( probe=0; probe<20; probe++ ));
+    do
+      if ! kill -0 "$first_pid" 2>/dev/null;
+      then
+        break
+      fi
+
+      output=$(eos ns recompute_tree_size "$path" 2>&1)
+      rc=$?
+
+      if [[ $rc -ne 0 ]] &&
+         echo "$output" | grep -q "another tree-size recompute is already active";
+      then
+        busy_seen=1
+        break
+      fi
+
+      sleep 0.1
+    done
+
+    wait "$first_pid"
+    rm -f "$first_output"
+
+    if [[ $busy_seen -eq 1 ]];
+    then
+      log_ok "concurrent recompute_tree_size failed as expected with EBUSY"
+      return
+    fi
+  done
+
+  echo "Expected concurrent recompute_tree_size to fail with EBUSY"
+  echo "$output"
+  log_fail "concurrent recompute_tree_size did not report active recompute"
 }
 
 test_start_time=$(date +%s)
 
+log_section "EOS Accounting Test"
+echo "prefix=$prefix"
+echo "host=$host"
+echo "url=$url"
+echo "EOS_ACCOUNTING_DIR=$EOS_ACCOUNTING_DIR"
+
+log_section "Setup"
 cleanup
 
-eos mkdir -p $EOS_ACCOUNTING_DIR/
+run_timed "Creating test root" eos mkdir -p $EOS_ACCOUNTING_DIR/
 
 test_accounting $EOS_ACCOUNTING_DIR 0 0 0
 
-eos mkdir -p $EOS_ACCOUNTING_DIR/source
-eos mkdir -p $EOS_ACCOUNTING_DIR/destination
+run_timed "Creating source directory" eos mkdir -p $EOS_ACCOUNTING_DIR/source
+run_timed "Creating destination directory" eos mkdir -p $EOS_ACCOUNTING_DIR/destination
 
 nDirs=20
 nFiles=10
 
-echo "Creating directory structures for the test..."
+log_section "Initial Tree Creation"
+log_step "Creating $nDirs source directories with $nFiles file pairs each"
 start_time=$(date +%s)
 
 # create nDirs directories in each we will create another directory containing a 0-size file (touch)
@@ -89,18 +345,17 @@ done
 
 end_time=$(date +%s)
 elapsed=$((end_time - start_time))
-echo "Done, elapsed time = $elapsed seconds"
-echo "Waiting 10 seconds for the accounting to kick in..."
-# Wait that the accounting thread does its job
-sleep 10
-echo "Done"
+log_ok "Created initial tree in ${elapsed}s"
 
 totalNbFiles=$((2*nFiles*nDirs))
 passwdFileSize=`stat -c%s /etc/passwd`
 # Only size of passwd files (not the touched files!)
 totalTreeSize=$(($nDirs*$nFiles*passwdFileSize))
 
-echo "Testing accounting of $EOS_ACCOUNTING_DIR..."
+wait_accounting $EOS_ACCOUNTING_DIR $((nDirs+(nFiles*nDirs)+2)) $totalNbFiles $totalTreeSize
+wait_accounting $EOS_ACCOUNTING_DIR/source $((nDirs+(nFiles*nDirs))) $totalNbFiles $totalTreeSize
+
+log_section "Initial Accounting Validation"
 # Directory located in EOS_ACCOUNTING_DIR should have source+destination+all sources sub directories created above,
 # all the files and a tree size of all passwd files
 test_accounting $EOS_ACCOUNTING_DIR $((nDirs+(nFiles*nDirs)+2)) $totalNbFiles $totalTreeSize
@@ -109,27 +364,29 @@ test_accounting $EOS_ACCOUNTING_DIR $((nDirs+(nFiles*nDirs)+2)) $totalNbFiles $t
 test_accounting $EOS_ACCOUNTING_DIR/source $((nDirs+(nFiles*nDirs))) $totalNbFiles $totalTreeSize
 # Destination has nothing in it
 test_accounting $EOS_ACCOUNTING_DIR/destination 0 0 0
-echo "Done"
+
+log_section "Concurrent Recompute Exclusion"
+log_step "Checking a second recompute_tree_size fails while another is active"
+expect_concurrent_recompute_busy "$EOS_ACCOUNTING_DIR"
 
 # Perform a parallel directory move from source to destination
-echo "Will perform directory move from $EOS_ACCOUNTING_DIR/source/\$i to $EOS_ACCOUNTING_DIR/destination/\$i ..."
+log_section "Move Accounting"
+log_step "Moving source children to destination in parallel"
 start_time=$(date +%s)
 for (( i=0; i<$nDirs; i++ ));
 do
   eos mv $EOS_ACCOUNTING_DIR/source/$i $EOS_ACCOUNTING_DIR/destination/$i &
 done
 wait
-echo "done move from $EOS_ACCOUNTING_DIR/source/$i to $EOS_ACCOUNTING_DIR/destination/$i"
 end_time=$(date +%s)
 elapsed=$((end_time - start_time))
-echo "Elapsed time = $elapsed seconds"
+log_ok "Parallel move completed in ${elapsed}s"
 
-echo "Waiting 10 seconds for the accounting to kick in..."
-# Wait that the accounting thread does its job
-sleep 10
-echo "Done"
+wait_accounting $EOS_ACCOUNTING_DIR $((nDirs+(nFiles*nDirs)+2)) $totalNbFiles $totalTreeSize
+wait_accounting $EOS_ACCOUNTING_DIR/source 0 0 0
+wait_accounting $EOS_ACCOUNTING_DIR/destination $((nDirs+(nFiles*nDirs))) $totalNbFiles $totalTreeSize
 
-echo "Testing accounting of $EOS_ACCOUNTING_DIR..."
+log_section "Move Accounting Validation"
 # EOS_ACCOUNTING_DIR's accounting should be the same as previously
 test_accounting $EOS_ACCOUNTING_DIR $((nDirs+(nFiles*nDirs)+2)) $totalNbFiles $totalTreeSize
 
@@ -137,45 +394,43 @@ test_accounting $EOS_ACCOUNTING_DIR $((nDirs+(nFiles*nDirs)+2)) $totalNbFiles $t
 test_accounting $EOS_ACCOUNTING_DIR/source 0 0 0
 # Destination should have the same accounting as the source one previously
 test_accounting $EOS_ACCOUNTING_DIR/destination $((nDirs+(nFiles*nDirs))) $totalNbFiles $totalTreeSize
-echo "Done"
 
 # Perform the deletion of half of the directories created in the destination
-echo "Performing the deletion of half of the directories created in the destination"
+log_section "Deletion And Recompute"
+log_step "Deleting half of the destination directories"
 start_time=$(date +%s)
 for (( i=0; i<$nDirs; i+=2 ));
 do
-  echo "eos rm -rF --no-confirmation $EOS_ACCOUNTING_DIR/destination/$i"
   eos rm -rF --no-confirmation $EOS_ACCOUNTING_DIR/destination/$i &
 done
 wait
 end_time=$(date +%s)
 elapsed=$((end_time - start_time))
-echo "Elapsed time = $elapsed seconds"
+log_ok "Parallel deletion completed in ${elapsed}s"
 
 # Then move the destination directory
-echo "Moving $EOS_ACCOUNTING_DIR/destination/ to  $EOS_ACCOUNTING_DIR/source"
-start_time=$(date +%s)
-eos mv $EOS_ACCOUNTING_DIR/destination/ $EOS_ACCOUNTING_DIR/source
-end_time=$(date +%s)
-elapsed=$((end_time - start_time))
-echo "Elapsed time = $elapsed seconds"
+run_timed "Moving destination back under source" \
+  eos mv $EOS_ACCOUNTING_DIR/destination/ $EOS_ACCOUNTING_DIR/source
 
 # Check the recompute_tree_size (we did not give the time for the accounting thread to do its job)
-echo "Launching eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/"
-start_time=$(date +%s)
-eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/
-end_time=$(date +%s)
-elapsed=$((end_time - start_time))
-echo "Elapsed time = $elapsed seconds"
+run_timed "Running recompute_tree_size before accounting catches up" \
+  eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/
 
-echo "Testing the accounting of $EOS_ACCOUNTING_DIR/source"
+log_section "Recompute Race Behavior"
+log_step "Checking recompute_tree_size reports best-effort failure under modifications inside the recomputed subtree"
+expect_recompute_inconsistency_error "$EOS_ACCOUNTING_DIR"
+
+log_section "Final Recompute Validation"
+run_timed "Running clean recompute_tree_size after concurrent modification check" \
+  eos ns recompute_tree_size $EOS_ACCOUNTING_DIR/
+
 # Source directory has now the destination directory + all directories under it that got divided by two by the previous deletion
-test_accounting $EOS_ACCOUNTING_DIR/source $(((nDirs+(nFiles*nDirs))/2+1)) $((totalNbFiles/2)) $((totalTreeSize/2))
-echo "Done"
+wait_accounting_stable $EOS_ACCOUNTING_DIR/source $(((nDirs+(nFiles*nDirs))/2+1)) $((totalNbFiles/2)) $((totalTreeSize/2))
 
+log_section "Cleanup"
 cleanup
 
 test_end_time=$(date +%s)
 test_elapsed=$((test_end_time - test_start_time))
-echo "Test elapsed time = $test_elapsed seconds"
+log_ok "EOS accounting test completed in ${test_elapsed}s"
 exit 0

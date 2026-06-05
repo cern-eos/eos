@@ -1004,6 +1004,91 @@ TEST_F(HierarchicalViewF, fileMDLockedSetSize)
   ASSERT_EQ(1001, view()->getContainer("/test/")->getTreeFiles());
 }
 
+TEST_F(HierarchicalViewF, TreeSizeRecomputeActiveSkipsQueuedAccountingDelta)
+{
+  view()->createContainer("/test", true);
+  view()->createContainer("/other", true);
+  auto fmd = view()->createFile("/test/file");
+  fmd->setSize(100);
+  view()->updateFileStore(fmd.get());
+  auto other_fmd = view()->createFile("/other/file");
+  other_fmd->setSize(100);
+  view()->updateFileStore(other_fmd.get());
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
+  auto cont = view()->getContainer("/test");
+  auto other_cont = view()->getContainer("/other");
+  ASSERT_EQ(100u, cont->getTreeSize());
+  ASSERT_EQ(100u, other_cont->getTreeSize());
+
+  struct RecomputeStateGuard {
+    RecomputeStateGuard(eos::IFileMDChangeListener* accounting,
+                        eos::IContainerMD::id_t id)
+        : mAccounting(accounting)
+        , mStarted(mAccounting->StartTreeSizeRecompute({id}))
+    {
+    }
+
+    ~RecomputeStateGuard()
+    {
+      if (mStarted) {
+        mAccounting->AbortTreeSizeRecompute();
+      }
+    }
+
+    void
+    resetDirty()
+    {
+      mAccounting->ResetTreeSizeRecomputeDirty();
+    }
+
+    bool
+    isDirty() const
+    {
+      return mAccounting->IsTreeSizeRecomputeDirty();
+    }
+
+    eos::IFileMDChangeListener* mAccounting;
+    bool mStarted;
+  } recompute_guard(namespaceGroupPtr->getContainerAccountingView(), cont->getId());
+
+  ASSERT_TRUE(recompute_guard.mStarted);
+  recompute_guard.resetDirty();
+  std::thread mutator([this]() {
+    auto file = view()->getFile("/test/file");
+    file->setSize(150);
+    view()->updateFileStore(file.get());
+  });
+  mutator.join();
+  auto other_file = view()->getFile("/other/file");
+  other_file->setSize(150);
+  view()->updateFileStore(other_file.get());
+
+  {
+    eos::MDLocking::ContainerWriteLock lock(cont.get());
+    cont->setTreeSize(150);
+    containerSvc()->updateStore(cont.get());
+  }
+
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates(
+      /*is_admin_recompute=*/true);
+  EXPECT_TRUE(recompute_guard.isDirty());
+  EXPECT_EQ(150u, cont->getTreeSize());
+  EXPECT_EQ(100u, other_cont->getTreeSize());
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
+  EXPECT_EQ(150u, other_cont->getTreeSize());
+  recompute_guard.resetDirty();
+
+  {
+    eos::MDLocking::ContainerWriteLock lock(cont.get());
+    cont->setTreeSize(150);
+    containerSvc()->updateStore(cont.get());
+  }
+
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
+  EXPECT_FALSE(recompute_guard.isDirty());
+  EXPECT_EQ(150u, cont->getTreeSize());
+}
+
 TEST_F(HierarchicalViewF, fileMDLockedClone)
 {
   view()->createContainer("/test/", true);

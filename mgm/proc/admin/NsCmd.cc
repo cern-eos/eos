@@ -56,6 +56,7 @@
 #include <memory>
 #include <qclient/QClient.hh>
 #include <sstream>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -237,6 +238,101 @@ BuildMgmHaStatus(const std::string& local, bool is_master, const std::string& ma
                        status.leader.empty() && status.followers.empty());
   return status;
 }
+
+//------------------------------------------------------------------------------
+//! RAII helper for tree-size recompute accounting coordination.
+//!
+//! The guard starts a recompute window for the target containers and aborts it
+//! automatically unless the caller finishes it explicitly. This keeps queued
+//! accounting updates (see QuarkContainerAccounting) from racing silently with the
+//! best-effort recompute pass.
+//------------------------------------------------------------------------------
+struct TreeSizeRecomputeGuard {
+  //----------------------------------------------------------------------------
+  //! Constructor
+  //!
+  //! @param accounting accounting listener handling recompute windows
+  //! @param ids container ids covered by the recompute window
+  //----------------------------------------------------------------------------
+  TreeSizeRecomputeGuard(eos::IFileMDChangeListener& accounting,
+                         std::vector<eos::IContainerMD::id_t> ids)
+      : mAccounting(accounting)
+  {
+    mStarted = mAccounting.StartTreeSizeRecompute(std::move(ids));
+  }
+
+  //----------------------------------------------------------------------------
+  //! Destructor
+  //!
+  //! Abort the active recompute window unless it has already been finished.
+  //----------------------------------------------------------------------------
+  ~TreeSizeRecomputeGuard()
+  {
+    if (!mFinished && mStarted) {
+      mAccounting.AbortTreeSizeRecompute();
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  //! Delete copy/move constructor and assignment operators
+  //----------------------------------------------------------------------------
+  TreeSizeRecomputeGuard(const TreeSizeRecomputeGuard&) = delete;
+  TreeSizeRecomputeGuard& operator=(const TreeSizeRecomputeGuard&) = delete;
+  TreeSizeRecomputeGuard(TreeSizeRecomputeGuard&&) = delete;
+  TreeSizeRecomputeGuard& operator=(TreeSizeRecomputeGuard&&) = delete;
+
+  //----------------------------------------------------------------------------
+  //! Check whether the recompute window was started
+  //!
+  //! @return true if a recompute context was started, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  started() const
+  {
+    return mStarted;
+  }
+
+  //----------------------------------------------------------------------------
+  //! Reset the dirty marker for the active recompute window
+  //----------------------------------------------------------------------------
+  void
+  resetDirty()
+  {
+    mAccounting.ResetTreeSizeRecomputeDirty();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Check whether the active recompute window observed concurrent modifications
+  //!
+  //! @return true if the recompute window is dirty, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  isDirty() const
+  {
+    return mAccounting.IsTreeSizeRecomputeDirty();
+  }
+
+  //----------------------------------------------------------------------------
+  //! Try to finish the active recompute window
+  //!
+  //! @return true if the recompute window was finished, otherwise false
+  //----------------------------------------------------------------------------
+  bool
+  tryFinish()
+  {
+    if (mAccounting.TryFinishTreeSizeRecompute()) {
+      mFinished = true;
+      return true;
+    }
+
+    return false;
+  }
+
+private:
+  eos::IFileMDChangeListener& mAccounting;
+  bool mStarted = false;
+  bool mFinished = false;
+};
 } // namespace
 
 EOSMGMNAMESPACE_BEGIN
@@ -1086,19 +1182,52 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
   std::shared_ptr<eos::IContainerMD> tmp_cont {nullptr};
   std::list< std::list<eos::IContainerMD::id_t> > bfs =
     BreadthFirstSearchContainers(cont.get(), tree.depth());
+  std::vector<eos::IContainerMD::id_t> ids;
 
-  for (auto it_level = bfs.crbegin(); it_level != bfs.crend(); ++it_level) {
-    for (const auto& id : *it_level) {
-      try {
-        tmp_cont = gOFS->eosDirectoryService->getContainerMD(id);
-      } catch (const eos::MDException& e) {
-        eos_err("error=\"%s\"", e.what());
-        continue;
+  for (const auto& level : bfs) {
+    ids.insert(ids.end(), level.begin(), level.end());
+  }
+
+  TreeSizeRecomputeGuard recompute_guard(*gOFS->eosContainerAccounting, std::move(ids));
+
+  if (!recompute_guard.started()) {
+    reply.set_std_err("error: another tree-size recompute is already active");
+    reply.set_retc(EBUSY);
+    return;
+  }
+
+  constexpr int kMaxAttempts = 2;
+
+  for (int attempt = 1; attempt <= kMaxAttempts; ++attempt) {
+    recompute_guard.resetDirty();
+
+    for (auto it_level = bfs.crbegin(); it_level != bfs.crend(); ++it_level) {
+      for (const auto& id : *it_level) {
+        try {
+          tmp_cont = gOFS->eosDirectoryService->getContainerMD(id);
+        } catch (const eos::MDException& e) {
+          eos_err("error=\"%s\"", e.what());
+          continue;
+        }
+
+        UpdateTreeSize(tmp_cont);
       }
+    }
 
-      UpdateTreeSize(tmp_cont);
+    // Drain queued accounting updates before checking whether the recompute
+    // context observed concurrent modifications.
+    gOFS->eosContainerAccounting->FlushTreeSizeUpdates(
+        /*is_admin_recompute=*/true);
+
+    if (!recompute_guard.isDirty() && recompute_guard.tryFinish()) {
+      return;
     }
   }
+
+  reply.set_std_err("warning: tree-size recompute observed concurrent "
+                    "modifications; last best-effort values were written, rerun "
+                    "when the subtree is quieter");
+  reply.set_retc(EAGAIN);
 }
 
 //------------------------------------------------------------------------------
