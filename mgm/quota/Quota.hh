@@ -48,11 +48,18 @@ class SpaceQuota : public eos::common::LogId
   friend class Quota;
 
 public:
-
   //----------------------------------------------------------------------------
-  //! Constructor
+  //! Constructor - binds to an already existing quota node container given by
+  //! its id. It never creates a namespace container and never resolves the path
+  //! by name. If the container can not be retrieved it throws an MDException.
+  //! Creating the quota directory is the responsibility of the explicit admin
+  //! "quota set" command path (see Quota::CreateQuotaDir).
+  //!
+  //! @param path quota node path which needs to be '/' terminated, kept only
+  //!             for display and as the pMapQuota key
+  //! @param cont_id container id of the quota node
   //----------------------------------------------------------------------------
-  SpaceQuota(const char* path);
+  SpaceQuota(const char* path, eos::IContainerMD::id_t cont_id);
 
   //----------------------------------------------------------------------------
   //! Destructor
@@ -328,13 +335,33 @@ public:
   enum Type { kUnknown, kVolume, kInode, kAll }; ///< Quota types
 
   //----------------------------------------------------------------------------
-  //! Create space quota
+  //! Create the in-memory quota object (SpaceQuota) for an existing quota node.
+  //! This never creates a namespace container - the backing directory must
+  //! already exist (see Quota::CreateQuotaDir for the admin creation path).
   //!
   //! @param path quota node path which needs to be '/' terminated
+  //! @param cont_id container id of the (already existing) quota node
   //!
   //! @return true if successful, otherwise false
   //----------------------------------------------------------------------------
-  static bool Create(const std::string& path);
+  static bool CreateQuotaObj(const std::string& path, eos::IContainerMD::id_t cont_id);
+
+  //----------------------------------------------------------------------------
+  //! Create the namespace container backing a quota node, if missing.
+  //!
+  //! This is the ONLY place allowed to create a quota directory and must only
+  //! be called from the explicit admin "quota set" command path. It refuses to
+  //! create anything on a non-ENOENT (e.g. transient backend) error so that a
+  //! struggling backend can never cause a shadow container to be created.
+  //!
+  //! @param path quota node path which needs to be '/' terminated
+  //! @param cont_id populated with the id of the found or created container
+  //! @param err  populated with an error message on failure
+  //!
+  //! @return true if the container exists (or was created), otherwise false
+  //----------------------------------------------------------------------------
+  static bool CreateQuotaDir(const std::string& path, eos::IContainerMD::id_t& cont_id,
+                             std::string& err);
 
   //----------------------------------------------------------------------------
   //! Check if quota node for path exists

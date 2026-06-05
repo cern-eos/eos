@@ -23,25 +23,25 @@
 
 #include "mgm/config/IConfigEngine.hh"
 #include "common/Mapping.hh"
+#include "common/StringTokenizer.hh"
+#include "common/StringUtils.hh"
 #include "mgm/access/Access.hh"
-#include "mgm/fsview/FsView.hh"
-#include "mgm/quota/Quota.hh"
-#include "mgm/vid/Vid.hh"
-#include "mgm/iostat/Iostat.hh"
-#include "mgm/proc/proc_fs.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/geotreeengine/GeoTreeEngine.hh"
-#include "mgm/routeendpoint/RouteEndpoint.hh"
-#include "mgm/pathrouting/PathRouting.hh"
-#include "mgm/fsck/Fsck.hh"
 #include "mgm/convert/ConverterEngine.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/fsck/Fsck.hh"
+#include "mgm/fsview/FsView.hh"
+#include "mgm/geotreeengine/GeoTreeEngine.hh"
 #include "mgm/imaster/IMaster.hh"
+#include "mgm/iostat/Iostat.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/pathrouting/PathRouting.hh"
+#include "mgm/proc/proc_fs.hh"
+#include "mgm/quota/Quota.hh"
+#include "mgm/routeendpoint/RouteEndpoint.hh"
+#include "mgm/vid/Vid.hh"
+#include "mq/SharedHashWrapper.hh"
 #include "namespace/interface/IContainerMDSvc.hh"
 #include "namespace/interface/IFileMDSvc.hh"
-#include "common/StringUtils.hh"
-#include "common/StringTokenizer.hh"
-#include "mq/SharedHashWrapper.hh"
+#include "namespace/interface/IView.hh"
 #include <sstream>
 
 EOSMGMNAMESPACE_BEGIN
@@ -148,17 +148,30 @@ IConfigEngine::ApplyEachConfig(const char* key, const char* val,
     }
 
     if (id > 0 || (ugid == "0")) {
-      if (Quota::Create(space.c_str())) {
+      // Resolve the quota node container id read-only - never create a namespace
+      // container while applying the configuration.
+      eos::IContainerMD::id_t cont_id = 0;
+
+      try {
+        eos::common::RWMutexReadLock ns_rd_lock(gOFS->eosViewRWMutex);
+        cont_id = gOFS->eosView->getContainer(space.c_str())->getId();
+      } catch (const eos::MDException& e) {
+        eos_static_err("msg=\"quota dir missing, skip quota config line\" "
+                       "path=\"%s\" err_msg=\"%s\"",
+                       space.c_str(), e.what());
+      }
+
+      if (cont_id && Quota::CreateQuotaObj(space.c_str(), cont_id)) {
         if (!Quota::SetQuotaForTag(space.c_str(), tag.c_str(), id, value)) {
-          eos_static_err("failed to set quota for id=%s", ugid.c_str());
+          eos_static_err("msg=\"failed to set quota\" id=%s", ugid.c_str());
           oss_err << "error: failed to set quota for id:" << ugid << std::endl;
         }
       } else {
         // This is just ignored ... maybe path is wrong?!
-        eos_static_err("failed to create quota for space=%s", space.c_str());
+        eos_static_err("msg=\"failed to create quota\" path=\"%s\"", space.c_str());
       }
     } else {
-      eos_static_err("config id is negative");
+      eos_static_err("msg=\"config id is negative\" id=\"%s\"", ugid.c_str());
       oss_err << "error: illegal id found: " << ugid << std::endl;
     }
   } else if (skey.beginswith("vid:")) {

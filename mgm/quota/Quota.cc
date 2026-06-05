@@ -48,65 +48,34 @@ gid_t Quota::gProjectId = 99;
 //------------------------------------------------------------------------------
 
 //------------------------------------------------------------------------------
-// Constructor - requires the eosViewRWMutex write-lock
+// Constructor - binds to an existing quota node container given by its id.
+// Never creates a namespace container. Requires the eosViewRWMutex write-lock.
 //------------------------------------------------------------------------------
-SpaceQuota::SpaceQuota(const char* path):
-  eos::common::LogId(),
-  pPath(path),
-  mQuotaNode(nullptr),
-  mLastEnableCheck(0),
-  mLastRefresh(0),
-  mLayoutSizeFactor(1.0),
-  mDirtyTarget(true)
+SpaceQuota::SpaceQuota(const char* path, eos::IContainerMD::id_t cont_id)
+    : eos::common::LogId()
+    , pPath(path)
+    , mQuotaNode(nullptr)
+    , mLastEnableCheck(0)
+    , mLastRefresh(0)
+    , mLayoutSizeFactor(1.0)
+    , mDirtyTarget(true)
 {
-  std::shared_ptr<eos::IContainerMD> quotadir;
+  std::shared_ptr<eos::IContainerMD> quotadir =
+      gOFS->eosDirectoryService->getContainerMD(cont_id);
 
   try {
-    quotadir = gOFS->eosView->getContainer(path);
+    mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
+    eos_info("msg=\"%s ns quota node\" path=\"%s\"", (mQuotaNode ? "found" : "no"), path);
   } catch (const eos::MDException& e) {
-    eos_err("msg=\"failed to get container\" path=\"%s\" err_msg=\"%s\"", path, e.what());
+    mQuotaNode = nullptr;
   }
 
-  if (quotadir == nullptr) {
-    try {
-      quotadir = gOFS->eosView->createContainer(path, true);
-      quotadir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH | S_IFDIR);
-      gOFS->eosView->updateContainerStore(quotadir.get());
-    } catch (eos::MDException& e) {
-      eos_crit("Cannot create quota directory %s", path);
-      throw;
-    }
+  if (!mQuotaNode) {
+    // Registering a quota node only marks an already existing container.
+    mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir.get());
   }
 
-  if (quotadir) {
-    try {
-      mQuotaNode = gOFS->eosView->getQuotaNode(quotadir.get(), false);
-
-      if (mQuotaNode) {
-        eos_info("Found ns quota node for path=%s", path);
-      } else {
-        eos_info("No ns quota found for path=%s", path);
-      }
-    } catch (const eos::MDException& e) {
-      mQuotaNode = nullptr;
-    }
-
-    if (!mQuotaNode) {
-      try {
-        mQuotaNode = gOFS->eosView->registerQuotaNode(quotadir.get());
-      } catch (eos::MDException& e) {
-        mQuotaNode = nullptr;
-        eos_crit("Cannot register quota node %s, errmsg=%s",
-                 path, e.what());
-        throw;
-      }
-    }
-
-    UpdateLogicalSizeFactor();
-
-  } else {
-    eos_crit("Failed to create quota dir=%s", path);
-  }
+  UpdateLogicalSizeFactor();
 }
 
 //------------------------------------------------------------------------------
@@ -1582,8 +1551,19 @@ Quota::SetQuotaTypeForId(const std::string& qpath, long id, Quota::IdT id_type,
     path = "/eos/";
   }
 
-  // Make sure the quota node exist
-  if (!Create(path)) {
+  // Make sure the quota directory exists - this is the only place allowed to
+  // create the namespace container backing a quota node.
+  std::string cerr;
+  eos::IContainerMD::id_t cont_id = 0;
+
+  if (!CreateQuotaDir(path, cont_id, cerr)) {
+    oss_msg << "error: failed to create quota directory: " << path << " (" << cerr << ")";
+    msg = oss_msg.str();
+    return false;
+  }
+
+  // Make sure the quota node exists
+  if (!CreateQuotaObj(path, cont_id)) {
     oss_msg << "error: failed to create quota node: " << path;
     msg = oss_msg.str();
     return false;
@@ -1884,7 +1864,7 @@ Quota::MapSizeCB(const eos::IFileMD* file)
 void
 Quota::LoadNodes()
 {
-  std::vector<std::string> create_quota;
+  std::vector<std::pair<std::string, eos::IContainerMD::id_t>> create_quota;
   // Load all known nodes
   {
     std::string quota_path;
@@ -1903,7 +1883,7 @@ Quota::LoadNodes()
         }
 
         if (!Exists(quota_path)) {
-          create_quota.push_back(quota_path);
+          create_quota.emplace_back(quota_path, elem);
         }
       } catch (eos::MDException& e) {
         errno = e.getErrno();
@@ -1913,10 +1893,13 @@ Quota::LoadNodes()
     }
   }
 
-  // Create all the necessary space quota nodes
+  // Load all the necessary space quota nodes. Bind directly by container id so
+  // that we never re-resolve the path by name (which could rebind to a wrong or
+  // shadow container) and never create a namespace container.
   for (auto it = create_quota.begin(); it != create_quota.end(); ++it) {
-    eos_static_notice("msg=\"create quota node\" path=\"%s\"", it->c_str());
-    (void) Create(it->c_str());
+    eos_static_notice("msg=\"load quota node\" path=\"%s\" cont_id=%llu",
+                      it->first.c_str(), (unsigned long long)it->second);
+    (void)CreateQuotaObj(it->first, it->second);
   }
 
   // Refresh the space quota objects
@@ -2109,10 +2092,74 @@ Quota::FilePlacement(Scheduler::PlacementArguments* args)
 }
 
 //------------------------------------------------------------------------------
-// Create quota node for path
+// Create the namespace container backing a quota node, if missing, and return
+// its id. Only to be called from the explicit admin "quota set" command path.
 //------------------------------------------------------------------------------
 bool
-Quota::Create(const std::string& path)
+Quota::CreateQuotaDir(const std::string& path, eos::IContainerMD::id_t& cont_id,
+                      std::string& err)
+{
+  cont_id = 0ull;
+
+  // Check if path is correct
+  if (path.empty() || path[0] != '/' || (*path.rbegin()) != '/') {
+    err = "invalid quota path";
+    return false;
+  }
+
+  {
+    eos::common::RWMutexWriteLock wr_ns_lock(gOFS->eosViewRWMutex);
+
+    // Return the existing container id if it already exists
+    try {
+      cont_id = gOFS->eosView->getContainer(path)->getId();
+      return true;
+    } catch (const eos::MDException& e) {
+      if (e.getErrno() != ENOENT) {
+        // Transient or any other error - refuse to create so that a struggling
+        // backend can never cause a shadow container to be fabricated.
+        err = e.what();
+        eos_static_err("msg=\"refusing to create quota dir on non-ENOENT error\" "
+                       "path=\"%s\" ec=%d err_msg=\"%s\"",
+                       path.c_str(), e.getErrno(), e.what());
+        return false;
+      }
+    }
+
+    // Genuinely absent - create it deliberately. The in-memory addContainer
+    // conflict check (EEXIST) remains the backstop against duplicating a name.
+    try {
+      std::shared_ptr<eos::IContainerMD> qdir =
+          gOFS->eosView->createContainer(path, true);
+      qdir->setMode(S_IRWXU | S_IRGRP | S_IXGRP | S_IFDIR);
+      gOFS->eosView->updateContainerStore(qdir.get());
+      cont_id = qdir->getId();
+    } catch (const eos::MDException& e) {
+      err = e.what();
+      eos_static_crit("msg=\"failed to create quota dir\" path=\"%s\" "
+                      "err_msg=\"%s\"",
+                      path.c_str(), e.what());
+      return false;
+    }
+  }
+
+  // Synchronize the flusher so the new directory is durable before we register
+  // the quota node and persist the quota configuration.
+  auto* qdb_ns_grp = dynamic_cast<eos::QuarkNamespaceGroup*>
+                     (gOFS->namespaceGroup.get());
+
+  if (qdb_ns_grp) {
+    qdb_ns_grp->getMetadataFlusher()->synchronize();
+  }
+
+  return true;
+}
+
+//------------------------------------------------------------------------------
+// Create the in-memory quota object (SpaceQuota) for an existing quota node
+//------------------------------------------------------------------------------
+bool
+Quota::CreateQuotaObj(const std::string& path, eos::IContainerMD::id_t cont_id)
 {
   // Check if path is correct
   if (path.empty() || path[0] != '/' || (*path.rbegin()) != '/') {
@@ -2124,22 +2171,15 @@ Quota::Create(const std::string& path)
 
   if (pMapQuota.count(path) == 0) {
     try {
-      SpaceQuota* squota = new SpaceQuota(path.c_str());
+      SpaceQuota* squota = new SpaceQuota(path.c_str(), cont_id);
       pMapQuota[path] = squota;
       pMapInodeQuota[squota->GetQuotaNode()->getId()] = squota;
     } catch (const eos::MDException& e) {
-      eos_static_crit("Failed to create quota node %s", path.c_str());
+      eos_static_crit("msg=\"failed to create quota node\" path=\"%s\" "
+                      "err_msg=\"%s\"",
+                      path.c_str(), e.what());
       return false;
     }
-  }
-
-  // Synchronize the flusher to avoid a race condition with the slave creating
-  // the same directory when applying the quota
-  auto* qdb_ns_grp = dynamic_cast<eos::QuarkNamespaceGroup*>
-                     (gOFS->namespaceGroup.get());
-
-  if (qdb_ns_grp) {
-    qdb_ns_grp->getMetadataFlusher()->synchronize();
   }
 
   return true;
