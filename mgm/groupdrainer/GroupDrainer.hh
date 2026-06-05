@@ -22,18 +22,19 @@
  ************************************************************************/
 
 #pragma once
-#include <string_view>
 #include "common/AssistedThread.hh"
-#include "common/Logging.hh"
 #include "common/FileId.hh"
 #include "common/FileSystem.hh"
+#include "common/Logging.hh"
 #include "mgm/fsview/FsView.hh"
-#include <vector>
-#include <unordered_set>
 #include "mgm/groupbalancer/BalancerEngineTypes.hh"
-#include "mgm/groupdrainer/RetryTracker.hh"
 #include "mgm/groupdrainer/DrainProgressTracker.hh"
+#include "mgm/groupdrainer/RetryTracker.hh"
 #include "mgm/utils/FileSystemStatusUtils.hh"
+#include "namespace/interface/IFsView.hh"
+#include <string_view>
+#include <unordered_set>
+#include <vector>
 
 namespace eos::mgm
 {
@@ -265,6 +266,9 @@ private:
   drain_fs_map_t mDrainFsMap;
   std::map<common::FileSystem::fsid_t, RetryTracker> mFsidRetryCtr;
   std::set<common::FileSystem::fsid_t> mFailedFsids;
+  std::map<eos::common::FileSystem::fsid_t,
+           std::shared_ptr<eos::ICollectionIterator<IFileMD::id_t>>>
+      mFsidIterators;
   cache_fid_map_t mCacheFileList;
   DrainProgressTracker mDrainProgressTracker;
 };

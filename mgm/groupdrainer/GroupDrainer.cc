@@ -367,9 +367,12 @@ GroupDrainer::populateFids(eos::common::FileSystem::fsid_t fsid)
     uint32_t ctr = 0;
     std::scoped_lock slock(mTransfersMtx, mFailedTransfersMtx);
 
-    for (const auto it_fid = gOFS->eosFsView->getStreamingFileList(fsid);
-         it_fid && it_fid->valid() && ctr < FID_CACHE_LIST_SZ;
-         it_fid->next()) {
+    auto& it_fid = mFsidIterators[fsid];
+    if (!it_fid || !it_fid->valid()) {
+      it_fid = gOFS->eosFsView->getStreamingFileList(fsid);
+    }
+
+    for (; it_fid->valid() && ctr < FID_CACHE_LIST_SZ; it_fid->next()) {
       const auto fid = it_fid->getElement();
       try {
         auto fmd = gOFS->eosFileService->getFileMD(fid);
@@ -671,6 +674,8 @@ GroupDrainer::resetCaches()
     mTransfers.clear();
     mTrackedTransfers.clear();
   }
+  mCacheFileList.clear();
+  mFsidIterators.clear();
   // force a refresh of the global groups map info
   mDoConfigUpdate.store(true, std::memory_order_relaxed);
   // TODO: Have a functionality to clear cached filelists as well!
