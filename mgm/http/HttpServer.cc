@@ -21,6 +21,7 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
+#include "rest-api/manager/RestApiManager.hh"
 #include "mgm/http/HttpServer.hh"
 #include "mgm/http/ProtocolHandlerFactory.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
@@ -32,7 +33,6 @@
 #include "common/StringUtils.hh"
 #include "common/ErrnoToString.hh"
 #include <XrdNet/XrdNetAddr.hh>
-#include <XrdAcc/XrdAccAuthorize.hh>
 #include <netdb.h>
 
 EOSMGMNAMESPACE_BEGIN
@@ -390,14 +390,25 @@ HttpServer::XrdHttpHandler(std::string& method,
     }
 
     // Get access operation type for the authz library
-    Access_Operation acc_op = MapHttpVerbToAOP(method);
+    vid = std::make_unique<VirtualIdentity>();
     const std::string env = ptr;
     query = env;
-    vid = std::make_unique<VirtualIdentity>();
-    EXEC_TIMING_BEGIN("IdMap");
-    Mapping::IdMap(&client, env.c_str(), client.tident, *vid,
-                   authz_obj, acc_op, path);
-    EXEC_TIMING_END("IdMap");
+
+    if (gOFS->mRestApiManager->isRestRequest(uri)) {
+      // If we have an authorization token, and the request is from the Tape REST API,
+      // then the authentication needs to be done later inside the request handler.
+      if (auto it = headers.find("authorization"); it != headers.end()) {
+        // client will exist for the duration of the request
+        vid->deferredClientPtr = &client;
+        vid->deferredAuth = it->second;
+      }
+    } else {
+      Access_Operation acc_op = MapHttpVerbToAOP(method);
+      EXEC_TIMING_BEGIN("IdMap");
+      Mapping::IdMap(&client, env.c_str(), client.tident, *vid,
+                     authz_obj, acc_op, path);
+      EXEC_TIMING_END("IdMap");
+    }
   } else { // HTTP access through Nginx
     headers["client-real-ip"] = "NOIPLOOKUP";
     headers["client-real-host"] = client.host;

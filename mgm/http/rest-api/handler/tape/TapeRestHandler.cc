@@ -221,7 +221,7 @@ common::HttpResponse* TapeRestHandler::handleRequest(common::HttpRequest*
     return mTapeRestApiResponseFactory.InternalError("The tape REST API can only be called on a MASTER MGM").getHttpResponse();
   }
 
-  return HandleWithErrors(mTapeRestApiResponseFactory, [&]() {
+  return HandleWithErrors(mTapeRestApiResponseFactory, [this, request, vid]() {
     return mRouter.dispatch(request, vid);
   });
 }

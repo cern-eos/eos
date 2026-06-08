@@ -136,7 +136,7 @@ public:
                     const char* tident, VirtualIdentity& vid,
                     XrdAccAuthorize* authz_obj = nullptr,
                     Access_Operation acc_op = AOP_Stat,
-                    std::string path = "", bool log = true);
+                    const std::string& path = "", bool log = true);
 
   // ---------------------------------------------------------------------------
   //! Map describing which virtual user roles a user with a given uid has

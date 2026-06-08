@@ -59,7 +59,7 @@ gid_t VirtualIdentity::kNobodyGid = GetNobodyUidGid().second;
 //! Constructor - assign to "nobody" by default
 //----------------------------------------------------------------------------
 VirtualIdentity::VirtualIdentity() :
-  uid(kNobodyUid), gid(kNobodyGid), sudoer(false), gateway(false)
+  uid(kNobodyUid), gid(kNobodyGid), sudoer(false), gateway(false), deferredClientPtr(nullptr)
 {}
 
 //------------------------------------------------------------------------------
@@ -111,6 +111,14 @@ bool VirtualIdentity::isLocalhost() const
   }
 
   return false;
+}
+
+//----------------------------------------------------------------------------
+// Check if this client is nobody
+//----------------------------------------------------------------------------
+bool VirtualIdentity::isNobody() const
+{
+  return uid == kNobodyUid && gid == kNobodyGid;
 }
 
 

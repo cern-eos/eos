@@ -239,8 +239,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
 
   auto pm = createPrepareManager();
   XrdOucErrInfo error;
-  int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(), error,
-                                    vid);
+  int retCancellation = pm->prepare(*pargsWrapper.getPrepareArguments(), error, vid);
 
   if (retCancellation != SFS_OK) {
     std::stringstream ss;
@@ -249,7 +248,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
     throw TapeRestApiBusinessException(ss.str());
   }
 
-  //Now that the request got cancelled, let's delete it from the persistency
+  //Now that the request got canceled, let's delete it from the persistency
   try {
     bulkRequestBusiness->deleteBulkRequest(bulkRequest.get());
   } catch (bulk::PersistencyException& ex) {
