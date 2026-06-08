@@ -39,6 +39,7 @@ public:
                 unsigned long val) override;
   bool isTapeEnabled() override;
   int getReqIdMaxCount() override;
+  XrdAccAuthorize* getTokenHandler() override;
   int Emsg(const char* pfx, XrdOucErrInfo& einfo, int ecode, const char* op,
            const char* target = "") override;
   int _exists(const char* path, XrdSfsFileExistence& file_exists,

@@ -506,6 +506,7 @@ TEST_F(PrepareManagerTest, queryPrepare)
   ASSERT_FALSE(notExistingFile.is_exists);
   ASSERT_EQ("USER ERROR: file does not exist or is not accessible to you",
             notExistingFile.error_text);
+  ASSERT_FALSE(notExistingFile.has_prepare_permission.has_value());
   ASSERT_EQ(paths.back(), notExistingFile.path);
 
   //Test that the files are returned in the same order as they were submitted by the client
@@ -550,6 +551,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileDoesNotExist)
   ASSERT_FALSE(fileDoesNotExist.is_exists);
   ASSERT_FALSE(fileDoesNotExist.is_reqid_present);
   ASSERT_FALSE(fileDoesNotExist.is_requested);
+  ASSERT_FALSE(fileDoesNotExist.has_prepare_permission.has_value());
   ASSERT_FALSE(fileDoesNotExist.error_text.empty());
   ASSERT_TRUE(fileDoesNotExist.request_time.empty());
   ASSERT_EQ(paths[0], fileDoesNotExist.path);
@@ -593,6 +595,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileStatFails)
   ASSERT_TRUE(file.is_exists);
   ASSERT_FALSE(file.is_reqid_present);
   ASSERT_FALSE(file.is_requested);
+  ASSERT_FALSE(file.has_prepare_permission.has_value());
   ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_STAT_STR, file.error_text);
   ASSERT_TRUE(file.request_time.empty());
   ASSERT_EQ(paths[0], file.path);
@@ -638,6 +641,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileOnTapeRetrieveError)
   ASSERT_TRUE(file.is_exists);
   ASSERT_TRUE(file.is_reqid_present);
   ASSERT_TRUE(file.is_requested);
+  ASSERT_TRUE(file.has_prepare_permission.value_or(false));
   ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_RETRIEVE_STR, file.error_text);
   ASSERT_EQ(MockPrepareMgmFSInterface::RETRIEVE_REQ_TIME, file.request_time);
   ASSERT_EQ(paths[0], file.path);
@@ -683,6 +687,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileOnDiskArchiveError)
   ASSERT_TRUE(file.is_exists);
   ASSERT_FALSE(file.is_reqid_present);
   ASSERT_FALSE(file.is_requested);
+  ASSERT_TRUE(file.has_prepare_permission.value_or(false));
   ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_ARCHIVE_STR, file.error_text);
   ASSERT_TRUE(file.request_time.empty());
   ASSERT_EQ(paths[0], file.path);
@@ -733,6 +738,7 @@ TEST_F(PrepareManagerTest, queryPrepareFileNoPreparePermissionOnDirectory)
   ASSERT_TRUE(file.is_exists);
   ASSERT_FALSE(file.is_reqid_present);
   ASSERT_FALSE(file.is_requested);
+  ASSERT_FALSE(file.has_prepare_permission.value_or(false));
   ASSERT_FALSE(file.error_text.empty());
   ASSERT_EQ("USER ERROR: you don't have prepare permission", file.error_text);
   ASSERT_TRUE(file.request_time.empty());

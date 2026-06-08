@@ -22,10 +22,49 @@
  ************************************************************************/
 
 #include "RestApiTest.hh"
+#include "common/http/HttpResponse.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/http/rest-api/exception/RestException.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
+#include "mgm/http/rest-api/json/tape/TapeJsonifiers.hh"
+#include "mgm/http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.hh"
+#include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
+#include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
+#include "mgm/http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
-#include "common/http/HttpResponse.hh"
+#include "mgm/http/rest-api/wellknown/tape/TapeWellKnownInfos.hh"
+#include <json/json.h>
+#include <memory>
+#include <optional>
+#include <sstream>
+#include <string>
+
+namespace {
+
+Json::Value
+ParseJson(const std::string& json)
+{
+  Json::Value root;
+  Json::CharReaderBuilder builder;
+  std::string errors;
+  std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
+  EXPECT_TRUE(reader->parse(json.data(), json.data() + json.size(), &root, &errors))
+      << errors << "\n"
+      << json;
+  return root;
+}
+
+template <typename Model, typename Jsonifier>
+Json::Value
+Jsonify(const Model& model, Jsonifier& jsonifier)
+{
+  std::stringstream ss;
+  jsonifier.jsonify(&model, ss);
+  return ParseJson(ss.str());
+}
+
+} // namespace
 
 TEST_F(RestApiTest, RestHandlerConstructorShouldThrowIfProgrammerGaveWrongURL)
 {
@@ -186,4 +225,122 @@ TEST_F(RestApiTest, URLBuilderTest)
                            hostname)->setPort(port)->add("/api/")->add("v1")->add("stage")->build();
   ASSERT_EQ(std::string("https://")  + hostname + ":" + std::to_string(
               port) + "/api/v1/stage", urlstage);
+}
+
+TEST_F(RestApiTest, TapeJsonifiersPreserveErrorResponseShape)
+{
+  ErrorModel model("Bad request", 400, std::optional<std::string>("invalid \"json\""));
+  model.setType("https://example.org/problem");
+  ErrorModelJsonifier jsonifier;
+
+  Json::Value root = Jsonify(model, jsonifier);
+
+  EXPECT_EQ("https://example.org/problem", root["type"].asString());
+  EXPECT_EQ("Bad request", root["title"].asString());
+  EXPECT_EQ(400, root["status"].asInt());
+  EXPECT_EQ("invalid \"json\"", root["detail"].asString());
+}
+
+TEST_F(RestApiTest, TapeJsonifiersPreserveCreatedStageResponseShape)
+{
+  CreatedStageBulkRequestResponseModel model("request-id");
+  CreatedStageBulkRequestJsonifier jsonifier;
+
+  Json::Value root = Jsonify(model, jsonifier);
+
+  EXPECT_EQ("request-id", root["requestId"].asString());
+}
+
+TEST_F(RestApiTest, TapeJsonifiersPreserveGetStageResponseShape)
+{
+  GetStageBulkRequestResponseModel model;
+  model.setId("request-id");
+  model.setCreationTime(12345);
+  auto file = std::make_unique<GetStageBulkRequestResponseModel::File>();
+  file->mPath = "/path/to/file";
+  file->mError = "failed";
+  file->mOnDisk = true;
+  file->mShowOnDisk = true;
+  model.addFile(std::move(file));
+  GetStageBulkRequestJsonifier jsonifier;
+
+  Json::Value root = Jsonify(model, jsonifier);
+
+  EXPECT_EQ("request-id", root["id"].asString());
+  EXPECT_EQ(Json::UInt64(12345), root["createdAt"].asUInt64());
+  EXPECT_EQ(Json::UInt64(12345), root["startedAt"].asUInt64());
+  ASSERT_TRUE(root["files"].isArray());
+  ASSERT_EQ(1u, root["files"].size());
+  EXPECT_EQ("/path/to/file", root["files"][0]["path"].asString());
+  EXPECT_EQ("failed", root["files"][0]["error"].asString());
+  EXPECT_TRUE(root["files"][0]["onDisk"].asBool());
+}
+
+TEST_F(RestApiTest, TapeJsonifiersPreserveGetStageResponseShape_PollNotAllowed)
+{
+  GetStageBulkRequestResponseModel model;
+  model.setId("request-id");
+  model.setCreationTime(12345);
+  auto file = std::make_unique<GetStageBulkRequestResponseModel::File>();
+  file->mPath = "/path/to/file";
+  file->mError = "failed";
+  file->mOnDisk = true;
+  file->mShowOnDisk = false;
+  model.addFile(std::move(file));
+  GetStageBulkRequestJsonifier jsonifier;
+
+  Json::Value root = Jsonify(model, jsonifier);
+
+  EXPECT_EQ("request-id", root["id"].asString());
+  EXPECT_EQ(Json::UInt64(12345), root["createdAt"].asUInt64());
+  EXPECT_EQ(Json::UInt64(12345), root["startedAt"].asUInt64());
+  ASSERT_TRUE(root["files"].isArray());
+  ASSERT_EQ(1u, root["files"].size());
+  EXPECT_EQ("/path/to/file", root["files"][0]["path"].asString());
+  EXPECT_EQ("failed", root["files"][0]["error"].asString());
+  EXPECT_FALSE(root["files"][0].isMember("onDisk"));
+}
+
+TEST_F(RestApiTest, TapeJsonifiersPreserveArchiveInfoResponseShape)
+{
+  auto response = std::make_shared<eos::mgm::bulk::QueryPrepareResponse>();
+  eos::mgm::bulk::QueryPrepareFileResponse diskAndTape("/path/to/file/on-both");
+  diskAndTape.is_online = true;
+  diskAndTape.is_on_tape = true;
+  diskAndTape.has_prepare_permission = true;
+  response->responses.emplace_back(diskAndTape);
+  eos::mgm::bulk::QueryPrepareFileResponse tapeOnly("/path/to/file/on-tape");
+  tapeOnly.is_on_tape = true;
+  tapeOnly.error_text = "queued";
+  tapeOnly.has_prepare_permission = true;
+  response->responses.emplace_back(tapeOnly);
+  GetArchiveInfoResponseModel model(response);
+  GetArchiveInfoResponseJsonifier jsonifier;
+
+  Json::Value root = Jsonify(model, jsonifier);
+
+  ASSERT_TRUE(root.isArray());
+  ASSERT_EQ(2u, root.size());
+  EXPECT_EQ("/path/to/file/on-both", root[0]["path"].asString());
+  EXPECT_EQ("DISK_AND_TAPE", root[0]["locality"].asString());
+  EXPECT_EQ("/path/to/file/on-tape", root[1]["path"].asString());
+  EXPECT_EQ("TAPE", root[1]["locality"].asString());
+  EXPECT_EQ("queued", root[1]["error"].asString());
+}
+
+TEST_F(RestApiTest, TapeJsonifiersPreserveWellKnownResponseShape)
+{
+  TapeWellKnownInfos infos("tape-api-sitename");
+  infos.addEndpoint("https://tape-api.example.org:1234/api/v1", "v1");
+  GetTapeWellKnownModel model(&infos);
+  GetTapeWellKnownModelJsonifier jsonifier;
+
+  Json::Value root = Jsonify(model, jsonifier);
+
+  EXPECT_EQ("tape-api-sitename", root["sitename"].asString());
+  ASSERT_TRUE(root["endpoints"].isArray());
+  ASSERT_EQ(1u, root["endpoints"].size());
+  EXPECT_EQ("https://tape-api.example.org:1234/api/v1",
+            root["endpoints"][0]["uri"].asString());
+  EXPECT_EQ("v1", root["endpoints"][0]["version"].asString());
 }

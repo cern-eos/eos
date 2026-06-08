@@ -24,7 +24,9 @@
 #ifndef __APPLE__
 #include "common/token/SciToken.hh"
 #include "common/StringConversion.hh"
+#include "jwt-cpp/base.h"
 #include <string>
+#include <string_view>
 #include <scitokens/scitokens.h>
 
 eos::common::SciToken* eos::common::SciToken::sSciToken = nullptr;
@@ -99,6 +101,49 @@ extern "C" {
 }
 
 EOSCOMMONNAMESPACE_BEGIN
+
+//------------------------------------------------------------------------------
+// Check whether the authz value contains a WLCG-profile SciToken
+//------------------------------------------------------------------------------
+bool
+SciToken::IsWlcgToken(const std::string& authz)
+{
+  constexpr std::string_view http_enc_tag = "Bearer%20";
+  constexpr std::string_view http_tag = "Bearer ";
+  constexpr std::string_view wlcg_ver_claim = "\"wlcg.ver\"";
+  std::string_view token(authz);
+
+  if (token.compare(0, http_enc_tag.size(), http_enc_tag) == 0) {
+    token.remove_prefix(http_enc_tag.size());
+  } else if (token.compare(0, http_tag.size(), http_tag) == 0) {
+    token.remove_prefix(http_tag.size());
+  }
+
+  const size_t header_end = token.find('.');
+
+  if (header_end == std::string_view::npos) {
+    return false;
+  }
+
+  const size_t payload_begin = header_end + 1;
+  const size_t payload_end = token.find('.', payload_begin);
+
+  if ((payload_end == std::string_view::npos) ||
+      (payload_end == payload_begin)) {
+    return false;
+  }
+
+  try {
+    const std::string payload_segment(token.substr(payload_begin,
+                                      payload_end - payload_begin));
+    const std::string payload = jwt::base::decode<jwt::alphabet::base64url>(
+                                  jwt::base::pad<jwt::alphabet::base64url>(payload_segment));
+    return payload.find(wlcg_ver_claim.data(), 0,
+                        wlcg_ver_claim.size()) != std::string::npos;
+  } catch (...) {
+    return false;
+  }
+}
 
 //------------------------------------------------------------------------------
 // Factory method to crate SciToken objects
