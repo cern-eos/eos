@@ -313,10 +313,11 @@ FsckEntry::RepairBestEffort()
       try {
         auto fmd = gOFS->eosFileService->getFileMD(mFid);
         auto fmd_lock = eos::MDLocking::readLock(fmd.get());
+        const auto& cur_xs = fmd->getChecksum();
 
-        if ((fmd->getSize() == ref_sz) &&
-            (strncmp(fmd->getChecksum().getDataPtr(),
-                     xs_buff.getDataPtr(), xs_buff.getSize()) == 0)) {
+        if ((fmd->getSize() == ref_sz) && (cur_xs.getSize() == xs_buff.getSize()) &&
+            (cur_xs.getDataPtr() != nullptr) &&
+            (memcmp(cur_xs.getDataPtr(), xs_buff.getDataPtr(), xs_buff.getSize()) == 0)) {
           match = true;
           // Update also the MGM fmd object
           mMgmFmd.set_checksum(xs_buff.getDataPtr(), xs_buff.getSize());
