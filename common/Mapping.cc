@@ -185,8 +185,8 @@ Mapping::Reset()
 //------------------------------------------------------------------------------
 void
 Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
-               VirtualIdentity& vid, XrdAccAuthorize* authz_obj,
-               Access_Operation acc_op, const std::string& path, bool log)
+               VirtualIdentity& vid, XrdAccAuthorize* authz_obj, Access_Operation acc_op,
+               const std::string& path, bool log)
 {
   if (!client) {
     return;

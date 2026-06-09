@@ -66,7 +66,7 @@ struct VirtualIdentity {
   bool sudoer;
   bool gateway;
   std::shared_ptr<Token> token;
-  const void * deferredClientPtr;
+  const void* deferredClientPtr;
   std::string deferredAuth;
 
   //----------------------------------------------------------------------------

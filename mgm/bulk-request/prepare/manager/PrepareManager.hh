@@ -131,17 +131,20 @@ protected:
 
   /**
    * Triggers the prepare workflow to all the pathsToPrepare passed in parameter
-   * @param pathsToPrepare the paths of the files on which we want to trigger a prepare workflow
+   * @param pathsToPrepare the paths of the files on which we want to trigger a prepare
+   * workflow
    * @param cmd the command to run in the Workflow engine
    * @param event the event to trigger (sync::prepare, sync::evict_prepare...)
    * @param reqid the requestId of this prepare request
    * @param error The error that will be returned to the client if an error happens
-   * @param fileToVidMap the identity of the person who issued the prepare request, per file
+   * @param fileToVidMap the identity of the person who issued the prepare request, per
+   * file
    */
-  void triggerPrepareWorkflow(
-    std::list<std::tuple<char**, char**, EosCtaReporterPrepareReq, common::VirtualIdentity*>>&
-    pathsToPrepare, const std::string& cmd, const std::string& event,
-    const XrdOucString& reqid, XrdOucErrInfo& error);
+  void
+  triggerPrepareWorkflow(std::list<std::tuple<char**, char**, EosCtaReporterPrepareReq,
+                                              common::VirtualIdentity*>>& pathsToPrepare,
+                         const std::string& cmd, const std::string& event,
+                         const XrdOucString& reqid, XrdOucErrInfo& error);
 
   /**
    * Will call the business layer to persist the bulk request
@@ -159,7 +162,8 @@ protected:
    * @param pargs Xrootd prepare arguments
    * @param error Xrootd error information to fill if there are any errors
    * @param client the client who issued the prepare
-   * @param vidClient the vid of the client (even if deferred). If the latter has already been mapped, it avoids an IdMap call on the client param.
+   * @param vidClient the vid of the client (even if deferred). If the latter has already
+   * been mapped, it avoids an IdMap call on the client param.
    * @returns the status code of the issued prepare request
    */
   int doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
@@ -171,7 +175,8 @@ protected:
    * @param pargs Xrootd prepare arguments
    * @param error Xrootd error information to fill if there are any errors
    * @param client the client who issued the query prepare
-   * @param vidClient the vid of the client (even if deferred). If the latter has already been mapped, it avoids an IdMap call on the client param.
+   * @param vidClient the vid of the client (even if deferred). If the latter has already
+   * been mapped, it avoids an IdMap call on the client param.
    * @returns the status code of the issued prepare request
    */
   int doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,

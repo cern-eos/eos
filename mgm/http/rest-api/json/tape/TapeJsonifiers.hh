@@ -12,10 +12,10 @@
 
 #include "mgm/Namespace.hh"
 #include "mgm/http/rest-api/json/tape/TapeRestApiJsonifier.hh"
+#include "mgm/http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.hh"
 #include "mgm/http/rest-api/model/tape/common/ErrorModel.hh"
 #include "mgm/http/rest-api/model/tape/stage/CreatedStageBulkRequestResponseModel.hh"
 #include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
-#include "mgm/http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.hh"
 #include "mgm/http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.hh"
 #include <json/json.h>
 

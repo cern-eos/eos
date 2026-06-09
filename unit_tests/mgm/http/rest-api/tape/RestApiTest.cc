@@ -22,6 +22,8 @@
  ************************************************************************/
 
 #include "RestApiTest.hh"
+#include "common/http/HttpResponse.hh"
+#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
 #include "mgm/http/rest-api/exception/RestException.hh"
 #include "mgm/http/rest-api/handler/tape/TapeRestHandler.hh"
 #include "mgm/http/rest-api/json/tape/TapeJsonifiers.hh"
@@ -32,8 +34,6 @@
 #include "mgm/http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.hh"
 #include "mgm/http/rest-api/utils/URLParser.hh"
 #include "mgm/http/rest-api/wellknown/tape/TapeWellKnownInfos.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "common/http/HttpResponse.hh"
 #include <json/json.h>
 #include <memory>
 #include <optional>
@@ -42,26 +42,29 @@
 
 namespace {
 
-Json::Value ParseJson(const std::string& json)
+Json::Value
+ParseJson(const std::string& json)
 {
   Json::Value root;
   Json::CharReaderBuilder builder;
   std::string errors;
   std::unique_ptr<Json::CharReader> reader(builder.newCharReader());
-  EXPECT_TRUE(reader->parse(json.data(), json.data() + json.size(), &root,
-                            &errors)) << errors << "\n" << json;
+  EXPECT_TRUE(reader->parse(json.data(), json.data() + json.size(), &root, &errors))
+      << errors << "\n"
+      << json;
   return root;
 }
 
-template<typename Model, typename Jsonifier>
-Json::Value Jsonify(const Model& model, Jsonifier& jsonifier)
+template <typename Model, typename Jsonifier>
+Json::Value
+Jsonify(const Model& model, Jsonifier& jsonifier)
 {
   std::stringstream ss;
   jsonifier.jsonify(&model, ss);
   return ParseJson(ss.str());
 }
 
-}
+} // namespace
 
 TEST_F(RestApiTest, RestHandlerConstructorShouldThrowIfProgrammerGaveWrongURL)
 {
@@ -196,8 +199,7 @@ TEST_F(RestApiTest, URLBuilderTest)
 
 TEST_F(RestApiTest, TapeJsonifiersPreserveErrorResponseShape)
 {
-  ErrorModel model("Bad request", 400,
-                   std::optional<std::string>("invalid \"json\""));
+  ErrorModel model("Bad request", 400, std::optional<std::string>("invalid \"json\""));
   model.setType("https://example.org/problem");
   ErrorModelJsonifier jsonifier;
 

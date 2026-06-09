@@ -21,17 +21,17 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.*
  ************************************************************************/
 
-#include "rest-api/manager/RestApiManager.hh"
 #include "mgm/http/HttpServer.hh"
-#include "mgm/http/ProtocolHandlerFactory.hh"
-#include "mgm/ofs/XrdMgmOfs.hh"
-#include "mgm/stat/Stat.hh"
-#include "mgm/macros/Macros.hh"
+#include "common/ErrnoToString.hh"
 #include "common/Path.hh"
 #include "common/SecEntity.hh"
 #include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
-#include "common/ErrnoToString.hh"
+#include "mgm/http/ProtocolHandlerFactory.hh"
+#include "mgm/macros/Macros.hh"
+#include "mgm/ofs/XrdMgmOfs.hh"
+#include "mgm/stat/Stat.hh"
+#include "rest-api/manager/RestApiManager.hh"
 #include <XrdNet/XrdNetAddr.hh>
 #include <netdb.h>
 
@@ -405,8 +405,7 @@ HttpServer::XrdHttpHandler(std::string& method,
     } else {
       Access_Operation acc_op = MapHttpVerbToAOP(method);
       EXEC_TIMING_BEGIN("IdMap");
-      Mapping::IdMap(&client, env.c_str(), client.tident, *vid,
-                     authz_obj, acc_op, path);
+      Mapping::IdMap(&client, env.c_str(), client.tident, *vid, authz_obj, acc_op, path);
       EXEC_TIMING_END("IdMap");
     }
   } else { // HTTP access through Nginx

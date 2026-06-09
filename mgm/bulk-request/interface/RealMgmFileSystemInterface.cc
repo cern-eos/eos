@@ -46,7 +46,8 @@ int RealMgmFileSystemInterface::getReqIdMaxCount()
   return mMgmOfs->mReqIdMax;
 }
 
-XrdAccAuthorize* RealMgmFileSystemInterface::getTokenHandler()
+XrdAccAuthorize*
+RealMgmFileSystemInterface::getTokenHandler()
 {
   return mMgmOfs->mTokenAuthz;
 }

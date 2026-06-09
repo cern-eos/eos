@@ -248,7 +248,7 @@ void TapeRestApiBusiness::deleteStageBulkRequest(const std::string& requestId,
     throw TapeRestApiBusinessException(ss.str());
   }
 
-  //Now that the request got canceled, let's delete it from the persistency
+  // Now that the request got canceled, let's delete it from the persistency
   try {
     bulkRequestBusiness->deleteBulkRequest(bulkRequest.get());
   } catch (bulk::PersistencyException& ex) {
