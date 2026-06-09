@@ -130,12 +130,13 @@ public:
   //!        overwritten by the caller when it matters. Otherwise it's put
   //!        to the default value AOP_Stat for convenience.
   //! @param path path of the request
-  //! @param log if true map final mapping info, otherwise false
+  //! @param logSuccess if true log final mapping info
+  //! @param logMapError if true log mapping error in case of failure
   //---------------------------------------------------------------------------
   static void IdMap(const XrdSecEntity* client, const char* env, const char* tident,
                     VirtualIdentity& vid, XrdAccAuthorize* authz_obj = nullptr,
                     Access_Operation acc_op = AOP_Stat, const std::string& path = "",
-                    bool log = true);
+                    bool logSuccess = true, bool logMapError = true);
 
   // ---------------------------------------------------------------------------
   //! Map describing which virtual user roles a user with a given uid has

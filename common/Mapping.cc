@@ -186,7 +186,7 @@ Mapping::Reset()
 void
 Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
                VirtualIdentity& vid, XrdAccAuthorize* authz_obj, Access_Operation acc_op,
-               const std::string& path, bool log)
+               const std::string& path, bool logSuccess, bool logMapError)
 {
   if (!client) {
     return;
@@ -281,9 +281,16 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
           XrdAccPriv_None) {
         vid = VirtualIdentity::Nobody();
         std::string nobearer = authz.substr(9);
-        eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-                       "jwt={%s}[%s]", path.c_str(), env,
-                       PrintJWT(nobearer).c_str(), nobearer.c_str());
+        if (logMapError) {
+          eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
+                         "jwt={%s}[%s]",
+                         path.c_str(), env, PrintJWT(nobearer).c_str(), nobearer.c_str());
+        } else {
+          eos_static_debug("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
+                           "jwt={%s}[%s]",
+                           path.c_str(), env, PrintJWT(nobearer).c_str(),
+                           nobearer.c_str());
+        }
         return;
       }
     }
@@ -322,10 +329,17 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (authz_obj->Access(client, path.c_str(), acc_op, &op_env) ==
           XrdAccPriv_None) {
         vid = VirtualIdentity::Nobody();
-        eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-                       "authz=\"%s\" jwt={%s}", path.c_str(), env,
-                       authz.c_str(),
-                       PrintJWT(std::string(client->creds)).c_str());;
+        if (logMapError) {
+          eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
+                         "authz=\"%s\" jwt={%s}",
+                         path.c_str(), env, authz.c_str(),
+                         PrintJWT(std::string(client->creds)).c_str());
+        } else {
+          eos_static_debug("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
+                           "authz=\"%s\" jwt={%s}",
+                           path.c_str(), env, authz.c_str(),
+                           PrintJWT(std::string(client->creds)).c_str());
+        }
         return;
       }
 
@@ -366,12 +380,21 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         // In principle we will never get here if XrdMgmAuthz is chained since
         // it says ok if there is a user name defined
         vid = VirtualIdentity::Nobody();
-        eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-                       "authz=\"%s\" jwt={%s}",  path.c_str(), env,
-                       authz.c_str(),
-                       PrintJWT(Env.Get("authz") ?
-                                std::string(Env.Get("authz")) :
-                                std::string("")).c_str());
+        if (logMapError) {
+          eos_static_err(
+              "msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
+              "authz=\"%s\" jwt={%s}",
+              path.c_str(), env, authz.c_str(),
+              PrintJWT(Env.Get("authz") ? std::string(Env.Get("authz")) : std::string(""))
+                  .c_str());
+        } else {
+          eos_static_debug(
+              "msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
+              "authz=\"%s\" jwt={%s}",
+              path.c_str(), env, authz.c_str(),
+              PrintJWT(Env.Get("authz") ? std::string(Env.Get("authz")) : std::string(""))
+                  .c_str());
+        }
         return;
       }
 
@@ -1078,7 +1101,7 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
   eos_static_debug("selected %d %d [%s %s]", vid.uid, vid.gid, ruid.c_str(),
                    rgid.c_str());
 
-  if (log) {
+  if (logSuccess) {
     eos_static_info("%s sec.tident=\"%s\" vid.uid=%d vid.gid=%d sudo=%d gateway=%d",
                     eos::common::SecEntity::ToString(client, Env.Get("eos.app")).c_str(),
                     tident, vid.uid, vid.gid, vid.sudoer, vid.gateway);

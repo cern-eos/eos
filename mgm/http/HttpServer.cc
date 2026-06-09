@@ -394,20 +394,32 @@ HttpServer::XrdHttpHandler(std::string& method,
     const std::string env = ptr;
     query = env;
 
+    std::map<std::string, std::string>::iterator auth_it;
+    bool isTapeRestApiWithToken = false;
     if (gOFS->mRestApiManager->isRestRequest(uri)) {
-      // If we have an authorization token, and the request is from the Tape REST API,
-      // then the authentication needs to be done later inside the request handler.
-      if (auto it = headers.find("authorization"); it != headers.end()) {
+      auth_it = headers.find("authorization");
+      if (auth_it != headers.end()) {
+        isTapeRestApiWithToken = true;
+      }
+    }
+
+    Access_Operation acc_op = MapHttpVerbToAOP(method);
+    EXEC_TIMING_BEGIN("IdMap");
+    if (isTapeRestApiWithToken) {
+      Mapping::IdMap(&client, env.c_str(), client.tident, *vid, authz_obj, acc_op, path,
+                     true, false);
+      // If we failed to authenticate, but the request both comes by the Tape REST API and
+      // contains a token, then the authentication may need to be done inside the request
+      // handler at a later stage, file-by-file.
+      if (vid->isNobody()) {
         // client will exist for the duration of the request
         vid->deferredClientPtr = &client;
-        vid->deferredAuth = it->second;
+        vid->deferredAuth = auth_it->second;
       }
     } else {
-      Access_Operation acc_op = MapHttpVerbToAOP(method);
-      EXEC_TIMING_BEGIN("IdMap");
       Mapping::IdMap(&client, env.c_str(), client.tident, *vid, authz_obj, acc_op, path);
-      EXEC_TIMING_END("IdMap");
     }
+    EXEC_TIMING_END("IdMap");
   } else { // HTTP access through Nginx
     headers["client-real-ip"] = "NOIPLOOKUP";
     headers["client-real-host"] = client.host;
