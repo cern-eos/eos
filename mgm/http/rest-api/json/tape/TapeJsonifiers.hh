@@ -17,6 +17,7 @@
 #include "mgm/http/rest-api/model/tape/stage/GetStageBulkRequestResponseModel.hh"
 #include "mgm/http/rest-api/model/tape/archiveinfo/GetArchiveInfoResponseModel.hh"
 #include "mgm/http/rest-api/model/wellknown/tape/GetTapeWellKnownModel.hh"
+#include <json/json.h>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
@@ -26,16 +27,20 @@ class ErrorModelJsonifier : public TapeRestApiJsonifier<ErrorModel>
 public:
   void jsonify(const ErrorModel* obj, std::stringstream& ss) override
   {
-    ss << "{\n";
-    ss << "\"title\": \"" << obj->getTitle() << "\",\n";
-    ss << "\"status\": " << obj->getStatus();
-    if (obj->getDetail()) {
-      ss << ",\n\"detail\": \"" << *obj->getDetail() << "\"";
-    }
+    Json::Value root;
+
     if (obj->getType()) {
-      ss << ",\n\"type\": \"" << *obj->getType() << "\"";
+      root["type"] = obj->getType().value();
     }
-    ss << "\n}";
+
+    root["title"] = obj->getTitle();
+    root["status"] = obj->getStatus();
+
+    if (obj->getDetail()) {
+      root["detail"] = obj->getDetail().value();
+    }
+
+    ss << root;
   }
 };
 
@@ -45,7 +50,9 @@ class CreatedStageBulkRequestJsonifier : public TapeRestApiJsonifier<CreatedStag
 public:
   void jsonify(const CreatedStageBulkRequestResponseModel* obj, std::stringstream& ss) override
   {
-    ss << "{\n\"request_id\": \"" << obj->getRequestId() << "\"\n}";
+    Json::Value root;
+    root["requestId"] = obj->getRequestId();
+    ss << root;
   }
 };
 
@@ -55,24 +62,26 @@ class GetStageBulkRequestJsonifier : public TapeRestApiJsonifier<GetStageBulkReq
 public:
   void jsonify(const GetStageBulkRequestResponseModel* obj, std::stringstream& ss) override
   {
-    ss << "{\n";
-    ss << "\"id\": \"" << obj->getId() << "\",\n";
-    ss << "\"creation_time\": " << static_cast<long long>(obj->getCreationTime()) << ",\n";
-    ss << "\"files\": [\n";
-    const auto& files = obj->getFiles();
-    for (size_t i = 0; i < files.size(); ++i) {
-      const auto& f = files[i];
-      ss << "  {\n";
-      ss << "    \"path\": \"" << f->mPath << "\",\n";
-      ss << "    \"on_disk\": " << (f->mOnDisk ? "true" : "false");
-      if (!f->mError.empty()) {
-        ss << ",\n    \"error\": \"" << f->mError << "\"";
+    Json::Value root;
+    root["createdAt"] = Json::UInt64(obj->getCreationTime());
+    root["startedAt"] = Json::UInt64(obj->getCreationTime());
+    root["id"] = obj->getId();
+    root["files"] = Json::Value(Json::arrayValue);
+    Json::Value& files = root["files"];
+
+    for (auto& file : obj->getFiles()) {
+      Json::Value fileObj;
+      fileObj["path"] = file->mPath;
+
+      if (!file->mError.empty()) {
+        fileObj["error"] = file->mError;
       }
-      ss << "\n  }";
-      if (i + 1 < files.size()) ss << ",";
-      ss << "\n";
+
+      fileObj["onDisk"] = file->mOnDisk;
+      files.append(fileObj);
     }
-    ss << "]\n}";
+
+    ss << root;
   }
 };
 
@@ -82,29 +91,35 @@ class GetArchiveInfoResponseJsonifier : public TapeRestApiJsonifier<GetArchiveIn
 public:
   void jsonify(const GetArchiveInfoResponseModel* obj, std::stringstream& ss) override
   {
-    auto qpr = obj->getQueryPrepareResponse();
-    ss << "{\n";
-    if (qpr) {
-      ss << "  \"request_id\": \"" << qpr->request_id << "\",\n";
-      ss << "  \"responses\": [\n";
-      for (size_t i = 0; i < qpr->responses.size(); ++i) {
-        const auto& r = qpr->responses[i];
-        ss << "    {\n";
-        ss << "      \"path\": \"" << r.path << "\",\n";
-        ss << "      \"path_exists\": " << (r.is_exists ? "true" : "false") << ",\n";
-        ss << "      \"on_tape\": " << (r.is_on_tape ? "true" : "false") << ",\n";
-        ss << "      \"online\": " << (r.is_online ? "true" : "false") << ",\n";
-        ss << "      \"requested\": " << (r.is_requested ? "true" : "false") << ",\n";
-        ss << "      \"has_reqid\": " << (r.is_reqid_present ? "true" : "false") << ",\n";
-        ss << "      \"req_time\": \"" << r.request_time << "\",\n";
-        ss << "      \"error_text\": \"" << r.error_text << "\"\n";
-        ss << "    }";
-        if (i + 1 < qpr->responses.size()) ss << ",";
-        ss << "\n";
+    Json::Value root(Json::arrayValue);
+
+    if (auto queryPrepareResponse = obj->getQueryPrepareResponse()) {
+      for (const auto& queryPrepareFileResponse : queryPrepareResponse->responses) {
+        Json::Value fileResponse;
+        fileResponse["path"] = queryPrepareFileResponse.path;
+        std::string locality;
+
+        if (queryPrepareFileResponse.is_online && queryPrepareFileResponse.is_on_tape) {
+          locality = "DISK_AND_TAPE";
+        } else if (queryPrepareFileResponse.is_online) {
+          locality = "DISK";
+        } else if (queryPrepareFileResponse.is_on_tape) {
+          locality = "TAPE";
+        }
+
+        if (!locality.empty()) {
+          fileResponse["locality"] = locality;
+        }
+
+        if (!queryPrepareFileResponse.error_text.empty()) {
+          fileResponse["error"] = queryPrepareFileResponse.error_text;
+        }
+
+        root.append(fileResponse);
       }
-      ss << "  ]\n";
     }
-    ss << "}";
+
+    ss << root;
   }
 };
 
@@ -114,21 +129,22 @@ class GetTapeWellKnownModelJsonifier : public TapeRestApiJsonifier<GetTapeWellKn
 public:
   void jsonify(const GetTapeWellKnownModel* obj, std::stringstream& ss) override
   {
-    ss << "{\n  \"versions\": [\n";
+    Json::Value root;
     const TapeWellKnownInfos* infos = obj->getTapeWellKnownInfos();
-    const auto& endpoints = infos->getEndpoints();
-    for (size_t i = 0; i < endpoints.size(); ++i) {
-      const auto& ep = endpoints[i];
-      ss << "    { \"version\": \"" << ep->getVersion() << "\", \"url\": \"" << ep->getUri() << "\" }";
-      if (i + 1 < endpoints.size()) ss << ",";
-      ss << "\n";
+    root["sitename"] = infos->getSiteName();
+    root["endpoints"] = Json::Value(Json::arrayValue);
+
+    for (auto& endpoint : infos->getEndpoints()) {
+      Json::Value endpointJson;
+      endpointJson["uri"] = endpoint->getUri();
+      endpointJson["version"] = endpoint->getVersion();
+      root["endpoints"].append(endpointJson);
     }
-    ss << "  ]\n}";
+
+    ss << root;
   }
 };
 
 EOSMGMRESTNAMESPACE_END
 
 #endif // EOS_TAPE_JSONIFIERS_HH
-
-
