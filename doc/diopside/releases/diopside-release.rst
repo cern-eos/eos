@@ -16,6 +16,18 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.6 Diopside``
+===================
+
+2026-06-09
+
+Bug
+----
+
+* [EOS-6601] - EOS MGM restart creating shadow container entries
+* [EOS-6602] - MGM crash in fsck best effort
+
+
 ``v5.4.5 Diopside``
 ===================
 
