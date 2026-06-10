@@ -48,6 +48,5 @@ install(FILES
   xrd.cf.mgm
   xrd.cf.prefix
   xrd.cf.quarkdb
-  xrd.cf.sync
   auto.cfsd
   DESTINATION ${CMAKE_INSTALL_FULL_SYSCONFDIR})
