@@ -99,6 +99,18 @@ typedef struct {
 //------------------------------------------------------------------------------
 extern bool wants_help(const char* args_line, bool no_h = false);
 
+//------------------------------------------------------------------------------
+//! Check if the MGM URI refers to a loopback address.
+//!
+//! Resolves the hostname in the URI and checks whether all resulting addresses
+//! are loopback (127.0.0.0/8 for IPv4, ::1 for IPv6)
+//!
+//! @param uri  XRootD server URI e.g. root://localhost or root://[::1]
+//!
+//! @return true if the URI hostname resolves exclusively to loopback addresses
+//------------------------------------------------------------------------------
+extern bool IsLocalhostUri(const XrdOucString& uri);
+
 extern COMMAND commands[];
 extern int done;
 
@@ -341,4 +353,3 @@ public:
 private:
   std::map<std::string, struct fileentry> filemap;
 };
-
