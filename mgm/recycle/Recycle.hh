@@ -117,16 +117,17 @@ public:
   //! @param rvec a vector of maps with all recycle informations requested
   //! @param whodeleted - show who exectued a deletion
   //! @param maxentries - maximum number of entries to report
+  //! @param project_path path used to detect a recycle project for
+  //!        non-privileged users (via the sys.forced.recycleid xattr)
   //!
   //! @return 0 if success, E2BIG if return list is limited
   //----------------------------------------------------------------------------
   static int Print(std::string& std_out, std::string& std_err,
-                   eos::common::VirtualIdentity& vid, bool monitoring,
-                   bool transalteids, bool details,
-                   std::string_view display_type,
-                   std::string_view display_val,
-                   std::string_view date = "", RecycleListing* rvec = 0,
-                   bool whodeleted = true, int32_t maxentries = 0);
+                   eos::common::VirtualIdentity& vid, bool monitoring, bool transalteids,
+                   bool details, std::string_view display_type,
+                   std::string_view display_val, std::string_view date = "",
+                   RecycleListing* rvec = 0, bool whodeleted = true,
+                   int32_t maxentries = 0, std::string_view project_path = "");
 
   //----------------------------------------------------------------------------
   //! Restore an entry from the recycle bin to the original location

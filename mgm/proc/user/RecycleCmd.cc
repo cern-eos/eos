@@ -53,10 +53,9 @@ RecycleCmd::ProcessRequest() noexcept
       rtype = "rid";
     }
 
-    rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(),
-                        !ls.numericids(), ls.fulldetails(), rtype,
-                        ls.recycleid(), ls.date(), nullptr, true,
-                        ls.maxentries());
+    rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(), !ls.numericids(),
+                        ls.fulldetails(), rtype, ls.recycleid(), ls.date(), nullptr, true,
+                        ls.maxentries(), ls.path());
 
     if (std_out.length()) {
       reply.set_std_out(std_out.c_str());
@@ -214,10 +213,9 @@ RecycleCmd::ProcessRequest(std::vector<std::map<std::string, std::string>>*
       rtype = "rid";
     }
 
-    rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(),
-                        !ls.numericids(), ls.fulldetails(), rtype,
-                        ls.recycleid(), ls.date(), rvec, true,
-                        ls.maxentries());
+    rc = Recycle::Print(std_out, std_err, mVid, ls.monitorfmt(), !ls.numericids(),
+                        ls.fulldetails(), rtype, ls.recycleid(), ls.date(), rvec, true,
+                        ls.maxentries(), ls.path());
 
     if (std_out.length()) {
       reply.set_std_out(std_out.c_str());
