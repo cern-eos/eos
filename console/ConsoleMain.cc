@@ -22,31 +22,35 @@
  ************************************************************************/
 
 #include "ConsoleMain.hh"
-#include "ConsoleCompletion.hh"
 #include "CommandFramework.hh"
-#include "console/RegexUtil.hh"
-#include <XrdCl/XrdClDefaultEnv.hh>
-#include <XrdCl/XrdClURL.hh>
+#include "ConsoleCompletion.hh"
 #include "License"
 #include "common/FileId.hh"
 #include "common/Path.hh"
-#include "common/SymKeys.hh"
-#include "common/StringTokenizer.hh"
 #include "common/StringConversion.hh"
+#include "common/StringTokenizer.hh"
 #include "common/StringUtils.hh"
+#include "common/SymKeys.hh"
 #include "common/mq/XrdMqTiming.hh"
-#include <XrdOuc/XrdOucTokenizer.hh>
-#include <XrdOuc/XrdOucEnv.hh>
+#include "console/RegexUtil.hh"
+#include <XrdCl/XrdClDefaultEnv.hh>
 #include <XrdCl/XrdClFile.hh>
-#include <zmq.hpp>
-#include <iomanip>
-#include <setjmp.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#include <list>
-#include <sys/time.h>
-#include <sys/resource.h>
 #include <XrdCl/XrdClPostMaster.hh>
+#include <XrdCl/XrdClURL.hh>
+#include <XrdOuc/XrdOucEnv.hh>
+#include <XrdOuc/XrdOucTokenizer.hh>
+#include <arpa/inet.h>
+#include <iomanip>
+#include <list>
+#include <netdb.h>
+#include <netinet/in.h>
+#include <readline/history.h>
+#include <readline/readline.h>
+#include <setjmp.h>
+#include <sys/resource.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <zmq.hpp>
 
 #ifdef __APPLE__
 #define ENONET 64
@@ -237,6 +241,50 @@ wants_help(const char* args_line, bool no_h)
   }
 
   return false;
+}
+
+//------------------------------------------------------------------------------
+// Check if the MGM URI refers to a loopback address.
+//------------------------------------------------------------------------------
+bool
+IsLocalhostUri(const XrdOucString& uri)
+{
+  XrdCl::URL url(uri.c_str());
+  if (!url.IsValid()) {
+    return false;
+  }
+
+  std::string host = url.GetHostName();
+  struct addrinfo hints{}, *res = nullptr;
+  hints.ai_family = AF_UNSPEC;
+
+  // Strip IPv6 bracket notation if present
+  if (host.size() >= 2 && host.front() == '[' && host.back() == ']') {
+    host = host.substr(1, host.size() - 2);
+  }
+
+  if (getaddrinfo(host.c_str(), nullptr, &hints, &res) != 0) {
+    return false;
+  }
+
+  bool loopback = true;
+
+  for (auto* p = res; p && loopback; p = p->ai_next) {
+    if (p->ai_family == AF_INET) {
+      auto* addr = &((struct sockaddr_in*)p->ai_addr)->sin_addr;
+      loopback = (ntohl(addr->s_addr) == INADDR_LOOPBACK);
+    } else if (p->ai_family == AF_INET6) {
+      auto* addr = &((struct sockaddr_in6*)p->ai_addr)->sin6_addr;
+      loopback = IN6_IS_ADDR_LOOPBACK(addr);
+    } else {
+      loopback = false;
+    }
+  }
+
+  loopback = loopback && (res != nullptr);
+
+  freeaddrinfo(res);
+  return loopback;
 }
 
 /* **************************************************************** */
@@ -895,8 +943,7 @@ Run(int argc, char* argv[])
           }
         }
 
-        if ((!selectedrole) && (!getuid()) &&
-            (serveruri.beginswith("root://localhost"))) {
+        if ((!selectedrole) && (!getuid()) && (IsLocalhostUri(serveruri))) {
           // we are root, we always select also the root role by default
           XrdOucString cmdline = "role 0 0 ";
           silent = true;
@@ -920,8 +967,7 @@ Run(int argc, char* argv[])
   }
 
   // By default select the root role if we are root@localhost
-  if ((!selectedrole) && (!getuid()) &&
-      (serveruri.beginswith("root://localhost"))) {
+  if ((!selectedrole) && (!getuid()) && (IsLocalhostUri(serveruri))) {
     // we are root, we always select also the root role by default
     XrdOucString cmdline = "role 0 0 ";
     silent = true;
