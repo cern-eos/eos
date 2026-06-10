@@ -100,6 +100,20 @@ RecycleHelper::ParseCommand(const char* arg)
             soption = option;
             ls->set_recycleid(soption);
           }
+        } else if (soption == "--project") {
+          if (!(option = tokenizer.GetToken())) {
+            std::cerr << "error: --project requires a path argument" << std::endl;
+            return false;
+          }
+
+          soption = option;
+
+          if (soption.empty() || (soption[0] != '/')) {
+            std::cerr << "error: --project path must be absolute" << std::endl;
+            return false;
+          }
+
+          ls->set_path(soption);
         } else if (soption == "-m") {
           ls->set_monitorfmt(true);
         } else if (soption == "-n") {

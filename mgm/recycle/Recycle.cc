@@ -418,12 +418,10 @@ Recycle::Recycler(ThreadAssistant& assistant) noexcept
 //------------------------------------------------------------------------------
 int
 Recycle::Print(std::string& std_out, std::string& std_err,
-               eos::common::VirtualIdentity& vid, bool monitoring,
-               bool translateids, bool details,
-               std::string_view display_type,
-               std::string_view display_val,
-               std::string_view date, Recycle::RecycleListing* rvec,
-               bool whodeleted, int32_t maxentries)
+               eos::common::VirtualIdentity& vid, bool monitoring, bool translateids,
+               bool details, std::string_view display_type, std::string_view display_val,
+               std::string_view date, Recycle::RecycleListing* rvec, bool whodeleted,
+               int32_t maxentries, std::string_view project_path)
 {
   using namespace eos::common;
   XrdOucString uids;
@@ -441,10 +439,29 @@ Recycle::Print(std::string& std_out, std::string& std_err,
     }
   }
 
-  if ((display_type == "all") &&
-      ((!vid.uid) ||
-       (vid.hasUid(eos::common::ADM_UID)) ||
-       (vid.hasGid(eos::common::ADM_GID)))) {
+  if (!project_path.empty()) {
+    // An explicit --project path takes precedence over the listing type. The
+    // path must belong to a recycle project (i.e. carry the
+    // sys.forced.recycleid xattr) for both regular and admin users; otherwise
+    // an error is returned to the client.
+    std::string rid_val;
+    XrdOucErrInfo lerror;
+    std::string lpath(project_path);
+
+    if (gOFS->_attr_get(lpath.c_str(), lerror, mRootVid, "",
+                        Recycle::gRecycleIdXattrKey.c_str(), rid_val) ||
+        rid_val.empty()) {
+      std_err = SSTR("error: path \"" << lpath
+                                      << "\" is not part of a "
+                                         "recycle project (missing "
+                                      << Recycle::gRecycleIdXattrKey << " xattr)");
+      return EINVAL;
+    }
+
+    printmap[SSTR("rid:" << rid_val)] = true;
+  } else if ((display_type == "all") &&
+             ((!vid.uid) || (vid.hasUid(eos::common::ADM_UID)) ||
+              (vid.hasGid(eos::common::ADM_GID)))) {
     // Add everything found in the recycle directory structure to the printmap
     std::string subdirs;
     XrdMgmOfsDirectory dirl;

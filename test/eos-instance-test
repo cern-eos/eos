@@ -1169,6 +1169,15 @@ runtest "### Restore   " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle restore -f 
 runtest "### Rem       " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
 runtest "### Purge     " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle purge --rid $rid -k `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
 runtest "### NoFile    " unix ERROR "" eos recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
+# Test "recycle ls --project <path>" listing for non-privileged users. A path
+# that carries the sys.forced.recycleid xattr must list the project recycle
+# bin, while a path without the xattr must return an error.
+runtest "### Upload    " unix SUCCESS "" upload "/etc/passwd" "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### Rem       " unix SUCCESS "" eos rm "/eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile"
+runtest "### ProjLs    " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle ls --project /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
+runtest "### ProjLsSub " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle ls --project /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/ | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile
+runtest "### ProjLsBad " unix ERROR   "EOSROLE='-r 3 4'" eos recycle ls --project /eos/$EOS_TEST_INSTANCE/test/instancetest
+runtest "### Purge     " unix SUCCESS "EOSROLE='-r 3 4'" eos recycle purge --rid $rid -k `command eos -b root://$EOS_TEST_REDIRECTOR recycle ls --all | grep /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle/pfile | awk '{print $10}' | tail -1`
 runtest "### Recycle   " unix SUCCESS "" eos recycle config --remove-bin /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
 runtest "### Rem       " unix SUCCESS "" eos rm -r /eos/$EOS_TEST_INSTANCE/test/instancetest/precycle
 
