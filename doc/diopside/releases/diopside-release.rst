@@ -16,6 +16,22 @@ Introduction
 
 This release is based on XRootD V5.
 
+``v5.4.7 Diopside``
+===================
+
+Bug
+---
+
+* COMMON: Fix bug in multi-origin tokens, which might have rejected a later listed origin
+* MGM: Disable NS caching for slave MGMs when default cache limits are overwritten in the configuration
+* [EOS-6556] - EOSATLAS high heartbeats for nodes, file systems fine
+
+New Feature
+-------------
+
+* [EOS-6603] - Support project recycle bin in eos recycle ls using the --project <path> option.
+
+
 ``v5.4.6 Diopside``
 ===================
 
@@ -122,7 +138,7 @@ Major Change
 * **Recycle Bin Configuration Update**: The recycle bin configuration has been refactored.
   Please see :doc:`5.4.0/recycle_bin_config` for important migration instructions regarding new configuration commands and cleanup of legacy attributes.
 * **MQ removal**: The MQ support has been dropped.
-  Upgrading from an EOS version with MQ support to EOS 5.4.0 will be disruptive! Follow the instructions (not provided yet).
+  Upgrading from an EOS version with MQ support to EOS 5.4.0 is disruptive as it requires a full instance restart.
 
 Bug
 ---
