@@ -66,6 +66,45 @@ TEST(FsView, ConstIteratorTest)
 }
 
 //------------------------------------------------------------------------------
+// Regression test for the leak of "shadow" FsNode objects on Reset(). A
+// master<->slave failover triggers a config reload which calls FsView::Reset().
+// Previously Reset() dropped the FsNode pointers from mNodeView without deleting
+// them, leaking the objects together with their shared hash subscription. Assert
+// that the number of alive FsNode instances matches mNodeView.size() and drops
+// back to the baseline once Reset() has run.
+//------------------------------------------------------------------------------
+TEST(FsView, ResetDeletesNodes)
+{
+  using eos::mgm::FsNode;
+  using eos::mgm::FsView;
+  eos::common::InstanceName::set("unittest");
+  const std::uint64_t baseline = FsNode::sNumInstances.load();
+  constexpr std::size_t num_nodes = 5;
+  {
+    FsView fs_view;
+
+    // Populate the node view directly - without a messaging realm the FsNode
+    // constructor skips the (blocking) shared hash interaction but still keeps
+    // the instance counter in sync.
+    for (std::size_t i = 1; i <= num_nodes; ++i) {
+      std::string queue = SSTR("/eos/node-" << i << ".cern.ch:1095/fst");
+      fs_view.mNodeView[queue] = new FsNode(queue.c_str());
+    }
+
+    ASSERT_EQ(fs_view.mNodeView.size(), num_nodes);
+    ASSERT_EQ(FsNode::sNumInstances.load() - baseline, num_nodes);
+    // Reset must delete the node objects, not just drop the pointers
+    fs_view.Reset();
+    ASSERT_TRUE(fs_view.mNodeView.empty());
+    ASSERT_EQ(FsNode::sNumInstances.load(), baseline);
+  }
+
+  // The FsView destructor must not have resurrected/leaked any node either
+  ASSERT_EQ(FsNode::sNumInstances.load(), baseline);
+  eos::common::InstanceName::clear();
+}
+
+//------------------------------------------------------------------------------
 // Test FilesystemUuidMapper
 //------------------------------------------------------------------------------
 TEST(FilesystemUuidMapper, BasicSanity)

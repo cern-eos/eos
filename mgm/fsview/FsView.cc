@@ -2753,10 +2753,19 @@ FsNode::FsNode(const char* name) : BaseView(
 {
   mName = name;
   mType = "nodesview";
-  SetConfigMember("stat.hostport", GetMember("hostport"), false);
   ++sNumInstances;
   eos_static_info("msg=\"FsNode constructor\" name=\"%s\" ptr=%p",
                   mName.c_str(), this);
+
+  // In a unit test harness there is no messaging realm available so we skip the
+  // shared hash interaction (set/subscribe) which would otherwise block on a
+  // QuarkDB reply or dereference uninitialized state. In production the
+  // messaging realm is always set by the time any FsNode is created.
+  if ((gOFS == nullptr) || (gOFS->mMessagingRealm == nullptr)) {
+    return;
+  }
+
+  SetConfigMember("stat.hostport", GetMember("hostport"), false);
   mSubscription = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
                                         mLocator).subscribe();
 
