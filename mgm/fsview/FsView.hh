@@ -24,18 +24,19 @@
 #ifndef __EOSMGM_FSVIEW__HH__
 #define __EOSMGM_FSVIEW__HH__
 
-#include "mgm/Namespace.hh"
-#include "mgm/filesystem/FileSystem.hh"
-#include "mgm/utils/FilesystemUuidMapper.hh"
-#include "mgm/utils/FileSystemRegistry.hh"
+#include "common/AssistedThread.hh"
+#include "common/InstanceName.hh"
+#include "common/Locators.hh"
+#include "common/Logging.hh"
 #include "common/RWMutex.hh"
 #include "common/SymKeys.hh"
-#include "common/Logging.hh"
-#include "common/Locators.hh"
-#include "common/InstanceName.hh"
-#include "common/AssistedThread.hh"
+#include "mgm/Namespace.hh"
+#include "mgm/filesystem/FileSystem.hh"
+#include "mgm/utils/FileSystemRegistry.hh"
+#include "mgm/utils/FilesystemUuidMapper.hh"
 #include "namespace/interface/IFileMD.hh"
 #include "qclient/shared/SharedHashSubscription.hh"
+#include <cstdint>
 #include <string_view>
 #ifndef __APPLE__
 #include <sys/vfs.h>
@@ -656,6 +657,11 @@ protected:
 class FsNode : public BaseView
 {
 public:
+  //! Number of currently alive FsNode instances. Used to detect leaked node
+  //! objects e.g. shadow nodes surviving a master<->slave failover. In a
+  //! healthy state this matches FsView::mNodeView.size().
+  static std::atomic<std::uint64_t> sNumInstances;
+
   //----------------------------------------------------------------------------
   //! Constructor
   //!
@@ -935,14 +941,10 @@ public:
                    bool dont_color = false);
 
   //----------------------------------------------------------------------------
-  //! Clear all mappings and filesystem objects obtaining locks
+  //! Clear all maps and delete all filesystem/group/space/node objects while
+  //! obtaining the necessary locks
   //----------------------------------------------------------------------------
   void Reset();
-
-  //----------------------------------------------------------------------------
-  //! Clear all maps and delete all filesystem/group/space objects
-  //----------------------------------------------------------------------------
-  void Clear();
 
   //----------------------------------------------------------------------------
   //! Thread loop function checking heartbeats
