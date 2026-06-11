@@ -212,6 +212,7 @@ EosMgmHttpHandler::generateResponseHeaders(
     std::ostringstream& oss) {
 
   response->AddHeader("Date",  eos::common::Timing::utctime(time(NULL)));
+  response->AddHeader("X-Eos-Mgm-Version", VERSION);
   const auto& headers = response->GetHeaders();
 
   for (const auto& hdr : headers) {
