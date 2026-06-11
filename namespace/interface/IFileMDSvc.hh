@@ -129,8 +129,9 @@ public:
   {
     return true;
   }
+  // If requested, restore deltas skipped during the last recompute attempt.
   virtual void
-  AbortTreeSizeRecompute()
+  AbortTreeSizeRecompute(bool = false)
   {
   }
 };

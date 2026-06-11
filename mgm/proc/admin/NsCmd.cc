@@ -328,6 +328,18 @@ struct TreeSizeRecomputeGuard {
     return false;
   }
 
+  //----------------------------------------------------------------------------
+  //! Abort the active recompute window and requeue skipped accounting deltas
+  //----------------------------------------------------------------------------
+  void
+  abortWithSkippedDeltas()
+  {
+    if (!mFinished && mStarted) {
+      mAccounting.AbortTreeSizeRecompute(/*requeue_skipped_deltas=*/true);
+      mFinished = true;
+    }
+  }
+
 private:
   eos::IFileMDChangeListener& mAccounting;
   bool mStarted = false;
@@ -1224,6 +1236,11 @@ NsCmd::TreeSizeSubcmd(const eos::console::NsProto_TreeSizeProto& tree,
     }
   }
 
+  // Both recompute attempts observed accounting updates inside the recomputed
+  // subtree, so the command cannot claim a clean absolute recompute. Abort the
+  // recompute window and put the deltas skipped during the last attempt back
+  // into normal accounting, then report best-effort failure to the caller.
+  recompute_guard.abortWithSkippedDeltas();
   reply.set_std_err("warning: tree-size recompute observed concurrent "
                     "modifications; last best-effort values were written, rerun "
                     "when the subtree is quieter");

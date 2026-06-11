@@ -24,28 +24,159 @@
 #include "namespace/Resolver.hh"
 #include "namespace/interface/IContainerMD.hh"
 #include "namespace/locking/BulkNsObjectLocker.hh"
+#include "namespace/ns_quarkdb/Constants.hh"
+#include "namespace/ns_quarkdb/accounting/ContainerAccounting.hh"
 #include "namespace/ns_quarkdb/accounting/QuotaStats.hh"
 #include "namespace/ns_quarkdb/persistency/ContainerMDSvc.hh"
 #include "namespace/ns_quarkdb/persistency/FileMDSvc.hh"
 #include "namespace/ns_quarkdb/tests/TestUtils.hh"
 #include "namespace/ns_quarkdb/utils/QuotaRecomputer.hh"
 #include "namespace/ns_quarkdb/views/HierarchicalView.hh"
-#include "namespace/ns_quarkdb/Constants.hh"
 #include "namespace/utils/RenameSafetyCheck.hh"
 #include "namespace/utils/RmrfHelper.hh"
 #include <algorithm>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <functional>
 #include <gtest/gtest.h>
 #include <memory>
 #include <numeric>
 #include <pthread.h>
 #include <sstream>
+#include <thread>
 #include <unistd.h>
 
 #include <vector>
 
 class HierarchicalViewF : public eos::ns::testing::NsTestsFixture {};
+
+namespace {
+
+struct RecomputeStateGuard {
+  RecomputeStateGuard(eos::IFileMDChangeListener* accounting, eos::IContainerMD::id_t id)
+      : mAccounting(accounting)
+      , mStarted(mAccounting->StartTreeSizeRecompute({id}))
+  {
+  }
+
+  ~RecomputeStateGuard() { abort(); }
+
+  bool
+  started() const
+  {
+    return mStarted;
+  }
+
+  void
+  resetDirty()
+  {
+    mAccounting->ResetTreeSizeRecomputeDirty();
+  }
+
+  bool
+  isDirty() const
+  {
+    return mAccounting->IsTreeSizeRecomputeDirty();
+  }
+
+  bool
+  tryFinish()
+  {
+    const bool finished = mAccounting->TryFinishTreeSizeRecompute();
+
+    if (finished) {
+      mStarted = false;
+    }
+
+    return finished;
+  }
+
+  void
+  abort(bool requeue_skipped_deltas = false)
+  {
+    if (mStarted) {
+      mAccounting->AbortTreeSizeRecompute(requeue_skipped_deltas);
+      mStarted = false;
+    }
+  }
+
+  eos::IFileMDChangeListener* mAccounting;
+  bool mStarted;
+};
+
+std::vector<std::string>
+CreateAccountingFiles(eos::IView* view, const std::string& parent, uint64_t size,
+                      int count)
+{
+  std::vector<std::string> paths;
+  paths.reserve(count);
+
+  for (int i = 0; i < count; ++i) {
+    const std::string path = parent + "/file_" + std::to_string(i);
+    auto fmd = view->createFile(path);
+    fmd->setSize(size);
+    view->updateFileStore(fmd.get());
+    paths.emplace_back(path);
+  }
+
+  return paths;
+}
+
+void
+RunConcurrentSizeUpdates(eos::IView* view, const std::vector<std::string>& paths,
+                         uint64_t base_size, int operations_per_file,
+                         const std::function<void()>& checkpoint = {})
+{
+  std::atomic<bool> start{false};
+  std::atomic<int> first_updates{0};
+  std::atomic<bool> resume_after_checkpoint{!checkpoint};
+  std::vector<std::thread> workers;
+  workers.reserve(paths.size());
+
+  for (const auto& path : paths) {
+    workers.emplace_back([view, path, base_size, operations_per_file, &start,
+                          &first_updates, &resume_after_checkpoint, &checkpoint]() {
+      while (!start.load(std::memory_order_acquire)) {
+        std::this_thread::yield();
+      }
+
+      auto fmd = view->getFile(path);
+
+      for (int i = 1; i <= operations_per_file; ++i) {
+        fmd->setSize(base_size + i);
+        view->updateFileStore(fmd.get());
+
+        if (i == 1 && checkpoint) {
+          first_updates.fetch_add(1, std::memory_order_acq_rel);
+
+          while (!resume_after_checkpoint.load(std::memory_order_acquire)) {
+            std::this_thread::yield();
+          }
+        }
+      }
+    });
+  }
+
+  start.store(true, std::memory_order_release);
+
+  if (checkpoint) {
+    while (first_updates.load(std::memory_order_acquire) !=
+           static_cast<int>(paths.size())) {
+      std::this_thread::yield();
+    }
+
+    checkpoint();
+    resume_after_checkpoint.store(true, std::memory_order_release);
+  }
+
+  for (auto& worker : workers) {
+    worker.join();
+  }
+}
+
+} // namespace
 
 TEST_F(HierarchicalViewF, LoadTest)
 {
@@ -1020,38 +1151,10 @@ TEST_F(HierarchicalViewF, TreeSizeRecomputeActiveSkipsQueuedAccountingDelta)
   ASSERT_EQ(100u, cont->getTreeSize());
   ASSERT_EQ(100u, other_cont->getTreeSize());
 
-  struct RecomputeStateGuard {
-    RecomputeStateGuard(eos::IFileMDChangeListener* accounting,
-                        eos::IContainerMD::id_t id)
-        : mAccounting(accounting)
-        , mStarted(mAccounting->StartTreeSizeRecompute({id}))
-    {
-    }
+  RecomputeStateGuard recompute_guard(namespaceGroupPtr->getContainerAccountingView(),
+                                      cont->getId());
 
-    ~RecomputeStateGuard()
-    {
-      if (mStarted) {
-        mAccounting->AbortTreeSizeRecompute();
-      }
-    }
-
-    void
-    resetDirty()
-    {
-      mAccounting->ResetTreeSizeRecomputeDirty();
-    }
-
-    bool
-    isDirty() const
-    {
-      return mAccounting->IsTreeSizeRecomputeDirty();
-    }
-
-    eos::IFileMDChangeListener* mAccounting;
-    bool mStarted;
-  } recompute_guard(namespaceGroupPtr->getContainerAccountingView(), cont->getId());
-
-  ASSERT_TRUE(recompute_guard.mStarted);
+  ASSERT_TRUE(recompute_guard.started());
   recompute_guard.resetDirty();
   std::thread mutator([this]() {
     auto file = view()->getFile("/test/file");
@@ -1087,6 +1190,139 @@ TEST_F(HierarchicalViewF, TreeSizeRecomputeActiveSkipsQueuedAccountingDelta)
   namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
   EXPECT_FALSE(recompute_guard.isDirty());
   EXPECT_EQ(150u, cont->getTreeSize());
+}
+
+TEST_F(HierarchicalViewF, TreeSizeRecomputeQueueExpansionSkipsCoveredDelta)
+{
+  view()->createContainer("/test", true);
+  auto fmd = view()->createFile("/test/file");
+  fmd->setSize(100);
+  view()->updateFileStore(fmd.get());
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
+  auto cont = view()->getContainer("/test");
+  ASSERT_EQ(100u, cont->getTreeSize());
+
+  eos::QuarkContainerAccounting accounting(containerSvc(),
+                                           /*update_interval=*/3600);
+  accounting.FlushTreeSizeUpdates();
+  RecomputeStateGuard recompute_guard(&accounting, cont->getId());
+  ASSERT_TRUE(recompute_guard.started());
+  recompute_guard.resetDirty();
+
+  accounting.QueueForUpdate(cont->getId(), eos::TreeInfos(10, 0, 0));
+
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+
+  while (!recompute_guard.isDirty() && std::chrono::steady_clock::now() < deadline) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
+
+  EXPECT_TRUE(recompute_guard.isDirty());
+  EXPECT_EQ(100u, cont->getTreeSize());
+
+  recompute_guard.abort(/*requeue_skipped_deltas=*/true);
+  accounting.FlushTreeSizeUpdates();
+  EXPECT_EQ(110u, cont->getTreeSize());
+}
+
+TEST_F(HierarchicalViewF, TreeSizeRecomputeSuccessDropsConcurrentSkippedDeltas)
+{
+  constexpr uint64_t kInitialSize = 100;
+  constexpr int kWorkers = 8;
+  constexpr int kOperationsPerWorker = 12;
+  view()->createContainer("/test", true);
+  const auto paths = CreateAccountingFiles(view(), "/test", kInitialSize, kWorkers);
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
+  auto cont = view()->getContainer("/test");
+  ASSERT_EQ(kWorkers * kInitialSize, cont->getTreeSize());
+
+  RecomputeStateGuard recompute_guard(namespaceGroupPtr->getContainerAccountingView(),
+                                      cont->getId());
+  ASSERT_TRUE(recompute_guard.started());
+  auto flush_admin = [this]() {
+    namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates(
+        /*is_admin_recompute=*/true);
+  };
+
+  recompute_guard.resetDirty();
+  RunConcurrentSizeUpdates(view(), paths, kInitialSize, kOperationsPerWorker,
+                           flush_admin);
+  const uint64_t recomputed_size = kWorkers * (kInitialSize + kOperationsPerWorker);
+
+  {
+    eos::MDLocking::ContainerWriteLock lock(cont.get());
+    cont->setTreeSize(recomputed_size);
+    containerSvc()->updateStore(cont.get());
+  }
+
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates(
+      /*is_admin_recompute=*/true);
+  ASSERT_TRUE(recompute_guard.isDirty());
+  ASSERT_FALSE(recompute_guard.tryFinish());
+
+  recompute_guard.resetDirty();
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates(
+      /*is_admin_recompute=*/true);
+  ASSERT_TRUE(recompute_guard.tryFinish());
+
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
+  EXPECT_EQ(recomputed_size, cont->getTreeSize());
+}
+
+TEST_F(HierarchicalViewF, TreeSizeRecomputeFailureRequeuesOnlyLastConcurrentAttempt)
+{
+  constexpr uint64_t kInitialSize = 100;
+  constexpr int kWorkers = 8;
+  constexpr int kFirstAttemptOperations = 6;
+  constexpr int kLastAttemptOperations = 9;
+  view()->createContainer("/test", true);
+  const auto paths = CreateAccountingFiles(view(), "/test", kInitialSize, kWorkers);
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
+  auto cont = view()->getContainer("/test");
+  ASSERT_EQ(kWorkers * kInitialSize, cont->getTreeSize());
+
+  RecomputeStateGuard recompute_guard(namespaceGroupPtr->getContainerAccountingView(),
+                                      cont->getId());
+  ASSERT_TRUE(recompute_guard.started());
+  auto flush_admin = [this]() {
+    namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates(
+        /*is_admin_recompute=*/true);
+  };
+
+  recompute_guard.resetDirty();
+  RunConcurrentSizeUpdates(view(), paths, kInitialSize, kFirstAttemptOperations,
+                           flush_admin);
+  const uint64_t first_attempt_size = kWorkers * (kInitialSize + kFirstAttemptOperations);
+
+  {
+    eos::MDLocking::ContainerWriteLock lock(cont.get());
+    cont->setTreeSize(first_attempt_size);
+    containerSvc()->updateStore(cont.get());
+  }
+
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates(
+      /*is_admin_recompute=*/true);
+  ASSERT_TRUE(recompute_guard.isDirty());
+
+  recompute_guard.resetDirty();
+  RunConcurrentSizeUpdates(view(), paths, kInitialSize + kFirstAttemptOperations,
+                           kLastAttemptOperations, flush_admin);
+  const uint64_t final_size =
+      kWorkers * (kInitialSize + kFirstAttemptOperations + kLastAttemptOperations);
+
+  {
+    eos::MDLocking::ContainerWriteLock lock(cont.get());
+    cont->setTreeSize(first_attempt_size);
+    containerSvc()->updateStore(cont.get());
+  }
+
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates(
+      /*is_admin_recompute=*/true);
+  ASSERT_TRUE(recompute_guard.isDirty());
+  recompute_guard.abort(/*requeue_skipped_deltas=*/true);
+
+  namespaceGroupPtr->getContainerAccountingView()->FlushTreeSizeUpdates();
+  EXPECT_EQ(final_size, cont->getTreeSize());
 }
 
 TEST_F(HierarchicalViewF, fileMDLockedClone)

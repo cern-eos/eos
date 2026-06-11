@@ -61,10 +61,10 @@ struct QueuedUpdate {
   {
   }
 
-  Type mType = Type::Update;
-  IContainerMD::id_t mId = 0;
-  TreeInfos mTreeInfos;
-  std::shared_ptr<std::promise<void>> mBarrier;
+  Type mType = Type::Update;  ///< Queue item kind: update, flush barrier or stop
+  IContainerMD::id_t mId = 0; ///< Container id whose ancestors need accounting
+  TreeInfos mTreeInfos;       ///< Tree accounting delta associated with mId
+  std::shared_ptr<std::promise<void>> mBarrier; ///< Flush synchronization marker
 };
 
 //! Active tree-size recompute coverage
@@ -82,8 +82,22 @@ struct TreeSizeRecomputeContext {
     return std::binary_search(mIds.begin(), mIds.end(), id);
   }
 
-  std::vector<IContainerMD::id_t> mIds;
-  bool mDirty = false;
+  void
+  AddSkippedDelta(IContainerMD::id_t id, TreeInfos treeInfos)
+  {
+    auto it = mSkippedDeltas.find(id);
+
+    if (it != mSkippedDeltas.end()) {
+      it->second += treeInfos;
+    } else {
+      mSkippedDeltas.emplace(id, treeInfos);
+    }
+  }
+
+  std::vector<IContainerMD::id_t> mIds; ///< Sorted recompute-covered container ids
+  //! Covered deltas skipped during current recompute attempt
+  std::unordered_map<IContainerMD::id_t, TreeInfos> mSkippedDeltas;
+  bool mDirty = false; ///< True once accounting touched the recompute coverage
 };
 
 } // namespace container_accounting
@@ -190,7 +204,7 @@ public:
   //----------------------------------------------------------------------------
   //! Abort a recompute window
   //----------------------------------------------------------------------------
-  void AbortTreeSizeRecompute() override;
+  void AbortTreeSizeRecompute(bool requeue_skipped_deltas = false) override;
 
   //----------------------------------------------------------------------------
   //! Queue info for update
@@ -247,7 +261,7 @@ private:
   //----------------------------------------------------------------------------
   //! Mark recompute context dirty if the update is covered by admin recompute
   //----------------------------------------------------------------------------
-  bool MarkDirtyIfInAdminRecomputeContext(IContainerMD::id_t id);
+  bool MarkDirtyIfInAdminRecomputeContext(IContainerMD::id_t id, TreeInfos treeInfos);
 
   //! Update structure containing the nodes that need an update. We try to
   //! optimise the number of updates to the backend by computing the final
@@ -260,6 +274,17 @@ private:
   //! Merge source update batch into destination update batch
   //----------------------------------------------------------------------------
   void MergeBatch(const UpdateT& src, UpdateT& dst);
+
+  //----------------------------------------------------------------------------
+  //! Merge one accounting delta into destination update batch
+  //----------------------------------------------------------------------------
+  void MergeDelta(IContainerMD::id_t id, TreeInfos treeInfos, UpdateT& dst);
+
+  //----------------------------------------------------------------------------
+  //! Merge skipped recompute deltas into destination update batch
+  //----------------------------------------------------------------------------
+  void MergeDeltas(const std::unordered_map<IContainerMD::id_t, TreeInfos>& src,
+                   UpdateT& dst);
 
   //----------------------------------------------------------------------------
   //! Get active recompute context

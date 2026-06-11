@@ -170,6 +170,7 @@ QuarkContainerAccounting::ResetTreeSizeRecomputeDirty()
 
   if (mActiveRecompute) {
     mActiveRecompute->mDirty = false;
+    mActiveRecompute->mSkippedDeltas.clear();
   }
 }
 
@@ -207,11 +208,43 @@ QuarkContainerAccounting::TryFinishTreeSizeRecompute()
 // Abort a recompute window
 //------------------------------------------------------------------------------
 void
-QuarkContainerAccounting::AbortTreeSizeRecompute()
+QuarkContainerAccounting::AbortTreeSizeRecompute(bool requeue_skipped_deltas)
 {
-  std::lock_guard<std::mutex> lock(mMutexRecompute);
+  std::unordered_map<IContainerMD::id_t, TreeInfos> skipped_deltas;
 
-  mActiveRecompute.reset();
+  {
+    std::lock_guard<std::mutex> lock(mMutexRecompute);
+
+    if (mActiveRecompute && requeue_skipped_deltas) {
+      // Move the deltas skipped during the active recompute attempt out while
+      // the context is still protected. They will be replayed through normal
+      // accounting after the recompute context is gone.
+      skipped_deltas.swap(mActiveRecompute->mSkippedDeltas);
+    }
+
+    // Closing the recompute window first means new accounting updates will no
+    // longer be diverted into mSkippedDeltas.
+    mActiveRecompute.reset();
+  }
+
+  if (!skipped_deltas.empty()) {
+    // Merge after releasing mMutexRecompute to keep recompute-context locking
+    // separate from normal batch locking.
+    std::lock_guard<std::mutex> scope_lock(mMutexBatch);
+    MergeDeltas(skipped_deltas, mBatch[mAccumulateIndx]);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Merge skipped recompute deltas into destination update batch
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::MergeDeltas(
+    const std::unordered_map<IContainerMD::id_t, TreeInfos>& src, UpdateT& dst)
+{
+  for (const auto& elem : src) {
+    MergeDelta(elem.first, elem.second, dst);
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -266,7 +299,7 @@ QuarkContainerAccounting::PropagateUpdates(ThreadAssistant* assistant)
 }
 
 //------------------------------------------------------------------------------
-// Queue one delta for all ancestors of the given container
+// Expand one queued delta into one delta for each ancestor of the given container
 //------------------------------------------------------------------------------
 void
 QuarkContainerAccounting::QueueAncestorsForUpdate(IContainerMD::id_t id,
@@ -290,17 +323,35 @@ QuarkContainerAccounting::QueueAncestorsForUpdate(IContainerMD::id_t id,
     }
   }
 
-  std::lock_guard<std::mutex> scope_lock(mMutexBatch);
-  auto& batch = mBatch[mAccumulateIndx];
+  UpdateT updates;
 
   for (auto idToUpdate : idsToUpdate) {
-    auto it_map = batch.mMap.find(idToUpdate);
-
-    if (it_map != batch.mMap.end()) {
-      it_map->second += treeInfos;
-    } else {
-      batch.mMap.emplace(idToUpdate, treeInfos);
+    if (MarkDirtyIfInAdminRecomputeContext(idToUpdate, treeInfos)) {
+      continue;
     }
+
+    MergeDelta(idToUpdate, treeInfos, updates);
+  }
+
+  if (!updates.mMap.empty()) {
+    std::lock_guard<std::mutex> scope_lock(mMutexBatch);
+    MergeBatch(updates, mBatch[mAccumulateIndx]);
+  }
+}
+
+//------------------------------------------------------------------------------
+// Merge one accounting delta into destination update batch
+//------------------------------------------------------------------------------
+void
+QuarkContainerAccounting::MergeDelta(IContainerMD::id_t id, TreeInfos treeInfos,
+                                     UpdateT& dst)
+{
+  auto it_map = dst.mMap.find(id);
+
+  if (it_map != dst.mMap.end()) {
+    it_map->second += treeInfos;
+  } else {
+    dst.mMap.emplace(id, treeInfos);
   }
 }
 
@@ -311,13 +362,7 @@ void
 QuarkContainerAccounting::MergeBatch(const UpdateT& src, UpdateT& dst)
 {
   for (const auto& elem : src.mMap) {
-    auto it_map = dst.mMap.find(elem.first);
-
-    if (it_map != dst.mMap.end()) {
-      it_map->second += elem.second;
-    } else {
-      dst.mMap.emplace(elem.first, elem.second);
-    }
+    MergeDelta(elem.first, elem.second, dst);
   }
 }
 
@@ -325,7 +370,8 @@ QuarkContainerAccounting::MergeBatch(const UpdateT& src, UpdateT& dst)
 // Mark recompute context dirty if the update is covered by admin recompute
 //------------------------------------------------------------------------------
 bool
-QuarkContainerAccounting::MarkDirtyIfInAdminRecomputeContext(IContainerMD::id_t id)
+QuarkContainerAccounting::MarkDirtyIfInAdminRecomputeContext(IContainerMD::id_t id,
+                                                             TreeInfos treeInfos)
 {
   std::lock_guard<std::mutex> lock(mMutexRecompute);
 
@@ -334,6 +380,7 @@ QuarkContainerAccounting::MarkDirtyIfInAdminRecomputeContext(IContainerMD::id_t 
   }
 
   mActiveRecompute->mDirty = true;
+  mActiveRecompute->AddSkippedDelta(id, treeInfos);
   return true;
 }
 
@@ -367,19 +414,17 @@ QuarkContainerAccounting::PropagateUpdatesOnce(bool is_admin_recompute)
           continue;
         }
 
-        // The recompute command wrote absolute tree counters for this subtree,
-        // so do not replay an additive delta on top. Mark dirty instead so the
-        // admin command retries or reports concurrent modifications.
-        MarkDirtyIfInAdminRecomputeContext(elem.first);
+        // Do not apply an additive delta over absolute recompute values. Keep
+        // it only for the final failure path.
+        MarkDirtyIfInAdminRecomputeContext(elem.first, elem.second);
         continue;
       }
 
       try {
         // Normal propagation may race with an active admin recompute. If this
-        // update overlaps the recomputed subtree, mark the recompute dirty and
-        // skip the additive delta so it cannot corrupt freshly written absolute
-        // counters.
-        if (MarkDirtyIfInAdminRecomputeContext(elem.first)) {
+        // update overlaps the recomputed subtree, skip it for now so it cannot
+        // corrupt freshly written absolute counters.
+        if (MarkDirtyIfInAdminRecomputeContext(elem.first, elem.second)) {
           continue;
         }
 
