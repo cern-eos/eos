@@ -590,7 +590,7 @@ XrdMgmOfs::OrderlyShutdown()
   (void) Quota::CleanUp();
   eos_warning("%s", "msg=\"graceful shutdown of the FsView\"");
   FsView::gFsView.StopHeartBeat();
-  FsView::gFsView.Clear();
+  FsView::gFsView.Reset();
 
   if (mErrLogEnabled) {
     eos_warning("%s", "msg=\"error log kill\"");

@@ -77,7 +77,7 @@ EOSMGMNAMESPACE_BEGIN
 FsView FsView::gFsView;
 std::atomic<bool> FsSpace::gDisableDefaults {false};
 std::string FsNode::msRefreshTag {"stat.refresh_fs"};
-
+std::atomic<std::uint64_t> FsNode::sNumInstances{0};
 
 //------------------------------------------------------------------------------
 // Check if given heartbeat timestamp is recent enough
@@ -2475,35 +2475,18 @@ FsView::Reset()
     UnRegisterSpace(name.c_str());
   }
 
+  // The space unregistration above removes all the filesystems but, since
+  // UnRegister is called with notify_fst=false, it leaves behind the (now
+  // empty) FsNode objects in mNodeView. Explicitly delete them here, otherwise
+  // mNodeView.clear() would just drop the raw pointers and leak the objects
+  // together with their shared hash subscription. Such leaked nodes become
+  // "shadow" nodes that keep a live subscription but are no longer displayed
+  // and never updated.
+  for (auto& elem : mNodeView) {
+    delete elem.second;
+  }
+
   // Remove all mappings
-  mFilesystemMapper.clear();
-  // Although this shouldn't be necessary, better run an additional cleanup
-  mSpaceView.clear();
-  mGroupView.clear();
-  mNodeView.clear();
-  mIdView.clear();
-}
-//------------------------------------------------------------------------------
-// Clear all maps and delete all filesystem/group/space objects
-//------------------------------------------------------------------------------
-void
-FsView::Clear()
-{
-  {
-    eos::common::RWMutexReadLock rd_view_lock(ViewMutex);
-
-    // Stop all the threads while taking only thre read lock
-    for (auto it = mSpaceView.begin(); it != mSpaceView.end(); it++) {
-      it->second->Stop();
-    }
-  }
-  eos::common::RWMutexWriteLock wr_view_lock(ViewMutex);
-
-  while (mSpaceView.size()) {
-    std::string name = mSpaceView.begin()->first;
-    UnRegisterSpace(name.c_str());
-  }
-
   mFilesystemMapper.clear();
   mSpaceView.clear();
   mGroupView.clear();
@@ -2579,6 +2562,18 @@ FsView::HeartBeatCheck(ThreadAssistant& assistant) noexcept
   while (!assistant.terminationRequested()) {
     assistant.wait_for(std::chrono::seconds(10));
     eos::common::RWMutexReadLock fs_rd_lock(ViewMutex);
+
+    // Detect leaked (shadow) FsNode objects e.g. ones surviving a master<->slave
+    // failover. In a healthy state the number of alive FsNode instances matches
+    // the number of nodes referenced by the view.
+    const std::uint64_t num_instances = FsNode::sNumInstances.load();
+
+    if (num_instances != mNodeView.size()) {
+      eos_static_warning("msg=\"FsNode instance count mismatch - possible "
+                         "leaked/shadow node objects\" num_instances=%llu "
+                         "node_view_size=%lu",
+                         (unsigned long long)num_instances, mNodeView.size());
+    }
 
     // Loop over all the nodes and update their status
     for (auto it_node = mNodeView.begin();
@@ -2740,6 +2735,7 @@ BaseView::GetMember(const std::string& member) const
 
   return "";
 }
+
 //------------------------------------------------------------------------------
 // Constructor
 //------------------------------------------------------------------------------
@@ -2749,6 +2745,7 @@ FsNode::FsNode(const char* name) : BaseView(
   mName = name;
   mType = "nodesview";
   SetConfigMember("stat.hostport", GetMember("hostport"), false);
+  ++sNumInstances;
   eos_static_info("msg=\"FsNode constructor\" name=\"%s\" ptr=%p",
                   mName.c_str(), this);
   mSubscription = mq::SharedHashWrapper(gOFS->mMessagingRealm.get(),
@@ -2768,6 +2765,7 @@ FsNode::~FsNode()
     mSubscription->detachCallback();
   }
 
+  --sNumInstances;
   eos_static_info("msg=\"FsNode destructor\" name=\"%s\" ptr=%p",
                   mName.c_str(), this);
 }
