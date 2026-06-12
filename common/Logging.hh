@@ -180,6 +180,13 @@ struct ZstdLogState;
                                           eos::common::gLogging.gZeroVid, "", \
                                           (__EOSCOMMON_LOG_PRIORITY__) , \
                                           __VA_ARGS__)
+#define eos_static_log_lvl(__EOSCOMMON_LOG_PRIORITY__, ...)                              \
+  if ((LOG_MASK(__EOSCOMMON_LOG_PRIORITY__) &                                            \
+       eos::common::Logging::GetInstance().GetLogMask()) != 0) {                         \
+    eos::common::Logging::GetInstance().log(                                             \
+        __FUNCTION__, __FILE__, __LINE__, "static..............................",        \
+        eos::common::gLogging.gZeroVid, "", (__EOSCOMMON_LOG_PRIORITY__), __VA_ARGS__);  \
+  }
 #define eos_static_debug(...)                                           \
   if ((LOG_MASK(LOG_DEBUG) & eos::common::Logging::GetInstance().GetLogMask()) != 0) { \
     eos::common::Logging::GetInstance().log(__FUNCTION__,__FILE__, __LINE__, \

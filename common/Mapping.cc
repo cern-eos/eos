@@ -281,16 +281,10 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
           XrdAccPriv_None) {
         vid = VirtualIdentity::Nobody();
         std::string nobearer = authz.substr(9);
-        if (logMapError) {
-          eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-                         "jwt={%s}[%s]",
-                         path.c_str(), env, PrintJWT(nobearer).c_str(), nobearer.c_str());
-        } else {
-          eos_static_debug("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-                           "jwt={%s}[%s]",
-                           path.c_str(), env, PrintJWT(nobearer).c_str(),
-                           nobearer.c_str());
-        }
+        eos_static_log_lvl(
+            logMapError ? LOG_ERR : LOG_DEBUG,
+            "msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" jwt={%s}[%s]",
+            path.c_str(), env, PrintJWT(nobearer).c_str(), nobearer.c_str());
         return;
       }
     }
@@ -329,17 +323,11 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
       if (authz_obj->Access(client, path.c_str(), acc_op, &op_env) ==
           XrdAccPriv_None) {
         vid = VirtualIdentity::Nobody();
-        if (logMapError) {
-          eos_static_err("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-                         "authz=\"%s\" jwt={%s}",
-                         path.c_str(), env, authz.c_str(),
-                         PrintJWT(std::string(client->creds)).c_str());
-        } else {
-          eos_static_debug("msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-                           "authz=\"%s\" jwt={%s}",
-                           path.c_str(), env, authz.c_str(),
-                           PrintJWT(std::string(client->creds)).c_str());
-        }
+        eos_static_log_lvl(
+            logMapError ? LOG_ERR : LOG_DEBUG,
+            "msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" authz=\"%s\" jwt={%s}",
+            path.c_str(), env, authz.c_str(),
+            PrintJWT(std::string(client->creds)).c_str());
         return;
       }
 
@@ -380,21 +368,12 @@ Mapping::IdMap(const XrdSecEntity* client, const char* env, const char* tident,
         // In principle we will never get here if XrdMgmAuthz is chained since
         // it says ok if there is a user name defined
         vid = VirtualIdentity::Nobody();
-        if (logMapError) {
-          eos_static_err(
-              "msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-              "authz=\"%s\" jwt={%s}",
-              path.c_str(), env, authz.c_str(),
-              PrintJWT(Env.Get("authz") ? std::string(Env.Get("authz")) : std::string(""))
-                  .c_str());
-        } else {
-          eos_static_debug(
-              "msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" "
-              "authz=\"%s\" jwt={%s}",
-              path.c_str(), env, authz.c_str(),
-              PrintJWT(Env.Get("authz") ? std::string(Env.Get("authz")) : std::string(""))
-                  .c_str());
-        }
+        eos_static_log_lvl(
+            logMapError ? LOG_ERR : LOG_DEBUG,
+            "msg=\"failed token authz\" path=\"%s\" opaque=\"%s\" authz=\"%s\" jwt={%s}",
+            path.c_str(), env, authz.c_str(),
+            PrintJWT(Env.Get("authz") ? std::string(Env.Get("authz")) : std::string(""))
+                .c_str());
         return;
       }
 

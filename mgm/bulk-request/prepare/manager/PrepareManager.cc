@@ -218,7 +218,7 @@ int PrepareManager::doPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     // Otherwise, apply the current vid to all files
     for (XrdOucTList* pptr_aux = pptr; pptr_aux; pptr_aux = pptr_aux->next) {
       if (pptr_aux->text) {
-        fileToVidMap.insert({pptr_aux->text, vid});
+        fileToVidMap.emplace(pptr_aux->text, vid);
       }
     }
   }
@@ -689,7 +689,7 @@ int PrepareManager::doQueryPrepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
     // Otherwise, apply the current vid to all files
     for (XrdOucTList* pptr_aux = pargs.paths; pptr_aux; pptr_aux = pptr_aux->next) {
       if (pptr_aux->text) {
-        fileToVidMap.insert({pptr_aux->text, vid});
+        fileToVidMap.emplace(pptr_aux->text, vid);
         filesToQueryCollection.addFile(std::make_unique<File>(pptr_aux->text));
         ++path_cnt;
       }
