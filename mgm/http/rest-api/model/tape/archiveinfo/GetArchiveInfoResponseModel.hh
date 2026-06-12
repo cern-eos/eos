@@ -64,6 +64,8 @@ public:
         if (!response.error_text.empty()) {
           entry.error = response.error_text;
         } else {
+          // PrepareManager::queryPrepare normally sets error_text for missing
+          // files; this fallback matches the WLCG archiveinfo example response.
           entry.error =
             "USER ERROR: file does not exist or is not accessible to you";
         }

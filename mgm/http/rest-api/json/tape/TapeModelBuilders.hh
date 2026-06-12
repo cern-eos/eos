@@ -77,7 +77,6 @@ public:
   static inline const std::string FILES_KEY_NAME = "files";
   static inline const std::string PATH_KEY_NAME = "path";
   static inline const std::string TARGETED_METADATA_KEY_NAME = "targetedMetadata";
-  static inline const std::string LEGACY_TARGETED_METADATA_KEY_NAME = "targeted_metadata";
 
   explicit CreateStageRequestModelBuilder(const std::string& restApiEndpointId)
     : mRestApiEndpointId(restApiEndpointId) {}
@@ -117,10 +116,6 @@ private:
     if (file.isMember(TARGETED_METADATA_KEY_NAME) &&
         file[TARGETED_METADATA_KEY_NAME].isObject()) {
       return &file[TARGETED_METADATA_KEY_NAME];
-    }
-    if (file.isMember(LEGACY_TARGETED_METADATA_KEY_NAME) &&
-        file[LEGACY_TARGETED_METADATA_KEY_NAME].isObject()) {
-      return &file[LEGACY_TARGETED_METADATA_KEY_NAME];
     }
     return nullptr;
   }
