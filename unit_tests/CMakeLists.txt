@@ -86,6 +86,7 @@ set(MGM_UT_SRCS
   mgm/http/HttpServerTests.cc
   mgm/http/rest-api/tape/RestApiTest.cc
   mgm/http/rest-api/tape/JsonCPPTapeModelBuilderTest.cc
+  mgm/http/rest-api/tape/TapeJsonifierTest.cc
   mgm/utils/AttrHelperTests.cc
   mgm/PolicyTests.cc
   mgm/RecycleTests.cc

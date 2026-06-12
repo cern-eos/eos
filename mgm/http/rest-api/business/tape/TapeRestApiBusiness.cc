@@ -245,10 +245,6 @@ TapeRestApiBusiness::getStageBulkRequest(const std::string& requestId,
     ret->addFile(std::move(item));
   }
 
-  if (allFilesTerminal) {
-    ret->setCompletedAt(now);
-  }
-
   EXEC_TIMING_END("TapeRestApiBusiness::getStageBulkRequest");
   return ret;
 }

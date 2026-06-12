@@ -103,11 +103,6 @@ public:
     tape_json::appendEscapedString(ss, obj->getId());
     ss << ",\n\"createdAt\": " << static_cast<long long>(obj->getCreatedAt());
     ss << ",\n\"startedAt\": " << static_cast<long long>(obj->getStartedAt());
-
-    if (obj->getCompletedAt()) {
-      ss << ",\n\"completedAt\": " << static_cast<long long>(*obj->getCompletedAt());
-    }
-
     ss << ",\n\"files\": [\n";
     const auto& files = obj->getFiles();
     for (size_t i = 0; i < files.size(); ++i) {

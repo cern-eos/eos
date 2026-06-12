@@ -78,7 +78,6 @@ public:
   static inline const std::string PATH_KEY_NAME = "path";
   static inline const std::string TARGETED_METADATA_KEY_NAME = "targetedMetadata";
   static inline const std::string LEGACY_TARGETED_METADATA_KEY_NAME = "targeted_metadata";
-  static inline const std::string DISK_LIFETIME_KEY_NAME = "diskLifetime";
 
   explicit CreateStageRequestModelBuilder(const std::string& restApiEndpointId)
     : mRestApiEndpointId(restApiEndpointId) {}
@@ -150,15 +149,6 @@ private:
       if (!activity.empty()) {
         opaque << "activity=" << activity;
       }
-    }
-
-    if (file.isMember(DISK_LIFETIME_KEY_NAME) &&
-        file[DISK_LIFETIME_KEY_NAME].isString() &&
-        !file[DISK_LIFETIME_KEY_NAME].asString().empty()) {
-      if (!opaque.str().empty()) {
-        opaque << "&";
-      }
-      opaque << "diskLifetime=" << file[DISK_LIFETIME_KEY_NAME].asString();
     }
 
     return opaque.str();

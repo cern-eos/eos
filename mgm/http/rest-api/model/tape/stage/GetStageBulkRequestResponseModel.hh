@@ -61,23 +61,16 @@ public:
   inline const std::vector<std::unique_ptr<File>>& getFiles() const { return mFiles; }
   inline time_t getCreatedAt() const { return mCreatedAt; }
   inline time_t getStartedAt() const { return mStartedAt; }
-  inline std::optional<time_t> getCompletedAt() const { return mCompletedAt; }
   inline const std::string& getId() const { return mId; }
 
   inline void setCreatedAt(const time_t createdAt) { mCreatedAt = createdAt; }
   inline void setStartedAt(const time_t startedAt) { mStartedAt = startedAt; }
-  inline void setCompletedAt(const std::optional<time_t>& completedAt)
-  {
-    mCompletedAt = completedAt;
-  }
-
   inline void setId(const std::string& id) { mId = id; }
 
 private:
   std::vector<std::unique_ptr<File>> mFiles;
   time_t mCreatedAt = 0;
   time_t mStartedAt = 0;
-  std::optional<time_t> mCompletedAt;
   std::string mId;
 };
 
