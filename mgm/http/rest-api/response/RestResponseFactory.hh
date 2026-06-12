@@ -69,6 +69,7 @@ public:
 
   RestApiResponse<ErrorModel> BadRequest(const std::string& detail) const;
   RestApiResponse<ErrorModel> BadRequest(const JsonValidationException& ex) const;
+  RestApiResponse<ErrorModel> FileMissingFromStageRequest(const std::string& detail) const;
   RestApiResponse<ErrorModel> NotFound() const;
   RestApiResponse<ErrorModel> MethodNotAllowed(const std::string& detail) const;
   RestApiResponse<ErrorModel> Forbidden(const std::string& detail) const;

@@ -20,6 +20,44 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
+namespace tape_json {
+
+inline void appendEscapedString(std::stringstream& ss, const std::string& value)
+{
+  ss << '"';
+  for (const char c : value) {
+    switch (c) {
+    case '"':
+      ss << "\\\"";
+      break;
+    case '\\':
+      ss << "\\\\";
+      break;
+    case '\b':
+      ss << "\\b";
+      break;
+    case '\f':
+      ss << "\\f";
+      break;
+    case '\n':
+      ss << "\\n";
+      break;
+    case '\r':
+      ss << "\\r";
+      break;
+    case '\t':
+      ss << "\\t";
+      break;
+    default:
+      ss << c;
+      break;
+    }
+  }
+  ss << '"';
+}
+
+} // namespace tape_json
+
 // ErrorModel jsonifier
 class ErrorModelJsonifier : public TapeRestApiJsonifier<ErrorModel>
 {
@@ -27,13 +65,16 @@ public:
   void jsonify(const ErrorModel* obj, std::stringstream& ss) override
   {
     ss << "{\n";
-    ss << "\"title\": \"" << obj->getTitle() << "\",\n";
-    ss << "\"status\": " << obj->getStatus();
+    ss << "\"title\": ";
+    tape_json::appendEscapedString(ss, obj->getTitle());
+    ss << ",\n\"status\": " << obj->getStatus();
     if (obj->getDetail()) {
-      ss << ",\n\"detail\": \"" << *obj->getDetail() << "\"";
+      ss << ",\n\"detail\": ";
+      tape_json::appendEscapedString(ss, *obj->getDetail());
     }
     if (obj->getType()) {
-      ss << ",\n\"type\": \"" << *obj->getType() << "\"";
+      ss << ",\n\"type\": ";
+      tape_json::appendEscapedString(ss, *obj->getType());
     }
     ss << "\n}";
   }
@@ -45,7 +86,9 @@ class CreatedStageBulkRequestJsonifier : public TapeRestApiJsonifier<CreatedStag
 public:
   void jsonify(const CreatedStageBulkRequestResponseModel* obj, std::stringstream& ss) override
   {
-    ss << "{\n\"request_id\": \"" << obj->getRequestId() << "\"\n}";
+    ss << "{\n\"requestId\": ";
+    tape_json::appendEscapedString(ss, obj->getRequestId());
+    ss << "\n}";
   }
 };
 
@@ -56,20 +99,45 @@ public:
   void jsonify(const GetStageBulkRequestResponseModel* obj, std::stringstream& ss) override
   {
     ss << "{\n";
-    ss << "\"id\": \"" << obj->getId() << "\",\n";
-    ss << "\"creation_time\": " << static_cast<long long>(obj->getCreationTime()) << ",\n";
-    ss << "\"files\": [\n";
+    ss << "\"id\": ";
+    tape_json::appendEscapedString(ss, obj->getId());
+    ss << ",\n\"createdAt\": " << static_cast<long long>(obj->getCreatedAt());
+    ss << ",\n\"startedAt\": " << static_cast<long long>(obj->getStartedAt());
+
+    if (obj->getCompletedAt()) {
+      ss << ",\n\"completedAt\": " << static_cast<long long>(*obj->getCompletedAt());
+    }
+
+    ss << ",\n\"files\": [\n";
     const auto& files = obj->getFiles();
     for (size_t i = 0; i < files.size(); ++i) {
       const auto& f = files[i];
       ss << "  {\n";
-      ss << "    \"path\": \"" << f->mPath << "\",\n";
-      ss << "    \"on_disk\": " << (f->mOnDisk ? "true" : "false");
-      if (!f->mError.empty()) {
-        ss << ",\n    \"error\": \"" << f->mError << "\"";
+      ss << "    \"path\": ";
+      tape_json::appendEscapedString(ss, f->mPath);
+
+      if (f->mState) {
+        ss << ",\n    \"state\": ";
+        tape_json::appendEscapedString(ss, *f->mState);
+        if (f->mStartedAt) {
+          ss << ",\n    \"startedAt\": " << static_cast<long long>(*f->mStartedAt);
+        }
+        if (f->mFinishedAt) {
+          ss << ",\n    \"finishedAt\": " << static_cast<long long>(*f->mFinishedAt);
+        }
+      } else if (f->mOnDisk) {
+        ss << ",\n    \"onDisk\": " << (*f->mOnDisk ? "true" : "false");
       }
+
+      if (f->mError && !f->mError->empty()) {
+        ss << ",\n    \"error\": ";
+        tape_json::appendEscapedString(ss, *f->mError);
+      }
+
       ss << "\n  }";
-      if (i + 1 < files.size()) ss << ",";
+      if (i + 1 < files.size()) {
+        ss << ",";
+      }
       ss << "\n";
     }
     ss << "]\n}";
@@ -82,29 +150,31 @@ class GetArchiveInfoResponseJsonifier : public TapeRestApiJsonifier<GetArchiveIn
 public:
   void jsonify(const GetArchiveInfoResponseModel* obj, std::stringstream& ss) override
   {
-    auto qpr = obj->getQueryPrepareResponse();
-    ss << "{\n";
-    if (qpr) {
-      ss << "  \"request_id\": \"" << qpr->request_id << "\",\n";
-      ss << "  \"responses\": [\n";
-      for (size_t i = 0; i < qpr->responses.size(); ++i) {
-        const auto& r = qpr->responses[i];
-        ss << "    {\n";
-        ss << "      \"path\": \"" << r.path << "\",\n";
-        ss << "      \"path_exists\": " << (r.is_exists ? "true" : "false") << ",\n";
-        ss << "      \"on_tape\": " << (r.is_on_tape ? "true" : "false") << ",\n";
-        ss << "      \"online\": " << (r.is_online ? "true" : "false") << ",\n";
-        ss << "      \"requested\": " << (r.is_requested ? "true" : "false") << ",\n";
-        ss << "      \"has_reqid\": " << (r.is_reqid_present ? "true" : "false") << ",\n";
-        ss << "      \"req_time\": \"" << r.request_time << "\",\n";
-        ss << "      \"error_text\": \"" << r.error_text << "\"\n";
-        ss << "    }";
-        if (i + 1 < qpr->responses.size()) ss << ",";
-        ss << "\n";
+    const auto& entries = obj->getEntries();
+    ss << "[\n";
+    for (size_t i = 0; i < entries.size(); ++i) {
+      const auto& entry = entries[i];
+      ss << "  {\n";
+      ss << "    \"path\": ";
+      tape_json::appendEscapedString(ss, entry.path);
+
+      if (entry.locality) {
+        ss << ",\n    \"locality\": ";
+        tape_json::appendEscapedString(ss, *entry.locality);
       }
-      ss << "  ]\n";
+
+      if (entry.error) {
+        ss << ",\n    \"error\": ";
+        tape_json::appendEscapedString(ss, *entry.error);
+      }
+
+      ss << "\n  }";
+      if (i + 1 < entries.size()) {
+        ss << ",";
+      }
+      ss << "\n";
     }
-    ss << "}";
+    ss << "]";
   }
 };
 
@@ -114,13 +184,29 @@ class GetTapeWellKnownModelJsonifier : public TapeRestApiJsonifier<GetTapeWellKn
 public:
   void jsonify(const GetTapeWellKnownModel* obj, std::stringstream& ss) override
   {
-    ss << "{\n  \"versions\": [\n";
     const TapeWellKnownInfos* infos = obj->getTapeWellKnownInfos();
+    ss << "{\n";
+    ss << "  \"sitename\": ";
+    tape_json::appendEscapedString(ss, infos->getSiteName());
+
+    if (!infos->getDescription().empty()) {
+      ss << ",\n  \"description\": ";
+      tape_json::appendEscapedString(ss, infos->getDescription());
+    }
+
+    ss << ",\n  \"endpoints\": [\n";
     const auto& endpoints = infos->getEndpoints();
     for (size_t i = 0; i < endpoints.size(); ++i) {
       const auto& ep = endpoints[i];
-      ss << "    { \"version\": \"" << ep->getVersion() << "\", \"url\": \"" << ep->getUri() << "\" }";
-      if (i + 1 < endpoints.size()) ss << ",";
+      ss << "    {\n";
+      ss << "      \"uri\": ";
+      tape_json::appendEscapedString(ss, ep->getUri());
+      ss << ",\n      \"version\": ";
+      tape_json::appendEscapedString(ss, ep->getVersion());
+      ss << "\n    }";
+      if (i + 1 < endpoints.size()) {
+        ss << ",";
+      }
       ss << "\n";
     }
     ss << "  ]\n}";
@@ -130,5 +216,4 @@ public:
 EOSMGMRESTNAMESPACE_END
 
 #endif // EOS_TAPE_JSONIFIERS_HH
-
 

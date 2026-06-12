@@ -112,6 +112,23 @@ TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_activity_
             createStageRequestModel->getFiles().getOpaqueInfos().at(0));
 }
 
+TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_diskLifetime)
+{
+  CreateStageRequestModelBuilder builder(restApiEndpointID);
+  std::ostringstream oss;
+  oss << "{\"" << CreateStageRequestModelBuilder::FILES_KEY_NAME << "\": ["
+      << "{"
+      << "\"" << CreateStageRequestModelBuilder::PATH_KEY_NAME
+      << "\": \"/path/to/file.txt\","
+      << "\"" << CreateStageRequestModelBuilder::DISK_LIFETIME_KEY_NAME
+      << "\": \"PT1H\""
+      << "}"
+      << "]}";
+  auto createStageRequestModel = builder.buildFromJson(oss.str());
+  ASSERT_EQ("diskLifetime=PT1H",
+            createStageRequestModel->getFiles().getOpaqueInfos().at(0));
+}
+
 TEST_F(JsonCPPTapeModelBuilderTest, createStageRequestModelBuilderTest_activity_normalEndpoint)
 {
   CreateStageRequestModelBuilder builder(restApiEndpointID);

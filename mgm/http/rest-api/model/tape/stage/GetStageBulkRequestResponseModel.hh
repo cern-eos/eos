@@ -26,14 +26,15 @@
 
 #include "mgm/Namespace.hh"
 #include "common/json/Jsonifiable.hh"
-#include "mgm/bulk-request/response/QueryPrepareResponse.hh"
-#include "mgm/bulk-request/BulkRequest.hh"
+#include <ctime>
+#include <optional>
+#include <string>
+#include <vector>
 
 EOSMGMRESTNAMESPACE_BEGIN
 
 /**
- * This class represents the object that will be returned to the client
- * that wants to track the progression of a previously submitted STAGE bulk-request
+ * Response model for GET /api/v1/stage/{id} (WLCG Tape REST API v1).
  */
 class GetStageBulkRequestResponseModel : public
   common::Jsonifiable<GetStageBulkRequestResponseModel>
@@ -43,19 +44,40 @@ public:
   {
   public:
     std::string mPath;
-    std::string mError;
-    bool mOnDisk;
+    std::optional<std::string> mError;
+    std::optional<bool> mOnDisk;
+    std::optional<std::string> mState;
+    std::optional<time_t> mStartedAt;
+    std::optional<time_t> mFinishedAt;
   };
-  GetStageBulkRequestResponseModel() {}
-  inline void addFile(std::unique_ptr<File>&& file) { mFiles.emplace_back(std::move(file)); }
+
+  GetStageBulkRequestResponseModel() = default;
+
+  inline void addFile(std::unique_ptr<File>&& file)
+  {
+    mFiles.emplace_back(std::move(file));
+  }
+
   inline const std::vector<std::unique_ptr<File>>& getFiles() const { return mFiles; }
-  inline time_t getCreationTime() const { return mCreationTime; }
-  inline std::string getId() const { return mId; }
-  inline void setCreationTime(const time_t& creationTime) { mCreationTime = creationTime; }
+  inline time_t getCreatedAt() const { return mCreatedAt; }
+  inline time_t getStartedAt() const { return mStartedAt; }
+  inline std::optional<time_t> getCompletedAt() const { return mCompletedAt; }
+  inline const std::string& getId() const { return mId; }
+
+  inline void setCreatedAt(const time_t createdAt) { mCreatedAt = createdAt; }
+  inline void setStartedAt(const time_t startedAt) { mStartedAt = startedAt; }
+  inline void setCompletedAt(const std::optional<time_t>& completedAt)
+  {
+    mCompletedAt = completedAt;
+  }
+
   inline void setId(const std::string& id) { mId = id; }
+
 private:
   std::vector<std::unique_ptr<File>> mFiles;
-  time_t mCreationTime;
+  time_t mCreatedAt = 0;
+  time_t mStartedAt = 0;
+  std::optional<time_t> mCompletedAt;
   std::string mId;
 };
 

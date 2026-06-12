@@ -25,8 +25,9 @@
 
 EOSMGMRESTNAMESPACE_BEGIN
 
-TapeWellKnownInfos::TapeWellKnownInfos(const std::string& siteName) : mSiteName(
-    siteName) {}
+TapeWellKnownInfos::TapeWellKnownInfos(const std::string& siteName,
+                                       const std::string& description)
+  : mSiteName(siteName), mDescription(description) {}
 
 void TapeWellKnownInfos::addEndpoint(const std::string& uri,
                                      const std::string& version)
@@ -42,6 +43,11 @@ const TapeWellKnownInfos::Endpoints& TapeWellKnownInfos::getEndpoints() const
 const std::string TapeWellKnownInfos::getSiteName() const
 {
   return mSiteName;
+}
+
+const std::string& TapeWellKnownInfos::getDescription() const
+{
+  return mDescription;
 }
 
 EOSMGMRESTNAMESPACE_END

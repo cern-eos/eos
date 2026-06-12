@@ -37,11 +37,18 @@ RestApiResponse<ErrorModel> RestResponseFactory::BadRequest(const JsonValidation
   std::string detail;
   if (validationErrors != nullptr && validationErrors->hasAnyError()) {
     auto& error = validationErrors->getErrors()->front();
-    detail += error->getFieldName() + " - " + error->getReason();
+    detail += error->getFieldName() + " – " + error->getReason();
   } else {
     detail = ex.what();
   }
   return makeError(common::HttpResponse::BAD_REQUEST, "JSON Validation error", detail);
+}
+
+RestApiResponse<ErrorModel>
+RestResponseFactory::FileMissingFromStageRequest(const std::string& detail) const
+{
+  return makeError(common::HttpResponse::BAD_REQUEST,
+                   "File missing from stage request", detail);
 }
 
 RestApiResponse<ErrorModel> RestResponseFactory::NotFound() const
