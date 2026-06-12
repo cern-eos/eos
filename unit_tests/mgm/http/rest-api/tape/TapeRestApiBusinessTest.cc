@@ -118,3 +118,85 @@ TEST_F(TapeRestApiBusinessTest, cancelStageBulkRequestThrowsWhenFileNotInRequest
   ASSERT_THROW(mBusiness->cancelStageBulkRequest(requestId, &paths, &mIssuer),
                FileDoesNotBelongToBulkRequestException);
 }
+
+TEST_F(TapeRestApiBusinessTest, deleteStageBulkRequestRemovesPersistedRequest)
+{
+  const std::string requestId = "req-delete";
+  addStageRequest(requestId, "/eos/user/delete-me.txt", mIssuer);
+  ASSERT_TRUE(stageRequestExists(requestId));
+
+  auto mockFsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  setupCancelPrepareMock(*mockFsPtr);
+  mBusiness->setPrepareManager(makePrepareManager(std::move(mockFsPtr)));
+
+  mBusiness->deleteStageBulkRequest(requestId, &mIssuer);
+  EXPECT_FALSE(stageRequestExists(requestId));
+}
+
+TEST_F(TapeRestApiBusinessTest, deleteStageBulkRequestThrowsWhenRequestMissing)
+{
+  ASSERT_THROW(mBusiness->deleteStageBulkRequest("missing-id", &mIssuer),
+               ObjectNotFoundException);
+}
+
+TEST_F(TapeRestApiBusinessTest, getFileInfoReturnsQueryPrepareResponse)
+{
+  const std::string path = "/eos/user/archive.txt";
+  PathsModel paths;
+  paths.addFile(path);
+
+  auto mockFsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface>& mockFs = *mockFsPtr;
+  EXPECT_CALL(mockFs, _exists(_, _, _, _, _, _))
+  .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
+  EXPECT_CALL(mockFs, _stat(_, _, _, _, _, _, _, _))
+  .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_STAT_FILE_ON_DISK_AND_TAPE));
+  EXPECT_CALL(mockFs, _attr_ls(_, _, _, _, _, _))
+  .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_ATTR_LS_QUERY_PREPARE_NO_ERROR_LAMBDA));
+  EXPECT_CALL(mockFs, _access(_, _, _, _, _))
+  .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_ACCESS_FILE_PREPARE_PERMISSION_LAMBDA));
+
+  mBusiness->setPrepareManager(makePrepareManager(std::move(mockFsPtr)));
+  auto response = mBusiness->getFileInfo(&paths, &mIssuer);
+  ASSERT_EQ(1u, response->responses.size());
+  EXPECT_EQ(path, response->responses.front().path);
+  EXPECT_TRUE(response->responses.front().is_exists);
+  EXPECT_TRUE(response->responses.front().is_online);
+  EXPECT_TRUE(response->responses.front().is_on_tape);
+}
+
+TEST_F(TapeRestApiBusinessTest, getStageBulkRequestTerminalSetsFailedState)
+{
+  const std::string requestId = "req-failed";
+  const std::string path = "/eos/user/failed.txt";
+  addStageRequest(requestId, path, mIssuer);
+
+  auto mockFsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  NiceMock<MockPrepareMgmFSInterface>& mockFs = *mockFsPtr;
+  EXPECT_CALL(mockFs, _exists(_, _, _, _, _, _))
+  .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
+  EXPECT_CALL(mockFs, _stat(_, _, _, _, _, _, _, _))
+  .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_STAT_FILE_ON_TAPE_ONLY));
+  EXPECT_CALL(mockFs, _attr_ls(_, _, _, _, _, _))
+  .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_ATTR_LS_RETRIEVE_ERROR_LAMBDA));
+  EXPECT_CALL(mockFs, _access(_, _, _, _, _))
+  .WillRepeatedly(Invoke(MockPrepareMgmFSInterface::_ACCESS_FILE_PREPARE_PERMISSION_LAMBDA));
+
+  mBusiness->setPrepareManager(makePrepareManager(std::move(mockFsPtr)));
+  auto response = mBusiness->getStageBulkRequest(requestId, &mIssuer);
+  ASSERT_EQ(1u, response->getFiles().size());
+  const auto& file = *response->getFiles().front();
+  ASSERT_TRUE(file.mState.has_value());
+  ASSERT_EQ("FAILED", *file.mState);
+  ASSERT_TRUE(file.mError.has_value());
+  ASSERT_EQ(MockPrepareMgmFSInterface::ERROR_RETRIEVE_STR, *file.mError);
+}
+
+TEST_F(TapeRestApiBusinessTest, getStageBulkRequestThrowsWhenQueryPrepareDoesNotFinish)
+{
+  const std::string requestId = "req-query-error";
+  addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
+  mBusiness->setPrepareManager(std::make_unique<eos::mgm::rest::UnfinishedQueryPrepareManager>());
+  ASSERT_THROW(mBusiness->getStageBulkRequest(requestId, &mIssuer),
+               TapeRestApiBusinessException);
+}

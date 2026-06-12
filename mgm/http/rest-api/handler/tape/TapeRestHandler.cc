@@ -45,11 +45,12 @@ std::string TapeRestHandler::apiVersionToStr(TapeRestHandler::ApiVersion apiVers
   }
 }
 
-TapeRestHandler::TapeRestHandler(const TapeRestApiConfig* config): RestHandler(
-    config->getAccessURL()), mTapeRestApiConfig(config)
+TapeRestHandler::TapeRestHandler(const TapeRestApiConfig* config,
+                                 std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness)
+  : RestHandler(config->getAccessURL()), mTapeRestApiConfig(config)
 {
   initializeTapeWellKnownInfos();
-  initialize(DEFAULT_API_VERSION);
+  initialize(DEFAULT_API_VERSION, std::move(tapeRestApiBusiness));
   auto endpointToUrlMap = config->getEndpointToUriMapping();
   for (auto & [version, url]: endpointToUrlMap) {
     addEndpointToWellKnown(version, url);
@@ -61,9 +62,14 @@ TapeRestHandler::TapeRestHandler(const TapeRestApiConfig* config): RestHandler(
   }
 }
 
-void TapeRestHandler::initialize(TapeRestHandler::ApiVersion apiVersion) {
-  std::shared_ptr<TapeRestApiBusiness> restApiBusiness =
-      std::make_shared<TapeRestApiBusiness>();
+void TapeRestHandler::initialize(TapeRestHandler::ApiVersion apiVersion,
+                                 std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness)
+{
+  std::shared_ptr<ITapeRestApiBusiness> restApiBusiness = std::move(tapeRestApiBusiness);
+
+  if (!restApiBusiness) {
+    restApiBusiness = std::make_shared<TapeRestApiBusiness>();
+  }
   switch (apiVersion) {
   case ApiVersion::V0Dot1:
     // No routes exposed for v0.1

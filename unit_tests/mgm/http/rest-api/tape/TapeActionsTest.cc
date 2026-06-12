@@ -141,6 +141,63 @@ TEST_F(TapeActionsTest, releaseReturns200WithEmptyBody)
   EXPECT_TRUE(response->GetBody().empty());
 }
 
+TEST_F(TapeActionsTest, createStageReturns400WhenJsonInvalid)
+{
+  CreateStageBulkRequest action("/api/v1/stage/", common::HttpHandler::Methods::POST,
+                                mMockBusiness,
+                                std::make_shared<CreateStageRequestModelBuilder>("test-site"),
+                                std::make_shared<CreatedStageBulkRequestJsonifier>(),
+                                mTapeRestHandler.get());
+  auto request = createHttpRequest("POST", "/api/v1/stage/", "not-json");
+  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
+  const Json::Value root = parseResponseJson(response.get());
+  ASSERT_EQ("JSON Validation error", root["title"].asString());
+}
+
+TEST_F(TapeActionsTest, createStageReturns500WhenBusinessFails)
+{
+  EXPECT_CALL(*mMockBusiness, createStageBulkRequest(_, _))
+  .WillOnce(Throw(TapeRestApiBusinessException("prepare failed")));
+
+  CreateStageBulkRequest action("/api/v1/stage/", common::HttpHandler::Methods::POST,
+                                mMockBusiness,
+                                std::make_shared<CreateStageRequestModelBuilder>("test-site"),
+                                std::make_shared<CreatedStageBulkRequestJsonifier>(),
+                                mTapeRestHandler.get());
+  const std::string body = R"({"files":[{"path":"/eos/user/file.txt"}]})";
+  auto request = createHttpRequest("POST", "/api/v1/stage/", body);
+  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
+  const Json::Value root = parseResponseJson(response.get());
+  ASSERT_EQ("Internal server error", root["title"].asString());
+  ASSERT_EQ("prepare failed", root["detail"].asString());
+}
+
+TEST_F(TapeActionsTest, getStageReturns500WhenBusinessFails)
+{
+  EXPECT_CALL(*mMockBusiness, getStageBulkRequest("req-id", _))
+  .WillOnce(Throw(TapeRestApiBusinessException("query failed")));
+
+  GetStageBulkRequest action("/api/v1/stage/{id}", common::HttpHandler::Methods::GET,
+                             mMockBusiness, std::make_shared<GetStageBulkRequestJsonifier>());
+  auto request = createHttpRequest("GET", "/api/v1/stage/req-id");
+  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(common::HttpResponse::INTERNAL_SERVER_ERROR, response->GetResponseCode());
+}
+
+TEST_F(TapeActionsTest, getArchiveInfoReturns400WhenJsonInvalid)
+{
+  GetArchiveInfo action("/api/v1/archiveinfo/", common::HttpHandler::Methods::POST,
+                      mMockBusiness, std::make_shared<PathsModelBuilder>(),
+                      std::make_shared<GetArchiveInfoResponseJsonifier>());
+  auto request = createHttpRequest("POST", "/api/v1/archiveinfo/", "{}");
+  std::unique_ptr<common::HttpResponse> response(action.run(request.get(), &mVid));
+  ASSERT_EQ(common::HttpResponse::BAD_REQUEST, response->GetResponseCode());
+  const Json::Value root = parseResponseJson(response.get());
+  ASSERT_EQ("JSON Validation error", root["title"].asString());
+}
+
 TEST_F(TapeActionsTest, getArchiveInfoReturns200WithArrayBody)
 {
   auto queryResponse = std::make_shared<eos::mgm::bulk::QueryPrepareResponse>();

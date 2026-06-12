@@ -92,6 +92,8 @@ set(MGM_UT_SRCS
   mgm/http/rest-api/tape/TapeRestApiBusinessTest.cc
   mgm/http/rest-api/tape/GetArchiveInfoResponseModelTest.cc
   mgm/http/rest-api/tape/WellKnownHandlerTest.cc
+  mgm/http/rest-api/tape/TapeRestHandlerTest.cc
+  mgm/http/rest-api/tape/RestApiManagerTest.cc
   mgm/utils/AttrHelperTests.cc
   mgm/PolicyTests.cc
   mgm/RecycleTests.cc

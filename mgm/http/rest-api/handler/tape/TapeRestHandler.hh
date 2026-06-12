@@ -48,7 +48,8 @@ public:
    * Constructor of the TapeRestHandler
    * @param restApiUrl the base URL of the REST API without the instance name
    */
-  TapeRestHandler(const TapeRestApiConfig* config);
+  TapeRestHandler(const TapeRestApiConfig* config,
+                  std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness = nullptr);
   /**
    * Handles the user request
    * @param request the user request
@@ -98,7 +99,8 @@ private:
    * Initialize a version of the tape REST API
    * @param apiVersion the version of the Tape REST API to initialize
    */
-  void initialize(TapeRestHandler::ApiVersion apiVersion);
+  void initialize(TapeRestHandler::ApiVersion apiVersion,
+                  std::shared_ptr<ITapeRestApiBusiness> tapeRestApiBusiness = nullptr);
 
   /**
    * Initializes the STAGE controller for a specific version

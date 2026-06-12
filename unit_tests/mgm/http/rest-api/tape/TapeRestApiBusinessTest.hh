@@ -25,9 +25,12 @@
 #define EOS_TAPERESTAPIBUSINESSTEST_HH
 
 #include "InMemoryBulkRequestDAO.hh"
-#include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
+#include "mgm/bulk-request/MockPrepareMgmFSInterface.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
+#include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
+#include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
 #include "mgm/ofs/XrdMgmOfs.hh"
+#include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <XrdSys/XrdSysError.hh>
 #include <memory>
@@ -36,6 +39,23 @@ USE_EOSBULKNAMESPACE;
 USE_EOSMGMRESTNAMESPACE;
 
 EOSMGMRESTNAMESPACE_BEGIN
+
+class UnfinishedQueryPrepareManager : public bulk::PrepareManager
+{
+public:
+  UnfinishedQueryPrepareManager()
+    : bulk::PrepareManager(std::make_unique<testing::NiceMock<bulk::MockPrepareMgmFSInterface>>()) {}
+
+  std::unique_ptr<bulk::QueryPrepareResult> queryPrepare(
+    XrdSfsPrep& pargs, XrdOucErrInfo& error,
+    const common::VirtualIdentity* vidClient) override
+  {
+    (void)pargs;
+    (void)error;
+    (void)vidClient;
+    return std::make_unique<bulk::QueryPrepareResult>();
+  }
+};
 
 class TestableTapeRestApiBusiness : public TapeRestApiBusiness
 {
@@ -104,6 +124,29 @@ protected:
     request->addFile(std::make_unique<bulk::File>(path));
     bulk::InMemoryBulkRequestDAO dao(mStore);
     dao.addStageRequest(std::move(request));
+  }
+
+  bool stageRequestExists(const std::string& requestId) const
+  {
+    bulk::InMemoryBulkRequestDAO dao(mStore);
+    return dao.exists(requestId, bulk::BulkRequest::PREPARE_STAGE);
+  }
+
+  static void setupCancelPrepareMock(bulk::MockPrepareMgmFSInterface& mockFs)
+  {
+    using ::testing::_;
+    using ::testing::Invoke;
+    using ::testing::Return;
+
+    ON_CALL(mockFs, _exists(_, _, _, _, _, _))
+    .WillByDefault(Invoke(bulk::MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
+    ON_CALL(mockFs, _attr_ls(_, _, _, _, _, _))
+    .WillByDefault(Invoke(bulk::MockPrepareMgmFSInterface::_ATTR_LS_ABORT_PREPARE_LAMBDA));
+    ON_CALL(mockFs, _access(_, _, _, _, _)).WillByDefault(Return(SFS_OK));
+    ON_CALL(mockFs, FSctl(_, _, _, _)).WillByDefault(Return(SFS_OK));
+    ON_CALL(mockFs, get_logId()).WillByDefault(Return("log"));
+    ON_CALL(mockFs, get_host()).WillByDefault(Return("host"));
+    ON_CALL(mockFs, writeEosReportRecord(_)).WillByDefault(Return());
   }
 
   std::unique_ptr<bulk::PrepareManager> makePrepareManager(
