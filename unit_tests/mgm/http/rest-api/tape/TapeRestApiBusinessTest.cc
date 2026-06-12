@@ -25,6 +25,7 @@
 #include "mgm/bulk-request/MockPrepareMgmFSInterface.hh"
 #include "common/Constants.hh"
 #include "mgm/http/rest-api/exception/Exceptions.hh"
+#include "mgm/http/rest-api/model/tape/stage/CreateStageBulkRequestModel.hh"
 #include "mgm/http/rest-api/model/tape/stage/PathsModel.hh"
 #include <gmock/gmock.h>
 
@@ -198,5 +199,62 @@ TEST_F(TapeRestApiBusinessTest, getStageBulkRequestThrowsWhenQueryPrepareDoesNot
   addStageRequest(requestId, "/eos/user/file.txt", mIssuer);
   mBusiness->setPrepareManager(std::make_unique<eos::mgm::rest::UnfinishedQueryPrepareManager>());
   ASSERT_THROW(mBusiness->getStageBulkRequest(requestId, &mIssuer),
+               TapeRestApiBusinessException);
+}
+
+TEST_F(TapeRestApiBusinessTest, createStageBulkRequestCreatesStageRequestWithFiles)
+{
+  const std::string path = "/eos/user/stage-me.txt";
+  CreateStageBulkRequestModel model;
+  model.addFile(path, "");
+
+  auto mockFsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  setupStagePrepareMock(*mockFsPtr);
+  mBusiness->setBulkRequestPrepareManager(
+    makeBulkRequestPrepareManager(std::move(mockFsPtr)));
+
+  auto bulkRequest = mBusiness->createStageBulkRequest(&model, &mIssuer);
+  ASSERT_NE(nullptr, bulkRequest);
+  ASSERT_EQ(bulk::BulkRequest::PREPARE_STAGE, bulkRequest->getType());
+  ASSERT_FALSE(bulkRequest->getId().empty());
+  ASSERT_EQ(1u, bulkRequest->getFiles()->size());
+  EXPECT_EQ(path, bulkRequest->getFiles()->front()->getPath());
+}
+
+TEST_F(TapeRestApiBusinessTest, createStageBulkRequestThrowsWhenPrepareFails)
+{
+  CreateStageBulkRequestModel model;
+  model.addFile("/eos/user/file.txt", "");
+  mBusiness->setBulkRequestPrepareManager(
+    std::make_unique<eos::mgm::rest::FailingBulkRequestPrepareManager>(
+      "stage prepare failed"));
+
+  ASSERT_THROW(mBusiness->createStageBulkRequest(&model, &mIssuer),
+               TapeRestApiBusinessException);
+}
+
+TEST_F(TapeRestApiBusinessTest, releasePathsEvictsFilesFromModel)
+{
+  const std::string path = "/eos/user/release-me.txt";
+  PathsModel paths;
+  paths.addFile(path);
+
+  auto mockFsPtr = std::make_unique<NiceMock<MockPrepareMgmFSInterface>>();
+  setupEvictPrepareMock(*mockFsPtr);
+  mBusiness->setBulkRequestPrepareManager(
+    makeBulkRequestPrepareManager(std::move(mockFsPtr)));
+
+  ASSERT_NO_THROW(mBusiness->releasePaths(&paths, &mIssuer));
+}
+
+TEST_F(TapeRestApiBusinessTest, releasePathsThrowsWhenEvictFails)
+{
+  PathsModel paths;
+  paths.addFile("/eos/user/file.txt");
+  mBusiness->setBulkRequestPrepareManager(
+    std::make_unique<eos::mgm::rest::FailingBulkRequestPrepareManager>(
+      "evict prepare failed"));
+
+  ASSERT_THROW(mBusiness->releasePaths(&paths, &mIssuer),
                TapeRestApiBusinessException);
 }

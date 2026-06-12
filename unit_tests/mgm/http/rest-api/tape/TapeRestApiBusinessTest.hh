@@ -26,6 +26,7 @@
 
 #include "InMemoryBulkRequestDAO.hh"
 #include "mgm/bulk-request/MockPrepareMgmFSInterface.hh"
+#include "mgm/bulk-request/prepare/manager/BulkRequestPrepareManager.hh"
 #include "mgm/bulk-request/prepare/manager/PrepareManager.hh"
 #include "mgm/bulk-request/prepare/query-prepare/QueryPrepareResult.hh"
 #include "mgm/http/rest-api/business/tape/TapeRestApiBusiness.hh"
@@ -39,6 +40,27 @@ USE_EOSBULKNAMESPACE;
 USE_EOSMGMRESTNAMESPACE;
 
 EOSMGMRESTNAMESPACE_BEGIN
+
+class FailingBulkRequestPrepareManager : public bulk::BulkRequestPrepareManager
+{
+public:
+  explicit FailingBulkRequestPrepareManager(const std::string& errorMsg)
+    : bulk::BulkRequestPrepareManager(
+        std::make_unique<testing::NiceMock<bulk::MockPrepareMgmFSInterface>>()),
+      mErrorMsg(errorMsg) {}
+
+  int prepare(XrdSfsPrep& pargs, XrdOucErrInfo& error,
+              const common::VirtualIdentity* vid) override
+  {
+    (void)pargs;
+    (void)vid;
+    error.setErrInfo(1, mErrorMsg.c_str());
+    return SFS_ERROR;
+  }
+
+private:
+  std::string mErrorMsg;
+};
 
 class UnfinishedQueryPrepareManager : public bulk::PrepareManager
 {
@@ -70,6 +92,12 @@ public:
     mPrepareManager = std::move(prepareManager);
   }
 
+  void setBulkRequestPrepareManager(
+    std::unique_ptr<bulk::BulkRequestPrepareManager> prepareManager)
+  {
+    mBulkRequestPrepareManager = std::move(prepareManager);
+  }
+
 protected:
   std::shared_ptr<bulk::BulkRequestBusiness> createBulkRequestBusiness() override
   {
@@ -81,9 +109,16 @@ protected:
     return std::move(mPrepareManager);
   }
 
+  std::unique_ptr<bulk::BulkRequestPrepareManager> createBulkRequestPrepareManager()
+  override
+  {
+    return std::move(mBulkRequestPrepareManager);
+  }
+
 private:
   std::shared_ptr<bulk::BulkRequestBusiness> mBulkRequestBusiness;
   std::unique_ptr<bulk::PrepareManager> mPrepareManager;
+  std::unique_ptr<bulk::BulkRequestPrepareManager> mBulkRequestPrepareManager;
 };
 
 EOSMGMRESTNAMESPACE_END
@@ -149,10 +184,54 @@ protected:
     ON_CALL(mockFs, writeEosReportRecord(_)).WillByDefault(Return());
   }
 
+  static void setupStagePrepareMock(bulk::MockPrepareMgmFSInterface& mockFs)
+  {
+    using ::testing::_;
+    using ::testing::Invoke;
+    using ::testing::Return;
+
+    ON_CALL(mockFs, _exists(_, _, _, _, _, _))
+    .WillByDefault(Invoke(bulk::MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
+    ON_CALL(mockFs, _attr_ls(_, _, _, _, _, _))
+    .WillByDefault(Invoke(bulk::MockPrepareMgmFSInterface::_ATTR_LS_STAGE_PREPARE_LAMBDA));
+    ON_CALL(mockFs, _access(_, _, _, _, _)).WillByDefault(Return(SFS_OK));
+    ON_CALL(mockFs, FSctl(_, _, _, _)).WillByDefault(Return(SFS_OK));
+    ON_CALL(mockFs, getReqIdMaxCount()).WillByDefault(Return(64));
+    ON_CALL(mockFs, get_logId()).WillByDefault(Return("log"));
+    ON_CALL(mockFs, get_host()).WillByDefault(Return("host"));
+    ON_CALL(mockFs, writeEosReportRecord(_)).WillByDefault(Return());
+  }
+
+  static void setupEvictPrepareMock(bulk::MockPrepareMgmFSInterface& mockFs)
+  {
+    using ::testing::_;
+    using ::testing::Invoke;
+    using ::testing::Return;
+
+    ON_CALL(mockFs, _exists(_, _, _, _, _, _))
+    .WillByDefault(Invoke(bulk::MockPrepareMgmFSInterface::_EXISTS_VID_FILE_EXISTS_LAMBDA));
+    ON_CALL(mockFs, _attr_ls(_, _, _, _, _, _))
+    .WillByDefault(Invoke(bulk::MockPrepareMgmFSInterface::_ATTR_LS_EVICT_PREPARE_LAMBDA));
+    ON_CALL(mockFs, _access(_, _, _, _, _)).WillByDefault(Return(SFS_OK));
+    ON_CALL(mockFs, FSctl(_, _, _, _)).WillByDefault(Return(SFS_OK));
+    ON_CALL(mockFs, get_logId()).WillByDefault(Return("log"));
+    ON_CALL(mockFs, get_host()).WillByDefault(Return("host"));
+    ON_CALL(mockFs, writeEosReportRecord(_)).WillByDefault(Return());
+  }
+
   std::unique_ptr<bulk::PrepareManager> makePrepareManager(
     std::unique_ptr<bulk::MockPrepareMgmFSInterface> mockFs)
   {
     return std::make_unique<bulk::PrepareManager>(std::move(mockFs));
+  }
+
+  std::unique_ptr<bulk::BulkRequestPrepareManager> makeBulkRequestPrepareManager(
+    std::unique_ptr<bulk::MockPrepareMgmFSInterface> mockFs)
+  {
+    auto prepareManager =
+      std::make_unique<bulk::BulkRequestPrepareManager>(std::move(mockFs));
+    prepareManager->setBulkRequestBusiness(mBulkRequestBusiness);
+    return prepareManager;
   }
 
   static XrdSysError* mSysErr;
